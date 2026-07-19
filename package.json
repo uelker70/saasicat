@@ -15,6 +15,7 @@
         "format": "prettier --write ."
     },
     "devDependencies": {
+        "@changesets/cli": "^2.31.1",
         "@eslint/js": "^10.0.1",
         "eslint": "^10.2.0",
         "eslint-config-prettier": "^10.1.8",

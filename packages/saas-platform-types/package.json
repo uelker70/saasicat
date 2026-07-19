@@ -25,6 +25,7 @@
     "scripts": {
         "build": "tsup src/index.ts --format esm,cjs --dts --clean",
         "gen:types": "node scripts/gen-types-from-schemas.mjs",
+        "pretest": "pnpm run build",
         "test": "node --test 'tests/*.test.js'"
     },
     "devDependencies": {

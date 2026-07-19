@@ -27,6 +27,7 @@
     },
     "scripts": {
         "build": "tsup src/index.ts --format esm,cjs --dts --clean --external @saasicat/types --external @saasicat/nest --external @nestjs/common --external nest-commander --external qrcode-terminal",
+        "pretest": "pnpm run build",
         "test": "node --test tests/**/*.test.js"
     },
     "dependencies": {
