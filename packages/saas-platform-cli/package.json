@@ -1,0 +1,63 @@
+{
+    "name": "@saasicat/cli",
+    "version": "0.1.0",
+    "description": "CLI-Helpers für SaaS-Plattform-Konsumenten. Liefert CliContextService (Identity, MFA, Production-Confirm, Audit-Tag) gemäß cli-conventions.md.",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
+        }
+    },
+    "files": [
+        "dist",
+        "bin"
+    ],
+    "bin": {
+        "saas-platform": "./bin/saas-platform.js"
+    },
+    "scripts": {
+        "build": "tsup src/index.ts --format esm,cjs --dts --clean --external @saasicat/types --external @saasicat/nest --external @nestjs/common --external nest-commander --external qrcode-terminal",
+        "test": "node --test tests/**/*.test.js"
+    },
+    "dependencies": {
+        "@saasicat/nest": "workspace:^",
+        "@saasicat/spec": "workspace:^",
+        "@saasicat/types": "workspace:^",
+        "qrcode-terminal": "^0.12.0"
+    },
+    "peerDependencies": {
+        "@nestjs/common": "^11.0.0",
+        "nest-commander": "^3.20.0"
+    },
+    "devDependencies": {
+        "@nestjs/common": "^11.0.0",
+        "@types/node": "^25.6.0",
+        "nest-commander": "^3.20.0",
+        "tsup": "^8.0.0",
+        "typescript": "^6.0.0"
+    },
+    "license": "Apache-2.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/saas-platform-cli"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

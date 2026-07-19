@@ -1,0 +1,97 @@
+// =============================================================================
+// SaaS-Platform Prisma-Fragment: Plan-Versionierung
+// =============================================================================
+//
+// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+//
+// Globale Katalog-Tabellen (kein tenantId, kein RLS). Schreibzugriff nur über
+// SUPER_ADMIN-Guard im AdminController des `@saasicat/nest`-
+// Pakets.
+//
+// Pro Identitätsschlüssel (planId):
+//   - max. 1 Draft (publishedAt IS NULL) — Constraint via partial unique
+//     index in der Migration (Prisma-Schema kann partial unique nicht
+//     ausdrücken: in der SQL-Migration als
+//     `CREATE UNIQUE INDEX … WHERE published_at IS NULL` ergänzen).
+//   - mehrere veröffentlichte Versionen, monoton inkrementelles `version`.
+//   - `supersededAt` markiert „nicht mehr aktuell vermarktet"; die Version
+//     bleibt für Bestand abrechnungsgültig (vertragliche Plan-Garantie).
+//
+// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.3)
+//        + handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §3.1 (AutohausPro-Quelle)
+
+// -----------------------------------------------------------------------------
+// Plan — Stamm-Identität eines Plans (SPEC_V2 §11.1 M6).
+// `planKey` ist die fachliche Plan-Identität (STARTER / STANDARD / PROFESSIONAL),
+// pro `projectKey` unique. PlanVersion.planId zeigt **weich** auf
+// `Plan.planKey` (kein DB-FK — die Bindung wird in M6 über Service-Logik
+// erzwungen, damit der Greenfield-Cutover ohne destruktive Schema-Migration
+// laufen kann).
+//
+// Soft-Delete via `deletedAt`. Ein gelöschter Plan-Stamm verbirgt seine
+// PlanVersions im UI, lässt sie aber für Bestand-Subscriptions wirksam
+// (Vertragsschutz P1) — analog Bundle/BusinessType.
+// -----------------------------------------------------------------------------
+
+model Plan {
+    id          String  @id @default(uuid())
+    projectKey  String
+    planKey     String
+    label       String
+    description String?
+    icon        String?
+    sortOrder   Int     @default(0)
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deletedAt DateTime?
+
+    @@unique([projectKey, planKey])
+    @@index([projectKey, deletedAt])
+    @@map("plans")
+}
+
+// -----------------------------------------------------------------------------
+// PlanVersion — pro `planId` (= Plan-Key aus plans.yaml) genau ein Lineage.
+// -----------------------------------------------------------------------------
+
+model PlanVersion {
+    id            String  @id @default(uuid())
+    planId        String // Plan-Key aus plans.yaml (`plans[].id`)
+    version       Int
+    baseVersionId String? // Vorgänger, gegen den der Draft diff'tet (nullable für v1)
+
+    // Snapshot der Plan-Definition zum Zeitpunkt der Veröffentlichung.
+    // `features` ist das veröffentlichte Feature-Set als FeatureKey[].
+    // `quotas` ist ein freies JSON-Objekt; konkrete Quota-Keys kommen aus
+    // plans.yaml (`quotaKeys`-Pattern). Beispiel:
+    //   { "users": 5, "vehicles": 100, "storageGb": 50 }
+    features Json
+    quotas   Json
+
+    monthlyNet Decimal @db.Decimal(10, 2)
+    yearlyNet  Decimal @db.Decimal(10, 2) // Netto-Gesamtbetrag pro Jahr für YEARLY-Cycle
+    marketed   Boolean @default(true)
+
+    publishedAt      DateTime?
+    supersededAt     DateTime?
+    publishedChanges Json? // VersionChange[] — siehe @saasicat/types
+    changeNote       String
+    nonRegressive    Boolean @default(true)
+
+    createdByUserId   String?
+    publishedByUserId String?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    baseVersion          PlanVersion?   @relation("PlanVersionLineage", fields: [baseVersionId], references: [id])
+    derivedVersions      PlanVersion[]  @relation("PlanVersionLineage")
+    subscriptionsCurrent Subscription[] @relation("SubscriptionPlanVersion")
+    subscriptionsPending Subscription[] @relation("SubscriptionPendingPlanVersion")
+
+    @@unique([planId, version])
+    @@index([planId, supersededAt])
+    @@index([planId, publishedAt])
+    @@map("plan_versions")
+}

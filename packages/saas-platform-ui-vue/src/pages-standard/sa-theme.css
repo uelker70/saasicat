@@ -1,0 +1,224 @@
+/* SuperAdmin-UI Theme — CSS-Variablen für die Plattform-Pages.
+ *
+ * Konsumenten-Apps (autohauspro-admin, vereinsfux-admin, …) können einzelne
+ * Variablen via eigenem `:root`-Block in der App-CSS überschreiben — wie
+ * jede CSS-Var-Override. Klassen-Namen folgen dem `sa-`-Prefix-Konvention,
+ * d. h. eine App-CSS kann z. B. `.sa-tenants__title` punkt-genau
+ * neuformatieren ohne den Plattform-Code anzufassen.
+ *
+ * Spec: yada-services/handoff/superadmin/SPEC.md (Abschnitt UI/Theming).
+ */
+
+:root {
+    --sa-bg-app: #f1f5f9;
+    --sa-bg-surface: #ffffff;
+    --sa-primary: #3f6bff;
+    --sa-primary-soft: rgba(63, 107, 255, 0.08);
+    --sa-primary-softer: rgba(63, 107, 255, 0.04);
+    --sa-primary-border: rgba(63, 107, 255, 0.18);
+    --sa-positive: #047857;
+    --sa-positive-light: #10b981;
+    --sa-positive-soft: rgba(4, 120, 87, 0.1);
+    --sa-negative: #dc2626;
+    --sa-negative-soft: rgba(220, 38, 38, 0.08);
+    --sa-warning: #b45309;
+    --sa-warning-soft: rgba(245, 158, 11, 0.1);
+    --sa-amber: #f59e0b;
+    --sa-amber-light: #fbbf24;
+    --sa-amber-border: rgba(245, 158, 11, 0.3);
+    --sa-heading: #0f172a;
+    --sa-body: #1e293b;
+    --sa-muted: #64748b;
+    --sa-muted-dark: #475569;
+    --sa-border: #e2e8f0;
+    --sa-border-soft: #f1f5f9;
+    --sa-font-head: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    --sa-font-body: 'Inter', system-ui, sans-serif;
+    --sa-font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* ─────────────────────────────────────────────────────────────
+ * Shared Page-Chrome — Header-Strip, Stat-Pills, Toolbar, Card.
+ * Pattern aus der Plan-Simulation; Pages nutzen sie statt eigene
+ * BEM-Varianten anzulegen, damit der Look in der ganzen
+ * SuperAdmin-Surface konsistent bleibt.
+ * ───────────────────────────────────────────────────────────── */
+
+.sa-page-head {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.sa-page-head__title {
+    margin: 0;
+    font-family: var(--sa-font-head);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--sa-heading);
+}
+.sa-page-head__sub {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: var(--sa-muted);
+}
+.sa-page-head__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Stat-Pill-Strip — klickbare Filter-Tiles (siehe pl-stat in der Sim). */
+.sa-stats {
+    display: flex;
+    gap: 8px;
+    margin: 4px 0 16px;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+.sa-stat {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
+    border-radius: 10px;
+    padding: 10px 14px 9px;
+    cursor: pointer;
+    min-width: 112px;
+    transition:
+        border-color 0.12s,
+        background 0.12s,
+        box-shadow 0.12s;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+}
+.sa-stat:hover {
+    background: #fafbfd;
+    border-color: #cbd5e1;
+}
+.sa-stat--active {
+    border-color: var(--sa-heading);
+    box-shadow:
+        0 0 0 1px var(--sa-heading) inset,
+        0 2px 6px rgba(15, 23, 42, 0.06);
+}
+.sa-stat__num {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--sa-heading);
+    line-height: 1.05;
+}
+.sa-stat__label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--sa-muted);
+    margin-top: 2px;
+}
+.sa-stat__hint {
+    font: 500 10px var(--sa-font-mono);
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+/* Farbvarianten — analog active-state/warn-state/danger-state der Sim. */
+.sa-stat--positive .sa-stat__num {
+    color: var(--sa-positive);
+}
+.sa-stat--positive.sa-stat--active {
+    border-color: var(--sa-positive-light);
+    box-shadow:
+        0 0 0 1px var(--sa-positive-light) inset,
+        0 2px 6px rgba(16, 185, 129, 0.1);
+}
+.sa-stat--warn .sa-stat__num {
+    color: var(--sa-warning);
+}
+.sa-stat--warn.sa-stat--active {
+    border-color: var(--sa-amber);
+    box-shadow:
+        0 0 0 1px var(--sa-amber) inset,
+        0 2px 6px rgba(245, 158, 11, 0.1);
+}
+.sa-stat--danger .sa-stat__num {
+    color: var(--sa-negative);
+}
+.sa-stat--danger.sa-stat--active {
+    border-color: var(--sa-negative);
+    box-shadow:
+        0 0 0 1px var(--sa-negative) inset,
+        0 2px 6px rgba(239, 68, 68, 0.1);
+}
+.sa-stat--info .sa-stat__num {
+    color: #1d4ed8;
+}
+.sa-stat--info.sa-stat--active {
+    border-color: #3b82f6;
+    box-shadow:
+        0 0 0 1px #3b82f6 inset,
+        0 2px 6px rgba(59, 130, 246, 0.1);
+}
+.sa-stat--muted .sa-stat__num {
+    color: var(--sa-muted-dark);
+}
+.sa-stat--purple .sa-stat__num {
+    color: #6b21a8;
+}
+.sa-stat--purple.sa-stat--active {
+    border-color: #a855f7;
+    box-shadow:
+        0 0 0 1px #a855f7 inset,
+        0 2px 6px rgba(168, 85, 247, 0.1);
+}
+
+/* Toolbar (Search + Filter-Buttons + Sort). */
+.sa-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.sa-toolbar__search {
+    flex: 1;
+    min-width: 220px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
+    border-radius: 10px;
+    padding: 6px 12px;
+}
+.sa-toolbar__search input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: 13px var(--sa-font-body);
+    color: var(--sa-body);
+}
+.sa-toolbar__search input::placeholder {
+    color: #94a3b8;
+}
+
+/* Generic Card (Cards in Dashboard/Detail-Sektionen). */
+.sa-card {
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
+    border-radius: 12px;
+    padding: 16px 18px;
+}
+.sa-card__title {
+    margin: 0 0 12px;
+    font-family: var(--sa-font-head);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--sa-heading);
+    letter-spacing: -0.005em;
+}

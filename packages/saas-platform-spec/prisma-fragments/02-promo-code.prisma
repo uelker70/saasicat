@@ -1,0 +1,148 @@
+// =============================================================================
+// SaaS-Platform Prisma-Fragment: Promo-Codes
+// =============================================================================
+//
+// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+//
+// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.2)
+//        + handoff/onboarding/PROMO_CODES.md (AutohausPro-Quelle)
+//
+// Begleitende Fragmente:
+//   - 01-subscription.prisma  (PromoCodeRedemption ist 1:1 zu Subscription)
+
+// -----------------------------------------------------------------------------
+// Universelle Enums.
+// -----------------------------------------------------------------------------
+
+enum PromoCodeValueType {
+    PERCENT
+    ABSOLUTE
+}
+
+enum PromoCodeDurationType {
+    ONCE
+    MONTHS
+    BILLING_CYCLES
+}
+
+enum PromoCodeStatus {
+    ACTIVE
+    PAUSED
+    EXHAUSTED
+    EXPIRED
+}
+
+enum PromoCodeRedemptionStatus {
+    ACTIVE
+    REVERSED
+    EXPIRED
+}
+
+// -----------------------------------------------------------------------------
+// PromoCode — Marketing-Rabattcode für Onboarding-Checkout.
+// -----------------------------------------------------------------------------
+
+model PromoCode {
+    id        String             @id @default(uuid())
+    code      String             @unique // case-insensitive, gespeichert in UPPER
+    valueType PromoCodeValueType
+    value     Decimal            @db.Decimal(8, 2) // % bei PERCENT, EUR bei ABSOLUTE
+
+    // Laufzeit
+    durationType  PromoCodeDurationType @default(ONCE)
+    durationValue Int? // null bei ONCE; 1–24 bei MONTHS / BILLING_CYCLES
+
+    validFrom      DateTime?
+    validUntil     DateTime?
+    maxRedemptions Int? // null = unbegrenzt
+
+    // Verfügbarkeitsrelevant — zählt nur Redemptions mit status=ACTIVE.
+    // Atomar im redeem()-Pfad inkrementiert, beim Trial-Storno dekrementiert.
+    redemptionsCount Int @default(0)
+
+    // Plan-Whitelist als String[] — Werte sind plan-IDs aus plans.yaml.
+    // Konsumenten, die ein Postgres-Enum nutzen, können das Feld lokal casten.
+    appliesToPlans   String[] // leer = alle Pläne; sonst Whitelist
+    appliesToBilling BillingCycle? // null = beide; sonst nur MONTHLY oder YEARLY
+
+    // Anti-Missbrauch
+    firstTimeCustomersOnly Boolean  @default(true)
+    minimumPlanAmountGross Decimal? @db.Decimal(10, 2)
+    allowZeroInvoice       Boolean  @default(false)
+
+    status      PromoCodeStatus @default(ACTIVE)
+    description String?
+    campaignTag String?
+
+    // Buchhaltung — SKR-Konto-Nr. (z. B. "4736"); falls null, fällt der
+    // Konsument auf System-Default zurück (im Konsumenten konfigurierbar).
+    revenueDeductionAccount String?
+
+    createdById String // SUPER_ADMIN-User-Id (Konsumenten-FK, siehe Header)
+    createdAt   DateTime  @default(now())
+    updatedAt   DateTime  @updatedAt
+    deletedAt   DateTime? // Soft-Delete; nie hart löschen wegen Audit
+
+    redemptions    PromoCodeRedemption[]
+    validationLogs PromoCodeValidationLog[]
+
+    @@index([status, validFrom, validUntil])
+    @@index([campaignTag])
+    @@map("promo_codes")
+}
+
+// -----------------------------------------------------------------------------
+// PromoCodeRedemption — eine Subscription kann nur einen aktiven Code haben.
+// -----------------------------------------------------------------------------
+
+model PromoCodeRedemption {
+    id             String @id @default(uuid())
+    promoCodeId    String
+    subscriptionId String @unique
+    tenantId       String
+
+    // Snapshot der Code-Regel zum Zeitpunkt der Einlösung.
+    appliedValueType     PromoCodeValueType
+    appliedValue         Decimal               @db.Decimal(8, 2)
+    appliedDurationType  PromoCodeDurationType
+    appliedDurationValue Int?
+
+    // Gültigkeitsfenster — endsAt null bei ONCE, sonst aus Snapshot berechnet.
+    startsAt DateTime
+    endsAt   DateTime?
+
+    status     PromoCodeRedemptionStatus @default(ACTIVE)
+    redeemedAt DateTime                  @default(now())
+    reversedAt DateTime?
+
+    promoCode    PromoCode    @relation(fields: [promoCodeId], references: [id])
+    subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    // tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+    @@index([tenantId])
+    @@index([promoCodeId, status])
+    @@index([startsAt, endsAt])
+    @@map("promo_code_redemptions")
+}
+
+// -----------------------------------------------------------------------------
+// PromoCodeValidationLog — Audit-Trail aller Validierungs-Versuche
+// (auch fehlgeschlagene NOT_FOUND/EXPIRED), für Anti-Missbrauch-Analyse.
+// -----------------------------------------------------------------------------
+
+model PromoCodeValidationLog {
+    id          String   @id @default(uuid())
+    promoCodeId String? // null bei NOT_FOUND-Versuchen
+    codeAttempt String // Eingabe in UPPER (auch bei NOT_FOUND aufgehoben)
+    ipHash      String? // Hash der IP, kein Klartext (Datenschutz)
+    sessionId   String? // Onboarding-Session / CSRF-Token
+    result      String // "VALID" | "EXPIRED" | "EXHAUSTED" | "NOT_FOUND" | "PLAN_MISMATCH" | …
+    createdAt   DateTime @default(now())
+
+    promoCode PromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+
+    @@index([codeAttempt, createdAt])
+    @@index([ipHash, createdAt])
+    @@index([sessionId, createdAt])
+    @@map("promo_code_validation_logs")
+}

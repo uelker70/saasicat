@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>SaaS-Platform UI-Vue E2E Fixture</title>
+        <script type="importmap">
+            {
+                "imports": {
+                    "vue": "https://unpkg.com/vue@3.5.13/dist/vue.runtime.esm-browser.prod.js"
+                }
+            }
+        </script>
+    </head>
+    <body>
+        <div id="root">Loading…</div>
+        <script type="module">
+            // Lädt das gebaute Plattform-Bundle aus ../../dist/index.js. Vue wird via
+            // importmap aus einem CDN aufgelöst, weil das Plattform-Bundle vue als
+            // `external` markiert hat (siehe package.json build-Skript).
+            //
+            // Stellt die Loader/Composables global verfügbar — Playwright-Tests
+            // interagieren via page.evaluate() damit. Vue selbst wird nicht gemounted;
+            // das ist ein Service-Layer-Test, keine Component-Render-Suite.
+            try {
+                const mod = await import('../../dist/index.js');
+                window.__platform = {
+                    BootLoader: mod.BootLoader,
+                    ManifestLoader: mod.ManifestLoader,
+                    ActionRegistry: mod.ActionRegistry,
+                    BatchColumnFetcher: mod.BatchColumnFetcher,
+                    buildRoutes: mod.buildRoutes,
+                    buildSidebar: mod.buildSidebar,
+                    useBulkPublish: mod.useBulkPublish,
+                    usePlanEditor: mod.usePlanEditor,
+                    PlannedOnlyFeatureError: mod.PlannedOnlyFeatureError,
+                };
+                document.getElementById('root').textContent = 'Platform UI Bundle loaded.';
+            } catch (err) {
+                document.getElementById('root').textContent = 'Bundle failed: ' + err.message;
+                window.__platformError = err.message;
+            }
+        </script>
+    </body>
+</html>

@@ -1,0 +1,1728 @@
+openapi: 3.1.0
+
+# SaaS-Plattform · SuperAdmin-API-Vertrag
+# Paket: @saasicat/spec
+#
+# NORMATIVER Vertrag für das SuperAdmin-Backend. Jede Implementierung
+# (Referenz: @saasicat/nest) MUSS diesen Vertrag erfüllen. Acceptance-Tests
+# in saas-platform-spec/acceptance/ validieren Implementierungen gegen genau
+# diese Endpoints.
+#
+# Pfad-Konvention (siehe SPEC §8.1): Alle Admin-Endpoints liegen unter
+# `/api/v1/admin/...`. Der `v1`-Prefix entspricht dem globalPrefix der
+# Konsumenten-Backends. Frontend-Slug `/admin/...`
+# ist unabhängig konfigurierbar.
+#
+# Nicht enthalten (bewusst):
+#   - Tenant-Endkunden-API (Self-Service Plan-Wechsel) — separate Datei
+#   - Onboarding-API — separate Datei (nutzt PromoCode-Preview)
+#   - X-Rechnung — eigenes Paket, eigene OpenAPI-Datei
+
+info:
+    title: SaaS-Plattform SuperAdmin-API
+    version: 0.1.0-draft
+    description: |
+        Read- und Write-Operationen für die Plattform-Verwaltung:
+        Tenants, Users, Subscriptions, Promo-Codes, Audit-Log,
+        Manifest-Discovery, plus Plan-Catalog-Lookup.
+        Authentifizierung via JWT mit Rolle SUPER_ADMIN; alle schreibenden
+        Operationen verlangen zusätzlich einen TOTP-Code im Header
+        X-Mfa-Code, sofern der Admin MFA aktiviert hat (sonst 401
+        MFA_REQUIRED). Manifest ist nie Security-Quelle (siehe SPEC §10.4).
+
+servers:
+    - url: https://{host}/api/v1/admin
+      variables:
+          host:
+              default: localhost:3000
+              description: Konsumenten-spezifischer Host (Domain der jeweiligen App)
+
+tags:
+    - name: tenants
+    - name: users
+    - name: plans
+    - name: subscriptions
+    - name: promo-codes
+    - name: audit
+    - name: dashboard
+    - name: mfa
+    - name: manifest
+    - name: catalog
+
+security:
+    - bearerAuth: []
+
+paths:
+    # ────────────────────────────────────────────────────────
+    # Manifest (UI-Discovery, SPEC §4 + §8.2-8.3)
+    # ────────────────────────────────────────────────────────
+
+    /boot:
+        get:
+            tags: [manifest]
+            security: [] # PUBLIC — kein Auth
+            summary: Minimale Branding-Konfiguration für die Login-Seite
+            description: |
+                Pre-Login-Boot. Enthält ausschließlich Branding (project.key,
+                displayName, logoUrl, environment) — KEINE Capabilities, Pages,
+                oder Endpoints. Schema verbietet weitere Felder. Siehe SPEC §10.4.
+            responses:
+                '200':
+                    description: Public-Boot
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [project]
+                                additionalProperties: false
+                                properties:
+                                    project:
+                                        type: object
+                                        required: [key, displayName]
+                                        additionalProperties: false
+                                        properties:
+                                            key: { type: string }
+                                            displayName: { type: string }
+                                            logoUrl: { type: string }
+                                            environment:
+                                                {
+                                                    type: string,
+                                                    enum: [production, staging, development],
+                                                }
+
+    /manifest:
+        get:
+            tags: [manifest]
+            summary: Vollständiges UI-Discovery-Manifest (auth-pflichtig)
+            description: |
+                Auth-Pflicht: SUPER_ADMIN. Lehnt non-SUPER_ADMIN-Requests mit 403 ab.
+                Cache: ETag = manifestHash + Cache-Control private, max-age=60,
+                must-revalidate. Schema in admin-manifest.schema.json.
+            parameters:
+                - name: If-None-Match
+                  in: header
+                  schema: { type: string }
+                  description: ETag = manifestHash. Bei Match → 304.
+            responses:
+                '200':
+                    description: Manifest
+                    headers:
+                        ETag:
+                            schema: { type: string }
+                        Cache-Control:
+                            schema: { type: string }
+                            example: 'private, max-age=60, must-revalidate'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: 'admin-manifest.schema.json'
+                '304':
+                    description: Unverändert seit ETag
+                '403':
+                    description: Nicht SUPER_ADMIN
+
+    /manifest/reload:
+        post:
+            tags: [manifest]
+            summary: Manifest neu aufbauen (nach plans.yaml-Änderung)
+            x-mfa-required: true
+            responses:
+                '200':
+                    description: Geladen
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [manifestHash, reloadedAt]
+                                properties:
+                                    manifestHash: { type: string }
+                                    reloadedAt: { type: string, format: date-time }
+
+    # ────────────────────────────────────────────────────────
+    # Dashboard
+    # ────────────────────────────────────────────────────────
+    /dashboard/stats:
+        get:
+            tags: [dashboard]
+            summary: Globale Plattform-Kennzahlen
+            responses:
+                '200':
+                    description: KPIs
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DashboardStats'
+
+    # ────────────────────────────────────────────────────────
+    # Plan-Catalog (read-only — Pflege via Datei + Reload-Endpoint)
+    # ────────────────────────────────────────────────────────
+    /plans:
+        get:
+            tags: [plans]
+            summary: Aktuell geladener Plan-Catalog
+            responses:
+                '200':
+                    description: Catalog
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PlanCatalog'
+
+    /plans/reload:
+        post:
+            tags: [plans]
+            summary: Plan-Catalog neu von Datei laden (für Admin-CLI / Hot-Reload-Dev)
+            x-mfa-required: true
+            responses:
+                '200':
+                    description: Geladen
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    loadedAt: { type: string, format: date-time }
+                                    planCount: { type: integer }
+                                    source: { type: string, description: Pfad oder URL }
+
+    /plans/last-update:
+        get:
+            tags: [plans]
+            summary: Wann wurde der Catalog zuletzt geladen + Hash
+            responses:
+                '200':
+                    description: Meta
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    loadedAt: { type: string, format: date-time }
+                                    hash: { type: string, description: SHA-256 des YAML-Inhalts }
+
+    # ────────────────────────────────────────────────────────
+    # Tenants
+    # ────────────────────────────────────────────────────────
+    /tenants:
+        get:
+            tags: [tenants]
+            summary: Liste aller Tenants
+            parameters:
+                - $ref: '#/components/parameters/Page'
+                - $ref: '#/components/parameters/PageSize'
+                - name: status
+                  in: query
+                  schema: { type: string, enum: [active, suspended, deleted] }
+                - name: plan
+                  in: query
+                  schema: { type: string }
+                - name: search
+                  in: query
+                  schema: { type: string, description: 'Volltext über slug/name/email' }
+            responses:
+                '200':
+                    description: Paginierte Liste
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: '#/components/schemas/PaginatedEnvelope'
+                                    - properties:
+                                          items:
+                                              type: array
+                                              items: { $ref: '#/components/schemas/AdminTenantRow' }
+
+        post:
+            tags: [tenants]
+            summary: Tenant manuell anlegen (Bypass des Onboarding-Flows)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/CreateTenantRequest' }
+            responses:
+                '201':
+                    description: Erstellt
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminTenantDetail' }
+
+    /tenants/{slug}:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [tenants]
+            summary: Detail eines Tenants inkl. Subscription, Add-ons, Quota-Verbrauch
+            responses:
+                '200':
+                    description: Detail
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/AdminTenantDetail' }
+        delete:
+            tags: [tenants]
+            summary: Tenant soft-deleten (deletedAt setzen)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [reason, confirmSlug]
+                            properties:
+                                reason: { type: string, minLength: 10 }
+                                confirmSlug:
+                                    {
+                                        type: string,
+                                        description: 'Muss exakt dem Tenant-Slug entsprechen',
+                                    }
+            responses:
+                '200': { description: Gelöscht }
+
+    /tenants/{slug}/suspend:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        post:
+            tags: [tenants]
+            summary: Tenant deaktivieren (login wird blockiert, Daten bleiben)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [reason]
+                            properties:
+                                reason: { type: string, minLength: 5 }
+            responses:
+                '200': { description: Suspended }
+
+    /tenants/{slug}/reactivate:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        post:
+            tags: [tenants]
+            summary: Suspendierten Tenant wieder aktivieren
+            x-mfa-required: true
+            responses:
+                '200': { description: Reaktiviert }
+
+    /tenants/{slug}/impersonate:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        post:
+            tags: [tenants]
+            summary: Kurzzeit-JWT als TENANT_ADMIN für Support-Einblick
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [reason, ttlMinutes]
+                            properties:
+                                reason: { type: string, minLength: 5 }
+                                ttlMinutes: { type: integer, minimum: 5, maximum: 60 }
+            responses:
+                '200':
+                    description: Impersonation-Token
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    token: { type: string }
+                                    expiresAt: { type: string, format: date-time }
+                                    auditId: { type: string }
+
+    /tenants/{slug}/export:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [tenants]
+            summary: GDPR-/Audit-Export aller Tenant-Daten als ZIP
+            x-mfa-required: true
+            responses:
+                '200':
+                    description: ZIP-Stream
+                    content:
+                        application/zip:
+                            schema: { type: string, format: binary }
+
+    # ────────────────────────────────────────────────────────
+    # Subscription pro Tenant
+    # ────────────────────────────────────────────────────────
+    /tenants/{slug}/subscription:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        get:
+            tags: [subscriptions]
+            summary: Aktuelle Subscription + Add-ons + effektive Limits
+            responses:
+                '200':
+                    description: Subscription
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/SubscriptionDetail' }
+
+        patch:
+            tags: [subscriptions]
+            summary: Plan, Custom-Limits oder Pilot-Markierung ändern
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                planId: { type: string }
+                                billingCycle: { type: string, enum: [MONTHLY, YEARLY] }
+                                customLimits:
+                                    type: object
+                                    additionalProperties:
+                                        type: integer
+                                        description: 'quotaKey → maxValue (-1 = unbegrenzt)'
+                                customMonthlyNet: { type: number, format: decimal }
+                                isPilot: { type: boolean }
+                                pilotEndsAt: { type: string, format: date-time }
+                                pilotNote: { type: string }
+                                customNote: { type: string }
+            responses:
+                '200':
+                    description: Geändert
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/SubscriptionDetail' }
+
+    # ────────────────────────────────────────────────────────
+    # Users
+    # ────────────────────────────────────────────────────────
+    /users:
+        get:
+            tags: [users]
+            summary: Cross-Tenant-User-Suche
+            parameters:
+                - name: email
+                  in: query
+                  schema: { type: string }
+                - name: tenantSlug
+                  in: query
+                  schema: { type: string }
+                - $ref: '#/components/parameters/Page'
+            responses:
+                '200':
+                    description: Paginierte Liste
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: '#/components/schemas/PaginatedEnvelope'
+                                    - properties:
+                                          items:
+                                              type: array
+                                              items: { $ref: '#/components/schemas/AdminUserRow' }
+
+    /users/{id}/reset-password:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: { type: string }
+        post:
+            tags: [users]
+            summary: Password-Reset-Mail auslösen (sendet keine Klartext-Passwörter)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [reason]
+                            properties:
+                                reason: { type: string, minLength: 5 }
+            responses:
+                '200': { description: Mail versendet }
+
+    /users/{id}/deactivate:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: { type: string }
+        post:
+            tags: [users]
+            summary: User deaktivieren (login blockieren)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [reason]
+                            properties:
+                                reason: { type: string, minLength: 5 }
+            responses:
+                '200': { description: Deaktiviert }
+
+    /tenants/{slug}/users/reassign-admin:
+        parameters:
+            - $ref: '#/components/parameters/TenantSlug'
+        post:
+            tags: [users]
+            summary: TENANT_ADMIN-Rolle auf anderen User übertragen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [newAdminUserId]
+                            properties:
+                                newAdminUserId: { type: string }
+                                demoteOldAdminTo:
+                                    type: string
+                                    description: 'Plattform-neutrale Rolle des alten Admins. Default: TENANT_MEMBER.'
+                                    default: TENANT_MEMBER
+            responses:
+                '200': { description: Zugewiesen }
+
+    # ────────────────────────────────────────────────────────
+    # Promo-Codes
+    # ────────────────────────────────────────────────────────
+    /promo-codes:
+        get:
+            tags: [promo-codes]
+            summary: Liste aller Promo-Codes
+            parameters:
+                - name: status
+                  in: query
+                  schema: { type: string, enum: [ACTIVE, PAUSED, EXHAUSTED, EXPIRED] }
+                - name: campaignTag
+                  in: query
+                  schema: { type: string }
+                - $ref: '#/components/parameters/Page'
+            responses:
+                '200':
+                    description: Liste
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: '#/components/schemas/PaginatedEnvelope'
+                                    - properties:
+                                          items:
+                                              type: array
+                                              items: { $ref: '#/components/schemas/PromoCodeDto' }
+
+        post:
+            tags: [promo-codes]
+            summary: Neuen Promo-Code anlegen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/CreatePromoCodeRequest' }
+            responses:
+                '201':
+                    description: Erstellt
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/PromoCodeDto' }
+
+    /promo-codes/{id}:
+        parameters:
+            - name: id
+              in: path
+              required: true
+              schema: { type: string, format: uuid }
+        get:
+            tags: [promo-codes]
+            responses:
+                '200':
+                    description: Detail
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/PromoCodeDetail' }
+
+        patch:
+            tags: [promo-codes]
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema: { $ref: '#/components/schemas/UpdatePromoCodeRequest' }
+            responses:
+                '200':
+                    description: Aktualisiert
+                    content:
+                        application/json:
+                            schema: { $ref: '#/components/schemas/PromoCodeDto' }
+
+        delete:
+            tags: [promo-codes]
+            summary: Soft-Delete (Audit bleibt erhalten)
+            x-mfa-required: true
+            responses:
+                '200': { description: Gelöscht }
+
+    # ────────────────────────────────────────────────────────
+    # Audit-Log
+    # ────────────────────────────────────────────────────────
+    /audit:
+        get:
+            tags: [audit]
+            summary: Audit-Log mit Filtern
+            parameters:
+                - name: tenantId
+                  in: query
+                  schema: { type: string }
+                - name: userId
+                  in: query
+                  schema: { type: string }
+                - name: entity
+                  in: query
+                  schema: { type: string }
+                - name: entityId
+                  in: query
+                  schema: { type: string }
+                - name: action
+                  in: query
+                  schema: { type: string }
+                - name: actorTag
+                  in: query
+                  schema: { type: string, description: 'z. B. cli:* für alle CLI-Aktionen' }
+                - name: from
+                  in: query
+                  schema: { type: string, format: date-time }
+                - name: to
+                  in: query
+                  schema: { type: string, format: date-time }
+                - $ref: '#/components/parameters/Page'
+            responses:
+                '200':
+                    description: Liste
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: '#/components/schemas/PaginatedEnvelope'
+                                    - properties:
+                                          items:
+                                              type: array
+                                              items: { $ref: '#/components/schemas/AuditEntryDto' }
+
+    # ────────────────────────────────────────────────────────
+    # MFA
+    # ────────────────────────────────────────────────────────
+    /mfa/setup:
+        post:
+            tags: [mfa]
+            summary: TOTP-Setup starten (liefert QR-Code-URI + Secret)
+            responses:
+                '200':
+                    description: Setup-Daten
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    otpauthUri: { type: string }
+                                    secret: { type: string }
+                                    recoveryCodes:
+                                        type: array
+                                        items: { type: string }
+
+    /mfa/confirm:
+        post:
+            tags: [mfa]
+            summary: Setup mit erstem Code bestätigen
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [code]
+                            properties:
+                                code: { type: string, pattern: '^[0-9]{6}$' }
+            responses:
+                '200': { description: Aktiviert }
+
+    # ────────────────────────────────────────────────────────
+    # Catalog V2 — Plan/Bundle/BusinessType/Marketing/Promotion + Discovery
+    # (CatalogModule, saas-platform-nest/src/catalog/*; DTO = SSOT für Schemas)
+    # ────────────────────────────────────────────────────────
+
+    # ── Plans ──
+    /catalog/plans:
+        get:
+            tags: [catalog]
+            summary: Plan-Stämme auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: Plan-Stamm anlegen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogPlanCreate' } } }
+            responses:
+                '201': { description: Erstellt }
+                '422': { description: Validierung, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+
+    /catalog/plans/tenant-counts:
+        get:
+            tags: [catalog]
+            summary: Aktive Subscriptions je planKey (versionsübergreifend)
+            description: >-
+                Plattformweite Anzahl aktiver Subscriptions gruppiert nach planKey
+                (über alle PlanVersionen hinweg). Speist den Default von
+                tenantCountsByPlanKey im SuperAdmin-Katalog-UI.
+            responses:
+                '200':
+                    description: Map planKey → Anzahl aktiver Subscriptions
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: { type: integer, minimum: 0 }
+                                example: { STARTER: 12, STANDARD: 4, ENTERPRISE: 1 }
+
+    /catalog/plans/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: Plan-Stamm Detail (inkl. Versionen)
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: Plan-Stamm aktualisieren (Label/Beschreibung/Icon/sortOrder)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogStampUpdate' } } }
+            responses: { '200': { description: Aktualisiert } }
+        delete:
+            tags: [catalog]
+            summary: Plan-Stamm soft-deleten
+            x-mfa-required: true
+            responses: { '200': { description: Gelöscht } }
+
+    /catalog/plans/{id}/purge:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        delete:
+            tags: [catalog]
+            summary: Plan-Stamm hart löschen (nur ohne aktive Referenzen)
+            x-mfa-required: true
+            responses:
+                '200': { description: Gepurged }
+                '422': { description: Noch referenziert, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+
+    /catalog/plans/{id}/versions:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: PlanVersionen eines Plans auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: PlanVersion-Entwurf anlegen (unpublished, publishedAt=null)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogPlanVersionDraft' } } }
+            responses: { '201': { description: Entwurf angelegt } }
+
+    /catalog/plan-versions/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: PlanVersion Detail
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: PlanVersion-Entwurf aktualisieren (solange unpublished)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogPlanVersionDraft' } } }
+            responses: { '200': { description: Aktualisiert } }
+        delete:
+            tags: [catalog]
+            summary: PlanVersion-Entwurf verwerfen (nur unpublished)
+            x-mfa-required: true
+            responses: { '200': { description: Verworfen } }
+
+    /catalog/plan-versions/{id}/publish:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        post:
+            tags: [catalog]
+            summary: PlanVersion publishen (supersedet Vorgänger)
+            description: |
+                validFrom ist Pflicht, falls der Entwurf keins trägt, und muss
+                strikt nach der Vorgänger-Version liegen. Regressive Diffs
+                erfordern forceRegressive; Preis 0,00 erfordert allowZeroPrice.
+            x-mfa-required: true
+            requestBody:
+                required: false
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogVersionPublish' } } }
+            responses:
+                '201': { description: Published }
+                '422': { description: 'Regression / validFrom / Preis-Gate', content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+
+    /catalog/plan-versions/{id}/terminate:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        post:
+            tags: [catalog]
+            summary: PlanVersion auslaufen lassen (endsAt; ohne Nachfolge-Version)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogPlanVersionTerminate' } } }
+            responses: { '200': { description: Terminiert } }
+
+    # ── Bundles ──
+    /catalog/bundles:
+        get:
+            tags: [catalog]
+            summary: Bundle-Stämme auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: Bundle-Stamm anlegen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBundleCreate' } } }
+            responses: { '201': { description: Erstellt } }
+
+    /catalog/bundles/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: Bundle-Stamm Detail
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: Bundle-Stamm aktualisieren (Label/Beschreibung/Icon/sortOrder/i18n)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBundleUpdate' } } }
+            responses: { '200': { description: Aktualisiert } }
+        delete:
+            tags: [catalog]
+            summary: Bundle-Stamm soft-deleten
+            x-mfa-required: true
+            responses: { '200': { description: Gelöscht } }
+
+    /catalog/bundles/{id}/versions:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: BundleVersionen auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: BundleVersion-Entwurf anlegen (unpublished)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBundleVersionDraft' } } }
+            responses: { '201': { description: Entwurf angelegt } }
+
+    /catalog/bundle-versions/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: BundleVersion Detail
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: BundleVersion-Entwurf aktualisieren (solange unpublished)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBundleVersionDraft' } } }
+            responses: { '200': { description: Aktualisiert } }
+        delete:
+            tags: [catalog]
+            summary: BundleVersion-Entwurf verwerfen (nur unpublished)
+            x-mfa-required: true
+            responses: { '200': { description: Verworfen } }
+
+    /catalog/bundle-versions/{id}/publish:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        post:
+            tags: [catalog]
+            summary: BundleVersion publishen (supersedet Vorgänger; validFrom Pflicht)
+            x-mfa-required: true
+            requestBody:
+                required: false
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogVersionPublish' } } }
+            responses:
+                '201': { description: Published }
+                '422': { description: 'Regression / validFrom / Preis-Gate', content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+
+    # ── Business-Types ──
+    /catalog/business-types:
+        get:
+            tags: [catalog]
+            summary: BusinessType-Stämme auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: BusinessType-Stamm anlegen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBusinessTypeCreate' } } }
+            responses: { '201': { description: Erstellt } }
+
+    /catalog/business-types/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: BusinessType-Stamm Detail
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: BusinessType-Stamm aktualisieren
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogStampUpdate' } } }
+            responses: { '200': { description: Aktualisiert } }
+        delete:
+            tags: [catalog]
+            summary: BusinessType-Stamm soft-deleten
+            x-mfa-required: true
+            responses: { '200': { description: Gelöscht } }
+
+    /catalog/business-types/{id}/versions:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: BusinessTypeVersionen auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: BusinessTypeVersion-Entwurf anlegen (Bundle-Zusammenstellung)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBusinessTypeVersionDraft' } } }
+            responses: { '201': { description: Entwurf angelegt } }
+
+    /catalog/business-type-versions/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: BusinessTypeVersion Detail
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: BusinessTypeVersion-Entwurf aktualisieren
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBusinessTypeVersionDraft' } } }
+            responses: { '200': { description: Aktualisiert } }
+
+    /catalog/business-type-versions/{id}/publish:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        post:
+            tags: [catalog]
+            summary: BusinessTypeVersion publishen
+            x-mfa-required: true
+            requestBody:
+                required: false
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogBusinessTypeVersionPublish' } } }
+            responses: { '201': { description: Published } }
+
+    # ── Marketing-Projections + Settings ──
+    /catalog/marketing-projections:
+        get:
+            tags: [catalog]
+            summary: MarketingProjections auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: MarketingProjection anlegen (Plan/Bundle/BusinessType, locale-spezifisch)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogMarketingProjectionCreate' } } }
+            responses: { '201': { description: Erstellt } }
+
+    /catalog/marketing-projections/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: MarketingProjection Detail
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: MarketingProjection aktualisieren
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogMarketingProjectionUpdate' } } }
+            responses: { '200': { description: Aktualisiert } }
+        delete:
+            tags: [catalog]
+            summary: MarketingProjection löschen
+            x-mfa-required: true
+            responses: { '200': { description: Gelöscht } }
+
+    /catalog/marketing-settings:
+        get:
+            tags: [catalog]
+            summary: Marketing-Settings (aktive Locales) lesen
+            responses: { '200': { description: Settings } }
+        put:
+            tags: [catalog]
+            summary: Marketing-Settings setzen (aktive Locales je Projekt)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogMarketingSettingsUpdate' } } }
+            responses: { '200': { description: Gesetzt } }
+
+    # ── Promotions ──
+    /catalog/promotions:
+        get:
+            tags: [catalog]
+            summary: Promotions auflisten
+            responses: { '200': { description: Liste } }
+        post:
+            tags: [catalog]
+            summary: Promotion anlegen (Rabatt/Intro/Gratismonate)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogPromotionCreate' } } }
+            responses: { '201': { description: Erstellt } }
+
+    /catalog/promotions/{id}:
+        parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+        get:
+            tags: [catalog]
+            summary: Promotion Detail
+            responses: { '200': { description: Detail } }
+        patch:
+            tags: [catalog]
+            summary: Promotion aktualisieren
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogPromotionUpdate' } } }
+            responses: { '200': { description: Aktualisiert } }
+        delete:
+            tags: [catalog]
+            summary: Promotion soft-deleten
+            x-mfa-required: true
+            responses: { '200': { description: Gelöscht } }
+
+    # ── Feature-/Quota-/Capability-Katalog (Discovery-Pflege) ──
+    /catalog/capabilities:
+        get: { tags: [catalog], summary: Discoverte Capabilities auflisten, responses: { '200': { description: Liste } } }
+
+    /catalog/features:
+        get: { tags: [catalog], summary: Feature-Katalog-Einträge auflisten, responses: { '200': { description: Liste } } }
+
+    /catalog/quotas:
+        get: { tags: [catalog], summary: Quota-Katalog-Einträge auflisten, responses: { '200': { description: Liste } } }
+
+    /catalog/features/{key}:
+        parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+        patch:
+            tags: [catalog]
+            summary: Feature-Katalog-Eintrag pflegen (Label/Beschreibung/Icon/Tier)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogEntryBaseUpdate' } } }
+            responses: { '200': { description: Aktualisiert } }
+
+    /catalog/features/{key}/review:
+        parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+        patch:
+            tags: [catalog]
+            summary: Feature-Freigabe-Status setzen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogEntryReview' } } }
+            responses: { '200': { description: Gesetzt } }
+
+    /catalog/features/{key}/i18n:
+        parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+        patch:
+            tags: [catalog]
+            summary: Feature-i18n setzen (Locale-Übersetzungen)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogEntryI18nUpdate' } } }
+            responses: { '200': { description: Gesetzt } }
+
+    /catalog/quotas/{key}:
+        parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+        patch:
+            tags: [catalog]
+            summary: Quota-Katalog-Eintrag pflegen (Label/Beschreibung)
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogEntryBaseUpdate' } } }
+            responses: { '200': { description: Aktualisiert } }
+
+    /catalog/quotas/{key}/review:
+        parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+        patch:
+            tags: [catalog]
+            summary: Quota-Freigabe-Status setzen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogEntryReview' } } }
+            responses: { '200': { description: Gesetzt } }
+
+    /catalog/quotas/{key}/i18n:
+        parameters: [{ name: key, in: path, required: true, schema: { type: string } }]
+        patch:
+            tags: [catalog]
+            summary: Quota-i18n setzen
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogEntryI18nUpdate' } } }
+            responses: { '200': { description: Gesetzt } }
+
+    /catalog/discovery/sync:
+        post:
+            tags: [catalog]
+            summary: Discovery-Snapshot in den Katalog synchronisieren
+            x-mfa-required: true
+            requestBody:
+                required: true
+                content: { application/json: { schema: { $ref: '#/components/schemas/CatalogDiscoverySync' } } }
+            responses: { '200': { description: Synchronisiert } }
+
+    # ── Discovery (Scan/Status, außerhalb /catalog) ──
+    /discovery:
+        get: { tags: [catalog], summary: Aktueller Discovery-Snapshot/Status, responses: { '200': { description: Snapshot } } }
+
+    /discovery/rescan:
+        post: { tags: [catalog], summary: Discovery-Scan neu ausführen, x-mfa-required: true, responses: { '200': { description: Gescannt } } }
+
+components:
+    securitySchemes:
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+
+    parameters:
+        Page:
+            name: page
+            in: query
+            schema: { type: integer, minimum: 1, default: 1 }
+        PageSize:
+            name: pageSize
+            in: query
+            schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        TenantSlug:
+            name: slug
+            in: path
+            required: true
+            schema: { type: string, pattern: '^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$' }
+
+    schemas:
+        # ────────── Catalog V2 (DTO = SSOT: saas-platform-nest/src/catalog/dto/*) ──────────
+        CatalogPlanCreate:
+            type: object
+            required: [projectKey, planKey, label]
+            properties:
+                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$', description: 'kebab-case' }
+                planKey:
+                    { type: string, pattern: '^[A-Z][A-Z0-9_]*$', description: 'SCREAMING_SNAKE, kein Bindestrich' }
+                label: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 2000 }
+                icon: { type: string, maxLength: 64 }
+                sortOrder: { type: integer, minimum: 0, maximum: 10000 }
+
+        CatalogPlanVersionDraft:
+            type: object
+            required: [features, quotas, monthlyNet, yearlyNet]
+            properties:
+                features:
+                    type: array
+                    items: { type: string, pattern: '^[A-Z][A-Z0-9_]*$' }
+                bundles:
+                    type: array
+                    items: { type: string, pattern: '^[A-Z][A-Z0-9_]*$' }
+                quotas:
+                    type: object
+                    additionalProperties: { type: number }
+                    description: 'camelCase-Keys, z. B. {"members": 150}'
+                monthlyNet:
+                    { type: string, pattern: '^\d+(\.\d{1,2})?$', description: 'EUR-Decimal-String, nicht Cent' }
+                yearlyNet: { type: string, pattern: '^\d+(\.\d{1,2})?$' }
+                marketed: { type: boolean }
+                changeNote: { type: string, maxLength: 2000 }
+                baseVersionId: { type: string, nullable: true }
+                validFrom: { type: string, nullable: true, description: 'YYYY-MM-DD oder ISO-8601' }
+                validUntil: { type: string, nullable: true }
+
+        CatalogBundleCreate:
+            type: object
+            required: [projectKey, bundleKey, label]
+            properties:
+                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
+                bundleKey:
+                    { type: string, pattern: '^[A-Z][A-Z0-9_]*$', description: 'kein Bindestrich' }
+                label: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 2000 }
+                icon: { type: string, maxLength: 64 }
+                sortOrder: { type: integer, minimum: 0, maximum: 10000 }
+                i18n: { type: object, additionalProperties: { type: object } }
+
+        CatalogBundleVersionDraft:
+            type: object
+            required: [features]
+            properties:
+                features:
+                    type: array
+                    items: { type: string, pattern: '^[A-Z][A-Z0-9_]*$' }
+                quotas:
+                    type: object
+                    additionalProperties: { type: number }
+                compatibility:
+                    type: object
+                    description: 'beide leer/weggelassen = frei buchbar überall (E5)'
+                    properties:
+                        businessTypeKeys: { type: array, items: { type: string } }
+                        planIds: { type: array, items: { type: string } }
+                monthlyNet:
+                    { type: string, pattern: '^\d+(\.\d{1,2})?$', nullable: true, description: 'EUR-String; null = Override-Resolution' }
+                yearlyNet: { type: string, pattern: '^\d+(\.\d{1,2})?$', nullable: true }
+                marketed: { type: boolean }
+                changeNote: { type: string, maxLength: 2000 }
+                baseVersionId: { type: string, nullable: true }
+                validFrom: { type: string, nullable: true }
+                validUntil: { type: string, nullable: true }
+
+        CatalogVersionPublish:
+            type: object
+            description: 'Gilt für plan-versions UND bundle-versions /publish'
+            properties:
+                forceRegressive: { type: boolean, description: 'Regressives Diff trotzdem publishen (MFA)' }
+                allowZeroPrice: { type: boolean, description: 'Publish trotz Preis 0,00 erlauben (nur Sonderverträge)' }
+                validFrom: { type: string, nullable: true, description: 'Pflicht, wenn der Entwurf kein validFrom trägt' }
+                validUntil: { type: string, nullable: true }
+
+        CatalogMarketingProjectionCreate:
+            type: object
+            required: [projectKey, targetType, targetVersionId, displayLabel, description]
+            properties:
+                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
+                targetType: { type: string, enum: [PLAN, BUNDLE, BUSINESS_TYPE] }
+                targetVersionId: { type: string }
+                locale: { type: string, pattern: '^[a-z]{2}(-[A-Z]{2})?$', default: de }
+                displayLabel: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, minLength: 1, maxLength: 2000 }
+                visible: { type: boolean }
+                badge: { type: string, maxLength: 40 }
+                topFeatures:
+                    type: array
+                    items:
+                        type: object
+                        required: [label, strong]
+                        properties:
+                            key: { type: string }
+                            label: { type: string, maxLength: 120 }
+                            strong: { type: string, maxLength: 80 }
+                trialEnabled: { type: boolean }
+                trialDays: { type: integer, minimum: 1, maximum: 365 }
+                priceTag: { type: string, maxLength: 120 }
+                ctaLabel: { type: string, maxLength: 120 }
+                priority: { type: integer, minimum: 0, maximum: 10000 }
+                highlight: { type: boolean }
+
+        CatalogStampUpdate:
+            type: object
+            description: 'Stamm-Update für Plan ODER BusinessType'
+            properties:
+                label: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 2000, nullable: true }
+                icon: { type: string, maxLength: 64, nullable: true }
+                sortOrder: { type: integer, minimum: 0, maximum: 10000 }
+
+        CatalogBundleUpdate:
+            type: object
+            properties:
+                label: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 2000, nullable: true }
+                icon: { type: string, maxLength: 64, nullable: true }
+                sortOrder: { type: integer, minimum: 0, maximum: 10000 }
+                i18n: { type: object, additionalProperties: { type: object } }
+
+        CatalogPlanVersionTerminate:
+            type: object
+            required: [endsAt]
+            properties:
+                endsAt: { type: string, description: 'ISO-8601; muss in der Zukunft liegen' }
+
+        CatalogMarketingProjectionUpdate:
+            type: object
+            description: 'Partial-Update einer MarketingProjection'
+            properties:
+                displayLabel: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, minLength: 1, maxLength: 2000 }
+                visible: { type: boolean }
+                badge: { type: string, maxLength: 40 }
+                topFeatures:
+                    type: array
+                    items:
+                        type: object
+                        required: [label, strong]
+                        properties:
+                            key: { type: string, maxLength: 120 }
+                            label: { type: string, maxLength: 120 }
+                            strong: { type: string, maxLength: 80 }
+                trialEnabled: { type: boolean }
+                trialDays: { type: integer, minimum: 1, maximum: 365 }
+                priceTag: { type: string, maxLength: 120, nullable: true }
+                ctaLabel: { type: string, maxLength: 120, nullable: true }
+                priority: { type: integer, minimum: 0, maximum: 10000 }
+                highlight: { type: boolean }
+
+        CatalogBusinessTypeCreate:
+            type: object
+            required: [projectKey, businessTypeKey, label]
+            properties:
+                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
+                businessTypeKey: { type: string, pattern: '^[A-Z][A-Z0-9_]*$', description: 'SCREAMING_SNAKE' }
+                label: { type: string, minLength: 1, maxLength: 120 }
+                description: { type: string, maxLength: 2000 }
+                icon: { type: string, maxLength: 64 }
+                sortOrder: { type: integer, minimum: 0, maximum: 10000 }
+
+        CatalogBusinessTypeVersionDraft:
+            type: object
+            required: [bundles]
+            properties:
+                bundles:
+                    type: array
+                    minItems: 1
+                    items:
+                        type: object
+                        required: [bundleVersionId]
+                        properties:
+                            bundleVersionId: { type: string, format: uuid }
+                            sortOrder: { type: integer, minimum: 0, maximum: 10000 }
+                quotaOverrides: { type: object, additionalProperties: { type: number } }
+                monthlyNet: { type: string, pattern: '^\d+(\.\d{1,2})?$', nullable: true }
+                yearlyNet: { type: string, pattern: '^\d+(\.\d{1,2})?$', nullable: true }
+                marketed: { type: boolean }
+                changeNote: { type: string, maxLength: 2000 }
+                baseVersionId: { type: string, format: uuid, nullable: true }
+
+        CatalogBusinessTypeVersionPublish:
+            type: object
+            properties:
+                forceRegressive: { type: boolean }
+
+        CatalogEntryReview:
+            type: object
+            required: [discoveryStatus]
+            properties:
+                discoveryStatus: { type: string, enum: [pending, approved, outdated, obsolete] }
+
+        CatalogEntryI18nUpdate:
+            type: object
+            required: [i18n]
+            properties:
+                i18n:
+                    type: object
+                    additionalProperties:
+                        type: object
+                        properties:
+                            label: { type: string }
+                            description: { type: string }
+                    description: 'Locale-Map → {label?, description?}'
+
+        CatalogEntryBaseUpdate:
+            type: object
+            properties:
+                label: { type: string, maxLength: 120 }
+                description: { type: string, maxLength: 2000, nullable: true }
+                icon: { type: string, maxLength: 64, nullable: true, description: 'nur Feature' }
+                tier: { type: string, maxLength: 40, nullable: true, description: 'nur Feature, logische Gruppe' }
+
+        CatalogDiscoverySync:
+            type: object
+            required: [snapshot]
+            properties:
+                snapshot:
+                    type: object
+                    additionalProperties: true
+                    description: 'DiscoverySnapshot (app/features/quotas/capabilities) aus @saasicat/types'
+
+        CatalogMarketingSettingsUpdate:
+            type: object
+            required: [projectKey, activeLocales]
+            properties:
+                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
+                activeLocales:
+                    type: array
+                    uniqueItems: true
+                    items: { type: string, pattern: '^[a-z]{2}(-[A-Z]{2})?$' }
+
+        CatalogPromotionCreate:
+            type: object
+            required: [projectKey, internalLabel, type, value, validFrom, validTo]
+            properties:
+                projectKey: { type: string, pattern: '^[a-z][a-z0-9-]*$' }
+                internalLabel: { type: string, maxLength: 120 }
+                type: { type: string, enum: [percent, amount, intro, freeMonths] }
+                value:
+                    description: 'typ-abhängig: number (percent/amount) ODER {price, months} (intro/freeMonths)'
+                    oneOf:
+                        - { type: number }
+                        - { type: object }
+                appliesTo: { type: array, items: { type: string } }
+                targetType: { type: string, enum: [PLAN, BUNDLE, OFFER] }
+                billingCycle: { type: string, enum: [monthly, yearly, both] }
+                validFrom: { type: string, description: 'ISO-8601' }
+                validTo: { type: string, description: 'ISO-8601' }
+                priority: { type: integer }
+                onlyLocales: { type: array, items: { type: string }, nullable: true }
+                requiresCoupon: { type: boolean }
+                codes: { type: array, items: { type: string } }
+                color: { type: string, maxLength: 16 }
+                i18n: { type: object, additionalProperties: true }
+
+        CatalogPromotionUpdate:
+            type: object
+            description: 'Partial-Update einer Promotion (alle Felder optional)'
+            properties:
+                internalLabel: { type: string, maxLength: 120 }
+                type: { type: string, enum: [percent, amount, intro, freeMonths] }
+                value: { oneOf: [{ type: number }, { type: object }] }
+                appliesTo: { type: array, items: { type: string } }
+                targetType: { type: string, enum: [PLAN, BUNDLE, OFFER] }
+                billingCycle: { type: string, enum: [monthly, yearly, both] }
+                validFrom: { type: string }
+                validTo: { type: string }
+                priority: { type: integer }
+                onlyLocales: { type: array, items: { type: string }, nullable: true }
+                requiresCoupon: { type: boolean }
+                codes: { type: array, items: { type: string } }
+                color: { type: string, maxLength: 16 }
+                i18n: { type: object, additionalProperties: true }
+
+        # ────────── Common ──────────
+        PaginatedEnvelope:
+            type: object
+            required: [page, pageSize, total]
+            properties:
+                page: { type: integer }
+                pageSize: { type: integer }
+                total: { type: integer }
+
+        ErrorResponse:
+            type: object
+            required: [code, message]
+            properties:
+                code:
+                    type: string
+                    enum:
+                        - LIMIT_EXCEEDED
+                        - FEATURE_NOT_INCLUDED
+                        - MFA_REQUIRED
+                        - PROMO_NOT_FOUND
+                        - PROMO_EXPIRED
+                        - PROMO_EXHAUSTED
+                        - PROMO_NOT_APPLICABLE
+                        - PROMO_FIRST_TIME_ONLY
+                        - PROMO_ZERO_INVOICE_BLOCKED
+                        - VALIDATION_FAILED
+                        - FORBIDDEN
+                        - NOT_FOUND
+                message: { type: string }
+                details: { type: object, additionalProperties: true }
+
+        # ────────── Plan-Catalog (mirror of plans.yaml) ──────────
+        PlanCatalog:
+            type: object
+            required: [schemaVersion, projectKey, currency, vatRate, quotaKeys, plans]
+            properties:
+                schemaVersion: { type: integer, const: 1 }
+                projectKey: { type: string, description: 'Projekt-Key der App (kebab-case)' }
+                currency: { type: string, pattern: '^[A-Z]{3}$' }
+                vatRate: { type: number, format: decimal, description: 'in Prozent' }
+                quotaKeys:
+                    type: array
+                    items: { type: string }
+                    minItems: 1
+                features:
+                    type: array
+                    items:
+                        type: object
+                        required: [key]
+                        properties:
+                            key: { type: string }
+                            label: { type: string }
+                            tier:
+                                type: string
+                                description: 'Optionale logische Gruppe — z. B. CORE / ADVANCED / PRO'
+                plans:
+                    type: array
+                    items: { $ref: '#/components/schemas/PlanDef' }
+
+        PlanDef:
+            type: object
+            required: [id, quotas, features]
+            properties:
+                id: { type: string }
+                name: { type: string }
+                tagline: { type: string }
+                marketed: { type: boolean, default: true }
+                popular: { type: boolean, default: false }
+                monthlyNet: { type: number, format: decimal, nullable: true }
+                yearlyNet: { type: number, format: decimal, nullable: true }
+                quotas:
+                    type: object
+                    additionalProperties:
+                        type: integer
+                        description: '-1 = unbegrenzt'
+                features:
+                    type: array
+                    items: { type: string }
+
+        # ────────── Tenant ──────────
+        AdminTenantRow:
+            type: object
+            properties:
+                id: { type: string }
+                slug: { type: string }
+                name: { type: string }
+                plan: { type: string }
+                status: { type: string }
+                createdAt: { type: string, format: date-time }
+                usage:
+                    type: object
+                    additionalProperties: { type: integer }
+                    description: 'Aktueller Verbrauch je quotaKey'
+
+        AdminTenantDetail:
+            allOf:
+                - $ref: '#/components/schemas/AdminTenantRow'
+                - type: object
+                  properties:
+                      email: { type: string, format: email }
+                      taxId: { type: string }
+                      vatId: { type: string }
+                      address: { type: object }
+                      settings: { type: object }
+                      subscription: { $ref: '#/components/schemas/SubscriptionDetail' }
+                      recentAudit:
+                          type: array
+                          items: { $ref: '#/components/schemas/AuditEntryDto' }
+
+        CreateTenantRequest:
+            type: object
+            required: [slug, name, adminEmail, adminFirstName, adminLastName]
+            properties:
+                slug: { type: string }
+                name: { type: string }
+                adminEmail: { type: string, format: email }
+                adminFirstName: { type: string }
+                adminLastName: { type: string }
+                planId:
+                    { type: string, description: 'Aus PlanCatalog. Default: erstes marketed-Plan.' }
+                billingCycle: { type: string, enum: [MONTHLY, YEARLY] }
+                isPilot: { type: boolean, default: false }
+                pilotEndsAt: { type: string, format: date-time }
+                sendWelcomeMail: { type: boolean, default: true }
+
+        # ────────── Subscription ──────────
+        SubscriptionDetail:
+            type: object
+            properties:
+                id: { type: string }
+                planId: { type: string }
+                billingCycle: { type: string }
+                status: { type: string }
+                trialEndsAt: { type: string, format: date-time }
+                startedAt: { type: string, format: date-time }
+                canceledAt: { type: string, format: date-time }
+                isPilot: { type: boolean }
+                pilotEndsAt: { type: string, format: date-time }
+                customLimits:
+                    type: object
+                    additionalProperties: { type: integer }
+                customMonthlyNet: { type: number, format: decimal, nullable: true }
+                effectiveLimits:
+                    type: object
+                    additionalProperties: { type: integer }
+                    description: 'Plan-Quotas + Bundle-Beiträge + customLimits-Overrides'
+                effectiveFeatures:
+                    type: array
+                    items: { type: string }
+                promoRedemption:
+                    $ref: '#/components/schemas/PromoRedemptionDto'
+
+        # ────────── User ──────────
+        AdminUserRow:
+            type: object
+            properties:
+                id: { type: string }
+                email: { type: string, format: email }
+                firstName: { type: string }
+                lastName: { type: string }
+                platformRole: { type: string, enum: [SUPER_ADMIN, TENANT_ADMIN, TENANT_MEMBER] }
+                isActive: { type: boolean }
+                lastLoginAt: { type: string, format: date-time, nullable: true }
+                tenants:
+                    type: array
+                    items:
+                        type: object
+                        properties:
+                            id: { type: string }
+                            slug: { type: string }
+
+        # ────────── Promo-Code ──────────
+        CreatePromoCodeRequest:
+            type: object
+            required: [code, valueType, value, durationType]
+            properties:
+                code: { type: string, pattern: '^[A-Z0-9_-]{3,32}$' }
+                valueType: { type: string, enum: [PERCENT, ABSOLUTE] }
+                value: { type: number, format: decimal, minimum: 0.01 }
+                durationType: { type: string, enum: [ONCE, MONTHS, BILLING_CYCLES] }
+                durationValue: { type: integer, minimum: 1, maximum: 24 }
+                validFrom: { type: string, format: date-time }
+                validUntil: { type: string, format: date-time }
+                maxRedemptions: { type: integer, minimum: 1 }
+                appliesToPlans:
+                    type: array
+                    items: { type: string }
+                appliesToBilling: { type: string, enum: [MONTHLY, YEARLY] }
+                firstTimeCustomersOnly: { type: boolean, default: true }
+                minimumPlanAmountGross: { type: number, format: decimal }
+                allowZeroInvoice: { type: boolean, default: false }
+                description: { type: string }
+                campaignTag: { type: string }
+
+        UpdatePromoCodeRequest:
+            type: object
+            properties:
+                status: { type: string, enum: [ACTIVE, PAUSED] }
+                validUntil: { type: string, format: date-time }
+                maxRedemptions: { type: integer }
+                description: { type: string }
+                campaignTag: { type: string }
+
+        PromoCodeDto:
+            type: object
+            properties:
+                id: { type: string }
+                code: { type: string }
+                valueType: { type: string }
+                value: { type: number, format: decimal }
+                durationType: { type: string }
+                durationValue: { type: integer, nullable: true }
+                validFrom: { type: string, format: date-time, nullable: true }
+                validUntil: { type: string, format: date-time, nullable: true }
+                maxRedemptions: { type: integer, nullable: true }
+                redemptionsCount: { type: integer }
+                appliesToPlans:
+                    type: array
+                    items: { type: string }
+                appliesToBilling: { type: string, nullable: true }
+                firstTimeCustomersOnly: { type: boolean }
+                status: { type: string }
+                campaignTag: { type: string, nullable: true }
+                createdAt: { type: string, format: date-time }
+                deletedAt: { type: string, format: date-time, nullable: true }
+
+        PromoCodeDetail:
+            allOf:
+                - $ref: '#/components/schemas/PromoCodeDto'
+                - type: object
+                  properties:
+                      recentRedemptions:
+                          type: array
+                          items: { $ref: '#/components/schemas/PromoRedemptionDto' }
+                      recentValidations:
+                          type: array
+                          items:
+                              type: object
+                              properties:
+                                  result: { type: string }
+                                  createdAt: { type: string, format: date-time }
+                                  ipHash: { type: string, nullable: true }
+
+        PromoRedemptionDto:
+            type: object
+            properties:
+                id: { type: string }
+                promoCodeId: { type: string }
+                promoCode: { type: string, description: 'Convenience: der Code-String' }
+                subscriptionId: { type: string }
+                tenantSlug: { type: string }
+                appliedValueType: { type: string }
+                appliedValue: { type: number, format: decimal }
+                startsAt: { type: string, format: date-time }
+                endsAt: { type: string, format: date-time, nullable: true }
+                status: { type: string }
+                redeemedAt: { type: string, format: date-time }
+                reversedAt: { type: string, format: date-time, nullable: true }
+
+        # ────────── Audit ──────────
+        AuditEntryDto:
+            type: object
+            properties:
+                id: { type: string }
+                tenantId: { type: string, nullable: true }
+                userId: { type: string, nullable: true }
+                userEmail: { type: string, nullable: true, description: 'Convenience-Lookup' }
+                entity: { type: string }
+                entityId: { type: string }
+                action: { type: string }
+                changes: { type: object, additionalProperties: true }
+                actorTag: { type: string, nullable: true }
+                ipAddress: { type: string, nullable: true }
+                createdAt: { type: string, format: date-time }
+
+        # ────────── Dashboard ──────────
+        DashboardStats:
+            type: object
+            properties:
+                tenantsTotal: { type: integer }
+                tenantsByStatus:
+                    type: object
+                    additionalProperties: { type: integer }
+                subscriptionsByPlan:
+                    type: object
+                    additionalProperties: { type: integer }
+                pilotsActive: { type: integer }
+                promoCodesActive: { type: integer }
+                promoRedemptionsLast30d: { type: integer }
+                auditEventsLast24h: { type: integer }
+                # Projekt-spezifische KPIs werden über separate Endpoints geliefert
+                # (z. B. /admin/dashboard/extras/datev — bleibt AutohausPro-only).

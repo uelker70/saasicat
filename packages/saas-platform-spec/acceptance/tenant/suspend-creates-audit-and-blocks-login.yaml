@@ -1,0 +1,69 @@
+scenario: 'Tenant suspend writes audit log and blocks subsequent tenant-user login'
+description: |
+    Standard-SuperAdmin-Aktion. Pflicht-Verhalten:
+      - 401 ohne MFA-Header (MfaGuard)
+      - 200 mit gültigem MFA + reason
+      - AuditLog-Entry mit action=TENANT_SUSPEND, actorTag=web:..., reason
+      - Folge-Login eines Tenant-Users → 403 oder 401 (Tenant ist suspended)
+
+    Spec: SPEC §10 + admin-api.openapi.yaml /tenants/{slug}/suspend.
+
+setup:
+    - createTenant:
+          slug: 'test-suspended'
+          email: 'owner@test-suspended.example'
+    - createUser:
+          tenantSlug: 'test-suspended'
+          email: 'user@test-suspended.example'
+          role: 'TENANT_USER'
+          password: 'test-password-123'
+
+cases:
+    - name: 'without MFA header'
+      request:
+          method: POST
+          path: /api/v1/admin/tenants/test-suspended/suspend
+          auth: { as: 'super@platform.example' }
+          body: { reason: 'Outstanding invoices' }
+      then:
+          status: 401
+          body:
+              code: 'MFA_REQUIRED'
+
+    - name: 'with valid MFA'
+      request:
+          method: POST
+          path: /api/v1/admin/tenants/test-suspended/suspend
+          auth: { as: 'super@platform.example' }
+          headers:
+              X-Mfa-Code: '{{validTotpFromAdmin}}'
+          body: { reason: 'Outstanding invoices over 90 days' }
+      then:
+          status: 200
+
+    - name: 'tenant-user can no longer log in'
+      request:
+          method: POST
+          path: /api/auth/login
+          body:
+              email: 'user@test-suspended.example'
+              password: 'test-password-123'
+      then:
+          status: 401
+          body:
+              code: { matches: 'TENANT_(SUSPENDED|INACTIVE)' }
+
+    - name: 'audit log contains the suspension'
+      request:
+          method: GET
+          path: /api/v1/admin/audit?entity=Tenant&action=TENANT_SUSPEND
+          auth: { as: 'super@platform.example' }
+      then:
+          status: 200
+          bodyContains:
+              items:
+                  - action: TENANT_SUSPEND
+                    entity: Tenant
+                    actorTag: { matches: "^web:super@platform\\.example:" }
+                    changes:
+                        reason: 'Outstanding invoices over 90 days'

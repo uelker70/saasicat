@@ -1,0 +1,334 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://saasicat.dev/schemas/admin-manifest.schema.json",
+    "title": "AdminManifest",
+    "description": "UI-Discovery-Projektion einer SaaS-App. Wird vom App-Backend unter GET /api/v1/admin/manifest ausgeliefert und vom Shared-UI-Shell konsumiert.",
+    "type": "object",
+    "required": [
+        "schemaVersion",
+        "project",
+        "build",
+        "planCatalogSnapshot",
+        "capabilities",
+        "navigation"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "schemaVersion": {
+            "type": "integer",
+            "const": 1
+        },
+
+        "project": {
+            "type": "object",
+            "required": ["key", "displayName"],
+            "additionalProperties": false,
+            "properties": {
+                "key": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
+                "displayName": { "type": "string", "minLength": 1, "maxLength": 60 },
+                "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "description": "Tag/Untertitel (z. B. \"SuperAdmin\"). Aus saas.yaml#app.label."
+                },
+                "icon": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8,
+                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"cf\", \"vf\"). Aus saas.yaml#app.icon."
+                },
+                "logoUrl": { "type": "string" },
+                "environment": {
+                    "type": "string",
+                    "enum": ["production", "staging", "development"]
+                },
+                "availableLocales": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "description": "Vom App-Catalog (saas.yaml marketing.availableLocales) erlaubte Locales. Erste = Default. SPEC_V2 §6.5."
+                },
+                "defaultLocale": {
+                    "type": "string",
+                    "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+                    "description": "Default-Locale; entspricht availableLocales[0]."
+                }
+            }
+        },
+
+        "build": {
+            "type": "object",
+            "required": ["platformPackageVersion", "appVersion", "manifestHash"],
+            "additionalProperties": false,
+            "properties": {
+                "platformPackageVersion": { "type": "string" },
+                "appVersion": { "type": "string" },
+                "manifestHash": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$" }
+            }
+        },
+
+        "planCatalogSnapshot": {
+            "type": "object",
+            "required": ["source", "hash", "currency", "vatRate", "quotaKeys", "plans"],
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "description": "Pfad zur Quelle, z. B. 'config/saas.yaml'"
+                },
+                "hash": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$" },
+                "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+                "vatRate": { "type": "number", "minimum": 0, "maximum": 100 },
+                "quotaKeys": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+                    "minItems": 1,
+                    "uniqueItems": true
+                },
+                "features": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["key"],
+                        "additionalProperties": false,
+                        "properties": {
+                            "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+                            "label": { "type": "string" },
+                            "tier": { "type": "string" }
+                        }
+                    }
+                },
+                "plans": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/PlanDef" },
+                    "minItems": 1
+                }
+            }
+        },
+
+        "capabilities": {
+            "type": "object",
+            "description": "Backend-Capabilities. Naming-Konvention: domain.action oder domain.resource.action. Werte sind boolean (true = aktiv im Build).",
+            "patternProperties": {
+                "^[a-z][a-zA-Z0-9]*\\.[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)?$": {
+                    "type": "boolean"
+                }
+            },
+            "additionalProperties": false
+        },
+
+        "navigation": {
+            "type": "object",
+            "required": ["standardPages"],
+            "additionalProperties": false,
+            "properties": {
+                "standardPages": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "dashboard": { "$ref": "#/$defs/StandardPageDef" },
+                        "tenants": { "$ref": "#/$defs/StandardPageDef" },
+                        "subscriptions": { "$ref": "#/$defs/StandardPageDef" },
+                        "promoCodes": { "$ref": "#/$defs/StandardPageDef" },
+                        "plans": { "$ref": "#/$defs/StandardPageDef" },
+                        "planVersions": { "$ref": "#/$defs/StandardPageDef" },
+                        "audit": { "$ref": "#/$defs/StandardPageDef" },
+                        "users": { "$ref": "#/$defs/StandardPageDef" },
+                        "pilots": { "$ref": "#/$defs/StandardPageDef" },
+                        "discovery": { "$ref": "#/$defs/StandardPageDef" },
+                        "bundles": { "$ref": "#/$defs/StandardPageDef" },
+                        "businessTypes": { "$ref": "#/$defs/StandardPageDef" },
+                        "marketingCatalog": { "$ref": "#/$defs/StandardPageDef" },
+                        "platformEmail": { "$ref": "#/$defs/StandardPageDef" },
+                        "platformEmailHistory": { "$ref": "#/$defs/StandardPageDef" }
+                    }
+                },
+                "projectPages": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/ProjectPageDef" }
+                }
+            }
+        },
+
+        "dashboard": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "kpiCards": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/KpiCardDef" }
+                }
+            }
+        },
+
+        "tenants": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/TenantColumnDef" }
+                },
+                "actions": {
+                    "type": "array",
+                    "items": { "$ref": "#/$defs/TenantActionDef" }
+                }
+            }
+        },
+
+        "audit": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "actions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["key", "label"],
+                        "additionalProperties": false,
+                        "properties": {
+                            "key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+                            "label": { "type": "string" },
+                            "severity": {
+                                "type": "string",
+                                "enum": ["info", "low", "medium", "high"]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    "$defs": {
+        "CapabilityKey": {
+            "type": "string",
+            "pattern": "^[a-z][a-zA-Z0-9]*\\.[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)?$"
+        },
+
+        "StandardPageDef": {
+            "type": "object",
+            "required": ["enabled"],
+            "additionalProperties": false,
+            "properties": {
+                "enabled": { "type": "boolean" },
+                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" }
+            }
+        },
+
+        "ProjectPageDef": {
+            "type": "object",
+            "required": ["id", "label", "route", "componentKey"],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9-]*$" },
+                "label": { "type": "string", "minLength": 1 },
+                "icon": { "type": "string" },
+                "route": { "type": "string", "pattern": "^/[A-Za-z0-9-/]+$" },
+                "navSection": { "type": "string" },
+                "componentKey": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9-]*$"
+                },
+                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" },
+                "prefetchOnIdle": { "type": "boolean", "default": false }
+            }
+        },
+
+        "KpiCardDef": {
+            "type": "object",
+            "required": ["id", "label", "endpoint", "displayHint"],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+\\.[a-z][a-zA-Z0-9.-]*$" },
+                "label": { "type": "string", "minLength": 1 },
+                "endpoint": {
+                    "type": "string",
+                    "pattern": "^/api(/v[0-9]+)?/admin/(extras|dashboard)/"
+                },
+                "displayHint": {
+                    "type": "object",
+                    "required": ["type"],
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": ["value", "value+timestamp", "value+spark8w", "value+delta"]
+                        },
+                        "icon": { "type": "string" }
+                    }
+                },
+                "slotPriority": { "type": "integer", "minimum": 0, "maximum": 100 },
+                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" }
+            }
+        },
+
+        "TenantColumnDef": {
+            "type": "object",
+            "required": ["key", "label", "endpoint"],
+            "additionalProperties": false,
+            "properties": {
+                "key": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$" },
+                "label": { "type": "string", "minLength": 1 },
+                "endpoint": {
+                    "type": "string",
+                    "pattern": "^/api(/v[0-9]+)?/admin/extras/[A-Za-z0-9/-]+$",
+                    "not": { "pattern": "\\{slug\\}|\\{tenantId\\}" },
+                    "description": "Pflicht: batchfähiger Endpoint, kein Tenant-Slug im Pfad. UI ruft mit ?tenantIds=... auf. Siehe SPEC §4.4.1."
+                },
+                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" }
+            }
+        },
+
+        "TenantActionDef": {
+            "type": "object",
+            "required": ["id", "label", "actionKey"],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9-]+(?:\\.[a-z][a-zA-Z0-9-]*)+$"
+                },
+                "label": { "type": "string", "minLength": 1 },
+                "actionKey": {
+                    "$ref": "#/$defs/CapabilityKey",
+                    "description": "Lookup in der Frontend-Action-Registry. KEIN endpoint/method hier."
+                },
+                "requiredCapability": { "$ref": "#/$defs/CapabilityKey" },
+                "requiresMfa": { "type": "boolean" },
+                "confirmType": {
+                    "type": "string",
+                    "enum": ["none", "simple", "typed-slug", "typed-production", "date"]
+                }
+            }
+        },
+
+        "PlanDef": {
+            "type": "object",
+            "required": ["id", "quotas", "features"],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+                "name": { "type": "string" },
+                "tagline": { "type": "string" },
+                "marketed": { "type": "boolean", "default": true },
+                "popular": { "type": "boolean", "default": false },
+                "monthlyNet": { "type": ["number", "null"], "minimum": 0 },
+                "yearlyNet": { "type": ["number", "null"], "minimum": 0 },
+                "quotas": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-z][A-Za-z0-9]*$": { "type": "integer" }
+                    },
+                    "additionalProperties": false
+                },
+                "features": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" }
+                }
+            }
+        }
+    }
+}

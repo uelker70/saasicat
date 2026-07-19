@@ -1,0 +1,41 @@
+scenario: 'PromoCode with firstTimeCustomersOnly rejects second redemption from same email domain'
+description: |
+    Verhalten aus autohauspro/backend/src/promo-codes — generalisiert. Wenn ein
+    Code firstTimeCustomersOnly=true hat, darf jede E-Mail-Domain ihn
+    maximal einmal einlösen. Zweite Redemption → 422 FIRST_TIME_ONLY.
+
+setup:
+    - createPromoCode:
+          code: 'WELCOME25'
+          valueType: PERCENT
+          value: 25
+          durationType: ONCE
+          firstTimeCustomersOnly: true
+    - createTenant:
+          slug: 'test-a'
+          email: 'ada@example.com'
+          planId: 'STARTER' # Konsument-spezifisch; Acceptance-Runner mappt auf passenden marketed-Plan
+    - redeemPromoCode:
+          code: 'WELCOME25'
+          tenantSlug: 'test-a'
+
+when:
+    # Zweite Anlage mit anderer Domain — sollte gehen.
+    # Aber zweite mit gleicher Domain (sub.example.com) muss blocken,
+    # wenn die Implementation per E-Mail-Domain dedupliziert.
+    - createTenant:
+          slug: 'test-a-second'
+          email: 'bob@example.com'
+          planId: 'STARTER'
+    - request:
+          method: POST
+          path: /api/v1/admin/promo-codes/redeem
+          body:
+              code: 'WELCOME25'
+              tenantSlug: 'test-a-second'
+
+then:
+    status: 422
+    body:
+        code: 'PROMO_FIRST_TIME_ONLY'
+        message: { type: string }

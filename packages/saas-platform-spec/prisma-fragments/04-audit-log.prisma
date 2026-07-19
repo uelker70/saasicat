@@ -1,0 +1,41 @@
+// =============================================================================
+// SaaS-Platform Prisma-Fragment: Audit-Log
+// =============================================================================
+//
+// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+//
+// Generischer Audit-Log für tenant- und admin-seitige Aktionen. Konsumenten
+// können den Log gemeinsam nutzen oder eigene parallele Logs führen — das
+// `@saasicat/nest`-Paket schreibt in dieses Schema.
+//
+// `action` muss SCREAMING_SNAKE_CASE folgen (siehe
+// `schemas/audit-event.schema.json` Action-Pattern). Konsument-spezifische
+// Aktionen sind erlaubt; Plattform-Aktionen sind in der `AuditActionDef`-
+// Liste der Manifest-Contributions katalogisiert.
+//
+// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.4)
+//        + schemas/audit-event.schema.json
+
+model AuditLog {
+    id        String  @id @default(uuid())
+    tenantId  String? // null bei plattform-globalen Aktionen (Plan-Publish etc.)
+    userId    String? // Akteur — null bei System-Cron oder pre-auth-Aktionen
+    entity    String // z. B. "Subscription", "PromoCode", "PlanVersion"
+    entityId  String
+    action    String // SCREAMING_SNAKE_CASE; z. B. "PROMO_CODE_REDEEM"
+    changes   Json? // { field: { old: …, new: … } }
+    ipAddress String?
+    userAgent String?
+
+    createdAt DateTime @default(now())
+
+    // Relations — Konsument muss `Tenant` und `User` definieren und
+    // Relations aktivieren. Userless-System-Aktionen lassen userId null.
+    // tenant Tenant? @relation(fields: [tenantId], references: [id])
+    // user   User?   @relation("AuditLogUser", fields: [userId], references: [id])
+
+    @@index([tenantId, entity, entityId])
+    @@index([tenantId, createdAt])
+    @@index([entity, action, createdAt])
+    @@map("audit_logs")
+}

@@ -1,0 +1,62 @@
+scenario: 'Plan-Version publish does not modify existing Subscription.planVersionId'
+description: |
+    P1-Garantie aus SPEC §6: Beim Publish einer neuen Plan-Version wird
+    `Subscription.planVersionId` der Bestands-Tenants NICHT angefasst.
+    Nur publishedAt der neuen Version + supersededAt der alten Version
+    werden geschrieben. Migration läuft ausschließlich über den
+    Notification- + Renewal-Cron mit 6-Wochen-Vorlauf.
+
+    Dies ist die Kernkrach-Garantie für Bestandsschutz. Wenn dieser
+    Test rot wird, verletzt die Implementation den Vertragsschutz.
+
+setup:
+    - createTenant:
+          slug: 'test-bestand'
+          email: 'owner@test-bestand.example'
+          planId: 'STANDARD'
+          billingCycle: MONTHLY
+    - assertSubscriptionVersion:
+          tenantSlug: 'test-bestand'
+          version: 1 # Initial-Version
+    - storeAs:
+          key: 'originalPlanVersionId'
+          from: 'tenant.subscription.planVersionId'
+          tenantSlug: 'test-bestand'
+
+when:
+    # SUPER_ADMIN published eine neue Version — z. B. mit Preiserhöhung.
+    - createPlanVersionDraft:
+          planId: 'STANDARD'
+          changes:
+              monthlyNet: { from: 24.90, to: 29.90 }
+          changeNote: 'Q2 price increase'
+    - publishPlanVersion:
+          planId: 'STANDARD'
+          mfaCode: '{{validTotpFromAdmin}}'
+
+then:
+    # Bestand bleibt unverändert.
+    - assertSubscription:
+          tenantSlug: 'test-bestand'
+          planVersionId: '{{originalPlanVersionId}}' # ← gleicher Wert wie vor Publish
+    # Der Tenant zahlt weiter den alten Preis.
+    - assertSubscriptionPriceMonthlyNet:
+          tenantSlug: 'test-bestand'
+          value: 24.90
+    # pendingPlanVersion-Felder sind noch nicht gesetzt (Notification-Cron
+    # ist noch nicht gelaufen).
+    - assertSubscription:
+          tenantSlug: 'test-bestand'
+          pendingPlanVersionId: null
+          pendingPlanVersionEffectiveAt: null
+
+    # Catalog: alte Version hat supersededAt, neue hat publishedAt.
+    - assertPlanVersion:
+          planId: 'STANDARD'
+          version: 1
+          supersededAt: { isNotNull: true }
+    - assertPlanVersion:
+          planId: 'STANDARD'
+          version: 2
+          publishedAt: { isNotNull: true }
+          supersededAt: null

@@ -1,0 +1,40 @@
+scenario: 'Public-Boot is reachable without auth and contains only branding'
+description: |
+    Pre-Login-Boot (/api/v1/admin/boot) MUSS ohne Bearer-Token erreichbar sein
+    und ausschließlich Branding-Felder zurückgeben. Niemals Capabilities,
+    Pages, oder Endpoints. Spec: SPEC §10.4 + admin-api.openapi.yaml.
+
+setup: []
+
+when:
+    - request:
+          method: GET
+          path: /api/v1/admin/boot
+          # Kein Authorization-Header
+
+then:
+    status: 200
+    bodyShape:
+        type: object
+        required: [project]
+        additionalProperties: false
+        properties:
+            project:
+                type: object
+                required: [key, displayName]
+                additionalProperties: false
+                properties:
+                    key: { type: string }
+                    displayName: { type: string }
+                    logoUrl: { type: string }
+                    environment: { type: string, enum: [production, staging, development] }
+    # Defense-in-depth-Check: bestätige explizit, dass die kritischen
+    # Felder NICHT auftauchen (auch wenn additionalProperties: false das
+    # impliziert — Test soll bei Schema-Drift trotzdem klar fehlschlagen).
+    bodyMustNotContain:
+        - capabilities
+        - navigation
+        - dashboard
+        - tenants
+        - audit
+        - planCatalogSnapshot

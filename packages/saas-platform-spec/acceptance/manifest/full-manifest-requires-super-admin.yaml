@@ -1,0 +1,43 @@
+scenario: 'Full manifest endpoint requires SUPER_ADMIN role'
+description: |
+    GET /api/v1/admin/manifest MUSS:
+      - 401 ohne JWT
+      - 403 mit JWT, aber Rolle != SUPER_ADMIN
+      - 200 mit SUPER_ADMIN-JWT
+    Manifest ist nie Security-Quelle, aber der Endpoint selbst ist
+    schutzwürdig (verrät Capabilities, Endpoints, Page-Liste).
+    Spec: SPEC §10.4.
+
+setup:
+    - createTenant: { slug: 'test-acme', email: 'owner@test-acme.example' }
+    - createUser:
+          { tenantSlug: 'test-acme', email: 'tenant-admin@test-acme.example', role: 'TENANT_ADMIN' }
+    - createUser: { email: 'super@platform.example', role: 'SUPER_ADMIN' }
+
+cases:
+    - name: 'anonymous'
+      request:
+          method: GET
+          path: /api/v1/admin/manifest
+      then:
+          status: 401
+
+    - name: 'tenant-admin'
+      request:
+          method: GET
+          path: /api/v1/admin/manifest
+          auth: { as: 'tenant-admin@test-acme.example' }
+      then:
+          status: 403
+
+    - name: 'super-admin'
+      request:
+          method: GET
+          path: /api/v1/admin/manifest
+          auth: { as: 'super@platform.example' }
+      then:
+          status: 200
+          headers:
+              ETag: { matches: '^"?sha256-[A-Za-z0-9+/=_-]+"?$' }
+              Cache-Control: { contains: 'private' }
+          bodyMustValidateAgainstSchema: admin-manifest.schema.json

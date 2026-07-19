@@ -1,0 +1,97 @@
+// =============================================================================
+// SaaS-Platform Prisma-Fragment: PendingRegistration + PaymentEventLog
+// =============================================================================
+//
+// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+//
+// Persistenz des mehrstufigen Registrierungs- und Onboarding-Flows
+// (`PendingRegistrationService`). Eine PendingRegistration hält den
+// Zwischenzustand zwischen Schritt 1 (Anmeldedaten erfassen) und der finalen
+// Aktivierung (Schritt 4: Zahlung). Erst nach erfolgreicher Zahlung wird
+// daraus User + Tenant + Subscription — bis dahin bleibt der Datensatz
+// bewusst ohne Foreign Key auf Konsumenten-Models.
+//
+// Abweichend von den übrigen Fragmenten OHNE `@@map`: das Model wurde aus der
+// Referenz-Implementierung (vereinsfux) rückübernommen, deren Tabellen bereits
+// unter den Prisma-Default-Namen leben — ein nachträgliches `@@map` würde nur
+// eine Tabellen-Umbenennung erzwingen.
+//
+// Vertrag: saas-platform-types/registration.types.ts (PendingRegistration,
+//          PendingRegistrationRepository, PaymentEventLog).
+// Service-Logik: saas-platform-nest/registration/PendingRegistrationService.
+
+// Mehrstufiger Registrierungs-Flow: Status einer PendingRegistration
+// zwischen Anmeldedaten-Erfassung (Schritt 1) und finaler Aktivierung
+// nach Zahlung (Schritt 4).
+enum RegistrationStatus {
+    PENDING_EMAIL_VERIFICATION
+    EMAIL_VERIFIED
+    PLAN_SELECTED
+    CHECKOUT_STARTED
+    EXPIRED
+    DELETED
+}
+
+model PendingRegistration {
+    id String @id @default(cuid())
+
+    tenantName   String
+    tenantSlug   String?
+    salutation   String?
+    firstName    String
+    lastName     String
+    email        String  @unique
+    passwordHash String
+    locale       String  @default("de")
+
+    status      RegistrationStatus @default(PENDING_EMAIL_VERIFICATION)
+    currentStep Int                @default(2)
+
+    emailVerifiedAt DateTime?
+
+    otpHash       String?
+    otpExpiresAt  DateTime?
+    otpSendCount  Int       @default(1)
+    lastOtpSentAt DateTime?
+    // Persistenter Fehlversuchs-Zähler der OTP-Verifikation. Ab
+    // OTP_VERIFY_MAX_ATTEMPTS wirft verifyOtp() OTP_LOCKED — auch bei
+    // danach korrektem Code. Ein neu generierter OTP setzt auf 0 zurück
+    // (der Versand ist separat ratelimitiert via otpSendCount).
+    otpAttemptCount Int @default(0)
+
+    selectedPlanId String?
+    // Konfigurator-Auswahl (Step 3):
+    // - configJson: JSON-Snapshot der RegistrationConfigSelection.
+    // - billingCycle: 'MONTHLY' | 'YEARLY' — bestimmt die Preisberechnung.
+    // - appliedPromoCode: Last-applied-Code (Klartext, nur für UI-Anzeige;
+    //   Validierung läuft jedes Mal frisch über PromoCodesService).
+    configJson        Json?
+    billingCycle      String?
+    appliedPromoCode  String?
+    checkoutSessionId String?
+    checkoutStartedAt DateTime?
+
+    expiresAt DateTime
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([status, expiresAt])
+    @@index([tenantSlug])
+}
+
+// PaymentEventLog — Idempotenz-Schlüssel für Payment-Webhooks.
+// Verhindert, dass ein doppelt zugestellter Webhook (Stripe-at-least-once) die
+// finale Aktivierung mehrfach auslöst. `eventId` ist die Provider-Event-ID
+// (Stripe `event.id`), `tryClaim` setzt @unique INSERT als Race-Schutz.
+model PaymentEventLog {
+    id          String   @id @default(cuid())
+    eventId     String   @unique
+    provider    String
+    sessionId   String?
+    status      String
+    payload     Json?
+    processedAt DateTime @default(now())
+
+    @@index([sessionId])
+    @@index([status, processedAt])
+}

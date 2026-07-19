@@ -1,0 +1,214 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://saasicat.dev/schemas/promo-code.schema.json",
+    "title": "PromoCode",
+    "description": "Sprach-neutrale Definition von Promo-Codes für die SaaS-Plattform inkl. Redemption-Lifecycle.",
+    "type": "object",
+    "$defs": {
+        "ValueType": {
+            "type": "string",
+            "enum": ["PERCENT", "ABSOLUTE"],
+            "description": "PERCENT: value ist Prozentsatz (1–100). ABSOLUTE: value ist Netto-Betrag in der Catalog-Currency."
+        },
+
+        "DurationType": {
+            "type": "string",
+            "enum": ["ONCE", "MONTHS", "BILLING_CYCLES"],
+            "description": "ONCE: einmaliger Rabatt. MONTHS: durationValue Monate ab Redemption. BILLING_CYCLES: durationValue Abrechnungszyklen."
+        },
+
+        "Status": {
+            "type": "string",
+            "enum": ["ACTIVE", "PAUSED", "EXHAUSTED", "EXPIRED"]
+        },
+
+        "BillingCycle": {
+            "type": "string",
+            "enum": ["MONTHLY", "YEARLY"]
+        },
+
+        "RedemptionStatus": {
+            "type": "string",
+            "enum": ["ACTIVE", "REVERSED", "EXPIRED"]
+        },
+
+        "ValidationResult": {
+            "type": "string",
+            "enum": [
+                "VALID",
+                "EXPIRED",
+                "EXHAUSTED",
+                "NOT_FOUND",
+                "PAUSED",
+                "NOT_APPLICABLE",
+                "FIRST_TIME_ONLY",
+                "ZERO_INVOICE_BLOCKED",
+                "MIN_AMOUNT_NOT_REACHED",
+                "RATE_LIMITED"
+            ]
+        },
+
+        "CreatePromoCodeRequest": {
+            "type": "object",
+            "required": ["code", "valueType", "value", "durationType"],
+            "additionalProperties": false,
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "pattern": "^[A-Z0-9_-]{4,32}$",
+                    "description": "Großbuchstaben, Ziffern, '-' und '_'. Case-insensitive geprüft, in UPPER gespeichert."
+                },
+                "valueType": { "$ref": "#/$defs/ValueType" },
+                "value": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "multipleOf": 0.01,
+                    "description": "Bei PERCENT: 0.01–100. Bei ABSOLUTE: > 0 in Catalog-Currency."
+                },
+                "durationType": { "$ref": "#/$defs/DurationType" },
+                "durationValue": {
+                    "type": ["integer", "null"],
+                    "minimum": 1,
+                    "maximum": 24,
+                    "description": "Pflicht bei MONTHS / BILLING_CYCLES, null bei ONCE."
+                },
+                "validFrom": { "type": ["string", "null"], "format": "date-time" },
+                "validUntil": { "type": ["string", "null"], "format": "date-time" },
+                "maxRedemptions": { "type": ["integer", "null"], "minimum": 1 },
+                "appliesToPlans": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+                    "uniqueItems": true,
+                    "description": "Leer = alle Pläne."
+                },
+                "appliesToBilling": {
+                    "anyOf": [{ "$ref": "#/$defs/BillingCycle" }, { "type": "null" }]
+                },
+                "firstTimeCustomersOnly": { "type": "boolean", "default": true },
+                "minimumPlanAmountGross": {
+                    "type": ["number", "null"],
+                    "exclusiveMinimum": 0,
+                    "multipleOf": 0.01
+                },
+                "allowZeroInvoice": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Default: Rabatt darf Rechnung nicht auf 0 senken."
+                },
+                "description": { "type": ["string", "null"], "maxLength": 1000 },
+                "campaignTag": { "type": ["string", "null"], "maxLength": 100 },
+                "revenueDeductionAccount": {
+                    "type": ["string", "null"],
+                    "maxLength": 16,
+                    "description": "SKR-Konto für die Rechnungslegung; projekt-spezifisch."
+                }
+            }
+        },
+
+        "UpdatePromoCodeRequest": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": ["ACTIVE", "PAUSED"]
+                },
+                "description": { "type": ["string", "null"], "maxLength": 1000 },
+                "validUntil": { "type": ["string", "null"], "format": "date-time" },
+                "maxRedemptions": { "type": ["integer", "null"], "minimum": 1 },
+                "campaignTag": { "type": ["string", "null"], "maxLength": 100 }
+            }
+        },
+
+        "PromoCode": {
+            "type": "object",
+            "required": [
+                "id",
+                "code",
+                "valueType",
+                "value",
+                "durationType",
+                "status",
+                "redemptionsCount"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "code": { "type": "string", "pattern": "^[A-Z0-9_-]{4,32}$" },
+                "valueType": { "$ref": "#/$defs/ValueType" },
+                "value": { "type": "number", "exclusiveMinimum": 0 },
+                "durationType": { "$ref": "#/$defs/DurationType" },
+                "durationValue": { "type": ["integer", "null"], "minimum": 1, "maximum": 24 },
+                "validFrom": { "type": ["string", "null"], "format": "date-time" },
+                "validUntil": { "type": ["string", "null"], "format": "date-time" },
+                "maxRedemptions": { "type": ["integer", "null"], "minimum": 1 },
+                "redemptionsCount": { "type": "integer", "minimum": 0 },
+                "appliesToPlans": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" }
+                },
+                "appliesToBilling": {
+                    "anyOf": [{ "$ref": "#/$defs/BillingCycle" }, { "type": "null" }]
+                },
+                "firstTimeCustomersOnly": { "type": "boolean" },
+                "minimumPlanAmountGross": { "type": ["number", "null"] },
+                "allowZeroInvoice": { "type": "boolean" },
+                "status": { "$ref": "#/$defs/Status" },
+                "description": { "type": ["string", "null"] },
+                "campaignTag": { "type": ["string", "null"] },
+                "revenueDeductionAccount": { "type": ["string", "null"] },
+                "createdAt": { "type": "string", "format": "date-time" },
+                "deletedAt": { "type": ["string", "null"], "format": "date-time" }
+            }
+        },
+
+        "PromoCodeRedemption": {
+            "type": "object",
+            "required": [
+                "id",
+                "promoCodeId",
+                "subscriptionId",
+                "tenantId",
+                "appliedValueType",
+                "appliedValue",
+                "status",
+                "redeemedAt"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "promoCodeId": { "type": "string", "format": "uuid" },
+                "subscriptionId": { "type": "string", "format": "uuid" },
+                "tenantId": { "type": "string" },
+                "appliedValueType": { "$ref": "#/$defs/ValueType" },
+                "appliedValue": { "type": "number" },
+                "appliedDurationType": { "$ref": "#/$defs/DurationType" },
+                "appliedDurationValue": { "type": ["integer", "null"] },
+                "startsAt": { "type": "string", "format": "date-time" },
+                "endsAt": { "type": ["string", "null"], "format": "date-time" },
+                "status": { "$ref": "#/$defs/RedemptionStatus" },
+                "redeemedAt": { "type": "string", "format": "date-time" },
+                "reversedAt": { "type": ["string", "null"], "format": "date-time" }
+            }
+        },
+
+        "PromoCodeValidationLog": {
+            "type": "object",
+            "required": ["id", "codeAttempt", "result", "createdAt"],
+            "additionalProperties": false,
+            "properties": {
+                "id": { "type": "string", "format": "uuid" },
+                "promoCodeId": {
+                    "type": ["string", "null"],
+                    "format": "uuid",
+                    "description": "null bei NOT_FOUND"
+                },
+                "codeAttempt": { "type": "string" },
+                "ipHash": { "type": ["string", "null"], "description": "kein Klartext-IP" },
+                "sessionId": { "type": ["string", "null"] },
+                "result": { "$ref": "#/$defs/ValidationResult" },
+                "createdAt": { "type": "string", "format": "date-time" }
+            }
+        }
+    }
+}

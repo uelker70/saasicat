@@ -1,0 +1,93 @@
+// =============================================================================
+// SaaS-Platform Prisma-Fragment: SubscriptionContract + ContractLineItem
+// =============================================================================
+//
+// REFERENZ-SNIPPET — kein eigenständiges Schema. Konsumenten kopieren die
+// Models in ihre `schema.prisma` und ergänzen FK-Relationen zu Tenant/User.
+//
+// V3-Regel: Billing und Entitlement dürfen nicht von live veränderbaren
+// Katalogtabellen abhängen. `SubscriptionContract` und `ContractLineItem`
+// speichern deshalb vollständige Snapshots. Katalog-FKs sind optional und
+// nur Audit-/Trace-Referenzen.
+
+enum SubscriptionContractStatus {
+    active
+    scheduled
+    terminated
+    superseded
+}
+
+enum ContractLineItemKind {
+    plan
+    bundle
+    quota
+    feature
+    discount
+}
+
+model SubscriptionContract {
+    id         String @id @default(uuid())
+    projectKey String
+    tenantId   String
+
+    status         SubscriptionContractStatus @default(active)
+    effectiveFrom  DateTime
+    effectiveUntil DateTime?
+
+    // Optionales Trace zurück zum Offer/Katalog. Der Contract bleibt gültig,
+    // auch wenn diese Zielobjekte archiviert oder physisch gelöscht werden.
+    originalOfferId          String?
+    originalPlanVersionId    String?
+    originalBundleVersionIds Json @default("[]")
+
+    // Vollständige Snapshots für Runtime, Billing und spätere Anzeige.
+    entitlementSnapshot Json?
+    priceSnapshot       Json
+    promotionSnapshots  Json @default("[]")
+    promoCodeSnapshots  Json @default("[]")
+    termsSnapshot       Json?
+
+    lineItems ContractLineItem[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+    @@index([tenantId, status, effectiveFrom])
+    @@index([projectKey, status])
+    @@index([originalOfferId])
+    @@map("subscription_contracts")
+}
+
+model ContractLineItem {
+    id         String @id @default(uuid())
+    contractId String
+
+    kind            ContractLineItemKind
+    sourceKey       String
+    sourceVersionId String?
+
+    titleSnapshot       String
+    descriptionSnapshot String?
+
+    quantity     Int     @default(1)
+    unit         String?
+    priceNet     Decimal @db.Decimal(10, 2)
+    priceGross   Decimal @db.Decimal(10, 2)
+    billingCycle String // monthly | yearly
+
+    minimumTermUntil DateTime?
+
+    featuresSnapshot     Json @default("[]")
+    quotaEffectsSnapshot Json @default("{}")
+    metadata             Json?
+
+    createdAt DateTime @default(now())
+
+    contract SubscriptionContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+    @@index([contractId, kind])
+    @@index([sourceVersionId])
+    @@map("contract_line_items")
+}

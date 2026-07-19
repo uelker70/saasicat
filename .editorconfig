@@ -1,0 +1,5 @@
+root = true
+
+[*.{ts,json,cjs,yml,yaml}]
+indent_style = space
+indent_size = 4

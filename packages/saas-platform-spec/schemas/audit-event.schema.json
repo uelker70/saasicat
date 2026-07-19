@@ -1,0 +1,73 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://saasicat.dev/schemas/audit-event.schema.json",
+    "title": "AuditEvent",
+    "description": "Sprach-neutrales Format eines AuditLog-Eintrags. Pro Konsument-App eigene AuditLog-Tabelle, gleiche Struktur.",
+    "type": "object",
+    "required": ["id", "entity", "entityId", "action", "createdAt"],
+    "additionalProperties": false,
+    "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "tenantId": {
+            "type": ["string", "null"],
+            "description": "null = Plattform-Aktion (z. B. SUPER_ADMIN ohne Mandantenkontext)."
+        },
+        "userId": {
+            "type": ["string", "null"],
+            "description": "null = System / Cron-getriggert."
+        },
+        "userEmail": {
+            "type": ["string", "null"],
+            "format": "email",
+            "description": "Convenience-Lookup für die Anzeige; Backend resolvet aus userId."
+        },
+        "entity": {
+            "type": "string",
+            "description": "z. B. 'Tenant', 'PromoCode', 'Subscription', 'PlanVersion', 'User'."
+        },
+        "entityId": { "type": "string" },
+        "action": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]+$",
+            "description": "SCREAMING_SNAKE_CASE, vergangenheitsform-orientiert. Beispiele: TENANT_SUSPEND, PILOT_GRANT, PROMO_CODE_CREATE, PLAN_VERSION_PUBLISH."
+        },
+        "changes": {
+            "type": ["object", "null"],
+            "description": "Frei strukturiertes JSON. Konvention für Feld-Diffs: { field: { old, new } }. Für Workflow-Aktionen: { reason, actor_tag, ... }.",
+            "additionalProperties": true
+        },
+        "actorTag": {
+            "type": ["string", "null"],
+            "description": "Herkunfts-Marker. Format: 'web:<email>:<sessionId>' oder 'cli:<email>:<host>'."
+        },
+        "ipAddress": { "type": ["string", "null"] },
+        "userAgent": { "type": ["string", "null"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+    },
+
+    "$defs": {
+        "ActorTagPattern": {
+            "type": "string",
+            "pattern": "^(web|cli):[^:]+:[^:]+$",
+            "description": "Verbindliches Format für actorTag."
+        },
+
+        "AuditQuery": {
+            "type": "object",
+            "description": "Query-Parameter für GET /api/v1/admin/audit. Vorlage admin-api.openapi.yaml.",
+            "additionalProperties": false,
+            "properties": {
+                "tenantId": { "type": "string" },
+                "userId": { "type": "string" },
+                "entity": { "type": "string" },
+                "entityId": { "type": "string" },
+                "action": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+                "actorTag": { "type": "string", "description": "Wildcard-fähig, z. B. 'cli:*'." },
+                "from": { "type": "string", "format": "date-time" },
+                "to": { "type": "string", "format": "date-time" },
+                "page": { "type": "integer", "minimum": 1, "default": 1 },
+                "pageSize": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 }
+            }
+        }
+    }
+}

@@ -1,0 +1,173 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://saasicat.dev/schemas/plan-catalog.schema.json",
+    "title": "PlanCatalog",
+    "description": "Sprach-neutrale Definition eines Plan-Catalogs + App-Identity für eine SaaS-App. Wird vom Konsumenten als YAML-/JSON-Datei (`config/saas.yaml`) gepflegt und beim Backend-Boot in Plattform-Tabellen gespiegelt.",
+    "type": "object",
+    "required": ["schemaVersion", "projectKey", "currency", "vatRate", "quotaKeys"],
+    "additionalProperties": false,
+    "properties": {
+        "schemaVersion": {
+            "type": "integer",
+            "const": 1
+        },
+        "projectKey": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{1,30}$",
+            "description": "Eindeutiger Schlüssel des konsumierenden Projekts. Cross-Audit-Marker."
+        },
+        "app": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "App-Identity-Block (Branding + Version). Vom AdminPublicBootController + AdminManifestConfigFactory konsumiert.",
+            "required": ["name"],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Brand-Display-Name (z. B. \"My App\")."
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Tag/Untertitel im Brand-Block (z. B. \"SuperAdmin\")."
+                },
+                "version": {
+                    "type": "string",
+                    "description": "App-Version-String (Build-Info)."
+                },
+                "icon": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8,
+                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"cf\", \"vf\")."
+                },
+                "logoUrl": {
+                    "type": "string",
+                    "format": "uri-reference",
+                    "description": "Optionale URL zu PNG/SVG; wenn gesetzt, rendert die UI ein <img> statt des Initialen-Badges."
+                }
+            }
+        },
+        "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "ISO-4217-Währungscode. EUR-only in Phase 1."
+        },
+        "vatRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "USt-Satz in Prozent. Pflicht (auch bei 0)."
+        },
+        "marketing": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "App-weite Marketing-Konfiguration. SPEC_V2 §6.5.",
+            "required": ["availableLocales"],
+            "properties": {
+                "availableLocales": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "description": "Erlaubter Sprach-Pool, den die App vermarkten darf. Erste = Default-Locale. Der SuperAdmin aktiviert daraus im Marketing-Catalog eine Teilmenge (LocaleManager)."
+                }
+            }
+        },
+        "quotaKeys": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "Erlaubte Limit-Dimensionen, gegen die Pläne und Bundles Limits definieren dürfen. Für jeden Key muss im Konsumenten ein QuotaProvider registriert sein."
+        },
+        "features": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/FeatureDef" },
+            "description": "Master-Liste aller Feature-Flags des Projekts. Pläne dürfen nur hier deklarierte Keys referenzieren."
+        },
+        "plans": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/PlanDef" },
+            "description": "Optional. Wenn weggelassen, kommen Plans ausschließlich aus dem AdminUI / DB."
+        }
+    },
+
+    "$defs": {
+        "FeatureDef": {
+            "type": "object",
+            "required": ["key"],
+            "additionalProperties": false,
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]+$",
+                    "description": "SCREAMING_SNAKE_CASE; eindeutig pro Catalog."
+                },
+                "label": { "type": "string", "minLength": 1 },
+                "icon": { "type": "string" },
+                "tier": {
+                    "type": "string",
+                    "description": "Optionale logische Gruppe. Konvention: CORE / ADVANCED / PRO / BUSINESS / ENTERPRISE_ONLY."
+                },
+                "plannedOnly": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Markiert, dass das Feature nicht produktiv ist (kein Plan oder Bundle referenziert es)."
+                }
+            }
+        },
+
+        "PlanDef": {
+            "type": "object",
+            "required": ["id", "quotas", "features"],
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]+$",
+                    "description": "Plan-ID. Vom Konsumenten frei wählbar (BASIC, STANDARD, ...). Landet als String in Subscription.plan."
+                },
+                "name": { "type": "string", "minLength": 1 },
+                "tagline": { "type": "string" },
+                "marketed": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "false = nicht im Self-Service-Onboarding wählbar (z. B. ENTERPRISE)."
+                },
+                "popular": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Highlighted-Karte im Onboarding (max. 1 pro Catalog)."
+                },
+                "monthlyNet": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Netto-Monatspreis. null = auf Anfrage (Sales-Kontakt)."
+                },
+                "yearlyNet": {
+                    "type": ["number", "null"],
+                    "minimum": 0,
+                    "description": "Netto-Gesamt­betrag pro Jahr bei BillingCycle=YEARLY (nicht effektiver Monatspreis). null = nur monatlich."
+                },
+                "quotas": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-z][A-Za-z0-9]*$": {
+                            "type": "integer",
+                            "description": "-1 = unbegrenzt; 0 = nicht erlaubt; >0 = harte Obergrenze."
+                        }
+                    },
+                    "additionalProperties": false,
+                    "minProperties": 1
+                },
+                "features": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
+                    "uniqueItems": true,
+                    "description": "Liste der enthaltenen Feature-Keys; alle müssen in features[].key existieren."
+                }
+            }
+        }
+    }
+}

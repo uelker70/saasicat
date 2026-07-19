@@ -1,0 +1,67 @@
+// =============================================================================
+// SaaS-Platform Prisma-Fragment: Promotion (zeitgesteuerte Preis-Aktionen)
+// =============================================================================
+//
+// REFERENZ-SNIPPET — siehe 03-plan-versions.prisma für Konventionen.
+//
+// Eine Promotion ist eine katalog-seitige, zeitlich begrenzte Preis-Aktion.
+// Sie überschreibt den Pricing-Page-Preis automatisch (ohne Code-Eingabe,
+// es sei denn `requiresCoupon`). Getrennt von `PromoCode` (einlösbarer
+// Checkout-Gutschein, 02-promo-code.prisma) — `requiresCoupon = true`
+// koppelt eine Promotion über `codes` an bestehende PromoCode-Codes.
+//
+// Globale Katalog-Tabelle (kein tenantId, kein RLS). Schreibzugriff nur
+// über SUPER_ADMIN-Guard im AdminController.
+//
+// Spec: yada-services/handoff/superadmin/SPEC_V2.md §9a
+
+model Promotion {
+    id         String @id @default(uuid())
+    projectKey String // 'vereinsfux' | 'autohauspro' | …
+
+    // Interne Bezeichnung (nicht öffentlich).
+    internalLabel String
+
+    // Aktions-Art: percent | amount | intro | freeMonths
+    type String
+
+    // Typ-abhängiger Wert:
+    //   percent/amount → number
+    //   intro          → { price, months }
+    //   freeMonths     → number
+    value Json
+
+    // Zieltyp der Keys in `appliesTo`: PLAN | BUNDLE | OFFER.
+    // Null/fehlend in Altbeständen wird als PLAN interpretiert.
+    targetType String @default("PLAN")
+
+    // Ziel-Keys, auf die die Aktion wirkt.
+    appliesTo Json @default("[]") // string[]
+
+    // Abrechnungs-Zyklus: monthly | yearly | both
+    billingCycle String @default("both")
+
+    validFrom DateTime
+    validTo   DateTime
+
+    // Bei Überschneidung gewinnt der höchste Wert.
+    priority Int @default(0)
+
+    // Sprach-Beschränkung; null = alle Locales.
+    onlyLocales Json? // string[] | null
+
+    requiresCoupon Boolean @default(false)
+    codes          Json    @default("[]") // string[] — referenzierte PromoCode-Codes
+
+    // UI-Akzentfarbe (Timeline/Ribbon).
+    color String @default("#2563eb")
+
+    // Locale-Texte { "de": { badge, fineprint }, … }.
+    i18n Json @default("{}")
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([projectKey, targetType, validFrom, validTo])
+    @@map("promotions")
+}

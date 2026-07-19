@@ -1,0 +1,62 @@
+{
+    "name": "@saasicat/spec",
+    "version": "0.1.0",
+    "description": "Sprach-neutrale Spec für die SaaS-Plattform: JSON-Schemas, OpenAPI-Vertrag, Prisma-Fragmente, Acceptance-Szenarien.",
+    "type": "module",
+    "main": "./index.cjs",
+    "module": "./index.js",
+    "types": "./index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./index.d.ts",
+                "default": "./index.js"
+            },
+            "require": {
+                "types": "./index.d.cts",
+                "default": "./index.cjs"
+            }
+        },
+        "./schemas/*.json": "./schemas/*.json",
+        "./prisma-fragments/*.prisma": "./prisma-fragments/*.prisma",
+        "./prisma-fragments/": "./prisma-fragments/"
+    },
+    "files": [
+        "index.js",
+        "index.cjs",
+        "index.d.ts",
+        "index.d.cts",
+        "schemas/",
+        "admin-api.openapi.yaml",
+        "acceptance/",
+        "prisma-fragments/"
+    ],
+    "scripts": {
+        "test": "node --test tests/schemas.test.js"
+    },
+    "devDependencies": {
+        "ajv": "^8.17.1",
+        "ajv-formats": "^3.0.1"
+    },
+    "keywords": [
+        "saas",
+        "platform",
+        "json-schema",
+        "openapi",
+        "saasicat"
+    ],
+    "license": "Apache-2.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/saas-platform-spec"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
