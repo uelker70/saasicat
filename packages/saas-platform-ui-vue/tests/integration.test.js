@@ -70,7 +70,6 @@ const SAMPLE_MANIFEST = {
         hash: 'h',
         currency: 'EUR',
         vatRate: 19,
-        quotaKeys: ['users', 'vehicles', 'storageGb'],
         plans: [],
     },
 };

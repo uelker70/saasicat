@@ -17,10 +17,6 @@ schemaVersion: 1
 projectKey: autohauspro
 currency: EUR
 vatRate: 19.0
-quotaKeys:
-  - users
-  - vehicles
-  - storageGb
 features:
   - { key: VEHICLE_INVENTORY, label: Fahrzeugbestand, tier: CORE }
   - { key: DMS,               label: Dokumentenablage, tier: PRO }
@@ -63,7 +59,6 @@ schemaVersion: 1
 projectKey: test-app
 # currency fehlt
 vatRate: 19
-quotaKeys: [users]
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -81,7 +76,6 @@ schemaVersion: 1
 projectKey: test-app
 currency: EUR
 vatRate: 19
-quotaKeys: [users]
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -99,31 +93,12 @@ addons:
 // Cross-field-Validierungen
 // ──────────────────────────────────────────────────────────────────
 
-test('cross-field: Plan referenziert unbekannten quotaKey → Fehler', () => {
-    const yaml = `
-schemaVersion: 1
-projectKey: test-app
-currency: EUR
-vatRate: 19
-quotaKeys: [users]
-plans:
-  - id: BASIC
-    quotas: { users: 1, vehicles: 5 }   # vehicles nicht deklariert
-    features: []
-`;
-    assert.throws(
-        () => loadPlanCatalogFromString(yaml, { source: 'unknown-quota' }),
-        /Unbekannter quotaKey "vehicles"/,
-    );
-});
-
 test('cross-field: Plan referenziert unbekannten featureKey → Fehler', () => {
     const yaml = `
 schemaVersion: 1
 projectKey: test-app
 currency: EUR
 vatRate: 19
-quotaKeys: [users]
 features:
   - { key: F1 }
 plans:
@@ -143,7 +118,6 @@ schemaVersion: 1
 projectKey: test-app
 currency: EUR
 vatRate: 19
-quotaKeys: [users]
 plans:
   - id: BASIC
     quotas: { users: 1 }
@@ -167,7 +141,6 @@ schemaVersion: 1
 projectKey: test-app
 currency: EUR
 vatRate: 19
-quotaKeys: [users]
 features:
   - { key: F1 }
   - { key: F2_PLANNED, plannedOnly: true }
@@ -186,18 +159,19 @@ schemaVersion: 1
 projectKey: test-app
 currency: EUR
 vatRate: 19
-quotaKeys: [users]
+features:
+  - { key: F1 }
 plans:
   - id: BASIC
-    quotas: { users: 1, vehicles: 5 }
-    features: []
+    quotas: { users: 1 }
+    features: [F1, F2]
 `;
-    // Mit checks aktiviert → Fehler. Ohne → kein Fehler.
+    // Mit checks aktiviert → Fehler (F2 nicht deklariert). Ohne → kein Fehler.
     const catalog = loadPlanCatalogFromString(yaml, {
         source: 'no-checks',
         crossFieldChecks: false,
     });
-    assert.equal(catalog.plans[0].quotas.vehicles, 5);
+    assert.equal(catalog.plans[0].features.length, 2);
 });
 
 // ──────────────────────────────────────────────────────────────────

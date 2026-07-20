@@ -16,7 +16,6 @@ const CATALOG = {
     projectKey: 'autohauspro',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users', 'vehicles', 'storageGb'],
     features: [
         { key: 'CASHBOOK' },
         { key: 'DMS' },

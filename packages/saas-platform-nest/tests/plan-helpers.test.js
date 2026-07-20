@@ -19,7 +19,6 @@ const AUTOHAUSPRO_LIKE_CATALOG = {
     projectKey: 'autohauspro',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users', 'vehicles', 'storageGb'],
     features: [
         { key: 'VEHICLE_INVENTORY', label: 'Fahrzeugbestand', tier: 'CORE' },
         { key: 'DMS', label: 'Dokumentenablage', tier: 'PRO' },

@@ -203,7 +203,6 @@ function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory' | 'inj
                 hash: 'sha256-quickstart',
                 currency: catalog.currency,
                 vatRate: catalog.vatRate,
-                quotaKeys: catalog.quotaKeys ?? [],
                 plans: catalog.plans ?? [],
                 features: catalog.features ?? [],
             },
@@ -259,7 +258,6 @@ export class SaasPlatformModule {
                   projectKey: '',
                   currency: '',
                   vatRate: 0,
-                  quotaKeys: [],
                   sink: options.adapters
                       .planCatalogReadSink as ProviderSpec<PlanCatalogReadSink>,
                   imports: options.imports,

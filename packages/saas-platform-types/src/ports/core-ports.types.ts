@@ -141,7 +141,7 @@ export interface UserManagementPort extends SuperAdminProvisioningPort {
 
 /** Liefert aktuellen Verbrauch für eine Limit-Dimension. */
 export interface QuotaProvider {
-    /** quotaKey aus saas.yaml.quotaKeys. */
+    /** quotaKey, wie via `@DefinesQuota({ key })` deklariert. */
     readonly key: string;
     count(tenantId: string): Promise<number>;
     /** Optional: Cache-TTL in Sekunden (Default 30s). */

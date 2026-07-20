@@ -307,9 +307,9 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
 
 const catalogQuotaKeys = computed(() => {
     if (catalog.plans.value && catalog.plans.value.length > 0) {
-        // Catalog-Plans liefern `quotas` per Plan, aber die deklarative
-        // quotaKeys-Reihenfolge steht im PlanCatalog, nicht in /plans.
-        // Wir fallen auf die Keys des ersten Plans zurück.
+        // Quota-Keys existieren nur in den Plänen selbst (Code deklariert
+        // sie via @DefinesQuota) — die Keys des ersten Plans geben die
+        // Anzeige-Reihenfolge vor.
         return Object.keys(catalog.plans.value[0].quotas);
     }
     if (usage.value) return Object.keys(usage.value.limits.quotas);

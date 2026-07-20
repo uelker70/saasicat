@@ -19,7 +19,6 @@ function buildManifest({ features, plans = [] } = {}) {
             hash: 'h',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: [],
             features,
             plans,
         },

@@ -51,7 +51,6 @@ test('planCatalog accepts minimal valid catalog', () => {
         projectKey: 'autohauspro',
         currency: 'EUR',
         vatRate: 19,
-        quotaKeys: ['users', 'vehicles'],
         plans: [
             {
                 id: 'BASIC',
@@ -147,7 +146,6 @@ test('adminManifest accepts minimal valid manifest', () => {
             hash: 'sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: ['users'],
             plans: [{ id: 'BASIC', quotas: { users: 1 }, features: [] }],
         },
         capabilities: { 'tenants.read': true },
@@ -174,7 +172,6 @@ test('adminManifest rejects capability with colon notation', () => {
             hash: 'sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: ['users'],
             plans: [{ id: 'BASIC', quotas: { users: 1 }, features: [] }],
         },
         capabilities: { 'tenants:read': true }, // ← Doppelpunkt verboten

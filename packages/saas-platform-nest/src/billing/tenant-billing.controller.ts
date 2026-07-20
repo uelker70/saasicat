@@ -16,14 +16,12 @@ import {
 } from '@nestjs/common';
 import type {
     BillingCycle,
-    PlanCatalog,
     SubscriptionUsagePort,
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
 } from '@saasicat/types';
 import { EntitlementService, toEffectiveLimitsSnapshot } from '../entitlement/index.js';
-import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { initialPeriodWindow } from './billing-period.js';
@@ -111,7 +109,6 @@ interface UsageResponse {
 @UseGuards(ComposedTenantAuthGuard)
 export class TenantBillingController {
     constructor(
-        @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
         // tsup-Build hat kein emitDecoratorMetadata — Class-Type-Args müssen
         // explizit mit @Inject(Class) versehen werden, sonst bricht der DI.
         @Inject(EntitlementService) private readonly entitlements: EntitlementService,
@@ -201,7 +198,7 @@ export class TenantBillingController {
         }
 
         const usage: Record<string, number> = {};
-        for (const key of this.catalog.quotaKeys) {
+        for (const key of new Set([...Object.keys(limits.quotas), ...Object.keys(usageRaw)])) {
             usage[key] = usageRaw[key] ?? 0;
         }
 

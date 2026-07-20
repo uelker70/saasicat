@@ -45,7 +45,6 @@ export interface AdminManifest {
         hash: string;
         currency: string;
         vatRate: number;
-        quotaKeys: QuotaKey[];
         features?: FeatureDef[];
         plans: PlanDef[];
     };

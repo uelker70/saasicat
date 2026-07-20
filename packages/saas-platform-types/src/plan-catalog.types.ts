@@ -73,7 +73,6 @@ export interface PlanCatalog {
     vatRate: number;
     /** App-weite Marketing-Konfiguration (SPEC_V2 §6.5). Optional. */
     marketing?: PlanCatalogMarketing;
-    quotaKeys: QuotaKey[];
     features?: FeatureDef[];
     /**
      * Optional. Wenn weggelassen, kommen Plans ausschließlich aus dem

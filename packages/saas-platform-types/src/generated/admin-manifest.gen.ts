@@ -49,10 +49,6 @@ export interface AdminManifest {
         hash: string;
         currency: string;
         vatRate: number;
-        /**
-         * @minItems 1
-         */
-        quotaKeys: [string, ...string[]];
         features?: {
             key: string;
             label?: string;

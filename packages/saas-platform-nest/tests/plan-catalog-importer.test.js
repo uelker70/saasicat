@@ -42,9 +42,6 @@ schemaVersion: 1
 projectKey: smoke
 currency: EUR
 vatRate: 19.0
-quotaKeys:
-  - users
-  - members
 features:
   - { key: CORE_IDENTITY, label: Mitglieder, tier: CORE }
   - { key: WHATSAPP, label: WhatsApp, tier: ADVANCED }
@@ -115,7 +112,6 @@ schemaVersion: 1
 projectKey: smoke
 currency: EUR
 vatRate: 19.0
-quotaKeys: [users]
 plans:
   - id: ENTERPRISE
     name: Enterprise
@@ -139,7 +135,6 @@ schemaVersion: 1
 projectKey: smoke
 currency: EUR
 vatRate: 19.0
-quotaKeys: [users]
 plans:
   - id: SIMPLE
     monthlyNet: 5.50

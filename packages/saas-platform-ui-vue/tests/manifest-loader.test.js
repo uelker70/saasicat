@@ -45,7 +45,6 @@ const SAMPLE_MANIFEST = {
         hash: 'h1',
         currency: 'EUR',
         vatRate: 19,
-        quotaKeys: [],
         plans: [],
     },
 };

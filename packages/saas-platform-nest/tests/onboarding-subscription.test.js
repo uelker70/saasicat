@@ -7,15 +7,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TenantBillingController } from '../dist/billing/index.js';
 
-const CATALOG = {
-    schemaVersion: 1,
-    projectKey: 'demo',
-    currency: 'EUR',
-    vatRate: 19,
-    quotaKeys: ['users', 'members', 'storageGb'],
-    plans: [],
-};
-
 function buildEntitlement() {
     return {
         invalidations: [],
@@ -109,7 +100,6 @@ function buildPromoStub({ shouldFail = false } = {}) {
 
 function buildController(overrides = {}) {
     return new TenantBillingController(
-        CATALOG,
         overrides.entitlements ?? buildEntitlement(),
         overrides.planPreview ?? buildPlanPreview(),
         overrides.subscriptionUsage ?? { findForTenant: async () => buildSub() },

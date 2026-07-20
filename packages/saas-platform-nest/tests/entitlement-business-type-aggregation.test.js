@@ -18,7 +18,6 @@ const MIN_CATALOG = {
     projectKey: 'vereinsfux',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['members', 'storageGb', 'resources'],
     features: [
         { key: 'CORE_IDENTITY' },
         { key: 'SPORT_TEAMS' },

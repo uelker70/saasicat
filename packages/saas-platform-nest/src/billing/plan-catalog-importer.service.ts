@@ -10,7 +10,7 @@
 //  - `plans[]`    → `Plan` (Stamm) + `PlanVersion` v1 (published)
 //  - `features[]` → `FeatureCatalogEntry`
 //
-// App-globale Settings (`projectKey`, `currency`, `vatRate`, `quotaKeys`)
+// App-globale Settings (`projectKey`, `currency`, `vatRate`)
 // werden NICHT importiert — die bleiben als statische `forRoot()`-Optionen
 // im AppModule (Build-Time-Identity, gehört nicht ins runtime-DB).
 

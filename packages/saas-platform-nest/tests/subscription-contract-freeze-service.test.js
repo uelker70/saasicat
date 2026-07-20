@@ -11,7 +11,6 @@ const CATALOG = {
     projectKey: 'demo',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users', 'members'],
     plans: [
         {
             id: 'STANDARD',

@@ -24,7 +24,8 @@ import { computeProration, type ProrationDto } from './proration.js';
 // PlanChangePreviewService — Plattform-Variante (datengetrieben).
 //
 // Im Vergleich zur AutohausPro-eigenen Implementierung (festes users/vehicles/storageGb):
-//   - LimitsCheck wird über `catalog.quotaKeys[]` iteriert.
+//   - LimitsCheck wird über die Union der Quota-Keys aus aktuellem
+//     Entitlement, Ziel-Plan und Usage-Snapshot iteriert.
 //   - Preise (currentPriceNet, targetPriceNet) kommen aus dem PlanCatalog,
 //     nicht aus DB-PlanVersion-Snapshots — Catalog ist die Listenpreis-SSoT.
 //   - Plan-Rank wird aus der Catalog-Reihenfolge abgeleitet; nicht-marketed
@@ -68,7 +69,7 @@ export interface PlanChangePreviewDto {
      */
     projectedTrialEndsAt: Date | null;
     proration: ProrationDto | null;
-    /** Map quotaKey → LimitsCheckRow. Reihenfolge wie in `catalog.quotaKeys`. */
+    /** Map quotaKey → LimitsCheckRow über alle Quota-Dimensionen aus aktuellem Limit, Ziel-Plan und Verbrauch. */
     limitsCheck: Record<string, LimitsCheckRow>;
     featuresLost: string[];
     featuresGained: string[];
@@ -174,7 +175,12 @@ export class PlanChangePreviewService {
         const changeType = this.classify(sub.plan, sub.billingCycle, targetPlan, targetCycle);
 
         const limitsCheck: Record<string, LimitsCheckRow> = {};
-        for (const key of this.catalog.quotaKeys) {
+        const quotaKeys = new Set([
+            ...Object.keys(currentLimits.quotas),
+            ...Object.keys(targetSnap.quotas),
+            ...Object.keys(usage),
+        ]);
+        for (const key of quotaKeys) {
             const used = usage[key] ?? 0;
             const currentMax = currentLimits.quotas[key] ?? 0;
             const targetMax = targetSnap.quotas[key] ?? 0;

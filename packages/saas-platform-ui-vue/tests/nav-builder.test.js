@@ -44,7 +44,6 @@ function buildManifest(overrides = {}) {
             hash: 'h',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: [],
             plans: [],
         },
         ...overrides,

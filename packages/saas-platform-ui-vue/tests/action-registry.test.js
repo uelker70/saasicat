@@ -19,7 +19,6 @@ function buildManifest(actions = []) {
             hash: 'h',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: [],
             plans: [],
         },
     };

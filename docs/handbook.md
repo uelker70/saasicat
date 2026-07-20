@@ -76,7 +76,7 @@ Die Plattform trennt sauber zwischen **Code-Realität**, **Produkt-Definition** 
 | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Capability**                 | Eine konkrete Fähigkeit im Code, deklariert mit `@ImplementsCapability('dms.upload', {...})`. Atomare technische Einheit, z. B. ein Endpoint.                                                                                                |
 | **Feature**                    | Vermarktbares Bündel mehrerer Capabilities (z. B. `DMS` = Upload + Download + Preview). Wird im Marketing-Catalog übersetzt, Preisen zugeordnet, in Plänen referenziert.                                                                     |
-| **Quota**                      | Numerische Begrenzung (z. B. `users.max=10`, `storage.gb=5`). Deklariert mit `@DefinesQuota(...)` auf einem `QuotaProvider`, der `count(tenantId)` liefert. Wird per `@EnforceQuota('users.max')` an Endpoints geprüft.                      |
+| **Quota**                      | Numerische Begrenzung (z. B. `users=10`, `storageGb=5`). Deklariert mit `@DefinesQuota(...)` auf einem `QuotaProvider`, der `count(tenantId)` liefert. Wird per `@EnforceQuota('users')` an Endpoints geprüft.                               |
 | **Discovery-Snapshot**         | Statisches Abbild aller Decorator-Aufrufe (Capabilities, Features, Quotas), das die Plattform beim Boot in `var/discovery-snapshot.json` schreibt. Speist die SuperAdmin-Discovery-Page.                                                     |
 | **Catalog-Entry**              | DB-projizierte Sicht auf eine Capability/Feature/Quota mit Lifecycle-Status (`discovered → accepted → active → deprecated → retired` / `ignored`).                                                                                           |
 | **Bundle**                     | Versionierte Gruppierung von Features + Quota-Effekten — eigenständig buchbar oder in Plan-Versionen enthalten (Addon-Verkauf entfernt, #49).                                                                                                |
@@ -106,8 +106,8 @@ Pflicht).
 ┌──────────────────────────────────────────────────────────────────┐
 │ App-Code                                                         │
 │  @ImplementsCapability('dms.upload', {...})                      │
-│  @DefinesQuota({ key: 'storage.gb', ... })                       │
-│  @EnforceQuota('storage.gb')                                     │
+│  @DefinesQuota({ key: 'storageGb', ... })                        │
+│  @EnforceQuota('storageGb')                                      │
 └────────────────────────────┬─────────────────────────────────────┘
                              │ (Boot-Scan)
                              ▼
@@ -162,7 +162,7 @@ Pflicht).
 ┌──────────────────────────────────────────────────────────────────┐
 │ EntitlementService    (Runtime-Aggregation aus Verträgen)        │
 │   - @RequireFeature('DMS')  →  403 wenn nicht enthalten          │
-│   - @EnforceQuota('storage.gb')  →  LimitExceededError           │
+│   - @EnforceQuota('storageGb')  →  LimitExceededError            │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -320,10 +320,18 @@ fertiges Minimal-Schema steht im [Quickstart §3](saas-platform-quickstart.md#sc
 
 ## 6. NestJS-Integration — Schritt für Schritt
 
-### 6.1 Plan-Catalog YAML
+### 6.1 App-Identity YAML
 
 Lege `config/saas.yaml` an (Schema:
-`@saasicat/spec/schemas/plan-catalog.schema.json`):
+`@saasicat/spec/schemas/plan-catalog.schema.json`). Die Datei trägt **nur**
+die App-Identität (Branding + Version) und die App-globale Marketing-Konfig —
+Source-of-Truth-Trennung:
+
+- **App-Identity** (Branding, Version, Project-Key) → diese Datei.
+- **Features / Quotas / Capabilities** → Code (`@ImplementsCapability`,
+  `@DefinesQuota`), via Discovery publiziert.
+- **Plans / Bundles** → DB-Tabellen `plan` + `catalogPlanVersion` + `bundles`.
+  Source-of-Truth ist allein das SuperAdmin-UI.
 
 ```yaml
 schemaVersion: 1
@@ -336,37 +344,11 @@ currency: EUR
 vatRate: 19.0
 marketing:
     availableLocales: [de, en]
-
-quotaKeys:
-    - key: users.max
-      label: Maximale Benutzer
-      unit: count
-    - key: storage.gb
-      label: Speicher
-      unit: gigabyte
-
-features:
-    - key: DMS
-      label: Dokumenten-Management
-    - key: REPORTING
-      label: Auswertungen
-
-plans:
-    - id: starter
-      name: Starter
-      monthlyNet: 19.0
-      features: [DMS]
-      quotas:
-          users.max: 3
-          storage.gb: 5
-    - id: pro
-      name: Pro
-      monthlyNet: 49.0
-      features: [DMS, REPORTING]
-      quotas:
-          users.max: 25
-          storage.gb: 100
 ```
+
+> `features:` und `plans:` sind im Schema weiterhin als optionale Blöcke
+> erlaubt — nur für statische Setups ohne Admin-UI (Tests, Smoke-Umgebungen).
+> Produktiv werden sie bewusst NICHT im YAML gepflegt.
 
 ### 6.2 Plan-Catalog beim Boot laden
 
@@ -447,7 +429,6 @@ export class PlatformAdaptersModule {}
             app: SAAS_CONFIG.app,
             currency: SAAS_CONFIG.currency,
             vatRate: SAAS_CONFIG.vatRate,
-            quotaKeys: SAAS_CONFIG.quotaKeys,
             marketing: SAAS_CONFIG.marketing,
             imports: [PlatformAdaptersModule],
             sink: {
@@ -665,7 +646,7 @@ export class DmsController {
         owner: 'dms',
     })
     @RequireFeature('DMS')
-    @EnforceQuota('storage.gb')
+    @EnforceQuota('storageGb')
     async upload(@CurrentUser() user: AuthenticatedUser, @Req() req: FastifyRequest) {
         return this.dmsService.upload(user, req);
     }
@@ -678,7 +659,7 @@ Auf den Quota-Providern:
 // modules/platform-adapters/quota-providers.ts
 @Injectable()
 @DefinesQuota({
-    key: 'storage.gb',
+    key: 'storageGb',
     label: 'Belegter Speicher (GB)',
     unit: 'gigabyte',
     policy: 'hard',

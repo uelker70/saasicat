@@ -97,7 +97,6 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                         hash: 'h',
                         currency: 'EUR',
                         vatRate: 19,
-                        quotaKeys: [],
                         plans: [],
                     },
                 }),
@@ -152,7 +151,6 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                         hash: 'h',
                         currency: 'EUR',
                         vatRate: 19,
-                        quotaKeys: [],
                         plans: [],
                     },
                 }),
@@ -233,7 +231,6 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                     hash: 'h',
                     currency: 'EUR',
                     vatRate: 19,
-                    quotaKeys: [],
                     plans: [],
                 },
             };

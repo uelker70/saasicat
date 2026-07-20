@@ -15,7 +15,6 @@ const CATALOG = {
     projectKey: 'app',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: [],
     plans: [
         { id: 'starter', features: ['NOTES'], quotas: { 'notes.max': 25 } },
         { id: 'pro', features: ['NOTES', 'EXPORT'], quotas: { 'notes.max': 1000 } },

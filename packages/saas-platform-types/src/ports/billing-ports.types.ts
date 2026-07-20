@@ -258,8 +258,8 @@ export interface SubscriptionUsagePort {
 }
 
 /**
- * Liefert den aktuellen Verbrauch für alle deklarierten quotaKeys eines
- * Tenants (z. B. `{ users: 4, members: 850, storageGb: 1.2, resources: 2 }`).
+ * Liefert den aktuellen Verbrauch für alle via `@DefinesQuota` deklarierten
+ * quotaKeys eines Tenants (z. B. `{ users: 4, members: 850, storageGb: 1.2 }`).
  * Konsument darf eigene Counter-Strategien verwenden (Prisma-Counts,
  * DMS-Service-Roundtrip, Cached-Storage-Tracker, …) und muss soft-fail-
  * Verhalten selbst entscheiden.

@@ -27,7 +27,6 @@ const SAMPLE_MANIFEST = {
         hash: 'h',
         currency: 'EUR',
         vatRate: 19,
-        quotaKeys: [],
         plans: [],
         features: [
             { key: 'VEHICLE_INVENTORY', label: 'Fahrzeugbestand', tier: 'CORE' },

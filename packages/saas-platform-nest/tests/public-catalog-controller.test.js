@@ -13,7 +13,6 @@ const CATALOG = {
     projectKey: 'demo',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users', 'members', 'storageGb'],
     features: [
         { key: 'CORE_IDENTITY', label: 'Mitglieder', tier: 'CORE' },
         { key: 'WHATSAPP', label: 'WhatsApp', tier: 'ADVANCED' },

@@ -99,9 +99,12 @@ export function loadPlanCatalogFromString(
 /**
  * Cross-field-Validierungen, die JSON-Schema nicht ausdrücken kann:
  *
- *   - Jeder Quota-Key in einem Plan muss in `quotaKeys` deklariert sein.
  *   - Jeder Feature-Key in einem Plan muss in `features[].key` deklariert sein.
  *   - Plan-IDs sind eindeutig.
+ *
+ * Quota-Keys werden hier bewusst NICHT geprüft — Source-of-Truth dafür ist
+ * der Code (`@DefinesQuota`); der Abgleich läuft zur Laufzeit über den
+ * Discovery-Snapshot (Strict-Mode-Check, SPEC_V2 §8).
  *
  * **`plannedOnly: true` ist KEIN Block** für Plan-Referenzen. Der Flag
  * markiert "im Catalog gelistet, im Code (noch) nicht implementiert" — Plans
@@ -114,7 +117,6 @@ export function loadPlanCatalogFromString(
 function validateConsistency(catalog: PlanCatalog, source: string): void {
     const errors: string[] = [];
 
-    const declaredQuotaKeys = new Set(catalog.quotaKeys);
     const declaredFeatureKeys = new Set((catalog.features ?? []).map((f) => f.key));
 
     // Plan-IDs eindeutig?
@@ -124,15 +126,6 @@ function validateConsistency(catalog: PlanCatalog, source: string): void {
             errors.push(`plans[].id: Doppelte Plan-ID "${plan.id}"`);
         }
         planIds.add(plan.id);
-
-        // Plan-Quotas referenzieren erklärte quotaKeys?
-        for (const key of Object.keys(plan.quotas)) {
-            if (!declaredQuotaKeys.has(key)) {
-                errors.push(
-                    `plans[id=${plan.id}].quotas: Unbekannter quotaKey "${key}" — nicht in catalog.quotaKeys deklariert`,
-                );
-            }
-        }
 
         // Plan-Features referenzieren erklärte features?
         if (catalog.features) {

@@ -63,7 +63,7 @@ const props = defineProps<{
     modelValue: string | null;
     plans: CatalogPlan[];
     cycle: BillingCycleStr;
-    /** Catalog-deklarierte quotaKeys in Reihenfolge. */
+    /** Anzuzeigende quotaKeys in Reihenfolge. */
     catalogQuotaKeys: string[];
     /** Aktuelle Subscription, optional — wenn gesetzt, wird die Plan-Karte mit „Aktuell" markiert. */
     currentPlanId?: string | null;

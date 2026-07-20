@@ -9,8 +9,8 @@ import type { FeatureKey, PlanId, QuotaKey } from '@saasicat/types';
 
 /**
  * Snapshot der bindenden `PlanVersion` einer Subscription. Quotas werden als
- * Record aus `quotaKey → number` geliefert; konkrete Keys leben im Catalog
- * (`quotaKeys[]`).
+ * Record aus `quotaKey → number` geliefert; konkrete Keys deklariert der
+ * Code via `@DefinesQuota`.
  *
  * `-1` ist Catalog-Konvention für „unbegrenzt" — Konsumenten müssen das
  * selbst auf `Number.POSITIVE_INFINITY` mappen, wenn sie damit rechnen.
