@@ -1,9 +1,9 @@
-// Plattform-FeatureGuard — prüft `@RequireFeature(...)`-Annotationen gegen
-// das aktive EntitlementSet (Plan + Add-ons + Custom-Overrides).
+// Platform FeatureGuard — checks `@RequireFeature(...)` annotations against
+// the active EntitlementSet (plan + add-ons + custom overrides).
 //
-// Konsumenten-Hooks laufen über `FEATURE_GUARD_CONFIG_TOKEN` — siehe
-// feature-guard.tokens.ts. Ohne Config verhält sich der Guard wie ein
-// schlichter Reflector + EntitlementService-Lookup ohne RLS-Wrapping.
+// Consumer hooks run through `FEATURE_GUARD_CONFIG_TOKEN` — see
+// feature-guard.tokens.ts. Without config the guard behaves like a plain
+// Reflector + EntitlementService lookup without RLS wrapping.
 
 import {
     CanActivate,
@@ -31,11 +31,11 @@ interface RequestWithUser {
     tenantId?: string;
 }
 
-// Constructor-Parameter werden mit explizitem @Inject(...) annotiert, weil
-// `tsup` ohne `@swc/core` das `emitDecoratorMetadata` überspringt — dann
-// kennt NestJS-DI die Konstruktor-Typen nicht und scheitert beim Bootstrap
-// mit "Nest can't resolve dependencies of FeatureGuard (?, …)". Explizite
-// Tokens sind unabhängig von der Build-Pipeline.
+// Constructor parameters are annotated with explicit @Inject(...) because
+// `tsup` without `@swc/core` skips `emitDecoratorMetadata` — then NestJS DI
+// doesn't know the constructor types and fails at bootstrap with
+// "Nest can't resolve dependencies of FeatureGuard (?, …)". Explicit tokens
+// are independent of the build pipeline.
 
 @Injectable()
 export class FeatureGuard implements CanActivate {
@@ -63,8 +63,8 @@ export class FeatureGuard implements CanActivate {
         const user = request.user;
         if (!user) throw new ForbiddenException('Nicht authentifiziert');
 
-        // SUPER_ADMIN-Bypass — Plattform-Support darf einem Mandanten auch
-        // bei nicht gebuchtem Feature helfen.
+        // SUPER_ADMIN bypass — platform support may help a tenant even when
+        // a feature isn't booked.
         const role = this.config?.userRoleResolver
             ? this.config.userRoleResolver(user)
             : (user.role ?? user.platformRole);
@@ -88,15 +88,15 @@ export class FeatureGuard implements CanActivate {
     }
 
     /**
-     * Upsell-Response (#36): mit registriertem `UpsellOfferResolver` wird der
-     * 403 maschinenlesbar (`FeatureNotLicensedBody`), damit Konsumenten-UIs
-     * ein Kaufangebot rendern können. Ohne Resolver bleibt der bisherige
-     * plain-403 — kein Breaking Change.
+     * Upsell response (#36): with a registered `UpsellOfferResolver` the 403
+     * becomes machine-readable (`FeatureNotLicensedBody`), so consumer UIs can
+     * render a purchase offer. Without a resolver the previous plain 403
+     * remains — no breaking change.
      *
-     * Bewusst 403 + `code`-Feld statt 402 — Begründung in
-     * `@saasicat/types` upsell.types.ts (402 ist reserviert/
-     * uneinheitlich unterstützt; SPA-Interceptoren dürfen den 403 nicht als
-     * Auth-Fehler werten, die Unterscheidung läuft über `code`).
+     * Deliberately 403 + `code` field instead of 402 — rationale in
+     * `@saasicat/types` upsell.types.ts (402 is reserved / inconsistently
+     * supported; SPA interceptors must not treat the 403 as an auth error, the
+     * distinction runs through `code`).
      */
     private async buildNotLicensedException(
         required: string[],
@@ -116,8 +116,8 @@ export class FeatureGuard implements CanActivate {
     }
 
     /**
-     * Ein Resolver-Fehler darf den fachlich korrekten 403 nicht in einen 500
-     * verwandeln — degradieren auf leere Offers und loggen.
+     * A resolver error must not turn the semantically correct 403 into a 500 —
+     * degrade to empty offers and log.
      */
     private async resolveOffersSafe(required: string[], tenantId: string): Promise<UpsellOffer[]> {
         try {

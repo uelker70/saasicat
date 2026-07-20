@@ -1,7 +1,7 @@
-// SubscriptionBundleModule — DI-Wrapper für SubscriptionBundlesService.
+// SubscriptionBundleModule — DI wrapper for SubscriptionBundlesService.
 //
-// Konsument reicht seine Adapter durch und konfiguriert ggf. die
-// Default-Mindestlaufzeit:
+// The consumer passes its adapters through and optionally configures the
+// default minimum term:
 //
 // ```ts
 // SubscriptionBundleModule.forRoot({
@@ -15,9 +15,9 @@
 // })
 // ```
 //
-// Hinweis: `BUNDLE_REPOSITORY_TOKEN` wird üblicherweise vom CatalogModule
-// schon registriert und exportiert — dann reicht `imports: [CatalogModule]`
-// im Konsumenten ohne eigenes `bundleRepository`-Forwarding.
+// Note: `BUNDLE_REPOSITORY_TOKEN` is usually already registered and exported
+// by the CatalogModule — then `imports: [CatalogModule]` suffices
+// in the consumer without its own `bundleRepository` forwarding.
 
 import {
     type CanActivate,
@@ -60,44 +60,44 @@ import { buildTenantSubscriptionBundlesController } from './tenant-subscription-
 export interface SubscriptionBundleControllerOptions {
     extraGuards?: Array<Type<CanActivate>>;
     /**
-     * Auth-Guard-Liste analog `TenantBillingModule.forRoot.authGuards`.
-     * Ohne diese Liste blockiert `ComposedTenantAuthGuard` fail-closed.
+     * Auth guard list analogous to `TenantBillingModule.forRoot.authGuards`.
+     * Without this list, `ComposedTenantAuthGuard` blocks fail-closed.
      */
     authGuards?: ProviderSpec<ReadonlyArray<CanActivate>>;
     /**
-     * Usage-Port für Subscription-Lookup und aktuelle Plan-Kompatibilität.
-     * Wenn nicht gesetzt, muss ein importiertes Modul den Token exportieren.
+     * Usage port for subscription lookup and current plan compatibility.
+     * If not set, an imported module must export the token.
      */
     subscriptionUsagePort?: ProviderSpec<SubscriptionUsagePort>;
-    /** Optionaler Tenant-ID-Resolver. Default: `req.user.tenantId`. */
+    /** Optional tenant-ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
 }
 
 export interface SubscriptionBundleModuleOptions {
     subscriptionBundleRepository: ProviderSpec<SubscriptionBundleRepository>;
     /**
-     * Optional — wenn weggelassen, wird `BUNDLE_REPOSITORY_TOKEN` per
-     * Default-Inject aus dem DI-Scope erwartet (typisch via importiertem
+     * Optional — if omitted, `BUNDLE_REPOSITORY_TOKEN` is expected via
+     * default inject from the DI scope (typically via an imported
      * `CatalogModule`).
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
-    /** Default Mindestlaufzeit (Monate). Default = 12. */
+    /** Default minimum term (months). Default = 12. */
     defaultMinimumTermMonths?: number;
     /**
-     * Self-Service-Policy (#37): Bundles, die nur per Vertrieb buchbar
-     * sind. Greift in `addBundleToSubscription` (422 BUNDLE_NOT_SELF_SERVICE)
-     * und im Preview (Blocker).
+     * Self-service policy (#37): bundles that are only bookable via sales.
+     * Applies in `addBundleToSubscription` (422 BUNDLE_NOT_SELF_SERVICE)
+     * and in the preview (blocker).
      */
     selfServiceBlockedBundles?: SelfServiceBlockedBundles;
     /**
-     * Wenn gesetzt: Tenant-Self-Service-Controller wird unter
-     * `/billing/subscription-bundles` gemountet (GET/POST/DELETE). Die
-     * `extraGuards` werden zusätzlich zum Plattform-Default
-     * `ComposedTenantAuthGuard` angewendet (Rollen-/MFA-Guards).
+     * If set: the tenant self-service controller is mounted at
+     * `/billing/subscription-bundles` (GET/POST/DELETE). The
+     * `extraGuards` are applied in addition to the platform default
+     * `ComposedTenantAuthGuard` (role/MFA guards).
      *
-     * Voraussetzung: der Konsument hat `TenantBillingModule` bereits
-     * registriert — der Controller braucht `SUBSCRIPTION_USAGE_PORT_TOKEN`
-     * + `TENANT_ID_RESOLVER_TOKEN` im selben DI-Scope.
+     * Prerequisite: the consumer has already registered `TenantBillingModule`
+     * — the controller needs `SUBSCRIPTION_USAGE_PORT_TOKEN`
+     * + `TENANT_ID_RESOLVER_TOKEN` in the same DI scope.
      */
     controller?: SubscriptionBundleControllerOptions;
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;

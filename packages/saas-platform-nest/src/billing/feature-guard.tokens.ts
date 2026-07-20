@@ -1,34 +1,34 @@
-// FeatureGuard-Konfiguration. Konsumenten registrieren ein Objekt unter
-// FEATURE_GUARD_CONFIG_TOKEN, wenn sie:
-//   - innerhalb der Limits-Berechnung einen Tenant-Context (RLS) brauchen
-//     (z. B. `runWithTenant`),
-//   - eine andere User-Rollen-Quelle als `user.role`/`user.platformRole` nutzen,
-//   - die `tenantId` aus einem anderen Request-Feld als `request.tenantId` /
-//     `request.user.tenantId` lesen wollen.
+// FeatureGuard configuration. Consumers register an object under
+// FEATURE_GUARD_CONFIG_TOKEN when they:
+//   - need a tenant context (RLS) inside the limits computation
+//     (e.g. `runWithTenant`),
+//   - use a user-role source other than `user.role`/`user.platformRole`,
+//   - want to read the `tenantId` from a request field other than `request.tenantId` /
+//     `request.user.tenantId`.
 //
-// Ohne Config-Eintrag verhält sich der Guard wie die ursprüngliche app-lokale
-// Implementierung — nur ohne RLS-Wrapping. Apps ohne Postgres-RLS brauchen das nicht.
+// Without a config entry the guard behaves like the original app-local
+// implementation — just without RLS wrapping. Apps without Postgres RLS do not need this.
 
 export interface FeatureGuardConfig {
     /**
-     * Wrappt `EntitlementService.computeLimits` in einen Tenant-Context.
-     * Konsumenten mit RLS übergeben hier `runWithTenant(tenantId, fn)`
-     * — damit die Repository-Queries den Tenant in den DB-Session-Variablen
-     * sehen. Ohne RLS: Field weglassen, Default ist Identity.
+     * Wraps `EntitlementService.computeLimits` in a tenant context.
+     * Consumers with RLS pass `runWithTenant(tenantId, fn)` here
+     * — so that the repository queries see the tenant in the DB session
+     * variables. Without RLS: omit the field, the default is identity.
      */
     tenantContextRunner?: <T>(tenantId: string, fn: () => Promise<T>) => Promise<T>;
 
     /**
-     * Liest die Plattform-Rolle aus dem `request.user`-Objekt. Wird für den
-     * SUPER_ADMIN-Bypass benutzt — Plattform-Support darf einem Mandanten auch
-     * dann helfen, wenn das Feature nicht in dessen Plan ist.
+     * Reads the platform role from the `request.user` object. Used for the
+     * SUPER_ADMIN bypass — platform support may help a tenant even
+     * when the feature is not in that tenant's plan.
      *
      * Default: `user.role ?? user.platformRole`.
      */
     userRoleResolver?: (user: unknown) => string | undefined;
 
     /**
-     * Liest die `tenantId` aus dem Request. Default:
+     * Reads the `tenantId` from the request. Default:
      * `request.tenantId ?? request.user?.tenantId`.
      */
     tenantIdResolver?: (request: unknown) => string | undefined;

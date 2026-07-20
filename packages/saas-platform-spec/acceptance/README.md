@@ -1,13 +1,13 @@
-# Acceptance-Test-Szenarien
+# Acceptance Test Scenarios
 
-HTTP-basierte Black-Box-Tests, die gegen **jede** Implementierung der
-SaaS-Plattform laufen (Referenz-Implementierung: `@saasicat/nest`).
-Damit ist der OpenAPI-Vertrag aus `admin-api.openapi.yaml` nicht nur
-ein Dokument, sondern ein ausführbares Set von Garantien.
+HTTP-based black-box tests that run against **every** implementation of the
+SaaS platform (reference implementation: `@saasicat/nest`).
+This makes the OpenAPI contract from `admin-api.openapi.yaml` not just a
+document, but an executable set of guarantees.
 
 ## Format
 
-Jedes Szenario ist eine YAML-Datei mit der Struktur:
+Each scenario is a YAML file with the structure:
 
 ```yaml
 scenario: 'Kurzbeschreibung des Verhaltens (1 Satz)'
@@ -15,48 +15,48 @@ description: |
     Längere Beschreibung — was wird hier abgesichert, warum ist es wichtig.
     Verweise auf SPEC-Sektion oder offene Frage.
 
-setup: # State-Setup über Admin-API-Aufrufe
+setup: # state setup via Admin API calls
     - createTenant: { slug: '...', email: '...' }
     - createPromoCode: { code: '...', ... }
 
-when: # Die zu testende Aktion
+when: # the action under test
     - redeemPromoCode: { code: '...', tenantSlug: '...' }
 
-then: # Erwartete HTTP-Response
+then: # expected HTTP response
     status: 200
     body:
-        # JSON-Pattern; AnyOf, contains, etc. erlaubt
+        # JSON pattern; AnyOf, contains, etc. allowed
 ```
 
-## Test-Runner
+## Test Runner
 
-Ein Acceptance-Test-Runner (geplant) liest jedes Szenario, fährt einen
-Test-Server hoch und verifiziert sequentiell `setup` → `when` → `then`.
+An acceptance test runner (planned) reads each scenario, boots a test
+server, and verifies `setup` → `when` → `then` sequentially.
 
-## Szenarien-Backlog
+## Scenario Backlog
 
-| Bereich         | Szenario                                                                                          | Status  |
-| --------------- | ------------------------------------------------------------------------------------------------- | ------- |
-| `manifest/`     | Public-Boot ist ohne Auth abrufbar und enthält **nur** Branding                                   | 🟡 stub |
-| `manifest/`     | Voll-Manifest verlangt SUPER_ADMIN, sonst 403                                                     | 🟡 stub |
-| `manifest/`     | manifestHash über zwei Boots stabil                                                               | 🔴      |
-| `manifest/`     | ETag-Match liefert 304                                                                            | 🔴      |
-| `promo/`        | First-time-customers-only lehnt zweite Redemption ab                                              | 🟡 stub |
-| `promo/`        | Allow-zero-invoice false blockt 100%-Rabatt                                                       | 🔴      |
-| `promo/`        | Code mit `valueType=PERCENT, value>100` wird abgelehnt                                            | 🔴      |
-| `plan-version/` | Publish berührt `Subscription.planVersionId` der Bestands-Tenants nicht (P1-Garantie aus SPEC §6) | 🟡 stub |
-| `plan-version/` | Regressive Version verlangt Tenant-Opt-in                                                         | 🔴      |
-| `plan-version/` | 6-Wochen-Notification-Cron schickt Mail an betroffene Subscriptions                               | 🔴      |
-| `tenant/`       | Suspend → 403 für Tenant-Login + Audit-Eintrag mit reason                                         | 🟡 stub |
-| `tenant/`       | Suspend ohne MFA-Header → 401 MFA_REQUIRED                                                        | 🔴      |
-| `mfa/`          | TOTP-Verify mit gutem Code → 200, mit schlechtem → 401                                            | 🟡 stub |
-| `mfa/`          | MFA-Skip via Env-Flag in production lehnt System ab                                               | 🔴      |
+| Area            | Scenario                                                                                            | Status  |
+| --------------- | --------------------------------------------------------------------------------------------------- | ------- |
+| `manifest/`     | Public boot is retrievable without auth and contains **only** branding                              | 🟡 stub |
+| `manifest/`     | Full manifest requires SUPER_ADMIN, otherwise 403                                                   | 🟡 stub |
+| `manifest/`     | manifestHash stable across two boots                                                                | 🔴      |
+| `manifest/`     | ETag match returns 304                                                                              | 🔴      |
+| `promo/`        | First-time-customers-only rejects a second redemption                                               | 🟡 stub |
+| `promo/`        | Allow-zero-invoice false blocks a 100% discount                                                     | 🔴      |
+| `promo/`        | Code with `valueType=PERCENT, value>100` is rejected                                                | 🔴      |
+| `plan-version/` | Publish does not touch `Subscription.planVersionId` of existing tenants (P1 guarantee from SPEC §6) | 🟡 stub |
+| `plan-version/` | Regressive version requires tenant opt-in                                                           | 🔴      |
+| `plan-version/` | 6-week notification cron sends mail to affected subscriptions                                       | 🔴      |
+| `tenant/`       | Suspend → 403 for tenant login + audit entry with reason                                            | 🟡 stub |
+| `tenant/`       | Suspend without MFA header → 401 MFA_REQUIRED                                                       | 🔴      |
+| `mfa/`          | TOTP verify with a good code → 200, with a bad one → 401                                            | 🟡 stub |
+| `mfa/`          | System rejects MFA skip via env flag in production                                                  | 🔴      |
 
-🟡 = Stub-Datei vorhanden, aber Test-Runner verarbeitet sie noch nicht
-🔴 = Noch zu schreiben
+🟡 = Stub file present, but the test runner does not process it yet
+🔴 = Yet to be written
 
-## Konvention
+## Convention
 
-- **Sprache der Szenarien:** Englisch (Wire-Format, sprach-neutral).
-- **Kommentare:** Deutsch erlaubt, weil Doku-Charakter.
-- **Daten:** keine echten E-Mails / Slugs verwenden — `test-*`-Prefixes.
+- **Scenario language:** English (wire format, language-neutral).
+- **Comments:** German is allowed, as they serve a documentation purpose.
+- **Data:** do not use real emails / slugs — `test-*` prefixes.

@@ -1,15 +1,15 @@
-// CheckoutOffer — unveränderlicher Paket-Snapshot von der Webseite bis zur
-// Subscription (METAMODELL §17a).
+// CheckoutOffer — immutable package snapshot from the website through to the
+// subscription (METAMODELL §17a).
 //
-// Beim Paket-Klick auf der Pricing-Page wird ein CheckoutOffer angelegt; sein
-// `id` wandert als `?offer=<id>` ins Onboarding. Dort darf der Tenant das
-// Paket individualisieren (Bundles/Quotas) — das Delta wird in
-// denselben Offer geschrieben. Bei Subscription-Anlage wird der finale Offer
-// als `packageSnapshot` eingefroren.
+// On a package click on the pricing page a CheckoutOffer is created; its
+// `id` travels as `?offer=<id>` into onboarding. There the tenant may
+// customize the package (bundles/quotas) — the delta is written into
+// the same offer. When the subscription is created the final offer is
+// frozen as `packageSnapshot`.
 
 export type CheckoutOfferLineItemKind = 'plan' | 'bundle' | 'discount';
 
-/** Eingefrorene abrechenbare Position im Offer. */
+/** Frozen billable line item in the offer. */
 export interface CheckoutOfferLineItem {
     kind: CheckoutOfferLineItemKind;
     sourceKey: string;
@@ -27,7 +27,7 @@ export interface CheckoutOfferLineItem {
     metadata?: Record<string, unknown> | null;
 }
 
-/** Eingefrorene angewendete Katalog-Promotion. */
+/** Frozen applied catalog promotion. */
 export interface CheckoutOfferPromotionSnapshot {
     id: string | null;
     type: string;
@@ -38,7 +38,7 @@ export interface CheckoutOfferPromotionSnapshot {
     billingCycle: 'monthly' | 'yearly' | 'both';
 }
 
-/** Eingefrorene PromoCode-Vorschau vor Vertragsabschluss. */
+/** Frozen promo-code preview before contract conclusion. */
 export interface CheckoutOfferPromoCodeSnapshot {
     code: string;
     label: string;
@@ -49,59 +49,59 @@ export interface CheckoutOfferPromoCodeSnapshot {
     durationValue?: number | null;
 }
 
-/** Strukturierte Preis-Aufschlüsselung — eingefroren zum Offer-Zeitpunkt. */
+/** Structured price breakdown — frozen at offer time. */
 export interface CheckoutOfferPriceBreakdown {
     currency: string;
     billingCycle: 'monthly' | 'yearly';
-    /** Netto-Grundpreis des Plans. */
+    /** Net base price of the plan. */
     planNet: number;
-    /** Netto-Aufschlag durch Bundles. */
+    /** Net surcharge from bundles. */
     bundlesNet: number;
-    /** Netto-Gesamt vor Promo. */
+    /** Net total before promo. */
     regularNet: number;
-    /** Netto-Gesamt nach Promo. */
+    /** Net total after promo. */
     effectiveNet: number;
     vatRate: number;
-    /** Brutto-Gesamt nach Promo. */
+    /** Gross total after promo. */
     effectiveGross: number;
 }
 
 export type CheckoutOfferStatus = 'open' | 'consumed' | 'expired';
 
-/** Wire-Format einer `checkout_offers`-Row. */
+/** Wire format of a `checkout_offers` row. */
 export interface CheckoutOfferRow {
     id: string;
     projectKey: string;
 
-    /** Auf der Webseite gewählter Plan. */
+    /** Plan selected on the website. */
     planKey: string;
-    /** Aufgelöste Plan-Version, falls bekannt. */
+    /** Resolved plan version, if known. */
     planVersionId: string | null;
     billingCycle: 'monthly' | 'yearly';
 
-    /** Angewandte Promotion (zum Offer-Zeitpunkt aktiv). */
+    /** Applied promotion (active at offer time). */
     promotionId: string | null;
-    /** Eingelöster Promo-Code, falls die Promotion `requiresCoupon` war. */
+    /** Redeemed promo code, if the promotion was `requiresCoupon`. */
     promoCode: string | null;
 
-    /** Zugebuchte Bundle-Keys. Legacy-Anzeige; V3 nutzt `bundleVersionIds` + `lineItems`. */
+    /** Added bundle keys. Legacy display; V3 uses `bundleVersionIds` + `lineItems`. */
     bundles: string[];
-    /** Konkrete BundleVersion-IDs, die der Offer bindet. */
+    /** Concrete BundleVersion IDs that the offer binds. */
     bundleVersionIds?: string[];
 
     priceBreakdown: CheckoutOfferPriceBreakdown;
-    /** V3-Vertragspositionen, bereits zum Offer-Zeitpunkt aufgelöst. */
+    /** V3 contract line items, already resolved at offer time. */
     lineItems?: CheckoutOfferLineItem[];
-    /** Aktive automatische Promotions als Snapshot. */
+    /** Active automatic promotions as snapshot. */
     promotionSnapshots?: CheckoutOfferPromotionSnapshot[];
-    /** Eingelöster PromoCode als Snapshot. */
+    /** Redeemed promo code as snapshot. */
     promoCodeSnapshot?: CheckoutOfferPromoCodeSnapshot | null;
     locale: string;
-    /** Zeitliche Gültigkeit des Offers; null = Repository/Consumer-Policy. */
+    /** Temporal validity of the offer; null = repository/consumer policy. */
     validUntil?: string | null;
 
     status: CheckoutOfferStatus;
-    /** Gesetzt, sobald aus dem Offer eine Subscription entstanden ist. */
+    /** Set as soon as a subscription has arisen from the offer. */
     consumedAt: string | null;
 
     createdAt: string;
@@ -113,7 +113,7 @@ export interface CheckoutOfferFilter {
     status?: CheckoutOfferStatus;
 }
 
-/** Body von `POST /public/checkout-offer` — von der Webseite gerufen. */
+/** Body of `POST /public/checkout-offer` — called from the website. */
 export interface CreateCheckoutOfferData {
     projectKey: string;
     planKey: string;
@@ -132,9 +132,9 @@ export interface CreateCheckoutOfferData {
 }
 
 /**
- * Body von `PATCH /public/checkout-offer/:id` — Individualisierung im
- * Onboarding. `status`/`consumedAt` sind nicht editierbar — `consume()`
- * setzt sie serverseitig.
+ * Body of `PATCH /public/checkout-offer/:id` — customization during
+ * onboarding. `status`/`consumedAt` are not editable — `consume()`
+ * sets them server-side.
  */
 export interface UpdateCheckoutOfferData {
     billingCycle?: 'monthly' | 'yearly';

@@ -1,9 +1,9 @@
 // ManifestCliFlow — `<app> manifest dump|validate|hash|diff|check`.
 //
-// Lese-only. Konsument liefert `ManifestAccessPort`-Implementation; Plattform
-// orchestriert die 5 Subcommands. `check` führt eine Liste von
-// `ManifestCheck`-Implementierungen aus (10 Plattform-Defaults aus
-// `DEFAULT_MANIFEST_CHECKS` plus konsumenten-spezifische Erweiterungen).
+// Read-only. The consumer supplies a `ManifestAccessPort` implementation; the
+// platform orchestrates the 5 subcommands. `check` runs a list of
+// `ManifestCheck` implementations (10 platform defaults from
+// `DEFAULT_MANIFEST_CHECKS` plus consumer-specific extensions).
 
 import { Inject, Injectable } from '@nestjs/common';
 import type { AdminManifest, ManifestAccessPort } from '@saasicat/types';
@@ -28,15 +28,15 @@ export class ManifestCliFlow {
         @Inject(MANIFEST_CHECKS_TOKEN) private readonly checks: ManifestCheck[],
     ) {}
 
-    /** `<app> manifest dump` — JSON-Ausgabe des aktuellen Manifests. */
+    /** `<app> manifest dump` — JSON output of the current manifest. */
     dump(): AdminManifest {
         return this.access.getManifest();
     }
 
     /**
-     * `<app> manifest hash` — kanonischer manifestHash-Wert. Liefert
-     * den Wert aus `build.manifestHash`. Konsumenten können das CI-seitig
-     * pinnen (`expected-hash.txt`) und auf Drift prüfen.
+     * `<app> manifest hash` — canonical manifestHash value. Returns
+     * the value from `build.manifestHash`. Consumers can pin this in CI
+     * (`expected-hash.txt`) and check for drift.
      */
     hash(): string {
         const m = this.access.getManifest();
@@ -46,10 +46,10 @@ export class ManifestCliFlow {
     }
 
     /**
-     * `<app> manifest validate` — gibt `true` zurück, wenn alle Strukturen
-     * vorhanden sind. Tiefere Schema-Validation läuft separat über Ajv mit
+     * `<app> manifest validate` — returns `true` when all structures
+     * are present. Deeper schema validation runs separately via Ajv with
      * `@saasicat/spec/schemas/admin-manifest.schema.json`;
-     * dieser Helper liefert die Schnell-Diagnose ohne Ajv-Last.
+     * this helper provides the quick diagnostic without the Ajv cost.
      */
     validate(): { ok: boolean; reason?: string } {
         const m = this.access.getManifest();
@@ -66,9 +66,9 @@ export class ManifestCliFlow {
     }
 
     /**
-     * `<app> manifest diff <expected.json>` — flacher Diff über die zwei
-     * Manifest-Hashes plus Listen-Differenzen für Top-Level-Felder. Liefert
-     * `null`, wenn die Manifeste identisch sind.
+     * `<app> manifest diff <expected.json>` — flat diff over the two
+     * manifest hashes plus list differences for top-level fields. Returns
+     * `null` when the manifests are identical.
      */
     diff(expected: AdminManifest): ManifestDiff | null {
         const current = this.access.getManifest();
@@ -84,9 +84,9 @@ export class ManifestCliFlow {
     }
 
     /**
-     * `<app> manifest check` — führt alle registrierten Manifest-Checks
-     * durch. Aggregiert Severity (ok/warning/error) zu `overall`. Konsument
-     * mappt `error` auf Exit-Code 7 (Drift) gemäß `cli-conventions.md` §6.
+     * `<app> manifest check` — runs all registered manifest checks.
+     * Aggregates severity (ok/warning/error) into `overall`. The consumer
+     * maps `error` to exit code 7 (drift) per `cli-conventions.md` §6.
      */
     async runChecks(): Promise<ManifestCheckReport> {
         const manifest = this.access.getManifest();
@@ -111,7 +111,7 @@ export class ManifestCliFlow {
         return { overall, checks };
     }
 
-    /** Liefert den passenden CLI-Exit-Code: 0 bei `ok`/`warning`, 7 bei `error` (Drift). */
+    /** Returns the appropriate CLI exit code: 0 for `ok`/`warning`, 7 for `error` (drift). */
     exitCodeFor(report: ManifestCheckReport): number {
         return report.overall === 'error' ? 7 : 0;
     }

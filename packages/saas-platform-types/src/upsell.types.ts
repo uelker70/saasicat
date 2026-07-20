@@ -1,65 +1,65 @@
-// Upsell-Response des FeatureGuard (#36) — Wire-Format + Resolver-Port.
+// Upsell response of the FeatureGuard (#36) — wire format + resolver port.
 //
-// Wirft der FeatureGuard wegen fehlendem Entitlement, soll das Frontend
-// daraus ein Kaufangebot machen können statt nur „Zugriff verweigert"
-// anzuzeigen. Der Guard liefert dafür einen strukturierten 403-Body
-// (`FeatureNotLicensedBody`); die Angebote kommen aus einem optional
-// registrierten `UpsellOfferResolver`.
+// When the FeatureGuard throws due to a missing entitlement, the frontend
+// should be able to turn that into a purchase offer instead of just showing
+// "access denied". For that the guard returns a structured 403 body
+// (`FeatureNotLicensedBody`); the offers come from an optionally
+// registered `UpsellOfferResolver`.
 //
-// Statuscode-Entscheidung: **403 mit `code`-Feld**, NICHT 402.
-// - 402 „Payment Required" ist im HTTP-Standard reserviert/experimentell;
-//   Proxies, HTTP-Clients und Error-Interceptoren behandeln ihn
-//   uneinheitlich.
-// - 403 trifft die Semantik exakt: authentifiziert, aber nicht berechtigt
-//   (Lizenz fehlt). SPA-Interceptoren, die nur auf 401 Auto-Logout machen,
-//   bleiben unberührt (vgl. DMS-401-Falle) — Konsumenten-Interceptoren
-//   dürfen einen 403 nie als Auth-Fehler interpretieren.
-// - Die Maschinen-Unterscheidung läuft über `code === 'FEATURE_NOT_LICENSED'`,
-//   nicht über den Statuscode.
+// Status-code decision: **403 with a `code` field**, NOT 402.
+// - 402 "Payment Required" is reserved/experimental in the HTTP standard;
+//   proxies, HTTP clients and error interceptors handle it
+//   inconsistently.
+// - 403 matches the semantics exactly: authenticated, but not authorized
+//   (license missing). SPA interceptors that only auto-logout on 401
+//   are unaffected (cf. the DMS 401 trap) — consumer interceptors
+//   must never interpret a 403 as an auth error.
+// - The machine distinction runs via `code === 'FEATURE_NOT_LICENSED'`,
+//   not via the status code.
 
-/** Error-Code des strukturierten FeatureGuard-403 (#36). */
+/** Error code of the structured FeatureGuard 403 (#36). */
 export const FEATURE_NOT_LICENSED = 'FEATURE_NOT_LICENSED' as const;
 
 /**
- * Ein Kaufangebot, das das fehlende Feature decken würde — typischerweise
- * eine published Catalog-BundleVersion, die den Feature-Key enthält.
+ * A purchase offer that would cover the missing feature — typically
+ * a published catalog BundleVersion that contains the feature key.
  */
 export interface UpsellOffer {
     bundleKey: string;
-    /** Live-BundleVersion-ID — für das `add`-Request des Tenant-Self-Service. */
+    /** Live BundleVersion ID — for the `add` request of the tenant self-service. */
     bundleVersionId?: string;
-    /** Netto-Monatspreis; `null` = Preis nur kontextabhängig (Pricing-Override). */
+    /** Net monthly price; `null` = price only context-dependent (pricing override). */
     priceMonthlyNet: number | null;
-    /** ISO-4217, z. B. `EUR`. */
+    /** ISO 4217, e.g. `EUR`. */
     currency: string;
     label?: string;
 }
 
 /**
- * 403-Body des FeatureGuard bei fehlendem Entitlement und registriertem
- * `UpsellOfferResolver`. Ohne Resolver bleibt der bisherige plain-403
- * (nur `message`) — kein Breaking Change für Bestandskonsumenten.
+ * 403 body of the FeatureGuard on a missing entitlement with a registered
+ * `UpsellOfferResolver`. Without a resolver the previous plain 403 remains
+ * (only `message`) — no breaking change for existing consumers.
  */
 export interface FeatureNotLicensedBody {
     code: typeof FEATURE_NOT_LICENSED;
-    /** Erster geforderter Key — Komfort für Single-Feature-Guards (Issue-Shape). */
+    /** First required key — convenience for single-feature guards (issue shape). */
     featureKey: string;
-    /** Alle geforderten Keys (`@RequireFeature` ist ein Logical-OR). */
+    /** All required keys (`@RequireFeature` is a logical OR). */
     featureKeys: string[];
     offers: UpsellOffer[];
-    /** Menschlich lesbare Meldung (Fallback-Anzeige). */
+    /** Human-readable message (fallback display). */
     message: string;
 }
 
 /**
- * Port (#36): löst fehlende Feature-Keys in Kaufangebote auf. Konsumenten
- * registrieren eine Implementierung unter `UPSELL_OFFER_RESOLVER_TOKEN`
- * (saas-platform-nest) — z. B. den mitgelieferten
- * `CatalogBundleUpsellResolver` gegen die published Catalog-Bundles.
+ * Port (#36): resolves missing feature keys into purchase offers. Consumers
+ * register an implementation under `UPSELL_OFFER_RESOLVER_TOKEN`
+ * (saas-platform-nest) — e.g. the bundled
+ * `CatalogBundleUpsellResolver` against the published catalog bundles.
  *
- * `tenantId` erlaubt tenant-spezifische Angebote (z. B. Plan-Kompatibilität
- * oder bereits gebuchte Abhängigkeiten berücksichtigen); die
- * Default-Implementierung nutzt sie nicht.
+ * `tenantId` allows tenant-specific offers (e.g. taking plan compatibility
+ * or already-booked dependencies into account); the
+ * default implementation does not use it.
  */
 export interface UpsellOfferResolver {
     resolveOffers(featureKeys: string[], tenantId: string): Promise<UpsellOffer[]>;

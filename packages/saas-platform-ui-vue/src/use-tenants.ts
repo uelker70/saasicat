@@ -1,15 +1,15 @@
-// useTenants — Vue-Composable über den Admin-Tenants-Endpoint.
+// useTenants — Vue composable over the admin tenants endpoint.
 //
-// **Endpoint ist Pflicht** und wird vom Konsumenten geliefert, weil Apps
-// unterschiedliche `globalPrefix`-Konventionen haben:
+// **Endpoint is mandatory** and is supplied by the consumer, because apps
+// have different `globalPrefix` conventions:
 //   - `globalPrefix='api/v1'` → `/api/v1/admin/tenants`
 //   - `globalPrefix='api'`    → `/api/admin/tenants`
-// Ein hardcoded Default in der Plattform würde eine App immer falsch
-// bedienen. Composable bleibt prefix-neutral; App-Wrapper sind explizit.
+// A hardcoded default in the platform would always serve one app wrongly.
+// The composable stays prefix-neutral; app wrappers are explicit.
 //
-// Konsument-Backend exposed den Endpoint via `TenantPort.list`-Adapter.
-// Composable typisiert den Response als `TenantDto[]` und reagiert auf
-// Filter-Änderungen (status/plan/search) mit Re-Fetch + Reset auf Seite 1.
+// The consumer backend exposes the endpoint via the `TenantPort.list` adapter.
+// The composable types the response as `TenantDto[]` and reacts to
+// filter changes (status/plan/search) with a re-fetch + reset to page 1.
 
 import { ref, type Ref } from 'vue';
 import type { TenantDto, TenantListFilter } from '@saasicat/types';
@@ -17,13 +17,13 @@ import { useApiList, type UseApiListOptions, type UseApiListResult } from './use
 
 export interface UseTenantsOptions {
     /**
-     * Voll-qualifizierter Tenants-List-Endpoint inkl. App-globalPrefix
-     * (`/api/admin/tenants`, `/api/v1/admin/tenants`, …). Pflicht — die
-     * Plattform hat keinen einheitlichen Default, weil Apps unterschiedlich
-     * mounten (siehe Header-Kommentar).
+     * Fully qualified tenants-list endpoint including the app globalPrefix
+     * (`/api/admin/tenants`, `/api/v1/admin/tenants`, …). Mandatory — the
+     * platform has no uniform default, because apps mount differently
+     * (see header comment).
      */
     endpoint: string;
-    /** Reaktiver Filter; Default ist ein leeres Object. */
+    /** Reactive filter; default is an empty object. */
     filter?: Ref<TenantListFilter>;
     http?: UseApiListOptions<Record<string, unknown>>['http'];
     getAuthToken?: () => string | null;
@@ -35,9 +35,9 @@ export interface UseTenantsResult<T extends TenantDto = TenantDto> extends UseAp
 }
 
 /**
- * Composable für die Tenants-Liste. Generic über das Row-Shape:
- * Konsumenten-Apps mit erweiterten Backend-Responses (Plan/Verbrauch/Pilot/…)
- * spezialisieren via `useTenants<MeineRow>()`.
+ * Composable for the tenants list. Generic over the row shape:
+ * consumer apps with extended backend responses (plan/usage/pilot/…)
+ * specialize via `useTenants<MyRow>()`.
  */
 export function useTenants<T extends TenantDto = TenantDto>(
     options: UseTenantsOptions,

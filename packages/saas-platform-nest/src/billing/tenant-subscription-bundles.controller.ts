@@ -1,31 +1,31 @@
-// TenantSubscriptionBundlesController — Tenant-Self-Service-Endpunkte für
-// die `subscription_bundles`-Junction (SPEC_V2 §11.1 M6 Pack 2e, P11.7.3).
+// TenantSubscriptionBundlesController — tenant self-service endpoints for
+// the `subscription_bundles` junction (SPEC_V2 §11.1 M6 Pack 2e, P11.7.3).
 //
-// Routen unter `/billing/subscription-bundles`:
-//   - `GET    /` → Liste der eigenen Bundle-Buchungen (alle, inkl. gekündigter)
-//   - `POST   /` → neue Bundle-Buchung (Body: { bundleVersionId, minimumTermMonths? })
-//   - `POST   /preview` → Add-/Cancel-Vorschau mit Proration, Redundanz-
-//     Hinweis und requires-Check (#37) — genau eines von bundleVersionId
-//     (add) oder subscriptionBundleId (cancel) im Body
-//   - `DELETE /:id` → Kündigung mit Effektiv-Datum = max(currentPeriodEnd, minimumTermEndsAt)
+// Routes under `/billing/subscription-bundles`:
+//   - `GET    /` → list of own bundle bookings (all, including canceled)
+//   - `POST   /` → new bundle booking (body: { bundleVersionId, minimumTermMonths? })
+//   - `POST   /preview` → add/cancel preview with proration, redundancy
+//     hint and requires check (#37) — exactly one of bundleVersionId
+//     (add) or subscriptionBundleId (cancel) in the body
+//   - `DELETE /:id` → cancellation with effective date = max(currentPeriodEnd, minimumTermEndsAt)
 //
-// Resolve-Schritte:
-//   1. `tenantId` aus dem Request (über TenantIdResolver — wird vom Konsumenten
-//      registriert wie bei `TenantBillingController`).
-//   2. `SubscriptionUsagePort.findForTenant(tenantId)` liefert currentPlanKey
-//      (`planVersion.planId`) + `currentPeriodEnd` — beides braucht der
-//      Service für Plan-Kompat-Check und Kündigungs-Effektiv-Datum.
+// Resolve steps:
+//   1. `tenantId` from the request (via TenantIdResolver — registered by the
+//      consumer as with `TenantBillingController`).
+//   2. `SubscriptionUsagePort.findForTenant(tenantId)` provides currentPlanKey
+//      (`planVersion.planId`) + `currentPeriodEnd` — both are needed by the
+//      service for the plan compat check and the cancellation effective date.
 //
-// Auth: `ComposedTenantAuthGuard` (analog TenantBillingController) +
-// optional zusätzliche Class-Level-Guards aus dem Modul.
+// Auth: `ComposedTenantAuthGuard` (analogous to TenantBillingController) +
+// optionally additional class-level guards from the module.
 //
-// Contract-Fortschreibung (#37/#61): Konsumenten mit V3-Contract-Freeze
-// (`CONTRACT_FREEZE_PORT_TOKEN` im DI-Scope, typisch via importiertem
-// `TenantBillingModule.forRoot({ contractFreeze })`) bekommen nach Add/Cancel
-// automatisch ein Re-Freeze mit unverändertem Plan (= Amendment als neuer
-// Contract-Stand) — sonst läse der EntitlementService den alten eingefrorenen
-// Snapshot zurück und das Bundle wäre trotz Buchung nicht aktiv. Non-fatal
-// analog zum Plan-Wechsel-Pfad: die Mutation ist bereits persistiert.
+// Contract continuation (#37/#61): consumers with a V3 contract freeze
+// (`CONTRACT_FREEZE_PORT_TOKEN` in the DI scope, typically via imported
+// `TenantBillingModule.forRoot({ contractFreeze })`) automatically get a
+// re-freeze with the unchanged plan after add/cancel (= amendment as new
+// contract state) — otherwise the EntitlementService would read back the old
+// frozen snapshot and the bundle would not be active despite the booking.
+// Non-fatal, analogous to the plan-change path: the mutation is already persisted.
 
 import {
     BadRequestException,
@@ -76,9 +76,9 @@ interface RequestLike {
 }
 
 /**
- * Factory analog `buildBundlesController` etc. — Konsument kann zusätzliche
- * Guards (z. B. RoleGuard) zusätzlich zum Plattform-Default
- * `ComposedTenantAuthGuard` mitgeben.
+ * Factory analogous to `buildBundlesController` etc. — the consumer can pass
+ * additional guards (e.g. RoleGuard) in addition to the platform default
+ * `ComposedTenantAuthGuard`.
  */
 export function buildTenantSubscriptionBundlesController(
     extraGuards: Array<Type<CanActivate>> = [],
@@ -115,7 +115,7 @@ export function buildTenantSubscriptionBundlesController(
             const result = await this.service.addBundleToSubscription({
                 subscriptionId: this.requireSubscriptionPk(sub),
                 bundleVersionId: dto.bundleVersionId,
-                // Plan-KEY (compatibility.planIds ist key-basiert) — nicht die planVersion-UUID.
+                // Plan KEY (compatibility.planIds is key-based) — not the planVersion UUID.
                 currentPlanKey: sub.plan,
                 minimumTermMonths: dto.minimumTermMonths,
             });
@@ -137,7 +137,7 @@ export function buildTenantSubscriptionBundlesController(
             const sub = await this.requireSubscription(this.requireTenantId(req));
             const ctx: SubscriptionBundlePreviewContext = {
                 subscriptionId: this.requireSubscriptionPk(sub),
-                // Plan-KEY (compatibility.planIds ist key-basiert) — nicht die planVersion-UUID.
+                // Plan KEY (compatibility.planIds is key-based) — not the planVersion UUID.
                 currentPlanKey: sub.plan,
                 billingCycle: sub.billingCycle,
                 status: sub.status,
@@ -213,8 +213,8 @@ export function buildTenantSubscriptionBundlesController(
         }
 
         /**
-         * Re-Freeze mit unverändertem Plan nach Bundle-Add/-Cancel (#61) —
-         * nur wenn der Konsument den ContractFreezePort wired hat.
+         * Re-freeze with the unchanged plan after bundle add/cancel (#61) —
+         * only if the consumer has wired the ContractFreezePort.
          */
         private async refreezeContract(
             tenantId: string,

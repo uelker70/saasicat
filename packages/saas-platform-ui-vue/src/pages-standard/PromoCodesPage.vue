@@ -112,18 +112,17 @@
 </template>
 
 <script lang="ts">
-// Module-Level-Exports — Vue-3-RFC #227 erlaubt `export function` NICHT in
-// `<script setup>` (die ganze setup-Section wird in setup() gewrapped).
-// Reine Helper + Konstanten leben deshalb hier im normalen `<script>`-Block.
+// Module-level exports — Vue 3 RFC #227 does NOT allow `export function` in
+// `<script setup>` (the whole setup section is wrapped in setup()).
+// Pure helpers + constants therefore live here in the regular `<script>` block.
 
 import type { PromoCodePlanOption } from '../components/dialogs/types.js';
 
 const PLAN_COLOR_PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#64748b'];
 
 /**
- * Heuristik aus einem Konsumenten-Wrapper: weist jedem Plan eine stabile Farbe
- * zu, damit Plan-Chips visuell differenzierbar bleiben. Konsumenten können
- * die Util pur nutzen.
+ * Heuristic from a consumer wrapper: assigns each plan a stable color so plan
+ * chips stay visually distinguishable. Consumers can use the util standalone.
  */
 export function computePlanColors(
     plans: ReadonlyArray<{ key: string; label?: string }>,
@@ -150,10 +149,10 @@ import type {
     PromoCodeValueType,
 } from '../components/dialogs/types.js';
 
-// Plattform-Standard-Page: Promo-Codes. Datenagnostisch.
+// Platform standard page: promo codes. Data-agnostic.
 //
-// Optional baked-in flows: enableCreate/Edit/StatusToggle/Delete + submit*-
-// Callbacks. Default-Actions werden APPENDED an die Consumer-Actions.
+// Optional baked-in flows: enableCreate/Edit/StatusToggle/Delete + submit*
+// callbacks. Default actions are APPENDED to the consumer actions.
 
 export interface PromoRow {
     id: string;
@@ -223,11 +222,11 @@ const showCreate = ref(false);
 const showEdit = ref(false);
 const editingRow = ref<PromoCodeEditRow | null>(null);
 
-// Stat-Pill-Filter (analog Plan-Simulation promo-codes.jsx):
+// Stat-pill filter (analogous to the plan simulation promo-codes.jsx):
 //   all | active | scheduled | paused | expired.
-// 'scheduled' = ACTIVE + validFrom in der Zukunft; ohne validFrom-Feld in
-// PromoRow nutzen wir den Status PENDING als Fallback. Konsumenten dürfen
-// das Feld `scheduledAt` oder `validFrom` on-the-fly in der Row mitsenden.
+// 'scheduled' = ACTIVE + validFrom in the future; without a validFrom field in
+// PromoRow we use the PENDING status as fallback. Consumers may pass the
+// `scheduledAt` or `validFrom` field on-the-fly in the row.
 type StatusFilter = 'all' | 'active' | 'scheduled' | 'paused' | 'expired';
 const statusFilter = ref<StatusFilter>('all');
 
@@ -286,8 +285,8 @@ const statTiles = computed<
     ];
 });
 
-// Tile-Klick: filter setzen UND wenn ein Server-Status-Match existiert, an
-// die Suche durchreichen, damit `loadPromos` ggf. serverseitig vorfiltert.
+// Tile click: set the filter AND, if a server status match exists, pass it
+// through to the search so `loadPromos` can pre-filter server-side if needed.
 function onStatusTileClick(id: StatusFilter): void {
     statusFilter.value = id;
     const serverStatus =
@@ -335,7 +334,7 @@ const baseColumns = [
     },
 ];
 
-// Eingebaute Default-Actions — APPENDED an Consumer-Actions, nicht ersetzt.
+// Built-in default actions — APPENDED to the consumer actions, not replacing them.
 const bakedActions = computed<PromoRowAction[]>(() => {
     const out: PromoRowAction[] = [];
     if (props.enableEdit && props.submitEdit) {

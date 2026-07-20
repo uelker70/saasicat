@@ -1,54 +1,54 @@
-// DI-Tokens für das TenantBillingModule.
+// DI tokens for the TenantBillingModule.
 //
-// Konsumenten registrieren ihre App-spezifischen Implementierungen
-// (Auth-Guards, Tenant-/User-Resolver, Adapter-Ports) per `forRoot()` —
-// Plattform-Code referenziert nur die Tokens.
+// Consumers register their app-specific implementations
+// (auth guards, tenant/user resolvers, adapter ports) via `forRoot()` —
+// platform code only references the tokens.
 
 import type { CanActivate } from '@nestjs/common';
 
 /**
- * Liste aller Auth-Guards, die der Plattform-Controller in der Reihenfolge
- * iterieren soll (analog `@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)`).
- * Wird per `forRoot.authGuards` zur Verfügung gestellt — kann ein Array
- * vorhandener Instanzen oder ein Factory-Provider sein.
+ * List of all auth guards the platform controller should iterate in order
+ * (analogous to `@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)`).
+ * Provided via `forRoot.authGuards` — can be an array of existing instances
+ * or a factory provider.
  */
 export const TENANT_AUTH_GUARDS_TOKEN = Symbol.for('saas-platform/TenantAuthGuards');
 
 /**
- * Resolver-Funktion `(req) => string`, die die `tenantId` aus dem Request
- * zieht. Default: `req.user.tenantId`.
+ * Resolver function `(req) => string` that extracts the `tenantId` from the
+ * request. Default: `req.user.tenantId`.
  */
 export const TENANT_ID_RESOLVER_TOKEN = Symbol.for('saas-platform/TenantIdResolver');
 
 /**
- * Resolver-Funktion `(req) => string`, die die `userId` aus dem Request
- * zieht. Default: `req.user.sub ?? req.user.id`.
+ * Resolver function `(req) => string` that extracts the `userId` from the
+ * request. Default: `req.user.sub ?? req.user.id`.
  */
 export const USER_ID_RESOLVER_TOKEN = Symbol.for('saas-platform/UserIdResolver');
 
 /**
- * Resolver-Funktion `(req) => string`, die die User-Email aus dem Request
- * zieht. Optional — wird vom Audit-Log-Pfad genutzt, um den AdminActor zu
- * bauen (`{userId, email, source: 'web', context}`). Default: `req.user.email`.
- * Wenn der Konsumenten-JWT keine Email mitliefert, kann der Resolver `null`
- * zurückgeben — der Audit-Log-Pfad fällt dann auf `'unknown'` zurück.
+ * Resolver function `(req) => string` that extracts the user email from the
+ * request. Optional — used by the audit-log path to build the AdminActor
+ * (`{userId, email, source: 'web', context}`). Default: `req.user.email`.
+ * If the consumer's JWT does not carry an email, the resolver can return
+ * `null` — the audit-log path then falls back to `'unknown'`.
  */
 export const USER_EMAIL_RESOLVER_TOKEN = Symbol.for('saas-platform/UserEmailResolver');
 
 /**
- * Resolver-Funktion `(req) => string`, die einen Audit-Kontext aus dem
- * Request zieht (z. B. Session-ID, Trace-ID). Default: `req.headers['x-session-id']`
- * oder `'tenant-self-service'`.
+ * Resolver function `(req) => string` that extracts an audit context from the
+ * request (e.g. session ID, trace ID). Default: `req.headers['x-session-id']`
+ * or `'tenant-self-service'`.
  */
 export const AUDIT_CONTEXT_RESOLVER_TOKEN = Symbol.for('saas-platform/AuditContextResolver');
 
-/** Adapter-Token: `SubscriptionUsagePort`-Implementation des Konsumenten. */
+/** Adapter token: consumer's `SubscriptionUsagePort` implementation. */
 export const SUBSCRIPTION_USAGE_PORT_TOKEN = Symbol.for('saas-platform/SubscriptionUsagePort');
 
-/** Adapter-Token: `UsageSnapshotPort`-Implementation des Konsumenten. */
+/** Adapter token: consumer's `UsageSnapshotPort` implementation. */
 export const USAGE_SNAPSHOT_PORT_TOKEN = Symbol.for('saas-platform/UsageSnapshotPort');
 
-/** Adapter-Token: `TenantSubscriptionWritePort`-Implementation des Konsumenten. */
+/** Adapter token: consumer's `TenantSubscriptionWritePort` implementation. */
 export const SUBSCRIPTION_WRITE_PORT_TOKEN = Symbol.for(
     'saas-platform/TenantSubscriptionWritePort',
 );
@@ -60,54 +60,54 @@ export type AuditContextResolver = (req: unknown) => string | null | undefined;
 export type AuthGuardList = ReadonlyArray<CanActivate>;
 
 /**
- * Optionaler Adapter-Token: projiziert das neue Trial-Ende eines Wechsels
- * (App-spezifische Trial-Logik, z. B. Carry-over der Restzeit). Ohne Port
- * bleibt `PlanChangePreviewDto.projectedTrialEndsAt` `null` und der Wizard
- * fällt auf das aktuelle Trial-Ende zurück.
+ * Optional adapter token: projects the new trial end of a change
+ * (app-specific trial logic, e.g. carry-over of the remaining time). Without a
+ * port, `PlanChangePreviewDto.projectedTrialEndsAt` stays `null` and the wizard
+ * falls back to the current trial end.
  */
 export const TRIAL_PROJECTION_PORT_TOKEN = Symbol.for('saas-platform/TrialProjectionPort');
 
 export interface TrialProjectionInput {
-    /** Aktueller Plan-Key der Subscription. */
+    /** Current plan key of the subscription. */
     currentPlan: string;
-    /** Ziel-Plan-Key des Wechsels. */
+    /** Target plan key of the change. */
     targetPlan: string;
-    /** Aktuelles Trial-Ende (null = kein Trial). */
+    /** Current trial end (null = no trial). */
     currentTrialEndsAt: Date | null;
-    /** Subscription-Status (z. B. 'TRIAL'/'ACTIVE'). */
+    /** Subscription status (e.g. 'TRIAL'/'ACTIVE'). */
     status: string;
     now: Date;
 }
 
 export interface TrialProjectionPort {
     /**
-     * Projiziertes neues Trial-Ende nach dem Wechsel. `null`, wenn sich nichts
-     * ändert oder das Ziel-Paket keinen Trial unterstützt.
+     * Projected new trial end after the change. `null` if nothing changes or
+     * the target package does not support a trial.
      */
     projectTrialEndsAt(input: TrialProjectionInput): Promise<Date | null>;
 }
 
 /**
- * Optionaler Adapter-Token: liefert fällige geplante Plan-Wechsel für die
- * `PendingPlanMaterializationService`. Ohne Port wird der Service nicht
- * registriert (Materialisierung ist Opt-in).
+ * Optional adapter token: provides due scheduled plan changes for the
+ * `PendingPlanMaterializationService`. Without a port, the service is not
+ * registered (materialization is opt-in).
  */
 export const PENDING_PLAN_QUERY_PORT_TOKEN = Symbol.for('saas-platform/PendingPlanQueryPort');
 
-/** Ein fälliger geplanter Plan-Wechsel — minimal für die Materialisierung. */
+/** A due scheduled plan change — minimal for materialization. */
 export interface DuePendingPlanChange {
     tenantId: string;
-    /** Ziel-Plan-Key des geplanten Wechsels (`pendingPlan`). */
+    /** Target plan key of the scheduled change (`pendingPlan`). */
     pendingPlan: string;
-    /** Ziel-Cycle (`pendingBillingCycle`); `null` → Default MONTHLY. */
+    /** Target cycle (`pendingBillingCycle`); `null` → default MONTHLY. */
     pendingBillingCycle: string | null;
 }
 
 export interface PendingPlanQueryPort {
     /**
-     * Liefert alle Subscriptions mit fälligem geplanten Plan-Wechsel:
+     * Returns all subscriptions with a due scheduled plan change:
      * `pendingPlan != null AND pendingEffectiveAt <= now AND status != 'TRIAL'`.
-     * TRIAL ist ausgenommen — dort steuert der Trial-Lifecycle den Übergang.
+     * TRIAL is excluded — there the trial lifecycle drives the transition.
      */
     findDuePendingPlanChanges(now: Date): Promise<DuePendingPlanChange[]>;
 }

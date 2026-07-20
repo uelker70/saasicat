@@ -2,7 +2,7 @@
     <q-card-section>
         <div class="sp-plan-section__usage-title">{{ i18n.bundlesStoreTitle }}</div>
 
-        <!-- Gebuchte Bundles -->
+        <!-- Booked bundles -->
         <div v-if="bookedRows.length > 0" class="sp-bundle-store__booked">
             <div class="sp-bundle-store__subtitle">{{ i18n.bundlesBookedTitle }}</div>
             <ul class="sp-plan-section__item-list">
@@ -52,7 +52,7 @@
             </ul>
         </div>
 
-        <!-- Verfügbare Bundles -->
+        <!-- Available bundles -->
         <div class="sp-bundle-store__available">
             <div class="sp-bundle-store__subtitle">{{ i18n.bundlesAvailableTitle }}</div>
             <div v-if="availableRows.length === 0" class="sp-bundle-store__empty">
@@ -134,28 +134,28 @@ import type { TenantPlanSectionI18n } from '../default-i18n.js';
 import type { CatalogBundle } from '../../use-tenant-billing-catalog.js';
 import type { SubscriptionBundleShape } from '../../use-tenant-billing.js';
 
-// TenantBundleStore — Bundle-Verkauf auf „Paket & Verbrauch" (#15):
-// listet gebuchte (kündbar) und verfügbare (buchbar) Catalog-Bundles.
-// Quelle: `/billing/subscription-bundles` (gebucht) + `/billing/bundles`
-// (Katalog). Preis/Label gebuchter Bundles werden per `bundleVersionId`
-// gegen den Katalog gejoint.
+// TenantBundleStore — bundle sales on "Paket & Verbrauch" (#15):
+// lists booked (cancelable) and available (bookable) catalog bundles.
+// Source: `/billing/subscription-bundles` (booked) + `/billing/bundles`
+// (catalog). Price/label of booked bundles are joined against the
+// catalog via `bundleVersionId`.
 
 const props = defineProps<{
-    /** Gebuchte SubscriptionBundles (inkl. gekündigte). */
+    /** Booked SubscriptionBundles (incl. canceled). */
     booked: SubscriptionBundleShape[];
-    /** Voller Bundle-Katalog (ungefiltert — auch für Join gebuchter Bundles). */
+    /** Full bundle catalog (unfiltered — also used for joining booked bundles). */
     available: CatalogBundle[];
-    /** Features des aktuellen Plans — für Kompatibilitäts-Check (#22). */
+    /** Features of the current plan — for the compatibility check (#22). */
     planFeatures: string[];
     i18n: TenantPlanSectionI18n;
     formatCurrency: (n: number) => string;
     formatDate: (iso: string) => string;
     featureLabel: (key: string) => string;
-    /** bundleVersionId, das gerade gebucht wird (Spinner). */
+    /** bundleVersionId currently being booked (spinner). */
     buyingId: string | null;
-    /** SubscriptionBundle-id, das gerade gekündigt wird (Spinner). */
+    /** SubscriptionBundle id currently being canceled (spinner). */
     cancelingId: string | null;
-    /** SubscriptionBundle-id, das gerade reaktiviert wird (Spinner). */
+    /** SubscriptionBundle id currently being reactivated (spinner). */
     reactivatingId: string | null;
     error: string | null;
 }>();
@@ -186,7 +186,7 @@ const bookedRows = computed<BookedRow[]>(() =>
         return {
             id: b.id,
             bundleVersionId: b.bundleVersionId,
-            // Server-Label hat Vorrang; Katalog-Join nur Fallback; UUID letzter Notnagel.
+            // Server label takes precedence; catalog join only as fallback; UUID as last resort.
             label: b.label ?? cat?.label ?? b.bundleVersionId,
             monthlyNet: b.monthlyNet != null ? Number(b.monthlyNet) : (cat?.monthlyNet ?? 0),
             minimumTermEndsAt: b.minimumTermEndsAt,
@@ -209,10 +209,10 @@ interface AvailableRow {
     state: BundleState;
 }
 
-// requires-Deckung (#35): Plan-Features ∪ Features der aktiv gebuchten
-// Bundles. `planFeatures` enthält bei aktiver Buchung meist schon die
-// Bundle-Features (EntitlementSnapshot), der Katalog-Join ist der Fallback
-// für frisch gebuchte Bundles vor dem Usage-Reload.
+// requires coverage (#35): plan features ∪ features of the actively booked
+// bundles. On an active booking `planFeatures` usually already contains the
+// bundle features (EntitlementSnapshot); the catalog join is the fallback
+// for freshly booked bundles before the usage reload.
 const coveredFeatureSet = computed(() => {
     const covered = new Set(props.planFeatures);
     for (const versionId of activeBookedVersionIds.value) {
@@ -227,12 +227,12 @@ function missingRequiresOf(b: CatalogBundle): string[] {
     return missingRequiresFor(b, coveredFeatureSet.value);
 }
 
-// #22: Alle Katalog-Bundles werden gezeigt (nicht mehr ausgeblendet), aber
-// markiert: bereits gebucht (nicht erneut buchbar), nicht kompatibel bzw.
-// fehlende requires-Voraussetzungen (#35 — ausgegraut statt buchbar).
-// Inkompatibel = Schnittmenge der Bundle-Features mit den Plan-Features ≠ ∅
-// (das Bundle würde bereits enthaltene Features doppelt verkaufen). Quotas
-// zählen nicht — sie wirken additiv.
+// #22: All catalog bundles are shown (no longer hidden), but marked:
+// already booked (not bookable again), incompatible, or missing requires
+// prerequisites (#35 — grayed out instead of bookable).
+// Incompatible = intersection of the bundle features with the plan features ≠ ∅
+// (the bundle would sell already-included features twice). Quotas don't
+// count — they act additively.
 function resolveState(b: CatalogBundle): BundleState {
     if (activeBookedVersionIds.value.has(b.bundleVersionId)) return 'booked';
     if (b.features.some((f) => planFeatureSet.value.has(f))) return 'incompatible';

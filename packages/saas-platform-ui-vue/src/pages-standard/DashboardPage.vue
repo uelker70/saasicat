@@ -111,22 +111,22 @@ import type { AdminManifest, KpiCardDef } from '@saasicat/types';
 import type { HttpClient } from '../types.js';
 import { buildRoutes } from '../nav-builder.js';
 
-// Plattform-Standard-Page: Dashboard.
+// Platform standard page: Dashboard.
 //
-// Liest die KPI-Cards aus dem Admin-Manifest (`dashboard.kpiCards`) und holt
-// für jede Card den deklarierten `endpoint`. App-spezifische Response-Shapes
-// werden vom optionalen `formatKpi`-Prop in `{ value, sub }` projiziert.
+// Reads the KPI cards from the admin manifest (`dashboard.kpiCards`) and
+// fetches the declared `endpoint` for each card. App-specific response shapes
+// are projected into `{ value, sub }` by the optional `formatKpi` prop.
 //
-// Zusätzlich:
-//   - `distributions` : Liste von Bar-Charts (z. B. Subscriptions je Plan,
-//     Promo-Status). Apps reichen die Daten direkt durch — die Plattform
-//     rendert das Bar-Chart-Layout.
-//   - `shortcuts`     : Liste von Shortcut-Cards. Default `'auto'` leitet sie
-//     aus `manifest.navigation.standardPages` + `projectPages` ab. Apps
-//     dürfen einen expliziten Override setzen.
+// Additionally:
+//   - `distributions` : list of bar charts (e.g. subscriptions per plan,
+//     promo status). Apps pass the data straight through — the platform
+//     renders the bar-chart layout.
+//   - `shortcuts`     : list of shortcut cards. Default `'auto'` derives them
+//     from `manifest.navigation.standardPages` + `projectPages`. Apps
+//     may set an explicit override.
 //
 // Slots:
-//   - `#after-kpis`   : zusätzliche freie Sektionen unter den Strukturen.
+//   - `#after-kpis`   : additional free sections below the structures.
 
 export interface KpiFormatted {
     value: string | number;
@@ -136,7 +136,7 @@ export interface KpiFormatted {
 export interface DistributionEntry {
     label: string;
     value: number;
-    /** Optionale Override-Farbe pro Eintrag (sonst Distribution-Default). */
+    /** Optional override color per entry (otherwise the distribution default). */
     color?: string;
 }
 
@@ -144,11 +144,11 @@ export interface DistributionDef {
     id: string;
     label: string;
     entries: readonly DistributionEntry[];
-    /** Optional: Gesamtsumme für Header-Badge. */
+    /** Optional: total sum for the header badge. */
     total?: number | string;
-    /** Default-Farbe der Bar-Fills (kann pro Eintrag überschrieben werden). */
+    /** Default color of the bar fills (can be overridden per entry). */
     barColor?: string;
-    /** Maximalwert für die Skalierung; default = max(entries.value, 1). */
+    /** Maximum value for scaling; default = max(entries.value, 1). */
     maxValue?: number;
 }
 
@@ -161,31 +161,31 @@ export interface ShortcutDef {
 }
 
 interface Props {
-    /** Vorgeladenes Manifest. Wenn null/undefined, wird per `loadManifest` geladen. */
+    /** Preloaded manifest. If null/undefined, loaded via `loadManifest`. */
     manifest?: AdminManifest | null;
-    /** Custom-Loader für das Manifest (Fallback wenn `manifest` nicht gesetzt). */
+    /** Custom loader for the manifest (fallback when `manifest` is not set). */
     loadManifest?: () => Promise<AdminManifest>;
-    /** Custom-HttpClient. Default: globaler `fetch`. */
+    /** Custom HttpClient. Default: global `fetch`. */
     http?: HttpClient;
-    /** Token-Provider (wenn der HttpClient-Default-fetch verwendet wird). */
+    /** Token provider (when the HttpClient default fetch is used). */
     getAuthToken?: () => string | null;
-    /** Optionaler Subtitle unter der H1. */
+    /** Optional subtitle below the H1. */
     subtitle?: string;
     /**
-     * App-spezifischer Formatter für KPI-Antworten. Default extrahiert
-     * `value`/`count`/`total` und nutzt `displayHint.type` für `sub`.
+     * App-specific formatter for KPI responses. Default extracts
+     * `value`/`count`/`total` and uses `displayHint.type` for `sub`.
      */
     formatKpi?: (card: KpiCardDef, body: unknown) => KpiFormatted;
-    /** Bar-Chart-Sektionen (Subscriptions/Promos/...). */
+    /** Bar-chart sections (subscriptions/promos/...). */
     distributions?: readonly DistributionDef[];
     /**
-     * Shortcuts-Sektion.
-     * - `'auto'` (Default): Aus Manifest-Navigation abgeleitet
-     * - `'none'`: keine Shortcut-Sektion
-     * - Liste: explizite Definitionen
+     * Shortcuts section.
+     * - `'auto'` (default): derived from the manifest navigation
+     * - `'none'`: no shortcuts section
+     * - list: explicit definitions
      */
     shortcuts?: 'auto' | 'none' | readonly ShortcutDef[];
-    /** Shortcut-Sub-Texts pro StandardPage-Key (für `shortcuts: 'auto'`). */
+    /** Shortcut sub-texts per StandardPage key (for `shortcuts: 'auto'`). */
     shortcutDescriptions?: Partial<Record<string, string>>;
 }
 
@@ -247,8 +247,8 @@ const resolvedShortcuts = computed<ShortcutDef[]>(() => {
             sub: props.shortcutDescriptions?.[r.id],
         }));
     }
-    // Aktuelle Seite nicht als Shortcut zeigen — vom Dashboard zum Dashboard
-    // zu verlinken ist verwirrend.
+    // Do not show the current page as a shortcut — linking from the dashboard
+    // to the dashboard is confusing.
     return list.filter((s) => s.to !== currentPath && s.id !== 'dashboard');
 });
 
@@ -394,14 +394,14 @@ function barWidth(value: number, max?: number): number {
     background: var(--sa-bg-app, #f1f5f9);
     padding: 20px 28px 28px;
 }
-/* Header-Optik kommt aus der globalen .sa-page-head — hier nur Margin-Tweak. */
+/* Header look comes from the global .sa-page-head — only a margin tweak here. */
 .sa-dashboard__head {
     margin-bottom: 4px;
 }
 
 .sa-dashboard__strip {
     display: grid;
-    /* Responsiv: 4 Karten solange Platz, dann automatisch 3 → 2 → 1. */
+    /* Responsive: 4 cards while there is space, then automatically 3 → 2 → 1. */
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
     margin-bottom: 14px;

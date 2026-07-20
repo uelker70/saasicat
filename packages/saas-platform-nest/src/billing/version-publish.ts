@@ -1,11 +1,11 @@
-// Pure-Function-Bausteine für PlanVersion-Publish-Workflows.
+// Pure-function building blocks for PlanVersion publish workflows.
 //
-// Konsumenten orchestrieren das Schreiben (Prisma-`$transaction`,
-// `updateMany`-Optimistic-Lock, Audit-Log) — die Plattform liefert die
-// hier definierten **Validierungs-Pure-Functions**, die vor jeder Publish-
-// Operation die Vorbedingungen prüfen.
+// Consumers orchestrate the write (Prisma `$transaction`,
+// `updateMany` optimistic lock, audit log) — the platform provides the
+// **validation pure functions** defined here, which check the
+// preconditions before every publish operation.
 
-/** Generische Form eines PlanVersion-Snapshots zur Publish-Validierung. */
+/** Generic shape of a PlanVersion snapshot for publish validation. */
 export interface PublishablePlanVersion {
     id: string;
     publishedAt: Date | null;
@@ -14,8 +14,8 @@ export interface PublishablePlanVersion {
 }
 
 /**
- * Strukturierter Publish-Fehler — Konsument mappt auf den passenden HTTP-
- * Statuscode (NestJS: 400 / 404 / 409).
+ * Structured publish error — the consumer maps it to the appropriate HTTP
+ * status code (NestJS: 400 / 404 / 409).
  */
 export class PublishValidationError extends Error {
     constructor(
@@ -35,8 +35,8 @@ export class PublishValidationError extends Error {
 }
 
 /**
- * Prüft `changeNote`-Pflicht. Wirft `CHANGE_NOTE_REQUIRED`, wenn leer/nur
- * Whitespace.
+ * Checks the `changeNote` requirement. Throws `CHANGE_NOTE_REQUIRED` if empty /
+ * only whitespace.
  */
 export function assertChangeNote(changeNote: string | null | undefined): string {
     const trimmed = (changeNote ?? '').trim();
@@ -50,18 +50,17 @@ export function assertChangeNote(changeNote: string | null | undefined): string 
 }
 
 /**
- * Prüft die Vorbedingungen, die ein Draft erfüllen muss, bevor er publiziert
- * werden darf:
+ * Checks the preconditions a draft must satisfy before it may be published:
  *
- *   - Existiert (sonst NOT_FOUND)
- *   - `publishedAt` ist null (sonst ALREADY_PUBLISHED)
- *   - `baseVersionId` ist gesetzt (sonst NO_BASE_VERSION)
+ *   - Exists (otherwise NOT_FOUND)
+ *   - `publishedAt` is null (otherwise ALREADY_PUBLISHED)
+ *   - `baseVersionId` is set (otherwise NO_BASE_VERSION)
  *
- * Wenn `base` übergeben wird, wird zusätzlich geprüft:
- *   - `base.supersededAt` ist null (sonst BASE_SUPERSEDED)
+ * If `base` is passed, it additionally checks:
+ *   - `base.supersededAt` is null (otherwise BASE_SUPERSEDED)
  *
- * `null` für `base` bedeutet „base-Lookup separat ausgeführt, aber nicht
- * gefunden" → BASE_NOT_FOUND.
+ * `null` for `base` means "base lookup performed separately but not
+ * found" → BASE_NOT_FOUND.
  */
 export function assertDraftPublishable(
     draft: PublishablePlanVersion | null,
@@ -85,8 +84,8 @@ export function assertDraftPublishable(
 }
 
 /**
- * Prüft, dass die Base-Version, gegen die der Draft diff'tet, noch
- * verfügbar (nicht abgelöst) ist.
+ * Checks that the base version the draft diffs against is still
+ * available (not superseded).
  */
 export function assertBaseVersionFresh(
     base: PublishablePlanVersion | null,
@@ -109,9 +108,9 @@ export function assertBaseVersionFresh(
 }
 
 /**
- * Prüft das Ergebnis des Optimistic-Lock-Updates (`updateMany WHERE
- * publishedAt IS NULL`): exakt 1 Row erwartet. Anderweitig hat ein
- * paralleler Admin den Draft schon publiziert.
+ * Checks the result of the optimistic-lock update (`updateMany WHERE
+ * publishedAt IS NULL`): exactly 1 row expected. Otherwise a
+ * concurrent admin has already published the draft.
  */
 export function assertOptimisticLockHeld(updateCount: number, draftId: string): void {
     if (updateCount !== 1) {

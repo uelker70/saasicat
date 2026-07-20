@@ -1,10 +1,10 @@
 import type { BillingCycle } from '@saasicat/types';
 
-// Periodengrenz-Berechnungen für Subscriptions.
+// Period-boundary calculations for subscriptions.
 //
-// UTC-Methoden bewusst gewählt: bei lokal-relativem setMonth/setFullYear
-// führen DST-Übergänge zu Off-by-one-Day im UTC-Output. Periodengrenzen
-// sind UTC-stabil — wir wollen "1 Monat später, gleicher UTC-Tag".
+// UTC methods chosen deliberately: with locally-relative setMonth/setFullYear,
+// DST transitions cause an off-by-one-day in the UTC output. Period boundaries
+// are UTC-stable — we want "1 month later, same UTC day".
 
 function advanceOneCycle(d: Date, cycle: BillingCycle): Date {
     const out = new Date(d);
@@ -17,14 +17,14 @@ function advanceOneCycle(d: Date, cycle: BillingCycle): Date {
 }
 
 /**
- * Findet die nächste Periodengrenze, die strikt **nach** `after` liegt.
- * Iteriert ab `startedAt` (Fallback: `after`) jeweils +1 Cycle, bis das
- * Ergebnis größer als `after` ist.
+ * Finds the next period boundary that lies strictly **after** `after`.
+ * Iterates from `startedAt` (fallback: `after`) by +1 cycle each time, until
+ * the result is greater than `after`.
  */
 export function periodEndAfter(startedAt: Date | null, cycle: BillingCycle, after: Date): Date {
     let candidate = new Date(startedAt ?? after);
-    // Falls `startedAt > after` (Subscription startet erst in Zukunft), ist die
-    // erste Periodengrenze startedAt selbst — danach iterieren wir hoch.
+    // If `startedAt > after` (subscription starts in the future), the first
+    // period boundary is startedAt itself — after that we iterate upward.
     while (candidate <= after) {
         candidate = advanceOneCycle(candidate, cycle);
     }
@@ -32,10 +32,10 @@ export function periodEndAfter(startedAt: Date | null, cycle: BillingCycle, afte
 }
 
 /**
- * Liefert das initiale Periodenfenster für eine Subscription
- * (`currentPeriodStart`/`currentPeriodEnd`). `start` ist `startedAt`,
- * `end = start + 1 Cycle`. Wir iterieren bewusst nicht — bei
- * Plan-Wechsel / Renewal-Cron-Lauf wird der Wert aktiv neu gesetzt.
+ * Returns the initial period window for a subscription
+ * (`currentPeriodStart`/`currentPeriodEnd`). `start` is `startedAt`,
+ * `end = start + 1 cycle`. We deliberately do not iterate — on a
+ * plan change / renewal cron run the value is actively reset.
  */
 export function initialPeriodWindow(
     startedAt: Date,
@@ -45,16 +45,16 @@ export function initialPeriodWindow(
 }
 
 /**
- * Findet die früheste Periodengrenze, die **mindestens `minLeadDays` Tage**
- * in der Zukunft liegt. Wird vom Notification-Cron benutzt, um die
- * Effektiv-Periode für anstehende Versions-Wechsel zu bestimmen:
+ * Finds the earliest period boundary that lies **at least `minLeadDays` days**
+ * in the future. Used by the notification cron to determine the effective
+ * period for upcoming version changes:
  *
- *  - `BillingCycle = YEARLY` mit `currentPeriodEnd ∈ [+42d, +43d)`: trivial,
- *    Effektiv-Datum = currentPeriodEnd.
- *  - `BillingCycle = MONTHLY` mit `currentPeriodEnd in 16d`: 16d < 42d → die
- *    Funktion springt auf die übernächste Periode (≥ 42d Vorlauf).
+ *  - `BillingCycle = YEARLY` with `currentPeriodEnd ∈ [+42d, +43d)`: trivial,
+ *    effective date = currentPeriodEnd.
+ *  - `BillingCycle = MONTHLY` with `currentPeriodEnd in 16d`: 16d < 42d → the
+ *    function jumps to the period after next (≥ 42d lead time).
  *
- * Spec: ROADMAP §2 Nr. 3 (Vorwarnfrist), §6.1 (Zeitliche Auswahl).
+ * Spec: ROADMAP §2 no. 3 (advance-warning period), §6.1 (time-based selection).
  */
 export function periodEndWithMinLead(
     startedAt: Date | null,

@@ -50,7 +50,7 @@ export interface UserListFilter {
     pageSize?: number;
 }
 
-/** Adapter zum projekt-eigenen Tenant-Schema. */
+/** Adapter to the project's own tenant schema. */
 export interface TenantPort {
     findById(id: string): Promise<TenantDto | null>;
     findBySlug(slug: string): Promise<TenantDto | null>;
@@ -60,7 +60,7 @@ export interface TenantPort {
     softDelete(id: string, reason: string): Promise<void>;
 }
 
-/** Adapter zum projekt-eigenen User-Schema. */
+/** Adapter to the project's own user schema. */
 export interface UserPort {
     findById(id: string): Promise<PlatformUserDto | null>;
     findByEmail(email: string): Promise<PlatformUserDto | null>;
@@ -73,9 +73,9 @@ export interface UserPort {
 export interface CreateSuperAdminCliInput {
     email: string;
     /**
-     * Klartext-Passwort. Der Adapter hasht es mit dem app-eigenen Verfahren
-     * (argon2/bcrypt) — Hashing bleibt damit app-spezifisch, der geteilte
-     * Command kennt den Algorithmus nicht.
+     * Plaintext password. The adapter hashes it with the app's own method
+     * (argon2/bcrypt) — hashing therefore stays app-specific, the shared
+     * command doesn't know the algorithm.
      */
     password: string;
     firstName?: string;
@@ -84,19 +84,19 @@ export interface CreateSuperAdminCliInput {
 
 export interface ReassignTenantAdminCliResult {
     user: PlatformUserDto;
-    /** true, wenn ein neuer Notfall-Admin angelegt wurde (statt Promotion). */
+    /** true if a new emergency admin was created (instead of a promotion). */
     created: boolean;
-    /** Vorherige Rolle bei Promotion; null bei Neuanlage. */
+    /** Previous role on promotion; null on new creation. */
     previousRole: PlatformRole | null;
-    /** Bei Neuanlage: generiertes Initial-Passwort, das der Admin weitergibt. */
+    /** On new creation: generated initial password that the admin passes on. */
     oneTimePassword?: string;
 }
 
 export interface PasswordResetCliResult {
     user: PlatformUserDto;
     /**
-     * Falls die App ein Einmal-Passwort generiert (statt einer OTP-/Reset-Mail),
-     * wird es hier zurückgegeben, damit der Command es out-of-band ausgeben kann.
+     * If the app generates a one-time password (instead of an OTP/reset email),
+     * it's returned here so the command can output it out-of-band.
      */
     oneTimePassword?: string;
 }
@@ -109,65 +109,65 @@ export interface CliUserRow {
 }
 
 /**
- * Schreib-/Listen-Operationen für das geteilte `<app> user`-CLI-Command. Trennt
- * die app-spezifischen Schema-Mutationen (Passwort-Hashing, Rollen-Mapping,
- * Tenant-Beziehung) vom generischen Command-Ablauf (Identity/MFA/Audit/Output).
- * Konsumenten registrieren eine Implementierung über
+ * Write/list operations for the shared `<app> user` CLI command. Separates
+ * the app-specific schema mutations (password hashing, role mapping,
+ * tenant relationship) from the generic command flow (identity/MFA/audit/output).
+ * Consumers register an implementation via
  * `CliContextModule.forRoot({ userManagementPort })`.
  */
 /**
- * Schmaler Port für den First-Run-Setup (Interface-Segregation): NUR
- * Existenz-Check + Anlage des ersten SUPER_ADMIN. Das `SetupModule` hängt allein
- * hiervon ab — ein Konsument, der nur den Setup-Wizard will, muss kein
- * Tenant-User-Management implementieren.
+ * Narrow port for the first-run setup (interface segregation): ONLY
+ * an existence check + creation of the first SUPER_ADMIN. The `SetupModule` depends
+ * solely on this — a consumer that only wants the setup wizard doesn't need to
+ * implement tenant user management.
  */
 export interface SuperAdminProvisioningPort {
-    /** Anzahl aktiver SUPER_ADMIN-User — Basis für den First-Run-Setup-Guard. */
+    /** Number of active SUPER_ADMIN users — basis for the first-run setup guard. */
     countSuperAdmins(): Promise<number>;
-    /** Legt einen neuen SUPER_ADMIN an; wirft `PlatformUserExistsError`, wenn die E-Mail existiert. */
+    /** Creates a new SUPER_ADMIN; throws `PlatformUserExistsError` if the email exists. */
     createSuperAdmin(input: CreateSuperAdminCliInput): Promise<PlatformUserDto>;
 }
 
 export interface UserManagementPort extends SuperAdminProvisioningPort {
-    /** Befördert einen bestehenden User zum TENANT_ADMIN oder legt einen Notfall-Admin an. */
+    /** Promotes an existing user to TENANT_ADMIN or creates an emergency admin. */
     reassignTenantAdmin(tenantSlug: string, email: string): Promise<ReassignTenantAdminCliResult>;
-    /** Listet die User eines Tenants (per Slug) für `<app> user list`. */
+    /** Lists a tenant's users (by slug) for `<app> user list`. */
     listTenantUsers(tenantSlug: string): Promise<CliUserRow[]>;
-    /** Stößt den app-eigenen Passwort-Reset an (Einmal-Passwort oder OTP-Mail). */
+    /** Triggers the app's own password reset (one-time password or OTP email). */
     triggerPasswordReset(email: string): Promise<PasswordResetCliResult>;
-    /** Deaktiviert einen User (app-spezifischer Status). */
+    /** Deactivates a user (app-specific status). */
     deactivate(email: string, reason: string): Promise<PlatformUserDto>;
 }
 
-/** Liefert aktuellen Verbrauch für eine Limit-Dimension. */
+/** Returns current usage for a limit dimension. */
 export interface QuotaProvider {
-    /** quotaKey, wie via `@DefinesQuota({ key })` deklariert. */
+    /** quotaKey, as declared via `@DefinesQuota({ key })`. */
     readonly key: string;
     count(tenantId: string): Promise<number>;
-    /** Optional: Cache-TTL in Sekunden (Default 30s). */
+    /** Optional: cache TTL in seconds (default 30s). */
     readonly cacheTtlSeconds?: number;
 }
 
-/** Adapter für MFA-Geheimnis-Persistenz. */
+/** Adapter for MFA secret persistence. */
 export interface MfaPort {
-    /** Liefert das gespeicherte TOTP-Secret oder null. */
+    /** Returns the stored TOTP secret or null. */
     getSecret(userId: string): Promise<string | null>;
-    /** Persistiert oder löscht (null) das TOTP-Secret. */
+    /** Persists or deletes (null) the TOTP secret. */
     setSecret(userId: string, secret: string | null): Promise<void>;
-    /** Plattform ruft das beim mfa-setup-Command auf. */
+    /** The platform calls this during the mfa-setup command. */
     isEnabled(userId: string): Promise<boolean>;
 }
 
 /**
- * Opaker Transaktions-Kontext. Konsument bestimmt den konkreten Typ
- * (z. B. `Prisma.TransactionClient`). Plattform-Code reicht ihn
- * nur durch — kein Inhalt-Inspect.
+ * Opaque transaction context. The consumer determines the concrete type
+ * (e.g. `Prisma.TransactionClient`). Platform code only passes it
+ * through — no content inspection.
  */
 export type TransactionContext = unknown;
 
 /**
- * Transaktions-Runner — Wrapper über `prisma.$transaction`,
- * Django-`transaction.atomic` etc.
+ * Transaction runner — wrapper over `prisma.$transaction`,
+ * Django `transaction.atomic`, etc.
  */
 export interface TransactionRunner {
     run<T>(fn: (tx: TransactionContext) => Promise<T>): Promise<T>;

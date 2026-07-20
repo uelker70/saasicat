@@ -142,30 +142,30 @@ import DiscoveryMetaBanner from './discovery-page/DiscoveryMetaBanner.vue';
 import DiscoveryQuotaCard from './discovery-page/DiscoveryQuotaCard.vue';
 import { STATUS_META } from './discovery-page/discovery-ui.js';
 
-// Plattform-Standard-Page: Discovery-Review, feature-zentriert (#20).
-// Zwei Tabs (Features + Quotas); je Eintrag eine ausklappbare Karte mit
-// StatusControl (Freigabe-Automat pending → approved ↔ outdated · obsolete),
-// Stammdaten, Übersetzungen und read-only Code-Capabilities. Features sind
-// nach Owner gruppiert (Rollup aus den Capability-Decorators, #14).
-// Dumb-Component — der Konsument-Wrapper wired `useDiscovery` (Snapshot)
-// + `useCatalogEntries` (Review-Status, Übersetzungen) und reicht die
-// Resultate als Props durch.
+// Platform standard page: Discovery review, feature-centric (#20).
+// Two tabs (Features + Quotas); each entry is an expandable card with
+// StatusControl (approval state machine pending → approved ↔ outdated · obsolete),
+// base data, translations and read-only code capabilities. Features are
+// grouped by owner (rollup from the capability decorators, #14).
+// Dumb component — the consumer wrapper wires up `useDiscovery` (snapshot)
+// + `useCatalogEntries` (review status, translations) and passes the
+// results through as props.
 
 const props = defineProps<{
-    /** Discovery-Snapshot — nur zur Anreicherung (declaredAt, Scan-Meta). */
+    /** Discovery snapshot — enrichment only (declaredAt, scan meta). */
     snapshot: DiscoverySnapshot | null;
     capabilities: CapabilityCatalogEntryRow[];
     features: FeatureCatalogEntryRow[];
     quotas: QuotaCatalogEntryRow[];
     loading: boolean;
     error: Error | null;
-    /** Aktive Locales aus dem Project (inkl. Default-Locale). */
+    /** Active locales from the project (incl. default locale). */
     activeLocales: string[];
-    /** Reload Snapshot → sync → reload Catalog-Entries. */
+    /** Reload snapshot → sync → reload catalog entries. */
     runDiscovery: () => Promise<void>;
-    /** Freigabe-Übergang eines Features (PATCH …/features/:key/review). */
+    /** Approval transition of a feature (PATCH …/features/:key/review). */
     reviewFeature: (featureKey: string, data: ReviewCatalogEntryData) => Promise<unknown>;
-    /** Freigabe-Übergang einer Quota (PATCH …/quotas/:key/review). */
+    /** Approval transition of a quota (PATCH …/quotas/:key/review). */
     reviewQuota: (quotaKey: string, data: ReviewCatalogEntryData) => Promise<unknown>;
     setFeatureI18n: (featureKey: string, i18n: CatalogEntryI18n) => Promise<unknown>;
     setQuotaI18n: (quotaKey: string, i18n: CatalogEntryI18n) => Promise<unknown>;
@@ -210,7 +210,7 @@ const declaredAtByKey = computed<Record<string, string>>(() => {
     return map;
 });
 
-// ─── Feature-zentrierte Aggregation ─────────────────────────────────────────
+// ─── Feature-centric aggregation ────────────────────────────────────────────
 
 const capsByFeature = computed<Map<string, CapabilityCatalogEntryRow[]>>(() => {
     const map = new Map<string, CapabilityCatalogEntryRow[]>();
@@ -223,7 +223,7 @@ const capsByFeature = computed<Map<string, CapabilityCatalogEntryRow[]>>(() => {
     return map;
 });
 
-/** Owner-Rollup je Feature (#14): Owner der Capabilities, häufigster zuerst. */
+/** Owner rollup per feature (#14): owners of the capabilities, most frequent first. */
 const ownersByFeature = computed<Map<string, string[]>>(() => {
     const map = new Map<string, string[]>();
     for (const [featureKey, caps] of capsByFeature.value) {
@@ -279,7 +279,7 @@ const filteredFeatures = computed(() => {
 
 const NO_OWNER_LABEL = 'Ohne Owner';
 
-/** Gruppierung nach Primär-Owner (#14); „Ohne Owner“ zuletzt. */
+/** Grouping by primary owner (#14); "Ohne Owner" last. */
 const featureGroups = computed<Array<{ label: string; features: FeatureCatalogEntryRow[] }>>(() => {
     const groups = new Map<string, FeatureCatalogEntryRow[]>();
     for (const f of filteredFeatures.value) {
@@ -315,9 +315,9 @@ function onQuotaReview(key: string, target: DiscoveryStatus): void {
     persist(props.reviewQuota(key, { discoveryStatus: target }));
 }
 
-// Persistenz wird debounced — der Editor feuert pro Tastendruck. Patches
-// werden je Ziel (Basis bzw. Locale) akkumuliert, damit Label + Beschreibung
-// in einem Request landen und nichts verloren geht.
+// Persistence is debounced — the editor fires on every keystroke. Patches
+// are accumulated per target (base or locale) so that label + description
+// end up in a single request and nothing gets lost.
 const I18N_DEBOUNCE_MS = 500;
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 function debounced(id: string, fn: () => void): void {
@@ -335,16 +335,16 @@ function debounced(id: string, fn: () => void): void {
 const pendingBase = new Map<string, UpdateCatalogEntryBaseData>();
 const pendingLocale = new Map<string, CatalogEntryI18nFields>();
 
-/** Persistenz-Promise abschließen, ohne dass ein Fehler unhandled bleibt. */
+/** Settle the persistence promise so no error stays unhandled. */
 function persist(p: Promise<unknown>): void {
     p.catch((err) => {
-        // Auth-Erneuerung/Redirect übernimmt der HTTP-Client; hier nur loggen,
-        // damit ein fehlgeschlagener Speichervorgang sichtbar bleibt.
+        // Auth renewal/redirect is handled by the HTTP client; here just log
+        // so a failed save stays visible.
         console.error('Catalog-Entry konnte nicht gespeichert werden', err);
     });
 }
 
-/** Setzt ein leeres Feld als gelöscht, damit der Fallback auf DE greift. */
+/** Treats an empty field as deleted so the fallback to DE takes effect. */
 function withField(target: Record<string, string>, field: string, value: string): void {
     if (value) target[field] = value;
     else delete target[field];
@@ -597,7 +597,7 @@ onMounted(() => {
     color: #94a3b8;
     margin-right: 3px;
 }
-/* Status-Badge (Review-Lifecycle) — geteilt von Feature- und Quota-Karte. */
+/* Status badge (review lifecycle) — shared by feature and quota card. */
 .sa-review {
     font-size: 10px;
     font-weight: 700;
@@ -632,7 +632,7 @@ onMounted(() => {
     background: #f1f5f9;
     color: #475569;
 }
-/* i18n-Coverage-Pill — geteilt von Feature- und Quota-Karte. */
+/* i18n coverage pill — shared by feature and quota card. */
 .sa-cov-pill {
     display: inline-flex;
     align-items: center;

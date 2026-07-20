@@ -1,33 +1,33 @@
-// Onboarding & Promo-Preview — Wire-Format der neu eingeführten REST-Endpoints
+// Onboarding & promo preview — wire format of the newly introduced REST endpoints
 // in `@saasicat/nest`:
-//   - POST /billing/promo/preview  (PromoCodePublicController, ungebundener
-//     Marketing-/Onboarding-Aufruf, rate-limitiert)
+//   - POST /billing/promo/preview  (PromoCodePublicController, unbound
+//     marketing/onboarding call, rate-limited)
 //   - POST /billing/onboarding/initial-subscription  (TenantBillingController,
-//     einmaliger Onboarding-Schritt: Plan + Bundles + ggf. Promo)
+//     one-time onboarding step: plan + bundles + optional promo)
 //
-// Spec-Referenz: handoff/superadmin/OPEN_ISSUES.md §Onboarding-Konfigurator
+// Spec reference: handoff/superadmin/OPEN_ISSUES.md §Onboarding-Konfigurator
 // (Phase 1).
 
 import type { BillingCycle } from './promo-code.types.js';
 import type { FeatureKey, PlanId, QuotaKey } from './plan-catalog.types.js';
 
 // -----------------------------------------------------------------------------
-// Promo-Preview (öffentlicher Endpoint)
+// Promo preview (public endpoint)
 // -----------------------------------------------------------------------------
 
 export interface PromoPreviewRequest {
-    /** Promo-Code (case-insensitive, wird im Service auf Uppercase normalisiert). */
+    /** Promo code (case-insensitive, normalized to uppercase in the service). */
     code: string;
-    /** Plan-ID, gegen die der Code geprüft wird. */
+    /** Plan ID the code is validated against. */
     plan: PlanId;
     billingCycle: BillingCycle;
-    /** Optional — für firstTimeCustomersOnly-Check. */
+    /** Optional — for the firstTimeCustomersOnly check. */
     email?: string;
 }
 
 /**
- * Wire-Format der Service-Antwort. Decimals als String (zwei Nachkommastellen),
- * Datumsangaben als ISO-8601-String. Entspricht 1:1 dem Service-Return-Type
+ * Wire format of the service response. Decimals as string (two decimal places),
+ * dates as ISO-8601 string. Corresponds 1:1 to the service return type
  * `PreviewResult` (saas-platform-nest/promo).
  */
 export type PromoPreviewResponse =
@@ -58,30 +58,30 @@ export interface PromoPreviewValidResponse {
         durationValue: number | null;
     };
     price: {
-        /** Decimal-as-string, z. B. "199.00". */
+        /** Decimal-as-string, e.g. "199.00". */
         originalGross: string;
         discountGross: string;
         discountedGross: string;
         includedVat: string;
         nextRegularAmountGross: string;
-        /** ISO-Datum, ab dem der reguläre Preis greift, oder null bei ONCE. */
+        /** ISO date from which the regular price applies, or null for ONCE. */
         regularStartsAt: string | null;
     };
 }
 
 // -----------------------------------------------------------------------------
-// Onboarding-Initial-Subscription (Tenant-authenticated)
+// Onboarding initial subscription (tenant-authenticated)
 // -----------------------------------------------------------------------------
 
 export interface OnboardingSelectionRequest {
     plan: PlanId;
     billingCycle: BillingCycle;
     /**
-     * Optional: Live-BundleVersion-IDs eigenständig buchbarer Bundles.
-     * Diese werden vom Backend nach dem Plan-Setup best-effort gebucht.
+     * Optional: live BundleVersion IDs of independently bookable bundles.
+     * These are booked best-effort by the backend after the plan setup.
      */
     bundleVersionIds?: string[];
-    /** Optional — falls gesetzt, wird der Code atomar mit der Plan-Auswahl eingelöst. */
+    /** Optional — if set, the code is redeemed atomically with the plan selection. */
     promoCode?: string;
 }
 
@@ -89,23 +89,22 @@ export interface OnboardingSelectionResponse {
     plan: PlanId;
     billingCycle: BillingCycle;
     /**
-     * Anzahl tatsächlich gebuchter Bundles (P11.7.3). Bundles werden
-     * **nach** dem Plan-Wechsel best-effort hinzugefügt — fehlgeschlagene
-     * Buchungen landen als Warnings, ohne den Plan-Wechsel zurückzurollen.
+     * Number of bundles actually booked (P11.7.3). Bundles are added
+     * best-effort **after** the plan change — failed bookings end up as
+     * warnings without rolling back the plan change.
      */
     bundlesAdded: number;
     /**
-     * Promo-Einlösung — `null`, wenn kein Code geschickt wurde oder die
-     * Einlösung fehlgeschlagen ist (Plan-Wechsel + Bundles sind dann trotzdem
-     * persistiert; die UI zeigt einen Hinweis und erlaubt dem Tenant, den Code
-     * später per `POST /billing/promo/redeem` einzulösen).
+     * Promo redemption — `null` if no code was sent or the redemption
+     * failed (plan change + bundles are then persisted anyway; the UI shows
+     * a hint and lets the tenant redeem the code later via
+     * `POST /billing/promo/redeem`).
      */
     promoRedemption: OnboardingPromoRedemption | null;
     /**
-     * Zusätzliche Quota-Hinweise oder Warnungen, die der Service während des
-     * Onboardings produziert hat (z. B. Plan-Downgrade-Blocker, die nicht
-     * angewendet wurden, oder Bundle-Buchungs-Fehler). Leer bei Erfolg ohne
-     * Auffälligkeiten.
+     * Additional quota hints or warnings the service produced during
+     * onboarding (e.g. plan-downgrade blockers that were not applied, or
+     * bundle-booking errors). Empty on success without anomalies.
      */
     warnings: string[];
 }
@@ -118,11 +117,11 @@ export interface OnboardingPromoRedemption {
         durationType: 'ONCE' | 'MONTHS' | 'BILLING_CYCLES';
         durationValue: number | null;
     };
-    /** ISO-Datum. */
+    /** ISO date. */
     startsAt: string;
-    /** ISO-Datum oder null bei ONCE. */
+    /** ISO date or null for ONCE. */
     endsAt: string | null;
 }
 
-// Re-Exports zur Bequemlichkeit der UI/Client-Konsumenten.
+// Re-exports for the convenience of UI/client consumers.
 export type { BillingCycle, PlanId, FeatureKey, QuotaKey };

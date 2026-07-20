@@ -13,7 +13,7 @@
                 {{ errorMessage }}
             </q-banner>
 
-            <!-- Schritt 1: SuperAdmin anlegen -->
+            <!-- Step 1: create SuperAdmin -->
             <q-form v-if="step === 'form'" @submit.prevent="submitCreate" class="sa-setup-form">
                 <p class="sa-setup-hint">
                     Es existiert noch kein SuperAdmin. Gib das vom Betreiber gesetzte
@@ -71,7 +71,7 @@
                 />
             </q-form>
 
-            <!-- Schritt 2: MFA einrichten -->
+            <!-- Step 2: set up MFA -->
             <div v-else-if="step === 'mfa' && result" class="sa-setup-mfa">
                 <p class="sa-setup-hint">
                     Account <strong>{{ result.email }}</strong> angelegt. Richte jetzt die
@@ -127,7 +127,7 @@
                 </button>
             </div>
 
-            <!-- Schritt 3: Fertig -->
+            <!-- Step 3: done -->
             <div v-else-if="step === 'done'" class="sa-setup-done">
                 <q-icon name="check_circle" color="positive" size="48px" />
                 <p class="sa-setup-hint">
@@ -162,14 +162,14 @@ import {
 import { HttpJsonError, postJson as httpPostJson } from '../http-json.js';
 
 interface Props {
-    /** Anzeigename + Badge-Kürzel (überschreiben das App-Branding, z. B. aus PublicBoot). */
+    /** Display name + badge abbreviation (override the app branding, e.g. from PublicBoot). */
     displayName?: string;
     icon?: string;
 }
 const props = defineProps<Props>();
 
-// `done` signalisiert dem Eltern-Screen (LoginPage), dass das Formular wieder
-// gezeigt werden soll — der frisch angelegte SuperAdmin meldet sich dann an.
+// `done` signals the parent screen (LoginPage) that the form should be
+// shown again — the freshly created SuperAdmin then signs in.
 const emit = defineEmits<{ done: [] }>();
 
 const brand = useSuperAdminBrand();
@@ -205,8 +205,8 @@ const ERROR_BY_CODE: Record<string, string> = {
         'Diese E-Mail ist bereits vergeben. Wähle eine andere oder hebe den bestehenden User per CLI/DB zum SUPER_ADMIN an.',
 };
 
-// Geht über den injizierten HttpClient (Auth/baseURL des Konsumenten gelten);
-// mappt den Fehlercode aus dem Body auf eine lesbare Meldung.
+// Goes through the injected HttpClient (consumer's auth/baseURL apply);
+// maps the error code from the body to a readable message.
 async function postJson<T>(path: string, body: unknown): Promise<T> {
     try {
         return await httpPostJson<T>(http, `${endpoints.apiBase}${path}`, body);

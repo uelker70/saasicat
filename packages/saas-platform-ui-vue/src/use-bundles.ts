@@ -1,10 +1,10 @@
-// useBundles + useBundleVersions — Vue-3-Composables für die SuperAdmin-
-// Bundle-Verwaltung (Backend: BundlesController unter
+// useBundles + useBundleVersions — Vue 3 composables for SuperAdmin
+// bundle management (backend: BundlesController under
 // /admin/catalog/bundles + /admin/catalog/bundle-versions).
 //
-// **Endpoint-Prefix ist Pflicht** und wird vom Konsumenten geliefert
-// (z. B. `/api/admin` oder `/api/v1/admin`). Composables hängen
-// die catalog-Pfade selbst an — Konsument liefert nur den Admin-Prefix.
+// **The endpoint prefix is required** and is supplied by the consumer
+// (e.g. `/api/admin` or `/api/v1/admin`). The composables append
+// the catalog paths themselves — the consumer supplies only the admin prefix.
 
 import { ref, type Ref } from 'vue';
 import type {
@@ -20,16 +20,16 @@ import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface UseBundlesOptions {
     /**
-     * Voll-qualifizierter Admin-Endpoint-Prefix inkl. App-globalPrefix
-     * (`/api/admin`, `/api/v1/admin`, …). Pflicht. Catalog-Pfade hängt das
-     * Composable selbst an (`/catalog/bundles`).
+     * Fully-qualified admin endpoint prefix including the app globalPrefix
+     * (`/api/admin`, `/api/v1/admin`, …). Required. The composable appends
+     * the catalog paths itself (`/catalog/bundles`).
      */
     adminEndpoint: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
-    /** Pflicht: projectKey, gegen den die Liste gefiltert wird. */
+    /** Required: projectKey the list is filtered against. */
     projectKey: string;
-    /** Bei `true` wird beim Composable-Init geladen. Default `false`. */
+    /** When `true`, loads on composable init. Default `false`. */
     autoLoad?: boolean;
 }
 
@@ -145,7 +145,7 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
 }
 
 // =============================================================================
-// useBundleVersions — Lifecycle-Operations für eine konkrete Bundle-ID
+// useBundleVersions — lifecycle operations for a concrete bundle ID
 // =============================================================================
 
 export interface UseBundleVersionsOptions {
@@ -162,7 +162,7 @@ export interface UseBundleVersionsResult {
     error: Ref<Error | null>;
 
     load: () => Promise<void>;
-    /** Liefert {row, warnings} — Warnings sollten dem User als Banner gezeigt werden. */
+    /** Returns {row, warnings} — warnings should be shown to the user as a banner. */
     createDraft: (
         data: Omit<CreateBundleVersionDraftData, 'bundleId'>,
     ) => Promise<BundleVersionMutationResult>;
@@ -180,9 +180,9 @@ export interface UseBundleVersionsResult {
         },
     ) => Promise<BundleVersionMutationResult>;
     /**
-     * Verwirft einen Draft (`DELETE /admin/catalog/bundle-versions/:id`).
-     * Published Versions können nicht verworfen werden — die API antwortet
-     * mit 422 `BUNDLE_VERSION_ALREADY_PUBLISHED`.
+     * Discards a draft (`DELETE /admin/catalog/bundle-versions/:id`).
+     * Published versions cannot be discarded — the API responds
+     * with 422 `BUNDLE_VERSION_ALREADY_PUBLISHED`.
      */
     discardDraft: (versionId: string) => Promise<void>;
 }
@@ -278,8 +278,8 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             { method: 'POST', body: JSON.stringify(opts) },
         );
         if (!result) throw new BundlesApiError(0, null, 'Publish gab keinen Body zurück');
-        // Reload versions, weil Publish eine andere Version superseded
-        // setzen kann — der lokale Cache wäre sonst inkonsistent.
+        // Reload versions, because publishing may mark another version as
+        // superseded — the local cache would otherwise be inconsistent.
         await load();
         return result;
     }

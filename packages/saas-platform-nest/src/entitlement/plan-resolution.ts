@@ -1,18 +1,18 @@
-// Entitlement-Plan-Resolution — Pure Functions zur Auflösung des effektiven
-// Plans bei Trial / Pilot / Pending-Plan-Wechsel.
+// Entitlement plan resolution — pure functions that resolve the effective
+// plan under trial / pilot / pending-plan-change.
 //
-// Konsumenten konfigurieren ihre Strategie via `EntitlementResolutionConfig`:
-//   - `pilotEntitlementPlan`: welcher Plan zählt während Pilot? (z. B. BUSINESS).
-//   - `pendingSalesEntitlementPlan`: Fallback während ENTERPRISE-Sales-Wartezeit.
-//   - `defaultTrialEntitlementPlan`: Fallback wenn `Subscription.trialEntitlementPlan`
-//     null ist.
+// Consumers configure their strategy via `EntitlementResolutionConfig`:
+//   - `pilotEntitlementPlan`: which plan counts during pilot? (e.g. BUSINESS).
+//   - `pendingSalesEntitlementPlan`: fallback while waiting for ENTERPRISE sales.
+//   - `defaultTrialEntitlementPlan`: fallback when `Subscription.trialEntitlementPlan`
+//     is null.
 //
-// Ist eine der Konfigurations-Strategien `undefined`, fällt die Auflösung auf
-// `subscription.plan` zurück (kein Override).
+// If one of the configured strategies is `undefined`, resolution falls back to
+// `subscription.plan` (no override).
 
 import type { PlanId } from '@saasicat/types';
 
-/** Eingabe-Form: nur die Felder, die für die Auflösung relevant sind. */
+/** Input shape: only the fields relevant to resolution. */
 export interface EntitlementResolutionInput {
     plan: PlanId;
     status: string;
@@ -23,31 +23,31 @@ export interface EntitlementResolutionInput {
 }
 
 /**
- * Konsumenten-spezifische Override-Strategie. Alle Felder optional —
- * undefined heißt: keine Sonderbehandlung, fällt auf `subscription.plan` zurück.
+ * Consumer-specific override strategy. All fields optional —
+ * undefined means: no special handling, falls back to `subscription.plan`.
  */
 export interface EntitlementResolutionConfig {
-    /** Wenn `isPilot=true`, gilt dieser Plan statt `subscription.plan`. */
+    /** If `isPilot=true`, this plan applies instead of `subscription.plan`. */
     pilotEntitlementPlan?: PlanId;
-    /** Wenn `status="PENDING_SALES"`, gilt dieser Plan. */
+    /** If `status="PENDING_SALES"`, this plan applies. */
     pendingSalesEntitlementPlan?: PlanId;
     /**
-     * Fallback während TRIAL, wenn `subscription.trialEntitlementPlan` null ist.
-     * Wenn die Subscription einen `trialEntitlementPlan` setzt, gewinnt der.
+     * Fallback during TRIAL, when `subscription.trialEntitlementPlan` is null.
+     * If the subscription sets a `trialEntitlementPlan`, that one wins.
      */
     defaultTrialEntitlementPlan?: PlanId;
 }
 
 /**
- * Löst den effektiven Plan einer Subscription für die Limit-Aggregation auf.
+ * Resolves the effective plan of a subscription for limit aggregation.
  *
- * Reihenfolge der Override-Regeln (höchste zuerst):
- *   1. `isPilot` → `config.pilotEntitlementPlan` (falls gesetzt).
+ * Order of the override rules (highest first):
+ *   1. `isPilot` → `config.pilotEntitlementPlan` (if set).
  *   2. `status === 'TRIAL'` → `subscription.trialEntitlementPlan`
- *      oder `config.defaultTrialEntitlementPlan` (falls gesetzt).
+ *      or `config.defaultTrialEntitlementPlan` (if set).
  *   3. `status === 'PENDING_SALES'` → `config.pendingSalesEntitlementPlan`
- *      (falls gesetzt).
- *   4. `pendingPlan` mit `pendingEffectiveAt <= now` → `pendingPlan`.
+ *      (if set).
+ *   4. `pendingPlan` with `pendingEffectiveAt <= now` → `pendingPlan`.
  *   5. Default → `subscription.plan`.
  */
 export function resolveEntitlementPlan(

@@ -27,7 +27,7 @@
             </q-card-section>
 
             <q-card-section class="pl-dlg__body">
-                <!-- Section 1: Mandant -->
+                <!-- Section 1: Tenant -->
                 <section class="pl-section">
                     <header class="pl-section__head">
                         <span class="pl-section__num">1</span>
@@ -150,7 +150,7 @@
                     </div>
                 </section>
 
-                <!-- Section 3: Pilot-Konfiguration -->
+                <!-- Section 3: Pilot configuration -->
                 <section class="pl-section">
                     <header class="pl-section__head">
                         <span class="pl-section__num">3</span>
@@ -277,13 +277,13 @@ import {
     type PilotCreateResult,
 } from './types.js';
 
-// Plattform-Pilot-Create-Dialog (Sim-Layout: 3 nummerierte Sektionen,
-// Slug-Prefix-Display, Plan-Tile-Picker, Endet-Quick-Sets, Footer-Hint).
-// App liefert Plan-Optionen + Submit-Handler. Custom-Felder pro App via
-// Slot `tenant-extra`; Konsumenten koennen `showLegalFields` /
-// `slugPrefix` / `existingSlugs` umschalten.
+// Platform pilot-create dialog (sim layout: 3 numbered sections,
+// slug-prefix display, plan-tile picker, ends-at quick-sets, footer hint).
+// The app provides plan options + submit handler. Custom fields per app via
+// the `tenant-extra` slot; consumers can toggle `showLegalFields` /
+// `slugPrefix` / `existingSlugs`.
 
-/** Plan-Option entweder als Key (String) oder mit lesbarem Label + Farbe. */
+/** Plan option either as a key (string) or with a readable label + color. */
 type PlanOption = string | { label?: string; value: string; color?: string };
 
 const props = withDefaults(
@@ -292,12 +292,12 @@ const props = withDefaults(
         planOptions: readonly PlanOption[];
         defaultPlan?: string;
         subtitle?: string;
-        /** Mandanten-spezifische Labels/Placeholder; neutrale Defaults sonst. */
+        /** Tenant-specific labels/placeholders; neutral defaults otherwise. */
         copy?: PilotCopy;
         showLegalFields?: boolean;
-        /** Optionaler Prefix vor dem Slug-Input (z. B. "example.com /"). */
+        /** Optional prefix before the slug input (e.g. "example.com /"). */
         slugPrefix?: string;
-        /** Bekannte Slugs für Konflikt-Check (verhindert Submit). */
+        /** Known slugs for the conflict check (prevents submit). */
         existingSlugs?: readonly string[];
         requireMfa?: boolean;
         mfaSetupHint?: string;

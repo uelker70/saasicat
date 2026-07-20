@@ -165,15 +165,15 @@ import {
     type TransEntry,
 } from './discovery-ui.js';
 
-// Ausklappbare Feature-Karte (#20, Sim `FeatureCard`): Header mit
-// StatusControl (Freigabe-Automat) + i18n-Coverage, Body mit Subtabs
-// Stammdaten (Einstellungen + read-only Code-Capabilities) und Übersetzungen.
+// Expandable feature card (#20, Sim `FeatureCard`): header with
+// StatusControl (approval state machine) + i18n coverage, body with subtabs
+// master data (settings + read-only code capabilities) and translations.
 
 const props = defineProps<{
     feature: FeatureCatalogEntryRow;
-    /** Capabilities dieses Features (read-only Code-Fakten). */
+    /** Capabilities of this feature (read-only code facts). */
     capabilities: CapabilityCatalogEntryRow[];
-    /** Owner-Rollup aus den Capabilities (#14), häufigster zuerst — von der Page berechnet. */
+    /** Owner rollup from the capabilities (#14), most frequent first — computed by the page. */
     owners: string[];
     declaredAtByKey: Record<string, string>;
     activeLocales: string[];
@@ -191,10 +191,10 @@ const TIER_OPTIONS = ['CORE', 'ADVANCED', 'PRO', 'ENTERPRISE'];
 
 const sub = ref<'stamm' | 'i18n'>('stamm');
 
-// Lokaler Eingabe-Puffer: sobald ein Feld editiert wurde, gewinnt der Draft
-// über den Prop-Wert. Persistenz ist debounced + die Liste wird aus der
-// PATCH-Antwort ersetzt — ohne Puffer würde ein spätes Echo getippte Zeichen
-// zurücksetzen (siehe CatalogEntryTransPanel).
+// Local input buffer: once a field has been edited, the draft wins over the
+// prop value. Persistence is debounced + the list is replaced from the
+// PATCH response — without a buffer a late echo would reset typed characters
+// (see CatalogEntryTransPanel).
 const drafts = reactive<Record<string, string>>({});
 type Field = 'icon' | 'tier' | 'label' | 'description';
 
@@ -213,7 +213,7 @@ function onField(field: Field, value: string): void {
     emit('feature-base', props.feature.featureKey, { [field]: value });
 }
 
-/** Basis-Edits aus dem Übersetzungs-Panel spiegeln, damit Header + Stammdaten mitziehen. */
+/** Mirror base edits from the translation panel so the header + master data follow along. */
 function onTransBase(patch: { label?: string; description?: string }): void {
     for (const [field, value] of Object.entries(patch)) {
         drafts[field as Field] = value ?? '';
@@ -221,8 +221,8 @@ function onTransBase(patch: { label?: string; description?: string }): void {
     emit('feature-base', props.feature.featureKey, patch);
 }
 
-// „Neu" relativ zur letzten Freigabe: Capabilities, die seit `approvedAt`
-// in den Katalog gekommen sind. Ohne Freigabe gibt es keine Baseline.
+// "New" relative to the last approval: capabilities that entered the catalog
+// since `approvedAt`. Without an approval there is no baseline.
 const newCapsCount = computed(() => {
     const approvedAt = props.feature.approvedAt;
     if (!approvedAt) return 0;

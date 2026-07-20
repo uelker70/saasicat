@@ -91,7 +91,7 @@ function buildContractHarness() {
 }
 
 describe('EntitlementService — computeLimits + Cache', () => {
-    test('liefert Plan-Default-Limits für STANDARD', async () => {
+    test('returns plan default limits for STANDARD', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub());
         const limits = await svc.computeLimits('t1', NOW);
@@ -100,7 +100,7 @@ describe('EntitlementService — computeLimits + Cache', () => {
         assert.deepEqual([...limits.features], ['CASHBOOK']);
     });
 
-    test('zweiter Aufruf am selben Tenant geht NICHT in die DB', async () => {
+    test('second call on the same tenant does NOT hit the DB', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub());
         let dbHits = 0;
@@ -115,12 +115,12 @@ describe('EntitlementService — computeLimits + Cache', () => {
         assert.equal(dbHits, 1);
     });
 
-    test('NotFound bei unbekanntem Tenant', async () => {
+    test('NotFound for unknown tenant', async () => {
         const { svc } = buildHarness();
         await assert.rejects(() => svc.computeLimits('unknown'), /Keine Subscription/);
     });
 
-    test('invalidateTenant erzwingt Re-Read', async () => {
+    test('invalidateTenant forces a re-read', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub());
         let dbHits = 0;
@@ -135,7 +135,7 @@ describe('EntitlementService — computeLimits + Cache', () => {
         assert.equal(dbHits, 2);
     });
 
-    test('TTL: nach >60 s wird neu geladen', async () => {
+    test('TTL: reloads after >60 s', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub());
         let dbHits = 0;
@@ -150,7 +150,7 @@ describe('EntitlementService — computeLimits + Cache', () => {
         assert.equal(dbHits, 2);
     });
 
-    test('verschiedene Tenants werden separat gecached', async () => {
+    test('different tenants are cached separately', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub({ tenantId: 't1' }));
         subRepo.set(buildSub({ tenantId: 't2', id: 'sub-2' }));
@@ -169,7 +169,7 @@ describe('EntitlementService — computeLimits + Cache', () => {
 });
 
 describe('EntitlementService — deriveLimits + Resolution', () => {
-    test('TRIAL: nutzt trialEntitlementPlan über DB-Lookup', async () => {
+    test('TRIAL: uses trialEntitlementPlan via DB lookup', async () => {
         const { svc, subRepo } = buildHarness({
             defaultTrialEntitlementPlan: 'PROFESSIONAL',
         });
@@ -182,11 +182,11 @@ describe('EntitlementService — deriveLimits + Resolution', () => {
         );
         const limits = await svc.computeLimits('t1', NOW);
         assert.equal(limits.plan, 'PROFESSIONAL');
-        assert.equal(limits.quotas.vehicles, 50); // PROFESSIONAL-Default
+        assert.equal(limits.quotas.vehicles, 50); // PROFESSIONAL default
         assert.equal(limits.features.has('DMS'), true);
     });
 
-    test('Pilot mit Config: pilotEntitlementPlan überschreibt', async () => {
+    test('Pilot with config: pilotEntitlementPlan overrides', async () => {
         const { svc, subRepo } = buildHarness({
             pilotEntitlementPlan: 'PROFESSIONAL',
         });
@@ -198,7 +198,7 @@ describe('EntitlementService — deriveLimits + Resolution', () => {
 });
 
 describe('EntitlementService — V3 ContractLineItems', () => {
-    test('liest Entitlements aus aktivem Contract-Snapshot ohne Katalog-Join', async () => {
+    test('reads entitlements from active contract snapshot without catalog join', async () => {
         const { svc, subRepo, contractRepo } = buildContractHarness();
         subRepo.set(buildSub());
         await contractRepo.create({
@@ -256,7 +256,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
         assert.deepEqual([...limits.features].sort(), ['CASHBOOK', 'DMS']);
     });
 
-    test('Contract entitlementSnapshot gewinnt vor LineItem-Aggregation', async () => {
+    test('Contract entitlementSnapshot wins over line-item aggregation', async () => {
         const { svc, subRepo, contractRepo } = buildContractHarness();
         subRepo.set(buildSub());
         await contractRepo.create({
@@ -305,7 +305,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
 });
 
 describe('EntitlementService.enforceLimit — transactional', () => {
-    test('Insert läuft, wenn unter Limit', async () => {
+    test('insert runs when under the limit', async () => {
         const { svc, subRepo, txRunner } = buildHarness();
         subRepo.set(buildSub({ plan: 'PROFESSIONAL', planVersion: PROFESSIONAL_PV }));
         let inserted = false;
@@ -324,7 +324,7 @@ describe('EntitlementService.enforceLimit — transactional', () => {
         assert.equal(txRunner.runCount, 1);
     });
 
-    test('LimitExceededError, wenn Insert das Limit überschreiten würde', async () => {
+    test('LimitExceededError when insert would exceed the limit', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub()); // STANDARD: vehicles=15
         await assert.rejects(
@@ -344,7 +344,7 @@ describe('EntitlementService.enforceLimit — transactional', () => {
         );
     });
 
-    test('delta>1 für STORAGE: Insert mit 6 GB gegen 5 GB Limit blockt', async () => {
+    test('delta>1 for STORAGE: insert of 6 GB against 5 GB limit blocks', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub()); // STANDARD: storageGb=5
         await assert.rejects(
@@ -361,7 +361,7 @@ describe('EntitlementService.enforceLimit — transactional', () => {
         );
     });
 
-    test('-1 (unbegrenzt) blockt nie', async () => {
+    test('-1 (unlimited) never blocks', async () => {
         const customCatalog = {
             ...CATALOG,
             plans: [
@@ -397,7 +397,7 @@ describe('EntitlementService.enforceLimit — transactional', () => {
         assert.equal(result, 'ok');
     });
 
-    test('NotFound, wenn Subscription fehlt', async () => {
+    test('NotFound when subscription is missing', async () => {
         const { svc } = buildHarness();
         await assert.rejects(
             () =>
@@ -412,7 +412,7 @@ describe('EntitlementService.enforceLimit — transactional', () => {
         );
     });
 
-    test('Error bei unbekannter Quota-Dimension', async () => {
+    test('Error for unknown quota dimension', async () => {
         const { svc, subRepo } = buildHarness();
         subRepo.set(buildSub());
         await assert.rejects(

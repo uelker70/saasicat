@@ -19,7 +19,7 @@ function buildManifest(overrides = {}) {
         capabilities: {
             'tenants:list:read': true,
             'audit:list:read': true,
-            'pilots:create:write': false, // disabled für diesen User
+            'pilots:create:write': false, // disabled for this user
         },
         navigation: {
             standardPages: {
@@ -50,15 +50,15 @@ function buildManifest(overrides = {}) {
     };
 }
 
-describe('buildRoutes — StandardPages-Filter', () => {
-    test('listet aktivierte StandardPages mit Capability=true', () => {
+describe('buildRoutes — StandardPages filter', () => {
+    test('lists enabled StandardPages with Capability=true', () => {
         const routes = buildRoutes(buildManifest());
         const ids = routes.map((r) => r.id);
         assert.ok(ids.includes('tenants'));
         assert.ok(ids.includes('audit'));
     });
 
-    test('lehnt disabled-Pages ab', () => {
+    test('rejects disabled pages', () => {
         const routes = buildRoutes(buildManifest());
         assert.equal(
             routes.find((r) => r.id === 'users'),
@@ -66,7 +66,7 @@ describe('buildRoutes — StandardPages-Filter', () => {
         );
     });
 
-    test('lehnt Pages ohne Capability ab', () => {
+    test('rejects pages without Capability', () => {
         const routes = buildRoutes(buildManifest());
         assert.equal(
             routes.find((r) => r.id === 'pilots'),
@@ -74,13 +74,13 @@ describe('buildRoutes — StandardPages-Filter', () => {
         );
     });
 
-    test('Default-Routen aus DEFAULT_STANDARD_PAGE_ROUTES', () => {
+    test('default routes from DEFAULT_STANDARD_PAGE_ROUTES', () => {
         const routes = buildRoutes(buildManifest());
         const tenants = routes.find((r) => r.id === 'tenants');
         assert.equal(tenants.path, DEFAULT_STANDARD_PAGE_ROUTES.tenants);
     });
 
-    test('standardPageRoutes-Override', () => {
+    test('standardPageRoutes override', () => {
         const routes = buildRoutes(buildManifest(), {
             standardPageRoutes: { tenants: '/admin/clubs' },
         });
@@ -88,14 +88,14 @@ describe('buildRoutes — StandardPages-Filter', () => {
         assert.equal(tenants.path, '/admin/clubs');
     });
 
-    test('isStandard=true für StandardPages', () => {
+    test('isStandard=true for StandardPages', () => {
         const routes = buildRoutes(buildManifest());
         assert.equal(routes.find((r) => r.id === 'tenants').isStandard, true);
     });
 });
 
 describe('buildRoutes — ProjectPages', () => {
-    test('listet ProjectPage ohne requiredCapability auf', () => {
+    test('lists a ProjectPage without requiredCapability', () => {
         const routes = buildRoutes(buildManifest());
         const datev = routes.find((r) => r.id === 'cf.datev');
         assert.notEqual(datev, undefined);
@@ -104,7 +104,7 @@ describe('buildRoutes — ProjectPages', () => {
         assert.equal(datev.isStandard, false);
     });
 
-    test('lehnt ProjectPage mit fehlender Capability ab', () => {
+    test('rejects a ProjectPage with a missing Capability', () => {
         const m = buildManifest();
         m.navigation.projectPages[0].requiredCapability = 'nope:foo:bar';
         const routes = buildRoutes(m);
@@ -114,7 +114,7 @@ describe('buildRoutes — ProjectPages', () => {
         );
     });
 
-    test('listet ProjectPage mit erfüllter Capability auf', () => {
+    test('lists a ProjectPage with a satisfied Capability', () => {
         const m = buildManifest();
         m.capabilities['datev:export:run'] = true;
         m.navigation.projectPages[0].requiredCapability = 'datev:export:run';
@@ -125,17 +125,17 @@ describe('buildRoutes — ProjectPages', () => {
         );
     });
 
-    test('navSection wird durchgereicht', () => {
+    test('navSection is passed through', () => {
         const routes = buildRoutes(buildManifest());
         assert.equal(routes.find((r) => r.id === 'cf.datev').navSection, 'DemoApp');
     });
 
-    test('availableExtensions filtert ProjectPages mit unbekanntem componentKey', () => {
+    test('availableExtensions filters out ProjectPages with an unknown componentKey', () => {
         const m = buildManifest();
         const routes = buildRoutes(m, {
             availableExtensions: new Set(),
         });
-        // StandardPages bleiben unberührt; ProjectPages werden gefiltert.
+        // StandardPages remain untouched; ProjectPages are filtered.
         assert.equal(
             routes.find((r) => r.id === 'cf.datev'),
             undefined,
@@ -146,7 +146,7 @@ describe('buildRoutes — ProjectPages', () => {
         );
     });
 
-    test('availableExtensions behält ProjectPages mit bekanntem componentKey', () => {
+    test('availableExtensions keeps ProjectPages with a known componentKey', () => {
         const routes = buildRoutes(buildManifest(), {
             availableExtensions: new Set(['cf-datev']),
         });
@@ -157,8 +157,8 @@ describe('buildRoutes — ProjectPages', () => {
     });
 });
 
-describe('buildSidebar — Section-Gruppierung', () => {
-    test('sectionOrder gewinnt, übrige alphabetisch', () => {
+describe('buildSidebar — section grouping', () => {
+    test('sectionOrder wins, the rest alphabetical', () => {
         const m = buildManifest();
         m.navigation.projectPages.push({
             id: 'cf.zfix',
@@ -174,15 +174,15 @@ describe('buildSidebar — Section-Gruppierung', () => {
             componentKey: 'a',
             navSection: 'ASection',
         });
-        // StandardPages erben Default-Sections (tenants→Kunden, audit→System);
-        // ProjectPages bringen ihr eigenes navSection mit. DEFAULT_SECTION_ORDER
-        // priorisiert Kunden vor System; danach kommen unbekannte alphabetisch.
+        // StandardPages inherit default sections (tenants→Kunden, audit→System);
+        // ProjectPages bring their own navSection. DEFAULT_SECTION_ORDER
+        // prioritizes Kunden over System; after that, unknown ones come alphabetically.
         const sidebar = buildSidebar(buildRoutes(m));
         const sectionNames = sidebar.map((s) => s.section);
         assert.deepEqual(sectionNames, ['Kunden', 'System', 'ASection', 'DemoApp', 'ZSection']);
     });
 
-    test('sectionOrder-Override durch zweiten Parameter', () => {
+    test('sectionOrder override via second parameter', () => {
         const sidebar = buildSidebar(buildRoutes(buildManifest()), ['System', 'Kunden']);
         assert.deepEqual(
             sidebar.map((s) => s.section),
@@ -190,7 +190,7 @@ describe('buildSidebar — Section-Gruppierung', () => {
         );
     });
 
-    test('items innerhalb einer Section ohne Mutation', () => {
+    test('items within a section without mutation', () => {
         const sidebar = buildSidebar(buildRoutes(buildManifest()));
         const demoapp = sidebar.find((s) => s.section === 'DemoApp');
         assert.equal(demoapp.items.length, 1);
@@ -199,12 +199,12 @@ describe('buildSidebar — Section-Gruppierung', () => {
 });
 
 describe('resolveExtension', () => {
-    test('liefert registrierte Komponente', () => {
+    test('returns the registered component', () => {
         const Foo = { name: 'Foo' };
         assert.equal(resolveExtension('foo', { foo: Foo }), Foo);
     });
 
-    test('null bei unbekanntem Key', () => {
+    test('null for an unknown key', () => {
         assert.equal(resolveExtension('nope', {}), null);
     });
 });

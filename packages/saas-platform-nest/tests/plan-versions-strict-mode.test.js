@@ -1,6 +1,6 @@
-// Pack 3a — Strict-Mode-Check für PlanVersionsService.
-// Pure-Function-Test (validatePlanDraft) + Service-Integration mit
-// Discovery-Snapshot-Stub und beide Modi (warn-only / blocking).
+// Pack 3a — strict mode check for PlanVersionsService.
+// Pure-function test (validatePlanDraft) + service integration with a
+// discovery snapshot stub and both modes (warn-only / blocking).
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,11 +36,11 @@ function buildSnapshot(features = [], quotas = []) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Pure-Function: validatePlanDraft
+// Pure function: validatePlanDraft
 // ─────────────────────────────────────────────────────────────────
 
 describe('validatePlanDraft (pure)', () => {
-    test('alles vorhanden → keine Warnings', () => {
+    test('all present → no warnings', () => {
         const snap = buildSnapshot(['MEMBERS', 'CALENDAR'], ['members', 'storageGb']);
         const warnings = validatePlanDraft(
             { features: ['MEMBERS', 'CALENDAR'], quotas: { members: 100, storageGb: 5 } },
@@ -49,7 +49,7 @@ describe('validatePlanDraft (pure)', () => {
         assert.deepEqual(warnings, []);
     });
 
-    test('unbekanntes Feature → PLAN_FEATURE_UNKNOWN', () => {
+    test('unknown feature → PLAN_FEATURE_UNKNOWN', () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const warnings = validatePlanDraft(
             { features: ['MEMBERS', 'GHOSTLY_FEATURE'], quotas: {} },
@@ -61,7 +61,7 @@ describe('validatePlanDraft (pure)', () => {
         assert.equal(warnings[0].value, 'GHOSTLY_FEATURE');
     });
 
-    test('unbekannter Quota-Key → QUOTA_MISSING', () => {
+    test('unknown quota key → QUOTA_MISSING', () => {
         const snap = buildSnapshot(['MEMBERS'], ['members']);
         const warnings = validatePlanDraft(
             { features: ['MEMBERS'], quotas: { members: 100, ghostQuota: 5 } },
@@ -72,7 +72,7 @@ describe('validatePlanDraft (pure)', () => {
         assert.equal(warnings[0].value, 'ghostQuota');
     });
 
-    test('mehrere Verstöße → mehrere Warnings, sortiert nach features[]/quotas{}', () => {
+    test('multiple violations → multiple warnings, sorted by features[]/quotas{}', () => {
         const snap = buildSnapshot(['A'], ['x']);
         const warnings = validatePlanDraft(
             { features: ['A', 'B', 'C'], quotas: { x: 1, y: 2, z: 3 } },
@@ -84,7 +84,7 @@ describe('validatePlanDraft (pure)', () => {
         assert.deepEqual(codes.filter((c) => c === 'QUOTA_MISSING').length, 2);
     });
 
-    test('PLAN_FEATURE_UNKNOWN ist disjunkt zu BUNDLE_FEATURE_UNKNOWN', () => {
+    test('PLAN_FEATURE_UNKNOWN is disjoint from BUNDLE_FEATURE_UNKNOWN', () => {
         const snap = buildSnapshot([], []);
         const planWarn = validatePlanDraft({ features: ['X'], quotas: {} }, snap);
         const bundleWarn = validateBundleDraft({ features: ['X'], quotas: {} }, snap);
@@ -94,7 +94,7 @@ describe('validatePlanDraft (pure)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// PlanVersionsService: Strict-Check-Integration
+// PlanVersionsService: strict-check integration
 // ─────────────────────────────────────────────────────────────────
 
 async function setupService({ snapshot = null, mode = 'warn-only', marketedOnlyFeatures = [] } = {}) {
@@ -112,8 +112,8 @@ async function setupService({ snapshot = null, mode = 'warn-only', marketedOnlyF
     return { repo, stem, versions, plan };
 }
 
-describe('PlanVersionsService — Strict-Mode-Integration', () => {
-    test('warn-only: createDraft mit unbekanntem Feature → 201 + warnings[]', async () => {
+describe('PlanVersionsService — strict mode integration', () => {
+    test('warn-only: createDraft with unknown feature → 201 + warnings[]', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const { versions, plan } = await setupService({ snapshot: snap, mode: 'warn-only' });
         const result = await versions.createPlanDraft({
@@ -128,7 +128,7 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         assert.equal(result.warnings[0].code, 'PLAN_FEATURE_UNKNOWN');
     });
 
-    test('blocking: createDraft mit unbekanntem Feature → 422', async () => {
+    test('blocking: createDraft with unknown feature → 422', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const { versions, plan } = await setupService({ snapshot: snap, mode: 'blocking' });
         await assert.rejects(
@@ -149,7 +149,7 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         );
     });
 
-    test('blocking: createDraft mit unbekannter Quota → 422 mit QUOTA_MISSING', async () => {
+    test('blocking: createDraft with unknown quota → 422 with QUOTA_MISSING', async () => {
         const snap = buildSnapshot(['MEMBERS'], ['members']);
         const { versions, plan } = await setupService({ snapshot: snap, mode: 'blocking' });
         await assert.rejects(
@@ -169,7 +169,7 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         );
     });
 
-    test('blocking: alles vorhanden → 201 + warnings=[]', async () => {
+    test('blocking: all present → 201 + warnings=[]', async () => {
         const snap = buildSnapshot(['MEMBERS'], ['members']);
         const { versions, plan } = await setupService({ snapshot: snap, mode: 'blocking' });
         const result = await versions.createPlanDraft({
@@ -182,9 +182,9 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         assert.equal(result.warnings.length, 0);
     });
 
-    test('blocking ohne Snapshot-Quelle → degradiert auf warn-only statt Crash (#25)', async () => {
-        // Früher warf der Guard hier (→ Boot-Crash-Outage). Jetzt: kein Throw,
-        // Degradierung auf warn-only — eine Mutation läuft durch (kein 422).
+    test('blocking without snapshot source → degrades to warn-only instead of crashing (#25)', async () => {
+        // Previously the guard threw here (→ boot-crash outage). Now: no throw,
+        // degradation to warn-only — a mutation goes through (no 422).
         const { versions, plan } = await setupService({ snapshot: null, mode: 'blocking' });
         const result = await versions.createPlanDraft({
             planId: plan.id,
@@ -196,14 +196,14 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         assert.equal(result.warnings.length, 0);
     });
 
-    test('blocking: marketed-only-Feature → KEIN 422 (Allowlist)', async () => {
+    test('blocking: marketed-only feature → NO 422 (allowlist)', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const { versions, plan } = await setupService({
             snapshot: snap,
             mode: 'blocking',
             marketedOnlyFeatures: ['PRIORITY_SUPPORT'],
         });
-        // PRIORITY_SUPPORT ist NICHT im Snapshot, aber allowlisted → kein Verstoß.
+        // PRIORITY_SUPPORT is NOT in the snapshot, but allowlisted → no violation.
         const result = await versions.createPlanDraft({
             planId: plan.id,
             features: ['MEMBERS', 'PRIORITY_SUPPORT'],
@@ -215,7 +215,7 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         assert.equal(result.planVersion.version, 1);
     });
 
-    test('blocking: NICHT-allowlisted unbekanntes Feature → weiterhin 422', async () => {
+    test('blocking: NON-allowlisted unknown feature → still 422', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const { versions, plan } = await setupService({
             snapshot: snap,
@@ -238,11 +238,11 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         );
     });
 
-    test('Scanner-Fallback (#25): blocking ohne Token, aber mit DiscoveryScanner erzwingt korrekt', async () => {
+    test('scanner fallback (#25): blocking without token but with DiscoveryScanner enforces correctly', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const repo = new FakePlanRepository();
         const stem = new PlansService(repo);
-        // Konstruktor-Args: repo, snapshot(=null), config, subscriptions(=null), scanner
+        // Constructor args: repo, snapshot(=null), config, subscriptions(=null), scanner
         const versions = new PlanVersionsService(repo, null, { strictModeCheckMode: 'blocking' }, null, {
             getSnapshot: () => snap,
         });
@@ -264,7 +264,7 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         );
     });
 
-    test('warn-only ohne Snapshot → kein Check, warnings=[]', async () => {
+    test('warn-only without snapshot → no check, warnings=[]', async () => {
         const { versions, plan } = await setupService({ snapshot: null, mode: 'warn-only' });
         const result = await versions.createPlanDraft({
             planId: plan.id,
@@ -276,10 +276,10 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         assert.equal(result.warnings.length, 0);
     });
 
-    test('blocking: publishPlanVersion läuft Strict-Check auch beim Publish', async () => {
+    test('blocking: publishPlanVersion runs the strict check on publish too', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const { versions, plan } = await setupService({ snapshot: snap, mode: 'warn-only' });
-        // v1 mit unbekanntem Feature in warn-only durchgewunken
+        // v1 with unknown feature waved through in warn-only
         const draft = await versions.createPlanDraft({
             planId: plan.id,
             features: ['MEMBERS', 'GHOST'],
@@ -287,9 +287,9 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
             monthlyNet: '5.00',
             yearlyNet: '50.00',
         });
-        // Wir testen: publishPlanVersion wirft im blocking-Modus, wenn der
-        // Draft schon Drift hat. Dafür legen wir den Draft direkt in einen
-        // separaten blocking-Repo und publishen darüber.
+        // We test: publishPlanVersion throws in blocking mode when the
+        // draft already has drift. For that we place the draft directly into a
+        // separate blocking repo and publish through it.
         const blockingRepo = new FakePlanRepository();
         await blockingRepo.create({ projectKey: PROJECT, planKey: 'STARTER', label: 'X' });
         blockingRepo.seedVersion({
@@ -313,7 +313,7 @@ describe('PlanVersionsService — Strict-Mode-Integration', () => {
         );
     });
 
-    test('updatePlanDraft im blocking: drift wird abgewiesen', async () => {
+    test('updatePlanDraft in blocking: drift is rejected', async () => {
         const snap = buildSnapshot(['MEMBERS'], []);
         const { versions, plan } = await setupService({ snapshot: snap, mode: 'blocking' });
         const draft = await versions.createPlanDraft({

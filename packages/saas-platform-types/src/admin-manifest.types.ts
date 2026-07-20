@@ -1,15 +1,15 @@
-// AdminManifest — UI-Discovery-Projektion einer SaaS-App.
-// Schema-Quelle: @saasicat/spec/schemas/admin-manifest.schema.json
+// AdminManifest — UI discovery projection of a SaaS app.
+// Schema source: @saasicat/spec/schemas/admin-manifest.schema.json
 
 import type { FeatureDef, PlanDef } from './plan-catalog.types.js';
 
-/** Backend-Capability-Key, Konvention: domain.action[.action]. */
+/** Backend capability key, convention: domain.action[.action]. */
 export type CapabilityKey = string;
 
-/** Frontend-Action-Registry-Key. Konvention wie CapabilityKey. */
+/** Frontend action-registry key. Same convention as CapabilityKey. */
 export type ActionKey = CapabilityKey;
 
-/** Lookup-Key in der statischen extensions:-Map des UI-Builds. */
+/** Lookup key in the static extensions: map of the UI build. */
 export type ComponentKey = string;
 
 export interface AdminManifest {
@@ -18,18 +18,18 @@ export interface AdminManifest {
     project: {
         key: string;
         displayName: string;
-        /** Tag/Untertitel (z. B. "SuperAdmin"). Aus `saas.yaml#app.label`. */
+        /** Tag/subtitle (e.g. "SuperAdmin"). From `saas.yaml#app.label`. */
         label?: string;
-        /** Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da"). Aus `saas.yaml#app.icon`. */
+        /** Short abbreviation for the logo badge (e.g. "ma", "da"). From `saas.yaml#app.icon`. */
         icon?: string;
         logoUrl?: string;
         environment?: 'production' | 'staging' | 'development';
         /**
-         * Erlaubter Locale-Pool aus der app-config (`saas.yaml`
-         * `marketing.availableLocales`). Erste = Default. SPEC_V2 §6.5.
+         * Allowed locale pool from the app config (`saas.yaml`
+         * `marketing.availableLocales`). First = default. SPEC_V2 §6.5.
          */
         availableLocales?: string[];
-        /** Default-Locale; entspricht `availableLocales[0]`. */
+        /** Default locale; equals `availableLocales[0]`. */
         defaultLocale?: string;
     };
 
@@ -48,7 +48,7 @@ export interface AdminManifest {
         plans: PlanDef[];
     };
 
-    /** Map CapabilityKey → boolean. Manifest ist nie Security-Quelle. */
+    /** Map CapabilityKey → boolean. Manifest is never a security source. */
     capabilities: Record<CapabilityKey, boolean>;
 
     navigation: {
@@ -93,14 +93,14 @@ export interface StandardPageDef {
 }
 
 export interface ProjectPageDef {
-    /** `<projectKey>.<area>`, z. B. `demoapp.datev`. */
+    /** `<projectKey>.<area>`, e.g. `demoapp.datev`. */
     id: string;
     label: string;
     icon?: string;
-    /** Frontend-Route, z. B. `/admin/datev`. */
+    /** Frontend route, e.g. `/admin/datev`. */
     route: string;
     navSection?: string;
-    /** Lookup in der statischen extensions:-Map des Shell-Builds. */
+    /** Lookup in the static extensions: map of the shell build. */
     componentKey: ComponentKey;
     requiredCapability?: CapabilityKey;
     prefetchOnIdle?: boolean;
@@ -109,10 +109,10 @@ export interface ProjectPageDef {
 export interface KpiCardDef {
     id: string;
     label: string;
-    /** Pflicht-Pfad: /api/v1/admin/(extras|dashboard)/... */
+    /** Required path: /api/v1/admin/(extras|dashboard)/... */
     endpoint: string;
     displayHint: KpiDisplayHint;
-    /** 0–100; UI sortiert absteigend. */
+    /** 0–100; UI sorts descending. */
     slotPriority?: number;
     requiredCapability?: CapabilityKey;
 }
@@ -125,16 +125,16 @@ export interface KpiDisplayHint {
 export interface TenantColumnDef {
     key: string;
     label: string;
-    /** Pflicht-Pfad: /api/v1/admin/extras/...; MUSS batchfähig sein, kein {slug}/{tenantId}. */
+    /** Required path: /api/v1/admin/extras/...; MUST be batch-capable, no {slug}/{tenantId}. */
     endpoint: string;
     requiredCapability?: CapabilityKey;
 }
 
 export interface TenantActionDef {
-    /** `<projectKey>.<area>.<verb>`, z. B. `demoapp.datev.runExport`. */
+    /** `<projectKey>.<area>.<verb>`, e.g. `demoapp.datev.runExport`. */
     id: string;
     label: string;
-    /** Lookup in der statischen actions:-Map des Shell-Builds. */
+    /** Lookup in the static actions: map of the shell build. */
     actionKey: ActionKey;
     requiredCapability?: CapabilityKey;
     requiresMfa?: boolean;
@@ -142,15 +142,15 @@ export interface TenantActionDef {
 }
 
 export interface AuditActionDef {
-    /** SCREAMING_SNAKE_CASE; matched zur AuditLog.action-Spalte. */
+    /** SCREAMING_SNAKE_CASE; matched to the AuditLog.action column. */
     key: string;
     label: string;
     severity?: 'info' | 'low' | 'medium' | 'high';
 }
 
 // ──────────────────────────────────────────────────────────────────
-// ManifestContribution — wird von App-Modulen via DI geliefert und
-// im AdminManifestService zum Voll-Manifest gemerged.
+// ManifestContribution — supplied by app modules via DI and merged
+// into the full manifest in the AdminManifestService.
 // ──────────────────────────────────────────────────────────────────
 
 export interface ManifestContribution {
@@ -172,17 +172,17 @@ export interface ManifestContribution {
 }
 
 // ──────────────────────────────────────────────────────────────────
-// PublicBootResponse — Pre-Login-Endpoint /api/v1/admin/boot
-// Bewusst nur Branding, NIEMALS Capabilities/Pages/Endpoints.
+// PublicBootResponse — pre-login endpoint /api/v1/admin/boot
+// Deliberately branding only, NEVER capabilities/pages/endpoints.
 // ──────────────────────────────────────────────────────────────────
 
 export interface PublicBootResponse {
     project: {
         key: string;
         displayName: string;
-        /** Tag/Untertitel (z. B. "SuperAdmin"). Aus `saas.yaml#app.label`. */
+        /** Tag/subtitle (e.g. "SuperAdmin"). From `saas.yaml#app.label`. */
         label?: string;
-        /** Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da"). Aus `saas.yaml#app.icon`. */
+        /** Short abbreviation for the logo badge (e.g. "ma", "da"). From `saas.yaml#app.icon`. */
         icon?: string;
         logoUrl?: string;
         environment?: 'production' | 'staging' | 'development';

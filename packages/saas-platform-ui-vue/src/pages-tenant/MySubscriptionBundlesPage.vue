@@ -71,7 +71,7 @@
             </article>
         </div>
 
-        <!-- Add-Dialog: nutzt Public-Catalog-Bundles, wenn der Wrapper sie liefert. -->
+        <!-- Add dialog: uses public catalog bundles when the wrapper provides them. -->
         <div v-if="addOpen" class="msb-modal-bg" @click="closeAddDialog">
             <div class="msb-modal" @click.stop>
                 <div class="msb-modal-head">
@@ -95,7 +95,7 @@
                     </button>
                 </div>
                 <div class="msb-modal-body">
-                    <!-- Auswahl-Liste via Public-Catalog, sonst Fallback auf direkten UUID-Input. -->
+                    <!-- Selection list via public catalog, otherwise fallback to direct UUID input. -->
                     <template v-if="bookable.length > 0">
                         <label class="msb-field">
                             <span class="msb-field-label">Bundle</span>
@@ -169,12 +169,12 @@ import type { SubscriptionBundleRecord } from '@saasicat/types';
 
 import { useTenantSubscriptionBundles } from '../use-tenant-subscription-bundles.js';
 
-// MySubscriptionBundlesPage — Tenant-Self-Service-Seite „Meine Bundles".
-// Die hostende App bindet die Page
-// per Route ein und reicht den `billingEndpoint` durch. Composable ruft
-// `/billing/subscription-bundles`. Die Bundle-Label-Auflösung kommt
-// vom Konsumenten (Optional via `bundleLabels`-Prop) — sonst zeigen wir
-// die `bundleVersionId` an.
+// MySubscriptionBundlesPage — tenant self-service page "Meine Bundles".
+// The hosting app embeds the page
+// via route and passes the `billingEndpoint` through. The composable calls
+// `/billing/subscription-bundles`. The bundle label resolution comes
+// from the consumer (optional via the `bundleLabels` prop) — otherwise we
+// show the `bundleVersionId`.
 
 interface BookableBundle {
     bundleKey: string;
@@ -182,7 +182,7 @@ interface BookableBundle {
     bundleVersionId: string;
     monthlyNet: number | null;
     description?: string;
-    /** Plan-Keys, mit denen das Bundle kompatibel ist. Leer = universell. */
+    /** Plan keys the bundle is compatible with. Empty = universal. */
     compatiblePlanKeys: string[];
 }
 
@@ -190,23 +190,23 @@ const props = withDefaults(
     defineProps<{
         billingEndpoint: string;
         /**
-         * Mapping `bundleVersionId → BundleKey/Label` (Konsument kann das
-         * aus dem Public-Catalog vorladen). Ohne Mapping zeigen wir die
-         * bundleVersionId als Fallback.
+         * Mapping `bundleVersionId → BundleKey/Label` (the consumer can
+         * preload this from the public catalog). Without a mapping we show the
+         * bundleVersionId as a fallback.
          */
         bundleLabels?: Record<string, { bundleKey: string; label?: string }>;
         /**
-         * Buchbare Bundles für den Add-Dialog — kommen vom Konsumenten aus
-         * `PublicMarketingCatalogResponse.bundles`. Leer = Page zeigt den
-         * UUID-Fallback-Input.
+         * Bookable bundles for the add dialog — come from the consumer via
+         * `PublicMarketingCatalogResponse.bundles`. Empty = the page shows the
+         * UUID fallback input.
          */
         availableBundles?: BookableBundle[];
         /**
-         * Aktueller Plan-Key des Tenants — für die Plan-Kompat-Vorauswahl
-         * im Dropdown. Wenn nicht gesetzt: keine Filterung.
+         * Current plan key of the tenant — for the plan-compat preselection
+         * in the dropdown. If not set: no filtering.
          */
         currentPlanKey?: string | null;
-        /** Optional: Auth-Token-Provider (für Bearer-Header). */
+        /** Optional: auth token provider (for the Bearer header). */
         getAuthToken?: () => string | null;
     }>(),
     {
@@ -224,7 +224,7 @@ const { bundles, loading, error, load, add, cancel } = useTenantSubscriptionBund
 
 onMounted(() => load());
 
-// ─── Add-Dialog ─────────────────────────────────────────────
+// ─── Add dialog ─────────────────────────────────────────────
 const addOpen = ref(false);
 const adding = ref(false);
 const addError = ref<string | null>(null);
@@ -236,10 +236,10 @@ const addForm = reactive<{ bundleVersionId: string; minimumTermMonths: number | 
 const canSubmit = computed(() => addForm.bundleVersionId.trim().length > 0);
 
 /**
- * Filtert `availableBundles` auf jene, die mit dem aktuellen Plan
- * kompatibel sind. Leeres `compatiblePlanKeys` = universell.
- * Bereits gebuchte Bundles (gleiche `bundleVersionId`, nicht gekündigt)
- * werden ausgeblendet — Idempotenz-Schutz ergänzend zum Backend.
+ * Filters `availableBundles` down to those compatible with the current
+ * plan. Empty `compatiblePlanKeys` = universal.
+ * Already-booked bundles (same `bundleVersionId`, not canceled) are
+ * hidden — idempotency protection complementing the backend.
  */
 const bookable = computed<BookableBundle[]>(() => {
     const bookedActive = new Set(
@@ -262,7 +262,7 @@ const hiddenBecauseIncompatible = computed(() => {
     ).length;
 });
 
-/** Auto-Label-Lookup aus availableBundles (zusätzlich zum bundleLabels-Prop). */
+/** Auto label lookup from availableBundles (in addition to the bundleLabels prop). */
 const labelsMap = computed<Record<string, { bundleKey: string; label?: string }>>(() => {
     const merged: Record<string, { bundleKey: string; label?: string }> = {
         ...props.bundleLabels,
@@ -320,7 +320,7 @@ async function onCancel(b: SubscriptionBundleRecord): Promise<void> {
     }
 }
 
-// ─── Anzeige-Helper ─────────────────────────────────────────
+// ─── Display helpers ────────────────────────────────────────
 function resolveBundleKey(b: SubscriptionBundleRecord): string {
     const meta = labelsMap.value[b.bundleVersionId];
     return meta?.label || meta?.bundleKey || b.bundleVersionId;

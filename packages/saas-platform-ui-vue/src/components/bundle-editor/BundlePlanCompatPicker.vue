@@ -95,15 +95,15 @@ import { findBundlePlanOverlap, type BundlePlanOverlap } from './bundle-version-
 import type { FeatureMeta } from './BundleFeaturesEditor.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
 
-// BundlePlanCompatPicker — Mehrfachauswahl der Pläne, mit denen dieses
-// Bundle als Add-On gebucht werden darf (Plan-Bundle-Sichtbarkeit, nach
-// Plan-Simulation). Für jeden selektierten Plan wird live die
-// Feature-/Quota-Überschneidung berechnet und als Warnung dargestellt.
+// BundlePlanCompatPicker — multi-select of the plans this bundle may be
+// booked with as an add-on (plan-bundle visibility, after plan
+// simulation). For each selected plan the feature/quota overlap is
+// computed live and shown as a warning.
 //
-// Hinweis P11.7.4: die Selektion wird heute auf
-// `BundleVersionRow.compatibility` persistiert (Feld existiert im Type)
-// — eine dedizierte `bundle_plans`-Junction kommt in einer eigenen
-// Phase.
+// Note P11.7.4: the selection is currently persisted to
+// `BundleVersionRow.compatibility` (the field exists in the type)
+// — a dedicated `bundle_plans` junction will come in its own
+// phase.
 
 interface CompatEntry {
     plan: PlanRow;
@@ -111,20 +111,20 @@ interface CompatEntry {
 }
 
 const props = defineProps<{
-    /** Plan-Stämme aus dem Konsumenten-Wrapper. */
+    /** Plan master records from the consumer wrapper. */
     plans: PlanRow[];
-    /** Live (oder latest) PlanVersion pro planKey — Overlap-Quelle. */
+    /** Live (or latest) PlanVersion per planKey — overlap source. */
     livePlanVersions?: Record<string, PlanVersionRow | null>;
-    /** Features/Quotas der aktuellen BundleVersion (für Overlap-Berechnung). */
+    /** Features/quotas of the current BundleVersion (for overlap computation). */
     bundleFeatures: string[];
     bundleQuotas: Record<string, number>;
-    /** Aktuell ausgewählte Plan-Keys. */
+    /** Currently selected plan keys. */
     selectedKeys: string[];
     locked?: boolean;
-    /** Für Overlap-Chip-Labels. */
+    /** For overlap chip labels. */
     featureRegistry?: Record<string, FeatureMeta>;
     availableQuotas?: DiscoveredQuota[];
-    /** In der Anzeige-Locale aufgelöste Quota-Labels (aus dem Quota-Catalog). */
+    /** Quota labels resolved in the display locale (from the quota catalog). */
     quotaRegistry?: Record<string, QuotaMeta>;
 }>();
 

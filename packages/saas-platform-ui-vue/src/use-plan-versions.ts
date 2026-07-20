@@ -1,19 +1,19 @@
-// usePlanVersionsCatalog — Composable für die Plan-Versions-Page
+// usePlanVersionsCatalog — composable for the plan-versions page
 // (`<app> /admin/plans`).
 //
-// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert, weil
-// Apps unterschiedliche `globalPrefix`-Konventionen haben
-// (z. B. `/api/admin/...` oder `/api/v1/admin/...`).
+// **Endpoint is mandatory** and is supplied by the app consumer, because
+// apps have different `globalPrefix` conventions
+// (e.g. `/api/admin/...` or `/api/v1/admin/...`).
 //
-// Plattform-Pure-Functions (`assertDraftPublishable` etc. aus
-// `@saasicat/nest/billing`) validieren die Drafts vor dem
-// Publish-POST.
+// Platform pure functions (`assertDraftPublishable` etc. from
+// `@saasicat/nest/billing`) validate the drafts before the
+// publish POST.
 
 import { ref, type Ref } from 'vue';
 import { useApiList, type UseApiListOptions, type UseApiListResult } from './use-api-list.js';
 
 /**
- * Generic Filter-Form für Versions-Listen.
+ * Generic filter shape for versions lists.
  * `state`: 'draft' (publishedAt null), 'live' (publishedAt set, supersededAt null),
  *          'superseded' (supersededAt set), 'all' (default).
  */
@@ -24,8 +24,8 @@ export interface PlanVersionListFilter {
 }
 
 /**
- * Generische Versions-Row-Form. Konsumenten-Backend liefert je nach Endpoint
- * leicht unterschiedliche Felder; Plattform-Composable nimmt die universellen.
+ * Generic versions row shape. Depending on the endpoint, the consumer backend
+ * returns slightly different fields; the platform composable takes the universal ones.
  */
 export interface PlanVersionRow {
     id: string;
@@ -39,8 +39,8 @@ export interface PlanVersionRow {
 
 export interface VersionsOptions {
     /**
-     * Voll-qualifizierter Versions-Listen-Endpoint inkl. App-globalPrefix
-     * (`/api/admin/plan-versions`, `/api/v1/admin/plan-versions`, …). Pflicht.
+     * Fully qualified versions-list endpoint including the app globalPrefix
+     * (`/api/admin/plan-versions`, `/api/v1/admin/plan-versions`, …). Mandatory.
      */
     endpoint: string;
     filter?: Ref<PlanVersionListFilter>;
@@ -75,9 +75,9 @@ function buildVersionsComposable(label: string) {
 }
 
 /**
- * Read-only Catalog-View für PlanVersions (Lift-and-Shift aus einem
- * Konsumenten-Admin).
- * Heißt seit M6 Pack 2a `usePlanVersionsCatalog`, weil `usePlanVersions`
- * aus `use-plans.ts` jetzt der Lifecycle-Editor (createDraft/publish) ist.
+ * Read-only catalog view for PlanVersions (lift-and-shift from a
+ * consumer admin).
+ * Called `usePlanVersionsCatalog` since M6 Pack 2a, because `usePlanVersions`
+ * from `use-plans.ts` is now the lifecycle editor (createDraft/publish).
  */
 export const usePlanVersionsCatalog = buildVersionsComposable('plan-versions');

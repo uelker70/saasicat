@@ -1,9 +1,9 @@
-// createPlatformLoaders — Factory, die `BootLoader` + `ManifestLoader` aus
-// derselben `SuperAdminEndpoints`-Shape baut, die auch `createSuperAdminApp()`
-// konsumiert. Damit liegt die Endpoint-Konfiguration (`apiBase`,
-// `publicBootEndpoint`, `manifestEndpoint`) pro App an genau einer Stelle:
-// eine Konstante, die `main.ts` an `createSuperAdminApp()` übergibt und die
-// das Loader-Wiring aus diesem Helper konsumiert.
+// createPlatformLoaders — factory that builds `BootLoader` + `ManifestLoader`
+// from the same `SuperAdminEndpoints` shape that `createSuperAdminApp()` also
+// consumes. This keeps the endpoint configuration (`apiBase`,
+// `publicBootEndpoint`, `manifestEndpoint`) in exactly one place per app:
+// a single constant that `main.ts` passes to `createSuperAdminApp()` and that
+// the loader wiring from this helper consumes.
 
 import { BootLoader } from './boot-loader.js';
 import { ManifestLoader } from './manifest-loader.js';
@@ -12,22 +12,22 @@ import type { HttpClient, KvStore } from './types.js';
 
 export interface CreatePlatformLoadersOptions {
     /**
-     * Gleiche Endpoint-Konfiguration wie bei `createSuperAdminApp()`.
-     * `publicBootEndpoint` / `manifestEndpoint` werden aus `apiBase`
-     * abgeleitet, wenn sie nicht explizit gesetzt sind.
+     * Same endpoint configuration as for `createSuperAdminApp()`.
+     * `publicBootEndpoint` / `manifestEndpoint` are derived from `apiBase`
+     * when not set explicitly.
      */
     endpoints: SuperAdminEndpoints;
-    /** HTTP-Adapter. App-spezifisch, weil Auth-Header / Base-URL-Konventionen variieren. */
+    /** HTTP adapter. App-specific, because auth-header / base-URL conventions vary. */
     http: HttpClient;
-    /** Storage für `ManifestLoader` ETag-Cache. Default `defaultKvStore()`. */
+    /** Storage for the `ManifestLoader` ETag cache. Defaults to `defaultKvStore()`. */
     storage?: KvStore;
     /**
-     * Storage-Key-Prefix — Konsumenten mit mehreren Apps unter einer Domain
-     * setzen das auf z. B. `'ma:'` oder `'da:'`, damit die Caches getrennt
-     * sind. Wird nur an den `ManifestLoader` weitergereicht.
+     * Storage key prefix — consumers with multiple apps under one domain
+     * set this to e.g. `'ma:'` or `'da:'` so the caches stay separate.
+     * Only forwarded to the `ManifestLoader`.
      */
     storageKeyPrefix?: string;
-    /** Auth-Token-Provider für `Authorization: Bearer …` (nur ManifestLoader). */
+    /** Auth-token provider for `Authorization: Bearer …` (ManifestLoader only). */
     getAuthToken?: () => string | null;
 }
 
@@ -45,8 +45,8 @@ function resolveEndpoints(endpoints: SuperAdminEndpoints): Required<SuperAdminEn
 }
 
 /**
- * Baut `BootLoader` + `ManifestLoader` aus einer einzigen Endpoint-Konstante.
- * Apps verwenden dieselbe Konstante für `createSuperAdminApp({ endpoints })`.
+ * Builds `BootLoader` + `ManifestLoader` from a single endpoint constant.
+ * Apps use the same constant for `createSuperAdminApp({ endpoints })`.
  */
 export function createPlatformLoaders(options: CreatePlatformLoadersOptions): PlatformLoaders {
     const resolved = resolveEndpoints(options.endpoints);

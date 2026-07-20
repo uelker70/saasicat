@@ -15,10 +15,10 @@ import {
     ValidateIf,
 } from 'class-validator';
 
-// DTOs für `BundlesController` — class-validator-Validierung an der HTTP-
-// Grenze. Erbliche Pflicht-Felder werden hier validiert; Spec-konforme
-// Optionen (compatibility, pricingOverrides) gehen als generisches Object/
-// Array durch und werden im Service strukturell genutzt.
+// DTOs for `BundlesController` — class-validator validation at the HTTP
+// boundary. Inherited required fields are validated here; spec-conformant
+// options (compatibility, pricingOverrides) pass through as a generic object/
+// array and are used structurally in the service.
 
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const FEATURE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
@@ -63,7 +63,7 @@ export class CreateBundleDto {
     @Max(10_000)
     sortOrder?: number;
 
-    /** Locale-Übersetzungen { "en": { label, description }, … }. */
+    /** Locale translations { "en": { label, description }, … }. */
     @IsOptional()
     @IsObject()
     i18n?: Record<string, { label?: string; description?: string }>;
@@ -92,7 +92,7 @@ export class UpdateBundleDto {
     @Max(10_000)
     sortOrder?: number;
 
-    /** Locale-Übersetzungen { "en": { label, description }, … }. */
+    /** Locale translations { "en": { label, description }, … }. */
     @IsOptional()
     @IsObject()
     i18n?: Record<string, { label?: string; description?: string }>;
@@ -232,18 +232,18 @@ export class PublishBundleVersionDto {
     forceRegressive?: boolean;
 
     /**
-     * Erlaubt ein bewusst kostenloses Bundle (expliziter Preis 0,00) und hebt
-     * den Zero-Price-Gate auf (sonst 422 BUNDLE_VERSION_ZERO_PRICE). Default:
-     * Gate aktiv (Schutz gegen Seed-Platzhalter).
+     * Allows a deliberately free bundle (explicit price 0.00) and lifts the
+     * zero-price gate (otherwise 422 BUNDLE_VERSION_ZERO_PRICE). Default: gate
+     * active (protection against seed placeholders).
      */
     @IsOptional()
     @IsBoolean()
     allowZeroPrice?: boolean;
 
     /**
-     * Pflicht beim Publish, falls der Draft kein `validFrom` trägt
-     * (SPEC_V2 §4.2 + §11.1 M6 Pack 2c, analog PublishPlanVersionDto).
-     * Service prüft strikt > `validFrom` der Vorgänger-Version.
+     * Required on publish if the draft carries no `validFrom`
+     * (SPEC_V2 §4.2 + §11.1 M6 Pack 2c, analogous to PublishPlanVersionDto).
+     * Service strictly checks > `validFrom` of the predecessor version.
      */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
@@ -260,8 +260,8 @@ export class PublishBundleVersionDto {
     validUntil?: string | null;
 }
 
-// Hinweis: QuotaKey-Validierung der quotas-Map-Keys läuft nicht über
-// class-validator (kein Decorator für Map-Keys), sondern als Service-Side-
-// Check im Strict-Mode. Wer trotzdem an der HTTP-Grenze prüfen will,
-// erweitert die DTOs mit einem custom @Validator über `Object.keys()`.
+// Note: QuotaKey validation of the quotas map keys does not run via
+// class-validator (no decorator for map keys), but as a service-side
+// check in strict mode. Whoever still wants to validate at the HTTP
+// boundary extends the DTOs with a custom @Validator over `Object.keys()`.
 void QUOTA_KEY_PATTERN;

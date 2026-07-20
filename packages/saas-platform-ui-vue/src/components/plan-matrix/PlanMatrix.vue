@@ -251,9 +251,9 @@
                                 <code class="pm-rh-key">{{ fKey }}</code>
                             </div>
                         </td>
-                        <!-- Core-Features sind Basis-Infrastruktur: in jedem Plan
-                             enthalten, daher kein pro-Plan-Häkchen sondern ein
-                             einzelnes „Basis"-Badge über alle Plan-Spalten. -->
+                        <!-- Core features are base infrastructure: included in every
+                             plan, so no per-plan checkmark but a single
+                             "Basis" badge across all plan columns. -->
                         <td
                             v-if="isCoreFeature(fKey)"
                             class="pm-cell pm-cell--base"
@@ -390,17 +390,17 @@
 import { computed } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 
-// PlanMatrix — V1 Matrix-Übersicht. Pläne als Spalten, Quotas/Features/
-// Bundles als Zeilen. Erwartet die Plan-Stamm-Liste plus pro Plan das
-// Mapping auf seine PlanVersionen (Live + Draft). Die Daten kommen vom
-// Konsumenten (PlansPage), der pro Plan via usePlanVersions lädt.
+// PlanMatrix — V1 matrix overview. Plans as columns, quotas/features/
+// bundles as rows. Expects the plan master list plus, per plan, the
+// mapping to its plan versions (live + draft). The data comes from the
+// consumer (PlansPage), which loads per plan via usePlanVersions.
 
 interface BundleEntry {
     bundleKey: string;
     label?: string | null;
     features: string[];
-    /** Plan-Keys, für die das Bundle buchbar ist (leer/fehlend = alle Pläne).
-     *  Quelle: BundleVersion.compatibility.planIds — enthält Plan-KEYS. */
+    /** Plan keys for which the bundle is bookable (empty/missing = all plans).
+     *  Source: BundleVersion.compatibility.planIds — contains plan KEYS. */
     compatiblePlanKeys?: string[] | null;
 }
 
@@ -412,24 +412,24 @@ interface DiscoveryQuota {
 
 interface FeatureMeta {
     label?: string;
-    /** true = Basis-Infrastruktur, in jedem Plan enthalten (nicht pro Plan buchbar). */
+    /** true = base infrastructure, included in every plan (not bookable per plan). */
     core?: boolean;
 }
 
 const props = withDefaults(
     defineProps<{
         plans: PlanRow[];
-        /** Versionen pro Plan (id → PlanVersionRow[]). */
+        /** Versions per plan (id → PlanVersionRow[]). */
         versionsByPlanId: Record<string, PlanVersionRow[]>;
-        /** Discovery-Quotas (für Labels + Units). */
+        /** Discovery quotas (for labels + units). */
         availableQuotas?: DiscoveryQuota[];
-        /** Bundles für die Bundle-Sektion. */
+        /** Bundles for the bundle section. */
         availableBundles?: BundleEntry[];
-        /** Feature-Label-Map. */
+        /** Feature label map. */
         featureRegistry?: Record<string, FeatureMeta>;
-        /** Tenant-Anzahl pro planKey (für Plan-Header). */
+        /** Tenant count per planKey (for the plan header). */
         tenantCountsByPlanKey?: Record<string, number>;
-        /** Akzentfarbe pro planKey für Card-Top-Border + Check-Badge. */
+        /** Accent color per planKey for card top border + check badge. */
         planAccents?: Record<string, string>;
         loading?: boolean;
     }>(),
@@ -511,9 +511,9 @@ function quotasOf(v: PlanVersionRow | null): Record<string, number> {
 }
 
 /**
- * Effektive Version einer Spalte: live, sonst Entwurf. Damit bildet die
- * Matrix auch reine Draft-Pläne ab (Erstbefüllung vor dem ersten Publish);
- * Draft-Spalten sind via `isDraftSource` visuell markiert.
+ * Effective version of a column: live, otherwise draft. This lets the
+ * matrix also render pure draft plans (initial population before the first
+ * publish); draft columns are visually marked via `isDraftSource`.
  */
 function effectiveOf(p: ResolvedPlan): PlanVersionRow | null {
     return p.live ?? p.draft;
@@ -567,10 +567,10 @@ const orderedFeatureKeys = computed<string[]>(() => {
             }
         }
     }
-    // Treppen-Sortierung: zuerst Features mit der breitesten Plan-Abdeckung;
-    // bei Gleichstand gewinnen die, die schon in den günstigeren Plänen
-    // (linke Spalten) enthalten sind — so entsteht die Treppe. Features ohne
-    // jede Zuordnung landen unten; innerhalb gleicher Stufen alphabetisch.
+    // Staircase sorting: first the features with the broadest plan coverage;
+    // on a tie the ones already included in the cheaper plans
+    // (left columns) win — this is how the staircase forms. Features without
+    // any assignment land at the bottom; within the same tiers alphabetically.
     const presence = new Map<string, { count: number; mask: string }>();
     for (const key of ordered) {
         let count = 0;
@@ -617,9 +617,9 @@ function hasFeature(p: ResolvedPlan, fKey: string): boolean {
 function hasBundle(p: ResolvedPlan, bKey: string): boolean {
     const bundle = props.availableBundles.find((b) => b.bundleKey === bKey);
     if (!bundle) return false;
-    // Verfügbarkeit = Plan-Kompatibilität des Bundles (leer = alle Pläne).
-    // Früher fälschlich „alle Bundle-Features im Plan enthalten" → ein auf
-    // einen Plan beschränktes Bundle erschien dadurch für ALLE Pläne.
+    // Availability = plan compatibility of the bundle (empty = all plans).
+    // Previously wrongly "all bundle features included in the plan" → a bundle
+    // restricted to one plan thereby appeared for ALL plans.
     const compat = bundle.compatiblePlanKeys ?? [];
     return compat.length === 0 || compat.includes(p.planKey);
 }
@@ -1021,7 +1021,7 @@ function formatQuota(v: number | undefined): string {
     padding: 8px 12px;
     vertical-align: middle;
 }
-/* Spalte speist sich aus einem unveröffentlichten Entwurf (kein live). */
+/* Column sources from an unpublished draft (no live). */
 .pm-cell--draftsrc {
     opacity: 0.62;
     background-image: repeating-linear-gradient(

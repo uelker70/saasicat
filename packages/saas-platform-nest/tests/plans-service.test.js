@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { PlansService, PlanVersionsService } from '../dist/catalog/index.js';
 import { FakePlanRepository } from '../dist/testing/index.js';
 
-// PlansService — Plan-Stamm-CRUD (SPEC_V2 §11.1 M6 Pack 1).
-// PlanVersion-Lifecycle ist explizit nicht Teil dieses Pakets (folgt Pack 2).
+// PlansService — plan-root CRUD (SPEC_V2 §11.1 M6 Pack 1).
+// PlanVersion lifecycle is explicitly not part of this package (follows in Pack 2).
 
 const PROJECT = 'clubapp';
 
@@ -14,7 +14,7 @@ function makeService() {
     return { service: new PlansService(repo), repo };
 }
 
-describe('PlansService — Stamm-Operationen', () => {
+describe('PlansService — root operations', () => {
     test('createPlan + listPlans + getPlan happy path', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
@@ -35,7 +35,7 @@ describe('PlansService — Stamm-Operationen', () => {
         assert.equal(fetched.label, 'Starter');
     });
 
-    test('createPlan: doppelter planKey → UnprocessableEntity', async () => {
+    test('createPlan: duplicate planKey → UnprocessableEntity', async () => {
         const { service } = makeService();
         await service.createPlan({
             projectKey: PROJECT,
@@ -56,7 +56,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('createPlan: gleicher planKey in anderem Projekt erlaubt', async () => {
+    test('createPlan: same planKey allowed in a different project', async () => {
         const { service } = makeService();
         await service.createPlan({
             projectKey: 'clubapp',
@@ -72,7 +72,7 @@ describe('PlansService — Stamm-Operationen', () => {
         assert.equal(demoApp.planKey, 'STARTER');
     });
 
-    test('updatePlan ändert label + sortOrder', async () => {
+    test('updatePlan changes label + sortOrder', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
             projectKey: PROJECT,
@@ -85,11 +85,11 @@ describe('PlansService — Stamm-Operationen', () => {
         });
         assert.equal(patched.label, 'Standard PRO');
         assert.equal(patched.sortOrder, 99);
-        // planKey bleibt — es ist nicht im UpdatePlanData-Vertrag
+        // planKey stays — it is not in the UpdatePlanData contract
         assert.equal(patched.planKey, 'STD');
     });
 
-    test('updatePlan: NotFound bei unbekannter ID', async () => {
+    test('updatePlan: NotFound for unknown ID', async () => {
         const { service } = makeService();
         await assert.rejects(
             () => service.updatePlan('not-existing', { label: 'X' }),
@@ -100,7 +100,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('softDeletePlan ohne Versionen setzt deletedAt + verschwindet aus list', async () => {
+    test('softDeletePlan without versions sets deletedAt + disappears from list', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
             projectKey: PROJECT,
@@ -111,12 +111,12 @@ describe('PlansService — Stamm-Operationen', () => {
         const list = await service.listPlans(PROJECT);
         assert.equal(list.length, 0);
 
-        // getPlan liefert weiterhin (Vertragsschutz P1: Bestand sieht)
+        // getPlan still returns it (contract protection P1: existing subscriptions still see it)
         const fetched = await service.getPlan(created.id);
         assert.notEqual(fetched.deletedAt, null);
     });
 
-    test('softDeletePlan idempotent (zweiter Call ohne Throw)', async () => {
+    test('softDeletePlan idempotent (second call without throw)', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
             projectKey: PROJECT,
@@ -124,10 +124,10 @@ describe('PlansService — Stamm-Operationen', () => {
             label: 'Idempotent',
         });
         await service.softDeletePlan(created.id);
-        await service.softDeletePlan(created.id); // sollte nicht werfen
+        await service.softDeletePlan(created.id); // should not throw
     });
 
-    test('softDeletePlan: NotFound bei unbekannter ID', async () => {
+    test('softDeletePlan: NotFound for unknown ID', async () => {
         const { service } = makeService();
         await assert.rejects(
             () => service.softDeletePlan('not-existing'),
@@ -138,7 +138,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('softDeletePlan: live Version → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
+    test('softDeletePlan: live version → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createPlan({
@@ -155,7 +155,7 @@ describe('PlansService — Stamm-Operationen', () => {
         });
         await versionsService.publishPlanVersion(draft.planVersion.id, {
             publishedByUserId: null,
-            allowZeroPrice: true, // Setup-Drafts nutzen 0,00-Platzhalterpreise
+            allowZeroPrice: true, // setup drafts use 0.00 placeholder prices
             validFrom: '2026-01-01',
         });
         await assert.rejects(
@@ -169,7 +169,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('softDeletePlan: superseded Version (kein live mehr) → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
+    test('softDeletePlan: superseded version (no live anymore) → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createPlan({
@@ -186,7 +186,7 @@ describe('PlansService — Stamm-Operationen', () => {
         });
         await versionsService.publishPlanVersion(v1.planVersion.id, {
             publishedByUserId: null,
-            allowZeroPrice: true, // Setup-Drafts nutzen 0,00-Platzhalterpreise
+            allowZeroPrice: true, // setup drafts use 0.00 placeholder prices
             validFrom: '2026-01-01',
         });
         const v2 = await versionsService.createPlanDraft({
@@ -198,10 +198,10 @@ describe('PlansService — Stamm-Operationen', () => {
         });
         await versionsService.publishPlanVersion(v2.planVersion.id, {
             publishedByUserId: null,
-            allowZeroPrice: true, // Setup-Drafts nutzen 0,00-Platzhalterpreise
+            allowZeroPrice: true, // setup drafts use 0.00 placeholder prices
             validFrom: '2026-06-01',
         });
-        // v1 ist jetzt superseded. Plan hat 1 live + 1 superseded.
+        // v1 is now superseded. Plan has 1 live + 1 superseded.
         await assert.rejects(
             () => service.softDeletePlan(created.id),
             (err) => {
@@ -215,7 +215,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('softDeletePlan: nur Draft (kein published) → erlaubt', async () => {
+    test('softDeletePlan: only draft (nothing published) → allowed', async () => {
         const { service, repo } = makeService();
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createPlan({
@@ -230,7 +230,7 @@ describe('PlansService — Stamm-Operationen', () => {
             monthlyNet: '0.00',
             yearlyNet: '0.00',
         });
-        // Soft-delete erlaubt: kein published Version existiert.
+        // soft-delete allowed: no published version exists.
         await service.softDeletePlan(created.id);
         const list = await service.listPlans(PROJECT);
         assert.equal(
@@ -239,7 +239,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('hardDeletePlan: ohne Versionen → Plan ist weg aus list', async () => {
+    test('hardDeletePlan: without versions → plan is gone from list', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
             projectKey: 'clubapp',
@@ -254,7 +254,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('hardDeletePlan: mit Draft → 422 PLAN_HAS_DRAFTS', async () => {
+    test('hardDeletePlan: with draft → 422 PLAN_HAS_DRAFTS', async () => {
         const { service, repo } = makeService();
 
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
@@ -281,7 +281,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('hardDeletePlan: mit published Version → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
+    test('hardDeletePlan: with published version → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
 
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
@@ -299,7 +299,7 @@ describe('PlansService — Stamm-Operationen', () => {
         });
         await versionsService.publishPlanVersion(draft.planVersion.id, {
             publishedByUserId: null,
-            allowZeroPrice: true, // Setup-Drafts nutzen 0,00-Platzhalterpreise
+            allowZeroPrice: true, // setup drafts use 0.00 placeholder prices
             validFrom: '2026-01-01',
         });
         await assert.rejects(
@@ -314,7 +314,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('hardDeletePlan: NotFound bei unbekannter ID', async () => {
+    test('hardDeletePlan: NotFound for unknown ID', async () => {
         const { service } = makeService();
         await assert.rejects(
             () => service.hardDeletePlan('not-existing'),
@@ -325,7 +325,7 @@ describe('PlansService — Stamm-Operationen', () => {
         );
     });
 
-    test('listPlans: scoped pro projectKey', async () => {
+    test('listPlans: scoped per projectKey', async () => {
         const { service } = makeService();
         await service.createPlan({
             projectKey: 'clubapp',
@@ -345,11 +345,11 @@ describe('PlansService — Stamm-Operationen', () => {
         assert.equal(c[0].planKey, 'B');
     });
 
-    test('listPlans onlyPublished: nur Pläne mit live Version', async () => {
+    test('listPlans onlyPublished: only plans with a live version', async () => {
         const { service, repo } = makeService();
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
 
-        // Plan mit published Version.
+        // Plan with a published version.
         const live = await service.createPlan({
             projectKey: PROJECT,
             planKey: 'LIVE_PLAN',
@@ -364,11 +364,11 @@ describe('PlansService — Stamm-Operationen', () => {
         });
         await versionsService.publishPlanVersion(draft.planVersion.id, {
             publishedByUserId: null,
-            allowZeroPrice: true, // Setup-Drafts nutzen 0,00-Platzhalterpreise
+            allowZeroPrice: true, // setup drafts use 0.00 placeholder prices
             validFrom: '2026-01-01',
         });
 
-        // Plan nur als Draft (keine live Version).
+        // Plan only as draft (no live version).
         const draftOnly = await service.createPlan({
             projectKey: PROJECT,
             planKey: 'DRAFT_PLAN',
@@ -390,7 +390,7 @@ describe('PlansService — Stamm-Operationen', () => {
         assert.equal(published[0].planKey, 'LIVE_PLAN');
     });
 
-    test('listPlans onlyPublished: superseded Version zählt nicht als live', async () => {
+    test('listPlans onlyPublished: superseded version does not count as live', async () => {
         const { service, repo } = makeService();
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
         const plan = await service.createPlan({
@@ -407,7 +407,7 @@ describe('PlansService — Stamm-Operationen', () => {
         });
         await versionsService.publishPlanVersion(v1.planVersion.id, {
             publishedByUserId: null,
-            allowZeroPrice: true, // Setup-Drafts nutzen 0,00-Platzhalterpreise
+            allowZeroPrice: true, // setup drafts use 0.00 placeholder prices
             validFrom: '2026-01-01',
         });
         const v2 = await versionsService.createPlanDraft({
@@ -417,10 +417,10 @@ describe('PlansService — Stamm-Operationen', () => {
             monthlyNet: '0.00',
             yearlyNet: '0.00',
         });
-        // Supersedet v1; v2 ist jetzt die live Version → Plan bleibt published.
+        // Supersedes v1; v2 is now the live version → plan stays published.
         await versionsService.publishPlanVersion(v2.planVersion.id, {
             publishedByUserId: null,
-            allowZeroPrice: true, // Setup-Drafts nutzen 0,00-Platzhalterpreise
+            allowZeroPrice: true, // setup drafts use 0.00 placeholder prices
             validFrom: '2026-06-01',
         });
 

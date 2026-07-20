@@ -1,51 +1,50 @@
-// Geteiltes E2E-Test-Skelett für die SuperAdmin-UI-Pages.
+// Shared E2E test skeleton for the SuperAdmin UI pages.
 //
-// App-spezifische Specs (die `tests-e2e/` der Konsumenten-Admins)
-// reichen ihre Konfiguration via `runAdminPagesSuite(config)` durch — die
-// Suite klickt sich dann durch Login + alle deklarierten Standard-Pages und
-// prüft jeweils:
-//   - keine pageerror-Events
-//   - keine console.error-Events (außer whitelisted)
-//   - keine HTTP-4xx/5xx auf `/api/`-Calls (außer whitelisted)
+// App-specific specs (the consumer admins' `tests-e2e/`) pass their
+// configuration through via `runAdminPagesSuite(config)` — the suite then
+// clicks through login + all declared standard pages and checks for each:
+//   - no pageerror events
+//   - no console.error events (except whitelisted)
+//   - no HTTP 4xx/5xx on `/api/` calls (except whitelisted)
 //
-// Plus ein Dashboard-Test, der die KPI-Card-Labels, Distribution-Header und
-// Shortcut-Titel gegen eine deklarative Liste assert-checkt.
+// Plus a dashboard test that asserts the KPI card labels, distribution headers
+// and shortcut titles against a declarative list.
 //
-// `import { test, expect } from '@playwright/test'` muss vom Konsumenten
-// importiert werden, damit Playwrights Test-Runner die `test`-Calls findet.
+// `import { test, expect } from '@playwright/test'` must be imported by the
+// consumer so that Playwright's test runner finds the `test` calls.
 
 import type { Page, expect as PwExpect, test as PwTest } from '@playwright/test';
 
 export interface AdminPagesSuiteConfig {
-    /** Anzeigename, z. B. 'demoapp' / 'clubapp'. */
+    /** Display name, e.g. 'demoapp' / 'clubapp'. */
     appName: string;
-    /** URL der Login-Seite (vollständig). */
+    /** URL of the login page (full). */
     loginUrl: string;
-    /** Test-Account. */
+    /** Test account. */
     email: string;
     password: string;
-    /** Pfade, durch die der Smoke-Test klicken soll. */
+    /** Paths the smoke test should click through. */
     pages: ReadonlyArray<{
-        /** Anzeigename in der Test-Description. */
+        /** Display name in the test description. */
         name: string;
-        /** Pfad relativ zum Origin (z. B. '/admin/tenants'). */
+        /** Path relative to the origin (e.g. '/admin/tenants'). */
         path: string;
-        /** Optional: Wenn gesetzt, prüfen dass dieser Selektor existiert. */
+        /** Optional: if set, check that this selector exists. */
         expectVisible?: string;
-        /** Optional: HTTP-Patterns die als 4xx/5xx OK sind (z. B. fehlende Backend-Endpoints). */
+        /** Optional: HTTP patterns that are OK as 4xx/5xx (e.g. missing backend endpoints). */
         allowedFailures?: readonly RegExp[];
     }>;
-    /** Erwartete KPI-Card-Labels auf der Dashboard-Page. */
+    /** Expected KPI card labels on the dashboard page. */
     expectedKpiLabels: readonly string[];
-    /** Erwartete Distribution-Section-Titel. */
+    /** Expected distribution section titles. */
     expectedDistributionTitles?: readonly string[];
-    /** Erwartete Shortcut-Titel auf dem Dashboard. */
+    /** Expected shortcut titles on the dashboard. */
     expectedShortcutTitles: readonly string[];
-    /** Shortcuts, die NICHT auftauchen dürfen (z. B. „Dashboard"). */
+    /** Shortcuts that must NOT appear (e.g. "Dashboard"). */
     forbiddenShortcutTitles?: readonly string[];
-    /** Console-Error-Patterns, die ignoriert werden sollen. */
+    /** Console error patterns that should be ignored. */
     consoleErrorAllowlist?: readonly RegExp[];
-    /** Pfad zur Dashboard-Page (Default `/admin/`). */
+    /** Path to the dashboard page (default `/admin/`). */
     dashboardPath?: string;
 }
 
@@ -55,10 +54,10 @@ interface PageErrors {
     networkErrors: string[];
 }
 
-// "Failed to load resource: the server responded with a status of …" ist
-// vom Browser dupliziert mit den separat erfassten Network-Errors. Wir
-// behandeln es nicht als eigenständigen console.error — sonst zählt jeder
-// 404 doppelt und das Signal aus echtem App-Code geht im Rauschen unter.
+// "Failed to load resource: the server responded with a status of …" is
+// duplicated by the browser with the separately captured network errors. We
+// don't treat it as a standalone console.error — otherwise every 404 counts
+// twice and the signal from real app code gets lost in the noise.
 const RESOURCE_FAILURE_MARKER = /Failed to load resource:/;
 
 function attachListeners(
@@ -89,12 +88,12 @@ async function loginIfNeeded(page: Page, config: AdminPagesSuiteConfig): Promise
     if (!page.url().includes('/login')) {
         await page.goto(config.loginUrl, { waitUntil: 'networkidle' });
     }
-    if (!page.url().includes('/login')) return; // schon eingeloggt
+    if (!page.url().includes('/login')) return; // already logged in
     await page.locator('input[type="email"]').first().fill(config.email);
     const pw = page.locator('input[type="password"]').first();
     await pw.fill(config.password);
-    // Enter triggert q-form @submit zuverlässiger als button-Click (Quasar
-    // vereinheitlicht Form-Submit auf submit-Event, nicht auf button).
+    // Enter triggers q-form @submit more reliably than a button click (Quasar
+    // unifies form submit on the submit event, not on the button).
     await pw.press('Enter');
     await page.waitForURL((u) => !u.toString().includes('/login'), {
         timeout: 15_000,
@@ -148,7 +147,7 @@ export function runAdminPagesSuite(
                 waitUntil: 'networkidle',
                 timeout: 15_000,
             });
-            // KPI-Strip: Plattform-CSS-Klasse `.sa-kpi__label`
+            // KPI strip: platform CSS class `.sa-kpi__label`
             const kpiLabels = await page.locator('.sa-kpi__label').allTextContents();
             const normalizedKpis = kpiLabels.map((s) => s.trim());
             for (const expected of config.expectedKpiLabels) {

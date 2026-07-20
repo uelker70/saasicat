@@ -1,7 +1,7 @@
-// Smoke-Tests für PublicCatalogController. Direktes Instanziieren statt
-// vollem NestJS-Bootstrap — der Controller ist eine reine Mapping-Schicht
-// über PlanCatalog + FeatureUiRegistry, keine Side-Effects, kein Request-
-// Lifecycle nötig.
+// Smoke tests for PublicCatalogController. Direct instantiation instead of
+// a full NestJS bootstrap — the controller is a pure mapping layer over
+// PlanCatalog + FeatureUiRegistry, no side effects, no request lifecycle
+// needed.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,11 +63,11 @@ const REGISTRY = {
     PLANNED: { label: 'Spaeter', description: 'Geplant', icon: 'schedule' },
 };
 
-test('listPlans liefert nur marketed plans im generischen Format', async () => {
+test('listPlans returns only marketed plans in the generic format', async () => {
     const ctrl = new PublicCatalogController(CATALOG, REGISTRY);
     const plans = await ctrl.listPlans();
 
-    assert.equal(plans.length, 2, 'ENTERPRISE darf nicht in Self-Service-Liste sein');
+    assert.equal(plans.length, 2, 'ENTERPRISE must not be in the self-service list');
     const starter = plans.find((p) => p.id === 'STARTER');
     assert.deepEqual(starter.quotas, { users: 3, members: 250, storageGb: 2 });
     assert.equal(starter.popular, false);
@@ -77,17 +77,17 @@ test('listPlans liefert nur marketed plans im generischen Format', async () => {
     assert.deepEqual(standard.features, ['CORE_IDENTITY', 'WHATSAPP']);
 });
 
-test('listFeatureRegistry liefert ohne CatalogEntry-Repo das injizierte Registry 1:1', async () => {
+test('listFeatureRegistry returns the injected registry 1:1 without a CatalogEntry repo', async () => {
     const ctrl = new PublicCatalogController(CATALOG, REGISTRY);
     const reg = await ctrl.listFeatureRegistry();
     assert.equal(reg, REGISTRY);
 });
 
-test('listFeatureRegistry overlayt DB-icon über das statische Registry-Icon (#13)', async () => {
+test('listFeatureRegistry overlays the DB icon over the static registry icon (#13)', async () => {
     const fakeRepo = {
         async listFeatures() {
             return [
-                // editiertes Icon gewinnt
+                // edited icon wins
                 {
                     featureKey: 'MEMBERS',
                     icon: 'mdi-account-group',
@@ -95,7 +95,7 @@ test('listFeatureRegistry overlayt DB-icon über das statische Registry-Icon (#1
                     description: null,
                     plannedOnly: false,
                 },
-                // icon=null → Registry-Icon bleibt
+                // icon=null → registry icon stays
                 {
                     featureKey: 'SEPA',
                     icon: null,
@@ -103,7 +103,7 @@ test('listFeatureRegistry overlayt DB-icon über das statische Registry-Icon (#1
                     description: null,
                     plannedOnly: false,
                 },
-                // discovered-only Key (nicht in der statischen Registry)
+                // discovered-only key (not in the static registry)
                 {
                     featureKey: 'EXTRA',
                     icon: 'mdi-star',
@@ -118,7 +118,7 @@ test('listFeatureRegistry overlayt DB-icon über das statische Registry-Icon (#1
         MEMBERS: { label: 'Mitglieder', description: 'd', icon: 'groups' },
         SEPA: { label: 'SEPA', description: 'd', icon: 'account_balance' },
     };
-    // Konstruktor-Args: catalog, registry, projectKey, marketingRepo, bundleRepo, businessTypeRepo, catalogEntryRepo
+    // Constructor args: catalog, registry, projectKey, marketingRepo, bundleRepo, businessTypeRepo, catalogEntryRepo
     const ctrl = new PublicCatalogController(
         CATALOG,
         baseReg,
@@ -129,15 +129,15 @@ test('listFeatureRegistry overlayt DB-icon über das statische Registry-Icon (#1
         fakeRepo,
     );
     const reg = await ctrl.listFeatureRegistry();
-    assert.equal(reg.MEMBERS.icon, 'mdi-account-group'); // DB-icon gewinnt
-    assert.equal(reg.MEMBERS.label, 'Mitglieder'); // Label bleibt aus Registry
-    assert.equal(reg.SEPA.icon, 'account_balance'); // icon=null → Registry-icon
-    assert.equal(reg.EXTRA.icon, 'mdi-star'); // discovered-only Key ergänzt
+    assert.equal(reg.MEMBERS.icon, 'mdi-account-group'); // DB icon wins
+    assert.equal(reg.MEMBERS.label, 'Mitglieder'); // label stays from registry
+    assert.equal(reg.SEPA.icon, 'account_balance'); // icon=null → registry icon
+    assert.equal(reg.EXTRA.icon, 'mdi-star'); // discovered-only key added
 });
 
-// requiresFeatures (#35): listBundles liefert je Bundle die ungedeckten
-// Abhängigkeiten (Union der requires der enthaltenen Features minus der
-// Bundle-eigenen Features) aus den FeatureCatalogEntries.
+// requiresFeatures (#35): listBundles returns per bundle the uncovered
+// dependencies (union of the requires of the contained features minus the
+// bundle's own features) from the FeatureCatalogEntries.
 async function createLiveBundle(bundleRepo, { bundleKey, features }) {
     const bundle = await bundleRepo.create({
         projectKey: 'clubapp',
@@ -160,10 +160,10 @@ async function createLiveBundle(bundleRepo, { bundleKey, features }) {
     });
 }
 
-test('listBundles liefert requiresFeatures aus den FeatureCatalogEntries (#35)', async () => {
+test('listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)', async () => {
     const bundleRepo = new FakeBundleRepository();
-    // TURNIERE braucht RESOURCE_MANAGEMENT von außen; SPORTPLATZ deckt die
-    // Abhängigkeit selbst (Kombi-Bundle) → keine ungedeckten requires.
+    // TURNIERE needs RESOURCE_MANAGEMENT from outside; SPORTPLATZ covers the
+    // dependency itself (combo bundle) → no uncovered requires.
     await createLiveBundle(bundleRepo, {
         bundleKey: 'TURNIERE',
         features: ['TOURNAMENT_MANAGEMENT'],
@@ -194,10 +194,10 @@ test('listBundles liefert requiresFeatures aus den FeatureCatalogEntries (#35)',
     const turniere = bundles.find((b) => b.bundleKey === 'TURNIERE');
     assert.deepEqual(turniere.requiresFeatures, ['RESOURCE_MANAGEMENT']);
     const sportplatz = bundles.find((b) => b.bundleKey === 'SPORTPLATZ');
-    assert.deepEqual(sportplatz.requiresFeatures, [], 'Kombi-Bundle ist self-contained');
+    assert.deepEqual(sportplatz.requiresFeatures, [], 'combo bundle is self-contained');
 });
 
-test('listBundles ohne CatalogEntry-Repo: requiresFeatures bleibt leer (graceful)', async () => {
+test('listBundles without a CatalogEntry repo: requiresFeatures stays empty (graceful)', async () => {
     const bundleRepo = new FakeBundleRepository();
     await createLiveBundle(bundleRepo, {
         bundleKey: 'TURNIERE',

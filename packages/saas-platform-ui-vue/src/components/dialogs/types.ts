@@ -1,5 +1,5 @@
-// Geteilte Types fuer Plattform-Dialoge. Aus den .vue-Files extrahiert,
-// weil vue-tsc kein `type X from "...vue"` unterstuetzt.
+// Shared types for platform dialogs. Extracted from the .vue files
+// because vue-tsc does not support `type X from "...vue"`.
 
 export interface PilotCreatePayload {
     tenant: { name: string; slug?: string; legalForm?: string; vatId?: string };
@@ -14,17 +14,17 @@ export interface PilotCreatePayload {
 
 export interface PilotCreateResult {
     slug: string;
-    /** Wenn vom Server generiertes Initial-Passwort, hier mitliefern. */
+    /** If the server generated an initial password, include it here. */
     initialPassword?: string;
 }
 
-/** Bearbeiten einer bestehenden Pilot-Subscription (Plan, Enddatum, Notiz). */
+/** Edit an existing pilot subscription (plan, end date, note). */
 export interface PilotEditPayload {
-    /** Optional — nur die gesetzten Felder werden geändert. */
+    /** Optional — only the fields that are set get changed. */
     plan?: string;
-    /** `null` löscht das Enddatum (offene Pilotphase). */
+    /** `null` clears the end date (open-ended pilot phase). */
     endsAt?: string | null;
-    /** `null` oder leer löscht die Notiz. */
+    /** `null` or empty clears the note. */
     note?: string | null;
 }
 
@@ -34,26 +34,26 @@ export interface PilotEditResult {
 }
 
 /**
- * Mandanten-spezifisches Vokabular für die Pilot-Dialoge. Die Plattform
- * liefert neutrale Defaults ("Mandant"); Konsumenten überschreiben mit
- * ihrer Domänensprache (z. B. "Verein" oder "Händler").
+ * Tenant-specific vocabulary for the pilot dialogs. The platform
+ * provides neutral defaults ("Mandant"); consumers override with
+ * their domain language (e.g. "Verein" or "Händler").
  */
 export interface PilotCopy {
-    /** Untertitel der Mandant-Sektion im Create-Dialog. */
+    /** Subtitle of the tenant section in the create dialog. */
     tenantSubtitle?: string;
-    /** Label des Namensfelds, z. B. "Vereinsname" / "Firmenname". */
+    /** Label of the name field, e.g. "Vereinsname" / "Firmenname". */
     tenantNameLabel?: string;
-    /** Placeholder für den Mandantennamen. */
+    /** Placeholder for the tenant name. */
     tenantNamePlaceholder?: string;
-    /** Placeholder für den Slug. */
+    /** Placeholder for the slug. */
     slugPlaceholder?: string;
-    /** Placeholder für die Initial-Admin-E-Mail. */
+    /** Placeholder for the initial admin email. */
     adminEmailPlaceholder?: string;
-    /** Placeholder für die interne Notiz (Create + Edit). */
+    /** Placeholder for the internal note (create + edit). */
     notePlaceholder?: string;
 }
 
-/** Neutrale, mandantenagnostische Defaults für {@link PilotCopy}. */
+/** Neutral, tenant-agnostic defaults for {@link PilotCopy}. */
 export const DEFAULT_PILOT_COPY: Required<PilotCopy> = {
     tenantSubtitle: 'Stammdaten des Mandanten',
     tenantNameLabel: 'Name des Mandanten',
@@ -75,36 +75,36 @@ export interface PromoCodeCreatePayload {
     maxRedemptions: number | null;
     validFrom: string | null;
     validUntil: string | null;
-    /** Plan-Keys, auf die der Code anwendbar ist. Leer = alle Pläne. */
+    /** Plan keys the code applies to. Empty = all plans. */
     appliesToPlans?: string[];
-    /** Optional: Filter auf MONTHLY/YEARLY-Subscriptions. */
+    /** Optional: filter on MONTHLY/YEARLY subscriptions. */
     appliesToBilling?: 'MONTHLY' | 'YEARLY';
-    /** Nur einlösbar für Neukunden. */
+    /** Only redeemable by new customers. */
     firstTimeCustomersOnly?: boolean;
-    /** Minimaler Plan-Brutto-Betrag, ab dem der Code wirkt. */
+    /** Minimum gross plan amount from which the code takes effect. */
     minimumPlanAmountGross?: number;
-    /** Erlaubt 0-€-Rechnungen (sonst capped der Rabatt auf 100% des Betrags). */
+    /** Allows €0 invoices (otherwise the discount is capped at 100% of the amount). */
     allowZeroInvoice?: boolean;
-    /** Buchungskonto für Rabatt-Erlös-Minderung (App-spezifisch). */
+    /** Ledger account for discount revenue reduction (app-specific). */
     revenueDeductionAccount?: string;
     campaignTag?: string;
     description?: string;
 }
 
-/** Plan-Option für den Plan-Picker im PromoCodeCreateDialog. */
+/** Plan option for the plan picker in PromoCodeCreateDialog. */
 export interface PromoCodePlanOption {
-    /** Plan-Key wie er ans Backend geht (z. B. 'BASIC'). */
+    /** Plan key as sent to the backend (e.g. 'BASIC'). */
     key: string;
-    /** Anzeige-Label (z. B. 'Basic'). */
+    /** Display label (e.g. 'Basic'). */
     label: string;
-    /** Optionaler Akzent für den Plan-Chip; Fallback Neutral-Grau. */
+    /** Optional accent for the plan chip; fallback neutral gray. */
     color?: string;
 }
 
 /**
- * PATCH-Payload — alle Felder optional, nur die explizit gesetzten
- * werden ans Backend gesendet (Whitelist auf Server-Seite). `code` ist
- * nicht in der Liste, weil er nach Anlage stabil bleibt.
+ * PATCH payload — all fields optional, only the explicitly set ones
+ * are sent to the backend (whitelist on the server side). `code` is
+ * not in the list because it stays stable after creation.
  */
 export interface PromoCodeUpdatePayload {
     status?: 'ACTIVE' | 'PAUSED';

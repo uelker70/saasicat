@@ -11,12 +11,12 @@ import {
     ValidateIf,
 } from 'class-validator';
 
-// DTOs für PlanVersionsController — class-validator-Validation an der
-// HTTP-Grenze. SPEC_V2 §11.1 M6 Pack 2a + §4.2 (validFrom/validUntil).
+// DTOs for PlanVersionsController — class-validator validation at the
+// HTTP boundary. SPEC_V2 §11.1 M6 Pack 2a + §4.2 (validFrom/validUntil).
 //
-// Strukturell analog zu CreateBundleVersionDraftDto, aber ohne
-// `compatibility` / `pricingOverrides` (Plan ist nicht
-// kontext-abhängig wie Bundle).
+// Structurally analogous to CreateBundleVersionDraftDto, but without
+// `compatibility` / `pricingOverrides` (a plan is not
+// context-dependent like a bundle).
 
 const FEATURE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const DECIMAL_PATTERN = /^\d+(\.\d{1,2})?$/;
@@ -31,8 +31,8 @@ export class CreatePlanVersionDraftDto {
     features!: string[];
 
     /**
-     * Persistierte Bundle-Auswahl (bundleKeys, SCREAMING_SNAKE_CASE).
-     * Optional + Default leer — siehe `PlanVersionRow.bundles`.
+     * Persisted bundle selection (bundleKeys, SCREAMING_SNAKE_CASE).
+     * Optional + defaults to empty — see `PlanVersionRow.bundles`.
      */
     @IsOptional()
     @IsArray()
@@ -70,13 +70,13 @@ export class CreatePlanVersionDraftDto {
     @IsUUID()
     baseVersionId?: string | null;
 
-    /** Optional im Draft (Pflicht beim Publish). ISO-Date-String. SPEC_V2 §4.2. */
+    /** Optional in the draft (required at publish). ISO date string. SPEC_V2 §4.2. */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @IsISO8601()
     validFrom?: string | null;
 
-    /** Optional; null = unbegrenzt. ISO-Date-String. */
+    /** Optional; null = unlimited. ISO date string. */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @IsISO8601()
@@ -90,7 +90,7 @@ export class UpdatePlanVersionDraftDto {
     @Matches(FEATURE_KEY_PATTERN, { each: true })
     features?: string[];
 
-    /** Persistierte Bundle-Auswahl (bundleKeys). Siehe `PlanVersionRow.bundles`. */
+    /** Persisted bundle selection (bundleKeys). See `PlanVersionRow.bundles`. */
     @IsOptional()
     @IsArray()
     @IsString({ each: true })
@@ -131,8 +131,8 @@ export class UpdatePlanVersionDraftDto {
 
 export class TerminatePlanVersionDto {
     /**
-     * Pflicht. ISO-8601-Datum/Zeitstempel; muss strikt in der Zukunft liegen.
-     * Setzt `endsAt` der live PlanVersion. Idempotent.
+     * Required. ISO-8601 date/timestamp; must be strictly in the future.
+     * Sets `endsAt` of the live PlanVersion. Idempotent.
      */
     @IsISO8601()
     endsAt!: string;
@@ -144,17 +144,17 @@ export class PublishPlanVersionDto {
     forceRegressive?: boolean;
 
     /**
-     * Erlaubt bewusst kostenlose Sonderverträge (Preis 0,00) und hebt damit
-     * den Zero-Price-Gate auf (sonst 422 PLAN_VERSION_ZERO_PRICE). Default:
-     * Gate aktiv (Schutz gegen Seed-Platzhalter).
+     * Deliberately allows free special contracts (price 0.00) and thereby lifts
+     * the zero-price gate (otherwise 422 PLAN_VERSION_ZERO_PRICE). Default:
+     * gate active (protection against seed placeholders).
      */
     @IsOptional()
     @IsBoolean()
     allowZeroPrice?: boolean;
 
     /**
-     * Pflicht beim Publish (auf DTO oder Draft). Service prüft strikt
-     * `validFrom > vorgänger.validFrom`. SPEC_V2 §4.2.
+     * Required at publish (on the DTO or draft). The service strictly checks
+     * `validFrom > predecessor.validFrom`. SPEC_V2 §4.2.
      */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)

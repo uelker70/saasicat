@@ -1,33 +1,33 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: Plan-Versionierung
+// SaaS platform Prisma fragment: plan versioning
 // =============================================================================
 //
-// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
-// Globale Katalog-Tabellen (kein tenantId, kein RLS). Schreibzugriff nur über
-// SUPER_ADMIN-Guard im AdminController des `@saasicat/nest`-
-// Pakets.
+// Global catalog tables (no tenantId, no RLS). Write access only via the
+// SUPER_ADMIN guard in the AdminController of the `@saasicat/nest`
+// package.
 //
-// Pro Identitätsschlüssel (planId):
-//   - max. 1 Draft (publishedAt IS NULL) — Constraint via partial unique
-//     index in der Migration (Prisma-Schema kann partial unique nicht
-//     ausdrücken: in der SQL-Migration als
-//     `CREATE UNIQUE INDEX … WHERE published_at IS NULL` ergänzen).
-//   - mehrere veröffentlichte Versionen, monoton inkrementelles `version`.
-//   - `supersededAt` markiert „nicht mehr aktuell vermarktet"; die Version
-//     bleibt für Bestand abrechnungsgültig (vertragliche Plan-Garantie).
+// Per identity key (planId):
+//   - at most 1 draft (publishedAt IS NULL) — constraint via a partial unique
+//     index in the migration (the Prisma schema cannot express partial unique:
+//     add it in the SQL migration as
+//     `CREATE UNIQUE INDEX … WHERE published_at IS NULL`).
+//   - multiple published versions, monotonically incrementing `version`.
+//   - `supersededAt` marks "no longer actively marketed"; the version
+//     remains billing-valid for existing subscriptions (contractual plan guarantee).
 
 // -----------------------------------------------------------------------------
-// Plan — Stamm-Identität eines Plans (SPEC_V2 §11.1 M6).
-// `planKey` ist die fachliche Plan-Identität (STARTER / STANDARD / PROFESSIONAL),
-// pro `projectKey` unique. PlanVersion.planId zeigt **weich** auf
-// `Plan.planKey` (kein DB-FK — die Bindung wird in M6 über Service-Logik
-// erzwungen, damit der Greenfield-Cutover ohne destruktive Schema-Migration
-// laufen kann).
+// Plan — root identity of a plan (SPEC_V2 §11.1 M6).
+// `planKey` is the business plan identity (STARTER / STANDARD / PROFESSIONAL),
+// unique per `projectKey`. PlanVersion.planId points **softly** to
+// `Plan.planKey` (no DB FK — the binding is enforced via service logic in M6
+// so that the greenfield cutover can run without a destructive schema
+// migration).
 //
-// Soft-Delete via `deletedAt`. Ein gelöschter Plan-Stamm verbirgt seine
-// PlanVersions im UI, lässt sie aber für Bestand-Subscriptions wirksam
-// (Vertragsschutz P1) — analog Bundle/BusinessType.
+// Soft-delete via `deletedAt`. A deleted plan root hides its
+// PlanVersions in the UI, but keeps them effective for existing subscriptions
+// (contract protection P1) — analogous to Bundle/BusinessType.
 // -----------------------------------------------------------------------------
 
 model Plan {
@@ -49,30 +49,30 @@ model Plan {
 }
 
 // -----------------------------------------------------------------------------
-// PlanVersion — pro `planId` (= Plan-Key aus plans.yaml) genau ein Lineage.
+// PlanVersion — exactly one lineage per `planId` (= plan key from plans.yaml).
 // -----------------------------------------------------------------------------
 
 model PlanVersion {
     id            String  @id @default(uuid())
-    planId        String // Plan-Key aus plans.yaml (`plans[].id`)
+    planId        String // plan key from plans.yaml (`plans[].id`)
     version       Int
-    baseVersionId String? // Vorgänger, gegen den der Draft diff'tet (nullable für v1)
+    baseVersionId String? // predecessor the draft diffs against (nullable for v1)
 
-    // Snapshot der Plan-Definition zum Zeitpunkt der Veröffentlichung.
-    // `features` ist das veröffentlichte Feature-Set als FeatureKey[].
-    // `quotas` ist ein freies JSON-Objekt; konkrete Quota-Keys kommen aus
-    // plans.yaml (`quotaKeys`-Pattern). Beispiel:
+    // Snapshot of the plan definition at the time of publishing.
+    // `features` is the published feature set as FeatureKey[].
+    // `quotas` is a free-form JSON object; concrete quota keys come from
+    // plans.yaml (`quotaKeys` pattern). Example:
     //   { "users": 5, "vehicles": 100, "storageGb": 50 }
     features Json
     quotas   Json
 
     monthlyNet Decimal @db.Decimal(10, 2)
-    yearlyNet  Decimal @db.Decimal(10, 2) // Netto-Gesamtbetrag pro Jahr für YEARLY-Cycle
+    yearlyNet  Decimal @db.Decimal(10, 2) // net total amount per year for the YEARLY cycle
     marketed   Boolean @default(true)
 
     publishedAt      DateTime?
     supersededAt     DateTime?
-    publishedChanges Json? // VersionChange[] — siehe @saasicat/types
+    publishedChanges Json? // VersionChange[] — see @saasicat/types
     changeNote       String
     nonRegressive    Boolean @default(true)
 

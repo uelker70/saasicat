@@ -86,17 +86,17 @@ import PlanVersionsAudit from './plan-versions/PlanVersionsAudit.vue';
 import PlanVersionsDiff from './plan-versions/PlanVersionsDiff.vue';
 import type { PlanVersionViewMode } from './plan-versions/types.js';
 
-// Plattform-Standard-Page: Plan-Versionen.
+// Platform standard page: plan versions.
 //
-// Komponiert die Plan-Versions-Subkomponenten zur kompletten Page. Konsumenten
-// reichen `data` (RawCatalogData) durch und erhalten Events für die App-
-// spezifischen Edit-/Create-Flüsse (DraftDialog/PublishModal sind absichtlich
-// nicht Teil der Plattform — die hängen am App-Feature-Catalog).
+// Composes the plan-versions subcomponents into the complete page. Consumers
+// pass `data` (RawCatalogData) through and receive events for the app-
+// specific edit/create flows (DraftDialog/PublishModal are intentionally
+// not part of the platform — they hang off the app feature catalog).
 //
-// Slot-API für reichere App-spezifische Renderings:
-//   - `#list`: ersetzt die default PlanVersionsList (z. B. mit Feature-
-//             grouping per Plan + zusätzlichen Quota-Spalten).
-//   - `#matrix`, `#audit`: analog.
+// Slot API for richer app-specific renderings:
+//   - `#list`: replaces the default PlanVersionsList (e.g. with feature
+//             grouping per plan + additional quota columns).
+//   - `#matrix`, `#audit`: analogous.
 
 interface FeatureGroupsConfig {
     order: readonly string[];
@@ -119,26 +119,26 @@ const props = withDefaults(
     defineProps<{
         data: RawCatalogData;
         loading?: boolean;
-        /** Plan-IDs in Anzeigereihenfolge (z. B. BASIC,STANDARD,PROFESSIONAL,…). */
+        /** Plan IDs in display order (e.g. BASIC,STANDARD,PROFESSIONAL,…). */
         planSortOrder?: readonly string[];
-        /** Erwartete Plan-IDs für „fehlende Pakete"-Warnung. */
+        /** Expected plan IDs for the "missing packages" warning. */
         expectedPlanIds?: readonly string[];
-        /** Akzentfarbe pro Plan-ID (für Diff-Cards). */
+        /** Accent color per plan ID (for diff cards). */
         planAccents?: Record<string, string>;
-        /** Feature-Metadaten (Label/Icon/PlannedOnly) für die Matrix. */
+        /** Feature metadata (label/icon/plannedOnly) for the matrix. */
         featureRegistry?: Record<string, { label?: string; icon?: string; plannedOnly?: boolean }>;
-        /** UX-Gruppierung der Features in der Matrix. */
+        /** UX grouping of the features in the matrix. */
         featureGroups?: FeatureGroupsConfig;
-        /** Audit-Loader (optional; ohne deaktiviert Audit-View). */
+        /** Audit loader (optional; without it disables the audit view). */
         loadAudit?: () => Promise<AuditRow[]>;
-        /** App-spezifische Audit-Action-Meta-Map. */
+        /** App-specific audit action meta map. */
         auditActionMeta?: Record<string, { icon: string; color: string; label: string }>;
-        /** Field-Label-Overrides für die Diff-Anzeige. */
+        /** Field label overrides for the diff display. */
         diffFieldLabels?: Record<string, string>;
         /**
-         * Optionale Quota-Spalten in der List-View (z. B.
-         * Benutzer/Mitglieder/Speicher/Plätze). Wird an PlanVersionsList
-         * weitergereicht. Default: keine — alte Anzeige (nur Paket/Preis/Features).
+         * Optional quota columns in the list view (e.g.
+         * users/members/storage/seats). Passed through to
+         * PlanVersionsList. Default: none — old display (only package/price/features).
          */
         quotaColumns?: ReadonlyArray<QuotaColumnConfig>;
     }>(),

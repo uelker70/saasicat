@@ -1,31 +1,31 @@
-// @saasicat/ui-vue — Vue-3-Komponenten + Composables für die
-// SuperAdmin-UI-Shell.
+// @saasicat/ui-vue — Vue 3 components + composables for the
+// SuperAdmin UI shell.
 //
-// P4.1 (Phase 30): Public-Boot-Loader + Manifest-Loader (ETag-Cache).
-// P4.2 (Phase 31): Nav-Builder + Extension-Host + Action-Registry.
-// P4.3 (Phase 32): Batch-Column-Fetcher.
-// P4.4 (Phase 33): Composables für Standard-Pages (Tenants, Audit, Entitlement).
-// P4.5 (Phase 34): Plan-Versions-Listen-Composables + Bulk-Publish-Orchestration.
+// P4.1 (Phase 30): public boot loader + manifest loader (ETag cache).
+// P4.2 (Phase 31): nav builder + extension host + action registry.
+// P4.3 (Phase 32): batch column fetcher.
+// P4.4 (Phase 33): composables for standard pages (Tenants, Audit, Entitlement).
+// P4.5 (Phase 34): plan-versions list composables + bulk-publish orchestration.
 //
-// Inhalte:
+// Contents:
 //   - types:                HttpClient, KvStore, defaultHttpClient, defaultKvStore
 //   - boot-loader:          BootLoader (framework-agnostic) + BootLoadError
-//   - manifest-loader:      ManifestLoader mit ETag-Cache + ManifestLoadError
+//   - manifest-loader:      ManifestLoader with ETag cache + ManifestLoadError
 //   - nav-builder:          buildRoutes, buildSidebar, resolveExtension
 //   - action-registry:      ActionRegistry, MissingHandlerError, ActionDefNotInManifestError
 //   - batch-column-fetcher: BatchColumnFetcher + BatchColumnDriftError
-//   - use-api-list:         useApiList<T> generischer List-Composable
+//   - use-api-list:         useApiList<T> generic list composable
 //   - use-tenants:          useTenants typed wrapper
 //   - use-audit-entries:    useAuditEntries typed wrapper
-//   - use-entitlement:      useEntitlement Composable
+//   - use-entitlement:      useEntitlement composable
 //   - use-plan-versions:    usePlanVersionsCatalog
-//   - use-bulk-publish:     useBulkPublish (parallele Publishes mit Status-Tracking)
-//   - use-plan-editor:      usePlanEditor Composable (Feature-Discovery, plannedOnly-Filter)
-//   - use-public-boot:      usePublicBoot Composable
-//   - use-manifest:         useManifest Composable
-//   - use-nav:              useNav Composable
-//   - use-actions:          useActions Composable
-//   - use-batch-columns:    useBatchColumns Composable
+//   - use-bulk-publish:     useBulkPublish (parallel publishes with status tracking)
+//   - use-plan-editor:      usePlanEditor composable (feature discovery, plannedOnly filter)
+//   - use-public-boot:      usePublicBoot composable
+//   - use-manifest:         useManifest composable
+//   - use-nav:              useNav composable
+//   - use-actions:          useActions composable
+//   - use-batch-columns:    useBatchColumns composable
 
 export * from './version.js';
 export * from './types.js';
@@ -43,7 +43,7 @@ export * from './use-entitlement.js';
 export * from './use-tenant-manifest.js';
 export * from './entitlement-provider.js';
 export * from './feature-router-guard.js';
-// FeatureGate.vue wird nicht gebundelt — Konsumenten importieren sie direkt:
+// FeatureGate.vue is not bundled — consumers import it directly:
 //   import FeatureGate from '@saasicat/ui-vue/components/FeatureGate.vue';
 export * from './use-tenant-billing-catalog.js';
 export * from './use-tenant-billing.js';
@@ -70,29 +70,29 @@ export * from './use-tenant-action-flow.js';
 export * from './use-platform-tenant-actions.js';
 export * from './use-batch-columns.js';
 export * from './plan-versions-catalog.js';
-// Plattform-Dialog-Types fuer App-Wrappers, die Submit-Handler typisieren.
+// Platform dialog types for app wrappers that type submit handlers.
 export * from './components/dialogs/types.js';
-// Reine Resolver für übersetzte Feature-/Quota-Labels in den Bundle-Editoren.
+// Pure resolvers for translated feature/quota labels in the bundle editors.
 export * from './components/bundle-editor/catalog-i18n.js';
-// Typen der geteilten PlatformEmailPage (Plattform-E-Mail-Sender).
+// Types of the shared PlatformEmailPage (platform email sender).
 export * from './pages-standard/platform-email.types.js';
-// Typen der geteilten EmailHistoryPage (Plattform-E-Mail-Verlauf).
+// Types of the shared EmailHistoryPage (platform email history).
 export * from './pages-standard/email-history.types.js';
-// Universeller Bootstrap-Helper für SuperAdmin-Apps + zugehörige Composables.
+// Universal bootstrap helper for SuperAdmin apps + associated composables.
 export * from './create-super-admin-app.js';
 export * from './use-super-admin-context.js';
-// Loader-Factory, die BootLoader + ManifestLoader aus derselben Endpoint-
-// Konfiguration baut wie createSuperAdminApp() — damit Endpoints pro App
-// nur an einer Stelle leben.
+// Loader factory that builds BootLoader + ManifestLoader from the same
+// endpoint configuration as createSuperAdminApp() — so that endpoints live
+// in a single place per app.
 export * from './platform-loaders.js';
-// ProjectPageHost: löst Manifest-projectPages dynamisch gegen die
-// extensions:-Map auf — ersetzt statische Route-Duplikation in den Apps.
+// ProjectPageHost: resolves manifest projectPages dynamically against the
+// extensions: map — replaces static route duplication in the apps.
 export * from './project-page-host.js';
-// Manifest-Pinia-Store-Factory — standardisiert ensureLoaded/reload/clearCache.
+// Manifest Pinia store factory — standardizes ensureLoaded/reload/clearCache.
 export * from './manifest-store-factory.js';
 
-// Geteilte SuperAdmin-LoginPage liegt unter
+// The shared SuperAdmin LoginPage lives at
 // `@saasicat/ui-vue/pages-standard/SuperAdminLoginPage.vue` —
-// nicht via Bundle (tsup ignoriert .vue), sondern direkt aus src/ über den
-// subpath-Export. Apps reichen einen `loginAdapter` via createSuperAdminApp()
-// und routen `/login` auf diese Component.
+// not via bundle (tsup ignores .vue), but directly from src/ through the
+// subpath export. Apps pass a `loginAdapter` via createSuperAdminApp()
+// and route `/login` to this component.

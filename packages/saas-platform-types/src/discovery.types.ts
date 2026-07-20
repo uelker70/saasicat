@@ -1,34 +1,34 @@
-// DiscoverySnapshot — Wire-Format des Code-Discovery-Endpoints
+// DiscoverySnapshot — wire format of the code-discovery endpoint
 // (`GET /admin/discovery`).
 //
-// Beschreibt den **Code-Stand** zur Boot-Zeit: welche Capabilities,
-// Features und Quotas hat das laufende Backend annotiert? Bundles
-// werden bewusst NICHT vom Code aggregiert — sie werden ausschließlich
-// vom SuperAdmin im UI geplant (DB-Tabelle `bundles`, siehe SPEC_V2
+// Describes the **code state** at boot time: which capabilities,
+// features, and quotas has the running backend annotated? Bundles are
+// deliberately NOT aggregated from code — they are planned exclusively
+// by the SuperAdmin in the UI (DB table `bundles`, see SPEC_V2
 // §3 + §11.1 M3).
 //
-// Wird vom DiscoveryScanner in saas-platform-nest aufgebaut und vom
-// SuperAdmin-UI in saas-platform-ui-vue konsumiert.
+// Built by the DiscoveryScanner in saas-platform-nest and consumed by
+// the SuperAdmin UI in saas-platform-ui-vue.
 //
-// Im Gegensatz zu CapabilityCatalogEntryRow/FeatureCatalogEntryRow
-// (siehe catalog-entry.types.ts) ist das hier reiner Code-Snapshot —
-// kein Review-Status, kein Marketing, keine DB-Persistenz.
+// Unlike CapabilityCatalogEntryRow/FeatureCatalogEntryRow
+// (see catalog-entry.types.ts), this is a pure code snapshot —
+// no review status, no marketing, no DB persistence.
 
 import type { CapabilityKind } from './catalog-entry.types.js';
 
 /**
- * Code-Status einer Capability im Decorator (`@ImplementsCapability`):
+ * Code status of a capability in the decorator (`@ImplementsCapability`):
  *
- * - `active`       — normal nutzbar (Default)
- * - `experimental` — WIP-Capability; im UI mit Warnung sichtbar
- * - `deprecated`   — soll abgelöst werden (`replacementKey` empfohlen)
- * - `internal`     — taucht im SuperAdmin-UI nicht auf, aber im Snapshot-Hash
+ * - `active`       — normally usable (default)
+ * - `experimental` — WIP capability; shown in the UI with a warning
+ * - `deprecated`   — to be replaced (`replacementKey` recommended)
+ * - `internal`     — does not appear in the SuperAdmin UI, but in the snapshot hash
  */
 export type DiscoveryCodeStatus = 'active' | 'experimental' | 'deprecated' | 'internal';
 
 /**
- * Ein einzelner Capability-Eintrag im DiscoverySnapshot — entspricht dem
- * Wire-Format, das `/admin/discovery` ausliefert.
+ * A single capability entry in the DiscoverySnapshot — matches the
+ * wire format that `/admin/discovery` delivers.
  */
 export interface DiscoveredCapability {
     capabilityKey: string;
@@ -41,82 +41,82 @@ export interface DiscoveredCapability {
     removalPlannedAt: string | null;
     reason: string | null;
     /**
-     * Feature-Keys, die das Feature dieser Capability zur Laufzeit
-     * voraussetzt (#35). `null` = keine Abhängigkeiten — Default, damit
-     * Snapshots aus älteren Plattform-Versionen unverändert lesbar bleiben.
+     * Feature keys that this capability's feature requires at runtime
+     * (#35). `null` = no dependencies — the default, so that snapshots
+     * from older platform versions stay readable unchanged.
      */
     requires: string[] | null;
     /**
-     * Alte Feature-Keys, die das Feature dieser Capability ablöst (#39,
-     * Hard-Pfad: der alte Code ist bereits gelöscht). `null` = keine.
+     * Old feature keys that this capability's feature replaces (#39,
+     * hard path: the old code has already been deleted). `null` = none.
      */
     replaces: string[] | null;
     /**
-     * Wo die Capability deklariert ist — `ClassName.methodName` für
-     * Methoden, `ClassName` für Klassen-Level. Hilft beim Forensik /
-     * Discovery-Diff.
+     * Where the capability is declared — `ClassName.methodName` for
+     * methods, `ClassName` for class level. Helps with forensics /
+     * discovery diff.
      */
     declaredAt: string;
 }
 
-/** Aggregat aus mehreren Capabilities mit `feature: 'X'`. */
+/** Aggregate of several capabilities with `feature: 'X'`. */
 export interface DiscoveredFeature {
     featureKey: string;
-    /** Capability-Keys, die dieses Feature über `feature: 'X'` deklarieren. */
+    /** Capability keys that declare this feature via `feature: 'X'`. */
     capabilityKeys: string[];
     /**
-     * Union der Capability-`requires` abzüglich des eigenen featureKey (#35).
-     * `null` = keine Abhängigkeiten (abwärtskompatibel zu alten Snapshots).
+     * Union of the capability `requires` minus its own featureKey (#35).
+     * `null` = no dependencies (backward-compatible with old snapshots).
      */
     requires: string[] | null;
-    /** Union der Capability-`replaces` (#39). `null` = keine. */
+    /** Union of the capability `replaces` (#39). `null` = none. */
     replaces: string[] | null;
 }
 
 /**
- * Quota-Policy:
- * - `monthlyReset` — Counter wird zum Monatsbeginn auf 0 gesetzt
- * - `continuous`   — Counter wächst monoton (z. B. Storage-Verbrauch)
- * - `hardCap`      — bei Überschreitung HTTP 429 / fachlicher Block
+ * Quota policy:
+ * - `monthlyReset` — counter is reset to 0 at the start of the month
+ * - `continuous`   — counter grows monotonically (e.g. storage consumption)
+ * - `hardCap`      — on overrun, HTTP 429 / domain-level block
  */
 export type DiscoveredQuotaPolicy = 'monthlyReset' | 'continuous' | 'hardCap';
 
-/** Eine im Code via `@DefinesQuota` deklarierte Quota. */
+/** A quota declared in code via `@DefinesQuota`. */
 export interface DiscoveredQuota {
     quotaKey: string;
     label: string;
     unit: string;
     policy: DiscoveredQuotaPolicy;
     feature: string | null;
-    /** Alte QuotaKeys, die diese Quota ablöst (#39). `null` = keine. */
+    /** Old quotaKeys that this quota replaces (#39). `null` = none. */
     replaces: string[] | null;
-    /** Wo die Quota deklariert ist — `ClassName`. */
+    /** Where the quota is declared — `ClassName`. */
     declaredAt: string;
-    /** Capability-Keys, die diese Quota via `@EnforceQuota(quotaKey)` referenzieren. */
+    /** Capability keys that reference this quota via `@EnforceQuota(quotaKey)`. */
     enforcedBy: string[];
 }
 
 /**
- * Vollständiger Discovery-Snapshot — wird zur Boot-Zeit gebaut, vom
- * AdminController als JSON ausgeliefert, vom Strict-Mode-Check (SPEC_V2 §8)
- * gegen den DB-Catalog geprüft.
+ * Complete discovery snapshot — built at boot time, delivered as JSON by
+ * the AdminController, checked against the DB catalog by the strict-mode
+ * check (SPEC_V2 §8).
  */
 export interface DiscoverySnapshot {
     schemaVersion: 1;
-    /** ISO-Timestamp des Boot-Zeit-Scans. */
+    /** ISO timestamp of the boot-time scan. */
     scannedAt: string;
     app: {
-        /** projectKey, gleiches Konzept wie in den Catalog-Tabellen. */
+        /** projectKey, same concept as in the catalog tables. */
         key: string;
-        /** Backend-Version, z. B. aus package.json. */
+        /** Backend version, e.g. from package.json. */
         version: string;
     };
     capabilities: DiscoveredCapability[];
     features: DiscoveredFeature[];
     quotas: DiscoveredQuota[];
     /**
-     * Kanonischer SHA256-Hash über sortierte/normalisierte Snapshot-Daten.
-     * Stabil über Boot-Restarts, dient als ETag für `/admin/discovery`.
+     * Canonical SHA256 hash over sorted/normalized snapshot data.
+     * Stable across boot restarts, serves as the ETag for `/admin/discovery`.
      */
     hash: string;
 }

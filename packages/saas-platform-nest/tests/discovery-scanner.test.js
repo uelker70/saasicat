@@ -9,16 +9,16 @@ import {
     computeSnapshotHash,
 } from '../dist/discovery/index.js';
 
-// Discovery-Scanner: aggregiert @ImplementsCapability/@DefinesQuota/
-// @EnforceQuota-Annotationen zu einem DiscoverySnapshot. Wir stubben
-// DiscoveryService + MetadataScanner + Reflector direkt — kein @nestjs/testing
-// nötig, weil der Scanner nur die drei minimalen Public-APIs aufruft:
+// Discovery scanner: aggregates @ImplementsCapability/@DefinesQuota/
+// @EnforceQuota annotations into a DiscoverySnapshot. We stub
+// DiscoveryService + MetadataScanner + Reflector directly — no @nestjs/testing
+// needed, because the scanner only calls the three minimal public APIs:
 //   - discoveryService.getProviders() / .getControllers()
 //   - metadataScanner.getAllMethodNames(prototype)
 //   - reflector.get(key, target)
 
 // ─────────────────────────────────────────────────────────────────
-// Test-Helfer
+// Test helpers
 // ─────────────────────────────────────────────────────────────────
 
 function makeProvider({ ctorName, classMeta = {}, methodMeta = {} }) {
@@ -51,8 +51,8 @@ function makeFakeMetadataScanner() {
 }
 
 function makeFakeReflector(allEntries) {
-    // allEntries: array von { instance, classMeta, methodMeta } — wir bauen einen
-    // Lookup von Target → Metadata-Map.
+    // allEntries: array of { instance, classMeta, methodMeta } — we build a
+    // lookup from target → metadata map.
     const targetMeta = new WeakMap();
     for (const entry of allEntries) {
         targetMeta.set(entry.instance.constructor, entry.classMeta);
@@ -80,11 +80,11 @@ function buildScanner({ providers = [], controllers = [], appInfo } = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// computeSnapshotHash — kanonisch + stabil
+// computeSnapshotHash — canonical + stable
 // ─────────────────────────────────────────────────────────────────
 
 describe('computeSnapshotHash', () => {
-    test('liefert für identische Eingaben denselben Hash', () => {
+    test('returns the same hash for identical inputs', () => {
         const input = {
             schemaVersion: 1,
             scannedAt: '2026-05-12T10:00:00.000Z',
@@ -99,7 +99,7 @@ describe('computeSnapshotHash', () => {
         assert.match(a, /^sha256-[0-9a-f]{64}$/);
     });
 
-    test('ignoriert scannedAt und app.version (Stabilität über Boot-Restarts)', () => {
+    test('ignores scannedAt and app.version (stability across boot restarts)', () => {
         const base = {
             schemaVersion: 1,
             app: { key: 'clubapp', version: '0.42.1' },
@@ -116,10 +116,10 @@ describe('computeSnapshotHash', () => {
             scannedAt: '2026-05-12T20:00:00.000Z',
             app: { key: 'clubapp', version: '99.99.99' },
         });
-        assert.equal(a, b, 'scannedAt + version dürfen Hash nicht beeinflussen');
+        assert.equal(a, b, 'scannedAt + version must not affect the hash');
     });
 
-    test('ist sortier-unabhängig bei Object-Keys', () => {
+    test('is sort-order independent for object keys', () => {
         const cap = (overrides) => ({
             capabilityKey: 'invoice.create',
             label: 'Rechnung erstellen',
@@ -141,7 +141,7 @@ describe('computeSnapshotHash', () => {
             features: [],
             quotas: [],
         });
-        // Gleicher Inhalt, andere Insertion-Order der Felder
+        // Same content, different insertion order of the fields
         const reordered = {};
         const original = cap();
         for (const k of Object.keys(original).reverse()) {
@@ -158,7 +158,7 @@ describe('computeSnapshotHash', () => {
         assert.equal(a, b);
     });
 
-    test('liefert unterschiedliche Hashes für unterschiedliche Capability-Sets', () => {
+    test('returns different hashes for different capability sets', () => {
         const base = {
             schemaVersion: 1,
             scannedAt: 'irrelevant',
@@ -189,13 +189,13 @@ describe('computeSnapshotHash', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Scanner: Aggregation Capabilities → Features
-// (Bundles werden NICHT aggregiert — sie kommen ausschließlich aus dem
-// SuperAdmin-UI; SPEC_V2 §3.1 + §11.1 M3.)
+// Scanner: aggregation capabilities → features
+// (Bundles are NOT aggregated — they come exclusively from the
+// SuperAdmin UI; SPEC_V2 §3.1 + §11.1 M3.)
 // ─────────────────────────────────────────────────────────────────
 
-describe('DiscoveryScanner — Capability/Feature-Aggregation', () => {
-    test('aggregiert Capabilities mit gleichem feature zu DiscoveredFeature', () => {
+describe('DiscoveryScanner — capability/feature aggregation', () => {
+    test('aggregates capabilities with the same feature into a DiscoveredFeature', () => {
         const scanner = buildScanner({
             providers: [
                 makeProvider({
@@ -238,7 +238,7 @@ describe('DiscoveryScanner — Capability/Feature-Aggregation', () => {
         assert.deepEqual(invoiceFeature.capabilityKeys, ['invoice.cancel', 'invoice.create']);
     });
 
-    test('Capabilities ohne feature landen nicht in Feature-Aggregaten', () => {
+    test('capabilities without a feature do not end up in feature aggregates', () => {
         const scanner = buildScanner({
             providers: [
                 makeProvider({
@@ -258,7 +258,7 @@ describe('DiscoveryScanner — Capability/Feature-Aggregation', () => {
         assert.equal(snapshot.features.length, 0);
     });
 
-    test('Snapshot enthält kein bundles-Feld (Bundles nur aus SuperAdmin-UI)', () => {
+    test('snapshot contains no bundles field (bundles only from SuperAdmin UI)', () => {
         const scanner = buildScanner({
             providers: [
                 makeProvider({
@@ -275,16 +275,16 @@ describe('DiscoveryScanner — Capability/Feature-Aggregation', () => {
             ],
         });
         const snapshot = scanner.getSnapshot();
-        assert.ok(!('bundles' in snapshot), 'snapshot.bundles muss entfallen sein');
+        assert.ok(!('bundles' in snapshot), 'snapshot.bundles must be gone');
     });
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Scanner: Quotas + Cross-Reference EnforceQuota → DiscoveredQuota.enforcedBy
+// Scanner: quotas + cross-reference EnforceQuota → DiscoveredQuota.enforcedBy
 // ─────────────────────────────────────────────────────────────────
 
 describe('DiscoveryScanner — Quotas', () => {
-    test('liest @DefinesQuota auf Klassen-Ebene', () => {
+    test('reads @DefinesQuota at the class level', () => {
         const scanner = buildScanner({
             providers: [
                 makeProvider({
@@ -311,7 +311,7 @@ describe('DiscoveryScanner — Quotas', () => {
         assert.deepEqual(quota.enforcedBy, []);
     });
 
-    test('cross-referenziert @EnforceQuota an Capabilities mit der Quota', () => {
+    test('cross-references @EnforceQuota on capabilities with the quota', () => {
         const scanner = buildScanner({
             providers: [
                 makeProvider({
@@ -349,11 +349,11 @@ describe('DiscoveryScanner — Quotas', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Scanner: Edge-Cases — Mehrfach-Deklaration, app-info
+// Scanner: edge cases — multiple declaration, app info
 // ─────────────────────────────────────────────────────────────────
 
-describe('DiscoveryScanner — Edge-Cases', () => {
-    test('Mehrfach-Deklaration derselben Capability: erste gewinnt', () => {
+describe('DiscoveryScanner — edge cases', () => {
+    test('multiple declaration of the same capability: first wins', () => {
         const scanner = buildScanner({
             providers: [
                 makeProvider({
@@ -388,7 +388,7 @@ describe('DiscoveryScanner — Edge-Cases', () => {
         assert.equal(snapshot.capabilities[0].feature, 'X');
     });
 
-    test('app-Info wird in den Snapshot übernommen', () => {
+    test('app info is carried into the snapshot', () => {
         const scanner = buildScanner({
             providers: [],
             appInfo: { key: 'clubapp', version: '0.42.1' },
@@ -398,26 +398,26 @@ describe('DiscoveryScanner — Edge-Cases', () => {
         assert.equal(snapshot.app.version, '0.42.1');
     });
 
-    test('Default-AppInfo, wenn nichts injiziert wird', () => {
+    test('default app info when nothing is injected', () => {
         const scanner = buildScanner({ providers: [] });
         const snapshot = scanner.getSnapshot();
         assert.equal(snapshot.app.key, 'unknown');
         assert.equal(snapshot.app.version, '0.0.0');
     });
 
-    test('rebuildSnapshot überschreibt den Cache', () => {
+    test('rebuildSnapshot overwrites the cache', () => {
         const scanner = buildScanner({ providers: [] });
         const first = scanner.getSnapshot();
         const second = scanner.rebuildSnapshot();
-        // Bei leerem Provider-Set sollte der Hash identisch sein, aber das
-        // Snapshot-Objekt eine neue Instanz.
+        // With an empty provider set the hash should be identical, but the
+        // snapshot object a new instance.
         assert.equal(first.hash, second.hash);
         assert.notStrictEqual(first, second);
     });
 });
 
 // ─────────────────────────────────────────────────────────────────
-// requires/replaces — Discovery-Metadaten (#35/#39)
+// requires/replaces — discovery metadata (#35/#39)
 // ─────────────────────────────────────────────────────────────────
 
 describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
@@ -429,7 +429,7 @@ describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
         return makeProvider({ ctorName, methodMeta });
     }
 
-    test('Capability ohne requires/replaces trägt null (Default)', () => {
+    test('capability without requires/replaces carries null (default)', () => {
         const scanner = buildScanner({
             providers: [
                 providerWithCaps('A', {
@@ -445,7 +445,7 @@ describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
         assert.equal(feature.replaces, null);
     });
 
-    test('requires/replaces werden dedupliziert + sortiert durchgereicht', () => {
+    test('requires/replaces are deduplicated + sorted through', () => {
         const scanner = buildScanner({
             providers: [
                 providerWithCaps('A', {
@@ -463,7 +463,7 @@ describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
         assert.deepEqual(cap.replaces, ['OLD_A', 'OLD_B']);
     });
 
-    test('Feature-Aggregation: Union der Capability-requires abzüglich des eigenen featureKey', () => {
+    test('feature aggregation: union of capability requires minus its own featureKey', () => {
         const scanner = buildScanner({
             providers: [
                 providerWithCaps('TrainingController', {
@@ -475,7 +475,7 @@ describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
                     assign: {
                         capabilityKey: 'training.assign',
                         feature: 'TRAINING_PLANNER',
-                        // Selbstbezug muss aus dem Aggregat fallen.
+                        // Self-reference must drop out of the aggregate.
                         requires: ['MEMBER_MANAGEMENT', 'TRAINING_PLANNER'],
                     },
                 }),
@@ -485,7 +485,7 @@ describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
         assert.deepEqual(feature.requires, ['MEMBER_MANAGEMENT', 'RESOURCE_MANAGEMENT']);
     });
 
-    test('Feature-Aggregation: replaces als Union über die Capabilities', () => {
+    test('feature aggregation: replaces as union over the capabilities', () => {
         const scanner = buildScanner({
             providers: [
                 providerWithCaps('NewController', {
@@ -506,7 +506,7 @@ describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
         assert.deepEqual(feature.replaces, ['LEGACY_FEATURE', 'OLD_FEATURE']);
     });
 
-    test('Quota trägt replaces aus @DefinesQuota', () => {
+    test('quota carries replaces from @DefinesQuota', () => {
         const scanner = buildScanner({
             providers: [
                 makeProvider({
@@ -527,7 +527,7 @@ describe('DiscoveryScanner — requires/replaces (#35/#39)', () => {
         assert.deepEqual(quota.replaces, ['storageMb']);
     });
 
-    test('requires-Änderung ändert den Snapshot-Hash', () => {
+    test('requires change changes the snapshot hash', () => {
         const without = buildScanner({
             providers: [providerWithCaps('A', { m: { capabilityKey: 'a.m', feature: 'F' } })],
         });

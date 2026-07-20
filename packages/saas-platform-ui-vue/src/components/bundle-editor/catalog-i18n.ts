@@ -1,13 +1,13 @@
-// catalog-i18n — reine Resolver, die aus den Catalog-Entries (Feature-/Quota-
-// Catalog inkl. `i18n`) die anzuzeigenden Labels/Units für eine gewählte
-// Anzeige-Locale ableiten. Single-Source-of-Truth der Übersetzungen bleibt
-// der Discovery-Übersetzungs-Tab (`FeatureCatalogEntryRow.i18n` /
-// `QuotaCatalogEntryRow.i18n`); hier wird nur projiziert.
+// catalog-i18n — pure resolvers that derive the labels/units to display for a
+// chosen display locale from the catalog entries (feature/quota catalog incl.
+// `i18n`). The single source of truth for translations remains the Discovery
+// translation tab (`FeatureCatalogEntryRow.i18n` /
+// `QuotaCatalogEntryRow.i18n`); here we only project.
 //
-// Auflösungskette pro Eintrag: `i18n[locale]` → Default-Locale-Feld (DE) →
-// (im Editor) Discovery-Fallback bzw. der nackte Key. Die Default-Locale wird
-// per Konvention NICHT in `i18n` gehalten, deshalb greift für DE direkt das
-// Basis-Feld.
+// Resolution chain per entry: `i18n[locale]` → default-locale field (DE) →
+// (in the editor) Discovery fallback or the bare key. By convention the
+// default locale is NOT held in `i18n`, so for DE the base field applies
+// directly.
 
 import type {
     CatalogEntryI18n,
@@ -17,14 +17,14 @@ import type {
 
 export const CATALOG_DEFAULT_LOCALE = 'de';
 
-/** Anzeige-Mapping pro Feature-Key (kompatibel zu `FeatureMeta`). */
+/** Display mapping per feature key (compatible with `FeatureMeta`). */
 export interface FeatureRegistryEntry {
     label?: string;
     group?: string;
     core?: boolean;
 }
 
-/** Anzeige-Mapping pro Quota-Key. */
+/** Display mapping per quota key. */
 export interface QuotaMeta {
     label?: string;
     unit?: string;
@@ -49,9 +49,9 @@ function resolveLabel(
 }
 
 /**
- * Baut das `featureRegistry` für die Bundle-Editoren aus den Feature-Catalog-
- * Entries. Keys ohne auflösbares Label werden ausgelassen — der Editor fällt
- * dann auf den Feature-Key zurück.
+ * Builds the `featureRegistry` for the bundle editors from the feature catalog
+ * entries. Keys without a resolvable label are omitted — the editor then falls
+ * back to the feature key.
  */
 export function buildFeatureRegistry(
     featureCatalog: FeatureCatalogEntryRow[],
@@ -66,9 +66,9 @@ export function buildFeatureRegistry(
 }
 
 /**
- * Baut das `quotaRegistry` für die Bundle-Editoren aus den Quota-Catalog-
- * Entries. Label und Unit werden unabhängig aufgelöst; fehlt eine Übersetzung,
- * fällt der Editor auf den Discovery-Wert bzw. den Quota-Key zurück.
+ * Builds the `quotaRegistry` for the bundle editors from the quota catalog
+ * entries. Label and unit are resolved independently; if a translation is
+ * missing, the editor falls back to the Discovery value or the quota key.
  */
 export function buildQuotaRegistry(
     quotaCatalog: QuotaCatalogEntryRow[],

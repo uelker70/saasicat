@@ -613,7 +613,7 @@ const diffRows = computed<EditorDiffRow[]>(() => {
         }
     }
 
-    // Preis
+    // Price
     if (prev.monthlyNet !== form.monthlyNet || prev.yearlyNet !== form.yearlyNet) {
         out.push({
             id: 'chg-price',

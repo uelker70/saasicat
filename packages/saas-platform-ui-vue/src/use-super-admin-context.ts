@@ -1,6 +1,6 @@
-// Composables für die per `createSuperAdminApp()` provided() Plattform-Maps.
-// Komponenten innerhalb der Shell rufen diese statt direkter inject()-Aufrufe
-// auf, damit Type-Sicherheit und Default-Verhalten zentral bleiben.
+// Composables for the platform maps provided() via `createSuperAdminApp()`.
+// Components inside the shell call these instead of direct inject() calls,
+// so that type safety and default behavior stay centralized.
 
 import { inject } from 'vue';
 import type { AdminManifest } from '@saasicat/types';
@@ -20,20 +20,20 @@ import {
 } from './create-super-admin-app.js';
 import { defaultHttpClient, type HttpClient } from './types.js';
 
-/** Liefert die in `createSuperAdminApp()` registrierte `extensions:`-Map. */
+/** Returns the `extensions:` map registered in `createSuperAdminApp()`. */
 export function useSuperAdminExtensions(): ExtensionsMap {
     return inject(SUPER_ADMIN_EXTENSIONS_KEY, {} as ExtensionsMap);
 }
 
-/** Liefert die in `createSuperAdminApp()` registrierte `actions:`-Map. */
+/** Returns the `actions:` map registered in `createSuperAdminApp()`. */
 export function useSuperAdminActions(): ActionsMap {
     return inject(SUPER_ADMIN_ACTIONS_KEY, {} as ActionsMap);
 }
 
 /**
- * Liefert das App-Branding. Wirft, wenn die Komponente außerhalb einer
- * `createSuperAdminApp()`-Shell gerendert wird — das ist ein Setup-Bug, kein
- * Lauf-Problem.
+ * Returns the app branding. Throws when the component is rendered outside a
+ * `createSuperAdminApp()` shell — that is a setup bug, not a runtime
+ * problem.
  */
 export function useSuperAdminBrand(): SuperAdminBrand {
     const brand = inject(SUPER_ADMIN_BRAND_KEY);
@@ -45,7 +45,7 @@ export function useSuperAdminBrand(): SuperAdminBrand {
     return brand;
 }
 
-/** Liefert die App-Endpoints (apiBase, publicBootEndpoint, manifestEndpoint). */
+/** Returns the app endpoints (apiBase, publicBootEndpoint, manifestEndpoint). */
 export function useSuperAdminEndpoints(): Required<SuperAdminEndpoints> {
     const endpoints = inject(SUPER_ADMIN_ENDPOINTS_KEY);
     if (!endpoints) {
@@ -57,11 +57,11 @@ export function useSuperAdminEndpoints(): Required<SuperAdminEndpoints> {
 }
 
 /**
- * Liefert den Manifest-Accessor, der via
- * `createSuperAdminApp({ manifestGuard: { getManifest } })` provided wurde.
- * Liefert `null`, wenn die App keinen Accessor übergeben hat — Komponenten
- * (z. B. `<ProjectPageHost>`) müssen den Null-Fall sauber behandeln, weil
- * der Accessor optional ist.
+ * Returns the manifest accessor that was provided via
+ * `createSuperAdminApp({ manifestGuard: { getManifest } })`.
+ * Returns `null` if the app did not pass an accessor — components
+ * (e.g. `<ProjectPageHost>`) must handle the null case cleanly, because
+ * the accessor is optional.
  */
 export function useSuperAdminManifest(): AdminManifest | null {
     const accessor = inject(SUPER_ADMIN_MANIFEST_KEY, null);
@@ -69,9 +69,9 @@ export function useSuperAdminManifest(): AdminManifest | null {
 }
 
 /**
- * Liefert den Login-Adapter, den die App via
- * `createSuperAdminApp({ loginAdapter })` registriert hat. Wirft, wenn keiner
- * gesetzt wurde — die geteilte `<SuperAdminLoginPage>` braucht ihn.
+ * Returns the login adapter the app registered via
+ * `createSuperAdminApp({ loginAdapter })`. Throws when none was
+ * set — the shared `<SuperAdminLoginPage>` needs it.
  */
 export function useSuperAdminLoginAdapter(): SuperAdminLoginAdapter {
     const adapter = inject(SUPER_ADMIN_LOGIN_ADAPTER_KEY);
@@ -84,9 +84,9 @@ export function useSuperAdminLoginAdapter(): SuperAdminLoginAdapter {
 }
 
 /**
- * Liefert den Pre-Login-`HttpClient` (Boot, First-Run-Setup), den die App via
- * `createSuperAdminApp({ http })` registriert hat. Fällt auf `defaultHttpClient()`
- * zurück, falls keiner provided wurde (z. B. in isolierten Tests).
+ * Returns the pre-login `HttpClient` (boot, first-run setup) the app registered
+ * via `createSuperAdminApp({ http })`. Falls back to `defaultHttpClient()`
+ * if none was provided (e.g. in isolated tests).
  */
 export function useSuperAdminHttp(): HttpClient {
     return inject(SUPER_ADMIN_HTTP_KEY, defaultHttpClient());

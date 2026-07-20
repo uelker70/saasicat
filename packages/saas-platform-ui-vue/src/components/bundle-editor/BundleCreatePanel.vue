@@ -23,7 +23,7 @@
         </div>
 
         <div class="bcp-body">
-            <!-- 1: STAMMDATEN -->
+            <!-- 1: MASTER DATA -->
             <section class="bcp-section">
                 <div class="bcp-section-head">
                     <span class="bcp-section-num">1</span>
@@ -127,7 +127,7 @@
                 </div>
             </section>
 
-            <!-- 3: PLAN-KOMPAT -->
+            <!-- 3: PLAN COMPAT -->
             <section class="bcp-section">
                 <div class="bcp-section-head">
                     <span class="bcp-section-num">3</span>
@@ -261,10 +261,10 @@ import BundleQuotasEditor from './BundleQuotasEditor.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
 import { findBundlePlanOverlap, formatDateDE } from './bundle-version-status';
 
-// BundleCreatePanel — aufklappbares Inline-Panel für die Neuanlage eines
-// Bundles (Stamm + v1-Draft) oben in der Bundle-Liste. Nutzt dieselben
-// Sub-Editoren wie der Inline-Editor (Features-, Quotas-, Plan-Compat-Picker),
-// damit Anlage und Bearbeiten konsistent aussehen und sich gleich verhalten.
+// BundleCreatePanel — expandable inline panel for creating a new
+// bundle (root + v1 draft) at the top of the bundle list. Uses the same
+// sub-editors as the inline editor (features, quotas, plan-compat picker),
+// so that creation and editing look consistent and behave the same.
 
 interface Form {
     label: string;
@@ -335,7 +335,7 @@ onMounted(() => {
     nextTick(() => labelInput.value?.focus());
 });
 
-// Solange der Key nicht manuell editiert wurde, aus dem Label ableiten.
+// As long as the key has not been edited manually, derive it from the label.
 watch(
     () => form.label,
     (label) => {
@@ -358,7 +358,7 @@ function onBundleKeyInput(event: Event): void {
     form.bundleKey = bundleKeyify((event.target as HTMLInputElement).value);
 }
 
-// ── Validierung ───────────────────────────────────────────
+// ── Validation ────────────────────────────────────────────
 const bundleKeyError = computed<string | null>(() => {
     if (!form.bundleKey) return null;
     if (!BUNDLE_KEY_PATTERN.test(form.bundleKey)) {
@@ -380,7 +380,7 @@ const canSubmit = computed(() => {
     return true;
 });
 
-// ── Overlap aggregiert über ausgewählte Pläne ──────────────
+// ── Overlap aggregated across selected plans ───────────────
 const aggregatedOverlap = computed(() => {
     const features = new Set<string>();
     const quotas = new Set<string>();
@@ -411,7 +411,7 @@ const overlapPlansCount = computed(
 
 const quotaCount = computed(() => Object.keys(form.quotas).length);
 
-// ── Event-Handler ─────────────────────────────────────────
+// ── Event handlers ────────────────────────────────────────
 function onToggleFeature(featureKey: string): void {
     const idx = form.features.indexOf(featureKey);
     if (idx >= 0) form.features.splice(idx, 1);

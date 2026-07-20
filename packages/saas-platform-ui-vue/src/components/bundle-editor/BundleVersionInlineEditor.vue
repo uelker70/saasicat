@@ -208,15 +208,15 @@ import BundleStatusBanner from './BundleStatusBanner.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
 import { bundleVersionStatus, findBundlePlanOverlap, formatDateDE } from './bundle-version-status';
 
-// BundleVersionInlineEditor — orchestriert die fünf Sub-Komponenten (Status-
-// Banner + Features-Editor + Quotas-Editor + Pricing/Validity-Block +
-// Plan-Compat-Picker) zu einem 2-Spalten-Inline-Editor, nach Plan-
-// Simulation (saasadminui/project/bundles.jsx → BundleVersionEditor).
+// BundleVersionInlineEditor — orchestrates the five sub-components (status
+// banner + features editor + quotas editor + pricing/validity block +
+// plan compat picker) into a 2-column inline editor, modeled on the plan
+// simulation (saasadminui/project/bundles.jsx → BundleVersionEditor).
 //
-// Editierbarkeit folgt dem Backend-Helper: live/superseded sind read-only,
-// draft/scheduled (pre-active, latest-in-chain, 0 Subs) frei editierbar.
-// Speichern emittiert ein `save`-Event mit dem Diff zum Original — der
-// Konsument ruft die Composable-Methode (`updateDraft`).
+// Editability follows the backend helper: live/superseded are read-only,
+// draft/scheduled (pre-active, latest-in-chain, 0 subs) are freely editable.
+// Saving emits a `save` event with the diff to the original — the
+// consumer calls the composable method (`updateDraft`).
 
 interface Form {
     features: string[];
@@ -227,7 +227,7 @@ interface Form {
     changeNote: string;
     validFrom: string | null;
     validUntil: string | null;
-    /** Kompatible Plan-Keys; Wire-Feld `compatibility.planIds`. */
+    /** Compatible plan keys; wire field `compatibility.planIds`. */
     planIds: string[];
 }
 
@@ -237,13 +237,13 @@ const props = withDefaults(
         availableFeatures: DiscoveredFeature[];
         availableQuotas: DiscoveredQuota[];
         plans: PlanRow[];
-        /** Live (oder latest) PlanVersion pro planKey für Overlap-Check. */
+        /** Live (or latest) plan version per planKey for overlap check. */
         livePlanVersions?: Record<string, PlanVersionRow | null>;
         featureRegistry?: Record<string, FeatureMeta>;
         quotaRegistry?: Record<string, QuotaMeta>;
         saving?: boolean;
         saveError?: string | null;
-        /** Referenz-Zeitpunkt für den Status-Check (Tests). */
+        /** Reference timestamp for the status check (tests). */
         now?: Date;
     }>(),
     {
@@ -291,7 +291,7 @@ watch(
 const status = computed(() => bundleVersionStatus(props.version, props.now));
 const locked = computed(() => status.value === 'live' || status.value === 'superseded');
 
-// ── Pricing-Anzeige ────────────────────────────────────────
+// ── Pricing display ────────────────────────────────────────
 const savingsPercent = computed<number | null>(() => {
     const m = Number(form.monthlyNet);
     const y = Number(form.yearlyNet);
@@ -327,7 +327,7 @@ const priceError = computed<string | null>(() => {
 
 const validationError = computed(() => priceError.value ?? validFromError.value);
 
-// ── Overlap aggregiert über alle ausgewählten Pläne ───────
+// ── Overlap aggregated over all selected plans ─────────────
 const aggregatedOverlap = computed(() => {
     const features = new Set<string>();
     const quotas = new Set<string>();
@@ -358,7 +358,7 @@ const overlapPlansCount = computed(
 
 const hasOverlap = computed(() => overlapPlansCount.value > 0);
 
-// ── Change-Detection ───────────────────────────────────────
+// ── Change detection ───────────────────────────────────────
 const hasChanges = computed(() => {
     if (form.monthlyNet !== baseline.monthlyNet) return true;
     if (form.yearlyNet !== baseline.yearlyNet) return true;
@@ -374,7 +374,7 @@ const hasChanges = computed(() => {
 
 const canSave = computed(() => hasChanges.value && validationError.value === null);
 
-// ── Event-Handler ──────────────────────────────────────────
+// ── Event handlers ─────────────────────────────────────────
 function onToggleFeature(featureKey: string): void {
     if (locked.value) return;
     const idx = form.features.indexOf(featureKey);

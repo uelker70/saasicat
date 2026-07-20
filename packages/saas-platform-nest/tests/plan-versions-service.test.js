@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { PlanVersionsService, PlansService } from '../dist/catalog/index.js';
 import { FakePlanRepository, FakeSubscriptionRepository } from '../dist/testing/index.js';
 
-// PlanVersionsService — PlanVersion-Lifecycle (SPEC_V2 §11.1 M6 Pack 2a).
-// Strict-Mode-Check ist in Pack 2a inactive (`warnings` ist immer leer);
-// kommt mit Pack 2c.
+// PlanVersionsService — PlanVersion lifecycle (SPEC_V2 §11.1 M6 Pack 2a).
+// Strict mode check is inactive in Pack 2a (`warnings` is always empty);
+// comes with Pack 2c.
 
 const PROJECT = 'clubapp';
 
@@ -23,7 +23,7 @@ async function setupWithPlan(planKey = 'STARTER', subscriptions = null) {
 }
 
 describe('PlanVersionsService — Lifecycle', () => {
-    test('createPlanDraft + listPlanVersions liefert v1 mit publishedAt=null', async () => {
+    test('createPlanDraft + listPlanVersions returns v1 with publishedAt=null', async () => {
         const { versions, plan } = await setupWithPlan();
         const result = await versions.createPlanDraft({
             planId: plan.id,
@@ -43,7 +43,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.equal(list[0].id, result.planVersion.id);
     });
 
-    test('createPlanDraft: zweite Draft → UnprocessableEntity (max 1 Draft)', async () => {
+    test('createPlanDraft: second draft → UnprocessableEntity (max 1 draft)', async () => {
         const { versions, plan } = await setupWithPlan();
         await versions.createPlanDraft({
             planId: plan.id,
@@ -68,7 +68,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('createPlanDraft: unbekannter Plan → NotFound', async () => {
+    test('createPlanDraft: unknown plan → NotFound', async () => {
         const { versions } = await setupWithPlan();
         await assert.rejects(
             () =>
@@ -86,7 +86,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('updatePlanDraft: ändert features + quotas', async () => {
+    test('updatePlanDraft: changes features + quotas', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -105,7 +105,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.equal(updated.planVersion.monthlyNet, '7.00');
     });
 
-    test('createPlanDraft: bundles default auf [] wenn nicht geliefert', async () => {
+    test('createPlanDraft: bundles default to [] when not provided', async () => {
         const { versions, plan } = await setupWithPlan();
         const result = await versions.createPlanDraft({
             planId: plan.id,
@@ -117,7 +117,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.deepEqual(result.planVersion.bundles, []);
     });
 
-    test('createPlanDraft + updatePlanDraft: bundles werden persistiert', async () => {
+    test('createPlanDraft + updatePlanDraft: bundles are persisted', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -133,14 +133,14 @@ describe('PlanVersionsService — Lifecycle', () => {
             bundles: ['COMMUNICATION_PRO', 'FINANCE_PLUS'],
         });
         assert.deepEqual(updated.planVersion.bundles, ['COMMUNICATION_PRO', 'FINANCE_PLUS']);
-        // features bleiben unverändert, wenn nur bundles geliefert werden
+        // features stay unchanged when only bundles are provided
         assert.deepEqual(updated.planVersion.features, ['A', 'B']);
 
         const list = await versions.listPlanVersions(plan.id);
         assert.deepEqual(list[0].bundles, ['COMMUNICATION_PRO', 'FINANCE_PLUS']);
     });
 
-    test('updatePlanDraft: published Version → UnprocessableEntity', async () => {
+    test('updatePlanDraft: published version → UnprocessableEntity', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -165,7 +165,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('publishPlanVersion: erste Version → publishedAt + nonRegressive=true', async () => {
+    test('publishPlanVersion: first version → publishedAt + nonRegressive=true', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -183,7 +183,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.equal(published.planVersion.validFrom?.slice(0, 10), '2026-01-01');
     });
 
-    test('publishPlanVersion: Preis 0,00 → 422 PLAN_VERSION_ZERO_PRICE (Seed-Platzhalter-Schutz)', async () => {
+    test('publishPlanVersion: price 0.00 → 422 PLAN_VERSION_ZERO_PRICE (seed placeholder protection)', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -204,7 +204,7 @@ describe('PlanVersionsService — Lifecycle', () => {
                 return true;
             },
         );
-        // allowZeroPrice erlaubt den Sonderfall (z.B. ENTERPRISE):
+        // allowZeroPrice allows the special case (e.g. ENTERPRISE):
         const published = await versions.publishPlanVersion(draft.planVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-01-01',
@@ -213,7 +213,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.notEqual(published.planVersion.publishedAt, null);
     });
 
-    test('publishPlanVersion: zweite Version setzt vorherige auf supersededAt', async () => {
+    test('publishPlanVersion: second version sets previous to supersededAt', async () => {
         const { versions, plan } = await setupWithPlan();
         // v1 → publish
         const v1 = await versions.createPlanDraft({
@@ -227,7 +227,7 @@ describe('PlanVersionsService — Lifecycle', () => {
             publishedByUserId: null,
             validFrom: '2026-01-01',
         });
-        // v2 (additiv → nonRegressive)
+        // v2 (additive → nonRegressive)
         const v2 = await versions.createPlanDraft({
             planId: plan.id,
             features: ['A', 'B'],
@@ -244,15 +244,15 @@ describe('PlanVersionsService — Lifecycle', () => {
 
         const list = await versions.listPlanVersions(plan.id);
         const v1After = list.find((v) => v.id === v1.planVersion.id);
-        assert.notEqual(v1After.supersededAt, null, 'v1 muss superseded sein');
-        // Auto-Sukzession: validUntil(v1) = validFrom(v2) - 1 Tag = 2026-05-31.
+        assert.notEqual(v1After.supersededAt, null, 'v1 must be superseded');
+        // Auto succession: validUntil(v1) = validFrom(v2) - 1 day = 2026-05-31.
         assert.equal(v1After.validUntil?.slice(0, 10), '2026-05-31');
         const v2After = list.find((v) => v.id === v2.planVersion.id);
-        assert.equal(v2After.supersededAt, null, 'v2 muss live sein');
-        assert.equal(v2After.validUntil, null, 'v2 ist letzte Version → unbegrenzt');
+        assert.equal(v2After.supersededAt, null, 'v2 must be live');
+        assert.equal(v2After.validUntil, null, 'v2 is the latest version → unlimited');
     });
 
-    test('publishPlanVersion: validFrom muss strikt nach Vorgänger liegen → 422', async () => {
+    test('publishPlanVersion: validFrom must be strictly after predecessor → 422', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({
             planId: plan.id,
@@ -277,7 +277,7 @@ describe('PlanVersionsService — Lifecycle', () => {
             () =>
                 versions.publishPlanVersion(v2.planVersion.id, {
                     publishedByUserId: null,
-                    validFrom: '2026-06-01', // == Vorgänger, nicht strikt nach
+                    validFrom: '2026-06-01', // == predecessor, not strictly after
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -287,7 +287,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('publishPlanVersion: ohne validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED', async () => {
+    test('publishPlanVersion: without validFrom → 422 PLAN_VERSION_VALID_FROM_REQUIRED', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -309,7 +309,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('publishPlanVersion: regressive Version (Feature entfernt) → 422 ohne forceRegressive', async () => {
+    test('publishPlanVersion: regressive version (feature removed) → 422 without forceRegressive', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({
             planId: plan.id,
@@ -322,7 +322,7 @@ describe('PlanVersionsService — Lifecycle', () => {
             publishedByUserId: null,
             validFrom: '2026-01-01',
         });
-        // v2 ohne Feature B → regressiv
+        // v2 without feature B → regressive
         const v2 = await versions.createPlanDraft({
             planId: plan.id,
             features: ['A'],
@@ -345,7 +345,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('publishPlanVersion: forceRegressive lässt regressive Version durch', async () => {
+    test('publishPlanVersion: forceRegressive lets regressive version through', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({
             planId: plan.id,
@@ -372,14 +372,14 @@ describe('PlanVersionsService — Lifecycle', () => {
             validFrom: '2026-06-01',
         });
         assert.notEqual(published.planVersion.publishedAt, null);
-        // changes-Liste enthält das removed Feature
+        // changes list contains the removed feature
         assert.ok(
             (published.planVersion.publishedChanges ?? []).length > 0,
-            'publishedChanges sollte den Diff enthalten',
+            'publishedChanges should contain the diff',
         );
     });
 
-    test('getPlanVersion: NotFound bei unbekannter ID', async () => {
+    test('getPlanVersion: NotFound for unknown ID', async () => {
         const { versions } = await setupWithPlan();
         await assert.rejects(
             () => versions.getPlanVersion('not-existing'),
@@ -390,7 +390,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('discardPlanDraft: Draft → entfernt, listPlanVersions liefert leere Liste', async () => {
+    test('discardPlanDraft: draft → removed, listPlanVersions returns empty list', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -404,7 +404,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.equal(list.length, 0);
     });
 
-    test('discardPlanDraft: published Version → 422 PLAN_VERSION_ALREADY_PUBLISHED', async () => {
+    test('discardPlanDraft: published version → 422 PLAN_VERSION_ALREADY_PUBLISHED', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -427,7 +427,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('discardPlanDraft: NotFound bei unbekannter ID', async () => {
+    test('discardPlanDraft: NotFound for unknown ID', async () => {
         const { versions } = await setupWithPlan();
         await assert.rejects(
             () => versions.discardPlanDraft('00000000-0000-0000-0000-000000000000'),
@@ -438,8 +438,8 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    // ── SPEC_V2 §4.2.1 Regel 3 — lückenlose Sukzession ──
-    test('publishPlanVersion: gapless wenn Vorgänger validUntil hat — Nachfolger muss am Folgetag starten', async () => {
+    // ── SPEC_V2 §4.2.1 rule 3 — gapless succession ──
+    test('publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({
             planId: plan.id,
@@ -460,7 +460,7 @@ describe('PlanVersionsService — Lifecycle', () => {
             monthlyNet: '5.00',
             yearlyNet: '50.00',
         });
-        // 2026-06-15 hinterlässt 14-Tage-Lücke — muss blockiert werden.
+        // 2026-06-15 leaves a 14-day gap — must be blocked.
         await assert.rejects(
             () =>
                 versions.publishPlanVersion(v2.planVersion.id, {
@@ -474,7 +474,7 @@ describe('PlanVersionsService — Lifecycle', () => {
                 return true;
             },
         );
-        // 2026-06-01 ist der korrekte nahtlose Anschluss.
+        // 2026-06-01 is the correct seamless continuation.
         const published = await versions.publishPlanVersion(v2.planVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-06-01',
@@ -482,8 +482,8 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.equal(published.planVersion.validFrom?.slice(0, 10), '2026-06-01');
     });
 
-    // ── terminate (Plan-Version mit endsAt beenden) ──
-    test('terminatePlanVersion: live Version bekommt endsAt gesetzt', async () => {
+    // ── terminate (end plan version with endsAt) ──
+    test('terminatePlanVersion: live version gets endsAt set', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -499,12 +499,12 @@ describe('PlanVersionsService — Lifecycle', () => {
         const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         const terminated = await versions.terminatePlanVersion(draft.planVersion.id, future);
         assert.equal(terminated.endsAt, future.toISOString());
-        // supersededAt darf NICHT gesetzt sein (kein Auto-Sukzessions-Pfad).
+        // supersededAt must NOT be set (no auto-succession path).
         assert.equal(terminated.supersededAt, null);
         assert.notEqual(terminated.publishedAt, null);
     });
 
-    test('terminatePlanVersion: idempotent — zweiter Aufruf überschreibt', async () => {
+    test('terminatePlanVersion: idempotent — second call overwrites', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -524,7 +524,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         assert.equal(second.endsAt, future2.toISOString());
     });
 
-    test('terminatePlanVersion: Datum in Vergangenheit → 422 PLAN_TERMINATE_DATE_NOT_FUTURE', async () => {
+    test('terminatePlanVersion: date in the past → 422 PLAN_TERMINATE_DATE_NOT_FUTURE', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -548,7 +548,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('terminatePlanVersion: Draft (publishedAt=null) → 422 PLAN_VERSION_NOT_LIVE', async () => {
+    test('terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_LIVE', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -568,7 +568,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('terminatePlanVersion: superseded Version → 422 PLAN_VERSION_NOT_LIVE', async () => {
+    test('terminatePlanVersion: superseded version → 422 PLAN_VERSION_NOT_LIVE', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({
             planId: plan.id,
@@ -592,7 +592,7 @@ describe('PlanVersionsService — Lifecycle', () => {
             publishedByUserId: null,
             validFrom: '2026-06-01',
         });
-        // v1 ist jetzt superseded.
+        // v1 is now superseded.
         const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await assert.rejects(
             () => versions.terminatePlanVersion(v1.planVersion.id, future),
@@ -604,7 +604,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('terminatePlanVersion: NotFound bei unbekannter ID', async () => {
+    test('terminatePlanVersion: NotFound for unknown ID', async () => {
         const { versions } = await setupWithPlan();
         const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         await assert.rejects(
@@ -616,7 +616,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('publishPlanVersion: gapless-Check nicht aktiv, wenn Vorgänger kein validUntil hat (auto-Sukzession)', async () => {
+    test('publishPlanVersion: gapless check not active when predecessor has no validUntil (auto succession)', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({
             planId: plan.id,
@@ -628,7 +628,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         await versions.publishPlanVersion(v1.planVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-01-01',
-            // kein validUntil → null
+            // no validUntil → null
         });
         const v2 = await versions.createPlanDraft({
             planId: plan.id,
@@ -637,8 +637,8 @@ describe('PlanVersionsService — Lifecycle', () => {
             monthlyNet: '5.00',
             yearlyNet: '50.00',
         });
-        // Beliebige Lücke ist erlaubt; Auto-Sukzession setzt
-        // v1.validUntil = v2.validFrom - 1 Tag.
+        // Any gap is allowed; auto succession sets
+        // v1.validUntil = v2.validFrom - 1 day.
         const published = await versions.publishPlanVersion(v2.planVersion.id, {
             publishedByUserId: null,
             validFrom: '2026-09-15',
@@ -648,12 +648,12 @@ describe('PlanVersionsService — Lifecycle', () => {
 });
 
 describe('PlanVersionsService — published-but-future editing (Pack 2c)', () => {
-    // Tag in der fernen Zukunft, damit Tests unabhängig vom Real-Datum
-    // immer im „validFrom > now"-Bereich landen.
+    // Day in the far future so tests always land in the "validFrom > now"
+    // range regardless of the real date.
     const FUTURE = '2099-01-01';
     const FUTURE_NEXT = '2099-06-01';
 
-    test('updatePlanDraft erlaubt published-but-future Version (latest, 0 Subs)', async () => {
+    test('updatePlanDraft allows published-but-future version (latest, 0 subs)', async () => {
         const subs = new FakeSubscriptionRepository();
         const { versions, plan } = await setupWithPlan('STARTER', subs);
         const draft = await versions.createPlanDraft({
@@ -667,15 +667,15 @@ describe('PlanVersionsService — published-but-future editing (Pack 2c)', () =>
             publishedByUserId: null,
             validFrom: FUTURE,
         });
-        // 0 Subs → editierbar trotz publishedAt != null
+        // 0 subs → editable despite publishedAt != null
         const updated = await versions.updatePlanDraft(published.planVersion.id, {
             monthlyNet: '6.00',
         });
         assert.equal(updated.planVersion.monthlyNet, '6.00');
-        assert.notEqual(updated.planVersion.publishedAt, null, 'published-Status bleibt erhalten');
+        assert.notEqual(updated.planVersion.publishedAt, null, 'published status is preserved');
     });
 
-    test('updatePlanDraft blockt published-but-future Version mit Subscription', async () => {
+    test('updatePlanDraft blocks published-but-future version with subscription', async () => {
         const subs = new FakeSubscriptionRepository();
         const { versions, plan } = await setupWithPlan('STARTER', subs);
         const draft = await versions.createPlanDraft({
@@ -700,7 +700,7 @@ describe('PlanVersionsService — published-but-future editing (Pack 2c)', () =>
         );
     });
 
-    test('updatePlanDraft blockt published Version, die nicht latest-in-chain ist', async () => {
+    test('updatePlanDraft blocks published version that is not latest-in-chain', async () => {
         const subs = new FakeSubscriptionRepository();
         const { versions, plan } = await setupWithPlan('STARTER', subs);
         const v1 = await versions.createPlanDraft({
@@ -718,8 +718,8 @@ describe('PlanVersionsService — published-but-future editing (Pack 2c)', () =>
             planId: plan.id,
             features: ['A', 'B'],
             quotas: {},
-            // Preis und Features additiv → nonRegressive, kein
-            // forceRegressive nötig (Pack 2c Vertrags-Diff).
+            // price and features additive → nonRegressive, no
+            // forceRegressive needed (Pack 2c contract diff).
             monthlyNet: '5.00',
             yearlyNet: '50.00',
         });
@@ -727,9 +727,9 @@ describe('PlanVersionsService — published-but-future editing (Pack 2c)', () =>
             publishedByUserId: null,
             validFrom: FUTURE_NEXT,
         });
-        // v1 ist published-future-active aber NICHT latest-in-chain
-        // (v2 ist drüber) → muss eingefroren bleiben, sonst werden v2 +
-        // dessen Diff zu v1 inkonsistent.
+        // v1 is published-future-active but NOT latest-in-chain
+        // (v2 is on top) → must stay frozen, otherwise v2 +
+        // its diff against v1 become inconsistent.
         await assert.rejects(
             () => versions.updatePlanDraft(v1Published.planVersion.id, { monthlyNet: '8.00' }),
             (err) => {
@@ -740,7 +740,7 @@ describe('PlanVersionsService — published-but-future editing (Pack 2c)', () =>
         );
     });
 
-    test('listPlanVersions annotiert isLatestInChain + subscriptionCount auf der letzten Version', async () => {
+    test('listPlanVersions annotates isLatestInChain + subscriptionCount on the latest version', async () => {
         const subs = new FakeSubscriptionRepository();
         const { versions, plan } = await setupWithPlan('STARTER', subs);
         const v1 = await versions.createPlanDraft({
@@ -762,10 +762,10 @@ describe('PlanVersionsService — published-but-future editing (Pack 2c)', () =>
         assert.equal(v1Row.subscriptionCount, 3);
     });
 
-    test('updatePlanDraft fail-closed ohne SubscriptionRepository', async () => {
-        // Ohne registriertes SubscriptionRepository soll der Service eine
-        // published-but-future Version NICHT editierbar machen — sonst
-        // schmuggelt sich eine produktive Konfiguration vorbei.
+    test('updatePlanDraft fail-closed without SubscriptionRepository', async () => {
+        // Without a registered SubscriptionRepository the service must NOT
+        // make a published-but-future version editable — otherwise a
+        // production configuration sneaks past.
         const { versions, plan } = await setupWithPlan('STARTER');
         const draft = await versions.createPlanDraft({
             planId: plan.id,

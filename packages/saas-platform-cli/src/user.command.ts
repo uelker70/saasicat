@@ -1,13 +1,13 @@
-// Geteiltes `<app> user`-Command für Konsumenten-CLIs.
-// Mandanten-übergreifende User-Operationen:
+// Shared `<app> user` command for consumer CLIs.
+// Cross-tenant user operations:
 //   create-super-admin <email>  --first --last [--password] [--yes]
 //   reassign-admin     <slug>   --to=<email> --reason="…"
 //   list               <slug>
 //   reset-password     <email>  --reason="…"
 //   deactivate         <email>  --reason="…" [--yes]
 //
-// Der generische Ablauf (Identity → MFA → Production-Confirm → Audit → Output)
-// lebt hier; die app-spezifischen Schema-Mutationen liegen hinter dem
+// The generic flow (identity → MFA → production-confirm → audit → output)
+// lives here; the app-specific schema mutations sit behind the
 // `UserManagementPort`. Spec: saas-platform-spec/cli-conventions.md §3.5.
 
 import { Inject, Injectable } from '@nestjs/common';

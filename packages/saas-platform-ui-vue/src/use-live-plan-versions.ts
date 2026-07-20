@@ -1,12 +1,12 @@
-// useLivePlanVersions — lädt pro Plan-Stamm die aktuell „live" Plan-Version
-// (publishedAt != null && supersededAt == null && latest by validFrom) und
-// baut ein Mapping `planKey → PlanVersionRow | null`. Wird von der
-// BundlesPage (Plan↔Bundle-Overlap-Check im Compat-Picker) konsumiert.
+// useLivePlanVersions — loads, per plan stem, the currently "live" plan version
+// (publishedAt != null && supersededAt == null && latest by validFrom) and
+// builds a mapping `planKey → PlanVersionRow | null`. Consumed by the
+// BundlesPage (Plan↔Bundle overlap check in the compat picker).
 //
-// Implementierung: 1 + N HTTP-Requests (PlanListe + pro Plan versions/).
-// Für SuperAdmin-Setups mit wenigen Plänen (3-10) akzeptabel; eine
-// Backend-Optimierung über `GET /admin/catalog/plans?include=liveVersion`
-// kann später additiv kommen.
+// Implementation: 1 + N HTTP requests (plan list + versions/ per plan).
+// Acceptable for SuperAdmin setups with few plans (3-10); a backend
+// optimization via `GET /admin/catalog/plans?include=liveVersion`
+// can be added later, additively.
 
 import { ref, watch, type Ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
@@ -14,18 +14,18 @@ import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface UseLivePlanVersionsOptions {
     adminEndpoint: string;
-    /** Reactive Liste der Plan-Stämme — Watcher lädt neu, wenn sich die Liste ändert. */
+    /** Reactive list of plan stems — the watcher reloads when the list changes. */
     plans: Ref<PlanRow[]>;
     http?: HttpClient;
     getAuthToken?: () => string | null;
 }
 
 export interface UseLivePlanVersionsResult {
-    /** `planKey → live PlanVersion` (oder null, wenn der Plan keine live Version hat). */
+    /** `planKey → live PlanVersion` (or null when the plan has no live version). */
     livePlanVersions: Ref<Record<string, PlanVersionRow | null>>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
-    /** Erzwingt Neuladen aller Live-Versionen. */
+    /** Forces a reload of all live versions. */
     refresh: () => Promise<void>;
 }
 
@@ -72,8 +72,8 @@ export function useLivePlanVersions(
                         const live = await loadForPlan(plan.id);
                         return [plan.planKey, live] as const;
                     } catch (err) {
-                        // Per-Plan-Fehler nicht aufaddieren — die anderen Pläne
-                        // sollen weiter funktionieren; nur Mapping-Eintrag null.
+                        // Do not aggregate per-plan errors — the other plans
+                        // should keep working; just set the mapping entry to null.
                         console.warn(
                             `useLivePlanVersions: Plan '${plan.planKey}' Versions-Load failed`,
                             err,
@@ -90,8 +90,8 @@ export function useLivePlanVersions(
         }
     }
 
-    // Auto-Refresh, wenn sich die Plan-Liste ändert (z. B. nach Anlage
-    // eines neuen Plans). Erstes Laden geschieht beim ersten Plan-Eintrag.
+    // Auto-refresh when the plan list changes (e.g. after creating a
+    // new plan). The first load happens on the first plan entry.
     watch(
         () => options.plans.value.map((p) => p.id).join(','),
         () => {
@@ -105,14 +105,14 @@ export function useLivePlanVersions(
 }
 
 /**
- * Liefert die aktuell „live" PlanVersion einer Versions-Liste:
+ * Returns the currently "live" PlanVersion from a versions list:
  *   - publishedAt != null
  *   - supersededAt == null
- *   - höchstes validFrom (= zuletzt aktivierte)
+ *   - highest validFrom (= most recently activated)
  *
- * Wenn keine published-Version existiert oder alle superseded sind: null.
- * Ignoriert validUntil bewusst — die UI braucht hier den „neuesten
- * Vertrags-Inhalt" für Overlap-Berechnungen, nicht den asOf-now-Check.
+ * If no published version exists or all are superseded: null.
+ * Intentionally ignores validUntil — here the UI needs the "newest
+ * contract content" for overlap calculations, not the asOf-now check.
  */
 function findLatestLive(versions: PlanVersionRow[]): PlanVersionRow | null {
     const candidates = versions.filter((v) => v.publishedAt !== null && v.supersededAt === null);

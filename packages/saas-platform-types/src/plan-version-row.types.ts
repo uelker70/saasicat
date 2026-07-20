@@ -1,73 +1,72 @@
-// PlanVersionRow — Wire-Format der Versions-Tabellen-Rows: was der
-// Backend-Endpoint `/api/v1/admin/plan-versions` auf der HTTP-Ebene shippt.
+// PlanVersionRow — wire format of the version table rows: what the backend
+// endpoint `/api/v1/admin/plan-versions` ships at the HTTP layer.
 //
-// Unterschied zu `PlanVersion` (subscription.types.ts): Geld-Beträge
-// kommen als **String** (Prisma-Decimal serialisiert als String, nicht
-// als JS-Number — sonst Verlust).
-// Die Plan-Versions-UI parst die Strings via `Number(s)` für Anzeige und
-// Diff-Rechnung.
+// Difference from `PlanVersion` (subscription.types.ts): money amounts come
+// as a **string** (Prisma Decimal serialized as a string, not as a JS number
+// — otherwise loss of precision).
+// The plan-versions UI parses the strings via `Number(s)` for display and
+// diff computation.
 //
-// Hintergrund: Vor Phase 2 lebten diese Typen im API-Client eines
-// Konsumenten. Mit dem Lift-and-Shift der Plan-Versions-UI in die
-// Plattform werden sie hier zur Single-Source-of-Truth — Apps mit
-// engerem Typ-Bedarf (z. B. `SubscriptionPlanId`-Union statt `PlanId`-
-// String) narrowen lokal.
+// Background: before phase 2 these types lived in a consumer's API client.
+// With the lift-and-shift of the plan-versions UI into the platform they
+// become the single source of truth here — apps with narrower type needs
+// (e.g. `SubscriptionPlanId` union instead of `PlanId` string) narrow
+// locally.
 
 import type { FeatureKey, PlanId, QuotaKey } from './plan-catalog.types.js';
 import type { VersionChange, VersionedEntityBase } from './subscription.types.js';
 
 /**
- * PlanVersion — versionierte Plan-Definition (`BASIC v3`, `STANDARD v7`, …).
+ * PlanVersion — versioned plan definition (`BASIC v3`, `STANDARD v7`, …).
  *
- * Quotas: Die Plattform-Konvention ist `quotas: { users: 10, vehicles: 50, … }`.
- * Legacy-Backends shippen flache Felder (`maxUsers`, `maxVehicles`,
- * `maxStorageGb`); diese sind als optional angegeben und werden von der
- * Lift-and-Shift-Catalog-Builder-Layer toleriert. Index-Signatur erlaubt
- * weitere App-spezifische Felder.
+ * Quotas: the platform convention is `quotas: { users: 10, vehicles: 50, … }`.
+ * Legacy backends ship flat fields (`maxUsers`, `maxVehicles`,
+ * `maxStorageGb`); these are marked optional and are tolerated by the
+ * lift-and-shift catalog-builder layer. An index signature allows further
+ * app-specific fields.
  */
 export interface PlanVersionRow extends VersionedEntityBase {
     planId: PlanId;
     features: FeatureKey[];
     /**
-     * Im Editor zusammengestellte Bundle-Auswahl (bundleKeys,
-     * SCREAMING_SNAKE_CASE). Ein Bundle in dieser Liste impliziert, dass
-     * alle seine Features auch in `features` enthalten sind — Bundles sind
-     * Vermarktungs-Gruppierungen von Features. Persistiert, damit der
-     * Editor die ursprüngliche Bundle-Auswahl rekonstruieren und der
-     * Public-Catalog den Plan als Bundle ausweisen kann. Optional, weil
-     * Konsumenten-Backends die Spalte additiv nachziehen — fehlt sie, ist
-     * die Auswahl leer und der Editor leitet voll-aktive Bundles aus
-     * `features` ab.
+     * Bundle selection assembled in the editor (bundleKeys,
+     * SCREAMING_SNAKE_CASE). A bundle in this list implies that all of its
+     * features are also contained in `features` — bundles are marketing
+     * groupings of features. Persisted so the editor can reconstruct the
+     * original bundle selection and the public catalog can present the plan
+     * as a bundle. Optional, because consumer backends add the column
+     * additively — if it is missing, the selection is empty and the editor
+     * derives fully-active bundles from `features`.
      */
     bundles?: string[];
     quotas?: Record<QuotaKey, number>;
     monthlyNet: string;
     yearlyNet: string;
     marketed: boolean;
-    // validFrom / validUntil sind Teil von VersionedEntityBase (SPEC_V2 §4.2).
+    // validFrom / validUntil are part of VersionedEntityBase (SPEC_V2 §4.2).
 
     /**
-     * Vom SuperAdmin explizit gesetztes Enddatum für eine live PlanVersion.
-     * Null = kein Enddatum, läuft unbefristet bis zur Ablösung durch eine
-     * Nachfolge-Version (Auto-Sukzession setzt dann `supersededAt`).
+     * End date explicitly set by the SuperAdmin for a live PlanVersion.
+     * Null = no end date, runs indefinitely until superseded by a successor
+     * version (auto-succession then sets `supersededAt`).
      *
-     * Im Gegensatz zu `validUntil` (Auto-Sukzession, vom Service gepflegt)
-     * ist `endsAt` user-initiiert: `POST /admin/catalog/plan-versions/:id/terminate`
-     * setzt das Feld. Wenn `endsAt < NOW()` ist die Version nicht mehr live
-     * für neue Buchungen — Bestand-Subscriptions (P1) bleiben gebunden.
+     * Unlike `validUntil` (auto-succession, maintained by the service),
+     * `endsAt` is user-initiated: `POST /admin/catalog/plan-versions/:id/terminate`
+     * sets the field. When `endsAt < NOW()` the version is no longer live for
+     * new bookings — existing subscriptions (P1) stay bound.
      *
-     * Optional, weil Konsumenten-Backends die Spalte additiv nachziehen —
-     * fehlt sie, ist es kein Enddatum.
+     * Optional, because consumer backends add the column additively — if it
+     * is missing, there is no end date.
      */
     endsAt?: string | null;
 
-    /** @deprecated Aus `quotas['users']` lesen, sobald verfügbar. */
+    /** @deprecated Read from `quotas['users']` once available. */
     maxUsers?: number;
-    /** @deprecated Legacy-Feld; aus `quotas['vehicles']` lesen. */
+    /** @deprecated Legacy field; read from `quotas['vehicles']`. */
     maxVehicles?: number;
-    /** @deprecated Aus `quotas['storageGb']` lesen. */
+    /** @deprecated Read from `quotas['storageGb']`. */
     maxStorageGb?: number;
 }
 
-// Re-export für Konsumenten, die nur `plan-version-row.types` importieren.
+// Re-export for consumers that only import `plan-version-row.types`.
 export type { VersionChange, VersionedEntityBase };

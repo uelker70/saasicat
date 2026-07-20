@@ -1,20 +1,20 @@
-// PlanCatalogImportSink — schmaler Adapter-Port für den One-Shot-Import
+// PlanCatalogImportSink — narrow adapter port for the one-shot import
 // `saas.yaml → DB` (SPEC_V2 §11.1 M6 Pack 2c).
 //
-// Statt separater Repositories (Plan, PlanVersion, FeatureCatalogEntry)
-// zu definieren, nutzen wir hier **einen** Sink-Port mit upsert-Methoden.
-// Der App-Adapter des Konsumenten implementiert ihn gegen seine
-// Prisma-Tabellen direkt.
+// Instead of defining separate repositories (Plan, PlanVersion,
+// FeatureCatalogEntry), we use **one** sink port with upsert methods here.
+// The consumer's app adapter implements it directly against its
+// Prisma tables.
 //
-// Idempotenz ist Sache des Sinks: jede `upsert*`-Methode prüft, ob die
-// Row existiert (Primary-Key-Match) und überspringt sie ohne Fehler. Der
-// Service zählt nur die zurückgegebenen Created/Skipped-Flags.
+// Idempotency is the sink's responsibility: each `upsert*` method checks
+// whether the row exists (primary-key match) and skips it without error. The
+// service only counts the returned created/skipped flags.
 
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
 
 export interface UpsertResult {
     created: boolean;
-    /** Wenn `created=false`, ist hier ein kurzer Grund (z. B. "exists"). */
+    /** If `created=false`, a short reason is here (e.g. "exists"). */
     skipReason?: string;
 }
 
@@ -27,7 +27,7 @@ export interface UpsertPlanInput {
 }
 
 export interface UpsertPlanVersionInput {
-    /** planKey, nicht Plan-UUID — der Sink resolvet intern. */
+    /** planKey, not the plan UUID — the sink resolves internally. */
     planKey: string;
     version: number;
     features: FeatureKey[];
@@ -35,7 +35,7 @@ export interface UpsertPlanVersionInput {
     monthlyNet: string;
     yearlyNet: string;
     marketed: boolean;
-    /** Beim Importer: immer published=true (`publishedAt = NOW`). */
+    /** For the importer: always published=true (`publishedAt = NOW`). */
     publish: boolean;
     changeNote: string;
 }
@@ -51,8 +51,8 @@ export interface UpsertFeatureCatalogEntryInput {
 }
 
 /**
- * Adapter-Port für den Plan-Catalog-Importer. Apps implementieren ihn
- * gegen ihren Prisma-Client (oder anderen Persistenz-Stack).
+ * Adapter port for the plan catalog importer. Apps implement it
+ * against their Prisma client (or another persistence stack).
  */
 export interface PlanCatalogImportSink {
     upsertPlan(input: UpsertPlanInput): Promise<UpsertResult>;
@@ -67,14 +67,14 @@ export interface PlanCatalogImportReport {
     planVersionsSkipped: number;
     featureEntriesCreated: number;
     featureEntriesSkipped: number;
-    /** Warnings (nicht-fatal, z. B. "feature ohne label"). */
+    /** Warnings (non-fatal, e.g. "feature without label"). */
     warnings: string[];
 }
 
 // =============================================================================
-// PlanCatalogReadSink — Read-Pendant zum Importer (SPEC_V2 §11.1 M6 Pack 2c).
-// Wird vom DB-PlanCatalogModule.forRoot beim Boot aufgerufen, um den
-// PlanCatalog aus DB zusammenzubauen.
+// PlanCatalogReadSink — read counterpart to the importer (SPEC_V2 §11.1 M6 Pack 2c).
+// Called by DB-PlanCatalogModule.forRoot at boot to assemble the
+// PlanCatalog from the DB.
 // =============================================================================
 
 import type { FeatureCatalogEntryRow } from './catalog-entry.types.js';
@@ -82,22 +82,22 @@ import type { PlanRow } from './plan-stem.types.js';
 import type { PlanVersionRow } from './plan-version-row.types.js';
 
 export interface PlanCatalogReadSnapshot {
-    /** Plan-Stämme (deletedAt IS NULL). */
+    /** Plan stems (deletedAt IS NULL). */
     plans: PlanRow[];
     /**
-     * Live PlanVersions: pro `planId` (= planKey) die aktuell published
-     * Version (publishedAt IS NOT NULL AND supersededAt IS NULL).
-     * Apps mit Plans ohne live-Version übernehmen den Plan, aber ohne
-     * Pricing/Quotas — Importer hatte vermutlich einen Warning gegeben.
+     * Live PlanVersions: per `planId` (= planKey) the currently published
+     * version (publishedAt IS NOT NULL AND supersededAt IS NULL).
+     * Apps with plans without a live version take over the plan, but without
+     * pricing/quotas — the importer probably emitted a warning.
      */
     livePlanVersions: PlanVersionRow[];
-    /** Feature-Catalog-Einträge (deletedAt IS NULL). */
+    /** Feature catalog entries (deletedAt IS NULL). */
     featureEntries: FeatureCatalogEntryRow[];
 }
 
 /**
- * Adapter-Port für den DB-basierten PlanCatalog-Aufbau. Apps
- * implementieren ihn gegen ihre Prisma-Tabellen.
+ * Adapter port for the DB-based PlanCatalog assembly. Apps
+ * implement it against their Prisma tables.
  */
 export interface PlanCatalogReadSink {
     loadSnapshot(projectKey: string): Promise<PlanCatalogReadSnapshot>;

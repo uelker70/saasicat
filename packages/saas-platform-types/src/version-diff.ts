@@ -1,23 +1,23 @@
-// Diff-Klassifikation für Plan-/Bundle-Versionen — Pure Functions.
+// Diff classification for plan/bundle versions — pure functions.
 //
-// Regression-Regel (ROADMAP §2 Nr. 2): Sobald MINDESTENS EINE einzelne
-// Änderung `direction = 'REGRESSION'` hat, gilt die gesamte Version als
-// regressiv (`nonRegressive = false`) — auch bei gemischten Änderungen mit
-// positiven Anteilen. Das ist hier durch den `Array.some`-Check in
-// `buildResult()` umgesetzt.
+// Regression rule (ROADMAP §2 no. 2): as soon as AT LEAST ONE individual
+// change has `direction = 'REGRESSION'`, the entire version counts as
+// regressive (`nonRegressive = false`) — even for mixed changes with
+// positive parts. This is implemented here via the `Array.some` check in
+// `buildResult()`.
 //
-// Diese Funktionen sind **NestJS-frei** und können sowohl im Backend
-// (`@saasicat/nest/billing` re-exportiert sie) als auch im
-// Frontend (`@saasicat/ui-vue` Konsument-Wrappers) verwendet
-// werden. Wer früher aus `saas-platform-nest/billing` importiert hat, kann
-// das weiter — der Re-Export bleibt bestehen.
+// These functions are **NestJS-free** and can be used both in the backend
+// (`@saasicat/nest/billing` re-exports them) and in the
+// frontend (`@saasicat/ui-vue` consumer wrappers). Anyone who previously
+// imported from `saas-platform-nest/billing` can keep doing so — the
+// re-export remains.
 
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
 import type { VersionChange, VersionChangeDirection } from './subscription.types.js';
 
 export type { VersionChange, VersionChangeDirection };
 
-/** Alias für historische Kompatibilität — entspricht VersionChangeDirection. */
+/** Alias for historical compatibility — equivalent to VersionChangeDirection. */
 export type ChangeDirection = VersionChangeDirection;
 
 export interface DiffResult {
@@ -26,10 +26,10 @@ export interface DiffResult {
 }
 
 /**
- * `Decimal | string | number` — die drei Erscheinungsformen, in denen Preise
- * in der Plattform vorkommen. `Decimal` ist die Prisma-Klasse (mit
- * `.toNumber()`), die nicht direkt importiert wird, um die Plattform
- * Prisma-frei zu halten — strukturelle Sicht reicht.
+ * `Decimal | string | number` — the three forms in which prices appear
+ * in the platform. `Decimal` is the Prisma class (with
+ * `.toNumber()`), which is not imported directly in order to keep the
+ * platform Prisma-free — a structural view suffices.
  */
 type DecimalLike = number | string | { toNumber(): number };
 
@@ -44,25 +44,25 @@ export interface PlanVersionFields {
 
 export interface BundleVersionFields {
     features: FeatureKey[];
-    /** Quotas-Beiträge des Bundles. -1 = unbegrenzt; fehlender Key = 0. */
+    /** Quota contributions of the bundle. -1 = unlimited; missing key = 0. */
     quotas: Record<QuotaKey, number>;
-    /** Default-Pricing; null = nur Override-Pricing möglich. */
+    /** Default pricing; null = only override pricing possible. */
     monthlyNet: DecimalLike | null;
     yearlyNet: DecimalLike | null;
 }
 
 export interface BusinessTypeVersionFields {
     /**
-     * Geordnete Liste der referenzierten Bundles. Nur `bundleVersionId`
-     * ist für den Diff relevant (Reihenfolge wird über sortOrder
-     * abgeleitet, falls vorhanden). Strukturell kompatibel zu
-     * `BusinessTypeVersionRow.bundles`, sodass die UI den Klassifikator
-     * direkt mit Row-Werten aufrufen kann.
+     * Ordered list of the referenced bundles. Only `bundleVersionId`
+     * is relevant for the diff (order is derived via sortOrder,
+     * if present). Structurally compatible with
+     * `BusinessTypeVersionRow.bundles`, so the UI can call the classifier
+     * directly with row values.
      */
     bundles: Array<{ bundleVersionId: string }>;
-    /** Quota-Overrides; fehlender Key = Σ(Bundle-Quotas), gesetzter Key ersetzt. */
+    /** Quota overrides; missing key = Σ(bundle quotas), a set key replaces. */
     quotaOverrides: Partial<Record<QuotaKey, number>>;
-    /** null = Σ(Bundle-Preise); gesetzt = Override. */
+    /** null = Σ(bundle prices); set = override. */
     monthlyNet: DecimalLike | null;
     yearlyNet: DecimalLike | null;
 }
@@ -93,12 +93,12 @@ export function classifyPlanDiff(oldV: PlanVersionFields, newV: PlanVersionField
 }
 
 /**
- * Klassifikation eines BusinessTypeVersion-Diffs.
+ * Classification of a BusinessTypeVersion diff.
  *
- * - Bundles-Komposition: added/removed (analog Features). Hinzufügen eines
- *   Bundles ist IMPROVEMENT, Entfernen REGRESSION.
- * - QuotaOverrides: Vergleich wie bei BundleVersion (-1 = unbegrenzt).
- * - Pricing: Override Wert ↔ null wie bei BundleVersion.
+ * - Bundle composition: added/removed (analogous to features). Adding a
+ *   bundle is IMPROVEMENT, removing is REGRESSION.
+ * - QuotaOverrides: comparison as with BundleVersion (-1 = unlimited).
+ * - Pricing: override value ↔ null as with BundleVersion.
  */
 export function classifyBusinessTypeVersionDiff(
     oldV: BusinessTypeVersionFields,
@@ -163,15 +163,15 @@ function appendBundleCompositionChanges(
 }
 
 /**
- * Klassifikation eines BundleVersion-Diffs für SPEC_V2 §7-Vertragsschutz.
+ * Classification of a BundleVersion diff for SPEC_V2 §7 contract protection.
  *
- * Quota-Vergleich: `-1` (unbegrenzt) ist immer besser als jede positive
- * Zahl. Sonst gilt höher = besser. Fehlende Keys werden als 0 behandelt.
+ * Quota comparison: `-1` (unlimited) is always better than any positive
+ * number. Otherwise higher = better. Missing keys are treated as 0.
  *
- * Pricing kann `null` sein (Bundle hat nur Override-Pricing); ein Wechsel
- * von Wert ↔ null wird als REGRESSION (Wert wegfallen) bzw. IMPROVEMENT
- * (Wert hinzukommen, lowerIsBetter inverted) klassifiziert. Beide null
- * bleiben NEUTRAL.
+ * Pricing can be `null` (the bundle only has override pricing); a switch
+ * from value ↔ null is classified as REGRESSION (value dropped) or IMPROVEMENT
+ * (value added, lowerIsBetter inverted). Both null
+ * stay NEUTRAL.
  */
 export function classifyBundleVersionDiff(
     oldV: BundleVersionFields,
@@ -200,7 +200,7 @@ export function classifyBundleVersionDiff(
 }
 
 // ---------------------------------------------------------------------
-// Hilfsfunktionen
+// Helper functions
 // ---------------------------------------------------------------------
 
 type Polarity = 'higherIsBetter' | 'lowerIsBetter';

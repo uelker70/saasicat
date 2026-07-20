@@ -108,10 +108,10 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 
-// Plattform-Standard-Page: User-Suche. Datenagnostisch.
+// Platform standard page: user search. Data-agnostic.
 //
-// Optional baked-in flows: enableResetPassword/Deactivate + submit*-Callbacks.
-// Default-Actions werden APPENDED an Consumer-Actions.
+// Optional baked-in flows: enableResetPassword/Deactivate + submit* callbacks.
+// Default actions are APPENDED to consumer actions.
 
 export interface UserRow {
     id: string;
@@ -149,14 +149,14 @@ const props = withDefaults(
         actions?: readonly UserRowAction[];
         enableResetPassword?: boolean;
         enableDeactivate?: boolean;
-        /** Per-Flow-MFA fuer Reset-Password — zeigt MfaPromptDialog nach Reason-Prompt. */
+        /** Per-flow MFA for reset password — shows MfaPromptDialog after the reason prompt. */
         requireMfaForResetPassword?: boolean;
-        /** Per-Flow-MFA fuer Deactivate — zeigt MfaPromptDialog nach Reason-Prompt. */
+        /** Per-flow MFA for deactivate — shows MfaPromptDialog after the reason prompt. */
         requireMfaForDeactivate?: boolean;
         mfaSetupHint?: string;
-        // Returnwert: entweder `{oneTimePassword}` (zeigt OTP-Dialog)
-        // oder `void` (nur Notify). Page entscheidet anhand des Returns,
-        // ob OTP-Dialog angezeigt wird.
+        // Return value: either `{oneTimePassword}` (shows OTP dialog)
+        // or `void` (Notify only). The page decides based on the return
+        // whether the OTP dialog is shown.
         submitResetPassword?: (
             id: string,
             reason: string,
@@ -176,9 +176,9 @@ const rows = ref<UserRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ q: '', tenant: '' });
 
-// MFA-Dialog-State fuer Per-Flow-MFA (reset/deactivate). Promise-Resolver-
-// Pattern analog PilotsPage: Action-Handler ruft `promptMfa` und wartet auf
-// `onMfaConfirm` (oder Abbruch via `update:modelValue=false`).
+// MFA dialog state for per-flow MFA (reset/deactivate). Promise-resolver
+// pattern analogous to PilotsPage: the action handler calls `promptMfa` and
+// waits for `onMfaConfirm` (or cancellation via `update:modelValue=false`).
 const showMfa = ref(false);
 const mfaError = ref('');
 const mfaDescription = ref('');
@@ -210,7 +210,7 @@ function onMfaDialogVisibility(open: boolean): void {
     }
 }
 
-// Stat-Pill-Filter (analog Plan-Simulation users.jsx):
+// Stat-pill filter (analogous to plan simulation users.jsx):
 //   all | active | blocked | never-logged-in | super-admin.
 type StatusFilter = 'all' | 'active' | 'blocked' | 'never' | 'super';
 const statusFilter = ref<StatusFilter>('all');
@@ -299,7 +299,7 @@ const baseColumns = [
     },
 ];
 
-// Eingebaute Default-Actions — APPENDED an Consumer-Actions, nicht ersetzt.
+// Built-in default actions — APPENDED to consumer actions, not replaced.
 const bakedActions = computed<UserRowAction[]>(() => {
     const out: UserRowAction[] = [];
     if (props.enableResetPassword && props.submitResetPassword) {
@@ -373,9 +373,9 @@ function errMsg(err: unknown): string {
     );
 }
 
-// MFA-Loop analog PilotsPage: bei 401 bleibt der Dialog offen.
-// `invoke` muss den Code (leer wenn requireMfa=false) entgegennehmen und das
-// optional vom Server zurueckgegebene `oneTimePassword`-Result liefern.
+// MFA loop analogous to PilotsPage: on 401 the dialog stays open.
+// `invoke` must accept the code (empty when requireMfa=false) and deliver
+// the `oneTimePassword` result optionally returned by the server.
 async function runAction<R>(
     actionLabel: string,
     requireMfa: boolean,
@@ -428,9 +428,9 @@ function onResetPasswordClick(row: UserRow): void {
             !!props.requireMfaForResetPassword,
             (code) => submit(row.id, reason, code),
             (data) => {
-                // Server kann optional `oneTimePassword` zurueckgeben — dann
-                // OTP-Dialog anzeigen. Backends ohne OTP returnen
-                // void → nur Notify.
+                // The server can optionally return `oneTimePassword` — then
+                // show the OTP dialog. Backends without OTP return
+                // void → Notify only.
                 if (data && typeof data === 'object' && 'oneTimePassword' in data) {
                     q.dialog({
                         title: 'Einmal-Passwort generiert',

@@ -154,7 +154,7 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
             const ctor = instance.constructor as new (...args: unknown[]) => unknown;
             if (!ctor) continue;
 
-            // Klassen-Level: @DefinesQuota
+            // Class level: @DefinesQuota
             const quotaOpts = this.reflector.get<DefinesQuotaOptions | undefined>(
                 DEFINES_QUOTA_KEY,
                 ctor,
@@ -163,7 +163,7 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
                 this.registerQuota(quotasByKey, quotaOpts, ctor.name);
             }
 
-            // Methoden-Level: @ImplementsCapability + @EnforceQuota
+            // Method level: @ImplementsCapability + @EnforceQuota
             const prototype = Object.getPrototypeOf(instance) as object;
             const methodNames = this.metadataScanner.getAllMethodNames(prototype);
 
@@ -274,7 +274,7 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
 }
 
 // =============================================================================
-// Aggregations- und Hash-Helper (pure functions, testbar in Isolation)
+// Aggregation and hash helpers (pure functions, testable in isolation)
 // =============================================================================
 
 function aggregateFeatures(capabilities: DiscoveredCapability[]): DiscoveredFeature[] {

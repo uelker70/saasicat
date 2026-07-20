@@ -21,15 +21,15 @@ import {
 } from './self-service-policy.js';
 import { computeProration, type ProrationDto } from './proration.js';
 
-// PlanChangePreviewService — Plattform-Variante (datengetrieben).
+// PlanChangePreviewService — platform variant (data-driven).
 //
-// Im Vergleich zu einer app-eigenen Festverdrahtung (festes users/vehicles/storageGb):
-//   - LimitsCheck wird über die Union der Quota-Keys aus aktuellem
-//     Entitlement, Ziel-Plan und Usage-Snapshot iteriert.
-//   - Preise (currentPriceNet, targetPriceNet) kommen aus dem PlanCatalog,
-//     nicht aus DB-PlanVersion-Snapshots — Catalog ist die Listenpreis-SSoT.
-//   - Plan-Rank wird aus der Catalog-Reihenfolge abgeleitet; nicht-marketed
-//     Pläne (ENTERPRISE) bekommen Rank `Number.POSITIVE_INFINITY`.
+// Compared to an app's own hardwiring (fixed users/vehicles/storageGb):
+//   - LimitsCheck iterates over the union of quota keys from the current
+//     entitlement, target plan and usage snapshot.
+//   - Prices (currentPriceNet, targetPriceNet) come from the PlanCatalog,
+//     not from DB PlanVersion snapshots — the catalog is the list-price SSoT.
+//   - Plan rank is derived from the catalog order; non-marketed plans
+//     (ENTERPRISE) get rank `Number.POSITIVE_INFINITY`.
 
 export type PlanChangeType = 'UPGRADE' | 'DOWNGRADE' | 'CYCLE_CHANGE' | 'NOOP';
 
@@ -58,41 +58,41 @@ export interface PlanChangePreviewDto {
     changeType: PlanChangeType;
     current: { plan: PlanSnapshotDto; billingCycle: string };
     target: { plan: PlanSnapshotDto; billingCycle: string };
-    /** Bei Upgrade/NOOP: sofort (null). Sonst Periodenende. */
+    /** For upgrade/NOOP: immediately (null). Otherwise period end. */
     effectiveAt: Date | null;
     isImmediate: boolean;
     /**
-     * Projiziertes neues Trial-Ende nach dem Wechsel (App-Trial-Logik, z. B.
-     * Carry-over der Restzeit). `null`, wenn kein TrialProjectionPort
-     * konfiguriert ist, die Subscription nicht im Trial ist, oder sich nichts
-     * ändert. Der Wizard zeigt damit „regulär ab Ende der Testphase".
+     * Projected new trial end after the change (app trial logic, e.g.
+     * carry-over of the remaining time). `null` if no TrialProjectionPort is
+     * configured, the subscription is not in a trial, or nothing changes.
+     * The wizard uses this to show "regulär ab Ende der Testphase".
      */
     projectedTrialEndsAt: Date | null;
     proration: ProrationDto | null;
-    /** Map quotaKey → LimitsCheckRow über alle Quota-Dimensionen aus aktuellem Limit, Ziel-Plan und Verbrauch. */
+    /** Map quotaKey → LimitsCheckRow across all quota dimensions from the current limit, target plan and usage. */
     limitsCheck: Record<string, LimitsCheckRow>;
     featuresLost: string[];
     featuresGained: string[];
-    /** Harte Verhinderungs-Gründe — z. B. Verbrauch > Ziel-Limit. */
+    /** Hard prevention reasons — e.g. usage > target limit. */
     blockers: PlanChangePreviewIssue[];
-    /** Hinweise ohne Blockierung — z. B. Feature-Verlust. */
+    /** Non-blocking hints — e.g. feature loss. */
     warnings: PlanChangePreviewIssue[];
 }
 
 export interface PlanChangeContext {
-    /** Aktuelle Periodenstart-Zeit aus Subscription, falls vorhanden. */
+    /** Current period start time from the subscription, if present. */
     currentPeriodStart: Date | null;
-    /** Aktuelles Periodenende aus Subscription, falls vorhanden. */
+    /** Current period end from the subscription, if present. */
     currentPeriodEnd: Date | null;
-    /** TRIAL-Ende, falls Status === 'TRIAL'. */
+    /** TRIAL end, if status === 'TRIAL'. */
     trialEndsAt: Date | null;
-    /** Subscription-Status (TRIAL/ACTIVE/...). */
+    /** Subscription status (TRIAL/ACTIVE/...). */
     status: string;
-    /** Aktueller Cycle der Subscription (für Cycle-Change-Klassifikation). */
+    /** Current cycle of the subscription (for cycle-change classification). */
     currentBillingCycle: string;
-    /** Aktueller Plan der Subscription. */
+    /** Current plan of the subscription. */
     currentPlan: string;
-    /** Subscription-Start, falls vorhanden (für periodEndAfter-Fallback). */
+    /** Subscription start, if present (for the periodEndAfter fallback). */
     startedAt: Date | null;
 }
 
@@ -100,9 +100,9 @@ export interface PlanChangeContext {
 export class PlanChangePreviewService {
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
-        // Explizites @Inject — tsup-Build hat kein emitDecoratorMetadata,
-        // also funktioniert Class-Type-Reflection nicht; NestJS würde sonst
-        // an diesem Parameter UndefinedDependencyException werfen.
+        // Explicit @Inject — the tsup build has no emitDecoratorMetadata,
+        // so class-type reflection doesn't work; NestJS would otherwise throw
+        // an UndefinedDependencyException on this parameter.
         @Inject(EntitlementService) private readonly entitlements: EntitlementService,
         @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
         private readonly subscriptions: SubscriptionUsagePort,
@@ -184,7 +184,7 @@ export class PlanChangePreviewService {
             const used = usage[key] ?? 0;
             const currentMax = currentLimits.quotas[key] ?? 0;
             const targetMax = targetSnap.quotas[key] ?? 0;
-            // -1 = unbegrenzt (Catalog-Konvention).
+            // -1 = unlimited (catalog convention).
             const exceeded = targetMax !== -1 && used > targetMax;
             limitsCheck[key] = { used, currentMax, targetMax, exceeded };
         }
@@ -230,7 +230,7 @@ export class PlanChangePreviewService {
             });
         }
 
-        // Downgrade-Pre-Check pro quotaKey
+        // Downgrade pre-check per quotaKey
         for (const [key, row] of Object.entries(limitsCheck)) {
             if (!row.exceeded) continue;
             const usedDisplay = isFloatQuota(key) ? row.used.toFixed(1) : row.used.toString();
@@ -255,7 +255,7 @@ export class PlanChangePreviewService {
             });
         }
 
-        // Trial-Projektion (App-spezifisch) — nur im aktiven Trial relevant.
+        // Trial projection (app-specific) — only relevant during an active trial.
         const projectedTrialEndsAt =
             this.trialProjection && sub.status === 'TRIAL'
                 ? await this.trialProjection.projectTrialEndsAt({
@@ -283,8 +283,8 @@ export class PlanChangePreviewService {
         };
     }
 
-    /** Wie `preview`, aber nur die Blocker-Liste — für serverseitigen
-     * Pre-Check vor `changePlan`-Mutation (defense-in-depth). */
+    /** Like `preview`, but only the blocker list — for a server-side
+     * pre-check before the `changePlan` mutation (defense-in-depth). */
     async assertChangeAllowed(
         tenantId: string,
         targetPlan: string,
@@ -308,7 +308,7 @@ export class PlanChangePreviewService {
         return targetRank > currentRank ? 'UPGRADE' : 'DOWNGRADE';
     }
 
-    /** Catalog-Reihenfolge = Rank. Nicht-marketed Pläne ans Ende. */
+    /** Catalog order = rank. Non-marketed plans go to the end. */
     private planRank(planId: string): number {
         const plans = this.catalog.plans ?? [];
         const idx = plans.findIndex((p) => p.id === planId);
@@ -352,6 +352,6 @@ function priceForCycle(snap: PlanSnapshotDto, cycle: string): number | null {
 }
 
 function isFloatQuota(key: string): boolean {
-    // Storage-Werte sind GB-Floats; alle anderen sind Integer-Counts.
+    // Storage values are GB floats; all others are integer counts.
     return key.toLowerCase().includes('storage');
 }

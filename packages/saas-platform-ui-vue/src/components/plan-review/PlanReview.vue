@@ -1,6 +1,6 @@
 <template>
     <div class="pr">
-        <!-- Kopf -->
+        <!-- Header -->
         <div class="pr-head">
             <div class="pr-head-text">
                 <h2 class="pr-title">Review &amp; Publish</h2>
@@ -66,7 +66,7 @@
         <div v-if="publishError" class="pr-banner">{{ publishError }}</div>
 
         <div class="pr-grid">
-            <!-- Linke Spalte -->
+            <!-- Left column -->
             <div class="pr-col">
                 <div class="pr-card">
                     <h3 class="pr-card-title">Stammdaten</h3>
@@ -168,7 +168,7 @@
                 </div>
             </div>
 
-            <!-- Rechte Spalte -->
+            <!-- Right column -->
             <div class="pr-col">
                 <div class="pr-card">
                     <h3 class="pr-card-title">Change-Note <span class="pr-req">*</span></h3>
@@ -274,10 +274,10 @@
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 
-// PlanReview — Schritt 3 des Plan-Wizards (SPEC_V2 §6, Plan-Simulation
-// „Review & Publish"). Zeigt den gespeicherten Draft read-only, prüft die
-// Publish-Checkliste und löst Publish aus. Der Draft wurde im Editor
-// (Schritt 2) bereits persistiert; Review mutiert nichts außer Publish.
+// PlanReview — step 3 of the plan wizard (SPEC_V2 §6, plan simulation
+// "Review & Publish"). Shows the saved draft read-only, checks the
+// publish checklist and triggers publish. The draft was already persisted
+// in the editor (step 2); review mutates nothing except publish.
 
 interface DiscoveryQuota {
     quotaKey: string;
@@ -296,20 +296,20 @@ interface FeatureMeta {
 const props = withDefaults(
     defineProps<{
         plan: PlanRow;
-        /** Der zu reviewende Draft (publishedAt === null). */
+        /** The draft to be reviewed (publishedAt === null). */
         version: PlanVersionRow;
-        /** Aktuelle Live-Version, gegen die publiziert wird (null bei v1). */
+        /** Current live version being published against (null for v1). */
         predecessor?: PlanVersionRow | null;
         availableQuotas?: DiscoveryQuota[];
         availableBundles?: BundleEntry[];
         featureRegistry?: Record<string, FeatureMeta>;
-        /** Mandanten auf der aktuellen Live-Version (für die Impact-Karte). */
+        /** Tenants on the current live version (for the impact card). */
         tenantImpactCount?: number;
-        /** „Als Draft speichern" läuft. */
+        /** "Save as draft" in progress. */
         saving?: boolean;
-        /** „Publish" läuft. */
+        /** "Publish" in progress. */
         publishing?: boolean;
-        /** Fehlertext einer Review-Aktion (Speichern oder Publish). */
+        /** Error text of a review action (save or publish). */
         publishError?: string | null;
     }>(),
     {
@@ -369,15 +369,15 @@ const componentTotal = computed(
     () => quotaList.value.length + featureList.value.length + bundleList.value.length,
 );
 
-// Gültiger Preis — auch 0 € (kostenloser Plan) ist gesetzt; nur ein
-// ungültiger/leerer Wert zählt als „fehlt".
+// Valid price — even 0 € (free plan) counts as set; only an
+// invalid/empty value counts as "missing".
 const hasMonthly = computed(() => {
     const n = Number(props.version.monthlyNet);
     return props.version.monthlyNet !== '' && Number.isFinite(n) && n >= 0;
 });
 
-// „Gültig ab" muss strikt nach dem „Gültig ab" der Vorgänger-Version
-// liegen (SPEC_V2 §4.2.1) — sonst lehnt der Publish-Endpoint ab.
+// "Gültig ab" must lie strictly after the "Gültig ab" of the predecessor
+// version (SPEC_V2 §4.2.1) — otherwise the publish endpoint rejects.
 const validFromAfterPredecessor = computed(() => {
     const prev = props.predecessor;
     if (!prev?.validFrom || !props.version.validFrom) return true;

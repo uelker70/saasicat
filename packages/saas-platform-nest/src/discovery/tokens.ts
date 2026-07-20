@@ -1,35 +1,35 @@
-// Discovery Metadata-Konstanten
+// Discovery metadata constants
 //
-// SetMetadata-Keys für die Discovery-Decorators. Konvention analog zu
-// `billing/feature-guard.tokens.ts` und `admin/mfa.guard.ts`: ein eigenes
-// Token pro Decorator. Strings statt Symbols, weil `SetMetadata` aus
-// `@nestjs/common` String-Keys nutzt und `Reflector.get()` damit arbeitet.
+// SetMetadata keys for the Discovery decorators. Convention analogous to
+// `billing/feature-guard.tokens.ts` and `admin/mfa.guard.ts`: a separate
+// token per decorator. Strings instead of symbols, because `SetMetadata` from
+// `@nestjs/common` uses string keys and `Reflector.get()` works with them.
 
-/** Methoden-Level: markiert eine Capability-Implementierung. */
+/** Method level: marks a capability implementation. */
 export const IMPLEMENTS_CAPABILITY_KEY = 'discovery:implements-capability';
 
-/** Methoden-/Klassen-Level: Runtime-Guard, Tenant muss Capability haben. */
+/** Method/class level: runtime guard, tenant must have the capability. */
 export const REQUIRES_CAPABILITY_KEY = 'discovery:requires-capability';
 
-/** Klassen-Level: markiert eine Klasse als QuotaProvider für einen QuotaKey. */
+/** Class level: marks a class as a QuotaProvider for a QuotaKey. */
 export const DEFINES_QUOTA_KEY = 'discovery:defines-quota';
 
-/** Methoden-Level: Runtime-Enforcement (Increment/Check eines Quota-Counters). */
+/** Method level: runtime enforcement (increment/check of a quota counter). */
 export const ENFORCE_QUOTA_KEY = 'discovery:enforce-quota';
 
 /**
- * Provider-Token für den DiscoverySnapshot — wird vom DiscoveryModule
- * bereitgestellt und via `@Inject(DISCOVERY_SNAPSHOT_TOKEN)` konsumiert
- * (z. B. AdminController `/admin/discovery`, CatalogModule-Auto-Sync).
+ * Provider token for the discovery snapshot — provided by the DiscoveryModule
+ * and consumed via `@Inject(DISCOVERY_SNAPSHOT_TOKEN)`
+ * (e.g. AdminController `/admin/discovery`, CatalogModule auto-sync).
  *
- * `Symbol.for` (NICHT `Symbol`) ist hier zwingend: dieses Paket wird mit tsup/
- * esbuild gebaut, das CJS nicht code-splitten kann — jeder Entry-Point
- * (`./discovery`, `./catalog`, …) inlined deshalb seine EIGENE Kopie dieser
- * Datei. Ein plain `Symbol()` wäre pro Kopie ein anderes Symbol; ein Consumer,
- * der DiscoveryModule aus `./discovery` und CatalogModule aus `./catalog`
- * importiert, bekäme zwei verschiedene Tokens → DI-Match
- * schlägt fehl → Snapshot erreicht das CatalogModule nicht (Prod-Incident
- * 2026-06-09). `Symbol.for` nutzt die prozessweite Registry → identisch über
- * alle Bundle-Kopien. (#25)
+ * `Symbol.for` (NOT `Symbol`) is mandatory here: this package is built with tsup/
+ * esbuild, which cannot code-split CJS — each entry point
+ * (`./discovery`, `./catalog`, …) therefore inlines its OWN copy of this
+ * file. A plain `Symbol()` would be a different symbol per copy; a consumer
+ * that imports DiscoveryModule from `./discovery` and CatalogModule from `./catalog`
+ * would get two different tokens → the DI match
+ * fails → the snapshot does not reach the CatalogModule (prod incident
+ * 2026-06-09). `Symbol.for` uses the process-wide registry → identical across
+ * all bundle copies. (#25)
  */
 export const DISCOVERY_SNAPSHOT_TOKEN = Symbol.for('saas-platform/DiscoverySnapshot');

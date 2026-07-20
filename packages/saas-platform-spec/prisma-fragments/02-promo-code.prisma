@@ -1,14 +1,14 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: Promo-Codes
+// SaaS-Platform Prisma fragment: promo codes
 // =============================================================================
 //
-// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
-// Begleitende Fragmente:
-//   - 01-subscription.prisma  (PromoCodeRedemption ist 1:1 zu Subscription)
+// Accompanying fragments:
+//   - 01-subscription.prisma  (PromoCodeRedemption is 1:1 with Subscription)
 
 // -----------------------------------------------------------------------------
-// Universelle Enums.
+// Universal enums.
 // -----------------------------------------------------------------------------
 
 enum PromoCodeValueType {
@@ -36,33 +36,33 @@ enum PromoCodeRedemptionStatus {
 }
 
 // -----------------------------------------------------------------------------
-// PromoCode — Marketing-Rabattcode für Onboarding-Checkout.
+// PromoCode — marketing discount code for onboarding checkout.
 // -----------------------------------------------------------------------------
 
 model PromoCode {
     id        String             @id @default(uuid())
-    code      String             @unique // case-insensitive, gespeichert in UPPER
+    code      String             @unique // case-insensitive, stored in UPPER
     valueType PromoCodeValueType
-    value     Decimal            @db.Decimal(8, 2) // % bei PERCENT, EUR bei ABSOLUTE
+    value     Decimal            @db.Decimal(8, 2) // % for PERCENT, EUR for ABSOLUTE
 
-    // Laufzeit
+    // Duration
     durationType  PromoCodeDurationType @default(ONCE)
-    durationValue Int? // null bei ONCE; 1–24 bei MONTHS / BILLING_CYCLES
+    durationValue Int? // null for ONCE; 1–24 for MONTHS / BILLING_CYCLES
 
     validFrom      DateTime?
     validUntil     DateTime?
-    maxRedemptions Int? // null = unbegrenzt
+    maxRedemptions Int? // null = unlimited
 
-    // Verfügbarkeitsrelevant — zählt nur Redemptions mit status=ACTIVE.
-    // Atomar im redeem()-Pfad inkrementiert, beim Trial-Storno dekrementiert.
+    // Availability-relevant — counts only redemptions with status=ACTIVE.
+    // Incremented atomically in the redeem() path, decremented on trial cancellation.
     redemptionsCount Int @default(0)
 
-    // Plan-Whitelist als String[] — Werte sind plan-IDs aus plans.yaml.
-    // Konsumenten, die ein Postgres-Enum nutzen, können das Feld lokal casten.
-    appliesToPlans   String[] // leer = alle Pläne; sonst Whitelist
-    appliesToBilling BillingCycle? // null = beide; sonst nur MONTHLY oder YEARLY
+    // Plan whitelist as String[] — values are plan IDs from plans.yaml.
+    // Consumers using a Postgres enum can cast the field locally.
+    appliesToPlans   String[] // empty = all plans; otherwise whitelist
+    appliesToBilling BillingCycle? // null = both; otherwise only MONTHLY or YEARLY
 
-    // Anti-Missbrauch
+    // Anti-abuse
     firstTimeCustomersOnly Boolean  @default(true)
     minimumPlanAmountGross Decimal? @db.Decimal(10, 2)
     allowZeroInvoice       Boolean  @default(false)
@@ -71,14 +71,14 @@ model PromoCode {
     description String?
     campaignTag String?
 
-    // Buchhaltung — SKR-Konto-Nr. (z. B. "4736"); falls null, fällt der
-    // Konsument auf System-Default zurück (im Konsumenten konfigurierbar).
+    // Accounting — SKR account no. (e.g. "4736"); if null, the
+    // consumer falls back to the system default (configurable in the consumer).
     revenueDeductionAccount String?
 
-    createdById String // SUPER_ADMIN-User-Id (Konsumenten-FK, siehe Header)
+    createdById String // SUPER_ADMIN user ID (consumer FK, see header)
     createdAt   DateTime  @default(now())
     updatedAt   DateTime  @updatedAt
-    deletedAt   DateTime? // Soft-Delete; nie hart löschen wegen Audit
+    deletedAt   DateTime? // soft delete; never hard-delete for audit reasons
 
     redemptions    PromoCodeRedemption[]
     validationLogs PromoCodeValidationLog[]
@@ -89,7 +89,7 @@ model PromoCode {
 }
 
 // -----------------------------------------------------------------------------
-// PromoCodeRedemption — eine Subscription kann nur einen aktiven Code haben.
+// PromoCodeRedemption — a subscription can have only one active code.
 // -----------------------------------------------------------------------------
 
 model PromoCodeRedemption {
@@ -98,13 +98,13 @@ model PromoCodeRedemption {
     subscriptionId String @unique
     tenantId       String
 
-    // Snapshot der Code-Regel zum Zeitpunkt der Einlösung.
+    // Snapshot of the code rule at redemption time.
     appliedValueType     PromoCodeValueType
     appliedValue         Decimal               @db.Decimal(8, 2)
     appliedDurationType  PromoCodeDurationType
     appliedDurationValue Int?
 
-    // Gültigkeitsfenster — endsAt null bei ONCE, sonst aus Snapshot berechnet.
+    // Validity window — endsAt null for ONCE, otherwise computed from the snapshot.
     startsAt DateTime
     endsAt   DateTime?
 
@@ -123,16 +123,16 @@ model PromoCodeRedemption {
 }
 
 // -----------------------------------------------------------------------------
-// PromoCodeValidationLog — Audit-Trail aller Validierungs-Versuche
-// (auch fehlgeschlagene NOT_FOUND/EXPIRED), für Anti-Missbrauch-Analyse.
+// PromoCodeValidationLog — audit trail of all validation attempts
+// (including failed NOT_FOUND/EXPIRED), for anti-abuse analysis.
 // -----------------------------------------------------------------------------
 
 model PromoCodeValidationLog {
     id          String   @id @default(uuid())
-    promoCodeId String? // null bei NOT_FOUND-Versuchen
-    codeAttempt String // Eingabe in UPPER (auch bei NOT_FOUND aufgehoben)
-    ipHash      String? // Hash der IP, kein Klartext (Datenschutz)
-    sessionId   String? // Onboarding-Session / CSRF-Token
+    promoCodeId String? // null for NOT_FOUND attempts
+    codeAttempt String // input in UPPER (retained even for NOT_FOUND)
+    ipHash      String? // hash of the IP, no plaintext (data protection)
+    sessionId   String? // onboarding session / CSRF token
     result      String // "VALID" | "EXPIRED" | "EXHAUSTED" | "NOT_FOUND" | "PLAN_MISMATCH" | …
     createdAt   DateTime @default(now())
 

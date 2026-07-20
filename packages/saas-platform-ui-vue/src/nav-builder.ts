@@ -144,11 +144,11 @@ export const DEFAULT_SECTION_ORDER: readonly string[] = [
 ];
 
 /**
- * Liefert die Liste aller Routen, die das aktuelle Manifest definiert —
- * gefiltert auf die Capabilities, die der eingeloggte User besitzt.
+ * Returns the list of all routes defined by the current manifest —
+ * filtered to the capabilities that the logged-in user has.
  *
- * Konsument-Shell baut daraus dann ihre Vue-Router-Konfiguration und ihren
- * Sidebar-Drawer.
+ * The consumer shell then builds its Vue router configuration and its
+ * sidebar drawer from it.
  */
 export function buildRoutes(
     manifest: AdminManifest,
@@ -212,21 +212,21 @@ export interface SidebarItem {
 }
 
 export interface SidebarSection {
-    /** `null` für die Default-Sektion (Items ohne `navSection`). */
+    /** `null` for the default section (items without `navSection`). */
     section: string | null;
     items: SidebarItem[];
 }
 
 /**
- * Gruppiert die Routen nach `navSection` für den Drawer.
+ * Groups the routes by `navSection` for the drawer.
  *
- * Section-Reihenfolge:
- *   1. Default-Sektion (`null`) — Items ohne `navSection`.
- *   2. Sektionen aus `sectionOrder` in genau dieser Reihenfolge.
- *   3. Übrige Sektionen alphabetisch.
+ * Section order:
+ *   1. Default section (`null`) — items without `navSection`.
+ *   2. Sections from `sectionOrder` in exactly this order.
+ *   3. Remaining sections alphabetically.
  *
- * Default-Reihenfolge entspricht dem Plan-Simulation-Layout (Übersicht →
- * Produktkatalog → Kunden → System); Konsumenten können sie überschreiben.
+ * The default order matches the plan simulation layout (Übersicht →
+ * Produktkatalog → Kunden → System); consumers can override it.
  */
 export function buildSidebar(
     routes: BuildRouteEntry[],
@@ -260,14 +260,14 @@ export function buildSidebar(
 }
 
 /**
- * Liefert die zum gegebenen `componentKey` registrierte Vue-Komponente.
- * Konsumenten-Shell ruft diese Funktion mit ihrer eigenen `extensions:`-Map
- * auf. Bei unbekannten Keys → `null` (UI rendert dann eine Fallback-
- * Komponente, z. B. „Component not found in shell build").
+ * Returns the Vue component registered for the given `componentKey`.
+ * The consumer shell calls this function with its own `extensions:` map.
+ * For unknown keys → `null` (the UI then renders a fallback
+ * component, e.g. "Component not found in shell build").
  *
- * `extensions` ist `Record<string, T>` — `T` ist typischerweise eine
- * Vue-Component (entweder direkt importiert oder als
- * `defineAsyncComponent`-Wrapper).
+ * `extensions` is `Record<string, T>` — `T` is typically a
+ * Vue component (either imported directly or as a
+ * `defineAsyncComponent` wrapper).
  */
 export function resolveExtension<T>(componentKey: string, extensions: Record<string, T>): T | null {
     return extensions[componentKey] ?? null;

@@ -128,8 +128,8 @@
                     </q-card-section>
 
                     <q-card-section class="q-pt-none">
-                        <!-- Sandbox ohne Flags: kein Script, kein same-origin — sicheres
-                             Vorschau-Rendering beliebiger E-Mail-HTML. -->
+                        <!-- Sandbox without flags: no script, no same-origin — safe
+                             preview rendering of arbitrary email HTML. -->
                         <iframe
                             v-if="detail.bodyHtml"
                             :srcdoc="detail.bodyHtml"
@@ -208,10 +208,10 @@ import type {
     EmailHistoryStatus,
 } from './email-history.types';
 
-// Plattform-Standard-Page: E-Mail-Verlauf des Plattform-Absenders. Wie alle
-// Standard-Pages datenagnostisch — die App reicht die API-Calls als Props (mit
-// eigenem Auth-/MFA-Wiring). Liste/Detail sind read-only; Entfernen und Erneut-
-// Senden sind MFA-pflichtig.
+// Platform standard page: email history of the platform sender. Like all
+// standard pages data-agnostic — the app passes the API calls as props (with
+// its own auth/MFA wiring). List/detail are read-only; remove and resend
+// are MFA-required.
 
 const props = withDefaults(
     defineProps<{
@@ -242,7 +242,7 @@ const filter = reactive<{
     to: string;
 }>({ search: '', status: null, from: '', to: '' });
 
-// Server sortiert immer createdAt desc — daher kein sortBy/descending im Model.
+// Server always sorts createdAt desc — hence no sortBy/descending in the model.
 const pagination = ref({
     page: 1,
     rowsPerPage: props.pageSize,
@@ -283,14 +283,14 @@ const detail = ref<EmailHistoryDetail | null>(null);
 const confirmDeleteOpen = ref(false);
 const pendingDeleteId = ref<string | null>(null);
 
-// MFA-Loop analog PlatformEmailPage (Promise-Resolver-Pattern).
+// MFA loop analogous to PlatformEmailPage (promise-resolver pattern).
 const showMfa = ref(false);
 const mfaError = ref('');
 const mfaDescription = ref('');
 let pendingMfaResolve: ((code: string | null) => void) | null = null;
 
-// Sequenz-Guard: bei schnell wechselnden Filtern darf eine veraltete (out-of-
-// order) Antwort die neueste nicht überschreiben.
+// Sequence guard: with rapidly changing filters a stale (out-of-order)
+// response must not overwrite the newest.
 let reloadSeq = 0;
 
 async function reload(): Promise<void> {
@@ -383,8 +383,8 @@ async function confirmDelete(): Promise<void> {
     await reload();
 }
 
-// MFA-Loop: bei 401 bleibt der Dialog offen und fragt erneut. Liefert das
-// Ergebnis des Writes mit zurück (für Resend, dessen SMTP-Ausgang im Body steht).
+// MFA loop: on 401 the dialog stays open and asks again. Also returns the
+// result of the write (for resend, whose SMTP outcome is in the body).
 async function runWrite<T>(
     label: string,
     invoke: (code: string) => Promise<T>,

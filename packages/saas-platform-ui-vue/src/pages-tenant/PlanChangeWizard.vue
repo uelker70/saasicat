@@ -174,8 +174,8 @@
                         {{ i18n.confirmScheduled }} {{ formatDate(preview.effectiveAt) }}.
                     </p>
 
-                    <!-- #17: Preisübersicht — anteilig jetzt + regulär ab Folgeperiode.
-                         Im Trial fällt nichts an → nur Hinweis + Folgepreis. -->
+                    <!-- #17: Price summary — prorated now + regular from the next period.
+                         During a trial nothing is charged → only a note + next price. -->
                     <div v-if="preview" class="sp-wizard__price-summary">
                         <h4>{{ i18n.confirmPriceTitle }}</h4>
                         <div v-if="isTrial" class="sp-wizard__price-note">
@@ -223,12 +223,12 @@ import PlanGrid from '../components/plan/PlanGrid.vue';
 import type { BillingCycleStr, PlanChangePreviewShape } from '../use-tenant-billing.js';
 import type { CatalogPlan } from '../use-tenant-billing-catalog.js';
 
-// PlanChangeWizard — 3-Step-Dialog für Plan-Wechsel.
+// PlanChangeWizard — 3-step dialog for plan changes.
 //
-// Eingabe: Liste der buchbaren Pläne aus dem Catalog + aktueller Plan/Cycle.
-// Logik: Step 1 lokale Auswahl, Step 2 ruft `previewPlanChange` und zeigt
-// Limits-Check + Proration + Feature-Diff + Blockers, Step 3 ruft `changePlan`.
-// Datengetrieben über die übergebenen `catalogQuotaKeys[]` — keine harte Trinität.
+// Input: list of bookable plans from the catalog + current plan/cycle.
+// Logic: step 1 local selection, step 2 calls `previewPlanChange` and shows
+// the limits check + proration + feature diff + blockers, step 3 calls `changePlan`.
+// Data-driven via the passed `catalogQuotaKeys[]` — no hard-coded trinity.
 
 interface I18nStrings {
     title: string;
@@ -283,33 +283,33 @@ interface Props {
     currentPlanId: string;
     currentPlanName: string;
     currentCycle: BillingCycleStr;
-    /** Subscription-Status (z. B. 'TRIAL'/'ACTIVE') — für Trial-Hinweis im Confirm. */
+    /** Subscription status (e.g. 'TRIAL'/'ACTIVE') — for the trial note in confirm. */
     currentStatus?: string;
-    /** Trial-Ende-ISO, falls Status TRIAL — für „regulär ab Ende der Testphase". */
+    /** Trial-end ISO, if status is TRIAL — for "regular from the end of the trial". */
     trialEndsAt?: string | null;
-    /** Catalog-Quota-Keys in deklarierter Reihenfolge. */
+    /** Catalog quota keys in declared order. */
     catalogQuotaKeys: string[];
-    /** Konsumenten-Hooks. */
+    /** Consumer hooks. */
     formatCurrency: (n: number) => string;
     formatDate: (iso: string) => string;
     /**
-     * Optional: kombinierter Label-+-Wert ("200 Mitglieder"). Wird intern
-     * nicht mehr benutzt, seit Step 1 auf `<PlanGrid>` mit `quotaLabel` +
-     * `formatQuotaValue` umgestellt ist (P10.2.1). Bleibt aus Backward-
-     * Kompatibilitätsgründen in der Prop-Liste — Konsumenten, die ihn früher
-     * konfiguriert haben, funktionieren ohne Code-Änderung weiter.
+     * Optional: combined label-+-value ("200 Mitglieder"). No longer used
+     * internally since step 1 was switched to `<PlanGrid>` with `quotaLabel` +
+     * `formatQuotaValue` (P10.2.1). Kept in the prop list for backward-
+     * compatibility reasons — consumers that configured it earlier keep working
+     * without any code change.
      */
     formatQuotaLabel?: (key: string, value: number) => string;
     /**
-     * Reiner Wert pro Quota-Key, z. B. "200" oder "10 GB" (für PlanGrid).
-     * Optional — Default: nimmt `value.toLocaleString('de-DE')`, fügt bei
-     * `storage`-Keys eine `GB`-Endung an, ersetzt -1 durch ∞.
+     * Plain value per quota key, e.g. "200" or "10 GB" (for PlanGrid).
+     * Optional — default: takes `value.toLocaleString('de-DE')`, appends a
+     * `GB` suffix for `storage` keys, replaces -1 with ∞.
      */
     formatQuotaValue?: (key: string, value: number) => string;
     quotaLabel: (key: string) => string;
     featureLabel: (key: string) => string;
     isFractionalQuota?: (key: string) => boolean;
-    /** Preview-Caller (vom Konsumenten-Composable durchgereicht). */
+    /** Preview caller (passed through from the consumer composable). */
     previewPlanChange: (plan: string, cycle: BillingCycleStr) => Promise<PlanChangePreviewShape>;
     changePlan: (plan: string, cycle: BillingCycleStr, immediate: boolean) => Promise<void>;
     i18n: I18nStrings;
@@ -351,8 +351,8 @@ const canAdvanceFromStep1 = computed(() => {
     return targetPlan.value !== props.currentPlanId || targetCycle.value !== props.currentCycle;
 });
 
-// #17 — Preisübersicht im Bestätigen-Schritt: regulärer Preis ab Folgeperiode
-// (im gewählten Zyklus) + ggf. anteilig fälliger Betrag der laufenden Periode.
+// #17 — price summary in the confirm step: regular price from the next period
+// (in the selected cycle) + possibly the prorated amount due for the current period.
 const recurringPriceNet = computed<number>(() => {
     const t = preview.value?.target.plan;
     if (!t) return 0;
@@ -366,8 +366,8 @@ const recurringCycleLabel = computed(() =>
 const isTrial = computed(() => props.currentStatus === 'TRIAL');
 
 const recurringFromLabel = computed(() => {
-    // Trial: während Testphase nichts fällig → regulär erst ab Testphasen-Ende.
-    // Bevorzugt das projizierte NEUE Trial-Ende (Carry-over), sonst das aktuelle.
+    // Trial: nothing due during the trial → regular only from the end of the trial.
+    // Prefers the projected NEW trial end (carry-over), otherwise the current one.
     if (isTrial.value) {
         const end =
             preview.value?.projectedTrialEndsAt ??
@@ -378,9 +378,9 @@ const recurringFromLabel = computed(() => {
             ? `${props.i18n.confirmRecurringTrialEnd} (${props.formatDate(end)})`
             : props.i18n.confirmRecurringTrialEnd;
     }
-    // Sofort wirksam (Upgrade ohne Trial): regulär ab nächster Periode.
+    // Immediately effective (upgrade without trial): regular from the next period.
     if (preview.value?.proration) return props.i18n.confirmRecurringNext;
-    // Geplant (Downgrade/Cycle): regulär ab Wirksamkeitsdatum.
+    // Scheduled (downgrade/cycle): regular from the effective date.
     if (preview.value?.effectiveAt) {
         return `${props.i18n.confirmRecurringFrom} ${props.formatDate(preview.value.effectiveAt)}`;
     }
@@ -425,8 +425,8 @@ function isFractionalQuotaSafe(key: string): boolean {
 
 function formatQuotaValueResolved(key: string, value: number | null | undefined): string {
     if (props.formatQuotaValue) return props.formatQuotaValue(key, value as number);
-    // Plans dürfen einzelne Quota-Keys weglassen; Default-Renderer muss
-    // mit `undefined` zurechtkommen statt zu crashen (.toLocaleString).
+    // Plans may omit individual quota keys; the default renderer must
+    // cope with `undefined` instead of crashing (.toLocaleString).
     if (value === null || value === undefined || Number.isNaN(value)) return '–';
     if (value < 0) return '∞';
     if (key.toLowerCase().includes('storage')) return `${value} GB`;
@@ -479,7 +479,7 @@ async function submit() {
 
 function close() {
     model.value = false;
-    // Reset State, damit der nächste Open-Vorgang frisch startet.
+    // Reset state so the next open starts fresh.
     setTimeout(() => {
         step.value = 1;
         targetPlan.value = null;
@@ -505,7 +505,7 @@ watch(
     width: min(900px, 95vw);
     max-height: 90vh;
 }
-/* CSS-Vars für Light + Dark Mode */
+/* CSS vars for light + dark mode */
 .sp-wizard {
     --sp-wiz-border: rgba(0, 0, 0, 0.08);
     --sp-wiz-text-strong: rgba(0, 0, 0, 0.87);

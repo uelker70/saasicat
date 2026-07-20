@@ -1,28 +1,27 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: PendingRegistration + PaymentEventLog
+// SaaS Platform Prisma fragment: PendingRegistration + PaymentEventLog
 // =============================================================================
 //
-// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
-// Persistenz des mehrstufigen Registrierungs- und Onboarding-Flows
-// (`PendingRegistrationService`). Eine PendingRegistration hält den
-// Zwischenzustand zwischen Schritt 1 (Anmeldedaten erfassen) und der finalen
-// Aktivierung (Schritt 4: Zahlung). Erst nach erfolgreicher Zahlung wird
-// daraus User + Tenant + Subscription — bis dahin bleibt der Datensatz
-// bewusst ohne Foreign Key auf Konsumenten-Models.
+// Persistence of the multi-step registration and onboarding flow
+// (`PendingRegistrationService`). A PendingRegistration holds the
+// intermediate state between step 1 (capturing sign-up data) and the final
+// activation (step 4: payment). Only after successful payment does it become
+// User + Tenant + Subscription — until then the record deliberately stays
+// without a foreign key to consumer models.
 //
-// Abweichend von den übrigen Fragmenten OHNE `@@map`: das Model wurde aus der
-// Referenz-Implementierung rückübernommen, deren Tabellen bereits
-// unter den Prisma-Default-Namen leben — ein nachträgliches `@@map` würde nur
-// eine Tabellen-Umbenennung erzwingen.
+// Unlike the other fragments, WITHOUT `@@map`: the model was adopted back from
+// the reference implementation, whose tables already live under the Prisma
+// default names — a subsequent `@@map` would only force a table rename.
 //
-// Vertrag: saas-platform-types/registration.types.ts (PendingRegistration,
-//          PendingRegistrationRepository, PaymentEventLog).
-// Service-Logik: saas-platform-nest/registration/PendingRegistrationService.
+// Contract: saas-platform-types/registration.types.ts (PendingRegistration,
+//           PendingRegistrationRepository, PaymentEventLog).
+// Service logic: saas-platform-nest/registration/PendingRegistrationService.
 
-// Mehrstufiger Registrierungs-Flow: Status einer PendingRegistration
-// zwischen Anmeldedaten-Erfassung (Schritt 1) und finaler Aktivierung
-// nach Zahlung (Schritt 4).
+// Multi-step registration flow: status of a PendingRegistration
+// between sign-up-data capture (step 1) and final activation
+// after payment (step 4).
 enum RegistrationStatus {
     PENDING_EMAIL_VERIFICATION
     EMAIL_VERIFIED
@@ -53,18 +52,18 @@ model PendingRegistration {
     otpExpiresAt  DateTime?
     otpSendCount  Int       @default(1)
     lastOtpSentAt DateTime?
-    // Persistenter Fehlversuchs-Zähler der OTP-Verifikation. Ab
-    // OTP_VERIFY_MAX_ATTEMPTS wirft verifyOtp() OTP_LOCKED — auch bei
-    // danach korrektem Code. Ein neu generierter OTP setzt auf 0 zurück
-    // (der Versand ist separat ratelimitiert via otpSendCount).
+    // Persistent failed-attempt counter of the OTP verification. From
+    // OTP_VERIFY_MAX_ATTEMPTS on, verifyOtp() throws OTP_LOCKED — even with
+    // a correct code afterwards. A newly generated OTP resets it to 0
+    // (sending is rate-limited separately via otpSendCount).
     otpAttemptCount Int @default(0)
 
     selectedPlanId String?
-    // Konfigurator-Auswahl (Step 3):
-    // - configJson: JSON-Snapshot der RegistrationConfigSelection.
-    // - billingCycle: 'MONTHLY' | 'YEARLY' — bestimmt die Preisberechnung.
-    // - appliedPromoCode: Last-applied-Code (Klartext, nur für UI-Anzeige;
-    //   Validierung läuft jedes Mal frisch über PromoCodesService).
+    // Configurator selection (Step 3):
+    // - configJson: JSON snapshot of the RegistrationConfigSelection.
+    // - billingCycle: 'MONTHLY' | 'YEARLY' — determines the price calculation.
+    // - appliedPromoCode: last-applied code (plaintext, only for UI display;
+    //   validation runs fresh every time via PromoCodesService).
     configJson        Json?
     billingCycle      String?
     appliedPromoCode  String?
@@ -79,10 +78,10 @@ model PendingRegistration {
     @@index([tenantSlug])
 }
 
-// PaymentEventLog — Idempotenz-Schlüssel für Payment-Webhooks.
-// Verhindert, dass ein doppelt zugestellter Webhook (Stripe-at-least-once) die
-// finale Aktivierung mehrfach auslöst. `eventId` ist die Provider-Event-ID
-// (Stripe `event.id`), `tryClaim` setzt @unique INSERT als Race-Schutz.
+// PaymentEventLog — idempotency key for payment webhooks.
+// Prevents a doubly delivered webhook (Stripe at-least-once) from triggering
+// the final activation more than once. `eventId` is the provider event ID
+// (Stripe `event.id`), `tryClaim` uses a @unique INSERT as race protection.
 model PaymentEventLog {
     id          String   @id @default(cuid())
     eventId     String   @unique

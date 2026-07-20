@@ -1,28 +1,28 @@
-// Feature-Aliase aus `replaces`-Ketten (#39, Bestandsschutz).
+// Feature aliases from `replaces` chains (#39, grandfathering).
 //
-// Aktive Verträge/Contracts referenzieren Feature-Keys als eingefrorene
-// Snapshots. Wird ein Feature im Code durch ein neues ersetzt (`replaces`
-// am NEUEN Feature, alter Code gelöscht), würde ein Bestandsvertrag mit
-// altem Key das neue Feature nicht liefern. Diese Helper expandieren die
-// gewährten Features entlang der replaces-Kanten — transitiv (A→B→C),
-// Zyklen werden beim Index-Bau abgelehnt.
+// Active contracts reference feature keys as frozen snapshots. When a
+// feature is replaced in code by a new one (`replaces` on the NEW feature,
+// old code deleted), an existing contract with the old key would no longer
+// deliver the new feature. These helpers expand the granted features along
+// the replaces edges — transitively (A→B→C); cycles are rejected when the
+// index is built.
 //
-// Pure Functions, keine NestJS-DI — testbar in Isolation; der
-// EntitlementService wired sie gegen den DiscoverySnapshot.
+// Pure functions, no NestJS DI — testable in isolation; the
+// EntitlementService wires them against the DiscoverySnapshot.
 
 import type { DiscoveredFeature } from '@saasicat/types';
 
-/** Alter Feature-Key → direkte Nachfolger-Keys (aus deren `replaces`). */
+/** Old feature key → direct successor keys (from their `replaces`). */
 export type ReplacedByIndex = ReadonlyMap<string, readonly string[]>;
 
 type FeatureReplacesSource = Pick<DiscoveredFeature, 'featureKey' | 'replaces'>;
 
 /**
- * Baut den Kanten-Index `alterKey → [nachfolgerKeys]` aus den
- * `replaces`-Deklarationen des Snapshots. Mehrere Nachfolger pro altem Key
- * sind erlaubt (Feature-Split: der alte Key liefert dann alle Nachfolger).
- * Selbstbezüge werden ignoriert; Zyklen (A ersetzt B, B ersetzt A) sind ein
- * Code-Fehler und werfen.
+ * Builds the edge index `oldKey → [successorKeys]` from the snapshot's
+ * `replaces` declarations. Multiple successors per old key are allowed
+ * (feature split: the old key then delivers all successors).
+ * Self-references are ignored; cycles (A replaces B, B replaces A) are a
+ * code error and throw.
  */
 export function buildReplacedByIndex(
     features: readonly FeatureReplacesSource[],
@@ -42,10 +42,10 @@ export function buildReplacedByIndex(
 }
 
 /**
- * Expandiert gewährte Feature-Keys entlang der replaces-Ketten: jeder
- * gewährte alte Key gewährt transitiv auch seine Nachfolger. Die alten Keys
- * bleiben enthalten (Defense in depth — Guards, die noch den alten Key
- * prüfen, funktionieren weiter).
+ * Expands granted feature keys along the replaces chains: every granted
+ * old key transitively also grants its successors. The old keys remain
+ * included (defense in depth — guards that still check the old key keep
+ * working).
  */
 export function expandReplacedFeatures(
     granted: ReadonlySet<string>,
@@ -65,9 +65,9 @@ export function expandReplacedFeatures(
 }
 
 /**
- * DFS-Zyklus-Erkennung über die replaces-Kanten. Ein Zyklus heißt: zwei
- * Features lösen sich gegenseitig ab — die Alias-Auflösung wäre nicht
- * terminierend definierbar, also harter Fehler mit der konkreten Kette.
+ * DFS cycle detection over the replaces edges. A cycle means: two
+ * features replace each other — the alias resolution could not be defined
+ * to terminate, so a hard error with the concrete chain.
  */
 function assertNoReplacesCycle(index: ReadonlyMap<string, readonly string[]>): void {
     const DONE = 2;

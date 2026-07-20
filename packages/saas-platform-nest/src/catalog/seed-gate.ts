@@ -1,17 +1,16 @@
-// Seed-Gate — Pre-Persistence-Validierung geseedeter Plan-/Bundle-Feature-Listen
-// gegen den Discovery-Snapshot (#12 Slice 2).
+// Seed-Gate — pre-persistence validation of seeded plan/bundle feature lists
+// against the discovery snapshot (#12 Slice 2).
 //
-// Pendant zu preflight.ts: `runPreflight` prüft die LIVE-DB-Versions NACH dem
-// Persistieren; das Seed-Gate prüft die ROHEN Seed-Drafts (aus `saas.yaml` /
-// Seed-Skripten) VOR dem ersten DB-Write — damit ein Build/Seed bricht, bevor
-// ein nicht-discovertes Feature ("Luftschloss") überhaupt in den Katalog
-// gelangt.
+// Counterpart to preflight.ts: `runPreflight` checks the LIVE DB versions AFTER
+// persisting; the Seed-Gate checks the RAW seed drafts (from `saas.yaml` /
+// seed scripts) BEFORE the first DB write — so that a build/seed breaks before
+// an undiscovered feature ("castle in the air") ever reaches the catalog.
 //
-// Pure Functions, keine NestJS-DI. Nutzt dieselben Leaf-Validatoren wie
-// Strict-Mode-Check + Preflight (`validatePlanDraft`/`validateBundleDraft`) —
-// keine Logik-Duplikation. Mode-agnostisch: der Caller entscheidet via
-// `seedGateExitCode`, ob ein Verstoß den Seed/Build bricht (blocking) oder
-// nur gemeldet wird (report-only).
+// Pure functions, no NestJS DI. Uses the same leaf validators as the
+// strict-mode check + Preflight (`validatePlanDraft`/`validateBundleDraft`) —
+// no logic duplication. Mode-agnostic: the caller decides via
+// `seedGateExitCode` whether a violation breaks the seed/build (blocking) or
+// is only reported (report-only).
 
 import type {
     ApprovedCatalogKeys,
@@ -39,27 +38,27 @@ export interface SeedBundleDraft {
 
 export interface SeedGateInput {
     snapshot: DiscoverySnapshot;
-    /** Zu seedende Plan-Drafts (vor dem Persistieren). */
+    /** Plan drafts to seed (before persisting). */
     plans?: SeedPlanDraft[];
-    /** Zu seedende Bundle-Drafts (vor dem Persistieren). */
+    /** Bundle drafts to seed (before persisting). */
     bundles?: SeedBundleDraft[];
     /**
-     * Approved-Gate (#20 Slice 5): freigegebene Feature-/Quota-Keys aus den
-     * Catalog-Entries (`loadApprovedCatalogKeys`). Weggelassen/`null` →
-     * nur Existenz-Checks (z. B. Erst-Seed, bevor es Catalog-Entries gibt).
+     * Approved gate (#20 Slice 5): approved feature/quota keys from the
+     * catalog entries (`loadApprovedCatalogKeys`). Omitted/`null` →
+     * existence checks only (e.g. first seed, before any catalog entries exist).
      */
     approved?: ApprovedCatalogKeys | null;
 }
 
 export interface SeedGateFinding {
     kind: 'plan' | 'bundle';
-    /** Sprechender Key: `STARTER` oder `BANKING`. */
+    /** Human-readable key: `STARTER` or `BANKING`. */
     entityKey: string;
     warning: StrictModeWarning;
 }
 
 export interface SeedGateReport {
-    /** `'ok'` wenn keine Findings; sonst `'error'`. */
+    /** `'ok'` if no findings; otherwise `'error'`. */
     overall: 'ok' | 'error';
     counts: {
         planFindings: number;
@@ -70,8 +69,8 @@ export interface SeedGateReport {
 }
 
 /**
- * Validiert geseedete Plan-/Bundle-Drafts gegen den DiscoverySnapshot.
- * Sammelt Findings und liefert einen deterministisch sortierten Report.
+ * Validates seeded plan/bundle drafts against the DiscoverySnapshot.
+ * Collects findings and returns a deterministically sorted report.
  */
 export function validateSeedAgainstSnapshot(input: SeedGateInput): SeedGateReport {
     const findings: SeedGateFinding[] = [];
@@ -113,8 +112,8 @@ export function validateSeedAgainstSnapshot(input: SeedGateInput): SeedGateRepor
         total: findings.length,
     };
 
-    // Advisory-Findings (#35) brechen den Seed nicht — sie erscheinen nur
-    // im Report (die Abhängigkeit kann außerhalb des Drafts gedeckt sein).
+    // Advisory findings (#35) do not break the seed — they appear only
+    // in the report (the dependency may be covered outside the draft).
     const hasBlockingFinding = findings.some(
         (f) => !ADVISORY_STRICT_MODE_CODES.has(f.warning.code),
     );
@@ -126,7 +125,7 @@ export function validateSeedAgainstSnapshot(input: SeedGateInput): SeedGateRepor
     };
 }
 
-/** Format der Report-Ausgabe für CLI-/Seed-stdout. Liefert mehrzeiligen String. */
+/** Formats the report output for CLI/seed stdout. Returns a multi-line string. */
 export function formatSeedGateReport(report: SeedGateReport): string {
     const lines: string[] = [];
     lines.push(
@@ -153,7 +152,7 @@ export function formatSeedGateReport(report: SeedGateReport): string {
     return lines.join('\n');
 }
 
-/** Exit-Code fürs CLI-/Seed-Wrapping: 0 bei OK, 4 bei Verstößen (analog Preflight). */
+/** Exit code for CLI/seed wrapping: 0 on OK, 4 on violations (analogous to Preflight). */
 export function seedGateExitCode(report: SeedGateReport): number {
     return report.overall === 'error' ? 4 : 0;
 }

@@ -1,16 +1,16 @@
-// ManifestLoader — fetcht den Admin-Manifest-Endpoint mit ETag-Cache.
+// ManifestLoader — fetches the admin manifest endpoint with an ETag cache.
 //
-// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert, weil
-// Apps unterschiedliche `globalPrefix`-Konventionen haben (z. B. `api`
-// oder `api/v1`).
+// **The endpoint is mandatory** and is supplied by the app consumer, because
+// apps have different `globalPrefix` conventions (e.g. `api`
+// or `api/v1`).
 //
-// Cache-Verhalten:
-//   - Erster Aufruf: GET ohne If-None-Match → Body + ETag-Header lesen,
-//     beides in `KvStore` persistieren (Key-Suffix `manifest:body` und
+// Cache behavior:
+//   - First call: GET without If-None-Match → read body + ETag header,
+//     persist both in `KvStore` (key suffix `manifest:body` and
 //     `manifest:etag`).
-//   - Folgeaufruf: GET mit `If-None-Match: <etag>` → bei 304 wird der
-//     gecachte Body zurückgegeben, kein Re-Parse nötig. Bei 200 wird der
-//     Cache überschrieben.
+//   - Subsequent call: GET with `If-None-Match: <etag>` → on 304 the
+//     cached body is returned, no re-parse needed. On 200 the
+//     cache is overwritten.
 //
 // Spec: admin-api.openapi.yaml `GET /admin/manifest`.
 
@@ -19,22 +19,22 @@ import { defaultHttpClient, defaultKvStore, type HttpClient, type KvStore } from
 
 export interface ManifestLoaderOptions {
     /**
-     * Voll-qualifizierter Manifest-Endpoint inkl. App-globalPrefix
-     * (`/api/admin/manifest`, `/api/v1/admin/manifest`, …). Pflicht.
+     * Fully-qualified manifest endpoint incl. app globalPrefix
+     * (`/api/admin/manifest`, `/api/v1/admin/manifest`, …). Mandatory.
      */
     endpoint: string;
     http?: HttpClient;
     storage?: KvStore;
     /**
-     * Storage-Key-Prefix — Konsumenten mit mehreren Apps unter einer Domain
-     * setzen das auf z. B. `'ma:'` oder `'da:'`, damit die Caches
-     * separiert sind.
+     * Storage key prefix — consumers with multiple apps under one domain
+     * set this to e.g. `'ma:'` or `'da:'`, so that the caches
+     * are separated.
      */
     storageKeyPrefix?: string;
     /**
-     * Auth-Header für `Authorization: Bearer <token>`. Wird bei jedem
-     * Request mitgeschickt. Konsument liefert eine Funktion, die den
-     * aktuellen Token aus dem Auth-Store zieht.
+     * Auth header for `Authorization: Bearer <token>`. Sent with every
+     * request. The consumer supplies a function that pulls the
+     * current token from the auth store.
      */
     getAuthToken?: () => string | null;
 }
@@ -80,8 +80,8 @@ export class ManifestLoader {
     }
 
     /**
-     * Lädt das aktuelle Manifest. Bei Cache-Hit (304) wird der gecachte
-     * Body zurückgegeben — sonst der frische Server-Body.
+     * Loads the current manifest. On a cache hit (304) the cached
+     * body is returned — otherwise the fresh server body.
      */
     async load(): Promise<AdminManifest> {
         const cachedEtag = this.storage.get(this.etagKey);
@@ -119,7 +119,7 @@ export class ManifestLoader {
         return body;
     }
 
-    /** Liest den gecachten Manifest-Body aus dem Storage; null wenn nicht da. */
+    /** Reads the cached manifest body from storage; null if absent. */
     readCachedBody(): CachedManifestEntry | null {
         const etag = this.storage.get(this.etagKey);
         const bodyStr = this.storage.get(this.bodyKey);
@@ -131,7 +131,7 @@ export class ManifestLoader {
         }
     }
 
-    /** Räumt den Cache — z. B. bei Logout oder nach `manifest reload`. */
+    /** Clears the cache — e.g. on logout or after `manifest reload`. */
     clearCache(): void {
         this.storage.remove(this.etagKey);
         this.storage.remove(this.bodyKey);

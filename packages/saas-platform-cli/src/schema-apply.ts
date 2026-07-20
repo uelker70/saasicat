@@ -1,14 +1,14 @@
-// schema-apply — Pure-Function-Helpers für den `saas-platform schema apply`-
-// Befehl. Fügt fehlende `model X { ... }`-Blöcke aus einem Prisma-Fragment
-// idempotent in eine bestehende `schema.prisma` ein.
+// schema-apply — pure-function helpers for the `saas-platform schema apply`
+// command. Idempotently inserts missing `model X { ... }` blocks from a Prisma
+// fragment into an existing `schema.prisma`.
 //
-// Bewusst kein `@prisma/internals`-Dep: für das Quickstart-Feature reicht
-// eine regex-basierte Model-Block-Erkennung. Constraints/Indices-Konflikte
-// werden NICHT erkannt — User reviewt manuell, was die CLI eingefügt hat.
+// Deliberately no `@prisma/internals` dep: for the quickstart feature a
+// regex-based model-block detection is enough. Constraint/index conflicts
+// are NOT detected — the user manually reviews what the CLI inserted.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
 
-/** Liefert die Namen aller `model X { ... }`-Top-Level-Blöcke im Schema. */
+/** Returns the names of all top-level `model X { ... }` blocks in the schema. */
 export function extractModelNames(schema: string): string[] {
     const names: string[] = [];
     const lines = schema.split('\n');
@@ -21,14 +21,14 @@ export function extractModelNames(schema: string): string[] {
 }
 
 /**
- * Liefert alle `model X { ... }`-Blöcke aus einem Fragment als Map
- * `Name -> kompletter Block-Text inkl. öffnender/schließender Klammern`.
+ * Returns all `model X { ... }` blocks from a fragment as a map
+ * `name -> complete block text incl. opening/closing braces`.
  *
- * Begrenzungslogik: Wir suchen `^model X {` (Zeilenanfang, evtl. mit
- * Leading-Whitespace) und schließen, sobald die Klammer-Tiefe wieder auf
- * 0 fällt. Strings/Kommentare innerhalb des Blocks zählen vereinfacht
- * nicht, was für Prisma-Schemas robust ist (keine geschweiften Klammern
- * in Strings, Kommentare nur `//`-style).
+ * Delimiting logic: we search for `^model X {` (start of line, possibly with
+ * leading whitespace) and close as soon as the brace depth drops back to
+ * 0. Strings/comments inside the block are, in simplified terms, not
+ * counted, which is robust for Prisma schemas (no curly braces
+ * in strings, comments only `//`-style).
  */
 export function extractModelBlocks(fragment: string): Map<string, string> {
     const blocks = new Map<string, string>();
@@ -62,17 +62,17 @@ export function extractModelBlocks(fragment: string): Map<string, string> {
 }
 
 export interface ApplyResult {
-    /** Anzahl Models, die hinzugefügt wurden. */
+    /** Number of models that were added. */
     added: string[];
-    /** Anzahl Models, die schon vorhanden waren (kein Schreiben). */
+    /** Number of models that were already present (no write). */
     skipped: string[];
-    /** Resultierender Schema-Text. Bei `added.length === 0` identisch zur Eingabe. */
+    /** Resulting schema text. When `added.length === 0` identical to the input. */
     schema: string;
 }
 
 /**
- * Fügt fehlende Models aus `fragmentBlocks` ans Ende von `schema` an. Vorhandene
- * Models (gleicher Name) bleiben unverändert, werden in `skipped` gelistet.
+ * Appends missing models from `fragmentBlocks` to the end of `schema`. Existing
+ * models (same name) stay unchanged and are listed in `skipped`.
  */
 export function applyFragmentBlocks(
     schema: string,

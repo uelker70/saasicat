@@ -117,15 +117,15 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 
-// PlanCreateDialog — Schritt 1 vom „Neuer Plan"-Flow aus der Plan-
-// Simulation. Sammelt Plan-Stamm (Key, Label, Beschreibung) plus Basis
-// für die erste Draft-Version (leer oder Klon eines existierenden Plans).
-// Auf „Weiter" emittiert das Dialog das vollständige Submit-Paket; die
-// hostende Page (PlansPage) legt den Plan an und öffnet den V2-Editor
-// mit dem geklonten Initial-Form.
+// PlanCreateDialog — step 1 of the "new plan" flow from the plan
+// simulation. Collects the plan master data (key, label, description) plus the
+// basis for the first draft version (empty or a clone of an existing plan).
+// On "Weiter" the dialog emits the complete submit payload; the
+// hosting page (PlansPage) creates the plan and opens the V2 editor
+// with the cloned initial form.
 
 export interface TemplateOption {
-    /** „empty" oder Plan-Key. */
+    /** "empty" or plan key. */
     key: string;
     label: string;
     features: string[];
@@ -146,11 +146,11 @@ export interface PlanCreateSubmit {
 const props = withDefaults(
     defineProps<{
         modelValue: boolean;
-        /** Verfügbare Klon-Templates (außer „empty"). Default: leer (nur „Leerer Plan"). */
+        /** Available clone templates (except "empty"). Default: empty (only "Leerer Plan"). */
         availableTemplates?: TemplateOption[];
-        /** Plan-Keys, die schon existieren — für Uniqueness-Validation. */
+        /** Plan keys that already exist — for uniqueness validation. */
         existingPlanKeys?: string[];
-        /** Optional vorselektierte Basis (z. B. wenn aus „Klon"-Button gestartet). */
+        /** Optionally preselected basis (e.g. when started from a "Klon" button). */
         defaultBasis?: string;
         submitting?: boolean;
     }>(),

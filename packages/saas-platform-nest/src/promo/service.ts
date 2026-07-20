@@ -79,7 +79,7 @@ export interface PreviewInput {
     code: string;
     planId: string;
     billingCycle: BillingCycle;
-    /** Für firstTimeCustomersOnly-Check. */
+    /** For the firstTimeCustomersOnly check. */
     email?: string;
     ipHash?: string;
     sessionId?: string;
@@ -89,12 +89,12 @@ export interface RedeemInput {
     code: string;
     subscriptionId: string;
     tenantId: string;
-    /** Für firstTimeCustomersOnly-Check im finalen Redeem-Pfad. */
+    /** For the firstTimeCustomersOnly check in the final redeem path. */
     email?: string;
 }
 
 export interface PromoServiceConfig {
-    /** Pläne, die nicht rabattierbar sind (z. B. 'ENTERPRISE'). */
+    /** Plans that are not discountable (e.g. 'ENTERPRISE'). */
     nonRedeemablePlans?: readonly string[];
 }
 
@@ -102,7 +102,7 @@ export interface PromoCodeStats {
     code: PromoCodeRecord;
     validations: number;
     redemptions: { active: number; total: number; reversed: number; expired: number };
-    /** Decimal-as-string ('0.00' wenn kein Aggregator verfügbar). */
+    /** Decimal-as-string ('0.00' if no aggregator is available). */
     revenueDeductionGross: string;
 }
 
@@ -129,7 +129,7 @@ export class PromoCodesService {
         private readonly config: PromoServiceConfig,
     ) {}
 
-    // ─── ADMIN: Anlage / Bearbeitung ───────────────────────────────────────
+    // ─── ADMIN: Creation / Editing ─────────────────────────────────────────
 
     async create(input: CreatePromoCodeData): Promise<PromoCodeRecord> {
         const code = input.code.trim().toUpperCase();
@@ -250,7 +250,7 @@ export class PromoCodesService {
         return this.redemptionRepo.listByPromoCode(promoCodeId);
     }
 
-    // ─── PUBLIC: Preview / Validierung ─────────────────────────────────────
+    // ─── PUBLIC: Preview / Validation ──────────────────────────────────────
 
     async preview(input: PreviewInput): Promise<PreviewResult> {
         const code = input.code.trim().toUpperCase();
@@ -338,12 +338,12 @@ export class PromoCodesService {
         };
     }
 
-    // ─── Onboarding-Pfad: atomares Einlösen ────────────────────────────────
+    // ─── Onboarding path: atomic redemption ────────────────────────────────
 
     /**
-     * Wickelt `redeemInTransaction` in einen eigenen Transaction-Runner-
-     * Aufruf — Default-Pfad, wenn der Aufrufer keinen externen tx-Kontext
-     * hat (z. B. POST /billing/promo/redeem als Stand-alone-Endpoint).
+     * Wraps `redeemInTransaction` in its own transaction-runner call —
+     * the default path when the caller has no external tx context
+     * (e.g. POST /billing/promo/redeem as a stand-alone endpoint).
      */
     async redeem(input: RedeemInput): Promise<PromoCodeRedemptionRecord> {
         return this.transactionRunner.run((tx: TransactionContext) =>
@@ -352,11 +352,11 @@ export class PromoCodesService {
     }
 
     /**
-     * Promo-Code innerhalb einer EXTERNEN Transaktion einlösen — der Aufrufer
-     * (typisch `TenantSubscriptionWritePort.applyOnboardingSelection`) hat
-     * bereits `prisma.$transaction(...)` offen und reicht den `tx`-Kontext
-     * durch. Damit landen Plan-Wechsel, Add-on-Insert und Redemption-Insert
-     * in einer einzigen DB-Transaktion (P10.1.1).
+     * Redeems a promo code within an EXTERNAL transaction — the caller
+     * (typically `TenantSubscriptionWritePort.applyOnboardingSelection`)
+     * already has `prisma.$transaction(...)` open and passes the `tx`
+     * context through. This lands plan change, add-on insert, and redemption
+     * insert in a single DB transaction (P10.1.1).
      */
     async redeemInTransaction(
         input: RedeemInput,
@@ -482,8 +482,8 @@ export class PromoCodesService {
     }
 
     /**
-     * Lazy-Expiry: setzt Codes mit überschrittenem validUntil auf EXPIRED.
-     * Wird vor jedem find/preview aufgerufen — Defense-in-depth zum Cron.
+     * Lazy expiry: sets codes whose validUntil has passed to EXPIRED.
+     * Called before every find/preview — defense-in-depth alongside the cron.
      */
     private async lazyExpire(): Promise<void> {
         const now = new Date();
@@ -492,9 +492,9 @@ export class PromoCodesService {
     }
 
     /**
-     * Niedrigster anwendbarer Plan-Preis. Bei Whitelist nimmt sie das Minimum
-     * aus der Whitelist, sonst über alle marketed-Plans des Catalogs (außer
-     * non-redeemable).
+     * Lowest applicable plan price. With a whitelist it takes the minimum
+     * from the whitelist, otherwise across all marketed plans of the catalog
+     * (except non-redeemable).
      */
     private lowestApplicablePlanGross(plans: readonly string[]): number | null {
         const blocked = new Set(this.config.nonRedeemablePlans ?? []);

@@ -1,15 +1,15 @@
-// PlansController + PlanVersionsController — REST-Endpunkte für `plans`
+// PlansController + PlanVersionsController — REST endpoints for `plans`
 // (SPEC_V2 §11.1 M6).
 //
-// Pack 1: Plan-Stamm-CRUD unter `/admin/catalog/plans`.
-// Pack 2a: PlanVersion-Lifecycle unter
-//   `/admin/catalog/plans/:id/versions` (list+createDraft) und
+// Pack 1: plan master CRUD under `/admin/catalog/plans`.
+// Pack 2a: PlanVersion lifecycle under
+//   `/admin/catalog/plans/:id/versions` (list+createDraft) and
 //   `/admin/catalog/plan-versions/:id` (get/patch/publish).
 //
-// Beide PlansController-Endpunkte (Stamm + Version-Listen) leben in einem
-// Controller, weil sie unter `plans` gemountet sind. Version-spezifische
-// Endpoints kommen separat in PlanVersionsController, damit das UI mit
-// stabilen Version-IDs arbeiten kann ohne Plan-Lookup (analog Bundle).
+// Both PlansController endpoints (master + version lists) live in one
+// controller because they are mounted under `plans`. Version-specific
+// endpoints come separately in PlanVersionsController, so the UI can work
+// with stable version IDs without a plan lookup (analogous to Bundle).
 
 import {
     Body,
@@ -52,7 +52,7 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
             private readonly versionsService: PlanVersionsService | null = null,
         ) {}
 
-        // ─── Stamm-Operationen ───
+        // ─── Master operations ───
 
         @Get()
         listPlans(
@@ -62,8 +62,8 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
             return this.service.listPlans(projectKey, { onlyPublished: onlyPublished === 'true' });
         }
 
-        // Statische Route VOR `@Get(':id')` — Fastify priorisiert statisch vor
-        // parametrisch, dies macht die Reihenfolge zusätzlich explizit.
+        // Static route BEFORE `@Get(':id')` — Fastify prioritizes static over
+        // parametric; this makes the ordering additionally explicit.
         @Get('tenant-counts')
         getTenantCounts(@Query('projectKey') projectKey: string) {
             return this.service.getTenantCounts(projectKey);
@@ -96,10 +96,10 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
             await this.service.hardDeletePlan(planId);
         }
 
-        // ─── Version-Operationen (Pack 2a, optional) ───
-        // Wenn PlanVersionsService nicht registriert ist, liefern beide
-        // Endpoints HTTP 501. Apps ohne SuperAdmin-Plan-Editor mounten den
-        // Service einfach nicht.
+        // ─── Version operations (Pack 2a, optional) ───
+        // When PlanVersionsService is not registered, both endpoints return
+        // HTTP 501. Apps without a SuperAdmin plan editor simply do not mount
+        // the service.
 
         @Get(':id/versions')
         listVersions(@Param('id', new ParseUUIDPipe()) planId: string) {
@@ -142,8 +142,8 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
 }
 
 /**
- * Version-spezifische Endpoints. Stabil per Version-ID — UI muss nicht
- * den Plan-Stamm kennen.
+ * Version-specific endpoints. Stable by version ID — the UI does not need
+ * to know the plan master.
  */
 export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/plan-versions')
@@ -173,7 +173,7 @@ export function buildPlanVersionsController(guards: Array<Type<CanActivate>>): T
             @Body() dto: PublishPlanVersionDto,
         ) {
             return this.service.publishPlanVersion(versionId, {
-                publishedByUserId: null, // wird vom @CurrentUser() der App gesetzt; in Pack 2a noch nicht verdrahtet
+                publishedByUserId: null, // set by the app's @CurrentUser(); not yet wired up in Pack 2a
                 forceRegressive: dto.forceRegressive,
                 allowZeroPrice: dto.allowZeroPrice,
                 validFrom: dto.validFrom,

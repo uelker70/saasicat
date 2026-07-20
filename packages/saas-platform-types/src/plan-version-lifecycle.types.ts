@@ -1,53 +1,53 @@
-// Lifecycle-DTOs für PlanVersion (SPEC_V2 §11.1 M6 Pack 2a).
-// `PlanVersionRow` selbst lebt in `plan-version-row.types.ts` —
-// hier nur die Mutation-Eingaben + Service-Result.
+// Lifecycle DTOs for PlanVersion (SPEC_V2 §11.1 M6 Pack 2a).
+// `PlanVersionRow` itself lives in `plan-version-row.types.ts` —
+// only the mutation inputs + service result live here.
 //
-// Pattern strukturell identisch zu `CreateBundleVersionDraftData` /
-// `BundleVersionMutationResult` (siehe bundle-business-type.types.ts).
+// Structurally identical pattern to `CreateBundleVersionDraftData` /
+// `BundleVersionMutationResult` (see bundle-business-type.types.ts).
 
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
 import type { PlanVersionRow } from './plan-version-row.types.js';
 import type { StrictModeWarning } from './bundle-business-type.types.js';
 
 /**
- * Felder einer neuen PlanVersion im Draft-Status (`publishedAt = null`).
- * Wird vom SuperAdmin angelegt, später per `publishPlanVersion()`
- * veröffentlicht. Nur **eine** Draft-Version pro `planId` erlaubt
- * (Partial-Unique-Index in der Migration).
+ * Fields of a new PlanVersion in draft status (`publishedAt = null`).
+ * Created by the SuperAdmin, later published via `publishPlanVersion()`.
+ * Only **one** draft version per `planId` is allowed
+ * (partial unique index in the migration).
  */
 export interface CreatePlanVersionDraftData {
     /**
-     * **planKey** (z. B. "STARTER"), nicht die Plan-UUID. Der Service
-     * resolvert die Plan-UUID des Controller-Path-Param vorher zu
-     * planKey, weil `PlanVersion.planId` im Schema ein String ist
-     * (weiche Bindung; siehe SPEC_V2 §11.1 M6).
+     * **planKey** (e.g. "STARTER"), not the plan UUID. The service
+     * resolves the plan UUID from the controller path param to
+     * planKey beforehand, because `PlanVersion.planId` is a string in
+     * the schema (soft binding; see SPEC_V2 §11.1 M6).
      */
     planId: string;
-    /** Vorgänger-Version, gegen die der Diff berechnet wird (null bei v1). */
+    /** Predecessor version the diff is computed against (null for v1). */
     baseVersionId?: string | null;
     features: FeatureKey[];
-    /** Bundle-Auswahl (bundleKeys). Default leer. Siehe `PlanVersionRow.bundles`. */
+    /** Bundle selection (bundleKeys). Default empty. See `PlanVersionRow.bundles`. */
     bundles?: string[];
     quotas: Record<QuotaKey, number>;
     monthlyNet: string;
     yearlyNet: string;
     marketed?: boolean;
-    /** Pflicht beim Publish (Vertragsschutz P3, SPEC_V2 §7). */
+    /** Required on publish (contract protection P3, SPEC_V2 §7). */
     changeNote?: string;
-    /** Optional im Draft (Pflicht beim Publish). ISO-Date-String. */
+    /** Optional in the draft (required on publish). ISO date string. */
     validFrom?: string | null;
-    /** Optional; null = unbegrenzt gültig. ISO-Date-String. */
+    /** Optional; null = valid indefinitely. ISO date string. */
     validUntil?: string | null;
     createdByUserId?: string | null;
 }
 
 /**
- * Felder einer Draft-PlanVersion, die noch geändert werden dürfen.
- * Nach `publishedAt` wird die Version immutable (Vertragsschutz P1/P4).
+ * Fields of a draft PlanVersion that may still be changed.
+ * After `publishedAt` the version becomes immutable (contract protection P1/P4).
  */
 export interface UpdatePlanVersionDraftData {
     features?: FeatureKey[];
-    /** Bundle-Auswahl (bundleKeys). Siehe `PlanVersionRow.bundles`. */
+    /** Bundle selection (bundleKeys). See `PlanVersionRow.bundles`. */
     bundles?: string[];
     quotas?: Record<QuotaKey, number>;
     monthlyNet?: string;
@@ -59,47 +59,47 @@ export interface UpdatePlanVersionDraftData {
 }
 
 /**
- * Eingabe für `publishPlanVersion()`. `nonRegressive` und `publishedChanges`
- * berechnet der Service aus dem Diff zur Vorgänger-Version (siehe SPEC_V2
- * §7); der Aufrufer liefert nur Bestätigung + User-Tag.
+ * Input for `publishPlanVersion()`. The service computes `nonRegressive` and
+ * `publishedChanges` from the diff to the predecessor version (see SPEC_V2
+ * §7); the caller only provides confirmation + user tag.
  *
- * `validFrom` ist beim Publish **Pflicht** (SPEC_V2 §4.2). Wenn der Draft
- * bereits eine `validFrom` hat, ist hier optional. Auto-Sukzession setzt
- * `validUntil` der Vorgänger-Version.
+ * `validFrom` is **required** on publish (SPEC_V2 §4.2). If the draft
+ * already has a `validFrom`, it is optional here. Auto-succession sets
+ * `validUntil` of the predecessor version.
  */
 export interface PublishPlanVersionData {
     publishedByUserId: string | null;
     /**
-     * Wenn true und der Diff klassifiziert die Version als regressiv,
-     * wird trotzdem published (Bulk-Publish-MFA-Bestätigung,
+     * If true and the diff classifies the version as regressive,
+     * it is published anyway (bulk-publish MFA confirmation,
      * SPEC_V2 §7).
      */
     forceRegressive?: boolean;
     /**
-     * Erlaubt Publish trotz Preis 0,00. Standard false: ein 0,00-Publish
-     * wird geblockt, um versehentliches Live-Stellen von Seed-Platzhaltern zu
-     * verhindern. Nur für bewusst kostenlose Sonderverträge (z.B. ENTERPRISE).
+     * Allows publishing despite a price of 0.00. Default false: a 0.00 publish
+     * is blocked to prevent accidentally going live with seed placeholders.
+     * Only for deliberately free special contracts (e.g. ENTERPRISE).
      */
     allowZeroPrice?: boolean;
     /**
-     * Pflicht beim Publish, falls der Draft kein `validFrom` hat. Muss
-     * strikt nach `validFrom` der Vorgänger-Version liegen.
+     * Required on publish if the draft has no `validFrom`. Must lie
+     * strictly after the `validFrom` of the predecessor version.
      */
     validFrom?: string | null;
     /**
-     * Optional; null = unbegrenzt gültig (passt für die letzte Version
-     * eines Plans). Wird bei Anlage einer Nachfolge-Version automatisch
-     * vom Service überschrieben.
+     * Optional; null = valid indefinitely (fits the last version
+     * of a plan). Automatically overwritten by the service when a
+     * successor version is created.
      */
     validUntil?: string | null;
 }
 
 /**
- * Service-Result für mutierende PlanVersion-Operationen
- * (createDraft, updateDraft, publish): liefert die persistierte Row plus
- * eine Liste Strict-Mode-Warnings. In `warn-only`-Modus → Banner im UI;
- * in `blocking`-Modus wirft der Service stattdessen HTTP 422 mit
- * derselben Warning-Liste.
+ * Service result for mutating PlanVersion operations
+ * (createDraft, updateDraft, publish): returns the persisted row plus
+ * a list of strict-mode warnings. In `warn-only` mode → banner in the UI;
+ * in `blocking` mode the service throws HTTP 422 instead with
+ * the same warning list.
  */
 export interface PlanVersionMutationResult {
     planVersion: PlanVersionRow;

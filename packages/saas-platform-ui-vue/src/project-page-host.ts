@@ -1,11 +1,11 @@
-// ProjectPageHost — universeller Host für Manifest-`projectPages`. Apps
-// registrieren eine Catch-all-Child-Route unter ihrem `/admin`-Layout, der
-// Host findet die zur aktuellen URL passende ProjectPage im Manifest, löst
-// `componentKey` gegen die `extensions:`-Map auf (per
-// `useSuperAdminExtensions()`) und rendert die Komponente.
+// ProjectPageHost — universal host for manifest `projectPages`. Apps
+// register a catch-all child route under their `/admin` layout; the
+// host finds the ProjectPage in the manifest matching the current URL, resolves
+// `componentKey` against the `extensions:` map (via
+// `useSuperAdminExtensions()`) and renders the component.
 //
-// Damit müssen Konsumenten Project-Pages nicht zusätzlich statisch im Router
-// duplizieren — Manifest + extensions:-Map sind die Single Source of Truth.
+// This means consumers don't have to additionally duplicate project pages
+// statically in the router — manifest + extensions: map are the single source of truth.
 
 import { computed, defineAsyncComponent, defineComponent, h, inject, type Component } from 'vue';
 import { useRoute, type RouteRecordRaw } from 'vue-router';
@@ -16,9 +16,9 @@ import {
     type ExtensionsMap,
 } from './create-super-admin-app.js';
 
-// `defineAsyncComponent` bekommt pro Loader-Funktion eine eigene Wrapper-
-// Komponente — ohne Cache würden Re-Renders dieselbe Komponente neu erzeugen
-// und den Async-Resolve jedes Mal triggern.
+// `defineAsyncComponent` gets its own wrapper component per loader
+// function — without a cache, re-renders would recreate the same component
+// and trigger the async resolve every time.
 const asyncComponentCache = new WeakMap<ExtensionsMap, Map<string, Component>>();
 
 function resolveAsync(extensions: ExtensionsMap, key: string): Component | null {
@@ -74,12 +74,12 @@ export const ProjectPageHost = defineComponent({
 });
 
 /**
- * Liefert eine Vue-Router-Child-Route, die als Catch-all unter dem
- * `/admin`-Layout der App registriert wird. Statisch im App-Router
- * definierte Children (z. B. `/admin/dashboard`) gewinnen, weil
- * Vue-Router-4 spezifische Routen vor Wildcard-Children matcht.
+ * Returns a Vue Router child route that is registered as a catch-all under
+ * the app's `/admin` layout. Children defined statically in the app router
+ * (e.g. `/admin/dashboard`) win, because
+ * Vue Router 4 matches specific routes before wildcard children.
  *
- * Beispiel (vereinfacht):
+ * Example (simplified):
  *
  *     {
  *         path: '/admin',
@@ -87,16 +87,16 @@ export const ProjectPageHost = defineComponent({
  *         children: [
  *             { path: '', redirect: '/admin/dashboard' },
  *             { path: 'dashboard', component: DashboardPage },
- *             // ...weitere Static-Children
+ *             // ...more static children
  *             createProjectPageHostRoute(),
  *         ],
  *     }
  */
 export function createProjectPageHostRoute(options?: {
     /**
-     * Pfadmuster der Catch-all-Route. Default `:projectPagePath(.+)`, damit
-     * `/admin` und `/admin/` nicht vom ProjectPageHost geschluckt werden,
-     * sondern das Dashboard-Redirect-Child greifen kann.
+     * Path pattern of the catch-all route. Default `:projectPagePath(.+)`, so
+     * that `/admin` and `/admin/` are not swallowed by the ProjectPageHost,
+     * but the dashboard redirect child can take effect.
      */
     path?: string;
 }): RouteRecordRaw {

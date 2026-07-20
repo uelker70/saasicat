@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { CatalogEntriesService } from '../dist/catalog/index.js';
 
-// CatalogEntriesService — Discovery-Sync + Feature-/Quota-Review (#20).
-// Tests laufen gegen einen In-Memory-Fake des CatalogEntryRepository.
+// CatalogEntriesService — Discovery sync + feature/quota review (#20).
+// Tests run against an in-memory fake of the CatalogEntryRepository.
 
 const PROJECT = 'clubapp';
 
@@ -13,7 +13,7 @@ function nowFields() {
     return { createdAt: iso, updatedAt: iso };
 }
 
-/** Minimaler In-Memory-CatalogEntryRepository. */
+/** Minimal in-memory CatalogEntryRepository. */
 function fakeRepo() {
     const caps = new Map();
     const feats = new Map();
@@ -58,9 +58,9 @@ function fakeRepo() {
         },
         async upsertFeature(data) {
             const existing = feats.get(data.featureKey);
-            // Realistisch wie der echte Adapter: upsertFeature aktualisiert nur
-            // label/description/discoveryStatus (aus `data`); UI-Felder und
-            // Approval-Felder bleiben unangetastet.
+            // Realistic like the real adapter: upsertFeature updates only
+            // label/description/discoveryStatus (from `data`); UI fields and
+            // approval fields remain untouched.
             const row = {
                 id: existing?.id ?? `feat-${data.featureKey}`,
                 ...data,
@@ -223,7 +223,7 @@ describe('CatalogEntriesService', () => {
         service = new CatalogEntriesService(repo);
     });
 
-    test('sync legt neue Capabilities mit ihrem Code-Status an', async () => {
+    test('sync creates new capabilities with their code status', async () => {
         const result = await service.syncFromSnapshot(
             snapshot({
                 caps: [cap('member.create'), cap('member.export', { status: 'experimental' })],
@@ -240,7 +240,7 @@ describe('CatalogEntriesService', () => {
         );
     });
 
-    test('sync legt neue Features/Quotas als pending an', async () => {
+    test('sync creates new features/quotas as pending', async () => {
         await service.syncFromSnapshot(
             snapshot({ features: ['MEMBER_MANAGEMENT'], quotas: [quota('members')] }),
         );
@@ -250,7 +250,7 @@ describe('CatalogEntriesService', () => {
         assert.equal(q.discoveryStatus, 'pending');
     });
 
-    test('fehlende Capability wird beim Sync retired, fehlendes Feature obsolete', async () => {
+    test('a missing capability is retired on sync, a missing feature obsoleted', async () => {
         await service.syncFromSnapshot(
             snapshot({
                 caps: [cap('member.create'), cap('member.delete')],
@@ -268,7 +268,7 @@ describe('CatalogEntriesService', () => {
         assert.equal(obsolete[0].featureKey, 'B');
     });
 
-    test('internal-Capabilities tauchen nicht im Katalog auf', async () => {
+    test('internal capabilities do not appear in the catalog', async () => {
         await service.syncFromSnapshot(
             snapshot({ caps: [cap('debug.dump', { status: 'internal' })] }),
         );
@@ -276,7 +276,7 @@ describe('CatalogEntriesService', () => {
         assert.equal(rows.length, 0);
     });
 
-    test('Quota ohne declaredAt → usageProvider null', async () => {
+    test('quota without declaredAt → usageProvider null', async () => {
         await service.syncFromSnapshot(
             snapshot({ quotas: [quota('apiCalls', { unit: '/month', declaredAt: '' })] }),
         );
@@ -290,7 +290,7 @@ describe('CatalogEntriesService', () => {
             return new CatalogEntriesService(repo, snap);
         }
 
-        test('approve persistiert Approval-Signatur + approvedBy', async () => {
+        test('approve persists the approval signature + approvedBy', async () => {
             const snap = snapshot({
                 caps: [cap('member.create', { feature: 'MEMBER_MANAGEMENT' })],
                 features: ['MEMBER_MANAGEMENT'],
@@ -309,7 +309,7 @@ describe('CatalogEntriesService', () => {
             assert.ok(row.approvedAt);
         });
 
-        test('Freigabe entziehen (approved → pending) löscht die Approval-Felder', async () => {
+        test('revoking approval (approved → pending) deletes the approval fields', async () => {
             const snap = snapshot({ features: ['A'] });
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
@@ -325,7 +325,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(row.approvedSignature, null);
         });
 
-        test('ungültiger Übergang (pending → outdated) wird abgelehnt', async () => {
+        test('invalid transition (pending → outdated) is rejected', async () => {
             const snap = snapshot({ features: ['A'] });
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
@@ -335,7 +335,7 @@ describe('CatalogEntriesService', () => {
             );
         });
 
-        test('approve ohne Snapshot wird abgelehnt', async () => {
+        test('approve without a snapshot is rejected', async () => {
             const snap = snapshot({ features: ['A'] });
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
@@ -347,7 +347,7 @@ describe('CatalogEntriesService', () => {
             );
         });
 
-        test('reviewQuota approve nutzt die Quota-Signatur', async () => {
+        test('reviewQuota approve uses the quota signature', async () => {
             const snap = snapshot({ quotas: [quota('members', { unit: 'members' })] });
             const svc = withSnapshot(snap);
             await svc.syncFromSnapshot(snap);
@@ -361,7 +361,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(row.approvedSignature, 'members|hard|membersProvider|');
         });
 
-        test('reviewFeature wirft bei unbekanntem Key', async () => {
+        test('reviewFeature throws on an unknown key', async () => {
             await assert.rejects(
                 () => service.reviewFeature(PROJECT, 'nope', { discoveryStatus: 'approved' }, null),
                 /nicht gefunden/,
@@ -369,8 +369,8 @@ describe('CatalogEntriesService', () => {
         });
     });
 
-    describe('Drift-Erkennung beim Sync (#20)', () => {
-        test('approved → outdated, wenn sich das Capability-Set ändert', async () => {
+    describe('drift detection on sync (#20)', () => {
+        test('approved → outdated when the capability set changes', async () => {
             const snap1 = snapshot({
                 caps: [cap('sepa.export', { feature: 'SEPA' })],
                 features: ['SEPA'],
@@ -379,7 +379,7 @@ describe('CatalogEntriesService', () => {
             await svc.syncFromSnapshot(snap1);
             await svc.reviewFeature(PROJECT, 'SEPA', { discoveryStatus: 'approved' }, 'admin-1');
 
-            // Neue Capability kommt dazu → Signatur weicht ab.
+            // A new capability is added → signature diverges.
             const snap2 = snapshot({
                 caps: [
                     cap('sepa.export', { feature: 'SEPA' }),
@@ -391,11 +391,11 @@ describe('CatalogEntriesService', () => {
             assert.equal(result.features.outdated, 1);
             const [row] = await svc.listFeatures(PROJECT);
             assert.equal(row.discoveryStatus, 'outdated');
-            // Die letzte Freigabe bleibt als Historie erhalten.
+            // The last approval is retained as history.
             assert.equal(row.approvedSignature, 'sepa.export@active');
         });
 
-        test('approved bleibt approved, wenn die Signatur stabil ist', async () => {
+        test('approved stays approved when the signature is stable', async () => {
             const snap = snapshot({
                 caps: [cap('sepa.export', { feature: 'SEPA' })],
                 features: ['SEPA'],
@@ -409,7 +409,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(row.discoveryStatus, 'approved');
         });
 
-        test('Quota-Drift: geänderte Unit kippt approved → outdated', async () => {
+        test('quota drift: a changed unit flips approved → outdated', async () => {
             const snap1 = snapshot({ quotas: [quota('storage', { unit: 'MB' })] });
             const svc = new CatalogEntriesService(repo, snap1);
             await svc.syncFromSnapshot(snap1);
@@ -421,7 +421,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(row.discoveryStatus, 'outdated');
         });
 
-        test('manuelles obsolete bleibt beim Sync stehen (kein Auto-Resurrect)', async () => {
+        test('manual obsolete stays put on sync (no auto-resurrect)', async () => {
             const snap = snapshot({ features: ['A'] });
             const svc = new CatalogEntriesService(repo, snap);
             await svc.syncFromSnapshot(snap);
@@ -431,7 +431,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(row.discoveryStatus, 'obsolete');
         });
 
-        test('requires-Änderung an einer Capability kippt approved → outdated (#35)', async () => {
+        test('a requires change on a capability flips approved → outdated (#35)', async () => {
             const snap1 = snapshot({
                 caps: [cap('training.plan', { feature: 'TRAINING' })],
                 features: [{ featureKey: 'TRAINING', capabilityKeys: ['training.plan'] }],
@@ -459,12 +459,12 @@ describe('CatalogEntriesService', () => {
         });
     });
 
-    describe('replaced-Semantik beim Sync (#39)', () => {
+    describe('replaced semantics on sync (#39)', () => {
         function featureWithReplaces(featureKey, replaces) {
             return { featureKey, capabilityKeys: [], replaces };
         }
 
-        test('verschwundener Key mit replaces-Beansprucher bekommt successorKey + obsolete', async () => {
+        test('a vanished key with a replaces claimant gets successorKey + obsolete', async () => {
             await service.syncFromSnapshot(snapshot({ features: ['OLD_FEATURE'] }));
             const result = await service.syncFromSnapshot(
                 snapshot({ features: [featureWithReplaces('NEW_FEATURE', ['OLD_FEATURE'])] }),
@@ -478,7 +478,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(old.successorKey, 'NEW_FEATURE');
         });
 
-        test('verschwundener Key ohne Beansprucher bleibt nacktes obsolete (kein successorKey)', async () => {
+        test('a vanished key without a claimant stays bare obsolete (no successorKey)', async () => {
             await service.syncFromSnapshot(snapshot({ features: ['GONE'] }));
             const result = await service.syncFromSnapshot(snapshot({ features: ['UNRELATED'] }));
             assert.equal(result.features.replaced, 0);
@@ -487,7 +487,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(gone.successorKey, null);
         });
 
-        test('wieder auftauchender Key verliert seinen successorKey', async () => {
+        test('a reappearing key loses its successorKey', async () => {
             await service.syncFromSnapshot(snapshot({ features: ['OLD_FEATURE'] }));
             await service.syncFromSnapshot(
                 snapshot({ features: [featureWithReplaces('NEW_FEATURE', ['OLD_FEATURE'])] }),
@@ -503,7 +503,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(old.successorKey, null);
         });
 
-        test('Quota-replaces setzt successorKey am alten Quota-Eintrag', async () => {
+        test('quota replaces sets successorKey on the old quota entry', async () => {
             await service.syncFromSnapshot(snapshot({ quotas: [quota('storageMb')] }));
             const result = await service.syncFromSnapshot(
                 snapshot({ quotas: [quota('storageGb', { replaces: ['storageMb'] })] }),
@@ -514,7 +514,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(old.successorKey, 'storageGb');
         });
 
-        test('Sync ist idempotent: zweiter Lauf zählt kein weiteres replaced', async () => {
+        test('sync is idempotent: a second run counts no further replaced', async () => {
             await service.syncFromSnapshot(snapshot({ features: ['OLD_FEATURE'] }));
             const snap = snapshot({
                 features: [featureWithReplaces('NEW_FEATURE', ['OLD_FEATURE'])],
@@ -524,7 +524,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(second.features.replaced, 0);
         });
 
-        test('Repository ohne setFeatureSuccessor: Sync läuft ohne Pointer durch', async () => {
+        test('repository without setFeatureSuccessor: sync runs through without a pointer', async () => {
             delete repo.setFeatureSuccessor;
             await service.syncFromSnapshot(snapshot({ features: ['OLD_FEATURE'] }));
             const result = await service.syncFromSnapshot(
@@ -538,7 +538,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(old.successorKey, null);
         });
 
-        test('requires/replaces werden in die Feature-Entries gespiegelt', async () => {
+        test('requires/replaces are mirrored into the feature entries', async () => {
             await service.syncFromSnapshot(
                 snapshot({
                     features: [
@@ -557,7 +557,7 @@ describe('CatalogEntriesService', () => {
         });
     });
 
-    test('setFeatureI18n persistiert Übersetzungen', async () => {
+    test('setFeatureI18n persists translations', async () => {
         await service.syncFromSnapshot(snapshot({ features: ['MEMBER_MANAGEMENT'] }));
         const updated = await service.setFeatureI18n(PROJECT, 'MEMBER_MANAGEMENT', {
             en: { label: 'Member management' },
@@ -565,8 +565,8 @@ describe('CatalogEntriesService', () => {
         assert.equal(updated.i18n.en.label, 'Member management');
     });
 
-    describe('onApplicationBootstrap (Auto-Sync, #12)', () => {
-        test('synct den injizierten Snapshot beim Boot (Default an)', async () => {
+    describe('onApplicationBootstrap (auto-sync, #12)', () => {
+        test('syncs the injected snapshot at boot (default on)', async () => {
             const snap = snapshot({
                 caps: [cap('member.create')],
                 features: ['MEMBER_MANAGEMENT'],
@@ -578,7 +578,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(feats[0].featureKey, 'MEMBER_MANAGEMENT');
         });
 
-        test('seedet Label/Description/Icon aus der FeatureUiRegistry in leere Felder (#12)', async () => {
+        test('seeds label/description/icon from the FeatureUiRegistry into empty fields (#12)', async () => {
             const snap = snapshot({ features: ['MEMBER_MANAGEMENT'] });
             const registry = {
                 MEMBER_MANAGEMENT: {
@@ -595,9 +595,9 @@ describe('CatalogEntriesService', () => {
             assert.equal(f.icon, 'groups');
         });
 
-        test('Registry überschreibt vorhandene SuperAdmin-Werte NICHT (#12)', async () => {
+        test('registry does NOT overwrite existing SuperAdmin values (#12)', async () => {
             const snap = snapshot({ features: ['MEMBER_MANAGEMENT'] });
-            // Simuliert einen vorhandenen, im AdminUI gepflegten Eintrag.
+            // Simulates an existing entry maintained in the AdminUI.
             await repo.upsertFeature({
                 projectKey: PROJECT,
                 featureKey: 'MEMBER_MANAGEMENT',
@@ -616,9 +616,9 @@ describe('CatalogEntriesService', () => {
             assert.equal(f.icon, 'custom_icon');
         });
 
-        test('seedet Label auch bei bereits existierender bare-Row (label==Key) (#12)', async () => {
+        test('seeds label even for an already-existing bare row (label==key) (#12)', async () => {
             const snap = snapshot({ features: ['MEMBER_MANAGEMENT'] });
-            // Auto-Sync legt Rows initial mit label==Key an → muss als „bare" gelten.
+            // Auto-sync initially creates rows with label==key → must count as "bare".
             await repo.upsertFeature({
                 projectKey: PROJECT,
                 featureKey: 'MEMBER_MANAGEMENT',
@@ -636,7 +636,7 @@ describe('CatalogEntriesService', () => {
             assert.equal(f.icon, 'groups');
         });
 
-        test('no-op bei autoSyncDiscoveryAtBoot=false', async () => {
+        test('no-op when autoSyncDiscoveryAtBoot=false', async () => {
             const snap = snapshot({ features: ['MEMBER_MANAGEMENT'] });
             const svc = new CatalogEntriesService(repo, snap, {
                 autoSyncDiscoveryAtBoot: false,
@@ -645,13 +645,13 @@ describe('CatalogEntriesService', () => {
             assert.equal((await svc.listFeatures(PROJECT)).length, 0);
         });
 
-        test('no-op ohne injizierten Snapshot', async () => {
+        test('no-op without an injected snapshot', async () => {
             const svc = new CatalogEntriesService(repo, null);
             await svc.onApplicationBootstrap();
             assert.equal((await svc.listFeatures(PROJECT)).length, 0);
         });
 
-        test('schluckt einen Sync-Fehler beim Boot (kein Boot-Crash)', async () => {
+        test('swallows a sync error at boot (no boot crash)', async () => {
             const brokenRepo = fakeRepo();
             brokenRepo.listCapabilities = async () => {
                 throw new Error('DB down');

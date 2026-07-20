@@ -1,15 +1,15 @@
-// PlanCatalogModule — NestJS-Modul, das den `PlanCatalog` als
-// DI-Provider bereitstellt (Konsumenten injizieren `PLAN_CATALOG_TOKEN`).
+// PlanCatalogModule — NestJS module that provides the `PlanCatalog` as a
+// DI provider (consumers inject `PLAN_CATALOG_TOKEN`).
 //
-// SPEC_V2 §11.1 M6 Pack 2c (Hard-Replace): Der Catalog wird aus DB
-// rekonstruiert (statt aus YAML). Apps reichen einen
-// `PlanCatalogReadSink` durch + ihre statischen App-Identity-Settings
+// SPEC_V2 §11.1 M6 Pack 2c (hard replace): the catalog is reconstructed
+// from the DB (instead of from YAML). Apps pass through a
+// `PlanCatalogReadSink` + their static app-identity settings
 // (`projectKey`, `currency`, `vatRate`).
 //
-// `forRootWithCatalog(catalog)` bleibt für Tests / In-Memory-Setup.
-// Die alte `forRoot({ path: 'saas.yaml' })` ist entfallen — Apps
-// importieren ihre saas.yaml einmalig via PlanCatalogImporterModule
-// und betreiben den Catalog ab dann aus der DB.
+// `forRootWithCatalog(catalog)` remains for tests / in-memory setup.
+// The old `forRoot({ path: 'saas.yaml' })` has been dropped — apps
+// import their saas.yaml once via PlanCatalogImporterModule and run the
+// catalog from the DB from then on.
 
 import {
     type DynamicModule,
@@ -27,28 +27,28 @@ export const PLAN_CATALOG_TOKEN = Symbol('PLAN_CATALOG');
 export const PLAN_CATALOG_READ_SINK_TOKEN = Symbol('PLAN_CATALOG_READ_SINK');
 
 export interface PlanCatalogModuleOptions {
-    /** Build-Time-Identity der App. */
+    /** Build-time identity of the app. */
     projectKey: string;
     /**
-     * App-Identity-Block (Branding + Version) aus `config/saas.yaml#app`.
-     * Fließt in `PLAN_CATALOG_TOKEN.app` und von dort in den AdminPublicBoot-
-     * Endpoint + die AdminManifestConfig.
+     * App-identity block (branding + version) from `config/saas.yaml#app`.
+     * Flows into `PLAN_CATALOG_TOKEN.app` and from there into the
+     * AdminPublicBoot endpoint + the AdminManifestConfig.
      */
     app?: PlanCatalog['app'];
     currency: string;
     vatRate: number;
     /**
-     * App-weite Marketing-Konfiguration (SPEC_V2 §6.5) — u. a. der
-     * `availableLocales`-Pool. Fließt in `PLAN_CATALOG_TOKEN.marketing`
-     * und von dort ins Admin-Manifest (`project.availableLocales`).
+     * App-wide marketing configuration (SPEC_V2 §6.5) — including the
+     * `availableLocales` pool. Flows into `PLAN_CATALOG_TOKEN.marketing`
+     * and from there into the admin manifest (`project.availableLocales`).
      */
     marketing?: PlanCatalog['marketing'];
-    /** App-spezifischer Adapter für DB-Reads. */
+    /** App-specific adapter for DB reads. */
     sink: ProviderSpec<PlanCatalogReadSink>;
-    /** Module, die im DI-Scope sichtbar sein müssen (analog CatalogModule). */
+    /** Modules that must be visible in the DI scope (analogous to CatalogModule). */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     extraProviders?: Provider[];
-    /** Default `true`. */
+    /** Defaults to `true`. */
     global?: boolean;
 }
 
@@ -85,8 +85,8 @@ export class PlanCatalogModule {
     }
 
     /**
-     * Tests / In-Memory-Setup: nimmt das Catalog-Objekt direkt entgegen,
-     * ohne Sink/DB-Lookup. Für Unit-Tests + Test-Bootstraps.
+     * Tests / in-memory setup: takes the catalog object directly, without a
+     * sink/DB lookup. For unit tests + test bootstraps.
      */
     static forRootWithCatalog(
         catalog: PlanCatalog,

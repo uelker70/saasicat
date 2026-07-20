@@ -23,43 +23,43 @@ import {
     PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
 } from './public-catalog.tokens.js';
 
-// PublicCatalogModule — auth-freie Catalog-Endpoints unter `/billing/*`.
+// PublicCatalogModule — auth-free catalog endpoints under `/billing/*`.
 //
-// SPEC_V2 §11.1 M6 Pack 2c — neue Endpoints `/billing/bundles` und
-// `/billing/business-types` plus Marketing-Merge in `/billing/plans`
-// (sofern die optionalen Repos konfiguriert sind).
+// SPEC_V2 §11.1 M6 Pack 2c — new endpoints `/billing/bundles` and
+// `/billing/business-types` plus marketing merge in `/billing/plans`
+// (provided the optional repos are configured).
 
 export interface PublicCatalogModuleOptions {
-    /** Pflicht: Konsumenten-spezifische FeatureUiRegistry. */
+    /** Required: consumer-specific FeatureUiRegistry. */
     featureUiRegistry: FeatureUiRegistry;
     /**
-     * SPEC_V2 §11.1 M6 Pack 2c — App-Identity (z. B. "clubapp"). Wird
-     * für Marketing-Lookups + Bundles/BusinessTypes-Filter benutzt.
-     * Optional; wenn weggelassen, liefern die neuen Endpoints leere Listen.
+     * SPEC_V2 §11.1 M6 Pack 2c — app identity (e.g. "clubapp"). Used
+     * for marketing lookups + bundles/business-types filter.
+     * Optional; if omitted, the new endpoints return empty lists.
      */
     projectKey?: string;
     /**
-     * Optional. Wenn gesetzt, ist `/billing/bundles` aktiv.
+     * Optional. When set, `/billing/bundles` is active.
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
     /**
-     * Optional. Wenn gesetzt, ist `/billing/business-types` aktiv.
+     * Optional. When set, `/billing/business-types` is active.
      */
     businessTypeRepository?: ProviderSpec<BusinessTypeRepository>;
     /**
-     * Optional. Wenn gesetzt, werden Marketing-Texte in /billing/bundles
-     * und /billing/business-types reingemerged (locale-Filter).
+     * Optional. When set, marketing texts are merged into /billing/bundles
+     * and /billing/business-types (locale filter).
      */
     marketingRepository?: ProviderSpec<MarketingProjectionRepository>;
     /**
-     * Optional (#13). Wenn gesetzt (+ projectKey), overlayt
-     * `/billing/feature-registry` das editierbare `FeatureCatalogEntry.icon`
-     * aus der DB über die statische Registry.
+     * Optional (#13). When set (+ projectKey), `/billing/feature-registry`
+     * overlays the editable `FeatureCatalogEntry.icon` from the DB over the
+     * static registry.
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
     /**
-     * Module, deren Provider im DI-Scope sichtbar sein müssen — typisch
-     * `PrismaModule`/`PlatformAdaptersModule` für die Repositories.
+     * Modules whose providers must be visible in the DI scope — typically
+     * `PrismaModule`/`PlatformAdaptersModule` for the repositories.
      */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     extraProviders?: Provider[];

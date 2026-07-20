@@ -1,9 +1,9 @@
-// PlansService — CRUD für `plans` (SPEC_V2 §11.1 M6, Pack 1).
+// PlansService — CRUD for `plans` (SPEC_V2 §11.1 M6, Pack 1).
 //
-// Pack 1 deckt nur Plan-Stamm-Operationen ab. PlanVersion-Lifecycle
-// (Draft → Publish → Supersede) folgt mit Pack 2 (Importer-Cutover) —
-// dann lösen ein eigener `PlanVersionsService` und ein erweitertes
-// Repository-Port die Lücke.
+// Pack 1 only covers plan master operations. The PlanVersion lifecycle
+// (Draft → Publish → Supersede) follows with Pack 2 (importer cutover) —
+// at which point a dedicated `PlanVersionsService` and an extended
+// repository port close the gap.
 
 import {
     Inject,
@@ -34,10 +34,11 @@ export class PlansService {
     ) {}
 
     /**
-     * Plattformweite Zählung aktiver (ACTIVE/TRIAL) Subscriptions je `planKey`,
-     * versionsübergreifend und über alle Tenants (RLS-exempt). Pläne ohne Abo
-     * fehlen in der Map. Liefert `{}`, wenn kein `SubscriptionRepository`
-     * registriert ist oder es `countActiveByPlanKey` nicht implementiert.
+     * Platform-wide count of active (ACTIVE/TRIAL) subscriptions per `planKey`,
+     * across versions and across all tenants (RLS-exempt). Plans without a
+     * subscription are absent from the map. Returns `{}` when no
+     * `SubscriptionRepository` is registered or it does not implement
+     * `countActiveByPlanKey`.
      */
     async getTenantCounts(projectKey: string): Promise<Record<string, number>> {
         return (await this.subscriptions?.countActiveByPlanKey?.(projectKey)) ?? {};
@@ -78,32 +79,31 @@ export class PlansService {
         if (!existing) throw new NotFoundException(`Plan '${planId}' nicht gefunden`);
         if (existing.deletedAt !== null) return; // idempotent
 
-        // Plan-Schutzregel: ein Plan, der jemals published wurde (live ODER
-        // superseded), darf nicht gelöscht werden — Bestand-Subscriptions
-        // referenzieren die published Versionen (Vertragsschutz P1) und
-        // Audit-Trails brauchen einen stabilen Plan-Stamm.
+        // Plan protection rule: a plan that was ever published (live OR
+        // superseded) must not be deleted — existing subscriptions
+        // reference the published versions (contract protection P1) and
+        // audit trails need a stable plan master record.
         await this.assertNoPublishedVersions(existing.planKey, 'soft-delete');
         await this.repo.softDelete(planId);
     }
 
     /**
-     * Hartes Löschen des Plan-Stamms. Nur erlaubt für Pläne ohne
-     * `PlanVersion`-Einträge — published Versionen sind durch
-     * Vertragsschutz P1 unveränderlich (Bestand-Subscriptions referenzieren
-     * sie). Drafts muss der Caller vorher via `DELETE plan-versions/:id`
-     * verwerfen.
+     * Hard-deletes the plan master record. Only allowed for plans without
+     * `PlanVersion` entries — published versions are immutable under
+     * contract protection P1 (existing subscriptions reference them). The
+     * caller must discard drafts beforehand via `DELETE plan-versions/:id`.
      *
-     * Wenn das Repository `hardDelete` nicht implementiert, antwortet der
-     * Endpoint mit 422 `PLAN_HARD_DELETE_NOT_IMPLEMENTED` — Konsumenten
-     * können dann auf `softDelete` zurückfallen.
+     * If the repository does not implement `hardDelete`, the endpoint
+     * responds with 422 `PLAN_HARD_DELETE_NOT_IMPLEMENTED` — consumers can
+     * then fall back to `softDelete`.
      */
     async hardDeletePlan(planId: string): Promise<void> {
         const existing = await this.repo.findById(planId);
         if (!existing) throw new NotFoundException(`Plan '${planId}' nicht gefunden`);
 
-        // Strenge Schutzregel: published Versionen blockieren jegliches Löschen
-        // (Vertragsschutz P1). Drafts blockieren Hard-Delete zusätzlich —
-        // Caller muss sie erst über die Discard-Route verwerfen.
+        // Strict protection rule: published versions block any deletion
+        // (contract protection P1). Drafts additionally block hard-delete —
+        // the caller must first discard them via the discard route.
         await this.assertNoPublishedVersions(existing.planKey, 'hard-delete');
         await this.assertNoDrafts(existing.planKey);
 
@@ -119,11 +119,11 @@ export class PlansService {
     }
 
     /**
-     * Plattform-Invariante (Vertragsschutz P1): wenn ein Plan jemals eine
-     * published Version hatte, bleibt sein Plan-Stamm erhalten — egal ob
-     * die Version mittlerweile superseded ist. Subscriptions referenzieren
-     * weiter über die Version, und das Audit-Log muss den Plan auflösen
-     * können.
+     * Platform invariant (contract protection P1): once a plan has ever had a
+     * published version, its plan master record is retained — regardless of
+     * whether the version has since been superseded. Subscriptions still
+     * reference it via the version, and the audit log must be able to resolve
+     * the plan.
      */
     private async assertNoPublishedVersions(planKey: string, op: string): Promise<void> {
         if (typeof this.repo.listVersions !== 'function') return;

@@ -1,9 +1,9 @@
-// CliContextModule — DI-Wrapper für CliContextService.
+// CliContextModule — DI wrapper for CliContextService.
 //
-// Konsumenten registrieren ihre `UserPort`-Adapter + Konfiguration via
-// `CliContextModule.forRoot({...})`. Voraussetzung: das `AdminModule.forRoot`
-// (aus saas-platform-nest) ist bereits importiert — `MfaService` und
-// `AdminAuditService` werden via Plattform-DI bereitgestellt.
+// Consumers register their `UserPort` adapters + configuration via
+// `CliContextModule.forRoot({...})`. Prerequisite: `AdminModule.forRoot`
+// (from saas-platform-nest) is already imported — `MfaService` and
+// `AdminAuditService` are provided via platform DI.
 
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import { asProvider, type ProviderSpec } from '@saasicat/nest';
@@ -35,46 +35,46 @@ export interface CliContextModuleOptions {
     config: CliContextConfig;
     userPort: ProviderSpec<UserPort>;
     /**
-     * Optional: Audit-Query-Port für `AuditTailFlow`. Wenn nicht gesetzt,
-     * lehnt `AuditTailFlow` mit DI-Fehler ab — `<app> audit tail` ist
-     * dann nicht verfügbar.
+     * Optional: audit query port for `AuditTailFlow`. If not set,
+     * `AuditTailFlow` rejects with a DI error — `<app> audit tail` is then
+     * not available.
      */
     auditQueryPort?: ProviderSpec<AuditQueryPort>;
     /**
-     * Optional: Liste von DoctorChecks für `DoctorFlow`. Default: leer
-     * — `<app> doctor` läuft, liefert aber keinen Inhalt. Konsumenten
-     * registrieren projektspezifische Checks.
+     * Optional: list of DoctorChecks for `DoctorFlow`. Default: empty
+     * — `<app> doctor` runs but returns no content. Consumers register
+     * project-specific checks.
      *
-     * Hinweis: Wenn `defaultDoctorChecks: true`, werden die 4 Plattform-
-     * Standard-Checks (PlanCatalog/Discovery/UserPort/AdminManifest)
-     * **zusätzlich** zu dieser Liste registriert.
+     * Note: if `defaultDoctorChecks: true`, the 4 platform standard checks
+     * (PlanCatalog/Discovery/UserPort/AdminManifest) are registered **in
+     * addition** to this list.
      */
     doctorChecks?: ProviderSpec<DoctorCheck[]>;
     /**
-     * Default `false`. Wenn `true`, registriert die Plattform die vier
-     * Standard-Checks aus `PLATFORM_DOCTOR_CHECK_PROVIDERS` zusätzlich zu
-     * `doctorChecks`. Empfohlen für alle Apps, die `<app> doctor` ernst nehmen.
+     * Default `false`. If `true`, the platform registers the four standard
+     * checks from `PLATFORM_DOCTOR_CHECK_PROVIDERS` in addition to
+     * `doctorChecks`. Recommended for all apps that take `<app> doctor` seriously.
      */
     defaultDoctorChecks?: boolean;
     /**
-     * Optional: ManifestAccessPort für `<app> manifest dump|hash|check|...`.
-     * Wenn nicht gesetzt, ist `ManifestCliFlow` nicht registriert.
+     * Optional: ManifestAccessPort for `<app> manifest dump|hash|check|...`.
+     * If not set, `ManifestCliFlow` is not registered.
      */
     manifestAccessPort?: ProviderSpec<ManifestAccessPort>;
     /**
-     * Optional: vollständige ManifestChecks-Liste. Default sind die 10
-     * `DEFAULT_MANIFEST_CHECKS`. Konsument-Erweiterungen sollten
-     * `[...DEFAULT_MANIFEST_CHECKS, ...projectSpecific]` durchreichen.
+     * Optional: full ManifestChecks list. Default is the 10
+     * `DEFAULT_MANIFEST_CHECKS`. Consumer extensions should pass through
+     * `[...DEFAULT_MANIFEST_CHECKS, ...projectSpecific]`.
      */
     manifestChecks?: ProviderSpec<ManifestCheck[]>;
     /**
-     * Optional: UserManagementPort für das geteilte `<app> user`-Command
+     * Optional: UserManagementPort for the shared `<app> user` command
      * (create-super-admin/reassign-admin/list/reset-password/deactivate).
-     * Ohne diesen Port kann `UserCommands` nicht aufgelöst werden — registriere
-     * das Command nur, wenn dieser Port gesetzt ist.
+     * Without this port `UserCommands` cannot be resolved — register the
+     * command only if this port is set.
      */
     userManagementPort?: ProviderSpec<UserManagementPort>;
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 
@@ -99,10 +99,10 @@ export class CliContextModule {
             providers.push(AuditTailFlow);
             exports_.push(AuditTailFlow);
         }
-        // DoctorFlow wird immer registriert; bei fehlendem checks-Provider
-        // läuft er mit leerer Liste durch (sinnvoller Default als hard error).
-        // Default-Plattform-Checks sind opt-in (Apps ohne Discovery-Snapshot
-        // oder ohne UserPort sollen nicht mit „missing dependency" abbrechen).
+        // DoctorFlow is always registered; with a missing checks provider
+        // it runs with an empty list (a sensible default over a hard error).
+        // Default platform checks are opt-in (apps without a discovery snapshot
+        // or without a UserPort should not abort with "missing dependency").
         if (options.defaultDoctorChecks) {
             providers.push(...PLATFORM_DOCTOR_CHECK_PROVIDERS);
             providers.push({
@@ -133,9 +133,9 @@ export class CliContextModule {
             exports_.push(ManifestCliFlow);
         }
 
-        // Geteiltes `<app> user`-Command: nur verfügbar, wenn der Konsument den
-        // UserManagementPort liefert. Token wird exportiert, damit das in der
-        // Konsumenten-Module registrierte `UserCommands` es injizieren kann.
+        // Shared `<app> user` command: only available if the consumer provides
+        // the UserManagementPort. The token is exported so that the
+        // `UserCommands` registered in the consumer module can inject it.
         if (options.userManagementPort) {
             providers.push(asProvider(USER_MANAGEMENT_PORT_TOKEN, options.userManagementPort));
             exports_.push(USER_MANAGEMENT_PORT_TOKEN);

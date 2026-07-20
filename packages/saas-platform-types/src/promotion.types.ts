@@ -1,33 +1,33 @@
-// Promotion — zeitgesteuerte, katalog-seitige Preis-Aktion (SPEC_V2 §9a).
+// Promotion — time-controlled, catalog-side price promotion (SPEC_V2 §9a).
 //
-// Getrennt von `PromoCode` (einlösbarer Checkout-Gutschein): eine Promotion
-// überschreibt den Pricing-Page-Preis automatisch. `requiresCoupon = true`
-// koppelt sie an bestehende `PromoCode`-Codes.
+// Separate from `PromoCode` (redeemable checkout voucher): a promotion
+// overrides the pricing-page price automatically. `requiresCoupon = true`
+// couples it to existing `PromoCode` codes.
 //
-// Die Pure-Functions `promoStatus` / `pickActivePromo` / `applyPromo` werden
-// vom Public-Catalog-Backend und von der UI-Vorschau gemeinsam genutzt.
+// The pure functions `promoStatus` / `pickActivePromo` / `applyPromo` are
+// shared by the public catalog backend and the UI preview.
 
-/** Aktions-Art. */
+/** Promotion type. */
 export type PromotionType = 'percent' | 'amount' | 'intro' | 'freeMonths';
 
-/** Abrechnungs-Zyklus, für den die Promotion gilt. */
+/** Billing cycle for which the promotion applies. */
 export type PromotionBillingCycle = 'monthly' | 'yearly' | 'both';
 
-/** Abgeleiteter Zeit-Status (aus validFrom/validTo + heute). */
+/** Derived time status (from validFrom/validTo + today). */
 export type PromotionStatus = 'scheduled' | 'active' | 'expired';
 
-/** Zieltyp einer Promotion. Fehlend/undefined bedeutet legacy `PLAN`. */
+/** Target type of a promotion. Missing/undefined means legacy `PLAN`. */
 export type PromotionTargetType = 'PLAN' | 'BUNDLE' | 'OFFER';
 
 /**
- * Typ-abhängiger Aktions-Wert:
- * - `percent`/`amount` → Zahl
+ * Type-dependent promotion value:
+ * - `percent`/`amount` → number
  * - `intro` → `{ price, months }`
- * - `freeMonths` → Zahl (Anzahl Gratis-Monate)
+ * - `freeMonths` → number (count of free months)
  */
 export type PromotionValue = number | { price: number; months: number };
 
-/** Locale-spezifische Aktions-Texte. */
+/** Locale-specific promotion texts. */
 export interface PromotionI18nFields {
     badge?: string;
     fineprint?: string;
@@ -36,30 +36,30 @@ export interface PromotionI18nFields {
 /** `{ 'de': { badge, fineprint }, 'en': { … } }`. */
 export type PromotionI18n = Record<string, PromotionI18nFields>;
 
-/** Wire-Format einer `promotions`-Row. */
+/** Wire format of a `promotions` row. */
 export interface PromotionRow {
     id: string;
     projectKey: string;
-    /** Interne Bezeichnung (nicht öffentlich). */
+    /** Internal label (not public). */
     internalLabel: string;
     type: PromotionType;
     value: PromotionValue;
-    /** Plan-Keys, auf die die Aktion wirkt. */
+    /** Plan keys the promotion applies to. */
     appliesTo: string[];
-    /** Zieltyp der Keys in `appliesTo`. Fehlend = PLAN. */
+    /** Target type of the keys in `appliesTo`. Missing = PLAN. */
     targetType?: PromotionTargetType;
     billingCycle: PromotionBillingCycle;
-    /** ISO-Datum. */
+    /** ISO date. */
     validFrom: string;
     validTo: string;
-    /** Bei Überschneidung gewinnt der höchste Wert. */
+    /** On overlap, the highest value wins. */
     priority: number;
-    /** Sprach-Beschränkung; null = alle Locales. */
+    /** Language restriction; null = all locales. */
     onlyLocales: string[] | null;
     requiresCoupon: boolean;
-    /** Referenzierte `PromoCode`-Codes (nur bei requiresCoupon relevant). */
+    /** Referenced `PromoCode` codes (only relevant when requiresCoupon). */
     codes: string[];
-    /** UI-Akzentfarbe (Timeline/Ribbon). */
+    /** UI accent color (timeline/ribbon). */
     color: string;
     i18n: PromotionI18n;
     createdAt: string;
@@ -106,10 +106,10 @@ export interface UpdatePromotionData {
 }
 
 // =============================================================================
-// Pure-Functions — geteilt zwischen Public-Catalog-Backend und UI-Vorschau
+// Pure functions — shared between the public catalog backend and UI preview
 // =============================================================================
 
-/** Zeit-Status einer Promotion relativ zu `today` (Default: jetzt). */
+/** Time status of a promotion relative to `today` (default: now). */
 export function promoStatus(
     promo: Pick<PromotionRow, 'validFrom' | 'validTo'>,
     today: Date = new Date(),
@@ -122,9 +122,9 @@ export function promoStatus(
 }
 
 /**
- * Wählt **genau eine** anwendbare Promotion für Plan + Locale + Zyklus:
- * gefiltert auf `appliesTo`, `billingCycle`, `onlyLocales`, Status `active`,
- * `!requiresCoupon`; bei mehreren gewinnt die höchste `priority`.
+ * Selects **exactly one** applicable promotion for plan + locale + cycle:
+ * filtered on `appliesTo`, `billingCycle`, `onlyLocales`, status `active`,
+ * `!requiresCoupon`; if several, the highest `priority` wins.
  */
 export function pickActivePromo(
     promotions: PromotionRow[],
@@ -145,14 +145,14 @@ export function pickActivePromo(
     return matches[0] ?? null;
 }
 
-/** Ergebnis von `applyPromo` — typ-abhängige Preis-Projektion. */
+/** Result of `applyPromo` — type-dependent price projection. */
 export type PromotionResult =
     | { kind: 'percent'; discounted: number; original: number; pct: number }
     | { kind: 'amount'; discounted: number; original: number; saved: number }
     | { kind: 'intro'; discounted: number; original: number; months: number }
     | { kind: 'free'; discounted: number; original: number; months: number };
 
-/** Wendet die Promotion-Mathematik auf einen Basispreis an. */
+/** Applies the promotion math to a base price. */
 export function applyPromo(
     promo: PromotionRow | null,
     basePrice: number | null,
