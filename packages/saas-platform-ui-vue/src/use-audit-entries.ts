@@ -1,7 +1,7 @@
 // useAuditEntries — Vue-Composable über den Admin-Audit-Endpoint.
 //
-// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert (AutohausPro:
-// `/api/admin/audit`, vereinsfux: `/api/v1/admin/audit`).
+// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert
+// (z. B. `/api/admin/audit` oder `/api/v1/admin/audit`).
 //
 // Konsument-Backend exposed den Endpoint via `AuditQueryPort.list`-Adapter.
 // Composable typisiert den Response als `AuditEntry[]`.

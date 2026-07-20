@@ -3,11 +3,9 @@
 // Tenant-Scope), daher müssen RLS-Policies, die auf
 // `tenantId = app_current_tenant()` filtern, explizit umgangen werden.
 //
-// Konsument liefert die `RlsBypassPort`-Implementation (z. B. AutohausPro'
+// Konsument liefert die `RlsBypassPort`-Implementation (z. B. ein
 // `tenantContext.run({bypassRls: true}, …)` AsyncLocalStorage,
 // Django-`contextvars`-Pendant, …). Plattform-Code ruft nur den Port.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.3 (2.3).
 
 import {
     type CallHandler,

@@ -147,8 +147,6 @@ import type {
 // BundleVersionPublishDialog — Confirm-Modal für Publish einer Draft-Version.
 // Zeigt das Diff zur Vorgänger-Version (publishedChanges) und blockt
 // regressive Versionen ohne forceRegressive-Confirm.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §7
 
 const props = defineProps<{
     modelValue: boolean;

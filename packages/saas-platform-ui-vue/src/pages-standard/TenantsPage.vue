@@ -190,9 +190,9 @@ import {
 
 // Plattform-Standard-Page: Mandanten-Liste.
 //
-// Default-Layout: AutohausPro-Style mit Avatar+Slug-Subtitel, Status-Pills, einer
-// konfigurierbaren Verbrauch-Spalte (icon+field-Paare), Angelegt-Datum,
-// optionaler Aktionen-Spalte.
+// Default-Layout: Avatar+Slug-Subtitel, Status-Pills, eine
+// konfigurierbare Verbrauch-Spalte (icon+field-Paare), Angelegt-Datum,
+// optionale Aktionen-Spalte.
 //
 // App-spezifische Bits via Props:
 //   - `subtitle`             : Header-Untertitel
@@ -200,7 +200,7 @@ import {
 //   - `planOptions`          : Filter-Dropdown-Werte für Plan; ohne = blendet Dropdown aus
 //   - `planAccents`          : Plan-ID → Akzentfarbe (Avatar + Plan-Dot)
 //   - `planLabelField`       : Feld für Plan-Anzeige (z. B. "plan" oder "bundleKey")
-//   - `usageFields`          : Verbrauch-Spalten (icon + field), z. B. AutohausPro:
+//   - `usageFields`          : Verbrauch-Spalten (icon + field), z. B.
 //                              [{icon:'person',field:'users'},{icon:'directions_car',field:'vehicles'}]
 //   - `pillsForRow`          : (row) => Pills (Pilot/Trial/etc.)
 //   - `actions`              : Per-Row-Action-Buttons mit optional `tone` und
@@ -269,7 +269,7 @@ export interface TenantRowAction {
 }
 
 // `endpoint` ist Pflicht — Plattform kennt den App-globalPrefix nicht
-// (AutohausPro: `/api/admin/tenants`, vereinsfux: `/api/v1/admin/tenants`).
+// (z. B. `/api/admin/tenants` oder `/api/v1/admin/tenants`).
 // Hardcoded Default würde IMMER eine App falsch bedienen.
 const props = withDefaults(
     defineProps<{
@@ -373,7 +373,7 @@ function onClearSearch(): void {
 
 function applyFilter(): void {
     // Status-Wert wird unverändert weitergereicht. Apps konfigurieren via
-    // `statusOptions` die Werte, die ihr Backend erwartet (z. B. AutohausPro:
+    // `statusOptions` die Werte, die ihr Backend erwartet (z. B.
     // 'ACTIVE'/'INACTIVE'; Plattform-Default: 'active'/'suspended').
     filter.value = {
         ...filter.value,

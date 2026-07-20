@@ -4,8 +4,6 @@
 // Controller wird zur Boot-Zeit dynamisch gebaut, damit der Konsument die
 // Class-Level-Guards selbst bestimmt (`SuperAdminGuard`, MFA, …) — analog
 // zu DiscoveryController.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3 + §6
 
 import {
     Body,

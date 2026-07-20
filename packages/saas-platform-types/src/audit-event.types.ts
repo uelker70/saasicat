@@ -1,6 +1,5 @@
 // AuditEvent — Format eines AuditLog-Eintrags.
 // Schema-Quelle: @saasicat/spec/schemas/audit-event.schema.json
-// Spec: yada-services/handoff/superadmin/SPEC.md §10.3
 
 /** Format: 'web:<email>:<sessionId>' oder 'cli:<email>:<host>'. */
 export type ActorTag = string;

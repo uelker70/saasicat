@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import { formatPreflightReport, preflightExitCode, runPreflight } from '../dist/catalog/index.js';
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 function buildSnapshot(features = [], quotas = []) {
     return {

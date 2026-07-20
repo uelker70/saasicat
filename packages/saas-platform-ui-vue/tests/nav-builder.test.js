@@ -10,7 +10,7 @@ import {
 function buildManifest(overrides = {}) {
     return {
         schemaVersion: 1,
-        project: { key: 'cf', displayName: 'AutohausPro' },
+        project: { key: 'cf', displayName: 'DemoApp' },
         build: {
             platformPackageVersion: '0.1.0',
             appVersion: '1.0.0',
@@ -33,9 +33,9 @@ function buildManifest(overrides = {}) {
                     id: 'cf.datev',
                     label: 'DATEV',
                     route: '/admin/datev',
-                    componentKey: 'ahp-datev',
+                    componentKey: 'cf-datev',
                     icon: 'account_tree',
-                    navSection: 'AutohausPro',
+                    navSection: 'DemoApp',
                 },
             ],
         },
@@ -100,7 +100,7 @@ describe('buildRoutes — ProjectPages', () => {
         const datev = routes.find((r) => r.id === 'cf.datev');
         assert.notEqual(datev, undefined);
         assert.equal(datev.path, '/admin/datev');
-        assert.equal(datev.componentKey, 'ahp-datev');
+        assert.equal(datev.componentKey, 'cf-datev');
         assert.equal(datev.isStandard, false);
     });
 
@@ -127,7 +127,7 @@ describe('buildRoutes — ProjectPages', () => {
 
     test('navSection wird durchgereicht', () => {
         const routes = buildRoutes(buildManifest());
-        assert.equal(routes.find((r) => r.id === 'cf.datev').navSection, 'AutohausPro');
+        assert.equal(routes.find((r) => r.id === 'cf.datev').navSection, 'DemoApp');
     });
 
     test('availableExtensions filtert ProjectPages mit unbekanntem componentKey', () => {
@@ -148,7 +148,7 @@ describe('buildRoutes — ProjectPages', () => {
 
     test('availableExtensions behält ProjectPages mit bekanntem componentKey', () => {
         const routes = buildRoutes(buildManifest(), {
-            availableExtensions: new Set(['ahp-datev']),
+            availableExtensions: new Set(['cf-datev']),
         });
         assert.notEqual(
             routes.find((r) => r.id === 'cf.datev'),
@@ -179,22 +179,22 @@ describe('buildSidebar — Section-Gruppierung', () => {
         // priorisiert Kunden vor System; danach kommen unbekannte alphabetisch.
         const sidebar = buildSidebar(buildRoutes(m));
         const sectionNames = sidebar.map((s) => s.section);
-        assert.deepEqual(sectionNames, ['Kunden', 'System', 'ASection', 'AutohausPro', 'ZSection']);
+        assert.deepEqual(sectionNames, ['Kunden', 'System', 'ASection', 'DemoApp', 'ZSection']);
     });
 
     test('sectionOrder-Override durch zweiten Parameter', () => {
         const sidebar = buildSidebar(buildRoutes(buildManifest()), ['System', 'Kunden']);
         assert.deepEqual(
             sidebar.map((s) => s.section),
-            ['System', 'Kunden', 'AutohausPro'],
+            ['System', 'Kunden', 'DemoApp'],
         );
     });
 
     test('items innerhalb einer Section ohne Mutation', () => {
         const sidebar = buildSidebar(buildRoutes(buildManifest()));
-        const autohauspro = sidebar.find((s) => s.section === 'AutohausPro');
-        assert.equal(autohauspro.items.length, 1);
-        assert.equal(autohauspro.items[0].path, '/admin/datev');
+        const demoapp = sidebar.find((s) => s.section === 'DemoApp');
+        assert.equal(demoapp.items.length, 1);
+        assert.equal(demoapp.items[0].path, '/admin/datev');
     });
 });
 

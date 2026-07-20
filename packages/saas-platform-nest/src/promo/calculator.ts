@@ -1,12 +1,8 @@
 // Promo-Code-Calculator — pure functions. Keine DB, keine Seiteneffekte.
 //
-// Aus autohauspro/backend/src/promo-codes/promo-codes.calculator.ts extrahiert
-// (P1 Promo-Slice, UMSETZUNGSPLAN.md §3.2).
-//
 // Statt Prisma-Typen nutzt der Calculator die generischen Wire-Format-
-// Types aus @saasicat/types. Damit ist er für AutohausPro,
-// vereinsfux und perspektivisch Dagitto (via Wire-Format) gleichermaßen
-// nutzbar.
+// Types aus @saasicat/types. Damit ist er für alle konsumierenden Apps
+// (auch rein über das Wire-Format) gleichermaßen nutzbar.
 
 import type {
     BillingCycle,

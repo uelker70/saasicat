@@ -13,8 +13,6 @@
 //   strictModeCheckMode: 'blocking', // Default (#12)
 // })
 // ```
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3
 
 import {
     type CanActivate,

@@ -12,7 +12,7 @@ import {
 // Proration (geteilter computeProration-Helper), Redundanz-Hinweis
 // (sakarel AK-13), requires-Dependency-Check (#35) und Self-Service-Policy.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 const SUB_A = 'sub-a';
 const NOW = new Date('2026-05-17T00:00:00Z');
 

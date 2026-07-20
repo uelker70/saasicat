@@ -5,7 +5,7 @@ import { LimitExceededError } from '../dist/entitlement/index.js';
 
 // LimitExceededFilter mappt domänen-neutrale `LimitExceededError` auf
 // HTTP 402 (Payment Required) und ein konsistentes JSON-Body-Format. Tests
-// stellen sicher, dass Konsumenten (vereinsfux/AutohausPro) das gleiche
+// stellen sicher, dass alle Konsumenten das gleiche
 // Antwortschema sehen — das Frontend wertet `dimension`, `used`, `max`
 // für Upgrade-Hints aus.
 

@@ -1,7 +1,7 @@
 // Plan-Versions-Catalog-Builder — Lift-and-Shift-Tests (Phase 2b).
 //
 // Verifiziert die Snapshot-Konstruktion: drafts > active > historical, plus
-// Quota-Mirror (AutohausPro-Legacy maxUsers etc.) und planSortOrder.
+// Quota-Mirror (Legacy-Flachfelder maxUsers etc.) und planSortOrder.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -71,7 +71,7 @@ describe('buildSnapshots — Drafts/Active/Historical', () => {
     });
 });
 
-describe('buildSnapshots — Quota-Mirror (AutohausPro-Kompatibilität)', () => {
+describe('buildSnapshots — Quota-Mirror (Legacy-Kompatibilität)', () => {
     test('legacy maxUsers/maxVehicles/maxStorageGb werden auf ResolvedPlan gespiegelt', () => {
         const snaps = buildSnapshots({
             planVersions: [
@@ -116,7 +116,7 @@ describe('buildSnapshots — Quota-Mirror (AutohausPro-Kompatibilität)', () => 
 });
 
 describe('buildSnapshots — planSortOrder', () => {
-    test('AutohausPro-Order: BASIC < STANDARD < PROFESSIONAL', () => {
+    test('planSortOrder: BASIC < STANDARD < PROFESSIONAL', () => {
         const snaps = buildSnapshots(
             {
                 planVersions: [

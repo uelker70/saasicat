@@ -280,7 +280,7 @@ import {
 // Plattform-Pilot-Create-Dialog (Sim-Layout: 3 nummerierte Sektionen,
 // Slug-Prefix-Display, Plan-Tile-Picker, Endet-Quick-Sets, Footer-Hint).
 // App liefert Plan-Optionen + Submit-Handler. Custom-Felder pro App via
-// Slot `tenant-extra`; AutohausPro + vereinsfux koennen `showLegalFields` /
+// Slot `tenant-extra`; Konsumenten koennen `showLegalFields` /
 // `slugPrefix` / `existingSlugs` umschalten.
 
 /** Plan-Option entweder als Key (String) oder mit lesbarem Label + Farbe. */
@@ -295,7 +295,7 @@ const props = withDefaults(
         /** Mandanten-spezifische Labels/Placeholder; neutrale Defaults sonst. */
         copy?: PilotCopy;
         showLegalFields?: boolean;
-        /** Optionaler Prefix vor dem Slug-Input (z. B. "vereinsfux.de /"). */
+        /** Optionaler Prefix vor dem Slug-Input (z. B. "example.com /"). */
         slugPrefix?: string;
         /** Bekannte Slugs für Konflikt-Check (verhindert Submit). */
         existingSlugs?: readonly string[];

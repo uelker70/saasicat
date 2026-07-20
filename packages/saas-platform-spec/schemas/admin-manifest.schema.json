@@ -36,7 +36,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 8,
-                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"cf\", \"vf\"). Aus saas.yaml#app.icon."
+                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"ma\", \"da\"). Aus saas.yaml#app.icon."
                 },
                 "logoUrl": { "type": "string" },
                 "environment": {

@@ -4,8 +4,6 @@
 // gehen direkt live, weil sie nur die Public-Catalog-Anzeige steuern,
 // keine Bestand-Subscriptions. Pro (targetType, targetVersionId, locale)
 // gibt es genau eine aktive Row; das Tripel ist im DB-Schema unique.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3 + §9
 
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {

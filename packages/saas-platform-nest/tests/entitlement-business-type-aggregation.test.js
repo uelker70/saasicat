@@ -15,7 +15,7 @@ const NOW = new Date('2026-05-14T12:00:00Z');
 
 const MIN_CATALOG = {
     schemaVersion: 1,
-    projectKey: 'vereinsfux',
+    projectKey: 'clubapp',
     currency: 'EUR',
     vatRate: 19,
     features: [

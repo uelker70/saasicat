@@ -37,13 +37,13 @@ describe('buildActivePlanVersionWhere', () => {
         assert.deepEqual(startOfUtcDay(new Date('2026-06-03T23:59:59Z')), ASOF_DAY_START);
     });
 
-    test('ohne withEndsAt: keine endsAt-Klausel (autohauspro CatalogPlanVersion)', () => {
+    test('ohne withEndsAt: keine endsAt-Klausel (CatalogPlanVersion)', () => {
         const where = buildActivePlanVersionWhere(ASOF);
         assert.equal(where.AND.length, 2);
         assert.ok(!where.AND.some((c) => c.OR.some((o) => 'endsAt' in o)));
     });
 
-    test('withEndsAt: ergänzt endsAt-Klausel (vereinsfux PlanVersion)', () => {
+    test('withEndsAt: ergänzt endsAt-Klausel (PlanVersion)', () => {
         const where = buildActivePlanVersionWhere(ASOF, { withEndsAt: true });
         assert.equal(where.AND.length, 3);
         const endsAtClause = where.AND.find((c) => c.OR.some((o) => 'endsAt' in o));

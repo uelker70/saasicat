@@ -122,7 +122,7 @@ test('listFeatureRegistry overlayt DB-icon über das statische Registry-Icon (#1
     const ctrl = new PublicCatalogController(
         CATALOG,
         baseReg,
-        'vereinsfux',
+        'clubapp',
         null,
         null,
         null,
@@ -140,7 +140,7 @@ test('listFeatureRegistry overlayt DB-icon über das statische Registry-Icon (#1
 // Bundle-eigenen Features) aus den FeatureCatalogEntries.
 async function createLiveBundle(bundleRepo, { bundleKey, features }) {
     const bundle = await bundleRepo.create({
-        projectKey: 'vereinsfux',
+        projectKey: 'clubapp',
         bundleKey,
         label: bundleKey,
     });
@@ -183,7 +183,7 @@ test('listBundles liefert requiresFeatures aus den FeatureCatalogEntries (#35)',
     const ctrl = new PublicCatalogController(
         CATALOG,
         REGISTRY,
-        'vereinsfux',
+        'clubapp',
         null,
         bundleRepo,
         null,
@@ -203,7 +203,7 @@ test('listBundles ohne CatalogEntry-Repo: requiresFeatures bleibt leer (graceful
         bundleKey: 'TURNIERE',
         features: ['TOURNAMENT_MANAGEMENT'],
     });
-    const ctrl = new PublicCatalogController(CATALOG, REGISTRY, 'vereinsfux', null, bundleRepo);
+    const ctrl = new PublicCatalogController(CATALOG, REGISTRY, 'clubapp', null, bundleRepo);
 
     const bundles = await ctrl.listBundles();
     assert.deepEqual(bundles[0].requiresFeatures, []);

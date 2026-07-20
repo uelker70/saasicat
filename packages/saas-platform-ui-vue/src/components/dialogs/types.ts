@@ -36,7 +36,7 @@ export interface PilotEditResult {
 /**
  * Mandanten-spezifisches Vokabular für die Pilot-Dialoge. Die Plattform
  * liefert neutrale Defaults ("Mandant"); Konsumenten überschreiben mit
- * ihrer Domänensprache (vereinsfux → "Verein", AutohausPro → "Händler").
+ * ihrer Domänensprache (z. B. "Verein" oder "Händler").
  */
 export interface PilotCopy {
     /** Untertitel der Mandant-Sektion im Create-Dialog. */

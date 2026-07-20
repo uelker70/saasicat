@@ -4,9 +4,6 @@
 // Slice A (aggregation.ts + plan-resolution.ts) liefert die Pure-Functions;
 // dieser Service orchestriert sie mit den Konsumenten-Adaptern (Subscription/
 // PlanVersion-Repositories, TransactionRunner) und einem In-Memory-Cache.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.6) +
-//        autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §5.
 
 import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type {

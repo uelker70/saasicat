@@ -122,7 +122,7 @@ const props = defineProps<{
     expectedPlanIds?: readonly string[];
     /**
      * Optional: zusätzliche Quota-Spalten zwischen "Preis" und "Features".
-     * Beispiel vereinsfux: `[{ key: 'users', label: 'Benutzer' },
+     * Beispiel: `[{ key: 'users', label: 'Benutzer' },
      * { key: 'members', label: 'Mitglieder' }, { key: 'storageGb',
      * label: 'Speicher (GB)', fractional: true }, { key: 'resources',
      * label: 'Plätze' }]`. Default: keine zusätzlichen Spalten

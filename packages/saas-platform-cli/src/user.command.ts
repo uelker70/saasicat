@@ -1,5 +1,5 @@
-// Geteiltes `<app> user`-Command für Konsumenten-CLIs (AutohausPro `ahp`,
-// vereinsfux `vf`, …). Mandanten-übergreifende User-Operationen:
+// Geteiltes `<app> user`-Command für Konsumenten-CLIs.
+// Mandanten-übergreifende User-Operationen:
 //   create-super-admin <email>  --first --last [--password] [--yes]
 //   reassign-admin     <slug>   --to=<email> --reason="…"
 //   list               <slug>

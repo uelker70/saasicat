@@ -8,7 +8,7 @@ import { FakeBundleRepository } from '../dist/testing/index.js';
 // UpsellOfferResolver-Ports gegen published+marketed Catalog-Bundles.
 // Ranking: Deckung (Feature + ungedeckte requires, #35) vor Preis.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 let bundleRepo;
 

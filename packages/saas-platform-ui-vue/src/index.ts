@@ -1,8 +1,6 @@
 // @saasicat/ui-vue — Vue-3-Komponenten + Composables für die
 // SuperAdmin-UI-Shell.
 //
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.6.
-//
 // P4.1 (Phase 30): Public-Boot-Loader + Manifest-Loader (ETag-Cache).
 // P4.2 (Phase 31): Nav-Builder + Extension-Host + Action-Registry.
 // P4.3 (Phase 32): Batch-Column-Fetcher.

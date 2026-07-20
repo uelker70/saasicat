@@ -4,8 +4,6 @@
 // Der Controller wird zur Boot-Zeit dynamisch gebaut, damit der Konsument
 // die Class-Level-Guards selbst bestimmt (`SuperAdminGuard`, MFA, …).
 // Pattern analog zu admin/admin-manifest.module.ts (`buildManifestController`).
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.3
 
 import {
     type CanActivate,

@@ -11,10 +11,6 @@ import type { PlanCatalog } from '@saasicat/types';
 // Lädt eine YAML-Datei, parst sie als JSON-kompatibles Objekt, validiert
 // sie gegen `@saasicat/spec/schemas/plan-catalog.schema.json`,
 // liefert ein typed `PlanCatalog`-Objekt zurück.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.2 + §6
-//       autohauspro/handoff/saas/EXTRACTION_PLAN.md §4.1
-// Phase: P1.4 (UMSETZUNGSPLAN.md §3.2 Liefergegenstand 1.5)
 
 /**
  * Schema-Validierungsfehler mit allen Ajv-Errors gebündelt — ein Aufruf liefert

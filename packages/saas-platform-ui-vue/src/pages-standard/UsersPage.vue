@@ -154,8 +154,8 @@ const props = withDefaults(
         /** Per-Flow-MFA fuer Deactivate — zeigt MfaPromptDialog nach Reason-Prompt. */
         requireMfaForDeactivate?: boolean;
         mfaSetupHint?: string;
-        // Returnwert: bei vereinsfux `{oneTimePassword}` (zeigt OTP-Dialog),
-        // bei AutohausPro `void` (nur Notify). Page entscheidet anhand des Returns,
+        // Returnwert: entweder `{oneTimePassword}` (zeigt OTP-Dialog)
+        // oder `void` (nur Notify). Page entscheidet anhand des Returns,
         // ob OTP-Dialog angezeigt wird.
         submitResetPassword?: (
             id: string,
@@ -429,7 +429,7 @@ function onResetPasswordClick(row: UserRow): void {
             (code) => submit(row.id, reason, code),
             (data) => {
                 // Server kann optional `oneTimePassword` zurueckgeben — dann
-                // OTP-Dialog anzeigen (vereinsfux-Pattern). AutohausPro returnt
+                // OTP-Dialog anzeigen. Backends ohne OTP returnen
                 // void → nur Notify.
                 if (data && typeof data === 'object' && 'oneTimePassword' in data) {
                     q.dialog({

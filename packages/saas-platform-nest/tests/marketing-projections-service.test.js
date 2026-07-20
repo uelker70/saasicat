@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { MarketingProjectionsService } from '../dist/catalog/index.js';
 import { FakeMarketingProjectionRepository } from '../dist/testing/index.js';
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 const TARGET_VERSION = '11111111-1111-1111-1111-111111111111';
 
 let repo;

@@ -1,6 +1,4 @@
 // Subscription — Plattform-Tabellen-Wire-Format.
-// Schema-Quelle: autohauspro/handoff/saas/DATA_MODEL.md §1
-// + ROADMAP_PLANS_AND_ENTITLEMENT.md §3 (Plan-Versionierung)
 
 import type { PlanId, QuotaKey, FeatureKey } from './plan-catalog.types.js';
 import type { BillingCycle } from './promo-code.types.js';

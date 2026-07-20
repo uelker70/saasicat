@@ -2,8 +2,6 @@
 //
 // Konsumenten mappen ihre Prisma-Models auf diese Snapshots; die Plattform-
 // Aggregation arbeitet ausschließlich auf dieser Form (keine Prisma-Imports).
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.6).
 
 import type { FeatureKey, PlanId, QuotaKey } from '@saasicat/types';
 

@@ -1,8 +1,8 @@
 // ManifestLoader — fetcht den Admin-Manifest-Endpoint mit ETag-Cache.
 //
 // **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert, weil
-// Apps unterschiedliche `globalPrefix`-Konventionen haben (AutohausPro: `api`,
-// vereinsfux: `api/v1`).
+// Apps unterschiedliche `globalPrefix`-Konventionen haben (z. B. `api`
+// oder `api/v1`).
 //
 // Cache-Verhalten:
 //   - Erster Aufruf: GET ohne If-None-Match → Body + ETag-Header lesen,
@@ -12,8 +12,7 @@
 //     gecachte Body zurückgegeben, kein Re-Parse nötig. Bei 200 wird der
 //     Cache überschrieben.
 //
-// Spec: yada-services/handoff/superadmin/SPEC.md §8.3 +
-//        admin-api.openapi.yaml `GET /admin/manifest`.
+// Spec: admin-api.openapi.yaml `GET /admin/manifest`.
 
 import type { AdminManifest } from '@saasicat/types';
 import { defaultHttpClient, defaultKvStore, type HttpClient, type KvStore } from './types.js';
@@ -28,7 +27,7 @@ export interface ManifestLoaderOptions {
     storage?: KvStore;
     /**
      * Storage-Key-Prefix — Konsumenten mit mehreren Apps unter einer Domain
-     * setzen das auf z. B. `'ahp:'` oder `'vf:'`, damit die Caches
+     * setzen das auf z. B. `'ma:'` oder `'da:'`, damit die Caches
      * separiert sind.
      */
     storageKeyPrefix?: string;

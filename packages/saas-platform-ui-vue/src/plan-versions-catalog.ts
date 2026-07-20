@@ -9,10 +9,10 @@
 //   - `historical` : Pro Publish-Event ein Snapshot, vor `active`
 //
 // Plan-IDs werden alphabetisch sortiert; Konsumenten dürfen via
-// `planSortOrder` eine bevorzugte Reihenfolge erzwingen (z. B. AutohausPro:
+// `planSortOrder` eine bevorzugte Reihenfolge erzwingen (z. B.
 // BASIC < STANDARD < PROFESSIONAL < BUSINESS < ENTERPRISE).
 //
-// Phase 2b: Aus `autohauspro/admin/src/data/plan-versions-catalog.ts` portiert,
+// Phase 2b: Aus einem Konsumenten-Admin portiert,
 // app-spezifische Felder via Generics offen gehalten.
 
 import type { PlanVersionRow } from '@saasicat/types';
@@ -61,7 +61,7 @@ export interface ResolvedPlan<P extends PlanVersionRow = PlanVersionRow> {
     // gespiegelt; für Apps ohne diese Quotas bleiben sie undefined.
     /** @deprecated Aus `quotas['users']` lesen. */
     maxUsers?: number;
-    /** @deprecated AutohausPro-spezifisch; aus `quotas['vehicles']` lesen. */
+    /** @deprecated Legacy-Feld; aus `quotas['vehicles']` lesen. */
     maxVehicles?: number;
     /** @deprecated Aus `quotas['storageGb']` lesen. */
     maxStorageGb?: number;
@@ -73,7 +73,7 @@ export interface RawCatalogData<P extends PlanVersionRow = PlanVersionRow> {
 
 export interface BuildSnapshotsOptions {
     /**
-     * App-spezifische Plan-Reihenfolge, z. B. AutohausPro: `['BASIC', 'STANDARD',
+     * App-spezifische Plan-Reihenfolge, z. B. `['BASIC', 'STANDARD',
      * 'PROFESSIONAL', 'BUSINESS', 'ENTERPRISE']`. Plan-IDs außerhalb der Liste
      * landen alphabetisch sortiert hinten.
      */

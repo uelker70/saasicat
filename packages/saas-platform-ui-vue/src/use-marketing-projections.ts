@@ -5,8 +5,6 @@
 // gehen direkt live. Das Composable cached die Liste pro Filter-Tupel
 // nicht, sondern lädt bei jedem `load()` frisch — Marketing-Pflege ist
 // niedrig-frequent und Konsistenz wichtiger als Performance.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3 + §9
 
 import { ref, type Ref } from 'vue';
 import type {

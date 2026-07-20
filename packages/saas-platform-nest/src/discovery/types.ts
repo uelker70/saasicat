@@ -4,8 +4,6 @@
 // `@saasicat/types` (siehe discovery.types.ts dort), damit
 // auch das Vue-UI-Paket sie ohne NestJS-Dependency nutzen kann. Hier nur
 // die Optionen-Interfaces, die der Anwender im Decorator-Aufruf übergibt.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.1
 
 import type {
     CapabilityKind,

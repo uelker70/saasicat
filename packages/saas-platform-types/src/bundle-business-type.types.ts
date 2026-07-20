@@ -13,9 +13,6 @@
 // - Versionierte Rows extenden `VersionedEntityBase` (analog
 //   PlanVersionRow).
 // - Stamm-Rows (Bundle / BusinessType) haben keine Versions-Felder.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §5
-//        + GESCHAEFTSTYP_SPEC.md §3.3 (Wire-Format-Vorlagen)
 
 import type { CatalogEntryI18n } from './catalog-entry.types.js';
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';

@@ -1,10 +1,10 @@
 # create-saasicat-admin
 
-Scaffold-CLI für SuperAdmin-Frontend-Projekte. Erzeugt ein lauffähiges
-Vue 3 + Quasar + Vite-Projekt, das auf `@saasicat/ui-vue`
-aufbaut und alle Standard-Pages bereitstellt.
+Scaffolding CLI for SuperAdmin frontend projects. Generates a runnable
+Vue 3 + Quasar + Vite project that builds on `@saasicat/ui-vue` and ships
+all standard pages.
 
-## Verwendung
+## Usage
 
 ```bash
 pnpm create saasicat-admin <dir> \
@@ -14,7 +14,7 @@ pnpm create saasicat-admin <dir> \
   --api-base /api/v1/admin
 ```
 
-Erzeugt eine Verzeichnis-Struktur:
+Generates this directory structure:
 
 ```
 <dir>/
@@ -23,15 +23,15 @@ Erzeugt eine Verzeichnis-Struktur:
 ├── index.html
 ├── tsconfig.json
 ├── src/
-│   ├── main.ts                       (createSuperAdminApp aufgerufen)
+│   ├── main.ts                       (calls createSuperAdminApp)
 │   ├── App.vue                       (<router-view />)
-│   ├── services/http.ts              (HTTP-Client + adminLogin-Stub)
-│   ├── router/routes.ts              (alle Standard-Pages)
+│   ├── services/http.ts              (HTTP client + adminLogin stub)
+│   ├── router/routes.ts              (all standard pages)
 │   └── styles/theme.scss
 └── README.md
 ```
 
-Anschließend:
+Afterwards:
 
 ```bash
 cd <dir>
@@ -39,23 +39,23 @@ pnpm install
 pnpm dev   # http://localhost:9100/admin/login
 ```
 
-## Optionen
+## Options
 
-| Flag             | Default         | Zweck                                              |
+| Flag             | Default         | Purpose                                            |
 | ---------------- | --------------- | -------------------------------------------------- |
-| `--project-key`  | `app`           | wird in Storage-Keys + Tokens als Prefix verwendet |
-| `--brand-name`   | `App`           | im AdminLayout-Header sichtbar                     |
-| `--logo-text`    | `AP`            | 2-Buchstaben-Badge im Logo                         |
-| `--api-base`     | `/api/v1/admin` | Backend-Endpoint-Prefix                            |
-| `--dev-port`     | `9100`          | Vite-Dev-Server-Port                               |
-| `--backend-port` | `3000`          | Backend-Port für Vite-Proxy                        |
-| `--no-install`   | false           | Erzeugt nur Dateien, kein `pnpm install` am Ende   |
+| `--project-key`  | `app`           | used as prefix in storage keys + tokens            |
+| `--brand-name`   | `App`           | shown in the AdminLayout header                    |
+| `--logo-text`    | `AP`            | two-letter badge in the logo                       |
+| `--api-base`     | `/api/v1/admin` | backend endpoint prefix                            |
+| `--dev-port`     | `9100`          | Vite dev server port                               |
+| `--backend-port` | `3000`          | backend port for the Vite proxy                    |
+| `--no-install`   | false           | only generate files, skip the final `pnpm install` |
 
-## Was du danach noch tun musst
+## What is left to do afterwards
 
-1. `src/services/http.ts` → `adminLogin()` an deinen Auth-Flow anpassen.
-2. Plattform-Dependency-Versionen in `package.json` prüfen — die Templates
-   referenzieren die `@saasicat/*`-Pakete per Semver von npm.
-3. Vite-Proxy in `vite.config.ts` an deinen Backend-Port anpassen.
+1. `src/services/http.ts` → adapt `adminLogin()` to your auth flow.
+2. Check the platform dependency versions in `package.json` — the templates
+   reference the `@saasicat/*` packages via semver from npm.
+3. Adapt the Vite proxy in `vite.config.ts` to your backend port.
 
-Alles andere kommt aus `@saasicat/ui-vue`.
+Everything else comes from `@saasicat/ui-vue`.

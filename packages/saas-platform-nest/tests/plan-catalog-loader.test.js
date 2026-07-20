@@ -1,5 +1,4 @@
 // Tests für plan-catalog-loader.ts — YAML-Loading + Schema- + Cross-field-Validation.
-// Spec: yada-services/handoff/superadmin/SPEC.md §4 + §6.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +13,7 @@ import {
 
 const VALID_YAML = `
 schemaVersion: 1
-projectKey: autohauspro
+projectKey: demoapp
 currency: EUR
 vatRate: 19.0
 features:
@@ -34,9 +33,9 @@ plans:
 // Happy path
 // ──────────────────────────────────────────────────────────────────
 
-test('loadPlanCatalogFromString akzeptiert valides AutohausPro-Beispiel', () => {
+test('loadPlanCatalogFromString akzeptiert valides Beispiel', () => {
     const catalog = loadPlanCatalogFromString(VALID_YAML, { source: 'inline-test' });
-    assert.equal(catalog.projectKey, 'autohauspro');
+    assert.equal(catalog.projectKey, 'demoapp');
     assert.equal(catalog.plans.length, 1);
     assert.equal(catalog.plans[0].id, 'BASIC');
 });
@@ -184,7 +183,7 @@ test('loadPlanCatalogFromFile liest YAML-Datei vom Disk', () => {
     writeFileSync(path, VALID_YAML, 'utf-8');
     try {
         const catalog = loadPlanCatalogFromFile({ path });
-        assert.equal(catalog.projectKey, 'autohauspro');
+        assert.equal(catalog.projectKey, 'demoapp');
         assert.equal(catalog.plans[0].id, 'BASIC');
     } finally {
         unlinkSync(path);

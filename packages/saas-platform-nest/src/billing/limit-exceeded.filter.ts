@@ -1,9 +1,7 @@
 // LimitExceededFilter — übersetzt die domänenneutrale `LimitExceededError`
 // (entitlement/limit-exceeded-error.ts) in HTTP 402 (Payment Required).
 //
-// Aus autohauspro/backend/src/billing/limit-exceeded.filter.ts hochgezogen
-// (yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2). Wird von
-// Konsumenten als `APP_FILTER` registriert, damit alle Routen, die
+// Wird von Konsumenten als `APP_FILTER` registriert, damit alle Routen, die
 // `EntitlementService.enforceLimit(...)` aufrufen, die gleiche
 // HTTP-402-Antwort liefern.
 

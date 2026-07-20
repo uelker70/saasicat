@@ -2,11 +2,9 @@
 //
 // Ausführbarer Health-Check-Lauf: lädt eine Liste von `DoctorCheck`-
 // Implementierungen und führt sie nacheinander aus. Konsumenten registrieren
-// projektspezifische Checks (z. B. Sidecar-Reachability für AutohausPro-KoSIT,
-// vereinsfux-ClubProfile-Vollständigkeit) zusätzlich zu den Plattform-
+// projektspezifische Checks (z. B. Sidecar-Reachability,
+// Stammdaten-Vollständigkeit) zusätzlich zu den Plattform-
 // Default-Checks.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.5 (3.8).
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DOCTOR_CHECKS_TOKEN } from './tokens.js';
@@ -14,7 +12,7 @@ import { DOCTOR_CHECKS_TOKEN } from './tokens.js';
 export type CheckSeverity = 'ok' | 'warning' | 'error';
 
 export interface DoctorCheck {
-    /** Eindeutiger Slug (z. B. "platform.user-port", "autohauspro.kosit-sidecar"). */
+    /** Eindeutiger Slug (z. B. "platform.user-port", "demoapp.kosit-sidecar"). */
     readonly id: string;
     /** Anzeigetext im Output. */
     readonly label: string;

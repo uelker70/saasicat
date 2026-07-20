@@ -18,7 +18,7 @@ function snapshotFile(features = []) {
         JSON.stringify({
             schemaVersion: 1,
             scannedAt: '2026-06-10T00:00:00.000Z',
-            app: { key: 'vereinsfux', version: '0.1.0' },
+            app: { key: 'clubapp', version: '0.1.0' },
             capabilities: [],
             features: features.map((f) => ({ featureKey: f, capabilityKeys: [] })),
             quotas: [],

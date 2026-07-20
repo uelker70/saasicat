@@ -9,8 +9,6 @@
 //
 // Damit liegt die Cache-/Inflight-Logik nur an einer Stelle, und Apps
 // duplizieren keine identischen Pinia-Setups mehr.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.4 (Manifest-Store).
 
 import { defineStore, type StoreDefinition } from 'pinia';
 import { ref, type Ref } from 'vue';

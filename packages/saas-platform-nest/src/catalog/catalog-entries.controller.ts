@@ -4,8 +4,6 @@
 // Pfad-Konvention: `/admin/catalog/{capabilities,features,quotas}` und
 // `/admin/catalog/discovery/sync`. Wie BundlesController zur Boot-Zeit
 // gebaut, damit der Konsument die Guards bestimmt.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §6.3
 
 import {
     Body,

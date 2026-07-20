@@ -2,15 +2,12 @@
 // (`<app> /admin/plans`).
 //
 // **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert, weil
-// Apps unterschiedliche `globalPrefix`-Konventionen haben (AutohausPro:
-// `/api/admin/...`, vereinsfux: `/api/v1/admin/...`).
+// Apps unterschiedliche `globalPrefix`-Konventionen haben
+// (z. B. `/api/admin/...` oder `/api/v1/admin/...`).
 //
 // Plattform-Pure-Functions (`assertDraftPublishable` etc. aus
 // `@saasicat/nest/billing`) validieren die Drafts vor dem
 // Publish-POST.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.6 (4.11).
-//        autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §4.
 
 import { ref, type Ref } from 'vue';
 import { useApiList, type UseApiListOptions, type UseApiListResult } from './use-api-list.js';
@@ -78,7 +75,8 @@ function buildVersionsComposable(label: string) {
 }
 
 /**
- * Read-only Catalog-View für PlanVersions (Lift-and-Shift AutohausPro).
+ * Read-only Catalog-View für PlanVersions (Lift-and-Shift aus einem
+ * Konsumenten-Admin).
  * Heißt seit M6 Pack 2a `usePlanVersionsCatalog`, weil `usePlanVersions`
  * aus `use-plans.ts` jetzt der Lifecycle-Editor (createDraft/publish) ist.
  */

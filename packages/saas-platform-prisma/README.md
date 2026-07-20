@@ -1,26 +1,25 @@
 # @saasicat/prisma
 
-Default-Prisma-Adapter für die SaaS-Plattform-Ports. Spart Konsumenten,
-die Prisma + das Standard-Schema (aus
-`@saasicat/spec/prisma-fragments/`) nutzen, das händische
-Schreiben der ~5 Adapter-Klassen.
+Default Prisma adapters for the SaaS platform ports. Saves consumers using
+Prisma + the standard schema (from `@saasicat/spec/prisma-fragments/`) from
+hand-writing the ~5 adapter classes.
 
-## Adapter
+## Adapters
 
-| Klasse                             | Implementiert Port        | Liest/schreibt Tabelle |
-| ---------------------------------- | ------------------------- | ---------------------- |
-| `PrismaMfaAdapter`                 | `MfaPort`                 | `SuperAdminMfa`        |
-| `PrismaAuditAdapter`               | `AuditPort`               | `AuditEntry`           |
-| `AsyncLocalRlsBypassAdapter`       | `RlsBypassPort`           | (kein DB-Zugriff)      |
-| `PrismaSuperAdminBootstrapAdapter` | `SuperAdminBootstrapPort` | `SuperAdminUser`       |
+| Class                              | Implements port           | Reads/writes table |
+| ---------------------------------- | ------------------------- | ------------------ |
+| `PrismaMfaAdapter`                 | `MfaPort`                 | `SuperAdminMfa`    |
+| `PrismaAuditAdapter`               | `AuditPort`               | `AuditEntry`       |
+| `AsyncLocalRlsBypassAdapter`       | `RlsBypassPort`           | (no DB access)     |
+| `PrismaSuperAdminBootstrapAdapter` | `SuperAdminBootstrapPort` | `SuperAdminUser`   |
 
-> **Roadmap:** `PrismaPlanCatalogReadSink` und `PrismaPlanRepository` folgen
-> in einer späteren Iteration. Aktuell nutzt der Quickstart-Pfad
-> `PlanCatalogModule.forRootWithCatalog(...)` direkt mit der `saas.yaml` —
-> ohne DB-Read-Sink. Wer den DB-Catalog-Pfad fährt, schreibt den Sink
-> weiterhin selbst.
+> **Roadmap:** `PrismaPlanCatalogReadSink` and `PrismaPlanRepository` follow
+> in a later iteration. The quickstart path currently uses
+> `PlanCatalogModule.forRootWithCatalog(...)` directly with the `saas.yaml` —
+> without a DB read sink. Apps on the DB catalog path still write the sink
+> themselves.
 
-## Konsum
+## Usage
 
 ```ts
 import { Module } from '@nestjs/common';
@@ -51,26 +50,26 @@ import { PrismaService } from './prisma/prisma.service';
 export class SaasAdaptersModule {}
 ```
 
-Dann via `SaasPlatformModule.forRoot({ adapters: { mfa: PrismaMfaAdapter, ... } })`
-verdrahten — siehe
-[Quickstart Schritt 5/6](../../docs/saas-platform-quickstart.md).
+Then wire it via
+`SaasPlatformModule.forRoot({ adapters: { mfa: PrismaMfaAdapter, ... } })` —
+see [quickstart steps 5/6](../../docs/quickstart.md).
 
-## Schema-Annahme
+## Schema assumptions
 
-Die Adapter erwarten die Tabellen-Namen aus den Plattform-Fragmenten:
+The adapters expect the table names from the platform fragments:
 
 - `SuperAdminMfa(userId, secret, enabledAt, updatedAt)`
 - `AuditEntry(id, actorEmail, actorRole, entity, entityId, action, changes, createdAt)`
 - `SuperAdminUser(id, email, platformRole, isActive, createdAt, updatedAt)`
 
-Wer abweicht: Adapter selbst schreiben — die Ports bleiben dieselben.
+If your schema differs: write your own adapters — the ports stay the same.
 
-## RLS-Bypass
+## RLS bypass
 
-`AsyncLocalRlsBypassAdapter` setzt `bypass: true` per `node:async_hooks` —
-dein `PrismaService` muss `isBypassActive()` lesen und (z. B. via Prisma-
-Middleware) `SET LOCAL row_security = off` für die aktuelle Transaktion
-setzen, wenn aktiv.
+`AsyncLocalRlsBypassAdapter` sets `bypass: true` via `node:async_hooks` —
+your `PrismaService` must read `isBypassActive()` and (e.g. via Prisma
+middleware) apply `SET LOCAL row_security = off` for the current transaction
+while it is active.
 
 ```ts
 this.$use(async (params, next) => {
@@ -87,4 +86,4 @@ this.$use(async (params, next) => {
 pnpm --filter @saasicat/prisma build
 ```
 
-Erzeugt `dist/index.{js,cjs,d.ts}` über tsup.
+Produces `dist/index.{js,cjs,d.ts}` via tsup.

@@ -57,7 +57,7 @@ import { fmtEuro } from './format.js';
 
 // Generische Feature-Matrix. Apps reichen `featureRegistry` für Label/Icon/
 // PlannedOnly-Hint und optional `featureGroups` für die UX-Gruppierung der
-// Reihen (z. B. AutohausPro: Kern, Rechnung, Daten, …).
+// Reihen (z. B. Kern, Rechnung, Daten, …).
 //
 // Ohne `featureGroups` rendert die Matrix eine einzige Gruppe ohne Header.
 

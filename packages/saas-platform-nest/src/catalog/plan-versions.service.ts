@@ -370,7 +370,7 @@ export class PlanVersionsService {
             });
         }
 
-        // classifyPlanDiff erwartet flat fields (AutohausPro-Legacy: maxUsers,
+        // classifyPlanDiff erwartet flat fields (Legacy-Form: maxUsers,
         // maxVehicles, maxStorageGb). PlanVersionRow.quotas ist generisch;
         // wir mappen die drei Standard-Keys, andere Quota-Keys werden vom
         // Diff (noch) ignoriert — Pack 2c generalisiert classifyPlanDiff.

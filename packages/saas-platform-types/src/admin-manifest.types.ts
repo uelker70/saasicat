@@ -1,8 +1,7 @@
 // AdminManifest — UI-Discovery-Projektion einer SaaS-App.
 // Schema-Quelle: @saasicat/spec/schemas/admin-manifest.schema.json
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.2
 
-import type { FeatureDef, PlanDef, QuotaKey } from './plan-catalog.types.js';
+import type { FeatureDef, PlanDef } from './plan-catalog.types.js';
 
 /** Backend-Capability-Key, Konvention: domain.action[.action]. */
 export type CapabilityKey = string;
@@ -21,7 +20,7 @@ export interface AdminManifest {
         displayName: string;
         /** Tag/Untertitel (z. B. "SuperAdmin"). Aus `saas.yaml#app.label`. */
         label?: string;
-        /** Kurz-Kürzel für das Logo-Badge (z. B. "ah", "vf"). Aus `saas.yaml#app.icon`. */
+        /** Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da"). Aus `saas.yaml#app.icon`. */
         icon?: string;
         logoUrl?: string;
         environment?: 'production' | 'staging' | 'development';
@@ -94,7 +93,7 @@ export interface StandardPageDef {
 }
 
 export interface ProjectPageDef {
-    /** `<projectKey>.<area>`, z. B. `autohauspro.datev`. */
+    /** `<projectKey>.<area>`, z. B. `demoapp.datev`. */
     id: string;
     label: string;
     icon?: string;
@@ -132,7 +131,7 @@ export interface TenantColumnDef {
 }
 
 export interface TenantActionDef {
-    /** `<projectKey>.<area>.<verb>`, z. B. `autohauspro.datev.runExport`. */
+    /** `<projectKey>.<area>.<verb>`, z. B. `demoapp.datev.runExport`. */
     id: string;
     label: string;
     /** Lookup in der statischen actions:-Map des Shell-Builds. */
@@ -183,7 +182,7 @@ export interface PublicBootResponse {
         displayName: string;
         /** Tag/Untertitel (z. B. "SuperAdmin"). Aus `saas.yaml#app.label`. */
         label?: string;
-        /** Kurz-Kürzel für das Logo-Badge (z. B. "ah", "vf"). Aus `saas.yaml#app.icon`. */
+        /** Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da"). Aus `saas.yaml#app.icon`. */
         icon?: string;
         logoUrl?: string;
         environment?: 'production' | 'staging' | 'development';

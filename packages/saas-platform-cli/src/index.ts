@@ -1,6 +1,6 @@
 // @saasicat/cli — Cross-Cutting-Helpers für Konsumenten-CLIs.
 //
-// Spec: yada-services/packages/saas-platform-spec/cli-conventions.md.
+// Spec: packages/saas-platform-spec/cli-conventions.md.
 //
 // Inhalte:
 //   - tokens:              CLI_CONTEXT_CONFIG_TOKEN, USER_PORT_TOKEN,

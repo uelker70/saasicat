@@ -11,8 +11,6 @@
 // vorhandener Freigabe-Status bleibt erhalten. Für `approved`-Einträge
 // vergleicht der Sync die persistierte Approval-Signatur gegen den
 // Snapshot — bei Drift kippt der Status auf `outdated`.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §6.3 + #20
 
 import {
     Inject,

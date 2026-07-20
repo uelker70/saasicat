@@ -7,8 +7,8 @@
 // Die Plan-Versions-UI parst die Strings via `Number(s)` für Anzeige und
 // Diff-Rechnung.
 //
-// Hintergrund: Vor Phase 2 lebten diese Typen in `@autohauspro/api-client`
-// (AutohausPro-Repo). Mit dem Lift-and-Shift der Plan-Versions-UI in die
+// Hintergrund: Vor Phase 2 lebten diese Typen im API-Client eines
+// Konsumenten. Mit dem Lift-and-Shift der Plan-Versions-UI in die
 // Plattform werden sie hier zur Single-Source-of-Truth — Apps mit
 // engerem Typ-Bedarf (z. B. `SubscriptionPlanId`-Union statt `PlanId`-
 // String) narrowen lokal.
@@ -20,7 +20,7 @@ import type { VersionChange, VersionedEntityBase } from './subscription.types.js
  * PlanVersion — versionierte Plan-Definition (`BASIC v3`, `STANDARD v7`, …).
  *
  * Quotas: Die Plattform-Konvention ist `quotas: { users: 10, vehicles: 50, … }`.
- * AutohausPro-Legacy-Backends shippen flache Felder (`maxUsers`, `maxVehicles`,
+ * Legacy-Backends shippen flache Felder (`maxUsers`, `maxVehicles`,
  * `maxStorageGb`); diese sind als optional angegeben und werden von der
  * Lift-and-Shift-Catalog-Builder-Layer toleriert. Index-Signatur erlaubt
  * weitere App-spezifische Felder.
@@ -63,7 +63,7 @@ export interface PlanVersionRow extends VersionedEntityBase {
 
     /** @deprecated Aus `quotas['users']` lesen, sobald verfügbar. */
     maxUsers?: number;
-    /** @deprecated AutohausPro-spezifisch; aus `quotas['vehicles']` lesen. */
+    /** @deprecated Legacy-Feld; aus `quotas['vehicles']` lesen. */
     maxVehicles?: number;
     /** @deprecated Aus `quotas['storageGb']` lesen. */
     maxStorageGb?: number;

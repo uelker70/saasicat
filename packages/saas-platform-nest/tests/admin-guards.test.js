@@ -61,7 +61,7 @@ describe('MfaService — TOTP-Setup + Verify', () => {
     test('setup() generiert Secret + otpauth-URI und persistiert via Port', async () => {
         const { port, store } = buildPort();
         const svc = new MfaService(port);
-        const result = await svc.setup('u1', 'taci@example.com', 'AutohausPro');
+        const result = await svc.setup('u1', 'taci@example.com', 'DemoApp');
         assert.ok(result.secret);
         assert.match(result.otpauthUri, /^otpauth:\/\/totp\//);
         assert.equal(store.get('u1'), result.secret);
@@ -76,14 +76,14 @@ describe('MfaService — TOTP-Setup + Verify', () => {
     test('verify() lehnt ungültigen Code ab', async () => {
         const { port } = buildPort();
         const svc = new MfaService(port);
-        await svc.setup('u1', 'taci@example.com', 'AutohausPro');
+        await svc.setup('u1', 'taci@example.com', 'DemoApp');
         assert.equal(await svc.verify({ userId: 'u1', code: '000000' }), false);
     });
 
     test('disable() löscht das Secret', async () => {
         const { port, store } = buildPort();
         const svc = new MfaService(port);
-        await svc.setup('u1', 'taci@example.com', 'AutohausPro');
+        await svc.setup('u1', 'taci@example.com', 'DemoApp');
         await svc.disable('u1');
         assert.equal(store.has('u1'), false);
     });

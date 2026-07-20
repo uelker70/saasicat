@@ -8,7 +8,7 @@ import { FakePlanRepository, FakeSubscriptionRepository } from '../dist/testing/
 // Strict-Mode-Check ist in Pack 2a inactive (`warnings` ist immer leer);
 // kommt mit Pack 2c.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 async function setupWithPlan(planKey = 'STARTER', subscriptions = null) {
     const repo = new FakePlanRepository();

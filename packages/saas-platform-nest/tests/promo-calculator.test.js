@@ -23,7 +23,7 @@ test('round2 rundet auf zwei Dezimalstellen', () => {
     assert.equal(round2(1.235), 1.24);
     assert.equal(round2(0.1 + 0.2), 0.3);
     // round2 nutzt Math.round(n*100)/100 — FP-Edge-Cases wie 1.005 (entspricht
-    // intern 1.00499…) runden ab. Das ist identisch zu AutohausPro/shared-utils.
+    // intern 1.00499…) runden ab. Das entspricht der ursprünglichen Implementierung.
     assert.equal(round2(1.005), 1);
 });
 
@@ -61,7 +61,7 @@ test('computeDiscountedGross subtrahiert', () => {
     assert.equal(computeDiscountedGross(100, 25), 75);
     assert.equal(computeDiscountedGross(50, 12.5), 37.5);
     // FP-Edge-Case: 29.9 - 7.475 wäre mathematisch 22.425, FP liefert ~22.4249…,
-    // round2 → 22.42. Wir akzeptieren das, weil die Original-AutohausPro-Logik
+    // round2 → 22.42. Wir akzeptieren das, weil die ursprüngliche Logik
     // identisch arbeitet.
     assert.equal(computeDiscountedGross(29.9, 7.475), 22.42);
 });
@@ -71,7 +71,7 @@ test('computeDiscountedGross subtrahiert', () => {
 // ──────────────────────────────────────────────────────────────────
 
 // Date-Komponenten in lokaler Zeit prüfen — die Calculator-Funktionen nutzen
-// setMonth/setFullYear (lokale Zeit), wie in der AutohausPro-Vorlage. Tests sind
+// setMonth/setFullYear (lokale Zeit), wie in der ursprünglichen Vorlage. Tests sind
 // damit Timezone-/DST-stabil.
 function expectLocalDate(actual, year, monthIndex, day) {
     assert.equal(actual.getFullYear(), year);

@@ -10,7 +10,7 @@ import { FakeBundleRepository, FakePlanRepository } from '../dist/testing/index.
 // kaufen kann) läuft client-seitig in der Tenant-Self-Service-UI; das
 // Backend liefert alle.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 const NOOP_PROMOTION_REPO = {
     list: async () => [],

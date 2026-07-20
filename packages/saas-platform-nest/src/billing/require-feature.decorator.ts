@@ -6,9 +6,8 @@ import type { FeatureKey } from '@saasicat/types';
 // FeatureGuard lässt den Request passieren, sobald **irgendeines** der
 // angegebenen Features im aktiven EntitlementSet enthalten ist.
 //
-// Aus autohauspro/backend/src/billing/require-feature.decorator.ts extrahiert
-// (P1-Slice, UMSETZUNGSPLAN.md §3.2). Statt Prisma-Enum nimmt die
-// Plattform-Variante `FeatureKey` aus saas-platform-types (string).
+// Statt Prisma-Enum nimmt die Plattform-Variante `FeatureKey` aus
+// saas-platform-types (string).
 
 export const REQUIRE_FEATURE_KEY = 'require-feature';
 

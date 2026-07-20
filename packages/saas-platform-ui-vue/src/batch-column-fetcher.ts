@@ -11,8 +11,6 @@
 // gar nicht erst gefetcht. Manifest-Drift (Spalten-`endpoint` mit
 // `{slug}`-Pattern) wird strukturiert mit `BatchColumnDriftError`
 // gemeldet — Konsumenten-Shell rendert dann eine Warnung.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.6 (4.6).
 
 import type { AdminManifest, TenantColumnDef } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from './types.js';

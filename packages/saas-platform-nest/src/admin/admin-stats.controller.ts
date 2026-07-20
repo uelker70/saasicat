@@ -4,7 +4,7 @@ import { SuperAdminGuard } from './super-admin.guard.js';
 
 // AdminStatsController — `GET /admin/stats/dashboard` für die SuperAdmin-
 // Dashboard-Page. SuperAdminGuard schützt vor Tenant-Zugriff. App-spezifische
-// Extra-KPIs (AutohausPro-DATEV, vereinsfux-Bundles/Members-Usage) bleiben in den
+// Extra-KPIs (z. B. DATEV- oder Bundles/Members-Usage) bleiben in den
 // jeweiligen App-eigenen `/admin/extras/*`-Endpoints — der Plattform-Endpoint
 // liefert nur die generischen Subscription-/Promo-/Audit-Aggregate.
 

@@ -7,8 +7,6 @@ import { buildDiscoveryController } from '../dist/discovery/index.js';
 // ETag-Caching. Wir instanziieren die Controller-Klasse direkt mit einem
 // fake Scanner und einer fake HttpResponse-Spy, ohne NestJS-Test-Module
 // hochzufahren.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.3
 
 function makeFakeScanner(snapshot) {
     return {
@@ -38,7 +36,7 @@ function makeFakeRes() {
 const SNAPSHOT = Object.freeze({
     schemaVersion: 1,
     scannedAt: '2026-05-12T10:00:00.000Z',
-    app: { key: 'vereinsfux', version: '0.42.1' },
+    app: { key: 'clubapp', version: '0.42.1' },
     capabilities: [
         {
             capabilityKey: 'invoice.create',

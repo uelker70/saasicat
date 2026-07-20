@@ -1,7 +1,7 @@
 {
     "name": "@saasicat/cli",
     "version": "0.1.0",
-    "description": "CLI-Helpers für SaaS-Plattform-Konsumenten. Liefert CliContextService (Identity, MFA, Production-Confirm, Audit-Tag) gemäß cli-conventions.md.",
+    "description": "CLI helpers for SaaS platform consumers. Provides CliContextService (identity, MFA, production confirm, audit tag).",
     "type": "module",
     "main": "./dist/index.cjs",
     "module": "./dist/index.js",

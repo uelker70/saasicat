@@ -242,7 +242,7 @@ function onMfaDialogVisibility(open: boolean): void {
     }
 }
 // Konsumenten können statt `loadPlanOptions` auch `createPlanOptions` setzen
-// (z.B. AutohausPro mit hartkodierter Plan-Liste).
+// (z. B. Apps mit hartkodierter Plan-Liste).
 const effectiveCreatePlanOptions = computed<readonly (string | PilotPlanOption)[]>(() => {
     if (props.createPlanOptions && props.createPlanOptions.length > 0) {
         return props.createPlanOptions;

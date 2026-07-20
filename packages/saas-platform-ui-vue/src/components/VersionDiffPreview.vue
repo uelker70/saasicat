@@ -31,7 +31,7 @@ import type { VersionChange } from '@saasicat/types';
 
 // Plattform-Default-Field-Labels (Plan-Catalog-Quotas + Pricing).
 // Konsumenten-Apps koennen via `fieldLabels`-Prop App-spezifische Labels
-// (z. B. AutohausPro: maxVehicles; vereinsfux: maxMembers) ergaenzen oder
+// (z. B. maxVehicles oder maxMembers) ergaenzen oder
 // ueberschreiben.
 const PLATFORM_FIELD_LABELS: Readonly<Record<string, string>> = Object.freeze({
     'features.added': 'Hinzugefügte Features',

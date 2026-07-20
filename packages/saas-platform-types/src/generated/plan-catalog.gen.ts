@@ -31,7 +31,7 @@ export interface PlanCatalog {
          */
         version?: string;
         /**
-         * Kurz-Kürzel für das Logo-Badge (z. B. "cf", "vf").
+         * Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da").
          */
         icon?: string;
         /**

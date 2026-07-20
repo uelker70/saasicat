@@ -13,7 +13,7 @@ const NOW = new Date('2026-05-08T12:00:00Z');
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'autohauspro',
+    projectKey: 'demoapp',
     currency: 'EUR',
     vatRate: 19,
     features: [

@@ -82,8 +82,8 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
                 throw new Error(`Endpoint ${options.endpoint} → HTTP ${res.status}`);
             }
             // Apps liefern unterschiedliche Shapes für Listen-Endpoints:
-            //   - AutohausPro Admin-Tenants: rohes Array `[{...}, …]` (kein Wrapper).
-            //   - vereinsfux paginated:   `{ items, total, page, pageSize }`.
+            //   - rohes Array `[{...}, …]` (kein Wrapper).
+            //   - paginated: `{ items, total, page, pageSize }`.
             // Plattform-Composable akzeptiert beide — sonst würden korrekt
             // gelieferte Array-Antworten als leere Liste angezeigt.
             const raw = (await res.json()) as unknown;

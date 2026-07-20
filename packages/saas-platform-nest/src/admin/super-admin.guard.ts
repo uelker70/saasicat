@@ -2,8 +2,6 @@
 //
 // Erwartet ein `request.user.role`-Feld (NestJS-Passport-Konvention). Die
 // Auth-Pipeline (JwtAuthGuard) muss vor diesem Guard laufen.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.3 (2.1).
 
 import {
     type CanActivate,

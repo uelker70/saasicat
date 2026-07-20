@@ -1,7 +1,7 @@
 // Geteilte Typen der Plan-Versions-Views.
 //
-// Phase 2c: Aus autohauspro/admin/src/pages/components/plan-versions/types.ts
-// portiert; Source-Type generisch über die Plattform-Versions-Rows.
+// Phase 2c: Aus einem Konsumenten-Admin portiert;
+// Source-Type generisch über die Plattform-Versions-Rows.
 
 import type { PlanVersionRow } from '@saasicat/types';
 

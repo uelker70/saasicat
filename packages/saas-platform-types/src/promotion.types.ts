@@ -6,8 +6,6 @@
 //
 // Die Pure-Functions `promoStatus` / `pickActivePromo` / `applyPromo` werden
 // vom Public-Catalog-Backend und von der UI-Vorschau gemeinsam genutzt.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §9a
 
 /** Aktions-Art. */
 export type PromotionType = 'percent' | 'amount' | 'intro' | 'freeMonths';

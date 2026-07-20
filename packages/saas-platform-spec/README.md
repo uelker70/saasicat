@@ -1,23 +1,23 @@
 # @saasicat/spec
 
-Sprach-neutrale Spec der SaaS-Plattform — JSON-Schemas, OpenAPI und
-Acceptance-Test-Szenarien.
+Language-neutral spec of the SaaS platform — JSON Schemas, OpenAPI and
+acceptance test scenarios.
 
-## Inhalt
+## Contents
 
-| Datei                                   | Zweck                                                             |
-| --------------------------------------- | ----------------------------------------------------------------- |
-| `schemas/admin-manifest.schema.json`    | UI-Discovery-Projektion einer App. SPEC §4.2                      |
-| `schemas/plan-catalog.schema.json`      | Plan-Catalog-Format (`config/plans.yaml`). SPEC §4 + ROADMAP §3.1 |
-| `schemas/promo-code.schema.json`        | Promo-Code-Format inkl. Redemption-Lifecycle                      |
-| `schemas/audit-event.schema.json`       | Audit-Log-Eintrag-Format                                          |
-| `admin-api.openapi.yaml`                | NORMATIVER REST-Vertrag des SuperAdmin-Backends                   |
-| `acceptance/`                           | HTTP-Test-Szenarien (Stubs; Runner geplant)                       |
-| `index.js` / `index.cjs` / `index.d.ts` | Re-Exports für JS/TS-Konsumenten                                  |
+| File                                    | Purpose                                           |
+| --------------------------------------- | ------------------------------------------------- |
+| `schemas/admin-manifest.schema.json`    | UI discovery projection of an app                 |
+| `schemas/plan-catalog.schema.json`      | App identity config format (`config/saas.yaml`)   |
+| `schemas/promo-code.schema.json`        | Promo code format incl. redemption lifecycle      |
+| `schemas/audit-event.schema.json`       | Audit log entry format                            |
+| `admin-api.openapi.yaml`                | NORMATIVE REST contract of the SuperAdmin backend |
+| `acceptance/`                           | HTTP test scenarios (stubs; runner planned)       |
+| `index.js` / `index.cjs` / `index.d.ts` | Re-exports for JS/TS consumers                    |
 
-## Konsum
+## Usage
 
-Im Konsumenten (z. B. AutohausPro-Backend):
+In a consuming backend:
 
 ```ts
 import { adminManifestSchema, planCatalogSchema } from '@saasicat/spec';
@@ -28,13 +28,13 @@ const validateManifest = ajv.compile(adminManifestSchema);
 const validateCatalog = ajv.compile(planCatalogSchema);
 
 if (!validateManifest(myManifest)) console.error(validateManifest.errors);
-if (!validateCatalog(myPlansYaml)) console.error(validateCatalog.errors);
+if (!validateCatalog(mySaasYaml)) console.error(validateCatalog.errors);
 ```
 
-Für Acceptance-Test-Szenarien als YAML lesen:
+Reading acceptance test scenarios as YAML:
 
 ```ts
-// im Acceptance-Test-Runner (geplant)
+// in the acceptance test runner (planned)
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,12 +48,12 @@ const scenarios = await glob('acceptance/**/*.yaml', { cwd: specRoot, absolute: 
 pnpm add @saasicat/spec
 ```
 
-## Verbindliche Prinzipien
+## Binding principles
 
-- **Sprach-neutral:** kein TS-Code, keine Runtime-Logik. Nur JSON-Schemas,
-  YAML-OpenAPI und JSON-/YAML-Acceptance-Szenarien.
-- **Keine fachliche Wahrheit:** das Schema beschreibt das _Format_, nicht die
-  Daten. Plan-Catalog-Inhalt lebt in der Konsumenten-`config/plans.yaml`.
-- **`schemaVersion` ist Pflicht** in jedem Top-Level-Schema. Major-Bumps
-  brechen — das ist erlaubt, aber muss in einer Migrations-Notiz dokumentiert
-  sein.
+- **Language-neutral:** no TS code, no runtime logic. Only JSON Schemas,
+  YAML OpenAPI and JSON/YAML acceptance scenarios.
+- **No domain truth:** the schema describes the _format_, not the data.
+  App identity content lives in the consumer's `config/saas.yaml`; plans
+  live in the DB, curated via the SuperAdmin UI.
+- **`schemaVersion` is required** in every top-level schema. Major bumps
+  break — that is allowed, but must be documented in a migration note.

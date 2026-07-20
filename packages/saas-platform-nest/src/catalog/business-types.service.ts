@@ -3,9 +3,6 @@
 // Analog zu BundlesService, aber mit zusätzlichen Strict-Mode-Checks für
 // die Bundle-Komposition (Disjointness, Compatibility, Bundle-Existence)
 // und einem anderen Diff-Klassifikator (`classifyBusinessTypeVersionDiff`).
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3
-//        + GESCHAEFTSTYP_SPEC.md §6 + §10
 
 import {
     Inject,

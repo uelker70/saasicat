@@ -1,7 +1,7 @@
 // useEntitlement — Vue-Composable über den Tenant-Entitlement-Endpoint.
 //
-// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert (AutohausPro:
-// `/api/billing/entitlement`, vereinsfux: `/api/v1/billing/entitlement`).
+// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert
+// (z. B. `/api/billing/entitlement` oder `/api/v1/billing/entitlement`).
 //
 // Liefert die effektiven Limits eines Tenants als reaktiver Ref. Konsumenten-
 // Backend exposed den Endpoint via Plattform-`EntitlementService.computeLimits`

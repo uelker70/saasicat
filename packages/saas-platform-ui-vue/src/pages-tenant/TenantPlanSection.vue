@@ -251,8 +251,8 @@ interface Props {
     /**
      * #15 — Catalog-Bundle-Store (gebuchte + verfügbare Bundles) auf dieser
      * Seite anzeigen. Default `false` (opt-in), damit ein Konsument mit
-     * eigener Bundle-Seite keine doppelte Bundle-UI bekommt. AutohausPro
-     * und vereinsfux setzen `true` (#16-Adoption).
+     * eigener Bundle-Seite keine doppelte Bundle-UI bekommt. Bestehende
+     * Konsumenten setzen `true` (#16-Adoption).
      */
     showBundleStore?: boolean;
     /**
@@ -306,14 +306,18 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
 }));
 
 const catalogQuotaKeys = computed(() => {
-    if (catalog.plans.value && catalog.plans.value.length > 0) {
-        // Quota-Keys existieren nur in den Plänen selbst (Code deklariert
-        // sie via @DefinesQuota) — die Keys des ersten Plans geben die
-        // Anzeige-Reihenfolge vor.
-        return Object.keys(catalog.plans.value[0].quotas);
+    // Geordnete Union über alle Pläne + effektive Limits: höhere Tiers
+    // können Quotas führen, die dem Einstiegs-Plan fehlen — die dürfen in
+    // PlanGrid/TenantUsageGrid nicht verschwinden.
+    const keys: string[] = [];
+    const push = (key: string) => {
+        if (!keys.includes(key)) keys.push(key);
+    };
+    for (const plan of catalog.plans.value ?? []) {
+        Object.keys(plan.quotas).forEach(push);
     }
-    if (usage.value) return Object.keys(usage.value.limits.quotas);
-    return [];
+    if (usage.value) Object.keys(usage.value.limits.quotas).forEach(push);
+    return keys;
 });
 
 const bookablePlans = computed<CatalogPlan[]>(() => catalog.plans.value ?? []);

@@ -8,8 +8,6 @@
 //
 // Plus der Boot-Zeit-Scanner (`DiscoveryScanner`), das DI-Modul
 // (`DiscoveryModule`) und die Tokens für Consumer.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3
 
 export * from './decorators.js';
 export {

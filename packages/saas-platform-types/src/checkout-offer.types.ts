@@ -6,8 +6,6 @@
 // Paket individualisieren (Bundles/Quotas) — das Delta wird in
 // denselben Offer geschrieben. Bei Subscription-Anlage wird der finale Offer
 // als `packageSnapshot` eingefroren.
-//
-// Spec: yada-services/handoff/superadmin/SUPERADMIN_TENANT_METAMODELL.md §17a
 
 export type CheckoutOfferLineItemKind = 'plan' | 'bundle' | 'discount';
 

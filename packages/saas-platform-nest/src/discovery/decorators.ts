@@ -9,8 +9,6 @@
 // Pattern analog zu billing/require-feature.decorator.ts: SetMetadata aus
 // @nestjs/common; der Discovery-Scanner liest die Metadata zur Boot-Zeit
 // via Reflector + DiscoveryService.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.1
 
 import { SetMetadata } from '@nestjs/common';
 

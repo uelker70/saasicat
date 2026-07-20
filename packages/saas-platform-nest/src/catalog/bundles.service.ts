@@ -12,8 +12,6 @@
 // Warning-Liste als Body. Default: blocking (#12). Ausnahme: kaputte
 // `compatibility.planIds` blocken immer, sobald ein PlanRepository fuer
 // die Existenzpruefung registriert ist.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3 + §8
 
 import {
     Inject,

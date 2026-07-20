@@ -77,7 +77,7 @@
                 </div>
                 <div
                     v-for="f in [...selectedVersion.features].sort()"
-                    :key="'ahp-' + f"
+                    :key="'cf-' + f"
                     class="pd-diff-row plain"
                 >
                     <div class="pd-diff-icon" style="background: #8b5cf6">·</div>

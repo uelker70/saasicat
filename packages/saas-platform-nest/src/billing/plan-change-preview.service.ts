@@ -23,7 +23,7 @@ import { computeProration, type ProrationDto } from './proration.js';
 
 // PlanChangePreviewService — Plattform-Variante (datengetrieben).
 //
-// Im Vergleich zur AutohausPro-eigenen Implementierung (festes users/vehicles/storageGb):
+// Im Vergleich zu einer app-eigenen Festverdrahtung (festes users/vehicles/storageGb):
 //   - LimitsCheck wird über die Union der Quota-Keys aus aktuellem
 //     Entitlement, Ziel-Plan und Usage-Snapshot iteriert.
 //   - Preise (currentPriceNet, targetPriceNet) kommen aus dem PlanCatalog,

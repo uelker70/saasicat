@@ -138,7 +138,7 @@ describe('FeatureGuard — Auth-Pfade', () => {
         assert.equal(ents.callCount, 0, 'computeLimits darf nicht gerufen werden');
     });
 
-    test('SUPER_ADMIN über `platformRole` (Vereinsfux-Variante) wird erkannt', async () => {
+    test('SUPER_ADMIN über `platformRole` wird erkannt', async () => {
         const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub([]));
         const ctx = buildContext({
             user: { tenantId: 't1', platformRole: 'SUPER_ADMIN' },

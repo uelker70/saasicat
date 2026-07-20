@@ -4,9 +4,6 @@
 // `updateMany`-Optimistic-Lock, Audit-Log) — die Plattform liefert die
 // hier definierten **Validierungs-Pure-Functions**, die vor jeder Publish-
 // Operation die Vorbedingungen prüfen.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.7).
-//        autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §4.
 
 /** Generische Form eines PlanVersion-Snapshots zur Publish-Validierung. */
 export interface PublishablePlanVersion {

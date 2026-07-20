@@ -160,14 +160,14 @@ export interface MfaPort {
 
 /**
  * Opaker Transaktions-Kontext. Konsument bestimmt den konkreten Typ
- * (z. B. `Prisma.TransactionClient` in AutohausPro). Plattform-Code reicht ihn
+ * (z. B. `Prisma.TransactionClient`). Plattform-Code reicht ihn
  * nur durch — kein Inhalt-Inspect.
  */
 export type TransactionContext = unknown;
 
 /**
- * Transaktions-Runner — Wrapper über `prisma.$transaction` (AutohausPro),
- * Django-`transaction.atomic` (Dagitto) etc.
+ * Transaktions-Runner — Wrapper über `prisma.$transaction`,
+ * Django-`transaction.atomic` etc.
  */
 export interface TransactionRunner {
     run<T>(fn: (tx: TransactionContext) => Promise<T>): Promise<T>;

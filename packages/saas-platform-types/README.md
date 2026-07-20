@@ -1,25 +1,27 @@
 # @saasicat/types
 
-TypeScript-Interfaces der SaaS-Plattform — Wire-Format-Types für AdminManifest,
-PlanCatalog, PromoCode, AuditEvent, Subscription, PlanVersion und Adapter-Ports.
+TypeScript interfaces of the SaaS platform — wire-format types for
+AdminManifest, PlanCatalog, PromoCode, AuditEvent, Subscription, PlanVersion
+and the adapter ports.
 
-Abgeleitet aus den JSON-Schemas in
-[`@saasicat/spec`](../saas-platform-spec/README.md). Die `src/generated/`-Types
-werden via `pnpm gen:types` (`json-schema-to-typescript`) aus den Schemas
-generiert; ein Drift-Test hält Schemas und Snapshots synchron.
+Derived from the JSON Schemas in
+[`@saasicat/spec`](../saas-platform-spec/README.md). The `src/generated/`
+types are generated from the schemas via `pnpm gen:types`
+(`json-schema-to-typescript`); a drift test keeps schemas and snapshots in
+sync.
 
-## Inhalt
+## Contents
 
-| Datei                     | Inhalt                                                                                               |
+| File                      | Contents                                                                                             |
 | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `admin-manifest.types.ts` | `AdminManifest`, `ManifestContribution`, `ProjectPageDef`, `KpiCardDef`, `TenantActionDef`, …        |
 | `plan-catalog.types.ts`   | `PlanCatalog`, `PlanDef`, `FeatureKey`, `PlanId`, `QuotaKey`                                         |
-| `promo-code.types.ts`     | `PromoCode`, `CreatePromoCodeRequest`, `PromoCodeRedemption`, Validation-Result-Enum, `BillingCycle` |
+| `promo-code.types.ts`     | `PromoCode`, `CreatePromoCodeRequest`, `PromoCodeRedemption`, validation result enum, `BillingCycle` |
 | `audit-event.types.ts`    | `AuditEntry`, `AuditQuery`, `ActorTag`                                                               |
 | `subscription.types.ts`   | `Subscription`, `PlanVersion`, `SubscriptionBundleRecord`, `VersionChange`                           |
-| `ports.types.ts`          | `TenantPort`, `UserPort`, `QuotaProvider`, `MfaPort` (Adapter-Schnittstellen)                        |
+| `ports.types.ts`          | `TenantPort`, `UserPort`, `QuotaProvider`, `MfaPort` (adapter interfaces)                            |
 
-## Konsum
+## Usage
 
 ```ts
 import type {
@@ -40,12 +42,12 @@ pnpm add @saasicat/types
 pnpm --filter @saasicat/types build
 ```
 
-Erzeugt `dist/index.{js,cjs,d.ts,d.cts}` via `tsup`.
+Produces `dist/index.{js,cjs,d.ts,d.cts}` via `tsup`.
 
-## Verbindlich
+## Invariants
 
-- **Keine Runtime-Logik.** Nur Type-Definitionen.
-- **`schemaVersion` der Manifest-/Catalog-Strukturen ist `1`.** Bei Major-Bump
-  wird die Version dieses Pakets ebenfalls bumped.
-- **Pflichtfelder spiegeln die Schemas.** Wer hier nicht-optional schreibt,
-  muss es im Schema auch sein — sonst Drift.
+- **No runtime logic.** Type definitions only.
+- **`schemaVersion` of the manifest/catalog structures is `1`.** A major bump
+  there bumps this package's version as well.
+- **Required fields mirror the schemas.** Anything non-optional here must be
+  non-optional in the schema too — otherwise it drifts.

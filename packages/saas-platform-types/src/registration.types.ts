@@ -1,6 +1,5 @@
 // Registration / PendingRegistration — Mehrstufiger Registrierungs- und
 // Onboarding-Flow.
-// Spec: vereinsfux/handoff/registrierung/registrierung.md
 //
 // Eine PendingRegistration haelt den Zwischenzustand zwischen Schritt 1
 // (Anmeldedaten erfassen) und der finalen Aktivierung (Schritt 4: Zahlung).
@@ -199,9 +198,9 @@ export interface FinalActivationResult {
 
 /**
  * Adapter-Port: orchestriert die finale Erzeugung von User + Tenant +
- * Subscription nach erfolgreicher Zahlung. App-spezifisch (Vereinsfux hat
- * Tenant + TenantUser + Role + UserRole + Subscription; AutohausPro hat ein
- * anderes Schema).
+ * Subscription nach erfolgreicher Zahlung. App-spezifisch — jede App hat ihr
+ * eigenes Schema (z. B. Tenant + TenantUser + Role + UserRole +
+ * Subscription).
  *
  * Implementierungen MUESSEN die Erzeugung in einer DB-Transaktion ausfuehren,
  * damit Teil-Erzeugungen bei Fehlern vollstaendig zurueckgerollt werden.
@@ -322,7 +321,7 @@ export interface ConfiguratorModel {
  * von dort beim Activate in `Subscription.businessTypeVersionId`.
  *
  * Optional vom App-Adapter befüllt — Apps ohne BusinessType-Katalog
- * (z. B. AutohausPro) lassen das Feld leer/undefined, der UI-Step bleibt
+ * lassen das Feld leer/undefined, der UI-Step bleibt
  * dann ausgeblendet.
  */
 export interface ConfiguratorBusinessType {
@@ -424,7 +423,7 @@ export interface RegistrationConfiguratorLookup {
  *
  * Die Validation ist „weich": ist kein Lookup konfiguriert, wird die
  * Selection ungeprüft durchgereicht — so bleiben Apps ohne
- * BusinessType-Katalog (z. B. AutohausPro) ohne Setup-Zwang.
+ * BusinessType-Katalog ohne Setup-Zwang.
  */
 export interface RegistrationBusinessTypeLookup {
     /** Nur **published** Versions liefern; `null` wenn unbekannt/draft/superseded. */
@@ -441,9 +440,9 @@ export interface RegistrationBusinessTypeVersionView {
     version: number;
     /**
      * Informativ: zu welchem Projekt die Version gehört. Den Scope-Filter
-     * `projectKey === <App-Projekt>` setzt der Adapter selbst — Apps wie
-     * vereinsfux geben in `findPublishedVersion` immer nur Versions ihres
-     * eigenen projectKey zurück.
+     * `projectKey === <App-Projekt>` setzt der Adapter selbst — Apps geben
+     * in `findPublishedVersion` immer nur Versions ihres eigenen projectKey
+     * zurück.
      */
     projectKey: string;
 }
@@ -466,7 +465,7 @@ export interface ConfiguratorPlanVersionRow {
 
 /**
  * Adapter-Port: liest die Konfigurator-Quellen aus der DB (SuperAdmin
- * pflegt sie). Vereinsfux nutzt typischerweise eine Prisma-Implementierung.
+ * pflegt sie). Konsumenten nutzen typischerweise eine Prisma-Implementierung.
  */
 export interface ConfiguratorSourcesLookup {
     listLivePlans(): Promise<ConfiguratorPlanVersionRow[]>;
@@ -560,7 +559,7 @@ export interface ResumeRegistrationInput {
     token: string;
     /**
      * Base-URL der App, gegen die der Resume-Link generiert wird
-     * (z. B. `https://app.vereinsfux.de`). Wird nur an die Mail-Delivery
+     * (z. B. `https://app.example.com`). Wird nur an die Mail-Delivery
      * weitergereicht, der Service selbst hostet keinen Link.
      */
     resumeBaseUrl?: string;

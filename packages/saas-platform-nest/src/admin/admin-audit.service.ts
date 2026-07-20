@@ -3,8 +3,6 @@
 // Plattform-Services rufen `log({actor, entity, entityId, action, changes})`;
 // Konsument-Implementation (PrismaAuditAdapter / DjangoAuditAdapter)
 // persistiert die Records.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.3 (2.4).
 
 import * as os from 'node:os';
 import { Inject, Injectable } from '@nestjs/common';

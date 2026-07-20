@@ -3,8 +3,6 @@
 // Pure Functions, keine NestJS-DI, keine Side-Effects. Testbar in Isolation.
 // Wird vom BundlesService (und später BusinessTypesService) aufgerufen, bevor
 // eine Mutation persistiert wird.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §8
 
 import type {
     ApprovedCatalogKeys,

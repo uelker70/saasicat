@@ -1721,4 +1721,4 @@ components:
                 promoRedemptionsLast30d: { type: integer }
                 auditEventsLast24h: { type: integer }
                 # Projekt-spezifische KPIs werden über separate Endpoints geliefert
-                # (z. B. /admin/dashboard/extras/datev — bleibt AutohausPro-only).
+                # (z. B. /admin/dashboard/extras/datev — bleibt app-spezifisch).

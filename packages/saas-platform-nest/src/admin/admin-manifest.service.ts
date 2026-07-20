@@ -15,8 +15,6 @@ export const PLATFORM_CORE_CONTRIBUTION_TOKEN = Symbol('PLATFORM_CORE_CONTRIBUTI
 // AdminManifestService — sammelt ManifestContribution-Beiträge der App-Module
 // (via expliziter register()-Aufrufe in deren onModuleInit) und liefert das
 // fertige, deterministisch gehashte Voll-Manifest aus.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4
 
 @Injectable()
 export class AdminManifestService {

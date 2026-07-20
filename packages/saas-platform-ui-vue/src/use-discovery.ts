@@ -7,10 +7,8 @@
 // wird `If-None-Match: <hash>` mitgeschickt; bei 304 bleibt der gecachte
 // Snapshot bestehen, kein Re-Parse nötig.
 //
-// **Endpoint ist Pflicht** und wird vom Konsumenten geliefert (AutohausPro:
-// `/api/admin/discovery`, vereinsfux: `/api/v1/admin/discovery`).
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.3
+// **Endpoint ist Pflicht** und wird vom Konsumenten geliefert
+// (z. B. `/api/admin/discovery` oder `/api/v1/admin/discovery`).
 
 import { ref, type Ref } from 'vue';
 import type { DiscoverySnapshot } from '@saasicat/types';

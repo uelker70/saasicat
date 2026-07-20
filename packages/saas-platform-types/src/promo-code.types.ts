@@ -1,6 +1,5 @@
 // PromoCode — Wire-Format für die Promo-Code-Funktionalität.
 // Schema-Quelle: @saasicat/spec/schemas/promo-code.schema.json
-// Vorlage: autohauspro/backend/src/promo-codes/dto/create-promo-code.dto.ts
 
 import type { PlanId } from './plan-catalog.types.js';
 

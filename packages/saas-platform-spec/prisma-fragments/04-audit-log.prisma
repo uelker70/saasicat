@@ -12,9 +12,6 @@
 // `schemas/audit-event.schema.json` Action-Pattern). Konsument-spezifische
 // Aktionen sind erlaubt; Plattform-Aktionen sind in der `AuditActionDef`-
 // Liste der Manifest-Contributions katalogisiert.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.4)
-//        + schemas/audit-event.schema.json
 
 model AuditLog {
     id        String  @id @default(uuid())

@@ -1,8 +1,6 @@
 // MarketingProjectionsController — REST-Endpunkte für `marketing_projections`.
 //
 // Pfad: `/admin/catalog/marketing-projections`. Pattern analog zu BundlesController.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3
 
 import {
     Body,

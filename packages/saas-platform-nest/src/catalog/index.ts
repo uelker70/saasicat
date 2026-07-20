@@ -8,8 +8,6 @@
 //   - validateBundleDraft (Pure-Function-Strict-Check)
 //
 // Folgt: BusinessTypesService (M3.2), MarketingProjectionService (M3.3).
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3 + §11
 
 export { BundlesService, type CatalogServiceConfig } from './bundles.service.js';
 export { BusinessTypesService } from './business-types.service.js';

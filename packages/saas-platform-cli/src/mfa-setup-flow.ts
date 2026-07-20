@@ -6,8 +6,6 @@
 //
 // Konsumenten-CLIs wrappen diese Klasse in einer `nest-commander`-Command-
 // Klasse — der Flow selbst ist nest-commander-frei und damit unit-testbar.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.5 (3.2).
 
 import { Injectable } from '@nestjs/common';
 import { MfaService } from '@saasicat/nest';
@@ -17,8 +15,8 @@ export interface MfaSetupOptions {
     /** `--as <email>` Override für die Akteur-Identität. */
     asFlag?: string;
     /**
-     * Issuer-String, der im Authenticator angezeigt wird (z. B. "AutohausPro
-     * SuperAdmin", "vereinsfux SuperAdmin"). Konsumenten setzen ihren
+     * Issuer-String, der im Authenticator angezeigt wird (z. B. "DemoApp
+     * SuperAdmin", "ClubApp SuperAdmin"). Konsumenten setzen ihren
      * eigenen App-Namen.
      */
     issuer: string;

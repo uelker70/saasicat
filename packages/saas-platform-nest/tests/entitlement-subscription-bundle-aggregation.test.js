@@ -18,7 +18,7 @@ const FUTURE = new Date('2026-08-01T00:00:00Z');
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'autohauspro',
+    projectKey: 'demoapp',
     currency: 'EUR',
     vatRate: 19,
     features: [{ key: 'CASHBOOK' }, { key: 'DMS' }, { key: 'CAMPAIGNS' }],

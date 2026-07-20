@@ -220,7 +220,7 @@ test('saveConfiguration: mit Lookup → bekannte ID akzeptiert + persistiert', a
                     businessTypeKey: 'SPORT_VEREIN',
                     label: 'Sportverein',
                     version: 1,
-                    projectKey: 'vereinsfux',
+                    projectKey: 'clubapp',
                 },
             ],
         ]),

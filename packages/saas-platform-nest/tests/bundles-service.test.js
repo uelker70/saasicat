@@ -12,7 +12,7 @@ import {
 // Klassifikation. Tests laufen direkt gegen die Service-Klasse mit dem
 // FakeBundleRepository und einem optionalen Discovery-Snapshot-Stub.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 function buildSnapshot(features = [], quotas = []) {
     return {

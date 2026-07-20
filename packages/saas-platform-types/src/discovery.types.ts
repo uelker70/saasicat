@@ -13,8 +13,6 @@
 // Im Gegensatz zu CapabilityCatalogEntryRow/FeatureCatalogEntryRow
 // (siehe catalog-entry.types.ts) ist das hier reiner Code-Snapshot —
 // kein Review-Status, kein Marketing, keine DB-Persistenz.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3
 
 import type { CapabilityKind } from './catalog-entry.types.js';
 

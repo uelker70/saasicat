@@ -7,8 +7,6 @@ import { test, expect } from '@playwright/test';
 // ESM-Bundle-Variante funktionieren — kein Node-Leak, kein Vue-Reactivity-
 // Bug nach Tree-Shaking, kein Subtle-Closure-Mismatch zwischen TS-Build und
 // Browser.
-//
-// Spec: yada-services/handoff/superadmin/OPEN_ISSUES.md Q.5.
 
 const FIXTURE_URL = '/tests-e2e/fixtures/index.html';
 

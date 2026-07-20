@@ -390,9 +390,8 @@ export interface TenantSubscriptionWritePort {
      * promoCodes.redeem`-Calls zurück (best-effort,
      * P10.1.1-Übergangslösung).
      *
-     * Optional, weil bestehende Adapter (autohauspro, sakarel-Stub) die
-     * Unterstützung schrittweise nachziehen können — fehlende Implementation
-     * ist kein Hard-Error.
+     * Optional, weil bestehende Adapter die Unterstützung schrittweise
+     * nachziehen können — fehlende Implementation ist kein Hard-Error.
      */
     applyOnboardingSelection?(
         tenantId: string,

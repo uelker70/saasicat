@@ -9,8 +9,6 @@
 //   - pending-registration:      PendingRegistrationService (start, verifyOtp, resendOtp).
 //   - module:                    RegistrationModule.forRoot({ adapters... }).
 //   - dto:                       class-validator DTOs fuer die Controller-Schicht.
-//
-// Spec: vereinsfux/handoff/registrierung/registrierung.md
 
 export * from './helpers.js';
 export * from './tokens.js';

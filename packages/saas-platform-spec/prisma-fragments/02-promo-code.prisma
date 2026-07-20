@@ -4,9 +4,6 @@
 //
 // REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
 //
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.2)
-//        + handoff/onboarding/PROMO_CODES.md (AutohausPro-Quelle)
-//
 // Begleitende Fragmente:
 //   - 01-subscription.prisma  (PromoCodeRedemption ist 1:1 zu Subscription)
 

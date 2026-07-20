@@ -60,7 +60,7 @@ const props = defineProps<{
     to: CatalogSnapshot;
     /** Per-Plan-ID Akzentfarbe (für die Diff-Card-Icons). */
     planAccents?: Record<string, string>;
-    /** Field-Label-Overrides (z. B. autohauspro: `{ maxVehicles: 'Max. Fahrzeuge' }`). */
+    /** Field-Label-Overrides (z. B. `{ maxVehicles: 'Max. Fahrzeuge' }`). */
     fieldLabels?: Record<string, string>;
 }>();
 

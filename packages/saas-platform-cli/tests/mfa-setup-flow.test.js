@@ -51,12 +51,12 @@ function buildHarness({
 describe('MfaSetupFlow.run — Erst-Setup', () => {
     test('liefert Secret + otpauthUri für SUPER_ADMIN', async () => {
         const { flow, setupCalls, auditCalls } = buildHarness();
-        const result = await flow.run({ issuer: 'AutohausPro SuperAdmin' });
+        const result = await flow.run({ issuer: 'DemoApp SuperAdmin' });
         assert.equal(result.secret, 'BASE32SECRET');
         assert.equal(result.otpauthUri, 'otpauth://totp/x');
         assert.equal(result.userEmail, 'taci@example.com');
         assert.equal(setupCalls.length, 1);
-        assert.equal(setupCalls[0].issuer, 'AutohausPro SuperAdmin');
+        assert.equal(setupCalls[0].issuer, 'DemoApp SuperAdmin');
         // Audit-Log: erstes Setup → MFA_SETUP_COMPLETED
         assert.equal(auditCalls.length, 1);
         assert.equal(auditCalls[0].action, 'MFA_SETUP_COMPLETED');
@@ -65,8 +65,8 @@ describe('MfaSetupFlow.run — Erst-Setup', () => {
 
     test('Audit-Log enthält issuer in changes', async () => {
         const { flow, auditCalls } = buildHarness();
-        await flow.run({ issuer: 'vereinsfux SuperAdmin' });
-        assert.deepEqual(auditCalls[0].changes, { issuer: 'vereinsfux SuperAdmin' });
+        await flow.run({ issuer: 'ClubApp SuperAdmin' });
+        assert.deepEqual(auditCalls[0].changes, { issuer: 'ClubApp SuperAdmin' });
     });
 });
 

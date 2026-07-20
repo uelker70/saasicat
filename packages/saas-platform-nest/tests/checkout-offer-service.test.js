@@ -128,7 +128,7 @@ describe('CheckoutOfferService', () => {
 
     function create() {
         return service.create({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'STANDARD',
             billingCycle: 'monthly',
             priceBreakdown: PRICE,
@@ -153,7 +153,7 @@ describe('CheckoutOfferService', () => {
         await assert.rejects(
             () =>
                 service.create({
-                    projectKey: 'vereinsfux',
+                    projectKey: 'clubapp',
                     planKey: 'STANDARD',
                     billingCycle: 'monthly',
                     bundleVersionIds: ['bv-1'],
@@ -166,7 +166,7 @@ describe('CheckoutOfferService', () => {
 
     test('create friert Bundle-Versionen, Promotions und PromoCode im Offer ein', async () => {
         const offer = await service.create({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'STANDARD',
             planVersionId: 'pv-1',
             billingCycle: 'monthly',
@@ -201,7 +201,7 @@ describe('CheckoutOfferService', () => {
 
     test('create ergänzt rabattierten Preis als negative Discount-LineItem', async () => {
         const offer = await service.create({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'STANDARD',
             planVersionId: 'pv-1',
             billingCycle: 'monthly',
@@ -257,7 +257,7 @@ describe('CheckoutOfferService', () => {
         ]);
         service = new CheckoutOfferService(repo, fakeBundleRepo(bundleRows));
         const offer = await service.create({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'STANDARD',
             billingCycle: 'monthly',
             bundleVersionIds: ['bv-1'],
@@ -287,7 +287,7 @@ describe('CheckoutOfferService', () => {
 
     test('update auf abgelaufenem Offer wirft Conflict', async () => {
         const offer = await service.create({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'STANDARD',
             billingCycle: 'monthly',
             priceBreakdown: PRICE,
@@ -365,7 +365,7 @@ describe('CheckoutOfferService — requires-Validierung (#35 P6)', () => {
 
     function offerData(bundleVersions) {
         return {
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'STANDARD',
             planVersionId: PLAN_VERSION.id,
             billingCycle: 'monthly',

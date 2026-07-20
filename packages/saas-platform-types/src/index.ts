@@ -1,6 +1,5 @@
 // @saasicat/types — Barrel-Export aller TS-Interfaces.
 // Pflicht-Begleiter zu @saasicat/spec.
-// Spec: yada-services/handoff/superadmin/SPEC.md
 
 export * from './active-plan-version-query.js';
 export * from './admin-manifest.types.js';

@@ -6,8 +6,6 @@
 // Wire-Format die im SuperAdmin gepflegten Marketing-Daten: Badge, Teaser,
 // Top-Features, Highlight, CTA, Trial — plus die aktuell aktive Aktion mit
 // bereits ausgerechnetem Rabattpreis.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §9 + §9a + §6.5
 
 import type { MarketingTopFeature } from './catalog-entry.types.js';
 import type { PromotionType } from './promotion.types.js';

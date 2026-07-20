@@ -11,8 +11,6 @@
 // ungeschützten Manifest-Endpoint deployt. `reloadGuards` hängt zusätzliche
 // Guards ausschließlich an `POST /admin/manifest/reload` (typischerweise
 // `MfaGuard`).
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4 + UMSETZUNGSPLAN.md §174
 
 import {
     type CanActivate,

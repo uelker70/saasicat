@@ -1,6 +1,5 @@
 // PlanCatalog — Format der `config/saas.yaml`-Datei.
 // Schema-Quelle: @saasicat/spec/schemas/plan-catalog.schema.json
-// Spec: yada-services/handoff/superadmin/SPEC.md §4
 
 export type FeatureKey = string; // SCREAMING_SNAKE_CASE; pro Konsument eigener Namespace
 export type PlanId = string; // SCREAMING_SNAKE_CASE; z. B. BASIC, STANDARD, PROFESSIONAL
@@ -47,10 +46,10 @@ export interface PlanCatalogMarketing {
  * und der `AdminManifestConfigFactory` konsumiert; das SuperAdmin-UI (Plattform-
  * LoginPage, AdminLayout-Brand-Block) liest dieselben Felder via PublicBoot.
  *
- * `name` = brand display name (z. B. "AutohausPro", "vereinsfux").
+ * `name` = brand display name (z. B. "DemoApp", "ClubApp").
  * `label` = Tag/Untertitel im Brand-Block (z. B. "SuperAdmin").
  * `version` = App-Version-String (Build-Info).
- * `icon` = 2-stelliges Kürzel für das Logo-Badge (z. B. "ah", "vf").
+ * `icon` = 2-stelliges Kürzel für das Logo-Badge (z. B. "ma", "da").
  * `logoUrl` = optionale URL zu PNG/SVG; wenn gesetzt, rendert die UI ein <img>
  *             statt des Initialen-Badges.
  */
