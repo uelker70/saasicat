@@ -59,15 +59,15 @@ import {
     type UserEmailResolver,
 } from './tenant-billing.tokens.js';
 
-// TenantBillingController — Tenant-Self-Service-Endpunkte für die
-// Plan-Verwaltung. Phase B: nur Reads (`/entitlement` + `/usage`). Phase C
-// ergänzt Plan-Preview/Apply und Subscription-Cancel.
+// TenantBillingController — tenant self-service endpoints for plan
+// management. Phase B: reads only (`/entitlement` + `/usage`). Phase C
+// adds plan preview/apply and subscription cancel.
 //
-// Auth-Stack:
-//   - `ComposedTenantAuthGuard` (immer): konsumenten-spezifische
-//     Auth-Guards-Liste (z. B. JwtAuthGuard + TenantGuard).
-//   - `TenantAdminGuard` (nur Mutationen): zusätzlich TENANT_ADMIN/SUPER_ADMIN-Rolle.
-// Reads bleiben für alle authentifizierten Tenant-User offen.
+// Auth stack:
+//   - `ComposedTenantAuthGuard` (always): consumer-specific list of
+//     auth guards (e.g. JwtAuthGuard + TenantGuard).
+//   - `TenantAdminGuard` (mutations only): additionally requires the TENANT_ADMIN/SUPER_ADMIN role.
+// Reads remain open to all authenticated tenant users.
 
 interface RequestLike {
     user?: { tenantId?: string; sub?: string; id?: string };
@@ -95,13 +95,13 @@ interface UsageResponse {
     limits: ReturnType<typeof toEffectiveLimitsSnapshot>;
     usage: Record<string, number>;
     /**
-     * P11.4 (METAMODELL §17a): Eingefrorener Paket-Snapshot aus dem
-     * `CheckoutOffer`, der beim Onboarding aktiviert wurde. Read-only
-     * für die Tenant-Self-Service-UI. `null` für Subscriptions ohne
-     * CheckoutOffer-Herkunft.
+     * P11.4 (METAMODELL §17a): Frozen package snapshot from the
+     * `CheckoutOffer` that was activated during onboarding. Read-only
+     * for the tenant self-service UI. `null` for subscriptions without
+     * a CheckoutOffer origin.
      */
     packageSnapshot: unknown | null;
-    /** P11.4: Optionaler Verweis auf den ursprünglichen CheckoutOffer. */
+    /** P11.4: Optional reference to the originating CheckoutOffer. */
     checkoutOfferId: string | null;
 }
 
@@ -109,8 +109,8 @@ interface UsageResponse {
 @UseGuards(ComposedTenantAuthGuard)
 export class TenantBillingController {
     constructor(
-        // tsup-Build hat kein emitDecoratorMetadata — Class-Type-Args müssen
-        // explizit mit @Inject(Class) versehen werden, sonst bricht der DI.
+        // The tsup build has no emitDecoratorMetadata — class-type args must
+        // be annotated explicitly with @Inject(Class), otherwise DI breaks.
         @Inject(EntitlementService) private readonly entitlements: EntitlementService,
         @Inject(PlanChangePreviewService)
         private readonly planPreview: PlanChangePreviewService,
@@ -129,20 +129,20 @@ export class TenantBillingController {
         @Optional()
         @Inject(SELF_SERVICE_BLOCKED_PLANS_TOKEN)
         private readonly blockedPlans: SelfServiceBlockedPlans | null = null,
-        // Optional: Wenn der Konsument PromoCodesModule.forRoot(...) geladen hat,
-        // unterstützt das Onboarding-Endpunkt atomares Einlösen eines Promo-Codes
-        // direkt nach dem Plan-Wechsel. Ohne diese Service-Instanz wird ein
-        // gesendeter `promoCode` ignoriert und in der Response als Warnung
-        // gemeldet (kein Hard-Error — Tenant kann den Code per separatem
-        // Endpoint nachträglich einlösen).
+        // Optional: if the consumer has loaded PromoCodesModule.forRoot(...),
+        // the onboarding endpoint supports atomically redeeming a promo code
+        // right after the plan change. Without this service instance a
+        // supplied `promoCode` is ignored and reported as a warning in the
+        // response (no hard error — the tenant can redeem the code later via a
+        // separate endpoint).
         @Optional()
         @Inject(PromoCodesService)
         private readonly promoCodes: PromoCodesService | null = null,
-        // P10.1.2: Audit-Log für jeden Subscription-Write. Wenn der Konsument
-        // `PlatformAdminModule.forRoot(...)` geladen hat (typischer Setup),
-        // wird der Service automatisch injiziert. Ohne AdminModule fällt der
-        // Audit-Log-Pfad still aus — kein Hard-Error für Setups, die noch
-        // keinen Audit-Adapter haben.
+        // P10.1.2: audit log for every subscription write. If the consumer has
+        // loaded `PlatformAdminModule.forRoot(...)` (the typical setup), the
+        // service is injected automatically. Without AdminModule the audit-log
+        // path is silently skipped — no hard error for setups that don't yet
+        // have an audit adapter.
         @Optional()
         @Inject(AdminAuditService)
         private readonly auditService: AdminAuditService | null = null,
@@ -152,19 +152,19 @@ export class TenantBillingController {
         @Optional()
         @Inject(AUDIT_CONTEXT_RESOLVER_TOKEN)
         private readonly auditContextResolver: AuditContextResolver | null = null,
-        // P11.7.3 — Bundle-Buchung im Onboarding-Flow. Optional, weil das
-        // SubscriptionBundleModule additiv vom Konsumenten registriert wird.
+        // P11.7.3 — bundle booking in the onboarding flow. Optional, because the
+        // SubscriptionBundleModule is registered additively by the consumer.
         @Optional()
         @Inject(SubscriptionBundlesService)
         private readonly subscriptionBundles: SubscriptionBundlesService | null = null,
-        // #18: optionaler Contract-Freeze nach dem Plan-Wechsel (non-TRIAL).
-        // Ohne Hook bleibt die Entitlement-Auflösung versions-/katalog-gepinnt.
+        // #18: optional contract freeze after the plan change (non-TRIAL).
+        // Without the hook, entitlement resolution stays version-/catalog-pinned.
         @Optional()
         @Inject(CONTRACT_FREEZE_PORT_TOKEN)
         private readonly contractFreeze: ContractFreezePort | null = null,
-        // #17: optionaler Trial-Carry-over. Derselbe Port liefert auch die
-        // Wizard-Projektion (PlanChangePreviewService). Ohne Port bleibt das
-        // Trial-Ende beim Wechsel unverändert.
+        // #17: optional trial carry-over. The same port also supplies the
+        // wizard projection (PlanChangePreviewService). Without the port the
+        // trial end stays unchanged across the change.
         @Optional()
         @Inject(TRIAL_PROJECTION_PORT_TOKEN)
         private readonly trialProjection: TrialProjectionPort | null = null,
@@ -173,7 +173,7 @@ export class TenantBillingController {
     private readonly logger = new Logger(TenantBillingController.name);
 
     // ---------------------------------------------------------------------
-    // Reads (Phase B) — alle authentifizierten Tenant-User
+    // Reads (Phase B) — all authenticated tenant users
     // ---------------------------------------------------------------------
 
     @Get('entitlement')
@@ -229,7 +229,7 @@ export class TenantBillingController {
     }
 
     // ---------------------------------------------------------------------
-    // Plan-Preview (Phase C, Read-only) — TENANT_ADMIN
+    // Plan preview (Phase C, read-only) — TENANT_ADMIN
     // ---------------------------------------------------------------------
 
     @Post('plan/preview')
@@ -241,7 +241,7 @@ export class TenantBillingController {
     }
 
     // ---------------------------------------------------------------------
-    // Plan-Wechsel — TENANT_ADMIN (kostenwirksam)
+    // Plan change — TENANT_ADMIN (cost-relevant)
     // ---------------------------------------------------------------------
 
     @Post('plan')
@@ -258,8 +258,8 @@ export class TenantBillingController {
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
         if (!sub) throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
 
-        // Defense-in-depth: serverseitiger Pre-Check mit denselben Regeln
-        // wie im Wizard. Verhindert Bypass per direktem API-Call.
+        // Defense-in-depth: server-side pre-check with the same rules
+        // as the wizard. Prevents bypass via a direct API call.
         const blockers = await this.planPreview.assertChangeAllowed(
             tenantId,
             dto.plan,
@@ -274,9 +274,9 @@ export class TenantBillingController {
             const period = wasTrial
                 ? null
                 : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
-            // #17: im Trial die Restzeit auf das Ziel-Paket übertragen (über den
-            // vorhandenen TrialProjectionPort — derselbe, der den Wizard-Preview
-            // speist). `null` → Ziel ohne Trial: Trial-Ende bleibt unverändert.
+            // #17: in trial, carry the remaining time over to the target package
+            // (via the existing TrialProjectionPort — the same one that feeds the
+            // wizard preview). `null` → target without trial: trial end stays unchanged.
             const trialEndsAt =
                 wasTrial && this.trialProjection
                     ? await this.trialProjection.projectTrialEndsAt({
@@ -340,7 +340,7 @@ export class TenantBillingController {
     }
 
     // ---------------------------------------------------------------------
-    // Onboarding — Initial-Subscription aus dem Konfigurator-Schritt
+    // Onboarding — initial subscription from the configurator step
     // ---------------------------------------------------------------------
 
     @Post('onboarding/initial-subscription')
@@ -354,7 +354,7 @@ export class TenantBillingController {
         const userEmail = this.resolveUserEmail(req);
         const warnings: string[] = [];
 
-        // Self-Service-Block: ENTERPRISE etc. nicht per Onboarding wählbar
+        // Self-service block: ENTERPRISE etc. cannot be selected via onboarding
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         if (blockedTargets.includes(dto.plan)) {
             throw new ForbiddenException(`${dto.plan} wird nicht per Self-Service aktiviert.`);
@@ -363,7 +363,7 @@ export class TenantBillingController {
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
         if (!sub) throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
 
-        // Plan-Wechsel-Blocker (Defense-in-depth wie in changePlan)
+        // Plan-change blockers (defense-in-depth, as in changePlan)
         const blockers = await this.planPreview.assertChangeAllowed(
             tenantId,
             dto.plan,
@@ -381,11 +381,11 @@ export class TenantBillingController {
             ? null
             : initialPeriodWindow(new Date(), dto.billingCycle as BillingCycle);
 
-        // Promo-Redeem-Callback: nur wenn alle Voraussetzungen erfüllt sind
-        // (PromoCodesModule geladen + Code im DTO + Subscription-id im sub-Record).
-        // Im atomaren Pfad ruft der Adapter den Callback INNERHALB seiner Transaktion
-        // auf; im sequenziellen Pfad führt die Plattform den Redeem nach den Writes
-        // best-effort aus.
+        // Promo-redeem callback: only when all preconditions are met
+        // (PromoCodesModule loaded + code in the DTO + subscription id in the sub record).
+        // In the atomic path the adapter invokes the callback INSIDE its transaction;
+        // in the sequential path the platform runs the redeem best-effort after the
+        // writes.
         const canRedeem = !!dto.promoCode && !!this.promoCodes && !!sub.id;
         const redeemPromoCallback = canRedeem
             ? async (
@@ -406,7 +406,7 @@ export class TenantBillingController {
         let planResult: { plan: string; billingCycle: string };
         let promoRedemption: OnboardingSelectionResponse['promoRedemption'] = null;
 
-        // ─── Atomarer Pfad (bevorzugt) ──────────────────────────────────────
+        // ─── Atomic path (preferred) ────────────────────────────────────────
         if (this.subscriptionWrite.applyOnboardingSelection) {
             try {
                 const result = await this.subscriptionWrite.applyOnboardingSelection(
@@ -430,10 +430,10 @@ export class TenantBillingController {
                     warnings.push(...this.collectPromoSkipReasons(dto.promoCode, sub));
                 }
             } catch (err) {
-                // Atomarer Pfad: ein Fehler rollt ALLES zurück (Plan, Redeem).
-                // Der Tenant sieht eine harte Fehlermeldung, weil die
-                // Subscription tatsächlich nicht modifiziert wurde — kein
-                // halbgares Best-Effort-Ergebnis.
+                // Atomic path: a failure rolls back EVERYTHING (plan, redeem).
+                // The tenant sees a hard error message, because the
+                // subscription was in fact not modified — no
+                // half-baked best-effort result.
                 throw new BadRequestException({
                     message:
                         err instanceof Error
@@ -442,10 +442,10 @@ export class TenantBillingController {
                 });
             }
         } else {
-            // ─── Fallback: sequenzieller Best-Effort-Pfad ───────────────────
-            // Adapter implementiert applyOnboardingSelection (noch) nicht —
-            // wir ziehen Plan + Promo nacheinander. Atomicity nicht
-            // garantiert, Failures hinterlassen ggf. Half-State.
+            // ─── Fallback: sequential best-effort path ──────────────────────
+            // The adapter does not (yet) implement applyOnboardingSelection —
+            // we apply plan + promo one after another. Atomicity is not
+            // guaranteed; failures may leave a half-state behind.
             planResult = await this.subscriptionWrite.changePlanImmediate(tenantId, {
                 planId: dto.plan,
                 cycle: dto.billingCycle,
@@ -503,12 +503,12 @@ export class TenantBillingController {
             },
         );
 
-        // ─── Bundle-Buchung (best-effort, NACH dem Plan-Setup) ─────
-        // Bewusst nicht atomar mit dem Plan-Wechsel: Bundle-Fehler
-        // (z. B. inkompatibler Plan, bereits gebucht) sollen den Plan
-        // nicht zurückrollen. Fehler werden als Warnings gemeldet — der
-        // Tenant kann fehlgeschlagene Bundles später per
-        // `POST /billing/subscription-bundles` nachbuchen.
+        // ─── Bundle booking (best-effort, AFTER the plan setup) ────
+        // Deliberately not atomic with the plan change: bundle failures
+        // (e.g. incompatible plan, already booked) must not roll the plan
+        // back. Failures are reported as warnings — the tenant can book
+        // failed bundles later via
+        // `POST /billing/subscription-bundles`.
         const bundleVersionIds = dto.bundleVersionIds ?? [];
         let bundlesAdded = 0;
         if (bundleVersionIds.length > 0 && this.subscriptionBundles && sub.id) {
@@ -536,9 +536,9 @@ export class TenantBillingController {
 
         return {
             plan: planResult.plan,
-            // Adapter liefert `string`; UI erwartet `'MONTHLY' | 'YEARLY'`.
-            // Pre-Validation per DTO + serverseitiger PlanCatalog-Check
-            // garantieren, dass nur valide Werte hier ankommen.
+            // The adapter returns `string`; the UI expects `'MONTHLY' | 'YEARLY'`.
+            // DTO pre-validation + the server-side PlanCatalog check
+            // guarantee that only valid values reach this point.
             billingCycle: planResult.billingCycle as BillingCycle,
             bundlesAdded,
             promoRedemption,
@@ -547,7 +547,7 @@ export class TenantBillingController {
     }
 
     // ---------------------------------------------------------------------
-    // Pending-PlanVersion akzeptieren — TENANT_ADMIN
+    // Accept pending plan version — TENANT_ADMIN
     // ---------------------------------------------------------------------
 
     @Post('subscription/accept-pending-version')
@@ -706,10 +706,10 @@ export class TenantBillingController {
     }
 
     /**
-     * #18: Contract-Freeze nach dem Plan-Wechsel — non-fatal, nur außerhalb des
-     * Trials (im Trial gelten Trial-Entitlements, nicht der gebuchte Plan;
-     * eingefroren wird beim Übergang in ACTIVE bzw. der Materialisierung). Ohne
-     * konfigurierten `contractFreeze`-Hook ist der Aufruf ein No-op.
+     * #18: contract freeze after the plan change — non-fatal, only outside of
+     * the trial (during a trial the trial entitlements apply, not the booked plan;
+     * the freeze happens on the transition to ACTIVE, i.e. on materialization).
+     * Without a configured `contractFreeze` hook the call is a no-op.
      */
     private async tryFreezeOnPlanChange(
         tenantId: string,
@@ -728,9 +728,9 @@ export class TenantBillingController {
     }
 
     /**
-     * Audit-Log-Helfer — schreibt Best-Effort, blockt nicht den Antwort-Pfad.
-     * Wenn `AdminAuditService` nicht injiziert ist (z. B. minimaler Deploy
-     * ohne AdminModule), wird der Call still verworfen.
+     * Audit-log helper — writes best-effort, does not block the response path.
+     * If `AdminAuditService` is not injected (e.g. a minimal deploy without
+     * AdminModule), the call is silently discarded.
      */
     private async auditLog(
         req: RequestLike,
@@ -750,8 +750,8 @@ export class TenantBillingController {
                 changes,
             });
         } catch {
-            // Audit-Failures dürfen den Tenant-Write-Pfad nicht brechen.
-            // (Eine Beobachtungslücke ist besser als ein Operations-Outage.)
+            // Audit failures must not break the tenant write path.
+            // (An observability gap is better than an operations outage.)
         }
     }
 }

@@ -1,29 +1,29 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: Subscription + Payment-Method
+// SaaS-Platform Prisma fragment: Subscription + Payment method
 // =============================================================================
 //
-// REFERENZ-SNIPPET — kein eigenständiges Schema. Konsumenten kopieren
-// Models in ihre `schema.prisma` und passen FK-Relationen zu eigenen
-// `Tenant`/`User`-Models an.
+// REFERENCE SNIPPET — not a standalone schema. Consumers copy
+// models into their `schema.prisma` and adapt the FK relations to their own
+// `Tenant`/`User` models.
 //
-// Konventionen:
-//   - Plan/Feature-Keys als `String` — Source-of-Truth ist die
-//     Konsumenten-`config/plans.yaml`, validiert via
+// Conventions:
+//   - Plan/feature keys as `String` — source of truth is the
+//     consumer's `config/plans.yaml`, validated via
 //     `@saasicat/spec/schemas/plan-catalog.schema.json`.
-//     Wer Postgres-Enums bevorzugt, kann lokal ein Enum deklarieren und
-//     das Feld via `@db.<EnumName>` casten — keine Plattform-Anforderung.
-//   - FK-Spalten zu Konsumenten-Models stehen als `String` mit
-//     auskommentierter Beispiel-Relation. Konsument fügt die `@relation`
-//     mit eigenem `Tenant`/`User`-Model hinzu.
-//   - `@@map`-Names sind die kanonischen Tabellen-Namen — bitte nicht
-//     ändern, sonst bricht der gemeinsame Migration-Pfad in P1.5+.
+//     Whoever prefers Postgres enums can declare an enum locally and
+//     cast the field via `@db.<EnumName>` — not a platform requirement.
+//   - FK columns to consumer models are declared as `String` with a
+//     commented-out example relation. The consumer adds the `@relation`
+//     with their own `Tenant`/`User` model.
+//   - `@@map` names are the canonical table names — please do not
+//     change them, otherwise the shared migration path breaks in P1.5+.
 //
-// Begleitende Fragmente:
-//   - 03-plan-versions.prisma  (PlanVersion — referenziert hier)
-//   - 02-promo-code.prisma     (PromoCodeRedemption hat 1:1 zu Subscription)
+// Accompanying fragments:
+//   - 03-plan-versions.prisma  (PlanVersion — referenced here)
+//   - 02-promo-code.prisma     (PromoCodeRedemption has 1:1 to Subscription)
 
 // -----------------------------------------------------------------------------
-// Universelle Enums — projekt-unabhängig, in jedem Konsumenten gleich.
+// Universal enums — project-independent, identical in every consumer.
 // -----------------------------------------------------------------------------
 
 enum BillingCycle {
@@ -48,13 +48,13 @@ enum SubscriptionPaymentType {
 }
 
 // -----------------------------------------------------------------------------
-// Subscription — eine pro Tenant. Bindet an PlanVersion (siehe 03-plan-versions).
+// Subscription — one per Tenant. Binds to PlanVersion (see 03-plan-versions).
 // -----------------------------------------------------------------------------
 
 model Subscription {
     id       String @id @default(uuid())
     tenantId String @unique
-    // Plan-Key aus plans.yaml (`plans[].id`). Wer Enum will: lokal deklarieren.
+    // Plan key from plans.yaml (`plans[].id`). Whoever wants an enum: declare locally.
     plan         String
     billingCycle BillingCycle       @default(YEARLY)
     status       SubscriptionStatus @default(TRIAL)
@@ -63,20 +63,20 @@ model Subscription {
     startedAt   DateTime?
     canceledAt  DateTime?
 
-    // Renewal-Periode (vom PlanVersionRenewalService gepflegt).
+    // Renewal period (maintained by PlanVersionRenewalService).
     currentPeriodStart DateTime?
     currentPeriodEnd   DateTime?
 
-    // Plan-Versionierung — bindet an eine veröffentlichte PlanVersion.
-    // `pendingPlanVersion*` betreffen einen Versions-Wechsel innerhalb des
-    // gleichen Plans; `pendingPlan` den Wechsel zu einem anderen Plan. Beide
-    // können koexistieren.
+    // Plan versioning — binds to a published PlanVersion.
+    // `pendingPlanVersion*` concern a version change within the
+    // same plan; `pendingPlan` the change to a different plan. Both
+    // can coexist.
     //
-    // Seit SPEC_V2 §11.1 M5 ist `planVersionId` **nullable**: eine
-    // Subscription darf entweder `planVersionId` oder
-    // `businessTypeVersionId` (oder beides) gesetzt haben. Der DB-CHECK-
-    // Constraint „mind. eines von beiden gesetzt" wird vom Konsumenten in
-    // der SQL-Migration ergänzt (Prisma kann das nicht direkt ausdrücken):
+    // Since SPEC_V2 §11.1 M5, `planVersionId` is **nullable**: a
+    // Subscription may have either `planVersionId` or
+    // `businessTypeVersionId` (or both) set. The DB CHECK
+    // constraint "at least one of the two set" is added by the consumer in
+    // the SQL migration (Prisma cannot express this directly):
     //   ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_plan_or_bt_check
     //     CHECK (plan_version_id IS NOT NULL OR business_type_version_id IS NOT NULL);
     planVersionId                      String?
@@ -88,22 +88,22 @@ model Subscription {
     pendingPlanVersionNotifiedAt       DateTime?
     pendingPlanVersionReminderSentAt   DateTime?
 
-    // BusinessType-Komposition (SPEC_V2 §11.1 M5). Optional pro App: Apps
-    // mit reinem Plan-Modell lassen das Feld auf null; Apps mit fachlichen
-    // Vertikalen (z. B. Vereinstypen)
-    // setzen die Subscription auf eine konkrete published BusinessTypeVersion.
-    // Aggregation in EntitlementService.computeLimits siehe
+    // BusinessType composition (SPEC_V2 §11.1 M5). Optional per app: apps
+    // with a pure plan model leave the field at null; apps with domain
+    // verticals (e.g. club types)
+    // set the Subscription to a concrete published BusinessTypeVersion.
+    // Aggregation in EntitlementService.computeLimits see
     // GESCHAEFTSTYP_SPEC.md §6.
     businessTypeVersionId String?
 
-    // Trial / geplante Plan-Wechsel
-    trialEntitlementPlan String? // Default-Entitlement während TRIAL
-    postTrialPlan        String? // Zielpaket nach Trial
-    pendingPlan          String? // Downgrade/Wechsel zum Periodenende
+    // Trial / scheduled plan changes
+    trialEntitlementPlan String? // Default entitlement during TRIAL
+    postTrialPlan        String? // Target package after trial
+    pendingPlan          String? // Downgrade/change at period end
     pendingBillingCycle  BillingCycle?
     pendingEffectiveAt   DateTime?
 
-    // Sondervertrag / Pilot — Audit (wer/wann) liegt im AuditLog.
+    // Special contract / pilot — audit (who/when) lives in the AuditLog.
     customMonthlyNet Decimal?  @db.Decimal(10, 2)
     customLimits     Json? // { maxUsers?, maxVehicles?, maxStorageGb?, features?: string[] }
     customNote       String?
@@ -111,21 +111,21 @@ model Subscription {
     pilotEndsAt      DateTime?
     pilotNote        String?
 
-    // Paket-Konsistenz (METAMODELL §17a) — verweist auf den CheckoutOffer,
-    // aus dem die Subscription entstand; `packageSnapshot` ist der zum
-    // Abschluss-Zeitpunkt eingefrorene Offer (Plan + Promo + Bundles +
-    // Quotas + Preis-Aufschlüsselung). Preisfeste Abrechnungs-
-    // Grundlage; null bei Alt-/Direkt-Subscriptions ohne Onboarding-Offer.
+    // Package consistency (METAMODELL §17a) — references the CheckoutOffer
+    // from which the Subscription originated; `packageSnapshot` is the offer
+    // frozen at closing time (plan + promo + bundles +
+    // quotas + price breakdown). Price-fixed billing
+    // basis; null for legacy/direct subscriptions without an onboarding offer.
     checkoutOfferId String?
     packageSnapshot Json?
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    // Relations — Konsument muss `Tenant` definieren und Relation aktivieren.
+    // Relations — consumer must define `Tenant` and enable the relation.
     // tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
     paymentMethod       SubscriptionPaymentMethod?
-    promoRedemption     PromoCodeRedemption? // siehe 02-promo-code.prisma
+    promoRedemption     PromoCodeRedemption? // see 02-promo-code.prisma
     planVersion         PlanVersion?                @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
     businessTypeVersion BusinessTypeVersion?        @relation("SubscriptionBusinessTypeVersion", fields: [businessTypeVersionId], references: [id])
@@ -139,7 +139,7 @@ model Subscription {
 }
 
 // -----------------------------------------------------------------------------
-// SubscriptionPaymentMethod — maskierte Zahlungs-Daten pro Subscription.
+// SubscriptionPaymentMethod — masked payment data per Subscription.
 // -----------------------------------------------------------------------------
 
 model SubscriptionPaymentMethod {
@@ -147,13 +147,13 @@ model SubscriptionPaymentMethod {
     subscriptionId String                  @unique
     type           SubscriptionPaymentType
 
-    // Karte (maskiert)
+    // Card (masked)
     cardName  String?
     cardBrand String?
     cardLast4 String?
     cardExp   String?
 
-    // SEPA (maskiert)
+    // SEPA (masked)
     ibanLast4 String?
     ibanName  String?
 
@@ -172,16 +172,16 @@ model SubscriptionPaymentMethod {
 }
 
 // -----------------------------------------------------------------------------
-// CheckoutOffer — unveränderlicher Paket-Snapshot von der Webseite bis zur
+// CheckoutOffer — immutable package snapshot from the website through to the
 // Subscription (METAMODELL §17a).
 //
-// Beim Paket-Klick auf der Pricing-Page legt `POST /public/checkout-offer`
-// einen Offer an; sein `id` wandert als `?offer=<id>` ins Onboarding. Dort
-// individualisiert der Tenant (Bundles/Quotas) — `PATCH` schreibt
-// das Delta zurück. Bei Subscription-Anlage wird der Offer `consumed` und
-// als `Subscription.packageSnapshot` eingefroren.
+// On a package click on the pricing page, `POST /public/checkout-offer` creates
+// an offer; its `id` travels as `?offer=<id>` into onboarding. There
+// the tenant customizes it (bundles/quotas) — `PATCH` writes
+// the delta back. On subscription creation the offer becomes `consumed` and
+// is frozen as `Subscription.packageSnapshot`.
 //
-// Globale Tabelle (kein RLS) — der Offer entsteht vor der Tenant-Anlage.
+// Global table (no RLS) — the offer is created before the tenant is created.
 // -----------------------------------------------------------------------------
 
 model CheckoutOffer {
@@ -196,10 +196,10 @@ model CheckoutOffer {
     promoCode   String?
 
     bundles Json @default("[]") // string[]
-    bundleVersionIds Json @default("[]") // konkrete BundleVersion-IDs (V3)
+    bundleVersionIds Json @default("[]") // concrete BundleVersion IDs (V3)
 
     priceBreakdown     Json
-    lineItems          Json @default("[]") // ContractLineItem-Snapshot-Shape vor Vertragsabschluss
+    lineItems          Json @default("[]") // ContractLineItem snapshot shape before contract conclusion
     promotionSnapshots Json @default("[]")
     promoCodeSnapshot  Json?
     locale             String @default("de")

@@ -1,16 +1,15 @@
-// AdminManifestModule — DI-Wrapper um AdminManifestService + Public-Boot-Controller.
+// AdminManifestModule — DI wrapper around AdminManifestService + public boot controller.
 //
-// Konsumenten reichen ihre App-spezifische `AdminManifestConfig` (project, build,
-// planCatalogSnapshot) als Value oder Factory durch.
+// Consumers pass their app-specific `AdminManifestConfig` (project, build,
+// planCatalogSnapshot) through as a value or a factory.
 //
-// Auth-Pattern: Wenn `includeManifestController: true` (Default), MUSS der
-// Konsument `guards` setzen — entweder eine konkrete Guard-Liste (z. B.
-// `[JwtAuthGuard, SuperAdminGuard]`) oder explizit `[]`, um den Endpoint
-// absichtlich auth-frei zu betreiben (CI/Smoke-Test). Ohne explizite Wahl
-// wirft `forRoot()` beim Boot, damit kein Konsument versehentlich einen
-// ungeschützten Manifest-Endpoint deployt. `reloadGuards` hängt zusätzliche
-// Guards ausschließlich an `POST /admin/manifest/reload` (typischerweise
-// `MfaGuard`).
+// Auth pattern: when `includeManifestController: true` (default), the consumer
+// MUST set `guards` — either a concrete guard list (e.g.
+// `[JwtAuthGuard, SuperAdminGuard]`) or explicitly `[]` to run the endpoint
+// intentionally auth-free (CI/smoke test). Without an explicit choice,
+// `forRoot()` throws at boot so that no consumer accidentally deploys an
+// unprotected manifest endpoint. `reloadGuards` attaches additional guards
+// exclusively to `POST /admin/manifest/reload` (typically `MfaGuard`).
 
 import {
     type CanActivate,
@@ -49,47 +48,48 @@ interface HttpResponseLike {
 }
 
 export interface AdminManifestModuleOptions {
-    /** AdminManifestConfig als Value oder via Factory (z. B. mit PLAN_CATALOG_TOKEN-Inject). */
+    /** AdminManifestConfig as a value or via a factory (e.g. with a PLAN_CATALOG_TOKEN inject). */
     config: ConfigSpec;
     /**
-     * Default `true`. Auf `false` setzen, wenn der Konsument einen eigenen
-     * Manifest-Controller mit App-spezifischen Guards komplett selbst registriert.
+     * Default `true`. Set to `false` when the consumer registers its own
+     * manifest controller with app-specific guards entirely on its own.
      */
     includeManifestController?: boolean;
     /**
-     * Class-Level-Guards für GET /admin/manifest und POST /admin/manifest/reload,
-     * wenn `includeManifestController === true`. PFLICHT — `forRoot()` wirft
-     * sonst beim Boot.
+     * Class-level guards for GET /admin/manifest and POST /admin/manifest/reload,
+     * when `includeManifestController === true`. REQUIRED — otherwise
+     * `forRoot()` throws at boot.
      *
-     * Übergebe `[]` explizit, wenn der Endpoint absichtlich auth-frei sein
-     * soll (z. B. CI-Smoke-Tests, Public-Demo). Damit ist die Wahl im Code
-     * sichtbar und nicht stiller Default.
+     * Pass `[]` explicitly when the endpoint should intentionally be auth-free
+     * (e.g. CI smoke tests, public demo). This makes the choice visible in the
+     * code rather than a silent default.
      */
     guards?: Array<Type<CanActivate>>;
     /**
-     * Zusätzliche Guards, die NUR auf POST /admin/manifest/reload greifen
-     * (typischerweise `MfaGuard`). Werden hinter `guards` in die Chain
-     * gestellt. Muss vom Konsumenten als Provider verfügbar gemacht werden.
+     * Additional guards that apply ONLY to POST /admin/manifest/reload
+     * (typically `MfaGuard`). Placed after `guards` in the chain. Must be made
+     * available by the consumer as a provider.
      */
     reloadGuards?: Array<Type<CanActivate>>;
     /**
-     * Default `true`. Wenn aktiv, hängt das Modul `PLATFORM_CORE_MANIFEST_CONTRIBUTION`
-     * (StandardPage-Spine, generische Tenant-Actions, Plattform-Audit-Action-Labels)
-     * automatisch in den `AdminManifestService` — vor allen App-`register()`-Aufrufen
-     * aus `onModuleInit`. Konsumenten ohne SuperAdmin-Bedarf setzen das auf `false`.
+     * Default `true`. When active, the module automatically hooks
+     * `PLATFORM_CORE_MANIFEST_CONTRIBUTION` (StandardPage spine, generic tenant
+     * actions, platform audit action labels) into the `AdminManifestService` —
+     * before all app `register()` calls from `onModuleInit`. Consumers without
+     * a SuperAdmin need set this to `false`.
      */
     registerPlatformCore?: boolean;
     /**
-     * Module, deren Provider im DI-Scope dieses DynamicModules sichtbar sein
-     * müssen — typisch: das App-Modul, das den Factory-Inject-Provider
-     * (z. B. `AdminManifestConfigFactory`) registriert. Ohne diesen Eintrag
-     * kann NestJS 11.1.19 den `inject:[...]` der Config-Factory nicht
-     * auflösen (UnknownDependenciesException für ADMIN_MANIFEST_CONFIG).
+     * Modules whose providers must be visible in the DI scope of this
+     * DynamicModule — typically: the app module that registers the
+     * factory-inject provider (e.g. `AdminManifestConfigFactory`). Without this
+     * entry, NestJS 11.1.19 cannot resolve the `inject:[...]` of the config
+     * factory (UnknownDependenciesException for ADMIN_MANIFEST_CONFIG).
      */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
-    /** Zusätzliche Provider, die im DynamicModule selbst registriert werden. */
+    /** Additional providers that are registered in the DynamicModule itself. */
     extraProviders?: Provider[];
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 
@@ -110,10 +110,10 @@ function asConfigProvider(impl: ConfigSpec): Provider {
 }
 
 /**
- * Baut zur Boot-Zeit eine Controller-Klasse mit den vom Konsumenten
- * konfigurierten Guards. Methoden-Level `@UseGuards(...)` greift in NestJS
- * zusätzlich zur Class-Level-Variante; `reload` bekommt also `guards` +
- * `reloadGuards` in der Chain.
+ * Builds a controller class at boot time with the guards configured by the
+ * consumer. Method-level `@UseGuards(...)` applies in NestJS in addition to
+ * the class-level variant; `reload` therefore gets `guards` + `reloadGuards`
+ * in the chain.
  */
 function buildManifestController(
     guards: Array<Type<CanActivate>>,
@@ -124,9 +124,9 @@ function buildManifestController(
     @Controller('admin')
     @UseGuards(...guards)
     class GeneratedAdminManifestController {
-        // Explizites @Inject statt Type-Reflection: tsup/esbuild emittieren keine
-        // `design:paramtypes`-Metadata, sodass Nest den Service-Typ am Constructor
-        // sonst nicht auflösen kann.
+        // Explicit @Inject instead of type reflection: tsup/esbuild do not emit
+        // `design:paramtypes` metadata, so Nest cannot otherwise resolve the
+        // service type at the constructor.
         constructor(
             @Inject(AdminManifestService) private readonly manifest: AdminManifestService,
         ) {}

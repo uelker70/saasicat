@@ -1,13 +1,13 @@
-// NavBuilder — leitet die Sidebar-Struktur und die Router-Mountpoints aus
-// einem geladenen `AdminManifest` ab. Plattform-StandardPages haben bekannte
-// Routen (`/admin/tenants`, `/admin/subscriptions`, …); Konsumenten-
-// `projectPages` werden über die statische `extensions:`-Map zu
-// Vue-Komponenten aufgelöst.
+// NavBuilder — derives the sidebar structure and the router mount points from
+// a loaded `AdminManifest`. Platform standard pages have known
+// routes (`/admin/tenants`, `/admin/subscriptions`, …); consumer
+// `projectPages` are resolved to Vue components via the static
+// `extensions:` map.
 //
-// Capability-Filter: Sidebar-Items werden nur ausgeliefert, wenn die
-// jeweilige `requiredCapability` im Manifest auf `true` steht (oder gar
-// nicht gefordert ist). Manifest ist Discovery, nicht Security — der Server
-// enforcet die Routen unabhängig.
+// Capability filter: sidebar items are only delivered when the
+// respective `requiredCapability` in the manifest is set to `true` (or is
+// not required at all). The manifest is Discovery, not security — the server
+// enforces the routes independently.
 
 import type {
     AdminManifest,
@@ -16,8 +16,8 @@ import type {
 } from '@saasicat/types';
 
 /**
- * Default-Routen für die Plattform-StandardPages. Konsumenten dürfen das
- * via `standardPageRoutes`-Option überschreiben (z. B. `/admin/users` →
+ * Default routes for the platform standard pages. Consumers may override this
+ * via the `standardPageRoutes` option (e.g. `/admin/users` →
  * `/admin/team`).
  */
 export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
@@ -39,45 +39,45 @@ export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
 };
 
 export interface BuildRouteEntry {
-    /** Stable Identifier — bei StandardPages der Schlüssel, bei ProjectPages die `id`. */
+    /** Stable identifier — the key for standard pages, the `id` for project pages. */
     id: string;
-    /** Route-Pfad (`/admin/...`). */
+    /** Route path (`/admin/...`). */
     path: string;
-    /** Sichtbar fürs UI. */
+    /** Visible for the UI. */
     label: string;
     icon?: string;
-    /** Sortierschlüssel für Drawer-Gruppen. */
+    /** Sort key for drawer groups. */
     navSection?: string;
-    /** Lookup-Key in der `extensions:`-Map (project) bzw. der Plattform-Standard-Map. */
+    /** Lookup key in the `extensions:` map (project) or the platform standard map. */
     componentKey: string;
-    /** Pflicht-Capability oder null. */
+    /** Required capability or null. */
     requiredCapability: string | null;
-    /** Plattform-Standard-Page (`true`) oder Projekt-Page (`false`). */
+    /** Platform standard page (`true`) or project page (`false`). */
     isStandard: boolean;
-    /** Hint für vorausschauendes Lazy-Loading. */
+    /** Hint for anticipatory lazy loading. */
     prefetchOnIdle?: boolean;
 }
 
 export interface NavBuilderOptions {
     /**
-     * Optional: Überschreibt die Default-Routen für bestimmte StandardPages.
-     * Konsumenten setzen das, wenn sie eine alternative URL-Struktur wollen.
+     * Optional: overrides the default routes for certain standard pages.
+     * Consumers set this if they want an alternative URL structure.
      */
     standardPageRoutes?: Partial<Record<StandardPageKey, string>>;
     /**
-     * Default-Labels für StandardPages — Konsumenten dürfen lokalisieren.
+     * Default labels for standard pages — consumers may localize.
      */
     standardPageLabels?: Partial<Record<StandardPageKey, string>>;
-    /** Default-Icons für StandardPages. */
+    /** Default icons for standard pages. */
     standardPageIcons?: Partial<Record<StandardPageKey, string>>;
-    /** Default-`navSection` für StandardPages. */
+    /** Default `navSection` for standard pages. */
     standardPageNavSection?: Partial<Record<StandardPageKey, string>>;
     /**
-     * Optional: Set bekannter `componentKey`s aus der `extensions:`-Map der
-     * Shell. ProjectPages, deren `componentKey` hier nicht enthalten ist,
-     * werden gefiltert — sie würden sonst in der Sidebar erscheinen, beim
-     * Klick aber durch den Catch-all redirected (silent dead-link).
-     * Konsumenten ohne `extensions:`-Map lassen das Feld weg → wie bisher.
+     * Optional: set of known `componentKey`s from the shell's `extensions:`
+     * map. ProjectPages whose `componentKey` is not contained here
+     * are filtered out — they would otherwise appear in the sidebar but on
+     * click be redirected by the catch-all (silent dead link).
+     * Consumers without an `extensions:` map omit the field → as before.
      */
     availableExtensions?: Set<string>;
 }

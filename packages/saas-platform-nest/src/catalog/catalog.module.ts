@@ -1,8 +1,8 @@
-// CatalogModule — DI-Wrapper um BundlesService (M3.1) + ggf. später
+// CatalogModule — DI wrapper around BundlesService (M3.1) and, possibly later,
 // BusinessTypesService + MarketingProjectionService.
 //
-// Konsumenten reichen ihre Repository-Adapter durch und bestimmen die
-// Class-Level-Guards der Controller selbst (analog zu DiscoveryModule):
+// Consumers pass through their repository adapters and decide the
+// class-level guards of the controllers themselves (analogous to DiscoveryModule):
 //
 // ```ts
 // CatalogModule.forRoot({
@@ -10,7 +10,7 @@
 //                        inject: [PrismaBundleRepository] },
 //   controller: { guards: [JwtAuthGuard, SuperAdminGuard] },
 //   imports: [PrismaModule, AuthModule, PlatformAdminModule],
-//   strictModeCheckMode: 'blocking', // Default (#12)
+//   strictModeCheckMode: 'blocking', // default (#12)
 // })
 // ```
 
@@ -69,48 +69,48 @@ import {
 
 export interface CatalogControllerConfig {
     /**
-     * Class-Level-Guards für `BundlesController` und `BundleVersionsController`.
-     * PFLICHT — `forRoot()` wirft sonst beim Boot. Übergebe `[]` explizit,
-     * wenn die Endpoints absichtlich auth-frei sein sollen.
+     * Class-level guards for `BundlesController` and `BundleVersionsController`.
+     * REQUIRED — otherwise `forRoot()` throws at boot. Pass `[]` explicitly
+     * if the endpoints should intentionally be auth-free.
      */
     guards: Array<Type<CanActivate>>;
 }
 
 export interface CatalogModuleOptions {
-    /** Adapter für `bundles` + `bundle_versions`-Persistenz. */
+    /** Adapter for `bundles` + `bundle_versions` persistence. */
     bundleRepository: ProviderSpec<BundleRepository>;
     /**
-     * Adapter für `business_types` + `business_type_versions` +
-     * `business_type_bundles`-Persistenz. Optional — wenn weggelassen,
-     * werden BusinessTypesService + Controller nicht registriert.
+     * Adapter for `business_types` + `business_type_versions` +
+     * `business_type_bundles` persistence. Optional — if omitted,
+     * BusinessTypesService + controller are not registered.
      */
     businessTypeRepository?: ProviderSpec<BusinessTypeRepository>;
     /**
-     * Adapter für `marketing_projections`-Persistenz. Optional — wenn
-     * weggelassen, werden MarketingProjectionsService + Controller nicht
-     * registriert.
+     * Adapter for `marketing_projections` persistence. Optional — if
+     * omitted, MarketingProjectionsService + controller are not
+     * registered.
      */
     marketingProjectionRepository?: ProviderSpec<MarketingProjectionRepository>;
     /**
-     * Adapter für `capability_/feature_/quota_catalog_entries`-Persistenz
-     * (Discovery-Review, SPEC_V2 §6.3). Optional — wenn weggelassen, werden
-     * CatalogEntriesService + Controller nicht registriert.
+     * Adapter for `capability_/feature_/quota_catalog_entries` persistence
+     * (discovery review, SPEC_V2 §6.3). Optional — if omitted,
+     * CatalogEntriesService + controller are not registered.
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
     /**
-     * Adapter für `promotions`-Persistenz (SPEC_V2 §9a). Optional — wenn
-     * weggelassen, werden PromotionsService + Controller nicht registriert.
+     * Adapter for `promotions` persistence (SPEC_V2 §9a). Optional — if
+     * omitted, PromotionsService + controller are not registered.
      */
     promotionRepository?: ProviderSpec<PromotionRepository>;
     /**
-     * Adapter für `marketing_settings`-Persistenz (SPEC_V2 §6.5 —
+     * Adapter for `marketing_settings` persistence (SPEC_V2 §6.5 —
      * `activeLocales`). Optional.
      */
     marketingSettingsRepository?: ProviderSpec<MarketingSettingsRepository>;
     /**
-     * Auth-freier Pricing-Page-Endpoint `GET /public/marketing-catalog`
-     * (SPEC_V2 §9). Wird nur registriert, wenn plan- + marketingProjection-
-     * + promotionRepository gesetzt sind. `guards` ist üblicherweise `[]`.
+     * Auth-free pricing-page endpoint `GET /public/marketing-catalog`
+     * (SPEC_V2 §9). Registered only when plan-, marketingProjection-
+     * and promotionRepository are set. `guards` is usually `[]`.
      */
     publicMarketingCatalog?: {
         guards: Array<Type<CanActivate>>;
@@ -119,55 +119,55 @@ export interface CatalogModuleOptions {
         vatRate: number;
     };
     /**
-     * SPEC_V2 §11.1 M6 (Pack 1) — Adapter für `plans`-Stamm-Persistenz.
-     * Optional; wenn weggelassen, werden PlansService + Controller nicht
-     * registriert (Apps ohne Plan-Editor-Bedarf bleiben so unverändert).
+     * SPEC_V2 §11.1 M6 (Pack 1) — adapter for `plans` master-record persistence.
+     * Optional; if omitted, PlansService + controller are not
+     * registered (apps without a need for the plan editor stay unchanged).
      */
     planRepository?: ProviderSpec<PlanRepository>;
     /**
-     * Controller-Mount für `/admin/catalog/bundles` + `/admin/catalog/bundle-versions`
-     * + (falls businessTypeRepository gesetzt) `/admin/catalog/business-types` +
-     * `/admin/catalog/business-type-versions`. Wenn weggelassen, werden die
-     * Endpoints nicht registriert — die Services bleiben aber via DI nutzbar.
+     * Controller mount for `/admin/catalog/bundles` + `/admin/catalog/bundle-versions`
+     * + (if businessTypeRepository is set) `/admin/catalog/business-types` +
+     * `/admin/catalog/business-type-versions`. If omitted, the
+     * endpoints are not registered — but the services remain usable via DI.
      */
     controller?: CatalogControllerConfig;
     /**
-     * Strict-Mode-Modus. `blocking` (Default, #12) wirft HTTP 422 bei
-     * Verstößen und erfordert einen DiscoverySnapshot; `warn-only` gibt sie
-     * nur als Warning zurück (Übergang bis 100 % Discovery-Coverage).
+     * Strict-mode mode. `blocking` (default, #12) throws HTTP 422 on
+     * violations and requires a DiscoverySnapshot; `warn-only` returns them
+     * only as a warning (transition until 100% discovery coverage).
      */
     strictModeCheckMode?: 'warn-only' | 'blocking';
     /**
-     * Discovery→Catalog-Auto-Sync beim Boot (#12). Default `true` — sobald ein
-     * `catalogEntryRepository` gewiret ist und ein DiscoverySnapshot bereitsteht,
-     * spiegelt `CatalogEntriesService` die Discovery beim Start in die DB. `false`
-     * deaktiviert den Boot-Sync; der manuelle Sync-Endpoint bleibt nutzbar.
+     * Discovery→catalog auto-sync at boot (#12). Default `true` — as soon as a
+     * `catalogEntryRepository` is wired and a DiscoverySnapshot is available,
+     * `CatalogEntriesService` mirrors the discovery into the DB at startup. `false`
+     * disables the boot sync; the manual sync endpoint remains usable.
      */
     autoSyncDiscoveryAtBoot?: boolean;
     /**
-     * Feature-Keys, die der Katalog bewusst führen darf, ohne dass sie im
-     * Discovery-Snapshot existieren (vermarktete Nicht-Code-Features wie
-     * Support-SLAs, z. B. `['PRIORITY_SUPPORT']`). Der Strict-Mode-Check nimmt
-     * sie von BUNDLE_/PLAN_FEATURE_UNKNOWN aus. Sparsam einsetzen.
+     * Feature keys the catalog is deliberately allowed to carry without them
+     * existing in the discovery snapshot (marketed non-code features such as
+     * support SLAs, e.g. `['PRIORITY_SUPPORT']`). The strict-mode check excludes
+     * them from BUNDLE_/PLAN_FEATURE_UNKNOWN. Use sparingly.
      */
     marketedOnlyFeatures?: string[];
     /**
-     * Optionale konsumenten-kuratierte FeatureUiRegistry (label/description/icon
-     * je Feature — dieselbe, die an `PublicCatalogModule.forRoot` geht). Der
-     * Discovery-Auto-Sync seedet daraus beim Boot LEERE `FeatureCatalogEntry`-
-     * Felder (label/description/icon); SuperAdmin-Edits bleiben unangetastet. So
-     * wird `FeatureCatalogEntry` die SSOT für UI-Metadaten (SPEC_V2 §6.3 / #12).
+     * Optional consumer-curated FeatureUiRegistry (label/description/icon
+     * per feature — the same one passed to `PublicCatalogModule.forRoot`). The
+     * discovery auto-sync seeds EMPTY `FeatureCatalogEntry` fields
+     * (label/description/icon) from it at boot; SuperAdmin edits stay untouched. This
+     * makes `FeatureCatalogEntry` the SSOT for UI metadata (SPEC_V2 §6.3 / #12).
      */
     featureUiRegistry?: FeatureUiRegistry;
     /**
-     * Module, deren Provider im DI-Scope dieses DynamicModules sichtbar
-     * sein müssen — typisch: `AuthModule`/`PlatformAdminModule`, weil die
-     * Controller-Guards von dort kommen.
+     * Modules whose providers must be visible in the DI scope of this
+     * DynamicModule — typically: `AuthModule`/`PlatformAdminModule`, because the
+     * controller guards come from there.
      */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
-    /** Zusätzliche Provider, die im DynamicModule selbst registriert werden. */
+    /** Additional providers registered in the DynamicModule itself. */
     extraProviders?: Provider[];
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 
@@ -207,8 +207,8 @@ export class CatalogModule {
                 controllers.push(buildMarketingSettingsController(options.controller.guards));
             }
         }
-        // Public-Marketing-Catalog läuft mit eigenen (i. d. R. leeren) Guards,
-        // unabhängig vom authed `controller`-Mount.
+        // Public marketing catalog runs with its own (usually empty) guards,
+        // independent of the authed `controller` mount.
         if (hasPublicMarketingCatalog && options.publicMarketingCatalog) {
             controllers.push(
                 buildPublicMarketingCatalogController(
@@ -235,8 +235,8 @@ export class CatalogModule {
                 useValue: options.featureUiRegistry ?? null,
             },
             BundlesService,
-            // Geteilter Audit-Helfer für die catalog-entries-Mutationen (#13).
-            // Deps sind @Optional — ohne AdminAuditService im Scope ein No-op.
+            // Shared audit helper for the catalog-entries mutations (#13).
+            // Deps are @Optional — a no-op without AdminAuditService in scope.
             WebAuditLogger,
             ...(options.extraProviders ?? []),
         ];

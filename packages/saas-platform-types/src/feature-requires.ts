@@ -1,19 +1,19 @@
-// Pure Helper rund um code-discoverte Feature-Abhängigkeiten (#35).
+// Pure helpers around code-discovered feature dependencies (#35).
 //
-// Eine Auswahl (Plan-Features, Bundle-Features, Konfigurator-Selection)
-// ist „dependency-gedeckt", wenn jedes `requires`-Feature der enthaltenen
-// Features ebenfalls in der Auswahl liegt. Was fehlt, liefert
-// `collectUnsatisfiedRequires` — Public-Catalog-Endpoints exponieren das
-// als `requiresFeatures`, damit Konfigurator-UIs inkompatible Bundles
-// ausgrauen können, und der Upsell-Resolver (#36) bewertet damit
-// Kombi-Bundles höher.
+// A selection (plan features, bundle features, configurator selection)
+// is "dependency-covered" when every `requires` feature of the contained
+// features is also part of the selection. What is missing is returned by
+// `collectUnsatisfiedRequires` — public catalog endpoints expose it
+// as `requiresFeatures` so configurator UIs can grey out incompatible
+// bundles, and the upsell resolver (#36) uses it to rank combo bundles
+// higher.
 //
-// Bewusst hier im types-Paket (wie `pickActivePromo`): Backend UND
-// Frontend rechnen mit derselben Funktion — der Client prüft „sind die
-// requiresFeatures durch Plan + aktuelle Auswahl gedeckt?" mit demselben
-// Index-Format.
+// Deliberately here in the types package (like `pickActivePromo`): backend AND
+// frontend compute with the same function — the client checks "are the
+// requiresFeatures covered by plan + current selection?" using the same
+// index format.
 
-/** Feature-Key → seine `requires`-Keys (aus Discovery/FeatureCatalogEntry). */
+/** Feature key → its `requires` keys (from Discovery/FeatureCatalogEntry). */
 export type FeatureRequiresIndex = ReadonlyMap<string, readonly string[]>;
 
 interface FeatureRequiresSource {
@@ -22,9 +22,9 @@ interface FeatureRequiresSource {
 }
 
 /**
- * Baut den Lookup-Index aus Snapshot-Features (`DiscoveredFeature`) oder
- * Catalog-Entries (`FeatureCatalogEntryRow`) — beide tragen
- * `featureKey` + `requires`. Selbstbezüge werden ignoriert.
+ * Builds the lookup index from snapshot features (`DiscoveredFeature`) or
+ * catalog entries (`FeatureCatalogEntryRow`) — both carry
+ * `featureKey` + `requires`. Self-references are ignored.
  */
 export function buildFeatureRequiresIndex(
     features: readonly FeatureRequiresSource[],
@@ -38,10 +38,10 @@ export function buildFeatureRequiresIndex(
 }
 
 /**
- * Union der `requires` aller `selected`-Features minus der Features, die
- * `selected` selbst enthält — also genau die Abhängigkeiten, die außerhalb
- * der Auswahl gedeckt sein müssen. Sortiert, dedupliziert; leeres Ergebnis
- * = die Auswahl ist self-contained (z. B. Kombi-Bundle SPORTPLATZ).
+ * Union of the `requires` of all `selected` features minus the features that
+ * `selected` itself contains — i.e. exactly the dependencies that must be
+ * covered outside the selection. Sorted, deduplicated; an empty result
+ * = the selection is self-contained (e.g. combo bundle SPORTPLATZ).
  */
 export function collectUnsatisfiedRequires(
     selected: readonly string[],
@@ -58,24 +58,24 @@ export function collectUnsatisfiedRequires(
 }
 
 /**
- * Buchbarkeits-Status eines Bundles relativ zu den bereits gedeckten
- * Features (Plan ∪ schon gewählte/gebuchte Bundles):
- * - `covered`     — alle Bundle-Features sind bereits gedeckt → würde doppelt
- *                   verkauft; UI zeigt „bereits enthalten" und zählt nicht mit.
- * - `missing-requires` — mindestens ein `requiresFeatures` ist ungedeckt → ausgrauen.
- * - `bookable`    — wählbar.
+ * Bookability state of a bundle relative to the already covered
+ * features (plan ∪ already selected/booked bundles):
+ * - `covered`     — all bundle features are already covered → would be sold
+ *                   twice; the UI shows "bereits enthalten" and it doesn't count.
+ * - `missing-requires` — at least one `requiresFeatures` is uncovered → grey out.
+ * - `bookable`    — selectable.
  */
 export type BundleAvailabilityState = 'bookable' | 'covered' | 'missing-requires';
 
-/** Feature-Träger eines Bundles für die Buchbarkeits-Ableitung. */
+/** Feature carrier of a bundle for the bookability derivation. */
 export interface BundleFeatureShape {
     features: readonly string[];
     requiresFeatures?: readonly string[] | null;
 }
 
 /**
- * Ungedeckte `requiresFeatures` eines Bundles relativ zur Deckung. Sortiert,
- * dedupliziert; leeres Ergebnis = alle Voraussetzungen gedeckt.
+ * Uncovered `requiresFeatures` of a bundle relative to the coverage. Sorted,
+ * deduplicated; an empty result = all prerequisites covered.
  */
 export function missingRequiresFor(
     bundle: BundleFeatureShape,
@@ -86,10 +86,10 @@ export function missingRequiresFor(
 }
 
 /**
- * Einheitliche Status-Ableitung für Konfigurator- und Bundle-Store-UIs (#22/#35).
- * Reihenfolge bewusst: vollständige Deckung schlägt fehlende requires (ein
- * komplett gedecktes Bundle ist nie buchbar, egal welche requires offen sind).
- * Quotas zählen nicht — sie wirken additiv.
+ * Unified status derivation for configurator and bundle-store UIs (#22/#35).
+ * Order is deliberate: full coverage beats missing requires (a fully
+ * covered bundle is never bookable, no matter which requires are open).
+ * Quotas don't count — they act additively.
  */
 export function resolveBundleAvailability(
     bundle: BundleFeatureShape,
@@ -102,23 +102,23 @@ export function resolveBundleAvailability(
     return 'bookable';
 }
 
-/** Bundle mit Features + identifizierender Version-ID für die Redundanz-Ableitung. */
+/** Bundle with features + identifying version ID for the redundancy derivation. */
 export interface SelectableBundleShape extends BundleFeatureShape {
     bundleVersionId: string;
     /**
-     * Optionale Sortier-Position. Macht die Auswahl des behaltenen Bundles
-     * bei gegenseitiger Deckung vorhersehbar (`selectChargeableBundles`).
-     * Fehlend = ans Ende sortiert, dann nach `bundleVersionId`.
+     * Optional sort position. Makes the choice of the kept bundle
+     * predictable under mutual coverage (`selectChargeableBundles`).
+     * Missing = sorted to the end, then by `bundleVersionId`.
      */
     sortOrder?: number;
 }
 
 /**
- * Deckung eines Bundles relativ zu Plan ∪ den *übrigen* gewählten Bundles —
- * das Bundle selbst zählt nicht gegen sich (sonst wäre jedes Bundle trivial
- * „bereits enthalten"). Geteilte Quelle für Grid-Ausgrauung UND Preis-/
- * Payload-Exklusion: Konfigurator-Grid und Subscription-Draft müssen dieselbe
- * Deckung sehen, sonst driften Anzeige und Abrechnung auseinander.
+ * Coverage of a bundle relative to plan ∪ the *remaining* selected bundles —
+ * the bundle itself doesn't count against itself (otherwise every bundle would
+ * trivially be "already included"). Shared source for grid greying AND price/
+ * payload exclusion: the configurator grid and the subscription draft must see
+ * the same coverage, otherwise display and billing drift apart.
  */
 export function coverageExcludingSelf(
     selfVersionId: string,
@@ -134,10 +134,10 @@ export function coverageExcludingSelf(
 }
 
 /**
- * Ist ein bereits gewähltes Bundle durch Plan ∪ die übrigen gewählten Bundles
- * vollständig gedeckt (redundant)? Solche Bundles werden doppelt verkauft —
- * sie dürfen weder in die Preis-Summe noch in die API-Payload einfließen.
- * Nutzt dieselbe `resolveBundleAvailability`-Ableitung wie das Grid.
+ * Is an already selected bundle fully covered (redundant) by plan ∪ the
+ * remaining selected bundles? Such bundles get sold twice — they must
+ * flow neither into the price total nor into the API payload.
+ * Uses the same `resolveBundleAvailability` derivation as the grid.
  */
 export function isBundleRedundant(
     bundle: SelectableBundleShape,
@@ -149,9 +149,9 @@ export function isBundleRedundant(
 }
 
 /**
- * Deterministische Reihenfolge für die iterative Redundanz-Entfernung:
- * `sortOrder` aufsteigend (fehlend ans Ende), dann `bundleVersionId`. So ist
- * vorhersehbar, welches Bundle bei gegenseitiger Deckung entfernt wird.
+ * Deterministic order for the iterative redundancy removal:
+ * `sortOrder` ascending (missing to the end), then `bundleVersionId`. That way
+ * it is predictable which bundle gets removed under mutual coverage.
  */
 function compareSelectable(a: SelectableBundleShape, b: SelectableBundleShape): number {
     const orderA = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
@@ -161,20 +161,20 @@ function compareSelectable(a: SelectableBundleShape, b: SelectableBundleShape): 
 }
 
 /**
- * Minimal-deckende Teilmenge der gewählten Bundles: behält genau die Bundles,
- * die berechnet/gebucht werden, und verwirft redundante (durch Plan ∪ die
- * übrigen behaltenen Bundles vollständig gedeckte) Bundles.
+ * Minimally covering subset of the selected bundles: keeps exactly the bundles
+ * that get charged/booked, and discards redundant ones (fully covered by
+ * plan ∪ the remaining kept bundles).
  *
- * Iterative statt einmalige Entfernung: ein einmaliger
- * `filter(b => !isBundleRedundant(b, plan, alle))` über die volle Auswahl
- * verwirft bei gegenseitiger/zyklischer Deckung ALLE Beteiligten (Y={C} und
- * Z={C} decken sich gegenseitig → beide gefiltert → Feature C ginge verloren
- * und würde weder berechnet noch gebucht). Stattdessen wird wiederholt EIN
- * redundantes Bundle relativ zur AKTUELL behaltenen Menge entfernt und neu
- * bewertet. Das garantiert, dass die behaltene Menge dieselbe Feature-Union
- * (minus Plan) deckt wie die volle Auswahl — bei gegenseitiger/zyklischer
- * Deckung bleibt deterministisch genau EIN Bundle übrig, bei echter Teilmenge
- * (Y={C} ⊂ Z={C,D}) wird Y verworfen und Z behalten.
+ * Iterative rather than one-shot removal: a single
+ * `filter(b => !isBundleRedundant(b, plan, all))` over the full selection
+ * discards ALL participants under mutual/cyclic coverage (Y={C} and
+ * Z={C} cover each other → both filtered → feature C would be lost
+ * and neither charged nor booked). Instead, ONE redundant bundle relative
+ * to the CURRENTLY kept set is repeatedly removed and re-evaluated.
+ * That guarantees that the kept set covers the same feature union
+ * (minus plan) as the full selection — under mutual/cyclic coverage
+ * exactly ONE bundle remains deterministically, and for a proper subset
+ * (Y={C} ⊂ Z={C,D}) Y is discarded and Z is kept.
  */
 export function selectChargeableBundles<T extends SelectableBundleShape>(
     planFeatures: readonly string[],

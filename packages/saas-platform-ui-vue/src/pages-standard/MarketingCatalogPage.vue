@@ -1,20 +1,20 @@
 <!--
-  MarketingCatalogPage — Marketing-Catalog für SuperAdmin (SPEC_V2 §11.1 M3).
+  MarketingCatalogPage — marketing catalog for SuperAdmin (SPEC_V2 §11.1 M3).
 
-  Öffentliche Marketing-Projektion pro Plan: gefilterte Sicht für Website,
-  Pricing-Page und Checkout. Zwei Tabs:
-    · Public-Catalog-Vorschau — Browser-Mockup der Pricing-Page.
-    · Marketing-Verwaltung    — Sichtbarkeit, Badge, Priorität, Highlight,
-                                Teaser, Trial & Top-Features pro Plan.
+  Public marketing projection per plan: filtered view for website,
+  pricing page and checkout. Two tabs:
+    · Public catalog preview   — browser mockup of the pricing page.
+    · Marketing administration — visibility, badge, priority, highlight,
+                                 teaser, trial & top features per plan.
 
-  Echtdaten-Quellen:
-    · usePlans                 — Plan-Stämme.
-    · /catalog/plans/:id/versions — Live-PlanVersion (Pricing + Features).
-    · useMarketingProjections  — MarketingProjection pro (PLAN, Live-Version,
-                                 Locale). Edits gehen direkt live.
+  Live-data sources:
+    · usePlans                 — plan master records.
+    · /catalog/plans/:id/versions — live PlanVersion (pricing + features).
+    · useMarketingProjections  — MarketingProjection per (PLAN, live version,
+                                 locale). Edits go live immediately.
 
-  Selbst-versorgende Page (wie PlansPage): Konsumenten reichen nur
-  `adminEndpoint` + `projectKey` durch, der Wrapper bleibt thin.
+  Self-sufficient page (like PlansPage): consumers only pass through
+  `adminEndpoint` + `projectKey`, the wrapper stays thin.
 -->
 <template>
     <div class="mc">
@@ -45,7 +45,7 @@
 
         <div v-if="loading" class="mc-loading">Lade Marketing-Catalog …</div>
 
-        <!-- ─── Tab: Aktionen ─── -->
+        <!-- ─── Tab: Promotions ─── -->
         <MarketingPromotionsTab
             v-else-if="tab === 'promos'"
             :promotions="promotions"
@@ -146,13 +146,13 @@ const props = defineProps<{
     projectKey: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
-    /** Verfügbare Locales — erste ist Default. Default `['de']`. */
+    /** Available locales — the first one is the default. Defaults to `['de']`. */
     availableLocales?: string[];
-    /** Feature-Label-Map für Top-Feature-Vorschläge (Key → Label). */
+    /** Feature-label map for top-feature suggestions (key → label). */
     featureRegistry?: Record<string, { label?: string }>;
-    /** Quota-Label/Unit-Map für Top-Feature-Vorschläge. */
+    /** Quota label/unit map for top-feature suggestions. */
     quotaRegistry?: Record<string, { label?: string; unit?: string }>;
-    /** Akzentfarbe pro Plan-Key für die Plan-Marke in der Verwaltung. */
+    /** Accent color per plan key for the plan mark in the administration view. */
     planAccents?: Record<string, string>;
 }>();
 
@@ -164,9 +164,9 @@ const tab = ref<MarketingCatalogTab>('preview');
 const expandedKey = ref<string | null>(null);
 const activeLocale = ref<string>(availableLocales.value[0]);
 
-// LocaleManager — `availableLocales` ist der erlaubte Pool (app-config,
-// SPEC_V2 §6.5), `activeLocaleSet` die runtime-aktivierte Teilmenge.
-// Persistiert über `/admin/catalog/marketing-settings` (MarketingSettings).
+// LocaleManager — `availableLocales` is the allowed pool (app config,
+// SPEC_V2 §6.5), `activeLocaleSet` the runtime-activated subset.
+// Persisted via `/admin/catalog/marketing-settings` (MarketingSettings).
 const defaultLocale = computed(() => availableLocales.value[0]);
 const activeLocaleSet = ref<string[]>([...availableLocales.value]);
 const localePickerOpen = ref(false);
@@ -174,7 +174,7 @@ const addableLocales = computed(() =>
     availableLocales.value.filter((l) => !activeLocaleSet.value.includes(l)),
 );
 
-/** Lädt die persistierte activeLocales-Teilmenge (Fallback: voller Pool). */
+/** Loads the persisted activeLocales subset (fallback: full pool). */
 async function loadMarketingSettings(): Promise<void> {
     try {
         const res = await httpClient(
@@ -186,18 +186,18 @@ async function loadMarketingSettings(): Promise<void> {
             activeLocales?: string[];
         } | null;
         if (body && Array.isArray(body.activeLocales) && body.activeLocales.length > 0) {
-            // Auf den gültigen Pool einschränken; Default-Locale bleibt aktiv.
+            // Restrict to the valid pool; the default locale stays active.
             const pool = availableLocales.value;
             const next = body.activeLocales.filter((l) => pool.includes(l));
             if (!next.includes(defaultLocale.value)) next.unshift(defaultLocale.value);
             activeLocaleSet.value = next;
         }
     } catch {
-        // Netzwerkfehler — bleibt beim Pool-Default.
+        // Network error — stays with the pool default.
     }
 }
 
-/** Persistiert die aktuelle activeLocales-Auswahl (best-effort). */
+/** Persists the current activeLocales selection (best-effort). */
 async function persistActiveLocales(): Promise<void> {
     try {
         await httpClient(`${props.adminEndpoint}/catalog/marketing-settings`, {
@@ -209,7 +209,7 @@ async function persistActiveLocales(): Promise<void> {
             }),
         });
     } catch {
-        // best-effort — UI-State bleibt erhalten.
+        // best-effort — the UI state is preserved.
     }
 }
 
@@ -230,7 +230,7 @@ const busy = ref(false);
 const pageError = ref<string | null>(null);
 const versionsByPlanId = ref<Record<string, PlanVersionRow[]>>({});
 
-/** Lokale Editier-Kopie der Top-Features der gerade aufgeklappten Zeile. */
+/** Local editing copy of the top features of the currently expanded row. */
 const editFeatures = ref<MarketingTopFeature[]>([]);
 
 const plansApi = usePlans({
@@ -254,8 +254,8 @@ const promotionsApi = usePromotions({
     getAuthToken: props.getAuthToken,
 });
 
-// Catalog-Entries (Features + Quotas mit i18n) — liefert die übersetzten
-// Labels für den Top-Features-Editor (SPEC_V2 §6.3 + §6.5).
+// Catalog entries (features + quotas with i18n) — provides the translated
+// labels for the top-features editor (SPEC_V2 §6.3 + §6.5).
 const catalogEntriesApi = useCatalogEntries({
     adminEndpoint: props.adminEndpoint,
     projectKey: props.projectKey,
@@ -266,9 +266,9 @@ const catalogEntriesApi = useCatalogEntries({
 const loading = computed(() => plansApi.loading.value || projectionsApi.loading.value);
 
 /**
- * Übersetztes Label eines Feature-/Quota-Keys für die Editier-Locale.
- * Reihenfolge: Catalog-Entry-i18n → Catalog-Entry-Label → statische
- * Registry-Prop → Key als letzter Fallback.
+ * Translated label of a feature/quota key for the editing locale.
+ * Order: catalog-entry i18n → catalog-entry label → static
+ * registry prop → key as last fallback.
  */
 function resolveComponentLabel(key: string): string {
     const loc = activeLocale.value;
@@ -286,7 +286,7 @@ function resolveComponentLabel(key: string): string {
     }
     return props.featureRegistry?.[key]?.label ?? props.quotaRegistry?.[key]?.label ?? key;
 }
-/** Übersetzte Quota-Einheit für die Editier-Locale. */
+/** Translated quota unit for the editing locale. */
 function resolveQuotaUnit(key: string): string {
     const loc = activeLocale.value;
     const q = catalogEntriesApi.quotas.value.find((x) => x.quotaKey === key);
@@ -297,11 +297,11 @@ function resolveQuotaUnit(key: string): string {
     }
     return props.quotaRegistry?.[key]?.unit ?? '';
 }
-/** Effektives Top-Feature-Label: `label`-Override gewinnt, sonst key-Auflösung. */
+/** Effective top-feature label: the `label` override wins, otherwise key resolution. */
 function topFeatureLabel(f: MarketingTopFeature): string {
     let key = f.key;
     let label = (f.label ?? '').trim();
-    // Migration: Alt-Eintrag, dessen `label` ein bekannter Key ist.
+    // Migration: legacy entry whose `label` is a known key.
     if (!key && label && knownComponentKeys.value.has(label)) {
         key = label;
         label = '';
@@ -309,7 +309,7 @@ function topFeatureLabel(f: MarketingTopFeature): string {
     if (label) return label;
     return key ? resolveComponentLabel(key) : '';
 }
-/** Set aller bekannten Feature-/Quota-Keys — für die Migration alter Einträge. */
+/** Set of all known feature/quota keys — for migrating legacy entries. */
 const knownComponentKeys = computed(() => {
     const s = new Set<string>();
     for (const f of catalogEntriesApi.features.value) s.add(f.featureKey);
@@ -317,7 +317,7 @@ const knownComponentKeys = computed(() => {
     return s;
 });
 
-/** Plan-Liste (Key + Label) für die Aktionen-`appliesTo`-Auswahl. */
+/** Plan list (key + label) for the promotions `appliesTo` selection. */
 const promoPlanOptions = computed(() =>
     plansApi.plans.value.map((p) => ({
         key: p.planKey,
@@ -325,7 +325,7 @@ const promoPlanOptions = computed(() =>
     })),
 );
 
-/** Aktionen-Liste + Anzahl aktuell aktiver Aktionen (für das Tab-Badge). */
+/** Promotions list + count of currently active promotions (for the tab badge). */
 const promotions = computed(() => promotionsApi.promotions.value);
 const activePromoCount = computed(
     () => promotions.value.filter((p) => promoStatus(p) === 'active').length,
@@ -378,8 +378,8 @@ onMounted(() => {
 });
 
 /**
- * Alle published Versions eines Plans, sortiert nach `validFrom` asc.
- * Dient als Tab-Liste in der Marketing-Catalog-Verwaltung.
+ * All published versions of a plan, sorted by `validFrom` ascending.
+ * Serves as the tab list in the marketing-catalog administration.
  */
 function publishedVersionsOf(plan: PlanRow): PlanVersionRow[] {
     const versions = versionsByPlanId.value[plan.id] ?? [];
@@ -394,17 +394,17 @@ function publishedVersionsOf(plan: PlanRow): PlanVersionRow[] {
 }
 
 /**
- * Zu `asOf` aktive Version (SPEC_V2 §4.2): `validFrom <= asOf` und
- * (`validUntil == null OR validUntil > asOf`). Default ist die heute-
- * aktive Version. Fallback wenn keine `validFrom`-Daten gepflegt sind:
- * höchste version.
+ * Version active as of `asOf` (SPEC_V2 §4.2): `validFrom <= asOf` and
+ * (`validUntil == null OR validUntil > asOf`). Default is the version
+ * active today. Fallback when no `validFrom` data is maintained:
+ * highest version.
  */
 function activeVersionOf(plan: PlanRow, asOf: Date = new Date()): PlanVersionRow | null {
     const published = publishedVersionsOf(plan);
     if (published.length === 0) {
-        // Effektive Version = live ?? draft (gleiches Prinzip wie die
-        // Plan-Matrix): Erstbefuellungs-Entwuerfe sind sonst nicht
-        // kuratierbar und liefern keine Top-Feature-Vorschlaege.
+        // Effective version = live ?? draft (same principle as the
+        // plan matrix): otherwise initial-seed drafts are not
+        // curatable and provide no top-feature suggestions.
         const drafts = (versionsByPlanId.value[plan.id] ?? []).filter((v) => !v.publishedAt);
         return drafts.sort((a, b) => b.version - a.version)[0] ?? null;
     }
@@ -420,18 +420,18 @@ function activeVersionOf(plan: PlanRow, asOf: Date = new Date()): PlanVersionRow
         return true;
     });
     if (active.length > 0) {
-        // Höchstes validFrom gewinnt (= "letzte aktive").
+        // Highest validFrom wins (= "most recent active").
         return active[active.length - 1];
     }
-    // Kein Match (validFrom alle in der Zukunft ODER alle abgelaufen)
-    // → Fallback auf letzte non-superseded Version.
+    // No match (validFrom all in the future OR all expired)
+    // → fall back to the last non-superseded version.
     return (
         [...published].reverse().find((v) => v.supersededAt === null) ??
         published[published.length - 1]
     );
 }
 
-/** Per-Plan-State: welche Version ist im UI aktuell ausgewählt (Tab). */
+/** Per-plan state: which version is currently selected in the UI (tab). */
 const selectedVersionByPlanId = ref<Record<string, string>>({});
 
 function selectedVersionOf(plan: PlanRow): PlanVersionRow | null {
@@ -488,10 +488,10 @@ function resolveMarketing(
     projection: MarketingProjectionRow | null,
 ): ResolvedMarketing {
     if (projection) {
-        // `displayLabel == plan.label` ⇒ effektiv „keine Übersetzung", weil der
-        // Public-Catalog-Service ohnehin auf `plan.label` zurückfällt. Wir zeigen
-        // das Feld dann leer (Override = nichts), damit der DE-Fallback sichtbar
-        // bleibt.
+        // `displayLabel == plan.label` ⇒ effectively "no translation", because the
+        // public-catalog service falls back to `plan.label` anyway. We then show
+        // the field empty (override = nothing) so the DE fallback stays
+        // visible.
         const labelOverride =
             projection.displayLabel && projection.displayLabel !== plan.label
                 ? projection.displayLabel
@@ -529,11 +529,11 @@ const rows = computed<MarketingRow[]>(() =>
     [...plansApi.plans.value]
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .map((plan) => {
-            // `liveVersion` ist jetzt die im UI ausgewählte Version
-            // (Default = today-active, sonst per Tab-Klick gewechselt).
-            // Bestand-Bindings (`row.liveVersion`-Disable-States) bleiben
-            // unverändert — eine Version ohne Pricing zählt nicht als
-            // "edit-fähig".
+            // `liveVersion` is now the version selected in the UI
+            // (default = today's active, otherwise switched by tab click).
+            // Existing bindings (`row.liveVersion` disable states) stay
+            // unchanged — a version without pricing does not count as
+            // "editable".
             const liveVersion = selectedVersionOf(plan);
             const projection = liveVersion
                 ? (projectionsApi.projections.value.find(
@@ -551,14 +551,14 @@ const rows = computed<MarketingRow[]>(() =>
         }),
 );
 
-/** Verwaltung: Priorität DESC, dann Plan-sortOrder. */
+/** Administration: priority DESC, then plan sortOrder. */
 const adminRows = computed<MarketingRow[]>(() =>
     [...rows.value].sort(
         (a, b) => b.m.priority - a.m.priority || a.plan.sortOrder - b.plan.sortOrder,
     ),
 );
 
-/** Vorschau: nur sichtbare Pläne, Priorität DESC. */
+/** Preview: only visible plans, priority DESC. */
 const visibleRows = computed<MarketingRow[]>(() => adminRows.value.filter((r) => r.m.visible));
 
 const catalogVersion = computed<string>(() => {
@@ -582,7 +582,7 @@ function formatEuro(value: number): string {
     return `${text} €`;
 }
 
-// ─── Promo-Anwendung in der Vorschau (SPEC_V2 §9a) ───
+// ─── Promo application in the preview (SPEC_V2 §9a) ───
 const promoToday = new Date();
 function promoOf(row: MarketingRow): PromotionRow | null {
     return pickActivePromo(
@@ -624,13 +624,13 @@ function ctaText(row: MarketingRow): string {
 function showTrialNote(row: MarketingRow): boolean {
     return Boolean(row.liveVersion) && row.m.trialEnabled && !row.m.ctaLabel;
 }
-/** Leeren CTA-Text als `null` persistieren (= Auto-Text). */
+/** Persist an empty CTA text as `null` (= auto text). */
 function ctaValue(raw: string): string | null {
     const trimmed = raw.trim();
     return trimmed.length > 0 ? trimmed : null;
 }
 
-// ─── Top-Feature-Vorschläge aus den Plan-Komponenten ───
+// ─── Top-feature suggestions from the plan components ───
 function suggestionsFor(row: MarketingRow): FeatureSuggestion[] {
     if (!row.liveVersion) return [];
     const usedKeys = new Set(editFeatures.value.map((f) => f.key).filter((k): k is string => !!k));
@@ -648,25 +648,25 @@ function suggestionsFor(row: MarketingRow): FeatureSuggestion[] {
             strong: `${value}${unit ? ` ${unit}` : ''}`,
         };
     });
-    // Alle Komponenten der Version anbieten (kein 6er-Cap) — nur bereits
-    // verwendete Keys ausblenden.
+    // Offer all components of the version (no cap of 6) — only hide keys
+    // that are already used.
     return [...fromFeatures, ...fromQuotas].filter((s) => !usedKeys.has(s.key));
 }
 
-// ─── Persistenz ───
+// ─── Persistence ───
 function fallbackText(row: MarketingRow): string {
     return row.plan.description ?? row.plan.label;
 }
 
 /**
- * Persistiert ein Partial gegen die MarketingProjection der Live-Version.
- * Fehlt die Projektion noch, wird sie aus den aufgelösten Werten + Partial
- * angelegt. Pläne ohne Live-Version sind nicht vermarktbar.
+ * Persists a partial against the MarketingProjection of the live version.
+ * If the projection does not exist yet, it is created from the resolved
+ * values + partial. Plans without a live version are not marketable.
  */
 /**
- * Setzt den Plan-Namen in der aktuellen Locale.
- * Leer-Eingabe = explizites „keine Übersetzung" → persistiert `plan.label`,
- * der Public-Catalog-Service rendert dann ohnehin den DE-Namen.
+ * Sets the plan name in the current locale.
+ * Empty input = explicit "no translation" → persists `plan.label`,
+ * the public-catalog service then renders the DE name anyway.
  */
 async function patchDisplayLabel(row: MarketingRow, value: string): Promise<void> {
     const trimmed = value.trim();
@@ -708,7 +708,7 @@ async function patch(row: MarketingRow, partial: Partial<ResolvedMarketing>): Pr
     }
 }
 
-// ─── Expand / Top-Feature-Editor ───
+// ─── Expand / top-feature editor ───
 function toggleExpand(row: MarketingRow): void {
     if (expandedKey.value === row.plan.planKey) {
         expandedKey.value = null;
@@ -716,8 +716,8 @@ function toggleExpand(row: MarketingRow): void {
         return;
     }
     expandedKey.value = row.plan.planKey;
-    // Migration: alte Einträge, deren `label` ein bekannter Feature-/Quota-
-    // Key ist, werden zu key-referenzierten (auto-übersetzten) Einträgen.
+    // Migration: legacy entries whose `label` is a known feature/quota
+    // key become key-referenced (auto-translated) entries.
     editFeatures.value = row.m.topFeatures.map((f) => {
         if (!f.key && f.label && knownComponentKeys.value.has(f.label)) {
             return { key: f.label, label: '', strong: f.strong };
@@ -727,8 +727,8 @@ function toggleExpand(row: MarketingRow): void {
 }
 
 /**
- * Persistiert die lokale Editier-Kopie. Einträge ohne `key` UND ohne `label`
- * fliegen raus; key-referenzierte Einträge bleiben (Label wird aufgelöst).
+ * Persists the local editing copy. Entries without `key` AND without `label`
+ * are dropped; key-referenced entries remain (label is resolved).
  */
 async function persistFeatures(row: MarketingRow): Promise<void> {
     const cleaned: MarketingTopFeature[] = editFeatures.value
@@ -757,7 +757,7 @@ function updateFeatureStrong(index: number, value: string): void {
 }
 
 async function addSuggestion(row: MarketingRow, s: FeatureSuggestion): Promise<void> {
-    // `label` leer → das Label wird locale-abhängig aus `key` aufgelöst.
+    // `label` empty → the label is resolved from `key` depending on the locale.
     editFeatures.value.push({ key: s.key, label: '', strong: s.strong });
     await persistFeatures(row);
 }
@@ -1079,7 +1079,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     border-radius: 4px;
 }
 
-/* ── Public-Catalog-Vorschau ── */
+/* ── Public catalog preview ── */
 .mc-window {
     background: var(--mc-surface);
     border: 1px solid var(--mc-border);
@@ -1322,7 +1322,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     color: var(--mc-text-3);
 }
 
-/* ── Marketing-Verwaltung ── */
+/* ── Marketing administration ── */
 .mc-admin {
     background: var(--mc-surface);
     border: 1px solid var(--mc-border);
@@ -1735,9 +1735,9 @@ async function onLocaleChange(loc: string): Promise<void> {
     }
 }
 
-/* Version-Tabs unter dem Plan-Namen — sichtbar nur wenn der Plan
- * mehrere published Versionen hat (z. B. v2 aktiv + v3 geplant).
- * Sim-Pattern: kleine Pillen, aktive Version invertiert. */
+/* Version tabs below the plan name — visible only when the plan
+ * has multiple published versions (e.g. v2 active + v3 planned).
+ * Sim pattern: small pills, active version inverted. */
 .mc-version-tabs {
     display: flex;
     flex-wrap: wrap;

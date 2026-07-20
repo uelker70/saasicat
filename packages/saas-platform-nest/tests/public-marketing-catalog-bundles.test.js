@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { PublicMarketingCatalogService } from '../dist/catalog/index.js';
 import { FakeBundleRepository, FakePlanRepository } from '../dist/testing/index.js';
 
-// PublicMarketingCatalogService — Bundles-Pfad (P11.7.3 + P11.7.4).
-// Service liefert pro live BundleVersion einen `PublicMarketingBundle`-
-// Eintrag mit `compatiblePlanKeys`. Filter (welche Bundles ein Tenant
-// kaufen kann) läuft client-seitig in der Tenant-Self-Service-UI; das
-// Backend liefert alle.
+// PublicMarketingCatalogService — bundles path (P11.7.3 + P11.7.4).
+// The service returns one `PublicMarketingBundle` entry per live
+// BundleVersion with `compatiblePlanKeys`. The filter (which bundles a
+// tenant can buy) runs client-side in the tenant self-service UI; the
+// backend returns them all.
 
 const PROJECT = 'clubapp';
 
@@ -107,19 +107,19 @@ async function createLiveBundle({
 }
 
 describe('PublicMarketingCatalogService — Bundles', () => {
-    test('getCatalog liefert leere bundles[] ohne BundleRepository', async () => {
+    test('getCatalog returns empty bundles[] without a BundleRepository', async () => {
         const svc = new PublicMarketingCatalogService(
             planRepo,
             marketingRepo,
             NOOP_PROMOTION_REPO,
             null,
-            null, // kein BundleRepository
+            null, // no BundleRepository
         );
         const cat = await svc.getCatalog(PROJECT, 'de', 'EUR', 19);
         assert.deepEqual(cat.bundles, []);
     });
 
-    test('getCatalog liefert published live Bundles mit compatiblePlanKeys', async () => {
+    test('getCatalog returns published live bundles with compatiblePlanKeys', async () => {
         await createLiveBundle({
             bundleKey: 'COMMUNICATION_PRO',
             features: ['CAMPAIGNS', 'WHATSAPP'],
@@ -145,7 +145,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         assert.deepEqual(fin.compatiblePlanKeys, ['STANDARD', 'PRO']);
     });
 
-    test('requiresFeatures (#35): ungedeckte requires der Bundle-Features aus den FeatureCatalogEntries', async () => {
+    test('requiresFeatures (#35): uncovered requires of the bundle features from the FeatureCatalogEntries', async () => {
         await createLiveBundle({ bundleKey: 'TURNIERE', features: ['TOURNAMENT_MANAGEMENT'] });
         await createLiveBundle({
             bundleKey: 'SPORTPLATZ',
@@ -175,16 +175,16 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         const turniere = cat.bundles.find((b) => b.bundleKey === 'TURNIERE');
         assert.deepEqual(turniere.requiresFeatures, ['RESOURCE_MANAGEMENT']);
         const sportplatz = cat.bundles.find((b) => b.bundleKey === 'SPORTPLATZ');
-        assert.deepEqual(sportplatz.requiresFeatures, [], 'Kombi-Bundle ist self-contained');
+        assert.deepEqual(sportplatz.requiresFeatures, [], 'combo bundle is self-contained');
     });
 
-    test('requiresFeatures ohne CatalogEntryRepository: leer (graceful)', async () => {
+    test('requiresFeatures without a CatalogEntryRepository: empty (graceful)', async () => {
         await createLiveBundle({ bundleKey: 'TURNIERE', features: ['TOURNAMENT_MANAGEMENT'] });
         const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19);
         assert.deepEqual(cat.bundles[0].requiresFeatures, []);
     });
 
-    test('getCatalog filtert nicht-marketed Bundles raus', async () => {
+    test('getCatalog filters out non-marketed bundles', async () => {
         await createLiveBundle({ bundleKey: 'INTERN_ONLY', marketed: false });
         await createLiveBundle({ bundleKey: 'PUBLIC', marketed: true });
 
@@ -193,7 +193,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         assert.equal(cat.bundles[0].bundleKey, 'PUBLIC');
     });
 
-    test('getCatalog filtert Bundles mit sichtbarer MarketingProjection=false raus', async () => {
+    test('getCatalog filters out bundles with MarketingProjection visible=false', async () => {
         const hidden = await createLiveBundle({ bundleKey: 'HIDDEN_BUNDLE' });
         await createLiveBundle({ bundleKey: 'PUBLIC_BUNDLE' });
         marketingRepo.set({
@@ -212,7 +212,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         );
     });
 
-    test('getCatalog ignoriert Drafts (nur live = published+not-superseded)', async () => {
+    test('getCatalog ignores drafts (only live = published+not-superseded)', async () => {
         const bundle = await bundleRepo.create({
             projectKey: PROJECT,
             bundleKey: 'DRAFT_ONLY',

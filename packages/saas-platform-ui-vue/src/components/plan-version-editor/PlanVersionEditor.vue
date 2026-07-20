@@ -12,7 +12,7 @@
             @save="emitSave"
         />
 
-        <!-- Save-Fehler-Banner (z. B. „Plan hat bereits eine Draft-Version") -->
+        <!-- Save error banner (e.g. "Plan hat bereits eine Draft-Version") -->
         <div v-if="saveError" class="pve-error" role="alert">
             <span class="pve-error-ico" aria-hidden="true">
                 <svg
@@ -132,22 +132,22 @@ import type {
     SelectedQuotaRow,
 } from './types.js';
 
-// PlanVersionEditor — V2 Splitview-Editor: Library-Pool → Plan-Korb → Live
-// Public-Catalog-Vorschau. Single-Screen für „Plan anlegen + Version +
-// Zuweisen". Drag-and-drop vom linken Pool in den mittleren Korb;
-// rechts läuft die Public-Catalog-Vorschau live mit dem Form-State mit.
+// PlanVersionEditor — V2 splitview editor: library pool → plan basket → live
+// public catalog preview. Single screen for "create plan + version +
+// assign". Drag-and-drop from the left pool into the middle basket;
+// on the right the public catalog preview runs live with the form state.
 //
-// Daten-Sources:
-//  - Quotas + Features: aus Discovery-Snapshot (Code = SoT). Werden vom
-//    Konsumenten via `availableFeatures`/`availableQuotas` durchgereicht.
-//  - Bundles: aus DB-Tabelle bundles (live published). Vom Konsumenten via
-//    `availableBundles` durchgereicht.
-//  - Feature-Label + optional Gruppen-Bucket: aus `featureRegistry`.
+// Data sources:
+//  - Quotas + features: from the discovery snapshot (code = SoT). Passed
+//    through by the consumer via `availableFeatures`/`availableQuotas`.
+//  - Bundles: from the DB table bundles (live published). Passed through by
+//    the consumer via `availableBundles`.
+//  - Feature label + optional group bucket: from `featureRegistry`.
 //
-// Bundle-Switch-Semantik: ON aktiviert alle Features des Bundles
-// (Set-Union mit form.features); OFF entfernt sie wieder
-// (Set-Difference). Bundle gilt als „ON", wenn ALLE seine Features im
-// Plan aktiv sind, „PARTIAL" bei einigen.
+// Bundle switch semantics: ON activates all of the bundle's features
+// (set union with form.features); OFF removes them again
+// (set difference). A bundle counts as "ON" when ALL of its features are
+// active in the plan, "PARTIAL" for some.
 
 const props = withDefaults(
     defineProps<{
@@ -159,17 +159,17 @@ const props = withDefaults(
         availableQuotas: DiscoveryQuota[];
         availableBundles: BundleEntry[];
         featureRegistry?: Record<string, FeatureMeta>;
-        /** Anzeigename des Plans für die Live-Vorschau (Default: planKey). */
+        /** Display name of the plan for the live preview (default: planKey). */
         planDisplayName?: string;
-        /** URL des Public-Catalog für die Browser-Chrome-Anzeige. */
+        /** URL of the public catalog for the browser-chrome display. */
         catalogUrl?: string;
-        /** Geschätzte Anzahl betroffener Tenants — zeigt sich in der Publish-Checklist. */
+        /** Estimated number of affected Tenants — shown in the publish checklist. */
         tenantImpactCount?: number;
-        /** Fehlermeldung vom letzten Save-Versuch (z. B. „Plan hat bereits eine Draft"). */
+        /** Error message from the last save attempt (e.g. "Plan hat bereits eine Draft"). */
         saveError?: string | null;
         /**
-         * Vorgänger-Version (aktuell live), gegen die „Diff vs. Vorgänger"
-         * vergleicht. `null` bei v1 — der Button ist dann deaktiviert.
+         * Predecessor version (currently live) that "Diff vs. Vorgänger"
+         * compares against. `null` for v1 — the button is then disabled.
          */
         predecessorVersion?: PredecessorVersion | null;
     }>(),
@@ -199,22 +199,22 @@ const form = reactive<DraftForm>({
     validUntil: props.initialForm.validUntil,
 });
 
-// initialForm snapshot for change counting. Der Editor ist eine Vollbild-
-// Page, die der Konsument via `v-if` mountet — bei jedem Mount sind Form +
-// Baseline frisch aus `initialForm` befüllt. Kein modelValue-Watch nötig.
+// initialForm snapshot for change counting. The editor is a fullscreen
+// page that the consumer mounts via `v-if` — on every mount, form +
+// baseline are freshly populated from `initialForm`. No modelValue watch needed.
 const baseline: DraftForm = cloneForm(props.initialForm);
 
 onMounted(() => {
     searchTerm.value = '';
     activeTab.value = 'features';
-    // „Gültig ab" immer vorbelegen: fehlt es (z. B. Altdaten ohne Startdatum)
-    // → Default-Startdatum; liegt es vor dem Vorgänger → erster zulässiger Tag.
+    // Always prefill "Gültig ab": if missing (e.g. legacy data without a start date)
+    // → default start date; if before the predecessor → first permitted day.
     if (!form.validFrom || form.validFrom.slice(0, 10) <= prevValidFromDay.value) {
         form.validFrom = defaultValidFrom.value;
     }
 });
 
-// „Gültig ab"-Tag der Vorgänger-Version (YYYY-MM-DD) oder '' wenn keiner.
+// "Gültig ab" day of the predecessor version (YYYY-MM-DD) or '' if none.
 const prevValidFromDay = computed(() =>
     props.predecessorVersion?.validFrom ? props.predecessorVersion.validFrom.slice(0, 10) : '',
 );
@@ -233,7 +233,7 @@ function cloneForm(f: DraftForm): DraftForm {
     };
 }
 
-// ── Pool: Suche + Tabs + Gruppierung ────────────────────────────────
+// ── Pool: search + tabs + grouping ──────────────────────────────────
 const searchTerm = ref('');
 const activeTab = ref<PoolTab>('features');
 
@@ -261,8 +261,8 @@ function featureGroupLabel(key: string): string {
     return props.featureRegistry?.[key]?.group ?? 'Allgemein';
 }
 
-// Pool-Listen nach Anzeige-Label sortiert (nicht nach Key/Snapshot-Reihenfolge),
-// damit das Planen vorhersagbar bleibt — gleiche Ordnung wie im Korb.
+// Pool lists sorted by display label (not by key/snapshot order),
+// so that planning stays predictable — same order as in the basket.
 const byLabel = (a: string, b: string) => a.localeCompare(b, 'de-DE');
 
 const filteredFeatures = computed(() =>
@@ -298,7 +298,7 @@ const filteredBundles = computed(() =>
         .sort((a, b) => byLabel(a.label || a.bundleKey, b.label || b.bundleKey)),
 );
 
-// ── Selection-Logik ─────────────────────────────────────────────────
+// ── Selection logic ─────────────────────────────────────────────────
 function isFeatureOn(key: string): boolean {
     return form.features.includes(key);
 }
@@ -359,7 +359,7 @@ function toggleBundle(b: BundleEntry, on: boolean): void {
     form.features.sort();
 }
 
-// ── Selected Lists für den Korb (nach Anzeige-Label sortiert) ───────
+// ── Selected lists for the basket (sorted by display label) ─────────
 const sortedSelectedFeatures = computed(() =>
     [...form.features].sort((a, b) => byLabel(featureLabel(a), featureLabel(b))),
 );
@@ -380,7 +380,7 @@ const selectedQuotaList = computed<SelectedQuotaRow[]>(() => {
 
 const activeBundles = computed(() => props.availableBundles.filter(isBundleFullyOn));
 
-// ── Change-Count (gegen baseline) ───────────────────────────────────
+// ── Change count (against baseline) ─────────────────────────────────
 const changeCount = computed(() => {
     let n = 0;
     const addedF = form.features.filter((f) => !baseline.features.includes(f));
@@ -434,9 +434,9 @@ const yearlySavingsLabel = computed(() => {
 
 // ── Validation ──────────────────────────────────────────────────────
 
-// „Gültig ab" muss strikt nach dem „Gültig ab" der Vorgänger-Version
-// liegen — sonst stimmt die Versions-Timeline nicht (SPEC_V2 §4.2.1).
-// ISO-Datumsstrings (YYYY-MM-DD) sind lexikografisch vergleichbar.
+// "Gültig ab" must be strictly after the "Gültig ab" of the predecessor
+// version — otherwise the version timeline is wrong (SPEC_V2 §4.2.1).
+// ISO date strings (YYYY-MM-DD) are lexicographically comparable.
 const validFromError = computed<string | null>(() => {
     const prev = props.predecessorVersion;
     if (!prev?.validFrom || !form.validFrom) return null;
@@ -451,9 +451,9 @@ const validFromError = computed<string | null>(() => {
     return null;
 });
 
-// Erster gültiger Starttag = Tag nach „Gültig ab" der Vorgänger-Version.
-// Wird als `min` an das Datumsfeld gebunden → frühere Tage sind im
-// nativen Date-Picker ausgegraut.
+// First valid start day = day after the "Gültig ab" of the predecessor version.
+// Bound as `min` to the date field → earlier days are greyed out in the
+// native date picker.
 const minValidFrom = computed<string | undefined>(() => {
     const prev = props.predecessorVersion;
     if (!prev?.validFrom) return undefined;
@@ -463,14 +463,14 @@ const minValidFrom = computed<string | undefined>(() => {
     return d.toISOString().slice(0, 10);
 });
 
-// Default-Startdatum, wenn „Gültig ab" fehlt oder geleert wird: erster
-// zulässiger Tag (Nachfolger) bzw. heute (Initialversion). So bleibt validFrom
-// nie NULL — Altdaten-Lücke (unsichtbarer Plan im Katalog) entsteht nicht neu.
+// Default start date when "Gültig ab" is missing or cleared: first
+// permitted day (successor) or today (initial version). This keeps validFrom
+// from ever being NULL — no new legacy-data gap (an invisible plan in the catalog) arises.
 const defaultValidFrom = computed<string>(
     () => minValidFrom.value ?? new Date().toISOString().slice(0, 10),
 );
 
-// Leeren des Datumsfelds fällt auf den Default zurück statt NULL zu emittieren.
+// Clearing the date field falls back to the default instead of emitting NULL.
 function onValidFromInput(value: string | null): void {
     form.validFrom = value || defaultValidFrom.value;
 }
@@ -533,7 +533,7 @@ const checklist = computed<ChecklistItem[]>(() => {
 
 const checklistOkCount = computed(() => checklist.value.filter((c) => c.ok).length);
 
-// ── Diff vs. Vorgänger ──────────────────────────────────────────────
+// ── Diff vs. predecessor ────────────────────────────────────────────
 const showDiff = ref(false);
 
 const DIFF_STYLE = {
@@ -628,7 +628,7 @@ const diffRows = computed<EditorDiffRow[]>(() => {
     return out;
 });
 
-// ── Drag-and-Drop von Pool → Basket ─────────────────────────────────
+// ── Drag-and-drop from pool → basket ────────────────────────────────
 const dragOver = ref(false);
 let dragPayload: { kind: PoolKind; key: string } | null = null;
 
@@ -683,9 +683,9 @@ function emitSave(): void {
     emit('save', {
         version: form.version,
         features: [...form.features],
-        // Persistierte Bundle-Auswahl = alle voll-aktiven Bundles. Aus den
-        // Features abgeleitet, damit `bundles` immer konsistent zu `features`
-        // ist (SPEC_V2 §6.1 / PlanVersionRow.bundles).
+        // Persisted bundle selection = all fully active bundles. Derived from
+        // the features so that `bundles` is always consistent with `features`
+        // (SPEC_V2 §6.1 / PlanVersionRow.bundles).
         bundles: activeBundles.value.map((b) => b.bundleKey),
         quotas: { ...form.quotas },
         monthlyNet: form.monthlyNet,
@@ -723,8 +723,8 @@ function emitSave(): void {
     color: var(--pve-text);
     font-family: var(--pve-font-sans);
     box-sizing: border-box;
-    /* Vollbild-Screen statt Modal: füllt den Content-Bereich der
-       hostenden AdminLayout-Page (Topbar 56px abgezogen). */
+    /* Fullscreen screen instead of a modal: fills the content area of the
+       hosting AdminLayout page (topbar 56px subtracted). */
     height: 100%;
     min-height: calc(100vh - 56px);
 }
@@ -732,7 +732,7 @@ function emitSave(): void {
     box-sizing: border-box;
 }
 
-/* ── Editor-Bar ─────────────────────────────────────────────────── */
+/* ── Editor bar ─────────────────────────────────────────────────── */
 .pve-bar {
     background: #fff;
     border-bottom: 1px solid var(--pve-border);
@@ -743,7 +743,7 @@ function emitSave(): void {
     flex: 0 0 auto;
 }
 
-/* ── Save-Fehler-Banner ─────────────────────────────────────────── */
+/* ── Save error banner ──────────────────────────────────────────── */
 .pve-error {
     flex: 0 0 auto;
     display: flex;
@@ -1600,7 +1600,7 @@ function emitSave(): void {
     }
 }
 
-/* ── Diff-Dialog ────────────────────────────────────────────────── */
+/* ── Diff dialog ────────────────────────────────────────────────── */
 .pve-diff-modal {
     background: #fff;
     width: 560px;

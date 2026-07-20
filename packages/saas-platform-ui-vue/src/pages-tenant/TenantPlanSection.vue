@@ -1,9 +1,9 @@
 <template>
     <div class="sp-plan-section">
-        <!-- Spinner NUR beim Initial-Load (#19): bei Refresh-Reloads (z. B. nach
-             Plan-Wechsel) bleibt der Inhalt inkl. PlanChangeWizard gemountet,
-             sonst würde der Wizard mitten im Submit ge-unmountet und nicht
-             schließen. -->
+        <!-- Spinner ONLY on the initial load (#19): on refresh reloads (e.g. after
+             a plan change) the content stays mounted including the PlanChangeWizard,
+             otherwise the wizard would be unmounted mid-submit and would not
+             close. -->
         <div v-if="loading && !usage" class="sp-plan-section__loading">
             <q-spinner size="32px" />
             <span>{{ effectiveI18n.loading }}</span>
@@ -18,7 +18,7 @@
         </div>
 
         <template v-else>
-            <!-- Pending-Plan-Version-Banner -->
+            <!-- Pending plan version banner -->
             <PendingVersionBanner
                 v-if="usage.pendingPlanVersion"
                 :pending="usage.pendingPlanVersion"
@@ -40,7 +40,7 @@
                 @accept="onAcceptPending"
             />
 
-            <!-- Aktuelle Plan-Karte + Aktionen -->
+            <!-- Current plan card + actions -->
             <q-card flat bordered class="sp-plan-section__card">
                 <TenantPlanCardHeader
                     :usage="usage"
@@ -59,7 +59,7 @@
 
                 <q-separator />
 
-                <!-- Verbrauch -->
+                <!-- Usage -->
                 <TenantUsageGrid
                     :usage="usage"
                     :i18n="effectiveI18n"
@@ -72,7 +72,7 @@
                 <template v-if="showFeatureMatrix && hasFeatureOverview">
                     <q-separator />
 
-                    <!-- Leistungsumfang (#18): alle Features enthalten + gesperrt -->
+                    <!-- Feature scope (#18): all features included + locked -->
                     <TenantFeatureMatrix
                         :feature-registry="featureRegistry"
                         :active-features="activeFeatures"
@@ -83,7 +83,7 @@
 
                 <q-separator v-if="showBundleStore && hasBundleStore" />
 
-                <!-- Bundle-Store (#15): gebuchte + verfügbare Bundles -->
+                <!-- Bundle store (#15): booked + available bundles -->
                 <TenantBundleStore
                     v-if="showBundleStore && hasBundleStore"
                     :booked="bookedBundles"
@@ -103,8 +103,8 @@
                 />
             </q-card>
 
-            <!-- Bundle-Add/-Cancel-Vorschau (#37/#61): Proration, Redundanz,
-                 requires-Blocker, Mindestlaufzeit — Mutation erst nach Confirm. -->
+            <!-- Bundle add/cancel preview (#37/#61): proration, redundancy,
+                 requires blockers, minimum term — mutation only after confirm. -->
             <BundlePreviewDialog
                 v-model="bundlePreviewOpen"
                 :preview="bundlePreview"
@@ -119,7 +119,7 @@
                 @confirm="onConfirmBundlePreview"
             />
 
-            <!-- Reaktivieren-Bestätigung (analog zur Kündigung): bewusste Aktion -->
+            <!-- Reactivate confirmation (analogous to cancellation): deliberate action -->
             <q-dialog
                 :model-value="reactivateConfirmId !== null"
                 @update:model-value="(v) => { if (!v) closeReactivateConfirm(); }"
@@ -150,10 +150,10 @@
                 </q-card>
             </q-dialog>
 
-            <!-- P11.4: Eingefrorener CheckoutOffer-Snapshot (read-only) — nur,
-                 wenn die Subscription aus einem Webseiten-Angebot stammt (#20).
-                 Ohne Snapshot war der „nicht über Webseiten-Angebot"-Leertext
-                 nur verwirrend; das aktuell Gebuchte steht ohnehin oben. -->
+            <!-- P11.4: Frozen CheckoutOffer snapshot (read-only) — only
+                 when the subscription originates from a website offer (#20).
+                 Without a snapshot the "not via website offer" empty text
+                 was just confusing; the current booking is shown above anyway. -->
             <PackageSnapshotPanel
                 v-if="usage.packageSnapshot"
                 :snapshot="usage.packageSnapshot"
@@ -212,52 +212,52 @@ import {
 } from '../use-tenant-billing-catalog.js';
 import type { HttpClient } from '../types.js';
 
-// TenantPlanSection — Hauptkomponente für die Tenant-Plan-/Bundle-Self-Service-
-// UI. Konsument (App) bettet sie in seine Settings-Seite ein und reicht
-// HTTP-Adapter + Format-Hooks + i18n-Override durch.
+// TenantPlanSection — main component for the tenant plan/bundle self-service
+// UI. The consumer (app) embeds it in its settings page and passes through
+// HTTP adapter + format hooks + i18n override.
 
 interface Props {
-    /** App-spezifischer HTTP-Adapter (axios mit Auth-Header etc.). */
+    /** App-specific HTTP adapter (axios with auth header etc.). */
     http?: HttpClient;
-    /** App-Auth-Token-Getter, falls Adapter nicht selbst injiziert. */
+    /** App auth-token getter, in case the adapter does not inject it itself. */
     getAuthToken?: () => string | null;
-    /** API-Prefix vor `/billing/*`. Default `/api/billing`. */
+    /** API prefix before `/billing/*`. Default `/api/billing`. */
     apiPrefix?: string;
 
-    /** EUR/CHF/USD-Formatter. */
+    /** EUR/CHF/USD formatter. */
     formatCurrency: (n: number) => string;
-    /** ISO-Date-String → lokalisiertes Datum. */
+    /** ISO date string → localized date. */
     formatDate: (iso: string | Date) => string;
-    /** Frei wählbares Format für Quota-Karten im Wizard. */
+    /** Freely selectable format for quota cards in the wizard. */
     formatQuotaLabel?: (key: string, value: number) => string;
     /**
-     * Reiner Wert pro Quota-Key (z. B. "200" oder "10 GB") — getrennt vom
-     * Label, damit der Wizard's `<PlanGrid>` Wert + Label separat rendern
-     * kann. Optional; ohne Override greift der Wizard-Default
-     * (`value.toLocaleString('de-DE')` + `GB` bei storage-Keys, ∞ bei -1).
+     * Plain value per quota key (e.g. "200" or "10 GB") — separate from the
+     * label so the wizard's `<PlanGrid>` can render value + label separately.
+     * Optional; without an override the wizard default applies
+     * (`value.toLocaleString('de-DE')` + `GB` for storage keys, ∞ for -1).
      */
     formatQuotaValue?: (key: string, value: number) => string;
 
-    /** Lokalisiertes Label für einen QuotaKey (z. B. 'users' → 'Benutzer'). */
+    /** Localized label for a QuotaKey (e.g. 'users' → 'Benutzer'). */
     quotaLabel?: (key: string) => string;
-    /** Lokalisiertes Label für einen FeatureKey. */
+    /** Localized label for a FeatureKey. */
     featureLabel?: (key: string) => string;
-    /** Default: Storage-Quotas (Float), alle anderen Integer. */
+    /** Default: storage quotas (float), all others integer. */
     isFractionalQuota?: (key: string) => boolean;
 
-    /** i18n-Overrides — fehlende Keys fallen auf DEFAULT_I18N_DE zurück. */
+    /** i18n overrides — missing keys fall back to DEFAULT_I18N_DE. */
     i18n?: Partial<TenantPlanSectionI18n>;
 
     /**
-     * #15 — Catalog-Bundle-Store (gebuchte + verfügbare Bundles) auf dieser
-     * Seite anzeigen. Default `false` (opt-in), damit ein Konsument mit
-     * eigener Bundle-Seite keine doppelte Bundle-UI bekommt. Bestehende
-     * Konsumenten setzen `true` (#16-Adoption).
+     * #15 — Show the catalog bundle store (booked + available bundles) on
+     * this page. Default `false` (opt-in), so a consumer with its own
+     * bundle page does not get a duplicate bundle UI. Existing consumers
+     * set `true` (#16 adoption).
      */
     showBundleStore?: boolean;
     /**
-     * #18 — Vollständige Leistungsumfang-Matrix (alle Features enthalten +
-     * gesperrt) anzeigen. Default `false` (additiv, opt-in pro Konsument).
+     * #18 — Show the full feature-scope matrix (all features included +
+     * locked). Default `false` (additive, opt-in per consumer).
      */
     showFeatureMatrix?: boolean;
 }
@@ -278,14 +278,14 @@ const catalog = useTenantBillingCatalog({
 const showWizard = ref(false);
 const acceptingPending = ref(false);
 
-// Bundle-Store-State (#15)
+// Bundle store state (#15)
 const buyingBundleId = ref<string | null>(null);
 const cancelingBundleId = ref<string | null>(null);
 const reactivatingBundleId = ref<string | null>(null);
 const reactivateConfirmId = ref<string | null>(null);
 const bundleError = ref<string | null>(null);
 
-// Bundle-Preview-Dialog-State (#37/#61)
+// Bundle preview dialog state (#37/#61)
 type PendingBundleAction =
     | { kind: 'add'; bundleVersionId: string }
     | { kind: 'cancel'; subscriptionBundleId: string };
@@ -306,9 +306,9 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
 }));
 
 const catalogQuotaKeys = computed(() => {
-    // Geordnete Union über alle Pläne + effektive Limits: höhere Tiers
-    // können Quotas führen, die dem Einstiegs-Plan fehlen — die dürfen in
-    // PlanGrid/TenantUsageGrid nicht verschwinden.
+    // Ordered union over all plans + effective limits: higher tiers
+    // can carry quotas that the entry plan lacks — those must not
+    // disappear in PlanGrid/TenantUsageGrid.
     const keys: string[] = [];
     const push = (key: string) => {
         if (!keys.includes(key)) keys.push(key);
@@ -322,13 +322,13 @@ const catalogQuotaKeys = computed(() => {
 
 const bookablePlans = computed<CatalogPlan[]>(() => catalog.plans.value ?? []);
 
-// Bundle-Store (#15): verfügbare Catalog-Bundles + gebuchte Bundles.
+// Bundle store (#15): available catalog bundles + booked bundles.
 const availableBundles = computed<CatalogBundle[]>(() => catalog.bundles.value ?? []);
-// Ein gekündigtes Bundle bleibt bis zum Ende der bereits bezahlten Periode
-// aktiv (canceledEffectiveAt liegt in der Zukunft) und wird weiter unter
-// „Gebuchte Bundles" angezeigt — das Feature ist für die Periode bezahlt. Erst
-// wenn die Kündigung wirksam ist (canceledEffectiveAt <= jetzt), ist das Bundle
-// nicht mehr aktiv und verschwindet aus der Liste.
+// A canceled bundle stays active until the end of the already-paid period
+// (canceledEffectiveAt lies in the future) and is still shown under
+// "Gebuchte Bundles" — the feature is paid for the period. Only once
+// the cancellation takes effect (canceledEffectiveAt <= now) is the bundle
+// no longer active and disappears from the list.
 function isSubscriptionBundleActive(b: SubscriptionBundleShape): boolean {
     if (b.canceledAt === null) return true;
     return (
@@ -344,7 +344,7 @@ const hasBundleStore = computed(
     () => availableBundles.value.length > 0 || bookedBundles.value.length > 0,
 );
 
-// Leistungsumfang-Matrix (#18): alle Features mit Registry-Übersetzung.
+// Feature-scope matrix (#18): all features with registry translation.
 const featureRegistry = computed(() => catalog.featureRegistry.value);
 const activeFeatures = computed<string[]>(() => usage.value?.limits.features ?? []);
 const hasFeatureOverview = computed(
@@ -358,9 +358,9 @@ const currentPlanName = computed(() => {
     return plan?.name ?? usage.value.plan;
 });
 
-// Betrag, der tatsächlich pro Abrechnungszyklus fällig wird: Jahrespreis bei
-// YEARLY, Monatspreis bei MONTHLY — KEIN /12-Umrechnen (sonst stünde bei einem
-// Jahresvertrag ein monatlicher Betrag in der Karte).
+// Amount actually due per billing cycle: yearly price for YEARLY, monthly
+// price for MONTHLY — NO /12 conversion (otherwise a yearly contract would
+// show a monthly amount in the card).
 const currentPriceEur = computed(() => {
     if (!usage.value) return null;
     const plan = catalog.plans.value?.find((p) => p.id === usage.value!.plan);
@@ -374,12 +374,12 @@ const currentPriceUnit = computed(() =>
         : effectiveI18n.value.wizardPriceUnitMonthly,
 );
 
-// Nächster Abrechnungstag = Ende der laufenden Periode NUR bei aktiv
-// verlängernder Subscription (status ACTIVE). Bei PAST_DUE ist die Periode
-// bereits abgelaufen (kein künftiger Abrechnungstag), bei TRIAL (Trial-Ende
-// wird separat gezeigt), CANCELED und PENDING_SALES gibt es keine reguläre
-// Verlängerung → ausblenden, statt das Periodenende fälschlich als nächsten
-// Abrechnungstag darzustellen.
+// Next billing date = end of the current period ONLY for an actively
+// renewing subscription (status ACTIVE). For PAST_DUE the period has
+// already expired (no future billing date); for TRIAL (trial end is shown
+// separately), CANCELED and PENDING_SALES there is no regular renewal →
+// hide it, instead of wrongly presenting the period end as the next
+// billing date.
 const nextBillingDate = computed(() => {
     const u = usage.value;
     if (!u || !u.currentPeriodEnd) return null;
@@ -473,7 +473,7 @@ const wizardI18n = computed(() => ({
     changeTypeNoop: effectiveI18n.value.wizardChangeTypeNoop,
 }));
 
-// Helper-Hooks mit Defaults
+// Helper hooks with defaults
 function quotaLabel(key: string): string {
     return props.quotaLabel?.(key) ?? key;
 }
@@ -506,7 +506,7 @@ function usageBarFormatter(key: string): ((value: number) => string) | undefined
     return (value) => fn(key, value);
 }
 
-// Bundle-Store-Aktionen (#15/#37): erst Preview-Dialog, Mutation nach Confirm.
+// Bundle store actions (#15/#37): preview dialog first, mutation after confirm.
 async function onBuyBundle(bundleVersionId: string) {
     pendingBundleAction.value = { kind: 'add', bundleVersionId };
     await openBundlePreview(() => billing.previewAddBundle(bundleVersionId));
@@ -517,15 +517,16 @@ async function onCancelBundle(subscriptionBundleId: string) {
     await openBundlePreview(() => billing.previewCancelBundle(subscriptionBundleId));
 }
 
-// Reaktivieren = „Kündigung rückgängig" (un-cancel). Kein Geldfluss/Proration,
-// aber bewusste Aktion → Bestätigung (analog zur Kündigung) vor der Mutation.
+// Reactivate = "undo cancellation" (un-cancel). No money flow/proration,
+// but a deliberate action → confirmation (analogous to cancellation) before
+// the mutation.
 function onReactivateBundle(subscriptionBundleId: string) {
     bundleError.value = null;
     reactivateConfirmId.value = subscriptionBundleId;
 }
 
 function closeReactivateConfirm() {
-    if (reactivatingBundleId.value) return; // nicht schließen, während die Mutation läuft
+    if (reactivatingBundleId.value) return; // do not close while the mutation is running
     reactivateConfirmId.value = null;
 }
 
@@ -536,7 +537,7 @@ async function confirmReactivateBundle() {
     bundleError.value = null;
     try {
         await billing.reactivateBundle(subscriptionBundleId);
-        // Re-Freeze serverseitig → Features/Quotas neu laden, nicht nur die Liste.
+        // Re-freeze server-side → reload features/quotas, not just the list.
         await billing.reload();
     } catch (err) {
         bundleError.value = err instanceof Error ? err.message : String(err);
@@ -576,8 +577,8 @@ async function onConfirmBundlePreview() {
         }
         bundlePreviewOpen.value = false;
         pendingBundleAction.value = null;
-        // Usage neu laden — nach Add/Cancel ändern sich Features/Quotas
-        // (Re-Freeze serverseitig), nicht nur die Bundle-Liste.
+        // Reload usage — after add/cancel the features/quotas change
+        // (re-freeze server-side), not just the bundle list.
         await billing.reload();
     } catch (err) {
         bundlePreviewError.value = err instanceof Error ? err.message : String(err);
@@ -588,13 +589,13 @@ async function onConfirmBundlePreview() {
     }
 }
 
-// Feature-Label mit Registry-Übersetzung (#18): Registry-Label hat Vorrang,
-// danach der Konsumenten-Hook, zuletzt der rohe Key.
+// Feature label with registry translation (#18): the registry label takes
+// precedence, then the consumer hook, and finally the raw key.
 function featureLabelResolved(key: string): string {
     return catalog.featureRegistry.value?.[key]?.label ?? featureLabel(key);
 }
 
-// Mutation-Handler
+// Mutation handlers
 async function onAcceptPending() {
     acceptingPending.value = true;
     try {
@@ -605,8 +606,8 @@ async function onAcceptPending() {
 }
 
 function onWizardSubmitted() {
-    // Nach erfolgreichem Plan-Wechsel reicht der Composable-`reload()` —
-    // der Wizard schließt sich selbst (interne Reset-Logik).
+    // After a successful plan change the composable's `reload()` is enough —
+    // the wizard closes itself (internal reset logic).
 }
 
 async function previewPlanChange(plan: string, cycle: 'MONTHLY' | 'YEARLY') {

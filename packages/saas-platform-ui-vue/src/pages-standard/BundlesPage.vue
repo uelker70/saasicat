@@ -31,7 +31,7 @@
             :status-filter-options="statusFilterOptions"
         />
 
-        <!-- Inline-Anlage (aufklappbares Panel, ersetzt das frühere Dialog-Modal) -->
+        <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
         <BundleCreatePanel
             v-if="createOpen"
             :project-key="projectKey"
@@ -96,7 +96,7 @@
             </template>
         </BundleAccordionList>
 
-        <!-- Strict-Mode-Warnings nach letzter Mutation -->
+        <!-- Strict mode warnings after the last mutation -->
         <q-banner
             v-if="lastWarnings.length > 0"
             class="sa-bundles__warnings-banner"
@@ -119,7 +119,7 @@
             </template>
         </q-banner>
 
-        <!-- Publish-Confirm-Modal -->
+        <!-- Publish confirmation modal -->
         <BundleVersionPublishDialog
             v-if="detailBundle && publishOpen && publishDraft"
             v-model="publishOpen"
@@ -180,10 +180,10 @@ import type {
     BundlesStatusFilterOption,
 } from './bundles-page/types.js';
 
-// Plattform-Standard-Page: Bundles (SPEC_V2 §6.4, §11.1 M6 Pack 2c +
-// Pack 2d Inline-Editor nach Plan-Simulation). Dumb-Component —
-// Konsument-Wrapper liefert die Composables-Resultate + Plan-Stamm-
-// Liste + Live-PlanVersion-Index als Props.
+// Platform standard page: Bundles (SPEC_V2 §6.4, §11.1 M6 Pack 2c +
+// Pack 2d inline editor after plan simulation). Dumb component —
+// the consumer wrapper supplies the composable results + plan-root
+// list + live PlanVersion index as props.
 
 const DEFAULT_LOCALE = 'de';
 
@@ -193,27 +193,27 @@ const props = withDefaults(
         bundles: BundleRow[];
         loading: boolean;
         error: Error | null;
-        /** Aktive Locales aus dem Project (inkl. Default). Default: nur `de`. */
+        /** Active locales from the project (incl. default). Default: only `de`. */
         activeLocales?: string[];
-        /** Plan-Stämme für den Compat-Picker im Inline-Editor. */
+        /** Plan roots for the compat picker in the inline editor. */
         plans?: PlanRow[];
         /**
-         * Live (oder latest) PlanVersion pro `planKey` — Quelle für die
-         * Plan↔Bundle-Overlap-Berechnung. Wrapper kann das via
-         * `usePlanVersions` zusammenstellen.
+         * Live (or latest) PlanVersion per `planKey` — source for the
+         * Plan↔Bundle overlap calculation. The wrapper can assemble it via
+         * `usePlanVersions`.
          */
         livePlanVersions?: Record<string, PlanVersionRow | null>;
         /**
-         * Optionales manuelles Feature-Label/Group-Mapping. Überschreibt die
-         * aus `featureCatalog` abgeleiteten Labels (selten nötig).
+         * Optional manual feature label/group mapping. Overrides the
+         * labels derived from `featureCatalog` (rarely needed).
          */
         featureRegistry?: Record<string, FeatureMeta>;
         /**
-         * Feature-Catalog-Entries (inkl. `i18n`) für die Label-Auflösung in der
-         * gewählten Anzeige-Sprache. Wrapper liefert sie via `useCatalogEntries`.
+         * Feature catalog entries (incl. `i18n`) for label resolution in the
+         * chosen display language. The wrapper supplies them via `useCatalogEntries`.
          */
         featureCatalog?: FeatureCatalogEntryRow[];
-        /** Quota-Catalog-Entries (inkl. `i18n`) für die Label-/Unit-Auflösung. */
+        /** Quota catalog entries (incl. `i18n`) for label/unit resolution. */
         quotaCatalog?: QuotaCatalogEntryRow[];
         load: () => Promise<void>;
         create: (data: CreateBundleData) => Promise<BundleRow>;
@@ -236,14 +236,14 @@ const props = withDefaults(
                 validUntil?: string | null;
             },
         ) => Promise<BundleVersionMutationResult>;
-        /** Optional: Draft verwerfen (DELETE /catalog/bundle-versions/:id). */
+        /** Optional: discard a draft (DELETE /catalog/bundle-versions/:id). */
         discardDraft?: (versionId: string) => Promise<void>;
         /**
-         * Optional: Mapping `bundleId → BundleVersionRow[]` für korrekte
-         * KPI-/Status-Filter-Anzeige über alle Bundles. Ohne dieses Prop
-         * fallen KPIs auf „0" zurück, weil die lazy gelade­nen
-         * `detailVersions` nur das offene Bundle abdecken. Wrapper liefert
-         * es üblicherweise via `useBundleVersionsMap`.
+         * Optional: mapping `bundleId → BundleVersionRow[]` for correct
+         * KPI/status-filter display across all bundles. Without this prop
+         * the KPIs fall back to "0", because the lazily loaded
+         * `detailVersions` only cover the open bundle. The wrapper usually
+         * supplies it via `useBundleVersionsMap`.
          */
         versionsByBundle?: Record<string, BundleVersionRow[]>;
         snapshot: DiscoverySnapshot | null;
@@ -266,11 +266,11 @@ const props = withDefaults(
 const locales = computed(() => props.activeLocales ?? [DEFAULT_LOCALE]);
 const translatableLocales = computed(() => locales.value.filter((l) => l !== DEFAULT_LOCALE));
 
-// ─── Anzeige-Sprache für Feature-/Quota-Labels (Anlage + Detail) ───
+// ─── Display language for feature/quota labels (creation + detail) ───
 const displayLocale = ref(DEFAULT_LOCALE);
 
-// Catalog-abgeleitete Registries in der gewählten Anzeige-Sprache; ein
-// manuell übergebenes `featureRegistry` hat Vorrang (Override).
+// Catalog-derived registries in the chosen display language; a
+// manually passed `featureRegistry` takes precedence (override).
 const featureRegistryResolved = computed<Record<string, FeatureMeta>>(() => ({
     ...buildFeatureRegistry(props.featureCatalog, displayLocale.value),
     ...props.featureRegistry,
@@ -281,13 +281,13 @@ const quotaRegistryResolved = computed<Record<string, QuotaMeta>>(() =>
 
 const query = ref('');
 
-// ─── Status-Filter + KPI-Aggregate über alle Bundles ───
+// ─── Status filter + KPI aggregates across all bundles ───
 const statusFilter = ref<BundlesStatusFilter>('all');
 
 function versionsOf(bundleId: string): BundleVersionRow[] {
-    // Bevorzugt das vom Wrapper gelieferte versionsByBundle; fällt auf
-    // detailVersions zurück, wenn das offene Bundle gerade geladen wurde
-    // (zwischen Wrapper-Refresh und Map-Update).
+    // Prefers the versionsByBundle supplied by the wrapper; falls back to
+    // detailVersions when the open bundle was just loaded
+    // (between wrapper refresh and map update).
     const fromMap = props.versionsByBundle[bundleId];
     if (fromMap && fromMap.length > 0) return fromMap;
     if (openKey.value === bundleId) return detailVersions.value;
@@ -344,10 +344,10 @@ const totalScheduledVersions = computed(() => {
     return n;
 });
 
-// ─── Inline-Anlage-Panel (5 Abschnitte, oben in der Liste) ───
+// ─── Inline creation panel (5 sections, at the top of the list) ───
 const createOpen = ref(false);
 
-/** Für Bundle-Key-Conflict-Check im Wizard. */
+/** For the bundle-key conflict check in the wizard. */
 const existingBundleKeys = computed(() => props.bundles.map((b) => b.bundleKey));
 
 const statusFilterOptions: BundlesStatusFilterOption[] = [
@@ -364,9 +364,9 @@ function openCreatePanel(): void {
 }
 
 async function onWizardCreated(bundle: BundleRow): Promise<void> {
-    // Neuanlage hat Stamm + v1-Draft in einem Atom geschrieben. Panel
-    // schließen, Liste neu laden, dann das frisch angelegte Bundle
-    // aufklappen, damit der User direkt im Inline-Editor weiterarbeiten kann.
+    // Creation wrote the root + v1 draft in a single atom. Close the
+    // panel, reload the list, then expand the freshly created bundle
+    // so the user can keep working directly in the inline editor.
     createOpen.value = false;
     await props.load();
     if (openKey.value !== bundle.id) {
@@ -376,7 +376,7 @@ async function onWizardCreated(bundle: BundleRow): Promise<void> {
     }
 }
 
-// ─── Akkordeon / Detail ───
+// ─── Accordion / detail ───
 const openKey = ref<string | null>(null);
 const detailVersions = ref<BundleVersionRow[]>([]);
 const editForm = ref<BundleEditForm>({
@@ -463,10 +463,10 @@ watch(
     },
 );
 
-// ─── Strict-Mode-Warnings ───
+// ─── Strict mode warnings ───
 const lastWarnings = ref<StrictModeWarning[]>([]);
 
-// ─── Inline-Editor (selektierte Version pro Bundle) ───
+// ─── Inline editor (selected version per bundle) ───
 const selectedVersionIdByBundle = ref<Record<string, string | null>>({});
 const inlineEditorSaving = ref(false);
 const inlineEditorError = ref<string | null>(null);
@@ -480,8 +480,8 @@ const selectedVersion = computed<BundleVersionRow | null>(() => {
 
 function defaultSelectedVersion(versions: BundleVersionRow[]): BundleVersionRow | null {
     if (versions.length === 0) return null;
-    // Bevorzugt: die Draft (genau eine erlaubt) → dann Scheduled →
-    // dann Live → dann latest.
+    // Preferred: the draft (exactly one allowed) → then scheduled →
+    // then live → then latest.
     const draft = versions.find((v) => v.publishedAt === null);
     if (draft) return draft;
     const sorted = bundleVersionsSorted(versions);
@@ -503,10 +503,10 @@ function onSelectVersion(bundleId: string, versionId: string): void {
 }
 
 /**
- * „Neue Version"-Knopf im Version-Strip: legt einen Draft an (Defaults
- * aus der letzten Live-Version) und selektiert ihn im Inline-Editor.
- * Backend blockt eine zweite Draft per Partial-Unique-Index — der Strip
- * disabled den Knopf entsprechend, aber wir doppeln den Check defensiv.
+ * "Neue Version" button in the version strip: creates a draft (defaults
+ * from the last live version) and selects it in the inline editor.
+ * The backend blocks a second draft via a partial unique index — the strip
+ * disables the button accordingly, but we double-check defensively.
  */
 async function onAddVersion(bundleId: string): Promise<void> {
     if (detailVersions.value.some((v) => v.publishedAt === null)) return;
@@ -549,7 +549,7 @@ async function onInlineSave(
         const result = await props.updateDraft(versionId, data);
         lastWarnings.value = result.warnings;
         detailVersions.value = await props.loadVersions(bundleId);
-        // Falls Backend die ID nicht ändert, bleibt die Selektion stehen.
+        // If the backend does not change the ID, the selection stays put.
     } catch (err) {
         inlineEditorError.value = err instanceof Error ? err.message : String(err);
     } finally {
@@ -558,9 +558,9 @@ async function onInlineSave(
 }
 
 /**
- * Verwirft eine Draft- oder geplante Version. Funktioniert nur, wenn der
- * Wrapper `discardDraft` durchreicht; ohne Prop zeigen wir eine
- * verständliche Fehlermeldung statt einer leisen No-Op.
+ * Discards a draft or scheduled version. Works only if the
+ * wrapper passes `discardDraft` through; without the prop we show a
+ * clear error message instead of a silent no-op.
  */
 async function onDiscardVersion(bundleId: string, versionId: string): Promise<void> {
     if (!props.discardDraft) {
@@ -574,7 +574,7 @@ async function onDiscardVersion(bundleId: string, versionId: string): Promise<vo
     inlineEditorError.value = null;
     try {
         await props.discardDraft(versionId);
-        // Aus lokaler Liste entfernen + sinnvoll re-selektieren.
+        // Remove from local list + re-select sensibly.
         detailVersions.value = await props.loadVersions(bundleId);
         const next = defaultSelectedVersion(detailVersions.value);
         selectedVersionIdByBundle.value = {
@@ -588,7 +588,7 @@ async function onDiscardVersion(bundleId: string, versionId: string): Promise<vo
     }
 }
 
-// ─── Publish-Confirm-Modal ───
+// ─── Publish confirmation modal ───
 const publishOpen = ref(false);
 const publishDraft = ref<BundleVersionRow | null>(null);
 
@@ -667,7 +667,7 @@ const classifyDiff = computed(() => props.classifyDiff);
 }
 .sa-bundles__kpis {
     display: grid;
-    /* Responsiv: so viele KPIs wie Platz (bis 4), dann 3 → 2 → 1. */
+    /* Responsive: as many KPIs as fit (up to 4), then 3 → 2 → 1. */
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 10px;
 }

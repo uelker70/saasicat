@@ -52,65 +52,65 @@ import {
     type UserIdResolver,
 } from './tenant-billing.tokens.js';
 
-// TenantBillingModule — registriert den `TenantBillingController` mit allen
-// Tenant-Self-Service-Endpoints (`/billing/entitlement`, `/billing/usage`,
+// TenantBillingModule — registers the `TenantBillingController` with all
+// tenant self-service endpoints (`/billing/entitlement`, `/billing/usage`,
 // `/billing/plan/*`, `/billing/cancel`).
 //
-// Voraussetzungen:
-//   - `PlanCatalogModule.forRoot({ path })` muss bereits geladen sein
-//     (Default `global: true` reicht).
-//   - `EntitlementModule.forRoot({ ..., global: true })` muss geladen sein.
-//     **Wichtig**: `global: true` ist erforderlich, weil
-//     `PlanChangePreviewService` (intern in TenantBillingModule registriert)
-//     `EntitlementService` per Constructor injectet. Ohne globale Sichtbarkeit
-//     bricht der App-Bootstrap mit UndefinedDependencyException.
+// Prerequisites:
+//   - `PlanCatalogModule.forRoot({ path })` must already be loaded
+//     (default `global: true` is sufficient).
+//   - `EntitlementModule.forRoot({ ..., global: true })` must be loaded.
+//     **Important**: `global: true` is required because
+//     `PlanChangePreviewService` (registered internally in TenantBillingModule)
+//     injects `EntitlementService` via constructor. Without global visibility
+//     the app bootstrap breaks with UndefinedDependencyException.
 
 export interface TenantBillingModuleOptions {
     /**
-     * App-Guards in der Reihenfolge, in der sie ausgeführt werden sollen
-     * (z. B. `[JwtAuthGuard, TenantGuard]`). Plattform fasst sie über
-     * `ComposedTenantAuthGuard` zusammen. Mindestens ein Guard ist Pflicht —
-     * fehlende Konfiguration führt zu 403 (sicherer Default).
+     * App guards in the order in which they should be executed
+     * (e.g. `[JwtAuthGuard, TenantGuard]`). The platform combines them via
+     * `ComposedTenantAuthGuard`. At least one guard is mandatory —
+     * missing configuration leads to 403 (safe default).
      *
-     * Variante 1: Array von Guard-Instanzen (z. B. via Factory-Provider).
-     * Variante 2: Pick<FactoryProvider, 'useFactory' | 'inject'> — Apps
-     * reichen ihre Guard-Klassen via `inject` durch und der Factory baut
-     * das Array.
+     * Variant 1: array of guard instances (e.g. via factory provider).
+     * Variant 2: Pick<FactoryProvider, 'useFactory' | 'inject'> — apps
+     * pass their guard classes through via `inject` and the factory builds
+     * the array.
      */
     authGuards: ProviderSpec<ReadonlyArray<CanActivate>>;
 
-    /** Adapter zur Subscription-Display-Form (`GET /billing/usage`). */
+    /** Adapter to the subscription display form (`GET /billing/usage`). */
     subscriptionUsagePort: ProviderSpec<SubscriptionUsagePort>;
 
-    /** Adapter zu Verbrauchszählern aller `quotaKeys`. */
+    /** Adapter to usage counters of all `quotaKeys`. */
     usageSnapshotPort: ProviderSpec<UsageSnapshotPort>;
 
-    /** Adapter für Plan-/Add-on-Mutationen (Phase C). */
+    /** Adapter for plan/add-on mutations (phase C). */
     subscriptionWritePort: ProviderSpec<TenantSubscriptionWritePort>;
 
     /**
-     * Optionaler Adapter, der das projizierte neue Trial-Ende eines Wechsels
-     * liefert (App-Trial-Logik, z. B. Carry-over). Ohne Port bleibt
-     * `PlanChangePreviewDto.projectedTrialEndsAt` `null`.
+     * Optional adapter that provides the projected new trial end of a change
+     * (app trial logic, e.g. carry-over). Without a port,
+     * `PlanChangePreviewDto.projectedTrialEndsAt` stays `null`.
      */
     trialProjectionPort?: ProviderSpec<TrialProjectionPort>;
 
     /**
-     * Optionaler Adapter, der fällige geplante Plan-Wechsel liefert (#19). Wird
-     * er übergeben, registriert das Modul die `PendingPlanMaterializationService`
-     * (exportiert) — der Konsument triggert sie über einen eigenen Cron. Ohne
-     * Port bleibt die Materialisierung deaktiviert (Lazy-Resolution wie bisher).
+     * Optional adapter that provides due scheduled plan changes (#19). If it is
+     * passed, the module registers the `PendingPlanMaterializationService`
+     * (exported) — the consumer triggers it via its own cron. Without a
+     * port, the materialization stays disabled (lazy resolution as before).
      */
     pendingPlanQueryPort?: ProviderSpec<PendingPlanQueryPort>;
 
     /**
-     * Optionaler Contract-Freeze-Hook (#18). Wird er konfiguriert, friert der
-     * Plattform-`changePlan`-Pfad (nicht-TRIAL) UND die Materialisierung den
-     * vereinbarten Dienst nach der Plan-Mutation als `SubscriptionContract` ein
-     * (analog `trialProjectionPort`). Konsumentenspezifisch sind nur `projectKey`
-     * + Bundle-/Versions-Datenzugriff (`sourcePort`); die Contract-Logik ist
-     * generisch. `subscriptionContractRepository` ist dasselbe Repo, das auch an
-     * `EntitlementModule.forRoot` geht — der Freeze braucht es im eigenen Scope.
+     * Optional contract freeze hook (#18). If it is configured, the
+     * platform `changePlan` path (non-TRIAL) AND the materialization freeze
+     * the agreed service after the plan mutation as a `SubscriptionContract`
+     * (analogous to `trialProjectionPort`). Consumer-specific are only `projectKey`
+     * + bundle/version data access (`sourcePort`); the contract logic is
+     * generic. `subscriptionContractRepository` is the same repo that also goes
+     * to `EntitlementModule.forRoot` — the freeze needs it in its own scope.
      */
     contractFreeze?: {
         projectKey: string;
@@ -119,41 +119,41 @@ export interface TenantBillingModuleOptions {
     };
 
     /**
-     * Pläne, die nicht per Self-Service als Ziel/Quelle akzeptiert werden
-     * (typisch ENTERPRISE → Sondervertrag). `null`/undefined = keine Blocks.
+     * Plans that are not accepted as target/source via self-service
+     * (typically ENTERPRISE → special contract). `null`/undefined = no blocks.
      */
     selfServiceBlockedPlans?: SelfServiceBlockedPlans;
 
-    /** Optionaler Tenant-ID-Resolver. Default: `req.user.tenantId`. */
+    /** Optional tenant ID resolver. Default: `req.user.tenantId`. */
     tenantIdResolver?: TenantIdResolver;
-    /** Optionaler User-ID-Resolver. Default: `req.user.sub ?? req.user.id`. */
+    /** Optional user ID resolver. Default: `req.user.sub ?? req.user.id`. */
     userIdResolver?: UserIdResolver;
     /**
-     * Optionaler Email-Resolver für den Audit-Log-Pfad. Default: `req.user.email`.
-     * Wenn der Konsumenten-JWT die Email nicht mitliefert, kann der Resolver
-     * `null` zurückgeben — der Audit-Log nimmt dann `'unknown'`.
+     * Optional email resolver for the audit log path. Default: `req.user.email`.
+     * If the consumer JWT does not include the email, the resolver can
+     * return `null` — the audit log then uses `'unknown'`.
      */
     userEmailResolver?: UserEmailResolver;
     /**
-     * Optionaler Audit-Kontext-Resolver (Session-ID / Trace-ID). Default:
-     * `req.headers['x-session-id']` oder `'tenant-self-service'`.
+     * Optional audit context resolver (session ID / trace ID). Default:
+     * `req.headers['x-session-id']` or `'tenant-self-service'`.
      */
     auditContextResolver?: AuditContextResolver;
     /**
-     * Module, deren Provider innerhalb dieses Moduls sichtbar sein müssen.
-     * Typischer Use-Case: das App-eigene `AuthModule`, damit der `JwtAuthGuard`
-     * im `authGuards`-Factory injectable ist. Ohne diesen Eintrag wirft NestJS
-     * `UnknownDependenciesException` für JwtAuthGuard.
+     * Modules whose providers must be visible within this module.
+     * Typical use case: the app's own `AuthModule`, so that the `JwtAuthGuard`
+     * is injectable in the `authGuards` factory. Without this entry NestJS throws
+     * `UnknownDependenciesException` for JwtAuthGuard.
      */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /**
-     * Zusätzliche Provider, die im DynamicModule selbst registriert werden —
-     * typisch: die Adapter-Klassen, die in `inject:[Adapter]`-Listen
-     * referenziert werden (z. B. `PrismaSubscriptionUsagePort`). NestJS 11.1.19
-     * resolved Factory-Inject-Tokens nur im DynamicModule-eigenen Scope.
+     * Additional providers that are registered in the DynamicModule itself —
+     * typically: the adapter classes referenced in `inject:[Adapter]` lists
+     * (e.g. `PrismaSubscriptionUsagePort`). NestJS 11.1.19
+     * resolves factory inject tokens only in the DynamicModule's own scope.
      */
     extraProviders?: Provider[];
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 
@@ -248,5 +248,5 @@ export class TenantBillingModule {
     }
 }
 
-// Re-Export für Konsumenten, die einzelne Guard-Klassen registrieren wollen.
+// Re-export for consumers that want to register individual guard classes.
 export type { Type as NestType };

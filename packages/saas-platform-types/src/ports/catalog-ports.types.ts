@@ -46,89 +46,89 @@ import type {
 import type { VersionChange } from '../subscription.types.js';
 
 // =============================================================================
-// Bundle / BundleVersion — Persistenz-Adapter (SPEC_V2 §5 + §11.1 M3)
+// Bundle / BundleVersion — persistence adapter (SPEC_V2 §5 + §11.1 M3)
 // =============================================================================
 
-/** Filter für `PlanRepository.list()`. */
+/** Filter for `PlanRepository.list()`. */
 export interface PlanListFilter {
     projectKey: string;
-    /** Soft-deleted Pläne ausschließen — Default `true`. */
+    /** Exclude soft-deleted plans — default `true`. */
     excludeDeleted?: boolean;
     /**
-     * Nur Pläne mit mindestens einer live geschalteten Version
-     * (`publishedAt` gesetzt, `supersededAt` null). Default `false` — die
-     * Plan-Verwaltung listet weiterhin auch Drafts. Auswahl-Masken (z. B.
-     * Pilot-Anlage) setzen `true`, damit keine unbuchbaren Pläne erscheinen.
+     * Only plans with at least one live version
+     * (`publishedAt` set, `supersededAt` null). Default `false` — plan
+     * management still lists drafts as well. Selection masks (e.g.
+     * pilot setup) set `true` so that no unbookable plans appear.
      */
     onlyPublished?: boolean;
 }
 
 /**
- * Adapter für `Plan`-Stamm + `PlanVersion`-Lifecycle-Persistenz
- * (SPEC_V2 §11.1 M6). Konsumenten implementieren das gegen die Prisma-
- * Tabellen `plans` + `plan_versions`.
+ * Adapter for `Plan` stem + `PlanVersion` lifecycle persistence
+ * (SPEC_V2 §11.1 M6). Consumers implement this against the Prisma
+ * tables `plans` + `plan_versions`.
  *
- * Pack 1 (CRUD-Stamm) und Pack 2a (Lifecycle) sind in einem Interface,
- * analog `BundleRepository` — die Lifecycle-Methoden sind aber **optional**
- * (Apps ohne SuperAdmin-Editor implementieren sie nicht; CatalogModule
- * registriert dann `PlanVersionsService` nicht).
+ * Pack 1 (CRUD stem) and Pack 2a (lifecycle) live in one interface,
+ * analogous to `BundleRepository` — but the lifecycle methods are **optional**
+ * (apps without a SuperAdmin editor do not implement them; CatalogModule
+ * then does not register `PlanVersionsService`).
  *
- * Verbindlich für Lifecycle:
- * - `createDraft` darf nur erfolgreich sein, wenn keine andere Draft-Version
- *   für denselben `planId` existiert (Partial-Unique-Index in der SQL-
- *   Migration).
- * - `publishDraft` setzt `publishedAt = NOW()`, `publishedChanges`,
- *   `nonRegressive`, `publishedByUserId` an der Draft — und versettst die
- *   zuvor live Version (gleicher `planId`, `publishedAt IS NOT NULL`,
- *   `supersededAt IS NULL`) auf `supersededAt = NOW()`. Beides in einer
- *   Transaktion.
+ * Binding for lifecycle:
+ * - `createDraft` may only succeed if no other draft version
+ *   exists for the same `planId` (partial unique index in the SQL
+ *   migration).
+ * - `publishDraft` sets `publishedAt = NOW()`, `publishedChanges`,
+ *   `nonRegressive`, `publishedByUserId` on the draft — and supersedes the
+ *   previously live version (same `planId`, `publishedAt IS NOT NULL`,
+ *   `supersededAt IS NULL`) to `supersededAt = NOW()`. Both in one
+ *   transaction.
  */
 export interface PlanRepository {
-    // ─── Stamm-Operationen (Pack 1) ───
+    // ─── Stem operations (Pack 1) ───
     list(filter: PlanListFilter): Promise<PlanRow[]>;
     findById(planId: string): Promise<PlanRow | null>;
     findByKey(projectKey: string, planKey: string): Promise<PlanRow | null>;
     create(data: CreatePlanData): Promise<PlanRow>;
     update(planId: string, data: UpdatePlanData): Promise<PlanRow>;
-    /** Setzt `deletedAt` auf NOW(); soft-deleted Pläne werden in `list` per Default gefiltert. */
+    /** Sets `deletedAt` to NOW(); soft-deleted plans are filtered from `list` by default. */
     softDelete(planId: string): Promise<void>;
 
     /**
-     * Entfernt den Plan-Stamm hart aus der DB (kein `deletedAt`, kein
-     * Recovery-Pfad). Der Service ruft die Methode erst auf, nachdem er
-     * geprüft hat, dass keine `PlanVersion` mehr existiert — Konsumenten
-     * dürfen sich darauf verlassen, dass die Tabelle leer ist. Wenn die
-     * Methode nicht implementiert ist, antwortet der Service mit 422
+     * Hard-removes the plan stem from the DB (no `deletedAt`, no
+     * recovery path). The service only calls this method after it has
+     * verified that no `PlanVersion` still exists — consumers
+     * may rely on the table being empty. If the
+     * method is not implemented, the service responds with 422
      * `PLAN_HARD_DELETE_NOT_IMPLEMENTED`.
      */
     hardDelete?(planId: string): Promise<void>;
 
-    // ─── Lifecycle-Operationen (Pack 2a, optional) ───
+    // ─── Lifecycle operations (Pack 2a, optional) ───
     //
-    // **Wichtig:** Die Lifecycle-Methoden nehmen den **planKey** entgegen
-    // (z. B. "STARTER"), nicht die Plan-UUID. Grund: die Greenfield-
-    // Bindung läuft über `PlanVersion.planId === Plan.planKey` als
-    // String-Match (siehe SPEC_V2 §11.1 M6: kein FK bis zum Importer-
-    // Cutover). Der `PlanVersionsService` resolvert die Plan-UUID des
-    // Controller-Path-Param via `findById(planUuid).planKey`, bevor er
-    // diese Methoden aufruft.
+    // **Important:** The lifecycle methods take the **planKey**
+    // (e.g. "STARTER"), not the plan UUID. Reason: the greenfield
+    // binding runs via `PlanVersion.planId === Plan.planKey` as a
+    // string match (see SPEC_V2 §11.1 M6: no FK until the importer
+    // cutover). The `PlanVersionsService` resolves the plan UUID of the
+    // controller path param via `findById(planUuid).planKey` before it
+    // calls these methods.
 
     /**
-     * Liefert alle Versions eines Plan-Stamms (Drafts + published +
-     * superseded), sortiert nach `version` aufsteigend.
+     * Returns all versions of a plan stem (drafts + published +
+     * superseded), sorted by `version` ascending.
      */
     listVersions?(planKey: string): Promise<PlanVersionRow[]>;
     findVersionById?(versionId: string): Promise<PlanVersionRow | null>;
     findCurrentDraft?(planKey: string): Promise<PlanVersionRow | null>;
     /**
-     * Aktuell veröffentlichte (= live) PlanVersion eines Plans:
+     * Currently published (= live) PlanVersion of a plan:
      * `publishedAt IS NOT NULL AND supersededAt IS NULL`.
      *
-     * Hinweis: liefert die *neueste* publishierte Version per
-     * `version`-Nummer und ignoriert `validFrom`/`validUntil`. Für
-     * zeit-bewusste Reads (Onboarding, Marketing-Catalog, Entitlement-
-     * Fallback) `findActivePlanVersion(planKey, asOf)` verwenden, das
-     * die *zu einem Zeitpunkt aktive* Version liefert.
+     * Note: returns the *newest* published version by
+     * `version` number and ignores `validFrom`/`validUntil`. For
+     * time-aware reads (onboarding, marketing catalog, entitlement
+     * fallback) use `findActivePlanVersion(planKey, asOf)`, which returns
+     * the version *active at a point in time*.
      */
     findLatestLivePlanVersion?(
         planKey: string,
@@ -136,25 +136,25 @@ export interface PlanRepository {
     ): Promise<PlanVersionRow | null>;
 
     /**
-     * Zu `asOf` aktive PlanVersion eines Plans (SPEC_V2 §4.2 erweitert):
+     * PlanVersion of a plan active at `asOf` (SPEC_V2 §4.2 extended):
      *   `publishedAt IS NOT NULL`
      *   `(validFrom IS NULL OR validFrom <= asOf)`
-     *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`  — tag-inklusiv
+     *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`  — day-inclusive
      *
-     * `validFrom IS NULL` wird wie „gilt seit jeher" behandelt, damit Altdaten
-     * ohne Startdatum (publiziert vor der §4.2-Publish-Pflicht) nicht aus dem
-     * Katalog fallen. `validUntil` ist tag-inklusiv (Tagesdatum): die Version
-     * gilt bis zum Ende ihres validUntil-Tages, nicht nur bis Mitternacht.
-     * Adapter bauen die WHERE über `buildActivePlanVersionWhere`.
+     * `validFrom IS NULL` is treated like "valid since forever" so that legacy data
+     * without a start date (published before the §4.2 publish requirement) does not
+     * fall out of the catalog. `validUntil` is day-inclusive (calendar day): the version
+     * is valid until the end of its validUntil day, not just until midnight.
+     * Adapters build the WHERE via `buildActivePlanVersionWhere`.
      *
-     * Wenn mehrere matchen: die mit dem höchsten `validFrom` (= die
-     * "letzte aktive"); NULL sortiert zuletzt, bleibt also echter Fallback.
-     * Default-`asOf` ist der Aufruf-Zeitpunkt.
+     * If multiple match: the one with the highest `validFrom` (= the
+     * "last active"); NULL sorts last, so it remains a genuine fallback.
+     * Default `asOf` is the call time.
      *
-     * Verwendung: alles, was *neue* Buchungen/Plan-Wechsel betrifft
-     * (Onboarding, Public-Marketing, Entitlement-Fallback bei TRIAL).
-     * Bestehende Subscriptions bleiben auf ihrer gebundenen `planVersionId`
-     * (P1-Vertragsschutz).
+     * Usage: everything that concerns *new* bookings/plan changes
+     * (onboarding, public marketing, entitlement fallback on TRIAL).
+     * Existing subscriptions stay on their bound `planVersionId`
+     * (P1 contract protection).
      */
     findActivePlanVersion?(
         planKey: string,
@@ -163,9 +163,9 @@ export interface PlanRepository {
     ): Promise<PlanVersionRow | null>;
 
     /**
-     * Legt eine neue Draft-Version an (`publishedAt = null`). Wirft, wenn
-     * bereits eine Draft existiert (Partial-Unique-Index-Verletzung).
-     * Berechnet `version` als `MAX(version) + 1` über alle Versionen des
+     * Creates a new draft version (`publishedAt = null`). Throws if
+     * a draft already exists (partial unique index violation).
+     * Computes `version` as `MAX(version) + 1` over all versions of the
      * `planId`.
      */
     createPlanVersionDraft?(data: CreatePlanVersionDraftData): Promise<PlanVersionRow>;
@@ -174,12 +174,12 @@ export interface PlanRepository {
         data: UpdatePlanVersionDraftData,
     ): Promise<PlanVersionRow>;
     /**
-     * Veröffentlicht eine Draft-Version atomar (SPEC_V2 §4.2 + §11.1 M6 Pack 2a):
-     * 1. Setzt `publishedAt = NOW()`, `publishedChanges`, `nonRegressive`,
-     *    `publishedByUserId`, `validFrom` an der Draft.
-     * 2. Setzt `supersededAt = NOW()` an der bisher live Version UND
-     *    `validUntil = validFrom - 1 Tag` (Auto-Sukzession).
-     * 3. Setzt `validUntil` an der neuen Version (optional, default null = unbegrenzt).
+     * Publishes a draft version atomically (SPEC_V2 §4.2 + §11.1 M6 Pack 2a):
+     * 1. Sets `publishedAt = NOW()`, `publishedChanges`, `nonRegressive`,
+     *    `publishedByUserId`, `validFrom` on the draft.
+     * 2. Sets `supersededAt = NOW()` on the previously live version AND
+     *    `validUntil = validFrom - 1 day` (auto-succession).
+     * 3. Sets `validUntil` on the new version (optional, default null = unbounded).
      */
     publishPlanVersionDraft?(
         versionId: string,
@@ -187,7 +187,7 @@ export interface PlanRepository {
             publishedByUserId: string | null;
             publishedChanges: VersionChange[];
             nonRegressive: boolean;
-            /** Pflicht — wird vom Service vor Repository-Call validiert. */
+            /** Required — validated by the service before the repository call. */
             validFrom: Date;
             validUntil: Date | null;
         },
@@ -195,94 +195,94 @@ export interface PlanRepository {
     ): Promise<PlanVersionRow>;
 
     /**
-     * Verwirft eine Draft-Version (`publishedAt === null`) hart aus der DB.
-     * Wirft, wenn die Version bereits published wurde — published Versions
-     * bleiben unveränderlich erhalten (audit + Bestand-Subscriptions
-     * referenzieren sie). Wenn die Version nicht existiert, ist Discard
-     * ein no-op (Caller hat ggf. parallel schon einen anderen Pfad genutzt).
+     * Hard-discards a draft version (`publishedAt === null`) from the DB.
+     * Throws if the version was already published — published versions
+     * remain immutable (audit + existing subscriptions
+     * reference them). If the version does not exist, discard is
+     * a no-op (the caller may have already used a different path in parallel).
      */
     deletePlanVersionDraft?(versionId: string): Promise<void>;
 
     /**
-     * Setzt das vom SuperAdmin gewählte `endsAt`-Datum auf eine **published**
+     * Sets the `endsAt` date chosen by the SuperAdmin on a **published**
      * PlanVersion (`publishedAt != null && supersededAt == null`). Idempotent —
-     * ein zweiter Aufruf mit anderem Datum überschreibt das Feld.
+     * a second call with a different date overwrites the field.
      *
-     * Service-seitige Vorbedingungen (live + future-date) werden vom
-     * `PlanVersionsService` geprüft; der Adapter persistiert nur. Wenn die
-     * Methode nicht implementiert ist, antwortet der Service mit 422
+     * Service-side preconditions (live + future date) are checked by the
+     * `PlanVersionsService`; the adapter only persists. If the
+     * method is not implemented, the service responds with 422
      * `PLAN_TERMINATE_NOT_IMPLEMENTED`.
      */
     terminate?(versionId: string, endsAt: Date): Promise<PlanVersionRow>;
 }
 
-/** Filter für `BundleRepository.list()`. */
+/** Filter for `BundleRepository.list()`. */
 export interface BundleListFilter {
     projectKey: string;
-    /** Soft-deleted Bundles ausschließen — Default `true`. */
+    /** Exclude soft-deleted bundles — default `true`. */
     excludeDeleted?: boolean;
 }
 
 /**
- * Adapter für `Bundle` + `BundleVersion`-Persistenz. Konsumenten implementieren
- * das gegen ihre Prisma-Tabellen (`bundles` + `bundle_versions`).
+ * Adapter for `Bundle` + `BundleVersion` persistence. Consumers implement
+ * this against their Prisma tables (`bundles` + `bundle_versions`).
  *
- * Verbindlich:
- * - `createDraft` darf nur erfolgreich sein, wenn keine andere Draft-Version
- *   für denselben `bundleId` existiert (Partial-Unique-Index in der SQL-
- *   Migration; siehe README im Prisma-Fragment).
- * - `publishDraft` setzt `publishedAt = NOW()`, `publishedChanges`,
- *   `nonRegressive`, `publishedByUserId` — und versettst die zuvor live
- *   Version (gleicher `bundleId`, `publishedAt IS NOT NULL`,
- *   `supersededAt IS NULL`) auf `supersededAt = NOW()`.
- * - Operationen, die Atomarität brauchen, dürfen optional einen
- *   `TransactionContext` übernehmen.
+ * Binding:
+ * - `createDraft` may only succeed if no other draft version
+ *   exists for the same `bundleId` (partial unique index in the SQL
+ *   migration; see the README in the Prisma fragment).
+ * - `publishDraft` sets `publishedAt = NOW()`, `publishedChanges`,
+ *   `nonRegressive`, `publishedByUserId` — and supersedes the previously live
+ *   version (same `bundleId`, `publishedAt IS NOT NULL`,
+ *   `supersededAt IS NULL`) to `supersededAt = NOW()`.
+ * - Operations that need atomicity may optionally accept a
+ *   `TransactionContext`.
  */
 export interface BundleRepository {
-    // ─── Stamm-Operationen ───
+    // ─── Stem operations ───
     list(filter: BundleListFilter): Promise<BundleRow[]>;
     findById(bundleId: string): Promise<BundleRow | null>;
     findByKey(projectKey: string, bundleKey: string): Promise<BundleRow | null>;
     create(data: CreateBundleData): Promise<BundleRow>;
     update(bundleId: string, data: UpdateBundleData): Promise<BundleRow>;
-    /** Setzt `deletedAt` auf NOW(); soft-deleted Bundles werden in `list` per Default gefiltert. */
+    /** Sets `deletedAt` to NOW(); soft-deleted bundles are filtered from `list` by default. */
     softDelete(bundleId: string): Promise<void>;
 
-    // ─── Version-Operationen ───
+    // ─── Version operations ───
     listVersions(bundleId: string): Promise<BundleVersionRow[]>;
     findVersionById(versionId: string): Promise<BundleVersionRow | null>;
     findCurrentDraft(bundleId: string): Promise<BundleVersionRow | null>;
     /**
-     * Aktuell veröffentlichte (= live) BundleVersion eines Bundles:
+     * Currently published (= live) BundleVersion of a bundle:
      * `publishedAt IS NOT NULL AND supersededAt IS NULL`.
      */
     findLatestLive(bundleId: string, tx?: TransactionContext): Promise<BundleVersionRow | null>;
 
     /**
-     * Legt eine neue Draft-Version an (`publishedAt = null`). Wirft, wenn
-     * bereits eine Draft existiert (Partial-Unique-Index-Verletzung).
-     * Berechnet `version` als `MAX(version) + 1` über alle Versionen des
+     * Creates a new draft version (`publishedAt = null`). Throws if
+     * a draft already exists (partial unique index violation).
+     * Computes `version` as `MAX(version) + 1` over all versions of the
      * `bundleId`.
      */
     createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow>;
     updateDraft(versionId: string, data: UpdateBundleVersionDraftData): Promise<BundleVersionRow>;
 
     /**
-     * Veröffentlicht eine Draft-Version atomar (SPEC_V2 §4.2 + §11.1 M6
-     * Pack 2c, analog `PlanRepository.publishPlanVersionDraft`):
-     * 1. Setzt `publishedAt = NOW()`, `publishedChanges`, `nonRegressive`,
-     *    `publishedByUserId`, `validFrom` an der Draft.
-     * 2. Setzt `supersededAt = NOW()` an der bisher live Version (falls
-     *    vorhanden) UND deren `validUntil = validFrom - 1 Tag`
-     *    (Auto-Sukzession).
-     * 3. Setzt `validUntil` an der neuen Version (optional, default null
-     *    = unbegrenzt).
+     * Publishes a draft version atomically (SPEC_V2 §4.2 + §11.1 M6
+     * Pack 2c, analogous to `PlanRepository.publishPlanVersionDraft`):
+     * 1. Sets `publishedAt = NOW()`, `publishedChanges`, `nonRegressive`,
+     *    `publishedByUserId`, `validFrom` on the draft.
+     * 2. Sets `supersededAt = NOW()` on the previously live version (if
+     *    present) AND its `validUntil = validFrom - 1 day`
+     *    (auto-succession).
+     * 3. Sets `validUntil` on the new version (optional, default null
+     *    = unbounded).
      *
-     * Alle Schritte laufen in einer Transaktion (Konsumenten reichen
-     * üblicherweise einen `TransactionRunner` durch). Service-seitig
-     * vorgeprüft: `validFrom > previous.validFrom`, Gapless-Constraint
-     * falls Vorgänger ein `validUntil` trägt — der Adapter persistiert
-     * nur, validiert nicht erneut.
+     * All steps run in one transaction (consumers usually pass
+     * through a `TransactionRunner`). Pre-checked on the service side:
+     * `validFrom > previous.validFrom`, gapless constraint
+     * if the predecessor carries a `validUntil` — the adapter only
+     * persists, it does not validate again.
      */
     publishDraft(
         versionId: string,
@@ -290,7 +290,7 @@ export interface BundleRepository {
             publishedByUserId: string | null;
             publishedChanges: VersionChange[];
             nonRegressive: boolean;
-            /** Pflicht — wird vom Service vor Repository-Call validiert. */
+            /** Required — validated by the service before the repository call. */
             validFrom: Date;
             validUntil: Date | null;
         },
@@ -298,40 +298,40 @@ export interface BundleRepository {
     ): Promise<BundleVersionRow>;
 
     /**
-     * Verwirft eine Draft-Version (`publishedAt === null`) hart aus der DB.
-     * Wirft, wenn die Version bereits published wurde — published Versions
-     * bleiben unveränderlich erhalten (Vertragsschutz P1). Wenn die Version
-     * nicht existiert, ist Discard ein no-op (Caller hat ggf. parallel
-     * schon einen anderen Pfad genutzt).
+     * Hard-discards a draft version (`publishedAt === null`) from the DB.
+     * Throws if the version was already published — published versions
+     * remain immutable (contract protection P1). If the version
+     * does not exist, discard is a no-op (the caller may have already used
+     * a different path in parallel).
      *
-     * Optional aus Backwards-Compat-Gründen — wenn der Adapter sie nicht
-     * implementiert, antwortet der Service mit 422
+     * Optional for backwards-compat reasons — if the adapter does not
+     * implement it, the service responds with 422
      * `BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED`.
      */
     deleteDraft?(versionId: string): Promise<void>;
 }
 
 // =============================================================================
-// BusinessType / BusinessTypeVersion — Persistenz-Adapter (SPEC_V2 §11.1 M3)
+// BusinessType / BusinessTypeVersion — persistence adapter (SPEC_V2 §11.1 M3)
 // =============================================================================
 
-/** Filter für `BusinessTypeRepository.list()`. */
+/** Filter for `BusinessTypeRepository.list()`. */
 export interface BusinessTypeListFilter {
     projectKey: string;
     excludeDeleted?: boolean;
 }
 
 /**
- * Adapter für `BusinessType` + `BusinessTypeVersion` + `BusinessTypeBundle`-
- * Persistenz. Konsumenten implementieren das gegen ihre Prisma-Tabellen
+ * Adapter for `BusinessType` + `BusinessTypeVersion` + `BusinessTypeBundle`
+ * persistence. Consumers implement this against their Prisma tables
  * (`business_types`, `business_type_versions`, `business_type_bundles`).
  *
- * Wie `BundleRepository`: max. 1 Draft pro businessTypeId; `publishDraft`
- * setzt vorherige Live-Version auf `supersededAt`. Bundles-Komposition
- * wird mit jeder BusinessTypeVersion atomar mit­geschrieben (Junction-Rows).
+ * Like `BundleRepository`: max. 1 draft per businessTypeId; `publishDraft`
+ * sets the previous live version to `supersededAt`. The bundle composition
+ * is written atomically together with each BusinessTypeVersion (junction rows).
  */
 export interface BusinessTypeRepository {
-    // ─── Stamm-Operationen ───
+    // ─── Stem operations ───
     list(filter: BusinessTypeListFilter): Promise<BusinessTypeRow[]>;
     findById(businessTypeId: string): Promise<BusinessTypeRow | null>;
     findByKey(projectKey: string, businessTypeKey: string): Promise<BusinessTypeRow | null>;
@@ -339,7 +339,7 @@ export interface BusinessTypeRepository {
     update(businessTypeId: string, data: UpdateBusinessTypeData): Promise<BusinessTypeRow>;
     softDelete(businessTypeId: string): Promise<void>;
 
-    // ─── Version-Operationen ───
+    // ─── Version operations ───
     listVersions(businessTypeId: string): Promise<BusinessTypeVersionRow[]>;
     findVersionById(versionId: string): Promise<BusinessTypeVersionRow | null>;
     findCurrentDraft(businessTypeId: string): Promise<BusinessTypeVersionRow | null>;
@@ -349,9 +349,9 @@ export interface BusinessTypeRepository {
     ): Promise<BusinessTypeVersionRow | null>;
 
     /**
-     * Legt eine neue Draft-Version an. Wirft, wenn bereits eine Draft
-     * existiert. Berechnet `version` als MAX+1. Schreibt die
-     * BusinessTypeBundle-Junction-Rows in derselben Transaktion.
+     * Creates a new draft version. Throws if a draft already
+     * exists. Computes `version` as MAX+1. Writes the
+     * BusinessTypeBundle junction rows in the same transaction.
      */
     createDraft(data: CreateBusinessTypeVersionDraftData): Promise<BusinessTypeVersionRow>;
     updateDraft(
@@ -371,23 +371,23 @@ export interface BusinessTypeRepository {
 }
 
 // =============================================================================
-// MarketingProjection — Persistenz-Adapter (SPEC_V2 §11.1 M3)
+// MarketingProjection — persistence adapter (SPEC_V2 §11.1 M3)
 // =============================================================================
 
 /**
- * Adapter für `marketing_projections`. **Keine Versionierung** — pro
- * (`targetType`, `targetVersionId`, `locale`) gibt es genau eine Row,
- * die direkt geändert wird. Marketing-Edits gehen sofort live, weil sie
- * nur die Public-Catalog-Anzeige steuern, keine Bestand-Subscriptions.
+ * Adapter for `marketing_projections`. **No versioning** — per
+ * (`targetType`, `targetVersionId`, `locale`) there is exactly one row
+ * that is edited directly. Marketing edits go live immediately, because they
+ * only control the public catalog display, not existing subscriptions.
  *
- * Eindeutigkeit über (`targetType`, `targetVersionId`, `locale`) ist
- * im DB-Schema als Unique-Index erzwungen — `create` mit Konflikt wirft.
+ * Uniqueness over (`targetType`, `targetVersionId`, `locale`) is
+ * enforced as a unique index in the DB schema — `create` with a conflict throws.
  */
 export interface MarketingProjectionRepository {
     list(filter: MarketingProjectionFilter): Promise<MarketingProjectionRow[]>;
     findById(id: string): Promise<MarketingProjectionRow | null>;
     /**
-     * Findet eine Projection durch das Tripel
+     * Finds a projection by the triple
      * (`targetType`, `targetVersionId`, `locale`).
      */
     findByTarget(
@@ -398,15 +398,15 @@ export interface MarketingProjectionRepository {
 
     create(data: CreateMarketingProjectionData): Promise<MarketingProjectionRow>;
     update(id: string, data: UpdateMarketingProjectionData): Promise<MarketingProjectionRow>;
-    /** Hard-Delete — keine Soft-Delete-Spalte (nicht versioniert). */
+    /** Hard delete — no soft-delete column (not versioned). */
     delete(id: string): Promise<void>;
 }
 
 // =============================================================================
-// CatalogEntry — Persistenz-Adapter (SPEC_V2 §6.3 — Discovery-Review)
+// CatalogEntry — persistence adapter (SPEC_V2 §6.3 — discovery review)
 // =============================================================================
 
-/** Upsert-Input für eine Capability aus dem Discovery-Sync. */
+/** Upsert input for a capability from the discovery sync. */
 export interface UpsertCapabilityEntryData {
     projectKey: string;
     capabilityKey: string;
@@ -414,7 +414,7 @@ export interface UpsertCapabilityEntryData {
     description: string | null;
     featureKey: string | null;
     bundleKey: string | null;
-    /** Read-only Code-Fakt aus dem Snapshot (#20) — der Sync überschreibt immer. */
+    /** Read-only code fact from the snapshot (#20) — the sync always overwrites. */
     codeStatus: CapabilityCodeStatus;
     owner: string | null;
     kind: CapabilityCatalogEntryRow['kind'];
@@ -424,22 +424,22 @@ export interface UpsertCapabilityEntryData {
     reason: string | null;
 }
 
-/** Upsert-Input für ein Feature aus dem Discovery-Sync. */
+/** Upsert input for a feature from the discovery sync. */
 export interface UpsertFeatureEntryData {
     projectKey: string;
     featureKey: string;
     label: string;
     description: string | null;
     discoveryStatus: DiscoveryStatus;
-    /** Code-discoverte Feature-Abhängigkeiten (#35) — der Sync überschreibt immer. */
+    /** Code-discovered feature dependencies (#35) — the sync always overwrites. */
     requires: string[];
-    /** Alte Feature-Keys, die dieses Feature ablöst (#39) — der Sync überschreibt immer. */
+    /** Old feature keys that this feature replaces (#39) — the sync always overwrites. */
     replaces: string[];
-    /** true = Basis/immer enthalten (nicht pro Plan buchbar). Deterministisch aus der Registry. */
+    /** true = base/always included (not bookable per plan). Deterministic from the registry. */
     core?: boolean;
 }
 
-/** Upsert-Input für eine Quota aus dem Discovery-Sync. */
+/** Upsert input for a quota from the discovery sync. */
 export interface UpsertQuotaEntryData {
     projectKey: string;
     quotaKey: string;
@@ -450,15 +450,15 @@ export interface UpsertQuotaEntryData {
     usageProvider: string | null;
     enforcementMode: QuotaCatalogEntryRow['enforcementMode'];
     discoveryStatus: DiscoveryStatus;
-    /** Alte QuotaKeys, die diese Quota ablöst (#39) — der Sync überschreibt immer. */
+    /** Old quotaKeys that this quota replaces (#39) — the sync always overwrites. */
     replaces: string[];
 }
 
 /**
- * Review-Update eines Features/einer Quota (`setFeatureReview`/
- * `setQuotaReview`). Der Service hat den Übergang bereits validiert und die
- * Approval-Felder aufgelöst — der Adapter persistiert alle vier Felder 1:1
- * (`null` löscht).
+ * Review update of a feature/quota (`setFeatureReview`/
+ * `setQuotaReview`). The service has already validated the transition and
+ * resolved the approval fields — the adapter persists all four fields 1:1
+ * (`null` clears).
  */
 export interface SetCatalogEntryReviewData {
     discoveryStatus: DiscoveryStatus;
@@ -468,19 +468,19 @@ export interface SetCatalogEntryReviewData {
 }
 
 /**
- * Adapter für `capability_catalog_entries`, `feature_catalog_entries` und
- * `quota_catalog_entries`. Konsumenten implementieren das gegen ihre
- * Prisma-Tabellen.
+ * Adapter for `capability_catalog_entries`, `feature_catalog_entries` and
+ * `quota_catalog_entries`. Consumers implement this against their
+ * Prisma tables.
  *
- * Verbindlich:
- * - `upsert*` matcht auf (`projectKey`, `<key>`) und lässt `i18n`,
- *   `sortOrder`, `createdAt` sowie die Approval-Felder (`approvedAt`/
- *   `approvedBy`/`approvedSignature`) bei einem Update **unangetastet** —
- *   nur die code-abgeleiteten Felder + der Status (vom Service aufgelöst)
- *   werden geschrieben.
- * - `retireMissing` markiert alle nicht soft-deleteten Einträge, deren Key
- *   nicht in `presentKeys` steht: Capabilities → `codeStatus = 'retired'`,
- *   Features/Quotas → `discoveryStatus = 'obsolete'`. Gibt die Anzahl zurück.
+ * Binding:
+ * - `upsert*` matches on (`projectKey`, `<key>`) and leaves `i18n`,
+ *   `sortOrder`, `createdAt` as well as the approval fields (`approvedAt`/
+ *   `approvedBy`/`approvedSignature`) **untouched** on an update —
+ *   only the code-derived fields + the status (resolved by the service)
+ *   are written.
+ * - `retireMissing` marks all non-soft-deleted entries whose key
+ *   is not in `presentKeys`: capabilities → `codeStatus = 'retired'`,
+ *   features/quotas → `discoveryStatus = 'obsolete'`. Returns the count.
  */
 export interface CatalogEntryRepository {
     listCapabilities(filter: CatalogEntryFilter): Promise<CapabilityCatalogEntryRow[]>;
@@ -498,12 +498,12 @@ export interface CatalogEntryRepository {
     ): Promise<number>;
 
     /**
-     * Setzt bzw. löscht den Nachfolger-Pointer eines Features/einer Quota
-     * (#39). Der Sync ruft das auf, wenn ein Key aus dem Snapshot verschwindet
-     * und ein anderer Key ihn via `replaces` beansprucht (`successorKey`
-     * gesetzt) bzw. wenn der Key wieder im Code auftaucht (`null`). Optional —
-     * Adapter ohne `successor_key`-Spalte lassen die Methoden weg, der Sync
-     * überspringt die Pointer dann mit Warn-Log.
+     * Sets or clears the successor pointer of a feature/quota
+     * (#39). The sync calls this when a key disappears from the snapshot
+     * and another key claims it via `replaces` (`successorKey`
+     * set), or when the key reappears in the code (`null`). Optional —
+     * adapters without a `successor_key` column omit the methods, and the sync
+     * then skips the pointers with a warn log.
      */
     setFeatureSuccessor?(
         projectKey: string,
@@ -541,7 +541,7 @@ export interface CatalogEntryRepository {
         i18n: CatalogEntryI18n,
     ): Promise<QuotaCatalogEntryRow>;
 
-    /** Setzt die editierbaren Basis-Felder (Default-Locale `label`/`description`). */
+    /** Sets the editable base fields (default locale `label`/`description`). */
     setFeatureBase(
         projectKey: string,
         featureKey: string,
@@ -555,31 +555,31 @@ export interface CatalogEntryRepository {
 }
 
 // =============================================================================
-// Promotion — Persistenz-Adapter (SPEC_V2 §9a — zeitgesteuerte Preis-Aktionen)
+// Promotion — persistence adapter (SPEC_V2 §9a — time-scheduled price promotions)
 // =============================================================================
 
 /**
- * Adapter für `promotions`. **Keine Versionierung** — Aktionen werden direkt
- * geändert (analog MarketingProjectionRepository). Konsumenten implementieren
- * das gegen ihre `promotions`-Prisma-Tabelle.
+ * Adapter for `promotions`. **No versioning** — promotions are edited
+ * directly (analogous to MarketingProjectionRepository). Consumers implement
+ * this against their `promotions` Prisma table.
  */
 export interface PromotionRepository {
     list(filter: PromotionFilter): Promise<PromotionRow[]>;
     findById(id: string): Promise<PromotionRow | null>;
     create(data: CreatePromotionData): Promise<PromotionRow>;
     update(id: string, data: UpdatePromotionData): Promise<PromotionRow>;
-    /** Hard-Delete — keine Soft-Delete-Spalte (nicht versioniert). */
+    /** Hard delete — no soft-delete column (not versioned). */
     delete(id: string): Promise<void>;
 }
 
 // =============================================================================
-// MarketingSettings — Persistenz-Adapter (SPEC_V2 §6.5 — activeLocales)
+// MarketingSettings — persistence adapter (SPEC_V2 §6.5 — activeLocales)
 // =============================================================================
 
 /**
- * Adapter für `marketing_settings` — eine Row pro Projekt. `get` liefert
- * `null`, solange der SuperAdmin nichts gespeichert hat (dann gilt der volle
- * `availableLocales`-Pool als aktiv). `upsert` legt die Row an oder ersetzt sie.
+ * Adapter for `marketing_settings` — one row per project. `get` returns
+ * `null` as long as the SuperAdmin has saved nothing (then the full
+ * `availableLocales` pool counts as active). `upsert` creates the row or replaces it.
  */
 export interface MarketingSettingsRepository {
     get(projectKey: string): Promise<MarketingSettingsRow | null>;

@@ -1,26 +1,26 @@
-// Tests fuer @saasicat/nest/registration — PendingRegistrationService.
+// Tests for @saasicat/nest/registration — PendingRegistrationService.
 //
-// Deckt die Pfade aus der Registrierungs-Spec ab:
-//  - start() erzeugt PendingRegistration + OTP-Versand
-//  - start() neutralisiert aktiven User (Fall A)
-//  - start() regeneriert OTP fuer bestehende PENDING_EMAIL_VERIFICATION (Fall B)
-//  - start() loescht abgelaufene PendingRegistration und legt neu an (Fall E)
-//  - start() loest Slug-Kollision via Suffix-Variante
-//  - start() generiert Slug aus tenantName wenn leer
+// Covers the paths from the registration spec:
+//  - start() creates PendingRegistration + OTP dispatch
+//  - start() neutralizes active user (case A)
+//  - start() regenerates OTP for existing PENDING_EMAIL_VERIFICATION (case B)
+//  - start() deletes expired PendingRegistration and creates a new one (case E)
+//  - start() resolves slug collision via suffix variant
+//  - start() generates slug from tenantName when empty
 //  - verifyOtp() success → EMAIL_VERIFIED + nextStep=3
 //  - verifyOtp() expired → OTP_EXPIRED
 //  - verifyOtp() wrong → OTP_INVALID
-//  - verifyOtp() Brute-Force-Lockout → OTP_LOCKED (auch bei korrektem Code)
+//  - verifyOtp() brute-force lockout → OTP_LOCKED (even with correct code)
 //  - resendOtp() success
-//  - resendOtp() rate-limited → still gedropt
-//  - OTP wird niemals im Klartext gespeichert
+//  - resendOtp() rate-limited → silently dropped
+//  - OTP is never stored in plaintext
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { OTP_VERIFY_MAX_ATTEMPTS } from '@saasicat/types';
 import { PendingRegistrationService, hashOtpCode } from '../dist/registration/index.js';
 
-// ─── Test-Doubles ───────────────────────────────────────────────────────────
+// ─── Test doubles ───────────────────────────────────────────────────────────
 
 class FakeRepository {
     constructor() {
@@ -83,8 +83,8 @@ class FakeRepository {
         this.rows.set(id, row);
         return row;
     }
-    // Bewusst last-write-wins (wie ein UPDATE ... SET in der DB): parallele
-    // Schreiber mit stale gelesenem Stand ueberschreiben sich gegenseitig.
+    // Deliberately last-write-wins (like an UPDATE ... SET in the DB): parallel
+    // writers with a stale read state overwrite each other.
     async update(id, input) {
         const existing = this.rows.get(id);
         if (!existing) throw new Error(`pending ${id} not found`);
@@ -92,8 +92,8 @@ class FakeRepository {
         this.rows.set(id, updated);
         return updated;
     }
-    // Echt atomar: liest den Stand zum Ausfuehrungszeitpunkt, nicht einen
-    // vorab gelesenen Snapshot — analog Prisma `{ increment: 1 }`.
+    // Truly atomic: reads the state at execution time, not a
+    // previously read snapshot — analogous to Prisma `{ increment: 1 }`.
     async incrementOtpAttemptCount(id) {
         const existing = this.rows.get(id);
         if (!existing) throw new Error(`pending ${id} not found`);
@@ -321,7 +321,7 @@ function baseInput(overrides = {}) {
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
-test('start() legt PendingRegistration an und sendet OTP', async () => {
+test('start() creates PendingRegistration and sends OTP', async () => {
     const ctx = makeService();
     const result = await ctx.service.start(baseInput());
     assert.deepEqual(result, { neutral: true });
@@ -344,7 +344,7 @@ test('start() legt PendingRegistration an und sendet OTP', async () => {
     assert.match(ctx.delivery.sent[0].code, /^\d{6}$/);
 });
 
-test('start() speichert OTP nur als Hash, nie im Klartext', async () => {
+test('start() stores OTP only as a hash, never in plaintext', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const stored = await ctx.repo.findByEmail('max@example.com');
@@ -353,7 +353,7 @@ test('start() speichert OTP nur als Hash, nie im Klartext', async () => {
     assert.equal(stored.otpHash, hashOtpCode(sentCode));
 });
 
-test('start() bei aktivem User → keine PendingRegistration angelegt', async () => {
+test('start() with active user → no PendingRegistration created', async () => {
     const ctx = makeService({
         userLookup: new FakeUserLookup(['max@example.com']),
     });
@@ -363,7 +363,7 @@ test('start() bei aktivem User → keine PendingRegistration angelegt', async ()
     assert.equal(ctx.delivery.sent.length, 0);
 });
 
-test('start() bei kollidierendem Slug → Suffix-Variante', async () => {
+test('start() with colliding slug → suffix variant', async () => {
     const ctx = makeService({
         slugCheck: new FakeSlugCheck(['mein-verein', 'mein-verein-2']),
     });
@@ -372,23 +372,23 @@ test('start() bei kollidierendem Slug → Suffix-Variante', async () => {
     assert.equal(stored.tenantSlug, 'mein-verein-3');
 });
 
-test('start() mit explizitem tenantSlug uebernimmt diesen, wenn frei', async () => {
+test('start() with explicit tenantSlug adopts it when available', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ tenantSlug: 'fc-bayern' }));
     const stored = await ctx.repo.findByEmail('max@example.com');
     assert.equal(stored.tenantSlug, 'fc-bayern');
 });
 
-test('start() Email-Normalization: trim + lowercase', async () => {
+test('start() email normalization: trim + lowercase', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: '  MAX@Example.COM  ' }));
     const stored = await ctx.repo.findByEmail('max@example.com');
     assert.ok(stored);
 });
 
-test('start() bei abgelaufener PendingRegistration → loescht + legt neu an', async () => {
+test('start() with expired PendingRegistration → deletes + creates new', async () => {
     const ctx = makeService();
-    // Erste Registrierung manuell mit abgelaufenem expiresAt anlegen.
+    // Manually create the first registration with an expired expiresAt.
     const past = new Date(Date.now() - 1000);
     await ctx.repo.create({
         tenantName: 'Alt',
@@ -408,13 +408,13 @@ test('start() bei abgelaufener PendingRegistration → loescht + legt neu an', a
     const stored = await ctx.repo.findByEmail('max@example.com');
     assert.equal(stored.tenantName, 'Mein Verein');
     assert.equal(stored.firstName, 'Max');
-    // Genau ein Eintrag (alter wurde geloescht):
+    // Exactly one entry (the old one was deleted):
     let count = 0;
     for (const _ of ctx.repo.rows.values()) count++;
     assert.equal(count, 1);
 });
 
-test('start() bei bestehender PENDING_EMAIL_VERIFICATION → OTP wird regeneriert', async () => {
+test('start() with existing PENDING_EMAIL_VERIFICATION → OTP is regenerated', async () => {
     const ctx = makeService();
     const future = new Date(Date.now() + 3600_000);
     const created = await ctx.repo.create({
@@ -434,9 +434,9 @@ test('start() bei bestehender PENDING_EMAIL_VERIFICATION → OTP wird regenerier
 
     await ctx.service.start(baseInput());
     const after = await ctx.repo.findByEmail('max@example.com');
-    // Tenantname bleibt (kein Overwrite durch potentiellen Angreifer):
+    // Tenant name stays (no overwrite by a potential attacker):
     assert.equal(after.tenantName, 'Bestand');
-    // Aber OTP wurde regeneriert:
+    // But the OTP was regenerated:
     assert.notEqual(after.otpHash, oldHash);
     assert.equal(ctx.delivery.sent.length, 1);
 });
@@ -457,11 +457,11 @@ test('verifyOtp() success → EMAIL_VERIFIED + nextStep 3', async () => {
     assert.ok(stored.emailVerifiedAt instanceof Date);
 });
 
-test('verifyOtp() abgelaufenes OTP → OTP_EXPIRED', async () => {
+test('verifyOtp() expired OTP → OTP_EXPIRED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const stored = await ctx.repo.findByEmail('max@example.com');
-    // OTP-Expiry in die Vergangenheit setzen:
+    // Set OTP expiry into the past:
     await ctx.repo.update(stored.id, { otpExpiresAt: new Date(Date.now() - 1000) });
     const code = ctx.delivery.sent[0].code;
     await assert.rejects(
@@ -470,7 +470,7 @@ test('verifyOtp() abgelaufenes OTP → OTP_EXPIRED', async () => {
     );
 });
 
-test('verifyOtp() falscher Code → OTP_INVALID', async () => {
+test('verifyOtp() wrong code → OTP_INVALID', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     await assert.rejects(
@@ -479,7 +479,7 @@ test('verifyOtp() falscher Code → OTP_INVALID', async () => {
     );
 });
 
-test('verifyOtp() unbekannte Email → OTP_INVALID', async () => {
+test('verifyOtp() unknown email → OTP_INVALID', async () => {
     const ctx = makeService();
     await assert.rejects(
         () => ctx.service.verifyOtp('unknown@example.com', '123456'),
@@ -487,7 +487,7 @@ test('verifyOtp() unbekannte Email → OTP_INVALID', async () => {
     );
 });
 
-// ─── Brute-Force-Lockout ────────────────────────────────────────────────────
+// ─── Brute-force lockout ────────────────────────────────────────────────────
 
 async function exhaustOtpAttempts(ctx, email = 'max@example.com') {
     for (let i = 0; i < OTP_VERIFY_MAX_ATTEMPTS; i++) {
@@ -498,7 +498,7 @@ async function exhaustOtpAttempts(ctx, email = 'max@example.com') {
     }
 }
 
-test('verifyOtp() nach 5 Fehlversuchen → OTP_LOCKED', async () => {
+test('verifyOtp() after 5 failed attempts → OTP_LOCKED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     await exhaustOtpAttempts(ctx);
@@ -511,7 +511,7 @@ test('verifyOtp() nach 5 Fehlversuchen → OTP_LOCKED', async () => {
     );
 });
 
-test('verifyOtp() korrekter Code nach Lockout → weiterhin OTP_LOCKED', async () => {
+test('verifyOtp() correct code after lockout → still OTP_LOCKED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const code = ctx.delivery.sent[0].code;
@@ -525,7 +525,7 @@ test('verifyOtp() korrekter Code nach Lockout → weiterhin OTP_LOCKED', async (
     assert.equal(stored.status, 'PENDING_EMAIL_VERIFICATION');
 });
 
-test('verifyOtp() korrekter Code unter dem Limit → Erfolg', async () => {
+test('verifyOtp() correct code under the limit → success', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const code = ctx.delivery.sent[0].code;
@@ -540,7 +540,7 @@ test('verifyOtp() korrekter Code unter dem Limit → Erfolg', async () => {
     assert.equal(result.status, 'EMAIL_VERIFIED');
 });
 
-test('verifyOtp() parallele Fehlversuche mit stale Zaehlerstand → atomarer Inkrement sperrt', async () => {
+test('verifyOtp() parallel failed attempts with stale counter → atomic increment locks', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const code = ctx.delivery.sent[0].code;
@@ -551,12 +551,12 @@ test('verifyOtp() parallele Fehlversuche mit stale Zaehlerstand → atomarer Ink
         );
     }
 
-    // Beide Requests lesen denselben Stand (Limit-1) und passieren den
-    // Vorab-Check — nur der atomare Inkrement zaehlt beide korrekt: einer
-    // verbraucht den letzten Versuch (OTP_INVALID), der andere laeuft in
-    // die Schranke (OTP_LOCKED). Mit dem frueheren Read-Modify-Write via
-    // update() (last-write-wins im FakeRepository) haetten beide denselben
-    // Stand geschrieben und ein Rateversuch waere verloren gegangen.
+    // Both requests read the same state (limit-1) and pass the
+    // pre-check — only the atomic increment counts both correctly: one
+    // consumes the last attempt (OTP_INVALID), the other runs into
+    // the barrier (OTP_LOCKED). With the earlier read-modify-write via
+    // update() (last-write-wins in FakeRepository) both would have written the
+    // same state and one guess attempt would have been lost.
     const results = await Promise.allSettled([
         ctx.service.verifyOtp('max@example.com', '000000'),
         ctx.service.verifyOtp('max@example.com', '000000'),
@@ -567,14 +567,14 @@ test('verifyOtp() parallele Fehlversuche mit stale Zaehlerstand → atomarer Ink
 
     const stored = await ctx.repo.findByEmail('max@example.com');
     assert.equal(stored.otpAttemptCount, OTP_VERIFY_MAX_ATTEMPTS + 1);
-    // Nach insgesamt >= 5 Fehlversuchen bleibt auch der korrekte Code gesperrt.
+    // After a total of >= 5 failed attempts even the correct code stays locked.
     await assert.rejects(
         () => ctx.service.verifyOtp('max@example.com', code),
         (err) => err.getResponse().code === 'OTP_LOCKED',
     );
 });
 
-test('resendOtp() nach Lockout → neuer Code entsperrt (Zaehler zurueckgesetzt)', async () => {
+test('resendOtp() after lockout → new code unlocks (counter reset)', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     await exhaustOtpAttempts(ctx);
@@ -588,7 +588,7 @@ test('resendOtp() nach Lockout → neuer Code entsperrt (Zaehler zurueckgesetzt)
     assert.equal(result.status, 'EMAIL_VERIFIED');
 });
 
-test('verifyOtp() Lockout-Limit per Env uebersteuerbar', async () => {
+test('verifyOtp() lockout limit overridable via env', async () => {
     const oldEnv = process.env.SAAS_PLATFORM_OTP_VERIFY_MAX_ATTEMPTS;
     process.env.SAAS_PLATFORM_OTP_VERIFY_MAX_ATTEMPTS = '2';
     try {
@@ -610,27 +610,27 @@ test('verifyOtp() Lockout-Limit per Env uebersteuerbar', async () => {
     }
 });
 
-test('resendOtp() success → neuer OTP wird gesendet', async () => {
+test('resendOtp() success → new OTP is sent', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const firstCode = ctx.delivery.sent[0].code;
     const result = await ctx.service.resendOtp('max@example.com');
     assert.deepEqual(result, { neutral: true });
     assert.equal(ctx.delivery.sent.length, 2);
-    // Code wechselt (mit hoher Wahrscheinlichkeit):
+    // Code changes (with high probability):
     assert.notEqual(ctx.delivery.sent[1].code, firstCode);
 });
 
-test('resendOtp() Rate-Limit greift → still gedropt nach 3 Sends', async () => {
+test('resendOtp() rate limit kicks in → silently dropped after 3 sends', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput()); // send 1
     await ctx.service.resendOtp('max@example.com'); // send 2
     await ctx.service.resendOtp('max@example.com'); // send 3
-    await ctx.service.resendOtp('max@example.com'); // gedropt
+    await ctx.service.resendOtp('max@example.com'); // dropped
     assert.equal(ctx.delivery.sent.length, 3);
 });
 
-test('resendOtp() unbekannte Email → neutrale Antwort, kein Throw', async () => {
+test('resendOtp() unknown email → neutral response, no throw', async () => {
     const ctx = makeService();
     const result = await ctx.service.resendOtp('unknown@example.com');
     assert.deepEqual(result, { neutral: true });
@@ -662,7 +662,7 @@ test('selectPlan() success → status PLAN_SELECTED + nextStep 4', async () => {
     assert.equal(stored.selectedPlanId, 'STANDARD');
 });
 
-test('selectPlan() unbekannte PendingRegistration → PENDING_REGISTRATION_NOT_FOUND', async () => {
+test('selectPlan() unknown PendingRegistration → PENDING_REGISTRATION_NOT_FOUND', async () => {
     const ctx = makeService();
     await assert.rejects(
         () =>
@@ -671,7 +671,7 @@ test('selectPlan() unbekannte PendingRegistration → PENDING_REGISTRATION_NOT_F
     );
 });
 
-test('selectPlan() ohne Email-Verifikation (PENDING_EMAIL_VERIFICATION) → INVALID_REGISTRATION_STATE', async () => {
+test('selectPlan() without email verification (PENDING_EMAIL_VERIFICATION) → INVALID_REGISTRATION_STATE', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const stored = await ctx.repo.findByEmail('max@example.com');
@@ -681,7 +681,7 @@ test('selectPlan() ohne Email-Verifikation (PENDING_EMAIL_VERIFICATION) → INVA
     );
 });
 
-test('selectPlan() nicht-katalogisierter Plan → PLAN_NOT_AVAILABLE', async () => {
+test('selectPlan() non-catalogued plan → PLAN_NOT_AVAILABLE', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
     await assert.rejects(
@@ -694,7 +694,7 @@ test('selectPlan() nicht-katalogisierter Plan → PLAN_NOT_AVAILABLE', async () 
     );
 });
 
-test('selectPlan() Plan-Wechsel im Status PLAN_SELECTED ist erlaubt', async () => {
+test('selectPlan() plan change in status PLAN_SELECTED is allowed', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
     await ctx.service.selectPlan({
@@ -708,7 +708,7 @@ test('selectPlan() Plan-Wechsel im Status PLAN_SELECTED ist erlaubt', async () =
     assert.equal(second.selectedPlanId, 'PROFESSIONAL');
 });
 
-test('listPublicPlans() liefert Plan-Liste durch', async () => {
+test('listPublicPlans() passes the plan list through', async () => {
     const ctx = makeService();
     const plans = await ctx.service.listPublicPlans();
     assert.equal(plans.length, 2);
@@ -744,7 +744,7 @@ test('startCheckout() success → status CHECKOUT_STARTED + url + sessionId', as
     assert.ok(stored.checkoutStartedAt instanceof Date);
 });
 
-test('startCheckout() ohne Plan-Auswahl → PLAN_NOT_SELECTED', async () => {
+test('startCheckout() without plan selection → PLAN_NOT_SELECTED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const code = ctx.delivery.sent[ctx.delivery.sent.length - 1].code;
@@ -760,7 +760,7 @@ test('startCheckout() ohne Plan-Auswahl → PLAN_NOT_SELECTED', async () => {
     );
 });
 
-test('startCheckout() unbekannte Pending → PENDING_REGISTRATION_NOT_FOUND', async () => {
+test('startCheckout() unknown Pending → PENDING_REGISTRATION_NOT_FOUND', async () => {
     const ctx = makeService();
     await assert.rejects(
         () =>
@@ -773,7 +773,7 @@ test('startCheckout() unbekannte Pending → PENDING_REGISTRATION_NOT_FOUND', as
     );
 });
 
-test('startCheckout() ruft Provider mit korrekten Params', async () => {
+test('startCheckout() calls provider with correct params', async () => {
     const ctx = makeService();
     const pendingId = await startVerifyPlan(ctx, 'p@example.com', 'PROFESSIONAL');
     await ctx.service.startCheckout({
@@ -788,7 +788,7 @@ test('startCheckout() ruft Provider mit korrekten Params', async () => {
     assert.equal(call.email, 'p@example.com');
 });
 
-test('startCheckout() im Status CHECKOUT_STARTED erneut → erzeugt neue Session (Resume erlaubt)', async () => {
+test('startCheckout() again in status CHECKOUT_STARTED → creates new session (resume allowed)', async () => {
     const ctx = makeService();
     const pendingId = await startVerifyPlan(ctx);
     const first = await ctx.service.startCheckout({
@@ -804,7 +804,7 @@ test('startCheckout() im Status CHECKOUT_STARTED erneut → erzeugt neue Session
     assert.notEqual(second.checkoutSessionId, first.checkoutSessionId);
 });
 
-// ─── Webhook + Aktivierung (Phase 2.3) ──────────────────────────────────────
+// ─── Webhook + activation (Phase 2.3) ───────────────────────────────────────
 
 async function startThroughCheckout(ctx, email = 'pay@example.com') {
     const pendingId = await startVerifyPlan(ctx, email);
@@ -816,7 +816,7 @@ async function startThroughCheckout(ctx, email = 'pay@example.com') {
     return { pendingId, sessionId: checkout.checkoutSessionId };
 }
 
-test('handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription erzeugt', async () => {
+test('handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription created', async () => {
     const ctx = makeService();
     const { pendingId, sessionId } = await startThroughCheckout(ctx);
     const result = await ctx.service.handlePaymentEvent({
@@ -830,10 +830,10 @@ test('handlePaymentEvent() SUCCEEDED → activated + User/Tenant/Subscription er
     assert.ok(result.result?.tenantId);
     assert.ok(result.result?.subscriptionId);
     assert.equal(ctx.activationOrchestrator.calls.length, 1);
-    assert.equal(await ctx.repo.findById(pendingId), null, 'PendingRegistration wurde geloescht');
+    assert.equal(await ctx.repo.findById(pendingId), null, 'PendingRegistration was deleted');
 });
 
-test('handlePaymentEvent() doppelter Webhook → ALREADY_PROCESSED + keine zweite Aktivierung', async () => {
+test('handlePaymentEvent() duplicate webhook → ALREADY_PROCESSED + no second activation', async () => {
     const ctx = makeService();
     const { sessionId } = await startThroughCheckout(ctx);
     const first = await ctx.service.handlePaymentEvent({
@@ -852,10 +852,10 @@ test('handlePaymentEvent() doppelter Webhook → ALREADY_PROCESSED + keine zweit
     });
     assert.equal(second.activated, false);
     assert.equal(second.reason, 'ALREADY_PROCESSED');
-    assert.equal(ctx.activationOrchestrator.calls.length, 1, 'Nur einmal aktiviert');
+    assert.equal(ctx.activationOrchestrator.calls.length, 1, 'Activated only once');
 });
 
-test('handlePaymentEvent() FAILED → keine Aktivierung, aber Event geclaimed', async () => {
+test('handlePaymentEvent() FAILED → no activation, but event claimed', async () => {
     const ctx = makeService();
     const { pendingId, sessionId } = await startThroughCheckout(ctx);
     const result = await ctx.service.handlePaymentEvent({
@@ -867,13 +867,13 @@ test('handlePaymentEvent() FAILED → keine Aktivierung, aber Event geclaimed', 
     assert.equal(result.activated, false);
     assert.equal(result.reason, 'PAYMENT_NOT_SUCCEEDED');
     assert.equal(ctx.activationOrchestrator.calls.length, 0);
-    // Pending bleibt bestehen, User kann erneut zahlen:
+    // Pending remains, user can pay again:
     const stored = await ctx.repo.findById(pendingId);
     assert.ok(stored);
     assert.equal(stored.status, 'CHECKOUT_STARTED');
 });
 
-test('handlePaymentEvent() unbekannte Session → PENDING_REGISTRATION_NOT_FOUND', async () => {
+test('handlePaymentEvent() unknown session → PENDING_REGISTRATION_NOT_FOUND', async () => {
     const ctx = makeService();
     const result = await ctx.service.handlePaymentEvent({
         eventId: 'evt_x',
@@ -885,7 +885,7 @@ test('handlePaymentEvent() unbekannte Session → PENDING_REGISTRATION_NOT_FOUND
     assert.equal(result.reason, 'PENDING_REGISTRATION_NOT_FOUND');
 });
 
-test('handlePaymentEvent() ohne sessionId → MISSING_SESSION_ID', async () => {
+test('handlePaymentEvent() without sessionId → MISSING_SESSION_ID', async () => {
     const ctx = makeService();
     const result = await ctx.service.handlePaymentEvent({
         eventId: 'evt_no_session',
@@ -905,7 +905,7 @@ function ageExpiry(repo, id, expiresAt) {
     row.expiresAt = expiresAt;
 }
 
-test('runCleanup() loescht expired, laesst active in Ruhe', async () => {
+test('runCleanup() deletes expired, leaves active alone', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: 'expired@example.com' }));
     await ctx.service.start(baseInput({ email: 'active@example.com' }));
@@ -919,7 +919,7 @@ test('runCleanup() loescht expired, laesst active in Ruhe', async () => {
     assert.ok(await ctx.repo.findByEmail('active@example.com'));
 });
 
-test('runCleanup() ohne expired → deleted=0, idempotent', async () => {
+test('runCleanup() without expired → deleted=0, idempotent', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: 'live@example.com' }));
     const first = await ctx.service.runCleanup(new Date());
@@ -929,9 +929,9 @@ test('runCleanup() ohne expired → deleted=0, idempotent', async () => {
     assert.ok(await ctx.repo.findByEmail('live@example.com'));
 });
 
-test('runCleanup() honoriert Batch-Limit → moreAvailable=true bei Voll-Lauf', async () => {
+test('runCleanup() honors batch limit → moreAvailable=true on full run', async () => {
     const ctx = makeService();
-    // 3 abgelaufene Pendings anlegen.
+    // Create 3 expired pendings.
     for (let i = 0; i < 3; i++) {
         await ctx.service.start(baseInput({ email: `exp-${i}@example.com` }));
         const row = await ctx.repo.findByEmail(`exp-${i}@example.com`);
@@ -946,13 +946,13 @@ test('runCleanup() honoriert Batch-Limit → moreAvailable=true bei Voll-Lauf', 
     assert.equal(second.moreAvailable, false);
 });
 
-test('runCleanup() gibt Email nach Loeschung wieder frei → erneutes start() klappt', async () => {
+test('runCleanup() frees the email again after deletion → repeated start() works', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: 'reuse@example.com' }));
     const row = await ctx.repo.findByEmail('reuse@example.com');
     ageExpiry(ctx.repo, row.id, new Date(Date.now() - 1000));
     await ctx.service.runCleanup(new Date());
-    // Erneute Registrierung mit gleicher Mail muss durchgehen.
+    // Repeated registration with the same email must go through.
     const result = await ctx.service.start(baseInput({ email: 'reuse@example.com' }));
     assert.deepEqual(result, { neutral: true });
     const fresh = await ctx.repo.findByEmail('reuse@example.com');
@@ -962,7 +962,7 @@ test('runCleanup() gibt Email nach Loeschung wieder frei → erneutes start() kl
 
 // ─── Phase 3.3: Audit-Logging ───────────────────────────────────────────────
 
-test('audit: start() loggt REGISTRATION_STARTED + pendingId', async () => {
+test('audit: start() logs REGISTRATION_STARTED + pendingId', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput(), { ipHash: 'ip-abc', userAgent: 'curl/1.0' });
     const evs = ctx.audit.byType('REGISTRATION_STARTED');
@@ -971,7 +971,7 @@ test('audit: start() loggt REGISTRATION_STARTED + pendingId', async () => {
     assert.equal(evs[0].context.ipHash, 'ip-abc');
 });
 
-test('audit: start() bei aktivem User → REGISTRATION_NEUTRAL_ACTIVE_USER, keine Pending', async () => {
+test('audit: start() with active user → REGISTRATION_NEUTRAL_ACTIVE_USER, no Pending', async () => {
     const ctx = makeService({
         userLookup: new FakeUserLookup(['max@example.com']),
     });
@@ -981,24 +981,24 @@ test('audit: start() bei aktivem User → REGISTRATION_NEUTRAL_ACTIVE_USER, kein
     assert.equal(evs[0].pendingRegistrationId, null);
 });
 
-test('audit: verifyOtp success → OTP_VERIFIED, falsch → OTP_VERIFY_FAILED', async () => {
+test('audit: verifyOtp success → OTP_VERIFIED, wrong → OTP_VERIFY_FAILED', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput());
     const code = ctx.delivery.sent[0].code;
 
-    // Falsch
+    // Wrong
     await assert.rejects(() =>
         ctx.service.verifyOtp('max@example.com', '000000', { ipHash: 'ip' }),
     );
     assert.equal(ctx.audit.byType('OTP_VERIFY_FAILED').length, 1);
     assert.equal(ctx.audit.byType('OTP_VERIFY_FAILED')[0].metadata.reason, 'wrong_code');
 
-    // Korrekt
+    // Correct
     await ctx.service.verifyOtp('max@example.com', code);
     assert.equal(ctx.audit.byType('OTP_VERIFIED').length, 1);
 });
 
-test('audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, Duplikat → PAYMENT_DUPLICATE_IGNORED', async () => {
+test('audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, duplicate → PAYMENT_DUPLICATE_IGNORED', async () => {
     const ctx = makeService();
     const { sessionId } = await startThroughCheckout(ctx);
 
@@ -1011,7 +1011,7 @@ test('audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, Dup
     assert.equal(ctx.audit.byType('PAYMENT_RECEIVED').length, 1);
     assert.equal(ctx.audit.byType('ACTIVATION_COMPLETED').length, 1);
 
-    // Duplikat
+    // Duplicate
     await ctx.service.handlePaymentEvent({
         eventId: 'evt_audit_1',
         sessionId,
@@ -1023,34 +1023,34 @@ test('audit: handlePaymentEvent → PAYMENT_RECEIVED + ACTIVATION_COMPLETED, Dup
 
 // ─── Phase 3.4: Resume-Token ────────────────────────────────────────────────
 
-test('resume: start() bei bestehender EMAIL_VERIFIED-Pending sendet Resume-Mail (kein OTP)', async () => {
+test('resume: start() with existing EMAIL_VERIFIED pending sends resume mail (no OTP)', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
-    // Vorhandene Pending hat Status EMAIL_VERIFIED — start() noch einmal
-    // mit gleicher Email soll Resume-Mail senden, KEIN neuer OTP.
+    // Existing pending has status EMAIL_VERIFIED — calling start() again
+    // with the same email should send a resume mail, NO new OTP.
     const otpsBefore = ctx.delivery.sent.length;
     await ctx.service.start(baseInput({ email: 'plan@example.com' }));
-    assert.equal(ctx.delivery.sent.length, otpsBefore, 'kein neuer OTP');
+    assert.equal(ctx.delivery.sent.length, otpsBefore, 'no new OTP');
     assert.equal(ctx.resumeDelivery.sent.length, 1);
     const link = ctx.resumeDelivery.sent[0].resumeUrl;
     assert.match(link, /^https:\/\/app\.example\/login\?resume=/);
     assert.equal(ctx.resumeDelivery.sent[0].to, 'plan@example.com');
-    // Pending-ID muss im Token enthalten sein:
+    // Pending ID must be contained in the token:
     const token = new URL(link).searchParams.get('resume');
     const decoded = await ctx.resumeTokenSigner.verify(token);
     assert.equal(decoded.pendingRegistrationId, verify.pendingRegistrationId);
 });
 
-test('resume: start() bei PENDING_EMAIL_VERIFICATION weiterhin OTP-Resend (Fall B unveraendert)', async () => {
+test('resume: start() with PENDING_EMAIL_VERIFICATION still OTP resend (case B unchanged)', async () => {
     const ctx = makeService();
     await ctx.service.start(baseInput({ email: 'b@example.com' }));
     const before = ctx.delivery.sent.length;
     await ctx.service.start(baseInput({ email: 'b@example.com' }));
-    assert.equal(ctx.delivery.sent.length, before + 1, 'OTP wurde regeneriert');
-    assert.equal(ctx.resumeDelivery.sent.length, 0, 'kein Resume-Link in Fall B');
+    assert.equal(ctx.delivery.sent.length, before + 1, 'OTP was regenerated');
+    assert.equal(ctx.resumeDelivery.sent.length, 0, 'no resume link in case B');
 });
 
-test('resume: resumeWithToken() success → liefert pending-ID + nextStep + snapshot', async () => {
+test('resume: resumeWithToken() success → returns pending ID + nextStep + snapshot', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
     await ctx.service.start(baseInput({ email: 'plan@example.com' }));
@@ -1059,8 +1059,8 @@ test('resume: resumeWithToken() success → liefert pending-ID + nextStep + snap
     assert.equal(result.pendingRegistrationId, verify.pendingRegistrationId);
     assert.equal(result.status, 'EMAIL_VERIFIED');
     assert.equal(result.nextStep, 3);
-    // Snapshot ist Public-Safe (kein passwordHash / kein otpHash) und fuellt
-    // die abgeschlossenen Steps im Frontend:
+    // Snapshot is public-safe (no passwordHash / no otpHash) and fills
+    // the completed steps in the frontend:
     assert.equal(result.snapshot.email, 'plan@example.com');
     assert.equal(result.snapshot.firstName, 'Max');
     assert.equal(result.snapshot.lastName, 'Mustermann');
@@ -1070,7 +1070,7 @@ test('resume: resumeWithToken() success → liefert pending-ID + nextStep + snap
     assert.equal('otpHash' in result.snapshot, false);
 });
 
-test('signResumeToken() liefert Token, der via resumeWithToken aufloesbar ist', async () => {
+test('signResumeToken() returns a token that is resolvable via resumeWithToken', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx, 'login-resume@example.com');
     const token = await ctx.service.signResumeToken(verify.pendingRegistrationId);
@@ -1080,7 +1080,7 @@ test('signResumeToken() liefert Token, der via resumeWithToken aufloesbar ist', 
     assert.equal(result.snapshot.email, 'login-resume@example.com');
 });
 
-test('resume: resumeWithToken() ungueltiger Token → RESUME_TOKEN_INVALID', async () => {
+test('resume: resumeWithToken() invalid token → RESUME_TOKEN_INVALID', async () => {
     const ctx = makeService();
     await assert.rejects(
         () => ctx.service.resumeWithToken({ token: 'kaputt' }),
@@ -1088,7 +1088,7 @@ test('resume: resumeWithToken() ungueltiger Token → RESUME_TOKEN_INVALID', asy
     );
 });
 
-test('resume: resumeWithToken() Token zeigt auf geloeschte Pending → RESUME_TOKEN_INVALID', async () => {
+test('resume: resumeWithToken() token points to deleted Pending → RESUME_TOKEN_INVALID', async () => {
     const ctx = makeService();
     const verify = await startThenVerify(ctx);
     const token = await ctx.resumeTokenSigner.sign({
@@ -1101,22 +1101,22 @@ test('resume: resumeWithToken() Token zeigt auf geloeschte Pending → RESUME_TO
     );
 });
 
-test('resume: ohne konfigurierten Signer faellt start() auf OTP-Resend zurueck', async () => {
+test('resume: without configured signer start() falls back to OTP resend', async () => {
     const ctx = makeService({ resumeTokenSigner: null, resumeDelivery: null });
     await startThenVerify(ctx);
     const before = ctx.delivery.sent.length;
     await ctx.service.start(baseInput({ email: 'plan@example.com' }));
-    assert.equal(ctx.delivery.sent.length, before + 1, 'OTP-Fallback aktiv');
+    assert.equal(ctx.delivery.sent.length, before + 1, 'OTP fallback active');
 });
 
-test('audit: Failure im AuditLogger crasht den Auth-Flow nicht', async () => {
+test('audit: failure in AuditLogger does not crash the auth flow', async () => {
     class ExplodingAudit {
         async log() {
             throw new Error('audit-down');
         }
     }
     const ctx = makeService({ audit: new ExplodingAudit() });
-    // Trotz Audit-Crash muss start() neutral durchgehen.
+    // Despite the audit crash, start() must go through neutrally.
     const result = await ctx.service.start(baseInput());
     assert.deepEqual(result, { neutral: true });
     const stored = await ctx.repo.findByEmail('max@example.com');

@@ -1,14 +1,14 @@
-// useSubscriptionDraft — Vue-Composable für den reaktiven Konfigurations-State
-// des Onboarding-Konfigurators (und des Plan-Change-Wizards).
+// useSubscriptionDraft — Vue composable for the reactive configuration state
+// of the onboarding configurator (and the plan-change wizard).
 //
-// State: Plan + Cycle + ausgewählte Catalog-Bundles + Promo-Code-Status.
-// Output: abgeleitete Preise pro Cycle, Aufstellung pro Block (Plan / Bundles),
-//         aktive-Feature-Set, API-Payload für
+// State: Plan + Cycle + selected catalog bundles + promo-code status.
+// Output: derived prices per cycle, breakdown per block (Plan / Bundles),
+//         active feature set, API payload for
 //         `POST /billing/onboarding/initial-subscription`.
 //
-// Bewusst HTTP-frei — der Konsument bindet `previewPromo()` und
-// `submit()` extern ein und reicht das Ergebnis via `setPromoState` ein.
-// So bleibt das Composable testbar ohne Network-Mocks.
+// Intentionally HTTP-free — the consumer wires in `previewPromo()` and
+// `submit()` externally and feeds the result in via `setPromoState`.
+// This keeps the composable testable without network mocks.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import type { CatalogPlan } from './use-tenant-billing-catalog.js';
@@ -21,18 +21,18 @@ import {
     type PublicMarketingBundle,
 } from '@saasicat/types';
 
-// Mockup wendet bei Jahres-Zahlung 10x den Monatspreis an (= 2 Monate gratis).
-// Wenn der Catalog bereits einen `yearlyNet` liefert, wird der genommen;
-// fehlt er, fällt das Composable auf `monthly * 10` zurück.
+// For yearly payment, the mockup applies 10x the monthly price (= 2 months free).
+// If the catalog already provides a `yearlyNet`, that one is used;
+// if it is missing, the composable falls back to `monthly * 10`.
 export const DEFAULT_YEARLY_FACTOR = 10;
 
 export type PromoStatus = 'idle' | 'checking' | 'valid' | 'invalid' | 'restricted';
 
 export interface PromoState {
     status: PromoStatus;
-    /** Backend-Antwort (nur gesetzt, wenn status === 'valid' oder 'restricted'). */
+    /** Backend response (only set when status === 'valid' or 'restricted'). */
     preview: PromoPreviewResponse | null;
-    /** Anzeige-Text für die UI (Bestätigung oder Fehlermeldung). */
+    /** Display text for the UI (confirmation or error message). */
     message: string;
 }
 
@@ -44,35 +44,35 @@ export interface UseSubscriptionDraftOptions {
     initialPlan?: string | null;
     initialCycle?: BillingCycleStr;
     initialBundleVersionIds?: ReadonlyArray<string>;
-    /** Override für `yearlyNet`-Fallback, falls Catalog kein yearlyNet liefert. */
+    /** Override for the `yearlyNet` fallback if the catalog provides no yearlyNet. */
     yearlyFactor?: number;
 }
 
 export interface PriceLineItem {
-    /** Stable key für UI-`v-for`. */
+    /** Stable key for UI `v-for`. */
     key: string;
     label: string;
-    /** Roher Catalog-Wert in der gewählten Cycle-Einheit. */
+    /** Raw catalog value in the selected cycle unit. */
     net: number;
-    /** Optional: Zusatztext. */
+    /** Optional: additional text. */
     sublabel?: string;
 }
 
 export interface DraftPricing {
     cycle: BillingCycleStr;
-    /** Plan-Basis ohne Bundles. */
+    /** Plan base without bundles. */
     planNet: number;
-    /** Summe aller gewählten Catalog-Bundles. */
+    /** Sum of all selected catalog bundles. */
     bundlesNet: number;
     /** Plan + Bundles. */
     subtotalNet: number;
-    /** Aus Promo-Preview abgeleiteter Rabatt (auf subtotalNet, nicht plan-only). */
+    /** Discount derived from the promo preview (on subtotalNet, not plan-only). */
     discountNet: number;
     /** subtotalNet - discountNet. */
     totalNet: number;
-    /** Ersparnis pro Jahr ggü. monatlicher Zahlung. */
+    /** Savings per year vs. monthly payment. */
     yearSavings: number;
-    /** Strukturierte Aufstellung für die Sticky-Sidebar. */
+    /** Structured breakdown for the sticky sidebar. */
     breakdown: {
         plan: PriceLineItem | null;
         bundles: PriceLineItem[];
@@ -89,7 +89,7 @@ export interface SubscriptionDraft {
 
     // ─── Derived ─────────────────────────────────────────────────────
     selectedPlan: ComputedRef<CatalogPlan | null>;
-    /** Plan-included ∪ Features der gewählten Catalog-Bundles. */
+    /** Plan-included ∪ features of the selected catalog bundles. */
     activeFeatures: ComputedRef<Set<string>>;
     pricing: ComputedRef<DraftPricing>;
     isDirty: ComputedRef<boolean>;
@@ -152,14 +152,14 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         ),
     );
 
-    // Gewählte Bundles, deren Features durch Plan ∪ die übrigen gewählten
-    // Bundles vollständig gedeckt sind, würden doppelt verkauft. Sie fließen
-    // weder in Preis noch in Payload — reaktiv, damit das Abwählen des
-    // deckenden Bundles das redundante Bundle wieder berechnet. Geteilte,
-    // iterative Redundanz-Ableitung (`selectChargeableBundles`): behält bei
-    // gegenseitiger/zyklischer Deckung deterministisch genau ein Bundle statt
-    // alle Beteiligten zu verwerfen. Anzeige-Reihenfolge folgt dem Katalog —
-    // der Helper bestimmt nur WELCHE Bundles bleiben, nicht ihre Sortierung.
+    // Selected bundles whose features are fully covered by Plan ∪ the other
+    // selected bundles would be sold twice. They flow into neither price nor
+    // payload — reactive, so that deselecting the covering bundle recomputes
+    // the redundant bundle again. Shared, iterative redundancy derivation
+    // (`selectChargeableBundles`): under mutual/cyclic coverage it deterministically
+    // keeps exactly one bundle instead of discarding all involved. Display
+    // order follows the catalog — the helper only determines WHICH bundles
+    // remain, not their sort order.
     const chargeableBundles = computed<PublicMarketingBundle[]>(() => {
         const planFeatures = selectedPlan.value?.features ?? [];
         const selected = selectedBundles.value;
@@ -190,8 +190,8 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
             ? priceForCycle(planObj.monthlyNet ?? 0, planObj.yearlyNet, cyc, yearlyFactor)
             : 0;
 
-        // Eigenständig buchbare Catalog-Bundles aus dem Public-Marketing-Catalog.
-        // Redundante (vollständig gedeckte) Bundles sind hier ausgeschlossen.
+        // Independently bookable catalog bundles from the public marketing catalog.
+        // Redundant (fully covered) bundles are excluded here.
         const bundleItems: PriceLineItem[] = [];
         let bundlesNet = 0;
         for (const b of chargeableBundles.value) {
@@ -206,9 +206,9 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
 
         const subtotalNet = planNet + bundlesNet;
 
-        // Discount aus Promo-Preview ableiten (PERCENT-Logik wird frontend-seitig
-        // gespiegelt; ABSOLUTE wird absolut abgezogen). Backend re-berechnet beim
-        // Redeem die finale Wahrheit — die Sidebar zeigt nur den Vorschau-Wert.
+        // Derive discount from the promo preview (PERCENT logic is mirrored on the
+        // frontend; ABSOLUTE is deducted absolutely). The backend recomputes the
+        // final truth at redeem time — the sidebar shows only the preview value.
         let discountNet = 0;
         const preview = promoState.value.preview;
         if (preview && preview.valid && promoState.value.status === 'valid') {
@@ -225,8 +225,8 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
 
         const totalNet = Math.max(0, subtotalNet - discountNet);
 
-        // yearSavings: 12 × monthly — yearly. Nur sinnvoll, wenn Catalog
-        // beide Preise kennt; sonst 0.
+        // yearSavings: 12 × monthly — yearly. Only meaningful when the catalog
+        // knows both prices; otherwise 0.
         let yearSavings = 0;
         if (planObj) {
             const monthlyTotal =
@@ -270,7 +270,7 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
     function setPlan(planId: string): void {
         if (plan.value === planId) return;
         plan.value = planId;
-        // Bundle-Auswahl auf die mit dem neuen Plan kompatiblen reduzieren.
+        // Reduce the bundle selection to those compatible with the new plan.
         const compatibleBundleVersions = new Set<string>();
         for (const bundle of subscriptionBundlesRef.value) {
             if (
@@ -287,7 +287,7 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
 
     function setCycle(c: BillingCycleStr): void {
         cycle.value = c;
-        // Promo-Restriktionen können sich ändern — Caller ruft ggf. preview neu.
+        // Promo restrictions may change — the caller re-runs preview if needed.
     }
 
     function toggleSubscriptionBundle(bundleVersionId: string): void {
@@ -299,7 +299,7 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
 
     function setPromoCode(code: string): void {
         promoCode.value = code.toUpperCase();
-        // Status zurücksetzen — der Caller validiert via preview() neu.
+        // Reset status — the caller re-validates via preview().
         if (promoState.value.status !== 'idle') {
             promoState.value = { status: 'idle', preview: null, message: '' };
         }
@@ -325,8 +325,8 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
         if (promoState.value.status === 'valid' && promoCode.value) {
             payload.promoCode = promoCode.value;
         }
-        // Nur tatsächlich berechnete Bundles senden — redundante (vollständig
-        // gedeckte) würden sonst doppelt gebucht.
+        // Send only actually charged bundles — redundant (fully covered) ones
+        // would otherwise be booked twice.
         const chargeableIds = chargeableBundles.value.map((b) => b.bundleVersionId);
         if (chargeableIds.length > 0) {
             payload.bundleVersionIds = chargeableIds;

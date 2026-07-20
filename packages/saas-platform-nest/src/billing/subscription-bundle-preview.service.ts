@@ -1,32 +1,32 @@
-// SubscriptionBundlePreviewService (#37) — Vorschau für mid-cycle
-// Bundle-Add/-Cancel im Tenant-Self-Service, analog PlanChangePreviewService.
+// SubscriptionBundlePreviewService (#37) — preview for mid-cycle
+// bundle add/cancel in the tenant self-service, analogous to PlanChangePreviewService.
 //
-// Add-Preview liefert:
-//   - Proration: anteiliger Betrag bis Periodenende (geteilter Helper
-//     `computeProration`, currentPriceNet = 0 — es kommt nur etwas hinzu)
-//   - Folgeperioden-Preis im aktuellen Abrechnungszyklus
-//   - Redundanz-Hinweis (sakarel AK-13 Doppelbezahlungs-Falle): Features,
-//     die bereits im Plan oder einem anderen aktiven Bundle enthalten sind
-//   - Dependency-Check gegen `requires` (#35): fehlende requires-Features
-//     werden ausgewiesen und blocken
-//   - Self-Service-Policy: Vertriebs-only-Bundles (SelfServiceBlockedBundles)
+// Add preview returns:
+//   - Proration: prorated amount until period end (shared helper
+//     `computeProration`, currentPriceNet = 0 — only something is added)
+//   - Follow-up period price in the current billing cycle
+//   - Redundancy hint (sakarel AK-13 double-payment trap): features
+//     already included in the plan or another active bundle
+//   - Dependency check against `requires` (#35): missing requires-features
+//     are reported and block
+//   - Self-service policy: sales-only bundles (SelfServiceBlockedBundles)
 //
-// Cancel-Preview liefert das Wirksamkeits-Datum
-// (`max(currentPeriodEnd, minimumTermEndsAt)`, geteilt mit der Mutation via
-// `resolveBundleCancelEffectiveAt`) und die Ersparnis ab Folgeperiode.
-// Bewusst keine anteilige Gutschrift: Kündigungen wirken frühestens zum
-// Periodenende, der Bestand bleibt bis dahin aktiv.
+// Cancel preview returns the effective date
+// (`max(currentPeriodEnd, minimumTermEndsAt)`, shared with the mutation via
+// `resolveBundleCancelEffectiveAt`) and the savings from the next period on.
+// Deliberately no prorated credit: cancellations take effect at the earliest
+// at period end, the booking stays active until then.
 //
-// SubscriptionContract-Fortschreibung (Entscheidung, #37): Mid-cycle-Add/
-// Cancel schreibt in der Plattform KEINEN neuen Contract-Stand fest. Die
-// Entitlement-Aggregation liest die `subscription_bundles`-Junction zur
-// Laufzeit. Konsumenten, die den V3-Contract-Freeze nutzen
-// (`ContractFreezePort`), müssen nach erfolgreichem Add/Cancel re-freezen
-// (`freezeOnPlanChange` mit unverändertem Plan = Amendment als neuer
-// Contract-Stand) — sonst läse der EntitlementService den alten
-// eingefrorenen Snapshot zurück. Bewusst Konsumenten-Hook statt
-// Plattform-Automatik: der Freeze braucht App-Kontext (Preise, VAT,
-// Bundle-Quellen via ContractFreezeSourcePort).
+// SubscriptionContract continuation (decision, #37): mid-cycle add/
+// cancel does NOT persist a new contract state on the platform. The
+// entitlement aggregation reads the `subscription_bundles` junction at
+// runtime. Consumers that use the V3 contract freeze
+// (`ContractFreezePort`) must re-freeze after a successful add/cancel
+// (`freezeOnPlanChange` with an unchanged plan = amendment as new
+// contract state) — otherwise the EntitlementService would read back the old
+// frozen snapshot. Deliberately a consumer hook instead of
+// platform automation: the freeze needs app context (prices, VAT,
+// bundle sources via ContractFreezeSourcePort).
 
 import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type {
@@ -65,14 +65,14 @@ export interface SubscriptionBundlePreviewIssue {
     message: string;
 }
 
-/** Subscription-Kontext — der Controller liest ihn aus dem SubscriptionUsagePort. */
+/** Subscription context — the controller reads it from the SubscriptionUsagePort. */
 export interface SubscriptionBundlePreviewContext {
     subscriptionId: string;
-    /** PlanKey der aktuellen Subscription (Plan-Kompat + Redundanz-Quelle). */
+    /** PlanKey of the current subscription (plan compatibility + redundancy source). */
     currentPlanKey: string;
-    /** 'MONTHLY' | 'YEARLY' (Port-Konvention). */
+    /** 'MONTHLY' | 'YEARLY' (port convention). */
     billingCycle: string;
-    /** Subscription-Status (TRIAL/ACTIVE/...). Im TRIAL keine Proration. */
+    /** Subscription status (TRIAL/ACTIVE/...). No proration during TRIAL. */
     status: string;
     startedAt: Date | null;
     currentPeriodStart: Date | null;
@@ -87,11 +87,11 @@ export interface BundlePreviewSnapshot {
     quotas: Record<string, number>;
 }
 
-/** AK-13: Feature ist bereits anderweitig bezahlt — Doppelbezahlungs-Hinweis. */
+/** AK-13: feature is already paid for elsewhere — double-payment hint. */
 export interface RedundantFeatureHint {
     featureKey: string;
     coveredBy: 'PLAN' | 'BUNDLE';
-    /** planKey bzw. bundleKey der deckenden Quelle. */
+    /** planKey or bundleKey of the covering source. */
     coveredByKey: string;
 }
 
@@ -100,19 +100,19 @@ export interface SubscriptionBundleAddPreviewDto {
     bundle: BundlePreviewSnapshot;
     billingCycle: string;
     /**
-     * Anteiliger Betrag bis Periodenende. `null` im TRIAL (noch keine
-     * bezahlte Periode) oder ohne Listenpreis für den Zyklus.
+     * Prorated amount until period end. `null` during TRIAL (no paid
+     * period yet) or without a list price for the cycle.
      */
     proration: ProrationDto | null;
-    /** Listenpreis pro Folgeperiode im aktuellen Zyklus; null = kein Preis gepflegt. */
+    /** List price per follow-up period in the current cycle; null = no price maintained. */
     nextPeriodPriceNet: number | null;
     minimumTermMonths: number;
-    /** Projiziertes Mindestlaufzeit-Ende ab `now`; null = keine Mindestlaufzeit. */
+    /** Projected minimum-term end from `now`; null = no minimum term. */
     minimumTermEndsAt: Date | null;
     redundantFeatures: RedundantFeatureHint[];
     /**
-     * requires-Features (#35), die weder Plan noch aktive Bundles noch das
-     * Bundle selbst decken. Nicht-leer ⇒ Blocker
+     * requires-features (#35) that neither the plan nor active bundles nor the
+     * bundle itself cover. Non-empty ⇒ blocker
      * BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED.
      */
     missingRequires: string[];
@@ -125,9 +125,9 @@ export interface SubscriptionBundleCancelPreviewDto {
     subscriptionBundleId: string;
     bundle: BundlePreviewSnapshot;
     billingCycle: string;
-    /** Wirksamkeits-Datum = max(currentPeriodEnd, minimumTermEndsAt). */
+    /** Effective date = max(currentPeriodEnd, minimumTermEndsAt). */
     effectiveAt: Date;
-    /** Ersparnis pro Periode ab Wirksamkeit; null = kein Preis gepflegt. */
+    /** Savings per period from the effective date; null = no price maintained. */
     nextPeriodSavingsNet: number | null;
     blockers: SubscriptionBundlePreviewIssue[];
     warnings: SubscriptionBundlePreviewIssue[];
@@ -142,13 +142,13 @@ export class SubscriptionBundlePreviewService {
         private readonly subscriptionBundles: SubscriptionBundleRepository,
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundles: BundleRepository,
-        // Optional — Plan-Features für Redundanz-Hinweis + requires-Deckung.
-        // Ohne Adapter zählt nur die Bundle-Sicht (graceful).
+        // Optional — plan features for redundancy hint + requires coverage.
+        // Without an adapter only the bundle view counts (graceful).
         @Optional()
         @Inject(PLAN_REPOSITORY_TOKEN)
         private readonly plans: PlanRepository | null = null,
-        // Optional — requires-Quelle (kuratierte FeatureCatalogEntries).
-        // Ohne Adapter entfällt der Dependency-Check (graceful).
+        // Optional — requires source (curated FeatureCatalogEntries).
+        // Without an adapter the dependency check is skipped (graceful).
         @Optional()
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntries: CatalogEntryRepository | null = null,
@@ -305,7 +305,7 @@ export class SubscriptionBundlePreviewService {
         };
     }
 
-    /** Buchbarkeits-Checks — gleiche Codes wie `addBundleToSubscription` (422-Pfad). */
+    /** Bookability checks — same codes as `addBundleToSubscription` (422 path). */
     private collectBookabilityBlockers(
         bundleVersion: BundleVersionRow,
         currentPlanKey: string,
@@ -342,7 +342,7 @@ export class SubscriptionBundlePreviewService {
         }
     }
 
-    /** Versions der aktiven Bundle-Buchungen (für Redundanz + requires-Deckung). */
+    /** Versions of the active bundle bookings (for redundancy + requires coverage). */
     private async loadActiveBundleVersions(subscriptionId: string): Promise<BundleVersionRow[]> {
         const active = await this.subscriptionBundles.listActiveBySubscription(subscriptionId);
         const versions = await Promise.all(
@@ -351,7 +351,7 @@ export class SubscriptionBundlePreviewService {
         return versions.filter((bv): bv is BundleVersionRow => bv !== null);
     }
 
-    /** Features des aktuell live PlanVersion-Stands; ohne PlanRepository leer. */
+    /** Features of the currently live PlanVersion state; empty without PlanRepository. */
     private async resolvePlanFeatures(planKey: string, asOf: Date): Promise<string[]> {
         if (!this.plans) return [];
         const live =
@@ -387,8 +387,8 @@ export class SubscriptionBundlePreviewService {
     }
 
     /**
-     * requires des neuen Bundles, die weder das Bundle selbst noch Plan ∪
-     * aktive Bundles decken (#35). Ohne CatalogEntryRepository leer.
+     * requires of the new bundle that neither the bundle itself nor plan ∪
+     * active bundles cover (#35). Empty without CatalogEntryRepository.
      */
     private async collectMissingRequires(
         bundleVersion: BundleVersionRow,
@@ -409,7 +409,7 @@ export class SubscriptionBundlePreviewService {
         );
     }
 
-    /** `projectKey` lebt am Bundle-Stamm, nicht an der Version. */
+    /** `projectKey` lives on the bundle stem, not on the version. */
     private async resolveProjectKey(bundleVersion: BundleVersionRow): Promise<string | null> {
         const stem = await this.bundles.findById(bundleVersion.bundleId);
         return stem?.projectKey ?? null;
@@ -417,9 +417,9 @@ export class SubscriptionBundlePreviewService {
 }
 
 /**
- * Listenpreis (netto) für den Abrechnungszyklus inkl. plan-spezifischem
- * Pricing-Override (BundlePricingOverride mit `planId`, ohne
- * `businessTypeKey`). null = kein Preis für den Zyklus gepflegt.
+ * List price (net) for the billing cycle including plan-specific
+ * pricing override (BundlePricingOverride with `planId`, without
+ * `businessTypeKey`). null = no price maintained for the cycle.
  */
 export function resolveBundlePriceNet(
     bundleVersion: BundleVersionRow,

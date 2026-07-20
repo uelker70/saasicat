@@ -140,10 +140,10 @@
             {{ Math.max(1, Math.ceil(total / pageSize)) }}
         </footer>
 
-        <!-- Manifest-Driven Action Flow: nur gemountet, wenn `manifest`-Prop
-             gesetzt UND `manifestActionsEnabled` true (Default wenn manifest
-             gesetzt). Apps ohne Manifest-Flow brauchen die Dialog-Mounts
-             nicht zu duplizieren. -->
+        <!-- Manifest-Driven Action Flow: only mounted when the `manifest` prop
+             is set AND `manifestActionsEnabled` is true (default when manifest
+             is set). Apps without a manifest flow do not need to duplicate the
+             dialog mounts. -->
         <template v-if="manifestFlow">
             <MfaPromptDialog
                 v-model="manifestFlow.mfa.value.show"
@@ -188,52 +188,51 @@ import {
     tenantInitials,
 } from './tenants/format.js';
 
-// Plattform-Standard-Page: Mandanten-Liste.
+// Platform standard page: tenant list.
 //
-// Default-Layout: Avatar+Slug-Subtitel, Status-Pills, eine
-// konfigurierbare Verbrauch-Spalte (icon+field-Paare), Angelegt-Datum,
-// optionale Aktionen-Spalte.
+// Default layout: avatar + slug subtitle, status pills, one
+// configurable usage column (icon+field pairs), created-at date,
+// optional actions column.
 //
-// App-spezifische Bits via Props:
-//   - `subtitle`             : Header-Untertitel
-//   - `statusOptions`        : Filter-Dropdown-Werte (Default: Aktiv/Suspendiert)
-//   - `planOptions`          : Filter-Dropdown-Werte für Plan; ohne = blendet Dropdown aus
-//   - `planAccents`          : Plan-ID → Akzentfarbe (Avatar + Plan-Dot)
-//   - `planLabelField`       : Feld für Plan-Anzeige (z. B. "plan" oder "bundleKey")
-//   - `usageFields`          : Verbrauch-Spalten (icon + field), z. B.
+// App-specific bits via props:
+//   - `subtitle`             : header subtitle
+//   - `statusOptions`        : filter dropdown values (default: Aktiv/Suspendiert)
+//   - `planOptions`          : filter dropdown values for plan; omitted = hides dropdown
+//   - `planAccents`          : plan id → accent color (avatar + plan dot)
+//   - `planLabelField`       : field for the plan display (e.g. "plan" or "bundleKey")
+//   - `usageFields`          : usage columns (icon + field), e.g.
 //                              [{icon:'person',field:'users'},{icon:'directions_car',field:'vehicles'}]
-//   - `pillsForRow`          : (row) => Pills (Pilot/Trial/etc.)
-//   - `actions`              : Per-Row-Action-Buttons mit optional `tone` und
+//   - `pillsForRow`          : (row) => pills (Pilot/Trial/etc.)
+//   - `actions`              : per-row action buttons with optional `tone` and
 //                              `condition`
 //
 // Slots:
-//   - `#filters-extra`       : zusätzliche Filter
-//   - `#status-pills`        : Pills komplett überschreiben
-//   - `#row-actions`         : Aktionen-Spalte überschreiben (z. B. um nur
-//                              einen Detail-Link zu rendern und die Manifest-
-//                              Actions per `manifestActions`-Slot-Prop daneben
-//                              zu verarbeiten)
+//   - `#filters-extra`       : additional filters
+//   - `#status-pills`        : override the pills entirely
+//   - `#row-actions`         : override the actions column (e.g. to render
+//                              only a detail link and process the manifest
+//                              actions alongside via the `manifestActions`
+//                              slot prop)
 //
 // Manifest-Driven Action Flow (optional):
-//   - Wenn `manifest`-Prop gesetzt UND `manifestActionsEnabled` (Default `true`
-//     wenn `manifest` gesetzt) übernimmt die Page die volle
-//     Confirm→MFA→Handler-Orchestrierung (`useTenantActionFlow`) inkl.
-//     Dialog-Mounts (`MfaPromptDialog` + `TenantActionConfirmDialog`).
-//     Apps müssen das State-/Resolver-Boilerplate dann nicht mehr selbst
-//     schreiben.
-//   - Die resultierenden Manifest-Actions werden an `props.actions`
-//     APPENDED. Falls dieselbe `actionKey` sowohl als Custom-Action als auch
-//     im Manifest deklariert ist, gewinnt die Manifest-Action — Custom wird
-//     ausgefiltert + Warnung in der Konsole.
-//   - Im `#row-actions`-Slot wird die kombinierte Liste über die Slot-Prop
-//     `actions` zur Verfügung gestellt; Apps mit Custom-Slot rendern sie
-//     selbst.
+//   - When the `manifest` prop is set AND `manifestActionsEnabled` (default
+//     `true` when `manifest` is set), the page takes over the full
+//     Confirm→MFA→handler orchestration (`useTenantActionFlow`) incl.
+//     dialog mounts (`MfaPromptDialog` + `TenantActionConfirmDialog`).
+//     Apps then no longer need to write the state/resolver boilerplate
+//     themselves.
+//   - The resulting manifest actions are APPENDED to `props.actions`. If the
+//     same `actionKey` is declared both as a custom action and in the
+//     manifest, the manifest action wins — the custom one is filtered out
+//     + a warning in the console.
+//   - In the `#row-actions` slot the combined list is provided via the
+//     `actions` slot prop; apps with a custom slot render it themselves.
 
 /**
- * Row-Typ, den alle Konfigurations-Funktionen (pillsForRow, action.handler,
- * usw.) entgegennehmen. Apps reichen ihre eigenen Tenant-Row-Shapes durch —
- * `TenantDto` bildet das Plattform-Minimum, App-Felder kommen via Index-
- * Signatur (Plan, Verbrauch, isPilot, etc.) hinzu.
+ * Row type accepted by all configuration functions (pillsForRow,
+ * action.handler, etc.). Apps pass their own tenant row shapes through —
+ * `TenantDto` forms the platform minimum, app fields are added via an index
+ * signature (plan, usage, isPilot, etc.).
  */
 export type TenantRow = TenantDto & Record<string, unknown>;
 
@@ -246,7 +245,7 @@ export interface StatusPillDef {
 export interface UsageField {
     icon: string;
     field: string;
-    /** Optional: format-Funktion (Default: String(val)). */
+    /** Optional: format function (default: String(val)). */
     format?: (val: unknown, row: TenantRow) => string;
 }
 
@@ -256,21 +255,21 @@ export interface TenantRowAction {
     icon: string;
     tone?: 'positive' | 'negative' | 'muted' | 'primary' | 'warning' | 'accent';
     /**
-     * Optional, aber empfohlen für Custom-Actions, die das gleiche Verhalten
-     * wie eine Manifest-Action haben (z. B. `tenants.suspend`). Wird für die
-     * Dedup-Logik gegen Manifest-Actions verwendet.
+     * Optional, but recommended for custom actions that have the same behavior
+     * as a manifest action (e.g. `tenants.suspend`). Used for the dedup logic
+     * against manifest actions.
      */
     actionKey?: string;
-    /** Wenn gesetzt, statt button → anchor mit href. */
+    /** If set, renders an anchor with href instead of a button. */
     to?: (row: TenantRow) => string;
     handler?: (row: TenantRow) => void;
-    /** Wenn gesetzt, wird die Action nur gerendert wenn truthy. */
+    /** If set, the action is only rendered when truthy. */
     condition?: (row: TenantRow) => boolean;
 }
 
-// `endpoint` ist Pflicht — Plattform kennt den App-globalPrefix nicht
-// (z. B. `/api/admin/tenants` oder `/api/v1/admin/tenants`).
-// Hardcoded Default würde IMMER eine App falsch bedienen.
+// `endpoint` is mandatory — the platform does not know the app's globalPrefix
+// (e.g. `/api/admin/tenants` or `/api/v1/admin/tenants`).
+// A hardcoded default would ALWAYS serve some app incorrectly.
 const props = withDefaults(
     defineProps<{
         endpoint: string;
@@ -289,43 +288,44 @@ const props = withDefaults(
         pillsForRow?: (row: TenantRow) => StatusPillDef[];
         actions?: readonly TenantRowAction[];
         /**
-         * Manifest-Quelle für den Manifest-Driven Action Flow. Wenn gesetzt,
-         * mountet die Page intern MfaPromptDialog + TenantActionConfirmDialog
-         * und appended Manifest-Actions an `actions`.
+         * Manifest source for the Manifest-Driven Action Flow. When set, the
+         * page internally mounts MfaPromptDialog + TenantActionConfirmDialog
+         * and appends manifest actions to `actions`.
          */
         manifest?: AdminManifest | null;
         /**
-         * Schaltet die Manifest-Driven-Orchestrierung ein/aus. Default `true`,
-         * wenn `manifest` gesetzt — Apps können den Flow explizit deaktivieren.
+         * Toggles the manifest-driven orchestration on/off. Default `true`
+         * when `manifest` is set — apps can explicitly disable the flow.
          */
         manifestActionsEnabled?: boolean;
         /**
-         * Row-spezifischer Filter für Manifest-Actions. Default: `suspend` nur
-         * für aktive Tenants, `reactivate` nur für inaktive, sonst sichtbar.
+         * Row-specific filter for manifest actions. Default: `suspend` only
+         * for active tenants, `reactivate` only for inactive ones, otherwise
+         * visible.
          */
         visibleForRow?: (def: TenantActionDef, row: TenantRow) => boolean;
         /**
-         * Manifest-Action → Icon. Default-Mapping siehe
+         * Manifest action → icon. For the default mapping see
          * `defaultIconForActionKey` in `use-platform-tenant-actions.ts`.
          */
         iconForActionKey?: (actionKey: string) => string;
         /**
-         * Manifest-Action → Tone. Default: suspend/revoke→negative,
-         * reactivate/grant→positive, sonst→primary.
+         * Manifest action → tone. Default: suspend/revoke→negative,
+         * reactivate/grant→positive, otherwise→primary.
          */
         toneForActionKey?: (actionKey: string) => PlatformTenantActionTone['tone'];
-        /** Optional: MFA-Dialog-Beschreibung. */
+        /** Optional: MFA dialog description. */
         mfaDescription?: (def: TenantActionDef, row: TenantRow) => string;
         /**
-         * Erfolgs-Hook nach Action-Dispatch. Default: page.reload(). Apps mit
-         * zusätzlichem Refresh-Bedarf können den Hook überschreiben.
+         * Success hook after action dispatch. Default: page.reload(). Apps with
+         * additional refresh needs can override the hook.
          */
         onActionSuccess?: () => Promise<void> | void;
         /**
-         * Notify-Provider (Toast/Snackbar) für Erfolg/Fehler der Manifest-
-         * Actions. Default ist ein No-Op — Apps mit Quasar reichen typisch
-         * `(k, m) => $q.notify({ type: k, message: m, position: 'top' })`
-         * ein. Ohne Notify werden Fehler nur als Promise-Reject sichtbar.
+         * Notify provider (toast/snackbar) for success/failure of the manifest
+         * actions. Default is a no-op — apps with Quasar typically pass in
+         * `(k, m) => $q.notify({ type: k, message: m, position: 'top' })`.
+         * Without notify, errors are only visible as a promise rejection.
          */
         actionNotify?: (kind: 'positive' | 'negative', message: string) => void;
     }>(),
@@ -372,9 +372,9 @@ function onClearSearch(): void {
 }
 
 function applyFilter(): void {
-    // Status-Wert wird unverändert weitergereicht. Apps konfigurieren via
-    // `statusOptions` die Werte, die ihr Backend erwartet (z. B.
-    // 'ACTIVE'/'INACTIVE'; Plattform-Default: 'active'/'suspended').
+    // The status value is passed through unchanged. Apps configure the values
+    // their backend expects via `statusOptions` (e.g. 'ACTIVE'/'INACTIVE';
+    // platform default: 'active'/'suspended').
     filter.value = {
         ...filter.value,
         search: searchInput.value || undefined,
@@ -392,9 +392,9 @@ watch(
 );
 
 // ── Manifest-Driven Action Flow (optional) ────────────────────────
-// Wir leiten alle reaktiven Defaults aus den Props ab, damit Apps die
-// Props später dynamisch ändern können (z. B. Manifest-Reload), ohne
-// dass die Page neu gemountet werden muss.
+// We derive all reactive defaults from the props so that apps can change the
+// props dynamically later (e.g. manifest reload) without the page needing to
+// be remounted.
 const manifestActionsEnabled = computed(
     () => props.manifest != null && props.manifestActionsEnabled !== false,
 );
@@ -436,9 +436,9 @@ if (manifestFlow && typeof window !== 'undefined') {
     );
 }
 
-// Kombinierte Action-Liste: Custom-Actions (via `actions`-Prop) + Manifest-
-// Actions. Bei doppelter `actionKey` gewinnt die Manifest-Action — Custom
-// wird ausgefiltert + Warnung, damit App-Devs den Konflikt sehen.
+// Combined action list: custom actions (via the `actions` prop) + manifest
+// actions. On a duplicate `actionKey` the manifest action wins — the custom
+// one is filtered out + a warning, so app devs see the conflict.
 const combinedActions = computed<TenantRowAction[]>(() => {
     const custom = (props.actions ?? []).slice();
     const manifestList = manifestFlow ? manifestFlow.manifestActions.value : [];
@@ -490,7 +490,7 @@ function usageStr(row: TenantRow, key: string): string | undefined {
 
 function resolvedPills(row: TenantRow): StatusPillDef[] {
     if (props.pillsForRow) return props.pillsForRow(row);
-    // Default: nur Aktiv/Suspendiert.
+    // Default: only Aktiv/Suspendiert.
     const isActive = (row as TenantDto).isActive;
     return [
         isActive

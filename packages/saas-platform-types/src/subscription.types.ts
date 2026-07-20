@@ -1,4 +1,4 @@
-// Subscription — Plattform-Tabellen-Wire-Format.
+// Subscription — platform table wire format.
 
 import type { PlanId, QuotaKey, FeatureKey } from './plan-catalog.types.js';
 import type { BillingCycle } from './promo-code.types.js';
@@ -9,14 +9,14 @@ export interface Subscription {
     id: string;
     tenantId: string;
     planId: PlanId;
-    /** FK auf PlanVersion — verbindlich für Bestand (Vertragsschutz P1). */
+    /** FK to PlanVersion — binding for existing subscriptions (contract protection P1). */
     planVersionId: string;
     billingCycle: BillingCycle;
     status: SubscriptionStatus;
 
-    /** Override per Tenant; nicht-gesetzte Felder fallen auf PlanVersion zurück. */
+    /** Override per Tenant; unset fields fall back to the PlanVersion. */
     customLimits?: Partial<Record<QuotaKey, number>>;
-    /** ENTERPRISE-Sondervertrag. */
+    /** ENTERPRISE special contract. */
     customMonthlyNet?: number | null;
 
     isPilot: boolean;
@@ -29,7 +29,7 @@ export interface Subscription {
     currentPeriodStart: string | null;
     currentPeriodEnd: string | null;
 
-    /** Plan-Version-Migration (siehe ROADMAP §6). */
+    /** Plan version migration (see ROADMAP §6). */
     pendingPlanVersionId: string | null;
     pendingPlanVersionEffectiveAt: string | null;
     pendingPlanVersionAccepted: boolean;
@@ -38,7 +38,7 @@ export interface Subscription {
     pendingPlanVersionNotifiedAt: string | null;
     pendingPlanVersionReminderSentAt: string | null;
 
-    /** Plan-Wechsel zum Periodenende (orthogonal zu pendingPlanVersionId). */
+    /** Plan change at period end (orthogonal to pendingPlanVersionId). */
     pendingPlanId: PlanId | null;
     pendingBillingCycle: BillingCycle | null;
     pendingEffectiveAt: string | null;
@@ -51,7 +51,7 @@ export interface Subscription {
 }
 
 // ──────────────────────────────────────────────────────────────────
-// PlanVersion — Vertragsschutz-Modell (ROADMAP §3.1)
+// PlanVersion — contract protection model (ROADMAP §3.1)
 // ──────────────────────────────────────────────────────────────────
 
 export type VersionChangeDirection = 'IMPROVEMENT' | 'REGRESSION' | 'NEUTRAL';
@@ -66,28 +66,28 @@ export interface VersionChange {
 export interface VersionedEntityBase {
     id: string;
     version: number;
-    /** Vorgänger, gegen den der Draft diff'te. */
+    /** Predecessor the draft diffed against. */
     baseVersionId: string | null;
-    /** null = Draft, gesetzt = live oder superseded. */
+    /** null = draft, set = live or superseded. */
     publishedAt: string | null;
-    /** gesetzt = nicht mehr vermarktet, aber für Bestand vertraglich gültig. */
+    /** set = no longer marketed, but contractually valid for existing subscriptions. */
     supersededAt: string | null;
     publishedChanges: VersionChange[] | null;
-    /** Pflicht beim Publish; in Notification-Mails zitiert. */
+    /** Required on publish; quoted in notification emails. */
     changeNote: string;
-    /** Beim Publish errechnet. */
+    /** Computed on publish. */
     nonRegressive: boolean;
     /**
-     * Ab wann diese Version für *neue* Buchungen aktiv ist (SPEC_V2 §4.2).
-     * null = Draft (noch kein Datum). Pflicht beim Publish; muss strikt nach
-     * `validFrom` der Vorgänger-Version liegen.
+     * From when this version is active for *new* bookings (SPEC_V2 §4.2).
+     * null = draft (no date yet). Required on publish; must lie strictly after
+     * the `validFrom` of the predecessor version.
      */
     validFrom: string | null;
     /**
-     * Bis wann diese Version für *neue* Buchungen verfügbar ist; null = unbegrenzt.
-     * Wird beim Publish einer Nachfolge-Version automatisch auf
-     * `nachfolger.validFrom - 1 Tag` gesetzt (Auto-Sukzession).
-     * Bestand-Subscriptions (P1) bleiben davon unberührt.
+     * Until when this version is available for *new* bookings; null = unlimited.
+     * Automatically set to `successor.validFrom - 1 day` when a successor
+     * version is published (auto-succession).
+     * Existing subscriptions (P1) are unaffected by this.
      */
     validUntil: string | null;
     createdByUserId: string | null;
@@ -96,50 +96,48 @@ export interface VersionedEntityBase {
     updatedAt: string;
 
     /**
-     * Computed beim List-Read im Service: `true`, wenn keine Version mit
-     * höherer `version`-Nummer (gleicher Stamm) existiert. Wird gebraucht,
-     * um eine published-but-future Version editierbar zu halten — nur die
-     * letzte in der Kette darf nachjustiert werden, weil Folgeversionen
-     * sonst inkonsistent würden. Optional, weil Adapter-Reads, die das
-     * Feld nicht setzen, vom Helper als `undefined → false` interpretiert
-     * werden (= eingefroren).
+     * Computed on the list read in the service: `true` when no version with a
+     * higher `version` number (same lineage) exists. Needed to keep a
+     * published-but-future version editable — only the last one in the chain
+     * may be readjusted, because successor versions would otherwise become
+     * inconsistent. Optional, because adapter reads that do not set the field
+     * are interpreted by the helper as `undefined → false` (= frozen).
      */
     isLatestInChain?: boolean;
 
     /**
-     * Computed beim List-Read im Service: Anzahl Subscriptions, die diese
-     * Version binden. Wird gebraucht, um eine published-but-future Version
-     * editierbar zu halten — sobald eine Buchung existiert, ist die
-     * Version eingefroren, weil sie zum Vertragsgegenstand wurde. Optional
-     * aus Backwards-Compat-Gründen; der Helper interpretiert `undefined`
-     * defensiv als `>0` (= eingefroren). Wie der Adapter zählt, hängt vom
-     * Versions-Typ ab: PlanVersion über `Subscription.planVersionId`
-     * (+ `pendingPlanVersionId`), BundleVersion über die jeweilige
-     * App-spezifische Subscription→Bundle-Bindung.
+     * Computed on the list read in the service: number of subscriptions that
+     * bind this version. Needed to keep a published-but-future version
+     * editable — as soon as a booking exists, the version is frozen because it
+     * has become part of the contract. Optional for backwards-compat reasons;
+     * the helper defensively interprets `undefined` as `>0` (= frozen). How the
+     * adapter counts depends on the version type: PlanVersion via
+     * `Subscription.planVersionId` (+ `pendingPlanVersionId`), BundleVersion
+     * via the respective app-specific Subscription→Bundle binding.
      */
     subscriptionCount?: number;
 }
 
 /**
- * SubscriptionBundle — Wire-Format der `subscription_bundles`-Junction
- * (SPEC_V2 §11.1 M6 Pack 2e). Modelliert eine **eigenständige** Bundle-
- * Buchung einer Subscription analog zur Plan-Buchung; Bundles werden mit
- * eigener Mindestlaufzeit + eigener Kündigung gepflegt (User-Anforderung
- * aus P11.7.3).
+ * SubscriptionBundle — wire format of the `subscription_bundles` junction
+ * (SPEC_V2 §11.1 M6 Pack 2e). Models a **standalone** bundle booking of a
+ * subscription, analogous to the plan booking; bundles are maintained with
+ * their own minimum term + their own cancellation (user requirement from
+ * P11.7.3).
  *
- * - `bundleVersionId` bindet die Buchung an eine *exakte* BundleVersion
- *   (immutable; Bundle-Updates wirken erst nach einer neuen Version mit
- *   eigener Migration).
- * - `startedAt` ist Vertragsbeginn dieser Buchung.
- * - `minimumTermEndsAt` = Mindestlaufzeit-Ende; `null` = keine
- *   Mindestlaufzeit (Plattform-Default = 12 Monate, Service-Side gesetzt).
- * - `canceledAt` / `canceledEffectiveAt`: Kündigungs-Anker vs.
- *   Wirksamkeits-Datum. Vor Mindestlaufzeit-Ende ist `canceledEffectiveAt =
- *   minimumTermEndsAt`, sonst Periodenende der Subscription.
+ * - `bundleVersionId` binds the booking to an *exact* BundleVersion
+ *   (immutable; bundle updates only take effect after a new version with its
+ *   own migration).
+ * - `startedAt` is the contract start of this booking.
+ * - `minimumTermEndsAt` = end of the minimum term; `null` = no minimum term
+ *   (platform default = 12 months, set service-side).
+ * - `canceledAt` / `canceledEffectiveAt`: cancellation anchor vs. effective
+ *   date. Before the minimum term ends, `canceledEffectiveAt =
+ *   minimumTermEndsAt`, otherwise the subscription's period end.
  *
- * Bestand-Schutz: für die SuperAdmin-Editor-Editierbarkeit zählt
- * `SubscriptionRepository.countByBundleVersionId` die nicht-gekündigten
- * Einträge (`canceledAt IS NULL OR canceledEffectiveAt > NOW()`).
+ * Existing-subscription protection: for SuperAdmin editor editability,
+ * `SubscriptionRepository.countByBundleVersionId` counts the non-canceled
+ * entries (`canceledAt IS NULL OR canceledEffectiveAt > NOW()`).
  */
 export interface SubscriptionBundleRecord {
     id: string;
@@ -154,11 +152,11 @@ export interface SubscriptionBundleRecord {
 }
 
 /**
- * API-View für `GET /billing/subscription-bundles`: Record + denormalisierte
- * Bundle-Infos (Key/Label/Preis) aus der gebuchten BundleVersion. So zeigt die
- * UI gebuchte Bundles ohne Katalog-Join an — der Katalog kann gefilterte/
- * abgelöste Versionen ausschließen, sonst fällt die Anzeige auf die rohe
- * bundleVersionId (UUID) zurück.
+ * API view for `GET /billing/subscription-bundles`: record + denormalized
+ * bundle info (key/label/price) from the booked BundleVersion. This lets the
+ * UI show booked bundles without a catalog join — the catalog may exclude
+ * filtered/superseded versions, otherwise the display falls back to the raw
+ * bundleVersionId (UUID).
  */
 export interface SubscriptionBundleView extends SubscriptionBundleRecord {
     bundleKey: string | null;
@@ -170,15 +168,15 @@ export interface CreateSubscriptionBundleData {
     subscriptionId: string;
     bundleVersionId: string;
     startedAt: Date;
-    /** Default = startedAt + 12 Monate, sofern nicht gesetzt. */
+    /** Default = startedAt + 12 months, unless set. */
     minimumTermEndsAt?: Date | null;
 }
 
 export interface CancelSubscriptionBundleData {
     canceledAt: Date;
     /**
-     * Effektives Wirksamkeitsdatum der Kündigung. Service rechnet das
-     * vor: max(canceledAt + 1 Periode, minimumTermEndsAt).
+     * Effective date the cancellation takes effect. The service computes it:
+     * max(canceledAt + 1 period, minimumTermEndsAt).
      */
     canceledEffectiveAt: Date;
 }

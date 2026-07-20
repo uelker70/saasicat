@@ -1,14 +1,14 @@
-// useTenantActionFlow — wandelt `manifest.tenants.actions[]` in eine
-// invoke-fähige Liste um, die Confirm-Flow + MFA-Flow + Handler-Dispatch
-// in einem Aufruf orchestriert.
+// useTenantActionFlow — turns `manifest.tenants.actions[]` into an
+// invoke-capable list that orchestrates the confirm flow + MFA flow +
+// handler dispatch in a single call.
 //
-// Vorher: jede App duplizierte den Flow lokal in ihrer `TenantsPage.vue`
-// (Confirm-Dialog → MFA-Dialog → fetch). Drift zwischen Manifest-Spec
-// (`requiresMfa: true`) und tatsächlichem UI-Flow war unvermeidbar.
+// Before: every app duplicated the flow locally in its `TenantsPage.vue`
+// (confirm dialog → MFA dialog → fetch). Drift between the manifest spec
+// (`requiresMfa: true`) and the actual UI flow was unavoidable.
 //
-// Jetzt: Manifest deklariert die Action mit `requiresMfa` und `confirmType`,
-// der Composable orchestriert die Reihenfolge, App liefert nur die Provider
-// (Quasar-Dialog) und den Handler (HTTP-Call) — beides via
+// Now: the manifest declares the action with `requiresMfa` and `confirmType`,
+// the composable orchestrates the order, and the app only supplies the
+// providers (Quasar dialog) and the handler (HTTP call) — both via
 // `createSuperAdminApp({ actions: { [actionKey]: handler } })`.
 
 import { computed, type ComputedRef, type Ref } from 'vue';
@@ -17,31 +17,31 @@ import { ActionRegistry } from './action-registry.js';
 import { useSuperAdminActions } from './use-super-admin-context.js';
 
 /**
- * Input, das der App-seitige Handler bekommt. `mfaCode` ist gefüllt,
- * wenn `def.requiresMfa === true` UND der Provider einen Code liefert.
- * `reason` kommt aus dem Confirm-Provider (typed-slug / typed-production
- * confirms typischerweise eine Slug-Eingabe als Sicherheitsabfrage).
+ * Input the app-side handler receives. `mfaCode` is populated when
+ * `def.requiresMfa === true` AND the provider supplies a code.
+ * `reason` comes from the confirm provider (typed-slug / typed-production
+ * typically confirm a slug entry as a safety check).
  */
 export interface TenantActionInput<TRow extends TenantDto = TenantDto> {
     row: TRow;
     mfaCode: string | null;
     reason: string | null;
     /**
-     * App-spezifische Zusatz-Inputs, die der Confirm-Provider erfasst und
-     * an den Handler durchreicht (z. B. `until` für `pilots.extend` bei
-     * `confirmType: 'date'`). Liegt der Confirm-Provider keine `extras`
-     * an, ist es ein leeres Objekt.
+     * App-specific extra inputs that the confirm provider captures and
+     * passes through to the handler (e.g. `until` for `pilots.extend` with
+     * `confirmType: 'date'`). If the confirm provider supplies no `extras`,
+     * this is an empty object.
      */
     extras: Record<string, unknown>;
 }
 
-/** Provider-Contract für UI-Dialoge — Apps liefern Quasar-/Headless-Implementierung. */
+/** Provider contract for UI dialogs — apps supply the Quasar/headless implementation. */
 export interface TenantActionFlowProviders<TRow extends TenantDto = TenantDto> {
     /**
-     * App-spezifische Confirm-UI. Wird aufgerufen, wenn `def.confirmType !==
-     * 'none'`. Returnt `{ ok: false }` wenn der User abbricht. Optional
-     * darf `extras` zurückgegeben werden — das landet im
-     * `TenantActionInput.extras` des Handlers (z. B. `{ until: ISO }` für
+     * App-specific confirm UI. Invoked when `def.confirmType !== 'none'`.
+     * Returns `{ ok: false }` when the user cancels. Optionally `extras`
+     * may be returned — that ends up in the handler's
+     * `TenantActionInput.extras` (e.g. `{ until: ISO }` for
      * `confirmType: 'date'`).
      */
     confirm?: (
@@ -53,20 +53,20 @@ export interface TenantActionFlowProviders<TRow extends TenantDto = TenantDto> {
         extras?: Record<string, unknown>;
     }>;
     /**
-     * App-spezifische MFA-UI. Wird aufgerufen, wenn `def.requiresMfa`. Returnt
-     * `null` wenn der User abbricht. Sonst der TOTP-Code, der dem Backend
-     * via `X-Mfa-Code`-Header beigegeben werden muss.
+     * App-specific MFA UI. Invoked when `def.requiresMfa`. Returns `null`
+     * when the user cancels. Otherwise the TOTP code that must be attached
+     * to the backend via the `X-Mfa-Code` header.
      */
     mfa?: (def: TenantActionDef, ctx: { row: TRow }) => Promise<string | null>;
-    /** Optional: Erfolgs-/Fehler-Notify (Toast/Snackbar). */
+    /** Optional: success/error notify (toast/snackbar). */
     notify?: (kind: 'positive' | 'negative', message: string) => void;
-    /** Optional: Hook nach erfolgreichem Dispatch (z. B. Liste reloaden). */
+    /** Optional: hook after a successful dispatch (e.g. reload the list). */
     onSuccess?: (def: TenantActionDef, ctx: { row: TRow }) => void;
     /**
-     * Optional: Row-spezifische Sichtbarkeit. Wird nach Capability- und
-     * Handler-Check ausgewertet — `false` blendet die Action für diese Row
-     * aus (z. B. `tenants.suspend` nur für aktive Tenants).
-     * Default: `true` (nicht ausblenden).
+     * Optional: row-specific visibility. Evaluated after the capability and
+     * handler checks — `false` hides the action for this row (e.g.
+     * `tenants.suspend` only for active tenants).
+     * Default: `true` (do not hide).
      */
     visibleForRow?: (def: TenantActionDef, row: TRow) => boolean;
 }
@@ -74,8 +74,8 @@ export interface TenantActionFlowProviders<TRow extends TenantDto = TenantDto> {
 export interface ResolvedTenantAction<TRow extends TenantDto = TenantDto> {
     def: TenantActionDef;
     /**
-     * Startet den Flow: Confirm → MFA → Handler. Returnt das Handler-Result
-     * oder `undefined`, wenn der Flow vom User abgebrochen wurde.
+     * Starts the flow: confirm → MFA → handler. Returns the handler result
+     * or `undefined` when the user cancelled the flow.
      */
     invoke: (row: TRow) => Promise<unknown>;
 }
@@ -83,43 +83,42 @@ export interface ResolvedTenantAction<TRow extends TenantDto = TenantDto> {
 export interface UseTenantActionFlowResult<TRow extends TenantDto = TenantDto> {
     registry: ComputedRef<ActionRegistry | null>;
     /**
-     * Row-unabhängige Action-Liste, gefiltert nach **statischen** Kriterien:
-     *   1. Capability-Gate: `requiredCapability` darf im Manifest nicht
-     *      explizit `false` sein.
-     *   2. Handler-Gate: für jeden `actionKey` muss ein Handler in der
-     *      `actions:`-Map registriert sein (sonst Ghost-Button).
+     * Row-independent action list, filtered by **static** criteria:
+     *   1. Capability gate: `requiredCapability` must not be explicitly
+     *      `false` in the manifest.
+     *   2. Handler gate: for every `actionKey` a handler must be registered
+     *      in the `actions:` map (otherwise a ghost button).
      *
-     * `visibleForRow` wird hier NICHT ausgewertet — die Liste ist die
-     * Basis, aus der Pages ihre Action-Deskriptoren ableiten. Die row-
-     * spezifische Sichtbarkeit kommt erst über `actionsForRow(row)` oder
-     * über die `condition()` der Plattform-Page-Buttons.
+     * `visibleForRow` is NOT evaluated here — the list is the basis from
+     * which pages derive their action descriptors. Row-specific visibility
+     * only comes in via `actionsForRow(row)` or via the `condition()` of the
+     * platform page buttons.
      *
-     * Damit funktionieren Sample-Row-basierte UI-Konstruktionen wieder:
-     * eine Page kann `availableActions.value` durchgehen und Buttons
-     * vorbereiten, ohne dass `tenants.reactivate` für `isActive: true`
-     * Sample-Rows verschwindet.
+     * This makes sample-row-based UI constructions work again: a page can
+     * walk `availableActions.value` and prepare buttons without
+     * `tenants.reactivate` disappearing for `isActive: true` sample rows.
      */
     availableActions: ComputedRef<TenantActionDef[]>;
     /**
-     * Liefert die für `row` sichtbaren Actions. Filtert zusätzlich zu den
-     * Capability-/Handler-Checks (siehe `availableActions`) den
-     * `visibleForRow`-Provider durch — also alles, was row-spezifisch
-     * abhängt (Bsp. `tenants.suspend` nur für aktive Tenants).
+     * Returns the actions visible for `row`. In addition to the
+     * capability/handler checks (see `availableActions`), it runs the
+     * `visibleForRow` provider — i.e. everything that depends on the row
+     * (e.g. `tenants.suspend` only for active tenants).
      */
     actionsForRow: (row: TRow) => ResolvedTenantAction<TRow>[];
-    /** Drift-Diagnose: deklarierte Actions ohne registrierten Handler. */
+    /** Drift diagnostics: declared actions without a registered handler. */
     orphanedDefs: ComputedRef<string[]>;
 }
 
 /**
- * Vue-Composable. Nutzt:
- *   1. `useSuperAdminActions()` als Quelle der Handler-Map (App liefert sie
- *      via `createSuperAdminApp({ actions: { [actionKey]: handler } })`).
- *   2. Den übergebenen Manifest-Ref, um auf Manifest-Reload zu reagieren.
+ * Vue composable. Uses:
+ *   1. `useSuperAdminActions()` as the source of the handler map (the app
+ *      supplies it via `createSuperAdminApp({ actions: { [actionKey]: handler } })`).
+ *   2. The provided manifest ref, to react to manifest reloads.
  *
- * Liefert eine `actionsForRow(row)`-Funktion, die in der Page direkt in
- * `<button v-for="...">` gerendert wird. Der `invoke`-Aufruf orchestriert
- * Confirm + MFA + Dispatch automatisch.
+ * Returns an `actionsForRow(row)` function that is rendered directly in the
+ * page inside `<button v-for="...">`. The `invoke` call orchestrates
+ * confirm + MFA + dispatch automatically.
  */
 export function useTenantActionFlow<TRow extends TenantDto = TenantDto>(
     manifest: Ref<AdminManifest | null>,
@@ -164,16 +163,16 @@ function passesStaticGates(
     capabilities: Record<string, boolean>,
     orphanedKeys: Set<string>,
 ): boolean {
-    // Capability-Gate: Apps können Actions deaktivieren, indem sie die
-    // requiredCapability im Manifest explizit auf `false` setzen. Fehlt der
-    // Eintrag (undefined), gilt die Action als verfügbar — die Plattform
-    // verlangt nicht, dass jede Capability deklariert sein muss.
+    // Capability gate: apps can disable actions by setting the
+    // requiredCapability explicitly to `false` in the manifest. If the entry
+    // is missing (undefined), the action counts as available — the platform
+    // does not require every capability to be declared.
     if (def.requiredCapability && capabilities[def.requiredCapability] === false) {
         return false;
     }
-    // Handler-Gate: ohne registrierten Handler entsteht ein Ghost-Button,
-    // der erst nach Confirm/MFA fehlschlägt. Wir blenden ihn lieber sofort
-    // aus; `orphanedDefs` macht die Drift weiterhin diagnostizierbar.
+    // Handler gate: without a registered handler a ghost button appears that
+    // only fails after confirm/MFA. We prefer to hide it immediately;
+    // `orphanedDefs` keeps the drift diagnosable.
     if (orphanedKeys.has(def.actionKey)) {
         return false;
     }
@@ -218,7 +217,7 @@ async function runFlow<TRow extends TenantDto>(
     try {
         resolved = registry.get(def.actionKey);
     } catch (err) {
-        // MissingHandlerError oder ActionDefNotInManifestError — App-Setup-Fehler.
+        // MissingHandlerError or ActionDefNotInManifestError — app setup error.
         providers.notify?.('negative', err instanceof Error ? err.message : String(err));
         throw err;
     }
