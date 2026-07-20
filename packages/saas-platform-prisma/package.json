@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/prisma",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Default Prisma adapters for the SaaS platform: PrismaMfaAdapter, PrismaAuditAdapter, AsyncLocalRlsBypassAdapter, PrismaPlanCatalogReadSink. Assumes the prisma-fragments schema from @saasicat/spec (table names like SuperAdminMfa, AuditEntry, Plan, CatalogPlanVersion, ...). Apps with a diverging schema write their own adapters — the platform ports stay identical.",
     "type": "module",
     "main": "./dist/index.cjs",

@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/types",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "TypeScript interfaces of the SaaS platform: AdminManifest, PlanCatalog, PromoCode, AuditEvent, adapter ports. Derived from the JSON Schemas in @saasicat/spec.",
     "type": "module",
     "main": "./dist/index.cjs",
