@@ -3,8 +3,6 @@
 //
 // `projectKey` + `currency` sind beim Build gebunden (App-Identität);
 // die Webseite übergibt nur `?lang=`.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §9 + §9a
 
 import {
     type CanActivate,

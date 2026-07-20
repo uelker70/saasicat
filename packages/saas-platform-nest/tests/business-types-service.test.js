@@ -7,7 +7,7 @@ import { FakeBundleRepository, FakeBusinessTypeRepository } from '../dist/testin
 // BusinessTypesService — CRUD + Komposition aus published BundleVersions +
 // Strict-Check (Disjointness, Compatibility, Bundle-Existence) + Diff.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 function buildSnapshot(features = [], quotas = []) {
     return {

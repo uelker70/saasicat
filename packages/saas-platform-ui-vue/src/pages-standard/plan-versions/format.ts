@@ -1,8 +1,8 @@
 // Formatierungs-Helfer für die Plan-Versions-Views.
 //
-// Phase 2c: Aus autohauspro/admin/src/pages/components/plan-versions/format.ts
-// portiert. Zeit-Bezugspunkt für `formatRelativeDe` ist der Aufruf-Moment,
-// nicht ein hartcodiertes Demo-Datum (autohauspro-Original hatte `2026-05-04` —
+// Phase 2c: Aus einem Konsumenten-Admin portiert.
+// Zeit-Bezugspunkt für `formatRelativeDe` ist der Aufruf-Moment,
+// nicht ein hartcodiertes Demo-Datum (die portierte Vorlage hatte `2026-05-04` —
 // Plattform muss in Production funktionieren).
 
 export function fmtEuro(n: number): string {

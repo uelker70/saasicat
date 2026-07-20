@@ -5,7 +5,7 @@ import { DEFAULT_MANIFEST_CHECKS, ManifestCliFlow } from '../dist/index.js';
 function buildManifest(overrides = {}) {
     return {
         schemaVersion: 1,
-        project: { key: 'autohauspro', displayName: 'AutohausPro', environment: 'development' },
+        project: { key: 'demoapp', displayName: 'DemoApp', environment: 'development' },
         build: {
             platformPackageVersion: '0.1.0',
             appVersion: '1.0.0',
@@ -16,7 +16,6 @@ function buildManifest(overrides = {}) {
             hash: 'h1',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: ['users', 'vehicles', 'storageGb'],
             features: [],
             plans: [],
         },
@@ -29,13 +28,13 @@ function buildManifest(overrides = {}) {
             standardPages: { tenants: { enabled: true } },
             projectPages: [
                 {
-                    id: 'autohauspro.datev',
+                    id: 'demoapp.datev',
                     label: 'DATEV',
                     route: '/admin/datev',
                     // Beide ComponentKey-Schreibweisen sind ab Q.3.1 erlaubt:
-                    // 'autohauspro-datev' (lowercase-hyphenated) ODER 'autohauspro.datev'
+                    // 'demoapp-datev' (lowercase-hyphenated) ODER 'demoapp.datev'
                     // (namespace.dot). Test-Fixture nutzt lowercase-hyphenated.
-                    componentKey: 'autohauspro-datev',
+                    componentKey: 'demoapp-datev',
                     requiredCapability: 'datev.export',
                 },
             ],
@@ -61,7 +60,7 @@ function buildManifest(overrides = {}) {
             ],
             actions: [
                 {
-                    id: 'autohauspro.datev.runExport',
+                    id: 'demoapp.datev.runExport',
                     label: 'Export',
                     // Q.3.1: TenantAction.actionKey nutzt ab jetzt domain.action
                     // (SPEC §4.2.1) — analog zu Capabilities. AuditAction.key
@@ -133,18 +132,18 @@ describe('ManifestCliFlow.diff', () => {
                 standardPages: m.navigation.standardPages,
                 projectPages: [
                     {
-                        id: 'autohauspro.legacy',
+                        id: 'demoapp.legacy',
                         label: 'Legacy',
                         route: '/admin/legacy',
-                        componentKey: 'autohauspro-legacy',
+                        componentKey: 'demoapp-legacy',
                     },
                 ],
             },
         });
         const d = flow.diff(expected);
         assert.notEqual(d, null);
-        assert.deepEqual(d.componentKeysAdded, ['autohauspro-datev']);
-        assert.deepEqual(d.componentKeysRemoved, ['autohauspro-legacy']);
+        assert.deepEqual(d.componentKeysAdded, ['demoapp-datev']);
+        assert.deepEqual(d.componentKeysRemoved, ['demoapp-legacy']);
     });
 });
 

@@ -16,7 +16,6 @@ const MINIMAL_CONFIG = {
         hash: 'sha256-x',
         currency: 'EUR',
         vatRate: 0,
-        quotaKeys: [],
         plans: [],
         features: [],
     },

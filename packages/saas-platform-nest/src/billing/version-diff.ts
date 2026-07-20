@@ -5,8 +5,6 @@
 //
 // Bestandsimporte aus `@saasicat/nest/billing` bleiben
 // unverändert kompatibel.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §6 + SPEC_V2.md §7
 
 export { classifyBundleVersionDiff, classifyPlanDiff } from '@saasicat/types';
 export type {

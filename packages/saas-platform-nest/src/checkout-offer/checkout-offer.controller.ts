@@ -4,8 +4,6 @@
 // Die Endpoints sind **auth-frei** — der Offer entsteht vor der Tenant-
 // Anlage (Webseite-Besucher ist noch nicht eingeloggt). Der Konsument
 // kann dennoch eigene Guards (z. B. Rate-Limit) übergeben.
-//
-// Spec: yada-services/handoff/superadmin/SUPERADMIN_TENANT_METAMODELL.md §17a
 
 import {
     Body,

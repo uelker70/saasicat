@@ -10,8 +10,6 @@
 // der Composable orchestriert die Reihenfolge, App liefert nur die Provider
 // (Quasar-Dialog) und den Handler (HTTP-Call) — beides via
 // `createSuperAdminApp({ actions: { [actionKey]: handler } })`.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.5 + Findings #2/#4.
 
 import { computed, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';

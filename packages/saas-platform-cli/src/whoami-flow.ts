@@ -3,8 +3,7 @@
 // Liefert eine Diagnose-Übersicht über die aktive CLI-Identität, MFA-Setup-
 // Status und Production-Detection. Lese-only, kein Audit-Log, kein MFA.
 //
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.5 (3.3) +
-//        cli-conventions.md §1.
+// Spec: packages/saas-platform-spec/cli-conventions.md §1.
 
 import { Inject, Injectable } from '@nestjs/common';
 import { MfaService } from '@saasicat/nest';

@@ -36,11 +36,11 @@ describe('usePublicBoot', () => {
         const { boot, load } = usePublicBoot({
             endpoint: '/api/v1/admin/boot',
             http: buildHttp({
-                body: { project: { key: 'autohauspro', displayName: 'AutohausPro' } },
+                body: { project: { key: 'demoapp', displayName: 'DemoApp' } },
             }),
         });
         await load();
-        assert.equal(boot.value.project.key, 'autohauspro');
+        assert.equal(boot.value.project.key, 'demoapp');
     });
 
     test('load() setzt error bei HTTP-Fehler', async () => {
@@ -94,7 +94,7 @@ describe('useManifest', () => {
                 status: 200,
                 body: {
                     schemaVersion: 1,
-                    project: { key: 'autohauspro', displayName: 'AutohausPro' },
+                    project: { key: 'demoapp', displayName: 'DemoApp' },
                     build: {
                         platformPackageVersion: '0.1.0',
                         appVersion: '1.0.0',
@@ -107,7 +107,6 @@ describe('useManifest', () => {
                         hash: 'h',
                         currency: 'EUR',
                         vatRate: 19,
-                        quotaKeys: [],
                         plans: [],
                     },
                 },
@@ -129,7 +128,7 @@ describe('useManifest', () => {
                 headers: { get: (n) => (n.toLowerCase() === 'etag' ? '"x"' : null) },
                 json: async () => ({
                     schemaVersion: 1,
-                    project: { key: 'autohauspro', displayName: 'AutohausPro' },
+                    project: { key: 'demoapp', displayName: 'DemoApp' },
                     build: {
                         platformPackageVersion: '0.1.0',
                         appVersion: '1.0.0',
@@ -142,7 +141,6 @@ describe('useManifest', () => {
                         hash: 'h',
                         currency: 'EUR',
                         vatRate: 19,
-                        quotaKeys: [],
                         plans: [],
                     },
                 }),
@@ -179,7 +177,6 @@ describe('useManifest', () => {
                         hash: 'h',
                         currency: 'EUR',
                         vatRate: 19,
-                        quotaKeys: [],
                         plans: [],
                     },
                 },

@@ -2,8 +2,6 @@
 // beschriebene JSON-Datei einliest und als typed `DiscoverySnapshot`
 // zurückliefert. Wird von CI-Gates und Preflight-CLIs benutzt, die nicht
 // den vollen App-Module-Stack booten wollen.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.2
 
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';

@@ -8,8 +8,6 @@
 // jeweilige `requiredCapability` im Manifest auf `true` steht (oder gar
 // nicht gefordert ist). Manifest ist Discovery, nicht Security — der Server
 // enforcet die Routen unabhängig.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.6 (4.3–4.5).
 
 import type {
     AdminManifest,
@@ -20,7 +18,7 @@ import type {
 /**
  * Default-Routen für die Plattform-StandardPages. Konsumenten dürfen das
  * via `standardPageRoutes`-Option überschreiben (z. B. `/admin/users` →
- * `/admin/team` für vereinsfux).
+ * `/admin/team`).
  */
 export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
     dashboard: '/admin/dashboard',

@@ -1,14 +1,10 @@
 import type { BillingCycle } from '@saasicat/types';
 
 // Periodengrenz-Berechnungen für Subscriptions.
-// Spec: handoff/superadmin/SPEC.md §6 + autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §6.
 //
 // UTC-Methoden bewusst gewählt: bei lokal-relativem setMonth/setFullYear
 // führen DST-Übergänge zu Off-by-one-Day im UTC-Output. Periodengrenzen
 // sind UTC-stabil — wir wollen "1 Monat später, gleicher UTC-Tag".
-//
-// Aus autohauspro/backend/src/billing/billing-period.utils.ts extrahiert
-// (P1-Slice, UMSETZUNGSPLAN.md §3.2).
 
 function advanceOneCycle(d: Date, cycle: BillingCycle): Date {
     const out = new Date(d);

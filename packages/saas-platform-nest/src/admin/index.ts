@@ -1,7 +1,5 @@
 // @saasicat/nest/admin — SuperAdmin-Bausteine.
 //
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.3.
-//
 // Inhalte:
 //   - tokens:               MFA_PORT_TOKEN, AUDIT_PORT_TOKEN, RLS_BYPASS_PORT_TOKEN
 //   - super-admin.guard:    SuperAdminGuard (role === 'SUPER_ADMIN')

@@ -7,7 +7,7 @@
 // Globale Katalog-Tabellen (kein tenantId, kein RLS). Schreibzugriff nur über
 // SUPER_ADMIN-Guard im AdminController des `@saasicat/nest`-
 // Pakets. Per `projectKey` werden die Einträge der jeweiligen Konsumenten-App
-// (vereinsfux | autohauspro | minisoft | dagitto | …) zugeordnet.
+// zugeordnet.
 //
 // Versionierungs-Pattern identisch zu PlanVersion:
 //   - max. 1 Draft (publishedAt IS NULL) pro Identität — Constraint via
@@ -15,10 +15,6 @@
 //   - mehrere veröffentlichte Versionen, monoton inkrementelles `version`.
 //   - `supersededAt` markiert „nicht mehr aktuell vermarktet"; Bestand
 //     bleibt auf der committeten Version (vertragliche Plan-Garantie P1).
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §5 + §11 (Migration M1)
-//        + GESCHAEFTSTYP_SPEC.md §3.1 (Detail-Datenmodell)
-//        + SUPERADMIN_TENANT_METAMODELL.md §5.3 (Bundle-Begriff)
 //
 // Naming-Hinweis: GESCHAEFTSTYP_SPEC §3.1 spricht teils von `BundleDefinition`
 // (mit Suffix) und `BusinessType` (ohne) — das ist asymmetrisch. SPEC_V2 hat
@@ -36,7 +32,7 @@
 
 model Bundle {
     id          String   @id @default(uuid())
-    projectKey  String // 'vereinsfux' | 'autohauspro' | 'minisoft' | 'dagitto'
+    projectKey  String // z. B. 'clubapp' | 'demoapp' | …
     bundleKey   String // SCREAMING_SNAKE_CASE, z. B. 'SPORT', 'ACCOUNTING', 'EVERSEND_PEPPOL'
     label       String
     description String?
@@ -108,8 +104,8 @@ model BundleVersion {
 // -----------------------------------------------------------------------------
 // BusinessType — fachliche Vertikale (Vereinstyp, Branchen-Variante).
 //
-// Beispiele vereinsfux: SPORT_VEREIN, MOSCHEE_GEMEINDE, KIRCHEN_GEMEINDE,
-// SOZIAL_TRAEGER. Beispiel AutohausPro (zukünftig optional): AUTO_HANDEL.
+// Beispiele einer Vereins-App: SPORT_VEREIN, MOSCHEE_GEMEINDE,
+// KIRCHEN_GEMEINDE, SOZIAL_TRAEGER. Beispiel einer Handels-App: AUTO_HANDEL.
 // Pro Subscription wird **maximal ein** BusinessType referenziert (über
 // die zugehörige BusinessTypeVersion). Mehrere Bundles gleichzeitig =
 // eigener BusinessType, der die Bundles intern komponiert.

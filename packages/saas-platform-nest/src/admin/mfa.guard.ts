@@ -7,8 +7,6 @@
 // production` schaltet den Guard für CI-Smoke-Tests aus. Konsumenten
 // können einen eigenen Bypass-Schalter über die Umgebungsvariable hinaus
 // nicht hinzufügen — der Guard ist absichtlich strikt.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.3 (2.2).
 
 import {
     type CanActivate,
@@ -26,7 +24,7 @@ export const REQUIRE_MFA_KEY = 'saas-platform/require-mfa';
 
 /**
  * Markiert einen Endpunkt als MFA-pflichtig. Frontend sendet den TOTP-Code
- * im Header `X-Mfa-Code`. Spec: yada-services/handoff/superadmin/SPEC.md §10.
+ * im Header `X-Mfa-Code`.
  */
 export const RequireMfa = (): MethodDecorator & ClassDecorator =>
     SetMetadata(REQUIRE_MFA_KEY, true);

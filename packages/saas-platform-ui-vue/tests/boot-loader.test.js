@@ -23,15 +23,15 @@ describe('BootLoader.load', () => {
         const { http } = buildHttp({
             body: {
                 project: {
-                    key: 'autohauspro',
-                    displayName: 'AutohausPro',
+                    key: 'demoapp',
+                    displayName: 'DemoApp',
                     environment: 'development',
                 },
             },
         });
         const loader = new BootLoader({ http, endpoint: ENDPOINT });
         const r = await loader.load();
-        assert.equal(r.project.key, 'autohauspro');
+        assert.equal(r.project.key, 'demoapp');
     });
 
     test('schickt GET an konfigurierten endpoint', async () => {

@@ -16,8 +16,6 @@ import {
 //   - discoveryService.getProviders() / .getControllers()
 //   - metadataScanner.getAllMethodNames(prototype)
 //   - reflector.get(key, target)
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.2
 
 // ─────────────────────────────────────────────────────────────────
 // Test-Helfer
@@ -90,7 +88,7 @@ describe('computeSnapshotHash', () => {
         const input = {
             schemaVersion: 1,
             scannedAt: '2026-05-12T10:00:00.000Z',
-            app: { key: 'vereinsfux', version: '0.42.1' },
+            app: { key: 'clubapp', version: '0.42.1' },
             capabilities: [],
             features: [],
             quotas: [],
@@ -104,7 +102,7 @@ describe('computeSnapshotHash', () => {
     test('ignoriert scannedAt und app.version (Stabilität über Boot-Restarts)', () => {
         const base = {
             schemaVersion: 1,
-            app: { key: 'vereinsfux', version: '0.42.1' },
+            app: { key: 'clubapp', version: '0.42.1' },
             capabilities: [],
             features: [],
             quotas: [],
@@ -116,7 +114,7 @@ describe('computeSnapshotHash', () => {
         const b = computeSnapshotHash({
             ...base,
             scannedAt: '2026-05-12T20:00:00.000Z',
-            app: { key: 'vereinsfux', version: '99.99.99' },
+            app: { key: 'clubapp', version: '99.99.99' },
         });
         assert.equal(a, b, 'scannedAt + version dürfen Hash nicht beeinflussen');
     });
@@ -393,10 +391,10 @@ describe('DiscoveryScanner — Edge-Cases', () => {
     test('app-Info wird in den Snapshot übernommen', () => {
         const scanner = buildScanner({
             providers: [],
-            appInfo: { key: 'vereinsfux', version: '0.42.1' },
+            appInfo: { key: 'clubapp', version: '0.42.1' },
         });
         const snapshot = scanner.getSnapshot();
-        assert.equal(snapshot.app.key, 'vereinsfux');
+        assert.equal(snapshot.app.key, 'clubapp');
         assert.equal(snapshot.app.version, '0.42.1');
     });
 

@@ -1,12 +1,11 @@
 /* SuperAdmin-UI Theme — CSS-Variablen für die Plattform-Pages.
  *
- * Konsumenten-Apps (autohauspro-admin, vereinsfux-admin, …) können einzelne
+ * Konsumenten-Apps können einzelne
  * Variablen via eigenem `:root`-Block in der App-CSS überschreiben — wie
  * jede CSS-Var-Override. Klassen-Namen folgen dem `sa-`-Prefix-Konvention,
  * d. h. eine App-CSS kann z. B. `.sa-tenants__title` punkt-genau
  * neuformatieren ohne den Plattform-Code anzufassen.
  *
- * Spec: yada-services/handoff/superadmin/SPEC.md (Abschnitt UI/Theming).
  */
 
 :root {

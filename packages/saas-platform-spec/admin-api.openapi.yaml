@@ -1468,16 +1468,12 @@ components:
         # ────────── Plan-Catalog (mirror of plans.yaml) ──────────
         PlanCatalog:
             type: object
-            required: [schemaVersion, projectKey, currency, vatRate, quotaKeys, plans]
+            required: [schemaVersion, projectKey, currency, vatRate, plans]
             properties:
                 schemaVersion: { type: integer, const: 1 }
                 projectKey: { type: string, description: 'Projekt-Key der App (kebab-case)' }
                 currency: { type: string, pattern: '^[A-Z]{3}$' }
                 vatRate: { type: number, format: decimal, description: 'in Prozent' }
-                quotaKeys:
-                    type: array
-                    items: { type: string }
-                    minItems: 1
                 features:
                     type: array
                     items:
@@ -1725,4 +1721,4 @@ components:
                 promoRedemptionsLast30d: { type: integer }
                 auditEventsLast24h: { type: integer }
                 # Projekt-spezifische KPIs werden über separate Endpoints geliefert
-                # (z. B. /admin/dashboard/extras/datev — bleibt AutohausPro-only).
+                # (z. B. /admin/dashboard/extras/datev — bleibt app-spezifisch).

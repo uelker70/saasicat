@@ -16,9 +16,6 @@
 //   - mehrere veröffentlichte Versionen, monoton inkrementelles `version`.
 //   - `supersededAt` markiert „nicht mehr aktuell vermarktet"; die Version
 //     bleibt für Bestand abrechnungsgültig (vertragliche Plan-Garantie).
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.3)
-//        + handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §3.1 (AutohausPro-Quelle)
 
 // -----------------------------------------------------------------------------
 // Plan — Stamm-Identität eines Plans (SPEC_V2 §11.1 M6).

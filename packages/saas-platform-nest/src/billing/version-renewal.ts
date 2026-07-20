@@ -4,9 +4,6 @@
 // Audit, Cache-Invalidate) — die Plattform liefert die hier definierten
 // **Entscheidungs-Pure-Functions**, die für jede Subscription bestimmen,
 // was zu tun ist.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.9).
-//        autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §6.2.
 
 import type { BillingCycle } from '@saasicat/types';
 import { periodEndAfter } from './billing-period.js';

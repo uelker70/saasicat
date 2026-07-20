@@ -1,5 +1,5 @@
 // usePlatformTenantActions — kapselt die Orchestrierung, die vorher in
-// jedem App-Wrapper (vereinsfux/TenantsPage.vue + autohauspro/AdminTenantsPage.vue)
+// jedem App-Wrapper (den Tenants-Pages der Konsumenten-Admins)
 // dupliziert wurde:
 //   - MFA-Dialog-State + Promise-Resolver (Quasar-Dialog × Promise-Flow)
 //   - Confirm-Dialog-State + Promise-Resolver

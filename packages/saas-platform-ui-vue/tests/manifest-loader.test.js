@@ -32,7 +32,7 @@ const ENDPOINT = '/api/admin/manifest';
 
 const SAMPLE_MANIFEST = {
     schemaVersion: 1,
-    project: { key: 'autohauspro', displayName: 'AutohausPro' },
+    project: { key: 'demoapp', displayName: 'DemoApp' },
     build: {
         platformPackageVersion: '0.1.0',
         appVersion: '1.0.0',
@@ -45,7 +45,6 @@ const SAMPLE_MANIFEST = {
         hash: 'h1',
         currency: 'EUR',
         vatRate: 19,
-        quotaKeys: [],
         plans: [],
     },
 };
@@ -91,10 +90,10 @@ describe('ManifestLoader.load — Erst-Aufruf', () => {
             http,
             storage,
             endpoint: ENDPOINT,
-            storageKeyPrefix: 'ahp:',
+            storageKeyPrefix: 'ma:',
         });
         await loader.load();
-        assert.equal(storage.get('ahp:manifest:etag'), '"x"');
+        assert.equal(storage.get('ma:manifest:etag'), '"x"');
         assert.equal(storage.get('manifest:etag'), null);
     });
 });

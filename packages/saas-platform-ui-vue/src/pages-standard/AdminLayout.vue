@@ -97,21 +97,20 @@ import type { AdminManifest, StandardPageKey } from '@saasicat/types';
 import { buildRoutes, buildSidebar, DEFAULT_SECTION_ORDER } from '../nav-builder.js';
 import { ADMIN_UI_VERSION } from '../version.js';
 
-// SuperAdmin-Layout — universelle Plattform-Shell für alle Konsumenten-Apps
-// (autohauspro-admin, vereinsfux-admin, minisoft-admin, dagitto-admin).
+// SuperAdmin-Layout — universelle Plattform-Shell für alle Konsumenten-Apps.
 // CSS-Klassen `sa-admin-*` mit BEM-Konvention; Apps können jede Klasse mit
 // gleicher Spezifität in ihrer eigenen CSS überschreiben.
 //
 // App-spezifische Bits via Props:
-//   - `brandLogoText`     : 2-Buchstaben-Kürzel (z. B. 'ah', 'vf')
-//   - `brandName`         : 'AutohausPro' / 'vereinsfux' / …
+//   - `brandLogoText`     : 2-Buchstaben-Kürzel (z. B. 'ma', 'da')
+//   - `brandName`         : 'DemoApp' / 'ClubApp' / …
 //   - `brandTag`          : 'SuperAdmin' (Default)
 //   - `manifest`          : geladenes AdminManifest (oder null vor Auth)
 //   - `staticNavFallback` : Sidebar vor Manifest-Load (kein Flicker)
 //   - `localItems`        : zusätzliche Sidebar-Items, die nicht im Manifest
-//                           stehen (z. B. autohauspro's "Plan-Versionen")
+//                           stehen (z. B. eine app-eigene "Plan-Versionen"-Page)
 //   - `availableExtensions` : Set für ProjectPage-Capability-Filter
-//   - `standardPageRoutes`: Override pro StandardPageKey (z. B. autohauspro:
+//   - `standardPageRoutes`: Override pro StandardPageKey (z. B.
 //                           `dashboard` → '/admin/' statt '/admin/dashboard')
 //   - `pageTitleResolver` : (path) => string Mapping für den Header-Titel
 //   - `userName` / `userEmail` / `userInitials` : Anzeige

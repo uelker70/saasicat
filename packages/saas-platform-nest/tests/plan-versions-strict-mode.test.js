@@ -13,7 +13,7 @@ import {
 } from '../dist/catalog/index.js';
 import { FakePlanRepository } from '../dist/testing/index.js';
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 function buildSnapshot(features = [], quotas = []) {
     return {

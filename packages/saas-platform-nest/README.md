@@ -1,23 +1,23 @@
 # @saasicat/nest
 
-NestJS-Implementierung der SaaS-Plattform — Billing, Promo, Admin-Backend,
-Audit, MFA, Adapter-Ports.
+NestJS implementation of the SaaS platform — billing, promo codes, admin
+backend, audit, MFA, adapter ports.
 
-## Sub-Entries
+## Sub-entries
 
 ```ts
 import { computeDiscountGross, buildLabel, round2 } from '@saasicat/nest/promo';
 ```
 
-| Entry                  | Inhalt                                                                                                                                                                       |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@saasicat/nest/promo` | `computeDiscountGross`, `computeDiscountedGross`, `computeRegularStartsAt`, `addCycles`, `buildLabel`, `round2`, `grossFromNet`, `computeIncludedVat` — alles pure Functions |
+| Entry                  | Contents                                                                                                                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@saasicat/nest/promo` | `computeDiscountGross`, `computeDiscountedGross`, `computeRegularStartsAt`, `addCycles`, `buildLabel`, `round2`, `grossFromNet`, `computeIncludedVat` — all pure functions  |
 
-Weitere Entries: `./billing`, `./entitlement`, `./admin`, `./registration`,
+Further entries: `./billing`, `./entitlement`, `./admin`, `./registration`,
 `./discovery`, `./catalog`, `./checkout-offer`, `./subscription-contract`,
 `./platform`, `./testing`.
 
-## Konsum
+## Usage
 
 ```bash
 pnpm add @saasicat/nest
@@ -34,14 +34,14 @@ export {
 } from '@saasicat/nest/promo';
 ```
 
-## Konvention
+## Conventions
 
-- **Pure Functions ohne NestJS-Dekoratoren** dürfen unter `src/<area>/` liegen.
-  NestJS-Module + Services verlangen `@nestjs/common` als peerDependency.
-- **Keine Prisma-Imports.** Wer Wire-Format-Types braucht, importiert aus
+- **Pure functions without NestJS decorators** may live under `src/<area>/`.
+  NestJS modules + services require `@nestjs/common` as a peerDependency.
+- **No Prisma imports.** Anything needing wire-format types imports from
   `@saasicat/types`.
-- **Schema-Fragmente** für `prisma/schema.prisma`-Merge kommen unter
-  `prisma-fragments/` — separat versioniert.
+- **Schema fragments** for the `prisma/schema.prisma` merge live in
+  `prisma-fragments/` — versioned separately.
 
 ## Build
 
@@ -49,5 +49,5 @@ export {
 pnpm --filter @saasicat/nest build
 ```
 
-Erzeugt `dist/index.{js,cjs,d.ts}` plus `dist/promo/index.{js,cjs,d.ts}`
-über tsup mit Multi-Entry.
+Produces `dist/index.{js,cjs,d.ts}` plus `dist/promo/index.{js,cjs,d.ts}`
+via tsup with multiple entries.

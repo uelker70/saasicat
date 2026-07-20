@@ -4,8 +4,6 @@
 // Liest die letzten Audit-Log-Einträge über `AuditQueryPort` und formatiert
 // sie als ASCII-Tabelle. Lese-only — kein MFA, kein Audit-Log, keine
 // Production-Confirm.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.5 (3.3).
 
 import { Inject, Injectable } from '@nestjs/common';
 import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/types';

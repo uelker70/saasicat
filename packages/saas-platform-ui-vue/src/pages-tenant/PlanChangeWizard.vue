@@ -228,7 +228,7 @@ import type { CatalogPlan } from '../use-tenant-billing-catalog.js';
 // Eingabe: Liste der buchbaren Pläne aus dem Catalog + aktueller Plan/Cycle.
 // Logik: Step 1 lokale Auswahl, Step 2 ruft `previewPlanChange` und zeigt
 // Limits-Check + Proration + Feature-Diff + Blockers, Step 3 ruft `changePlan`.
-// Datengetrieben über `quotaKeys[]` aus dem Catalog — keine harte Trinität.
+// Datengetrieben über die übergebenen `catalogQuotaKeys[]` — keine harte Trinität.
 
 interface I18nStrings {
     title: string;

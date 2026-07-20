@@ -9,7 +9,7 @@ import { FakeBundleRepository, FakeSubscriptionBundleRepository } from '../dist/
 // Plan-Kompat-Check, Mindestlaufzeit-Default, Idempotenz, Effektiv-Datum-
 // Rechnung.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 const STARTER = 'STARTER';
 const PRO = 'PRO';
 const SUB_A = 'sub-a';

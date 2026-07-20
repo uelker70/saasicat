@@ -5,8 +5,6 @@
 // Plattform-Services (`MfaService`, `AdminAuditService`) plus die
 // Guards/Interceptor (`SuperAdminGuard`, `MfaGuard`,
 // `AdminBypassRlsInterceptor`) als injectable Provider zurück.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.3.
 
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/types';

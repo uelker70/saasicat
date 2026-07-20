@@ -5,8 +5,6 @@
 // Top-Feature-Labels mit `key`-Referenz werden hier locale-aufgelöst
 // (`FeatureCatalogEntry`/`QuotaCatalogEntry` i18n) — die Karte bleibt
 // sprach-reaktiv.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §9 + §9a + §6.5
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {

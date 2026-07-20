@@ -3,7 +3,7 @@
 //
 // Statt separater Repositories (Plan, PlanVersion, FeatureCatalogEntry)
 // zu definieren, nutzen wir hier **einen** Sink-Port mit upsert-Methoden.
-// Der App-Adapter (vereinsfux, AutohausPro) implementiert ihn gegen seine
+// Der App-Adapter des Konsumenten implementiert ihn gegen seine
 // Prisma-Tabellen direkt.
 //
 // Idempotenz ist Sache des Sinks: jede `upsert*`-Methode prüft, ob die

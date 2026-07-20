@@ -12,7 +12,7 @@
 // bewusst ohne Foreign Key auf Konsumenten-Models.
 //
 // Abweichend von den übrigen Fragmenten OHNE `@@map`: das Model wurde aus der
-// Referenz-Implementierung (vereinsfux) rückübernommen, deren Tabellen bereits
+// Referenz-Implementierung rückübernommen, deren Tabellen bereits
 // unter den Prisma-Default-Namen leben — ein nachträgliches `@@map` würde nur
 // eine Tabellen-Umbenennung erzwingen.
 //

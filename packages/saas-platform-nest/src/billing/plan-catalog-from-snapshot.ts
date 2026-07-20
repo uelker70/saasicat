@@ -2,7 +2,7 @@
 // `PlanCatalog`-Snapshot aus DB-Reads zusammenbaut (SPEC_V2 §11.1 M6 Pack 2c).
 //
 // Eingaben:
-//  - App-globale Settings (projectKey, currency, vatRate, quotaKeys) —
+//  - App-globale Settings (projectKey, currency, vatRate) —
 //    Build-Time-Identity, kommen vom AppModule statisch.
 //  - DB-Snapshot mit Plans + live PlanVersions + FeatureCatalogEntries.
 //
@@ -27,7 +27,6 @@ export interface PlanCatalogBuildSettings {
     app?: PlanCatalog['app'];
     currency: string;
     vatRate: number;
-    quotaKeys: QuotaKey[];
     /** App-weite Marketing-Konfiguration (SPEC_V2 §6.5). Optional. */
     marketing?: PlanCatalog['marketing'];
 }
@@ -91,7 +90,6 @@ export function buildPlanCatalogFromSnapshot(
         currency: settings.currency,
         vatRate: settings.vatRate,
         ...(settings.marketing ? { marketing: settings.marketing } : {}),
-        quotaKeys: settings.quotaKeys,
         features,
         plans,
     };

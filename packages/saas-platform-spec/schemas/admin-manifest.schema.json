@@ -36,7 +36,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 8,
-                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"cf\", \"vf\"). Aus saas.yaml#app.icon."
+                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"ma\", \"da\"). Aus saas.yaml#app.icon."
                 },
                 "logoUrl": { "type": "string" },
                 "environment": {
@@ -71,7 +71,7 @@
 
         "planCatalogSnapshot": {
             "type": "object",
-            "required": ["source", "hash", "currency", "vatRate", "quotaKeys", "plans"],
+            "required": ["source", "hash", "currency", "vatRate", "plans"],
             "additionalProperties": false,
             "properties": {
                 "source": {
@@ -81,12 +81,6 @@
                 "hash": { "type": "string", "pattern": "^sha256-[A-Za-z0-9+/=_-]{32,}$" },
                 "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
                 "vatRate": { "type": "number", "minimum": 0, "maximum": 100 },
-                "quotaKeys": {
-                    "type": "array",
-                    "items": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
-                    "minItems": 1,
-                    "uniqueItems": true
-                },
                 "features": {
                     "type": "array",
                     "items": {

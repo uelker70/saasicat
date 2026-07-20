@@ -20,7 +20,7 @@ export interface AdminManifest {
          */
         label?: string;
         /**
-         * Kurz-Kürzel für das Logo-Badge (z. B. "cf", "vf"). Aus saas.yaml#app.icon.
+         * Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da"). Aus saas.yaml#app.icon.
          */
         icon?: string;
         logoUrl?: string;
@@ -49,10 +49,6 @@ export interface AdminManifest {
         hash: string;
         currency: string;
         vatRate: number;
-        /**
-         * @minItems 1
-         */
-        quotaKeys: [string, ...string[]];
         features?: {
             key: string;
             label?: string;

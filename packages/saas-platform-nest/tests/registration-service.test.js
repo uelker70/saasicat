@@ -1,6 +1,6 @@
 // Tests fuer @saasicat/nest/registration — PendingRegistrationService.
 //
-// Deckt die Pfade aus der Spec ab (vereinsfux/handoff/registrierung/registrierung.md):
+// Deckt die Pfade aus der Registrierungs-Spec ab:
 //  - start() erzeugt PendingRegistration + OTP-Versand
 //  - start() neutralisiert aktiven User (Fall A)
 //  - start() regeneriert OTP fuer bestehende PENDING_EMAIL_VERIFICATION (Fall B)

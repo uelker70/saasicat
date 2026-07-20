@@ -1,9 +1,6 @@
 // Plattform-FeatureGuard — prüft `@RequireFeature(...)`-Annotationen gegen
 // das aktive EntitlementSet (Plan + Add-ons + Custom-Overrides).
 //
-// Aus autohauspro/backend/src/billing/feature.guard.ts hochgezogen
-// (yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2).
-//
 // Konsumenten-Hooks laufen über `FEATURE_GUARD_CONFIG_TOKEN` — siehe
 // feature-guard.tokens.ts. Ohne Config verhält sich der Guard wie ein
 // schlichter Reflector + EntitlementService-Lookup ohne RLS-Wrapping.

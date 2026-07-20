@@ -4,8 +4,6 @@
 // Persistenz) mit der TOTP-Verifikation kombiniert. Konsument implementiert
 // nur `MfaPort.{getSecret,setSecret,isEnabled}`; das Plattform-Service-Layer
 // kümmert sich um Secret-Generierung, otpauth-URI und Code-Verifikation.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.3 (2.6).
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { generateSecret, generateURI, verify as verifyTotpCode } from 'otplib';
@@ -53,7 +51,7 @@ export class MfaService {
      * und liefert das Secret + die otpauth-URI für den QR-Code zurück.
      *
      * `issuer` und `label` formen die Anzeige im Authenticator (z. B.
-     * "AutohausPro:taci@example.com").
+     * "DemoApp:taci@example.com").
      */
     async setup(userId: string, label: string, issuer: string): Promise<TotpSetupResult> {
         const secret = generateSecret();

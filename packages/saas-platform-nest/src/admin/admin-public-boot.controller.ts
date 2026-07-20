@@ -5,8 +5,6 @@ import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifes
 // Public-Boot-Endpoint — ohne Auth, liefert ausschließlich Branding-Minimaldaten
 // für die Login-Seite des SuperAdmin-UI. Bewusst nur das nötige Subset
 // (key/displayName/logoUrl/environment) — verhindert App-Topologie-Leak vor Login.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §10.4 + admin-api.openapi.yaml
 
 @Controller('admin')
 export class AdminPublicBootController {

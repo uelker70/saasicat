@@ -21,7 +21,7 @@ function buildHttp(responses = []) {
 function buildManifest(columns = [], capabilities = {}) {
     return {
         schemaVersion: 1,
-        project: { key: 'cf', displayName: 'AutohausPro' },
+        project: { key: 'cf', displayName: 'DemoApp' },
         build: {
             platformPackageVersion: '0.1.0',
             appVersion: '1.0.0',
@@ -35,7 +35,6 @@ function buildManifest(columns = [], capabilities = {}) {
             hash: 'h',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: [],
             plans: [],
         },
     };

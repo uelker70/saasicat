@@ -14,12 +14,11 @@ import {
     isFeaturePlannedOnly,
 } from '../dist/billing/index.js';
 
-const AUTOHAUSPRO_LIKE_CATALOG = {
+const DEMOAPP_LIKE_CATALOG = {
     schemaVersion: 1,
-    projectKey: 'autohauspro',
+    projectKey: 'demoapp',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users', 'vehicles', 'storageGb'],
     features: [
         { key: 'VEHICLE_INVENTORY', label: 'Fahrzeugbestand', tier: 'CORE' },
         { key: 'DMS', label: 'Dokumentenablage', tier: 'PRO' },
@@ -65,19 +64,19 @@ const AUTOHAUSPRO_LIKE_CATALOG = {
 // ──────────────────────────────────────────────────────────────────
 
 test('findPlan liefert Plan bei bekannter ID', () => {
-    const plan = findPlan(AUTOHAUSPRO_LIKE_CATALOG, 'BASIC');
+    const plan = findPlan(DEMOAPP_LIKE_CATALOG, 'BASIC');
     assert.equal(plan?.id, 'BASIC');
     assert.equal(plan?.name, 'Basic');
 });
 
 test('findPlan liefert undefined bei unbekannter ID', () => {
-    assert.equal(findPlan(AUTOHAUSPRO_LIKE_CATALOG, 'NIRVANA'), undefined);
+    assert.equal(findPlan(DEMOAPP_LIKE_CATALOG, 'NIRVANA'), undefined);
 });
 
 test('getPlanOrThrow wirft typed Error bei unbekannter ID', () => {
     assert.throws(
-        () => getPlanOrThrow(AUTOHAUSPRO_LIKE_CATALOG, 'NIRVANA'),
-        /Plan "NIRVANA" nicht im Catalog \(autohauspro\)/,
+        () => getPlanOrThrow(DEMOAPP_LIKE_CATALOG, 'NIRVANA'),
+        /Plan "NIRVANA" nicht im Catalog \(demoapp\)/,
     );
 });
 
@@ -86,7 +85,7 @@ test('getPlanOrThrow wirft typed Error bei unbekannter ID', () => {
 // ──────────────────────────────────────────────────────────────────
 
 test('getMarketedPlans schließt marketed: false aus', () => {
-    const plans = getMarketedPlans(AUTOHAUSPRO_LIKE_CATALOG);
+    const plans = getMarketedPlans(DEMOAPP_LIKE_CATALOG);
     assert.equal(plans.length, 2);
     assert.deepEqual(
         plans.map((p) => p.id),
@@ -96,7 +95,7 @@ test('getMarketedPlans schließt marketed: false aus', () => {
 
 test('getMarketedPlans behandelt undefined als marketed=true', () => {
     const catalog = {
-        ...AUTOHAUSPRO_LIKE_CATALOG,
+        ...DEMOAPP_LIKE_CATALOG,
         plans: [
             { id: 'A', quotas: { users: 1 }, features: [] }, // marketed undefined
             { id: 'B', marketed: false, quotas: { users: 1 }, features: [] },
@@ -114,33 +113,33 @@ test('getMarketedPlans behandelt undefined als marketed=true', () => {
 // ──────────────────────────────────────────────────────────────────
 
 test('getPlanPriceNet MONTHLY für marketed Plan', () => {
-    assert.equal(getPlanPriceNet(AUTOHAUSPRO_LIKE_CATALOG, 'BASIC', 'MONTHLY'), 9.9);
+    assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'BASIC', 'MONTHLY'), 9.9);
 });
 
 test('getPlanPriceNet YEARLY für marketed Plan', () => {
-    assert.equal(getPlanPriceNet(AUTOHAUSPRO_LIKE_CATALOG, 'BASIC', 'YEARLY'), 99);
+    assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'BASIC', 'YEARLY'), 99);
 });
 
 test('getPlanPriceNet für unbekannten Plan → null', () => {
-    assert.equal(getPlanPriceNet(AUTOHAUSPRO_LIKE_CATALOG, 'NIRVANA', 'MONTHLY'), null);
+    assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'NIRVANA', 'MONTHLY'), null);
 });
 
 test('getPlanPriceNet für ENTERPRISE (marketed: false) → null', () => {
-    assert.equal(getPlanPriceNet(AUTOHAUSPRO_LIKE_CATALOG, 'ENTERPRISE', 'MONTHLY'), null);
+    assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'ENTERPRISE', 'MONTHLY'), null);
 });
 
 test('getPlanPriceGross MONTHLY = Netto * 1.19', () => {
     // 9.9 * 1.19 = 11.781, gerundet 11.78
-    assert.equal(getPlanPriceGross(AUTOHAUSPRO_LIKE_CATALOG, 'BASIC', 'MONTHLY'), 11.78);
+    assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'BASIC', 'MONTHLY'), 11.78);
 });
 
 test('getPlanPriceGross mit override vatRate', () => {
     // 49.9 * 1.07 = 53.393, gerundet 53.39
-    assert.equal(getPlanPriceGross(AUTOHAUSPRO_LIKE_CATALOG, 'PROFESSIONAL', 'MONTHLY', 7), 53.39);
+    assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'MONTHLY', 7), 53.39);
 });
 
 test('getPlanPriceGross für ENTERPRISE → null', () => {
-    assert.equal(getPlanPriceGross(AUTOHAUSPRO_LIKE_CATALOG, 'ENTERPRISE', 'MONTHLY'), null);
+    assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'ENTERPRISE', 'MONTHLY'), null);
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -148,17 +147,17 @@ test('getPlanPriceGross für ENTERPRISE → null', () => {
 // ──────────────────────────────────────────────────────────────────
 
 test('getPlanQuota liefert konkreten Wert', () => {
-    assert.equal(getPlanQuota(AUTOHAUSPRO_LIKE_CATALOG, 'BASIC', 'users'), 1);
-    assert.equal(getPlanQuota(AUTOHAUSPRO_LIKE_CATALOG, 'PROFESSIONAL', 'vehicles'), 50);
+    assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'BASIC', 'users'), 1);
+    assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'vehicles'), 50);
 });
 
 test('getPlanQuota liefert -1 für unbegrenzte ENTERPRISE-Quotas', () => {
-    assert.equal(getPlanQuota(AUTOHAUSPRO_LIKE_CATALOG, 'ENTERPRISE', 'users'), -1);
+    assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'ENTERPRISE', 'users'), -1);
 });
 
 test('getPlanQuota für unbekannten Plan/Key → undefined', () => {
-    assert.equal(getPlanQuota(AUTOHAUSPRO_LIKE_CATALOG, 'NIRVANA', 'users'), undefined);
-    assert.equal(getPlanQuota(AUTOHAUSPRO_LIKE_CATALOG, 'BASIC', 'nonexistent'), undefined);
+    assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'NIRVANA', 'users'), undefined);
+    assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'BASIC', 'nonexistent'), undefined);
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -166,15 +165,15 @@ test('getPlanQuota für unbekannten Plan/Key → undefined', () => {
 // ──────────────────────────────────────────────────────────────────
 
 test('isFeatureInPlan: true wenn Feature direkt im Plan', () => {
-    assert.equal(isFeatureInPlan(AUTOHAUSPRO_LIKE_CATALOG, 'PROFESSIONAL', 'DMS'), true);
+    assert.equal(isFeatureInPlan(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'DMS'), true);
 });
 
 test('isFeatureInPlan: false wenn Feature nicht im Plan', () => {
-    assert.equal(isFeatureInPlan(AUTOHAUSPRO_LIKE_CATALOG, 'BASIC', 'DMS'), false);
+    assert.equal(isFeatureInPlan(DEMOAPP_LIKE_CATALOG, 'BASIC', 'DMS'), false);
 });
 
 test('isFeatureInPlan: false bei unbekanntem Plan', () => {
-    assert.equal(isFeatureInPlan(AUTOHAUSPRO_LIKE_CATALOG, 'NIRVANA', 'DMS'), false);
+    assert.equal(isFeatureInPlan(DEMOAPP_LIKE_CATALOG, 'NIRVANA', 'DMS'), false);
 });
 
 // ──────────────────────────────────────────────────────────────────
@@ -182,18 +181,18 @@ test('isFeatureInPlan: false bei unbekanntem Plan', () => {
 // ──────────────────────────────────────────────────────────────────
 
 test('getActiveFeatureKeys schließt plannedOnly aus', () => {
-    const keys = getActiveFeatureKeys(AUTOHAUSPRO_LIKE_CATALOG);
+    const keys = getActiveFeatureKeys(DEMOAPP_LIKE_CATALOG);
     assert.deepEqual(keys, ['VEHICLE_INVENTORY', 'DMS']);
 });
 
 test('isFeaturePlannedOnly: true für deklarierten plannedOnly-Key', () => {
-    assert.equal(isFeaturePlannedOnly(AUTOHAUSPRO_LIKE_CATALOG, 'API_ACCESS'), true);
+    assert.equal(isFeaturePlannedOnly(DEMOAPP_LIKE_CATALOG, 'API_ACCESS'), true);
 });
 
 test('isFeaturePlannedOnly: false für deklarierten produktiven Key', () => {
-    assert.equal(isFeaturePlannedOnly(AUTOHAUSPRO_LIKE_CATALOG, 'DMS'), false);
+    assert.equal(isFeaturePlannedOnly(DEMOAPP_LIKE_CATALOG, 'DMS'), false);
 });
 
 test('isFeaturePlannedOnly: false für unbekannten Key (konservativ)', () => {
-    assert.equal(isFeaturePlannedOnly(AUTOHAUSPRO_LIKE_CATALOG, 'NEW_FEATURE_NOT_DECLARED'), false);
+    assert.equal(isFeaturePlannedOnly(DEMOAPP_LIKE_CATALOG, 'NEW_FEATURE_NOT_DECLARED'), false);
 });

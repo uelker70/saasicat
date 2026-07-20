@@ -7,8 +7,6 @@
 //
 // Aufruf:
 //   pnpm --filter @saasicat/types gen:types
-//
-// Spec: yada-services/handoff/superadmin/OPEN_ISSUES.md Q.4.
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';

@@ -2,8 +2,8 @@
 // korrekt ZUSAMMEN mit dem App-HTTP-Adapter — verhindert die Bug-Klasse
 // "doppelter /api-Prefix" (`/api/api/billing/usage` HTTP 404).
 //
-// Konvention: HTTP-Adapter setzt die App-API-Base-URL (z. B. `/api` für
-// AutohausPro, `/api/v1` für vereinsfux), `apiPrefix` ist der Sub-Pfad darunter
+// Konvention: HTTP-Adapter setzt die App-API-Base-URL (z. B. `/api`
+// oder `/api/v1`), `apiPrefix` ist der Sub-Pfad darunter
 // (Default `/billing`). Der Composable ruft `http(apiPrefix + path)` —
 // der Adapter fügt seine baseURL davor.
 

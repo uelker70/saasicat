@@ -3,11 +3,7 @@
 // Konsumenten injizieren den Catalog via PLAN_CATALOG_TOKEN und delegieren
 // an diese Funktionen. Das ersetzt die statischen Top-Level-Funktionen
 // (`getPlan`, `getPlanPriceNet`, `getPlanPriceGross`, `getMarketedPlans`),
-// die in AutohausPro/shared-utils noch über die TS-Const arbeiten.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.2.2
-//       autohauspro/handoff/saas/EXTRACTION_PLAN.md §4
-// Phase: P1.4 (UMSETZUNGSPLAN.md §3.2 Liefergegenstand 1.5)
+// die noch über eine statische TS-Const arbeiten.
 
 import type {
     BillingCycle,

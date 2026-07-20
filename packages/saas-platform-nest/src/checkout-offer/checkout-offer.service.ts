@@ -4,8 +4,6 @@
 // `create` wird von der Pricing-Page gerufen, `getById`/`update` vom
 // Onboarding (Individualisierung), `consume` beim Subscription-Abschluss
 // (friert den Offer ein → `Subscription.packageSnapshot`).
-//
-// Spec: yada-services/handoff/superadmin/SUPERADMIN_TENANT_METAMODELL.md §17a
 
 import {
     ConflictException,
@@ -117,8 +115,8 @@ export class CheckoutOfferService {
      * #35 P6 — serverseitige requires-Validierung: Die Abhängigkeiten aller
      * Features (Plan ∪ gewählte Bundles) müssen innerhalb der Auswahl
      * gedeckt sein, sonst entstünde ein Offer, dessen Features beim Tenant
-     * nicht funktionieren können (vereinsfux validateModuleDependencies
-     * wird damit plattformseitig abgelöst). requires-Quelle sind die
+     * nicht funktionieren können (eine app-eigene validateModuleDependencies-
+     * Prüfung wird damit plattformseitig abgelöst). requires-Quelle sind die
      * kuratierten FeatureCatalogEntries; ohne CatalogEntryRepository wird
      * übersprungen (graceful — keine requires-Daten verfügbar).
      */

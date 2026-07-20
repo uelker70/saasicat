@@ -8,7 +8,7 @@
 //   - dass die Plattform die Inject-Keys `SUPER_ADMIN_EXTENSIONS_KEY` und
 //     `SUPER_ADMIN_MANIFEST_KEY` exportiert (Vertrag mit dem App-Wiring);
 //   - dass `useSuperAdminManifest()` ohne provided Accessor `null` liefert.
-// Render-Fälle deckt der App-Build (autohauspro/vereinsfux) am Live-DOM ab.
+// Render-Fälle deckt der App-Build des Konsumenten am Live-DOM ab.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';

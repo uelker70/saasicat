@@ -4,7 +4,7 @@
     "title": "PlanCatalog",
     "description": "Sprach-neutrale Definition eines Plan-Catalogs + App-Identity für eine SaaS-App. Wird vom Konsumenten als YAML-/JSON-Datei (`config/saas.yaml`) gepflegt und beim Backend-Boot in Plattform-Tabellen gespiegelt.",
     "type": "object",
-    "required": ["schemaVersion", "projectKey", "currency", "vatRate", "quotaKeys"],
+    "required": ["schemaVersion", "projectKey", "currency", "vatRate"],
     "additionalProperties": false,
     "properties": {
         "schemaVersion": {
@@ -39,7 +39,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 8,
-                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"cf\", \"vf\")."
+                    "description": "Kurz-Kürzel für das Logo-Badge (z. B. \"ma\", \"da\")."
                 },
                 "logoUrl": {
                     "type": "string",
@@ -73,13 +73,6 @@
                     "description": "Erlaubter Sprach-Pool, den die App vermarkten darf. Erste = Default-Locale. Der SuperAdmin aktiviert daraus im Marketing-Catalog eine Teilmenge (LocaleManager)."
                 }
             }
-        },
-        "quotaKeys": {
-            "type": "array",
-            "items": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
-            "minItems": 1,
-            "uniqueItems": true,
-            "description": "Erlaubte Limit-Dimensionen, gegen die Pläne und Bundles Limits definieren dürfen. Für jeden Key muss im Konsumenten ein QuotaProvider registriert sein."
         },
         "features": {
             "type": "array",

@@ -4,8 +4,6 @@
 // `publicBootEndpoint`, `manifestEndpoint`) pro App an genau einer Stelle:
 // eine Konstante, die `main.ts` an `createSuperAdminApp()` übergibt und die
 // das Loader-Wiring aus diesem Helper konsumiert.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.4 (Endpoint-SoT).
 
 import { BootLoader } from './boot-loader.js';
 import { ManifestLoader } from './manifest-loader.js';
@@ -25,7 +23,7 @@ export interface CreatePlatformLoadersOptions {
     storage?: KvStore;
     /**
      * Storage-Key-Prefix — Konsumenten mit mehreren Apps unter einer Domain
-     * setzen das auf z. B. `'ahp:'` oder `'vf:'`, damit die Caches getrennt
+     * setzen das auf z. B. `'ma:'` oder `'da:'`, damit die Caches getrennt
      * sind. Wird nur an den `ManifestLoader` weitergereicht.
      */
     storageKeyPrefix?: string;

@@ -10,7 +10,6 @@ const CATALOG = {
     projectKey: 'demo',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users', 'members', 'storageGb'],
     plans: [
         {
             id: 'STARTER',
@@ -168,7 +167,7 @@ test('preview liefert CYCLE_CHANGE bei MONTHLY→YEARLY am gleichen Plan', async
     assert.equal(dto.isImmediate, false);
 });
 
-test('limitsCheck rendered alle quotaKeys aus dem Catalog (datengetrieben)', async () => {
+test('limitsCheck rendered die Union der Quota-Keys aus Limits, Ziel-Plan und Usage', async () => {
     const svc = new PlanChangePreviewService(
         CATALOG,
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),

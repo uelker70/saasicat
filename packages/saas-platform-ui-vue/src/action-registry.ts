@@ -11,8 +11,6 @@
 // Headless-UI etc.); die Registry liefert nur das Action-Definition-Paar
 // `{def, handler}`, damit die Shell-UI-Schicht den passenden Vor-Flow
 // auslösen kann.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.6 (4.5).
 
 import type { AdminManifest, TenantActionDef } from '@saasicat/types';
 

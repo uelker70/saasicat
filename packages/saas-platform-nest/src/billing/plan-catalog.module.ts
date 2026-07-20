@@ -4,7 +4,7 @@
 // SPEC_V2 §11.1 M6 Pack 2c (Hard-Replace): Der Catalog wird aus DB
 // rekonstruiert (statt aus YAML). Apps reichen einen
 // `PlanCatalogReadSink` durch + ihre statischen App-Identity-Settings
-// (`projectKey`, `currency`, `vatRate`, `quotaKeys`).
+// (`projectKey`, `currency`, `vatRate`).
 //
 // `forRootWithCatalog(catalog)` bleibt für Tests / In-Memory-Setup.
 // Die alte `forRoot({ path: 'saas.yaml' })` ist entfallen — Apps
@@ -18,7 +18,7 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { PlanCatalog, PlanCatalogReadSink, QuotaKey } from '@saasicat/types';
+import type { PlanCatalog, PlanCatalogReadSink } from '@saasicat/types';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { buildPlanCatalogFromSnapshot } from './plan-catalog-from-snapshot.js';
@@ -37,7 +37,6 @@ export interface PlanCatalogModuleOptions {
     app?: PlanCatalog['app'];
     currency: string;
     vatRate: number;
-    quotaKeys: QuotaKey[];
     /**
      * App-weite Marketing-Konfiguration (SPEC_V2 §6.5) — u. a. der
      * `availableLocales`-Pool. Fließt in `PLAN_CATALOG_TOKEN.marketing`
@@ -73,7 +72,6 @@ export class PlanCatalogModule {
                                 app: options.app,
                                 currency: options.currency,
                                 vatRate: options.vatRate,
-                                quotaKeys: options.quotaKeys,
                                 marketing: options.marketing,
                             },
                             snapshot,

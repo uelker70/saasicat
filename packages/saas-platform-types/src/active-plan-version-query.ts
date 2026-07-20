@@ -1,8 +1,8 @@
 // Aktive-PlanVersion-WHERE-Builder — Pure Function, NestJS-/Prisma-frei.
 //
 // Single Source of Truth für das Zeitfenster der zu `asOf` aktiven
-// PlanVersion (SPEC_V2 §4.2). Wird von allen Prisma-Adaptern
-// (autohauspro/vereinsfux, Plan- und PlanVersion-Repository) konsumiert, die
+// PlanVersion (SPEC_V2 §4.2). Wird von den Prisma-Adaptern aller
+// Konsumenten-Apps (Plan- und PlanVersion-Repository) konsumiert, die
 // das Ergebnis neben ihren `planId`-Filter in `findFirst({ where })` spreizen.
 //
 // validFrom-Toleranz: `validFrom IS NULL` wird wie „gilt seit jeher" behandelt.
@@ -18,9 +18,9 @@
 // — sonst wäre eine Version an ihrem eigenen letzten Tag bereits dunkel.
 //
 // `withEndsAt` ist getrennt typisiert: die `endsAt`-Klausel taucht nur im
-// Rückgabetyp auf, wenn ein Modell die Spalte hat (vereinsfux `PlanVersion`).
-// autohauspros `CatalogPlanVersion` kennt kein `endsAt` mehr — die Variante darf
-// dort nicht im Typ stehen, sonst greift TypeScripts „weak type"-Regel.
+// Rückgabetyp auf, wenn ein Modell die Spalte hat (z. B. `PlanVersion`).
+// Modelle ohne `endsAt` (z. B. `CatalogPlanVersion`) dürfen die Variante
+// nicht im Typ haben, sonst greift TypeScripts „weak type"-Regel.
 // `endsAt` ist eine präzise Admin-Terminierung (Zeitstempel) → bleibt `> asOf`.
 
 /** Tagesbeginn (00:00 UTC) des Zeitpunkts — für tag-inklusive Datumsvergleiche. */
@@ -53,7 +53,7 @@ type EndsAtClause = { endsAt: DateAfter | null };
 
 /**
  * Strukturelles Pendant zu dem `*PlanVersionWhereInput`-Ausschnitt für Modelle
- * ohne `endsAt` (autohauspro `CatalogPlanVersion`).
+ * ohne `endsAt` (z. B. `CatalogPlanVersion`).
  */
 export interface ActivePlanVersionWhere {
     publishedAt: { not: null };

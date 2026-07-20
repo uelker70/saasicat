@@ -41,7 +41,7 @@ pnpm add \
 > All saasicat packages are versioned in lockstep — always keep them on the
 > same version.
 
-## Step 2 — Create the plan catalog
+## Step 2 — Create the app identity config
 
 `backend/config/saas.yaml`:
 
@@ -51,34 +51,19 @@ projectKey: notesapp
 app:
     name: NotesApp
     label: NotesApp Cockpit
+
 currency: EUR
 vatRate: 19.0
+
 marketing:
     availableLocales: [en]
-
-quotaKeys:
-    - key: notes.max
-      label: Maximum notes
-      unit: count
-
-features:
-    - key: NOTES
-      label: Notes
-
-plans:
-    - id: starter
-      name: Starter
-      monthlyNet: 0
-      features: [NOTES]
-      quotas:
-          notes.max: 25
-    - id: pro
-      name: Pro
-      monthlyNet: 9.0
-      features: [NOTES]
-      quotas:
-          notes.max: 1000
 ```
+
+> **Why so small?** The YAML only carries the app identity — everything else
+> has exactly one source of truth: **features and quotas** are declared in
+> code (`@ImplementsCapability`, `@DefinesQuota`, steps 4 + 7) and picked up
+> by discovery; **plans** are created in the SuperAdmin UI and live in the
+> DB.
 
 ## Step 3 — Prisma schema + migration in one command
 
@@ -100,8 +85,9 @@ to your `User`/`Tenant` tables need to be enabled manually (commented-out
 ## Step 4 — Write a quota provider
 
 This is where you declare **what is countable and how to count it**. For each
-quota key in your `saas.yaml`, one class that fulfils `QuotaProvider` and is
-decorated with `@DefinesQuota({...})`.
+countable dimension, one class that fulfils `QuotaProvider` and is decorated
+with `@DefinesQuota({...})` — the decorator is the single source of truth for
+the quota's key, label and unit.
 
 > **What does `@DefinesQuota` do?** The discovery scanner reads the decorator
 > at boot and writes an entry into `var/discovery-snapshot.json`. That becomes
@@ -120,14 +106,14 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 @DefinesQuota({
-    key: 'notes.max', // must match saas.yaml/quotaKeys
+    key: 'notesMax', // camelCase; referenced by @EnforceQuota and plan limits
     label: 'Notes count',
     unit: 'count',
     policy: 'hard', // 'hard' = blocks, 'soft' = warns only
-    feature: 'NOTES', // links the quota to a feature from saas.yaml
+    feature: 'NOTES', // links the quota to the feature declared in step 7
 })
 export class NotesQuotaProvider implements QuotaProvider {
-    readonly key = 'notes.max';
+    readonly key = 'notesMax';
     constructor(private readonly prisma: PrismaService) {}
 
     async count(tenantId: string): Promise<number> {
@@ -203,7 +189,7 @@ interceptor** as soon as you pass `defaultPlanId` (quickstart path) or
 
 | Field               | What it does                                                                               |
 | ------------------- | ------------------------------------------------------------------------------------------ |
-| `planCatalog`       | Plan/feature/quota definition from the YAML.                                               |
+| `planCatalog`       | App identity (branding, currency, locales) from the YAML.                                  |
 | `controller.guards` | Mandatory guards for `/admin/manifest` + `/admin/discovery` (typically `[JwtAuthGuard]`).  |
 | `adapters`          | The Prisma adapters from step 5 via `useExisting`.                                         |
 | `defaultPlanId`     | Fallback plan for all tenants when no `planResolver` is set — dev/smoke.                   |
@@ -305,7 +291,7 @@ export class NotesController {
         owner: 'notes',
     })
     @RequireFeature('NOTES') // 403 if the plan does not include the feature
-    @EnforceQuota('notes.max') // 429 LimitExceeded when count(tenantId) >= 25 (Starter)
+    @EnforceQuota('notesMax') // 429 LimitExceeded when count(tenantId) >= 25 (Starter)
     create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateNoteDto) {
         return this.notes.create(user.tenantId, dto);
     }
@@ -438,7 +424,7 @@ for i in {1..30}; do
   curl -X POST -H "Authorization: Bearer <tenant-token>" -H "Content-Type: application/json" \
        -d '{"title":"test '$i'"}' localhost:3000/notes
 done
-#   → 25 ok, from #26 → 429 limit reached for notes.max: 25/25
+#   → 25 ok, from #26 → 429 limit reached for notesMax: 25/25
 
 # 3. Check the feature gate (an endpoint with @RequireFeature for a feature not in the plan)
 curl -X POST -H "Authorization: Bearer <tenant-token>" \

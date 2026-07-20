@@ -6,8 +6,6 @@
 //
 // Damit müssen Konsumenten Project-Pages nicht zusätzlich statisch im Router
 // duplizieren — Manifest + extensions:-Map sind die Single Source of Truth.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.4 (ProjectPage-Host).
 
 import { computed, defineAsyncComponent, defineComponent, h, inject, type Component } from 'vue';
 import { useRoute, type RouteRecordRaw } from 'vue-router';
@@ -81,7 +79,7 @@ export const ProjectPageHost = defineComponent({
  * definierte Children (z. B. `/admin/dashboard`) gewinnen, weil
  * Vue-Router-4 spezifische Routen vor Wildcard-Children matcht.
  *
- * Beispiel (vereinsfux, vereinfacht):
+ * Beispiel (vereinfacht):
  *
  *     {
  *         path: '/admin',

@@ -9,7 +9,7 @@ import { FakePlanRepository } from '../dist/testing/index.js';
 // gepflegtes priceTag bleibt das Feld null und Frontends formatieren aus
 // monthlyNet/yearlyNet.
 
-const PROJECT = 'autohauspro';
+const PROJECT = 'demoapp';
 const ASOF = new Date('2026-06-01T00:00:00Z');
 
 const NOOP_PROMOTION_REPO = {

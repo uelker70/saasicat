@@ -5,8 +5,6 @@
 // `saas-platform-spec/prisma-fragments/06-catalog-entries.prisma`. Sie werden
 // vom AdminController für die SuperAdmin-Pages „Discovery" + „Marketing-
 // Catalog" geliefert sowie vom Public-Catalog-Controller für `/public/catalog`.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3 + §5
 
 // =============================================================================
 // Discovery-Lifecycle (Freigabe je Feature + Quota, #20)

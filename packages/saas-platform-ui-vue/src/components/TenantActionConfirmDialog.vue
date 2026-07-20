@@ -105,8 +105,6 @@ import type { TenantActionDef, TenantDto } from '@saasicat/types';
 // Apps brauchen sich um die Quasar-Prompts nicht selbst kümmern und
 // können den Dialog direkt als `confirm`-Provider in
 // `useTenantActionFlow({ confirm })` einsetzen.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.5.
 
 const props = withDefaults(
     defineProps<{

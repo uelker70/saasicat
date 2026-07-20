@@ -3,8 +3,6 @@
 // In-Memory-Implementierungen der Adapter-Ports für unit-Tests im Plattform-
 // Paket und in Konsumenten, die die Plattform-Services testen wollen ohne
 // gegen eine echte DB zu fahren.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.12).
 
 import type {
     BundleListFilter,

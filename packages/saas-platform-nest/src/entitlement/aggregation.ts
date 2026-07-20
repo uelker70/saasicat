@@ -3,9 +3,6 @@
 // Konsumenten ziehen ihre Subscription/PlanVersion/Bundle-Daten aus der DB,
 // mappen sie auf die Snapshot-Form (siehe `types.ts`) und rufen
 // `aggregateLimits()` für die effektiven Limits.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.6) +
-//        autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §5.
 
 import type {
     ContractLineItemRecord,

@@ -1,5 +1,5 @@
-// CliContextService — Cross-Cutting-Helpers für Konsumenten-CLIs (AutohausPro `ahp`,
-// vereinsfux `vf`, Dagitto `dg`). Folgt den Konventionen aus
+// CliContextService — Cross-Cutting-Helpers für Konsumenten-CLIs (jede App
+// bringt ihr eigenes `<app>`-Binary mit). Folgt den Konventionen aus
 // `@saasicat/spec/cli-conventions.md`:
 //
 //   - Identitäts-Pflicht via Env-Var (`<APP>_ADMIN_EMAIL`) oder `--as`-Flag
@@ -19,25 +19,25 @@ import { CLI_CONTEXT_CONFIG_TOKEN, USER_PORT_TOKEN } from './tokens.js';
 
 export interface CliContextConfig {
     /**
-     * Env-Var-Name für die Admin-Email (z. B. `AHP_ADMIN_EMAIL`,
-     * `VF_ADMIN_EMAIL`). Plattform-Default: `SAAS_ADMIN_EMAIL`.
+     * Env-Var-Name für die Admin-Email (z. B. `MYAPP_ADMIN_EMAIL`).
+     * Plattform-Default: `SAAS_ADMIN_EMAIL`.
      */
     adminEmailEnvVar: string;
     /**
      * Funktion, die `true` liefert, wenn das CLI gegen eine Production-
      * Umgebung läuft. Konsument prüft eigene Env-Vars (z. B.
-     * `AUTOHAUSPRO_ENV === 'production'`, `DATABASE_URL`-Host etc.).
+     * `MYAPP_ENV === 'production'`, `DATABASE_URL`-Host etc.).
      */
     isProductionEnvironment: () => boolean;
     /**
-     * Env-Var-Name für den MFA-Bypass-Schalter (z. B. `AHP_SKIP_MFA`).
+     * Env-Var-Name für den MFA-Bypass-Schalter (z. B. `MYAPP_SKIP_MFA`).
      * Plattform-Default: `SAAS_PLATFORM_SKIP_MFA`. Bypass greift nur,
      * wenn `isProductionEnvironment()` `false` ist.
      */
     mfaSkipEnvVar: string;
     /**
      * Anzeige-Issuer für `<app> admin mfa-setup` im Authenticator
-     * (z. B. "vereinsfux SuperAdmin", "AutohausPro SuperAdmin").
+     * (z. B. "DemoApp SuperAdmin", "ClubApp SuperAdmin").
      * Default: `"SuperAdmin"`.
      */
     mfaIssuer?: string;

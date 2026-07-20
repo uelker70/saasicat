@@ -48,10 +48,9 @@ test('planCatalog accepts minimal valid catalog', () => {
     const validate = ajv.compile(planCatalogSchema);
     const ok = validate({
         schemaVersion: 1,
-        projectKey: 'autohauspro',
+        projectKey: 'demoapp',
         currency: 'EUR',
         vatRate: 19,
-        quotaKeys: ['users', 'vehicles'],
         plans: [
             {
                 id: 'BASIC',
@@ -136,10 +135,10 @@ test('adminManifest accepts minimal valid manifest', () => {
     const validate = ajv.compile(adminManifestSchema);
     const ok = validate({
         schemaVersion: 1,
-        project: { key: 'autohauspro', displayName: 'AutohausPro' },
+        project: { key: 'demoapp', displayName: 'DemoApp' },
         build: {
             platformPackageVersion: '0.1.0',
-            appVersion: 'autohauspro@2026.05.07',
+            appVersion: 'demoapp@2026.05.07',
             manifestHash: 'sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
         },
         planCatalogSnapshot: {
@@ -147,7 +146,6 @@ test('adminManifest accepts minimal valid manifest', () => {
             hash: 'sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: ['users'],
             plans: [{ id: 'BASIC', quotas: { users: 1 }, features: [] }],
         },
         capabilities: { 'tenants.read': true },
@@ -163,7 +161,7 @@ test('adminManifest rejects capability with colon notation', () => {
     const validate = ajv.compile(adminManifestSchema);
     const ok = validate({
         schemaVersion: 1,
-        project: { key: 'autohauspro', displayName: 'AutohausPro' },
+        project: { key: 'demoapp', displayName: 'DemoApp' },
         build: {
             platformPackageVersion: '0.1.0',
             appVersion: 'x',
@@ -174,7 +172,6 @@ test('adminManifest rejects capability with colon notation', () => {
             hash: 'sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
             currency: 'EUR',
             vatRate: 19,
-            quotaKeys: ['users'],
             plans: [{ id: 'BASIC', quotas: { users: 1 }, features: [] }],
         },
         capabilities: { 'tenants:read': true }, // ← Doppelpunkt verboten

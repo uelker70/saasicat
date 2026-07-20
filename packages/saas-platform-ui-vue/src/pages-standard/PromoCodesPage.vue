@@ -121,7 +121,7 @@ import type { PromoCodePlanOption } from '../components/dialogs/types.js';
 const PLAN_COLOR_PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#64748b'];
 
 /**
- * Heuristik aus dem VereinsFux-Wrapper: weist jedem Plan eine stabile Farbe
+ * Heuristik aus einem Konsumenten-Wrapper: weist jedem Plan eine stabile Farbe
  * zu, damit Plan-Chips visuell differenzierbar bleiben. Konsumenten können
  * die Util pur nutzen.
  */

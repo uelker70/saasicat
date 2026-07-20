@@ -88,7 +88,7 @@ export interface RegistrationModuleOptions {
      * `RegistrationConfigSelection.businessTypeVersionId` gegen den
      * SuperAdmin-Catalog (published BusinessTypeVersions). Ohne Adapter
      * wird die ID ungeprüft durchgereicht — passt für Apps ohne
-     * BusinessType-Katalog (z. B. AutohausPro).
+     * BusinessType-Katalog.
      */
     businessTypeLookup?: ProviderSpec<RegistrationBusinessTypeLookup>;
     /**

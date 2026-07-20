@@ -12,10 +12,9 @@ const NOW = new Date('2026-05-08T12:00:00Z');
 
 const CATALOG = {
     schemaVersion: 1,
-    projectKey: 'autohauspro',
+    projectKey: 'demoapp',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users', 'vehicles', 'storageGb'],
     features: [{ key: 'CASHBOOK' }, { key: 'DMS' }, { key: 'API_ACCESS', plannedOnly: true }],
     plans: [
         {
@@ -203,7 +202,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
         const { svc, subRepo, contractRepo } = buildContractHarness();
         subRepo.set(buildSub());
         await contractRepo.create({
-            projectKey: 'autohauspro',
+            projectKey: 'demoapp',
             tenantId: 't1',
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             priceSnapshot: {
@@ -261,7 +260,7 @@ describe('EntitlementService — V3 ContractLineItems', () => {
         const { svc, subRepo, contractRepo } = buildContractHarness();
         subRepo.set(buildSub());
         await contractRepo.create({
-            projectKey: 'autohauspro',
+            projectKey: 'demoapp',
             tenantId: 't1',
             effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
             entitlementSnapshot: {

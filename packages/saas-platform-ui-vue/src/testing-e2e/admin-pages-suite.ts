@@ -1,6 +1,6 @@
 // Geteiltes E2E-Test-Skelett für die SuperAdmin-UI-Pages.
 //
-// App-spezifische Specs (autohauspro/admin/tests-e2e, vereinsfux/apps/admin/tests-e2e)
+// App-spezifische Specs (die `tests-e2e/` der Konsumenten-Admins)
 // reichen ihre Konfiguration via `runAdminPagesSuite(config)` durch — die
 // Suite klickt sich dann durch Login + alle deklarierten Standard-Pages und
 // prüft jeweils:
@@ -17,7 +17,7 @@
 import type { Page, expect as PwExpect, test as PwTest } from '@playwright/test';
 
 export interface AdminPagesSuiteConfig {
-    /** Anzeigename, z. B. 'autohauspro' / 'vereinsfux'. */
+    /** Anzeigename, z. B. 'demoapp' / 'clubapp'. */
     appName: string;
     /** URL der Login-Seite (vollständig). */
     loginUrl: string;

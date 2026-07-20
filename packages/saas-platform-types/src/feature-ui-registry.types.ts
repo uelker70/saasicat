@@ -2,8 +2,8 @@
 //
 // Wird vom Konsumenten beim `forRoot({ featureUiRegistry })` injiziert und
 // vom `GET /billing/feature-registry`-Endpoint 1:1 ausgeliefert. Plattform
-// bleibt domain-agnostisch — AutohausPro liefert KFZ-Begriffe (icon:
-// 'directions_car'), vereinsfux liefert Vereins-Begriffe (icon: 'groups').
+// bleibt domain-agnostisch — eine Fahrzeughandel-App liefert KFZ-Begriffe
+// (icon: 'directions_car'), eine Vereins-App Vereins-Begriffe (icon: 'groups').
 
 export interface FeatureUiMeta {
     /** Sichtbarer Label für Plan-Vergleichs-Tabellen, Add-on-Listen. */

@@ -24,8 +24,6 @@
 // Draft an `PATCH /api/v1/admin/plan-versions/:id` mit dem Endpoint-Adapter
 // seiner Wahl. Discovery + Filter + Validation lebt zentral, Persistenz
 // projekt-spezifisch.
-//
-// Spec: yada-services/handoff/superadmin/OPEN_ISSUES.md Q.5 (Plan-Editor).
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest, FeatureDef, FeatureKey } from '@saasicat/types';

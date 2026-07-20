@@ -1,20 +1,20 @@
 // FeatureGuard-Konfiguration. Konsumenten registrieren ein Objekt unter
 // FEATURE_GUARD_CONFIG_TOKEN, wenn sie:
 //   - innerhalb der Limits-Berechnung einen Tenant-Context (RLS) brauchen
-//     (AutohausPro: `runWithTenant`),
+//     (z. B. `runWithTenant`),
 //   - eine andere User-Rollen-Quelle als `user.role`/`user.platformRole` nutzen,
 //   - die `tenantId` aus einem anderen Request-Feld als `request.tenantId` /
 //     `request.user.tenantId` lesen wollen.
 //
-// Ohne Config-Eintrag verhält sich der Guard wie das AutohausPro-Original — nur ohne
-// RLS-Wrapping. Vereinsfux braucht das nicht (kein Postgres-RLS).
+// Ohne Config-Eintrag verhält sich der Guard wie die ursprüngliche app-lokale
+// Implementierung — nur ohne RLS-Wrapping. Apps ohne Postgres-RLS brauchen das nicht.
 
 export interface FeatureGuardConfig {
     /**
      * Wrappt `EntitlementService.computeLimits` in einen Tenant-Context.
-     * Konsumenten mit RLS (AutohausPro) übergeben hier `runWithTenant(tenantId, fn)`
+     * Konsumenten mit RLS übergeben hier `runWithTenant(tenantId, fn)`
      * — damit die Repository-Queries den Tenant in den DB-Session-Variablen
-     * sehen. Ohne RLS (vereinsfux): Field weglassen, Default ist Identity.
+     * sehen. Ohne RLS: Field weglassen, Default ist Identity.
      */
     tenantContextRunner?: <T>(tenantId: string, fn: () => Promise<T>) => Promise<T>;
 

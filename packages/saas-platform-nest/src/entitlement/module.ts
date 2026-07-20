@@ -3,8 +3,6 @@
 // Konsumenten registrieren ihre Adapter-Implementierungen über
 // `EntitlementModule.forRoot({...})` oder als Custom-Provider direkt im
 // AppModule.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.6).
 
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import type {

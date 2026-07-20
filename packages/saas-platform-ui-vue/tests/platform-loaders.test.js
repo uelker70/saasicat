@@ -61,7 +61,7 @@ describe('createPlatformLoaders', () => {
 
     test('honoriert explizite Endpoint-Overrides', async () => {
         const { http, calls } = buildHttp([
-            { status: 200, body: { project: { key: 'vf', displayName: 'VF' } } },
+            { status: 200, body: { project: { key: 'ma', displayName: 'MA' } } },
             { status: 200, body: { schemaVersion: 1 }, headers: { etag: '"b"' } },
         ]);
         const loaders = createPlatformLoaders({
@@ -88,11 +88,11 @@ describe('createPlatformLoaders', () => {
             endpoints: { apiBase: '/api/admin' },
             http,
             storage,
-            storageKeyPrefix: 'ahp:',
+            storageKeyPrefix: 'ma:',
             getAuthToken: () => 'jwt-fake',
         });
         await loaders.manifestLoader.load();
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-fake');
-        assert.equal(storage.get('ahp:manifest:etag'), '"v1"');
+        assert.equal(storage.get('ma:manifest:etag'), '"v1"');
     });
 });

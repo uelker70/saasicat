@@ -74,7 +74,7 @@ interface AuditRow {
     entity: string;
     entityId: string;
     changes: Record<string, unknown> | null;
-    /** AutohausPro-Style: nested user-Objekt mit email. */
+    /** Legacy-Style: nested user-Objekt mit email. */
     user?: { email: string; firstName?: string; lastName?: string } | null;
     /** Plattform-Style: flaches userEmail-Feld. */
     userEmail?: string | null;

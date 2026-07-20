@@ -7,7 +7,7 @@ import { PendingRegistrationService } from './pending-registration.service.js';
  * Taeglicher Cleanup-Cron fuer abgelaufene `PendingRegistration`-Datensaetze.
  *
  * Laeuft 04:15 Europe/Berlin (passend zu `trial-expiration.cron` und
- * `PromoCodeExpirer` in vereinsfux). Loescht in Batches von 500 — der Cron
+ * `PromoCodeExpirer`). Loescht in Batches von 500 — der Cron
  * laeuft so lange, bis `moreAvailable` false ist (Schutz vor Memory-Spike
  * bei grossen Backlogs).
  *
@@ -29,7 +29,7 @@ export class RegistrationCleanupCron {
     /**
      * Public-API: laesst sich manuell aus einem Admin-Endpoint /
      * `/admin/registration/run-cleanup` triggern (gleicher Pattern wie
-     * `PromoCodeExpirer.run` in autohauspro/vereinsfux).
+     * `PromoCodeExpirer.run` in den konsumierenden Apps).
      */
     async runCleanup(now: Date = new Date(), batchSize = 500): Promise<void> {
         let totalDeleted = 0;

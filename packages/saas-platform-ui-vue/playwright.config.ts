@@ -11,7 +11,7 @@ import { defineConfig } from '@playwright/test';
 // Alle App-HTTP-Requests im Test (Backend-Boot/Manifest/Publish) werden
 // per `page.route()` gemockt — kein Backend nötig.
 //
-// AutohausPro-Admin-Apps haben ihre eigene playwright-Config (verbunden mit
+// Konsumenten-Admin-Apps haben ihre eigene playwright-Config (verbunden mit
 // vite preview); diese hier deckt die Plattform-Bibliothek selbst ab.
 
 export default defineConfig({

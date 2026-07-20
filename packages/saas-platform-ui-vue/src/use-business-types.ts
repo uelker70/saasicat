@@ -3,8 +3,6 @@
 // /admin/catalog/business-types + /admin/catalog/business-type-versions).
 //
 // Pattern analog zu use-bundles.ts.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3 + §6
 
 import { ref, type Ref } from 'vue';
 import type {

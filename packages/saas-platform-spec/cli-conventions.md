@@ -5,27 +5,22 @@ date: 2026-05-08
 related:
     - admin-api.openapi.yaml
     - schemas/audit-event.schema.json
-    - ../../handoff/superadmin/SPEC.md
 ---
 
 # CLI-Konventionen
 
 Verbindliche Konventionen für jedes konsumenten-spezifische CLI, das die
-SaaS-Plattform-Services bedient: AutohausPro `ahp`, vereinsfux `vf`, Dagitto `dg`.
-Eingebettete Plattform-Commands (P3 in `@saasicat/cli`) folgen
+SaaS-Plattform-Services bedient (jede App wählt ihren eigenen Binary-Namen,
+z. B. `myapp`). Eingebettete Plattform-Commands (`@saasicat/cli`) folgen
 denselben Regeln; konsumenten-spezifische Plugin-Commands sind verpflichtet,
 sie zu erben.
-
-Quelle: aus `autohauspro/handoff/superadmin/CLI.md` (AutohausPro-Spezifikation der
-ersten Stunde) abstrahiert und auf die gemeinsame Plattform-Form
-verallgemeinert.
 
 ## 1. Identität
 
 Jeder schreibende CLI-Aufruf braucht eine **eindeutige Akteur-Identität**
 für den Audit-Log:
 
-- **Env-Var** `AHP_ADMIN_EMAIL` (AutohausPro), `VF_ADMIN_EMAIL` (vereinsfux), …
+- **Env-Var** mit app-eigenem Prefix (z. B. `MYAPP_ADMIN_EMAIL`)
   oder generisch `SAAS_ADMIN_EMAIL` als Plattform-Default.
 - **Flag** `--as <email>` überschreibt die Env-Var ad hoc (z. B. wenn
   mehrere SUPER_ADMINs sich denselben Shell teilen).
@@ -126,7 +121,7 @@ liefern `7`, wenn Drift gefunden — CI-Gates können darauf reagieren.
 
 Plattform-CLI lädt Konsumenten-Plugins über das `extensions:`-Feld der
 ManifestContribution. Jedes Plugin registriert seine eigenen Commands
-unter einem Namespace (`extras:`, `verein:`, `dagitto:` o. ä.).
+unter einem eigenen Namespace (`extras:`, `billing:` o. ä.).
 
 Plugin-Commands erben automatisch:
 
@@ -140,22 +135,22 @@ Plugin-Commands erben automatisch:
 ## 8. Beispiel-Workflow
 
 ```bash
-# Lese-Operation, kein Identitäts-Pflicht
-$ ahp mandant list --output=json | jq '.[] | select(.status=="ACTIVE")'
+# Lese-Operation, keine Identitäts-Pflicht
+$ myapp mandant list --output=json | jq '.[] | select(.status=="ACTIVE")'
 
 # Schreibend mit Identität, dry-run als Default
-$ ahp paket apply config/plans.yaml
+$ myapp paket apply config/plans.yaml
 ℹ Diff: 2 Pläne aktualisiert, 1 Bundle neu.
 ℹ Dry-run — nutze --apply zum Schreiben.
 
 # Schreibend mit MFA-Pflicht
-$ ahp paket apply config/plans.yaml --apply
+$ myapp paket apply config/plans.yaml --apply
 ℹ Erfordert MFA-Bestätigung.
 ? TOTP-Code: 482 159
 ✓ PlanCatalog aktualisiert. AuditLog: PLAN_CATALOG_UPDATE.
 
 # Production-Confirm
-$ NODE_ENV=production ahp pilot grant pilot-schmidt --as=taci@example.com
+$ NODE_ENV=production myapp pilot grant pilot-schmidt --as=admin@example.com
 ? Tippe production zur Bestätigung: production
 ℹ Erfordert MFA-Bestätigung.
 ? TOTP-Code: 217 998

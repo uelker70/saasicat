@@ -1,7 +1,6 @@
 scenario: 'PromoCode with firstTimeCustomersOnly rejects second redemption from same email domain'
 description: |
-    Verhalten aus autohauspro/backend/src/promo-codes — generalisiert. Wenn ein
-    Code firstTimeCustomersOnly=true hat, darf jede E-Mail-Domain ihn
+    Wenn ein Code firstTimeCustomersOnly=true hat, darf jede E-Mail-Domain ihn
     maximal einmal einlösen. Zweite Redemption → 422 FIRST_TIME_ONLY.
 
 setup:

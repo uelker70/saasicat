@@ -3,17 +3,18 @@
 // FALLBACK-Default hardcoded haben.
 //
 // Hintergrund: Apps mounten ihre Routen unterschiedlich.
-//   - vereinsfux: globalPrefix='api/v1' → `/api/v1/admin/...`
-//   - AutohausPro:     globalPrefix='api'    → `/api/admin/...`
+//   - globalPrefix='api/v1' → `/api/v1/admin/...`
+//   - globalPrefix='api'    → `/api/admin/...`
 // Ein Default wie `'/api/v1/admin/tenants'` im Plattform-Code bedient
-// AutohausPro IMMER falsch (HTTP 404, weil dort `/api/admin/tenants` mounted)
+// Apps mit `globalPrefix='api'` IMMER falsch (HTTP 404, weil dort
+// `/api/admin/tenants` mounted)
 // und vice versa. Konvention deshalb: Endpoint ist Pflicht-Prop, keine
 // Defaults mit `/api/...`-Präfix.
 //
 // Bug-Klasse, die dieser Test abfängt (2026-05-10 Bericht des Users):
-//   - `useTenants` Default `/api/v1/admin/tenants` → AutohausPro-Admin 404
-//   - `useEntitlement` Default `/api/billing/entitlement` → AutohausPro 404
-//   - `BootLoader`/`ManifestLoader`-Defaults für vereinsfux-Pfade
+//   - `useTenants` Default `/api/v1/admin/tenants` → 404 in `api`-Apps
+//   - `useEntitlement` Default `/api/billing/entitlement` → 404 in `api/v1`-Apps
+//   - `BootLoader`/`ManifestLoader`-Defaults für `api/v1`-Pfade
 //
 // Erlaubt sind:
 //   - Sub-Path-Defaults ohne `/api/`-Prefix, z. B. `'/billing'` (App
@@ -103,7 +104,7 @@ describe('Plattform-Paket: keine hardcoded App-URL-Prefixes', () => {
                 .map((o) => `  • ${o.file}:${o.line}\n    URL: ${o.text}\n    Code: ${o.snippet}`)
                 .join('\n\n') +
             `\n\nFix: Endpoint zu Pflicht-Prop machen. Apps haben unterschiedliche\n` +
-            `globalPrefix-Konventionen (AutohausPro: 'api', vereinsfux: 'api/v1'),\n` +
+            `globalPrefix-Konventionen (z. B. 'api' oder 'api/v1'),\n` +
             `ein Plattform-Default bedient deshalb immer mindestens eine App falsch.\n` +
             `Konsumenten-Wrapper passen Pfad-mit-Prefix als Prop durch.`;
         assert.fail(msg);

@@ -6,15 +6,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ComposedTenantAuthGuard, TenantBillingController } from '../dist/billing/index.js';
 
-const CATALOG = {
-    schemaVersion: 1,
-    projectKey: 'demo',
-    currency: 'EUR',
-    vatRate: 19,
-    quotaKeys: ['users', 'members', 'storageGb', 'resources'],
-    plans: [],
-};
-
 function buildEntitlement(stub) {
     return {
         computeLimits: async () => stub,
@@ -55,7 +46,6 @@ test('getEntitlement liefert EffectiveLimitsSnapshot generisch (quotas-Map)', as
         features: new Set(['CORE_IDENTITY', 'WHATSAPP']),
     };
     const ctrl = new TenantBillingController(
-        CATALOG,
         buildEntitlement(limits),
         null,
         { findForTenant: async () => null },
@@ -76,7 +66,6 @@ test('getUsage joined Subscription + Limits + Usage und füllt fehlende quotaKey
         features: new Set(['CORE_IDENTITY']),
     };
     const ctrl = new TenantBillingController(
-        CATALOG,
         buildEntitlement(limits),
         null,
         { findForTenant: async () => buildSub() },
@@ -117,7 +106,6 @@ test('getUsage reicht packageSnapshot + checkoutOfferId 1:1 durch (P11.4)', asyn
         checkoutOfferId: 'offer-123',
     };
     const ctrl = new TenantBillingController(
-        CATALOG,
         buildEntitlement(limits),
         null,
         { findForTenant: async () => sub },
@@ -137,7 +125,6 @@ test('getUsage liefert packageSnapshot=null wenn Subscription keinen Snapshot ha
         features: new Set(),
     };
     const ctrl = new TenantBillingController(
-        CATALOG,
         buildEntitlement(limits),
         null,
         { findForTenant: async () => buildSub() },
@@ -152,7 +139,6 @@ test('getUsage liefert packageSnapshot=null wenn Subscription keinen Snapshot ha
 
 test('getUsage wirft NotFoundException bei fehlendem Subscription', async () => {
     const ctrl = new TenantBillingController(
-        CATALOG,
         buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
         null,
         { findForTenant: async () => null },
@@ -165,7 +151,6 @@ test('getUsage wirft NotFoundException bei fehlendem Subscription', async () => 
 
 test('getUsage wirft NotFoundException wenn tenantIdResolver kein ID liefert', async () => {
     const ctrl = new TenantBillingController(
-        CATALOG,
         buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
         null,
         { findForTenant: async () => buildSub() },

@@ -9,8 +9,6 @@
 // Was die Plattform NICHT macht: TOTP-Code-Eingabe + MFA-Header-Setzen.
 // Das tut die Konsumenten-Shell (Quasar-Modal o. ä.) und reicht den
 // `mfaCode`-Parameter durch.
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.6 (4.12).
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from './types.js';
@@ -35,7 +33,7 @@ export interface BulkPublishItem {
 export interface UseBulkPublishOptions {
     /**
      * Endpoint-Mapping je Kind. **Pflicht** — Plattform kennt den
-     * App-globalPrefix nicht (AutohausPro: `/api/admin/...`, vereinsfux:
+     * App-globalPrefix nicht (z. B. `/api/admin/...` oder
      * `/api/v1/admin/...`), Konsumenten liefern daher die volle URL je Kind.
      */
     endpoints: Record<BulkItemKind, (draftId: string) => string>;

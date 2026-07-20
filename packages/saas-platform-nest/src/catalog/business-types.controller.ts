@@ -1,7 +1,5 @@
 // BusinessTypesController — REST-Endpunkte für `business_types` +
 // `business_type_versions`. Pattern analog zu BundlesController.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3
 
 import {
     Body,

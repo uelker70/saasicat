@@ -2,7 +2,7 @@
 //
 // Geteilt zwischen TenantsPage.vue und Subkomponenten (Avatar, Pill).
 // Apps mit eigenen Plan-Akzenten reichen sie via `planAccents`-Prop durch;
-// die Default-Map deckt AutohausPro-Plans (BASIC..ENTERPRISE) ab.
+// die Default-Map deckt die Standard-Plan-IDs (BASIC..ENTERPRISE) ab.
 
 export const DEFAULT_PLAN_ACCENTS: Record<string, string> = {
     BASIC: '#94a3b8',

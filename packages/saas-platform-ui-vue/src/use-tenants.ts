@@ -2,8 +2,8 @@
 //
 // **Endpoint ist Pflicht** und wird vom Konsumenten geliefert, weil Apps
 // unterschiedliche `globalPrefix`-Konventionen haben:
-//   - vereinsfux: `globalPrefix='api/v1'` → `/api/v1/admin/tenants`
-//   - AutohausPro:     `globalPrefix='api'`     → `/api/admin/tenants`
+//   - `globalPrefix='api/v1'` → `/api/v1/admin/tenants`
+//   - `globalPrefix='api'`    → `/api/admin/tenants`
 // Ein hardcoded Default in der Plattform würde eine App immer falsch
 // bedienen. Composable bleibt prefix-neutral; App-Wrapper sind explizit.
 //

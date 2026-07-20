@@ -4,8 +4,6 @@
 // `billing/feature-guard.tokens.ts` und `admin/mfa.guard.ts`: ein eigenes
 // Token pro Decorator. Strings statt Symbols, weil `SetMetadata` aus
 // `@nestjs/common` String-Keys nutzt und `Reflector.get()` damit arbeitet.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.1 (Discovery-Decorators)
 
 /** Methoden-Level: markiert eine Capability-Implementierung. */
 export const IMPLEMENTS_CAPABILITY_KEY = 'discovery:implements-capability';
@@ -29,7 +27,7 @@ export const ENFORCE_QUOTA_KEY = 'discovery:enforce-quota';
  * (`./discovery`, `./catalog`, …) inlined deshalb seine EIGENE Kopie dieser
  * Datei. Ein plain `Symbol()` wäre pro Kopie ein anderes Symbol; ein Consumer,
  * der DiscoveryModule aus `./discovery` und CatalogModule aus `./catalog`
- * importiert (z. B. autohauspro), bekäme zwei verschiedene Tokens → DI-Match
+ * importiert, bekäme zwei verschiedene Tokens → DI-Match
  * schlägt fehl → Snapshot erreicht das CatalogModule nicht (Prod-Incident
  * 2026-06-09). `Symbol.for` nutzt die prozessweite Registry → identisch über
  * alle Bundle-Kopien. (#25)

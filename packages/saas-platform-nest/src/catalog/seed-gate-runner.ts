@@ -1,8 +1,7 @@
 // Seed-Gate-Runner (#23) — geteilte I/O-Schale um das pure Seed-Gate
 // (`validateSeedAgainstSnapshot` in seed-gate.ts), damit die Konsumenten-
-// Seeds (autohauspro `prisma/seed-gate.js`, vereinsfux
-// `scripts/seed-plan-versions.mjs`) keine eigene Modus-/Lade-Logik
-// duplizieren.
+// Seeds (z. B. `prisma/seed-gate.js` oder `scripts/seed-plan-versions.mjs`)
+// keine eigene Modus-/Lade-Logik duplizieren.
 //
 // Verhalten je Modus:
 //   - 'report-only' (Default): fehlender Snapshot → Warnung + skip;

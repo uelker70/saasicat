@@ -33,7 +33,7 @@ export interface PublicCatalogModuleOptions {
     /** Pflicht: Konsumenten-spezifische FeatureUiRegistry. */
     featureUiRegistry: FeatureUiRegistry;
     /**
-     * SPEC_V2 §11.1 M6 Pack 2c — App-Identity (z. B. "vereinsfux"). Wird
+     * SPEC_V2 §11.1 M6 Pack 2c — App-Identity (z. B. "clubapp"). Wird
      * für Marketing-Lookups + Bundles/BusinessTypes-Filter benutzt.
      * Optional; wenn weggelassen, liefern die neuen Endpoints leere Listen.
      */

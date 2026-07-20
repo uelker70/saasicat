@@ -4,9 +4,6 @@
 // orchestriert die 5 Subcommands. `check` führt eine Liste von
 // `ManifestCheck`-Implementierungen aus (10 Plattform-Defaults aus
 // `DEFAULT_MANIFEST_CHECKS` plus konsumenten-spezifische Erweiterungen).
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.5 (3.7)
-//        yada-services/handoff/superadmin/SPEC.md §7.3.
 
 import { Inject, Injectable } from '@nestjs/common';
 import type { AdminManifest, ManifestAccessPort } from '@saasicat/types';

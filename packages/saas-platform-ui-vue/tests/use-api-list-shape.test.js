@@ -2,7 +2,7 @@
 // `{items, total, page, pageSize}`-Wrapper-Responses.
 //
 // Bug-Klasse, die dieser Test abfängt (2026-05-10):
-// AutohausPro-Admin-`/api/admin/tenants` liefert ein rohes Array `[{...}, …]`.
+// Manche Admin-Backends liefern ein rohes Array `[{...}, …]`.
 // Plattform-Composable hatte vorher `body.items ?? []`, weil es ein
 // Wrapper-Objekt erwartete — die Tabelle blieb leer trotz HTTP 200 +
 // 3 Tenants im Body.
@@ -31,7 +31,7 @@ async function flushAutoLoad() {
 }
 
 describe('useApiList Response-Shape-Toleranz', () => {
-    test('Roh-Array `[{...}, {...}]` wird als items[]+total konsumiert (AutohausPro-Shape)', async () => {
+    test('Roh-Array `[{...}, {...}]` wird als items[]+total konsumiert (Array-Shape)', async () => {
         const sample = [
             { id: '1', slug: 'demo', name: 'Demo' },
             { id: '2', slug: 'damla', name: 'Damla Auto' },
@@ -47,7 +47,7 @@ describe('useApiList Response-Shape-Toleranz', () => {
         assert.equal(list.total.value, 3, 'Total = Array.length');
     });
 
-    test('Wrapper-Object `{items, total, page, pageSize}` wird genauso unterstützt (vereinsfux-Shape)', async () => {
+    test('Wrapper-Object `{items, total, page, pageSize}` wird genauso unterstützt (Wrapper-Shape)', async () => {
         const sample = {
             items: [{ id: '1', slug: 'verein-1' }],
             total: 7,

@@ -6,7 +6,7 @@ import { CatalogEntriesService } from '../dist/catalog/index.js';
 // CatalogEntriesService — Discovery-Sync + Feature-/Quota-Review (#20).
 // Tests laufen gegen einen In-Memory-Fake des CatalogEntryRepository.
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 function nowFields() {
     const iso = new Date().toISOString();

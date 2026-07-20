@@ -52,7 +52,7 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    project: { key: 'autohauspro', displayName: 'AutohausPro', environment: 'development' },
+                    project: { key: 'cf', displayName: 'CF', environment: 'development' },
                 }),
             });
         });
@@ -71,7 +71,7 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
             const loader = new BootLoader({ endpoint: '/admin/boot' });
             return loader.load();
         });
-        expect((result as { project: { key: string } }).project.key).toBe('autohauspro');
+        expect((result as { project: { key: string } }).project.key).toBe('cf');
     });
 
     test('ManifestLoader persistiert ETag in localStorage', async ({ page }) => {
@@ -97,7 +97,6 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                         hash: 'h',
                         currency: 'EUR',
                         vatRate: 19,
-                        quotaKeys: [],
                         plans: [],
                     },
                 }),
@@ -152,7 +151,6 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                         hash: 'h',
                         currency: 'EUR',
                         vatRate: 19,
-                        quotaKeys: [],
                         plans: [],
                     },
                 }),
@@ -220,11 +218,11 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                     },
                     projectPages: [
                         {
-                            id: 'cf.datev',
-                            label: 'DATEV',
-                            route: '/admin/datev',
-                            componentKey: 'ahp-datev',
-                            navSection: 'AutohausPro',
+                            id: 'cf.reports',
+                            label: 'Reports',
+                            route: '/admin/reports',
+                            componentKey: 'cf-reports',
+                            navSection: 'MyApp',
                         },
                     ],
                 },
@@ -233,7 +231,6 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                     hash: 'h',
                     currency: 'EUR',
                     vatRate: 19,
-                    quotaKeys: [],
                     plans: [],
                 },
             };
@@ -248,10 +245,11 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
             };
         });
         expect(result.routeIds).toContain('tenants');
-        expect(result.routeIds).toContain('cf.datev');
-        // Default-Sektion (null) zuerst, dann AutohausPro alphabetisch
-        expect(result.sidebarSections[0].section).toBe(null);
-        expect(result.sidebarSections[1].section).toBe('AutohausPro');
+        expect(result.routeIds).toContain('cf.reports');
+        // Standard-Pages tragen ihre Default-Sektion (tenants → 'Kunden');
+        // unbekannte Sektionen folgen alphabetisch nach der sectionOrder.
+        expect(result.sidebarSections[0].section).toBe('Kunden');
+        expect(result.sidebarSections[1].section).toBe('MyApp');
     });
 
     test('Bulk-Publish: POST mit X-Mfa-Code-Header + parallele Calls', async ({ page }) => {
@@ -285,7 +283,11 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
                     };
                 }
             ).__platform;
-            const bp = useBulkPublish({});
+            const bp = useBulkPublish({
+                endpoints: {
+                    plan: (draftId: string) => `/api/v1/admin/plan-versions/${draftId}/publish`,
+                },
+            });
             bp.setItems([
                 { key: 'p:1', kind: 'plan', draftId: '1', label: 'A' },
                 { key: 'p:2', kind: 'plan', draftId: '2', label: 'B' },

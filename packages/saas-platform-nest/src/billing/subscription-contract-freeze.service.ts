@@ -26,8 +26,7 @@ import {
 //
 // Generisch: nutzt EntitlementService + SubscriptionContractService + PlanCatalog.
 // Konsumentenspezifisch sind nur `projectKey` (Config) und der Bundle-/
-// Versions-Datenzugriff (`ContractFreezeSourcePort`). Aus autohauspro-lokal
-// (#24) in die Plattform gehoben.
+// Versions-Datenzugriff (`ContractFreezeSourcePort`).
 
 @Injectable()
 export class SubscriptionContractFreezeService implements ContractFreezePort {

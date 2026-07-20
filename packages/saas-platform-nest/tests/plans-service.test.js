@@ -7,7 +7,7 @@ import { FakePlanRepository } from '../dist/testing/index.js';
 // PlansService — Plan-Stamm-CRUD (SPEC_V2 §11.1 M6 Pack 1).
 // PlanVersion-Lifecycle ist explizit nicht Teil dieses Pakets (folgt Pack 2).
 
-const PROJECT = 'vereinsfux';
+const PROJECT = 'clubapp';
 
 function makeService() {
     const repo = new FakePlanRepository();
@@ -59,17 +59,17 @@ describe('PlansService — Stamm-Operationen', () => {
     test('createPlan: gleicher planKey in anderem Projekt erlaubt', async () => {
         const { service } = makeService();
         await service.createPlan({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'STARTER',
-            label: 'Vereinsfux Starter',
+            label: 'ClubApp Starter',
         });
-        const autohausPro = await service.createPlan({
-            projectKey: 'autohauspro',
+        const demoApp = await service.createPlan({
+            projectKey: 'demoapp',
             planKey: 'STARTER',
-            label: 'AutohausPro Starter',
+            label: 'DemoApp Starter',
         });
-        assert.equal(autohausPro.projectKey, 'autohauspro');
-        assert.equal(autohausPro.planKey, 'STARTER');
+        assert.equal(demoApp.projectKey, 'demoapp');
+        assert.equal(demoApp.planKey, 'STARTER');
     });
 
     test('updatePlan ändert label + sortOrder', async () => {
@@ -242,12 +242,12 @@ describe('PlansService — Stamm-Operationen', () => {
     test('hardDeletePlan: ohne Versionen → Plan ist weg aus list', async () => {
         const { service } = makeService();
         const created = await service.createPlan({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'PURGE_ME',
             label: 'Purge Me',
         });
         await service.hardDeletePlan(created.id);
-        const all = await service.listPlans('vereinsfux');
+        const all = await service.listPlans('clubapp');
         assert.equal(
             all.find((p) => p.planKey === 'PURGE_ME'),
             undefined,
@@ -259,7 +259,7 @@ describe('PlansService — Stamm-Operationen', () => {
 
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createPlan({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'WITH_DRAFT',
             label: 'With Draft',
         });
@@ -286,7 +286,7 @@ describe('PlansService — Stamm-Operationen', () => {
 
         const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createPlan({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'WITH_LIVE',
             label: 'With Live',
         });
@@ -328,17 +328,17 @@ describe('PlansService — Stamm-Operationen', () => {
     test('listPlans: scoped pro projectKey', async () => {
         const { service } = makeService();
         await service.createPlan({
-            projectKey: 'vereinsfux',
+            projectKey: 'clubapp',
             planKey: 'A',
             label: 'A',
         });
         await service.createPlan({
-            projectKey: 'autohauspro',
+            projectKey: 'demoapp',
             planKey: 'B',
             label: 'B',
         });
-        const v = await service.listPlans('vereinsfux');
-        const c = await service.listPlans('autohauspro');
+        const v = await service.listPlans('clubapp');
+        const c = await service.listPlans('demoapp');
         assert.equal(v.length, 1);
         assert.equal(c.length, 1);
         assert.equal(v[0].planKey, 'A');

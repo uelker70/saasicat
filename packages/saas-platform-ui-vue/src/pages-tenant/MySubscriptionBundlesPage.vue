@@ -170,7 +170,7 @@ import type { SubscriptionBundleRecord } from '@saasicat/types';
 import { useTenantSubscriptionBundles } from '../use-tenant-subscription-bundles.js';
 
 // MySubscriptionBundlesPage — Tenant-Self-Service-Seite „Meine Bundles".
-// Hostende App (vereinsfux/tenant, autohauspro/admin-tenant) bindet die Page
+// Die hostende App bindet die Page
 // per Route ein und reicht den `billingEndpoint` durch. Composable ruft
 // `/billing/subscription-bundles`. Die Bundle-Label-Auflösung kommt
 // vom Konsumenten (Optional via `bundleLabels`-Prop) — sonst zeigen wir

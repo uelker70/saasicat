@@ -1,13 +1,13 @@
 // DiscoveryModule — bindet den DiscoveryScanner und liefert den
 // DiscoverySnapshot via DI-Token.
 //
-// Konsumenten-Setup (vereinsfux/AutohausPro):
+// Konsumenten-Setup:
 //
 // ```ts
 // @Module({
 //   imports: [
 //     DiscoveryModule.forRoot({
-//       app: { key: 'vereinsfux', version: '0.42.1' },
+//       app: { key: 'clubapp', version: '0.42.1' },
 //       controller: { guards: [JwtAuthGuard, SuperAdminGuard] },
 //     }),
 //   ],
@@ -22,8 +22,6 @@
 // ```
 //
 // oder direkt den Scanner für Re-Build (`DiscoveryScanner.rebuildSnapshot()`).
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.2 + §3.3
 
 import {
     type CanActivate,

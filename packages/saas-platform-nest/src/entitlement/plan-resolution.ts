@@ -2,17 +2,13 @@
 // Plans bei Trial / Pilot / Pending-Plan-Wechsel.
 //
 // Konsumenten konfigurieren ihre Strategie via `EntitlementResolutionConfig`:
-//   - `pilotEntitlementPlan`: welcher Plan zählt während Pilot? (AutohausPro: BUSINESS,
-//     vereinsfux: ggf. anders).
+//   - `pilotEntitlementPlan`: welcher Plan zählt während Pilot? (z. B. BUSINESS).
 //   - `pendingSalesEntitlementPlan`: Fallback während ENTERPRISE-Sales-Wartezeit.
 //   - `defaultTrialEntitlementPlan`: Fallback wenn `Subscription.trialEntitlementPlan`
 //     null ist.
 //
 // Ist eine der Konfigurations-Strategien `undefined`, fällt die Auflösung auf
 // `subscription.plan` zurück (kein Override).
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.6)
-//        autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §5.
 
 import type { PlanId } from '@saasicat/types';
 

@@ -141,7 +141,7 @@ export interface UserManagementPort extends SuperAdminProvisioningPort {
 
 /** Liefert aktuellen Verbrauch für eine Limit-Dimension. */
 export interface QuotaProvider {
-    /** quotaKey aus saas.yaml.quotaKeys. */
+    /** quotaKey, wie via `@DefinesQuota({ key })` deklariert. */
     readonly key: string;
     count(tenantId: string): Promise<number>;
     /** Optional: Cache-TTL in Sekunden (Default 30s). */
@@ -160,14 +160,14 @@ export interface MfaPort {
 
 /**
  * Opaker Transaktions-Kontext. Konsument bestimmt den konkreten Typ
- * (z. B. `Prisma.TransactionClient` in AutohausPro). Plattform-Code reicht ihn
+ * (z. B. `Prisma.TransactionClient`). Plattform-Code reicht ihn
  * nur durch — kein Inhalt-Inspect.
  */
 export type TransactionContext = unknown;
 
 /**
- * Transaktions-Runner — Wrapper über `prisma.$transaction` (AutohausPro),
- * Django-`transaction.atomic` (Dagitto) etc.
+ * Transaktions-Runner — Wrapper über `prisma.$transaction`,
+ * Django-`transaction.atomic` etc.
  */
 export interface TransactionRunner {
     run<T>(fn: (tx: TransactionContext) => Promise<T>): Promise<T>;

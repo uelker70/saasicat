@@ -19,7 +19,7 @@ Consumer CLIs are NestJS-Standalone applications based on
 import the platform modules and register their own commands.
 
 ```ts
-// autohauspro/backend/src/cli/cli.module.ts
+// backend/src/cli/cli.module.ts
 import { Module } from '@nestjs/common';
 import { AdminModule, PlanCatalogModule } from '@saasicat/nest';
 import { CliContextModule } from '@saasicat/cli';
@@ -38,9 +38,9 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
         }),
         CliContextModule.forRoot({
             config: {
-                adminEmailEnvVar: 'AHP_ADMIN_EMAIL',
-                mfaSkipEnvVar: 'AHP_SKIP_MFA',
-                isProductionEnvironment: () => process.env.AUTOHAUSPRO_ENV === 'production',
+                adminEmailEnvVar: 'MYAPP_ADMIN_EMAIL',
+                mfaSkipEnvVar: 'MYAPP_SKIP_MFA',
+                isProductionEnvironment: () => process.env.MYAPP_ENV === 'production',
             },
             userPort: { useFactory: (p) => new PrismaUserPortAdapter(p), inject: [PrismaService] },
             auditQueryPort: {
@@ -49,20 +49,20 @@ import { PrismaUserPortAdapter } from './adapters/prisma-user-port';
             },
             manifestAccessPort: { useExisting: AdminManifestService },
             doctorChecks: [
-                // Plattform-Defaults werden NICHT automatisch geladen — hier
-                // explizit auflisten oder eigene Checks hinzufügen.
-                new KositSidecarReachableCheck(),
-                new MustangSidecarReachableCheck(),
+                // Platform defaults are NOT loaded automatically — list them
+                // explicitly here or add your own checks.
+                new SmtpReachableCheck(),
+                new ObjectStorageReachableCheck(),
             ],
         }),
     ],
     providers: [
-        // Konsumenten-spezifische Commands (nest-commander @Command)
-        PaketApplyCommand,
-        PaketDiffCommand,
+        // App-specific commands (nest-commander @Command)
+        PlanApplyCommand,
+        PlanDiffCommand,
         PilotCreateCommand,
         PilotGrantCommand,
-        RabattAddCommand,
+        DiscountAddCommand,
         AdminMfaSetupCommand, // wraps MfaSetupFlow
         AdminWhoAmICommand, // wraps WhoAmIFlow
         AuditTailCommand, // wraps AuditTailFlow
@@ -92,7 +92,7 @@ export class AdminMfaSetupCommand extends CommandRunner {
         try {
             const result = await this.flow.run({
                 asFlag: opts.as,
-                issuer: 'AutohausPro SuperAdmin',
+                issuer: 'MyApp SuperAdmin',
                 force: opts.force,
             });
             console.log(this.flow.formatSetupResult(result));
@@ -114,7 +114,7 @@ export class AdminMfaSetupCommand extends CommandRunner {
 }
 ```
 
-### Project-specific commands (paket / pilot / rabatt etc.)
+### Project-specific commands (plan / pilot / discount etc.)
 
 These are NOT shipped with the platform — they live in the consumer
 package as project-specific commands that orchestrate calls to the

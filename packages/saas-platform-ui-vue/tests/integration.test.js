@@ -1,6 +1,6 @@
 // Integration-Tests: full boot → manifest → nav → action-registry Flow.
 //
-// Diese Tests simulieren den Konsumenten-Bootstrap (AutohausPro/vereinsfux) mit
+// Diese Tests simulieren den Konsumenten-Bootstrap mit
 // einer scripted-HTTP-Sequence:
 //
 //   1. Pre-Login: GET /admin/boot → Branding lesen.
@@ -23,7 +23,7 @@ import {
 
 const SAMPLE_MANIFEST = {
     schemaVersion: 1,
-    project: { key: 'autohauspro', displayName: 'AutohausPro' },
+    project: { key: 'demoapp', displayName: 'DemoApp' },
     build: {
         platformPackageVersion: '0.1.0',
         appVersion: '1.0.0',
@@ -44,9 +44,9 @@ const SAMPLE_MANIFEST = {
                 id: 'cf.datev',
                 label: 'DATEV',
                 route: '/admin/datev',
-                componentKey: 'ahp-datev',
+                componentKey: 'cf-datev',
                 requiredCapability: 'datev:export:run',
-                navSection: 'AutohausPro',
+                navSection: 'DemoApp',
             },
         ],
     },
@@ -70,7 +70,6 @@ const SAMPLE_MANIFEST = {
         hash: 'h',
         currency: 'EUR',
         vatRate: 19,
-        quotaKeys: ['users', 'vehicles', 'storageGb'],
         plans: [],
     },
 };
@@ -111,8 +110,8 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
                 status: 200,
                 body: {
                     project: {
-                        key: 'autohauspro',
-                        displayName: 'AutohausPro',
+                        key: 'demoapp',
+                        displayName: 'DemoApp',
                         environment: 'development',
                     },
                 },
@@ -128,8 +127,8 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         // Schritt 1: Pre-Login Branding
         const bootLoader = new BootLoader({ http, endpoint: '/api/v1/admin/boot' });
         const boot = await bootLoader.load();
-        assert.equal(boot.project.key, 'autohauspro');
-        assert.equal(boot.project.displayName, 'AutohausPro');
+        assert.equal(boot.project.key, 'demoapp');
+        assert.equal(boot.project.displayName, 'DemoApp');
 
         // Schritt 2: Login passiert (außerhalb), dann Manifest
         const manifestLoader = new ManifestLoader({
@@ -151,12 +150,12 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
 
         const sidebar = buildSidebar(routes);
         // StandardPages erben Default-Sections (tenants→Kunden, audit→System);
-        // ProjectPages-Section "AutohausPro" hängt alphabetisch hinten dran.
+        // ProjectPages-Section "DemoApp" hängt alphabetisch hinten dran.
         assert.equal(sidebar[0].section, 'Kunden');
         assert.equal(sidebar[0].items[0].id, 'tenants');
         assert.equal(sidebar[1].section, 'System');
         assert.equal(sidebar[1].items[0].id, 'audit');
-        assert.equal(sidebar[2].section, 'AutohausPro');
+        assert.equal(sidebar[2].section, 'DemoApp');
         assert.equal(sidebar[2].items.length, 1); // datev
 
         // Schritt 4: Action-Registry mit Handler
@@ -242,7 +241,7 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         const first = await loader.load();
         assert.equal(first.build.manifestHash, 'sha256-abc123');
 
-        // Konsument: nach `ahp paket apply` triggert manifest/reload
+        // Konsument: nach `<app> paket apply` triggert manifest/reload
         loader.clearCache();
         const second = await loader.load();
         assert.equal(second.build.manifestHash, 'sha256-v2');

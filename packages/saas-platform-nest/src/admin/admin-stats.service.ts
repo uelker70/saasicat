@@ -20,9 +20,9 @@ const DEFAULT_AUDIT_WINDOW_DAYS = 7;
 /**
  * Plattform-Stats für die SuperAdmin-Dashboard-Page.
  *
- * Enthält Subscription-/Promo-/Audit-Aggregate, die in beiden Apps (AutohausPro
- * + vereinsfux) identisch sinnvoll sind. App-spezifische KPIs (AutohausPro-DATEV,
- * vereinsfux-Bundles/Members) bleiben Extra-Endpoints in der jeweiligen App.
+ * Enthält Subscription-/Promo-/Audit-Aggregate, die in allen konsumierenden
+ * Apps identisch sinnvoll sind. App-spezifische KPIs (z. B. DATEV oder
+ * Bundles/Members) bleiben Extra-Endpoints in der jeweiligen App.
  */
 export interface AdminStatsSnapshot {
     subscriptions: SubscriptionStatsSnapshot;

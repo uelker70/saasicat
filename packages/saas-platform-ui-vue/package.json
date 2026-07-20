@@ -1,7 +1,7 @@
 {
     "name": "@saasicat/ui-vue",
     "version": "0.1.0",
-    "description": "Vue-3-Komponenten + Composables für die SuperAdmin-UI-Shell. Liefert Boot-Loader, Manifest-Loader (ETag-Cache), Nav-Builder, Action-Registry, Standard-Pages.",
+    "description": "Vue 3 components + composables for the SuperAdmin UI shell. Provides boot loader, manifest loader (ETag cache), nav builder, action registry and standard pages.",
     "type": "module",
     "main": "./dist/index.cjs",
     "module": "./dist/index.js",

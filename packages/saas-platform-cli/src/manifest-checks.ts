@@ -1,13 +1,12 @@
 // 10 Default-Manifest-Checks für `<app> manifest check`.
 //
 // Konsumenten dürfen über `MANIFEST_CHECKS_TOKEN` weitere Checks registrieren
-// (z. B. AutohausPro-spezifische `datev:export`-Capability-Pflicht). Die hier
+// (z. B. eine app-spezifische `datev:export`-Capability-Pflicht). Die hier
 // definierten 10 sind plattform-übergreifend — jede AdminManifest-Instanz
 // MUSS sie bestehen, damit das Manifest schema-konform und semantisch
 // konsistent ist.
 //
-// Spec: yada-services/handoff/superadmin/SPEC.md §7.3
-//        yada-services/packages/saas-platform-spec/schemas/admin-manifest.schema.json
+// Spec: packages/saas-platform-spec/schemas/admin-manifest.schema.json
 
 import type { AdminManifest } from '@saasicat/types';
 
@@ -29,11 +28,11 @@ export interface ManifestCheck {
 //       * mindestens einem Punkt (`tenants.read`),
 //       * camelCase-Action erlaubt (`users.resetPassword`),
 //       * mehrstufig erlaubt (`mosque.zakat.read`).
-//     Konsumenten (AutohausPro + vereinsfux) nutzen alle drei Formen produktiv.
+//     Bestehende Konsumenten nutzen alle drei Formen produktiv.
 //   - ComponentKeys: BEIDE Schreibweisen erlaubt — `lowercase-hyphenated`
-//     (`vereinsfux-sport`) UND `namespace.dot` (`autohauspro.datev`).
+//     (`clubapp-sport`) UND `namespace.dot` (`demoapp.datev`).
 //   - AuditActionKeys: bleiben `SCREAMING_SNAKE_CASE` (`MEMBER_CREATE` etc.)
-//     — etabliert in autohauspro + vereinsfux + Plattform-Core, semantisch
+//     — etabliert in Konsumenten-Apps + Plattform-Core, semantisch
 //     passender für Audit-Log-Konsumenten (Filter, Severity-Mapping).
 const COMPONENT_KEY_PATTERN = /^[a-z][a-z0-9]*([.-][a-z0-9]+)+$/;
 const ACTION_KEY_PATTERN = /^[A-Z][A-Z0-9_]+$/;

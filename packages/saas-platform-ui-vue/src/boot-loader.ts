@@ -6,11 +6,10 @@
 //
 // **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert, weil
 // Apps unterschiedliche `globalPrefix`-Konventionen haben:
-//   - vereinsfux: `globalPrefix='api/v1'` → `/api/v1/admin/boot`
-//   - AutohausPro:     `globalPrefix='api'`     → `/api/admin/boot`
+//   - `globalPrefix='api/v1'` → `/api/v1/admin/boot`
+//   - `globalPrefix='api'`    → `/api/admin/boot`
 //
-// Spec: yada-services/handoff/superadmin/SPEC.md §10.4 +
-//        admin-api.openapi.yaml.
+// Spec: admin-api.openapi.yaml.
 
 import type { PublicBootResponse } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from './types.js';

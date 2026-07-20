@@ -18,8 +18,6 @@
 // Apps registrieren diese Contribution nicht selbst — `AdminManifestModule.forRoot`
 // hängt sie automatisch in den Service-Constructor. Wer das nicht möchte, kann
 // `registerPlatformCore: false` setzen.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4
 
 import type { ManifestContribution } from '@saasicat/types';
 

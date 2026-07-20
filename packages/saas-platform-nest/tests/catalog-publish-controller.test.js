@@ -1,4 +1,4 @@
-// Regression-Guard für yada-services#63: die Publish-Controller müssen
+// Regression-Guard: die Publish-Controller müssen
 // allowZeroPrice aus dem DTO an den Service durchreichen (sonst ist der
 // Zero-Price-Escape-Hatch über HTTP unerreichbar). Direkt-Instanziierung
 // statt NestJS-Bootstrap — der Controller ist eine reine Mapping-Schicht,

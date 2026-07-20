@@ -94,8 +94,8 @@ import type { PlanVersionViewMode } from './plan-versions/types.js';
 // nicht Teil der Plattform — die hängen am App-Feature-Catalog).
 //
 // Slot-API für reichere App-spezifische Renderings:
-//   - `#list`: ersetzt die default PlanVersionsList (z. B. AutohausPro mit Feature-
-//             grouping per Plan + maxUsers/maxVehicles-Spalten).
+//   - `#list`: ersetzt die default PlanVersionsList (z. B. mit Feature-
+//             grouping per Plan + zusätzlichen Quota-Spalten).
 //   - `#matrix`, `#audit`: analog.
 
 interface FeatureGroupsConfig {
@@ -119,7 +119,7 @@ const props = withDefaults(
     defineProps<{
         data: RawCatalogData;
         loading?: boolean;
-        /** Plan-IDs in Anzeigereihenfolge (z. B. AutohausPro: BASIC,STANDARD,PROFESSIONAL,…). */
+        /** Plan-IDs in Anzeigereihenfolge (z. B. BASIC,STANDARD,PROFESSIONAL,…). */
         planSortOrder?: readonly string[];
         /** Erwartete Plan-IDs für „fehlende Pakete"-Warnung. */
         expectedPlanIds?: readonly string[];
@@ -136,7 +136,7 @@ const props = withDefaults(
         /** Field-Label-Overrides für die Diff-Anzeige. */
         diffFieldLabels?: Record<string, string>;
         /**
-         * Optionale Quota-Spalten in der List-View (z. B. vereinsfux:
+         * Optionale Quota-Spalten in der List-View (z. B.
          * Benutzer/Mitglieder/Speicher/Plätze). Wird an PlanVersionsList
          * weitergereicht. Default: keine — alte Anzeige (nur Paket/Preis/Features).
          */

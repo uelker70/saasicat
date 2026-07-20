@@ -6,9 +6,7 @@
 // liest/schreibt den persistierten Review-Status + die Übersetzungen.
 //
 // **Admin-Endpoint-Prefix ist Pflicht** und wird vom Konsumenten geliefert
-// (AutohausPro: `/api/admin`, vereinsfux: `/api/v1/admin`).
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §6.3
+// (z. B. `/api/admin` oder `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
 import type {

@@ -7,7 +7,6 @@ const TEST_CATALOG = {
     projectKey: 'test',
     currency: 'EUR',
     vatRate: 19,
-    quotaKeys: ['users'],
     features: [],
     plans: [
         {

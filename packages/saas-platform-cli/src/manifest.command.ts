@@ -4,8 +4,8 @@ import { Command, CommandRunner, Option, SubCommand } from 'nest-commander';
 import { CliContextService } from './cli-context.service.js';
 import { ManifestCliFlow } from './manifest-cli-flow.js';
 
-// Geteilte `<app> manifest …`-Commands für alle Plattform-Consumer
-// (AutohausPro, vereinsfux, …). Bindet den Plattform-`ManifestCliFlow` an die
+// Geteilte `<app> manifest …`-Commands für alle Plattform-Consumer.
+// Bindet den Plattform-`ManifestCliFlow` an die
 // nest-commander-CLI-Tree. Consumer registrieren diese Klassen in den
 // Providern ihres CLI-Moduls; `CliContextService` + `ManifestCliFlow` kommen
 // aus `CliContextModule.forRoot({ manifestAccessPort })`.

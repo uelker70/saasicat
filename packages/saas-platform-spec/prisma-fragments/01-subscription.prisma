@@ -2,9 +2,9 @@
 // SaaS-Platform Prisma-Fragment: Subscription + Payment-Method
 // =============================================================================
 //
-// REFERENZ-SNIPPET — kein eigenständiges Schema. Konsumenten (AutohausPro,
-// vereinsfux, Dagitto, …) kopieren Models in ihre `schema.prisma` und
-// passen FK-Relationen zu eigenen `Tenant`/`User`-Models an.
+// REFERENZ-SNIPPET — kein eigenständiges Schema. Konsumenten kopieren
+// Models in ihre `schema.prisma` und passen FK-Relationen zu eigenen
+// `Tenant`/`User`-Models an.
 //
 // Konventionen:
 //   - Plan/Feature-Keys als `String` — Source-of-Truth ist die
@@ -21,8 +21,6 @@
 // Begleitende Fragmente:
 //   - 03-plan-versions.prisma  (PlanVersion — referenziert hier)
 //   - 02-promo-code.prisma     (PromoCodeRedemption hat 1:1 zu Subscription)
-//
-// Spec: yada-services/handoff/superadmin/UMSETZUNGSPLAN.md §3.2 (1.1).
 
 // -----------------------------------------------------------------------------
 // Universelle Enums — projekt-unabhängig, in jedem Konsumenten gleich.
@@ -91,8 +89,8 @@ model Subscription {
     pendingPlanVersionReminderSentAt   DateTime?
 
     // BusinessType-Komposition (SPEC_V2 §11.1 M5). Optional pro App: Apps
-    // mit reinem Plan-Modell (z. B. AutohausPro MVP) lassen das Feld auf null;
-    // Apps mit fachlichen Vertikalen (z. B. vereinsfux Vereinstypen)
+    // mit reinem Plan-Modell lassen das Feld auf null; Apps mit fachlichen
+    // Vertikalen (z. B. Vereinstypen)
     // setzen die Subscription auf eine konkrete published BusinessTypeVersion.
     // Aggregation in EntitlementService.computeLimits siehe
     // GESCHAEFTSTYP_SPEC.md §6.

@@ -17,7 +17,6 @@ describe('createSaasPlatformTestModule', () => {
                 projectKey: 'test',
                 currency: 'EUR',
                 vatRate: 19,
-                quotaKeys: [],
                 plans: [{ id: 'starter', features: ['NOTES'], quotas: {} }],
             },
         });
@@ -51,7 +50,6 @@ describe('createSaasPlatformTestModule', () => {
                 projectKey: 'test',
                 currency: 'EUR',
                 vatRate: 19,
-                quotaKeys: [],
                 plans: [{ id: 'starter', features: [], quotas: {} }],
             },
             overrides: { audit: customAudit },

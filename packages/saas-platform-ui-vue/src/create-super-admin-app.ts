@@ -7,8 +7,6 @@
 //   - Auth-Stores, Login-Flows, JWT-Refresh — App-spezifisch.
 //   - CSS-Imports (Quasar-CSS, Material-Icons, App-Theme) — bleiben in der
 //     App-eigenen `main.ts`, weil tsup keine CSS bundelt.
-//
-// Spec: yada-services/handoff/superadmin/SPEC.md §4.4 (createSuperAdminApp).
 
 import { createApp, type App, type Component, type InjectionKey } from 'vue';
 import { Quasar, Notify, Dialog, Loading, type QuasarPluginOptions } from 'quasar';
@@ -32,9 +30,9 @@ import { defaultHttpClient, type HttpClient } from './types.js';
  * Konsumenten via `useSuperAdminBrand()` lesen.
  */
 export interface SuperAdminBrand {
-    /** 2-Buchstaben-Kürzel im Logo-Badge (`'ah'`, `'vf'`, …). */
+    /** 2-Buchstaben-Kürzel im Logo-Badge (`'ma'`, `'da'`, …). */
     logoText: string;
-    /** Voller Anzeigename (`'AutohausPro'`, `'vereinsfux'`, …). */
+    /** Voller Anzeigename (`'DemoApp'`, `'ClubApp'`, …). */
     name: string;
     /** Optional: Tag rechts vom Namen, Default `'SuperAdmin'`. */
     tag?: string;
@@ -178,12 +176,13 @@ export interface CreateSuperAdminAppOptions {
     routerHistory?: RouterHistory;
     /**
      * Optional: Quasar-Konfiguration. Default lädt `Notify`/`Dialog`/`Loading`
-     * mit der bekannten AutohausPro-/vereinsfux-Konvention (`top-right`, 3 s).
+     * mit der etablierten Konsumenten-Konvention (`top-right`, 3 s).
      */
     quasarOptions?: Partial<QuasarPluginOptions>;
     /**
-     * Optional: zusätzliche Vue-Plugins (z. B. AutohausPro NotificationCenter), die
-     * nach dem Plattform-Setup, vor dem Mount installiert werden.
+     * Optional: zusätzliche Vue-Plugins (z. B. ein app-eigenes
+     * NotificationCenter), die nach dem Plattform-Setup, vor dem Mount
+     * installiert werden.
      */
     installPlugins?: Array<(app: App) => void>;
     /**

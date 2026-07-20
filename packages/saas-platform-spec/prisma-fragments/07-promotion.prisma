@@ -12,12 +12,10 @@
 //
 // Globale Katalog-Tabelle (kein tenantId, kein RLS). Schreibzugriff nur
 // über SUPER_ADMIN-Guard im AdminController.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §9a
 
 model Promotion {
     id         String @id @default(uuid())
-    projectKey String // 'vereinsfux' | 'autohauspro' | …
+    projectKey String // z. B. 'clubapp' | 'demoapp' | …
 
     // Interne Bezeichnung (nicht öffentlich).
     internalLabel String

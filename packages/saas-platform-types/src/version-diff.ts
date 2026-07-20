@@ -1,9 +1,5 @@
 // Diff-Klassifikation für Plan-/Bundle-Versionen — Pure Functions.
 //
-// Spec: handoff/superadmin/SPEC.md §6 +
-//        handoff/superadmin/SPEC_V2.md §7 +
-//        autohauspro/handoff/saas/ROADMAP_PLANS_AND_ENTITLEMENT.md §3.1 + §4.
-//
 // Regression-Regel (ROADMAP §2 Nr. 2): Sobald MINDESTENS EINE einzelne
 // Änderung `direction = 'REGRESSION'` hat, gilt die gesamte Version als
 // regressiv (`nonRegressive = false`) — auch bei gemischten Änderungen mit

@@ -2,8 +2,6 @@
 //
 // Wie MarketingProjections **ohne Versionierung** — Aktionen werden direkt
 // geändert, weil sie nur die Public-Catalog-Anzeige steuern.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §9a
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {

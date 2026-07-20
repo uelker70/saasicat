@@ -190,7 +190,7 @@ export interface PromoSubscriptionLookup {
 
 /**
  * Aggregations-Adapter für die Stats-Endpoint (`PromoCodesService.stats`).
- * Konsumenten ohne `InvoiceDiscount`-Tabelle (vereinsfux) liefern '0.00'.
+ * Konsumenten ohne `InvoiceDiscount`-Tabelle liefern '0.00'.
  */
 export interface PromoRevenueDeductionAggregator {
     /** Summe der amountGross-Werte für alle Redemptions eines Promo-Codes (Decimal-as-string). */

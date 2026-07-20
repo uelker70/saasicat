@@ -10,8 +10,6 @@
 //      Bundles werden NICHT aggregiert — sie kommen ausschließlich aus
 //      dem SuperAdmin-UI (DB-Tabelle `bundles`, SPEC_V2 §3.1 + §11.1 M3).
 //   5. Kanonischer SHA256-Hash über sortierte Snapshot-Daten (ETag-stabil)
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §3.2 + §3.3
 
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -32,8 +30,8 @@ import type { EnforceQuotaMetadata, ImplementsCapabilityMetadata } from './decor
 
 /**
  * App-Identität, die der Scanner in den Snapshot übernimmt. Der Konsument
- * (vereinsfux/AutohausPro) liefert diese beim Modul-Setup, damit der Snapshot
- * ein eindeutiges `app.key` + `app.version` trägt.
+ * liefert diese beim Modul-Setup, damit der Snapshot ein eindeutiges
+ * `app.key` + `app.version` trägt.
  */
 export interface DiscoveryAppInfo {
     key: string;

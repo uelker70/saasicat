@@ -3,10 +3,8 @@
 // /admin/catalog/bundles + /admin/catalog/bundle-versions).
 //
 // **Endpoint-Prefix ist Pflicht** und wird vom Konsumenten geliefert
-// (AutohausPro: `/api/admin`, vereinsfux: `/api/v1/admin`). Composables hängen
+// (z. B. `/api/admin` oder `/api/v1/admin`). Composables hängen
 // die catalog-Pfade selbst an — Konsument liefert nur den Admin-Prefix.
-//
-// Spec: yada-services/handoff/superadmin/SPEC_V2.md §11.1 M3 + §6
 
 import { ref, type Ref } from 'vue';
 import type {

@@ -31,7 +31,7 @@ export interface PlanCatalog {
          */
         version?: string;
         /**
-         * Kurz-Kürzel für das Logo-Badge (z. B. "cf", "vf").
+         * Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da").
          */
         icon?: string;
         /**
@@ -58,12 +58,6 @@ export interface PlanCatalog {
          */
         availableLocales: [string, ...string[]];
     };
-    /**
-     * Erlaubte Limit-Dimensionen, gegen die Pläne und Bundles Limits definieren dürfen. Für jeden Key muss im Konsumenten ein QuotaProvider registriert sein.
-     *
-     * @minItems 1
-     */
-    quotaKeys: [string, ...string[]];
     /**
      * Master-Liste aller Feature-Flags des Projekts. Pläne dürfen nur hier deklarierte Keys referenzieren.
      */

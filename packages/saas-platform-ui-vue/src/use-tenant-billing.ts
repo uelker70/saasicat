@@ -216,7 +216,7 @@ export type BundlePreviewShape = BundleAddPreviewShape | BundleCancelPreviewShap
 export interface UseTenantBillingOptions {
     /**
      * Default `'/billing'`. Der App-HTTP-Adapter setzt die API-Base-URL
-     * (z. B. `/api` für AutohausPro, `/api/v1` für vereinsfux); `apiPrefix` ist
+     * (z. B. `/api` oder `/api/v1`); `apiPrefix` ist
      * der Sub-Pfad darunter. Doppelter `/api`-Prefix führt zu HTTP 404.
      */
     apiPrefix?: string;
