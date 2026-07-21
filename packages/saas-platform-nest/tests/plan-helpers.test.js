@@ -1,4 +1,4 @@
-// Tests für plan-helpers.ts — Pure-Function-Wrapper über PlanCatalog.
+// Tests for plan-helpers.ts — pure-function wrappers over PlanCatalog.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,17 +63,17 @@ const DEMOAPP_LIKE_CATALOG = {
 // findPlan / getPlanOrThrow
 // ──────────────────────────────────────────────────────────────────
 
-test('findPlan liefert Plan bei bekannter ID', () => {
+test('findPlan returns a plan for a known ID', () => {
     const plan = findPlan(DEMOAPP_LIKE_CATALOG, 'BASIC');
     assert.equal(plan?.id, 'BASIC');
     assert.equal(plan?.name, 'Basic');
 });
 
-test('findPlan liefert undefined bei unbekannter ID', () => {
+test('findPlan returns undefined for an unknown ID', () => {
     assert.equal(findPlan(DEMOAPP_LIKE_CATALOG, 'NIRVANA'), undefined);
 });
 
-test('getPlanOrThrow wirft typed Error bei unbekannter ID', () => {
+test('getPlanOrThrow throws a typed error for an unknown ID', () => {
     assert.throws(
         () => getPlanOrThrow(DEMOAPP_LIKE_CATALOG, 'NIRVANA'),
         /Plan "NIRVANA" nicht im Catalog \(demoapp\)/,
@@ -84,7 +84,7 @@ test('getPlanOrThrow wirft typed Error bei unbekannter ID', () => {
 // getMarketedPlans
 // ──────────────────────────────────────────────────────────────────
 
-test('getMarketedPlans schließt marketed: false aus', () => {
+test('getMarketedPlans excludes marketed: false', () => {
     const plans = getMarketedPlans(DEMOAPP_LIKE_CATALOG);
     assert.equal(plans.length, 2);
     assert.deepEqual(
@@ -93,7 +93,7 @@ test('getMarketedPlans schließt marketed: false aus', () => {
     );
 });
 
-test('getMarketedPlans behandelt undefined als marketed=true', () => {
+test('getMarketedPlans treats undefined as marketed=true', () => {
     const catalog = {
         ...DEMOAPP_LIKE_CATALOG,
         plans: [
@@ -112,33 +112,33 @@ test('getMarketedPlans behandelt undefined als marketed=true', () => {
 // getPlanPriceNet / getPlanPriceGross
 // ──────────────────────────────────────────────────────────────────
 
-test('getPlanPriceNet MONTHLY für marketed Plan', () => {
+test('getPlanPriceNet MONTHLY for a marketed plan', () => {
     assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'BASIC', 'MONTHLY'), 9.9);
 });
 
-test('getPlanPriceNet YEARLY für marketed Plan', () => {
+test('getPlanPriceNet YEARLY for a marketed plan', () => {
     assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'BASIC', 'YEARLY'), 99);
 });
 
-test('getPlanPriceNet für unbekannten Plan → null', () => {
+test('getPlanPriceNet for an unknown plan → null', () => {
     assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'NIRVANA', 'MONTHLY'), null);
 });
 
-test('getPlanPriceNet für ENTERPRISE (marketed: false) → null', () => {
+test('getPlanPriceNet for ENTERPRISE (marketed: false) → null', () => {
     assert.equal(getPlanPriceNet(DEMOAPP_LIKE_CATALOG, 'ENTERPRISE', 'MONTHLY'), null);
 });
 
-test('getPlanPriceGross MONTHLY = Netto * 1.19', () => {
-    // 9.9 * 1.19 = 11.781, gerundet 11.78
+test('getPlanPriceGross MONTHLY = net * 1.19', () => {
+    // 9.9 * 1.19 = 11.781, rounded 11.78
     assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'BASIC', 'MONTHLY'), 11.78);
 });
 
-test('getPlanPriceGross mit override vatRate', () => {
-    // 49.9 * 1.07 = 53.393, gerundet 53.39
+test('getPlanPriceGross with override vatRate', () => {
+    // 49.9 * 1.07 = 53.393, rounded 53.39
     assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'MONTHLY', 7), 53.39);
 });
 
-test('getPlanPriceGross für ENTERPRISE → null', () => {
+test('getPlanPriceGross for ENTERPRISE → null', () => {
     assert.equal(getPlanPriceGross(DEMOAPP_LIKE_CATALOG, 'ENTERPRISE', 'MONTHLY'), null);
 });
 
@@ -146,16 +146,16 @@ test('getPlanPriceGross für ENTERPRISE → null', () => {
 // getPlanQuota
 // ──────────────────────────────────────────────────────────────────
 
-test('getPlanQuota liefert konkreten Wert', () => {
+test('getPlanQuota returns a concrete value', () => {
     assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'BASIC', 'users'), 1);
     assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'vehicles'), 50);
 });
 
-test('getPlanQuota liefert -1 für unbegrenzte ENTERPRISE-Quotas', () => {
+test('getPlanQuota returns -1 for unlimited ENTERPRISE quotas', () => {
     assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'ENTERPRISE', 'users'), -1);
 });
 
-test('getPlanQuota für unbekannten Plan/Key → undefined', () => {
+test('getPlanQuota for an unknown plan/key → undefined', () => {
     assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'NIRVANA', 'users'), undefined);
     assert.equal(getPlanQuota(DEMOAPP_LIKE_CATALOG, 'BASIC', 'nonexistent'), undefined);
 });
@@ -164,15 +164,15 @@ test('getPlanQuota für unbekannten Plan/Key → undefined', () => {
 // isFeatureInPlan
 // ──────────────────────────────────────────────────────────────────
 
-test('isFeatureInPlan: true wenn Feature direkt im Plan', () => {
+test('isFeatureInPlan: true when the feature is directly in the plan', () => {
     assert.equal(isFeatureInPlan(DEMOAPP_LIKE_CATALOG, 'PROFESSIONAL', 'DMS'), true);
 });
 
-test('isFeatureInPlan: false wenn Feature nicht im Plan', () => {
+test('isFeatureInPlan: false when the feature is not in the plan', () => {
     assert.equal(isFeatureInPlan(DEMOAPP_LIKE_CATALOG, 'BASIC', 'DMS'), false);
 });
 
-test('isFeatureInPlan: false bei unbekanntem Plan', () => {
+test('isFeatureInPlan: false for an unknown plan', () => {
     assert.equal(isFeatureInPlan(DEMOAPP_LIKE_CATALOG, 'NIRVANA', 'DMS'), false);
 });
 
@@ -180,19 +180,19 @@ test('isFeatureInPlan: false bei unbekanntem Plan', () => {
 // getActiveFeatureKeys / isFeaturePlannedOnly
 // ──────────────────────────────────────────────────────────────────
 
-test('getActiveFeatureKeys schließt plannedOnly aus', () => {
+test('getActiveFeatureKeys excludes plannedOnly', () => {
     const keys = getActiveFeatureKeys(DEMOAPP_LIKE_CATALOG);
     assert.deepEqual(keys, ['VEHICLE_INVENTORY', 'DMS']);
 });
 
-test('isFeaturePlannedOnly: true für deklarierten plannedOnly-Key', () => {
+test('isFeaturePlannedOnly: true for a declared plannedOnly key', () => {
     assert.equal(isFeaturePlannedOnly(DEMOAPP_LIKE_CATALOG, 'API_ACCESS'), true);
 });
 
-test('isFeaturePlannedOnly: false für deklarierten produktiven Key', () => {
+test('isFeaturePlannedOnly: false for a declared production key', () => {
     assert.equal(isFeaturePlannedOnly(DEMOAPP_LIKE_CATALOG, 'DMS'), false);
 });
 
-test('isFeaturePlannedOnly: false für unbekannten Key (konservativ)', () => {
+test('isFeaturePlannedOnly: false for an unknown key (conservative)', () => {
     assert.equal(isFeaturePlannedOnly(DEMOAPP_LIKE_CATALOG, 'NEW_FEATURE_NOT_DECLARED'), false);
 });

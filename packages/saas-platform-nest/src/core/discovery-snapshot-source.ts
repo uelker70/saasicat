@@ -1,11 +1,11 @@
-// Discovery-Snapshot-Auflösung für CatalogModule-Services (#25).
+// Discovery snapshot resolution for CatalogModule services (#25).
 //
-// Primärpfad ist der injizierte DISCOVERY_SNAPSHOT_TOKEN — seit #25 ein
-// `Symbol.for` (siehe discovery/tokens.ts), damit er über die von tsup/esbuild
-// duplizierten CJS-Entry-Bundles hinweg identisch ist. Als zusätzliche
-// Robustheit kann auch direkt der DiscoveryScanner injiziert werden (greift,
-// wenn Consumer DiscoveryModule + CatalogModule aus DEMSELBEN Bundle ziehen);
-// dann wird der Snapshot zur Nutzungszeit über `getSnapshot()` gelesen.
+// The primary path is the injected DISCOVERY_SNAPSHOT_TOKEN — since #25 a
+// `Symbol.for` (see discovery/tokens.ts), so that it is identical across the
+// CJS entry bundles that tsup/esbuild duplicate. For additional
+// robustness the DiscoveryScanner can also be injected directly (applies
+// when the consumer pulls DiscoveryModule + CatalogModule from the SAME bundle);
+// the snapshot is then read at use time via `getSnapshot()`.
 
 import type { DiscoverySnapshot } from '@saasicat/types';
 
@@ -14,9 +14,9 @@ interface SnapshotProducer {
 }
 
 /**
- * Löst den Snapshot zur Nutzungszeit auf: injizierter Token (falls erreichbar)
- * ODER der DiscoveryScanner (voller Snapshot nach Boot). `null`, wenn weder das
- * eine noch das andere bereitsteht.
+ * Resolves the snapshot at use time: injected token (if reachable)
+ * OR the DiscoveryScanner (full snapshot after boot). `null` if neither
+ * one nor the other is available.
  */
 export function resolveDiscoverySnapshot(
     injected: DiscoverySnapshot | null | undefined,
@@ -28,8 +28,8 @@ export function resolveDiscoverySnapshot(
 }
 
 /**
- * Ob überhaupt eine Snapshot-Quelle bereitsteht — für den blocking-Guard, ohne
- * den Snapshot früh (zur Konstruktionszeit) zu bauen.
+ * Whether any snapshot source is available at all — for the blocking guard,
+ * without building the snapshot early (at construction time).
  */
 export function hasDiscoverySnapshotSource(
     injected: DiscoverySnapshot | null | undefined,

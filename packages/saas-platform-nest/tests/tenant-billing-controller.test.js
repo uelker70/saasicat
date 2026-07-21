@@ -1,6 +1,6 @@
-// Smoke-Tests für TenantBillingController + ComposedTenantAuthGuard.
-// Direktes Instanziieren ohne NestJS-Bootstrap — Mocks fuer EntitlementService,
-// SubscriptionUsagePort, UsageSnapshotPort. Auth-Guard wird isoliert getestet.
+// Smoke tests for TenantBillingController + ComposedTenantAuthGuard.
+// Direct instantiation without NestJS bootstrap — mocks for EntitlementService,
+// SubscriptionUsagePort, UsageSnapshotPort. Auth guard is tested in isolation.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,7 +39,7 @@ function buildSub({ plan = 'STANDARD', status = 'ACTIVE', pendingPlanVersion = n
     };
 }
 
-test('getEntitlement liefert EffectiveLimitsSnapshot generisch (quotas-Map)', async () => {
+test('getEntitlement returns EffectiveLimitsSnapshot generically (quotas map)', async () => {
     const limits = {
         plan: 'STANDARD',
         quotas: { users: 8, members: 1000, storageGb: 10, resources: 5 },
@@ -59,7 +59,7 @@ test('getEntitlement liefert EffectiveLimitsSnapshot generisch (quotas-Map)', as
     assert.deepEqual(result.features.sort(), ['CORE_IDENTITY', 'WHATSAPP']);
 });
 
-test('getUsage joined Subscription + Limits + Usage und füllt fehlende quotaKeys mit 0', async () => {
+test('getUsage joins Subscription + Limits + Usage and fills missing quotaKeys with 0', async () => {
     const limits = {
         plan: 'STANDARD',
         quotas: { users: 8, members: 1000, storageGb: 10, resources: 5 },
@@ -69,7 +69,7 @@ test('getUsage joined Subscription + Limits + Usage und füllt fehlende quotaKey
         buildEntitlement(limits),
         null,
         { findForTenant: async () => buildSub() },
-        { snapshot: async () => ({ users: 4, members: 850 }) }, // storageGb + resources fehlen
+        { snapshot: async () => ({ users: 4, members: 850 }) }, // storageGb + resources are missing
         null,
         () => 't1',
     );
@@ -83,7 +83,7 @@ test('getUsage joined Subscription + Limits + Usage und füllt fehlende quotaKey
     assert.deepEqual(result.limits.features.sort(), ['CORE_IDENTITY']);
 });
 
-test('getUsage reicht packageSnapshot + checkoutOfferId 1:1 durch (P11.4)', async () => {
+test('getUsage passes packageSnapshot + checkoutOfferId through 1:1 (P11.4)', async () => {
     const limits = {
         plan: 'STANDARD',
         quotas: { users: 8, members: 1000, storageGb: 10, resources: 5 },
@@ -118,7 +118,7 @@ test('getUsage reicht packageSnapshot + checkoutOfferId 1:1 durch (P11.4)', asyn
     assert.equal(result.checkoutOfferId, 'offer-123');
 });
 
-test('getUsage liefert packageSnapshot=null wenn Subscription keinen Snapshot hat', async () => {
+test('getUsage returns packageSnapshot=null when the Subscription has no snapshot', async () => {
     const limits = {
         plan: 'STANDARD',
         quotas: { users: 8, members: 1000, storageGb: 10, resources: 5 },
@@ -137,7 +137,7 @@ test('getUsage liefert packageSnapshot=null wenn Subscription keinen Snapshot ha
     assert.equal(result.checkoutOfferId, null);
 });
 
-test('getUsage wirft NotFoundException bei fehlendem Subscription', async () => {
+test('getUsage throws NotFoundException when the Subscription is missing', async () => {
     const ctrl = new TenantBillingController(
         buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
         null,
@@ -149,7 +149,7 @@ test('getUsage wirft NotFoundException bei fehlendem Subscription', async () => 
     await assert.rejects(() => ctrl.getUsage({ user: { tenantId: 't404' } }), /Keine Subscription/);
 });
 
-test('getUsage wirft NotFoundException wenn tenantIdResolver kein ID liefert', async () => {
+test('getUsage throws NotFoundException when tenantIdResolver yields no ID', async () => {
     const ctrl = new TenantBillingController(
         buildEntitlement({ plan: 'STARTER', quotas: {}, features: new Set() }),
         null,
@@ -161,7 +161,7 @@ test('getUsage wirft NotFoundException wenn tenantIdResolver kein ID liefert', a
     await assert.rejects(() => ctrl.getUsage({}), /Tenant-ID nicht im Request/);
 });
 
-test('ComposedTenantAuthGuard kettet Guards in Reihenfolge — alle ok = true', async () => {
+test('ComposedTenantAuthGuard chains guards in order — all ok = true', async () => {
     const guard = new ComposedTenantAuthGuard([
         { canActivate: () => true },
         { canActivate: async () => true },
@@ -170,7 +170,7 @@ test('ComposedTenantAuthGuard kettet Guards in Reihenfolge — alle ok = true', 
     assert.equal(result, true);
 });
 
-test('ComposedTenantAuthGuard short-circuited bei erstem false', async () => {
+test('ComposedTenantAuthGuard short-circuits on the first false', async () => {
     let secondCalled = false;
     const guard = new ComposedTenantAuthGuard([
         { canActivate: () => false },
@@ -183,10 +183,10 @@ test('ComposedTenantAuthGuard short-circuited bei erstem false', async () => {
     ]);
     const result = await guard.canActivate({});
     assert.equal(result, false);
-    assert.equal(secondCalled, false, 'zweiter Guard darf nicht aufgerufen werden');
+    assert.equal(secondCalled, false, 'the second guard must not be called');
 });
 
-test('ComposedTenantAuthGuard wirft 403 ohne konfigurierte Guards', async () => {
+test('ComposedTenantAuthGuard throws 403 without configured guards', async () => {
     const guard = new ComposedTenantAuthGuard(null);
     await assert.rejects(() => guard.canActivate({}), /authGuards ist nicht konfiguriert/);
 });

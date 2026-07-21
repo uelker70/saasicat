@@ -1,13 +1,13 @@
-// @saasicat/prisma — Default-Prisma-Adapter für die
-// SaaS-Plattform-Ports.
+// @saasicat/prisma — default Prisma adapter for the
+// SaaS platform ports.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P4.
 //
-// Inhalt:
-//   - PRISMA_CLIENT_TOKEN + PrismaLike — DI-Token + strukturelles Sub-
-//     Interface für Konsumenten-PrismaService-Bindings.
-//   - PrismaMfaAdapter — MfaPort gegen SuperAdminMfa-Tabelle.
-//   - PrismaAuditAdapter — AuditPort gegen AuditEntry-Tabelle.
+// Contents:
+//   - PRISMA_CLIENT_TOKEN + PrismaLike — DI token + structural sub-
+//     interface for consumer PrismaService bindings.
+//   - PrismaMfaAdapter — MfaPort against the SuperAdminMfa table.
+//   - PrismaAuditAdapter — AuditPort against the AuditEntry table.
 //   - AsyncLocalRlsBypassAdapter — RlsBypassPort via node:async_hooks.
 
 export { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';

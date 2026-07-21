@@ -120,13 +120,13 @@ import type {
     PilotEditResult,
 } from '../components/dialogs/types.js';
 
-// Plattform-Standard-Page: Pilot-Mandanten. Datenagnostisch.
+// Platform standard page: pilot tenants. Data-agnostic.
 //
-// Optional baked-in flows: Konsumenten können `enableCreate/Edit/Extend/Revoke`
-// setzen + die passenden `submit*`-Callbacks liefern, dann mountet die Page
-// die Dialoge selbst und appended die Default-Actions an die `actions`-Prop.
-// Wer mehr Kontrolle braucht (z.B. MFA-Flows), lässt enable* aus und liefert
-// die Actions/Dialoge wie bisher selbst — keine Verhaltensänderung.
+// Optional baked-in flows: consumers can set `enableCreate/Edit/Extend/Revoke`
+// + provide the matching `submit*` callbacks, then the page mounts the
+// dialogs itself and appends the default actions to the `actions` prop.
+// Anyone needing more control (e.g. MFA flows) omits enable* and provides
+// the actions/dialogs themselves as before — no behavior change.
 
 export interface PilotRow {
     id: string;
@@ -148,7 +148,7 @@ export interface PilotRowAction {
     handler: (row: PilotRow) => void;
 }
 
-/** Plan-Option für eingebauten Create/Edit-Dialog. */
+/** Plan option for the built-in create/edit dialog. */
 export interface PilotPlanOption {
     label: string;
     value: string;
@@ -175,16 +175,16 @@ const props = withDefaults(
         submitExtend?: (slug: string, until: string, mfaCode?: string) => Promise<void>;
         submitRevoke?: (slug: string, mfaCode?: string) => Promise<void>;
         loadPlanOptions?: () => Promise<PilotPlanOption[]>;
-        /** Mandanten-Vokabular für Create-/Edit-Dialog (neutrale Defaults sonst). */
+        /** Tenant vocabulary for the create/edit dialog (neutral defaults otherwise). */
         copy?: PilotCopy;
-        /** Statische Plan-Optionen (Alternative zu loadPlanOptions). */
+        /** Static plan options (alternative to loadPlanOptions). */
         createPlanOptions?: readonly (string | PilotPlanOption)[];
         defaultCreatePlan?: string;
-        /** MFA-Pflicht fuer Create/Edit-Dialog (wird an Sub-Dialoge durchgereicht). */
+        /** MFA requirement for the create/edit dialog (passed through to sub-dialogs). */
         requireMfa?: boolean;
-        /** Per-Flow-MFA fuer Extend — zeigt MfaPromptDialog nach Datums-Prompt. */
+        /** Per-flow MFA for Extend — shows MfaPromptDialog after the date prompt. */
         requireMfaForExtend?: boolean;
-        /** Per-Flow-MFA fuer Revoke — zeigt MfaPromptDialog nach Confirm-Prompt. */
+        /** Per-flow MFA for Revoke — shows MfaPromptDialog after the confirm prompt. */
         requireMfaForRevoke?: boolean;
         mfaSetupHint?: string;
         createLabel?: string;
@@ -209,10 +209,10 @@ const showEdit = ref(false);
 const editRow = ref<PilotRow | null>(null);
 const bakedPlanOptions = ref<PilotPlanOption[]>([]);
 
-// MFA-Dialog-State fuer Per-Flow-MFA (extend/revoke). Promise-Resolver-Pattern
-// analog zu use-platform-tenant-actions.ts: das `onExtendClick`/`onRevokeClick`
-// ruft `runWithMfa(...)` auf, das den Dialog oeffnet und auf `onMfaConfirm`
-// (oder Abbruch via `update:modelValue=false`) wartet.
+// MFA dialog state for per-flow MFA (extend/revoke). Promise-resolver pattern
+// analogous to use-platform-tenant-actions.ts: `onExtendClick`/`onRevokeClick`
+// calls `runWithMfa(...)`, which opens the dialog and waits for `onMfaConfirm`
+// (or cancellation via `update:modelValue=false`).
 const showMfa = ref(false);
 const mfaError = ref('');
 const mfaDescription = ref('');
@@ -241,8 +241,8 @@ function onMfaDialogVisibility(open: boolean): void {
         pendingMfaResolve(null);
     }
 }
-// Konsumenten können statt `loadPlanOptions` auch `createPlanOptions` setzen
-// (z. B. Apps mit hartkodierter Plan-Liste).
+// Consumers can set `createPlanOptions` instead of `loadPlanOptions`
+// (e.g. apps with a hard-coded plan list).
 const effectiveCreatePlanOptions = computed<readonly (string | PilotPlanOption)[]>(() => {
     if (props.createPlanOptions && props.createPlanOptions.length > 0) {
         return props.createPlanOptions;
@@ -256,8 +256,8 @@ const defaultPlan = computed<string | undefined>(() => {
     return typeof first === 'string' ? first : first.value;
 });
 
-// Stat-Pill-Filter — analog Plan-Simulation pilots.jsx:
-//   all | active | expiring (≤14 Tage) | expired.
+// Stat pill filter — analogous to the plan-simulation pilots.jsx:
+//   all | active | expiring (≤14 days) | expired.
 const EXPIRING_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 type StatusFilter = 'all' | 'active' | 'expiring' | 'expired';
 const filter = ref<StatusFilter>('all');
@@ -337,8 +337,8 @@ const baseColumns = [
     },
 ];
 
-// Eingebaute Default-Actions (edit/extend/revoke) — werden APPENDED an die
-// Consumer-`actions`, nicht ersetzt. Reihenfolge folgt `defaultActions`-Prop.
+// Built-in default actions (edit/extend/revoke) — are APPENDED to the
+// consumer `actions`, not replaced. Order follows the `defaultActions` prop.
 const bakedActions = computed<PilotRowAction[]>(() => {
     const out: PilotRowAction[] = [];
     for (const id of props.defaultActions) {
@@ -465,8 +465,8 @@ function onCreated(result: PilotCreateResult): void {
     void reload();
 }
 
-// Wird vom MFA-Submit aufgerufen — bei HTTP 401 bleibt der MFA-Dialog offen,
-// damit der User den Code korrigieren kann. Sonst notify+close+reload.
+// Called by the MFA submit — on HTTP 401 the MFA dialog stays open
+// so the user can correct the code. Otherwise notify+close+reload.
 async function runAction(
     actionLabel: string,
     successMessage: string,
@@ -483,8 +483,8 @@ async function runAction(
         }
         return;
     }
-    // MFA-Loop: solange der Server 401 zurueckgibt, Dialog offen halten und
-    // erneut auf einen Code warten. Abbrechen (Resolver === null) beendet.
+    // MFA loop: as long as the server returns 401, keep the dialog open and
+    // wait again for a code. Cancelling (resolver === null) ends it.
     while (true) {
         const code = await promptMfa(actionLabel);
         if (code === null) return;

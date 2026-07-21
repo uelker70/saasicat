@@ -1,8 +1,8 @@
-// AdminAuditService — generischer Audit-Log-Wrapper über den AuditPort.
+// AdminAuditService — generic audit-log wrapper over the AuditPort.
 //
-// Plattform-Services rufen `log({actor, entity, entityId, action, changes})`;
-// Konsument-Implementation (PrismaAuditAdapter / DjangoAuditAdapter)
-// persistiert die Records.
+// Platform services call `log({actor, entity, entityId, action, changes})`;
+// the consumer implementation (PrismaAuditAdapter / DjangoAuditAdapter)
+// persists the records.
 
 import * as os from 'node:os';
 import { Inject, Injectable } from '@nestjs/common';
@@ -30,14 +30,14 @@ export class AdminAuditService {
     }
 
     /**
-     * Standardisierter Actor-Tag für die `changes.actor`-Spalte:
+     * Standardized actor tag for the `changes.actor` column:
      * `<source>:<email>:<context>`.
      */
     actorTag(actor: AdminActor): string {
         return `${actor.source}:${actor.email}:${actor.context}`;
     }
 
-    /** Helper: AdminActor aus authentifiziertem Web-Request bauen. */
+    /** Helper: build an AdminActor from an authenticated web request. */
     fromWebRequest(user: { id: string; email: string }, sessionId?: string | null): AdminActor {
         return {
             userId: user.id,
@@ -47,7 +47,7 @@ export class AdminAuditService {
         };
     }
 
-    /** Helper: AdminActor aus CLI-Identity bauen (Hostname als Kontext). */
+    /** Helper: build an AdminActor from a CLI identity (hostname as context). */
     fromCli(user: { id: string; email: string }): AdminActor {
         return {
             userId: user.id,

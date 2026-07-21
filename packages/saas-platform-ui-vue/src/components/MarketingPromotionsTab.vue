@@ -1,6 +1,6 @@
 <template>
     <div class="mc-promo">
-        <!-- Kopf -->
+        <!-- Head -->
         <div class="mc-promo-head">
             <div class="mc-promo-head-text">
                 <div class="mc-promo-title">Aktionen &amp; Rabatte</div>
@@ -58,7 +58,7 @@
             Preis-Aktion erstellen.
         </div>
 
-        <!-- Liste -->
+        <!-- List -->
         <div class="mc-promo-list">
             <template v-for="p in sortedPromotions" :key="p.id">
                 <div
@@ -291,15 +291,15 @@ import {
     type UpdatePromotionData,
 } from '@saasicat/types';
 
-// Aktionen-Tab des Marketing-Catalog (SPEC_V2 §9a). Eigenständige
-// Child-Component — die MarketingCatalogPage wired `usePromotions` und
-// reicht die Liste + CRUD-Callbacks durch.
+// Promotions tab of the Marketing Catalog (SPEC_V2 §9a). Standalone child
+// component — the MarketingCatalogPage wires `usePromotions` and passes the
+// list + CRUD callbacks through.
 
 const DEFAULT_LOCALE = 'de';
 
 const props = defineProps<{
     promotions: PromotionRow[];
-    /** Plan-Liste für die `appliesTo`-Auswahl. */
+    /** Plan list for the `appliesTo` selection. */
     plans: Array<{ key: string; label: string }>;
     activeLocales: string[];
     busy?: boolean;
@@ -434,7 +434,7 @@ const timelineHeight = computed(() => {
     return 16 + rowCount * ROW_H + 22;
 });
 
-// ─── Mutationen ───
+// ─── Mutations ───
 function inputVal(e: Event): string {
     return (e.target as HTMLInputElement).value;
 }

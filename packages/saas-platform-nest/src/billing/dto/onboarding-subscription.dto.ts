@@ -1,12 +1,12 @@
 import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 
-// CompleteOnboardingSubscriptionDto — Auswahl aus dem Onboarding-Konfigurator,
-// die der Tenant beim Abschluss der Schritt-3-Konfiguration absendet.
+// CompleteOnboardingSubscriptionDto — selection from the onboarding
+// configurator that the tenant submits when completing the step-3 configuration.
 //
-// Plan- und Cycle-IDs werden als String validiert (kein hartes Enum), weil
-// der Plattform-Service gegen den Konsumenten-PlanCatalog prüft. Promo-Code
-// ist optional; wenn gesetzt, versucht der Service eine atomare Einlösung
-// nach dem Plan-Wechsel.
+// Plan and cycle IDs are validated as strings (not a hard enum), because
+// the platform service checks against the consumer PlanCatalog. The promo code
+// is optional; when set, the service attempts an atomic redemption
+// after the plan change.
 
 const PLAN_OR_CYCLE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const PROMO_CODE_PATTERN = /^[A-Z0-9_-]{4,32}$/i;
@@ -30,13 +30,12 @@ export class CompleteOnboardingSubscriptionDto {
     promoCode?: string;
 
     /**
-     * Optional — UUIDs der BundleVersions, die gleich mit dem Plan
-     * gebucht werden sollen (P11.7.3). Pro Bundle wird die Plattform-
-     * Default-Mindestlaufzeit (12 Monate) gesetzt. Bundles werden
-     * **nach** dem Plan-Wechsel best-effort hinzugefügt — Fehler beim
-     * einzelnen Bundle (z. B. inkompatibel mit dem gewählten Plan)
-     * landen als Warning in der Response, ohne den Plan-Wechsel
-     * zurückzurollen.
+     * Optional — UUIDs of the BundleVersions that should be booked
+     * together with the plan (P11.7.3). Per bundle, the platform
+     * default minimum term (12 months) is set. Bundles are added
+     * best-effort **after** the plan change — an error on an individual
+     * bundle (e.g. incompatible with the chosen plan) lands as a
+     * warning in the response, without rolling back the plan change.
      */
     @IsOptional()
     @IsArray()

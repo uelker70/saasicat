@@ -48,8 +48,8 @@ function buildHarness({
     };
 }
 
-describe('MfaSetupFlow.run — Erst-Setup', () => {
-    test('liefert Secret + otpauthUri für SUPER_ADMIN', async () => {
+describe('MfaSetupFlow.run — first setup', () => {
+    test('returns secret + otpauthUri for SUPER_ADMIN', async () => {
         const { flow, setupCalls, auditCalls } = buildHarness();
         const result = await flow.run({ issuer: 'DemoApp SuperAdmin' });
         assert.equal(result.secret, 'BASE32SECRET');
@@ -57,23 +57,23 @@ describe('MfaSetupFlow.run — Erst-Setup', () => {
         assert.equal(result.userEmail, 'taci@example.com');
         assert.equal(setupCalls.length, 1);
         assert.equal(setupCalls[0].issuer, 'DemoApp SuperAdmin');
-        // Audit-Log: erstes Setup → MFA_SETUP_COMPLETED
+        // Audit log: first setup → MFA_SETUP_COMPLETED
         assert.equal(auditCalls.length, 1);
         assert.equal(auditCalls[0].action, 'MFA_SETUP_COMPLETED');
         assert.equal(auditCalls[0].entity, 'User');
     });
 
-    test('Audit-Log enthält issuer in changes', async () => {
+    test('audit log contains issuer in changes', async () => {
         const { flow, auditCalls } = buildHarness();
         await flow.run({ issuer: 'ClubApp SuperAdmin' });
         assert.deepEqual(auditCalls[0].changes, { issuer: 'ClubApp SuperAdmin' });
     });
 });
 
-describe('MfaSetupFlow.run — Re-Setup', () => {
-    test('lehnt Re-Setup ohne Bestätigung ab (MFA_SETUP_ABORTED)', async () => {
+describe('MfaSetupFlow.run — re-setup', () => {
+    test('rejects re-setup without confirmation (MFA_SETUP_ABORTED)', async () => {
         const { flow } = buildHarness({ mfaEnabled: true });
-        // ctx.prompt liefert "no" — abgelehnt
+        // ctx.prompt returns "no" — rejected
         await assert.rejects(
             flow.run({ issuer: 'X' }),
             (err) =>
@@ -81,7 +81,7 @@ describe('MfaSetupFlow.run — Re-Setup', () => {
         );
     });
 
-    test('akzeptiert Re-Setup mit "yes"-Antwort und audit MFA_SETUP_RESET', async () => {
+    test('accepts re-setup with "yes" answer and audits MFA_SETUP_RESET', async () => {
         const harness = buildHarness({ mfaEnabled: true });
         harness.ctx.prompt = async () => 'yes';
         const result = await harness.flow.run({ issuer: 'X' });
@@ -90,7 +90,7 @@ describe('MfaSetupFlow.run — Re-Setup', () => {
         assert.equal(harness.auditCalls[0].action, 'MFA_SETUP_RESET');
     });
 
-    test('akzeptiert Re-Setup mit force=true ohne prompt', async () => {
+    test('accepts re-setup with force=true without prompt', async () => {
         const harness = buildHarness({ mfaEnabled: true });
         let promptCalled = false;
         harness.ctx.prompt = async () => {
@@ -105,7 +105,7 @@ describe('MfaSetupFlow.run — Re-Setup', () => {
 });
 
 describe('MfaSetupFlow.formatSetupResult', () => {
-    test('liefert mehrzeilige Anleitung mit Secret + URI', () => {
+    test('returns multi-line instructions with secret + URI', () => {
         const { flow } = buildHarness();
         const formatted = flow.formatSetupResult({
             secret: 'BASE32',

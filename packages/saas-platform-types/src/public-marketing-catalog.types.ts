@@ -1,145 +1,145 @@
-// PublicMarketingCatalog — auth-freie Marketing-Projektion für die Webseite
-// (Pricing-Page). Merged marketed Plans + MarketingProjection + aktive
-// Promotions zu fertig gerenderten Plan-Karten.
+// PublicMarketingCatalog — auth-free marketing projection for the website
+// (pricing page). Merges marketed Plans + MarketingProjection + active
+// promotions into fully rendered plan cards.
 //
-// Im Gegensatz zu `/billing/plans` (nackte Plan-Liste) trägt dieses
-// Wire-Format die im SuperAdmin gepflegten Marketing-Daten: Badge, Teaser,
-// Top-Features, Highlight, CTA, Trial — plus die aktuell aktive Aktion mit
-// bereits ausgerechnetem Rabattpreis.
+// Unlike `/billing/plans` (bare plan list), this wire format carries the
+// marketing data maintained in the SuperAdmin: badge, teaser, top features,
+// highlight, CTA, trial — plus the currently active promotion with an
+// already-computed discount price.
 
 import type { MarketingTopFeature } from './catalog-entry.types.js';
 import type { PromotionType } from './promotion.types.js';
 
-/** Aktive Promotion einer Plan-Karte — Rabatt bereits ausgerechnet. */
+/** Active promotion of a plan card — discount already computed. */
 export interface PublicMarketingPromo {
     type: PromotionType;
-    /** Locale-aufgelöstes Badge (z. B. „Frühjahrs-Aktion"). */
+    /** Locale-resolved badge (e.g. "Frühjahrs-Aktion"). */
     badge: string;
-    /** Locale-aufgelöster Fineprint unter dem CTA. */
+    /** Locale-resolved fineprint below the CTA. */
     fineprint: string;
-    /** UI-Akzentfarbe (Ribbon). */
+    /** UI accent color (ribbon). */
     color: string;
-    /** Rabattierter Monats-Nettopreis; null wenn nicht anwendbar. */
+    /** Discounted net monthly price; null if not applicable. */
     discountedMonthlyNet: number | null;
-    /** Rabattierter Jahres-Nettopreis; null wenn nicht anwendbar. */
+    /** Discounted net yearly price; null if not applicable. */
     discountedYearlyNet: number | null;
 }
 
-/** Eine fertig vermarktete Plan-Karte. */
+/** A fully marketed plan card. */
 export interface PublicMarketingPlan {
     planKey: string;
     label: string;
-    /** Live-PlanVersion-ID — für den CheckoutOffer beim Klick. */
+    /** Live PlanVersion ID — for the CheckoutOffer on click. */
     planVersionId: string;
     monthlyNet: number | null;
     yearlyNet: number | null;
-    /** Editorial-Badge (leer = kein Badge). */
+    /** Editorial badge (empty = no badge). */
     badge: string;
-    /** Teaser-/Beschreibungstext. */
+    /** Teaser / description text. */
     description: string;
     highlight: boolean;
     /**
-     * Formatiertes Pricing-Tag aus der MarketingProjection (#47, z. B.
-     * "€ 9,90 / Monat" oder "auf Anfrage"). null/fehlend = Frontends
-     * formatieren automatisch aus monthlyNet/yearlyNet.
+     * Formatted pricing tag from the MarketingProjection (#47, e.g.
+     * "€ 9,90 / Monat" or "auf Anfrage"). null/missing = frontends
+     * format automatically from monthlyNet/yearlyNet.
      */
     priceTag?: string | null;
-    /** CTA-Override; null = automatischer Text. */
+    /** CTA override; null = automatic text. */
     ctaLabel: string | null;
     trialEnabled: boolean;
     trialDays: number;
     topFeatures: MarketingTopFeature[];
-    /** Sortier-Priorität DESC. */
+    /** Sort priority DESC. */
     priority: number;
-    /** Aktuell aktive Aktion oder null. */
+    /** Currently active promotion or null. */
     promo: PublicMarketingPromo | null;
-    /** Im Plan enthaltene Feature-Keys — für die Vergleichs-Matrix. */
+    /** Feature keys included in the plan — for the comparison matrix. */
     features: string[];
-    /** Quota-Limits des Plans (`-1` = unbegrenzt) — für die Matrix. */
+    /** Quota limits of the plan (`-1` = unlimited) — for the matrix. */
     quotas: Record<string, number>;
 }
 
 /**
- * Eine vermarktete Bundle-Karte für den Public-Catalog (P11.7.3 +
- * P11.7.4). Bundles werden als eigenständige Add-ons zu Plänen
- * angeboten; `compatiblePlanKeys` listet die Pläne, in denen das Bundle
- * gebucht werden darf (leer = alle Pläne erlaubt).
+ * A marketed bundle card for the public catalog (P11.7.3 +
+ * P11.7.4). Bundles are offered as standalone add-ons to plans;
+ * `compatiblePlanKeys` lists the plans in which the bundle may be
+ * booked (empty = all plans allowed).
  */
 export interface PublicMarketingBundle {
     bundleKey: string;
     label: string;
-    /** Live-BundleVersion-ID — für das `add`-Request des Tenant-Self-Service. */
+    /** Live BundleVersion ID — for the `add` request of the tenant self-service. */
     bundleVersionId: string;
     monthlyNet: number | null;
     yearlyNet: number | null;
-    /** Beschreibungstext (Locale-aufgelöst, Fallback auf Bundle-Stamm). */
+    /** Description text (locale-resolved, falls back to bundle base). */
     description: string;
     /**
-     * Formatiertes Pricing-Tag aus der MarketingProjection (#47) — analog
-     * `PublicMarketingPlan.priceTag`. null/fehlend = automatische
-     * Formatierung aus monthlyNet/yearlyNet.
+     * Formatted pricing tag from the MarketingProjection (#47) — analogous
+     * to `PublicMarketingPlan.priceTag`. null/missing = automatic
+     * formatting from monthlyNet/yearlyNet.
      */
     priceTag?: string | null;
-    /** Im Bundle enthaltene Feature-Keys. */
+    /** Feature keys included in the bundle. */
     features: string[];
-    /** Quota-Aufschläge des Bundles (`-1` = unbegrenzt). */
+    /** Quota top-ups of the bundle (`-1` = unlimited). */
     quotas: Record<string, number>;
-    /** Aktuell aktive Bundle-Aktion oder null. */
+    /** Currently active bundle promotion or null. */
     promo: PublicMarketingPromo | null;
     /**
-     * Plan-Keys, mit denen das Bundle kompatibel ist. Leeres Array =
-     * universell für alle Pläne. UI filtert die Anzeige danach.
+     * Plan keys the bundle is compatible with. Empty array =
+     * universal for all plans. The UI filters the display accordingly.
      */
     compatiblePlanKeys: string[];
     /**
-     * Ungedeckte Feature-Abhängigkeiten (#35): Union der `requires` der
-     * enthaltenen Features minus der im Bundle selbst enthaltenen.
-     * Der Konfigurator graut das Bundle aus, wenn diese Keys weder im
-     * gewählten Plan noch in der aktuellen Auswahl liegen. Fehlend/leer =
-     * self-contained bzw. keine requires-Daten verfügbar.
+     * Uncovered feature dependencies (#35): union of the `requires` of the
+     * contained features minus those contained in the bundle itself.
+     * The configurator greys out the bundle when these keys lie neither in
+     * the selected plan nor in the current selection. Missing/empty =
+     * self-contained or no requires data available.
      */
     requiresFeatures?: string[];
     /**
-     * Locale-aufgelöste Anzeige-Labels für `features` ∪ `requiresFeatures`
-     * (#48). `comparison.features` deckt nur die Plan-Feature-Union ab —
-     * Bundle-only-Features (z. B. RESOURCE_MANAGEMENT) bekämen sonst kein
-     * Label. Quelle: kuratierte FeatureCatalogEntries inkl. i18n. Nur Keys
-     * mit kuratiertem Eintrag sind enthalten; Frontends fallen für fehlende
-     * Keys auf den Key selbst zurück. Fehlend/leer = kein
-     * CatalogEntryRepository registriert.
+     * Locale-resolved display labels for `features` ∪ `requiresFeatures`
+     * (#48). `comparison.features` only covers the plan feature union —
+     * bundle-only features (e.g. RESOURCE_MANAGEMENT) would otherwise get no
+     * label. Source: curated FeatureCatalogEntries incl. i18n. Only keys
+     * with a curated entry are included; frontends fall back to the key
+     * itself for missing keys. Missing/empty = no
+     * CatalogEntryRepository registered.
      */
     featureLabels?: Record<string, string>;
 }
 
-/** Eine Zeile der Vergleichs-Matrix (Feature oder Quota). */
+/** A row of the comparison matrix (feature or quota). */
 export interface PublicComparisonRow {
     key: string;
-    /** Locale-aufgelöstes Anzeige-Label. */
+    /** Locale-resolved display label. */
     label: string;
-    /** Nur bei Quotas: Anzeige-Einheit. */
+    /** Quotas only: display unit. */
     unit?: string;
 }
 
-/** Antwort von `GET /public/marketing-catalog`. */
+/** Response of `GET /public/marketing-catalog`. */
 export interface PublicMarketingCatalogResponse {
     projectKey: string;
     locale: string;
     currency: string;
-    /** USt-Satz in Prozent — für die CheckoutOffer-Preis-Aufschlüsselung. */
+    /** VAT rate in percent — for the CheckoutOffer price breakdown. */
     vatRate: number;
-    /** Sichtbare, marketed Pläne — nach `priority` DESC sortiert. */
+    /** Visible, marketed plans — sorted by `priority` DESC. */
     plans: PublicMarketingPlan[];
     /**
-     * Sichtbare, marketed Bundles (P11.7.3 + P11.7.4) — als eigenständige
-     * Add-ons zu den Plänen. Tenant-Self-Service-UI filtert client-seitig
-     * via `compatiblePlanKeys` gegen den eigenen Plan; das Backend
-     * filtert hier nicht, damit die Marketing-Vergleichsseite alle
-     * Bundles zeigt.
+     * Visible, marketed bundles (P11.7.3 + P11.7.4) — as standalone
+     * add-ons to the plans. The tenant self-service UI filters client-side
+     * via `compatiblePlanKeys` against its own plan; the backend
+     * does not filter here, so the marketing comparison page shows all
+     * bundles.
      */
     bundles: PublicMarketingBundle[];
     /**
-     * Zeilen-Definitionen der Vergleichs-Matrix — Vereinigung aller
-     * Feature-/Quota-Keys über die sichtbaren Pläne, mit Labels.
+     * Row definitions of the comparison matrix — union of all
+     * feature/quota keys across the visible plans, with labels.
      */
     comparison: {
         features: PublicComparisonRow[];

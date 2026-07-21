@@ -19,13 +19,13 @@
     <body>
         <div id="root">Loading…</div>
         <script type="module">
-            // Lädt das gebaute Plattform-Bundle aus ../../dist/index.js. Vue wird via
-            // importmap aus einem CDN aufgelöst, weil das Plattform-Bundle vue als
-            // `external` markiert hat (siehe package.json build-Skript).
+            // Loads the built platform bundle from ../../dist/index.js. Vue is resolved
+            // via importmap from a CDN because the platform bundle marks vue as
+            // `external` (see the build script in package.json).
             //
-            // Stellt die Loader/Composables global verfügbar — Playwright-Tests
-            // interagieren via page.evaluate() damit. Vue selbst wird nicht gemounted;
-            // das ist ein Service-Layer-Test, keine Component-Render-Suite.
+            // Exposes the loaders/composables globally — Playwright tests interact
+            // with them via page.evaluate(). Vue itself is not mounted; this is a
+            // service-layer test, not a component-render suite.
             try {
                 const mod = await import('../../dist/index.js');
                 window.__platform = {

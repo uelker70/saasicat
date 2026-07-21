@@ -1,6 +1,6 @@
-// createManifestStore — Tests für die Pinia-Store-Factory. Wir setzen einen
-// Active-Pinia auf, instanziieren den Store mit einem Stub-Loader und prüfen
-// die Boilerplate (loaded-Flag, ensureLoaded-Inflight-Sharing, clearCache,
+// createManifestStore — tests for the Pinia store factory. We set up an
+// active Pinia, instantiate the store with a stub loader and verify the
+// boilerplate (loaded flag, ensureLoaded inflight sharing, clearCache,
 // reload).
 
 import { describe, test } from 'node:test';
@@ -44,7 +44,7 @@ describe('createManifestStore — Happy Path', () => {
         assert.equal(store.error, null);
     });
 
-    test('ensureLoaded triggert load + setzt loaded=true', async () => {
+    test('ensureLoaded triggers load + sets loaded=true', async () => {
         setActivePinia(createPinia());
         const stub = buildLoaderStub();
         const useStore = createManifestStore({ loader: stub.loader, id: 'mfs-2' });
@@ -55,7 +55,7 @@ describe('createManifestStore — Happy Path', () => {
         assert.notEqual(store.manifest, null);
     });
 
-    test('ensureLoaded ist idempotent — zweiter Aufruf lädt nicht erneut', async () => {
+    test('ensureLoaded is idempotent — second call does not load again', async () => {
         setActivePinia(createPinia());
         const stub = buildLoaderStub();
         const useStore = createManifestStore({ loader: stub.loader, id: 'mfs-3' });
@@ -66,7 +66,7 @@ describe('createManifestStore — Happy Path', () => {
         assert.equal(stub.loadCalls, 1);
     });
 
-    test('parallele ensureLoaded-Aufrufe teilen sich denselben Inflight-Promise', async () => {
+    test('parallel ensureLoaded calls share the same inflight promise', async () => {
         setActivePinia(createPinia());
         const stub = buildLoaderStub();
         const useStore = createManifestStore({ loader: stub.loader, id: 'mfs-4' });
@@ -76,8 +76,8 @@ describe('createManifestStore — Happy Path', () => {
     });
 });
 
-describe('createManifestStore — Error-Pfad', () => {
-    test('ensureLoaded rejected mit Original-Error, State wird trotzdem gesetzt', async () => {
+describe('createManifestStore — error path', () => {
+    test('ensureLoaded rejects with the original error, state is still set', async () => {
         setActivePinia(createPinia());
         const stub = buildLoaderStub({ fail: true });
         const useStore = createManifestStore({ loader: stub.loader, id: 'mfs-err-1' });
@@ -89,7 +89,7 @@ describe('createManifestStore — Error-Pfad', () => {
         assert.equal(store.loaded, false);
     });
 
-    test('parallele ensureLoaded-Aufrufe rejecten alle mit demselben Error', async () => {
+    test('parallel ensureLoaded calls all reject with the same error', async () => {
         setActivePinia(createPinia());
         const stub = buildLoaderStub({ fail: true });
         const useStore = createManifestStore({ loader: stub.loader, id: 'mfs-err-2' });
@@ -108,7 +108,7 @@ describe('createManifestStore — Error-Pfad', () => {
 });
 
 describe('createManifestStore — clearCache + reload', () => {
-    test('clearCache räumt manifest, loaded, loader-Cache', async () => {
+    test('clearCache clears manifest, loaded, loader cache', async () => {
         setActivePinia(createPinia());
         const stub = buildLoaderStub();
         const useStore = createManifestStore({ loader: stub.loader, id: 'mfs-clear-1' });
@@ -120,7 +120,7 @@ describe('createManifestStore — clearCache + reload', () => {
         assert.equal(stub.clearCalls, 1);
     });
 
-    test('reload erzwingt Re-Load', async () => {
+    test('reload forces a re-load', async () => {
         setActivePinia(createPinia());
         const stub = buildLoaderStub();
         const useStore = createManifestStore({ loader: stub.loader, id: 'mfs-reload-1' });
@@ -133,8 +133,8 @@ describe('createManifestStore — clearCache + reload', () => {
     });
 });
 
-describe('createManifestStore — Store-ID-Override', () => {
-    test('benutzt den angegebenen `id`, sodass parallele Stores isoliert sind', async () => {
+describe('createManifestStore — store ID override', () => {
+    test('uses the given `id`, so parallel stores are isolated', async () => {
         setActivePinia(createPinia());
         const stubA = buildLoaderStub({ payload: { build: { manifestHash: 'a' } } });
         const stubB = buildLoaderStub({ payload: { build: { manifestHash: 'b' } } });

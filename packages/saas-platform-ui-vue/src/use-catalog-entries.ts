@@ -1,12 +1,12 @@
-// useCatalogEntries — Vue-3-Composable für den Discovery-Review
-// (Backend: CatalogEntriesController unter /admin/catalog/{capabilities,
+// useCatalogEntries — Vue 3 composable for the Discovery review
+// (Backend: CatalogEntriesController under /admin/catalog/{capabilities,
 // features,quotas} + /admin/catalog/discovery/sync).
 //
-// Discovery (`/admin/discovery`) ist der Code-Ist-Zustand; dieses Composable
-// liest/schreibt den persistierten Review-Status + die Übersetzungen.
+// Discovery (`/admin/discovery`) is the code's actual state; this composable
+// reads/writes the persisted review status + the translations.
 //
-// **Admin-Endpoint-Prefix ist Pflicht** und wird vom Konsumenten geliefert
-// (z. B. `/api/admin` oder `/api/v1/admin`).
+// **Admin endpoint prefix is required** and is supplied by the consumer
+// (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
 import type {
@@ -22,11 +22,11 @@ import type {
 import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface UseCatalogEntriesOptions {
-    /** Admin-Endpoint-Prefix inkl. globalPrefix (`/api/admin`, `/api/v1/admin`). */
+    /** Admin endpoint prefix incl. globalPrefix (`/api/admin`, `/api/v1/admin`). */
     adminEndpoint: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
-    /** projectKey, gegen den die Catalog-Entries gefiltert werden. */
+    /** projectKey the catalog entries are filtered against. */
     projectKey: string;
     autoLoad?: boolean;
 }
@@ -50,26 +50,26 @@ export interface UseCatalogEntriesResult {
     error: Ref<Error | null>;
 
     load: () => Promise<void>;
-    /** Freigabe-Übergang eines Features (#20): PATCH …/features/:key/review. */
+    /** Approval transition of a feature (#20): PATCH …/features/:key/review. */
     reviewFeature: (
         featureKey: string,
         data: ReviewCatalogEntryData,
     ) => Promise<FeatureCatalogEntryRow>;
-    /** Freigabe-Übergang einer Quota (#20): PATCH …/quotas/:key/review. */
+    /** Approval transition of a quota (#20): PATCH …/quotas/:key/review. */
     reviewQuota: (quotaKey: string, data: ReviewCatalogEntryData) => Promise<QuotaCatalogEntryRow>;
     setFeatureI18n: (featureKey: string, i18n: CatalogEntryI18n) => Promise<FeatureCatalogEntryRow>;
     setQuotaI18n: (quotaKey: string, i18n: CatalogEntryI18n) => Promise<QuotaCatalogEntryRow>;
-    /** Setzt das editierbare Default-Locale-Label/-Beschreibung eines Features. */
+    /** Sets the editable default-locale label/description of a feature. */
     setFeatureBase: (
         featureKey: string,
         data: UpdateCatalogEntryBaseData,
     ) => Promise<FeatureCatalogEntryRow>;
-    /** Setzt das editierbare Default-Locale-Label/-Beschreibung einer Quota. */
+    /** Sets the editable default-locale label/description of a quota. */
     setQuotaBase: (
         quotaKey: string,
         data: UpdateCatalogEntryBaseData,
     ) => Promise<QuotaCatalogEntryRow>;
-    /** Upsertet die Catalog-Entries aus einem Discovery-Snapshot und lädt neu. */
+    /** Upserts the catalog entries from a discovery snapshot and reloads. */
     syncDiscovery: (snapshot: DiscoverySnapshot) => Promise<SyncDiscoveryResult>;
 }
 

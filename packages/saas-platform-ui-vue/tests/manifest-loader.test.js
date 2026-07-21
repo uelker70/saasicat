@@ -49,8 +49,8 @@ const SAMPLE_MANIFEST = {
     },
 };
 
-describe('ManifestLoader.load — Erst-Aufruf', () => {
-    test('GET ohne If-None-Match, persistiert Body + ETag', async () => {
+describe('ManifestLoader.load — first call', () => {
+    test('GET without If-None-Match, persists body + ETag', async () => {
         const storage = buildStorage();
         const { http, calls } = buildHttp([
             {
@@ -66,7 +66,7 @@ describe('ManifestLoader.load — Erst-Aufruf', () => {
         assert.equal(storage.get('manifest:etag'), '"sha256-abc"');
     });
 
-    test('Auth-Token wird als Bearer-Header mitgesendet', async () => {
+    test('auth token is sent as a Bearer header', async () => {
         const storage = buildStorage();
         const { http, calls } = buildHttp([
             { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"x"' } },
@@ -81,7 +81,7 @@ describe('ManifestLoader.load — Erst-Aufruf', () => {
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-abc');
     });
 
-    test('storageKeyPrefix isoliert Caches', async () => {
+    test('storageKeyPrefix isolates caches', async () => {
         const storage = buildStorage();
         const { http } = buildHttp([
             { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"x"' } },
@@ -98,17 +98,17 @@ describe('ManifestLoader.load — Erst-Aufruf', () => {
     });
 });
 
-describe('ManifestLoader.load — Cache-Hit (304)', () => {
-    test('schickt If-None-Match + liefert gecachten Body bei 304', async () => {
+describe('ManifestLoader.load — cache hit (304)', () => {
+    test('sends If-None-Match + returns cached body on 304', async () => {
         const storage = buildStorage();
-        // Erst-Aufruf legt Cache an
+        // First call populates the cache
         const first = buildHttp([
             { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"sha256-abc"' } },
         ]);
         const loader1 = new ManifestLoader({ http: first.http, storage, endpoint: ENDPOINT });
         await loader1.load();
 
-        // Zweit-Aufruf bekommt 304
+        // Second call gets a 304
         const second = buildHttp([{ status: 304, body: null }]);
         const loader2 = new ManifestLoader({ http: second.http, storage, endpoint: ENDPOINT });
         const r = await loader2.load();
@@ -116,9 +116,9 @@ describe('ManifestLoader.load — Cache-Hit (304)', () => {
         assert.equal(second.calls[0].init.headers['If-None-Match'], '"sha256-abc"');
     });
 
-    test('304 ohne Cache → ManifestLoadError', async () => {
+    test('304 without cache → ManifestLoadError', async () => {
         const storage = buildStorage();
-        // Cache ist leer; trotzdem antwortet Server mit 304
+        // Cache is empty; server still responds with 304
         const { http } = buildHttp([{ status: 304, body: null }]);
         const loader = new ManifestLoader({ http, storage, endpoint: ENDPOINT });
         await assert.rejects(
@@ -128,10 +128,10 @@ describe('ManifestLoader.load — Cache-Hit (304)', () => {
     });
 });
 
-describe('ManifestLoader.load — Refresh (200 mit neuem ETag)', () => {
-    test('200 überschreibt Cache mit neuem Body + ETag', async () => {
+describe('ManifestLoader.load — refresh (200 with new ETag)', () => {
+    test('200 overwrites cache with new body + ETag', async () => {
         const storage = buildStorage();
-        // Erst-Aufruf
+        // First call
         const first = buildHttp([
             { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"v1"' } },
         ]);
@@ -139,7 +139,7 @@ describe('ManifestLoader.load — Refresh (200 mit neuem ETag)', () => {
         await loader1.load();
         assert.equal(storage.get('manifest:etag'), '"v1"');
 
-        // Zweit-Aufruf: Server hat neue Version
+        // Second call: server has a new version
         const newBody = {
             ...SAMPLE_MANIFEST,
             build: { ...SAMPLE_MANIFEST.build, manifestHash: 'sha256-new' },
@@ -153,7 +153,7 @@ describe('ManifestLoader.load — Refresh (200 mit neuem ETag)', () => {
 });
 
 describe('ManifestLoader.clearCache', () => {
-    test('löscht Body + ETag aus dem Storage', async () => {
+    test('deletes body + ETag from storage', async () => {
         const storage = buildStorage();
         const { http } = buildHttp([
             { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"x"' } },
@@ -168,14 +168,14 @@ describe('ManifestLoader.clearCache', () => {
 });
 
 describe('ManifestLoader.readCachedBody', () => {
-    test('liefert null bei leerem Cache', () => {
+    test('returns null on empty cache', () => {
         const storage = buildStorage();
         const { http } = buildHttp([]);
         const loader = new ManifestLoader({ http, storage, endpoint: ENDPOINT });
         assert.equal(loader.readCachedBody(), null);
     });
 
-    test('liefert {etag, body} nach erfolgreichem Load', async () => {
+    test('returns {etag, body} after a successful load', async () => {
         const storage = buildStorage();
         const { http } = buildHttp([
             { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"x"' } },

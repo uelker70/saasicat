@@ -1,7 +1,7 @@
-// PromotionsService — CRUD für `promotions` (SPEC_V2 §9a).
+// PromotionsService — CRUD for `promotions` (SPEC_V2 §9a).
 //
-// Wie MarketingProjections **ohne Versionierung** — Aktionen werden direkt
-// geändert, weil sie nur die Public-Catalog-Anzeige steuern.
+// Like MarketingProjections but **without versioning** — promotions are changed
+// directly because they only control the public catalog display.
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {

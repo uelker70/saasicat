@@ -99,10 +99,10 @@ import type {
     PlanVersionStatus,
 } from './types.js';
 
-// PlanDetail — Drill-in für einen Plan, 1:1 nach Plan-Simulation
-// (plan-detail.jsx): editierbarer Titel, KPI-Cards, Versions-Timeline,
-// anklickbare Versions-Tabelle, Diff-/Contents-Panel je gewählter Version,
-// plus Audit-Log. Ersetzt das frühere Cockpit als Drill-in.
+// PlanDetail — drill-in for a single plan, 1:1 from the plan simulation
+// (plan-detail.jsx): editable title, KPI cards, version timeline,
+// clickable version table, diff/contents panel per selected version,
+// plus audit log. Replaces the former cockpit as the drill-in.
 
 const props = withDefaults(
     defineProps<{
@@ -115,9 +115,9 @@ const props = withDefaults(
         availableBundles?: BundleEntry[];
         featureRegistry?: Record<string, FeatureMeta>;
         /**
-         * Optionaler Callback für `POST /admin/catalog/plan-versions/:id/terminate`.
-         * Plattform-Komponente delegiert die HTTP-Verdrahtung an den Konsumenten
-         * (PlansPage.vue) — siehe `endsAt` auf PlanVersionRow.
+         * Optional callback for `POST /admin/catalog/plan-versions/:id/terminate`.
+         * The platform component delegates the HTTP wiring to the consumer
+         * (PlansPage.vue) — see `endsAt` on PlanVersionRow.
          */
         submitTerminate?: (versionId: string, endsAt: string) => Promise<void>;
     }>(),
@@ -143,7 +143,7 @@ const emit = defineEmits<{
     (e: 'terminate', versionId: string, endsAt: string): void;
 }>();
 
-// ── Status / Selektion ──────────────────────────────────────────────
+// ── Status / Selection ──────────────────────────────────────────────
 function statusOf(v: PlanVersionRow): PlanVersionStatus {
     if (v.publishedAt === null) return 'draft';
     if (v.supersededAt !== null) return 'superseded';
@@ -151,9 +151,9 @@ function statusOf(v: PlanVersionRow): PlanVersionStatus {
 }
 
 /**
- * Editierbarkeits-Entscheidung pro Version — identisch zur Backend-Regel
- * (`isVersionEditable`). UI nutzt das Ergebnis sowohl zur Sichtbarkeit
- * des Edit-Buttons als auch zum Badge bei published-but-future Versionen
+ * Editability decision per version — identical to the backend rule
+ * (`isVersionEditable`). The UI uses the result both for the visibility
+ * of the edit button and for the badge on published-but-future versions
  * (SPEC_V2 §11.1 M6 Pack 2c).
  */
 function editabilityOf(v: PlanVersionRow): PlanVersionEditability {
@@ -195,7 +195,7 @@ const predecessor = computed<PlanVersionRow | null>(() => {
     return earlier.length > 0 ? earlier[earlier.length - 1] : null;
 });
 
-// ── Timeline-Ticks ──────────────────────────────────────────────────
+// ── Timeline ticks ──────────────────────────────────────────────────
 const timelineTicks = computed(() => {
     const ticks: string[] = [];
     for (const v of chronological.value) {
@@ -237,7 +237,7 @@ function bundleLabel(key: string): string {
     return props.availableBundles.find((b) => b.bundleKey === key)?.label || key;
 }
 
-// ── Diff selected vs predecessor ────────────────────────────────────
+// ── Diff selected vs. predecessor ───────────────────────────────────
 const diff = computed<PlanVersionDiff>(() => {
     const to = selectedVersion.value;
     const from = predecessor.value;
@@ -357,7 +357,7 @@ const diffRows = computed<DiffRow[]>(() => {
     return out;
 });
 
-// ── Terminate-Dialog ────────────────────────────────────────────────
+// ── Terminate dialog ────────────────────────────────────────────────
 const terminateOpen = ref(false);
 const terminateTarget = ref<PlanVersionRow | null>(null);
 const terminateDateInput = ref<string>('');
@@ -385,7 +385,7 @@ function formatDate(iso: string | null | undefined): string {
 async function executeTerminate(): Promise<void> {
     if (!terminateTarget.value || !terminateDateInput.value) return;
     const dateStr = terminateDateInput.value;
-    // Auf Tagesende setzen: aus YYYY-MM-DD wird ein ISO-Timestamp am Ende des Tages.
+    // Set to end of day: YYYY-MM-DD becomes an ISO timestamp at the end of the day.
     const endsAtIso = new Date(`${dateStr}T23:59:59.000Z`).toISOString();
     terminating.value = true;
     terminateError.value = null;
@@ -440,9 +440,9 @@ async function executeTerminate(): Promise<void> {
 .pd * {
     box-sizing: border-box;
 }
-/* Konsumenten-Apps laden Quasar, das h1–h6 global mit sehr großen
-   line-heights stylt. Hier neutralisieren, damit Überschriften (und der
-   daneben sitzende Tier-Chip) korrekt ausgerichtet sind. */
+/* Consumer apps load Quasar, which styles h1–h6 globally with very large
+   line-heights. Neutralize that here so headings (and the tier chip
+   sitting next to them) are aligned correctly. */
 .pd h1,
 .pd h2,
 .pd h3,
@@ -809,12 +809,12 @@ async function executeTerminate(): Promise<void> {
 /* versions table */
 .pd-versions-tbl {
     display: grid;
-    /* minmax(0, …) statt nacktem fr: sonst schrumpfen die Inhalts-Spalten
-       nicht unter ihre min-content-Breite (lange Change-Notes) → Grid läuft
-       über und overflow:hidden der Karte schneidet rechts ab.
-       Aktions-Spalte mit fester Mindestbreite (96px): eine nackte `auto`-
-       Spur kollabiert im Konsumenten-Kontext auf reine Padding-Breite, dann
-       sind die Draft-Buttons abgeschnitten. */
+    /* minmax(0, …) instead of a bare fr: otherwise the content columns do
+       not shrink below their min-content width (long change notes) → the grid
+       overflows and the card's overflow:hidden clips it on the right.
+       Action column with a fixed minimum width (96px): a bare `auto`
+       track collapses to pure padding width in the consumer context, and then
+       the draft buttons are cut off. */
     grid-template-columns:
         64px minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1fr)
         minmax(96px, auto);

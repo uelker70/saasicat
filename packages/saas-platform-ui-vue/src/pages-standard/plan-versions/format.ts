@@ -1,9 +1,9 @@
-// Formatierungs-Helfer für die Plan-Versions-Views.
+// Formatting helpers for the plan-versions views.
 //
-// Phase 2c: Aus einem Konsumenten-Admin portiert.
-// Zeit-Bezugspunkt für `formatRelativeDe` ist der Aufruf-Moment,
-// nicht ein hartcodiertes Demo-Datum (die portierte Vorlage hatte `2026-05-04` —
-// Plattform muss in Production funktionieren).
+// Phase 2c: Ported from a consumer admin.
+// The time reference point for `formatRelativeDe` is the moment of the call,
+// not a hard-coded demo date (the ported template had `2026-05-04` —
+// the platform must work in production).
 
 export function fmtEuro(n: number): string {
     if (n === 0) return 'individuell';

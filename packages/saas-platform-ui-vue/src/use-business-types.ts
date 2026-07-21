@@ -1,8 +1,8 @@
-// useBusinessTypes + useBusinessTypeVersions — Vue-3-Composables für die
-// SuperAdmin-BusinessType-Verwaltung (Backend: BusinessTypesController unter
+// useBusinessTypes + useBusinessTypeVersions — Vue 3 composables for
+// SuperAdmin business-type management (backend: BusinessTypesController under
 // /admin/catalog/business-types + /admin/catalog/business-type-versions).
 //
-// Pattern analog zu use-bundles.ts.
+// Pattern analogous to use-bundles.ts.
 
 import { ref, type Ref } from 'vue';
 import type {

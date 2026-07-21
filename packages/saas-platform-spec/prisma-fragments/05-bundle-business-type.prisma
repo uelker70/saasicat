@@ -1,45 +1,45 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: Bundle + BusinessType (Plan-Catalog-Erweiterung)
+// SaaS platform Prisma fragment: Bundle + BusinessType (plan catalog extension)
 // =============================================================================
 //
-// REFERENZ-SNIPPET — siehe 03-plan-versions.prisma für Versionierungs-Konventionen.
+// REFERENCE SNIPPET — see 03-plan-versions.prisma for versioning conventions.
 //
-// Globale Katalog-Tabellen (kein tenantId, kein RLS). Schreibzugriff nur über
-// SUPER_ADMIN-Guard im AdminController des `@saasicat/nest`-
-// Pakets. Per `projectKey` werden die Einträge der jeweiligen Konsumenten-App
-// zugeordnet.
+// Global catalog tables (no tenantId, no RLS). Write access only via the
+// SUPER_ADMIN guard in the AdminController of the `@saasicat/nest`
+// package. Entries are assigned to the respective consumer app via
+// `projectKey`.
 //
-// Versionierungs-Pattern identisch zu PlanVersion:
-//   - max. 1 Draft (publishedAt IS NULL) pro Identität — Constraint via
-//     partial unique index in der Migration.
-//   - mehrere veröffentlichte Versionen, monoton inkrementelles `version`.
-//   - `supersededAt` markiert „nicht mehr aktuell vermarktet"; Bestand
-//     bleibt auf der committeten Version (vertragliche Plan-Garantie P1).
+// Versioning pattern identical to PlanVersion:
+//   - at most 1 draft (publishedAt IS NULL) per identity — constraint via a
+//     partial unique index in the migration.
+//   - multiple published versions, monotonically incremental `version`.
+//   - `supersededAt` marks "no longer actively marketed"; existing bookings
+//     stay on the committed version (contractual plan guarantee P1).
 //
-// Naming-Hinweis: GESCHAEFTSTYP_SPEC §3.1 spricht teils von `BundleDefinition`
-// (mit Suffix) und `BusinessType` (ohne) — das ist asymmetrisch. SPEC_V2 hat
-// auf einheitliches `Bundle` / `BusinessType` (jeweils ohne `Definition`-
-// Suffix) vereinheitlicht. Diese Datei folgt der V2-Konvention.
+// Naming note: GESCHAEFTSTYP_SPEC §3.1 partly speaks of `BundleDefinition`
+// (with suffix) and `BusinessType` (without) — that is asymmetric. SPEC_V2
+// unified this to a consistent `Bundle` / `BusinessType` (each without the
+// `Definition` suffix). This file follows the V2 convention.
 
 // -----------------------------------------------------------------------------
-// Bundle — wiederverwendbare Komponente aus Features + Quotas + Pricing.
+// Bundle — reusable component of features + quotas + pricing.
 //
-// Tenants buchen Bundles **nicht direkt**; sie sind eine SuperAdmin-Wartungs-
-// Hülle, die in BusinessType-Versionen referenziert wird (m:n via
-// BusinessTypeBundle). Stamm-Entität ohne Inhalt — die kaufbaren Felder
-// (Features, Quotas, Pricing) liegen auf BundleVersion.
+// Tenants do **not** book bundles directly; they are a SuperAdmin maintenance
+// shell that is referenced in BusinessType versions (m:n via
+// BusinessTypeBundle). Root entity without content — the purchasable fields
+// (features, quotas, pricing) live on BundleVersion.
 // -----------------------------------------------------------------------------
 
 model Bundle {
     id          String   @id @default(uuid())
-    projectKey  String // z. B. 'clubapp' | 'demoapp' | …
-    bundleKey   String // SCREAMING_SNAKE_CASE, z. B. 'SPORT', 'ACCOUNTING', 'EVERSEND_PEPPOL'
+    projectKey  String // e.g. 'clubapp' | 'demoapp' | …
+    bundleKey   String // SCREAMING_SNAKE_CASE, e.g. 'SPORT', 'ACCOUNTING', 'EVERSEND_PEPPOL'
     label       String
     description String?
     icon        String?
     sortOrder   Int      @default(0)
 
-    // Locale-Übersetzungen { "en": { label, description }, … }. SPEC_V2 §6.4.
+    // Locale translations { "en": { label, description }, … }. SPEC_V2 §6.4.
     i18n Json @default("{}")
 
     createdAt DateTime  @default(now())
@@ -54,33 +54,33 @@ model Bundle {
 }
 
 // -----------------------------------------------------------------------------
-// BundleVersion — versionierte Komposition (Features, Quotas, Pricing).
-// `features` ist FeatureKey[] (referenziert Discovery / FeatureCatalogEntry).
-// `quotas` ist Record<QuotaKey, number>; -1 = unbegrenzt; fehlender Key = 0.
-// `compatibility` ist BundleCompatibility (`businessTypeKeys?` /
-// `planIds?` Whitelists). Beide leer = überall einsetzbar.
-// `pricingOverrides` ist Array<BundlePricingOverride> für kontextabhängige
-// Preise (siehe GESCHAEFTSTYP_SPEC §6.1, „most-specific wins").
+// BundleVersion — versioned composition (features, quotas, pricing).
+// `features` is FeatureKey[] (references Discovery / FeatureCatalogEntry).
+// `quotas` is Record<QuotaKey, number>; -1 = unlimited; missing key = 0.
+// `compatibility` is BundleCompatibility (`businessTypeKeys?` /
+// `planIds?` whitelists). Both empty = usable everywhere.
+// `pricingOverrides` is Array<BundlePricingOverride> for context-dependent
+// prices (see GESCHAEFTSTYP_SPEC §6.1, "most-specific wins").
 // -----------------------------------------------------------------------------
 
 model BundleVersion {
     id            String  @id @default(uuid())
     bundleId      String
     version       Int
-    baseVersionId String? // Vorgänger; null bei v1
+    baseVersionId String? // predecessor; null for v1
 
     features         Json // FeatureKey[]
     quotas           Json @default("{}") // Record<QuotaKey, number>
     compatibility    Json @default("{}") // BundleCompatibility
     pricingOverrides Json @default("[]") // BundlePricingOverride[]
 
-    monthlyNet Decimal? @db.Decimal(10, 2) // Default-Preis; null = nur via Override
+    monthlyNet Decimal? @db.Decimal(10, 2) // default price; null = only via override
     yearlyNet  Decimal? @db.Decimal(10, 2)
     marketed   Boolean  @default(true)
 
     publishedAt      DateTime?
     supersededAt     DateTime?
-    publishedChanges Json? // VersionChange[] — Diff zur Vorgänger-Version
+    publishedChanges Json? // VersionChange[] — diff to predecessor version
     changeNote       String  @default("")
     nonRegressive    Boolean @default(true)
 
@@ -102,13 +102,13 @@ model BundleVersion {
 }
 
 // -----------------------------------------------------------------------------
-// BusinessType — fachliche Vertikale (Vereinstyp, Branchen-Variante).
+// BusinessType — business vertical (club type, industry variant).
 //
-// Beispiele einer Vereins-App: SPORT_VEREIN, MOSCHEE_GEMEINDE,
-// KIRCHEN_GEMEINDE, SOZIAL_TRAEGER. Beispiel einer Handels-App: AUTO_HANDEL.
-// Pro Subscription wird **maximal ein** BusinessType referenziert (über
-// die zugehörige BusinessTypeVersion). Mehrere Bundles gleichzeitig =
-// eigener BusinessType, der die Bundles intern komponiert.
+// Examples for a club app: SPORT_VEREIN, MOSCHEE_GEMEINDE,
+// KIRCHEN_GEMEINDE, SOZIAL_TRAEGER. Example for a commerce app: AUTO_HANDEL.
+// At **most one** BusinessType is referenced per subscription (via the
+// associated BusinessTypeVersion). Multiple bundles at once = a dedicated
+// BusinessType that composes the bundles internally.
 // -----------------------------------------------------------------------------
 
 model BusinessType {
@@ -132,10 +132,10 @@ model BusinessType {
 }
 
 // -----------------------------------------------------------------------------
-// BusinessTypeVersion — versionierte Komposition aus referenzierten Bundles.
-// `quotaOverrides` ist Partial<Record<QuotaKey, number>>; fehlender Key →
-// Σ(Bundle-Quotas), gesetzter Key → ersetzt die Summe (-1 = unbegrenzt).
-// `monthlyNet` null → effektiver Preis = Σ(Bundle-Preise). Gesetzt → Override.
+// BusinessTypeVersion — versioned composition of referenced bundles.
+// `quotaOverrides` is Partial<Record<QuotaKey, number>>; missing key →
+// Σ(bundle quotas), set key → replaces the sum (-1 = unlimited).
+// `monthlyNet` null → effective price = Σ(bundle prices). Set → override.
 // -----------------------------------------------------------------------------
 
 model BusinessTypeVersion {
@@ -146,7 +146,7 @@ model BusinessTypeVersion {
 
     quotaOverrides Json @default("{}") // Partial<Record<QuotaKey, number>>
 
-    monthlyNet Decimal? @db.Decimal(10, 2) // null = Σ(Bundle-Preise)
+    monthlyNet Decimal? @db.Decimal(10, 2) // null = Σ(bundle prices)
     yearlyNet  Decimal? @db.Decimal(10, 2)
     marketed   Boolean  @default(true)
 
@@ -167,14 +167,14 @@ model BusinessTypeVersion {
     derivedVersions BusinessTypeVersion[] @relation("BusinessTypeVersionLineage")
     bundles         BusinessTypeBundle[]
 
-    // Konsumenten ergänzen die Subscription-Relation in ihrer eigenen
-    // schema.prisma. Beispiel (auskommentiert):
+    // Consumers add the Subscription relation in their own schema.prisma.
+    // Example (commented out):
     //
     // subscriptionsCurrent Subscription[] @relation("SubscriptionBusinessTypeVersion")
     //
-    // Voraussetzung: Subscription bekommt in M5 das Feld
-    // `businessTypeVersionId String?` plus CHECK-Constraint
-    // „min. eines von planVersionId / businessTypeVersionId gesetzt".
+    // Prerequisite: in M5 Subscription gets the field
+    // `businessTypeVersionId String?` plus a CHECK constraint
+    // "at least one of planVersionId / businessTypeVersionId set".
 
     @@unique([businessTypeId, version])
     @@index([businessTypeId, supersededAt])
@@ -183,13 +183,13 @@ model BusinessTypeVersion {
 }
 
 // -----------------------------------------------------------------------------
-// BusinessTypeBundle — m:n Junction zwischen BusinessTypeVersion und
-// BundleVersion. Speichert die *konkrete* BundleVersion (nicht nur den Stamm),
-// damit ein publizierter BusinessType deterministisch bleibt — auch wenn der
-// Bundle später eine neuere Version bekommt.
-// onDelete: Restrict für bundleVersion verhindert das Löschen einer
-// BundleVersion, die noch in einer aktiven BusinessTypeVersion referenziert
-// ist (Hard-Block beim Publish-Strict-Check zusätzlich).
+// BusinessTypeBundle — m:n junction between BusinessTypeVersion and
+// BundleVersion. Stores the *concrete* BundleVersion (not just the root), so
+// that a published BusinessType stays deterministic — even when the bundle
+// later gets a newer version.
+// onDelete: Restrict for bundleVersion prevents deleting a BundleVersion that
+// is still referenced in an active BusinessTypeVersion (additionally a hard
+// block in the publish strict check).
 // -----------------------------------------------------------------------------
 
 model BusinessTypeBundle {

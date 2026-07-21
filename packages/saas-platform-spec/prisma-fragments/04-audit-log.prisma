@@ -1,33 +1,33 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: Audit-Log
+// SaaS-Platform Prisma fragment: audit log
 // =============================================================================
 //
-// REFERENZ-SNIPPET — siehe 01-subscription.prisma für Konventionen.
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
 //
-// Generischer Audit-Log für tenant- und admin-seitige Aktionen. Konsumenten
-// können den Log gemeinsam nutzen oder eigene parallele Logs führen — das
-// `@saasicat/nest`-Paket schreibt in dieses Schema.
+// Generic audit log for tenant- and admin-side actions. Consumers
+// can share the log or keep their own parallel logs — the
+// `@saasicat/nest` package writes into this schema.
 //
-// `action` muss SCREAMING_SNAKE_CASE folgen (siehe
-// `schemas/audit-event.schema.json` Action-Pattern). Konsument-spezifische
-// Aktionen sind erlaubt; Plattform-Aktionen sind in der `AuditActionDef`-
-// Liste der Manifest-Contributions katalogisiert.
+// `action` must follow SCREAMING_SNAKE_CASE (see
+// `schemas/audit-event.schema.json` action pattern). Consumer-specific
+// actions are allowed; platform actions are cataloged in the `AuditActionDef`
+// list of the manifest contributions.
 
 model AuditLog {
     id        String  @id @default(uuid())
-    tenantId  String? // null bei plattform-globalen Aktionen (Plan-Publish etc.)
-    userId    String? // Akteur — null bei System-Cron oder pre-auth-Aktionen
-    entity    String // z. B. "Subscription", "PromoCode", "PlanVersion"
+    tenantId  String? // null for platform-global actions (plan publish etc.)
+    userId    String? // actor — null for system cron or pre-auth actions
+    entity    String // e.g. "Subscription", "PromoCode", "PlanVersion"
     entityId  String
-    action    String // SCREAMING_SNAKE_CASE; z. B. "PROMO_CODE_REDEEM"
+    action    String // SCREAMING_SNAKE_CASE; e.g. "PROMO_CODE_REDEEM"
     changes   Json? // { field: { old: …, new: … } }
     ipAddress String?
     userAgent String?
 
     createdAt DateTime @default(now())
 
-    // Relations — Konsument muss `Tenant` und `User` definieren und
-    // Relations aktivieren. Userless-System-Aktionen lassen userId null.
+    // Relations — the consumer must define `Tenant` and `User` and
+    // enable relations. Userless system actions leave userId null.
     // tenant Tenant? @relation(fields: [tenantId], references: [id])
     // user   User?   @relation("AuditLogUser", fields: [userId], references: [id])
 

@@ -20,7 +20,7 @@ function buildManifest(overrides = {}) {
             plans: [],
         },
         capabilities: {
-            // Q.3.1 (2026-05-10): SPEC §4.2.1 normativ — domain.action.
+            // Q.3.1 (2026-05-10): SPEC §4.2.1 normative — domain.action.
             'tenants.read': true,
             'datev.export': true,
         },
@@ -31,9 +31,9 @@ function buildManifest(overrides = {}) {
                     id: 'demoapp.datev',
                     label: 'DATEV',
                     route: '/admin/datev',
-                    // Beide ComponentKey-Schreibweisen sind ab Q.3.1 erlaubt:
-                    // 'demoapp-datev' (lowercase-hyphenated) ODER 'demoapp.datev'
-                    // (namespace.dot). Test-Fixture nutzt lowercase-hyphenated.
+                    // Both ComponentKey spellings are allowed as of Q.3.1:
+                    // 'demoapp-datev' (lowercase-hyphenated) OR 'demoapp.datev'
+                    // (namespace.dot). Test fixture uses lowercase-hyphenated.
                     componentKey: 'demoapp-datev',
                     requiredCapability: 'datev.export',
                 },
@@ -62,9 +62,9 @@ function buildManifest(overrides = {}) {
                 {
                     id: 'demoapp.datev.runExport',
                     label: 'Export',
-                    // Q.3.1: TenantAction.actionKey nutzt ab jetzt domain.action
-                    // (SPEC §4.2.1) — analog zu Capabilities. AuditAction.key
-                    // bleibt SCREAMING_SNAKE_CASE (siehe audit-Block unten).
+                    // Q.3.1: TenantAction.actionKey now uses domain.action
+                    // (SPEC §4.2.1) — analogous to Capabilities. AuditAction.key
+                    // stays SCREAMING_SNAKE_CASE (see audit block below).
                     actionKey: 'datev.export',
                     requiredCapability: 'datev.export',
                 },
@@ -83,18 +83,18 @@ function buildFlow(manifest) {
 }
 
 describe('ManifestCliFlow.dump / hash / validate', () => {
-    test('dump liefert das Manifest 1:1', () => {
+    test('dump returns the manifest 1:1', () => {
         const m = buildManifest();
         const flow = buildFlow(m);
         assert.equal(flow.dump(), m);
     });
 
-    test('hash liefert manifestHash', () => {
+    test('hash returns manifestHash', () => {
         const flow = buildFlow(buildManifest());
         assert.equal(flow.hash(), 'sha256-abc123_def-ghi');
     });
 
-    test('hash wirft, wenn Hash fehlt', () => {
+    test('hash throws when hash is missing', () => {
         const m = buildManifest({
             build: { platformPackageVersion: '0.1.0', appVersion: '1.0.0', manifestHash: '' },
         });
@@ -102,12 +102,12 @@ describe('ManifestCliFlow.dump / hash / validate', () => {
         assert.throws(() => flow.hash(), /manifestHash fehlt/);
     });
 
-    test('validate ok bei sauberem Manifest', () => {
+    test('validate ok for a clean manifest', () => {
         const flow = buildFlow(buildManifest());
         assert.deepEqual(flow.validate(), { ok: true });
     });
 
-    test('validate lehnt falsche schemaVersion ab', () => {
+    test('validate rejects wrong schemaVersion', () => {
         const flow = buildFlow(buildManifest({ schemaVersion: 2 }));
         const r = flow.validate();
         assert.equal(r.ok, false);
@@ -116,14 +116,14 @@ describe('ManifestCliFlow.dump / hash / validate', () => {
 });
 
 describe('ManifestCliFlow.diff', () => {
-    test('null bei identischem Hash', () => {
+    test('null for identical hash', () => {
         const m = buildManifest();
         const flow = buildFlow(m);
         const expected = buildManifest();
         assert.equal(flow.diff(expected), null);
     });
 
-    test('liefert added/removed componentKeys', () => {
+    test('returns added/removed componentKeys', () => {
         const m = buildManifest();
         const flow = buildFlow(m);
         const expected = buildManifest({
@@ -148,19 +148,19 @@ describe('ManifestCliFlow.diff', () => {
 });
 
 describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
-    test('sauberes Manifest → overall=ok, alle Checks grün', async () => {
+    test('clean manifest → overall=ok, all checks green', async () => {
         const flow = buildFlow(buildManifest());
         const report = await flow.runChecks();
         assert.equal(report.overall, 'ok');
         assert.ok(
             report.checks.length >= 10,
-            `mindestens 10 Checks erwartet, war ${report.checks.length}`,
+            `at least 10 checks expected, was ${report.checks.length}`,
         );
         assert.equal(flow.exitCodeFor(report), 0);
         for (const c of report.checks) assert.equal(c.severity, 'ok', c.id + ': ' + c.message);
     });
 
-    test('falscher manifestHash-Pattern → error, exitCode=7', async () => {
+    test('wrong manifestHash pattern → error, exitCode=7', async () => {
         const m = buildManifest({
             build: {
                 platformPackageVersion: '0.1.0',
@@ -176,7 +176,7 @@ describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
         assert.equal(failed.severity, 'error');
     });
 
-    test('per-Tenant-endpoint in TenantColumn → error', async () => {
+    test('per-tenant endpoint in TenantColumn → error', async () => {
         const m = buildManifest();
         m.tenants.columns[0].endpoint = '/api/v1/admin/extras/datev-status/{slug}';
         const flow = buildFlow(m);
@@ -185,7 +185,7 @@ describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
         assert.equal(c.severity, 'error');
     });
 
-    test('non-/admin-Route → error', async () => {
+    test('non-/admin route → error', async () => {
         const m = buildManifest();
         m.navigation.projectPages[0].route = '/datev';
         const flow = buildFlow(m);
@@ -194,7 +194,7 @@ describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
         assert.equal(c.severity, 'error');
     });
 
-    test('unbekannte requiredCapability-Ref → error', async () => {
+    test('unknown requiredCapability ref → error', async () => {
         const m = buildManifest();
         m.navigation.projectPages[0].requiredCapability = 'foo:bar:baz';
         const flow = buildFlow(m);
@@ -203,7 +203,7 @@ describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
         assert.equal(c.severity, 'error');
     });
 
-    test('falsches Capability-Pattern → error', async () => {
+    test('wrong Capability pattern → error', async () => {
         const m = buildManifest();
         m.capabilities['BadCap'] = true;
         const flow = buildFlow(m);
@@ -212,7 +212,7 @@ describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
         assert.equal(c.severity, 'error');
     });
 
-    test('SCREAMING_SNAKE_CASE actionKey verletzt jetzt domain.action → error', async () => {
+    test('SCREAMING_SNAKE_CASE actionKey now violates domain.action → error', async () => {
         const m = buildManifest();
         m.tenants.actions[0].actionKey = 'DATEV_EXPORT_RUN';
         const flow = buildFlow(m);
@@ -221,7 +221,7 @@ describe('ManifestCliFlow.runChecks — DEFAULT_MANIFEST_CHECKS', () => {
         assert.equal(c.severity, 'error');
     });
 
-    test('formatReport zeigt Severity-Icons + Pfade', () => {
+    test('formatReport shows severity icons + paths', () => {
         const flow = buildFlow(buildManifest());
         const report = {
             overall: 'error',

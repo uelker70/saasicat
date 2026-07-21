@@ -22,7 +22,7 @@
             </q-card-section>
 
             <template v-else-if="preview">
-                <!-- Blocker: Buchung/Kündigung nicht möglich -->
+                <!-- Blocker: booking/cancellation not possible -->
                 <q-card-section v-if="preview.blockers.length > 0" class="sp-bundle-preview__blockers">
                     <div class="sp-bundle-preview__block-title">
                         {{ i18n.bundlePreviewBlockersTitle }}
@@ -32,7 +32,7 @@
                             {{ blocker.message }}
                         </li>
                     </ul>
-                    <!-- requires-Blocker mit aufgelösten Feature-Labels (#35) -->
+                    <!-- requires blocker with resolved feature labels (#35) -->
                     <div
                         v-if="addPreview && addPreview.missingRequires.length > 0"
                         class="sp-bundle-preview__requires"
@@ -44,7 +44,7 @@
                     </div>
                 </q-card-section>
 
-                <!-- Add-Preview: Preis + Proration -->
+                <!-- Add preview: price + proration -->
                 <q-card-section v-if="addPreview" class="sp-bundle-preview__price">
                     <div class="sp-bundle-preview__block-title">
                         {{ i18n.bundlePreviewProrationTitle }}
@@ -86,7 +86,7 @@
                     </div>
                 </q-card-section>
 
-                <!-- Add-Preview: Redundanz-Hinweis (AK-13) -->
+                <!-- Add preview: redundancy hint (AK-13) -->
                 <q-card-section
                     v-if="addPreview && addPreview.redundantFeatures.length > 0"
                     class="sp-bundle-preview__warnings"
@@ -107,7 +107,7 @@
                     </ul>
                 </q-card-section>
 
-                <!-- Cancel-Preview: Wirksamkeit + Ersparnis -->
+                <!-- Cancel preview: effective date + savings -->
                 <q-card-section v-if="cancelPreview" class="sp-bundle-preview__price">
                     <div class="sp-bundle-preview__price-row">
                         <span>{{ i18n.bundlePreviewEffectiveAt }}</span>
@@ -122,7 +122,7 @@
                     </div>
                 </q-card-section>
 
-                <!-- Warnings (z. B. MINIMUM_TERM_BINDS) -->
+                <!-- Warnings (e.g. MINIMUM_TERM_BINDS) -->
                 <q-card-section
                     v-if="otherWarnings.length > 0"
                     class="sp-bundle-preview__warnings"
@@ -170,23 +170,23 @@ import type {
     BundlePreviewShape,
 } from '../../use-tenant-billing.js';
 
-// BundlePreviewDialog (#37/#61) — Vorschau VOR Bundle-Add/-Cancel im
-// Tenant-Self-Service: Proration bis Periodenende, Folgeperioden-Preis,
-// Redundanz-Hinweis (AK-13), requires-Blocker und Mindestlaufzeit-Warnung.
-// Buchen ist nur bei leerer `blockers`-Liste möglich.
+// BundlePreviewDialog (#37/#61) — preview BEFORE bundle add/cancel in the
+// tenant self-service: proration until period end, next-period price,
+// redundancy hint (AK-13), requires blocker and minimum-term warning.
+// Booking is only possible when the `blockers` list is empty.
 
 const REDUNDANT_WARNING_CODE = 'REDUNDANT_FEATURES';
 
 const props = defineProps<{
     modelValue: boolean;
-    /** null solange die Vorschau lädt. */
+    /** null while the preview is loading. */
     preview: BundlePreviewShape | null;
     loading: boolean;
-    /** Fehler beim Laden der Vorschau (Preview-Endpoint). */
+    /** Error while loading the preview (preview endpoint). */
     error: string | null;
-    /** Confirm-Mutation läuft (Add/Cancel). */
+    /** Confirm mutation in progress (add/cancel). */
     submitting: boolean;
-    /** Subscription-Status — im TRIAL gibt es bewusst keine Proration. */
+    /** Subscription status — during TRIAL there is deliberately no proration. */
     subscriptionStatus: string;
     i18n: TenantPlanSectionI18n;
     formatCurrency: (n: number) => string;
@@ -209,8 +209,8 @@ const cancelPreview = computed<BundleCancelPreviewShape | null>(() =>
     props.preview?.action === 'cancel' ? props.preview : null,
 );
 
-// REDUNDANT_FEATURES hat eine eigene, feature-aufgelöste Sektion — die
-// generische Warning dazu wäre doppelt.
+// REDUNDANT_FEATURES has its own feature-resolved section — the generic
+// warning for it would be a duplicate.
 const otherWarnings = computed(() =>
     (props.preview?.warnings ?? []).filter((w) => w.code !== REDUNDANT_WARNING_CODE),
 );

@@ -1,9 +1,9 @@
-// MFA-Helpers — TOTP-Setup + -Verify auf Basis von `otplib`.
+// MFA helpers — TOTP setup + verify based on `otplib`.
 //
-// Der `MfaService` ist ein dünner Wrapper, der den `MfaPort` (Konsumenten-
-// Persistenz) mit der TOTP-Verifikation kombiniert. Konsument implementiert
-// nur `MfaPort.{getSecret,setSecret,isEnabled}`; das Plattform-Service-Layer
-// kümmert sich um Secret-Generierung, otpauth-URI und Code-Verifikation.
+// The `MfaService` is a thin wrapper that combines the `MfaPort` (consumer
+// persistence) with the TOTP verification. The consumer implements
+// only `MfaPort.{getSecret,setSecret,isEnabled}`; the platform service layer
+// takes care of secret generation, otpauth URI and code verification.
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { generateSecret, generateURI, verify as verifyTotpCode } from 'otplib';
@@ -11,16 +11,16 @@ import type { MfaPort } from '@saasicat/types';
 import { MFA_PORT_TOKEN } from './tokens.js';
 
 /**
- * Erlaubt eine 30-Sekunden-Toleranz vor und nach dem aktuellen Zeitfenster
- * (= ±1 TOTP-Zeitschritt) — robust gegen Clock-Drift, ohne Sicherheits-
- * Risiko (Token bleibt 90s gültig statt 30s).
+ * Allows a 30-second tolerance before and after the current time window
+ * (= ±1 TOTP time step) — robust against clock drift, without a security
+ * risk (token stays valid for 90s instead of 30s).
  */
 const CLOCK_DRIFT_TOLERANCE_SECONDS = 30;
 
 /**
- * Fehlerklassen, die otplib bei formal ungültigen Tokens wirft (falsche
- * Länge, Nicht-Ziffern). Match über `error.name`, weil die Klassen im
- * transitiven `@otplib/core` leben und hier nicht direkt importierbar sind.
+ * Error classes that otplib throws for formally invalid tokens (wrong
+ * length, non-digits). Matched via `error.name`, because the classes live
+ * in the transitive `@otplib/core` and are not directly importable here.
  */
 const OTPLIB_TOKEN_ERROR_NAMES = new Set(['TokenError', 'TokenFormatError', 'TokenLengthError']);
 
@@ -29,9 +29,9 @@ function isOtplibTokenError(error: unknown): boolean {
 }
 
 export interface TotpSetupResult {
-    /** Base32-encoded TOTP-Secret (im MfaPort persistiert). */
+    /** Base32-encoded TOTP secret (persisted in the MfaPort). */
     secret: string;
-    /** otpauth://-URI für QR-Code-Generator (Authenticator-App). */
+    /** otpauth:// URI for the QR code generator (authenticator app). */
     otpauthUri: string;
 }
 
@@ -47,10 +47,10 @@ export class MfaService {
     constructor(@Inject(MFA_PORT_TOKEN) private readonly mfa: MfaPort) {}
 
     /**
-     * Generiert ein neues TOTP-Secret, persistiert es via `MfaPort.setSecret`
-     * und liefert das Secret + die otpauth-URI für den QR-Code zurück.
+     * Generates a new TOTP secret, persists it via `MfaPort.setSecret`
+     * and returns the secret + the otpauth URI for the QR code.
      *
-     * `issuer` und `label` formen die Anzeige im Authenticator (z. B.
+     * `issuer` and `label` shape the display in the authenticator (e.g.
      * "DemoApp:taci@example.com").
      */
     async setup(userId: string, label: string, issuer: string): Promise<TotpSetupResult> {
@@ -61,8 +61,8 @@ export class MfaService {
     }
 
     /**
-     * Prüft den eingegebenen Code gegen das gespeicherte Secret,
-     * clock-drift-tolerant um ±1 Zeitschritt.
+     * Verifies the entered code against the stored secret,
+     * clock-drift-tolerant by ±1 time step.
      */
     async verify(input: VerifyTotpInput): Promise<boolean> {
         const secret = await this.mfa.getSecret(input.userId);
@@ -75,15 +75,15 @@ export class MfaService {
             });
             return result.valid;
         } catch (error) {
-            // otplib wirft bei formal ungültigen Tokens statt `valid: false`
-            // zu liefern — für Aufrufer ist beides gleichbedeutend mit
-            // "Code ungültig" (fail closed).
+            // otplib throws for formally invalid tokens instead of returning
+            // `valid: false` — for callers both are equivalent to
+            // "code invalid" (fail closed).
             if (isOtplibTokenError(error)) {
                 return false;
             }
-            // Unerwarteter Fehler (z. B. korruptes gespeichertes Secret):
-            // ebenfalls fail closed, aber sichtbar machen — sonst sieht der
-            // User nur endlos "Code ungültig" ohne diagnostizierbare Ursache.
+            // Unexpected error (e.g. corrupt stored secret):
+            // also fail closed, but make it visible — otherwise the
+            // user only sees endless "code invalid" without a diagnosable cause.
             const message = error instanceof Error ? error.message : String(error);
             this.logger.warn(
                 `TOTP-Verify für User ${input.userId} unerwartet fehlgeschlagen: ${message}`,
@@ -93,13 +93,13 @@ export class MfaService {
     }
 
     /**
-     * Löscht das Secret eines Users — verwendet von `ahp admin mfa-reset`.
+     * Deletes a user's secret — used by `ahp admin mfa-reset`.
      */
     async disable(userId: string): Promise<void> {
         await this.mfa.setSecret(userId, null);
     }
 
-    /** Delegate auf `MfaPort.isEnabled`. */
+    /** Delegates to `MfaPort.isEnabled`. */
     async isEnabled(userId: string): Promise<boolean> {
         return this.mfa.isEnabled(userId);
     }

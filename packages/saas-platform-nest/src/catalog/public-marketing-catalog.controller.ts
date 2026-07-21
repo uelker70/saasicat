@@ -1,8 +1,8 @@
-// PublicMarketingCatalogController — auth-freier Endpoint für die
-// Webseiten-Pricing-Page: `GET /public/marketing-catalog?lang=de`.
+// PublicMarketingCatalogController — auth-free endpoint for the
+// website pricing page: `GET /public/marketing-catalog?lang=de`.
 //
-// `projectKey` + `currency` sind beim Build gebunden (App-Identität);
-// die Webseite übergibt nur `?lang=`.
+// `projectKey` + `currency` are bound at build time (app identity);
+// the website passes only `?lang=`.
 
 import {
     type CanActivate,
@@ -31,11 +31,11 @@ export function buildPublicMarketingCatalogController(
         ) {}
 
         /**
-         * `?lang=de|tr|en` — Alias `locale` akzeptiert (SPEC_V2 §9).
-         * `?asOf=YYYY-MM-DD` — Vorschau einer zukünftigen oder vergangenen
-         *   Catalog-Variante. Default = heute. Liefert die PlanVersion, deren
-         *   `validFrom`/`validUntil` `asOf` tag-inklusiv umfassen (validUntil-Tag
-         *   gilt noch, vgl. buildActivePlanVersionWhere).
+         * `?lang=de|tr|en` — alias `locale` accepted (SPEC_V2 §9).
+         * `?asOf=YYYY-MM-DD` — preview of a future or past catalog variant.
+         *   Default = today. Returns the PlanVersion whose `validFrom`/`validUntil`
+         *   span `asOf` inclusively by day (the validUntil day still counts,
+         *   cf. buildActivePlanVersionWhere).
          */
         @Get()
         getCatalog(
@@ -53,10 +53,10 @@ export function buildPublicMarketingCatalogController(
 }
 
 /**
- * Akzeptiert ISO-Date (`2026-06-30`) oder ISO-Datetime; bei ungültigem
- * Wert oder undefined fallen wir auf "jetzt" zurück. Bewusst kein 400,
- * weil `asOf` ein Preview-Komfort-Param ist — die Default-Antwort
- * (= heute) ist immer noch korrekt.
+ * Accepts an ISO date (`2026-06-30`) or ISO datetime; on an invalid value
+ * or undefined we fall back to "now". Deliberately no 400, because `asOf`
+ * is a preview convenience param — the default response (= today) is still
+ * correct.
  */
 function parseAsOf(raw: string | undefined): Date {
     if (!raw) return new Date();

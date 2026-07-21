@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 
 import { PlanCatalogImporterService } from '../dist/billing/index.js';
 
-// SPEC_V2 §11.1 M6 Pack 2c — Plan-Importer-Tests.
+// SPEC_V2 §11.1 M6 Pack 2c — plan importer tests.
 //
-// FakeSink mit In-Memory-Map; Idempotenz via Primary-Key-Match.
+// FakeSink with an in-memory map; idempotency via primary-key match.
 
 class FakeSink {
     constructor() {
@@ -64,7 +64,7 @@ plans:
 `;
 
 describe('PlanCatalogImporterService', () => {
-    test('importFromYaml: erste Runde → alle created', async () => {
+    test('importFromYaml: first round → all created', async () => {
         const sink = new FakeSink();
         const service = new PlanCatalogImporterService(sink);
 
@@ -91,7 +91,7 @@ describe('PlanCatalogImporterService', () => {
         assert.equal(report.warnings.length, 0);
     });
 
-    test('importFromYaml: zweiter Lauf → alle skipped (idempotent)', async () => {
+    test('importFromYaml: second run → all skipped (idempotent)', async () => {
         const sink = new FakeSink();
         const service = new PlanCatalogImporterService(sink);
 
@@ -106,7 +106,7 @@ describe('PlanCatalogImporterService', () => {
         assert.equal(second.featureEntriesSkipped, 4);
     });
 
-    test('importFromYaml: Plan ohne monthlyNet → Warning + skip PlanVersion', async () => {
+    test('importFromYaml: plan without monthlyNet → warning + skip PlanVersion', async () => {
         const yamlWithEnterprise = `
 schemaVersion: 1
 projectKey: smoke
@@ -129,7 +129,7 @@ plans:
         assert.match(report.warnings[0], /ENTERPRISE/);
     });
 
-    test('importFromYaml: yearlyNet default = monthlyNet × 10 wenn fehlend', async () => {
+    test('importFromYaml: yearlyNet default = monthlyNet × 10 when missing', async () => {
         const yamlNoYearly = `
 schemaVersion: 1
 projectKey: smoke
@@ -150,7 +150,7 @@ plans:
         assert.equal(pv.yearlyNet, '55.00'); // 5.50 × 10
     });
 
-    test('importFromYaml: ungültiges Schema → throw', async () => {
+    test('importFromYaml: invalid schema → throw', async () => {
         const invalidYaml = 'not: valid_catalog';
         const sink = new FakeSink();
         const service = new PlanCatalogImporterService(sink);

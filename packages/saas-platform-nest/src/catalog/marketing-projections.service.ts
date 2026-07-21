@@ -1,9 +1,9 @@
-// MarketingProjectionsService — CRUD für `marketing_projections`.
+// MarketingProjectionsService — CRUD for `marketing_projections`.
 //
-// Anders als Bundle/BusinessType **ohne Versionierung**: Marketing-Edits
-// gehen direkt live, weil sie nur die Public-Catalog-Anzeige steuern,
-// keine Bestand-Subscriptions. Pro (targetType, targetVersionId, locale)
-// gibt es genau eine aktive Row; das Tripel ist im DB-Schema unique.
+// Unlike Bundle/BusinessType, **without versioning**: marketing edits go
+// live directly, because they only control the public-catalog display, not
+// existing subscriptions. Per (targetType, targetVersionId, locale) there is
+// exactly one active row; the triple is unique in the DB schema.
 
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type {

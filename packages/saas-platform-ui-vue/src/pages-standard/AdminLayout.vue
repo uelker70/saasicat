@@ -97,30 +97,30 @@ import type { AdminManifest, StandardPageKey } from '@saasicat/types';
 import { buildRoutes, buildSidebar, DEFAULT_SECTION_ORDER } from '../nav-builder.js';
 import { ADMIN_UI_VERSION } from '../version.js';
 
-// SuperAdmin-Layout — universelle Plattform-Shell für alle Konsumenten-Apps.
-// CSS-Klassen `sa-admin-*` mit BEM-Konvention; Apps können jede Klasse mit
-// gleicher Spezifität in ihrer eigenen CSS überschreiben.
+// SuperAdmin layout — universal platform shell for all consumer apps.
+// CSS classes `sa-admin-*` with BEM convention; apps can override any class
+// with equal specificity in their own CSS.
 //
-// App-spezifische Bits via Props:
-//   - `brandLogoText`     : 2-Buchstaben-Kürzel (z. B. 'ma', 'da')
+// App-specific bits via props:
+//   - `brandLogoText`     : 2-letter abbreviation (e.g. 'ma', 'da')
 //   - `brandName`         : 'DemoApp' / 'ClubApp' / …
-//   - `brandTag`          : 'SuperAdmin' (Default)
-//   - `manifest`          : geladenes AdminManifest (oder null vor Auth)
-//   - `staticNavFallback` : Sidebar vor Manifest-Load (kein Flicker)
-//   - `localItems`        : zusätzliche Sidebar-Items, die nicht im Manifest
-//                           stehen (z. B. eine app-eigene "Plan-Versionen"-Page)
-//   - `availableExtensions` : Set für ProjectPage-Capability-Filter
-//   - `standardPageRoutes`: Override pro StandardPageKey (z. B.
-//                           `dashboard` → '/admin/' statt '/admin/dashboard')
-//   - `pageTitleResolver` : (path) => string Mapping für den Header-Titel
-//   - `userName` / `userEmail` / `userInitials` : Anzeige
-//   - `isProduction`      : zeigt rote Production-Banner
-//   - `docUrl`            : optional Footer-Link
+//   - `brandTag`          : 'SuperAdmin' (default)
+//   - `manifest`          : loaded AdminManifest (or null before auth)
+//   - `staticNavFallback` : sidebar before manifest load (no flicker)
+//   - `localItems`        : additional sidebar items not present in the
+//                           manifest (e.g. an app-specific "Plan-Versionen" page)
+//   - `availableExtensions` : set for ProjectPage capability filter
+//   - `standardPageRoutes`: override per StandardPageKey (e.g.
+//                           `dashboard` → '/admin/' instead of '/admin/dashboard')
+//   - `pageTitleResolver` : (path) => string mapping for the header title
+//   - `userName` / `userEmail` / `userInitials` : display
+//   - `isProduction`      : shows red production banner
+//   - `docUrl`            : optional footer link
 //
 // Slots:
-//   - `#header-actions`   : zusätzliche Buttons rechts vor dem Badge
-//                           (z. B. NotificationBell)
-//   - `#drawer-footer`    : Custom Footer (überschreibt Default-Doku-Link)
+//   - `#header-actions`   : additional buttons on the right before the badge
+//                           (e.g. NotificationBell)
+//   - `#drawer-footer`    : custom footer (overrides default doc link)
 
 export interface SidebarItem {
     to: string;
@@ -138,21 +138,21 @@ const props = withDefaults(
         staticNavFallback?: readonly SidebarItem[];
         localItems?: readonly SidebarItem[];
         /**
-         * Section-Label, unter der `localItems` im Drawer gruppiert werden.
-         * Default `null` ⇒ ohne Section-Header (oben angeheftet, wie bisher).
+         * Section label under which `localItems` are grouped in the drawer.
+         * Default `null` ⇒ without section header (pinned at the top, as before).
          */
         localItemsSection?: string | null;
         availableExtensions?: Set<string>;
         standardPageRoutes?: Partial<Record<StandardPageKey, string>>;
         /**
-         * Override für `navSection` pro StandardPage. Plattform-Default folgt
-         * dem Plan-Simulation-Layout (Übersicht / Produktkatalog / Kunden /
-         * System) und braucht meist keine Anpassung.
+         * Override for `navSection` per StandardPage. The platform default follows
+         * the plan-simulation layout (Übersicht / Produktkatalog / Kunden /
+         * System) and usually needs no adjustment.
          */
         standardPageNavSection?: Partial<Record<StandardPageKey, string>>;
         /**
-         * Reihenfolge der Section-Header. Sections, die hier nicht stehen,
-         * werden danach alphabetisch angehängt.
+         * Order of the section headers. Sections not listed here are
+         * appended alphabetically afterwards.
          */
         sectionOrder?: readonly string[];
         pageTitleResolver?: (path: string) => string | null;
@@ -197,8 +197,8 @@ interface NavSection {
 const navSections = computed<NavSection[]>(() => {
     const m = props.manifest;
     if (!m) {
-        // Pre-Manifest: Static-Fallback + Local-Items als eine unbenannte
-        // Section, damit die UI vor Manifest-Load kein Flicker hat.
+        // Pre-manifest: static fallback + local items as one unnamed
+        // section, so that the UI has no flicker before manifest load.
         return [{ title: null, items: [...props.staticNavFallback, ...props.localItems] }];
     }
     const routes = buildRoutes(m, {
@@ -239,7 +239,7 @@ const currentPageTitle = computed(() => {
         const t = props.pageTitleResolver(route.path);
         if (t) return t;
     }
-    // Default: Sidebar-Item-Label, das auf die aktive Route matcht.
+    // Default: sidebar item label that matches the active route.
     const item = resolvedNav.value.find((i) => i.to === route.path);
     return item?.label ?? `${props.brandName} SuperAdmin`;
 });

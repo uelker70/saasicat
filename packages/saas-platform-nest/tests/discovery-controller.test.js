@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 
 import { buildDiscoveryController } from '../dist/discovery/index.js';
 
-// DiscoveryController: GET /admin/discovery — liefert DiscoverySnapshot mit
-// ETag-Caching. Wir instanziieren die Controller-Klasse direkt mit einem
-// fake Scanner und einer fake HttpResponse-Spy, ohne NestJS-Test-Module
-// hochzufahren.
+// DiscoveryController: GET /admin/discovery — returns a discovery snapshot with
+// ETag caching. We instantiate the controller class directly with a fake
+// scanner and a fake HttpResponse spy, without spinning up a NestJS test
+// module.
 
 function makeFakeScanner(snapshot) {
     return {
@@ -64,7 +64,7 @@ function buildController(snapshot = SNAPSHOT) {
 }
 
 describe('DiscoveryController — GET /admin/discovery', () => {
-    test('liefert den DiscoverySnapshot als Body', () => {
+    test('returns the discovery snapshot as the body', () => {
         const controller = buildController();
         const res = makeFakeRes();
         const body = controller.getDiscovery(undefined, res);
@@ -73,12 +73,12 @@ describe('DiscoveryController — GET /admin/discovery', () => {
         assert.equal(res.statusCode, 200);
     });
 
-    // ETag enthält Hash UND scannedAt, damit ein Re-Scan ohne Datenänderung
-    // den Client trotzdem einen frischen Snapshot ziehen lässt (sonst wäre
-    // `scannedAt` bei 304 veraltet).
+    // The ETag contains both the hash AND scannedAt, so that a re-scan without
+    // data changes still lets the client pull a fresh snapshot (otherwise
+    // `scannedAt` would be stale on a 304).
     const ETAG = `"${SNAPSHOT.hash}-${SNAPSHOT.scannedAt}"`;
 
-    test('setzt ETag-Header mit snapshot.hash + scannedAt', () => {
+    test('sets the ETag header with snapshot.hash + scannedAt', () => {
         const controller = buildController();
         const res = makeFakeRes();
         controller.getDiscovery(undefined, res);
@@ -86,18 +86,18 @@ describe('DiscoveryController — GET /admin/discovery', () => {
         assert.equal(res.headers.get('ETag'), ETAG);
     });
 
-    test('liefert HTTP 304 + null-Body bei If-None-Match-Treffer', () => {
+    test('returns HTTP 304 + null body on an If-None-Match match', () => {
         const controller = buildController();
         const res = makeFakeRes();
         const body = controller.getDiscovery(ETAG, res);
 
         assert.equal(body, null);
         assert.equal(res.statusCode, 304);
-        // ETag-Header wird trotzdem gesetzt (RFC 9110 erlaubt es bei 304)
+        // The ETag header is still set (RFC 9110 permits it on a 304)
         assert.equal(res.headers.get('ETag'), ETAG);
     });
 
-    test('liefert vollen Snapshot, wenn If-None-Match nicht passt', () => {
+    test('returns the full snapshot when If-None-Match does not match', () => {
         const controller = buildController();
         const res = makeFakeRes();
         const body = controller.getDiscovery('"sha256-anderes"', res);
@@ -106,7 +106,7 @@ describe('DiscoveryController — GET /admin/discovery', () => {
         assert.equal(res.statusCode, 200);
     });
 
-    test('ignoriert leeren If-None-Match-Header', () => {
+    test('ignores an empty If-None-Match header', () => {
         const controller = buildController();
         const res = makeFakeRes();
         const body = controller.getDiscovery('', res);

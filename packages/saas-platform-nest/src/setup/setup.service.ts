@@ -1,13 +1,14 @@
-// SetupService — First-Run-SuperAdmin-Bootstrap übers Admin-UI.
+// SetupService — first-run SuperAdmin bootstrap via the admin UI.
 //
-// Sicherheitsmodell (zwei Schranken, beide müssen erfüllt sein):
-//   1. SELF-DISABLE: `setup` läuft nur, solange 0 SUPER_ADMIN existieren.
-//   2. SETUP-TOKEN: ein operator-gesetztes Geheimnis (Env-Var) muss mitgegeben
-//      werden. Ohne gesetzte Env-Var ist Setup komplett deaktiviert.
+// Security model (two barriers, both must be satisfied):
+//   1. SELF-DISABLE: `setup` only runs as long as 0 SUPER_ADMIN exist.
+//   2. SETUP-TOKEN: an operator-set secret (env var) must be supplied. Without a
+//      set env var, setup is completely disabled.
 //
-// `confirm-mfa` ist NUR token-geschützt (nicht self-disable-geschützt), weil der
-// SUPER_ADMIN zu diesem Zeitpunkt bereits angelegt ist und das Fenster nach
-// Schranke 1 sonst schon zu wäre — der Operator hält das Token aber weiterhin.
+// `confirm-mfa` is ONLY token-protected (not self-disable-protected), because at
+// that point the SUPER_ADMIN has already been created and the window would
+// otherwise already be closed by barrier 1 — but the operator still holds the
+// token.
 
 import {
     BadRequestException,

@@ -1,7 +1,7 @@
-// DI-Tokens für die EntitlementService-Klasse (Slice B).
+// DI tokens for the EntitlementService class (Slice B).
 //
-// Konsumenten registrieren Implementierungen über `EntitlementModule.forRoot`
-// oder direkt als Custom-Provider im AppModule.
+// Consumers register implementations via `EntitlementModule.forRoot`
+// or directly as custom providers in the AppModule.
 
 export const SUBSCRIPTION_REPOSITORY_TOKEN = Symbol.for('saas-platform/SubscriptionRepository');
 export const PLAN_VERSION_REPOSITORY_TOKEN = Symbol.for('saas-platform/PlanVersionRepository');

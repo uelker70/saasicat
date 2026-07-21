@@ -6,9 +6,9 @@ import { join } from 'node:path';
 
 import { runSeedGateFromFile } from '../dist/catalog/index.js';
 
-// Seed-Gate-Runner (#23) — geteilte I/O-Schale: Modus-Semantik (report-only
-// vs. blocking) + Snapshot-Datei-Handling. Exit wird injiziert, damit der
-// Test den blocking-Pfad beobachten kann.
+// Seed-Gate runner (#23) — shared I/O shell: mode semantics (report-only
+// vs. blocking) + snapshot file handling. Exit is injected so the test can
+// observe the blocking path.
 
 function snapshotFile(features = []) {
     const dir = mkdtempSync(join(tmpdir(), 'seed-gate-runner-'));
@@ -46,7 +46,7 @@ function exitRecorder() {
 }
 
 describe('runSeedGateFromFile', () => {
-    test('report-only ohne Snapshot → null + Warnung, kein Exit', () => {
+    test('report-only without snapshot → null + warning, no exit', () => {
         const { lines, sink } = capture();
         const report = runSeedGateFromFile({
             snapshotPath: '/nope/missing.json',
@@ -57,7 +57,7 @@ describe('runSeedGateFromFile', () => {
         assert.match(lines[0], /übersprungen/);
     });
 
-    test('blocking ohne Snapshot → Exit 4', () => {
+    test('blocking without snapshot → exit 4', () => {
         const { calls, exit } = exitRecorder();
         assert.throws(
             () =>
@@ -72,7 +72,7 @@ describe('runSeedGateFromFile', () => {
         assert.deepEqual(calls, [4]);
     });
 
-    test('report-only mit Verstößen → Report, Seed läuft weiter', () => {
+    test('report-only with violations → report, seed continues', () => {
         const { sink } = capture();
         const report = runSeedGateFromFile({
             snapshotPath: snapshotFile(['REAL']),
@@ -84,7 +84,7 @@ describe('runSeedGateFromFile', () => {
         assert.equal(report.findings[0].warning.code, 'PLAN_FEATURE_UNKNOWN');
     });
 
-    test('blocking mit Verstößen → Exit 4', () => {
+    test('blocking with violations → exit 4', () => {
         const { calls, exit } = exitRecorder();
         assert.throws(
             () =>
@@ -101,7 +101,7 @@ describe('runSeedGateFromFile', () => {
         assert.deepEqual(calls, [4]);
     });
 
-    test('sauberer Seed → Report ok, kein Exit', () => {
+    test('clean seed → report ok, no exit', () => {
         const report = runSeedGateFromFile({
             snapshotPath: snapshotFile(['A']),
             plans: [{ planKey: 'STARTER', features: ['A'] }],

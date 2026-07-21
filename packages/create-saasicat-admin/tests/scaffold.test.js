@@ -14,7 +14,7 @@ import {
 const TEMPLATES = new URL('../templates', import.meta.url).pathname;
 
 describe('parseArgs', () => {
-    test('positionals + flags + tokens werden getrennt', () => {
+    test('positionals + flags + tokens are separated', () => {
         const result = parseArgs([
             'my-admin',
             '--project-key=notesapp',
@@ -25,31 +25,31 @@ describe('parseArgs', () => {
         assert.equal(result.flags.dryRun, true);
         assert.equal(result.tokens.PROJECT_KEY, 'notesapp');
         assert.equal(result.tokens.BRAND_NAME, 'NotesApp');
-        // unverändert:
+        // unchanged:
         assert.equal(result.tokens.LOGO_TEXT, DEFAULT_TOKENS.LOGO_TEXT);
     });
 });
 
 describe('applyTokens', () => {
-    test('ersetzt nur Tokens, lässt andere __X__-Strings durch', () => {
+    test('replaces only tokens, passes other __X__ strings through', () => {
         const out = applyTokens('hello __NAME__, ignore __UNKNOWN__', { NAME: 'World' });
         assert.equal(out, 'hello World, ignore __UNKNOWN__');
     });
 });
 
 describe('walkTemplates', () => {
-    test('findet alle .tpl-Files unter templates/', async () => {
+    test('finds all .tpl files under templates/', async () => {
         const files = await walkTemplates(TEMPLATES);
         const rels = files.map((f) => f.relPath);
-        assert.ok(rels.includes('package.json'), 'package.json fehlt');
-        assert.ok(rels.includes('src/main.ts'), 'src/main.ts fehlt');
-        assert.ok(rels.includes('src/router/routes.ts'), 'router/routes.ts fehlt');
-        assert.ok(rels.includes('src/styles/theme.scss'), 'styles/theme.scss fehlt');
+        assert.ok(rels.includes('package.json'), 'package.json missing');
+        assert.ok(rels.includes('src/main.ts'), 'src/main.ts missing');
+        assert.ok(rels.includes('src/router/routes.ts'), 'router/routes.ts missing');
+        assert.ok(rels.includes('src/styles/theme.scss'), 'styles/theme.scss missing');
     });
 });
 
 describe('scaffold', () => {
-    test('schreibt alle Templates ins target + ersetzt Tokens', async () => {
+    test('writes all templates into target + replaces tokens', async () => {
         const target = await mkdtemp(join(tmpdir(), 'spa-scaffold-'));
         try {
             const tokens = {
@@ -85,7 +85,7 @@ describe('scaffold', () => {
         }
     });
 
-    test('dryRun schreibt nichts', async () => {
+    test('dryRun writes nothing', async () => {
         const target = await mkdtemp(join(tmpdir(), 'spa-scaffold-dryrun-'));
         try {
             const writes = await scaffold({
@@ -95,7 +95,7 @@ describe('scaffold', () => {
                 dryRun: true,
             });
             assert.ok(writes.length >= 5);
-            // package.json darf NICHT geschrieben sein:
+            // package.json must NOT have been written:
             await assert.rejects(() => readFile(join(target, 'package.json'), 'utf8'));
         } finally {
             await rm(target, { recursive: true, force: true });

@@ -1,10 +1,10 @@
-// SetupModule — First-Run-SuperAdmin-Bootstrap übers Admin-UI.
+// SetupModule — first-run SuperAdmin bootstrap via the admin UI.
 //
-// Voraussetzung: `AdminModule.forRoot(...)` ist im selben App-Scope importiert
-// (global), damit `MfaService` für das MFA-Enrollment injizierbar ist.
+// Precondition: `AdminModule.forRoot(...)` is imported in the same app scope
+// (global) so that `MfaService` is injectable for MFA enrollment.
 //
-// Konsument liefert seinen `UserManagementPort`-Adapter (derselbe wie fürs
-// `<app> user`-CLI) und optional Env-Var-Name + Issuer.
+// The consumer provides its `UserManagementPort` adapter (the same one used for
+// the `<app> user` CLI) and optionally an env-var name + issuer.
 
 import { type DynamicModule, Module } from '@nestjs/common';
 import type { SuperAdminProvisioningPort } from '@saasicat/types';
@@ -19,16 +19,16 @@ const DEFAULT_MFA_ISSUER = 'SuperAdmin';
 
 export interface SetupModuleOptions {
     /**
-     * App-Adapter für Existenz-Check + Anlage des ersten SUPER_ADMIN. Ein voller
-     * `UserManagementPort`-Adapter (CLI) erfüllt diesen Vertrag ebenfalls, kann
-     * also wiederverwendet werden.
+     * App adapter for the existence check + creation of the first SUPER_ADMIN. A
+     * full `UserManagementPort` adapter (CLI) satisfies this contract as well, so
+     * it can be reused.
      */
     provisioningPort: ProviderSpec<SuperAdminProvisioningPort>;
-    /** Env-Var-Name des Setup-Tokens. Default `SETUP_TOKEN`. */
+    /** Env-var name of the setup token. Default `SETUP_TOKEN`. */
     setupTokenEnvVar?: string;
-    /** Authenticator-Issuer für das MFA-Enrollment. Default `SuperAdmin`. */
+    /** Authenticator issuer for MFA enrollment. Default `SuperAdmin`. */
     mfaIssuer?: string;
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 

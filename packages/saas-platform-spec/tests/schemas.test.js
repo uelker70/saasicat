@@ -1,6 +1,6 @@
-// Schema-Selbstkonsistenz-Tests für @saasicat/spec.
-// Prüft: alle JSON-Schemas sind syntaktisch valides JSON-Schema 2020-12,
-// und einfache Beispiel-Payloads validieren erfolgreich.
+// Schema self-consistency tests for @saasicat/spec.
+// Checks: all JSON schemas are syntactically valid JSON Schema 2020-12,
+// and simple example payloads validate successfully.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -174,7 +174,7 @@ test('adminManifest rejects capability with colon notation', () => {
             vatRate: 19,
             plans: [{ id: 'BASIC', quotas: { users: 1 }, features: [] }],
         },
-        capabilities: { 'tenants:read': true }, // ← Doppelpunkt verboten
+        capabilities: { 'tenants:read': true }, // ← colon not allowed
         navigation: { standardPages: {} },
     });
     assert.equal(ok, false);

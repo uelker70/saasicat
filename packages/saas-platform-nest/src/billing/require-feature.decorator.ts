@@ -1,12 +1,12 @@
 import { SetMetadata } from '@nestjs/common';
 import type { FeatureKey } from '@saasicat/types';
 
-// RequireFeature-Decorator — markiert einen Handler oder Controller als
-// feature-pflichtig. Mehrere Keys werden als Logical-OR ausgewertet — der
-// FeatureGuard lässt den Request passieren, sobald **irgendeines** der
-// angegebenen Features im aktiven EntitlementSet enthalten ist.
+// RequireFeature decorator — marks a handler or controller as
+// feature-gated. Multiple keys are evaluated as a logical OR — the
+// FeatureGuard lets the request through as soon as **any** of the
+// given features is contained in the active EntitlementSet.
 //
-// Statt Prisma-Enum nimmt die Plattform-Variante `FeatureKey` aus
+// Instead of a Prisma enum, the platform variant takes `FeatureKey` from
 // saas-platform-types (string).
 
 export const REQUIRE_FEATURE_KEY = 'require-feature';
@@ -14,7 +14,7 @@ export const REQUIRE_FEATURE_KEY = 'require-feature';
 /**
  * Tag handler with required feature keys.
  *
- * Kein Wert = öffentlich. Mehrere Werte = Logical-OR.
+ * No value = public. Multiple values = logical OR.
  */
 export const RequireFeature = (...features: FeatureKey[]) =>
     SetMetadata(REQUIRE_FEATURE_KEY, features);

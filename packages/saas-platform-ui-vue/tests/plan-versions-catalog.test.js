@@ -1,7 +1,7 @@
-// Plan-Versions-Catalog-Builder — Lift-and-Shift-Tests (Phase 2b).
+// Plan-versions catalog builder — lift-and-shift tests (Phase 2b).
 //
-// Verifiziert die Snapshot-Konstruktion: drafts > active > historical, plus
-// Quota-Mirror (Legacy-Flachfelder maxUsers etc.) und planSortOrder.
+// Verifies snapshot construction: drafts > active > historical, plus
+// Quota mirror (legacy flat fields maxUsers etc.) and planSortOrder.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,7 +32,7 @@ function planRow(overrides) {
 }
 
 describe('buildSnapshots — Drafts/Active/Historical', () => {
-    test('liefert nur drafts-Snapshot bei leerem Catalog', () => {
+    test('returns only drafts snapshot for empty catalog', () => {
         const snaps = buildSnapshots({
             planVersions: [],
         });
@@ -41,7 +41,7 @@ describe('buildSnapshots — Drafts/Active/Historical', () => {
         assert.equal(snaps[0].draftCount, 0);
     });
 
-    test('liefert active-Snapshot bei publizierten Plänen', () => {
+    test('returns active snapshot for published plans', () => {
         const snaps = buildSnapshots({
             planVersions: [
                 planRow({
@@ -59,7 +59,7 @@ describe('buildSnapshots — Drafts/Active/Historical', () => {
         assert.equal(snaps[1].plans[0].planId, 'BASIC');
     });
 
-    test('zählt offene Drafts korrekt', () => {
+    test('counts open drafts correctly', () => {
         const snaps = buildSnapshots({
             planVersions: [
                 planRow({ id: 'p1', planId: 'BASIC', version: 2 }),
@@ -71,8 +71,8 @@ describe('buildSnapshots — Drafts/Active/Historical', () => {
     });
 });
 
-describe('buildSnapshots — Quota-Mirror (Legacy-Kompatibilität)', () => {
-    test('legacy maxUsers/maxVehicles/maxStorageGb werden auf ResolvedPlan gespiegelt', () => {
+describe('buildSnapshots — Quota mirror (legacy compatibility)', () => {
+    test('legacy maxUsers/maxVehicles/maxStorageGb are mirrored onto ResolvedPlan', () => {
         const snaps = buildSnapshots({
             planVersions: [
                 planRow({
@@ -95,7 +95,7 @@ describe('buildSnapshots — Quota-Mirror (Legacy-Kompatibilität)', () => {
         assert.equal(plan.maxStorageGb, 5);
     });
 
-    test('moderne quotas-Map hat Vorrang vor legacy-Feldern', () => {
+    test('modern quotas map takes precedence over legacy fields', () => {
         const snaps = buildSnapshots({
             planVersions: [
                 planRow({
@@ -103,7 +103,7 @@ describe('buildSnapshots — Quota-Mirror (Legacy-Kompatibilität)', () => {
                     planId: 'BASIC',
                     publishedAt: '2026-02-01T00:00:00Z',
                     quotas: { members: 100, storageGb: 20 },
-                    maxUsers: 999, // sollte ignoriert werden
+                    maxUsers: 999, // should be ignored
                 }),
             ],
         });
@@ -138,7 +138,7 @@ describe('buildSnapshots — planSortOrder', () => {
         );
     });
 
-    test('Default: alphabetisch', () => {
+    test('Default: alphabetical', () => {
         const snaps = buildSnapshots({
             planVersions: [
                 planRow({ id: 'p1', planId: 'PROFESSIONAL', publishedAt: '2026-02-01T00:00:00Z' }),
@@ -154,7 +154,7 @@ describe('buildSnapshots — planSortOrder', () => {
 });
 
 describe('listOpenDrafts', () => {
-    test('liefert nur Drafts (publishedAt = null), sortiert', () => {
+    test('returns only drafts (publishedAt = null), sorted', () => {
         const data = {
             planVersions: [
                 planRow({

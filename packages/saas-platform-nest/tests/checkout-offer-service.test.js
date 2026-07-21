@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { CheckoutOfferService } from '../dist/checkout-offer/index.js';
 
-// CheckoutOfferService — Paket-Snapshot Webseite → Onboarding → Abrechnung
-// (METAMODELL §17a). Test gegen einen In-Memory-Fake.
+// CheckoutOfferService — package snapshot website → onboarding → billing
+// (METAMODELL §17a). Test against an in-memory fake.
 
 const PRICE = {
     currency: 'EUR',
@@ -135,7 +135,7 @@ describe('CheckoutOfferService', () => {
         });
     }
 
-    test('create legt einen offenen Offer an', async () => {
+    test('create creates an open offer', async () => {
         const offer = await create();
         assert.equal(offer.status, 'open');
         assert.equal(offer.consumedAt, null);
@@ -143,13 +143,13 @@ describe('CheckoutOfferService', () => {
         assert.equal(offer.lineItems[0].kind, 'plan');
     });
 
-    test('update individualisiert einen offenen Offer', async () => {
+    test('update customizes an open offer', async () => {
         const offer = await create();
         const updated = await service.update(offer.id, { bundles: ['FINANCE_PLUS'] });
         assert.deepEqual(updated.bundles, ['FINANCE_PLUS']);
     });
 
-    test('create verlangt Bundle-LineItems für konkrete BundleVersionen', async () => {
+    test('create requires bundle line items for specific bundle versions', async () => {
         await assert.rejects(
             () =>
                 service.create({
@@ -164,7 +164,7 @@ describe('CheckoutOfferService', () => {
         );
     });
 
-    test('create friert Bundle-Versionen, Promotions und PromoCode im Offer ein', async () => {
+    test('create freezes bundle versions, promotions and promo code into the offer', async () => {
         const offer = await service.create({
             projectKey: 'clubapp',
             planKey: 'STANDARD',
@@ -199,7 +199,7 @@ describe('CheckoutOfferService', () => {
         assert.equal(offer.promoCodeSnapshot.code, 'START10');
     });
 
-    test('create ergänzt rabattierten Preis als negative Discount-LineItem', async () => {
+    test('create adds the discounted price as a negative discount line item', async () => {
         const offer = await service.create({
             projectKey: 'clubapp',
             planKey: 'STANDARD',
@@ -235,14 +235,14 @@ describe('CheckoutOfferService', () => {
         );
     });
 
-    test('consume friert den Offer ein', async () => {
+    test('consume freezes the offer', async () => {
         const offer = await create();
         const consumed = await service.consume(offer.id);
         assert.equal(consumed.status, 'consumed');
         assert.ok(consumed.consumedAt);
     });
 
-    test('consume blockt nicht mehr buchbare BundleVersion', async () => {
+    test('consume blocks a no-longer-bookable bundle version', async () => {
         const bundleRows = new Map([
             [
                 'bv-1',
@@ -276,7 +276,7 @@ describe('CheckoutOfferService', () => {
         );
     });
 
-    test('update auf verbrauchtem Offer wirft Conflict', async () => {
+    test('update on a consumed offer throws Conflict', async () => {
         const offer = await create();
         await service.consume(offer.id);
         await assert.rejects(
@@ -285,7 +285,7 @@ describe('CheckoutOfferService', () => {
         );
     });
 
-    test('update auf abgelaufenem Offer wirft Conflict', async () => {
+    test('update on an expired offer throws Conflict', async () => {
         const offer = await service.create({
             projectKey: 'clubapp',
             planKey: 'STANDARD',
@@ -296,21 +296,21 @@ describe('CheckoutOfferService', () => {
         await assert.rejects(() => service.update(offer.id, { locale: 'en' }), /abgelaufen/);
     });
 
-    test('doppeltes consume wirft Conflict', async () => {
+    test('double consume throws Conflict', async () => {
         const offer = await create();
         await service.consume(offer.id);
         await assert.rejects(() => service.consume(offer.id), /bereits verbraucht/);
     });
 
-    test('getById wirft bei unbekanntem Offer', async () => {
+    test('getById throws for an unknown offer', async () => {
         await assert.rejects(() => service.getById('nope'), /nicht gefunden/);
     });
 });
 
-// #35 P6 — serverseitige requires-Validierung beim Anlegen/Ändern: die
-// Abhängigkeiten aller Features (Plan ∪ gewählte Bundles) müssen innerhalb
-// der Auswahl gedeckt sein. requires-Quelle = kuratierte FeatureCatalogEntries.
-describe('CheckoutOfferService — requires-Validierung (#35 P6)', () => {
+// #35 P6 — server-side requires validation on create/update: the
+// dependencies of all features (plan ∪ selected bundles) must be covered
+// within the selection. requires source = curated FeatureCatalogEntries.
+describe('CheckoutOfferService — requires validation (#35 P6)', () => {
     const PLAN_VERSION = { id: 'pv-1', planId: 'STANDARD', features: ['DASHBOARD'] };
     const TURNIERE_BV = { id: 'bv-turniere', features: ['TOURNAMENT_MANAGEMENT'] };
     const RESSOURCEN_BV = { id: 'bv-ressourcen', features: ['RESOURCE_MANAGEMENT'] };
@@ -375,7 +375,7 @@ describe('CheckoutOfferService — requires-Validierung (#35 P6)', () => {
         };
     }
 
-    test('create wirft 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED bei ungedeckten requires', async () => {
+    test('create throws 422 CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED for uncovered requires', async () => {
         const service = buildService({ TOURNAMENT_MANAGEMENT: ['RESOURCE_MANAGEMENT'] });
         await assert.rejects(
             () => service.create(offerData([TURNIERE_BV])),
@@ -391,19 +391,19 @@ describe('CheckoutOfferService — requires-Validierung (#35 P6)', () => {
         );
     });
 
-    test('create akzeptiert, wenn ein zweites Bundle die requires deckt', async () => {
+    test('create accepts when a second bundle covers the requires', async () => {
         const service = buildService({ TOURNAMENT_MANAGEMENT: ['RESOURCE_MANAGEMENT'] });
         const offer = await service.create(offerData([TURNIERE_BV, RESSOURCEN_BV]));
         assert.equal(offer.status, 'open');
     });
 
-    test('create akzeptiert, wenn der Plan die requires deckt', async () => {
+    test('create accepts when the plan covers the requires', async () => {
         const service = buildService({ TOURNAMENT_MANAGEMENT: ['DASHBOARD'] });
         const offer = await service.create(offerData([TURNIERE_BV]));
         assert.equal(offer.status, 'open');
     });
 
-    test('update validiert die geänderte Bundle-Auswahl gegen requires', async () => {
+    test('update validates the changed bundle selection against requires', async () => {
         const service = buildService({ TOURNAMENT_MANAGEMENT: ['RESOURCE_MANAGEMENT'] });
         const offer = await service.create(offerData([TURNIERE_BV, RESSOURCEN_BV]));
         await assert.rejects(
@@ -422,7 +422,7 @@ describe('CheckoutOfferService — requires-Validierung (#35 P6)', () => {
         );
     });
 
-    test('ohne CatalogEntryRepository wird nicht validiert (graceful)', async () => {
+    test('without a CatalogEntryRepository no validation happens (graceful)', async () => {
         const service = new CheckoutOfferService(
             repo,
             fakeBundleRepo(new Map([[TURNIERE_BV.id, TURNIERE_BV]])),
@@ -433,14 +433,14 @@ describe('CheckoutOfferService — requires-Validierung (#35 P6)', () => {
         assert.equal(offer.status, 'open');
     });
 
-    test('ohne PlanRepository deckt die featuresSnapshot der Plan-LineItem (Fallback)', async () => {
+    test('without a PlanRepository the plan line item featuresSnapshot covers (fallback)', async () => {
         const service = new CheckoutOfferService(
             repo,
             fakeBundleRepo(new Map([[TURNIERE_BV.id, TURNIERE_BV]])),
             null,
             fakeCatalogEntryRepo({ TOURNAMENT_MANAGEMENT: ['DASHBOARD'] }),
         );
-        // PLAN_LINE_ITEM.featuresSnapshot enthält DASHBOARD → gedeckt.
+        // PLAN_LINE_ITEM.featuresSnapshot contains DASHBOARD → covered.
         const offer = await service.create(offerData([TURNIERE_BV]));
         assert.equal(offer.status, 'open');
     });

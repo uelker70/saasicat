@@ -1,42 +1,41 @@
-// Pure-Function-Bausteine für PlanVersion-Renewal- und Period-Roll-Logik.
+// Pure-function building blocks for PlanVersion renewal and period-roll logic.
 //
-// Konsumenten implementieren den Cron-Job-Loop (DB-Query, Transaction,
-// Audit, Cache-Invalidate) — die Plattform liefert die hier definierten
-// **Entscheidungs-Pure-Functions**, die für jede Subscription bestimmen,
-// was zu tun ist.
+// Consumers implement the cron-job loop (DB query, transaction,
+// audit, cache invalidate) — the platform provides the **decision
+// pure functions** defined here, which determine for each subscription
+// what to do.
 
 import type { BillingCycle } from '@saasicat/types';
 import { periodEndAfter } from './billing-period.js';
 
 /**
- * Was der Renewal-Cron mit einer Subscription tun soll, deren
- * `pendingPlanVersionEffectiveAt` erreicht ist.
+ * What the renewal cron should do with a subscription whose
+ * `pendingPlanVersionEffectiveAt` has been reached.
  *
- *   - `ROLL_FORWARD`: Pending wird zur neuen Live-Version. Tritt ein, wenn
- *     entweder `nonRegressive=true` (Plattform-Garantie: keine Regression)
- *     oder `accepted=true` (Tenant hat dem Wechsel zugestimmt).
- *   - `CLEAR_PENDING`: Pending wird verworfen. Tritt ein, wenn die
- *     Pending-Version regressiv ist UND der Tenant bis zum Effektiv-Datum
- *     **nicht** zugestimmt hat (Variante B aus Roadmap §6.2: Opt-in
- *     verpasst → kein Wechsel).
- *   - `SKIP`: Sub hat keine pending-Version oder das Effektiv-Datum ist
- *     noch in der Zukunft. (Sollte vom Cron-Filter normalerweise gar nicht
- *     gefunden werden — defensiv hier abgefangen.)
+ *   - `ROLL_FORWARD`: pending becomes the new live version. Happens when
+ *     either `nonRegressive=true` (platform guarantee: no regression)
+ *     or `accepted=true` (the tenant has agreed to the change).
+ *   - `CLEAR_PENDING`: pending is discarded. Happens when the
+ *     pending version is regressive AND the tenant has **not** agreed
+ *     by the effective date (variant B from roadmap §6.2: opt-in
+ *     missed → no change).
+ *   - `SKIP`: the sub has no pending version or the effective date is
+ *     still in the future. (Should normally not be found by the cron
+ *     filter at all — caught defensively here.)
  */
 export type RenewalDecision = 'ROLL_FORWARD' | 'CLEAR_PENDING' | 'SKIP';
 
-/** Eingabe-Form für `decideRenewal` (was der Cron aus der Sub ausliest). */
+/** Input shape for `decideRenewal` (what the cron reads from the sub). */
 export interface RenewalSubInput {
     pendingPlanVersionId: string | null;
     pendingPlanVersionEffectiveAt: Date | null;
     pendingPlanVersionAccepted: boolean;
-    /** `nonRegressive` aus der referenzierten PlanVersion. */
+    /** `nonRegressive` from the referenced PlanVersion. */
     pendingPlanVersionNonRegressive: boolean;
 }
 
 /**
- * Entscheidet, was mit einer Subscription mit fälliger Pending-Version
- * geschehen soll.
+ * Decides what should happen to a subscription with a due pending version.
  */
 export function decideRenewal(sub: RenewalSubInput, now: Date): RenewalDecision {
     if (!sub.pendingPlanVersionId || !sub.pendingPlanVersionEffectiveAt) return 'SKIP';
@@ -48,9 +47,9 @@ export function decideRenewal(sub: RenewalSubInput, now: Date): RenewalDecision 
 }
 
 /**
- * Liefert die Felder, die nach einem `ROLL_FORWARD` oder `CLEAR_PENDING`
- * im Subscription-Update zurückgesetzt werden müssen. Konsument fügt sie
- * in seinen Prisma-`update.data`-Block ein.
+ * Returns the fields that must be reset in the subscription update after a
+ * `ROLL_FORWARD` or `CLEAR_PENDING`. The consumer inserts them
+ * into its Prisma `update.data` block.
  */
 export function clearPendingPlanVersionFields(): {
     pendingPlanVersionId: null;
@@ -72,29 +71,29 @@ export function clearPendingPlanVersionFields(): {
     };
 }
 
-/** Eingabe-Form für `computeNextPeriod`. */
+/** Input shape for `computeNextPeriod`. */
 export interface PeriodRollInput {
-    /** Subscription.currentPeriodEnd. NULL → keine Periode aktiv → SKIP. */
+    /** Subscription.currentPeriodEnd. NULL → no period active → SKIP. */
     currentPeriodEnd: Date | null;
     billingCycle: BillingCycle;
     canceledAt: Date | null;
 }
 
-/** Ergebnis: das nächste Period-Window oder `null` (Skip). */
+/** Result: the next period window or `null` (skip). */
 export interface NextPeriodWindow {
     currentPeriodStart: Date;
     currentPeriodEnd: Date;
 }
 
 /**
- * Berechnet das nächste Periodenfenster. `null` bedeutet: keine Aktion
- * (entweder Periode noch nicht erreicht, gekündigt, oder NULL-Periode).
+ * Computes the next period window. `null` means: no action
+ * (either the period hasn't been reached yet, canceled, or NULL period).
  *
- * Logik (Spec: SUPERADMIN_PLANS_DASHBOARD_TODO §2.2):
- *   - Wenn `canceledAt` gesetzt ist → SKIP.
- *   - Wenn `currentPeriodEnd === null` → SKIP (Trial / PENDING_SALES).
- *   - Wenn `currentPeriodEnd > now` → SKIP (Periode noch aktiv).
- *   - Sonst → Start := alte `currentPeriodEnd`, End := periodEndAfter(Start).
+ * Logic (spec: SUPERADMIN_PLANS_DASHBOARD_TODO §2.2):
+ *   - If `canceledAt` is set → SKIP.
+ *   - If `currentPeriodEnd === null` → SKIP (trial / PENDING_SALES).
+ *   - If `currentPeriodEnd > now` → SKIP (period still active).
+ *   - Otherwise → start := old `currentPeriodEnd`, end := periodEndAfter(start).
  */
 export function computeNextPeriod(sub: PeriodRollInput, now: Date): NextPeriodWindow | null {
     if (sub.canceledAt !== null) return null;

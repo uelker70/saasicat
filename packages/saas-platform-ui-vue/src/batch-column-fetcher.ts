@@ -1,26 +1,26 @@
-// BatchColumnFetcher — lädt Custom-TenantColumn-Daten in EINEM Request pro
-// Spalte (Pflicht aus SPEC §4.6: kein N+1 für die Tenant-Page-Tabelle).
+// BatchColumnFetcher — loads custom TenantColumn data in ONE request per
+// column (required by SPEC §4.6: no N+1 for the tenant page table).
 //
-// Manifest-Vertrag: jede `TenantColumnDef.endpoint` MUSS batchfähig sein —
-// kein `{slug}` oder `{tenantId}`-Placeholder im Pfad. Der Fetcher hängt
-// `?tenantIds=t1,t2,...,tN` (oder `tenantIds=t1&tenantIds=t2&...` — die
-// `paramStyle`-Option wählt das Format) an und erwartet eine Antwort der
-// Form `Record<tenantId, value>`.
+// Manifest contract: every `TenantColumnDef.endpoint` MUST be batch-capable —
+// no `{slug}` or `{tenantId}` placeholder in the path. The fetcher appends
+// `?tenantIds=t1,t2,...,tN` (or `tenantIds=t1&tenantIds=t2&...` — the
+// `paramStyle` option picks the format) and expects a response of the form
+// `Record<tenantId, value>`.
 //
-// Capability-Filter: Spalten ohne erfüllte `requiredCapability` werden
-// gar nicht erst gefetcht. Manifest-Drift (Spalten-`endpoint` mit
-// `{slug}`-Pattern) wird strukturiert mit `BatchColumnDriftError`
-// gemeldet — Konsumenten-Shell rendert dann eine Warnung.
+// Capability filter: columns without a satisfied `requiredCapability` are not
+// fetched at all. Manifest drift (a column `endpoint` with a `{slug}` pattern)
+// is reported in a structured way via `BatchColumnDriftError` — the consumer
+// shell then renders a warning.
 
 import type { AdminManifest, TenantColumnDef } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from './types.js';
 
 export type BatchColumnValue = unknown;
 
-/** Pro `tenantId` ein Wert (frei strukturiert). */
+/** One value per `tenantId` (freely structured). */
 export type BatchColumnRow = Record<string, BatchColumnValue>;
 
-/** Pro Spalten-Key ein `tenantId → value`-Map. */
+/** One `tenantId → value` map per column key. */
 export type BatchColumnData = Record<string, BatchColumnRow>;
 
 export type ParamStyle = 'comma' | 'repeat';
@@ -28,16 +28,15 @@ export type ParamStyle = 'comma' | 'repeat';
 export interface BatchColumnFetcherOptions {
     http?: HttpClient;
     /**
-     * Wie die `tenantIds` an den Endpoint übergeben werden. Default
-     * `'comma'` → `?tenantIds=t1,t2,t3`. `'repeat'` → `?tenantIds=t1&tenantIds=t2`.
-     * Konsumenten-Backends entscheiden je nach Framework (NestJS akzeptiert
-     * standardmäßig comma-getrennte Strings oder mit `@Query() ids: string[]`).
+     * How the `tenantIds` are passed to the endpoint. Default `'comma'` →
+     * `?tenantIds=t1,t2,t3`. `'repeat'` → `?tenantIds=t1&tenantIds=t2`.
+     * Consumer backends decide based on their framework (NestJS accepts
+     * comma-separated strings by default, or via `@Query() ids: string[]`).
      */
     paramStyle?: ParamStyle;
     /**
-     * Auth-Token-Provider für `Authorization: Bearer <token>`. Konsument
-     * liefert eine Funktion, die den aktuellen Token aus dem Auth-Store
-     * zieht.
+     * Auth-token provider for `Authorization: Bearer <token>`. The consumer
+     * supplies a function that pulls the current token from the auth store.
      */
     getAuthToken?: () => string | null;
 }
@@ -64,9 +63,9 @@ export class BatchColumnFetcher {
     }
 
     /**
-     * Lädt die Daten für alle im Manifest deklarierten Spalten parallel
-     * (eine Request pro Spalte, alle `tenantIds` im Batch). Spalten ohne
-     * erfüllte Capability werden ignoriert.
+     * Loads the data for all columns declared in the manifest in parallel
+     * (one request per column, all `tenantIds` in the batch). Columns without
+     * a satisfied capability are ignored.
      */
     async fetchAll(manifest: AdminManifest, tenantIds: string[]): Promise<BatchColumnData> {
         if (tenantIds.length === 0) return {};
@@ -81,7 +80,7 @@ export class BatchColumnFetcher {
         return out;
     }
 
-    /** Einzelne Spalte abrufen (Konsumenten dürfen das auch direkt nutzen). */
+    /** Fetch a single column (consumers may also use this directly). */
     async fetchOne(column: TenantColumnDef, tenantIds: string[]): Promise<BatchColumnRow> {
         this.validateBatchEndpoint(column);
         if (tenantIds.length === 0) return {};
@@ -100,8 +99,8 @@ export class BatchColumnFetcher {
     }
 
     /**
-     * Spalten-Drift gegen das Manifest. Konsumenten nutzen das für CI-
-     * Smoke-Tests des Manifest-vs-Shell-Builds.
+     * Column drift against the manifest. Consumers use this for CI smoke
+     * tests of the manifest-vs-shell build.
      */
     listDriftIssues(manifest: AdminManifest): BatchColumnDriftError[] {
         const issues: BatchColumnDriftError[] = [];
@@ -116,8 +115,8 @@ export class BatchColumnFetcher {
     }
 
     /**
-     * Welche Spalten haben eine erfüllte `requiredCapability`? Manifest =
-     * Discovery, also reicht der Local-Check.
+     * Which columns have a satisfied `requiredCapability`? Manifest =
+     * discovery, so a local check is enough.
      */
     eligibleColumns(manifest: AdminManifest): TenantColumnDef[] {
         const caps = manifest.capabilities ?? {};

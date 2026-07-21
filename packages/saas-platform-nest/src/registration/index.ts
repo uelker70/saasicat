@@ -1,14 +1,14 @@
-// @saasicat/nest/registration — Sub-Entry fuer den
-// mehrstufigen Registrierungs- und Onboarding-Flow.
+// @saasicat/nest/registration — sub-entry for the
+// multi-step registration and onboarding flow.
 //
-// Inhalte:
-//   - helpers:                   Pure Funktionen (generateOtpCode, hashOtpCode,
-//                                verifyOtpCode, slugify) — fuer Unit-Tests
-//                                ohne DI nutzbar.
-//   - tokens:                    DI-Tokens fuer die Adapter-Ports + PasswordHasher-Interface.
+// Contents:
+//   - helpers:                   Pure functions (generateOtpCode, hashOtpCode,
+//                                verifyOtpCode, slugify) — usable for unit tests
+//                                without DI.
+//   - tokens:                    DI tokens for the adapter ports + PasswordHasher interface.
 //   - pending-registration:      PendingRegistrationService (start, verifyOtp, resendOtp).
 //   - module:                    RegistrationModule.forRoot({ adapters... }).
-//   - dto:                       class-validator DTOs fuer die Controller-Schicht.
+//   - dto:                       class-validator DTOs for the controller layer.
 
 export * from './helpers.js';
 export * from './tokens.js';

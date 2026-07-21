@@ -9,7 +9,7 @@ import {
 const NOW = new Date('2026-05-08T12:00:00Z');
 
 describe('decideRenewal', () => {
-    test('SKIP wenn keine pending-Version', () => {
+    test('SKIP when no pending version', () => {
         assert.equal(
             decideRenewal(
                 {
@@ -24,7 +24,7 @@ describe('decideRenewal', () => {
         );
     });
 
-    test('SKIP wenn EffectiveAt in der Zukunft', () => {
+    test('SKIP when EffectiveAt is in the future', () => {
         assert.equal(
             decideRenewal(
                 {
@@ -39,7 +39,7 @@ describe('decideRenewal', () => {
         );
     });
 
-    test('ROLL_FORWARD bei nonRegressive=true', () => {
+    test('ROLL_FORWARD when nonRegressive=true', () => {
         assert.equal(
             decideRenewal(
                 {
@@ -54,7 +54,7 @@ describe('decideRenewal', () => {
         );
     });
 
-    test('ROLL_FORWARD bei accepted=true (auch wenn regressiv)', () => {
+    test('ROLL_FORWARD when accepted=true (even if regressive)', () => {
         assert.equal(
             decideRenewal(
                 {
@@ -69,7 +69,7 @@ describe('decideRenewal', () => {
         );
     });
 
-    test('CLEAR_PENDING bei regressiv + nicht akzeptiert (Variante B)', () => {
+    test('CLEAR_PENDING when regressive + not accepted (variant B)', () => {
         assert.equal(
             decideRenewal(
                 {
@@ -86,7 +86,7 @@ describe('decideRenewal', () => {
 });
 
 describe('clearPendingPlanVersionFields', () => {
-    test('liefert alle pending-Felder als null/false', () => {
+    test('returns all pending fields as null/false', () => {
         const fields = clearPendingPlanVersionFields();
         assert.equal(fields.pendingPlanVersionId, null);
         assert.equal(fields.pendingPlanVersionEffectiveAt, null);
@@ -99,7 +99,7 @@ describe('clearPendingPlanVersionFields', () => {
 });
 
 describe('computeNextPeriod', () => {
-    test('null wenn canceledAt gesetzt', () => {
+    test('null when canceledAt set', () => {
         assert.equal(
             computeNextPeriod(
                 {
@@ -113,7 +113,7 @@ describe('computeNextPeriod', () => {
         );
     });
 
-    test('null wenn currentPeriodEnd null (Trial)', () => {
+    test('null when currentPeriodEnd null (Trial)', () => {
         assert.equal(
             computeNextPeriod(
                 { currentPeriodEnd: null, billingCycle: 'YEARLY', canceledAt: null },
@@ -123,7 +123,7 @@ describe('computeNextPeriod', () => {
         );
     });
 
-    test('null wenn currentPeriodEnd in der Zukunft', () => {
+    test('null when currentPeriodEnd is in the future', () => {
         assert.equal(
             computeNextPeriod(
                 {
@@ -137,10 +137,10 @@ describe('computeNextPeriod', () => {
         );
     });
 
-    test('rollt MONTHLY-Periode +1 Monat (Cron-täglich, periodEnd 1 Tag vor now)', () => {
-        // periodEndAfter iteriert, bis das Ergebnis > `now` ist. Bei einem
-        // täglichen Cron ist periodEnd typischerweise 1 Tag vor now → nächste
-        // Periode = oldEnd + 1 Cycle.
+    test('rolls MONTHLY period +1 month (daily cron, periodEnd 1 day before now)', () => {
+        // periodEndAfter iterates until the result is > `now`. With a
+        // daily cron, periodEnd is typically 1 day before now → next
+        // period = oldEnd + 1 cycle.
         const result = computeNextPeriod(
             {
                 currentPeriodEnd: new Date('2026-05-07T12:00:00Z'),
@@ -154,7 +154,7 @@ describe('computeNextPeriod', () => {
         assert.equal(result.currentPeriodEnd.toISOString(), '2026-06-07T12:00:00.000Z');
     });
 
-    test('rollt YEARLY-Periode +1 Jahr', () => {
+    test('rolls YEARLY period +1 year', () => {
         const result = computeNextPeriod(
             {
                 currentPeriodEnd: new Date('2026-05-07T12:00:00Z'),
@@ -167,11 +167,11 @@ describe('computeNextPeriod', () => {
         assert.equal(result.currentPeriodEnd.toISOString(), '2027-05-07T12:00:00.000Z');
     });
 
-    test('Cron-Lag: bei mehreren versäumten Perioden springt auf die nächste Zukunft', () => {
-        // Wenn der Cron eine Weile ausgefallen war und periodEnd schon 2
-        // Monate alt ist, soll die Funktion direkt auf die übernächste
-        // Periode springen (>= now). Sonst würde der nächste Cron-Lauf am
-        // Folgetag wieder rollen.
+    test('cron lag: with several missed periods, jumps to the next future period', () => {
+        // If the cron was down for a while and periodEnd is already 2
+        // months old, the function should jump directly to the period
+        // after next (>= now). Otherwise the next cron run on the
+        // following day would roll again.
         const result = computeNextPeriod(
             {
                 currentPeriodEnd: new Date('2026-03-01T00:00:00Z'),

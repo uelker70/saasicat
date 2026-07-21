@@ -1,6 +1,6 @@
-// useTenantSubscriptionBundles — Vue-3-Composable für die Tenant-Self-
-// Service-Seite „Meine Bundles" (P11.7.3). Spricht den Plattform-
-// Endpunkt `/billing/subscription-bundles` (gemountet vom
+// useTenantSubscriptionBundles — Vue 3 composable for the tenant self-service
+// page "Meine Bundles" (P11.7.3). Talks to the platform endpoint
+// `/billing/subscription-bundles` (mounted by
 // `SubscriptionBundleModule.forRoot({ controller: {...} })`).
 
 import { ref, type Ref } from 'vue';
@@ -8,11 +8,11 @@ import type { SubscriptionBundleRecord } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface UseTenantSubscriptionBundlesOptions {
-    /** App-globaler API-Prefix inkl. `/billing` (z. B. `/api/v1`). */
+    /** App-global API prefix incl. `/billing` (e.g. `/api/v1`). */
     billingEndpoint: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
-    /** Bei `true` wird beim Mount geladen. Default `false`. */
+    /** With `true`, loads on mount. Default `false`. */
     autoLoad?: boolean;
 }
 
@@ -132,8 +132,8 @@ export function useTenantSubscriptionBundles(
 }
 
 /**
- * Wire-Format kommt als ISO-String pro Datumsfeld zurück; das Plattform-
- * Type ist `Date`. Wir mappen einmal an der HTTP-Grenze.
+ * The wire format returns an ISO string per date field; the platform type is
+ * `Date`. We map once at the HTTP boundary.
  */
 function rehydrateDates(raw: SubscriptionBundleRecord): SubscriptionBundleRecord {
     return {

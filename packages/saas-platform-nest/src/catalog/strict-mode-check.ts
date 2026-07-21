@@ -1,8 +1,8 @@
-// Strict-Mode-Check — Drift zwischen DB-Catalog und Discovery-Snapshot.
+// Strict mode check — drift between the DB catalog and the discovery snapshot.
 //
-// Pure Functions, keine NestJS-DI, keine Side-Effects. Testbar in Isolation.
-// Wird vom BundlesService (und später BusinessTypesService) aufgerufen, bevor
-// eine Mutation persistiert wird.
+// Pure functions, no NestJS DI, no side effects. Testable in isolation.
+// Called by the BundlesService (and later the BusinessTypesService) before
+// a mutation is persisted.
 
 import type {
     ApprovedCatalogKeys,
@@ -13,27 +13,27 @@ import type {
 } from '@saasicat/types';
 
 /**
- * Advisory-Warnings (#35): informieren, blocken aber nie — auch nicht in
- * `strictModeCheckMode: 'blocking'`, Seed-Gate oder Preflight. Grund: ein
- * `requires`-Feature kann außerhalb des geprüften Drafts erfüllt sein
- * (z. B. deckt der Plan die Abhängigkeit eines Bundles), was der
- * Draft-Check ohne Buchungskontext nicht wissen kann.
+ * Advisory warnings (#35): they inform but never block — not even in
+ * `strictModeCheckMode: 'blocking'`, Seed-Gate, or Preflight. Reason: a
+ * `requires` feature may be satisfied outside the checked draft
+ * (e.g. the Plan covers a Bundle's dependency), which the draft check
+ * cannot know without booking context.
  */
 export const ADVISORY_STRICT_MODE_CODES: ReadonlySet<StrictModeWarningCode> = new Set([
     'PLAN_FEATURE_DEPENDENCY_UNSATISFIED',
     'BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED',
 ]);
 
-/** Liefert nur die Warnings, die in blocking-Pfaden gaten dürfen. */
+/** Returns only the warnings that are allowed to gate in blocking paths. */
 export function blockingStrictModeWarnings(warnings: StrictModeWarning[]): StrictModeWarning[] {
     return warnings.filter((w) => !ADVISORY_STRICT_MODE_CODES.has(w.code));
 }
 
 /**
- * Dependency-Check (#35): meldet `requires`-Features eines ausgewählten
- * Features, die nicht ebenfalls in der Auswahl liegen. Kombi-Drafts
- * (z. B. SPORTPLATZ-Bundle), die ihre Abhängigkeiten selbst enthalten,
- * erzeugen keine Warnung.
+ * Dependency check (#35): reports `requires` features of a selected
+ * feature that are not also part of the selection. Combined drafts
+ * (e.g. the SPORTPLATZ bundle) that contain their own dependencies
+ * produce no warning.
  */
 function dependencyWarnings(
     features: string[],
@@ -60,36 +60,36 @@ function dependencyWarnings(
 }
 
 /**
- * Prüft eine Bundle-Draft-Definition gegen den aktuellen DiscoverySnapshot.
- * Liefert eine (möglicherweise leere) Liste an Warnings.
+ * Validates a Bundle draft definition against the current discovery snapshot.
+ * Returns a (possibly empty) list of warnings.
  *
- * Geprüft wird:
- * - **Feature-Existenz** (`BUNDLE_FEATURE_UNKNOWN`): Jede `features[i]`
- *   muss als `DiscoveredFeature` im Snapshot existieren. Code ist die
- *   Source-of-Truth für Features (via @ImplementsCapability). Keys in
- *   `marketedOnlyFeatures` sind bewusst ausgenommen — vermarktete
- *   Nicht-Code-Features (z. B. Support-SLAs), die nie eine Capability haben.
- * - **Quota-Existenz** (`QUOTA_MISSING`): Jeder `quotas`-Key muss als
- *   `DiscoveredQuota` im Snapshot existieren (sofern die App Quotas
- *   überhaupt nutzt — leere Quotas sind erlaubt).
- * - **Plan-Key-Existenz** (`BUNDLE_PLAN_KEY_UNKNOWN`, optional via
- *   `knownPlanKeys`): Jeder `compatibility.planIds[i]` muss ein
- *   existierender PlanKey im aktuellen Project sein. Wird vom
- *   BundlesService aufgerufen, sobald die Plan-Liste verfügbar ist;
- *   `knownPlanKeys = null` skipt den Check (z. B. wenn das PlanRepository
- *   nicht registriert ist).
- * - **Approved-Gate** (`BUNDLE_FEATURE_NOT_APPROVED`/`QUOTA_NOT_APPROVED`,
- *   optional via `approved`, #20 Slice 5): nur freigegebene Features/Quotas
- *   (`discoveryStatus = 'approved'`) sind verkaufbar. `approved = null`
- *   skipt den Approval-Teil; marketed-only-Features sind ausgenommen.
- * - **Feature-Dependencies** (`BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED`, #35,
- *   advisory): `requires`-Features, die nicht im Bundle selbst liegen.
+ * Checked:
+ * - **Feature existence** (`BUNDLE_FEATURE_UNKNOWN`): every `features[i]`
+ *   must exist as a `DiscoveredFeature` in the snapshot. Code is the
+ *   source of truth for features (via @ImplementsCapability). Keys in
+ *   `marketedOnlyFeatures` are deliberately exempt — marketed
+ *   non-code features (e.g. support SLAs) that never have a Capability.
+ * - **Quota existence** (`QUOTA_MISSING`): every `quotas` key must exist
+ *   as a `DiscoveredQuota` in the snapshot (provided the app uses quotas
+ *   at all — empty quotas are allowed).
+ * - **Plan key existence** (`BUNDLE_PLAN_KEY_UNKNOWN`, optional via
+ *   `knownPlanKeys`): every `compatibility.planIds[i]` must be an
+ *   existing PlanKey in the current Project. Called by the
+ *   BundlesService once the plan list is available;
+ *   `knownPlanKeys = null` skips the check (e.g. when the PlanRepository
+ *   is not registered).
+ * - **Approved gate** (`BUNDLE_FEATURE_NOT_APPROVED`/`QUOTA_NOT_APPROVED`,
+ *   optional via `approved`, #20 Slice 5): only approved features/quotas
+ *   (`discoveryStatus = 'approved'`) are sellable. `approved = null`
+ *   skips the approval part; marketed-only features are exempt.
+ * - **Feature dependencies** (`BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED`, #35,
+ *   advisory): `requires` features that are not in the Bundle itself.
  *
- * **Nicht** geprüft (gehört in andere Validierungen):
- * - Pricing (rein fachlich, kein Discovery-Bezug)
- * - Compatibility.businessTypeKeys-Whitelists (BUNDLE_COMPATIBILITY-Code,
- *   geprüft erst beim BusinessType-Publish)
- * - Disjointness (BUNDLE_DISJOINTNESS, ebenfalls BusinessType-Sache)
+ * **Not** checked (belongs in other validations):
+ * - Pricing (purely business, no discovery relation)
+ * - Compatibility.businessTypeKeys whitelists (BUNDLE_COMPATIBILITY code,
+ *   only checked at BusinessType publish)
+ * - Disjointness (BUNDLE_DISJOINTNESS, also a BusinessType concern)
  */
 export function validateBundleDraft(
     draft: {
@@ -167,20 +167,20 @@ export function validateBundleDraft(
 }
 
 /**
- * Prüft eine BusinessType-Draft-Definition gegen den DiscoverySnapshot
- * und die referenzierten BundleVersions. Drei Verstöße:
+ * Validates a BusinessType draft definition against the discovery snapshot
+ * and the referenced BundleVersions. Three violations:
  *
- * - **BUNDLE_DISJOINTNESS** (GESCHAEFTSTYP_SPEC §6.3): Zwei Bundles in
- *   der Komposition aktivieren dasselbe Feature. Hard-Block beim Publish.
- * - **BUNDLE_COMPATIBILITY** (GESCHAEFTSTYP_SPEC §6.4): Ein Bundle hat
- *   eine `compatibility.businessTypeKeys`-Whitelist gesetzt, aber der
- *   Ziel-businessTypeKey ist nicht enthalten. Soft-Warning (kein
- *   Hard-Block, aber Audit-Marker beim Override).
- * - **QUOTA_MISSING**: QuotaOverride-Keys, die nicht im Discovery
- *   existieren (analog Bundle-Strict-Check).
+ * - **BUNDLE_DISJOINTNESS** (GESCHAEFTSTYP_SPEC §6.3): two Bundles in
+ *   the composition activate the same feature. Hard block at publish.
+ * - **BUNDLE_COMPATIBILITY** (GESCHAEFTSTYP_SPEC §6.4): a Bundle has set
+ *   a `compatibility.businessTypeKeys` whitelist, but the target
+ *   businessTypeKey is not included. Soft warning (no
+ *   hard block, but an audit marker on override).
+ * - **QUOTA_MISSING**: QuotaOverride keys that do not exist in discovery
+ *   (analogous to the Bundle strict check).
  *
- * Bundle-Existenz und Published-Status werden im Service vor diesem
- * Check geprüft (NotFoundException bei fehlender Version, kein Warning).
+ * Bundle existence and published status are checked in the service before
+ * this check (NotFoundException on a missing version, no warning).
  */
 export function validateBusinessTypeDraft(
     draft: {
@@ -193,7 +193,7 @@ export function validateBusinessTypeDraft(
 ): StrictModeWarning[] {
     const warnings: StrictModeWarning[] = [];
 
-    // Disjointness-Check: gleicher Feature-Key in mehreren Bundles
+    // Disjointness check: same feature key in multiple Bundles
     const featureToBundleKeys = new Map<string, string[]>();
     for (const bundle of bundles) {
         for (const feature of bundle.features) {
@@ -215,7 +215,7 @@ export function validateBusinessTypeDraft(
         }
     }
 
-    // Compatibility-Check: businessTypeKey in jedem Bundle-Whitelist (oder leer)
+    // Compatibility check: businessTypeKey in each Bundle whitelist (or empty)
     for (const bundle of bundles) {
         const whitelist = bundle.compatibility?.businessTypeKeys;
         if (whitelist && whitelist.length > 0 && !whitelist.includes(draft.businessTypeKey)) {
@@ -230,7 +230,7 @@ export function validateBusinessTypeDraft(
         }
     }
 
-    // Quota-Override-Check (analog Bundle, inkl. Approved-Gate #20)
+    // Quota override check (analogous to Bundle, incl. approved gate #20)
     const knownQuotas = new Set(snapshot.quotas.map((q) => q.quotaKey));
     for (const quotaKey of Object.keys(draft.quotaOverrides ?? {})) {
         if (!knownQuotas.has(quotaKey)) {
@@ -254,28 +254,28 @@ export function validateBusinessTypeDraft(
 }
 
 /**
- * Prüft eine PlanVersion-Draft-Definition gegen den DiscoverySnapshot
- * (SPEC_V2 §8.2 Pack 3a). Liefert eine (möglicherweise leere) Liste an
- * Warnings.
+ * Validates a PlanVersion draft definition against the discovery snapshot
+ * (SPEC_V2 §8.2 Pack 3a). Returns a (possibly empty) list of
+ * warnings.
  *
- * Geprüft wird:
- * - **Feature-Existenz** (`PLAN_FEATURE_UNKNOWN`): Jede `features[i]`
- *   muss als `DiscoveredFeature` im Snapshot existieren. Code ist die
- *   Source-of-Truth für Features (via @ImplementsCapability). Keys in
- *   `marketedOnlyFeatures` sind bewusst ausgenommen — vermarktete
- *   Nicht-Code-Features (z. B. Support-SLAs), die nie eine Capability haben.
- * - **Quota-Existenz** (`QUOTA_MISSING`): Jeder `quotas`-Key muss als
- *   `DiscoveredQuota` (via `@DefinesQuota`) im Snapshot existieren.
- * - **Approved-Gate** (`PLAN_FEATURE_NOT_APPROVED`/`QUOTA_NOT_APPROVED`,
- *   optional via `approved`, #20 Slice 5): nur freigegebene Features/Quotas
- *   sind verkaufbar. `approved = null` skipt den Approval-Teil.
- * - **Feature-Dependencies** (`PLAN_FEATURE_DEPENDENCY_UNSATISFIED`, #35,
- *   advisory): `requires`-Features, die nicht im Plan selbst liegen —
- *   können beim Tenant durch gebuchte Bundles gedeckt sein.
+ * Checked:
+ * - **Feature existence** (`PLAN_FEATURE_UNKNOWN`): every `features[i]`
+ *   must exist as a `DiscoveredFeature` in the snapshot. Code is the
+ *   source of truth for features (via @ImplementsCapability). Keys in
+ *   `marketedOnlyFeatures` are deliberately exempt — marketed
+ *   non-code features (e.g. support SLAs) that never have a Capability.
+ * - **Quota existence** (`QUOTA_MISSING`): every `quotas` key must exist
+ *   as a `DiscoveredQuota` (via `@DefinesQuota`) in the snapshot.
+ * - **Approved gate** (`PLAN_FEATURE_NOT_APPROVED`/`QUOTA_NOT_APPROVED`,
+ *   optional via `approved`, #20 Slice 5): only approved features/quotas
+ *   are sellable. `approved = null` skips the approval part.
+ * - **Feature dependencies** (`PLAN_FEATURE_DEPENDENCY_UNSATISFIED`, #35,
+ *   advisory): `requires` features that are not in the Plan itself —
+ *   may be covered at the Tenant by booked Bundles.
  *
- * **Nicht** geprüft (gehört in andere Validierungen):
- * - Pricing (rein fachlich)
- * - Marketing-Felder (separat in §8.2 Punkt 6)
+ * **Not** checked (belongs in other validations):
+ * - Pricing (purely business)
+ * - Marketing fields (separately in §8.2 item 6)
  */
 export function validatePlanDraft(
     draft: { features: string[]; quotas: Record<string, number> },

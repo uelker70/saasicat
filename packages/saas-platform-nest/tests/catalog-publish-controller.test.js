@@ -1,8 +1,8 @@
-// Regression-Guard: die Publish-Controller müssen
-// allowZeroPrice aus dem DTO an den Service durchreichen (sonst ist der
-// Zero-Price-Escape-Hatch über HTTP unerreichbar). Direkt-Instanziierung
-// statt NestJS-Bootstrap — der Controller ist eine reine Mapping-Schicht,
-// kein Request-Lifecycle nötig (analog public-catalog-controller.test.js).
+// Regression guard: the publish controllers must
+// pass allowZeroPrice through from the DTO to the service (otherwise the
+// zero-price escape hatch is unreachable over HTTP). Direct instantiation
+// instead of NestJS bootstrap — the controller is a pure mapping layer,
+// no request lifecycle needed (analogous to public-catalog-controller.test.js).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ function makeController(buildFn, publishMethod) {
     return { controller: new ControllerClass(fakeService), getCaptured: () => captured };
 }
 
-test('PlanVersions.publish reicht allowZeroPrice an den Service durch (#63)', async () => {
+test('PlanVersions.publish passes allowZeroPrice through to the service (#63)', async () => {
     const { controller, getCaptured } = makeController(
         buildPlanVersionsController,
         'publishPlanVersion',
@@ -41,7 +41,7 @@ test('PlanVersions.publish reicht allowZeroPrice an den Service durch (#63)', as
     assert.equal(meta.forceRegressive, false);
 });
 
-test('PlanVersions.publish: allowZeroPrice bleibt undefined ohne DTO-Flag', async () => {
+test('PlanVersions.publish: allowZeroPrice stays undefined without the DTO flag', async () => {
     const { controller, getCaptured } = makeController(
         buildPlanVersionsController,
         'publishPlanVersion',
@@ -50,7 +50,7 @@ test('PlanVersions.publish: allowZeroPrice bleibt undefined ohne DTO-Flag', asyn
     assert.equal(getCaptured().meta.allowZeroPrice, undefined);
 });
 
-test('BundleVersions.publish reicht allowZeroPrice an den Service durch (#63)', async () => {
+test('BundleVersions.publish passes allowZeroPrice through to the service (#63)', async () => {
     const { controller, getCaptured } = makeController(
         buildBundleVersionsController,
         'publishBundleVersion',
@@ -63,7 +63,7 @@ test('BundleVersions.publish reicht allowZeroPrice an den Service durch (#63)', 
     assert.equal(getCaptured().meta.allowZeroPrice, true);
 });
 
-test('BundleVersions.publish: allowZeroPrice bleibt undefined ohne DTO-Flag', async () => {
+test('BundleVersions.publish: allowZeroPrice stays undefined without the DTO flag', async () => {
     const { controller, getCaptured } = makeController(
         buildBundleVersionsController,
         'publishBundleVersion',

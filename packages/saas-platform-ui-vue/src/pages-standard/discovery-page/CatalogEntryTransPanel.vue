@@ -1,6 +1,6 @@
 <template>
     <div class="sa-trans">
-        <!-- Default-Locale: editierbare Quelle -->
+        <!-- Default locale: editable source -->
         <div class="sa-trans-lang sa-trans-lang--source">
             <div class="sa-trans-lang__head">
                 <span class="sa-trans-lang__code">{{ defaultLocale.toUpperCase() }}</span>
@@ -27,7 +27,7 @@
             </div>
         </div>
 
-        <!-- Ziel-Sprachen -->
+        <!-- Target languages -->
         <div v-for="lng in targetLocales" :key="lng" class="sa-trans-lang">
             <div class="sa-trans-lang__head">
                 <span class="sa-trans-lang__code">{{ localeShort(lng) }}</span>
@@ -79,17 +79,17 @@ import {
     type TransEntry,
 } from './discovery-ui.js';
 
-// Übersetzungs-Block eines einzelnen Catalog-Entry (Feature / Quota) —
-// eingebettet in die ausklappbare Karte (#20, Sim `TransPanel`). Default-
-// Locale-Felder sind editierbar (Source-of-Truth), Ziel-Sprachen tragen
-// Overrides; leere Felder fallen im Konsumenten auf die Default-Locale zurück.
+// Translation block of a single catalog entry (feature / quota) —
+// embedded in the collapsible card (#20, Sim `TransPanel`). Default-
+// locale fields are editable (source of truth), target languages carry
+// overrides; empty fields fall back to the default locale in the consumer.
 
 const props = withDefaults(
     defineProps<{
         entry: TransEntry;
-        /** Zu übersetzende Felder; Reihenfolge = Anzeige-Reihenfolge. */
+        /** Fields to translate; order = display order. */
         fields: I18nField[];
-        /** Alle aktiven Locales inkl. Default. */
+        /** All active locales incl. default. */
         activeLocales: string[];
         defaultLocale?: string;
     }>(),
@@ -97,18 +97,18 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    /** Default-Locale-Basisfeld geändert (`label`/`description`). */
+    /** Default-locale base field changed (`label`/`description`). */
     'update:base': [patch: { label?: string; description?: string }];
-    /** Ziel-Locale-Override geändert. */
+    /** Target-locale override changed. */
     'update:locale': [locale: string, patch: CatalogEntryI18nFields];
 }>();
 
 const targetLocales = computed(() => props.activeLocales.filter((l) => l !== props.defaultLocale));
 
-// Lokaler Eingabe-Puffer: Sobald ein Feld bearbeitet wurde, gewinnt der
-// Draft gegenüber dem Prop-Wert. Persistenz ist debounced — ohne diesen
-// Puffer würde eine spät zurückkehrende PATCH-Antwort das Feld auf einen
-// veralteten Stand zurücksetzen und die zuletzt getippten Zeichen schlucken.
+// Local input buffer: once a field has been edited, the draft wins over
+// the prop value. Persistence is debounced — without this buffer, a late-
+// returning PATCH response would reset the field to a stale state and
+// swallow the most recently typed characters.
 const drafts = reactive<Record<string, string>>({});
 
 function baseValue(f: I18nField): string {
@@ -135,7 +135,7 @@ function onLocale(locale: string, f: I18nField, value: string): void {
     emit('update:locale', locale, { [f]: value });
 }
 
-/** Übernimmt leere Ziel-Felder aus der Default-Locale. */
+/** Fills empty target fields from the default locale. */
 function copyFromDefault(locale: string): void {
     const patch: CatalogEntryI18nFields = {};
     for (const f of props.fields) {

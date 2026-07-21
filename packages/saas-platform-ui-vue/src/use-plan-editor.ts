@@ -1,29 +1,29 @@
-// usePlanEditor — Plan-Editor-Discovery + Validation für die SuperAdmin-UI.
+// usePlanEditor — plan-editor discovery + validation for the SuperAdmin UI.
 //
-// Liest aus dem geladenen Manifest (`planCatalogSnapshot.features`) den
-// vollständigen Feature-Katalog inklusive `plannedOnly`-Marker und liefert:
+// Reads the full feature catalog including the `plannedOnly` marker from the
+// loaded manifest (`planCatalogSnapshot.features`) and provides:
 //
-//   1. `availableFeatures` — alle Features mit reaktiven Markern für UI:
-//      `isPlannedOnly` (UI gerendert als „geplant"-Chip), `isSelected`
-//      (im aktuellen Draft), `isInherited` (im Base-Plan, kann nicht
-//      entfernt werden, falls `nonRegressive: true`).
+//   1. `availableFeatures` — all features with reactive markers for the UI:
+//      `isPlannedOnly` (rendered in the UI as a "planned" chip), `isSelected`
+//      (in the current draft), `isInherited` (in the base plan, cannot be
+//      removed if `nonRegressive: true`).
 //
-//   2. `featuresByTier` — Gruppierung nach `tier`-Konvention (CORE,
-//      ADVANCED, PRO, BUSINESS, ENTERPRISE_ONLY) für die
-//      Drawer-Darstellung. Sortierung wie im Catalog.
+//   2. `featuresByTier` — grouping by the `tier` convention (CORE,
+//      ADVANCED, PRO, BUSINESS, ENTERPRISE_ONLY) for the
+//      drawer rendering. Sorting as in the catalog.
 //
-//   3. `toggleFeature(key)` — schaltet im Draft, blockt aber `plannedOnly`-
-//      Features und (optional) Base-Plan-Features bei nonRegressive-Drafts.
+//   3. `toggleFeature(key)` — toggles in the draft, but blocks `plannedOnly`
+//      features and (optionally) base-plan features on nonRegressive drafts.
 //
-//   4. `validateDraft()` — vor dem Save: wirft, wenn das Draft ein
-//      plannedOnly-Feature enthält (Frontend-Mirror der Backend-Validation
-//      `assertNoPlannedOnlyFeatures` — verhindert dass das UI fehlerhafte
-//      POST-Bodies absendet, statt die Backend-400 zu zeigen).
+//   4. `validateDraft()` — before the save: throws if the draft contains a
+//      plannedOnly feature (frontend mirror of the backend validation
+//      `assertNoPlannedOnlyFeatures` — prevents the UI from sending malformed
+//      POST bodies instead of showing the backend 400).
 //
-// Was die Plattform NICHT macht: HTTP-Save selbst. Konsument schickt den
-// Draft an `PATCH /api/v1/admin/plan-versions/:id` mit dem Endpoint-Adapter
-// seiner Wahl. Discovery + Filter + Validation lebt zentral, Persistenz
-// projekt-spezifisch.
+// What the platform does NOT do: the HTTP save itself. The consumer sends the
+// draft to `PATCH /api/v1/admin/plan-versions/:id` with the endpoint adapter
+// of its choice. Discovery + filter + validation lives centrally, persistence
+// project-specific.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest, FeatureDef, FeatureKey } from '@saasicat/types';
@@ -39,54 +39,54 @@ export class PlannedOnlyFeatureError extends Error {
 }
 
 export interface FeatureRowMarkers {
-    /** Catalog-Definition (Label, Icon, Tier, Marker). */
+    /** Catalog definition (label, icon, tier, marker). */
     def: FeatureDef;
-    /** Aktuell im Draft selektiert. */
+    /** Currently selected in the draft. */
     isSelected: boolean;
-    /** Catalog-Marker `plannedOnly: true` — UI zeigt als Roadmap, nicht buchbar. */
+    /** Catalog marker `plannedOnly: true` — the UI shows it as roadmap, not bookable. */
     isPlannedOnly: boolean;
-    /** Im Base-Plan (Inherited) — bei nonRegressive-Drafts nicht entfernbar. */
+    /** In the base plan (inherited) — not removable on nonRegressive drafts. */
     isInherited: boolean;
-    /** Computed: darf der User das Feature toggeln? */
+    /** Computed: is the user allowed to toggle the feature? */
     canToggle: boolean;
 }
 
 export interface UsePlanEditorOptions {
-    /** Initial-Selection — typischerweise `draft.features` aus PATCH-Vorbereitung. */
+    /** Initial selection — typically `draft.features` from PATCH preparation. */
     initialFeatures?: FeatureKey[];
-    /** Features, die der Base-Plan schon enthielt; bei nonRegressive nicht entfernbar. */
+    /** Features the base plan already contained; not removable under nonRegressive. */
     baseFeatures?: FeatureKey[];
-    /** Wenn `true`: Base-Features sind gelocked (Default `true`, Plattform-Konvention). */
+    /** If `true`: base features are locked (default `true`, platform convention). */
     nonRegressive?: boolean;
 }
 
 export interface UsePlanEditorResult {
-    /** Aktuell im Draft selektierte Feature-Keys (Set für O(1) lookup). */
+    /** Feature keys currently selected in the draft (Set for O(1) lookup). */
     selectedFeatures: Ref<Set<FeatureKey>>;
-    /** Geordnete Liste aller Catalog-Features mit UI-Markern. */
+    /** Ordered list of all catalog features with UI markers. */
     availableFeatures: ComputedRef<FeatureRowMarkers[]>;
-    /** Tier-Gruppierung für Drawer-Sektionen (CORE, ADVANCED, PRO, …). */
+    /** Tier grouping for drawer sections (CORE, ADVANCED, PRO, …). */
     featuresByTier: ComputedRef<Array<{ tier: string; rows: FeatureRowMarkers[] }>>;
-    /** Toggle ohne Wurf: `plannedOnly` und gelocked-Features werden ignoriert. */
+    /** Toggle without throwing: `plannedOnly` and locked features are ignored. */
     toggleFeature: (key: FeatureKey) => void;
-    /** Pre-Save-Validation. Wirft `PlannedOnlyFeatureError`, wenn nicht erlaubte Keys drin. */
+    /** Pre-save validation. Throws `PlannedOnlyFeatureError` if disallowed keys are present. */
     validateDraft: () => void;
-    /** Snapshot der aktuellen Selection für den PATCH-Body. */
+    /** Snapshot of the current selection for the PATCH body. */
     snapshot: () => FeatureKey[];
 }
 
 const TIER_ORDER = ['CORE', 'ADVANCED', 'PRO', 'BUSINESS', 'ENTERPRISE_ONLY'];
 
 function tierWeight(tier: string | undefined): number {
-    if (!tier) return TIER_ORDER.length; // ungroupiert ans Ende
+    if (!tier) return TIER_ORDER.length; // ungrouped goes to the end
     const i = TIER_ORDER.indexOf(tier);
     return i === -1 ? TIER_ORDER.length : i;
 }
 
 /**
- * Plan-Editor-Discovery + Validation. Manifest liefert die Quelle der
- * Wahrheit (Catalog-Snapshot inklusive `plannedOnly`-Marker). Konsument
- * baut die Vue-Komponente und nutzt diesen Composable für State + Filter.
+ * Plan-editor discovery + validation. The manifest provides the source of
+ * truth (catalog snapshot including the `plannedOnly` marker). The consumer
+ * builds the Vue component and uses this composable for state + filter.
  */
 export function usePlanEditor(
     manifest: AdminManifest,
@@ -128,10 +128,10 @@ export function usePlanEditor(
     });
 
     function toggleFeature(key: FeatureKey): void {
-        if (plannedOnlySet.has(key)) return; // Roadmap-Feature, nicht buchbar
+        if (plannedOnlySet.has(key)) return; // roadmap feature, not bookable
         const next = new Set(selectedFeatures.value);
         if (next.has(key)) {
-            // Bei nonRegressive-Drafts darf ein Inherited-Feature nicht entfernt werden.
+            // On nonRegressive drafts an inherited feature must not be removed.
             if (nonRegressive && baseSet.has(key)) return;
             next.delete(key);
         } else {

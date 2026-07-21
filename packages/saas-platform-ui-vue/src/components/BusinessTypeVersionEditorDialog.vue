@@ -12,7 +12,7 @@
             </q-card-section>
 
             <q-card-section class="bvt__body">
-                <!-- Bundle-Komposition -->
+                <!-- Bundle composition -->
                 <div>
                     <div class="bvt__label">Bundle-Komposition</div>
                     <p class="text-caption text-grey-7 q-mb-sm">
@@ -90,7 +90,7 @@
                     />
                 </div>
 
-                <!-- Quota-Overrides -->
+                <!-- Quota overrides -->
                 <div>
                     <div class="bvt__label">Quota-Overrides</div>
                     <p class="text-caption text-grey-7 q-mb-sm">
@@ -231,8 +231,8 @@ const props = defineProps<{
     draft?: BusinessTypeVersionRow | null;
     versionNumber: number;
     /**
-     * Liste aller verfügbaren published BundleVersions im Projekt. Konsument-
-     * Wrapper sammelt das aus useBundles + useBundleVersions.
+     * List of all available published BundleVersions in the project. The consumer
+     * wrapper collects this from useBundles + useBundleVersions.
      */
     availableBundles: BundleVersionRow[];
     submit: (

@@ -16,7 +16,7 @@ export interface BundleEntry {
 
 export interface FeatureMeta {
     label?: string;
-    /** Bucket im Library-Pool (z. B. „Core", „Communication"). */
+    /** Bucket in the library pool (e.g. "Core", "Communication"). */
     group?: string;
 }
 
@@ -26,7 +26,7 @@ export interface PredecessorVersion {
     quotas: Record<string, number>;
     monthlyNet: string;
     yearlyNet: string;
-    /** „Gültig ab" der Vorgänger-Version — der Draft muss strikt danach starten. */
+    /** "Valid from" of the predecessor version — the draft must start strictly after it. */
     validFrom: string | null;
 }
 
@@ -57,10 +57,10 @@ export interface DraftForm {
 }
 
 /**
- * Save-Payload = DraftForm plus die persistierte Bundle-Auswahl. `bundles`
- * wird aus der finalen Feature-Liste abgeleitet (alle voll-aktiven Bundles),
- * damit die persistierte Liste invariant konsistent zu `features` ist —
- * siehe `PlanVersionRow.bundles`.
+ * Save payload = DraftForm plus the persisted bundle selection. `bundles`
+ * is derived from the final feature list (all fully-active bundles),
+ * so that the persisted list is invariantly consistent with `features` —
+ * see `PlanVersionRow.bundles`.
  */
 export interface PlanVersionSavePayload extends DraftForm {
     bundles: string[];

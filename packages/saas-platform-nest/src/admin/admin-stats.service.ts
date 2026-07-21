@@ -18,11 +18,11 @@ const DAY_MS = 86_400_000;
 const DEFAULT_AUDIT_WINDOW_DAYS = 7;
 
 /**
- * Plattform-Stats für die SuperAdmin-Dashboard-Page.
+ * Platform stats for the SuperAdmin dashboard page.
  *
- * Enthält Subscription-/Promo-/Audit-Aggregate, die in allen konsumierenden
- * Apps identisch sinnvoll sind. App-spezifische KPIs (z. B. DATEV oder
- * Bundles/Members) bleiben Extra-Endpoints in der jeweiligen App.
+ * Contains subscription/promo/audit aggregates that are equally meaningful
+ * across all consuming apps. App-specific KPIs (e.g. DATEV or Bundles/Members)
+ * remain extra endpoints in the respective app.
  */
 export interface AdminStatsSnapshot {
     subscriptions: SubscriptionStatsSnapshot;

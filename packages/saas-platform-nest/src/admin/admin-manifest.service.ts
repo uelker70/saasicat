@@ -4,17 +4,17 @@ import type { AdminManifest, ManifestContribution } from '@saasicat/types';
 import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifest.config.js';
 
 /**
- * DI-Token für die Plattform-Core-Contribution. Wenn das `AdminManifestModule`
- * mit `registerPlatformCore: true` (Default) konfiguriert ist, liefert das
- * Modul `PLATFORM_CORE_MANIFEST_CONTRIBUTION` unter diesem Token. Der Service
- * registriert die Contribution im Constructor — vor allen App-`register()`-
- * Aufrufen aus `onModuleInit`.
+ * DI token for the platform core contribution. When `AdminManifestModule` is
+ * configured with `registerPlatformCore: true` (default), the module provides
+ * `PLATFORM_CORE_MANIFEST_CONTRIBUTION` under this token. The service
+ * registers the contribution in the constructor — before all app `register()`
+ * calls from `onModuleInit`.
  */
 export const PLATFORM_CORE_CONTRIBUTION_TOKEN = Symbol('PLATFORM_CORE_CONTRIBUTION');
 
-// AdminManifestService — sammelt ManifestContribution-Beiträge der App-Module
-// (via expliziter register()-Aufrufe in deren onModuleInit) und liefert das
-// fertige, deterministisch gehashte Voll-Manifest aus.
+// AdminManifestService — collects ManifestContribution entries from the app
+// modules (via explicit register() calls in their onModuleInit) and serves the
+// finished, deterministically hashed full manifest.
 
 @Injectable()
 export class AdminManifestService {
@@ -109,11 +109,11 @@ export class AdminManifestService {
     }
 
     /**
-     * Deterministischer SHA-256-Hash über das Manifest. Benutzt Insertion-
-     * Order der Object-Keys — sodass semantisch bedeutsame Reorders (z. B.
-     * Reihenfolge der Sidebar-Items in `navigation.standardPages`) den Hash
-     * verändern und den Browser-ETag-Cache invalidieren. Das eigene
-     * `manifestHash`-Feld wird vor der Serialisierung ausgeblendet.
+     * Deterministic SHA-256 hash over the manifest. Uses the insertion
+     * order of the object keys — so that semantically meaningful reorders (e.g.
+     * the order of the sidebar items in `navigation.standardPages`) change the
+     * hash and invalidate the browser ETag cache. The manifest's own
+     * `manifestHash` field is hidden before serialization.
      */
     private computeHash(manifest: AdminManifest): string {
         const canonical = stableStringify({
@@ -136,11 +136,11 @@ function stableStringify(value: unknown): string {
     }
     if (typeof value === 'object') {
         const obj = value as Record<string, unknown>;
-        // Insertion-Order statt alphabetischer Sortierung: für das Manifest
-        // ist die Key-Reihenfolge in `navigation.standardPages` UI-Render-
-        // Order (Sidebar). Wenn der Hash diese Reihenfolge ignoriert, ändert
-        // ein Re-Order am Backend den Hash nicht, ETag bleibt gleich, der
-        // Browser zeigt weiterhin die alte Reihenfolge aus dem Cache.
+        // Insertion order instead of alphabetical sorting: for the manifest
+        // the key order in `navigation.standardPages` is the UI render
+        // order (sidebar). If the hash ignored this order, a re-order at the
+        // backend would not change the hash, the ETag would stay the same, and
+        // the browser would keep showing the old order from the cache.
         const keys = Object.keys(obj).filter((k) => obj[k] !== undefined);
         return (
             '{' + keys.map((k) => JSON.stringify(k) + ':' + stableStringify(obj[k])).join(',') + '}'

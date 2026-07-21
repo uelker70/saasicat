@@ -1,20 +1,20 @@
-// ActionRegistry — Central Dispatch für `TenantActionDef`-deklarierte
-// Operationen.
+// ActionRegistry — central dispatch for `TenantActionDef`-declared
+// operations.
 //
-// Konsumenten-Shell registriert eine `actions:`-Map mit
-// `actionKey → ActionHandler`-Bindings. Wenn die Manifest-Action z. B.
-// `actionKey: 'TENANT_SUSPEND'` deklariert, muss die Shell einen Handler
-// unter dem gleichen Key bereitstellen — sonst wirft `dispatch` einen
-// `MissingHandlerError` mit klarer Diagnose.
+// The consumer shell registers an `actions:` map with
+// `actionKey → ActionHandler` bindings. When the manifest action declares
+// e.g. `actionKey: 'TENANT_SUSPEND'`, the shell must provide a handler under
+// the same key — otherwise `dispatch` throws a `MissingHandlerError` with a
+// clear diagnostic.
 //
-// MFA-Prompt + Confirm-Modal bleiben Konsumenten-spezifisch (Quasar-Dialog,
-// Headless-UI etc.); die Registry liefert nur das Action-Definition-Paar
-// `{def, handler}`, damit die Shell-UI-Schicht den passenden Vor-Flow
-// auslösen kann.
+// MFA prompt + confirm modal stay consumer-specific (Quasar dialog,
+// headless UI etc.); the registry only supplies the action-definition pair
+// `{def, handler}` so the shell UI layer can trigger the appropriate
+// pre-flow.
 
 import type { AdminManifest, TenantActionDef } from '@saasicat/types';
 
-/** Konsument-Implementation; bekommt die Action-Inputs als generisches Object. */
+/** Consumer implementation; receives the action inputs as a generic object. */
 export type ActionHandler<TInput = unknown, TResult = unknown> = (
     input: TInput,
 ) => Promise<TResult>;
@@ -58,9 +58,9 @@ export class ActionRegistry {
     }
 
     /**
-     * Registriert einen Handler nachträglich (z. B. wenn Konsumenten-Code
-     * lazy lädt). Wirft `ActionDefNotInManifestError`, wenn der `actionKey`
-     * nicht im Manifest deklariert ist — verhindert tote Registrierungen.
+     * Registers a handler after the fact (e.g. when consumer code loads
+     * lazily). Throws `ActionDefNotInManifestError` if the `actionKey` is not
+     * declared in the manifest — prevents dead registrations.
      */
     register<TInput, TResult>(actionKey: string, handler: ActionHandler<TInput, TResult>): void {
         if (!this.defs.has(actionKey)) {
@@ -70,10 +70,10 @@ export class ActionRegistry {
     }
 
     /**
-     * Gibt das `{def, handler}`-Paar zurück. Wirft, wenn der Key im
-     * Manifest fehlt oder kein Handler registriert ist. UI-Schicht der
-     * Shell ruft die Methode, prüft `def.requiresMfa` / `def.confirmType`
-     * für Vor-Flow und ruft dann `handler(input)`.
+     * Returns the `{def, handler}` pair. Throws if the key is missing from
+     * the manifest or no handler is registered. The shell's UI layer calls
+     * the method, checks `def.requiresMfa` / `def.confirmType` for the
+     * pre-flow, and then calls `handler(input)`.
      */
     get<TInput = unknown, TResult = unknown>(actionKey: string): ResolvedAction<TInput, TResult> {
         const def = this.defs.get(actionKey);
@@ -84,25 +84,25 @@ export class ActionRegistry {
     }
 
     /**
-     * Convenience: `get(key).handler(input)`. UI-Konvenienz für Aktionen,
-     * die weder MFA noch Confirm brauchen.
+     * Convenience: `get(key).handler(input)`. UI convenience for actions
+     * that need neither MFA nor confirm.
      */
     async dispatch<TInput, TResult>(actionKey: string, input: TInput): Promise<TResult> {
         return this.get<TInput, TResult>(actionKey).handler(input);
     }
 
     /**
-     * Liste der actionKeys, die im Manifest deklariert sind, aber keinen
-     * Handler haben. Konsumenten nutzen das in einem Doctor-Check, um
-     * Drift zwischen Manifest und Shell-Build zu erkennen.
+     * List of actionKeys that are declared in the manifest but have no
+     * handler. Consumers use this in a doctor check to detect drift between
+     * the manifest and the shell build.
      */
     listOrphanedDefs(): string[] {
         return [...this.defs.keys()].filter((k) => !this.handlers.has(k));
     }
 
     /**
-     * Liste der registrierten Handler, die im Manifest fehlen. Drift in
-     * die andere Richtung.
+     * List of registered handlers that are missing from the manifest. Drift
+     * in the other direction.
      */
     listOrphanedHandlers(): string[] {
         return [...this.handlers.keys()].filter((k) => !this.defs.has(k));

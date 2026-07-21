@@ -128,21 +128,21 @@ const props = withDefaults(
         /**
          * Optional formatter for the Konfiguration JSON block. Default:
          * `JSON.stringify(promo, null, 2)` — the consumer can pass a curated
-         * subset (z. B. nur Marketing-relevante Felder).
+         * subset (e.g. only marketing-relevant fields).
          */
         formatPromo?: (promo: Record<string, unknown>) => string;
         /**
-         * Wenn gesetzt: aktiviert den „Bearbeiten"-Button im Header und
-         * öffnet den {@link PromoCodeEditDialog}. Der Konsument liefert die
-         * App-spezifische PATCH-Funktion (z. B. `adminApi.promoCodes.update`).
-         * Nach erfolgreichem Speichern lädt die Detail-Page automatisch
-         * `loadDetail()` neu — Konsument muss nichts weiter triggern.
+         * When set: enables the "Edit" button in the header and opens the
+         * {@link PromoCodeEditDialog}. The consumer provides the app-specific
+         * PATCH function (e.g. `adminApi.promoCodes.update`). After a
+         * successful save, the detail page automatically reloads via
+         * `loadDetail()` — the consumer needs to trigger nothing further.
          */
         editSubmit?: (id: string, payload: PromoCodeUpdatePayload) => Promise<void>;
         editLabel?: string;
         /**
-         * Plan-Liste für den Plan-Picker im Edit-Dialog. Wenn leer, blendet
-         * der Dialog die Plan-Auswahl aus.
+         * Plan list for the plan picker in the edit dialog. When empty, the
+         * dialog hides the plan selection.
          */
         editPlans?: readonly PromoCodePlanOption[];
     }>(),

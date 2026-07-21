@@ -1,14 +1,14 @@
-// AUTO-GENERATED — nicht manuell editieren.
+// AUTO-GENERATED — do not edit manually.
 //
-// Quelle: @saasicat/spec/schemas/admin-manifest.schema.json
-// Regenerieren: `pnpm --filter @saasicat/types gen:types`
-// Drift-Gate: tests/codegen-drift.test.js bricht den PR, wenn Schema und
-// generierter Output auseinanderlaufen.
+// Source: @saasicat/spec/schemas/admin-manifest.schema.json
+// Regenerate: `pnpm --filter @saasicat/types gen:types`
+// Drift gate: tests/codegen-drift.test.js fails the PR when the schema and
+// the generated output diverge.
 
 export type CapabilityKey = string;
 
 /**
- * UI-Discovery-Projektion einer SaaS-App. Wird vom App-Backend unter GET /api/v1/admin/manifest ausgeliefert und vom Shared-UI-Shell konsumiert.
+ * UI discovery projection of a SaaS app. Served by the app backend under GET /api/v1/admin/manifest and consumed by the shared UI shell.
  */
 export interface AdminManifest {
     schemaVersion: 1;
@@ -16,23 +16,23 @@ export interface AdminManifest {
         key: string;
         displayName: string;
         /**
-         * Tag/Untertitel (z. B. "SuperAdmin"). Aus saas.yaml#app.label.
+         * Tag/subtitle (e.g. "SuperAdmin"). From saas.yaml#app.label.
          */
         label?: string;
         /**
-         * Kurz-Kürzel für das Logo-Badge (z. B. "ma", "da"). Aus saas.yaml#app.icon.
+         * Short abbreviation for the logo badge (e.g. "ma", "da"). From saas.yaml#app.icon.
          */
         icon?: string;
         logoUrl?: string;
         environment?: 'production' | 'staging' | 'development';
         /**
-         * Vom App-Catalog (saas.yaml marketing.availableLocales) erlaubte Locales. Erste = Default. SPEC_V2 §6.5.
+         * Locales allowed by the app catalog (saas.yaml marketing.availableLocales). First = default. SPEC_V2 §6.5.
          *
          * @minItems 1
          */
         availableLocales?: [string, ...string[]];
         /**
-         * Default-Locale; entspricht availableLocales[0].
+         * Default locale; corresponds to availableLocales[0].
          */
         defaultLocale?: string;
     };
@@ -43,7 +43,7 @@ export interface AdminManifest {
     };
     planCatalogSnapshot: {
         /**
-         * Pfad zur Quelle, z. B. 'config/saas.yaml'
+         * Path to the source, e.g. 'config/saas.yaml'
          */
         source: string;
         hash: string;
@@ -60,7 +60,7 @@ export interface AdminManifest {
         plans: [PlanDef, ...PlanDef[]];
     };
     /**
-     * Backend-Capabilities. Naming-Konvention: domain.action oder domain.resource.action. Werte sind boolean (true = aktiv im Build).
+     * Backend capabilities. Naming convention: domain.action or domain.resource.action. Values are boolean (true = active in the build).
      */
     capabilities: {
         /**
@@ -150,7 +150,7 @@ export interface TenantColumnDef {
     key: string;
     label: string;
     /**
-     * Pflicht: batchfähiger Endpoint, kein Tenant-Slug im Pfad. UI ruft mit ?tenantIds=... auf. Siehe SPEC §4.4.1.
+     * Required: batch-capable endpoint, no tenant slug in the path. UI calls it with ?tenantIds=... See SPEC §4.4.1.
      */
     endpoint: string;
     requiredCapability?: CapabilityKey;
@@ -159,7 +159,7 @@ export interface TenantActionDef {
     id: string;
     label: string;
     /**
-     * Lookup in der Frontend-Action-Registry. KEIN endpoint/method hier.
+     * Lookup in the frontend action registry. NO endpoint/method here.
      */
     actionKey: string;
     requiredCapability?: CapabilityKey;

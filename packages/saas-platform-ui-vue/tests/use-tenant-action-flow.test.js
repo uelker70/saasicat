@@ -1,13 +1,13 @@
-// useTenantActionFlow — Tests für die Action-Flow-Orchestrierung.
+// useTenantActionFlow — tests for the action-flow orchestration.
 //
-// Schwerpunkt: garantiert, dass Confirm + MFA in der richtigen Reihenfolge
-// vor Handler-Dispatch stehen, und dass Abbruch in jedem Schritt den Flow
-// sauber stoppt (kein Handler-Call, kein Notify).
+// Focus: guarantees that Confirm + MFA run in the correct order before
+// handler dispatch, and that aborting at any step stops the flow cleanly
+// (no handler call, no notify).
 //
-// Vue-`app.mount()` braucht ein vollwertiges `window`, das wir hier nicht
-// stellen wollen. Stattdessen `app.runWithContext()` analog zu
-// project-page-host.test.js — der Composable funktioniert auch ohne
-// Mount, solange ein Inject-Scope existiert.
+// Vue's `app.mount()` needs a full `window`, which we don't want to set up
+// here. Instead `app.runWithContext()`, analogous to
+// project-page-host.test.js — the composable also works without a mount,
+// as long as an inject scope exists.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,22 +37,22 @@ function withAppContext(actionsMap, callback) {
 
 const ROW = { id: '1', slug: 'acme', name: 'Acme', isActive: true };
 
-describe('useTenantActionFlow — leere Actions', () => {
-    test('actionsForRow liefert [], wenn manifest null ist', () => {
+describe('useTenantActionFlow — empty actions', () => {
+    test('actionsForRow returns [] when manifest is null', () => {
         const manifest = ref(null);
         const result = withAppContext({}, () => useTenantActionFlow(manifest));
         assert.deepEqual(result.actionsForRow(ROW), []);
     });
 
-    test('actionsForRow liefert [], wenn tenants.actions leer ist', () => {
+    test('actionsForRow returns [] when tenants.actions is empty', () => {
         const manifest = ref(makeManifest([]));
         const result = withAppContext({}, () => useTenantActionFlow(manifest));
         assert.deepEqual(result.actionsForRow(ROW), []);
     });
 });
 
-describe('useTenantActionFlow — Flow-Reihenfolge', () => {
-    test('Confirm → MFA → Handler in korrekter Reihenfolge', async () => {
+describe('useTenantActionFlow — flow order', () => {
+    test('Confirm → MFA → Handler in correct order', async () => {
         const events = [];
         const manifest = ref(
             makeManifest([
@@ -95,7 +95,7 @@ describe('useTenantActionFlow — Flow-Reihenfolge', () => {
         ]);
     });
 
-    test('Confirm-Abbruch verhindert MFA + Handler', async () => {
+    test('Confirm abort prevents MFA + Handler', async () => {
         const events = [];
         const manifest = ref(
             makeManifest([
@@ -127,7 +127,7 @@ describe('useTenantActionFlow — Flow-Reihenfolge', () => {
         assert.deepEqual(events, []);
     });
 
-    test('MFA-Abbruch verhindert Handler', async () => {
+    test('MFA abort prevents Handler', async () => {
         const events = [];
         const manifest = ref(
             makeManifest([
@@ -156,8 +156,8 @@ describe('useTenantActionFlow — Flow-Reihenfolge', () => {
     });
 });
 
-describe('useTenantActionFlow — Capability- und Handler-Filter', () => {
-    test('blendet Action aus, wenn requiredCapability im Manifest auf false steht', () => {
+describe('useTenantActionFlow — capability and handler filter', () => {
+    test('hides action when requiredCapability is false in the manifest', () => {
         const manifest = ref({
             navigation: { standardPages: {}, projectPages: [] },
             capabilities: { 'tenants.suspend': false, 'tenants.reactivate': true },
@@ -190,7 +190,7 @@ describe('useTenantActionFlow — Capability- und Handler-Filter', () => {
         assert.deepEqual(ids, ['r']);
     });
 
-    test('blendet Action aus, wenn kein Handler in der actions-Map registriert ist', () => {
+    test('hides action when no handler is registered in the actions map', () => {
         const manifest = ref(
             makeManifest([
                 { id: 'a', label: 'A', actionKey: 'k1' },
@@ -200,11 +200,11 @@ describe('useTenantActionFlow — Capability- und Handler-Filter', () => {
         const flow = withAppContext({ k1: async () => 'ok' }, () => useTenantActionFlow(manifest));
         const ids = flow.actionsForRow(ROW).map((a) => a.def.id);
         assert.deepEqual(ids, ['a']);
-        // orphanedDefs bleibt für Drift-Diagnose erhalten.
+        // orphanedDefs is retained for drift diagnostics.
         assert.deepEqual(flow.orphanedDefs.value, ['k2']);
     });
 
-    test('visibleForRow filtert row-spezifisch nach Capability+Handler', () => {
+    test('visibleForRow filters row-specifically by capability+handler', () => {
         const manifest = ref(
             makeManifest([
                 { id: 's', label: 'Suspend', actionKey: 'tenants.suspend' },
@@ -228,12 +228,11 @@ describe('useTenantActionFlow — Capability- und Handler-Filter', () => {
         assert.deepEqual(inactiveIds, ['r']);
     });
 
-    test('availableActions ist row-unabhängig — Reactivate bleibt trotz Sample-Row mit isActive=true sichtbar', () => {
-        // Regression: vorher haben Pages `actionsForRow(sampleRow)` als
-        // Basisliste benutzt — wenn `sampleRow.isActive=true` war,
-        // hat `visibleForRow` das `tenants.reactivate` schon aus der
-        // Basis ausgefiltert und der Reaktivieren-Button hat für inaktive
-        // Tenants nie existiert.
+    test('availableActions is row-independent — Reactivate stays visible despite a sample row with isActive=true', () => {
+        // Regression: previously pages used `actionsForRow(sampleRow)` as
+        // the base list — when `sampleRow.isActive=true`, `visibleForRow`
+        // had already filtered `tenants.reactivate` out of the base and the
+        // reactivate button never existed for inactive tenants.
         const manifest = ref(
             makeManifest([
                 { id: 's', label: 'Suspend', actionKey: 'tenants.suspend' },
@@ -255,7 +254,7 @@ describe('useTenantActionFlow — Capability- und Handler-Filter', () => {
         assert.deepEqual(baseIds, ['s', 'r']);
     });
 
-    test('availableActions filtert deaktivierte Capabilities + orphan Handler statisch', () => {
+    test('availableActions statically filters disabled capabilities + orphan handlers', () => {
         const manifest = ref({
             navigation: { standardPages: {}, projectPages: [] },
             capabilities: { 'tenants.suspend': false },
@@ -279,7 +278,7 @@ describe('useTenantActionFlow — Capability- und Handler-Filter', () => {
         const flow = withAppContext({ 'tenants.reactivate': async () => 'ok' }, () =>
             useTenantActionFlow(manifest),
         );
-        // Suspend blockiert via Capability, Ghost blockiert via fehlendem Handler.
+        // Suspend is blocked via capability, Ghost is blocked via missing handler.
         assert.deepEqual(
             flow.availableActions.value.map((d) => d.id),
             ['r'],
@@ -287,8 +286,8 @@ describe('useTenantActionFlow — Capability- und Handler-Filter', () => {
     });
 });
 
-describe('useTenantActionFlow — Provider-Drift', () => {
-    test('wirft, wenn Action MFA verlangt aber kein mfa-Provider gesetzt ist', async () => {
+describe('useTenantActionFlow — provider drift', () => {
+    test('throws when an action requires MFA but no mfa provider is set', async () => {
         const manifest = ref(
             makeManifest([
                 {
@@ -307,7 +306,7 @@ describe('useTenantActionFlow — Provider-Drift', () => {
         );
     });
 
-    test('wirft, wenn Action Confirm verlangt aber kein confirm-Provider gesetzt ist', async () => {
+    test('throws when an action requires confirm but no confirm provider is set', async () => {
         const manifest = ref(
             makeManifest([
                 {
@@ -326,7 +325,7 @@ describe('useTenantActionFlow — Provider-Drift', () => {
         );
     });
 
-    test('orphanedDefs listet Manifest-Actions ohne Handler', () => {
+    test('orphanedDefs lists manifest actions without a handler', () => {
         const manifest = ref(
             makeManifest([
                 { id: 'x', label: 'X', actionKey: 'k1' },

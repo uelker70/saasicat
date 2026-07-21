@@ -14,7 +14,7 @@
             </q-card-section>
 
             <q-card-section v-else class="bvpd__body">
-                <!-- Vorab-Strict-Mode-Warnungen aus dem letzten Mutate -->
+                <!-- Pre-emptive strict-mode warnings from the last mutate -->
                 <q-banner v-if="warnings.length > 0" class="bvpd__warnings" inline-actions rounded>
                     <template #avatar>
                         <q-icon name="warning" color="warning" />
@@ -56,7 +56,7 @@
                     </p>
                 </div>
 
-                <!-- Diff zur Vorgänger-Version -->
+                <!-- Diff against the previous version -->
                 <div>
                     <div class="bvpd__label">
                         Änderungen gegenüber
@@ -101,7 +101,7 @@
                     </q-list>
                 </div>
 
-                <!-- Regression-Warnung -->
+                <!-- Regression warning -->
                 <q-banner v-if="isRegression" class="bvpd__regression" inline-actions rounded>
                     <template #avatar>
                         <q-icon name="error" color="negative" />
@@ -144,22 +144,22 @@ import type {
     VersionChange,
 } from '@saasicat/types';
 
-// BundleVersionPublishDialog — Confirm-Modal für Publish einer Draft-Version.
-// Zeigt das Diff zur Vorgänger-Version (publishedChanges) und blockt
-// regressive Versionen ohne forceRegressive-Confirm.
+// BundleVersionPublishDialog — confirm modal for publishing a draft version.
+// Shows the diff against the previous version (publishedChanges) and blocks
+// regressive versions without a forceRegressive confirm.
 
 const props = defineProps<{
     modelValue: boolean;
     bundleKey: string;
     draft: BundleVersionRow;
-    /** Vorgänger-Version (oder null bei Erst-Veröffentlichung). */
+    /** Previous version (or null on first publication). */
     previous: BundleVersionRow | null;
-    /** Vorab erkannte Strict-Mode-Warnings (z. B. aus letzter Draft-Mutation). */
+    /** Pre-detected strict-mode warnings (e.g. from the last draft mutation). */
     warnings: StrictModeWarning[];
     /**
-     * Pure-Function-Diff-Klassifikator. Konsument-Wrapper liefert das
-     * passende `classifyBundleVersionDiff(...)` aus dem Plattform-Paket
-     * durch — die UI hängt nicht direkt von der NestJS-Implementation ab.
+     * Pure-function diff classifier. The consumer wrapper passes the
+     * appropriate `classifyBundleVersionDiff(...)` from the platform package
+     * through — the UI does not depend directly on the NestJS implementation.
      */
     classifyDiff: (
         previous: BundleVersionRow,

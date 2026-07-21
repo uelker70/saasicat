@@ -1,4 +1,4 @@
-// Pack 3b — Preflight Pure-Function-Tests (SPEC_V2 §8.3 + §10).
+// Pack 3b — Preflight pure-function tests (SPEC_V2 §8.3 + §10).
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -92,7 +92,7 @@ function makeBusinessTypeVersion(overrides) {
 }
 
 describe('runPreflight', () => {
-    test('leerer Catalog → overall=ok, total=0', () => {
+    test('empty catalog → overall=ok, total=0', () => {
         const r = runPreflight({
             snapshot: buildSnapshot(),
             planVersions: [],
@@ -104,7 +104,7 @@ describe('runPreflight', () => {
         assert.equal(preflightExitCode(r), 0);
     });
 
-    test('alles vorhanden → overall=ok', () => {
+    test('everything present → overall=ok', () => {
         const r = runPreflight({
             snapshot: buildSnapshot(['MEMBERS', 'CALENDAR'], ['members']),
             planVersions: [makePlanVersion({ features: ['MEMBERS'], quotas: { members: 100 } })],
@@ -115,7 +115,7 @@ describe('runPreflight', () => {
         assert.equal(r.counts.total, 0);
     });
 
-    test('plan mit unbekanntem Feature → overall=error, kind=plan', () => {
+    test('plan with unknown feature → overall=error, kind=plan', () => {
         const r = runPreflight({
             snapshot: buildSnapshot(['MEMBERS'], []),
             planVersions: [makePlanVersion({ features: ['MEMBERS', 'GHOST'], quotas: {} })],
@@ -130,7 +130,7 @@ describe('runPreflight', () => {
         assert.equal(preflightExitCode(r), 4);
     });
 
-    test('bundle mit unbekanntem Feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN', () => {
+    test('bundle with unknown feature → kind=bundle, BUNDLE_FEATURE_UNKNOWN', () => {
         const r = runPreflight({
             snapshot: buildSnapshot([], []),
             planVersions: [],
@@ -142,7 +142,7 @@ describe('runPreflight', () => {
         assert.equal(r.findings[0].warning.code, 'BUNDLE_FEATURE_UNKNOWN');
     });
 
-    test('business-type mit Bundle-Disjointness-Verstoß → kind=business-type, BUNDLE_DISJOINTNESS', () => {
+    test('business-type with bundle disjointness violation → kind=business-type, BUNDLE_DISJOINTNESS', () => {
         const bv1 = makeBundleVersion({
             id: 'bv-1',
             bundleKey: 'BANKING',
@@ -171,7 +171,7 @@ describe('runPreflight', () => {
         assert.ok(btFindings.some((f) => f.warning.code === 'BUNDLE_DISJOINTNESS'));
     });
 
-    test('Findings sind deterministisch sortiert (kind, entityKey, version, code)', () => {
+    test('findings are deterministically sorted (kind, entityKey, version, code)', () => {
         const r = runPreflight({
             snapshot: buildSnapshot([], []),
             planVersions: [
@@ -184,7 +184,7 @@ describe('runPreflight', () => {
             ],
             businessTypeVersions: [],
         });
-        // bundle vor plan (alphabetisch); innerhalb a vor z
+        // bundle before plan (alphabetical); within, a before z
         assert.deepEqual(
             r.findings.map((f) => `${f.kind}:${f.entityKey}`),
             ['bundle:A_BUNDLE', 'bundle:Z_BUNDLE', 'plan:A_PLAN', 'plan:Z_PLAN'],
@@ -193,7 +193,7 @@ describe('runPreflight', () => {
 });
 
 describe('formatPreflightReport', () => {
-    test('OK-Bericht enthält OK-Häkchen', () => {
+    test('OK report contains OK checkmark', () => {
         const out = formatPreflightReport({
             overall: 'ok',
             counts: { planFindings: 0, bundleFindings: 0, businessTypeFindings: 0, total: 0 },
@@ -203,7 +203,7 @@ describe('formatPreflightReport', () => {
         assert.match(out, /Keine Strict-Mode-Verst/);
     });
 
-    test('Error-Bericht listet Findings mit Codes', () => {
+    test('error report lists findings with codes', () => {
         const out = formatPreflightReport({
             overall: 'error',
             counts: { planFindings: 1, bundleFindings: 0, businessTypeFindings: 0, total: 1 },

@@ -1,39 +1,38 @@
-// MfaSetupFlow — interaktiver Workflow für `<app> admin mfa-setup`.
+// MfaSetupFlow — interactive workflow for `<app> admin mfa-setup`.
 //
-// Plattform-`MfaService.setup` macht die Persistenz; dieser Flow orchestriert
-// den CLI-User-Pfad: Identitäts-Auflösung, Setup-Aufruf, Output (otpauthUri
-// als kopierbare Zeile + Secret), Audit-Log mit `MFA_SETUP_COMPLETED`-Action.
+// The platform `MfaService.setup` does the persistence; this flow orchestrates
+// the CLI user path: identity resolution, setup call, output (otpauthUri as a
+// copyable line + secret), audit log with the `MFA_SETUP_COMPLETED` action.
 //
-// Konsumenten-CLIs wrappen diese Klasse in einer `nest-commander`-Command-
-// Klasse — der Flow selbst ist nest-commander-frei und damit unit-testbar.
+// Consumer CLIs wrap this class in a `nest-commander` command class — the flow
+// itself is nest-commander-free and therefore unit-testable.
 
 import { Injectable } from '@nestjs/common';
 import { MfaService } from '@saasicat/nest';
 import { CliContextService, CliError } from './cli-context.service.js';
 
 export interface MfaSetupOptions {
-    /** `--as <email>` Override für die Akteur-Identität. */
+    /** `--as <email>` override for the actor identity. */
     asFlag?: string;
     /**
-     * Issuer-String, der im Authenticator angezeigt wird (z. B. "DemoApp
-     * SuperAdmin", "ClubApp SuperAdmin"). Konsumenten setzen ihren
-     * eigenen App-Namen.
+     * Issuer string shown in the authenticator (e.g. "DemoApp SuperAdmin",
+     * "ClubApp SuperAdmin"). Consumers set their own app name.
      */
     issuer: string;
     /**
-     * Optional: bestätigt das Überschreiben eines existierenden Secrets.
-     * Default: erste Re-Setup-Anfrage muss interaktiv mit `yes` bestätigt
-     * werden, sonst Abbruch.
+     * Optional: confirms overwriting an existing secret. Default: the first
+     * re-setup request must be confirmed interactively with `yes`, otherwise
+     * it is aborted.
      */
     force?: boolean;
 }
 
 export interface MfaSetupResult {
-    /** Base32-encoded TOTP-Secret. */
+    /** Base32-encoded TOTP secret. */
     secret: string;
-    /** otpauth-URI für QR-Code-Generator (Authenticator-App). */
+    /** otpauth URI for a QR-code generator (authenticator app). */
     otpauthUri: string;
-    /** Email + ID des Users, dessen Secret gerade angelegt wurde. */
+    /** Email + ID of the user whose secret was just created. */
     userId: string;
     userEmail: string;
 }
@@ -46,15 +45,15 @@ export class MfaSetupFlow {
     ) {}
 
     /**
-     * Führt den vollständigen Setup-Flow aus. Wirft `CliError`-Subclasses
-     * bei Auth-/Identitäts-/Bestätigungs-Fehlern.
+     * Runs the full setup flow. Throws `CliError` subclasses on
+     * auth/identity/confirmation errors.
      */
     async run(options: MfaSetupOptions): Promise<MfaSetupResult> {
         const identity = this.ctx.resolveIdentity(options.asFlag);
         const user = await this.ctx.ensureSuperAdmin(identity);
 
-        // Re-Setup-Schutz: existierendes Secret nicht ohne explizite
-        // Bestätigung überschreiben.
+        // Re-setup guard: don't overwrite an existing secret without explicit
+        // confirmation.
         const alreadyEnabled = await this.mfa.isEnabled(user.id);
         if (alreadyEnabled && !options.force) {
             const answer = await this.ctx.prompt(
@@ -89,10 +88,9 @@ export class MfaSetupFlow {
     }
 
     /**
-     * Hilfsfunktion: liefert eine human-readable Output-Zeile mit
-     * Secret + otpauthUri für `console.log` im Konsumenten-Command.
-     * Konsumenten dürfen eigene QR-Code-Renderer (z. B. `qrcode-terminal`)
-     * davor einfügen.
+     * Helper: returns a human-readable output block with secret + otpauthUri
+     * for `console.log` in the consumer command. Consumers may prepend their
+     * own QR-code renderer (e.g. `qrcode-terminal`).
      */
     formatSetupResult(result: MfaSetupResult): string {
         return [

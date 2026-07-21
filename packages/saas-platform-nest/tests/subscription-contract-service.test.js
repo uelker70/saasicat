@@ -121,7 +121,7 @@ describe('SubscriptionContractService', () => {
         service = new SubscriptionContractService(repo);
     });
 
-    test('createFromOffer erzeugt immutable Contract-LineItems aus consumed Offer', async () => {
+    test('createFromOffer creates immutable contract line items from a consumed offer', async () => {
         const offer = consumedOffer();
         const contract = await service.createFromOffer(offer, {
             tenantId: 'tenant-1',
@@ -156,7 +156,7 @@ describe('SubscriptionContractService', () => {
         assert.deepEqual(persisted.lineItems[1].featuresSnapshot, ['FINANCE_EXPORT']);
     });
 
-    test('createFromOffer blockiert offene Offers', async () => {
+    test('createFromOffer blocks open offers', async () => {
         const offer = consumedOffer();
         offer.status = 'open';
         await assert.rejects(
@@ -169,7 +169,7 @@ describe('SubscriptionContractService', () => {
         );
     });
 
-    test('replaceActiveContract schliesst alten Contract und legt neuen an', async () => {
+    test('replaceActiveContract closes the old contract and creates a new one', async () => {
         const first = await service.create({
             projectKey: 'clubapp',
             tenantId: 'tenant-1',
@@ -198,7 +198,7 @@ describe('SubscriptionContractService', () => {
         assert.equal(result.next.lineItems[0].sourceKey, 'PRO');
     });
 
-    test('create verlangt Plan-LineItem', async () => {
+    test('create requires a plan line item', async () => {
         await assert.rejects(
             () =>
                 service.create({
@@ -212,7 +212,7 @@ describe('SubscriptionContractService', () => {
         );
     });
 
-    test('contractLineItemToInvoiceLineItem mappt Contract-Snapshot verlustfrei auf Rechnung', () => {
+    test('contractLineItemToInvoiceLineItem maps the contract snapshot losslessly to an invoice', () => {
         const invoiceLine = contractLineItemToInvoiceLineItem({
             id: 'cli-discount-1',
             contractId: 'contract-1',
@@ -237,7 +237,7 @@ describe('SubscriptionContractService', () => {
         });
     });
 
-    test('subscriptionContractToInvoiceSnapshot baut vollständige Rechnungsprojektion aus Contract', async () => {
+    test('subscriptionContractToInvoiceSnapshot builds a complete invoice projection from the contract', async () => {
         const contract = await service.create({
             projectKey: 'clubapp',
             tenantId: 'tenant-1',
@@ -274,7 +274,7 @@ describe('SubscriptionContractService', () => {
         assert.equal(snapshot.lineItems[2].priceNet, -70.8);
     });
 
-    test('getActiveInvoiceSnapshotForTenant liefert Rechnungsprojektion des aktiven Contracts', async () => {
+    test('getActiveInvoiceSnapshotForTenant returns the invoice projection of the active contract', async () => {
         await service.create({
             projectKey: 'clubapp',
             tenantId: 'tenant-1',
@@ -296,7 +296,7 @@ describe('SubscriptionContractService', () => {
         );
     });
 
-    test('getActiveInvoiceSnapshotForTenant wirft ohne aktiven Contract', async () => {
+    test('getActiveInvoiceSnapshotForTenant throws without an active contract', async () => {
         await assert.rejects(
             () => service.getActiveInvoiceSnapshotForTenant('tenant-missing', EFFECTIVE_FROM),
             /Kein aktiver SubscriptionContract/,

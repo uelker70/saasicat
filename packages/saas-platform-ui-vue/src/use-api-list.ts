@@ -1,8 +1,8 @@
-// useApiList — generischer Reactive-List-Composable mit Filter + Pagination.
+// useApiList — generic reactive list composable with filter + pagination.
 //
-// Konsumenten-Komponenten ($-table, $-list, …) konsumieren die typisierten
-// Wrapper (`useTenants`, `useAuditEntries`, …); diese basieren auf
-// `useApiList`. Direkte Verwendung ist auch erlaubt für custom Endpoints.
+// Consumer components ($-table, $-list, …) consume the typed wrappers
+// (`useTenants`, `useAuditEntries`, …), which are based on `useApiList`.
+// Direct use is also allowed for custom endpoints.
 
 import { ref, watch, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from './types.js';
@@ -17,16 +17,16 @@ export interface ApiListResponse<T> {
 export interface UseApiListOptions<TFilter> {
     endpoint: string;
     /**
-     * Reaktiver Filter-Object. Composable serialisiert das in `?key=value`-
-     * Pairs (mit URL-Encoding); leere/null-Werte werden weggelassen.
+     * Reactive filter object. The composable serializes it into `?key=value`
+     * pairs (with URL encoding); empty/null values are omitted.
      */
     filter?: Ref<TFilter>;
     http?: HttpClient;
     getAuthToken?: () => string | null;
     /**
-     * Bei `true` wird beim Mount automatisch geladen. Default `true`.
-     * Auf `false` setzen, wenn der Konsument den ersten Load explizit
-     * triggern will (z. B. nach Auth-State-Init).
+     * When `true`, loads automatically on mount. Defaults to `true`.
+     * Set to `false` when the consumer wants to trigger the first load
+     * explicitly (e.g. after auth-state init).
      */
     autoLoad?: boolean;
 }
@@ -38,11 +38,11 @@ export interface UseApiListResult<T> {
     total: Ref<number>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
-    /** Lädt frisch (z. B. nach Mutation). */
+    /** Reloads fresh (e.g. after a mutation). */
     reload: () => Promise<void>;
-    /** Springt auf eine konkrete Seite (1-basiert) und lädt. */
+    /** Jumps to a specific page (1-based) and loads. */
     goToPage: (page: number) => Promise<void>;
-    /** Wechselt die Seitengröße und springt auf Seite 1. */
+    /** Changes the page size and jumps to page 1. */
     setPageSize: (size: number) => Promise<void>;
 }
 
@@ -81,11 +81,11 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
             if (res.status !== 200) {
                 throw new Error(`Endpoint ${options.endpoint} → HTTP ${res.status}`);
             }
-            // Apps liefern unterschiedliche Shapes für Listen-Endpoints:
-            //   - rohes Array `[{...}, …]` (kein Wrapper).
+            // Apps deliver different shapes for list endpoints:
+            //   - raw array `[{...}, …]` (no wrapper).
             //   - paginated: `{ items, total, page, pageSize }`.
-            // Plattform-Composable akzeptiert beide — sonst würden korrekt
-            // gelieferte Array-Antworten als leere Liste angezeigt.
+            // The platform composable accepts both — otherwise correctly
+            // delivered array responses would be shown as an empty list.
             const raw = (await res.json()) as unknown;
             if (Array.isArray(raw)) {
                 items.value = raw as T[];
@@ -132,8 +132,8 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
     }
 
     if (options.autoLoad !== false) {
-        // Mikrotask später, damit das Composable in `setup()` nicht
-        // in der Initial-Sync-Phase blockt.
+        // One microtask later, so the composable does not block `setup()`
+        // during the initial sync phase.
         Promise.resolve().then(() => void load());
     }
 

@@ -1,7 +1,7 @@
-// Smoke-Tests für TenantBillingController.completeOnboardingSubscription.
-// Direktes Instanziieren ohne NestJS-Bootstrap; SubscriptionWritePort,
+// Smoke tests for TenantBillingController.completeOnboardingSubscription.
+// Instantiated directly without NestJS bootstrap; SubscriptionWritePort,
 // SubscriptionUsagePort, EntitlementService, PlanChangePreviewService,
-// PromoCodesService werden minimal gestubbt.
+// PromoCodesService are minimally stubbed.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -125,7 +125,7 @@ function buildAudit() {
     };
 }
 
-test('onboarding setzt den Plan; bei TRIAL bleibt das Trial-Fenster bestehen', async () => {
+test('onboarding sets the plan; on TRIAL the trial window is kept', async () => {
     const write = buildWritePort();
     const ent = buildEntitlement();
     const ctrl = buildController({ subscriptionWrite: write, entitlements: ent });
@@ -140,17 +140,17 @@ test('onboarding setzt den Plan; bei TRIAL bleibt das Trial-Fenster bestehen', a
     assert.equal(result.promoRedemption, null);
     assert.deepEqual(result.warnings, []);
 
-    // changePlanImmediate bei TRIAL: periodStart/periodEnd null, nextStatus null
+    // changePlanImmediate on TRIAL: periodStart/periodEnd null, nextStatus null
     assert.equal(write.changePlanCalls.length, 1);
     assert.equal(write.changePlanCalls[0].input.periodStart, null);
     assert.equal(write.changePlanCalls[0].input.periodEnd, null);
     assert.equal(write.changePlanCalls[0].input.nextStatus, null);
 
-    // EntitlementCache wurde invalidiert
+    // EntitlementCache was invalidated
     assert.deepEqual(ent.invalidations, ['t1']);
 });
 
-test('onboarding aus ACTIVE-Status setzt neues Periodenfenster + ACTIVE-Status', async () => {
+test('onboarding from ACTIVE status sets a new period window + ACTIVE status', async () => {
     const write = buildWritePort();
     const ctrl = buildController({
         subscriptionWrite: write,
@@ -165,12 +165,12 @@ test('onboarding aus ACTIVE-Status setzt neues Periodenfenster + ACTIVE-Status',
     );
 
     const call = write.changePlanCalls[0].input;
-    assert.ok(call.periodStart instanceof Date, 'periodStart muss Date sein');
-    assert.ok(call.periodEnd instanceof Date, 'periodEnd muss Date sein');
+    assert.ok(call.periodStart instanceof Date, 'periodStart must be a Date');
+    assert.ok(call.periodEnd instanceof Date, 'periodEnd must be a Date');
     assert.equal(call.nextStatus, 'ACTIVE');
 });
 
-test('onboarding mit promoCode + PromoCodesService löst atomar ein', async () => {
+test('onboarding with promoCode + PromoCodesService redeems atomically', async () => {
     const write = buildWritePort();
     const promo = buildPromoStub();
     const ctrl = buildController({ subscriptionWrite: write, promoCodes: promo });
@@ -188,7 +188,7 @@ test('onboarding mit promoCode + PromoCodesService löst atomar ein', async () =
     assert.deepEqual(result.warnings, []);
 });
 
-test('onboarding ohne PromoCodesService meldet promoCode als Warning, persistiert Plan trotzdem', async () => {
+test('onboarding without PromoCodesService reports promoCode as a warning, persists the plan anyway', async () => {
     const write = buildWritePort();
     const ctrl = buildController({ subscriptionWrite: write, promoCodes: null });
 
@@ -203,7 +203,7 @@ test('onboarding ohne PromoCodesService meldet promoCode als Warning, persistier
     assert.match(result.warnings[0], /PromoCodesModule ist nicht geladen/);
 });
 
-test('onboarding ohne SubscriptionUsageRecord.id meldet promoCode als Warning', async () => {
+test('onboarding without SubscriptionUsageRecord.id reports promoCode as a warning', async () => {
     const write = buildWritePort();
     const promo = buildPromoStub();
     const ctrl = buildController({
@@ -229,7 +229,7 @@ test('onboarding ohne SubscriptionUsageRecord.id meldet promoCode als Warning', 
     assert.match(result.warnings[0], /SubscriptionUsageRecord\.id/);
 });
 
-test('onboarding bei fehlgeschlagenem Promo-Redeem persistiert Plan + Warning', async () => {
+test('onboarding on a failed promo redeem persists plan + warning', async () => {
     const write = buildWritePort();
     const promo = buildPromoStub({ shouldFail: true });
     const ctrl = buildController({ subscriptionWrite: write, promoCodes: promo });
@@ -239,13 +239,13 @@ test('onboarding bei fehlgeschlagenem Promo-Redeem persistiert Plan + Warning', 
         { plan: 'SPORT', billingCycle: 'YEARLY', promoCode: 'EXPIREDCODE' },
     );
 
-    assert.equal(write.changePlanCalls.length, 1, 'Plan wurde gewechselt');
+    assert.equal(write.changePlanCalls.length, 1, 'plan was changed');
     assert.equal(result.promoRedemption, null);
     assert.equal(result.warnings.length, 1);
     assert.match(result.warnings[0], /EXPIRED/);
 });
 
-test('onboarding wirft ForbiddenException für blockierte Self-Service-Pläne', async () => {
+test('onboarding throws ForbiddenException for blocked self-service plans', async () => {
     const ctrl = buildController({
         blockedPlans: { asTarget: ['ENTERPRISE'], asSource: [] },
     });
@@ -260,7 +260,7 @@ test('onboarding wirft ForbiddenException für blockierte Self-Service-Pläne', 
     );
 });
 
-test('onboarding wirft BadRequestException wenn Plan-Wechsel-Blocker aktiv sind', async () => {
+test('onboarding throws BadRequestException when plan-change blockers are active', async () => {
     const ctrl = buildController({
         planPreview: buildPlanPreview({ blockers: ['QUOTA_EXCEEDED:members'] }),
     });
@@ -275,7 +275,7 @@ test('onboarding wirft BadRequestException wenn Plan-Wechsel-Blocker aktiv sind'
     );
 });
 
-test('onboarding wirft NotFoundException ohne Subscription', async () => {
+test('onboarding throws NotFoundException without a subscription', async () => {
     const ctrl = buildController({
         subscriptionUsage: { findForTenant: async () => null },
     });
@@ -290,7 +290,7 @@ test('onboarding wirft NotFoundException ohne Subscription', async () => {
     );
 });
 
-test('onboarding schreibt einen Audit-Log mit COMPLETE_ONBOARDING_SUBSCRIPTION', async () => {
+test('onboarding writes an audit log with COMPLETE_ONBOARDING_SUBSCRIPTION', async () => {
     const audit = buildAudit();
     const ctrl = buildController({ auditService: audit });
 
@@ -311,10 +311,10 @@ test('onboarding schreibt einen Audit-Log mit COMPLETE_ONBOARDING_SUBSCRIPTION',
     assert.equal(call.changes.promoRedeemed, false);
 });
 
-test('onboarding ohne AdminAuditService schreibt keinen Audit-Log (silent)', async () => {
+test('onboarding without AdminAuditService writes no audit log (silent)', async () => {
     const ctrl = buildController({ auditService: null });
 
-    // Darf nicht werfen — Audit-Log ist optional
+    // Must not throw — audit log is optional
     const result = await ctrl.completeOnboardingSubscription(
         { user: { tenantId: 't1', sub: 'u1' } },
         { plan: 'SPORT', billingCycle: 'YEARLY' },
@@ -323,12 +323,12 @@ test('onboarding ohne AdminAuditService schreibt keinen Audit-Log (silent)', asy
     assert.equal(result.plan, 'SPORT');
 });
 
-test('onboarding fällt auf email "unknown" zurück, wenn req.user.email fehlt', async () => {
+test('onboarding falls back to email "unknown" when req.user.email is missing', async () => {
     const audit = buildAudit();
     const ctrl = buildController({ auditService: audit });
 
     await ctrl.completeOnboardingSubscription(
-        { user: { tenantId: 't1', sub: 'u1' } }, // KEIN email
+        { user: { tenantId: 't1', sub: 'u1' } }, // NO email
         { plan: 'SPORT', billingCycle: 'YEARLY' },
     );
 
@@ -336,7 +336,7 @@ test('onboarding fällt auf email "unknown" zurück, wenn req.user.email fehlt',
     assert.equal(audit.calls[0].actor.email, 'unknown');
 });
 
-test('onboarding nutzt customEmailResolver, wenn injiziert', async () => {
+test('onboarding uses customEmailResolver when injected', async () => {
     const audit = buildAudit();
     const ctrl = buildController({
         auditService: audit,
@@ -348,11 +348,11 @@ test('onboarding nutzt customEmailResolver, wenn injiziert', async () => {
         { plan: 'SPORT', billingCycle: 'YEARLY' },
     );
 
-    // Custom-Resolver hat Vorrang vor req.user.email
+    // Custom resolver takes precedence over req.user.email
     assert.equal(audit.calls[0].actor.email, 'u1@override.test');
 });
 
-test('onboarding nutzt x-session-id Header als Audit-Kontext', async () => {
+test('onboarding uses the x-session-id header as audit context', async () => {
     const audit = buildAudit();
     const ctrl = buildController({ auditService: audit });
 
@@ -367,13 +367,13 @@ test('onboarding nutzt x-session-id Header als Audit-Kontext', async () => {
     assert.equal(audit.calls[0].actor.context, 'sess-42');
 });
 
-test('atomarer Pfad: applyOnboardingSelection wird genutzt, sequenzielle Calls werden vermieden', async () => {
+test('atomic path: applyOnboardingSelection is used, sequential calls are avoided', async () => {
     let appliedCalls = 0;
     let changePlanCalls = 0;
     const atomicWrite = {
         async applyOnboardingSelection(tenantId, input, redeemCb) {
             appliedCalls++;
-            // Im atomaren Pfad MUSS der Adapter den Promo-Callback selbst rufen
+            // In the atomic path the adapter MUST call the promo callback itself
             const promoRedemption = redeemCb
                 ? await redeemCb(
                       {
@@ -406,16 +406,16 @@ test('atomarer Pfad: applyOnboardingSelection wird genutzt, sequenzielle Calls w
         { plan: 'SPORT', billingCycle: 'YEARLY' },
     );
 
-    assert.equal(appliedCalls, 1, 'atomarer Pfad muss aufgerufen werden');
+    assert.equal(appliedCalls, 1, 'the atomic path must be called');
     assert.equal(
         changePlanCalls,
         0,
-        'sequenzielle changePlanImmediate darf NICHT zusätzlich laufen',
+        'sequential changePlanImmediate must NOT run additionally',
     );
     assert.equal(result.plan, 'SPORT');
 });
 
-test('atomarer Pfad: Adapter-Fehler wirft BadRequestException (kein Half-State)', async () => {
+test('atomic path: adapter error throws BadRequestException (no half-state)', async () => {
     const failingAtomic = {
         async applyOnboardingSelection() {
             throw new Error('plan-update collision in tx');
@@ -441,7 +441,7 @@ test('atomarer Pfad: Adapter-Fehler wirft BadRequestException (kein Half-State)'
     );
 });
 
-test('atomarer Pfad: Promo-Redeem-Callback wird mit subscriptionId aufgerufen', async () => {
+test('atomic path: promo-redeem callback is called with subscriptionId', async () => {
     let calledWithSubId = null;
     const atomicWrite = {
         async applyOnboardingSelection(tenantId, input, redeemCb) {
@@ -496,8 +496,8 @@ test('atomarer Pfad: Promo-Redeem-Callback wird mit subscriptionId aufgerufen', 
     assert.equal(result.promoRedemption?.code, 'EINSTEIGER20');
 });
 
-test('Fallback-Pfad greift wenn Adapter applyOnboardingSelection NICHT implementiert', async () => {
-    // buildWritePort() liefert KEIN applyOnboardingSelection — Fallback-Pfad muss aktiv werden
+test('fallback path kicks in when the adapter does NOT implement applyOnboardingSelection', async () => {
+    // buildWritePort() provides NO applyOnboardingSelection — the fallback path must become active
     const write = buildWritePort();
     const ctrl = buildController({ subscriptionWrite: write });
 
@@ -506,11 +506,11 @@ test('Fallback-Pfad greift wenn Adapter applyOnboardingSelection NICHT implement
         { plan: 'SPORT', billingCycle: 'YEARLY' },
     );
 
-    assert.equal(write.changePlanCalls.length, 1, 'sequenzielle changePlanImmediate muss laufen');
+    assert.equal(write.changePlanCalls.length, 1, 'sequential changePlanImmediate must run');
     assert.equal(result.plan, 'SPORT');
 });
 
-test('onboarding fängt Audit-Failures ab (Write-Pfad bleibt grün)', async () => {
+test('onboarding catches audit failures (write path stays green)', async () => {
     const failingAudit = {
         async log() {
             throw new Error('audit-port unreachable');
@@ -518,7 +518,7 @@ test('onboarding fängt Audit-Failures ab (Write-Pfad bleibt grün)', async () =
     };
     const ctrl = buildController({ auditService: failingAudit });
 
-    // Darf nicht werfen — Audit-Failure wird verschluckt
+    // Must not throw — audit failure is swallowed
     const result = await ctrl.completeOnboardingSubscription(
         { user: { tenantId: 't1', sub: 'u1' } },
         { plan: 'SPORT', billingCycle: 'YEARLY' },
@@ -527,7 +527,7 @@ test('onboarding fängt Audit-Failures ab (Write-Pfad bleibt grün)', async () =
     assert.equal(result.plan, 'SPORT');
 });
 
-// ─── P11.7.3: Bundle-Buchung im Onboarding ──────────────────────────────
+// ─── P11.7.3: Bundle booking in onboarding ──────────────────────────────
 
 function buildSubscriptionBundlesStub({ failOn = null } = {}) {
     return {
@@ -554,7 +554,7 @@ function buildSubscriptionBundlesStub({ failOn = null } = {}) {
     };
 }
 
-test('onboarding: bundleVersionIds werden best-effort gebucht (bundlesAdded zählt)', async () => {
+test('onboarding: bundleVersionIds are booked best-effort (bundlesAdded counts)', async () => {
     const bundles = buildSubscriptionBundlesStub();
     const ctrl = buildController({ subscriptionBundles: bundles });
 
@@ -571,7 +571,7 @@ test('onboarding: bundleVersionIds werden best-effort gebucht (bundlesAdded zäh
     assert.equal(bundles.addCalls[0].currentPlanKey, 'SPORT');
 });
 
-test('onboarding: fehlgeschlagene Bundle-Buchung landet als Warning, Plan bleibt persistiert', async () => {
+test('onboarding: a failed bundle booking lands as a warning, plan stays persisted', async () => {
     const FAIL_ID = '00000000-bad0-0000-0000-000000000000';
     const OK_ID = '99999999-aaaa-bbbb-cccc-dddddddddddd';
     const bundles = buildSubscriptionBundlesStub({ failOn: FAIL_ID });
@@ -588,12 +588,12 @@ test('onboarding: fehlgeschlagene Bundle-Buchung landet als Warning, Plan bleibt
     assert.equal(result.bundlesAdded, 1);
     assert.equal(result.warnings.length, 1);
     assert.match(result.warnings[0], /inkompatibel/);
-    // Plan trotzdem gesetzt
+    // Plan set anyway
     assert.equal(result.plan, 'SPORT');
 });
 
-test('onboarding: bundleVersionIds ohne registriertes Modul → Warning, kein Crash', async () => {
-    // Kein subscriptionBundles-Service injiziert
+test('onboarding: bundleVersionIds without a registered module → warning, no crash', async () => {
+    // No subscriptionBundles service injected
     const ctrl = buildController();
     const result = await ctrl.completeOnboardingSubscription(
         { user: { tenantId: 't1', sub: 'u1' } },

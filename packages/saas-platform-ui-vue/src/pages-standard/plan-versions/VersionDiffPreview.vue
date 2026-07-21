@@ -38,9 +38,9 @@ import type { VersionChange } from '@saasicat/types';
 const props = defineProps<{
     changes?: VersionChange[] | null;
     /**
-     * Optional: Field-Labels (z. B. `{ maxUsers: 'Max. Benutzer' }`).
-     * Apps mappen ihre eigenen Quota-Felder hier; Default deckt die generischen
-     * Plattform-Felder ab.
+     * Optional: field labels (e.g. `{ maxUsers: 'Max. Benutzer' }`).
+     * Apps map their own Quota fields here; the default covers the generic
+     * platform fields.
      */
     fieldLabels?: Record<string, string>;
 }>();

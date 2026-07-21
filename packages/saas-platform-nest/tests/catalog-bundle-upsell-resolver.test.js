@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { CatalogBundleUpsellResolver } from '../dist/billing/index.js';
 import { FakeBundleRepository } from '../dist/testing/index.js';
 
-// CatalogBundleUpsellResolver (#36) — Default-Implementierung des
-// UpsellOfferResolver-Ports gegen published+marketed Catalog-Bundles.
-// Ranking: Deckung (Feature + ungedeckte requires, #35) vor Preis.
+// CatalogBundleUpsellResolver (#36) — default implementation of the
+// UpsellOfferResolver port against published+marketed catalog bundles.
+// Ranking: coverage (feature + uncovered requires, #35) before price.
 
 const PROJECT = 'clubapp';
 
@@ -46,7 +46,7 @@ function catalogEntryRepoWith(requiresByFeature) {
 }
 
 describe('CatalogBundleUpsellResolver', () => {
-    test('liefert published+marketed Bundles, die das fehlende Feature enthalten', async () => {
+    test('returns published+marketed bundles that contain the missing feature', async () => {
         const live = await createLiveBundle({
             bundleKey: 'TURNIERE',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -72,7 +72,7 @@ describe('CatalogBundleUpsellResolver', () => {
         ]);
     });
 
-    test('nicht-marketed und Draft-Bundles sind keine Angebote', async () => {
+    test('non-marketed and draft bundles are not offers', async () => {
         await createLiveBundle({
             bundleKey: 'INTERN',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -96,7 +96,7 @@ describe('CatalogBundleUpsellResolver', () => {
         assert.deepEqual(await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1'), []);
     });
 
-    test('ohne requires-Daten gewinnt der günstigere Preis', async () => {
+    test('without requires data the cheaper price wins', async () => {
         await createLiveBundle({
             bundleKey: 'TEUER',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -116,10 +116,10 @@ describe('CatalogBundleUpsellResolver', () => {
         );
     });
 
-    test('requires bekannt (#35): Kombi-Bundle mit Abhängigkeit rankt vor günstigerem Einzel-Bundle', async () => {
-        // TOURNAMENT_MANAGEMENT requires RESOURCE_MANAGEMENT. SPORTPLATZ deckt
-        // beides (14.90), TURNIERE nur das Feature (7.90) — SPORTPLATZ ist
-        // trotz höherem Preis das bessere Angebot.
+    test('requires known (#35): combo bundle with dependency ranks before cheaper single bundle', async () => {
+        // TOURNAMENT_MANAGEMENT requires RESOURCE_MANAGEMENT. SPORTPLATZ covers
+        // both (14.90), TURNIERE only the feature (7.90) — SPORTPLATZ is the
+        // better offer despite the higher price.
         await createLiveBundle({
             bundleKey: 'TURNIERE',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -143,7 +143,7 @@ describe('CatalogBundleUpsellResolver', () => {
         );
     });
 
-    test('Bundle, das nur die Abhängigkeit (nicht das Feature) enthält, ist kein Angebot', async () => {
+    test('bundle that contains only the dependency (not the feature) is not an offer', async () => {
         await createLiveBundle({
             bundleKey: 'NUR_RESSOURCEN',
             features: ['RESOURCE_MANAGEMENT'],
@@ -158,7 +158,7 @@ describe('CatalogBundleUpsellResolver', () => {
         assert.deepEqual(await resolver.resolveOffers(['TOURNAMENT_MANAGEMENT'], 't1'), []);
     });
 
-    test('Währung kommt aus dem optionalen Currency-Token, Default EUR', async () => {
+    test('currency comes from the optional currency token, default EUR', async () => {
         await createLiveBundle({
             bundleKey: 'TURNIERE',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -169,7 +169,7 @@ describe('CatalogBundleUpsellResolver', () => {
         assert.equal(offers[0].currency, 'CHF');
     });
 
-    test('preisloses Bundle (nur Pricing-Override) liefert priceMonthlyNet null und rankt hinten', async () => {
+    test('priceless bundle (pricing override only) yields priceMonthlyNet null and ranks last', async () => {
         await createLiveBundle({
             bundleKey: 'OVERRIDE_ONLY',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -192,7 +192,7 @@ describe('CatalogBundleUpsellResolver', () => {
         );
     });
 
-    test('leere featureKeys → keine Offers, kein Repo-Zugriff', async () => {
+    test('empty featureKeys → no offers, no repo access', async () => {
         const resolver = new CatalogBundleUpsellResolver(bundleRepo, PROJECT);
         assert.deepEqual(await resolver.resolveOffers([], 't1'), []);
     });

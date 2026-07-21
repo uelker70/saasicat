@@ -1,9 +1,9 @@
-// useActions — Vue-3-Composable über ActionRegistry.
+// useActions — Vue 3 composable over ActionRegistry.
 //
-// Wrappt einen reaktiven `Ref<AdminManifest | null>` und einen statischen
-// `actions:`-Map (Konsumenten-Shell-Build) und liefert ein reaktives
-// Registry-Object, das automatisch neu aufgebaut wird, sobald sich das
-// Manifest ändert (z. B. nach `manifest reload`).
+// Wraps a reactive `Ref<AdminManifest | null>` and a static
+// `actions:` map (consumer shell build) and returns a reactive
+// registry object that is automatically rebuilt as soon as the
+// manifest changes (e.g. after `manifest reload`).
 
 import { computed, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest } from '@saasicat/types';

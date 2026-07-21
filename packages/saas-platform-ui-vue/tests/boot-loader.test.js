@@ -19,7 +19,7 @@ function buildHttp({ status = 200, body = {}, headers = {} } = {}) {
 const ENDPOINT = '/api/v1/admin/boot';
 
 describe('BootLoader.load', () => {
-    test('liefert Body bei 200', async () => {
+    test('returns body on 200', async () => {
         const { http } = buildHttp({
             body: {
                 project: {
@@ -34,21 +34,21 @@ describe('BootLoader.load', () => {
         assert.equal(r.project.key, 'demoapp');
     });
 
-    test('schickt GET an konfigurierten endpoint', async () => {
+    test('sends GET to the configured endpoint', async () => {
         const { http, calls } = buildHttp({ body: { project: {} } });
         const loader = new BootLoader({ http, endpoint: ENDPOINT });
         await loader.load();
         assert.equal(calls[0].url, ENDPOINT);
     });
 
-    test('konfigurierbarer endpoint', async () => {
+    test('configurable endpoint', async () => {
         const { http, calls } = buildHttp({ body: { project: {} } });
         const loader = new BootLoader({ http, endpoint: '/custom/boot' });
         await loader.load();
         assert.equal(calls[0].url, '/custom/boot');
     });
 
-    test('wirft BootLoadError bei nicht-200', async () => {
+    test('throws BootLoadError on non-200', async () => {
         const { http } = buildHttp({ status: 503 });
         const loader = new BootLoader({ http, endpoint: ENDPOINT });
         await assert.rejects(
@@ -57,7 +57,7 @@ describe('BootLoader.load', () => {
         );
     });
 
-    test('endpoint=Pflicht: ohne Endpoint wirft BootLoader', () => {
+    test('endpoint is required: without an endpoint BootLoader throws', () => {
         const { http } = buildHttp({ body: {} });
         assert.throws(() => new BootLoader({ http }), /endpoint.*Pflicht/);
     });

@@ -1,17 +1,17 @@
-// Entitlement-Types — Snapshot-Form für Pure-Function-Aggregation.
+// Entitlement types — snapshot form for pure-function aggregation.
 //
-// Konsumenten mappen ihre Prisma-Models auf diese Snapshots; die Plattform-
-// Aggregation arbeitet ausschließlich auf dieser Form (keine Prisma-Imports).
+// Consumers map their Prisma models onto these snapshots; the platform
+// aggregation works exclusively on this form (no Prisma imports).
 
 import type { FeatureKey, PlanId, QuotaKey } from '@saasicat/types';
 
 /**
- * Snapshot der bindenden `PlanVersion` einer Subscription. Quotas werden als
- * Record aus `quotaKey → number` geliefert; konkrete Keys deklariert der
- * Code via `@DefinesQuota`.
+ * Snapshot of the binding `PlanVersion` of a subscription. Quotas are
+ * delivered as a record of `quotaKey → number`; concrete keys are declared
+ * by the code via `@DefinesQuota`.
  *
- * `-1` ist Catalog-Konvention für „unbegrenzt" — Konsumenten müssen das
- * selbst auf `Number.POSITIVE_INFINITY` mappen, wenn sie damit rechnen.
+ * `-1` is the catalog convention for "unlimited" — consumers must map that
+ * to `Number.POSITIVE_INFINITY` themselves if they want to compute with it.
  */
 export interface PlanVersionSnapshot {
     planId: PlanId;
@@ -20,9 +20,9 @@ export interface PlanVersionSnapshot {
 }
 
 /**
- * Snapshot einer published BundleVersion (für BusinessType-Aggregation).
- * Konsument löst die Bundle-Komposition vor dem `aggregateLimits()`-Aufruf
- * via Repository-Lookup auf.
+ * Snapshot of a published BundleVersion (for BusinessType aggregation).
+ * The consumer resolves the bundle composition via repository lookup before
+ * the `aggregateLimits()` call.
  */
 export interface BundleVersionSnapshot {
     bundleKey: string;
@@ -31,50 +31,50 @@ export interface BundleVersionSnapshot {
 }
 
 /**
- * Snapshot der bindenden `BusinessTypeVersion` einer Subscription
- * (SPEC_V2 §11.1 M5). Enthält die aufgelösten Bundle-Snapshots in der
- * sortOrder-Reihenfolge, plus die Quota-Overrides der BusinessTypeVersion.
+ * Snapshot of the binding `BusinessTypeVersion` of a subscription
+ * (SPEC_V2 §11.1 M5). Contains the resolved bundle snapshots in sortOrder
+ * order, plus the quota overrides of the BusinessTypeVersion.
  *
- * Aggregation (siehe GESCHAEFTSTYP_SPEC §6.2):
- * - Quotas: Σ(Bundle-Quotas) pro QuotaKey, dann Override durch
- *   `quotaOverrides[k]` falls gesetzt
- * - Features: ⋃ aller Bundle-Features (Set-Union)
+ * Aggregation (see GESCHAEFTSTYP_SPEC §6.2):
+ * - Quotas: Σ(bundle quotas) per QuotaKey, then override via
+ *   `quotaOverrides[k]` if set
+ * - Features: ⋃ of all bundle features (set union)
  */
 export interface BusinessTypeVersionSnapshot {
     businessTypeKey: string;
-    /** Bundles in sortOrder-Reihenfolge. */
+    /** Bundles in sortOrder order. */
     bundles: BundleVersionSnapshot[];
-    /** Override pro QuotaKey. Fehlender Key → Σ(Bundle-Quotas) wird verwendet. */
+    /** Override per QuotaKey. Missing key → Σ(bundle quotas) is used. */
     quotaOverrides: Partial<Record<QuotaKey, number>>;
 }
 
 /**
- * Snapshot einer aktiven SubscriptionBundle-Buchung (P11.7.3 +
- * SPEC_V2 §11.1 M6 Pack 2e). Wird vom EntitlementService aus der
- * `subscription_bundles`-Junction + BundleRepository.findVersionById
- * aufgelöst und an `aggregateLimits` gereicht.
+ * Snapshot of an active SubscriptionBundle booking (P11.7.3 +
+ * SPEC_V2 §11.1 M6 Pack 2e). Resolved by the EntitlementService from the
+ * `subscription_bundles` junction + BundleRepository.findVersionById and
+ * passed to `aggregateLimits`.
  *
- * Aggregation: Quotas additiv mit -1-Dominanz, Features ⋃-Set-Union.
- * Filter (`canceledEffectiveAt > now`) liegt im Aggregator
- * (`filterActiveSubscriptionBundles`), damit der Caller einfach alle
- * Buchungen mitgeben kann.
+ * Aggregation: quotas additive with -1 dominance, features ⋃ set union.
+ * The filter (`canceledEffectiveAt > now`) lives in the aggregator
+ * (`filterActiveSubscriptionBundles`), so the caller can simply pass in all
+ * bookings.
  */
 export interface SubscriptionBundleSnapshot {
     bundleKey: string;
     features: FeatureKey[];
     quotas: Record<QuotaKey, number>;
     /**
-     * Datum, bis zu dem die Buchung effektiv läuft (= NULL bei
-     * nicht-gekündigten Buchungen). Aggregator filtert
-     * `canceledEffectiveAt > now` als aktiv.
+     * Date up to which the booking is effectively active (= NULL for
+     * non-canceled bookings). The aggregator filters
+     * `canceledEffectiveAt > now` as active.
      */
     canceledEffectiveAt: Date | null;
 }
 
 /**
- * Konsumenten-Override aus `Subscription.customLimits` (z. B. ENTERPRISE-
- * Sondervertrag oder Pilot). Feldweise — nicht gesetzte Quotas/Features
- * fallen auf den Plan-Default zurück.
+ * Consumer override from `Subscription.customLimits` (e.g. an ENTERPRISE
+ * special contract or pilot). Field-wise — unset quotas/features fall back
+ * to the plan default.
  */
 export interface CustomLimitsShape {
     quotas?: Record<QuotaKey, number>;
@@ -82,30 +82,30 @@ export interface CustomLimitsShape {
 }
 
 /**
- * Eingabe für `aggregateLimits` — die Plattform erwartet, dass der
- * Konsument die Plan-Auflösung (Trial/Pilot/Pending) bereits durchgeführt
- * hat. `plan` und `planVersion` sind das Ergebnis dieser Auflösung; siehe
- * `resolveEntitlementPlan` für eine konfigurierbare Default-Strategie.
+ * Input for `aggregateLimits` — the platform expects the consumer to have
+ * already performed the plan resolution (trial/pilot/pending). `plan` and
+ * `planVersion` are the result of that resolution; see
+ * `resolveEntitlementPlan` for a configurable default strategy.
  *
- * `businessTypeVersion` ist optional (SPEC_V2 §11.1 M5). Wenn gesetzt,
- * wird die BusinessType-Komposition zusätzlich zu Plan + Add-ons in die
- * Aggregation einbezogen — siehe GESCHAEFTSTYP_SPEC §6.
+ * `businessTypeVersion` is optional (SPEC_V2 §11.1 M5). When set, the
+ * BusinessType composition is included in the aggregation in addition to
+ * plan + add-ons — see GESCHAEFTSTYP_SPEC §6.
  */
 export interface SubscriptionLimitsInput {
     plan: PlanId;
     planVersion: PlanVersionSnapshot;
     businessTypeVersion?: BusinessTypeVersionSnapshot | null;
     /**
-     * Aktive Bundle-Buchungen (P11.7.3). Aggregator filtert nach
-     * `canceledEffectiveAt > now` und summiert Quotas + sammelt
-     * Features in die effektiven Limits.
+     * Active bundle bookings (P11.7.3). The aggregator filters by
+     * `canceledEffectiveAt > now` and sums quotas + collects features into
+     * the effective limits.
      */
     subscriptionBundles?: SubscriptionBundleSnapshot[];
     customLimits?: CustomLimitsShape | null;
 }
 
 /**
- * Effektive Limits eines Tenants: Plan-ID + aggregierte Quotas + Features.
+ * Effective limits of a tenant: plan ID + aggregated quotas + features.
  */
 export interface EffectiveLimits {
     plan: PlanId;
@@ -114,8 +114,8 @@ export interface EffectiveLimits {
 }
 
 /**
- * Serialisierbare Form für Snapshot-Felder (z. B. `Invoice.entitlementSnapshot`).
- * `features` ist ein sortiertes Array statt Set für stabile JSON-Serialisierung.
+ * Serializable form for snapshot fields (e.g. `Invoice.entitlementSnapshot`).
+ * `features` is a sorted array instead of a Set for stable JSON serialization.
  */
 export interface EffectiveLimitsSnapshot {
     plan: PlanId;

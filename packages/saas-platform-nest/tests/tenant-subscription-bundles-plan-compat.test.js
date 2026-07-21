@@ -1,15 +1,15 @@
-// Regressionsschutz für die Bundle-Plan-Kompatibilität: der
-// TenantSubscriptionBundlesController muss den Plan-KEY (`sub.plan`) als
-// `currentPlanKey` weiterreichen — NICHT die `planVersion.planId`-UUID.
-// `compatibility.planIds` ist key-basiert (STARTER/STANDARD/…); eine UUID
-// matcht dort nie und führt zum falschen „Bundle nicht mit Plan kompatibel".
+// Regression guard for bundle-plan compatibility: the
+// TenantSubscriptionBundlesController must pass the plan KEY (`sub.plan`) as
+// `currentPlanKey` — NOT the `planVersion.planId` UUID.
+// `compatibility.planIds` is key-based (STARTER/STANDARD/…); a UUID never
+// matches there and leads to the wrong "bundle not compatible with plan".
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildTenantSubscriptionBundlesController } from '../dist/billing/index.js';
 
 const REQ = { user: { tenantId: 't1' } };
 
-// Prod-nah: planVersion.planId ist eine UUID und unterscheidet sich vom Plan-Key.
+// Production-like: planVersion.planId is a UUID and differs from the plan key.
 function buildSub() {
     return {
         id: 'sub-1',
@@ -53,13 +53,13 @@ function buildController() {
     return { ctrl, captured };
 }
 
-test('add reicht den Plan-KEY (sub.plan) als currentPlanKey weiter, nicht die planVersion-UUID', async () => {
+test('add passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID', async () => {
     const { ctrl, captured } = buildController();
     await ctrl.add(REQ, { bundleVersionId: 'bv-1' });
     assert.equal(captured.add.currentPlanKey, 'STANDARD');
 });
 
-test('preview reicht den Plan-KEY (sub.plan) als currentPlanKey weiter, nicht die planVersion-UUID', async () => {
+test('preview passes the plan KEY (sub.plan) as currentPlanKey, not the planVersion UUID', async () => {
     const { ctrl, captured } = buildController();
     await ctrl.preview(REQ, { bundleVersionId: 'bv-1' });
     assert.equal(captured.previewCtx.currentPlanKey, 'STANDARD');

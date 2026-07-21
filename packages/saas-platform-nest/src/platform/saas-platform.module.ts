@@ -1,17 +1,17 @@
-// SaasPlatformModule — Mega-Modul, das die fünf Quickstart-Plattform-Module
-// (PlanCatalog, Discovery, Admin, AdminManifest, optional Entitlement) in einem
-// einzigen `forRoot({...})`-Call bündelt.
+// SaasPlatformModule — mega-module that bundles the five quickstart platform
+// modules (PlanCatalog, Discovery, Admin, AdminManifest, optionally Entitlement)
+// into a single `forRoot({...})` call.
 //
-// Ziel: Konsumenten-Boilerplate im AppModule von ~50 Zeilen auf ~15 reduzieren
-// und die Modul-Reihenfolge-Falle ("Adapter-Modul muss VOR forRoot stehen")
-// eliminieren — Adapter werden hier als Provider-Specs reingereicht statt
-// per `imports[]`-Trick verdrahtet.
+// Goal: reduce consumer boilerplate in the AppModule from ~50 lines to ~15 and
+// eliminate the module-ordering trap ("adapter module must come BEFORE forRoot")
+// — adapters are passed in here as provider specs instead of being wired via the
+// `imports[]` trick.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P1.
 //
-// Wer mehr Kontrolle braucht (mehrere Manifest-Controller, abweichende Guards
-// pro Endpoint, eigene Catalog-Adapter etc.), nutzt weiterhin die Einzel-
-// Module direkt — dieses Mega-Modul ist eine Convenience, keine Pflicht.
+// Whoever needs more control (multiple manifest controllers, differing guards
+// per endpoint, custom catalog adapters etc.) keeps using the individual modules
+// directly — this mega-module is a convenience, not a requirement.
 
 import {
     type CanActivate,
@@ -65,30 +65,30 @@ import {
 } from './tenant-manifest.controller.js';
 
 /**
- * Adapter-Bindings für die Plattform-Ports. Werden als Klassen-Token,
- * Werte oder Factory-Specs entgegengenommen.
+ * Adapter bindings for the platform ports. Accepted as class tokens, values
+ * or factory specs.
  */
 export interface SaasPlatformAdapters {
     mfa: ProviderSpec<MfaPort>;
     audit: ProviderSpec<AuditPort>;
     rlsBypass: ProviderSpec<RlsBypassPort>;
     /**
-     * Optional. Wenn übergeben, wird `PlanCatalogModule` aus diesem Sink
-     * hydriert (DB-Read beim Boot). Wenn weggelassen, MUSS `planCatalog` als
-     * fertiges Objekt übergeben werden (Quickstart-Pfad — YAML-direkt).
+     * Optional. If provided, `PlanCatalogModule` is hydrated from this sink
+     * (DB read at boot). If omitted, `planCatalog` MUST be passed as a ready
+     * object (quickstart path — YAML-direct).
      */
     planCatalogReadSink?: ProviderSpec<PlanCatalogReadSink>;
     /**
-     * Optional — Resolver `tenantId → planId`. Quickstart-Pfad benutzt das
-     * mit dem `StaticEntitlementService`, um `@RequireFeature` und
-     * `@EnforceQuota` automatisch gegen das Plan-Catalog-Limit zu prüfen.
-     * Wenn nicht gesetzt, **muss** `defaultPlanId` angegeben werden —
-     * dann liefert ein `StaticPlanResolver` für alle Tenants denselben Plan.
+     * Optional — resolver `tenantId → planId`. The quickstart path uses this
+     * together with the `StaticEntitlementService` to automatically check
+     * `@RequireFeature` and `@EnforceQuota` against the plan catalog limit.
+     * If not set, `defaultPlanId` **must** be provided — a `StaticPlanResolver`
+     * then returns the same plan for all tenants.
      */
     planResolver?: ProviderSpec<PlanResolverPort>;
     /**
-     * Optional — erforderlich nur wenn `entitlement: true`. Repositories für
-     * den V3-Vertrags-/Entitlement-Loop.
+     * Optional — required only when `entitlement: true`. Repositories for the
+     * V3 contract/entitlement loop.
      */
     subscriptionRepository?: ProviderSpec<SubscriptionRepository>;
     planVersionRepository?: ProviderSpec<PlanVersionRepository>;
@@ -97,59 +97,59 @@ export interface SaasPlatformAdapters {
 
 export interface SaasPlatformModuleOptions {
     /**
-     * Plan-Catalog. Entweder als bereits geladenes Objekt (Quickstart, kommt
-     * direkt aus `loadPlanCatalogFromFile('config/saas.yaml')`) oder als
-     * Sink-Referenz in `adapters.planCatalogReadSink` für DB-Hydration.
+     * Plan catalog. Either as an already-loaded object (quickstart, comes
+     * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or as a
+     * sink reference in `adapters.planCatalogReadSink` for DB hydration.
      */
     planCatalog?: PlanCatalog;
     /**
-     * Adapter-Bindings.
+     * Adapter bindings.
      */
     adapters: SaasPlatformAdapters;
     /**
-     * Class-Level-Guards für die Plattform-Controller (`GET /admin/discovery`
-     * und `GET /admin/manifest`). PFLICHT — sonst wirft die Plattform beim
-     * Boot, weil Manifest-Controller niemals stillschweigend auth-frei
-     * registriert werden darf (Plattform-Sicherheit).
+     * Class-level guards for the platform controllers (`GET /admin/discovery`
+     * and `GET /admin/manifest`). REQUIRED — otherwise the platform throws at
+     * boot, because a manifest controller must never be silently registered
+     * without auth (platform security).
      *
-     * Explizit `[]` übergeben, wenn der Endpoint absichtlich auth-frei sein
-     * soll (CI/Smoke-Test).
+     * Pass `[]` explicitly if the endpoint is intentionally auth-free
+     * (CI/smoke test).
      */
     controller: { guards: Array<Type<CanActivate>> };
     /**
-     * Zusätzliche Guards nur für `POST /admin/manifest/reload` (typisch:
+     * Additional guards only for `POST /admin/manifest/reload` (typically:
      * `MfaGuard`). Optional.
      */
     reloadGuards?: Array<Type<CanActivate>>;
     /**
-     * Module, deren Provider im DI-Scope sichtbar sein müssen (typisch:
-     * `AuthModule` mit dem `JwtAuthGuard`).
+     * Modules whose providers must be visible in the DI scope (typically:
+     * `AuthModule` with the `JwtAuthGuard`).
      */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /**
-     * App-Identität für den DiscoveryScanner. Wenn weggelassen, wird
-     * `planCatalog.app` verwendet (Empfehlung: einfach in der YAML deklarieren).
+     * App identity for the DiscoveryScanner. If omitted, `planCatalog.app` is
+     * used (recommendation: simply declare it in the YAML).
      */
     app?: DiscoveryAppInfo;
     /**
-     * Optional — Snapshot-Pfad für DiscoveryScanner. Default:
-     * `var/discovery-snapshot.json`. `null` zum Deaktivieren.
+     * Optional — snapshot path for the DiscoveryScanner. Default:
+     * `var/discovery-snapshot.json`. `null` to disable.
      */
     discoverySnapshotPath?: string | null;
     /**
-     * `AdminManifestConfig`. Wenn weggelassen, baut das Modul eine Minimal-
-     * Variante aus `planCatalog` zusammen — gut für Quickstart, aber für
-     * volle Manifest-Features (Build-Hash, Locales, KPI-Cards) sollte der
-     * Konsument eine eigene Factory liefern.
+     * `AdminManifestConfig`. If omitted, the module assembles a minimal variant
+     * from `planCatalog` — good for quickstart, but for full manifest features
+     * (build hash, locales, KPI cards) the consumer should provide its own
+     * factory.
      */
     adminManifestConfig?:
         | AdminManifestConfig
         | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
     /**
-     * Default `false`. Wenn `true`, wird `EntitlementModule.forRoot({...})`
-     * mit den Repositories aus `adapters` aufgerufen — nur sinnvoll, wenn
-     * die App den V3-Vertrags-Pfad implementiert (`subscriptionRepository` &
-     * Co. müssen dann gesetzt sein).
+     * Default `false`. If `true`, `EntitlementModule.forRoot({...})` is called
+     * with the repositories from `adapters` — only meaningful if the app
+     * implements the V3 contract path (`subscriptionRepository` & co. must then
+     * be set).
      */
     entitlement?:
         | false
@@ -157,24 +157,24 @@ export interface SaasPlatformModuleOptions {
               resolutionConfig?: EntitlementResolutionConfig;
           };
     /**
-     * Fallback-PlanID für den `StaticPlanResolver`. Wenn weder
-     * `adapters.planResolver` noch `defaultPlanId` gesetzt sind, wird der
-     * `StaticEntitlementService` nicht aktiviert — `@RequireFeature`/
-     * `@EnforceQuota` sind dann **wirkungslos** (Discovery-Markup ohne
-     * Runtime-Effekt). Plattform-Warning beim Boot.
+     * Fallback plan ID for the `StaticPlanResolver`. If neither
+     * `adapters.planResolver` nor `defaultPlanId` is set, the
+     * `StaticEntitlementService` is not activated — `@RequireFeature`/
+     * `@EnforceQuota` are then **ineffective** (discovery markup with no
+     * runtime effect). Platform warning at boot.
      */
     defaultPlanId?: string;
     /**
-     * QuotaProvider-Klassen, die mit `@DefinesQuota({...})` deklariert wurden
-     * und vom `EnforceQuotaInterceptor` zur Count-Berechnung benutzt werden
-     * müssen. Plattform registriert sie als App-Provider und sammelt sie in
+     * QuotaProvider classes declared with `@DefinesQuota({...})` that the
+     * `EnforceQuotaInterceptor` must use for count calculation. The platform
+     * registers them as app providers and collects them in
      * `QUOTA_PROVIDERS_TOKEN`.
      */
     quotaProviders?: Array<Type<QuotaProvider>>;
     /**
-     * Tenant-Manifest aktivieren — App-UI bekommt pro Tenant ein gefiltertes
-     * Manifest mit Features, Quotas und sichtbarer Navigation. Erfordert,
-     * dass `defaultPlanId` oder `adapters.planResolver` gesetzt ist.
+     * Enable the tenant manifest — the app UI gets a filtered manifest per
+     * tenant with features, quotas and visible navigation. Requires that
+     * `defaultPlanId` or `adapters.planResolver` is set.
      */
     tenantManifest?: TenantManifestControllerOptions;
 }
@@ -212,11 +212,11 @@ function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory' | 'inj
 }
 
 /**
- * Bündelt PlanCatalog + Discovery + Admin + AdminManifest (+ optional
- * Entitlement) in einem `forRoot({...})`-Aufruf. Reduziert AppModule-
- * Boilerplate und eliminiert die Reihenfolge-Falle.
+ * Bundles PlanCatalog + Discovery + Admin + AdminManifest (+ optionally
+ * Entitlement) into a single `forRoot({...})` call. Reduces AppModule
+ * boilerplate and eliminates the ordering trap.
  *
- * Quickstart-Pfad:
+ * Quickstart path:
  *
  * ```ts
  * SaasPlatformModule.forRoot({
@@ -224,7 +224,7 @@ function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory' | 'inj
  *     controller: { guards: [JwtAuthGuard] },
  *     imports: [AuthModule],
  *     adapters: {
- *         mfa: PrismaMfaAdapter,           // aus @saasicat/prisma
+ *         mfa: PrismaMfaAdapter,           // from @saasicat/prisma
  *         audit: PrismaAuditAdapter,
  *         rlsBypass: AsyncLocalRlsBypassAdapter,
  *     },
@@ -307,10 +307,10 @@ export class SaasPlatformModule {
         }
 
         // ------------------------------------------------------------------
-        // Lightweight Static-Entitlement-Stack: Auto-Wire FeatureGuard +
-        // EnforceQuotaInterceptor, sodass `@RequireFeature` und
-        // `@EnforceQuota` direkt nach dem Mega-Modul-Import wirken.
-        // Bedingung: PlanResolver oder defaultPlanId.
+        // Lightweight static-entitlement stack: auto-wire FeatureGuard +
+        // EnforceQuotaInterceptor so that `@RequireFeature` and
+        // `@EnforceQuota` take effect right after the mega-module import.
+        // Condition: PlanResolver or defaultPlanId.
         // ------------------------------------------------------------------
         const lightweightProviders: Provider[] = [];
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
@@ -349,8 +349,8 @@ export class SaasPlatformModule {
         }
 
         // ------------------------------------------------------------------
-        // Tenant-Manifest (opt-in) — App-UI-Endpoint mit Feature-Filter.
-        // Erfordert, dass der StaticEntitlement-Stack aktiv ist (oben).
+        // Tenant manifest (opt-in) — app-UI endpoint with feature filter.
+        // Requires that the static-entitlement stack is active (above).
         // ------------------------------------------------------------------
         const tenantControllers: Type<unknown>[] = [];
         if (options.tenantManifest) {

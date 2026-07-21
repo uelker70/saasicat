@@ -1,16 +1,16 @@
-// Default-UpsellOfferResolver (#36) gegen die Catalog-Bundles.
+// Default UpsellOfferResolver (#36) against the catalog bundles.
 //
-// Löst fehlende Feature-Keys in Kaufangebote auf: alle published-and-live,
-// marketed BundleVersions des Projects, die mindestens einen der fehlenden
-// Keys enthalten. Sind `requires`-Daten verfügbar (CatalogEntryRepository,
-// #35), werden Bundles höher gerankt, die zusätzlich die ungedeckten
-// Abhängigkeiten der fehlenden Features mitliefern — ein Kombi-Bundle
-// (z. B. SPORTPLATZ = Feature + Ressourcen-Modul) ist das bessere Angebot
-// als das Feature-Bundle allein.
+// Resolves missing feature keys into purchase offers: all published-and-live,
+// marketed BundleVersions of the project that contain at least one of the
+// missing keys. When `requires` data is available (CatalogEntryRepository,
+// #35), bundles that additionally supply the uncovered dependencies of the
+// missing features are ranked higher — a combo bundle
+// (e.g. SPORTPLATZ = feature + resource module) is the better offer
+// than the feature bundle alone.
 //
-// Bewusst NICHT hart in den FeatureGuard verdrahtet: Konsumenten registrieren
-// die Klasse explizit unter `UPSELL_OFFER_RESOLVER_TOKEN` (typisch im selben
-// Modul, das die `PUBLIC_CATALOG_*`-Tokens bindet):
+// Deliberately NOT hard-wired into the FeatureGuard: consumers register the
+// class explicitly under `UPSELL_OFFER_RESOLVER_TOKEN` (typically in the same
+// module that binds the `PUBLIC_CATALOG_*` tokens):
 //
 //   { provide: UPSELL_OFFER_RESOLVER_TOKEN, useClass: CatalogBundleUpsellResolver }
 
@@ -35,7 +35,7 @@ const DEFAULT_CURRENCY = 'EUR';
 
 interface RankedOffer {
     offer: UpsellOffer;
-    /** Wie viele der gesuchten Keys (Features + deren requires) das Bundle deckt. */
+    /** How many of the wanted keys (features + their requires) the bundle covers. */
     coverage: number;
 }
 
@@ -55,8 +55,8 @@ export class CatalogBundleUpsellResolver implements UpsellOfferResolver {
     ) {}
 
     async resolveOffers(featureKeys: string[], tenantId: string): Promise<UpsellOffer[]> {
-        // Default-Implementierung ist tenant-agnostisch; die Port-Signatur
-        // trägt die tenantId für tenant-bewusste Eigen-Implementierungen.
+        // Default implementation is tenant-agnostic; the port signature
+        // carries the tenantId for tenant-aware custom implementations.
         void tenantId;
         if (featureKeys.length === 0) return [];
 
@@ -77,9 +77,9 @@ export class CatalogBundleUpsellResolver implements UpsellOfferResolver {
     }
 
     /**
-     * Ungedeckte Abhängigkeiten der fehlenden Features (#35) — fließen ins
-     * Coverage-Ranking ein. Ohne CatalogEntryRepository: leer (Ranking
-     * degradiert auf Preis).
+     * Uncovered dependencies of the missing features (#35) — feed into the
+     * coverage ranking. Without a CatalogEntryRepository: empty (ranking
+     * degrades to price).
      */
     private async lookupUnmetRequires(featureKeys: string[]): Promise<string[]> {
         if (!this.catalogEntryRepo) return [];
@@ -87,7 +87,7 @@ export class CatalogBundleUpsellResolver implements UpsellOfferResolver {
         return collectUnsatisfiedRequires(featureKeys, buildFeatureRequiresIndex(rows));
     }
 
-    /** Nur published-and-live UND marketed — nicht vermarktete Bundles sind kein Angebot. */
+    /** Only published-and-live AND marketed — non-marketed bundles are not an offer. */
     private async listLiveMarketedBundles(): Promise<BundleVersionRow[]> {
         const stems = await this.bundleRepo.list({
             projectKey: this.projectKey,
@@ -112,7 +112,7 @@ export class CatalogBundleUpsellResolver implements UpsellOfferResolver {
     }
 }
 
-/** Prisma-Decimal-Wire-Format (`string | null`) → Zahl; unparsebar = null. */
+/** Prisma decimal wire format (`string | null`) → number; unparsable = null. */
 function parsePrice(decimal: string | null): number | null {
     if (decimal === null) return null;
     const n = Number.parseFloat(decimal);
@@ -120,9 +120,9 @@ function parsePrice(decimal: string | null): number | null {
 }
 
 /**
- * Bestes Angebot zuerst: höchste Deckung (Feature + Abhängigkeiten),
- * dann günstigster Preis (preislose Overrides zuletzt), dann bundleKey
- * als deterministischer Tie-Breaker.
+ * Best offer first: highest coverage (feature + dependencies),
+ * then cheapest price (priceless overrides last), then bundleKey
+ * as a deterministic tie-breaker.
  */
 function compareRankedOffers(a: RankedOffer, b: RankedOffer): number {
     if (a.coverage !== b.coverage) return b.coverage - a.coverage;

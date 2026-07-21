@@ -1,5 +1,5 @@
-// BusinessTypesController — REST-Endpunkte für `business_types` +
-// `business_type_versions`. Pattern analog zu BundlesController.
+// BusinessTypesController — REST endpoints for `business_types` +
+// `business_type_versions`. Pattern analogous to BundlesController.
 
 import {
     Body,

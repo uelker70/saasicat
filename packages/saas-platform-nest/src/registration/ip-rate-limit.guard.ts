@@ -7,16 +7,16 @@ import {
 } from '@nestjs/common';
 
 /**
- * Konfigurierbarer In-Memory-Rate-Limiter (per IP, Sliding-Window).
+ * Configurable in-memory rate limiter (per IP, sliding window).
  *
- * Bewusst ohne externe Dependencies (`@nestjs/throttler`, Redis) — fuer die
- * Auth-Routen ist ein Single-Instance-Memory-Bucket ausreichend. Fuer skalierte
- * Multi-Instance-Deploys sollte dieser Guard durch einen Redis-basierten
- * Counter ersetzt werden (gleicher CanActivate-Vertrag).
+ * Deliberately without external dependencies (`@nestjs/throttler`, Redis) —
+ * for the auth routes a single-instance memory bucket is sufficient. For
+ * scaled multi-instance deploys this guard should be replaced by a
+ * Redis-based counter (same CanActivate contract).
  *
- * Pattern entspricht `PromoCodeRateLimitGuard`, aber generisch: Subklassen
- * uebergeben Window + Limit + Bucket-Map an den Base-Constructor und schaffen
- * so eigene Limits pro Route (Login / Register / OTP-Resend / Password-Reset).
+ * The pattern matches `PromoCodeRateLimitGuard`, but is generic: subclasses
+ * pass window + limit + bucket map to the base constructor and thus create
+ * their own limits per route (login / register / OTP resend / password reset).
  *
  * @example
  * ```ts
@@ -34,11 +34,11 @@ export abstract class BaseIpRateLimitGuard implements CanActivate {
 
     constructor(
         protected readonly options: {
-            /** Sliding-Window in ms (z. B. 15 * 60_000 fuer 15 min). */
+            /** Sliding window in ms (e.g. 15 * 60_000 for 15 min). */
             windowMs: number;
-            /** Max Requests pro Window pro IP. */
+            /** Max requests per window per IP. */
             limit: number;
-            /** Telemetrie-Name (kommt in Reason + Logs). */
+            /** Telemetry name (appears in reason + logs). */
             name: string;
         },
     ) {}
@@ -48,8 +48,8 @@ export abstract class BaseIpRateLimitGuard implements CanActivate {
             process.env.SAAS_PLATFORM_SKIP_RATE_LIMITS === '1' &&
             process.env.NODE_ENV !== 'production'
         ) {
-            // Erlaubter Bypass für CI-Smoke-Tests (Plattform-weit; Konsumenten
-            // dürfen das nicht einzeln umkonfigurieren). Analog MfaGuard.
+            // Allowed bypass for CI smoke tests (platform-wide; consumers
+            // must not reconfigure this individually). Analogous to MfaGuard.
             return true;
         }
         const req = context.switchToHttp().getRequest<{
@@ -83,14 +83,14 @@ export abstract class BaseIpRateLimitGuard implements CanActivate {
 }
 
 /**
- * Liest die Client-IP aus `X-Forwarded-For` (erste Adresse) oder faellt
- * auf `req.ip` zurueck. Fuer Fastify mit `trustProxy: true` ist `req.ip`
- * bereits die echte Client-IP — XFF-Lesung bleibt aber als zusaetzliche
- * Verteidigung gegen Proxies, die nur den Header setzen.
+ * Reads the client IP from `X-Forwarded-For` (first address) or falls back
+ * to `req.ip`. For Fastify with `trustProxy: true`, `req.ip` is already the
+ * real client IP — but the XFF read remains as an additional defense against
+ * proxies that only set the header.
  *
- * Bewusst nicht als Top-Level-Export reexportiert — eine identische Helper-
- * Variante lebt in `promo/rate-limit.guard.ts`. Subklassen brauchen den
- * Helper nicht; der Base-Guard kapselt die IP-Logik intern.
+ * Deliberately not re-exported as a top-level export — an identical helper
+ * variant lives in `promo/rate-limit.guard.ts`. Subclasses do not need the
+ * helper; the base guard encapsulates the IP logic internally.
  */
 function ipFingerprint(req: {
     headers: Record<string, string | string[] | undefined>;

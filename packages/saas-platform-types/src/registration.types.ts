@@ -1,10 +1,10 @@
-// Registration / PendingRegistration — Mehrstufiger Registrierungs- und
-// Onboarding-Flow.
+// Registration / PendingRegistration — Multi-step registration and
+// onboarding flow.
 //
-// Eine PendingRegistration haelt den Zwischenzustand zwischen Schritt 1
-// (Anmeldedaten erfassen) und der finalen Aktivierung (Schritt 4: Zahlung).
-// Erst nach erfolgreicher Zahlung wird daraus User + Tenant + Subscription.
-// Bis dahin bleibt der Datensatz losgeloest vom produktiven User-Modell.
+// A PendingRegistration holds the intermediate state between step 1
+// (capturing sign-up data) and the final activation (step 4: payment).
+// Only after successful payment does it become User + Tenant + Subscription.
+// Until then the record stays decoupled from the production user model.
 
 export const PENDING_EMAIL_TTL_HOURS = 72;
 export const PENDING_ONBOARDING_TTL_DAYS = 14;
@@ -12,16 +12,16 @@ export const PENDING_CHECKOUT_TTL_DAYS = 30;
 export const OTP_TTL_MINUTES = 10;
 export const PASSWORD_RESET_TTL_MINUTES = 30;
 
-/** Anzahl OTP-Sends pro Rolling-Window, bevor weitere Sends still verschluckt werden. */
+/** Number of OTP sends per rolling window before further sends are silently swallowed. */
 export const OTP_RATE_LIMIT_MAX_SENDS = 3;
 export const OTP_RATE_LIMIT_WINDOW_MINUTES = 15;
 
 /**
- * Max. Verifikationsversuche pro OTP-Code (jeder Versuch beansprucht vor dem
- * Hash-Vergleich atomar einen Slot). Ab Erreichen wirft `verifyOtp()`
- * `OTP_LOCKED` — auch bei danach korrektem Code. Ein neu generierter OTP
- * setzt den Zaehler zurueck (Versand bleibt separat ratelimitiert).
- * Env-Override: `SAAS_PLATFORM_OTP_VERIFY_MAX_ATTEMPTS`.
+ * Max. verification attempts per OTP code (each attempt atomically claims a
+ * slot before the hash comparison). Once reached, `verifyOtp()` throws
+ * `OTP_LOCKED` — even for a subsequently correct code. A newly generated OTP
+ * resets the counter (sending stays rate-limited separately).
+ * Env override: `SAAS_PLATFORM_OTP_VERIFY_MAX_ATTEMPTS`.
  */
 export const OTP_VERIFY_MAX_ATTEMPTS = 5;
 
@@ -35,7 +35,7 @@ export type RegistrationStatus =
 
 export type RegistrationStep = 1 | 2 | 3 | 4;
 
-/** Mapping Status -> Step, dass das Frontend nach Login/Resume verwendet. */
+/** Mapping status -> step that the frontend uses after login/resume. */
 export const REGISTRATION_STEP_BY_STATUS: Record<RegistrationStatus, RegistrationStep> = {
     PENDING_EMAIL_VERIFICATION: 2,
     EMAIL_VERIFIED: 3,
@@ -66,16 +66,16 @@ export interface PendingRegistration {
     otpExpiresAt: Date | null;
     otpSendCount: number;
     lastOtpSentAt: Date | null;
-    /** Persistenter Zaehler der OTP-Verifikationsversuche (Brute-Force-Lockout). */
+    /** Persistent counter of OTP verification attempts (brute-force lockout). */
     otpAttemptCount: number;
 
     selectedPlanId: string | null;
 
-    /** Konfigurator-Auswahl-Snapshot (Step 3). Wird vom Service gesetzt. */
+    /** Configurator selection snapshot (step 3). Set by the service. */
     configJson: RegistrationConfigSelection | null;
-    /** Wird beim ersten `saveConfiguration()`-Call gesetzt. */
+    /** Set on the first `saveConfiguration()` call. */
     billingCycle: 'MONTHLY' | 'YEARLY' | null;
-    /** Klartext-Code (UI-Anzeige). Validierung laeuft jedes Mal frisch. */
+    /** Plaintext code (UI display). Validation runs fresh every time. */
     appliedPromoCode: string | null;
 
     checkoutSessionId: string | null;
@@ -118,66 +118,66 @@ export interface PendingRegistrationUpdateInput {
     expiresAt?: Date;
 }
 
-/** Adapter-Port: Persistenz fuer PendingRegistration (CRUD). */
+/** Adapter port: persistence for PendingRegistration (CRUD). */
 export interface PendingRegistrationRepository {
     findById(id: string): Promise<PendingRegistration | null>;
     findByEmail(email: string): Promise<PendingRegistration | null>;
-    /** Webhook-Lookup: findet die Pending zur Provider-Session. */
+    /** Webhook lookup: finds the pending record for the provider session. */
     findByCheckoutSession(sessionId: string): Promise<PendingRegistration | null>;
     /**
-     * Cleanup-Lookup: alle Pending-Datensaetze mit `expiresAt < now`, max
-     * `limit` Eintraege pro Aufruf (Batch-Schutz). Sortierung egal, der
-     * Cron-Service iteriert sequenziell.
+     * Cleanup lookup: all pending records with `expiresAt < now`, max
+     * `limit` entries per call (batch protection). Ordering irrelevant, the
+     * cron service iterates sequentially.
      */
     findExpired(now: Date, limit: number): Promise<PendingRegistration[]>;
     create(input: PendingRegistrationCreateInput): Promise<PendingRegistration>;
     update(id: string, input: PendingRegistrationUpdateInput): Promise<PendingRegistration>;
     /**
-     * Erhoeht `otpAttemptCount` atomar um 1 und liefert den NEUEN Stand.
-     * Muss DB-seitig atomar sein (z. B. Prisma `{ increment: 1 }`), damit
-     * parallele Fehlversuche sich nicht gegenseitig ueberschreiben — der
-     * Rueckgabewert ist die massgebliche Schranke fuer den Lockout-Check.
+     * Increments `otpAttemptCount` atomically by 1 and returns the NEW value.
+     * Must be atomic on the DB side (e.g. Prisma `{ increment: 1 }`) so that
+     * parallel failed attempts do not overwrite each other — the return
+     * value is the authoritative threshold for the lockout check.
      */
     incrementOtpAttemptCount(id: string): Promise<number>;
     delete(id: string): Promise<void>;
 }
 
-/** Adapter-Port: Erkennt, ob ein voller User-Account (verifiziert) mit dieser Mail existiert. */
+/** Adapter port: detects whether a full user account (verified) exists for this email. */
 export interface UserAccountLookup {
     hasActiveUser(email: string): Promise<boolean>;
 }
 
-/** Adapter-Port: Pruefen, ob ein Slug fuer einen neuen Tenant frei ist. */
+/** Adapter port: check whether a slug is available for a new tenant. */
 export interface SlugAvailabilityCheck {
     isSlugAvailable(slug: string): Promise<boolean>;
 }
 
-/** Wire-Format einer erzeugten Checkout-Session (Provider-agnostisch). */
+/** Wire format of a created checkout session (provider-agnostic). */
 export interface CheckoutSession {
-    /** Provider-spezifische Session-ID (z. B. Stripe `cs_…`). */
+    /** Provider-specific session ID (e.g. Stripe `cs_…`). */
     sessionId: string;
-    /** Vom Frontend zu oeffnende Bezahl-URL. */
+    /** Payment URL to be opened by the frontend. */
     checkoutUrl: string;
-    /** Optional: Provider-Name (`stripe`, `dev-stub`) fuer Logging/Audit. */
+    /** Optional: provider name (`stripe`, `dev-stub`) for logging/audit. */
     provider?: string;
 }
 
 export type PaymentEventStatus = 'SUCCEEDED' | 'FAILED';
 
 /**
- * Adapter-Port: Idempotenz-Log fuer Payment-Webhooks. Stripe (und die meisten
- * anderen Provider) liefern Events at-least-once — der Service ruft
- * `tryClaim` als atomaren Race-Schutz auf, BEVOR er die finale Aktivierung
- * triggert.
+ * Adapter port: idempotency log for payment webhooks. Stripe (and most
+ * other providers) deliver events at-least-once — the service calls
+ * `tryClaim` as an atomic race guard BEFORE it triggers the final
+ * activation.
  */
 export interface PaymentEventLog {
     /**
-     * Versucht, einen Event-Datensatz mit `@unique` INSERT zu setzen. Liefert
-     * `true`, wenn er neu angelegt wurde (Webhook ist zum ersten Mal gesehen),
-     * `false`, wenn er bereits existiert (Duplikat → silently drop).
+     * Tries to insert an event record via `@unique` INSERT. Returns
+     * `true` if it was newly created (webhook seen for the first time),
+     * `false` if it already exists (duplicate → silently drop).
      *
-     * Implementierungen muessen einen DB-Unique-Constraint-Violation-Fehler
-     * (Prisma P2002) als `false` zurueckliefern.
+     * Implementations must return a DB unique-constraint-violation error
+     * (Prisma P2002) as `false`.
      */
     tryClaim(
         eventId: string,
@@ -197,13 +197,13 @@ export interface FinalActivationResult {
 }
 
 /**
- * Adapter-Port: orchestriert die finale Erzeugung von User + Tenant +
- * Subscription nach erfolgreicher Zahlung. App-spezifisch — jede App hat ihr
- * eigenes Schema (z. B. Tenant + TenantUser + Role + UserRole +
+ * Adapter port: orchestrates the final creation of User + Tenant +
+ * Subscription after successful payment. App-specific — each app has its
+ * own schema (e.g. Tenant + TenantUser + Role + UserRole +
  * Subscription).
  *
- * Implementierungen MUESSEN die Erzeugung in einer DB-Transaktion ausfuehren,
- * damit Teil-Erzeugungen bei Fehlern vollstaendig zurueckgerollt werden.
+ * Implementations MUST perform the creation in a DB transaction so that
+ * partial creations are fully rolled back on errors.
  */
 export interface ActivationOrchestrator {
     activate(pending: PendingRegistration): Promise<FinalActivationResult>;
@@ -231,11 +231,11 @@ export interface HandlePaymentEventResult {
 }
 
 export interface CleanupResult {
-    /** Anzahl der geloeschten PendingRegistration-Datensaetze. */
+    /** Number of deleted PendingRegistration records. */
     deleted: number;
     /**
-     * `true`, wenn das Batch-Limit erreicht wurde — der naechste Cron-Lauf
-     * uebernimmt den Rest. Verhindert Memory-Spikes bei grossen Backlogs.
+     * `true` if the batch limit was reached — the next cron run
+     * handles the rest. Prevents memory spikes on large backlogs.
      */
     moreAvailable: boolean;
 }
@@ -260,9 +260,9 @@ export type RegistrationAuditEventType =
     | 'LOGIN_ONBOARDING_REQUIRED';
 
 /**
- * Kontext-Informationen, die das Audit-Layer pro Event mitschreibt.
- * IP wird als gehashter Fingerprint erwartet — keine Klartext-IPs im
- * Audit-Log (DSGVO/Compliance), kein Email-Klartext (Account-Enumeration).
+ * Context information that the audit layer records per event.
+ * IP is expected as a hashed fingerprint — no plaintext IPs in the
+ * audit log (GDPR/compliance), no plaintext email (account enumeration).
  */
 export interface RegistrationAuditContext {
     ipHash?: string | null;
@@ -272,30 +272,30 @@ export interface RegistrationAuditContext {
 export interface RegistrationAuditEvent {
     eventType: RegistrationAuditEventType;
     /**
-     * Pending-Registration-ID, falls schon bekannt. Bei neutralen Antworten
-     * (z. B. `start` ohne neue Pending) `null`.
+     * Pending registration ID, if already known. `null` for neutral
+     * responses (e.g. `start` without a new pending record).
      */
     pendingRegistrationId: string | null;
     context?: RegistrationAuditContext;
     /**
-     * Freies Metadata-Feld. NIEMALS Email/Passwort/OTP im Klartext rein —
-     * Implementierungen muessen das selbst durchsetzen.
+     * Free-form metadata field. NEVER put email/password/OTP in plaintext —
+     * implementations must enforce that themselves.
      */
     metadata?: Record<string, unknown>;
 }
 
 /**
- * Adapter-Port: persistiert Audit-Events fuer den Registrierungs-Flow.
- * Implementierungen typisch gegen die jeweilige `AuditLog`-Tabelle der App.
+ * Adapter port: persists audit events for the registration flow.
+ * Implementations typically target the app's respective `AuditLog` table.
  *
- * Log-Versagen darf den Auth-Flow nicht abbrechen — Implementierungen sollen
- * Fehler intern fangen und nur loggen, nicht werfen.
+ * Log failures must not abort the auth flow — implementations should
+ * catch errors internally and only log them, not throw.
  */
 export interface RegistrationAuditLogger {
     log(event: RegistrationAuditEvent): Promise<void>;
 }
 
-/* ─── Konfigurator-Datenmodell (Onboarding-Step 3) ──────────────────────── */
+/* ─── Configurator data model (onboarding step 3) ───────────────────────── */
 
 export interface ConfiguratorModel {
     id: string;
@@ -303,48 +303,48 @@ export interface ConfiguratorModel {
     name: string;
     glyph: string;
     tagline: string;
-    /** Mapping auf den PlanCatalog (STARTER/STANDARD/PROFESSIONAL). */
+    /** Mapping to the PlanCatalog (STARTER/STANDARD/PROFESSIONAL). */
     planId: string;
     monthlyNet: number;
     yearlyNet: number;
     tags: string[];
-    /** Feature-Keys, die im Modell-Preis enthalten sind (PlanVersion.features). */
+    /** Feature keys included in the model price (PlanVersion.features). */
     includedFeatureKeys: string[];
     quotaBase: Record<string, number>;
     popular?: boolean;
 }
 
 /**
- * SPEC_V2 §11.1 M5.3 — wählbare BusinessTypeVersion im Konfigurator.
- * Eine Auswahl-Karte pro published BusinessTypeVersion des App-Projekts.
- * `businessTypeVersionId` wandert in `RegistrationConfigSelection` und
- * von dort beim Activate in `Subscription.businessTypeVersionId`.
+ * SPEC_V2 §11.1 M5.3 — selectable BusinessTypeVersion in the configurator.
+ * One selection card per published BusinessTypeVersion of the app project.
+ * `businessTypeVersionId` moves into `RegistrationConfigSelection` and
+ * from there, on activate, into `Subscription.businessTypeVersionId`.
  *
- * Optional vom App-Adapter befüllt — Apps ohne BusinessType-Katalog
- * lassen das Feld leer/undefined, der UI-Step bleibt
- * dann ausgeblendet.
+ * Optionally populated by the app adapter — apps without a BusinessType
+ * catalog leave the field empty/undefined, and the UI step then stays
+ * hidden.
  */
 export interface ConfiguratorBusinessType {
     businessTypeVersionId: string;
     businessTypeKey: string;
     label: string;
     description?: string | null;
-    /** Ausgewählte Bundle-Keys (Übersicht für UI), in Sortierreihenfolge. */
+    /** Selected bundle keys (overview for UI), in sort order. */
     bundleKeys: string[];
-    /** App-spezifische Sortierreihenfolge; aufsteigend (kleiner = oben). */
+    /** App-specific sort order; ascending (smaller = top). */
     sortOrder: number;
 }
 
 export interface ConfiguratorCatalog {
-    /** Faktor `yearlyNet = monthlyNet * cycleDiscount` (typisch 10 = 2 Monate gratis). */
+    /** Factor `yearlyNet = monthlyNet * cycleDiscount` (typically 10 = 2 months free). */
     cycleDiscount: number;
     currency: string;
     vatRate: number;
     models: ConfiguratorModel[];
     /**
-     * SPEC_V2 §11.1 M5.3 — published BusinessTypeVersions als optionale
-     * Vorauswahl. Apps ohne BusinessType-Katalog lassen das Feld weg
-     * oder geben `[]` zurück.
+     * SPEC_V2 §11.1 M5.3 — published BusinessTypeVersions as optional
+     * preselection. Apps without a BusinessType catalog omit the field
+     * or return `[]`.
      */
     businessTypes?: ConfiguratorBusinessType[];
 }
@@ -354,20 +354,20 @@ export interface RegistrationConfigSelection {
     billingCycle: 'MONTHLY' | 'YEARLY';
     appliedPromoCode: string | null;
     /**
-     * SPEC_V2 §11.1 M5: optionale BusinessTypeVersion-Wahl. Additiv zur
-     * Plan/Bundle-Auswahl — die Aggregation (§6) summiert Limits und vereinigt
-     * Features. Wenn `null`, läuft die Aktivierung wie vor M5.3 (reiner
-     * Plan-Pfad). Die ID wird vom Service gegen `RegistrationBusinessTypeLookup`
-     * validiert (published BusinessTypeVersions im selben projectKey).
+     * SPEC_V2 §11.1 M5: optional BusinessTypeVersion choice. Additive to the
+     * plan/bundle selection — the aggregation (§6) sums limits and merges
+     * features. When `null`, activation runs as before M5.3 (pure
+     * plan path). The ID is validated by the service against `RegistrationBusinessTypeLookup`
+     * (published BusinessTypeVersions in the same projectKey).
      */
     businessTypeVersionId?: string | null;
     /**
-     * P11.4 (METAMODELL §17a): vorgewählter CheckoutOffer aus der Webseite
-     * (`?offer=<id>`-Parameter). Wandert in `PendingRegistration.configJson`,
-     * wird vom `ActivationOrchestrator` ausgelesen, um den Offer beim
-     * Onboarding-Aktivieren zu konsumieren (`status=consumed`) und in
-     * `Subscription.packageSnapshot` einzufrieren. Wenn `null`, läuft die
-     * Aktivierung ohne Offer-Snapshot.
+     * P11.4 (METAMODELL §17a): preselected CheckoutOffer from the website
+     * (`?offer=<id>` parameter). Moves into `PendingRegistration.configJson`,
+     * is read by the `ActivationOrchestrator` to consume the offer during
+     * onboarding activation (`status=consumed`) and freeze it into
+     * `Subscription.packageSnapshot`. When `null`, activation runs
+     * without an offer snapshot.
      */
     offerId?: string | null;
 }
@@ -404,29 +404,29 @@ export interface SaveRegistrationConfigResult {
 }
 
 /**
- * Adapter-Port: liefert den (App-spezifischen) Konfigurator-Catalog.
+ * Adapter port: provides the (app-specific) configurator catalog.
  *
- * Empfohlene Implementierung: `ConfiguratorCatalogBuilder` aus
- * `saas-platform-nest/billing`. Der Builder kombiniert SuperAdmin-DB-Daten
- * (live PlanVersions) mit einer App-lokalen Plan-Marketing-Map.
+ * Recommended implementation: `ConfiguratorCatalogBuilder` from
+ * `saas-platform-nest/billing`. The builder combines SuperAdmin DB data
+ * (live PlanVersions) with an app-local plan marketing map.
  */
 export interface RegistrationConfiguratorLookup {
     getCatalog(): Promise<ConfiguratorCatalog>;
 }
 
 /**
- * SPEC_V2 §11.1 M5.3 — schmaler Adapter-Port, mit dem der
- * `PendingRegistrationService` eine vom Tenant gewählte
- * `businessTypeVersionId` validiert (Existenz, projectKey-Match,
- * Live-Status). Implementierung in der App (Prisma-Adapter über
- * `BusinessTypeRepository.listVersions` mit `publishedAt != null`).
+ * SPEC_V2 §11.1 M5.3 — narrow adapter port that the
+ * `PendingRegistrationService` uses to validate a tenant-chosen
+ * `businessTypeVersionId` (existence, projectKey match,
+ * live status). Implemented in the app (Prisma adapter via
+ * `BusinessTypeRepository.listVersions` with `publishedAt != null`).
  *
- * Die Validation ist „weich": ist kein Lookup konfiguriert, wird die
- * Selection ungeprüft durchgereicht — so bleiben Apps ohne
- * BusinessType-Katalog ohne Setup-Zwang.
+ * The validation is "soft": if no lookup is configured, the
+ * selection is passed through unchecked — so apps without a
+ * BusinessType catalog remain free of setup obligation.
  */
 export interface RegistrationBusinessTypeLookup {
-    /** Nur **published** Versions liefern; `null` wenn unbekannt/draft/superseded. */
+    /** Return only **published** versions; `null` if unknown/draft/superseded. */
     findPublishedVersion(
         businessTypeVersionId: string,
     ): Promise<RegistrationBusinessTypeVersionView | null>;
@@ -439,45 +439,45 @@ export interface RegistrationBusinessTypeVersionView {
     label: string;
     version: number;
     /**
-     * Informativ: zu welchem Projekt die Version gehört. Den Scope-Filter
-     * `projectKey === <App-Projekt>` setzt der Adapter selbst — Apps geben
-     * in `findPublishedVersion` immer nur Versions ihres eigenen projectKey
-     * zurück.
+     * Informational: which project the version belongs to. The scope filter
+     * `projectKey === <app project>` is applied by the adapter itself — apps
+     * only ever return versions of their own projectKey in
+     * `findPublishedVersion`.
      */
     projectKey: string;
 }
 
 /**
- * Wire-Format einer live-PlanVersion (latest published per planId).
- * Liest sich aus der DB-Tabelle `plan_versions`.
+ * Wire format of a live PlanVersion (latest published per planId).
+ * Read from the DB table `plan_versions`.
  */
 export interface ConfiguratorPlanVersionRow {
     planId: string;
     version: number;
     monthlyNet: number;
     yearlyNet: number;
-    /** Feature-Keys, die im Plan-Preis enthalten sind. */
+    /** Feature keys included in the plan price. */
     features: string[];
-    /** Quota-Schluessel → Basis-Wert (`-1` = unbegrenzt). */
+    /** Quota key → base value (`-1` = unlimited). */
     quotas: Record<string, number>;
     marketed: boolean;
 }
 
 /**
- * Adapter-Port: liest die Konfigurator-Quellen aus der DB (SuperAdmin
- * pflegt sie). Konsumenten nutzen typischerweise eine Prisma-Implementierung.
+ * Adapter port: reads the configurator sources from the DB (SuperAdmin
+ * maintains them). Consumers typically use a Prisma implementation.
  */
 export interface ConfiguratorSourcesLookup {
     listLivePlans(): Promise<ConfiguratorPlanVersionRow[]>;
 }
 
 /**
- * App-lokale Marketing-Daten fuer den Plan-Auswahl-Bereich des Konfigurators.
- * Der SuperAdmin speichert nur PlanId/Preise — die "Modell"-Praesentation
- * (Vereinsname, Glyph, Tagline) ist branding und lebt in der App.
+ * App-local marketing data for the plan selection area of the configurator.
+ * The SuperAdmin stores only PlanId/prices — the "model" presentation
+ * (club name, glyph, tagline) is branding and lives in the app.
  */
 export interface ConfiguratorPlanMarketing {
-    /** PlanId aus dem SuperAdmin (z. B. `STARTER`). */
+    /** PlanId from the SuperAdmin (e.g. `STARTER`). */
     planId: string;
     code: string;
     name: string;
@@ -488,21 +488,21 @@ export interface ConfiguratorPlanMarketing {
 }
 
 /**
- * Adapter-Port: liefert die App-spezifischen Marketing-Daten (Plan-Names,
- * Preis-Parameter). Wird typischerweise von einer statischen TS-Konstante
- * in der App bereitgestellt.
+ * Adapter port: provides the app-specific marketing data (plan names,
+ * price parameters). Typically supplied by a static TS constant
+ * in the app.
  */
 export interface ConfiguratorMarketingProvider {
     listPlanMarketing(): ConfiguratorPlanMarketing[];
-    /** Faktor `yearlyNet = monthlyNet * cycleDiscount`. Default `10`. */
+    /** Factor `yearlyNet = monthlyNet * cycleDiscount`. Default `10`. */
     getCycleDiscount(): number;
     getVatRate(): number;
     getCurrency(): string;
 }
 
 /**
- * Adapter-Port: Promo-Code-Preview gegen einen Brutto-Subtotal.
- * Wrapt typischerweise `saas-platform-nest/promo:PromoCodesService.preview()`.
+ * Adapter port: promo-code preview against a gross subtotal.
+ * Typically wraps `saas-platform-nest/promo:PromoCodesService.preview()`.
  */
 export interface RegistrationPromoPreview {
     preview(params: {
@@ -510,7 +510,7 @@ export interface RegistrationPromoPreview {
         planId: string;
         billingCycle: 'MONTHLY' | 'YEARLY';
         subtotalGross: number;
-        /** Optional fuer firstTimeCustomersOnly-Pruefung. */
+        /** Optional for the firstTimeCustomersOnly check. */
         email?: string;
     }): Promise<{
         valid: boolean;
@@ -521,27 +521,27 @@ export interface RegistrationPromoPreview {
     }>;
 }
 
-/** Default-TTL fuer signierte Resume-Tokens (60 min). */
+/** Default TTL for signed resume tokens (60 min). */
 export const REGISTRATION_RESUME_TTL_MINUTES = 60;
 
 /**
- * Adapter-Port: signiert / verifiziert Resume-Tokens fuer den
- * "Registrierung fortsetzen"-Flow (Faelle C/D nach Spec).
+ * Adapter port: signs / verifies resume tokens for the
+ * "resume registration" flow (cases C/D per spec).
  *
- * Token-Payload ist Provider-Detail (typisch JWT) — der Service kennt nur
- * `pendingRegistrationId` als Inhalt und `ttlMinutes` als Schliessfrist.
+ * Token payload is a provider detail (typically JWT) — the service only knows
+ * `pendingRegistrationId` as content and `ttlMinutes` as the expiry window.
  */
 export interface RegistrationResumeTokenSigner {
     sign(params: { pendingRegistrationId: string; ttlMinutes?: number }): Promise<string>;
     /**
-     * Verifiziert das Token. Wirft, wenn Signatur oder Ablauf nicht passen
-     * — die Service-Schicht uebersetzt das in eine BadRequestException mit
-     * Code `RESUME_TOKEN_INVALID`.
+     * Verifies the token. Throws if signature or expiry do not match
+     * — the service layer translates this into a BadRequestException with
+     * code `RESUME_TOKEN_INVALID`.
      */
     verify(token: string): Promise<{ pendingRegistrationId: string }>;
 }
 
-/** Adapter-Port: Versand der Resume-Link-Mail an den User. */
+/** Adapter port: sends the resume-link email to the user. */
 export interface RegistrationResumeDelivery {
     sendResumeEmail(params: {
         to: string;
@@ -552,25 +552,25 @@ export interface RegistrationResumeDelivery {
 }
 
 /**
- * Eingabe an `PendingRegistrationService.resumeWithToken()` — das Frontend
- * uebergibt den Token aus der `?resume=<jwt>`-Query.
+ * Input to `PendingRegistrationService.resumeWithToken()` — the frontend
+ * passes the token from the `?resume=<jwt>` query.
  */
 export interface ResumeRegistrationInput {
     token: string;
     /**
-     * Base-URL der App, gegen die der Resume-Link generiert wird
-     * (z. B. `https://app.example.com`). Wird nur an die Mail-Delivery
-     * weitergereicht, der Service selbst hostet keinen Link.
+     * Base URL of the app against which the resume link is generated
+     * (e.g. `https://app.example.com`). Only forwarded to the mail delivery,
+     * the service itself hosts no link.
      */
     resumeBaseUrl?: string;
 }
 
 /**
- * Public-safe Snapshot einer PendingRegistration fuer den Resume-Flow:
- * Frontend befuellt die abgeschlossenen Onboarding-Steps mit diesen Daten.
+ * Public-safe snapshot of a PendingRegistration for the resume flow:
+ * the frontend fills the completed onboarding steps with this data.
  *
- * Bewusst OHNE `passwordHash`, `otpHash`, `otpExpiresAt` — diese duerfen
- * niemals an den Client.
+ * Deliberately WITHOUT `passwordHash`, `otpHash`, `otpExpiresAt` — these must
+ * never go to the client.
  */
 export interface PendingRegistrationSnapshot {
     tenantName: string;
@@ -584,7 +584,7 @@ export interface PendingRegistrationSnapshot {
     currentStep: RegistrationStep;
     emailVerifiedAt: string | null;
     selectedPlanId: string | null;
-    /** Konfigurator-Auswahl-Snapshot fuer Step-3-Resume. */
+    /** Configurator selection snapshot for step-3 resume. */
     config: RegistrationConfigSelection | null;
     billingCycle: 'MONTHLY' | 'YEARLY' | null;
     appliedPromoCode: string | null;
@@ -598,18 +598,18 @@ export interface ResumeRegistrationResult {
     snapshot: PendingRegistrationSnapshot;
 }
 
-/** Adapter-Port: Payment-Provider (Stripe, Dev-Stub, Mollie, ...). */
+/** Adapter port: payment provider (Stripe, Dev-Stub, Mollie, ...). */
 export interface PaymentProvider {
     /**
-     * Legt eine Checkout-Session beim Payment-Provider an und liefert die URL,
-     * auf die das Frontend redirecten soll.
+     * Creates a checkout session at the payment provider and returns the URL
+     * that the frontend should redirect to.
      *
-     * @param params.pendingRegistrationId Wird als `client_reference_id` (o. AE.)
-     *   im Provider gespeichert — der Webhook braucht ihn zur Rueckverknuepfung.
-     * @param params.planId Der gewaehlte Plan (Stripe-Price/Product-Mapping liegt
-     *   im Adapter).
-     * @param params.successUrl Wohin nach erfolgreicher Zahlung.
-     * @param params.cancelUrl Wohin bei Abbruch.
+     * @param params.pendingRegistrationId Stored as `client_reference_id` (or similar)
+     *   in the provider — the webhook needs it to link back.
+     * @param params.planId The chosen plan (Stripe price/product mapping lives
+     *   in the adapter).
+     * @param params.successUrl Where to go after successful payment.
+     * @param params.cancelUrl Where to go on cancellation.
      */
     createCheckoutSession(params: {
         pendingRegistrationId: string;
@@ -620,7 +620,7 @@ export interface PaymentProvider {
     }): Promise<CheckoutSession>;
 }
 
-/** Adapter-Port: OTP-Versand per E-Mail (oder anderem Kanal). */
+/** Adapter port: OTP delivery via email (or another channel). */
 export interface RegistrationOtpDelivery {
     sendVerificationOtp(params: {
         to: string;
@@ -630,7 +630,7 @@ export interface RegistrationOtpDelivery {
     }): Promise<void>;
 }
 
-/** Wire-Format fuer einen oeffentlich waehlbaren Plan im Onboarding-Step 3. */
+/** Wire format for a publicly selectable plan in onboarding step 3. */
 export interface PublicSignupPlan {
     id: string;
     name?: string;
@@ -642,24 +642,24 @@ export interface PublicSignupPlan {
 }
 
 /**
- * Adapter-Port: liefert die Plan-Auswahl fuer Step 3 (Paketauswahl).
+ * Adapter port: provides the plan selection for step 3 (package selection).
  *
- * Implementierung pruefe BEIDES:
- *  - Plan ist im Catalog vermarktbar (`marketed !== false`).
- *  - Es existiert eine publizierte, nicht-superseded `PlanVersion` in der DB
- *    (sonst kann die finale `Subscription` keinen `planVersionId` setzen).
+ * Implementation must check BOTH:
+ *  - Plan is marketable in the catalog (`marketed !== false`).
+ *  - A published, non-superseded `PlanVersion` exists in the DB
+ *    (otherwise the final `Subscription` cannot set a `planVersionId`).
  */
 export interface PlanCatalogLookup {
-    /** Liste aller Public-Signup-faehigen Plaene; leer, wenn keine. */
+    /** List of all public-signup-capable plans; empty if none. */
     listPublicSignupPlans(): Promise<PublicSignupPlan[]>;
-    /** Detail-Lookup eines Plans. null, wenn nicht waehlbar (z. B. ENTERPRISE). */
+    /** Detail lookup of a plan. null if not selectable (e.g. ENTERPRISE). */
     findPublicSignupPlan(planId: string): Promise<PublicSignupPlan | null>;
 }
 
-/** Eingabe an PendingRegistrationService.start(). */
+/** Input to PendingRegistrationService.start(). */
 export interface StartRegistrationInput {
     tenantName: string;
-    /** Wenn null/undefined wird er aus tenantName generiert. */
+    /** If null/undefined it is generated from tenantName. */
     tenantSlug?: string | null;
     salutation?: string | null;
     firstName: string;
@@ -669,9 +669,9 @@ export interface StartRegistrationInput {
     locale?: string;
 }
 
-/** Ergebnis-Vertrag fuer den (account-enumeration-sicheren) Start-Call. */
+/** Result contract for the (account-enumeration-safe) start call. */
 export interface StartRegistrationResult {
-    /** Immer true. Account-Enumeration-Schutz: keine Information ueber DB-Zustand nach aussen. */
+    /** Always true. Account-enumeration protection: no information about DB state to the outside. */
     neutral: true;
 }
 

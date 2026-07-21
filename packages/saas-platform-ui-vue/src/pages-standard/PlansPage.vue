@@ -16,7 +16,7 @@
         </div>
 
         <template v-else>
-            <!-- Default: List-Ansicht (Plan-Simulation) + Bundle-Übersicht -->
+            <!-- Default: list view (plan simulation) + Bundle overview -->
             <template v-if="mode === 'list'">
                 <PlanList
                     :plans="plans"
@@ -40,7 +40,7 @@
                 />
             </template>
 
-            <!-- V1 Matrix: Komponenten-Vergleich -->
+            <!-- V1 matrix: component comparison -->
             <PlanMatrix
                 v-else-if="mode === 'matrix'"
                 :plans="plans"
@@ -57,7 +57,7 @@
                 @view-catalog="mode = 'list'"
             />
 
-            <!-- Plan-Detail: Drill-in für einen Plan (Plan-Simulation) -->
+            <!-- Plan detail: drill-in for a single Plan (plan simulation) -->
             <PlanDetail
                 v-else-if="mode === 'cockpit' && selectedPlan"
                 :plan="selectedPlan"
@@ -78,7 +78,7 @@
                 @update-plan="onUpdatePlanFromDetail"
             />
 
-            <!-- V2 Splitview-Editor als Vollbild-Screen (Plan-Simulation) -->
+            <!-- V2 split-view editor as a full-screen view (plan simulation) -->
             <PlanVersionEditor
                 v-else-if="mode === 'editor' && draftEditing && selectedPlan"
                 :plan-key="selectedPlan.planKey"
@@ -96,7 +96,7 @@
                 @cancel="onCancelEditor"
             />
 
-            <!-- V3 Review & Publish — Wizard-Schritt 3 (Plan-Simulation) -->
+            <!-- V3 Review & Publish — wizard step 3 (plan simulation) -->
             <PlanReview
                 v-else-if="mode === 'review' && reviewDraft && selectedPlan"
                 :plan="selectedPlan"
@@ -117,7 +117,7 @@
 
         <PlansPageToast :message="toastMessage" />
 
-        <!-- Plan-Stamm Anlegen (V1 Plan-Simulation Schritt 1) -->
+        <!-- Create Plan master record (V1 plan simulation step 1) -->
         <PlanCreateDialog
             v-model="createDialogOpen"
             :available-templates="availableTemplates"
@@ -195,11 +195,11 @@ import PlanBundleOverview from './plans-page/PlanBundleOverview.vue';
 import PlansPageToast from './plans-page/PlansPageToast.vue';
 import type { PlanArchiveTarget, PlanDiscardTarget, RegressionChange } from './plans-page/types.js';
 
-// SuperAdmin-Plan-Verwaltung — V1 Matrix-Übersicht als Default-Sicht
-// (alle Pläne nebeneinander), Drill-In ins V3 Cockpit für einen einzelnen
-// Plan (Versionen-Timeline + Diff + Tenant-Impact + Audit), und V2
-// Splitview-Editor als Modal für Draft-Bearbeitung. Der Plan-Stamm-Dialog
-// (Anlage + Edit) bleibt unverändert.
+// SuperAdmin plan management — V1 matrix overview as the default view
+// (all Plans side by side), drill-in into the V3 cockpit for a single
+// Plan (versions timeline + diff + Tenant impact + audit), and V2
+// split-view editor as a modal for draft editing. The plan master dialog
+// (create + edit) stays unchanged.
 
 interface DiscoveryFeature {
     featureKey: string;
@@ -232,18 +232,18 @@ const props = defineProps<{
     http?: HttpClient;
     getAuthToken?: () => string | null;
     /**
-     * Optional: Feature-Label-Overrides. Die Labels kommen seit der
-     * Catalog-Entry-Anbindung standardmäßig aus den FeatureCatalogEntries
-     * (inkl. i18n); diese Prop überschreibt einzelne Keys (z. B. group).
+     * Optional: feature label overrides. Since the catalog entry
+     * integration, labels come by default from the FeatureCatalogEntries
+     * (incl. i18n); this prop overrides individual keys (e.g. group).
      */
     featureRegistry?: Record<string, { label?: string; group?: string }>;
-    /** Anzeige-Sprache für Feature-Labels aus den Catalog-Entries. */
+    /** Display language for feature labels from the catalog entries. */
     displayLocale?: string;
-    /** Akzentfarbe pro Plan-Key für Matrix + Cockpit-Header. */
+    /** Accent color per plan key for the matrix + cockpit header. */
     planAccents?: Record<string, string>;
-    /** Tenant-Anzahl pro Plan-Key für die Matrix-Header. */
+    /** Tenant count per plan key for the matrix headers. */
     tenantCountsByPlanKey?: Record<string, number>;
-    /** Optional: Lader für Audit-Log eines Plans (Cockpit). */
+    /** Optional: loader for a Plan's audit log (cockpit). */
     loadPlanAudit?: (planId: string) => Promise<AuditRow[]>;
 }>();
 
@@ -265,23 +265,23 @@ const {
     hardDelete,
 } = composable;
 
-// ─── View-Mode + Selection ───
-// Plan-Simulation-Flow: list → cockpit (Plan-Detail); Editor („Draft
-// bearbeiten") → „Weiter · Review" → review („Review & Publish").
-// Der Editor persistiert NICHT — gespeichert wird erst im Review-Screen
-// (per „Als Draft speichern" oder „Publish").
+// ─── View mode + selection ───
+// Plan simulation flow: list → cockpit (plan detail); editor ("Draft
+// bearbeiten") → "Weiter · Review" → review ("Review & Publish").
+// The editor does NOT persist — saving happens only in the review screen
+// (via "Als Draft speichern" or "Publish").
 type Mode = 'list' | 'matrix' | 'cockpit' | 'editor' | 'review';
 const mode = ref<Mode>('list');
 const selectedPlan = ref<PlanRow | null>(null);
 
-// Synthetische (noch nicht persistierte) PlanVersion aus dem Editor-Formular,
-// die der Review-Screen anzeigt. Persistiert wird erst bei einer
-// Review-Aktion.
+// Synthetic (not yet persisted) PlanVersion from the editor form that the
+// review screen displays. Persisted only on a review
+// action.
 const reviewDraft = ref<PlanVersionRow | null>(null);
-// Gemeinsamer Fehlertext für Review-Aktionen (Speichern + Publish).
+// Shared error text for review actions (save + publish).
 const reviewError = ref<string | null>(null);
 
-// NEU-Highlight nach Plan-Create / Version-Publish (siehe Plan-Simulation).
+// NEW highlight after plan create / version publish (see plan simulation).
 const highlightPlanKey = ref<string | null>(null);
 const toastMessage = ref<string | null>(null);
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -303,8 +303,8 @@ function flashHighlight(planKey: string, ms = 4500): void {
     }, ms);
 }
 
-// Prop bleibt Override; ohne Prop greifen die vom use-plans geladenen
-// plattformweiten Zähler (GET …/catalog/plans/tenant-counts).
+// Prop stays an override; without the prop the platform-wide counters
+// loaded by use-plans apply (GET …/catalog/plans/tenant-counts).
 const tenantCountsByPlanKey = computed<Record<string, number>>(
     () => props.tenantCountsByPlanKey ?? loadedTenantCounts.value,
 );
@@ -325,10 +325,10 @@ function defaultAccent(planKey: string): string {
     return DEFAULT_ACCENTS[planKey] ?? '#2563eb';
 }
 
-// ─── Plan-Stamm-Anlage (V1 Plan-Simulation Schritt 1) ───
+// ─── Plan master creation (V1 plan simulation step 1) ───
 const createDialogOpen = ref(false);
 const creatingPlan = ref(false);
-// Wenn aus „Plan klonen" gestartet, ist das die Vorgabe-Basis (Plan-Key).
+// When started from "Plan klonen", this is the default basis (plan key).
 const cloneFromPlanKey = ref<string | null>(null);
 
 const existingPlanKeys = computed<string[]>(() => plans.value.map((p) => p.planKey));
@@ -395,16 +395,16 @@ async function onCreateSubmit(payload: PlanCreateSubmit): Promise<void> {
         openCreateDraftWithPrefill({
             features: payload.initialFeatures,
             quotas: payload.initialQuotas,
-            // Bundles aus dem Stamm-Klon werden in `features` bereits abgebildet
-            // (Set-Union). Aktive Bundle-Visualisierung im Editor erkennt sie
-            // automatisch, sobald alle Bundle-Features im Korb liegen.
+            // Bundles from the master clone are already represented in `features`
+            // (set union). The active Bundle visualization in the editor detects
+            // them automatically once all Bundle features are in the basket.
         });
     } finally {
         creatingPlan.value = false;
     }
 }
 
-// ─── Versionen pro Plan (Matrix lädt alle, Cockpit hat eine aktive Auswahl) ───
+// ─── Versions per Plan (matrix loads all, cockpit has one active selection) ───
 const versionsByPlanId = ref<Record<string, PlanVersionRow[]>>({});
 const bulkVersionsLoading = ref(false);
 
@@ -436,7 +436,7 @@ async function reloadAllVersions(): Promise<void> {
     }
 }
 
-// ─── Cockpit-Versionen (für den Drill-In) ───
+// ─── Cockpit versions (for the drill-in) ───
 const versions = ref<PlanVersionRow[]>([]);
 const planVersions = shallowRef<UsePlanVersionsResult | null>(null);
 
@@ -463,7 +463,7 @@ async function reloadCockpitVersions(): Promise<void> {
     };
 }
 
-// ─── Cockpit-Audit-Log (optional) ───
+// ─── Cockpit audit log (optional) ───
 const auditRows = ref<AuditRow[]>([]);
 const loadingAudit = ref(false);
 
@@ -482,12 +482,12 @@ async function loadAuditFor(plan: PlanRow): Promise<void> {
     }
 }
 
-// ─── Impact pro Version (heuristisch aus Tenant-Counts) ───
+// ─── Impact per version (heuristic from Tenant counts) ───
 const impactByVersion = computed<Record<number, number>>(() => {
-    // Wir kennen pro Plan nur den Tenant-Total. Ohne ein dediziertes
-    // „Tenants pro Version"-Endpoint zeigen wir den Total auf der aktiven
-    // Live-Version und 0 sonst. Konsumenten können das später via Prop
-    // ersetzen, sobald die Daten verfügbar sind.
+    // We only know the Tenant total per Plan. Without a dedicated
+    // "Tenants per version" endpoint we show the total on the active
+    // live version and 0 otherwise. Consumers can replace this later via a
+    // prop once the data is available.
     const result: Record<number, number> = {};
     if (!selectedPlan.value) return result;
     const liveVersion =
@@ -505,15 +505,15 @@ async function onOpenPlan(plan: PlanRow): Promise<void> {
     await Promise.all([loadCockpitVersions(plan), loadAuditFor(plan)]);
 }
 
-// „Neue Version" direkt aus der List-Row (Plan-Simulation: Bleistift-Icon).
-// Springt ins Cockpit + öffnet den V2-Editor mit der aktuellen Live-Version
-// als Basis. Kein Create-Modal dazwischen.
+// "Neue Version" directly from the list row (plan simulation: pencil icon).
+// Jumps into the cockpit + opens the V2 editor with the current live version
+// as the basis. No create modal in between.
 async function onNewVersionFromList(plan: PlanRow, basis: PlanVersionRow): Promise<void> {
     selectedPlan.value = plan;
     mode.value = 'cockpit';
     await Promise.all([loadCockpitVersions(plan), loadAuditFor(plan)]);
-    // Editor mit Basis-Klon — neue Version (nächste version-Nummer wird
-    // im Editor selbst aus der vorhandenen Liste berechnet).
+    // Editor with a basis clone — new version (the next version number is
+    // computed in the editor itself from the existing list).
     openCreateDraftWithPrefill({
         features: [...basis.features],
         quotas: quotasOfVersion(basis),
@@ -523,9 +523,9 @@ async function onNewVersionFromList(plan: PlanRow, basis: PlanVersionRow): Promi
     });
 }
 
-// „Draft bearbeiten" aus der List-Sub-Row: lädt das Cockpit-Composable
-// für den Plan (damit persistDraft → updateDraft die richtige planVersions-
-// Instanz nutzt) und öffnet den Editor im Edit-Modus (editingId gesetzt).
+// "Draft bearbeiten" from the list sub-row: loads the cockpit composable
+// for the Plan (so persistDraft → updateDraft uses the correct planVersions
+// instance) and opens the editor in edit mode (editingId set).
 async function onEditDraftFromList(plan: PlanRow, draft: PlanVersionRow): Promise<void> {
     selectedPlan.value = plan;
     mode.value = 'cockpit';
@@ -541,8 +541,8 @@ function onBackToList(): void {
     auditRows.value = [];
 }
 
-// Inline-Rename des Plan-Titels aus dem Plan-Detail-Screen (nur bei
-// offenem Draft erlaubt — die UI zeigt den Edit-Button entsprechend).
+// Inline rename of the Plan title from the plan detail screen (only allowed
+// with an open draft — the UI shows the edit button accordingly).
 async function onUpdatePlanFromDetail(patch: { label: string }): Promise<void> {
     if (!selectedPlan.value) return;
     try {
@@ -554,14 +554,14 @@ async function onUpdatePlanFromDetail(patch: { label: string }): Promise<void> {
     }
 }
 
-// ─── Discovery + Bundles für den Editor ───
+// ─── Discovery + Bundles for the editor ───
 const availableFeatures = ref<DiscoveryFeature[]>([]);
 const availableQuotas = ref<DiscoveryQuota[]>([]);
 const availableBundles = ref<BundleEntry[]>([]);
 
-// Kuratierte Feature-Labels (FeatureCatalogEntry inkl. i18n) als Basis,
-// Wrapper-Overrides gewinnen je Key — gleiche Auflösung wie BundlesPage,
-// damit alle Konsumenten-AdminUIs identisch beschriften.
+// Curated feature labels (FeatureCatalogEntry incl. i18n) as the basis,
+// wrapper overrides win per key — same resolution as BundlesPage, so that
+// all consumer admin UIs label things identically.
 const featureCatalogEntries = ref<FeatureCatalogEntryRow[]>([]);
 const featureRegistry = computed<Record<string, { label?: string; group?: string }>>(() => ({
     ...buildFeatureRegistry(featureCatalogEntries.value, props.displayLocale ?? CATALOG_DEFAULT_LOCALE),
@@ -626,7 +626,7 @@ async function loadEditorSources(): Promise<void> {
                         bundleKey: body.bundle.bundleKey,
                         label: body.bundle.label,
                         features: live?.features ?? [],
-                        // compatibility.planIds enthält Plan-KEYS (s. public-marketing-catalog).
+                        // compatibility.planIds contains plan KEYS (see public-marketing-catalog).
                         compatiblePlanKeys: live?.compatibility?.planIds ?? [],
                     } as BundleEntry;
                 }),
@@ -638,7 +638,7 @@ async function loadEditorSources(): Promise<void> {
     }
 }
 
-// ─── Draft-Editor (V2) — Vollbild-Screen, kein Modal ───
+// ─── Draft editor (V2) — full-screen view, no modal ───
 const draftSaving = ref(false);
 const draftSaveError = ref<string | null>(null);
 
@@ -651,8 +651,8 @@ interface ApiErrorShape {
     };
 }
 
-// Übersetzt eine PlansApiError (oder generischen Fehler) aus dem
-// Draft-Save in eine verständliche, anzeigbare Meldung.
+// Translates a PlansApiError (or generic error) from the draft save into a
+// clear, displayable message.
 function describeDraftSaveError(err: unknown): string {
     const e = err as ApiErrorShape;
     const status = e?.status;
@@ -672,7 +672,7 @@ function describeDraftSaveError(err: unknown): string {
         return 'Diese Version ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Publish erfordert Force-Regressive — beim Speichern als Draft sollte das nicht auftreten.';
     }
     if (status === 422 && body?.message) {
-        // z. B. „Plan 'BASIC' hat bereits eine Draft-Version v4 …"
+        // e.g. "Plan 'BASIC' hat bereits eine Draft-Version v4 …"
         return body.message;
     }
     if (status !== undefined) {
@@ -750,15 +750,15 @@ function openEditDraft(row: PlanVersionRow): void {
     mode.value = 'editor';
 }
 
-// Editor abbrechen → zurück ins Cockpit (oder zur Liste, falls kein Plan).
+// Cancel the editor → back to the cockpit (or to the list if no Plan).
 function onCancelEditor(): void {
     draftEditing.value = null;
     mode.value = selectedPlan.value ? 'cockpit' : 'list';
 }
 
-// Vorgänger-Version für „Diff vs. Vorgänger" im Editor: die published
-// Version mit der höchsten Versionsnummer (= der Stand, den der Draft
-// beim Publish ablösen würde). Null bei v1.
+// Predecessor version for the "Diff vs. Vorgänger" view in the editor: the
+// published version with the highest version number (= the state the draft
+// would supersede on publish). Null for v1.
 const editorPredecessor = computed<{
     version: number;
     features: string[];
@@ -796,9 +796,9 @@ interface EditorFormPayload {
     validUntil: string | null;
 }
 
-// Editor-Button „Weiter · Review" → wechselt in den Review-Screen, OHNE zu
-// persistieren. Das Formular wird als synthetische (noch nicht gespeicherte)
-// PlanVersion gehalten; gespeichert wird erst im Review.
+// Editor button "Weiter · Review" → switches to the review screen WITHOUT
+// persisting. The form is held as a synthetic (not yet saved) PlanVersion;
+// saving happens only in the review.
 function onEditorNext(payload: EditorFormPayload): void {
     if (!selectedPlan.value || !draftEditing.value) return;
     const nowIso = new Date().toISOString();
@@ -830,15 +830,15 @@ function onEditorNext(payload: EditorFormPayload): void {
 }
 
 // ─── Review & Publish ───
-// Vorgänger (aktuelle Live-Version) für die Diff-/Impact-Anzeige im Review.
+// Predecessor (current live version) for the diff/impact display in the review.
 const reviewPredecessor = computed<PlanVersionRow | null>(() => {
     const live = versions.value.filter((v) => v.publishedAt !== null && v.supersededAt === null);
     if (live.length === 0) return null;
     return live.reduce((a, b) => (a.version > b.version ? a : b));
 });
 
-// „Zurück" — zurück in den Editor, mit den im Review gezeigten (noch nicht
-// gespeicherten) Formularwerten, damit keine Eingabe verloren geht.
+// "Zurück" — back to the editor, with the form values shown in the review
+// (not yet saved), so no input is lost.
 function onReviewBack(): void {
     if (!reviewDraft.value || !draftEditing.value) {
         mode.value = selectedPlan.value ? 'cockpit' : 'list';
@@ -863,8 +863,8 @@ function onReviewBack(): void {
     mode.value = 'editor';
 }
 
-// Persistiert den Review-Draft (createDraft bei neuer, updateDraft bei
-// bestehender Version). Erst hier geht das Formular an die API.
+// Persists the review draft (createDraft for a new version, updateDraft for
+// an existing one). Only here does the form go to the API.
 async function persistDraft(): Promise<PlanVersionRow | null> {
     if (!planVersions.value || !draftEditing.value || !reviewDraft.value) return null;
     const d = reviewDraft.value;
@@ -884,16 +884,16 @@ async function persistDraft(): Promise<PlanVersionRow | null> {
         result = await planVersions.value.updateDraft(draftEditing.value.editingId, body);
     } else {
         result = await planVersions.value.createDraft(body);
-        // Draft hat jetzt eine ID — merken, falls direkt danach publiziert
-        // wird (sonst zweiter createDraft → „hat bereits eine Draft").
+        // Draft now has an ID — remember it in case it's published right
+        // after (otherwise a second createDraft → "hat bereits eine Draft").
         draftEditing.value = { ...draftEditing.value, editingId: result.planVersion.id };
     }
     await reloadCockpitVersions();
     return result.planVersion;
 }
 
-// „Als Draft speichern" — persistiert den Draft und verlässt den Wizard
-// (zurück ins Plan-Detail), ohne zu publishen.
+// "Als Draft speichern" — persists the draft and leaves the wizard
+// (back to the plan detail) without publishing.
 async function onReviewSaveExit(): Promise<void> {
     if (draftSaving.value || publishing.value) return;
     draftSaving.value = true;
@@ -925,7 +925,7 @@ async function onReviewPublish(payload: {
     publishing.value = true;
     reviewError.value = null;
     try {
-        // Erst persistieren (Draft existiert serverseitig noch nicht), dann publishen.
+        // Persist first (the draft doesn't exist server-side yet), then publish.
         const saved = await persistDraft();
         if (!saved) return;
         const result = await planVersions.value.publish(saved.id, {
@@ -950,7 +950,7 @@ async function onReviewPublish(payload: {
     }
 }
 
-// ─── Archive / Hard-Delete Plan (Trash-Icon, wenn kein offener Draft) ───
+// ─── Archive / hard-delete Plan (trash icon when there's no open draft) ───
 const archiveOpen = ref(false);
 const archiving = ref(false);
 const archiveError = ref<string | null>(null);
@@ -968,9 +968,9 @@ async function executeArchive(): Promise<void> {
     archiving.value = true;
     archiveError.value = null;
     try {
-        // Hard-delete ist der einzige Pfad: published Versionen blockieren das
-        // Löschen serverseitig, drafts müssen vorher über die Discard-Route
-        // weg. Beides bricht das UI schon vor diesem Aufruf ab.
+        // Hard-delete is the only path: published versions block deletion
+        // server-side, drafts must be removed first via the discard route.
+        // The UI aborts on both before this call is even reached.
         await hardDelete(plan.id);
         await reloadAllVersions();
         archiveOpen.value = false;
@@ -1005,7 +1005,7 @@ async function executeArchive(): Promise<void> {
     }
 }
 
-// ─── Discard Draft (Plan-Simulation: Trash-Icon auf der Row) ───
+// ─── Discard draft (plan simulation: trash icon on the row) ───
 const discardOpen = ref(false);
 const discarding = ref(false);
 const discardError = ref<string | null>(null);
@@ -1023,10 +1023,10 @@ async function executeDiscard(): Promise<void> {
     discarding.value = true;
     discardError.value = null;
     try {
-        // Pro-Plan-Composable on-demand, weil die Liste meist nicht das
-        // Cockpit eines Plans offen hat. Persistiert nicht in `planVersions`
-        // (das ist das Cockpit-Composable); wir laden danach den Bulk-Stand
-        // neu, damit die Liste den entfernten Draft sofort verliert.
+        // Per-Plan composable on demand, because the list usually doesn't have
+        // a Plan's cockpit open. Doesn't persist into `planVersions` (that's
+        // the cockpit composable); afterwards we reload the bulk state so the
+        // list loses the removed draft immediately.
         const pv = usePlanVersions({
             adminEndpoint: props.adminEndpoint,
             planId: plan.id,
@@ -1040,8 +1040,8 @@ async function executeDiscard(): Promise<void> {
             `Draft v${draft.version} von ${plan.planKey} verworfen — Live-Version unverändert.`,
         );
     } catch (err: unknown) {
-        // Volles Error-Objekt in die Konsole — beim Diagnose-Fall sieht man
-        // dort z. B. CORS-Preflight-Fehler oder den echten Network-Stack.
+        // Full error object to the console — in the diagnostic case you can see
+        // e.g. CORS preflight errors or the real network stack there.
         // eslint-disable-next-line no-console
         console.error('[PlansPage] Discard fehlgeschlagen', err);
 
@@ -1062,9 +1062,9 @@ async function executeDiscard(): Promise<void> {
         } else if (status !== undefined) {
             discardError.value = body?.message ?? `Verwerfen fehlgeschlagen (HTTP ${status}).`;
         } else {
-            // Kein HTTP-Status → meist Network-Error / CORS-Preflight / aufrufseitig
-            // gescheitert (z. B. usePlanVersions-Construction). Zeige die echte
-            // Error-Message, damit der Diagnose-Pfad nicht bei „HTTP ?" endet.
+            // No HTTP status → usually a network error / CORS preflight / failed
+            // caller-side (e.g. usePlanVersions construction). Show the real
+            // error message so the diagnostic path doesn't end at "HTTP ?".
             discardError.value = `Verwerfen fehlgeschlagen: ${errMessage}. Details siehe Browser-Konsole (oft: API-Server alt gebaut oder CORS blockiert DELETE).`;
         }
     } finally {
@@ -1072,10 +1072,10 @@ async function executeDiscard(): Promise<void> {
     }
 }
 
-// ─── Terminate (Enddatum für published Version) ───
-// Wird vom PlanDetail.vue als Prop-Callback aufgerufen. Nutzt das
-// usePlanVersions-Composable des aktuellen Cockpits, damit der UI-State
-// (versions-Ref) nach dem Call konsistent bleibt.
+// ─── Terminate (end date for a published version) ───
+// Called by PlanDetail.vue as a prop callback. Uses the usePlanVersions
+// composable of the current cockpit so the UI state (versions ref) stays
+// consistent after the call.
 async function onSubmitTerminate(versionId: string, endsAt: string): Promise<void> {
     if (!planVersions.value) {
         throw new Error('PlanVersions-Composable nicht initialisiert');
@@ -1168,9 +1168,9 @@ function formatChangeValue(value: unknown): string {
     return String(value);
 }
 
-// Übersetzt eine Publish-API-Fehlermeldung in einen anzeigbaren Text.
-// Von executePublish (Cockpit-Dialog) und onReviewPublish (Review-Screen)
-// gemeinsam genutzt.
+// Translates a publish API error message into a displayable text.
+// Shared by executePublish (cockpit dialog) and onReviewPublish (review
+// screen).
 function describePublishError(err: unknown): string {
     const status = (err as { status?: number })?.status;
     const body = (err as { body?: { code?: string; message?: string } })?.body;

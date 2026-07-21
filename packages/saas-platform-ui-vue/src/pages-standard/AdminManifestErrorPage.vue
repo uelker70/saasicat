@@ -25,9 +25,9 @@
 </template>
 
 <script setup lang="ts">
-// Plattform-Standard-Error-Page für `manifestGuard.errorRoute`.
-// Konsumenten reichen `onRetry`/`onLogout` als Callbacks rein und entscheiden
-// selbst, was passiert (z. B. manifestStore.clearCache() + ensureLoaded,
+// Platform standard error page for `manifestGuard.errorRoute`.
+// Consumers pass `onRetry`/`onLogout` in as callbacks and decide
+// themselves what happens (e.g. manifestStore.clearCache() + ensureLoaded,
 // authStore.logout, router.replace).
 
 defineProps<{

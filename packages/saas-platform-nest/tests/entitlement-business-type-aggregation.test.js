@@ -7,9 +7,9 @@ import {
     collectBusinessTypeFeatures,
 } from '../dist/entitlement/index.js';
 
-// SPEC_V2 §11.1 M5 + GESCHAEFTSTYP_SPEC §6 — BusinessType-Anteil in
-// Entitlement-Aggregation. Tests laufen Pure-Function gegen die neuen
-// Helper plus drei Pfade durch aggregateLimits.
+// SPEC_V2 §11.1 M5 + GESCHAEFTSTYP_SPEC §6 — BusinessType share in
+// entitlement aggregation. Tests run pure-function against the new
+// helpers plus three paths through aggregateLimits.
 
 const NOW = new Date('2026-05-14T12:00:00Z');
 
@@ -50,11 +50,11 @@ const SPORT_BUNDLE = {
 };
 
 // ─────────────────────────────────────────────────────────────────
-// aggregateBusinessTypeQuotas — Σ + Override + -1-Dominanz
+// aggregateBusinessTypeQuotas — Σ + override + -1 dominance
 // ─────────────────────────────────────────────────────────────────
 
 describe('aggregateBusinessTypeQuotas', () => {
-    test('Σ über alle Bundles pro QuotaKey', () => {
+    test('Σ over all bundles per quotaKey', () => {
         const result = aggregateBusinessTypeQuotas({
             businessTypeKey: 'X',
             bundles: [
@@ -66,7 +66,7 @@ describe('aggregateBusinessTypeQuotas', () => {
         assert.deepEqual(result, { members: 150, storageGb: 5, resources: 5 });
     });
 
-    test('-1 (unbegrenzt) dominiert die Σ', () => {
+    test('-1 (unlimited) dominates the Σ', () => {
         const result = aggregateBusinessTypeQuotas({
             businessTypeKey: 'X',
             bundles: [
@@ -78,7 +78,7 @@ describe('aggregateBusinessTypeQuotas', () => {
         assert.equal(result.members, -1);
     });
 
-    test('Override ersetzt Σ pro gesetztem Key', () => {
+    test('override replaces Σ per set key', () => {
         const result = aggregateBusinessTypeQuotas({
             businessTypeKey: 'X',
             bundles: [
@@ -87,11 +87,11 @@ describe('aggregateBusinessTypeQuotas', () => {
             ],
             quotaOverrides: { members: 1000 },
         });
-        // members durch Override 1000 ersetzt; storageGb bleibt Σ = 5
+        // members replaced by override 1000; storageGb stays Σ = 5
         assert.deepEqual(result, { members: 1000, storageGb: 5 });
     });
 
-    test('Override -1 ersetzt Σ mit -1', () => {
+    test('override -1 replaces Σ with -1', () => {
         const result = aggregateBusinessTypeQuotas({
             businessTypeKey: 'X',
             bundles: [{ bundleKey: 'A', quotas: { members: 100 }, features: [] }],
@@ -102,11 +102,11 @@ describe('aggregateBusinessTypeQuotas', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// collectBusinessTypeFeatures — Set-Union
+// collectBusinessTypeFeatures — set union
 // ─────────────────────────────────────────────────────────────────
 
 describe('collectBusinessTypeFeatures', () => {
-    test('Set-Union über alle Bundles', () => {
+    test('set union over all bundles', () => {
         const result = collectBusinessTypeFeatures({
             businessTypeKey: 'X',
             bundles: [
@@ -118,7 +118,7 @@ describe('collectBusinessTypeFeatures', () => {
         assert.deepEqual([...result].sort(), ['F1', 'F2', 'F3']);
     });
 
-    test('dedupliziert doppelte Features (Set-Semantik)', () => {
+    test('deduplicates duplicate features (set semantics)', () => {
         const result = collectBusinessTypeFeatures({
             businessTypeKey: 'X',
             bundles: [
@@ -132,11 +132,11 @@ describe('collectBusinessTypeFeatures', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// aggregateLimits — Pfade: Plan-only, Plan+BusinessType, +Bundles
+// aggregateLimits — paths: plan-only, plan+BusinessType, +bundles
 // ─────────────────────────────────────────────────────────────────
 
-describe('aggregateLimits — Plan + BusinessType + Bundles', () => {
-    test('Plan-only (kein BusinessType, keine Bundles) — wie bisher', () => {
+describe('aggregateLimits — plan + BusinessType + bundles', () => {
+    test('plan-only (no BusinessType, no bundles) — as before', () => {
         const limits = aggregateLimits(
             {
                 plan: 'STARTER',
@@ -150,7 +150,7 @@ describe('aggregateLimits — Plan + BusinessType + Bundles', () => {
         assert.deepEqual([...limits.features].sort(), ['CORE_IDENTITY']);
     });
 
-    test('Plan + BusinessType (ohne Bundles): Quotas summiert, Features unioniert', () => {
+    test('plan + BusinessType (without bundles): quotas summed, features unioned', () => {
         const limits = aggregateLimits(
             {
                 plan: 'STARTER',
@@ -166,7 +166,7 @@ describe('aggregateLimits — Plan + BusinessType + Bundles', () => {
         );
         // Plan members 250 + Bundle members 250 = 500
         // Plan storageGb 2 + Bundle has none = 2
-        // Bundle resources 5 (Plan hat keine) = 5
+        // Bundle resources 5 (Plan has none) = 5
         assert.deepEqual(limits.quotas, { members: 500, storageGb: 2, resources: 5 });
         assert.deepEqual([...limits.features].sort(), [
             'CORE_IDENTITY',
@@ -175,7 +175,7 @@ describe('aggregateLimits — Plan + BusinessType + Bundles', () => {
         ]);
     });
 
-    test('Plan + BusinessType + QuotaOverride: Override schlägt Σ', () => {
+    test('plan + BusinessType + QuotaOverride: override beats Σ', () => {
         const limits = aggregateLimits(
             {
                 plan: 'STARTER',
@@ -183,18 +183,18 @@ describe('aggregateLimits — Plan + BusinessType + Bundles', () => {
                 businessTypeVersion: {
                     businessTypeKey: 'SPORT_VEREIN',
                     bundles: [SPORT_BUNDLE],
-                    quotaOverrides: { members: 1000 }, // ersetzt Bundle-Σ (250)
+                    quotaOverrides: { members: 1000 }, // replaces bundle Σ (250)
                 },
             },
             MIN_CATALOG,
             NOW,
         );
-        // members: Plan 250 + BusinessType-Override 1000 = 1250
-        // (Plan-Default + BusinessType-Anteil; Override gilt nur für Bundle-Σ-Replacement)
+        // members: Plan 250 + BusinessType override 1000 = 1250
+        // (plan default + BusinessType share; override only applies to bundle Σ replacement)
         assert.equal(limits.quotas.members, 1250);
     });
 
-    test('Plan + BusinessType + SubscriptionBundles (alle Quellen)', () => {
+    test('plan + BusinessType + SubscriptionBundles (all sources)', () => {
         const limits = aggregateLimits(
             {
                 plan: 'STARTER',
@@ -216,9 +216,9 @@ describe('aggregateLimits — Plan + BusinessType + Bundles', () => {
             MIN_CATALOG,
             NOW,
         );
-        // members: Plan 250 + BT-Bundle 250 + SubscriptionBundle 500 = 1000
+        // members: Plan 250 + BT bundle 250 + SubscriptionBundle 500 = 1000
         // resources: Bundle 5 = 5
-        // Features: ⋃(CORE_IDENTITY, SPORT_TEAMS, SPORT_RESOURCES, WHATSAPP)
+        // features: ⋃(CORE_IDENTITY, SPORT_TEAMS, SPORT_RESOURCES, WHATSAPP)
         assert.equal(limits.quotas.members, 1000);
         assert.equal(limits.quotas.resources, 5);
         assert.deepEqual([...limits.features].sort(), [
@@ -229,7 +229,7 @@ describe('aggregateLimits — Plan + BusinessType + Bundles', () => {
         ]);
     });
 
-    test('-1 (unbegrenzt) im BusinessType dominiert auch nach Plan-Addition', () => {
+    test('-1 (unlimited) in the BusinessType dominates even after plan addition', () => {
         const limits = aggregateLimits(
             {
                 plan: 'STARTER',

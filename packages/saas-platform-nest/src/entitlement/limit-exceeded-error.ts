@@ -1,10 +1,10 @@
-// LimitExceededError — wird vom EntitlementService (Slice B, Service-Layer)
-// und von Konsumenten-Limit-Guards geworfen, wenn ein Anlage-Versuch das
-// effektive Quota überschreiten würde.
+// LimitExceededError — thrown by the EntitlementService (Slice B, service layer)
+// and by consumer limit guards when a creation attempt would exceed the
+// effective Quota.
 //
-// `dimension` ist der `quotaKey` aus dem PlanCatalog (z. B. "users",
-// "vehicles", "storageGb"). Konsumenten können den Wert direkt in HTTP-402-
-// Antworten und User-Messages einbetten.
+// `dimension` is the `quotaKey` from the PlanCatalog (e.g. "users",
+// "vehicles", "storageGb"). Consumers can embed the value directly in HTTP 402
+// responses and user messages.
 
 export class LimitExceededError extends Error {
     constructor(

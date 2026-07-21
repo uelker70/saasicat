@@ -22,7 +22,7 @@ const CATALOG = {
 };
 
 describe('TenantManifestService', () => {
-    test('liefert Snapshot mit filterten NavItems (Feature-Gate)', async () => {
+    test('returns a snapshot with filtered NavItems (feature gate)', async () => {
         const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({ id: 'notes', label: 'Notizen', path: '/notes', requiresFeature: 'NOTES' });
@@ -36,16 +36,16 @@ describe('TenantManifestService', () => {
 
         const m = await svc.getManifest('t1');
         const ids = m.navigation.map((n) => n.id);
-        assert.ok(ids.includes('notes'), 'NOTES Feature aktiv → notes-Item');
-        assert.ok(!ids.includes('export'), 'EXPORT fehlt im Plan → kein export-Item');
-        assert.ok(ids.includes('home'), 'unconditional Item bleibt');
+        assert.ok(ids.includes('notes'), 'NOTES feature active → notes item');
+        assert.ok(!ids.includes('export'), 'EXPORT missing from plan → no export item');
+        assert.ok(ids.includes('home'), 'unconditional item stays');
         assert.equal(m.planId, 'starter');
         assert.deepEqual(m.features, ['NOTES']);
         assert.equal(m.quotas['notes.max'], 25);
         assert.equal(m.tenant.id, 't1');
     });
 
-    test('sortiert NavItems nach order ASC, Default 100', async () => {
+    test('sorts NavItems by order ASC, default 100', async () => {
         const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('pro'));
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({ id: 'a', label: 'A', path: '/a', order: 200 });
@@ -58,7 +58,7 @@ describe('TenantManifestService', () => {
         );
     });
 
-    test('requiresFeature als Array = Logical-OR', async () => {
+    test('requiresFeature as an array = logical OR', async () => {
         const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({
@@ -79,7 +79,7 @@ describe('TenantManifestService', () => {
         assert.ok(!ids.includes('neither'));
     });
 
-    test('registerNavItem ist idempotent (gleicher id überschreibt)', async () => {
+    test('registerNavItem is idempotent (same id overwrites)', async () => {
         const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
         const svc = new TenantManifestService(ent);
         svc.registerNavItem({ id: 'home', label: 'Alt', path: '/' });
@@ -109,7 +109,7 @@ describe('SaasPlatformModule + tenantManifest', () => {
         }
     }
 
-    test('tenantManifest ohne defaultPlanId/Resolver wirft', () => {
+    test('tenantManifest without defaultPlanId/resolver throws', () => {
         assert.throws(
             () =>
                 SaasPlatformModule.forRoot({
@@ -126,7 +126,7 @@ describe('SaasPlatformModule + tenantManifest', () => {
         );
     });
 
-    test('tenantManifest + defaultPlanId registriert Controller + Service', () => {
+    test('tenantManifest + defaultPlanId registers controller + service', () => {
         const dyn = SaasPlatformModule.forRoot({
             planCatalog: CATALOG,
             controller: { guards: [] },
@@ -138,14 +138,14 @@ describe('SaasPlatformModule + tenantManifest', () => {
             defaultPlanId: 'starter',
             tenantManifest: { guards: [] },
         });
-        assert.equal(dyn.controllers?.length, 1, 'genau ein Tenant-Manifest-Controller');
+        assert.equal(dyn.controllers?.length, 1, 'exactly one tenant-manifest controller');
         const tokens = (dyn.providers ?? []).map((p) => p.provide ?? p);
         assert.ok(tokens.includes(TenantManifestService));
     });
 });
 
 describe('buildTenantManifestController', () => {
-    test('erzeugt eine Controller-Klasse mit dem konfigurierten Pfad', () => {
+    test('creates a controller class with the configured path', () => {
         const Ctrl = buildTenantManifestController({ guards: [], path: 'my/custom' });
         assert.equal(typeof Ctrl, 'function');
     });

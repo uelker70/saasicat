@@ -11,10 +11,10 @@ import {
 import { Type } from 'class-transformer';
 
 /**
- * Konfigurator-Auswahl-Payload fuer `POST /auth/register/save-config`.
+ * Configurator selection payload for `POST /auth/register/save-config`.
  *
- * Bewusst flach gehalten — Modell-Validierung passiert im Service gegen
- * den Catalog. DTO prueft nur Strukturtypen.
+ * Intentionally kept flat — model validation happens in the service against
+ * the Catalog. The DTO only checks structural types.
  */
 export class SaveRegistrationConfigSelectionDto {
     @IsString()
@@ -31,10 +31,10 @@ export class SaveRegistrationConfigSelectionDto {
     appliedPromoCode?: string | null;
 
     /**
-     * SPEC_V2 §11.1 M5.3 — optionale Vereinstyp-Wahl. UUID einer
-     * **published** BusinessTypeVersion. Service validiert Existenz +
-     * Live-Status gegen `RegistrationBusinessTypeLookup`. `null` = keine
-     * Wahl (alter Plan-only-Pfad).
+     * SPEC_V2 §11.1 M5.3 — optional business-type choice. UUID of a
+     * **published** BusinessTypeVersion. The service validates existence +
+     * live status against `RegistrationBusinessTypeLookup`. `null` = no
+     * choice (legacy Plan-only path).
      */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
@@ -42,12 +42,11 @@ export class SaveRegistrationConfigSelectionDto {
     businessTypeVersionId?: string | null;
 
     /**
-     * METAMODELL §17a — Paket-Konsistenz. ID des `CheckoutOffer`, der auf
-     * der Pricing-Page angelegt wurde (`<app>/register?offer=<id>`). Wird
-     * unverändert in `configJson` durchgereicht; der ActivationOrchestrator
-     * friert ihn bei der Subscription-Anlage als `packageSnapshot` ein und
-     * setzt den Offer auf `consumed`. `null` = Direkt-Registrierung ohne
-     * Webseiten-Offer.
+     * METAMODELL §17a — Bundle consistency. ID of the `CheckoutOffer` that was
+     * created on the pricing page (`<app>/register?offer=<id>`). Passed
+     * through unchanged in `configJson`; the ActivationOrchestrator freezes it
+     * as `packageSnapshot` when the subscription is created and sets the offer
+     * to `consumed`. `null` = direct registration without a website offer.
      */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)

@@ -1,65 +1,65 @@
 // CapabilityCatalogEntryRow / FeatureCatalogEntryRow / MarketingProjectionRow
-// — Wire-Format der Catalog-Entries-Tabellen.
+// — Wire format of the catalog-entries tables.
 //
-// Diese Typen sind die HTTP-Projektion der Prisma-Models aus
-// `saas-platform-spec/prisma-fragments/06-catalog-entries.prisma`. Sie werden
-// vom AdminController für die SuperAdmin-Pages „Discovery" + „Marketing-
-// Catalog" geliefert sowie vom Public-Catalog-Controller für `/public/catalog`.
+// These types are the HTTP projection of the Prisma models from
+// `saas-platform-spec/prisma-fragments/06-catalog-entries.prisma`. They are
+// served by the AdminController for the SuperAdmin pages "Discovery" +
+// "Marketing Catalog", and by the Public-Catalog-Controller for `/public/catalog`.
 
 // =============================================================================
-// Discovery-Lifecycle (Freigabe je Feature + Quota, #20)
+// Discovery lifecycle (approval per feature + quota, #20)
 // =============================================================================
 
 /**
- * Freigabe-Lebenszyklus eines Features oder einer Quota. Freigegeben wird
- * je FEATURE/QUOTA — nicht je Capability (#20); nur `approved`-Einträge
- * sind verkaufbar (Gate in strict-mode-check/seed-gate/preflight).
+ * Approval lifecycle of a feature or a quota. Approval happens per
+ * FEATURE/QUOTA — not per capability (#20); only `approved` entries
+ * are sellable (gate in strict-mode-check/seed-gate/preflight).
  *
- * - `pending`  — im Code gefunden, noch nicht freigegeben; steht der
- *                 Planung nicht zur Verfügung
- * - `approved` — vom SuperAdmin für Pläne, Bundles & Marketing freigegeben;
- *                 die Approval-Signatur friert den Code-Stand ein
- * - `outdated` — Drift: die Implementierung hat sich seit der Freigabe
- *                 geändert (Approval-Signatur ≠ aktueller Snapshot) oder
- *                 manuell als veraltet markiert — erneut freigeben
- * - `obsolete` — abgekündigt bzw. aus dem Code entfernt; in neuen Plänen
- *                 nicht mehr verwenden
+ * - `pending`  — found in code, not yet approved; not available for
+ *                planning
+ * - `approved` — approved by the SuperAdmin for plans, bundles & marketing;
+ *                the approval signature freezes the code state
+ * - `outdated` — drift: the implementation has changed since approval
+ *                (approval signature ≠ current snapshot) or was manually
+ *                marked stale — re-approve
+ * - `obsolete` — deprecated or removed from code; no longer use in new
+ *                plans
  *
- * Ein „ersetzt durch X" (#39) ist bewusst KEIN eigener Status-Wert: die Union
- * wird exhaustiv konsumiert (Review-Automat als `Record<DiscoveryStatus, …>`,
- * Status-Badges im AdminUI, Status-Spalten in den Konsumenten-DBs) — ein
- * neuer Wert würde Lockstep-Migrationen über alle Konsumenten erzwingen.
- * Stattdessen: `obsolete` + `successorKey` als Nachfolger-Pointer; alte
- * Leser degradieren graceful (sehen weiterhin `obsolete`).
+ * A "replaced by X" (#39) is deliberately NOT its own status value: the union
+ * is consumed exhaustively (review state machine as `Record<DiscoveryStatus, …>`,
+ * status badges in the AdminUI, status columns in the consumer DBs) — a new
+ * value would force lockstep migrations across all consumers. Instead:
+ * `obsolete` + `successorKey` as a successor pointer; old readers degrade
+ * gracefully (still see `obsolete`).
  */
 export type DiscoveryStatus = 'pending' | 'approved' | 'outdated' | 'obsolete';
 
 /**
- * Code-Status einer Capability — read-only Code-Fakt aus dem Scan (#20):
- * `active`/`experimental`/`deprecated` kommen aus dem Decorator, `retired`
- * setzt der Sync, wenn die Capability aus dem Code verschwunden ist.
- * Capabilities tragen keinen Review-Status mehr; die fachliche Freigabe
- * liegt am Feature/an der Quota.
+ * Code status of a capability — read-only code fact from the scan (#20):
+ * `active`/`experimental`/`deprecated` come from the decorator, `retired`
+ * is set by the sync when the capability has disappeared from the code.
+ * Capabilities no longer carry a review status; the business approval
+ * lives on the feature/the quota.
  */
 export type CapabilityCodeStatus = 'active' | 'experimental' | 'deprecated' | 'retired';
 
 /**
- * Implementierungs-Art einer Capability — entspricht `kind` im
- * `@ImplementsCapability(...)`-Decorator.
+ * Implementation kind of a capability — corresponds to `kind` in the
+ * `@ImplementsCapability(...)` decorator.
  */
 export type CapabilityKind = 'endpoint' | 'service' | 'job' | 'event';
 
 /**
- * Enforcement-Modus einer Quota:
- * - `hard` — Überschreitung blockt fachlich (entspricht Policy `hardCap`)
- * - `soft` — Überschreitung wird nur gezählt/gewarnt
+ * Enforcement mode of a quota:
+ * - `hard` — exceeding blocks at the business level (corresponds to policy `hardCap`)
+ * - `soft` — exceeding is only counted/warned
  */
 export type QuotaEnforcementMode = 'hard' | 'soft';
 
 /**
- * Locale-spezifische Übersetzungs-Felder eines Catalog-Entry. Leere/fehlende
- * Felder fallen im UI auf die Default-Locale (`de`) zurück. `unit` ist nur
- * für Quotas relevant.
+ * Locale-specific translation fields of a catalog entry. Empty/missing
+ * fields fall back in the UI to the default locale (`de`). `unit` is only
+ * relevant for quotas.
  */
 export interface CatalogEntryI18nFields {
     label?: string;
@@ -67,7 +67,7 @@ export interface CatalogEntryI18nFields {
     unit?: string;
 }
 
-/** `{ 'en': { label, description }, 'tr': { … } }` — Default-Locale fehlt bewusst. */
+/** `{ 'en': { label, description }, 'tr': { … } }` — the default locale is intentionally absent. */
 export type CatalogEntryI18n = Record<string, CatalogEntryI18nFields>;
 
 // =============================================================================
@@ -75,10 +75,10 @@ export type CatalogEntryI18n = Record<string, CatalogEntryI18nFields>;
 // =============================================================================
 
 /**
- * SuperAdmin-Projektion einer code-deklarierten Capability. Die fachliche
- * Wahrheit (existiert / existiert nicht) bleibt im Code; diese Tabelle hält
- * den Code-Status (read-only Fakt, #20) und denormalisierte Aggregations-
- * Hüllen für UI-Lookups. Die Freigabe liegt am Feature/an der Quota.
+ * SuperAdmin projection of a code-declared capability. The business
+ * truth (exists / does not exist) stays in the code; this table holds
+ * the code status (read-only fact, #20) and denormalized aggregation
+ * shells for UI lookups. Approval lives on the feature/the quota.
  */
 export interface CapabilityCatalogEntryRow {
     id: string;
@@ -87,23 +87,23 @@ export interface CapabilityCatalogEntryRow {
     label: string;
     description: string | null;
 
-    /** Aggregations-Hülle aus dem Decorator (denormalisiert für UI-Lookup). */
+    /** Aggregation shell from the decorator (denormalized for UI lookup). */
     featureKey: string | null;
-    /** Aggregations-Hülle aus dem Decorator (denormalisiert). */
+    /** Aggregation shell from the decorator (denormalized). */
     bundleKey: string | null;
 
     codeStatus: CapabilityCodeStatus;
-    /** Code-Owner-Tag aus dem Decorator (z. B. 'accounting'). */
+    /** Code owner tag from the decorator (e.g. 'accounting'). */
     owner: string | null;
     kind: CapabilityKind;
 
-    /** Bei codeStatus = 'deprecated' empfohlen. */
+    /** Recommended when codeStatus = 'deprecated'. */
     replacementKey: string | null;
     deprecatedAt: string | null;
     removalPlannedAt: string | null;
     reason: string | null;
 
-    /** Locale-Übersetzungen (Discovery-Übersetzungs-Tab, SPEC_V2 §6.3). */
+    /** Locale translations (discovery translation tab, SPEC_V2 §6.3). */
     i18n: CatalogEntryI18n;
 
     sortOrder: number;
@@ -117,16 +117,16 @@ export interface CapabilityCatalogEntryRow {
 // =============================================================================
 
 /**
- * Tier-Hint für Comparison-Matrix-Sortierung. Konvention:
- * `CORE` < `ADVANCED` < `PRO` < `ENTERPRISE`. Apps dürfen weitere
- * Tiers ergänzen; die Sortierung erfolgt dann über `FeatureCatalogEntry.sortOrder`.
+ * Tier hint for comparison-matrix sorting. Convention:
+ * `CORE` < `ADVANCED` < `PRO` < `ENTERPRISE`. Apps may add further
+ * tiers; sorting then happens via `FeatureCatalogEntry.sortOrder`.
  */
 export type FeatureTier = 'CORE' | 'ADVANCED' | 'PRO' | 'ENTERPRISE' | string;
 
 /**
- * SuperAdmin-Projektion eines Features (Aggregation aus Capabilities, die im
- * Decorator `feature: 'XYZ'` deklarieren). Marketing-Kurzform liegt hier;
- * Locale-spezifische lange Texte in MarketingProjectionRow.
+ * SuperAdmin projection of a feature (aggregation of capabilities that declare
+ * `feature: 'XYZ'` in the decorator). The short marketing form lives here;
+ * locale-specific long texts in MarketingProjectionRow.
  */
 export interface FeatureCatalogEntryRow {
     id: string;
@@ -135,50 +135,50 @@ export interface FeatureCatalogEntryRow {
     label: string;
     description: string | null;
 
-    /** Marketing-Kurzlabel für Sidebar / Comparison-Matrix. */
+    /** Short marketing label for sidebar / comparison matrix. */
     marketingLabel: string | null;
-    /** Marketing-Kurzbeschreibung. Für lange Locale-Texte: MarketingProjectionRow. */
+    /** Short marketing description. For long locale texts: MarketingProjectionRow. */
     marketingDescription: string | null;
     icon: string | null;
 
     tier: FeatureTier | null;
     discoveryStatus: DiscoveryStatus;
 
-    /** Code-discoverte Feature-Abhängigkeiten (#35) — leere Liste = keine. */
+    /** Code-discovered feature dependencies (#35) — empty list = none. */
     requires: string[];
-    /** Alte Feature-Keys, die dieses Feature ablöst (#39) — leere Liste = keine. */
+    /** Old feature keys that this feature supersedes (#39) — empty list = none. */
     replaces: string[];
     /**
-     * Nachfolger-Pointer (#39): gesetzt, wenn dieser Key aus dem Code
-     * verschwunden ist UND ein anderer Snapshot-Key ihn via `replaces`
-     * beansprucht — „ersetzt durch X = geführte Migration" statt nacktem
-     * `obsolete` (= gelöscht ohne Ersatz).
+     * Successor pointer (#39): set when this key has disappeared from the
+     * code AND another snapshot key claims it via `replaces` — "replaced by
+     * X = guided migration" instead of a bare `obsolete` (= deleted without
+     * replacement).
      */
     successorKey: string | null;
 
-    /** Zeitpunkt der letzten Freigabe; `null` solange nie freigegeben. */
+    /** Timestamp of the last approval; `null` while never approved. */
     approvedAt: string | null;
-    /** User-ID des freigebenden SuperAdmins. */
+    /** User ID of the approving SuperAdmin. */
     approvedBy: string | null;
     /**
-     * Signatur des Capability-Sets zum Freigabe-Zeitpunkt
-     * (`capabilityKey@codeStatus`, sortiert, `|`-separiert). Der Auto-Sync
-     * vergleicht sie gegen den aktuellen Snapshot — bei Abweichung wird
-     * `approved` → `outdated` (Drift, #20).
+     * Signature of the capability set at approval time
+     * (`capabilityKey@codeStatus`, sorted, `|`-separated). The auto-sync
+     * compares it against the current snapshot — on divergence,
+     * `approved` → `outdated` (drift, #20).
      */
     approvedSignature: string | null;
 
     /**
-     * `true` = Feature ist im SuperAdmin-Plan geplant, aber noch nicht im
-     * Code implementiert. Der blocking Strict-Mode-Check (SPEC_V2 §8.1)
-     * lehnt Plan-Publish mit `plannedOnly`-Features ab.
+     * `true` = the feature is planned in the SuperAdmin plan but not yet
+     * implemented in the code. The blocking strict-mode check (SPEC_V2 §8.1)
+     * rejects plan publish with `plannedOnly` features.
      */
     plannedOnly: boolean;
 
-    /** true = Basis/immer enthalten (nicht pro Plan buchbar). */
+    /** true = base/always included (not bookable per plan). */
     core: boolean;
 
-    /** Locale-Übersetzungen (Discovery-Übersetzungs-Tab, SPEC_V2 §6.3). */
+    /** Locale translations (discovery translation tab, SPEC_V2 §6.3). */
     i18n: CatalogEntryI18n;
 
     sortOrder: number;
@@ -192,9 +192,9 @@ export interface FeatureCatalogEntryRow {
 // =============================================================================
 
 /**
- * SuperAdmin-Projektion einer code-deklarierten Quota (`@DefinesQuota`).
- * Trägt den Review-Status sowie die Deploy-Relevanz: eine harte Quota
- * ohne `usageProvider` ist nicht deploy-fähig (SPEC_V2 §6.3, Preflight).
+ * SuperAdmin projection of a code-declared quota (`@DefinesQuota`).
+ * Carries the review status as well as deploy relevance: a hard quota
+ * without `usageProvider` is not deployable (SPEC_V2 §6.3, Preflight).
  */
 export interface QuotaCatalogEntryRow {
     id: string;
@@ -203,39 +203,39 @@ export interface QuotaCatalogEntryRow {
     label: string;
     description: string | null;
 
-    /** Anzeige-Einheit, z. B. `members`, `GB`, `/month`. */
+    /** Display unit, e.g. `members`, `GB`, `/month`. */
     unit: string;
-    /** Aggregations-Hülle aus dem Decorator (denormalisiert). */
+    /** Aggregation shell from the decorator (denormalized). */
     featureKey: string | null;
 
     /**
-     * Klasse, die die Quota via `@DefinesQuota` deklariert (= UsageProvider).
-     * `null` = die Quota wird referenziert (`@EnforceQuota`), aber von keiner
-     * Klasse bereitgestellt — bei `enforcementMode: 'hard'` deploy-blockend.
+     * Class that declares the quota via `@DefinesQuota` (= UsageProvider).
+     * `null` = the quota is referenced (`@EnforceQuota`) but provided by no
+     * class — deploy-blocking when `enforcementMode: 'hard'`.
      */
     usageProvider: string | null;
     enforcementMode: QuotaEnforcementMode;
 
     discoveryStatus: DiscoveryStatus;
 
-    /** Alte QuotaKeys, die diese Quota ablöst (#39) — leere Liste = keine. */
+    /** Old quota keys that this quota supersedes (#39) — empty list = none. */
     replaces: string[];
-    /** Nachfolger-Pointer (#39), analog `FeatureCatalogEntryRow.successorKey`. */
+    /** Successor pointer (#39), analogous to `FeatureCatalogEntryRow.successorKey`. */
     successorKey: string | null;
 
-    /** Zeitpunkt der letzten Freigabe; `null` solange nie freigegeben. */
+    /** Timestamp of the last approval; `null` while never approved. */
     approvedAt: string | null;
-    /** User-ID des freigebenden SuperAdmins. */
+    /** User ID of the approving SuperAdmin. */
     approvedBy: string | null;
     /**
-     * Signatur der code-abgeleiteten Quota-Fakten zum Freigabe-Zeitpunkt
-     * (`unit|enforcementMode|usageProvider|featureKey`). Der Auto-Sync
-     * vergleicht sie gegen den aktuellen Snapshot — bei Abweichung wird
-     * `approved` → `outdated` (Drift, #20).
+     * Signature of the code-derived quota facts at approval time
+     * (`unit|enforcementMode|usageProvider|featureKey`). The auto-sync
+     * compares it against the current snapshot — on divergence,
+     * `approved` → `outdated` (drift, #20).
      */
     approvedSignature: string | null;
 
-    /** Locale-Übersetzungen (`label`, `unit`, `description`). */
+    /** Locale translations (`label`, `unit`, `description`). */
     i18n: CatalogEntryI18n;
 
     sortOrder: number;
@@ -245,13 +245,13 @@ export interface QuotaCatalogEntryRow {
 }
 
 // =============================================================================
-// Catalog-Entry-Service-DTOs (Review / Sync / i18n)
+// Catalog entry service DTOs (Review / Sync / i18n)
 // =============================================================================
 
 /**
- * Filter für `CatalogEntryRepository.list*()`. `discoveryStatus` gilt für
- * Features/Quotas, `codeStatus` für Capabilities — je Liste ist nur das
- * passende Feld relevant.
+ * Filter for `CatalogEntryRepository.list*()`. `discoveryStatus` applies to
+ * features/quotas, `codeStatus` to capabilities — per list, only the
+ * matching field is relevant.
  */
 export interface CatalogEntryFilter {
     projectKey: string;
@@ -260,8 +260,8 @@ export interface CatalogEntryFilter {
 }
 
 /**
- * Body von `PATCH …/{features,quotas}/:key/review` — der Ziel-Status des
- * Freigabe-Automaten. Erlaubte Übergänge validiert der Service
+ * Body of `PATCH …/{features,quotas}/:key/review` — the target status of
+ * the approval state machine. The service validates the allowed transitions
  * (`pending → approved/obsolete`, `approved → pending/outdated/obsolete`,
  * `outdated → approved/pending/obsolete`, `obsolete → pending`).
  */
@@ -270,44 +270,44 @@ export interface ReviewCatalogEntryData {
 }
 
 /**
- * Approved-Gate (#20 Slice 5): die Mengen der freigegebenen Feature-/
- * Quota-Keys (`discoveryStatus = 'approved'`) aus den Catalog-Entries.
- * Strict-Mode-Check, Seed-Gate und Preflight prüfen damit „nur Approved
- * ist verkaufbar" — `null`/weggelassen überspringt den Approval-Teil
- * (z. B. wenn kein CatalogEntryRepository registriert ist).
+ * Approved gate (#20 Slice 5): the sets of approved feature/quota keys
+ * (`discoveryStatus = 'approved'`) from the catalog entries. Strict-mode
+ * check, Seed-Gate and Preflight use them to enforce "only approved is
+ * sellable" — `null`/omitted skips the approval part (e.g. when no
+ * CatalogEntryRepository is registered).
  */
 export interface ApprovedCatalogKeys {
     features: ReadonlySet<string>;
     quotas: ReadonlySet<string>;
 }
 
-/** Body von `PATCH …/{features,quotas}/:key/i18n`. */
+/** Body of `PATCH …/{features,quotas}/:key/i18n`. */
 export interface UpdateCatalogEntryI18nData {
-    /** Vollständiger i18n-Baum — ersetzt den bestehenden. */
+    /** Complete i18n tree — replaces the existing one. */
     i18n: CatalogEntryI18n;
 }
 
 /**
- * Body von `PATCH …/{features,quotas}/:key` — editierbare Basis-/Default-
- * Locale-Felder (`de`). Quotas: `unit` bleibt code-abgeleitet und ist nicht
- * editierbar — pro Locale aber via `i18n` übersetzbar.
+ * Body of `PATCH …/{features,quotas}/:key` — editable base/default locale
+ * fields (`de`). Quotas: `unit` stays code-derived and is not editable —
+ * but is translatable per locale via `i18n`.
  */
 export interface UpdateCatalogEntryBaseData {
     label?: string;
     description?: string | null;
-    /** Feature-only (#13): statisches Default-Icon (Quasar-Icon-Name). Quotas ignorieren es. */
+    /** Feature-only (#13): static default icon (Quasar icon name). Quotas ignore it. */
     icon?: string | null;
-    /** Feature-only (#13): Tier-Hint (offene Union). Quotas ignorieren es. */
+    /** Feature-only (#13): tier hint (open union). Quotas ignore it. */
     tier?: FeatureTier | null;
 }
 
 /**
- * Ergebnis von `POST …/discovery/sync` — Zähler für die UI.
- * `discovered`/`retired` sind Scan-Ereignisse (neu im Code / aus dem Code
- * verschwunden); `outdated` zählt `approved`-Einträge, die der Sync wegen
- * Signatur-Drift auf `outdated` gekippt hat (#20). `replaced` zählt
- * Einträge, denen der Sync in diesem Lauf einen Nachfolger-Pointer
- * (`successorKey`) gesetzt hat (#39).
+ * Result of `POST …/discovery/sync` — counters for the UI.
+ * `discovered`/`retired` are scan events (new in code / disappeared from
+ * code); `outdated` counts `approved` entries that the sync flipped to
+ * `outdated` due to signature drift (#20). `replaced` counts entries to
+ * which the sync assigned a successor pointer (`successorKey`) in this run
+ * (#39).
  */
 export interface SyncDiscoveryResult {
     capabilities: { discovered: number; retired: number; total: number };
@@ -332,21 +332,21 @@ export interface SyncDiscoveryResult {
 // =============================================================================
 
 /**
- * Polymorpher Ziel-Typ einer MarketingProjection. Verweist auf die
- * versionierte Entität (Plan-, Bundle- oder BusinessType-Version), die
- * öffentlich vermarktet wird.
+ * Polymorphic target type of a MarketingProjection. References the
+ * versioned entity (plan, bundle, or business-type version) that is
+ * marketed publicly.
  */
 export type MarketingTargetType = 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE';
 
 /**
- * Ein Top-Feature-Eintrag in der Public-Catalog-Karte.
+ * A top-feature entry in the public-catalog card.
  *
- * - `key` — optionale Referenz auf einen Feature-/Quota-Key. Ist `key`
- *   gesetzt und `label` leer, wird das angezeigte Label aus dem
- *   `FeatureCatalogEntry`/`QuotaCatalogEntry` in der jeweiligen Locale
- *   aufgelöst (übersetzt). So bleibt die Karte sprach-reaktiv.
- * - `label` — Fließtext bzw. Override; leer + `key` gesetzt = Auto-Label.
- * - `strong` — optionaler fett gesetzter Zusatz (z. B. "bis 100", "5 GB").
+ * - `key` — optional reference to a feature/quota key. If `key` is
+ *   set and `label` is empty, the displayed label is resolved (translated)
+ *   from the `FeatureCatalogEntry`/`QuotaCatalogEntry` in the respective
+ *   locale. This keeps the card language-reactive.
+ * - `label` — free text or override; empty + `key` set = auto label.
+ * - `strong` — optional bold-set addition (e.g. "up to 100", "5 GB").
  */
 export interface MarketingTopFeature {
     key?: string;
@@ -355,12 +355,12 @@ export interface MarketingTopFeature {
 }
 
 /**
- * Locale-spezifische Marketing-Texte pro Plan-/Bundle-/BusinessType-Version.
- * Wird vom Public-Catalog-Controller (`GET /public/catalog?locale=de`)
- * gelesen und projiziert.
+ * Locale-specific marketing texts per plan/bundle/business-type version.
+ * Read and projected by the Public-Catalog-Controller
+ * (`GET /public/catalog?locale=de`).
  *
- * Polymorphe Referenz über (`targetType`, `targetVersionId`) — kein FK,
- * App-Logik prüft die Existenz beim Lesen.
+ * Polymorphic reference via (`targetType`, `targetVersionId`) — no FK,
+ * app logic checks existence on read.
  */
 export interface MarketingProjectionRow {
     id: string;
@@ -369,52 +369,52 @@ export interface MarketingProjectionRow {
     targetType: MarketingTargetType;
     targetVersionId: string;
 
-    /** ISO-639-1, ggf. mit Region-Suffix (`de`, `en`, `de-AT`). */
+    /** ISO-639-1, optionally with region suffix (`de`, `en`, `de-AT`). */
     locale: string;
 
     displayLabel: string;
     description: string;
 
     /**
-     * Sichtbarkeit im Public-Catalog. `false` = die Projektion existiert,
-     * der Plan wird aber nicht auf der Pricing-Page gezeigt (z. B. während
-     * der Vorbereitung).
+     * Visibility in the public catalog. `false` = the projection exists,
+     * but the plan is not shown on the pricing page (e.g. during
+     * preparation).
      */
     visible: boolean;
 
     /**
-     * Optionales Badge oben auf der Karte (z. B. "Beliebt", "Neu"). Leerer
-     * String = kein Badge.
+     * Optional badge at the top of the card (e.g. "Popular", "New"). Empty
+     * string = no badge.
      */
     badge: string;
 
     /**
-     * Top-Features, die prominent auf der Public-Catalog-Karte erscheinen.
-     * Reihenfolge ist die Anzeige-Reihenfolge.
+     * Top features that appear prominently on the public-catalog card.
+     * Order is the display order.
      */
     topFeatures: MarketingTopFeature[];
 
-    /** Kostenlose Testphase aktiv — steuert den automatischen CTA-Text. */
+    /** Free trial active — controls the automatic CTA text. */
     trialEnabled: boolean;
-    /** Länge der Testphase in Tagen (nur relevant bei `trialEnabled`). */
+    /** Length of the trial in days (only relevant when `trialEnabled`). */
     trialDays: number;
 
     /**
-     * Optional formatted Pricing-Tag (z. B. "€ 9,90 / Monat" oder "auf
-     * Anfrage"). null = Pricing wird automatisch aus PlanVersion.monthlyNet
-     * etc. zur Render-Zeit formatiert.
+     * Optional formatted price tag (e.g. "€ 9.90 / month" or "on
+     * request"). null = pricing is formatted automatically from
+     * PlanVersion.monthlyNet etc. at render time.
      */
     priceTag: string | null;
 
     /**
-     * Überschreibt den automatisch generierten Call-to-Action-Text
-     * (z. B. "Kontakt aufnehmen"). null = Auto-Text aus Trial/Pricing.
+     * Overrides the automatically generated call-to-action text
+     * (e.g. "Get in touch"). null = auto text from trial/pricing.
      */
     ctaLabel: string | null;
 
-    /** Sortierung in der Public-Liste (DESC). Höhere Werte zuerst. */
+    /** Sorting in the public list (DESC). Higher values first. */
     priority: number;
-    /** "Empfohlen"-Stern bzw. Featured-Hervorhebung in der UI. */
+    /** "Recommended" star or featured highlight in the UI. */
     highlight: boolean;
 
     createdAt: string;
@@ -422,10 +422,10 @@ export interface MarketingProjectionRow {
 }
 
 // =============================================================================
-// MarketingProjection-Service-DTOs (Create/Update/Filter)
+// MarketingProjection service DTOs (Create/Update/Filter)
 // =============================================================================
 
-/** Filter für `MarketingProjectionRepository.list()`. Mindestens projectKey. */
+/** Filter for `MarketingProjectionRepository.list()`. At least projectKey. */
 export interface MarketingProjectionFilter {
     projectKey: string;
     targetType?: MarketingTargetType;

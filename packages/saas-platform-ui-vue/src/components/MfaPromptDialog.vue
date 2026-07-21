@@ -53,15 +53,15 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-// Cross-cutting MFA-Bestaetigungsdialog. App-spezifischer Setup-Hinweis
-// (z. B. "MFA-Setup ueber CLI: ...") wird per `setupHint`-Prop oder
-// `#hint`-Slot eingeblendet — Plattform haelt sich aus App-CLIs raus.
+// Cross-cutting MFA confirmation dialog. An app-specific setup hint
+// (e.g. "MFA setup via CLI: ...") is shown via the `setupHint` prop or
+// the `#hint` slot — the platform stays out of app CLIs.
 
 const props = defineProps<{
     modelValue: boolean;
     description?: string;
     error?: string;
-    /** Optionaler HTML-String mit App-spezifischem Setup-Hinweis. */
+    /** Optional HTML string with an app-specific setup hint. */
     setupHint?: string;
 }>();
 const emit = defineEmits<{

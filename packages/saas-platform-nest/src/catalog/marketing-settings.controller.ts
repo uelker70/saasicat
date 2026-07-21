@@ -1,5 +1,5 @@
 // MarketingSettingsController — `/admin/catalog/marketing-settings`
-// (SPEC_V2 §6.5). Wie BundlesController zur Boot-Zeit gebaut.
+// (SPEC_V2 §6.5). Built at boot time, like BundlesController.
 
 import {
     Body,
@@ -28,7 +28,7 @@ export function buildMarketingSettingsController(guards: Array<Type<CanActivate>
             private readonly service: MarketingSettingsService,
         ) {}
 
-        /** Liefert die gespeicherte Konfig oder `null` (voller Pool aktiv). */
+        /** Returns the stored config or `null` (full pool active). */
         @Get()
         get(@Query() query: ListMarketingSettingsQueryDto) {
             return this.service.get(query.projectKey);

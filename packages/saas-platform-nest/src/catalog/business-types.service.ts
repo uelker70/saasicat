@@ -1,8 +1,8 @@
-// BusinessTypesService — CRUD für `business_types` + `business_type_versions`.
+// BusinessTypesService — CRUD for `business_types` + `business_type_versions`.
 //
-// Analog zu BundlesService, aber mit zusätzlichen Strict-Mode-Checks für
-// die Bundle-Komposition (Disjointness, Compatibility, Bundle-Existence)
-// und einem anderen Diff-Klassifikator (`classifyBusinessTypeVersionDiff`).
+// Analogous to BundlesService, but with additional strict-mode checks for
+// the bundle composition (disjointness, compatibility, bundle existence)
+// and a different diff classifier (`classifyBusinessTypeVersionDiff`).
 
 import {
     Inject,
@@ -64,15 +64,15 @@ export class BusinessTypesService {
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntries: CatalogEntryRepository | null = null,
     ) {
-        // Kein Snapshot-Guard wie in Bundles/PlanVersions: Disjointness-/
-        // Compatibility-Checks (GESCHAEFTSTYP_SPEC §6.3/§6.4) brauchen keine
-        // Discovery; nur die Quota-Prüfung nutzt den Snapshot (synthetischer
-        // Leer-Fallback). blocking ohne Snapshot ist hier also zulässig.
+        // No snapshot guard like in Bundles/PlanVersions: disjointness/
+        // compatibility checks (GESCHAEFTSTYP_SPEC §6.3/§6.4) do not need
+        // Discovery; only the quota check uses the snapshot (synthetic
+        // empty fallback). blocking without a snapshot is therefore permitted here.
         this.mode = config.strictModeCheckMode ?? 'blocking';
     }
 
     // =========================================================================
-    // Stamm-Operationen
+    // Master operations
     // =========================================================================
 
     listBusinessTypes(projectKey: string): Promise<BusinessTypeRow[]> {
@@ -121,7 +121,7 @@ export class BusinessTypesService {
     }
 
     // =========================================================================
-    // Version-Operationen
+    // Version operations
     // =========================================================================
 
     listBusinessTypeVersions(businessTypeId: string): Promise<BusinessTypeVersionRow[]> {
@@ -290,10 +290,10 @@ export class BusinessTypesService {
     // =========================================================================
 
     /**
-     * Lädt die referenzierten BundleVersions und prüft, dass alle existieren
-     * und published sind (live oder superseded — beides erlaubt, weil
-     * BusinessTypeBundle die konkrete Version hält). Wirft NotFound bei
-     * fehlenden, UnprocessableEntity bei nicht-published.
+     * Loads the referenced BundleVersions and verifies that all exist
+     * and are published (live or superseded — both allowed, because
+     * BusinessTypeBundle holds the concrete version). Throws NotFound for
+     * missing ones, UnprocessableEntity for non-published ones.
      */
     private async loadAndAssertBundles(bundleVersionIds: string[]): Promise<BundleVersionRow[]> {
         const result: BundleVersionRow[] = [];
@@ -320,9 +320,9 @@ export class BusinessTypesService {
     ): Promise<StrictModeWarning[]> {
         const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
         if (!snapshot) {
-            // Ohne Snapshot prüfen wir trotzdem Disjointness + Compatibility,
-            // weil das nicht von Discovery abhängt — nur Quota-Overrides werden
-            // übersprungen (inkl. Approved-Gate, das den Snapshot-projectKey braucht).
+            // Without a snapshot we still check disjointness + compatibility,
+            // because that does not depend on Discovery — only quota overrides are
+            // skipped (incl. the approved gate, which needs the snapshot projectKey).
             return validateBusinessTypeDraft(draft, bundleVersions, {
                 schemaVersion: 1,
                 scannedAt: new Date().toISOString(),
@@ -333,7 +333,7 @@ export class BusinessTypesService {
                 hash: 'sha256-empty',
             }).filter((w) => w.code !== 'QUOTA_MISSING');
         }
-        // Approved-Gate (#20 Slice 5): projectKey == snapshot.app.key (Konvention).
+        // Approved gate (#20 Slice 5): projectKey == snapshot.app.key (convention).
         const approved = await loadApprovedCatalogKeys(this.catalogEntries, snapshot.app.key);
         return validateBusinessTypeDraft(draft, bundleVersions, snapshot, approved);
     }

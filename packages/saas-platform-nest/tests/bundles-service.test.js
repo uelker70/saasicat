@@ -8,9 +8,9 @@ import {
     FakeSubscriptionRepository,
 } from '../dist/testing/index.js';
 
-// BundlesService — CRUD + Versions-Lifecycle + Strict-Mode-Check + Diff-
-// Klassifikation. Tests laufen direkt gegen die Service-Klasse mit dem
-// FakeBundleRepository und einem optionalen Discovery-Snapshot-Stub.
+// BundlesService — CRUD + version lifecycle + strict mode check + diff
+// classification. Tests run directly against the service class with the
+// FakeBundleRepository and an optional discovery snapshot stub.
 
 const PROJECT = 'clubapp';
 
@@ -43,11 +43,11 @@ beforeEach(() => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Stamm-Operationen
+// Master operations
 // ─────────────────────────────────────────────────────────────────
 
-describe('BundlesService — Stamm-Operationen', () => {
-    test('createBundle legt einen neuen Bundle-Stamm an', async () => {
+describe('BundlesService — Master operations', () => {
+    test('createBundle creates a new bundle master record', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const row = await service.createBundle({
             projectKey: PROJECT,
@@ -60,7 +60,7 @@ describe('BundlesService — Stamm-Operationen', () => {
         assert.equal(row.sortOrder, 0);
     });
 
-    test('createBundle wirft 422 bei doppeltem (projectKey, bundleKey)', async () => {
+    test('createBundle throws 422 on duplicate (projectKey, bundleKey)', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         await service.createBundle({ projectKey: PROJECT, bundleKey: 'BANKING', label: 'X' });
         await assert.rejects(
@@ -69,7 +69,7 @@ describe('BundlesService — Stamm-Operationen', () => {
         );
     });
 
-    test('updateBundle ändert label, lässt projectKey/bundleKey unangetastet', async () => {
+    test('updateBundle changes label, leaves projectKey/bundleKey untouched', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createBundle({
             projectKey: PROJECT,
@@ -82,7 +82,7 @@ describe('BundlesService — Stamm-Operationen', () => {
         assert.equal(updated.bundleKey, 'BANKING');
     });
 
-    test('softDeleteBundle ist idempotent', async () => {
+    test('softDeleteBundle is idempotent', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const created = await service.createBundle({
             projectKey: PROJECT,
@@ -90,12 +90,12 @@ describe('BundlesService — Stamm-Operationen', () => {
             label: 'X',
         });
         await service.softDeleteBundle(created.id);
-        await service.softDeleteBundle(created.id); // kein Fehler
+        await service.softDeleteBundle(created.id); // no error
         const after = await repo.findById(created.id);
         assert.notEqual(after?.deletedAt, null);
     });
 
-    test('listBundles filtert soft-deleted heraus', async () => {
+    test('listBundles filters out soft-deleted', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const a = await service.createBundle({ projectKey: PROJECT, bundleKey: 'A', label: 'A' });
         await service.createBundle({ projectKey: PROJECT, bundleKey: 'B', label: 'B' });
@@ -107,11 +107,11 @@ describe('BundlesService — Stamm-Operationen', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Version-Lifecycle: createDraft / updateDraft / publish
+// Version lifecycle: createDraft / updateDraft / publish
 // ─────────────────────────────────────────────────────────────────
 
-describe('BundlesService — Version-Lifecycle', () => {
-    test('createBundleDraft legt v1 an mit baseVersionId=null', async () => {
+describe('BundlesService — Version lifecycle', () => {
+    test('createBundleDraft creates v1 with baseVersionId=null', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -129,7 +129,7 @@ describe('BundlesService — Version-Lifecycle', () => {
         assert.deepEqual(result.warnings, []);
     });
 
-    test('createBundleDraft wirft 422, wenn bereits Draft existiert', async () => {
+    test('createBundleDraft throws 422 if a draft already exists', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -147,7 +147,7 @@ describe('BundlesService — Version-Lifecycle', () => {
         );
     });
 
-    test('updateBundleDraft wirft 422 bei published Version', async () => {
+    test('updateBundleDraft throws 422 on published version', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -162,11 +162,11 @@ describe('BundlesService — Version-Lifecycle', () => {
             publishedByUserId: null,
             validFrom: '2026-01-01',
         });
-        // Pack 2c: published-Versions sind nur dann editierbar, wenn sie
-        // latest-in-chain sind, keine Subscription binden UND validFrom in
-        // der Zukunft liegt. Solange die BundleVersion-Publish-Pipeline
-        // kein validFrom kennt (siehe OPEN_ISSUES §11.x), bleibt jede
-        // published Bundle-Version eingefroren — fail-closed.
+        // Pack 2c: published versions are only editable if they are
+        // latest-in-chain, bind no subscription AND validFrom lies in
+        // the future. As long as the BundleVersion publish pipeline
+        // does not know a validFrom (see OPEN_ISSUES §11.x), every
+        // published bundle version stays frozen — fail-closed.
         await assert.rejects(
             () =>
                 service.updateBundleDraft(draft.bundleVersion.id, {
@@ -180,7 +180,7 @@ describe('BundlesService — Version-Lifecycle', () => {
         );
     });
 
-    test('publishBundleVersion klassifiziert Diff (Feature added = IMPROVEMENT)', async () => {
+    test('publishBundleVersion classifies diff (feature added = IMPROVEMENT)', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -212,12 +212,12 @@ describe('BundlesService — Version-Lifecycle', () => {
                 (c) => c.field === 'features.added' && c.direction === 'IMPROVEMENT',
             ),
         );
-        // v1 ist superseded
+        // v1 is superseded
         const v1After = await repo.findVersionById(v1.bundleVersion.id);
         assert.notEqual(v1After.supersededAt, null);
     });
 
-    test('publishBundleVersion blockt regressive Version ohne forceRegressive', async () => {
+    test('publishBundleVersion blocks regressive version without forceRegressive', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -236,7 +236,7 @@ describe('BundlesService — Version-Lifecycle', () => {
 
         const v2 = await service.createBundleDraft({
             bundleId: bundle.id,
-            features: ['SEPA_DIRECT_DEBIT'], // RECEIVABLES entfernt → REGRESSION
+            features: ['SEPA_DIRECT_DEBIT'], // RECEIVABLES removed → REGRESSION
             monthlyNet: '9.90',
         });
         await assert.rejects(
@@ -249,7 +249,7 @@ describe('BundlesService — Version-Lifecycle', () => {
         );
     });
 
-    test('publishBundleVersion lässt regressive Version mit forceRegressive durch', async () => {
+    test('publishBundleVersion lets regressive version through with forceRegressive', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -281,12 +281,12 @@ describe('BundlesService — Version-Lifecycle', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Strict-Mode-Check (warn-only Default)
+// Strict mode check (warn-only default)
 // ─────────────────────────────────────────────────────────────────
 
-describe('BundlesService — Strict-Mode-Check', () => {
-    test('warn-only: Drift-Features kommen als warnings zurück, persistiert wird trotzdem', async () => {
-        const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []); // RECEIVABLES fehlt
+describe('BundlesService — Strict mode check', () => {
+    test('warn-only: drift features come back as warnings, persisted anyway', async () => {
+        const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []); // RECEIVABLES missing
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -300,12 +300,12 @@ describe('BundlesService — Strict-Mode-Check', () => {
         assert.equal(result.warnings.length, 1);
         assert.equal(result.warnings[0].code, 'BUNDLE_FEATURE_UNKNOWN');
         assert.equal(result.warnings[0].value, 'RECEIVABLES');
-        // Trotzdem persistiert
+        // Persisted anyway
         const stored = await repo.findVersionById(result.bundleVersion.id);
         assert.deepEqual(stored.features, ['SEPA_DIRECT_DEBIT', 'RECEIVABLES']);
     });
 
-    test('blocking: Drift-Features werfen 422', async () => {
+    test('blocking: drift features throw 422', async () => {
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []);
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'blocking' });
         const bundle = await service.createBundle({
@@ -323,8 +323,8 @@ describe('BundlesService — Strict-Mode-Check', () => {
         );
     });
 
-    test('ohne Snapshot: kein Strict-Check, leere Warnings', async () => {
-        service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }); // kein Snapshot
+    test('without snapshot: no strict check, empty warnings', async () => {
+        service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }); // no snapshot
         const bundle = await service.createBundle({
             projectKey: PROJECT,
             bundleKey: 'BANKING',
@@ -337,8 +337,8 @@ describe('BundlesService — Strict-Mode-Check', () => {
         assert.deepEqual(result.warnings, []);
     });
 
-    test('compatibility.planIds-Drift blockiert auch im warn-only-Modus', async () => {
-        // PlanRepository mit nur einem existierenden Plan "STARTER".
+    test('compatibility.planIds drift blocks even in warn-only mode', async () => {
+        // PlanRepository with only one existing plan "STARTER".
         const planRepo = new FakePlanRepository();
         await planRepo.create({ projectKey: PROJECT, planKey: 'STARTER', label: 'Starter' });
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []);
@@ -368,8 +368,8 @@ describe('BundlesService — Strict-Mode-Check', () => {
         assert.equal((await repo.listVersions(bundle.id)).length, 0);
     });
 
-    test('compatibility.planIds ohne PlanRepository → kein BUNDLE_PLAN_KEY_UNKNOWN', async () => {
-        // Kein planRepo injiziert → Check wird übersprungen (graceful).
+    test('compatibility.planIds without PlanRepository → no BUNDLE_PLAN_KEY_UNKNOWN', async () => {
+        // No planRepo injected → check is skipped (graceful).
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []);
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
@@ -388,7 +388,7 @@ describe('BundlesService — Strict-Mode-Check', () => {
         );
     });
 
-    test('Quota-Drift wird als QUOTA_MISSING gemeldet', async () => {
+    test('quota drift is reported as QUOTA_MISSING', async () => {
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], ['storageGb']);
         service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
@@ -407,11 +407,11 @@ describe('BundlesService — Strict-Mode-Check', () => {
     });
 });
 
-describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
+describe('BundlesService — Editability annotation (Pack 2c)', () => {
     const FUTURE = '2099-01-01';
     const FUTURE_NEXT = '2099-06-01';
 
-    test('listBundleVersions setzt isLatestInChain auf der höchsten Version', async () => {
+    test('listBundleVersions sets isLatestInChain on the highest version', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -438,7 +438,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         assert.equal(v2Row.isLatestInChain, true);
     });
 
-    test('publishBundleVersion: ohne validFrom → 422 BUNDLE_VERSION_VALID_FROM_REQUIRED', async () => {
+    test('publishBundleVersion: without validFrom → 422 BUNDLE_VERSION_VALID_FROM_REQUIRED', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -459,7 +459,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         );
     });
 
-    test('publishBundleVersion: zweite Version setzt vorherige auf supersededAt + Auto-Sukzession validUntil', async () => {
+    test('publishBundleVersion: second version sets previous to supersededAt + auto-succession validUntil', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -477,12 +477,12 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
             validFrom: '2026-06-01',
         });
         const v1After = await repo.findVersionById(v1.bundleVersion.id);
-        assert.notEqual(v1After.supersededAt, null, 'v1 muss superseded sein');
-        // Auto-Sukzession: validUntil(v1) = validFrom(v2) - 1 Tag
+        assert.notEqual(v1After.supersededAt, null, 'v1 must be superseded');
+        // Auto-succession: validUntil(v1) = validFrom(v2) - 1 day
         assert.equal(v1After.validUntil?.slice(0, 10), '2026-05-31');
     });
 
-    test('publishBundleVersion: validFrom muss strikt nach Vorgänger liegen → 422', async () => {
+    test('publishBundleVersion: validFrom must be strictly after predecessor → 422', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -499,7 +499,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
             () =>
                 service.publishBundleVersion(v2.bundleVersion.id, {
                     publishedByUserId: null,
-                    validFrom: '2026-06-01', // == Vorgänger, nicht strikt nach
+                    validFrom: '2026-06-01', // == predecessor, not strictly after
                 }),
             (err) => {
                 assert.equal(err.status, 422);
@@ -509,7 +509,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         );
     });
 
-    test('updateBundleDraft erlaubt published-but-future BundleVersion (latest, 0 Subs)', async () => {
+    test('updateBundleDraft allows published-but-future BundleVersion (latest, 0 subs)', async () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
@@ -522,15 +522,15 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
             publishedByUserId: null,
             validFrom: FUTURE,
         });
-        // 0 Subs → editierbar trotz publishedAt != null
+        // 0 subs → editable despite publishedAt != null
         const updated = await service.updateBundleDraft(published.bundleVersion.id, {
             monthlyNet: '12.00',
         });
         assert.equal(updated.bundleVersion.monthlyNet, '12.00');
-        assert.notEqual(updated.bundleVersion.publishedAt, null, 'published-Status bleibt');
+        assert.notEqual(updated.bundleVersion.publishedAt, null, 'published status remains');
     });
 
-    test('updateBundleDraft blockt published-but-future validFrom in der Vergangenheit', async () => {
+    test('updateBundleDraft blocks published-but-future validFrom in the past', async () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
@@ -557,7 +557,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         );
     });
 
-    test('updateBundleDraft blockt validFrom vor der Vorgänger-Version', async () => {
+    test('updateBundleDraft blocks validFrom before the predecessor version', async () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
@@ -589,7 +589,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         );
     });
 
-    test('updateBundleDraft blockt validUntil vor validFrom', async () => {
+    test('updateBundleDraft blocks validUntil before validFrom', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -615,7 +615,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         );
     });
 
-    test('updateBundleDraft blockt published-but-future BundleVersion mit Subscription', async () => {
+    test('updateBundleDraft blocks published-but-future BundleVersion with subscription', async () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
@@ -642,7 +642,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         );
     });
 
-    test('discardBundleDraft entfernt Draft + wirft bei published', async () => {
+    test('discardBundleDraft removes draft + throws on published', async () => {
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' });
         const bundle = await service.createBundle({
             projectKey: PROJECT,
@@ -654,7 +654,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         const after = await service.listBundleVersions(bundle.id);
         assert.equal(after.length, 0);
 
-        // Discard auf published → 422
+        // Discard on published → 422
         const draft2 = await service.createBundleDraft({ bundleId: bundle.id, features: ['A'] });
         await service.publishBundleVersion(draft2.bundleVersion.id, {
             publishedByUserId: null,
@@ -670,7 +670,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
         );
     });
 
-    test('updateBundleDraft blockt published Version, die nicht latest-in-chain ist', async () => {
+    test('updateBundleDraft blocks published version that is not latest-in-chain', async () => {
         const subs = new FakeSubscriptionRepository();
         service = new BundlesService(repo, null, { strictModeCheckMode: 'warn-only' }, subs);
         const bundle = await service.createBundle({
@@ -688,7 +688,7 @@ describe('BundlesService — Editierbarkeits-Annotation (Pack 2c)', () => {
             publishedByUserId: null,
             validFrom: FUTURE_NEXT,
         });
-        // v1 published-future-active, aber NICHT latest-in-chain → eingefroren
+        // v1 published-future-active, but NOT latest-in-chain → frozen
         await assert.rejects(
             () =>
                 service.updateBundleDraft(v1Published.bundleVersion.id, {

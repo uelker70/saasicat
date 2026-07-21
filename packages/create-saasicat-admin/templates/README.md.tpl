@@ -1,6 +1,6 @@
 # __BRAND_NAME__ Admin
 
-SuperAdmin-Frontend für __BRAND_NAME__, erzeugt mit
+SuperAdmin frontend for __BRAND_NAME__, generated with
 `create-saasicat-admin`.
 
 ## Setup
@@ -10,15 +10,15 @@ pnpm install
 pnpm dev
 ```
 
-Erreichbar unter `http://localhost:__DEV_PORT__/admin/login`.
+Reachable at `http://localhost:__DEV_PORT__/admin/login`.
 
-Backend muss unter `http://localhost:__BACKEND_PORT__` lauschen und
-`__API_BASE__/manifest` ausliefern.
+The backend must listen on `http://localhost:__BACKEND_PORT__` and
+serve `__API_BASE__/manifest`.
 
 ## TODO
 
-- `src/services/http.ts#adminLogin` an dein Backend-Auth anpassen.
-- Eigene Project-Pages in `src/router/routes.ts` ergänzen (mit
-  `createProjectPageHostRoute()` als Catch-all).
-- KPI-Cards, Tenant-Actions, Project-Pages in deinem Backend-Manifest
-  registrieren (siehe `docs/saas-platform.md §6.6` im saasicat-Repo).
+- Adapt `src/services/http.ts#adminLogin` to your backend auth.
+- Add your own project pages in `src/router/routes.ts` (with
+  `createProjectPageHostRoute()` as a catch-all).
+- Register KPI cards, tenant actions and project pages in your backend
+  manifest (see `docs/saas-platform.md §6.6` in the saasicat repo).

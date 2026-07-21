@@ -1,9 +1,8 @@
-// LimitExceededFilter — übersetzt die domänenneutrale `LimitExceededError`
-// (entitlement/limit-exceeded-error.ts) in HTTP 402 (Payment Required).
+// LimitExceededFilter — translates the domain-neutral `LimitExceededError`
+// (entitlement/limit-exceeded-error.ts) into HTTP 402 (Payment Required).
 //
-// Wird von Konsumenten als `APP_FILTER` registriert, damit alle Routen, die
-// `EntitlementService.enforceLimit(...)` aufrufen, die gleiche
-// HTTP-402-Antwort liefern.
+// Registered by consumers as an `APP_FILTER` so that all routes calling
+// `EntitlementService.enforceLimit(...)` return the same HTTP 402 response.
 
 import {
     type ArgumentsHost,

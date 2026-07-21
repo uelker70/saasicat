@@ -1,6 +1,6 @@
-// DI-Token für die konsumenten-spezifische FeatureUiRegistry.
+// DI token for the consumer-specific FeatureUiRegistry.
 //
-// Konsumenten injizieren ihre eigene Registry per `PublicCatalogModule.forRoot({ featureUiRegistry })`.
-// Plattform-Code referenziert das Token statt eines Build-Time-Imports.
+// Consumers inject their own registry via `PublicCatalogModule.forRoot({ featureUiRegistry })`.
+// Platform code references the token instead of a build-time import.
 
 export const FEATURE_UI_REGISTRY_TOKEN = Symbol.for('saas-platform/FeatureUiRegistry');

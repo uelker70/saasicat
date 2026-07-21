@@ -77,19 +77,19 @@ import {
 } from './tokens.js';
 
 /**
- * Orchestriert Schritt 1 (Anmeldedaten erfassen) und Schritt 2 (OTP-Verifikation)
- * des mehrstufigen Registrierungsflows.
+ * Orchestrates step 1 (capture registration data) and step 2 (OTP verification)
+ * of the multi-step registration flow.
  *
- * Wichtige Invarianten:
- *  - `start()` liefert IMMER eine neutrale Antwort (Account-Enumeration-Schutz).
- *  - OTP wird nur als SHA-256-Hash gespeichert, niemals im Klartext.
- *  - Passwoerter werden vom injizierten PasswordHasher (i. d. R. Argon2) gehashed.
- *  - Bei Rate-Limit-Treffer wird der OTP-Send still verworfen — keine 429-Antwort,
- *    sonst koennte ein Angreifer die Existenz eines PendingRegistration-Datensatzes
- *    aus dem Statuscode ableiten.
- *  - OTP-Fehlversuche werden persistent gezaehlt: ab `OTP_VERIFY_MAX_ATTEMPTS`
- *    wirft `verifyOtp()` `OTP_LOCKED` — auch bei danach korrektem Code. Erst
- *    ein neu generierter OTP (Resend, separat ratelimitiert) entsperrt.
+ * Important invariants:
+ *  - `start()` ALWAYS returns a neutral response (account-enumeration protection).
+ *  - The OTP is only stored as a SHA-256 hash, never in plaintext.
+ *  - Passwords are hashed by the injected PasswordHasher (usually Argon2).
+ *  - On a rate-limit hit the OTP send is silently discarded — no 429 response,
+ *    otherwise an attacker could infer the existence of a PendingRegistration
+ *    record from the status code.
+ *  - OTP failed attempts are counted persistently: at `OTP_VERIFY_MAX_ATTEMPTS`
+ *    `verifyOtp()` throws `OTP_LOCKED` — even for a subsequently correct code.
+ *    Only a newly generated OTP (resend, rate-limited separately) unlocks it.
  */
 @Injectable()
 export class PendingRegistrationService {
@@ -150,13 +150,13 @@ export class PendingRegistrationService {
                 metadata,
             });
         } catch (error) {
-            // Audit-Versagen darf den Auth-Flow nicht abbrechen.
+            // Audit failure must not abort the auth flow.
             const message = error instanceof Error ? error.message : String(error);
             this.logger.warn(`Audit-Log fehlgeschlagen (${eventType}): ${message}`);
         }
     }
 
-    /** Public-Signup-Plan-Liste fuer Step 3 (Frontend `usePublicPlans()`). */
+    /** Public signup plan list for step 3 (frontend `usePublicPlans()`). */
     async listPublicPlans(): Promise<PublicSignupPlan[]> {
         return this.planCatalog.listPublicSignupPlans();
     }
@@ -172,9 +172,9 @@ export class PendingRegistrationService {
         if (pending.expiresAt.getTime() < Date.now()) {
             throw new BadRequestException({ code: 'PENDING_REGISTRATION_EXPIRED' });
         }
-        // Plan kann nur nach Email-Verifikation und vor erfolgter Aktivierung
-        // gewaehlt werden. Plan-Wechsel im Status PLAN_SELECTED / CHECKOUT_STARTED
-        // ist erlaubt — Spec laesst Wechsel bis Zahlung zu.
+        // A plan can only be selected after email verification and before
+        // activation has completed. Switching plans in status PLAN_SELECTED /
+        // CHECKOUT_STARTED is allowed — the spec permits switching until payment.
         if (
             pending.status !== 'EMAIL_VERIFIED' &&
             pending.status !== 'PLAN_SELECTED' &&
@@ -185,9 +185,9 @@ export class PendingRegistrationService {
 
         const plan = await this.planCatalog.findPublicSignupPlan(input.planId);
         if (!plan) {
-            // Plan existiert nicht im Catalog ODER ist nicht public-signup-faehig
-            // (z. B. ENTERPRISE). Beide Faelle liefern dieselbe Antwort, damit
-            // Plan-Existenz nicht ueber unterschiedliche Fehlercodes leaked.
+            // The plan does not exist in the catalog OR is not eligible for public
+            // signup (e.g. ENTERPRISE). Both cases return the same response so that
+            // plan existence does not leak via differing error codes.
             throw new BadRequestException({ code: 'PLAN_NOT_AVAILABLE' });
         }
 
@@ -227,8 +227,8 @@ export class PendingRegistrationService {
         if (!pending.selectedPlanId) {
             throw new BadRequestException({ code: 'PLAN_NOT_SELECTED' });
         }
-        // Sicherheits-Re-Check: Plan koennte zwischen Step 3 und Step 4 aus
-        // dem Catalog rausgenommen worden sein (z. B. Wartungsfenster).
+        // Security re-check: the plan could have been removed from the catalog
+        // between step 3 and step 4 (e.g. a maintenance window).
         const plan = await this.planCatalog.findPublicSignupPlan(pending.selectedPlanId);
         if (!plan) {
             throw new BadRequestException({ code: 'PLAN_NOT_AVAILABLE' });
@@ -266,17 +266,17 @@ export class PendingRegistrationService {
     }
 
     /**
-     * Verarbeitet einen Payment-Webhook idempotent:
-     *  1. `tryClaim` haelt den Event-ID per @unique-INSERT fest. Duplikate
-     *     werden silently gedropped (`ALREADY_PROCESSED`).
-     *  2. Bei Status `SUCCEEDED` wird die PendingRegistration aus der
-     *     Checkout-Session aufgeloest und der ActivationOrchestrator ruft
-     *     die finale User+Tenant+Subscription-Erzeugung in einer Transaktion.
-     *  3. Nach Aktivierung wird die PendingRegistration geloescht.
+     * Processes a payment webhook idempotently:
+     *  1. `tryClaim` pins the event ID via a @unique INSERT. Duplicates are
+     *     dropped silently (`ALREADY_PROCESSED`).
+     *  2. On status `SUCCEEDED` the PendingRegistration is resolved from the
+     *     checkout session and the ActivationOrchestrator triggers the final
+     *     user+tenant+subscription creation in a single transaction.
+     *  3. After activation the PendingRegistration is deleted.
      *
-     * Bei Fehlern in Schritt 2/3 bleibt der EventLog-Eintrag bestehen —
-     * Re-Tries vom Provider laufen dann ins ALREADY_PROCESSED. Operative
-     * Reparatur passiert manuell (Status-Inspektion + Cleanup).
+     * On errors in step 2/3 the EventLog entry remains — provider retries then
+     * run into ALREADY_PROCESSED. Operational repair is done manually (status
+     * inspection + cleanup).
      */
     async handlePaymentEvent(
         input: HandlePaymentEventInput,
@@ -312,9 +312,9 @@ export class PendingRegistrationService {
         if (!pending) {
             return { activated: false, reason: 'PENDING_REGISTRATION_NOT_FOUND' };
         }
-        // PLAN_SELECTED zulassen: falls der Webhook *vor* dem startCheckout-
-        // Update-Roundtrip ankommt (race), waere status noch PLAN_SELECTED.
-        // CHECKOUT_STARTED ist der Standardfall.
+        // Allow PLAN_SELECTED: if the webhook arrives *before* the startCheckout
+        // update roundtrip (race), the status would still be PLAN_SELECTED.
+        // CHECKOUT_STARTED is the standard case.
         if (pending.status !== 'CHECKOUT_STARTED' && pending.status !== 'PLAN_SELECTED') {
             return { activated: false, reason: 'INVALID_STATE' };
         }
@@ -338,14 +338,13 @@ export class PendingRegistrationService {
     }
 
     /**
-     * Loescht alle PendingRegistration-Datensaetze mit `expiresAt < now`.
-     * Vollstaendige Loeschung (kein Anonymisierung-Pfad) ist die einfachere
-     * Variante: das Schema haelt `email`, `firstName`, `lastName`,
-     * `passwordHash` als NOT NULL, und unique-Email ist genau das, was nach
-     * Ablauf wieder frei werden muss.
+     * Deletes all PendingRegistration records with `expiresAt < now`.
+     * Full deletion (no anonymization path) is the simpler option: the schema
+     * holds `email`, `firstName`, `lastName`, `passwordHash` as NOT NULL, and
+     * the unique email is exactly what needs to become free again after expiry.
      *
-     * Batch-`limit` schuetzt vor Memory-Spikes bei grossen Backlogs — der
-     * Caller (Cron) ruft solange auf, bis `moreAvailable === false`.
+     * The batch `limit` guards against memory spikes on large backlogs — the
+     * caller (cron) keeps calling until `moreAvailable === false`.
      */
     async runCleanup(now: Date, limit = 500): Promise<CleanupResult> {
         if (limit <= 0) {
@@ -356,8 +355,8 @@ export class PendingRegistrationService {
             try {
                 await this.repo.delete(pending.id);
             } catch (error) {
-                // Loeschfehler nicht eskalieren — z. B. konkurrierender Cleanup
-                // hat den Datensatz schon entfernt. Loggen und weiter.
+                // Do not escalate delete errors — e.g. a concurrent cleanup has
+                // already removed the record. Log and continue.
                 const message = error instanceof Error ? error.message : String(error);
                 this.logger.warn(
                     `Cleanup: PendingRegistration ${pending.id} konnte nicht geloescht werden (${message}).`,
@@ -382,9 +381,9 @@ export class PendingRegistrationService {
         const email = normalizeEmail(input.email);
 
         if (await this.userLookup.hasActiveUser(email)) {
-            // Fall A: Aktiver Account existiert. Keine PendingRegistration anlegen,
-            // keine Information nach aussen geben. Optional koennte hier ein
-            // Passwort-Reset-Link gesendet werden (Phase 2+).
+            // Case A: an active account exists. Do not create a PendingRegistration,
+            // do not reveal any information to the outside. Optionally a password
+            // reset link could be sent here (phase 2+).
             this.logger.log(`register/start fuer aktiven Account ignoriert (${email}).`);
             await this.record('REGISTRATION_NEUTRAL_ACTIVE_USER', null, context);
             return { neutral: true };
@@ -393,24 +392,24 @@ export class PendingRegistrationService {
         const existing = await this.repo.findByEmail(email);
         if (existing) {
             if (existing.expiresAt.getTime() < Date.now()) {
-                // Fall E: Abgelaufen. Loeschen und unten frisch anlegen.
+                // Case E: expired. Delete and create fresh below.
                 await this.repo.delete(existing.id);
                 await this.record('REGISTRATION_NEUTRAL_EXPIRED', existing.id, context);
             } else if (existing.status === 'PENDING_EMAIL_VERIFICATION') {
-                // Fall B: Es laeuft eine unbestaetigte Registrierung. Neuer OTP,
-                // alter wird invalidiert. Andere Felder bleiben unveraendert
-                // (kein Override durch potentiellen Angreifer).
+                // Case B: an unconfirmed registration is in progress. New OTP,
+                // the old one is invalidated. Other fields stay unchanged
+                // (no override by a potential attacker).
                 await this.regenerateOtp(existing);
                 await this.record('REGISTRATION_NEUTRAL_REPLAY', existing.id, context, {
                     status: existing.status,
                 });
                 return { neutral: true };
             } else {
-                // Fall C/D: Onboarding ist schon weiter (EMAIL_VERIFIED,
-                // PLAN_SELECTED, CHECKOUT_STARTED). Spec § Fall C/D: Wir
-                // senden einen *Resume-Link* mit signiertem Token, kein
-                // neuer OTP — der User soll nicht nochmal verifizieren.
-                // Fallback (kein Signer konfiguriert): regenerateOtp wie Fall B.
+                // Case C/D: onboarding has already progressed (EMAIL_VERIFIED,
+                // PLAN_SELECTED, CHECKOUT_STARTED). Spec § case C/D: we send a
+                // *resume link* with a signed token, no new OTP — the user
+                // should not have to verify again.
+                // Fallback (no signer configured): regenerateOtp as in case B.
                 if (this.resumeTokenSigner && this.resumeDelivery) {
                     await this.sendResumeLink(existing);
                 } else {
@@ -463,8 +462,8 @@ export class PendingRegistrationService {
         }
 
         if (pending.status !== 'PENDING_EMAIL_VERIFICATION') {
-            // Bereits verifiziert: idempotente Antwort mit aktuellem Step.
-            // (Verhindert Fehler, wenn das Frontend einen Verify-Call doppelt sendet.)
+            // Already verified: idempotent response with the current step.
+            // (Prevents errors when the frontend sends a verify call twice.)
             return {
                 status: pending.status,
                 nextStep: REGISTRATION_STEP_BY_STATUS[pending.status],
@@ -480,19 +479,19 @@ export class PendingRegistrationService {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'expired' });
             throw new BadRequestException({ code: 'OTP_EXPIRED' });
         }
-        // Brute-Force-Lockout als claim-then-check: erst atomar einen
-        // Versuchs-Slot beanspruchen, DANN vergleichen — so ist die Zahl der
-        // Hash-Vergleiche pro Code auch bei parallelen Requests hart
-        // gedeckelt. Der Vorab-Check auf dem gelesenen Stand ist nur die
-        // Abkuerzung, die bereits gesperrten Codes den Inkrement erspart.
+        // Brute-force lockout as claim-then-check: first atomically claim an
+        // attempt slot, THEN compare — this hard-caps the number of hash
+        // comparisons per code even under concurrent requests. The upfront
+        // check on the read state is just the shortcut that spares already
+        // locked codes the increment.
         const maxAttempts = resolveOtpVerifyMaxAttempts();
         if (pending.otpAttemptCount >= maxAttempts) {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'locked' });
             throw new BadRequestException({ code: 'OTP_LOCKED' });
         }
-        // `neuerStand > Limit` bedeutet: der Zaehler war schon VOR diesem
-        // Versuch am Limit — ein paralleler Request hat das Budget bereits
-        // aufgebraucht; dieser Request bekommt keinen Hash-Vergleich mehr.
+        // `newCount > limit` means: the counter was already at the limit BEFORE
+        // this attempt — a concurrent request has already used up the budget;
+        // this request gets no more hash comparison.
         const attemptCount = await this.repo.incrementOtpAttemptCount(pending.id);
         if (attemptCount > maxAttempts) {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'locked' });
@@ -527,14 +526,14 @@ export class PendingRegistrationService {
     ): Promise<StartRegistrationResult> {
         const email = normalizeEmail(emailRaw);
         const pending = await this.repo.findByEmail(email);
-        // Account-Enumeration-Schutz: ob es einen Datensatz gibt oder nicht — gleiche Antwort.
+        // Account-enumeration protection: whether a record exists or not — same response.
         if (!pending) {
             return { neutral: true };
         }
         if (pending.status !== 'PENDING_EMAIL_VERIFICATION') {
-            // Wenn er schon weiter ist, schicken wir der UX zuliebe trotzdem einen neuen OTP
-            // (z. B. wenn der User auf "Neuen Code senden" klickt und dann nochmal
-            // doppelt sendet). Andere Status sind kein Fehler, aber kein OTP-Versand.
+            // If they are already further along, we still send a new OTP for the sake
+            // of UX (e.g. when the user clicks "Neuen Code senden" and then sends
+            // twice). Other statuses are not an error, but no OTP is sent.
             return { neutral: true };
         }
         await this.regenerateOtp(pending);
@@ -566,8 +565,8 @@ export class PendingRegistrationService {
             otpExpiresAt,
             otpSendCount,
             lastOtpSentAt: now,
-            // Neuer Code = frisches Versuchsbudget. Der Gesamtdurchsatz bleibt
-            // durch das Send-Rate-Limit oben gedeckelt.
+            // New code = fresh attempt budget. Overall throughput stays capped
+            // by the send rate limit above.
             otpAttemptCount: 0,
         });
 
@@ -583,17 +582,17 @@ export class PendingRegistrationService {
                 locale: pending.locale,
             });
         } catch (error) {
-            // Mail-Versand-Fehler darf den Flow nicht spuerbar abbrechen
-            // (sonst Account-Enumeration ueber Timing/Statuscode). Nur loggen.
+            // A mail send error must not noticeably abort the flow (otherwise
+            // account enumeration via timing/status code). Only log.
             const message = error instanceof Error ? error.message : String(error);
             this.logger.error(`OTP-Mail an ${pending.email} fehlgeschlagen: ${message}`);
         }
     }
 
     /**
-     * Erzeugt einen signierten Resume-Token (60 min TTL) und sendet einen
-     * Magic-Link an die hinterlegte Email. Mail-Versand-Fehler werden
-     * geloggt aber nicht eskaliert (Account-Enumeration-Schutz).
+     * Creates a signed resume token (60 min TTL) and sends a magic link to the
+     * stored email. Mail send errors are logged but not escalated
+     * (account-enumeration protection).
      */
     private async sendResumeLink(pending: PendingRegistration): Promise<void> {
         if (!this.resumeTokenSigner || !this.resumeDelivery) {
@@ -619,13 +618,13 @@ export class PendingRegistrationService {
     }
 
     /**
-     * Loest einen Resume-Token in den passenden Onboarding-Schritt auf.
-     * Wird vom Frontend aus `/register?resume=<jwt>` aufgerufen. Bei ungueltigem
-     * Token wirft die Methode `RESUME_TOKEN_INVALID`.
+     * Resolves a resume token to the matching onboarding step. Called by the
+     * frontend from `/register?resume=<jwt>`. On an invalid token the method
+     * throws `RESUME_TOKEN_INVALID`.
      *
-     * Liefert einen Public-Safe-Snapshot der PendingRegistration mit, damit
-     * das Frontend abgeschlossene Steps mit den existierenden Daten befuellen
-     * kann (Vorname/Nachname, Vereinsname, Plan-Auswahl ...).
+     * Also returns a public-safe snapshot of the PendingRegistration so the
+     * frontend can prefill completed steps with the existing data (first name /
+     * last name, organization name, plan selection ...).
      */
     async resumeWithToken(
         input: ResumeRegistrationInput,
@@ -660,18 +659,18 @@ export class PendingRegistrationService {
     }
 
     /**
-     * Signiert ein kurzlebiges Resume-Token fuer eine bestehende
-     * PendingRegistration — Login-Endpoint nutzt das, um nach erfolgreicher
-     * Passwort-Verifikation den User mit Pre-Fill in den Wizard zu schicken.
+     * Signs a short-lived resume token for an existing PendingRegistration —
+     * the login endpoint uses this to send the user into the wizard with
+     * prefill after successful password verification.
      */
     async signResumeToken(pendingRegistrationId: string): Promise<string | null> {
         if (!this.resumeTokenSigner) return null;
         return this.resumeTokenSigner.sign({ pendingRegistrationId });
     }
 
-    /* ─── Konfigurator (Step 3) ────────────────────────────────────────── */
+    /* ─── Configurator (Step 3) ────────────────────────────────────────── */
 
-    /** Liefert den (App-spezifischen) Konfigurator-Catalog. */
+    /** Returns the (app-specific) configurator catalog. */
     async getConfiguratorCatalog(): Promise<ConfiguratorCatalog> {
         if (!this.configuratorLookup) {
             throw new BadRequestException({ code: 'CONFIGURATOR_NOT_CONFIGURED' });
@@ -680,13 +679,13 @@ export class PendingRegistrationService {
     }
 
     /**
-     * Speichert die Konfigurator-Auswahl (Modell + Cycle + Promo) und
-     * liefert den vollstaendigen Preis-Breakdown zurueck.
+     * Saves the configurator selection (model + cycle + promo) and returns the
+     * full price breakdown.
      *
-     * Setzt:
+     * Sets:
      *  - `status = PLAN_SELECTED`
      *  - `currentStep = 4`
-     *  - `selectedPlanId = <PlanId aus dem gewaehlten Modell>`
+     *  - `selectedPlanId = <planId from the chosen model>`
      *  - `configJson` / `billingCycle` / `appliedPromoCode`
      *  - `expiresAt = now + ONBOARDING_TTL`
      */
@@ -718,11 +717,10 @@ export class PendingRegistrationService {
             throw new BadRequestException({ code: 'MODEL_NOT_AVAILABLE' });
         }
 
-        // SPEC_V2 §11.1 M5.3 — optionale BusinessType-Wahl gegen den
-        // Lookup-Adapter validieren. Nur prüfen, wenn beides gesetzt ist:
-        // ID in der Selection UND Lookup im DI-Graph (Apps ohne
-        // BusinessType-Katalog konfigurieren keinen Lookup, dann
-        // wird die ID ignoriert).
+        // SPEC_V2 §11.1 M5.3 — validate the optional BusinessType choice against
+        // the lookup adapter. Only check when both are set: an ID in the
+        // selection AND a lookup in the DI graph (apps without a BusinessType
+        // catalog do not configure a lookup, in which case the ID is ignored).
         if (input.selection.businessTypeVersionId && this.businessTypeLookup) {
             const view = await this.businessTypeLookup.findPublishedVersion(
                 input.selection.businessTypeVersionId,
@@ -732,10 +730,10 @@ export class PendingRegistrationService {
             }
         }
 
-        // Promo-Code optional: bei Vorhandensein gegen den Preview-Adapter laufen lassen.
+        // Promo code optional: when present, run it against the preview adapter.
         let promoEval: { discountAmount: number; percent: number; label: string } | undefined;
         if (input.selection.appliedPromoCode && this.promoPreview) {
-            // Zuerst ohne Promo rechnen, um Brutto-Subtotal zu bekommen.
+            // First compute without the promo to get the gross subtotal.
             const dryRun = computeBreakdown(catalog, {
                 ...input.selection,
                 appliedPromoCode: null,
@@ -801,10 +799,10 @@ export class PendingRegistrationService {
     }
 
     /**
-     * Validiert einen Promo-Code gegen die aktuell gespeicherte
-     * Konfiguration und liefert einen neuen Breakdown zurueck. Verandert
-     * die Pending NICHT — fuer Live-Preview im Frontend. Wird `null` als
-     * `code` uebergeben, wird der Promo-Effekt entfernt.
+     * Validates a promo code against the currently stored configuration and
+     * returns a new breakdown. Does NOT modify the pending — for live preview
+     * in the frontend. If `null` is passed as `code`, the promo effect is
+     * removed.
      */
     async previewConfigPromo(
         pendingRegistrationId: string,
@@ -859,10 +857,10 @@ export class PendingRegistrationService {
     }
 
     /**
-     * Helper fuer Step-3-Resume: Frontend braucht den aktuellen Breakdown,
-     * wenn die Pending schon eine Konfiguration hat. Pure Re-Berechnung
-     * gegen den Catalog (ohne Promo-Validation, weil Promos ohnehin frisch
-     * geprueft werden sollten).
+     * Helper for step 3 resume: the frontend needs the current breakdown when
+     * the pending already has a configuration. Pure recomputation against the
+     * catalog (without promo validation, since promos should be freshly checked
+     * anyway).
      */
     async getCurrentBreakdown(
         pendingRegistrationId: string,
@@ -896,10 +894,10 @@ function normalizeEmail(value: string): string {
 }
 
 /**
- * Max. OTP-Fehlversuche: Plattform-Default aus den Registration-Konstanten,
- * per Env `SAAS_PLATFORM_OTP_VERIFY_MAX_ATTEMPTS` uebersteuerbar. Wird pro
- * Aufruf gelesen (analog `SAAS_PLATFORM_SKIP_RATE_LIMITS` im IP-Guard),
- * damit Konsumenten/Tests ohne Neustart umkonfigurieren koennen.
+ * Max OTP failed attempts: platform default from the registration constants,
+ * overridable via the env `SAAS_PLATFORM_OTP_VERIFY_MAX_ATTEMPTS`. Read on each
+ * call (analogous to `SAAS_PLATFORM_SKIP_RATE_LIMITS` in the IP guard), so that
+ * consumers/tests can reconfigure without a restart.
  */
 function resolveOtpVerifyMaxAttempts(): number {
     const raw = process.env.SAAS_PLATFORM_OTP_VERIFY_MAX_ATTEMPTS;

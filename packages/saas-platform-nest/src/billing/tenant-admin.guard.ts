@@ -5,13 +5,13 @@ import {
     Injectable,
 } from '@nestjs/common';
 
-// TenantAdminGuard — prüft, dass der eingeloggte User die `TENANT_ADMIN`-Rolle
-// (oder `SUPER_ADMIN`) hat. Wird zusätzlich zum `ComposedTenantAuthGuard` für
-// kostenwirksame Plan-/Add-on-Mutationen verwendet.
+// TenantAdminGuard — verifies that the logged-in user has the `TENANT_ADMIN`
+// role (or `SUPER_ADMIN`). Used in addition to `ComposedTenantAuthGuard` for
+// cost-relevant plan/add-on mutations.
 //
-// Erwartet `request.user.platformRole` oder als Fallback `request.user.role`
-// — beide Konventionen sind in der Plattform-Codebase gleichwertig
-// dokumentiert (`saas-platform-types/src/ports.types.ts` PlatformRole).
+// Expects `request.user.platformRole` or, as a fallback, `request.user.role`
+// — both conventions are documented as equivalent in the platform codebase
+// (`saas-platform-types/src/ports.types.ts` PlatformRole).
 
 interface RequestWithUser {
     user?: {

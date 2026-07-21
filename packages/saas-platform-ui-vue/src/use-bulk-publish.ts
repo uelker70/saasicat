@@ -1,14 +1,14 @@
-// useBulkPublish — Bulk-Publish-Modal-Orchestration.
+// useBulkPublish — bulk-publish modal orchestration.
 //
-// SuperAdmin wählt N Drafts aus der Versions-Page-Liste, gibt eine gemeinsame
-// `changeNote` ein und triggert den Publish. Die Plattform-Composable führt
-// die Publishes **parallel** aus und tracked pro Draft den Status (pending/
-// publishing/published/failed) — das Modal rendert eine Live-Tabelle mit
-// Fortschrittsbalken pro Item.
+// SuperAdmin selects N drafts from the versions page list, enters a shared
+// `changeNote` and triggers the publish. The platform composable runs the
+// publishes **in parallel** and tracks the status per draft (pending/
+// publishing/published/failed) — the modal renders a live table with a
+// progress bar per item.
 //
-// Was die Plattform NICHT macht: TOTP-Code-Eingabe + MFA-Header-Setzen.
-// Das tut die Konsumenten-Shell (Quasar-Modal o. ä.) und reicht den
-// `mfaCode`-Parameter durch.
+// What the platform does NOT do: TOTP code entry + setting the MFA header.
+// The consumer shell (Quasar modal or similar) does that and passes the
+// `mfaCode` parameter through.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from './types.js';
@@ -18,23 +18,23 @@ export type BulkItemKind = 'plan';
 export type BulkItemStatus = 'pending' | 'publishing' | 'published' | 'failed';
 
 export interface BulkPublishItem {
-    /** Composite-ID: `<kind>:<draftId>`. Eindeutig im Bulk-Set. */
+    /** Composite ID: `<kind>:<draftId>`. Unique within the bulk set. */
     key: string;
     kind: BulkItemKind;
     draftId: string;
-    /** Anzeige-Label im Modal (z. B. "STANDARD v3"). */
+    /** Display label in the modal (e.g. "STANDARD v3"). */
     label: string;
     status: BulkItemStatus;
     error?: string;
-    /** Server-Antwort bei status='published'. */
+    /** Server response when status='published'. */
     result?: unknown;
 }
 
 export interface UseBulkPublishOptions {
     /**
-     * Endpoint-Mapping je Kind. **Pflicht** — Plattform kennt den
-     * App-globalPrefix nicht (z. B. `/api/admin/...` oder
-     * `/api/v1/admin/...`), Konsumenten liefern daher die volle URL je Kind.
+     * Endpoint mapping per kind. **Required** — the platform does not know
+     * the app's globalPrefix (e.g. `/api/admin/...` or
+     * `/api/v1/admin/...`), so consumers supply the full URL per kind.
      */
     endpoints: Record<BulkItemKind, (draftId: string) => string>;
     http?: HttpClient;
@@ -43,20 +43,20 @@ export interface UseBulkPublishOptions {
 
 export interface UseBulkPublishResult {
     items: Ref<BulkPublishItem[]>;
-    /** Anteil bereits abgeschlossener Items (0..1). */
+    /** Fraction of items already completed (0..1). */
     progress: ComputedRef<number>;
-    /** Liefert `true`, sobald alle Items entweder `published` oder `failed` sind. */
+    /** Returns `true` once all items are either `published` or `failed`. */
     done: ComputedRef<boolean>;
-    /** Anzahl erfolgreicher Publishes. */
+    /** Number of successful publishes. */
     successCount: ComputedRef<number>;
-    /** Anzahl fehlgeschlagener Publishes. */
+    /** Number of failed publishes. */
     failureCount: ComputedRef<number>;
-    /** Setzt das Bulk-Set neu — z. B. nach Modal-Open. */
+    /** Resets the bulk set — e.g. after modal open. */
     setItems: (items: Array<Omit<BulkPublishItem, 'status'>>) => void;
     /**
-     * Triggert den Bulk-Publish. `changeNote` ist Pflicht für alle
-     * Drafts; `mfaCode` ist optional, wird im `X-Mfa-Code`-Header
-     * gesendet wenn vorhanden.
+     * Triggers the bulk publish. `changeNote` is required for all
+     * drafts; `mfaCode` is optional and is sent in the `X-Mfa-Code`
+     * header when present.
      */
     run: (input: { changeNote: string; mfaCode?: string }) => Promise<void>;
 }
@@ -125,14 +125,14 @@ export function useBulkPublish(options: UseBulkPublishOptions): UseBulkPublishRe
     async function run(input: { changeNote: string; mfaCode?: string }): Promise<void> {
         const note = input.changeNote.trim();
         if (note.length === 0) {
-            // Markiere alle Items als failed mit klarer Begründung.
+            // Mark all items as failed with a clear reason.
             for (const item of items.value) {
                 item.status = 'failed';
                 item.error = 'changeNote ist Pflicht beim Publish.';
             }
             return;
         }
-        // Parallele Publishes — Server enforct Optimistic-Lock pro Draft.
+        // Parallel publishes — the server enforces an optimistic lock per draft.
         await Promise.all(
             items.value.map((item) => publishOne(item, { changeNote: note }, input.mfaCode)),
         );

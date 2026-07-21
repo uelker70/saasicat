@@ -1,12 +1,12 @@
-// PromoCodesModule — DI-Wrapper um PromoCodesService + PromoCodeExpirer.
+// PromoCodesModule — DI wrapper around PromoCodesService + PromoCodeExpirer.
 //
-// Konsumenten reichen ihre sechs Adapter-Implementations (PromoCodeRepository,
+// Consumers pass in their six adapter implementations (PromoCodeRepository,
 // PromoCodeRedemptionRepository, PromoCodeValidationLogRepository,
 // FirstTimeCustomerCheck, PromoSubscriptionLookup, PromoRevenueDeductionAggregator)
-// + TransactionRunner + AdminConfig (`nonRedeemablePlans`) durch.
+// + TransactionRunner + AdminConfig (`nonRedeemablePlans`).
 //
-// PlanCatalog-Token wird aus dem PlanCatalogModule erwartet (im Konsumenten
-// üblicherweise per `forRoot({ path: 'config/plans.yaml' })` geladen).
+// The PlanCatalog token is expected from the PlanCatalogModule (in the consumer
+// usually loaded via `forRoot({ path: 'config/plans.yaml' })`).
 
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import type {
@@ -44,17 +44,17 @@ export interface PromoCodesModuleOptions {
     transactionRunner: ProviderSpec<TransactionRunner>;
     config?: PromoServiceConfig;
     /**
-     * Default `true`. Auf `false` setzen, wenn der Konsument den Cron deaktivieren
-     * möchte (z. B. CLI-Boot, Test-Setups ohne ScheduleModule).
+     * Default `true`. Set to `false` if the consumer wants to disable the cron
+     * (e.g. CLI boot, test setups without ScheduleModule).
      */
     includeExpirerCron?: boolean;
     /**
-     * Default `true`. Registriert `PromoCodePublicController` mit
-     * `POST /billing/promo/preview`. Auf `false` setzen, wenn der Konsument
-     * keine öffentliche Preview-API exposen will (z. B. SuperAdmin-only-Deploy).
+     * Default `true`. Registers `PromoCodePublicController` with
+     * `POST /billing/promo/preview`. Set to `false` if the consumer does not
+     * want to expose a public preview API (e.g. SuperAdmin-only deploy).
      */
     includePublicController?: boolean;
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 

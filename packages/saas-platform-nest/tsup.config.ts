@@ -1,16 +1,16 @@
 import { defineConfig } from 'tsup';
 import swc from 'unplugin-swc';
 
-// tsup nutzt esbuild als Bundler. esbuild unterstuetzt
-// `emitDecoratorMetadata` NICHT — daher fehlen `Reflect.metadata`-
-// Aufrufe fuer Body-DTOs, was die globale `ValidationPipe` in
-// Konsumenten-Apps stillschweigend deaktiviert (siehe SPEC_V2 §11.1
-// M3 Bug-Befund 2026-05-14).
+// tsup uses esbuild as its bundler. esbuild does NOT support
+// `emitDecoratorMetadata` — so the `Reflect.metadata` calls for
+// body DTOs are missing, which silently disables the global
+// `ValidationPipe` in consumer apps (see SPEC_V2 §11.1 M3 bug
+// finding 2026-05-14).
 //
-// Loesung: alle `.ts`-Files vorab durch SWC laufen lassen. SWC
-// unterstuetzt `emitDecoratorMetadata` nativ und emittiert die
-// `__metadata("design:paramtypes", [...])`-Calls, die Nest braucht,
-// um den `@Body() dto: SomeDto` zu validieren.
+// Solution: run all `.ts` files through SWC first. SWC supports
+// `emitDecoratorMetadata` natively and emits the
+// `__metadata("design:paramtypes", [...])` calls that Nest needs
+// to validate `@Body() dto: SomeDto`.
 
 export default defineConfig({
     entry: [

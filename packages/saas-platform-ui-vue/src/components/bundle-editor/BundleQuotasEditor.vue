@@ -80,15 +80,15 @@ import { computed } from 'vue';
 import type { DiscoveredQuota } from '@saasicat/types';
 import type { QuotaMeta } from './catalog-i18n.js';
 
-// BundleQuotasEditor — Toggle + Numeric pro Quota, gegen den Discovery-
-// Snapshot als Library (nach Plan-Simulation). `quotas[key]` ist die
-// gesetzte Anzahl; fehlt der Key, ist die Quota nicht im Bundle.
+// BundleQuotasEditor — toggle + numeric per Quota, against the discovery
+// snapshot as a library (after plan simulation). `quotas[key]` is the
+// configured amount; if the key is missing, the Quota is not in the bundle.
 //
-// `overlapKeys` markiert Quotas, die der gewählte kompatible Plan schon
-// trägt — Doppel-Berechnung warnen.
+// `overlapKeys` marks Quotas that the selected compatible plan already
+// carries — warn about double counting.
 //
-// `quotaRegistry` liefert das in der Anzeige-Locale aufgelöste Label/Unit
-// (aus dem Quota-Catalog). Fehlt ein Eintrag, greift der Discovery-Wert.
+// `quotaRegistry` provides the label/unit resolved in the display locale
+// (from the Quota catalog). If an entry is missing, the discovery value applies.
 
 const props = defineProps<{
     availableQuotas: DiscoveredQuota[];

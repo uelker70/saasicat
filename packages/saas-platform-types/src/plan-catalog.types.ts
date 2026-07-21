@@ -1,15 +1,15 @@
-// PlanCatalog — Format der `config/saas.yaml`-Datei.
-// Schema-Quelle: @saasicat/spec/schemas/plan-catalog.schema.json
+// PlanCatalog — format of the `config/saas.yaml` file.
+// Schema source: @saasicat/spec/schemas/plan-catalog.schema.json
 
-export type FeatureKey = string; // SCREAMING_SNAKE_CASE; pro Konsument eigener Namespace
-export type PlanId = string; // SCREAMING_SNAKE_CASE; z. B. BASIC, STANDARD, PROFESSIONAL
-export type QuotaKey = string; // camelCase; z. B. users, vehicles, members, storageGb
+export type FeatureKey = string; // SCREAMING_SNAKE_CASE; own namespace per consumer
+export type PlanId = string; // SCREAMING_SNAKE_CASE; e.g. BASIC, STANDARD, PROFESSIONAL
+export type QuotaKey = string; // camelCase; e.g. users, vehicles, members, storageGb
 
 export interface FeatureDef {
     key: FeatureKey;
     label?: string;
     icon?: string;
-    /** CORE / ADVANCED / PRO / BUSINESS / ENTERPRISE_ONLY — Konvention. */
+    /** CORE / ADVANCED / PRO / BUSINESS / ENTERPRISE_ONLY — convention. */
     tier?: string;
     plannedOnly?: boolean;
 }
@@ -18,40 +18,40 @@ export interface PlanDef {
     id: PlanId;
     name?: string;
     tagline?: string;
-    /** false = nicht im Self-Service-Onboarding wählbar. Default: true. */
+    /** false = not selectable in self-service onboarding. Default: true. */
     marketed?: boolean;
-    /** Highlighted-Karte im Onboarding (max. 1 pro Catalog). */
+    /** Highlighted card in onboarding (max. 1 per catalog). */
     popular?: boolean;
-    /** Netto-Monatspreis. null = auf Anfrage. */
+    /** Net monthly price. null = on request. */
     monthlyNet?: number | null;
-    /** Netto-Gesamtbetrag pro Jahr. null = nur monatlich. */
+    /** Net total amount per year. null = monthly only. */
     yearlyNet?: number | null;
-    /** Map quotaKey → max-Wert. -1 = unbegrenzt. */
+    /** Map quotaKey → max value. -1 = unlimited. */
     quotas: Record<QuotaKey, number>;
     features: FeatureKey[];
 }
 
-/** App-weite Marketing-Konfiguration (SPEC_V2 §6.5). */
+/** App-wide marketing configuration (SPEC_V2 §6.5). */
 export interface PlanCatalogMarketing {
     /**
-     * Erlaubter Sprach-Pool, den die App vermarkten darf. Erste = Default-
-     * Locale. Der SuperAdmin aktiviert daraus im Marketing-Catalog eine
-     * Teilmenge (LocaleManager).
+     * Allowed language pool that the app may market. First = default
+     * locale. From it, the SuperAdmin activates a subset in the marketing
+     * catalog (LocaleManager).
      */
     availableLocales: string[];
 }
 
 /**
- * App-Identity-Block für Branding + Version. Wird vom `AdminPublicBootController`
- * und der `AdminManifestConfigFactory` konsumiert; das SuperAdmin-UI (Plattform-
- * LoginPage, AdminLayout-Brand-Block) liest dieselben Felder via PublicBoot.
+ * App identity block for branding + version. Consumed by the `AdminPublicBootController`
+ * and the `AdminManifestConfigFactory`; the SuperAdmin UI (platform
+ * LoginPage, AdminLayout brand block) reads the same fields via PublicBoot.
  *
- * `name` = brand display name (z. B. "DemoApp", "ClubApp").
- * `label` = Tag/Untertitel im Brand-Block (z. B. "SuperAdmin").
- * `version` = App-Version-String (Build-Info).
- * `icon` = 2-stelliges Kürzel für das Logo-Badge (z. B. "ma", "da").
- * `logoUrl` = optionale URL zu PNG/SVG; wenn gesetzt, rendert die UI ein <img>
- *             statt des Initialen-Badges.
+ * `name` = brand display name (e.g. "DemoApp", "ClubApp").
+ * `label` = tag/subtitle in the brand block (e.g. "SuperAdmin").
+ * `version` = app version string (build info).
+ * `icon` = 2-character abbreviation for the logo badge (e.g. "ma", "da").
+ * `logoUrl` = optional URL to a PNG/SVG; if set, the UI renders an <img>
+ *             instead of the initials badge.
  */
 export interface PlanCatalogApp {
     name: string;
@@ -64,18 +64,18 @@ export interface PlanCatalogApp {
 export interface PlanCatalog {
     schemaVersion: 1;
     projectKey: string;
-    /** App-Identity (Branding + Version), s. PlanCatalogApp. Optional. */
+    /** App identity (branding + version), see PlanCatalogApp. Optional. */
     app?: PlanCatalogApp;
-    /** ISO-4217-Währungscode. */
+    /** ISO-4217 currency code. */
     currency: string;
-    /** USt-Satz in Prozent. */
+    /** VAT rate in percent. */
     vatRate: number;
-    /** App-weite Marketing-Konfiguration (SPEC_V2 §6.5). Optional. */
+    /** App-wide marketing configuration (SPEC_V2 §6.5). Optional. */
     marketing?: PlanCatalogMarketing;
     features?: FeatureDef[];
     /**
-     * Optional. Wenn weggelassen, kommen Plans ausschließlich aus dem
-     * AdminUI / DB-Tabelle (Plans-/PlanVersions-Lifecycle).
+     * Optional. When omitted, plans come exclusively from the
+     * AdminUI / DB table (Plans/PlanVersions lifecycle).
      */
     plans?: PlanDef[];
 }

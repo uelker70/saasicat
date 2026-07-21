@@ -1,9 +1,9 @@
-// CheckoutOfferService — Paket-Snapshot Webseite → Onboarding → Abrechnung
+// CheckoutOfferService — package snapshot website → onboarding → billing
 // (METAMODELL §17a).
 //
-// `create` wird von der Pricing-Page gerufen, `getById`/`update` vom
-// Onboarding (Individualisierung), `consume` beim Subscription-Abschluss
-// (friert den Offer ein → `Subscription.packageSnapshot`).
+// `create` is called by the pricing page, `getById`/`update` by
+// onboarding (customization), `consume` on subscription completion
+// (freezes the offer → `Subscription.packageSnapshot`).
 
 import {
     ConflictException,
@@ -46,15 +46,15 @@ export class CheckoutOfferService {
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundles: BundleRepository | null = null,
-        // Optional für die requires-Validierung (#35 P6): Plan-Features der
-        // gewählten PlanVersion. Fehlt der Adapter, Fallback auf die
-        // featuresSnapshot der Plan-LineItem.
+        // Optional for the requires validation (#35 P6): plan features of the
+        // selected PlanVersion. If the adapter is missing, fall back to the
+        // featuresSnapshot of the plan LineItem.
         @Optional()
         @Inject(PLAN_REPOSITORY_TOKEN)
         private readonly plans: PlanRepository | null = null,
-        // Optional für die requires-Validierung (#35 P6): ohne Adapter gibt
-        // es keine requires-Daten → Validierung wird übersprungen (graceful,
-        // Verhalten wie vor #35).
+        // Optional for the requires validation (#35 P6): without the adapter
+        // there is no requires data → validation is skipped (graceful,
+        // behavior as before #35).
         @Optional()
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntries: CatalogEntryRepository | null = null,
@@ -84,7 +84,7 @@ export class CheckoutOfferService {
         return this.repo.create(normalized);
     }
 
-    /** Individualisierung im Onboarding — nur solange der Offer `open` ist. */
+    /** Customization in onboarding — only while the offer is `open`. */
     async update(id: string, data: UpdateCheckoutOfferData): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
         this.assertOpen(existing, 'ändern');
@@ -100,9 +100,9 @@ export class CheckoutOfferService {
     }
 
     /**
-     * Friert den Offer ein (`status = 'consumed'`). Liefert den finalen
-     * Snapshot zurück — der Aufrufer (Registration/Billing) schreibt ihn
-     * als `Subscription.packageSnapshot`.
+     * Freezes the offer (`status = 'consumed'`). Returns the final
+     * snapshot — the caller (registration/billing) writes it
+     * as `Subscription.packageSnapshot`.
      */
     async consume(id: string): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
@@ -112,13 +112,13 @@ export class CheckoutOfferService {
     }
 
     /**
-     * #35 P6 — serverseitige requires-Validierung: Die Abhängigkeiten aller
-     * Features (Plan ∪ gewählte Bundles) müssen innerhalb der Auswahl
-     * gedeckt sein, sonst entstünde ein Offer, dessen Features beim Tenant
-     * nicht funktionieren können (eine app-eigene validateModuleDependencies-
-     * Prüfung wird damit plattformseitig abgelöst). requires-Quelle sind die
-     * kuratierten FeatureCatalogEntries; ohne CatalogEntryRepository wird
-     * übersprungen (graceful — keine requires-Daten verfügbar).
+     * #35 P6 — server-side requires validation: the dependencies of all
+     * features (plan ∪ selected bundles) must be covered within the
+     * selection, otherwise an offer would be created whose features cannot
+     * work at the tenant (an app-specific validateModuleDependencies check is
+     * thereby replaced on the platform side). The requires source are the
+     * curated FeatureCatalogEntries; without CatalogEntryRepository it is
+     * skipped (graceful — no requires data available).
      */
     private async assertFeatureRequiresSatisfied(input: {
         projectKey: string;
@@ -151,9 +151,9 @@ export class CheckoutOfferService {
     }
 
     /**
-     * Plan-Features bevorzugt aus der Server-SSOT (PlanRepository); Fallback
-     * ist die eingefrorene featuresSnapshot der Plan-LineItem (Adapter ohne
-     * PlanRepository-Wiring).
+     * Plan features preferably from the server SSOT (PlanRepository); fallback
+     * is the frozen featuresSnapshot of the plan LineItem (adapter without
+     * PlanRepository wiring).
      */
     private async resolvePlanFeatures(input: {
         planKey: string;
@@ -175,7 +175,7 @@ export class CheckoutOfferService {
             .flatMap((item) => item.featuresSnapshot ?? []);
     }
 
-    /** Bundle-Features aus den BundleVersions; Fallback featuresSnapshot. */
+    /** Bundle features from the BundleVersions; fallback featuresSnapshot. */
     private async resolveBundleFeatures(input: {
         bundleVersionIds: string[];
         lineItems: CheckoutOfferLineItem[];
@@ -389,9 +389,9 @@ export class CheckoutOfferService {
         return Number.isNaN(time) || time > now;
     }
 
-    // `validUntil` ist tag-inklusiv (Tagesdatum, UTC-Mitternacht): abgelaufen
-    // erst ab dem Folgetag, also wenn validUntil < Tagesbeginn(now). Symmetrisch
-    // zum Katalog-Resolver (buildActivePlanVersionWhere).
+    // `validUntil` is day-inclusive (day date, UTC midnight): expired
+    // only from the following day, i.e. when validUntil < startOfDay(now). Symmetric
+    // to the catalog resolver (buildActivePlanVersionWhere).
     private isValidUntilExpired(value: string | null | undefined, nowMs: number): boolean {
         if (!value) return false;
         const validUntil = new Date(value).getTime();

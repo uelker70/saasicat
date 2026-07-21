@@ -20,8 +20,8 @@
                     <strong>„{{ row?.name ?? row?.slug ?? '–' }}"</strong>.
                 </p>
 
-                <!-- typed-slug / typed-production: Slug-Bestätigung als Sicherheits-
-                     gate gegen versehentliches Klicken auf zerstörerische Actions. -->
+                <!-- typed-slug / typed-production: slug confirmation as a safety
+                     gate against accidentally clicking destructive actions. -->
                 <template v-if="needsTypedSlug">
                     <p class="tenant-action-confirm__hint">
                         Bestätige durch Eintippen des Slugs
@@ -39,8 +39,8 @@
                     />
                 </template>
 
-                <!-- confirmType='date': ISO-Datum, wird via `extras.until`
-                     an den Handler durchgereicht (z. B. pilots.extend). -->
+                <!-- confirmType='date': ISO date, passed through to the handler
+                     via `extras.until` (e.g. pilots.extend). -->
                 <template v-if="needsDate">
                     <q-input
                         v-model="dateInput"
@@ -57,9 +57,9 @@
                     />
                 </template>
 
-                <!-- Reason ist immer Pflicht — die Plattform-Backends verlangen ihn
-                     als MinLength(5) für AuditLog. App kann via `reasonRequired: false`
-                     ausschalten, aber Default ist Pflicht. -->
+                <!-- Reason is always required — the platform backends demand it
+                     as MinLength(5) for AuditLog. Apps can switch it off via
+                     `reasonRequired: false`, but the default is required. -->
                 <q-input
                     v-if="reasonRequired"
                     v-model="reasonInput"
@@ -97,14 +97,14 @@
 import { computed, ref, watch } from 'vue';
 import type { TenantActionDef, TenantDto } from '@saasicat/types';
 
-// Plattform-Standard-Confirm-Dialog für Tenant-Actions. Deckt beide Confirm-
-// Pfade aus dem Manifest in einer UI ab:
-//   - 'simple': nur Reason-Pflicht (oder reasonRequired=false)
-//   - 'typed-slug' / 'typed-production': zusätzlich Slug-Bestätigung
+// Platform-standard confirm dialog for tenant actions. Covers both confirm
+// paths from the manifest in a single UI:
+//   - 'simple': reason required only (or reasonRequired=false)
+//   - 'typed-slug' / 'typed-production': additionally slug confirmation
 //
-// Apps brauchen sich um die Quasar-Prompts nicht selbst kümmern und
-// können den Dialog direkt als `confirm`-Provider in
-// `useTenantActionFlow({ confirm })` einsetzen.
+// Apps don't need to handle the Quasar prompts themselves and can use the
+// dialog directly as the `confirm` provider in
+// `useTenantActionFlow({ confirm })`.
 
 const props = withDefaults(
     defineProps<{
@@ -112,10 +112,10 @@ const props = withDefaults(
         def: TenantActionDef | null;
         row: (TenantDto & Record<string, unknown>) | null;
         /**
-         * Reason als Pflicht? Default `true`, weil Plattform-Backends den
-         * Reason als MinLength(5) für AuditLog erzwingen. Apps mit Actions,
-         * die keinen Reason brauchen (z. B. Lese-/Export-Aktionen), können
-         * `false` setzen.
+         * Reason required? Defaults to `true`, because platform backends
+         * enforce the reason as MinLength(5) for AuditLog. Apps with actions
+         * that don't need a reason (e.g. read/export actions) can set
+         * `false`.
          */
         reasonRequired?: boolean;
     }>(),
@@ -209,8 +209,8 @@ function onConfirm(): void {
         reason: reasonInput.value.trim() || null,
     };
     if (needsDate.value) {
-        // ISO-Datum als UTC-Tagesgrenze normieren — Backend bekommt Sub-day-
-        // präzises Datum, die UI hat nur Tagesauflösung.
+        // Normalize the ISO date to the UTC day boundary — the backend gets a
+        // sub-day-precise date, while the UI has only day resolution.
         payload.extras = { until: new Date(dateInput.value).toISOString() };
     }
     emit('submit', payload);

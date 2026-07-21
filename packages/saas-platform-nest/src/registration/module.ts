@@ -1,8 +1,8 @@
-// RegistrationModule — DI-Wrapper um PendingRegistrationService.
+// RegistrationModule — DI wrapper around PendingRegistrationService.
 //
-// Konsumenten reichen ihre fuenf Adapter-Implementierungen
+// Consumers pass their five adapter implementations
 // (PendingRegistrationRepository, RegistrationOtpDelivery, UserAccountLookup,
-// SlugAvailabilityCheck, PasswordHasher) durch `forRoot({...})`.
+// SlugAvailabilityCheck, PasswordHasher) through `forRoot({...})`.
 
 import {
     type DynamicModule,
@@ -62,55 +62,55 @@ export interface RegistrationModuleOptions {
     activationOrchestrator: ProviderSpec<ActivationOrchestrator>;
     auditLogger: ProviderSpec<RegistrationAuditLogger>;
     /**
-     * P3.4 (optional): Signiert + verifiziert Resume-Tokens fuer Faelle C/D
-     * (EMAIL_VERIFIED / PLAN_SELECTED / CHECKOUT_STARTED). Wird der Port
-     * nicht uebergeben, faellt der Service auf OTP-Resend fuer alle Stati
-     * zurueck.
+     * P3.4 (optional): Signs + verifies resume tokens for cases C/D
+     * (EMAIL_VERIFIED / PLAN_SELECTED / CHECKOUT_STARTED). If the port
+     * is not provided, the service falls back to OTP resend for all
+     * statuses.
      */
     resumeTokenSigner?: ProviderSpec<RegistrationResumeTokenSigner>;
-    /** P3.4 (optional): Versendet die Resume-Mail mit Magic-Link. */
+    /** P3.4 (optional): Sends the resume mail with a magic link. */
     resumeDelivery?: ProviderSpec<RegistrationResumeDelivery>;
-    /** P3.4 (optional): Base-URL der App fuer den Resume-Link (z. B. `https://app.example.com`). */
+    /** P3.4 (optional): Base URL of the app for the resume link (e.g. `https://app.example.com`). */
     resumeBaseUrl?: string;
     /**
-     * Phase A: Liefert den App-spezifischen Konfigurator-Catalog. Ohne
-     * diesen Port wirft `saveConfiguration()` `CONFIGURATOR_NOT_CONFIGURED`.
+     * Phase A: Provides the app-specific configurator catalog. Without
+     * this port, `saveConfiguration()` throws `CONFIGURATOR_NOT_CONFIGURED`.
      */
     configuratorLookup?: ProviderSpec<RegistrationConfiguratorLookup>;
     /**
-     * Phase A: Promo-Code-Preview-Adapter (wrapt typisch
-     * `PromoCodesService.preview()`). Ohne Adapter wird der Promo-Code
-     * ignoriert (Snapshot wird gespeichert, Discount=0).
+     * Phase A: Promo-code preview adapter (typically wraps
+     * `PromoCodesService.preview()`). Without the adapter the promo code
+     * is ignored (snapshot is stored, discount=0).
      */
     promoPreview?: ProviderSpec<RegistrationPromoPreview>;
     /**
-     * SPEC_V2 §11.1 M5.3: validiert eine optional gesetzte
-     * `RegistrationConfigSelection.businessTypeVersionId` gegen den
-     * SuperAdmin-Catalog (published BusinessTypeVersions). Ohne Adapter
-     * wird die ID ungeprüft durchgereicht — passt für Apps ohne
-     * BusinessType-Katalog.
+     * SPEC_V2 §11.1 M5.3: validates an optionally set
+     * `RegistrationConfigSelection.businessTypeVersionId` against the
+     * SuperAdmin catalog (published BusinessTypeVersions). Without an adapter
+     * the ID is passed through unchecked — fine for apps without a
+     * BusinessType catalog.
      */
     businessTypeLookup?: ProviderSpec<RegistrationBusinessTypeLookup>;
     /**
-     * Module, die im DynamicModule-Scope sichtbar sein sollen — nötig, damit
-     * Factory-Provider mit `inject: [...]` Klassen aus diesen Modulen
-     * auflösen können. Analog zu AdminStatsModule.
+     * Modules that should be visible in the DynamicModule scope — needed so
+     * that factory providers with `inject: [...]` can resolve classes from
+     * these modules. Analogous to AdminStatsModule.
      */
     imports?: Array<Type<unknown> | DynamicModule | ForwardReference | Promise<DynamicModule>>;
     /**
-     * Zusätzliche Provider, die direkt im DynamicModule-Scope registriert
-     * werden. Üblicherweise die App-Adapter (Prisma-Repos, Email-Service-
-     * Wrapper, Argon2-Hasher), damit ihre `inject: [...]`-Tokens auflösbar
-     * sind (sonst UnknownDependenciesException bei strikten NestJS-Versionen).
+     * Additional providers registered directly in the DynamicModule scope.
+     * Usually the app adapters (Prisma repos, email-service wrapper,
+     * Argon2 hasher), so that their `inject: [...]` tokens are resolvable
+     * (otherwise UnknownDependenciesException on strict NestJS versions).
      */
     extraProviders?: Provider[];
     /**
-     * Default `true`. Registriert `RegistrationCleanupCron` (taeglich 04:15
-     * Europe/Berlin). Auf `false` setzen, wenn der Konsument keinen
-     * `@nestjs/schedule` aktiv hat (z. B. CLI-Boot, Unit-Tests).
+     * Default `true`. Registers `RegistrationCleanupCron` (daily 04:15
+     * Europe/Berlin). Set to `false` when the consumer has no active
+     * `@nestjs/schedule` (e.g. CLI boot, unit tests).
      */
     includeCleanupCron?: boolean;
-    /** Modul global registrieren — Default `false`. */
+    /** Register module globally — default `false`. */
     global?: boolean;
 }
 

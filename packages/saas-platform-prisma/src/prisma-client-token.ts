@@ -1,6 +1,6 @@
-// PRISMA_CLIENT_TOKEN — DI-Token, an das der Konsument seinen PrismaService
-// bindet. Alle Adapter im Paket injecten gegen dieses Token, damit sie nicht
-// von einem konkreten `PrismaService`-Class-Token abhängen.
+// PRISMA_CLIENT_TOKEN — DI token to which the consumer binds their
+// PrismaService. All adapters in the package inject against this token so they
+// do not depend on a concrete `PrismaService` class token.
 //
 // ```ts
 // providers: [
@@ -13,13 +13,13 @@
 export const PRISMA_CLIENT_TOKEN = Symbol.for('saas-platform-prisma/PrismaClient');
 
 /**
- * Strukturelles Sub-Interface von `@prisma/client.PrismaClient`. Die Adapter
- * erwarten nur die Tabellen-Delegates, die sie tatsächlich benutzen — kein
- * harter Import auf `@prisma/client`, damit das Paket ohne Prisma-Generate
- * baut und in Tests gemockt werden kann.
+ * Structural sub-interface of `@prisma/client.PrismaClient`. The adapters
+ * expect only the table delegates they actually use — no hard import on
+ * `@prisma/client`, so the package builds without a Prisma generate and can be
+ * mocked in tests.
  *
- * Ein Konsumenten-`PrismaService extends PrismaClient` erfüllt das Interface
- * automatisch.
+ * A consumer's `PrismaService extends PrismaClient` satisfies the interface
+ * automatically.
  */
 export interface PrismaLike {
     superAdminMfa: {

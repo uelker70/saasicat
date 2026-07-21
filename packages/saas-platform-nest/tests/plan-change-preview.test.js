@@ -1,5 +1,5 @@
-// Smoke-Tests für PlanChangePreviewService — datengetriebene Limits-Map,
-// Catalog-Reihenfolge als Plan-Rank, Self-Service-Blocks.
+// Smoke tests for PlanChangePreviewService — data-driven limits map,
+// catalog order as plan rank, self-service blocks.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -87,7 +87,7 @@ function buildSubPort(overrides = {}) {
     };
 }
 
-test('preview liefert UPGRADE STARTER→STANDARD mit Proration und Feature-Diff', async () => {
+test('preview returns UPGRADE STARTER→STANDARD with proration and feature diff', async () => {
     const svc = new PlanChangePreviewService(
         CATALOG,
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
@@ -107,7 +107,7 @@ test('preview liefert UPGRADE STARTER→STANDARD mit Proration und Feature-Diff'
     assert.equal(dto.blockers.length, 0);
 });
 
-test('preview liefert DOWNGRADE STANDARD→STARTER mit users-Blocker wenn Verbrauch zu hoch', async () => {
+test('preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage too high', async () => {
     const svc = new PlanChangePreviewService(
         CATALOG,
         buildEntitlement({ users: 8, members: 1000, storageGb: 10 }, ['CORE_IDENTITY', 'WHATSAPP']),
@@ -124,12 +124,12 @@ test('preview liefert DOWNGRADE STANDARD→STARTER mit users-Blocker wenn Verbra
     assert.ok(usersBlocker);
     assert.ok(
         usersBlocker.message.includes('Verbrauch reduzieren'),
-        'Blocker-Message fordert Verbrauchs-Reduktion',
+        'blocker message asks for usage reduction',
     );
     assert.deepEqual(dto.featuresGained, []);
 });
 
-test('preview blockt ENTERPRISE als Self-Service-Target', async () => {
+test('preview blocks ENTERPRISE as a self-service target', async () => {
     const svc = new PlanChangePreviewService(
         CATALOG,
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
@@ -141,7 +141,7 @@ test('preview blockt ENTERPRISE als Self-Service-Target', async () => {
     assert.ok(dto.blockers.some((b) => b.code === 'ENTERPRISE_NOT_SELF_SERVICE'));
 });
 
-test('preview NOOP wenn Plan und Cycle identisch sind', async () => {
+test('preview NOOP when plan and cycle are identical', async () => {
     const svc = new PlanChangePreviewService(
         CATALOG,
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
@@ -154,7 +154,7 @@ test('preview NOOP wenn Plan und Cycle identisch sind', async () => {
     assert.ok(dto.warnings.some((w) => w.code === 'NO_CHANGE'));
 });
 
-test('preview liefert CYCLE_CHANGE bei MONTHLY→YEARLY am gleichen Plan', async () => {
+test('preview returns CYCLE_CHANGE on MONTHLY→YEARLY at the same plan', async () => {
     const svc = new PlanChangePreviewService(
         CATALOG,
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),
@@ -167,7 +167,7 @@ test('preview liefert CYCLE_CHANGE bei MONTHLY→YEARLY am gleichen Plan', async
     assert.equal(dto.isImmediate, false);
 });
 
-test('limitsCheck rendered die Union der Quota-Keys aus Limits, Ziel-Plan und Usage', async () => {
+test('limitsCheck renders the union of quota keys from limits, target plan and usage', async () => {
     const svc = new PlanChangePreviewService(
         CATALOG,
         buildEntitlement({ users: 3, members: 250, storageGb: 2 }, ['CORE_IDENTITY']),

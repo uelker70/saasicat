@@ -1,10 +1,10 @@
-// useTenantBillingCatalog — Vue-Composable, der die Public-Catalog-
-// Endpoints aus `@saasicat/nest/billing/PublicCatalogModule`
-// lädt: GET /billing/plans, /billing/feature-registry, /billing/bundles.
+// useTenantBillingCatalog — Vue composable that loads the public catalog
+// endpoints from `@saasicat/nest/billing/PublicCatalogModule`:
+// GET /billing/plans, /billing/feature-registry, /billing/bundles.
 //
-// Output-Shapes sind Frontend-Mirrors der `PublicCatalogController`-Antworten.
-// Werden hier explizit dupliziert (kein Import aus saas-platform-nest), damit
-// das Frontend-Bundle nicht den Nest-Server-Code mit zieht.
+// Output shapes are frontend mirrors of the `PublicCatalogController` responses.
+// They are explicitly duplicated here (no import from saas-platform-nest) so
+// that the frontend bundle does not pull in the Nest server code.
 
 import { ref, type Ref } from 'vue';
 import type { FeatureUiRegistry } from '@saasicat/types';
@@ -22,10 +22,10 @@ export interface CatalogPlan {
 }
 
 /**
- * Buchbares Catalog-Bundle (Wire-Form von `PublicBundleEntry` aus
- * `GET /billing/bundles`) — eigenständige Catalog-Bundles
- * (`bundle_versions`) mit eigenem Kauf-Flow `/billing/subscription-bundles`.
- * Preise kommen als Dezimal-String vom Wire und werden hier zu `number`.
+ * Bookable catalog bundle (wire form of `PublicBundleEntry` from
+ * `GET /billing/bundles`) — standalone catalog bundles
+ * (`bundle_versions`) with their own purchase flow `/billing/subscription-bundles`.
+ * Prices arrive as a decimal string on the wire and become `number` here.
  */
 export interface CatalogBundle {
     bundleVersionId: string;
@@ -37,13 +37,13 @@ export interface CatalogBundle {
     monthlyNet: number | null;
     yearlyNet: number | null;
     /**
-     * Ungedeckte Feature-Abhängigkeiten (#35): Union der `requires` der
-     * enthaltenen Features minus der im Bundle selbst enthaltenen. Die UI
-     * graut das Bundle aus, wenn diese Keys weder im Plan noch in den
-     * aktiven Bundles liegen. Leer ohne requires-Daten (graceful).
+     * Uncovered feature dependencies (#35): union of the `requires` of the
+     * contained features minus those contained in the bundle itself. The UI
+     * grays out the bundle if these keys are neither in the plan nor in the
+     * active bundles. Empty without requires data (graceful).
      */
     requiresFeatures: string[];
-    /** Marketing-Preis-Label (z. B. „ab 19 €/Monat") — null = Auto-Format. */
+    /** Marketing price label (e.g. "from 19 €/month") — null = auto-format. */
     priceTag: string | null;
 }
 
@@ -62,18 +62,18 @@ interface PublicBundleWire {
 
 export interface UseTenantBillingCatalogOptions {
     /**
-     * URL-Prefix vor `/plans`, `/feature-registry`, `/bundles`.
-     * Default `'/billing'`. **Konvention**: `apiPrefix` ist der Sub-Pfad
-     * UNTER der App-API-Base-URL, die der HTTP-Adapter selbst hält.
-     * Beispiel: HTTP-Adapter baseURL `/api` + apiPrefix `/billing` →
-     * `/api/billing/...`. NICHT `'/api/billing'` setzen, wenn der
-     * HTTP-Adapter bereits `/api` als baseURL hat (→ `/api/api/...`-404).
+     * URL prefix before `/plans`, `/feature-registry`, `/bundles`.
+     * Default `'/billing'`. **Convention**: `apiPrefix` is the sub-path
+     * UNDER the app API base URL that the HTTP adapter itself holds.
+     * Example: HTTP adapter baseURL `/api` + apiPrefix `/billing` →
+     * `/api/billing/...`. Do NOT set `'/api/billing'` if the HTTP adapter
+     * already has `/api` as baseURL (→ `/api/api/...` 404).
      */
     apiPrefix?: string;
     http?: HttpClient;
     /**
-     * Default `true`. Auf `false` setzen, wenn der Konsument selbst
-     * `load()` triggern möchte (z. B. nach Login).
+     * Default `true`. Set to `false` if the consumer wants to trigger
+     * `load()` itself (e.g. after login).
      */
     autoLoad?: boolean;
 }
@@ -82,13 +82,13 @@ export interface UseTenantBillingCatalogResult {
     plans: Ref<CatalogPlan[] | null>;
     featureRegistry: Ref<FeatureUiRegistry | null>;
     /**
-     * Buchbare Catalog-Bundles (`/billing/bundles`). `null` solange nicht
-     * geladen; `[]` wenn der Endpoint fehlt/leer ist (non-fatal).
+     * Bookable catalog bundles (`/billing/bundles`). `null` while not yet
+     * loaded; `[]` if the endpoint is missing/empty (non-fatal).
      */
     bundles: Ref<CatalogBundle[] | null>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
-    /** Lädt Plans/Feature-Registry parallel + Bundles (non-fatal). */
+    /** Loads plans/feature-registry in parallel + bundles (non-fatal). */
     load: () => Promise<void>;
 }
 
@@ -129,9 +129,9 @@ export function useTenantBillingCatalog(
         } finally {
             loading.value = false;
         }
-        // Bundle-Katalog non-fatal nachladen — ein fehlender `/bundles`-Endpoint
-        // (Konsument ohne PublicCatalog-Bundle-Wiring) darf die Plan-Seite nicht
-        // in den Fehlerzustand kippen.
+        // Load the bundle catalog non-fatally afterwards — a missing `/bundles`
+        // endpoint (consumer without PublicCatalog bundle wiring) must not tip
+        // the plan page into an error state.
         try {
             const raw = await fetchJson<PublicBundleWire[]>('/bundles');
             bundles.value = (raw ?? []).map((b) => ({

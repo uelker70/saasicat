@@ -12,16 +12,16 @@ import type {
 // -----------------------------------------------------------------------------
 
 /**
- * Snapshot einer `PromoCode`-Row für Service-Layer-Aufrufe. Decimals als
- * String (`value`, `minimumPlanAmountGross`) — der Service parst sie zu
- * `number` für Berechnungen, der Konsumenten-Adapter mappt aus seinem
+ * Snapshot of a `PromoCode` row for service-layer calls. Decimals as
+ * strings (`value`, `minimumPlanAmountGross`) — the service parses them to
+ * `number` for calculations, the consumer adapter maps from its
  * `Prisma.Decimal` (toString()).
  */
 export interface PromoCodeRecord {
     id: string;
     code: string;
     valueType: PromoCodeValueType;
-    /** Decimal-as-string (z. B. "25.00"). */
+    /** Decimal-as-string (e.g. "25.00"). */
     value: string;
     durationType: PromoCodeDurationType;
     durationValue: number | null;
@@ -32,7 +32,7 @@ export interface PromoCodeRecord {
     appliesToPlans: string[];
     appliesToBilling: BillingCycle | null;
     firstTimeCustomersOnly: boolean;
-    /** Decimal-as-string oder null. */
+    /** Decimal-as-string or null. */
     minimumPlanAmountGross: string | null;
     allowZeroInvoice: boolean;
     status: PromoCodeStatus;
@@ -45,7 +45,7 @@ export interface PromoCodeRecord {
     deletedAt: Date | null;
 }
 
-/** Snapshot einer `PromoCodeRedemption`-Row. */
+/** Snapshot of a `PromoCodeRedemption` row. */
 export interface PromoCodeRedemptionRecord {
     id: string;
     promoCodeId: string;
@@ -62,11 +62,11 @@ export interface PromoCodeRedemptionRecord {
     reversedAt: Date | null;
 }
 
-/** Eingabe für `PromoCodesService.create()`. */
+/** Input for `PromoCodesService.create()`. */
 export interface CreatePromoCodeData {
     code: string;
     valueType: PromoCodeValueType;
-    /** Numeric — Service serialisiert zu Decimal-String. */
+    /** Numeric — the service serializes to a decimal string. */
     value: number;
     durationType: PromoCodeDurationType;
     durationValue?: number | null;
@@ -84,7 +84,7 @@ export interface CreatePromoCodeData {
     createdById: string;
 }
 
-/** Eingabe für `PromoCodesService.update()`. */
+/** Input for `PromoCodesService.update()`. */
 export interface UpdatePromoCodeData {
     status?: PromoCodeStatus;
     description?: string | null;
@@ -92,22 +92,22 @@ export interface UpdatePromoCodeData {
     maxRedemptions?: number | null;
 }
 
-/** Filter für `PromoCodesService.findAll()`. */
+/** Filter for `PromoCodesService.findAll()`. */
 export interface PromoCodeFilter {
     status?: PromoCodeStatus;
     campaignTag?: string;
-    /** Substring-Suche im Code (case-insensitive auf UPPERCASE). */
+    /** Substring search in the code (case-insensitive on UPPERCASE). */
     search?: string;
 }
 
-/** Eintrag für `PromoCodeRedemptionRepository.listByPromoCode()`. */
+/** Entry for `PromoCodeRedemptionRepository.listByPromoCode()`. */
 export interface PromoCodeRedemptionListItem extends PromoCodeRedemptionRecord {
     tenant?: { id: string; name: string; slug: string } | null;
 }
 
 /**
- * Adapter für PromoCode-Persistenz. Atomares Slot-Reservieren ist im Adapter,
- * weil das DB-spezifisch ist (Postgres `UPDATE ... WHERE ... AND
+ * Adapter for PromoCode persistence. Atomic slot reservation lives in the
+ * adapter because it is DB-specific (Postgres `UPDATE ... WHERE ... AND
  * (maxRedemptions IS NULL OR redemptionsCount < maxRedemptions)`).
  */
 export interface PromoCodeRepository {
@@ -118,24 +118,24 @@ export interface PromoCodeRepository {
     update(id: string, data: UpdatePromoCodeData): Promise<PromoCodeRecord>;
     softDelete(id: string): Promise<void>;
     /**
-     * Atomares Slot-Reservieren: inkrementiert `redemptionsCount` und prüft
+     * Atomic slot reservation: increments `redemptionsCount` and checks
      * `status === 'ACTIVE' && (maxRedemptions IS NULL || redemptionsCount < maxRedemptions)`.
-     * Gibt true zurück, wenn der Slot reserviert wurde, false wenn EXHAUSTED
-     * oder Status nicht ACTIVE.
+     * Returns true if the slot was reserved, false if EXHAUSTED
+     * or the status is not ACTIVE.
      */
     claimSlot(id: string, tx?: TransactionContext): Promise<boolean>;
-    /** Setzt Status auf `EXHAUSTED`, wenn `redemptionsCount >= maxRedemptions`. */
+    /** Sets the status to `EXHAUSTED` when `redemptionsCount >= maxRedemptions`. */
     markExhaustedIfFull(id: string, tx?: TransactionContext): Promise<void>;
-    /** Vermindert `redemptionsCount` um 1 (min 0); EXHAUSTED → ACTIVE. */
+    /** Decrements `redemptionsCount` by 1 (min 0); EXHAUSTED → ACTIVE. */
     releaseSlot(id: string, tx?: TransactionContext): Promise<void>;
     /**
-     * Bulk-Expire-Cron: setzt alle Codes mit `validUntil < now` und Status
-     * ACTIVE/PAUSED auf EXPIRED. Rückgabe: Anzahl aktualisierter Zeilen.
+     * Bulk-expire cron: sets all codes with `validUntil < now` and status
+     * ACTIVE/PAUSED to EXPIRED. Returns: number of updated rows.
      */
     expireDueCodes(now: Date): Promise<number>;
 }
 
-/** Adapter für PromoCodeRedemption-Persistenz. */
+/** Adapter for PromoCodeRedemption persistence. */
 export interface PromoCodeRedemptionRepository {
     findBySubscription(
         subscriptionId: string,
@@ -151,7 +151,7 @@ export interface PromoCodeRedemptionRepository {
     expireDueRedemptions(now: Date): Promise<number>;
 }
 
-/** Adapter für `PromoCodeValidationLog`-Schreibzugriffe. */
+/** Adapter for `PromoCodeValidationLog` writes. */
 export interface PromoCodeValidationLogRepository {
     log(args: {
         promoCodeId: string | null;
@@ -160,21 +160,21 @@ export interface PromoCodeValidationLogRepository {
         ipHash?: string;
         sessionId?: string;
     }): Promise<void>;
-    /** Anzahl `result = 'VALID'`-Logs für einen Promo-Code. */
+    /** Number of `result = 'VALID'` logs for a promo code. */
     countValid(promoCodeId: string): Promise<number>;
 }
 
 /**
- * First-Time-Customer-Check für die `firstTimeCustomersOnly`-Eligibility.
- * Konsument-Implementation entscheidet, was "first time" bedeutet. Wichtig:
- * unfertige Onboarding-Drafts dürfen nicht als bestehender Kunde zählen.
+ * First-time-customer check for the `firstTimeCustomersOnly` eligibility.
+ * The consumer implementation decides what "first time" means. Important:
+ * unfinished onboarding drafts must not count as an existing customer.
  */
 export interface FirstTimeCustomerCheck {
-    /** Gibt true zurück, wenn zur Email bereits ein abgeschlossener/historischer Kunde existiert. */
+    /** Returns true if a completed/historical customer already exists for the email. */
     hasExistingCustomerForEmail(email: string): Promise<boolean>;
 }
 
-/** Subscription-Lookup für `redeem()`. Reicht aus für Promo-Berechnungen. */
+/** Subscription lookup for `redeem()`. Sufficient for promo calculations. */
 export interface PromoSubscriptionLookup {
     findById(
         subscriptionId: string,
@@ -189,10 +189,10 @@ export interface PromoSubscriptionLookup {
 }
 
 /**
- * Aggregations-Adapter für die Stats-Endpoint (`PromoCodesService.stats`).
- * Konsumenten ohne `InvoiceDiscount`-Tabelle liefern '0.00'.
+ * Aggregation adapter for the stats endpoint (`PromoCodesService.stats`).
+ * Consumers without an `InvoiceDiscount` table return '0.00'.
  */
 export interface PromoRevenueDeductionAggregator {
-    /** Summe der amountGross-Werte für alle Redemptions eines Promo-Codes (Decimal-as-string). */
+    /** Sum of the amountGross values for all redemptions of a promo code (Decimal-as-string). */
     sumGrossForPromoCode(promoCodeId: string): Promise<string>;
 }

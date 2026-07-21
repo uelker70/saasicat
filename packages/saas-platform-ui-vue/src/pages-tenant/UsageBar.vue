@@ -13,20 +13,20 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-// UsageBar — generische Verbrauchs-Anzeige für eine Limit-Dimension. Konsument
-// reicht Label, Verbrauch und Maximum durch. `-1` als Maximum = unbegrenzt
-// (Catalog-Konvention), wird als ∞ ausgegeben.
+// UsageBar — generic usage display for a single limit dimension. The consumer
+// passes label, usage and maximum through. `-1` as the maximum = unlimited
+// (Catalog convention), rendered as ∞.
 
 interface Props {
     label: string;
     used: number;
     max: number;
-    /** Format-Hook: standardmäßig Integer, Storage zeigen wir mit 1 Nachkomma. */
+    /** Format hook: integer by default, storage is shown with 1 decimal place. */
     fractional?: boolean;
     /**
-     * Eigener Wert-Formatter. Wird auf `used` und (sofern nicht ∞) `max`
-     * angewendet. Erlaubt z. B. adaptive Einheiten ("5.75 MB" vs. "5 GB")
-     * für kleine Fractional-Werte, ohne dass UsageBar die Einheit kennt.
+     * Custom value formatter. Applied to `used` and (unless ∞) `max`.
+     * Allows, for example, adaptive units ("5.75 MB" vs. "5 GB") for small
+     * fractional values without UsageBar needing to know the unit.
      */
     formatValue?: (value: number) => string;
 }

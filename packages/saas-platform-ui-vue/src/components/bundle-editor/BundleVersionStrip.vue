@@ -62,18 +62,18 @@ import {
     formatDateDE,
 } from './bundle-version-status';
 
-// BundleVersionStrip — Tab-Leiste über alle Versionen eines Bundles, nach
-// Plan-Simulation (saasadminui/project/bundles.jsx → BundleVersionStrip).
-// Zeigt pro Tab: Versions-Nummer, Status-Chip, Gültigkeits-Spanne,
-// Monatspreis. „Neue Version"-Knopf ganz rechts; deaktiviert, wenn bereits
-// eine Draft existiert (Single-Draft-Constraint des BundleRepository).
+// BundleVersionStrip — tab bar across all versions of a bundle, modeled on
+// the plan simulation (saasadminui/project/bundles.jsx → BundleVersionStrip).
+// Shows per tab: version number, status chip, validity span,
+// monthly price. "New version" button on the far right; disabled when a
+// draft already exists (single-draft constraint of the BundleRepository).
 
 const props = defineProps<{
-    /** Alle Versionen des Bundles (alle Lifecycle-Stati). */
+    /** All versions of the bundle (all lifecycle statuses). */
     versions: BundleVersionRow[];
-    /** ID der aktuell selektierten Version. */
+    /** ID of the currently selected version. */
     modelValue: string | null;
-    /** Optional: Referenz-Zeitpunkt für den Status-Check (Tests). */
+    /** Optional: reference point in time for the status check (tests). */
     now?: Date;
 }>();
 

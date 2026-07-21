@@ -3,10 +3,10 @@ import type { AdminActor, AuditPort } from '@saasicat/types';
 import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 
 /**
- * Default-Implementation für `AuditPort` gegen die `AuditEntry`-Tabelle
- * aus dem Plattform-Prisma-Fragment.
+ * Default implementation of `AuditPort` against the `AuditEntry` table
+ * from the platform Prisma fragment.
  *
- * Schema-Annahme:
+ * Schema assumption:
  *
  * ```prisma
  * model AuditEntry {

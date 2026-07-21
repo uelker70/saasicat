@@ -1,4 +1,4 @@
-// DTOs für die Catalog-Entries-Endpunkte (Discovery-Review, SPEC_V2 §6.3 + #20).
+// DTOs for the catalog-entries endpoints (discovery review, SPEC_V2 §6.3 + #20).
 
 import { IsIn, IsObject, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import type {
@@ -16,13 +16,13 @@ export class ListCatalogEntriesQueryDto {
     @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey muss kebab-case sein' })
     projectKey!: string;
 
-    /** Filter für Features/Quotas (Freigabe-Lifecycle). */
+    /** Filter for features/quotas (approval lifecycle). */
     @IsOptional()
     @IsString()
     @IsIn(REVIEW_STATUSES as unknown as string[])
     discoveryStatus?: string;
 
-    /** Filter für Capabilities (read-only Code-Fakten). */
+    /** Filter for capabilities (read-only code facts). */
     @IsOptional()
     @IsString()
     @IsIn(CODE_STATUSES as unknown as string[])
@@ -30,8 +30,8 @@ export class ListCatalogEntriesQueryDto {
 }
 
 /**
- * Body von `PATCH …/{features,quotas}/:key/review` — Ziel-Status des
- * Freigabe-Automaten (#20). Erlaubte Übergänge validiert der Service.
+ * Body of `PATCH …/{features,quotas}/:key/review` — target status of the
+ * approval state machine (#20). Allowed transitions are validated by the service.
  */
 export class ReviewCatalogEntryDto {
     @IsString()
@@ -41,13 +41,13 @@ export class ReviewCatalogEntryDto {
     discoveryStatus!: DiscoveryStatus;
 }
 
-/** Body von `PATCH …/{features,quotas}/:key/i18n`. */
+/** Body of `PATCH …/{features,quotas}/:key/i18n`. */
 export class UpdateCatalogEntryI18nDto {
     @IsObject()
     i18n!: CatalogEntryI18n;
 }
 
-/** Body von `PATCH …/{features,quotas}/:key` — editierbare Basis-Felder (DE). */
+/** Body of `PATCH …/{features,quotas}/:key` — editable base fields (DE). */
 export class UpdateCatalogEntryBaseDto {
     @IsOptional()
     @IsString()
@@ -59,8 +59,8 @@ export class UpdateCatalogEntryBaseDto {
     @MaxLength(2000)
     description?: string | null;
 
-    // Feature-only (#13): icon = Quasar-Icon-Name, tier = freier Tier-Hint.
-    // Quotas ignorieren beide. Kein @IsIn-Lock auf tier (FeatureTier ist offene Union).
+    // Feature-only (#13): icon = Quasar icon name, tier = free-form tier hint.
+    // Quotas ignore both. No @IsIn lock on tier (FeatureTier is an open union).
     @IsOptional()
     @IsString()
     @MaxLength(64)
@@ -73,10 +73,10 @@ export class UpdateCatalogEntryBaseDto {
 }
 
 /**
- * Body von `POST …/discovery/sync` — der Discovery-Snapshot, den die UI
- * zuvor von `GET /admin/discovery` geladen hat. Wird vom Service gegen
- * `projectKey` validiert; deep-Validation ist nicht nötig, weil der
- * SuperAdmin-Guard die Quelle absichert.
+ * Body of `POST …/discovery/sync` — the discovery snapshot the UI
+ * previously loaded from `GET /admin/discovery`. Validated by the service
+ * against `projectKey`; deep validation is not needed because the
+ * SuperAdmin guard secures the source.
  */
 export class SyncDiscoveryDto {
     @IsObject()

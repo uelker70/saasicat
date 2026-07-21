@@ -1,21 +1,21 @@
-// PlanRow — Wire-Format für die Plan-Stamm-Tabelle (SPEC_V2 §11.1 M6).
+// PlanRow — wire format for the plan stem table (SPEC_V2 §11.1 M6).
 //
-// Plan ist die fachliche Identität eines Tarifs (STARTER, STANDARD,
-// PROFESSIONAL). Die kaufbaren Felder (Pricing, Features, Quotas) liegen
-// auf `PlanVersionRow` — Plan-Stamm hat nur Identität + UI-Sortierung +
-// Soft-Delete.
+// Plan is the business identity of a tariff (STARTER, STANDARD,
+// PROFESSIONAL). The purchasable fields (pricing, features, quotas) live on
+// `PlanVersionRow` — the plan stem carries only identity + UI ordering +
+// soft delete.
 //
-// Konventionen:
-//  - `planKey` ist die fachliche Plan-Identität (eindeutig pro
-//    `projectKey`); historisch der Wert, der in `PlanVersion.planId` und
-//    `Subscription.plan` steht.
-//  - `deletedAt` aktiviert Soft-Delete: gelöschte Pläne bleiben für Bestand-
-//    Subscriptions wirksam (Vertragsschutz P1), werden im UI aber gefiltert.
+// Conventions:
+//  - `planKey` is the business plan identity (unique per `projectKey`);
+//    historically the value stored in `PlanVersion.planId` and
+//    `Subscription.plan`.
+//  - `deletedAt` activates soft delete: deleted plans stay effective for
+//    existing subscriptions (contract protection P1) but are filtered out
+//    in the UI.
 //
-// Der Plan-Stamm referenziert PlanVersion **nicht** per FK — die Bindung
-// ist weich (PlanVersion.planId === Plan.planKey), bis der Importer in
-// M6.7 hart verbindet. Damit bleibt der Greenfield-Cutover ohne
-// Migration-Zwang.
+// The plan stem does **not** reference PlanVersion via FK — the binding is
+// soft (PlanVersion.planId === Plan.planKey) until the importer binds it
+// hard in M6.7. This keeps the greenfield cutover free of forced migration.
 
 export interface PlanRow {
     id: string;
@@ -31,10 +31,10 @@ export interface PlanRow {
 }
 
 /**
- * Felder, die beim Anlegen eines neuen Plan-Stamms gesetzt werden müssen.
- * `id`, `createdAt`, `updatedAt`, `deletedAt` werden vom Repository vergeben.
- * PlanVersion-spezifische Felder (Features, Quotas, Pricing) gehören in eine
- * separate `PlanVersion`-Anlage (folgt in M6 Pack 2).
+ * Fields that must be set when creating a new plan stem. `id`, `createdAt`,
+ * `updatedAt`, `deletedAt` are assigned by the repository. PlanVersion-specific
+ * fields (features, quotas, pricing) belong in a separate `PlanVersion`
+ * creation (follows in M6 Pack 2).
  */
 export interface CreatePlanData {
     projectKey: string;
@@ -46,9 +46,9 @@ export interface CreatePlanData {
 }
 
 /**
- * Felder, die am Plan-Stamm geändert werden dürfen. `planKey` und
- * `projectKey` sind absichtlich nicht hier — Stamm-Identität ist immutable;
- * wer sie ändern will, legt einen neuen Plan an und retired den alten.
+ * Fields that may be changed on the plan stem. `planKey` and `projectKey`
+ * are deliberately not here — stem identity is immutable; whoever wants to
+ * change it creates a new plan and retires the old one.
  */
 export interface UpdatePlanData {
     label?: string;

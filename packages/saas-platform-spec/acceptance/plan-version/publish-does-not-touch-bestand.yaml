@@ -1,13 +1,13 @@
 scenario: 'Plan-Version publish does not modify existing Subscription.planVersionId'
 description: |
-    P1-Garantie aus SPEC §6: Beim Publish einer neuen Plan-Version wird
-    `Subscription.planVersionId` der Bestands-Tenants NICHT angefasst.
-    Nur publishedAt der neuen Version + supersededAt der alten Version
-    werden geschrieben. Migration läuft ausschließlich über den
-    Notification- + Renewal-Cron mit 6-Wochen-Vorlauf.
+    P1 guarantee from SPEC §6: When a new plan version is published,
+    `Subscription.planVersionId` of the existing tenants is NOT touched.
+    Only publishedAt of the new version + supersededAt of the old version
+    are written. Migration runs exclusively through the
+    notification + renewal cron with a 6-week lead time.
 
-    Dies ist die Kernkrach-Garantie für Bestandsschutz. Wenn dieser
-    Test rot wird, verletzt die Implementation den Vertragsschutz.
+    This is the core guarantee for grandfathering protection. If this
+    test goes red, the implementation violates that contract protection.
 
 setup:
     - createTenant:
@@ -17,14 +17,14 @@ setup:
           billingCycle: MONTHLY
     - assertSubscriptionVersion:
           tenantSlug: 'test-bestand'
-          version: 1 # Initial-Version
+          version: 1 # initial version
     - storeAs:
           key: 'originalPlanVersionId'
           from: 'tenant.subscription.planVersionId'
           tenantSlug: 'test-bestand'
 
 when:
-    # SUPER_ADMIN published eine neue Version — z. B. mit Preiserhöhung.
+    # SUPER_ADMIN publishes a new version — e.g. with a price increase.
     - createPlanVersionDraft:
           planId: 'STANDARD'
           changes:
@@ -35,22 +35,22 @@ when:
           mfaCode: '{{validTotpFromAdmin}}'
 
 then:
-    # Bestand bleibt unverändert.
+    # Existing subscription remains unchanged.
     - assertSubscription:
           tenantSlug: 'test-bestand'
-          planVersionId: '{{originalPlanVersionId}}' # ← gleicher Wert wie vor Publish
-    # Der Tenant zahlt weiter den alten Preis.
+          planVersionId: '{{originalPlanVersionId}}' # ← same value as before publish
+    # The tenant keeps paying the old price.
     - assertSubscriptionPriceMonthlyNet:
           tenantSlug: 'test-bestand'
           value: 24.90
-    # pendingPlanVersion-Felder sind noch nicht gesetzt (Notification-Cron
-    # ist noch nicht gelaufen).
+    # pendingPlanVersion fields are not yet set (the notification cron
+    # has not run yet).
     - assertSubscription:
           tenantSlug: 'test-bestand'
           pendingPlanVersionId: null
           pendingPlanVersionEffectiveAt: null
 
-    # Catalog: alte Version hat supersededAt, neue hat publishedAt.
+    # Catalog: the old version has supersededAt, the new one has publishedAt.
     - assertPlanVersion:
           planId: 'STANDARD'
           version: 1

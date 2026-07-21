@@ -1,14 +1,14 @@
-// createManifestStore — Pinia-Store-Factory, die `loaded`/`inflight`/
-// `ensureLoaded()`/`reload()`/`clearCache()`-Boilerplate standardisiert.
+// createManifestStore — Pinia store factory that standardizes the
+// `loaded`/`inflight`/`ensureLoaded()`/`reload()`/`clearCache()` boilerplate.
 //
-// Apps definieren ihren Manifest-Store aus dieser Factory:
+// Apps define their manifest store from this factory:
 //
 //     import { createManifestStore } from '@saasicat/ui-vue';
 //     import { manifestLoader } from '@/services/platform-loaders';
 //     export const useManifestStore = createManifestStore({ loader: manifestLoader });
 //
-// Damit liegt die Cache-/Inflight-Logik nur an einer Stelle, und Apps
-// duplizieren keine identischen Pinia-Setups mehr.
+// This keeps the cache/inflight logic in a single place, and apps no
+// longer duplicate identical Pinia setups.
 
 import { defineStore, type StoreDefinition } from 'pinia';
 import { ref, type Ref } from 'vue';
@@ -24,27 +24,27 @@ export interface ManifestStoreState {
 
 export interface ManifestStoreActions {
     /**
-     * Lädt einmalig pro Session. Concurrent-Aufrufe teilen sich den Promise.
+     * Loads once per session. Concurrent calls share the promise.
      *
-     * **Verhalten bei Loader-Fehler:** der Store cached den Fehler in
-     * `error.value` und resettet `loaded = false`/`manifest = null`, und der
-     * Promise REJECTED mit dem Original-Error. Caller müssen entweder
-     * `.catch(...)` aufrufen (defensives Verhalten) oder die Rejection
-     * propagieren lassen. Der Plattform-Router-Guard
-     * (`createSuperAdminApp({ manifestGuard.errorRoute })`) bietet einen
-     * fail-closed-Pfad mit Redirect auf eine dedizierte Error-Route.
+     * **Behavior on loader error:** the store caches the error in
+     * `error.value` and resets `loaded = false`/`manifest = null`, and the
+     * promise REJECTS with the original error. Callers must either
+     * call `.catch(...)` (defensive behavior) or let the rejection
+     * propagate. The platform router guard
+     * (`createSuperAdminApp({ manifestGuard.errorRoute })`) provides a
+     * fail-closed path with a redirect to a dedicated error route.
      */
     ensureLoaded: () => Promise<void>;
-    /** Verwirft Cache + State (Logout-Pfad). */
+    /** Discards cache + state (logout path). */
     clearCache: () => void;
-    /** Erzwingt Server-Refresh (z. B. nach `manifest reload`). */
+    /** Forces a server refresh (e.g. after `manifest reload`). */
     reload: () => Promise<void>;
 }
 
 export interface CreateManifestStoreOptions {
-    /** Plattform-`ManifestLoader`-Instanz (typisch via `createPlatformLoaders()`). */
+    /** Platform `ManifestLoader` instance (typically via `createPlatformLoaders()`). */
     loader: ManifestLoader;
-    /** Pinia-Store-ID. Default `admin-manifest`. */
+    /** Pinia store ID. Default `admin-manifest`. */
     id?: string;
 }
 
@@ -56,8 +56,8 @@ export type ManifestStoreDefinition = StoreDefinition<
 >;
 
 /**
- * Liefert eine `useStore`-Funktion für den Manifest-Store. Apps rufen die
- * Factory einmal auf Modul-Top-Level auf und exportieren das Ergebnis als
+ * Returns a `useStore` function for the manifest store. Apps call the
+ * factory once at module top level and export the result as
  * `useManifestStore`.
  */
 export function createManifestStore(options: CreateManifestStoreOptions): ManifestStoreDefinition {
@@ -79,10 +79,10 @@ export function createManifestStore(options: CreateManifestStoreOptions): Manife
                 error.value = wrapped;
                 manifest.value = null;
                 loaded.value = false;
-                // Re-throw, damit Caller (Router-Guard, Page-Setups) den Fehler
-                // sehen und entscheiden können (Fallback-Route, Notification,
-                // etc.). Der State (`error.value`) bleibt erhalten und kann
-                // reaktiv von Komponenten angezeigt werden.
+                // Re-throw so callers (router guard, page setups) see the
+                // error and can decide (fallback route, notification,
+                // etc.). The state (`error.value`) is retained and can be
+                // displayed reactively by components.
                 throw wrapped;
             } finally {
                 loading.value = false;

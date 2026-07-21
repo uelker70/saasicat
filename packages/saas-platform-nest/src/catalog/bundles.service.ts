@@ -1,17 +1,17 @@
-// BundlesService — CRUD für `bundles` + `bundle_versions`.
+// BundlesService — CRUD for `bundles` + `bundle_versions`.
 //
-// Verbindet Repository (Persistenz) + Discovery-Snapshot (Code-Validierung)
-// + Versions-Diff (Vertragsschutz P3-Klassifikation). Mutierende Operationen
-// auf BundleVersion liefern `BundleVersionMutationResult` mit Warnings für
-// das UI; harte Fehler (z. B. doppelter `bundleKey`, NotFound) werfen
-// HttpException.
+// Wires together the Repository (persistence) + discovery snapshot (code
+// validation) + version diff (contract-protection P3 classification).
+// Mutating operations on BundleVersion return `BundleVersionMutationResult`
+// with warnings for the UI; hard errors (e.g. duplicate `bundleKey`,
+// NotFound) throw HttpException.
 //
-// Im warn-only-Modus (`STRICT_CATALOG_CHECK_MODE = 'warn-only'`, siehe
-// SPEC_V2 §8.1) gehen Strict-Mode-Verstöße als `warnings`-Liste durch;
-// im blocking-Modus wirft der Service stattdessen HTTP 422 mit derselben
-// Warning-Liste als Body. Default: blocking (#12). Ausnahme: kaputte
-// `compatibility.planIds` blocken immer, sobald ein PlanRepository fuer
-// die Existenzpruefung registriert ist.
+// In warn-only mode (`STRICT_CATALOG_CHECK_MODE = 'warn-only'`, see
+// SPEC_V2 §8.1) strict-mode violations pass through as a `warnings` list;
+// in blocking mode the service instead throws HTTP 422 with the same
+// warning list as the body. Default: blocking (#12). Exception: broken
+// `compatibility.planIds` always block once a PlanRepository is registered
+// for the existence check.
 
 import {
     Inject,
@@ -58,26 +58,25 @@ import { loadApprovedCatalogKeys } from './approved-keys.js';
 import { blockingStrictModeWarnings, validateBundleDraft } from './strict-mode-check.js';
 
 /**
- * Konfiguration für die mutierenden Operations.
+ * Configuration for the mutating operations.
  */
 export interface CatalogServiceConfig {
-    /** Aktiver Modus für den Strict-Mode-Check. Default `'blocking'` (#12). */
+    /** Active mode for the strict-mode check. Default `'blocking'` (#12). */
     strictModeCheckMode?: 'warn-only' | 'blocking';
     /**
-     * Discovery→Catalog-Auto-Sync beim Boot (#12). Default `true` — läuft, wenn
-     * ein `DiscoverySnapshot` bereitsteht. Auf `false` setzen, um den Boot-Sync
-     * zu deaktivieren; der manuelle `POST /admin/catalog/discovery/sync` bleibt
-     * davon unberührt.
+     * Discovery→Catalog auto-sync at boot (#12). Default `true` — runs when a
+     * `DiscoverySnapshot` is available. Set to `false` to disable the boot
+     * sync; the manual `POST /admin/catalog/discovery/sync` is unaffected.
      */
     autoSyncDiscoveryAtBoot?: boolean;
     /**
-     * Feature-Keys, die der Katalog bewusst führen darf, OHNE dass sie im
-     * Discovery-Snapshot (= im Code via @ImplementsCapability) existieren —
-     * vermarktete Nicht-Code-Features wie Support-SLAs (z. B. PRIORITY_SUPPORT).
-     * Der Strict-Mode-Check meldet sie NICHT als BUNDLE_/PLAN_FEATURE_UNKNOWN.
-     * Sparsam einsetzen: das ist die einzige legitime Ausnahme von „Code ist
-     * Source-of-Truth"; noch-nicht-gebaute Features gehören NICHT hierher,
-     * sondern aus dem Katalog entfernt, bis sie implementiert sind.
+     * Feature keys the catalog is deliberately allowed to carry WITHOUT them
+     * existing in the discovery snapshot (= in code via @ImplementsCapability) —
+     * marketed non-code features such as support SLAs (e.g. PRIORITY_SUPPORT).
+     * The strict-mode check does NOT report them as BUNDLE_/PLAN_FEATURE_UNKNOWN.
+     * Use sparingly: this is the only legitimate exception to "code is the
+     * source of truth"; not-yet-built features do NOT belong here but should be
+     * removed from the catalog until they are implemented.
      */
     marketedOnlyFeatures?: string[];
 }
@@ -112,9 +111,9 @@ export class BundlesService {
     ) {
         this.mode = config.strictModeCheckMode ?? 'blocking';
         this.marketedOnly = new Set(config.marketedOnlyFeatures ?? []);
-        // #25: blocking braucht eine Snapshot-Quelle (injizierter Token ODER
-        // DiscoveryScanner). Fehlt beides, NICHT crashen (das verursachte einen
-        // Prod-Outage) — laut loggen + auf warn-only degradieren.
+        // #25: blocking needs a snapshot source (injected token OR
+        // DiscoveryScanner). If both are missing, do NOT crash (that caused a
+        // prod outage) — log loudly + degrade to warn-only.
         if (this.mode === 'blocking' && !hasDiscoverySnapshotSource(this.snapshot, this.scanner)) {
             this.logger.error(
                 'BundlesService: strictModeCheckMode=blocking ohne DiscoverySnapshot-Quelle — ' +
@@ -125,7 +124,7 @@ export class BundlesService {
     }
 
     // =========================================================================
-    // Stamm-Operationen
+    // Master operations
     // =========================================================================
 
     listBundles(projectKey: string): Promise<BundleRow[]> {
@@ -165,9 +164,9 @@ export class BundlesService {
     }
 
     /**
-     * Verwirft eine Draft-BundleVersion (`publishedAt === null`) hart aus
-     * der DB. Published Versions bleiben unveränderlich (Vertragsschutz
-     * P1) — der Service wirft 422 mit Code `BUNDLE_VERSION_ALREADY_PUBLISHED`.
+     * Hard-deletes a draft BundleVersion (`publishedAt === null`) from the
+     * DB. Published versions stay immutable (contract-protection P1) — the
+     * service throws 422 with code `BUNDLE_VERSION_ALREADY_PUBLISHED`.
      */
     async discardBundleDraft(versionId: string): Promise<void> {
         const existing = await this.repo.findVersionById(versionId);
@@ -192,7 +191,7 @@ export class BundlesService {
     }
 
     // =========================================================================
-    // Version-Operationen
+    // Version operations
     // =========================================================================
 
     async listBundleVersions(bundleId: string): Promise<BundleVersionRow[]> {
@@ -209,13 +208,12 @@ export class BundlesService {
     }
 
     /**
-     * Reichert jede BundleVersion mit `isLatestInChain` (höchste
-     * Versions-Nummer im Stamm) + `subscriptionCount` an, damit UI und
-     * Backend dieselbe Editierbarkeits-Entscheidung treffen.
-     * `subscriptionCount` bleibt `undefined`, wenn kein
-     * SubscriptionRepository registriert ist oder die Methode nicht
-     * implementiert wurde — `isVersionEditable` interpretiert das
-     * fail-closed (= eingefroren).
+     * Annotates each BundleVersion with `isLatestInChain` (highest version
+     * number in the chain) + `subscriptionCount` so that UI and backend make
+     * the same editability decision. `subscriptionCount` stays `undefined`
+     * when no SubscriptionRepository is registered or the method was not
+     * implemented — `isVersionEditable` interprets that fail-closed
+     * (= frozen).
      */
     private async annotateEditability(versions: BundleVersionRow[]): Promise<BundleVersionRow[]> {
         if (versions.length === 0) return versions;
@@ -237,11 +235,11 @@ export class BundlesService {
     }
 
     /**
-     * Legt eine neue Draft-BundleVersion an. Wirft, wenn bereits eine Draft
-     * für denselben Bundle existiert (Repository-Constraint).
+     * Creates a new draft BundleVersion. Throws when a draft already exists
+     * for the same bundle (repository constraint).
      *
-     * Strict-Mode-Check läuft auf der Eingabe; in `warn-only` werden
-     * Warnings zurückgegeben, in `blocking` wirft der Service HTTP 422.
+     * The strict-mode check runs on the input; in `warn-only` warnings are
+     * returned, in `blocking` the service throws HTTP 422.
      */
     async createBundleDraft(
         data: CreateBundleVersionDraftData,
@@ -258,7 +256,7 @@ export class BundlesService {
             );
         }
 
-        // baseVersionId default: latest live (oder null bei v1)
+        // baseVersionId default: latest live (or null for v1)
         if (data.baseVersionId === undefined) {
             const latestLive = await this.repo.findLatestLive(data.bundleId);
             data = { ...data, baseVersionId: latestLive?.id ?? null };
@@ -279,12 +277,12 @@ export class BundlesService {
     }
 
     /**
-     * Aktualisiert eine Draft-Version oder — als bewusste Aufweichung von
-     * Vertragsschutz P1 — eine published-but-future BundleVersion, die
-     * latest-in-chain ist und noch keine Subscription bindet. Sobald
-     * `validFrom` erreicht ist oder eine Buchung sie referenziert, friert
-     * die Version wieder ein. Die konkrete Entscheidung trifft der
-     * `isVersionEditable`-Helper, der von der UI gespiegelt wird.
+     * Updates a draft version or — as a deliberate relaxation of
+     * contract-protection P1 — a published-but-future BundleVersion that is
+     * latest-in-chain and does not yet bind any subscription. Once
+     * `validFrom` is reached or a booking references it, the version freezes
+     * again. The concrete decision is made by the `isVersionEditable` helper,
+     * which is mirrored by the UI.
      */
     async updateBundleDraft(
         versionId: string,
@@ -322,15 +320,14 @@ export class BundlesService {
     }
 
     /**
-     * Veröffentlicht eine Draft-Version atomar. Schritte:
-     * 1. Strict-Check auf der Draft-Definition (warn-only oder blocking)
-     * 2. validFrom-Pflicht + Reihenfolge gegen Vorgänger prüfen
-     *    (SPEC_V2 §4.2 + §11.1 M6 Pack 2c, analog PlanVersion)
-     * 3. Diff zur Vorgänger-Version (latest live) berechnen →
-     *    `publishedChanges` + `nonRegressive` per `classifyBundleVersionDiff`
-     * 4. Repository.publishDraft mit Diff-Resultat + Gültigkeitsdaten
-     *    aufrufen (Transaktion; Auto-Sukzession setzt vorherige
-     *    validUntil)
+     * Publishes a draft version atomically. Steps:
+     * 1. Strict check on the draft definition (warn-only or blocking)
+     * 2. Enforce validFrom requirement + ordering against the predecessor
+     *    (SPEC_V2 §4.2 + §11.1 M6 Pack 2c, analogous to PlanVersion)
+     * 3. Compute the diff against the predecessor version (latest live) →
+     *    `publishedChanges` + `nonRegressive` via `classifyBundleVersionDiff`
+     * 4. Call Repository.publishDraft with the diff result + validity dates
+     *    (transaction; auto-succession sets the previous validUntil)
      */
     async publishBundleVersion(
         versionId: string,
@@ -357,9 +354,9 @@ export class BundlesService {
         );
         this.gateOrPass(warnings);
 
-        // ─── Preis-Gate (Schutz gegen versehentliches Publish von Seed-Platzhaltern) ───
-        // Bundle-Preise dürfen null sein (Override-Resolution) — nur ein EXPLIZITER
-        // 0,00-Wert ist verdächtig (Seed-Entwurf). Sonderfälle: allowZeroPrice: true.
+        // ─── Price gate (guards against accidentally publishing seed placeholders) ───
+        // Bundle prices may be null (override resolution) — only an EXPLICIT
+        // 0.00 value is suspicious (seed draft). Special case: allowZeroPrice: true.
         if (!publishMeta.allowZeroPrice) {
             const explicitZero = (v: string | null | undefined): boolean =>
                 v !== null && v !== undefined && Number.parseFloat(String(v)) <= 0;
@@ -377,7 +374,7 @@ export class BundlesService {
 
         const previous = await this.repo.findLatestLive(draft.bundleId);
 
-        // ─── validFrom (Pflicht beim Publish, SPEC_V2 §4.2) ───
+        // ─── validFrom (required on publish, SPEC_V2 §4.2) ───
         const validFromInput = publishMeta.validFrom ?? draft.validFrom;
         if (!validFromInput) {
             throw new UnprocessableEntityException({
@@ -401,9 +398,9 @@ export class BundlesService {
                     message: `validFrom (${validFrom.toISOString()}) muss strikt nach validFrom der Vorgänger-Version (${previous.validFrom}) liegen.`,
                 });
             }
-            // Gapless-Sukzession analog Plan: wenn der Vorgänger bereits
-            // ein explizites validUntil hat, muss der Nachfolger nahtlos
-            // am Folgetag starten (sonst Lücke oder Überlappung).
+            // Gapless succession analogous to Plan: if the predecessor already
+            // has an explicit validUntil, the successor must start seamlessly
+            // on the following day (otherwise a gap or overlap).
             if (previous.validUntil) {
                 const prevUntil = new Date(previous.validUntil);
                 const dayMs = 24 * 60 * 60 * 1000;
@@ -422,8 +419,8 @@ export class BundlesService {
             }
         }
 
-        // validUntil (optional, null = unbegrenzt). Konsistenz-Check
-        // gegen validFrom; Auto-Sukzession des Vorgängers passiert im Repo.
+        // validUntil (optional, null = unbounded). Consistency check
+        // against validFrom; auto-succession of the predecessor happens in the repo.
         const validUntilInput =
             publishMeta.validUntil !== undefined ? publishMeta.validUntil : draft.validUntil;
         const validUntil = validUntilInput ? new Date(validUntilInput) : null;
@@ -494,20 +491,20 @@ export class BundlesService {
         const planIds = draft.compatibility?.planIds ?? [];
         let knownPlanKeys: Set<string> | null = null;
         if (planIds.length > 0 && this.planRepo && projectKey) {
-            // Lazy: nur listen, wenn der Bundle wirklich Plan-Kompat-Keys
-            // setzt — sonst sparen wir den Repo-Call. `findByKey` einzeln
-            // wäre per planId ein Round-Trip pro planKey; `list` ist
-            // pragmatischer und für SuperAdmin mit wenigen Plänen OK.
+            // Lazy: only list when the bundle actually sets plan-compat keys —
+            // otherwise we save the repo call. `findByKey` individually would be
+            // one round-trip per planKey; `list` is more pragmatic and fine for
+            // SuperAdmin with few plans.
             const all = await this.planRepo.list({ projectKey });
             knownPlanKeys = new Set(all.map((p) => p.planKey));
         }
-        // Approved-Gate (#20 Slice 5): projectKey == snapshot.app.key (Konvention).
+        // Approved gate (#20 Slice 5): projectKey == snapshot.app.key (convention).
         const approved = await loadApprovedCatalogKeys(this.catalogEntries, snapshot.app.key);
         return validateBundleDraft(draft, snapshot, knownPlanKeys, this.marketedOnly, approved);
     }
 
     private gateOrPass(warnings: StrictModeWarning[]): void {
-        // Advisory-Warnings (#35) gaten nie — sie gehen nur als Banner ins UI.
+        // Advisory warnings (#35) never gate — they only go into the UI as a banner.
         const blocking = blockingStrictModeWarnings(warnings);
         if (blocking.length === 0) return;
         const hasHardBlockingWarning = blocking.some((w) => w.code === 'BUNDLE_PLAN_KEY_UNKNOWN');
@@ -518,7 +515,7 @@ export class BundlesService {
                 warnings,
             });
         }
-        // warn-only: durchlassen, Warnings werden im Result an den Caller gehängt.
+        // warn-only: pass through, warnings are attached to the result for the caller.
     }
 
     private async assertBundleVersionWindowUpdate(

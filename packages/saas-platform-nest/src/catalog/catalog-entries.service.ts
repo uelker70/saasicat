@@ -1,16 +1,16 @@
-// CatalogEntriesService — Discovery-Review-Workflow, feature-/quota-zentriert
+// CatalogEntriesService — discovery review workflow, feature-/quota-centric
 // (#20, SPEC_V2 §6.3).
 //
-// Drei Entitäten: CapabilityCatalogEntry (read-only Code-Fakt),
-// FeatureCatalogEntry und QuotaCatalogEntry (Freigabe-Lifecycle
-// pending → approved ↔ outdated · obsolete). Der Code (`/admin/discovery`)
-// ist der Ist-Zustand; diese Tabellen halten Freigabe + Übersetzungen.
+// Three entities: CapabilityCatalogEntry (read-only code fact),
+// FeatureCatalogEntry and QuotaCatalogEntry (approval lifecycle
+// pending → approved ↔ outdated · obsolete). The code (`/admin/discovery`)
+// is the actual state; these tables hold approval + translations.
 //
-// `syncFromSnapshot` upsertet aus dem Discovery-Snapshot: neue Keys landen
-// als `pending`, fehlende werden `obsolete` (Capabilities: `retired`), ein
-// vorhandener Freigabe-Status bleibt erhalten. Für `approved`-Einträge
-// vergleicht der Sync die persistierte Approval-Signatur gegen den
-// Snapshot — bei Drift kippt der Status auf `outdated`.
+// `syncFromSnapshot` upserts from the discovery snapshot: new keys land
+// as `pending`, missing ones become `obsolete` (capabilities: `retired`), an
+// existing approval status is preserved. For `approved` entries
+// the sync compares the persisted approval signature against the
+// snapshot — on drift the status flips to `outdated`.
 
 import {
     Inject,
@@ -51,9 +51,9 @@ import {
 } from './tokens.js';
 
 /**
- * Erlaubte Übergänge des Freigabe-Automaten (#20, Design-Sim):
- * Freigeben/erneut freigeben → `approved`, Freigabe entziehen/Reaktivieren
- * → `pending`, manuell als veraltet/obsolet markieren → `outdated`/`obsolete`.
+ * Allowed transitions of the approval state machine (#20, design sim):
+ * approve/re-approve → `approved`, revoke approval/reactivate
+ * → `pending`, manually mark as outdated/obsolete → `outdated`/`obsolete`.
  */
 const REVIEW_TRANSITIONS: Record<DiscoveryStatus, readonly DiscoveryStatus[]> = {
     pending: ['approved', 'obsolete'],
@@ -63,19 +63,19 @@ const REVIEW_TRANSITIONS: Record<DiscoveryStatus, readonly DiscoveryStatus[]> = 
 };
 
 /**
- * Löst den Freigabe-Status beim Sync auf: neue Einträge starten `pending`,
- * vorhandene behalten ihren Status. `obsolete` bleibt bewusst stehen, auch
- * wenn der Key wieder im Code auftaucht — Reaktivieren ist eine SuperAdmin-
- * Entscheidung, kein Sync-Automatismus.
+ * Resolves the approval status during sync: new entries start `pending`,
+ * existing ones keep their status. `obsolete` deliberately stays put, even
+ * when the key reappears in the code — reactivating is a SuperAdmin
+ * decision, not a sync automatism.
  */
 function resolveReviewStatus(existing: DiscoveryStatus | undefined): DiscoveryStatus {
     return existing ?? 'pending';
 }
 
 /**
- * Drift-Erkennung (#20): ein `approved`-Eintrag, dessen Approval-Signatur
- * nicht mehr zum aktuellen Snapshot passt, kippt auf `outdated`. Manuell
- * gesetzte Status (inkl. manuelles `outdated`) bleiben unangetastet.
+ * Drift detection (#20): an `approved` entry whose approval signature
+ * no longer matches the current snapshot flips to `outdated`. Manually
+ * set statuses (incl. manual `outdated`) remain untouched.
  */
 function withDrift(
     resolved: DiscoveryStatus,
@@ -88,9 +88,9 @@ function withDrift(
 }
 
 /**
- * Nachfolger-Index (#39): alter Key → sortierte Liste der Snapshot-Keys, die
- * ihn via `replaces` beanspruchen. Mehrere Beansprucher sind ein Code-Fehler
- * — der Sync nimmt deterministisch den lexikografisch ersten und loggt.
+ * Successor index (#39): old key → sorted list of snapshot keys that
+ * claim it via `replaces`. Multiple claimants are a code error
+ * — the sync deterministically takes the lexicographically first and logs.
  */
 function buildSuccessorIndex(
     entries: readonly { key: string; replaces: string[] | null | undefined }[],
@@ -133,17 +133,17 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     }
 
     /**
-     * Spiegelt beim Boot den Discovery-Snapshot in die Catalog-Entries
-     * (Discovery-als-SSOT, #12). Läuft nur, wenn ein Snapshot bereitsteht und
-     * der Kill-Switch `autoSyncDiscoveryAtBoot` nicht auf `false` steht. Ein
-     * Sync-Fehler bricht den Boot bewusst nicht ab — der manuelle Endpoint
-     * `POST /admin/catalog/discovery/sync` bleibt als Fallback.
+     * Mirrors the discovery snapshot into the catalog entries at boot
+     * (discovery-as-SSOT, #12). Runs only when a snapshot is available and
+     * the kill switch `autoSyncDiscoveryAtBoot` is not set to `false`. A
+     * sync error deliberately does not abort the boot — the manual endpoint
+     * `POST /admin/catalog/discovery/sync` remains as a fallback.
      */
     async onApplicationBootstrap(): Promise<void> {
         if (!this.autoSyncAtBoot) return;
-        // #25: Snapshot via Token (Symbol.for → cross-bundle-stabil) auflösen,
-        // DiscoveryScanner als Same-Entry-Fallback. Vor dem Symbol.for-Fix war
-        // der Token cross-entry ein anderes Symbol → Auto-Sync no-op'te still.
+        // #25: resolve the snapshot via token (Symbol.for → cross-bundle stable),
+        // DiscoveryScanner as same-entry fallback. Before the Symbol.for fix the
+        // token was a different Symbol cross-entry → auto-sync silently no-op'd.
         const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
         if (!snapshot) {
             this.logger.warn(
@@ -194,10 +194,10 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     }
 
     /**
-     * Freigabe-Übergang eines Features (#20). Validiert den Automaten;
-     * `approved` persistiert die Approval-Signatur aus dem aktuellen
-     * Snapshot, `pending` (entziehen/reaktivieren) löscht sie, `outdated`/
-     * `obsolete` behalten die letzte Freigabe als Historie.
+     * Approval transition of a feature (#20). Validates the state machine;
+     * `approved` persists the approval signature from the current
+     * snapshot, `pending` (revoke/reactivate) deletes it, `outdated`/
+     * `obsolete` keep the last approval as history.
      */
     async reviewFeature(
         projectKey: string,
@@ -220,7 +220,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         );
     }
 
-    /** Freigabe-Übergang einer Quota — gleicher Automat wie Features (#20). */
+    /** Approval transition of a quota — same state machine as features (#20). */
     async reviewQuota(
         projectKey: string,
         quotaKey: string,
@@ -276,8 +276,8 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 approvedSignature: signatureOf(snapshot),
             };
         }
-        // `pending` = Freigabe entziehen/Reaktivieren → Approval-Felder löschen;
-        // `outdated`/`obsolete` behalten die letzte Freigabe als Historie.
+        // `pending` = revoke approval/reactivate → clear approval fields;
+        // `outdated`/`obsolete` keep the last approval as history.
         const keepApproval = target !== 'pending';
         return {
             discoveryStatus: target,
@@ -303,7 +303,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         return this.repo.setQuotaI18n(projectKey, quotaKey, i18n);
     }
 
-    /** Setzt das editierbare Default-Locale-Label/-Beschreibung eines Features. */
+    /** Sets the editable default-locale label/description of a feature. */
     setFeatureBase(
         projectKey: string,
         featureKey: string,
@@ -312,7 +312,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         return this.repo.setFeatureBase(projectKey, featureKey, data);
     }
 
-    /** Setzt das editierbare Default-Locale-Label/-Beschreibung einer Quota. */
+    /** Sets the editable default-locale label/description of a quota. */
     setQuotaBase(
         projectKey: string,
         quotaKey: string,
@@ -322,14 +322,14 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     }
 
     /**
-     * Synchronisiert die Catalog-Entries aus einem Discovery-Snapshot.
-     * Idempotent — kann beliebig oft gegen denselben Snapshot laufen.
+     * Synchronizes the catalog entries from a discovery snapshot.
+     * Idempotent — can run against the same snapshot any number of times.
      */
     async syncFromSnapshot(snapshot: DiscoverySnapshot): Promise<SyncDiscoveryResult> {
         const projectKey = snapshot.app.key;
         const nowIso = new Date().toISOString();
 
-        // ─── Capabilities (read-only Code-Fakten, #20) ───
+        // ─── Capabilities (read-only code facts, #20) ───
         const existingCaps = await this.repo.listCapabilities({ projectKey });
         const capByKey = new Map(existingCaps.map((c) => [c.capabilityKey, c]));
         const presentCaps: string[] = [];
@@ -378,13 +378,13 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
             if (resolved === 'outdated' && existing?.discoveryStatus === 'approved') {
                 featureOutdated++;
             }
-            // #12: UI-Metadaten aus der kuratierten Registry seeden — aber NUR in
-            // leere Felder; vorhandene (SuperAdmin-gepflegte) Werte gewinnen, damit
-            // FeatureCatalogEntry die editierbare SSOT bleibt.
+            // #12: seed UI metadata from the curated registry — but ONLY into
+            // empty fields; existing (SuperAdmin-maintained) values win, so that
+            // FeatureCatalogEntry remains the editable SSOT.
             const meta = this.featureUiRegistry?.[feature.featureKey];
-            // „Bare" = noch nie kuratiert: das Label ist der Default (== Key).
-            // Nur dann aus der Registry seeden — ein echtes (≠ Key) Label gilt als
-            // SuperAdmin-/bereits-geseedet und gewinnt.
+            // "Bare" = never curated: the label is the default (== key).
+            // Only then seed from the registry — a real (≠ key) label counts as
+            // SuperAdmin-/already-seeded and wins.
             const hasCuratedLabel = existing != null && existing.label !== feature.featureKey;
             await this.repo.upsertFeature({
                 projectKey,
@@ -396,8 +396,8 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 replaces: feature.replaces ?? [],
                 core: meta?.core ?? false,
             });
-            // Icon liegt nicht im upsertFeature-Input → separat (partielles
-            // setFeatureBase), ebenfalls nur wenn die DB noch kein Icon hat.
+            // Icon is not in the upsertFeature input → separate (partial
+            // setFeatureBase), likewise only when the DB has no icon yet.
             if (meta?.icon && !existing?.icon) {
                 await this.repo.setFeatureBase(projectKey, feature.featureKey, {
                     icon: meta.icon,
@@ -491,12 +491,12 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     }
 
     /**
-     * `replaced`-Semantik (#39): verschwindet ein Key aus dem Snapshot UND
-     * beansprucht ein anderer Snapshot-Key ihn via `replaces`, bekommt der
-     * alte Eintrag den Nachfolger-Pointer — `obsolete` (aus `retireMissing`)
-     * + `successorKey` statt nacktem `obsolete`. Taucht ein Key wieder im
-     * Code auf, wird ein vorhandener Pointer gelöscht. Ein fehlender Key
-     * ohne Beansprucher bleibt unangetastet (gelöscht ohne Ersatz).
+     * `replaced` semantics (#39): if a key disappears from the snapshot AND
+     * another snapshot key claims it via `replaces`, the old entry gets
+     * the successor pointer — `obsolete` (from `retireMissing`)
+     * + `successorKey` instead of a bare `obsolete`. If a key reappears in
+     * the code, an existing pointer is deleted. A missing key
+     * without a claimant remains untouched (deleted without replacement).
      */
     private async applySuccessorPointers(
         type: 'feature' | 'quota',

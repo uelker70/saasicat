@@ -1,12 +1,12 @@
-// MfaGuard — fordert TOTP-Code für `@RequireMfa()`-markierte Routen.
+// MfaGuard — requires a TOTP code for routes marked with `@RequireMfa()`.
 //
-// Frontend muss den Code im Header `X-Mfa-Code` mitsenden. Auth-Pipeline
-// (JwtAuthGuard + SuperAdminGuard) muss vor diesem Guard laufen.
+// The frontend must send the code in the `X-Mfa-Code` header. The auth
+// pipeline (JwtAuthGuard + SuperAdminGuard) must run before this guard.
 //
-// Bypass-Mechanik: Setzen von `SAAS_PLATFORM_SKIP_MFA=1` UND `NODE_ENV !=
-// production` schaltet den Guard für CI-Smoke-Tests aus. Konsumenten
-// können einen eigenen Bypass-Schalter über die Umgebungsvariable hinaus
-// nicht hinzufügen — der Guard ist absichtlich strikt.
+// Bypass mechanics: setting `SAAS_PLATFORM_SKIP_MFA=1` AND `NODE_ENV !=
+// production` disables the guard for CI smoke tests. Consumers cannot add
+// their own bypass switch beyond the environment variable — the guard is
+// intentionally strict.
 
 import {
     type CanActivate,
@@ -23,8 +23,8 @@ import { MfaService } from './mfa.js';
 export const REQUIRE_MFA_KEY = 'saas-platform/require-mfa';
 
 /**
- * Markiert einen Endpunkt als MFA-pflichtig. Frontend sendet den TOTP-Code
- * im Header `X-Mfa-Code`.
+ * Marks an endpoint as MFA-required. The frontend sends the TOTP code
+ * in the `X-Mfa-Code` header.
  */
 export const RequireMfa = (): MethodDecorator & ClassDecorator =>
     SetMetadata(REQUIRE_MFA_KEY, true);
@@ -51,8 +51,8 @@ export class MfaGuard implements CanActivate {
         if (!required) return true;
 
         if (process.env.SAAS_PLATFORM_SKIP_MFA === '1' && process.env.NODE_ENV !== 'production') {
-            // Erlaubter Bypass für CI-Smoke-Tests (Plattform-weit; Konsumenten
-            // dürfen das nicht einzeln umkonfigurieren).
+            // Permitted bypass for CI smoke tests (platform-wide; consumers
+            // may not reconfigure it individually).
             return true;
         }
 

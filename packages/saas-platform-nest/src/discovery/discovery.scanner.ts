@@ -1,15 +1,15 @@
-// Discovery-Scanner — baut zur Boot-Zeit den DiscoverySnapshot aus allen
-// Decorator-Annotationen in registrierten Modulen.
+// Discovery scanner — builds the discovery snapshot at boot time from all
+// decorator annotations in registered modules.
 //
-// Ablauf (`OnApplicationBootstrap`-Hook):
-//   1. Alle Provider + Controller via DiscoveryService einsammeln
-//   2. Pro Klasse: @DefinesQuota-Metadata lesen → DiscoveredQuota
-//   3. Pro Methode: @ImplementsCapability + @EnforceQuota-Metadata lesen
-//      → DiscoveredCapability + Cross-Reference zu DiscoveredQuota
-//   4. Aggregat: Capabilities mit gleichem `feature` → DiscoveredFeature.
-//      Bundles werden NICHT aggregiert — sie kommen ausschließlich aus
-//      dem SuperAdmin-UI (DB-Tabelle `bundles`, SPEC_V2 §3.1 + §11.1 M3).
-//   5. Kanonischer SHA256-Hash über sortierte Snapshot-Daten (ETag-stabil)
+// Flow (`OnApplicationBootstrap` hook):
+//   1. Collect all providers + controllers via DiscoveryService
+//   2. Per class: read @DefinesQuota metadata → DiscoveredQuota
+//   3. Per method: read @ImplementsCapability + @EnforceQuota metadata
+//      → DiscoveredCapability + cross-reference to DiscoveredQuota
+//   4. Aggregate: capabilities with the same `feature` → DiscoveredFeature.
+//      Bundles are NOT aggregated — they come exclusively from the
+//      SuperAdmin UI (DB table `bundles`, SPEC_V2 §3.1 + §11.1 M3).
+//   5. Canonical SHA256 hash over sorted snapshot data (ETag-stable)
 
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -29,36 +29,35 @@ import type {
 import type { EnforceQuotaMetadata, ImplementsCapabilityMetadata } from './decorators.js';
 
 /**
- * App-Identität, die der Scanner in den Snapshot übernimmt. Der Konsument
- * liefert diese beim Modul-Setup, damit der Snapshot ein eindeutiges
- * `app.key` + `app.version` trägt.
+ * App identity that the scanner carries into the snapshot. The consumer
+ * provides this during module setup so that the snapshot carries a unique
+ * `app.key` + `app.version`.
  */
 export interface DiscoveryAppInfo {
     key: string;
     version: string;
 }
 
-/** Default-AppInfo, wenn der Konsument nichts überschreibt. */
+/** Default AppInfo when the consumer overrides nothing. */
 const DEFAULT_APP_INFO: DiscoveryAppInfo = {
     key: 'unknown',
     version: '0.0.0',
 };
 
 /**
- * DI-Token für die App-Identität. Der Konsument bindet das via
+ * DI token for the app identity. The consumer binds this via
  * `DiscoveryModule.forRoot({ app: { key, version } })`.
  */
 export const DISCOVERY_APP_INFO_TOKEN = Symbol('DISCOVERY_APP_INFO');
 
 /**
- * DI-Token für einen optionalen Snapshot-Persistenz-Pfad. Wird vom
- * DiscoveryScanner beim Boot beschrieben — Konsumenten (z. B. CI-Gates,
- * Preflight-CLIs) können die JSON-Datei lesen, ohne selbst einen
- * vollständigen Module-Boot zu fahren.
+ * DI token for an optional snapshot persistence path. Written by the
+ * DiscoveryScanner at boot — consumers (e.g. CI gates, Preflight CLIs) can
+ * read the JSON file without running a full module boot themselves.
  */
 export const DISCOVERY_SNAPSHOT_PATH_TOKEN = Symbol('DISCOVERY_SNAPSHOT_PATH');
 
-/** EnforceQuota-Aufruf an einer konkreten Capability — Cross-Reference. */
+/** EnforceQuota call on a concrete capability — cross-reference. */
 interface EnforceQuotaRef {
     capabilityKey: string;
     quotaKey: string;
@@ -69,11 +68,11 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
     private readonly logger = new Logger(DiscoveryScanner.name);
     private snapshot: DiscoverySnapshot | null = null;
 
-    // Explizites @Inject statt Type-Reflection: tsup/esbuild emittieren
-    // im Plattform-Paket-Build keine `design:paramtypes`-Metadata, sodass
-    // Nest die DI-Targets am Constructor sonst nicht auflösen kann
-    // (UndefinedDependencyException am Boot des Konsumenten). Pattern
-    // analog zu admin/admin-manifest.module.ts.
+    // Explicit @Inject instead of type reflection: in the platform package
+    // build tsup/esbuild do not emit `design:paramtypes` metadata, so Nest
+    // cannot otherwise resolve the DI targets at the constructor
+    // (UndefinedDependencyException at the consumer's boot). Pattern
+    // analogous to admin/admin-manifest.module.ts.
     constructor(
         @Inject(DiscoveryService)
         private readonly discoveryService: DiscoveryService,
@@ -114,8 +113,8 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
     }
 
     /**
-     * Liefert den Boot-Zeit-Snapshot. Vor `onApplicationBootstrap` (z. B. in
-     * Tests) wird der Snapshot lazy gebaut.
+     * Returns the boot-time snapshot. Before `onApplicationBootstrap` (e.g. in
+     * tests) the snapshot is built lazily.
      */
     getSnapshot(): DiscoverySnapshot {
         if (!this.snapshot) {
@@ -125,10 +124,10 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
     }
 
     /**
-     * Erzwingt einen Re-Scan (SuperAdmin „Discovery neu ausführen" bzw. Tests
-     * mit dynamisch registrierten Providern). `scannedAt` wird neu gesetzt und
-     * der Snapshot — wie beim Boot — auf Platte persistiert, damit der zuletzt
-     * tatsächlich durchgeführte Scan erhalten bleibt.
+     * Forces a re-scan (SuperAdmin "re-run discovery" or tests with
+     * dynamically registered providers). `scannedAt` is set anew and the
+     * snapshot — as at boot — is persisted to disk so that the last scan
+     * actually performed is preserved.
      */
     rebuildSnapshot(): DiscoverySnapshot {
         this.snapshot = this.buildSnapshot();
@@ -155,7 +154,7 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
             const ctor = instance.constructor as new (...args: unknown[]) => unknown;
             if (!ctor) continue;
 
-            // Klassen-Level: @DefinesQuota
+            // Class level: @DefinesQuota
             const quotaOpts = this.reflector.get<DefinesQuotaOptions | undefined>(
                 DEFINES_QUOTA_KEY,
                 ctor,
@@ -164,7 +163,7 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
                 this.registerQuota(quotasByKey, quotaOpts, ctor.name);
             }
 
-            // Methoden-Level: @ImplementsCapability + @EnforceQuota
+            // Method level: @ImplementsCapability + @EnforceQuota
             const prototype = Object.getPrototypeOf(instance) as object;
             const methodNames = this.metadataScanner.getAllMethodNames(prototype);
 
@@ -224,8 +223,8 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
     ): void {
         const existing = target.get(meta.capabilityKey);
         if (existing) {
-            // Capability mehrfach deklariert — wir behalten die erste Deklaration
-            // und loggen den Konflikt. Strict-Mode-Check (M5+) wird das blocken.
+            // Capability declared multiple times — we keep the first declaration
+            // and log the conflict. The strict-mode check (M5+) will block this.
             this.logger.warn(
                 `Capability '${meta.capabilityKey}' wird an mehreren Stellen deklariert ` +
                     `(${existing.declaredAt} und ${declaredAt}); erste Deklaration gewinnt`,
@@ -275,7 +274,7 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
 }
 
 // =============================================================================
-// Aggregations- und Hash-Helper (pure functions, testbar in Isolation)
+// Aggregation and hash helpers (pure functions, testable in isolation)
 // =============================================================================
 
 function aggregateFeatures(capabilities: DiscoveredCapability[]): DiscoveredFeature[] {
@@ -299,8 +298,8 @@ function aggregateFeatures(capabilities: DiscoveredCapability[]): DiscoveredFeat
     }
     return sortByKey(
         [...byFeature.entries()].map(([featureKey, acc]) => {
-            // Selbstbezüge raus: ein Feature setzt sich nicht selbst voraus
-            // und kann sich nicht selbst ablösen (#35/#39).
+            // Remove self-references: a feature does not require itself and
+            // cannot replace itself (#35/#39).
             acc.requires.delete(featureKey);
             acc.replaces.delete(featureKey);
             return {
@@ -315,9 +314,9 @@ function aggregateFeatures(capabilities: DiscoveredCapability[]): DiscoveredFeat
 }
 
 /**
- * Normalisiert eine Decorator-Key-Liste: dedupliziert + sortiert; leer/fehlend
- * wird `null` — so bleibt der Snapshot-Hash für Code ohne requires/replaces
- * deterministisch und das Wire-Format abwärtskompatibel lesbar.
+ * Normalizes a decorator key list: deduplicates + sorts; empty/missing
+ * becomes `null` — so the snapshot hash stays deterministic for code without
+ * requires/replaces and the wire format remains backward-compatibly readable.
  */
 function normalizeKeyList(keys: readonly string[] | undefined): string[] | null {
     if (!keys || keys.length === 0) return null;
@@ -352,10 +351,9 @@ function sortByKey<T>(items: T[], keyFn: (item: T) => string): T[] {
 }
 
 /**
- * Kanonischer Hash über die fachlichen Snapshot-Daten — ohne `scannedAt`
- * und `app.version`, damit derselbe Code beim Re-Boot denselben Hash
- * erzeugt. Pattern aus SPEC.md Q2 (Q2: „Stabiler manifestHash über Boot-
- * Restarts").
+ * Canonical hash over the business snapshot data — without `scannedAt` and
+ * `app.version`, so that the same code produces the same hash on re-boot.
+ * Pattern from SPEC.md Q2 (Q2: "Stable manifestHash across boot restarts").
  */
 export function computeSnapshotHash(snapshot: Omit<DiscoverySnapshot, 'hash'>): string {
     const stableInput = {
@@ -363,7 +361,7 @@ export function computeSnapshotHash(snapshot: Omit<DiscoverySnapshot, 'hash'>): 
         appKey: snapshot.app.key,
         capabilities: snapshot.capabilities.map((c) => ({
             ...c,
-            // declaredAt enthält Klassennamen, ist deterministisch — bleibt drin.
+            // declaredAt contains class names, is deterministic — stays in.
         })),
         features: snapshot.features,
         quotas: snapshot.quotas,
@@ -373,8 +371,8 @@ export function computeSnapshotHash(snapshot: Omit<DiscoverySnapshot, 'hash'>): 
 }
 
 /**
- * JSON.stringify mit alphabetisch sortierten Object-Keys — damit der Hash
- * unabhängig von Insertion-Order ist.
+ * JSON.stringify with alphabetically sorted object keys — so that the hash is
+ * independent of insertion order.
  */
 function canonicalStringify(value: unknown): string {
     return JSON.stringify(value, (_key, val) => {

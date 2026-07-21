@@ -7,10 +7,10 @@ import { MfaSetupFlow } from './mfa-setup-flow.js';
 import { CLI_CONTEXT_CONFIG_TOKEN } from './tokens.js';
 import { WhoAmIFlow } from './whoami-flow.js';
 
-// Geteilte `<app> admin …`-Commands für alle Plattform-Consumer. Bindet die
-// Plattform-Flows `WhoAmIFlow` + `MfaSetupFlow` an die nest-commander-CLI.
-// Consumer registrieren diese Klassen in den Providern ihres CLI-Moduls;
-// die Flows kommen aus `CliContextModule.forRoot({...})`.
+// Shared `<app> admin …` commands for all platform consumers. Binds the
+// platform flows `WhoAmIFlow` + `MfaSetupFlow` to the nest-commander CLI.
+// Consumers register these classes in the providers of their CLI module;
+// the flows come from `CliContextModule.forRoot({...})`.
 
 interface AsFlag {
     as?: string;
@@ -51,8 +51,8 @@ export class AdminMfaSetupCommand extends CommandRunner {
             issuer: this.config.mfaIssuer ?? 'SuperAdmin',
             force: flags.force,
         });
-        // QR-Code direkt im Terminal rendern — Authenticator-Apps scannen ihn
-        // aus dem Buffer, kein Copy-Paste der otpauth-URI nötig.
+        // Render the QR code directly in the terminal — authenticator apps scan it
+        // from the buffer, no copy-paste of the otpauth URI needed.
         await new Promise<void>((resolve) => {
             qrcodeTerminal.generate(result.otpauthUri, { small: true }, (qr) => {
                 process.stdout.write('\n' + qr + '\n');

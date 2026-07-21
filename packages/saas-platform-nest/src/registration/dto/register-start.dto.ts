@@ -10,18 +10,18 @@ import {
 } from 'class-validator';
 
 /**
- * Eingabe fuer Schritt 1 (Anmeldedaten) — `POST /auth/register/start`.
- * Sammelt Tenant- und Admin-Daten in einem Schritt; finale Tenant-/User-Anlage
- * passiert erst nach erfolgreicher Zahlung (Schritt 4).
+ * Input for step 1 (registration data) — `POST /auth/register/start`.
+ * Collects Tenant and admin data in one step; the final Tenant/User creation
+ * only happens after successful payment (step 4).
  */
 export class RegisterStartDto {
-    /** Vereins-/Mandantenname (Pflicht). */
+    /** Association/tenant name (required). */
     @IsString()
     @MinLength(2)
     @MaxLength(120)
     tenantName!: string;
 
-    /** Optionaler Slug. Bei Leer-Eingabe wird er aus `tenantName` generiert. */
+    /** Optional slug. If left empty, it is generated from `tenantName`. */
     @IsOptional()
     @IsString()
     @Matches(/^[a-z0-9-]+$/, {
@@ -30,7 +30,7 @@ export class RegisterStartDto {
     @MaxLength(60)
     tenantSlug?: string;
 
-    /** Anrede des Administrators (optional). */
+    /** Salutation of the administrator (optional). */
     @IsOptional()
     @IsString()
     @MaxLength(40)
@@ -55,7 +55,7 @@ export class RegisterStartDto {
     @MaxLength(160)
     password!: string;
 
-    /** AGB / Datenschutz / Auftragsverarbeitung — Pflicht-Akzept (muss `true` sein). */
+    /** Terms / privacy / data processing — mandatory acceptance (must be `true`). */
     @Equals(true, {
         message: 'AGB, Datenschutzerklaerung und Auftragsverarbeitung muessen zugestimmt werden.',
     })

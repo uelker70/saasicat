@@ -1,5 +1,5 @@
-// PromoCode — Wire-Format für die Promo-Code-Funktionalität.
-// Schema-Quelle: @saasicat/spec/schemas/promo-code.schema.json
+// PromoCode — wire format for the promo code functionality.
+// Schema source: @saasicat/spec/schemas/promo-code.schema.json
 
 import type { PlanId } from './plan-catalog.types.js';
 
@@ -22,27 +22,27 @@ export type PromoCodeValidationResult =
     | 'RATE_LIMITED';
 
 export interface CreatePromoCodeRequest {
-    /** A–Z, 0–9, '-' und '_'; 4–32 Zeichen; Case-insensitive in UPPER gespeichert. */
+    /** A–Z, 0–9, '-' and '_'; 4–32 characters; case-insensitive, stored in UPPER. */
     code: string;
     valueType: PromoCodeValueType;
-    /** Bei PERCENT: 0.01–100. Bei ABSOLUTE: > 0 in Catalog-Currency. */
+    /** For PERCENT: 0.01–100. For ABSOLUTE: > 0 in catalog currency. */
     value: number;
     durationType: PromoCodeDurationType;
-    /** Pflicht bei MONTHS / BILLING_CYCLES, null bei ONCE. */
+    /** Required for MONTHS / BILLING_CYCLES, null for ONCE. */
     durationValue?: number | null;
     validFrom?: string | null;
     validUntil?: string | null;
     maxRedemptions?: number | null;
-    /** Leer = alle Pläne. */
+    /** Empty = all plans. */
     appliesToPlans?: PlanId[];
     appliesToBilling?: BillingCycle | null;
     firstTimeCustomersOnly?: boolean;
     minimumPlanAmountGross?: number | null;
-    /** Default false: Rabatt darf Rechnung nicht auf 0 senken. */
+    /** Default false: discount must not reduce the invoice to 0. */
     allowZeroInvoice?: boolean;
     description?: string | null;
     campaignTag?: string | null;
-    /** SKR-Konto für die Rechnungslegung; projekt-spezifisch. */
+    /** SKR account for accounting; project-specific. */
     revenueDeductionAccount?: string | null;
 }
 
@@ -96,10 +96,10 @@ export interface PromoCodeRedemption {
 
 export interface PromoCodeValidationLog {
     id: string;
-    /** null bei NOT_FOUND. */
+    /** null for NOT_FOUND. */
     promoCodeId: string | null;
     codeAttempt: string;
-    /** Hash, kein Klartext. */
+    /** Hash, not plaintext. */
     ipHash: string | null;
     sessionId: string | null;
     result: PromoCodeValidationResult;

@@ -1,22 +1,22 @@
-// FeatureUiMeta — Konsumenten-spezifische UI-Metadaten je FeatureKey.
+// FeatureUiMeta — consumer-specific UI metadata per FeatureKey.
 //
-// Wird vom Konsumenten beim `forRoot({ featureUiRegistry })` injiziert und
-// vom `GET /billing/feature-registry`-Endpoint 1:1 ausgeliefert. Plattform
-// bleibt domain-agnostisch — eine Fahrzeughandel-App liefert KFZ-Begriffe
-// (icon: 'directions_car'), eine Vereins-App Vereins-Begriffe (icon: 'groups').
+// Injected by the consumer via `forRoot({ featureUiRegistry })` and
+// served 1:1 by the `GET /billing/feature-registry` endpoint. The platform
+// stays domain-agnostic — a car-dealership app supplies automotive terms
+// (icon: 'directions_car'), a club app supplies club terms (icon: 'groups').
 
 export interface FeatureUiMeta {
-    /** Sichtbarer Label für Plan-Vergleichs-Tabellen, Add-on-Listen. */
+    /** Visible label for plan comparison tables, add-on lists. */
     label: string;
-    /** Lange Beschreibung für Tooltips, Add-on-Karten. */
+    /** Long description for tooltips, add-on cards. */
     description: string;
-    /** Quasar-Icon-Name (z. B. 'directions_car', 'groups'). */
+    /** Quasar icon name (e.g. 'directions_car', 'groups'). */
     icon: string;
-    /** Spiegel von `PlanCatalog.features[].plannedOnly` — Cache für UI ohne Catalog-Roundtrip. */
+    /** Mirror of `PlanCatalog.features[].plannedOnly` — cache for the UI without a catalog roundtrip. */
     plannedOnly?: boolean;
-    /** true = Basis-Infrastruktur, in jedem Plan enthalten (nicht buchbar). */
+    /** true = base infrastructure, included in every plan (not bookable). */
     core?: boolean;
 }
 
-/** Map FeatureKey → UI-Metadaten. Konsument-Apps liefern eine vollständige Tabelle. */
+/** Map FeatureKey → UI metadata. Consumer apps supply a complete table. */
 export type FeatureUiRegistry = Record<string, FeatureUiMeta>;

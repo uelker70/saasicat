@@ -109,11 +109,11 @@ import type { PackageSnapshotShape } from '../use-tenant-billing.js';
 import type { TenantPlanSectionI18n } from './default-i18n.js';
 
 // PackageSnapshotPanel — P11.4 (METAMODELL §17a):
-// Schreibgeschützte Anzeige des `Subscription.packageSnapshot`. Zeigt dem
-// Tenant das eingefrorene Webseiten-Angebot (Offer-Snapshot) — Plan,
-// Bundles, Preise, Erfassungszeitpunkt. Keine Aktionen, kein Diff zum
-// aktuellen Stand. Bewusst defensive gegen fehlende Felder, weil das
-// Snapshot-Schema sich erweitert und ältere Subscriptions schmaler sind.
+// Read-only display of `Subscription.packageSnapshot`. Shows the
+// tenant the frozen website offer (offer snapshot) — plan,
+// bundles, prices, capture timestamp. No actions, no diff against
+// the current state. Deliberately defensive against missing fields, because the
+// snapshot schema keeps expanding and older subscriptions are narrower.
 
 interface Props {
     snapshot: PackageSnapshotShape | null;

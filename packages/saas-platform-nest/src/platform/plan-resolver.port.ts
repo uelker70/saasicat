@@ -1,11 +1,11 @@
-// PlanResolverPort — App-Adapter, der zu einer `tenantId` den aktiven
-// `planId` liefert. Wird vom `StaticEntitlementService` (Quickstart-Pfad)
-// und vom `FeatureGuard`/`EnforceQuotaInterceptor` aufgerufen.
+// PlanResolverPort — app adapter that resolves the active `planId` for a
+// given `tenantId`. Called by the `StaticEntitlementService` (quickstart
+// path) and by the `FeatureGuard`/`EnforceQuotaInterceptor`.
 //
-// Im Quickstart-Pfad (ohne SubscriptionContract) implementiert die App
-// das einfach (z. B. Lookup in `Tenant.planKey`-Spalte). Im V3-Pfad
-// (mit SubscriptionContract) übernimmt der volle `EntitlementService`
-// die Auflösung — der `PlanResolverPort` ist dann obsolet.
+// In the quickstart path (without SubscriptionContract) the app implements
+// this simply (e.g. a lookup in the `Tenant.planKey` column). In the V3 path
+// (with SubscriptionContract) the full `EntitlementService` takes over the
+// resolution — the `PlanResolverPort` is then obsolete.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P7+P9.
 
@@ -13,20 +13,19 @@ export const PLAN_RESOLVER_PORT_TOKEN = Symbol.for('saas-platform-nest/PlanResol
 
 export interface PlanResolverPort {
     /**
-     * Liefert den aktiven `planId` des Tenants. `null` = kein Plan
-     * zugeordnet → der Guard / Interceptor wirft 403 oder lässt durch,
-     * je nach Konfiguration.
+     * Returns the tenant's active `planId`. `null` = no plan assigned →
+     * the guard / interceptor throws 403 or lets it through, depending on
+     * the configuration.
      */
     getPlanIdForTenant(tenantId: string): Promise<string | null>;
 }
 
 /**
- * Static-Fallback: liefert immer denselben Plan für alle Tenants. Nützlich
- * für lokale Entwicklung und für Apps, die noch kein Vertrag-Konzept haben.
+ * Static fallback: always returns the same plan for all tenants. Useful
+ * for local development and for apps that do not yet have a contract concept.
  *
- * Quickstart-Pfad nutzt das implizit, wenn `adapters.planResolver` nicht
- * gesetzt ist und `defaultPlanId` im SaasPlatformModule.forRoot()
- * angegeben wurde.
+ * The quickstart path uses this implicitly when `adapters.planResolver` is
+ * not set and `defaultPlanId` was provided in SaasPlatformModule.forRoot().
  */
 export class StaticPlanResolver implements PlanResolverPort {
     constructor(private readonly planId: string) {}

@@ -1,19 +1,19 @@
-// SubscriptionBundlesService — fachliche Schicht über der
-// `subscription_bundles`-Junction (SPEC_V2 §11.1 M6 Pack 2e, P11.7.3).
+// SubscriptionBundlesService — domain layer over the
+// `subscription_bundles` junction (SPEC_V2 §11.1 M6 Pack 2e, P11.7.3).
 //
-// Aufgaben:
-//   1. `addBundleToSubscription`: prüft Bundle-Existenz + Veröffentlichungs-
-//      Status + Plan-Kompat (`bundle.compatibility.planIds`) + Idempotenz
-//      (keine doppelten aktiven Buchungen derselben BundleVersion); setzt
-//      Mindestlaufzeit-Default (12 Monate, konfigurierbar via Token).
-//   2. `cancelBundleFromSubscription`: rechnet
+// Responsibilities:
+//   1. `addBundleToSubscription`: checks bundle existence + publication
+//      status + plan compatibility (`bundle.compatibility.planIds`) + idempotency
+//      (no duplicate active bookings of the same BundleVersion); sets the
+//      minimum-term default (12 months, configurable via token).
+//   2. `cancelBundleFromSubscription`: computes
 //      `canceledEffectiveAt = max(currentPeriodEnd, minimumTermEndsAt)`
-//      — Bestand bleibt damit bis zur längeren der beiden Grenzen aktiv.
+//      — the booking thus stays active until the later of the two limits.
 //
-// Bewusst Subscription-Repo-frei: der Caller (Tenant-Self-Service-
-// Controller, Onboarding-Service, Admin-Endpoint) liefert die fachlichen
-// Daten (`currentPlanKey`, `currentPeriodEnd`) selbst. So bleibt der
-// Service in Tests trivial isolierbar und ohne Tenant-Lookup.
+// Deliberately free of the Subscription repo: the caller (tenant self-service
+// controller, onboarding service, admin endpoint) provides the domain
+// data (`currentPlanKey`, `currentPeriodEnd`) itself. This keeps the
+// service trivially isolatable in tests and without a tenant lookup.
 
 import {
     Inject,
@@ -40,20 +40,20 @@ import {
 } from './subscription-bundles.tokens.js';
 
 export interface SubscriptionBundleConfig {
-    /** Default Mindestlaufzeit in Monaten beim `add`. Default = 12. */
+    /** Default minimum term in months on `add`. Default = 12. */
     defaultMinimumTermMonths?: number;
 }
 
 export interface AddBundleToSubscriptionInput {
     subscriptionId: string;
     bundleVersionId: string;
-    /** PlanKey der aktuellen Subscription für die Plan-Kompat-Prüfung. */
+    /** PlanKey of the current subscription for the plan-compatibility check. */
     currentPlanKey: string;
-    /** Default = now (Service-Zeit). */
+    /** Default = now (service time). */
     startedAt?: Date;
     /**
-     * Override für die Mindestlaufzeit (Monate). Default = Config oder
-     * 12. `0` heißt explizit „keine Mindestlaufzeit"
+     * Override for the minimum term (months). Default = config or
+     * 12. `0` explicitly means "no minimum term"
      * (`minimumTermEndsAt = null`).
      */
     minimumTermMonths?: number;
@@ -64,10 +64,10 @@ export interface CancelBundleFromSubscriptionInput {
     /** Default = now. */
     canceledAt?: Date;
     /**
-     * Periodenende der Subscription, ab dem die Kündigung wirken könnte.
-     * Wirksamkeits-Datum = `max(currentPeriodEnd, minimumTermEndsAt)`.
-     * Wenn nicht gesetzt, wird `canceledAt` als Periodenende interpretiert
-     * (= sofortige Wirksamkeit, sofern Mindestlaufzeit schon abgelaufen).
+     * Period end of the subscription from which the cancellation could take effect.
+     * Effective date = `max(currentPeriodEnd, minimumTermEndsAt)`.
+     * If not set, `canceledAt` is interpreted as the period end
+     * (= immediate effect, provided the minimum term has already expired).
      */
     currentPeriodEnd?: Date;
 }
@@ -91,12 +91,12 @@ export class SubscriptionBundlesService {
         this.defaultMinTermMonths = config.defaultMinimumTermMonths ?? 12;
     }
 
-    /** Alle Bundle-Buchungen einer Subscription (für „Meine Bundles"-Seite). */
+    /** All bundle bookings of a subscription (for the "My Bundles" page). */
     async listForSubscription(subscriptionId: string): Promise<SubscriptionBundleView[]> {
         const records = await this.repo.listBySubscription(subscriptionId);
-        // Label/Key/Preis aus der gebuchten BundleVersion auflösen, damit die UI
-        // gebuchte Bundles ohne Katalog-Join anzeigt (sonst UUID-Fallback, weil
-        // der Katalog gefilterte/abgelöste Versionen ausschließen kann).
+        // Resolve label/key/price from the booked BundleVersion so the UI
+        // displays booked bundles without a catalog join (otherwise UUID fallback, because
+        // the catalog can exclude filtered/superseded versions).
         return Promise.all(
             records.map(async (r) => {
                 const bv = await this.bundles.findVersionById(r.bundleVersionId);
@@ -130,7 +130,7 @@ export class SubscriptionBundlesService {
             });
         }
 
-        // Self-Service-Policy (#37): Vertriebs-only-Bundles blocken.
+        // Self-service policy (#37): block sales-only bundles.
         if (this.blockedBundles?.bundleKeys?.includes(bundleVersion.bundleKey)) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_NOT_SELF_SERVICE',
@@ -140,7 +140,7 @@ export class SubscriptionBundlesService {
             });
         }
 
-        // Plan-Kompat: leeres planIds-Array = alle Pläne erlaubt.
+        // Plan compatibility: empty planIds array = all plans allowed.
         const planIds = bundleVersion.compatibility?.planIds ?? [];
         if (planIds.length > 0 && !planIds.includes(input.currentPlanKey)) {
             throw new UnprocessableEntityException({
@@ -151,7 +151,7 @@ export class SubscriptionBundlesService {
             });
         }
 
-        // Idempotenz: schon eine aktive Buchung dieser BundleVersion?
+        // Idempotency: already an active booking of this BundleVersion?
         const active = await this.repo.listActiveBySubscription(input.subscriptionId);
         if (active.some((b) => b.bundleVersionId === input.bundleVersionId)) {
             throw new UnprocessableEntityException({
@@ -203,8 +203,8 @@ export class SubscriptionBundlesService {
     }
 
     /**
-     * „Kündigung rückgängig" — nur solange die Kündigung noch nicht wirksam ist
-     * (Bundle läuft bis `canceledEffectiveAt`). Danach ist Neu-Buchung der Weg.
+     * "Undo cancellation" — only as long as the cancellation is not yet effective
+     * (the bundle runs until `canceledEffectiveAt`). After that, re-booking is the way.
      */
     async reactivateBundle(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
         const existing = await this.repo.findById(subscriptionBundleId);
@@ -230,10 +230,10 @@ export class SubscriptionBundlesService {
 }
 
 /**
- * Wirksamkeits-Datum einer Bundle-Kündigung:
- * `max(currentPeriodEnd, minimumTermEndsAt)` — fehlende Werte fallen auf
- * `canceledAt` zurück (= sofortige Wirksamkeit). Geteilt zwischen
- * Kündigungs-Mutation und Preview (#37).
+ * Effective date of a bundle cancellation:
+ * `max(currentPeriodEnd, minimumTermEndsAt)` — missing values fall back to
+ * `canceledAt` (= immediate effect). Shared between the
+ * cancellation mutation and the preview (#37).
  */
 export function resolveBundleCancelEffectiveAt(input: {
     canceledAt: Date;
@@ -246,9 +246,9 @@ export function resolveBundleCancelEffectiveAt(input: {
 }
 
 /**
- * Addiert `months` zu `date` und behält den UTC-Tag bei. Edge-Case
- * 31.01 + 1 Monat → 28./29.02 (JS-Date macht das automatisch, indem
- * setMonth den Tag normalisiert).
+ * Adds `months` to `date` and keeps the UTC day. Edge case
+ * 31.01 + 1 month → 28/29.02 (JS Date does this automatically by
+ * setMonth normalizing the day).
  */
 export function addMonths(date: Date, months: number): Date {
     const out = new Date(date.getTime());

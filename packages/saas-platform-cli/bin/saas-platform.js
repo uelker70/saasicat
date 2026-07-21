@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// `saas-platform` — Bootstrap-CLI für die SaaS-Plattform.
+// `saas-platform` — bootstrap CLI for the SaaS platform.
 //
-// Sub-Commands:
+// Sub-commands:
 //   schema apply [--prisma-schema=PATH] [--fragments=01,02,03]
 //                [--all] [--dry-run]
-//       Fügt fehlende Plattform-Prisma-Models in dein schema.prisma ein.
-//       Idempotent; vorhandene Models werden nicht angefasst.
+//       Inserts missing platform Prisma models into your schema.prisma.
+//       Idempotent; existing models are left untouched.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
 
@@ -31,9 +31,9 @@ function parseArgs(argv) {
 }
 
 function resolveFragmentsDir() {
-    // `@saasicat/spec/prisma-fragments/`-Verzeichnis auflösen.
-    // Wir versuchen `require.resolve` auf den Paket-Entry und springen ein
-    // Verzeichnis zurück, um die Fragmente zu finden.
+    // Resolve the `@saasicat/spec/prisma-fragments/` directory.
+    // We try `require.resolve` on the package entry and step back one
+    // directory to find the fragments.
     const specEntry = require_.resolve('@saasicat/spec');
     const root = dirname(specEntry);
     const candidate = join(root, 'prisma-fragments');

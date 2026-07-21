@@ -1,9 +1,9 @@
-// Discovery-Decorator-Optionen (NestJS-spezifisch).
+// Discovery decorator options (NestJS-specific).
 //
-// Die DiscoverySnapshot-Wire-Format-Typen leben in
-// `@saasicat/types` (siehe discovery.types.ts dort), damit
-// auch das Vue-UI-Paket sie ohne NestJS-Dependency nutzen kann. Hier nur
-// die Optionen-Interfaces, die der Anwender im Decorator-Aufruf übergibt.
+// The DiscoverySnapshot wire-format types live in
+// `@saasicat/types` (see discovery.types.ts there), so that
+// the Vue UI package can use them without a NestJS dependency too. Here only
+// the option interfaces that the user passes in the decorator call.
 
 import type {
     CapabilityKind,
@@ -11,7 +11,7 @@ import type {
     DiscoveryCodeStatus,
 } from '@saasicat/types';
 
-// Re-Exports für interne Verwendung im Scanner.
+// Re-exports for internal use in the scanner.
 export type {
     CapabilityKind,
     DiscoveredCapability,
@@ -23,91 +23,91 @@ export type {
 } from '@saasicat/types';
 
 // =============================================================================
-// Decorator-Options (was der Anwender im Code annotiert)
+// Decorator options (what the user annotates in the code)
 // =============================================================================
 
 /**
- * Optionen für `@ImplementsCapability(key, options)`. `key` selbst kommt als
- * separates Argument; alles andere ist optional, damit Boilerplate niedrig
- * bleibt.
+ * Options for `@ImplementsCapability(key, options)`. `key` itself comes as a
+ * separate argument; everything else is optional to keep boilerplate low.
  */
 export interface ImplementsCapabilityOptions {
-    /** Menschenlesbares Label (für Discovery-UI). */
+    /** Human-readable label (for the discovery UI). */
     label?: string;
     /**
-     * Aggregations-Hülle: Feature-Key, dem diese Capability gehört.
-     * Bundles werden ausschließlich im SuperAdmin-UI geplant und sind
-     * **bewusst nicht** Teil des Code-Decorators (SPEC_V2 §3.1).
+     * Aggregation wrapper: the feature key this capability belongs to.
+     * Bundles are planned exclusively in the SuperAdmin UI and are
+     * **deliberately not** part of the code decorator (SPEC_V2 §3.1).
      */
     feature?: string;
     /**
-     * Code-Status. Default ist `active` (sichtbar im Discovery, kann in Plans
-     * referenziert werden). `deprecated` empfiehlt Replacement; `experimental`
-     * markiert WIP-Capabilities, die der SuperAdmin in der UI mit Warnung
-     * sieht; `internal` taucht in der UI nicht auf, aber im Snapshot-Hash.
+     * Code status. Default is `active` (visible in discovery, can be
+     * referenced in plans). `deprecated` recommends a replacement;
+     * `experimental` marks WIP capabilities that the SuperAdmin sees with a
+     * warning in the UI; `internal` does not appear in the UI, but does in the
+     * snapshot hash.
      */
     status?: DiscoveryCodeStatus;
     /**
-     * Implementierungs-Art. Wird vom Scanner nicht selbst erkannt — der
-     * Anwender deklariert sie explizit (Endpoint, Service, Job, Event).
+     * Implementation kind. Not detected by the scanner itself — the user
+     * declares it explicitly (Endpoint, Service, Job, Event).
      */
     kind?: CapabilityKind;
-    /** Code-Owner-Tag (z. B. 'accounting', 'membership'). Audit-relevant. */
+    /** Code-owner tag (e.g. 'accounting', 'membership'). Audit-relevant. */
     owner?: string;
-    /** Bei `status: 'deprecated'` empfohlen. */
+    /** Recommended when `status: 'deprecated'`. */
     replacementKey?: string;
-    /** Bei `status: 'deprecated'` empfohlen. ISO-Date. */
+    /** Recommended when `status: 'deprecated'`. ISO date. */
     removalPlannedAt?: string;
-    /** Freitext-Begründung bei deprecation/internal. */
+    /** Free-text reason for deprecation/internal. */
     reason?: string;
     /**
-     * Feature-Keys, die das Feature dieser Capability zur Laufzeit
-     * voraussetzt (#35) — z. B. `TRAINING_PLANNER` ⟹ `RESOURCE_MANAGEMENT`.
-     * Der Scanner aggregiert pro Feature die Union aller Capability-requires
-     * (abzüglich des eigenen featureKey); Strict-Mode-Check und Konfigurator
-     * nutzen das, um unerfüllte Abhängigkeiten sichtbar zu machen.
+     * Feature keys that this capability's feature requires at runtime (#35)
+     * — e.g. `TRAINING_PLANNER` ⟹ `RESOURCE_MANAGEMENT`.
+     * The scanner aggregates the union of all capability requires per feature
+     * (minus its own featureKey); the strict-mode check and the configurator
+     * use it to surface unmet dependencies.
      */
     requires?: string[];
     /**
-     * Alte Feature-Keys, die das Feature dieser Capability ablöst (#39).
-     * Hard-Pfad der Ersetzung: die Deklaration lebt am NEUEN Feature, der
-     * alte Code kann im selben Commit gelöscht werden. (`replacementKey`
-     * bleibt der Soft-Pfad am noch existierenden, deprecated Alt-Code.)
+     * Old feature keys that this capability's feature replaces (#39).
+     * Hard path of replacement: the declaration lives on the NEW feature, the
+     * old code can be deleted in the same commit. (`replacementKey` remains
+     * the soft path on the still-existing, deprecated old code.)
      */
     replaces?: string[];
 }
 
-/** Optionen für `@RequiresCapability(...keys)` — derzeit keine Optionen, nur die Key-Liste. */
+/** Options for `@RequiresCapability(...keys)` — currently no options, just the key list. */
 export type RequiresCapabilityKeys = readonly string[];
 
 /**
- * Optionen für `@DefinesQuota(options)`. `key` ist der QuotaKey, gegen den
- * `@EnforceQuota(...)` zur Laufzeit prüft.
+ * Options for `@DefinesQuota(options)`. `key` is the QuotaKey that
+ * `@EnforceQuota(...)` checks against at runtime.
  */
 export interface DefinesQuotaOptions {
     key: string;
     label: string;
-    /** Einheit für UI (z. B. 'invoices', 'GB', 'requests'). */
+    /** Unit for the UI (e.g. 'invoices', 'GB', 'requests'). */
     unit: string;
     policy: DiscoveredQuotaPolicy;
-    /** Aggregations-Hülle: an welches Feature die Quota gebunden ist. */
+    /** Aggregation wrapper: which feature the quota is bound to. */
     feature?: string;
-    /** Alte QuotaKeys, die diese Quota ablöst (#39, analog Capability-`replaces`). */
+    /** Old QuotaKeys that this quota replaces (#39, analogous to Capability `replaces`). */
     replaces?: string[];
 }
 
-/** Optionen für `@EnforceQuota(key, options)`. */
+/** Options for `@EnforceQuota(key, options)`. */
 export interface EnforceQuotaOptions {
     /**
-     * Increment-Schritt pro Aufruf (default 1). Negative Werte erlauben
-     * Decrement (z. B. Storno einer Rechnung).
+     * Increment step per call (default 1). Negative values allow a decrement
+     * (e.g. reversal of an invoice).
      */
     incrementBy?: number;
     /**
-     * Wann die Quota geprüft wird:
-     * - `before` — vor der Handler-Ausführung (default; verhindert Schreiben)
-     * - `after`  — nach erfolgreicher Ausführung (für Counter, die das
-     *              Ergebnis brauchen — z. B. tatsächliche Storage-Größe)
+     * When the quota is checked:
+     * - `before` — before the handler runs (default; prevents the write)
+     * - `after`  — after successful execution (for counters that need the
+     *              result — e.g. actual storage size)
      */
     timing?: 'before' | 'after';
 }

@@ -41,14 +41,14 @@ import { computed } from 'vue';
 import type { DiscoveryStatus } from '@saasicat/types';
 import { primaryReviewAction, reviewMenuActions, STATUS_META } from './discovery-ui.js';
 
-// StatusControl (#20, Design-Sim): Status-Chip + kontextuelle Primär-Aktion
-// + Kebab-Menü für die übrigen Lebenszyklus-Übergänge. Geteilt von Feature-
-// und Quota-Karte; der eigentliche PATCH läuft über das `set-status`-Event
-// in der Page (reviewFeature/reviewQuota).
+// StatusControl (#20, design sim): status chip + contextual primary action
+// + kebab menu for the remaining lifecycle transitions. Shared by the feature
+// and quota card; the actual PATCH runs via the `set-status` event
+// in the page (reviewFeature/reviewQuota).
 
 const props = defineProps<{
     status: DiscoveryStatus;
-    /** Laufender Review-Request — deaktiviert die Primär-Aktion. */
+    /** Review request in progress — disables the primary action. */
     busy?: boolean;
 }>();
 

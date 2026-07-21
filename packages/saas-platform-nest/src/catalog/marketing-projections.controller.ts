@@ -1,6 +1,6 @@
-// MarketingProjectionsController — REST-Endpunkte für `marketing_projections`.
+// MarketingProjectionsController — REST endpoints for `marketing_projections`.
 //
-// Pfad: `/admin/catalog/marketing-projections`. Pattern analog zu BundlesController.
+// Path: `/admin/catalog/marketing-projections`. Pattern analogous to BundlesController.
 
 import {
     Body,

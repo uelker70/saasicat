@@ -1,58 +1,58 @@
-// PLATFORM_CORE_MANIFEST_CONTRIBUTION — der generische Manifest-Spine, den jede
-// SuperAdmin-Konsumenten-App mitbekommt: StandardPage-Definitionen für die
-// Plattform-Pages (dashboard, tenants, plans, planVersions, audit, users, pilots),
-// die generischen Tenant-Actions (suspend/reactivate/export/impersonate plus
-// subscriptions.cancel und pilots.grant/revoke/extend) und die Audit-Action-
-// Labels für genau diese Vorgänge.
+// PLATFORM_CORE_MANIFEST_CONTRIBUTION — the generic manifest spine that every
+// SuperAdmin consumer app receives: StandardPage definitions for the
+// platform pages (dashboard, tenants, plans, planVersions, audit, users, pilots),
+// the generic tenant actions (suspend/reactivate/export/impersonate plus
+// subscriptions.cancel and pilots.grant/revoke/extend) and the audit action
+// labels for exactly these operations.
 //
-// Was hier NICHT drin steht:
-//   - capabilities — die App entscheidet, welche Plattform-Capability sie wirklich
-//     unterstützt. Setzt sie eine Capability nicht auf `true`, filtert das
-//     Frontend die zugehörige Page/Action automatisch aus.
-//   - dashboard.kpiCards — Endpoints sind app-spezifisch (Pfad-Prefix unterscheidet
-//     sich; KPI-Datenquellen sind App-Domänen).
-//   - subscriptions/promoCodes StandardPages — beide Apps haben heute eine
-//     individuelle Sicht auf diese Bereiche. Sie sind app-lokal in der eigenen
-//     Contribution zu deklarieren.
+// What is NOT included here:
+//   - capabilities — the app decides which platform capability it actually
+//     supports. If it does not set a capability to `true`, the
+//     frontend automatically filters out the associated page/action.
+//   - dashboard.kpiCards — endpoints are app-specific (the path prefix differs;
+//     KPI data sources are app domains).
+//   - subscriptions/promoCodes StandardPages — both apps currently have an
+//     individual view of these areas. They must be declared app-locally in their own
+//     contribution.
 //
-// Apps registrieren diese Contribution nicht selbst — `AdminManifestModule.forRoot`
-// hängt sie automatisch in den Service-Constructor. Wer das nicht möchte, kann
-// `registerPlatformCore: false` setzen.
+// Apps do not register this contribution themselves — `AdminManifestModule.forRoot`
+// wires it automatically into the service constructor. If you don't want that, you can
+// set `registerPlatformCore: false`.
 
 import type { ManifestContribution } from '@saasicat/types';
 
 export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
     navigation: {
-        // Key-Reihenfolge ist Render-Reihenfolge in der Sidebar (innerhalb der
-        // Section, s. `DEFAULT_NAV_SECTIONS` im nav-builder). Reihenfolge je
-        // Section bewusst gepflegt:
-        //   Übersicht: dashboard
-        //   Produktkatalog: discovery → bundles → businessTypes → plans →
+        // Key order is render order in the sidebar (within the
+        // section, see `DEFAULT_NAV_SECTIONS` in the nav-builder). The order per
+        // section is deliberately curated:
+        //   Overview: dashboard
+        //   Product catalog: discovery → bundles → businessTypes → plans →
         //                   planVersions → marketingCatalog → promoCodes
-        //                   (promoCodes wird von den App-Contributions
-        //                   gehängt, kommt damit ans Ende der Section)
-        //   Kunden: tenants → users → pilots
+        //                   (promoCodes is appended by the app contributions
+        //                   and therefore lands at the end of the section)
+        //   Customers: tenants → users → pilots
         //   System: audit
         standardPages: {
             dashboard: { enabled: true, requiredCapability: 'dashboard.read' },
-            // SPEC_V2 §3.3 — Discovery-Snapshot des laufenden Backends.
-            // Apps müssen `discovery.read` in ihren Manifest-Capabilities
-            // auf `true` setzen, damit der NavBuilder die Page in die
-            // Sidebar hängt; sonst wird sie automatisch ausgefiltert.
+            // SPEC_V2 §3.3 — discovery snapshot of the running backend.
+            // Apps must set `discovery.read` in their manifest capabilities
+            // to `true` so that the NavBuilder wires the page into the
+            // sidebar; otherwise it is filtered out automatically.
             discovery: { enabled: true, requiredCapability: 'discovery.read' },
-            // SPEC_V2 §11.1 M3 — Bundle-Editor im SuperAdmin.
-            // Apps mit DB-getriebenem Catalog setzen `bundles.read = true`.
+            // SPEC_V2 §11.1 M3 — Bundle editor in SuperAdmin.
+            // Apps with a DB-driven catalog set `bundles.read = true`.
             bundles: { enabled: true, requiredCapability: 'bundles.read' },
-            // SPEC_V2 §11.1 M3 — BusinessType-Editor im SuperAdmin.
-            // Apps mit fachlichen Vertikalen setzen `businessTypes.read = true`.
+            // SPEC_V2 §11.1 M3 — BusinessType editor in SuperAdmin.
+            // Apps with domain verticals set `businessTypes.read = true`.
             businessTypes: {
                 enabled: true,
                 requiredCapability: 'businessTypes.read',
             },
             plans: { enabled: true, requiredCapability: 'plans.read' },
             planVersions: { enabled: true, requiredCapability: 'plans.read' },
-            // SPEC_V2 §11.1 M3 — Marketing-Catalog (Locale-Pivot).
-            // Apps mit Public-Catalog-Vermarktung setzen
+            // SPEC_V2 §11.1 M3 — marketing catalog (locale pivot).
+            // Apps that market a public catalog set
             // `marketingProjections.read = true`.
             marketingCatalog: {
                 enabled: true,
@@ -61,16 +61,16 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             tenants: { enabled: true, requiredCapability: 'tenants.read' },
             users: { enabled: true, requiredCapability: 'users.read' },
             pilots: { enabled: true, requiredCapability: 'pilots.read' },
-            // Audit-Log bewusst ans Ende — wird selten gebraucht, soll
-            // produktive Pages nicht verdecken.
+            // Audit log deliberately at the end — rarely needed, should
+            // not obscure the productive pages.
             audit: { enabled: true, requiredCapability: 'audit.read' },
-            // Plattform-E-Mail-Absender (System-/Registrierungs-Mails). Apps
-            // setzen `platformEmail.read = true`, damit der NavBuilder die Page
-            // einhängt; sonst wird sie automatisch ausgefiltert.
+            // Platform email sender (system/registration mails). Apps
+            // set `platformEmail.read = true` so that the NavBuilder wires the page
+            // in; otherwise it is filtered out automatically.
             platformEmail: { enabled: true, requiredCapability: 'platformEmail.read' },
-            // Plattform-E-Mail-Verlauf (Audit der versendeten System-Mails). Apps
-            // setzen `platformEmailHistory.read = true`, damit der NavBuilder die
-            // Page einhängt; sonst wird sie automatisch ausgefiltert.
+            // Platform email history (audit of the sent system mails). Apps
+            // set `platformEmailHistory.read = true` so that the NavBuilder wires the
+            // page in; otherwise it is filtered out automatically.
             platformEmailHistory: {
                 enabled: true,
                 requiredCapability: 'platformEmailHistory.read',

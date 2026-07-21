@@ -1,18 +1,18 @@
-// Preflight — Plattform-seitige Pure-Function für `yada app preflight`
+// Preflight — platform-side pure function for `yada app preflight`
 // (SPEC_V2 §8.3 + §10).
 //
-// Vergleicht den **gesamten DB-Catalog** (alle live Plans, Bundles,
-// BusinessTypes) gegen den DiscoverySnapshot des laufenden Backends.
-// Liefert einen `PreflightReport` mit allen Strict-Mode-Verstößen plus
-// einem aggregierten `overall`-Status.
+// Compares the **entire DB catalog** (all live plans, bundles,
+// business types) against the discovery snapshot of the running backend.
+// Returns a `PreflightReport` with all strict-mode violations plus an
+// aggregated `overall` status.
 //
-// **Immer blocking** im Sinne von §8.3: der Caller wertet `overall ===
-// 'error'` und exit-codet entsprechend (CI-Gate). Im Gegensatz zum
-// Service-Path im UI gibt es hier keinen `warn-only` — jeder Verstoß ist
-// ein Deploy-Blocker.
+// **Always blocking** in the sense of §8.3: the caller evaluates `overall ===
+// 'error'` and exit-codes accordingly (CI gate). Unlike the service path in
+// the UI, there is no `warn-only` here — every violation is a deploy
+// blocker.
 //
-// Pure-Function ohne NestJS-DI: testbar in Isolation; Apps rufen sie aus
-// ihrem CLI-Command mit den per Prisma geladenen Rows.
+// Pure function without NestJS DI: testable in isolation; apps call it from
+// their CLI command with the rows loaded via Prisma.
 
 import type {
     ApprovedCatalogKeys,
@@ -32,16 +32,16 @@ import {
 
 export interface PreflightInput {
     snapshot: DiscoverySnapshot;
-    /** Alle live PlanVersions (publishedAt != null AND supersededAt = null). */
+    /** All live PlanVersions (publishedAt != null AND supersededAt = null). */
     planVersions: PlanVersionRow[];
-    /** Alle live BundleVersions. */
+    /** All live BundleVersions. */
     bundleVersions: BundleVersionRow[];
-    /** Alle live BusinessTypeVersions. */
+    /** All live BusinessTypeVersions. */
     businessTypeVersions: BusinessTypeVersionRow[];
     /**
-     * Approved-Gate (#20 Slice 5): freigegebene Feature-/Quota-Keys aus den
-     * Catalog-Entries (`loadApprovedCatalogKeys`). Weggelassen/`null` →
-     * nur Existenz-Checks.
+     * Approved gate (#20 Slice 5): approved feature/quota keys from the
+     * catalog entries (`loadApprovedCatalogKeys`). Omitted/`null` →
+     * existence checks only.
      */
     approved?: ApprovedCatalogKeys | null;
 }
@@ -49,19 +49,19 @@ export interface PreflightInput {
 export interface PreflightFinding {
     /** `plan` / `bundle` / `business-type`. */
     kind: 'plan' | 'bundle' | 'business-type';
-    /** ID der konkreten Version, an der der Verstoß hängt. */
+    /** ID of the specific version the violation is attached to. */
     versionId: string;
-    /** Sprechender Key für die UI: `STARTER` oder `BANKING` oder `SPORT_VEREIN`. */
+    /** Human-readable key for the UI: `STARTER` or `BANKING` or `SPORT_VEREIN`. */
     entityKey: string;
-    /** Version-Nummer. */
+    /** Version number. */
     version: number;
     warning: StrictModeWarning;
 }
 
 export interface PreflightReport {
-    /** `'ok'` wenn keine Findings; sonst `'error'`. */
+    /** `'ok'` if no findings; otherwise `'error'`. */
     overall: 'ok' | 'error';
-    /** Aggregierte Statistik: Wie viele Verstöße pro Kind. */
+    /** Aggregated statistics: how many violations per kind. */
     counts: {
         planFindings: number;
         bundleFindings: number;
@@ -72,9 +72,9 @@ export interface PreflightReport {
 }
 
 /**
- * Führt alle drei Strict-Checks gegen den DiscoverySnapshot aus.
- * Sammelt Findings nach Entity-Typ und liefert einen
- * sortierten Report (deterministisch für Test-Stabilität).
+ * Runs all three strict checks against the discovery snapshot.
+ * Collects findings by entity type and returns a sorted report
+ * (deterministic for test stability).
  */
 export function runPreflight(input: PreflightInput): PreflightReport {
     const findings: PreflightFinding[] = [];
@@ -118,8 +118,8 @@ export function runPreflight(input: PreflightInput): PreflightReport {
         }
     }
 
-    // BusinessType-Check braucht zusätzlich die referenzierten Bundles
-    // (für Disjointness/Compatibility). Wir indizieren einmalig.
+    // BusinessType check additionally needs the referenced bundles
+    // (for disjointness/compatibility). We index once.
     const bundleVersionById = new Map(input.bundleVersions.map((bv) => [bv.id, bv]));
     for (const btv of input.businessTypeVersions) {
         const referencedBundles = btv.bundles
@@ -159,8 +159,8 @@ export function runPreflight(input: PreflightInput): PreflightReport {
         total: findings.length,
     };
 
-    // Advisory-Findings (#35) machen das CI-Gate nicht rot — sie erscheinen
-    // nur im Report (die Abhängigkeit kann außerhalb des Drafts gedeckt sein).
+    // Advisory findings (#35) do not turn the CI gate red — they appear
+    // only in the report (the dependency may be covered outside the draft).
     const hasBlockingFinding = findings.some(
         (f) => !ADVISORY_STRICT_MODE_CODES.has(f.warning.code),
     );
@@ -173,7 +173,7 @@ export function runPreflight(input: PreflightInput): PreflightReport {
 }
 
 /**
- * Format der Report-Ausgabe für CLI-stdout. Liefert mehrzeiligen String.
+ * Formats the report output for CLI stdout. Returns a multi-line string.
  */
 export function formatPreflightReport(report: PreflightReport): string {
     const lines: string[] = [];
@@ -199,7 +199,7 @@ export function formatPreflightReport(report: PreflightReport): string {
     return lines.join('\n');
 }
 
-/** Exit-Code für das CLI-Wrapping: 0 bei OK, 4 bei Verstößen. */
+/** Exit code for the CLI wrapping: 0 on OK, 4 on violations. */
 export function preflightExitCode(report: PreflightReport): number {
     return report.overall === 'error' ? 4 : 0;
 }

@@ -1,6 +1,6 @@
-// Default-i18n-Map für die Tenant-Plan-Section. Konsumenten überschreiben
-// einzelne Keys per `i18n`-Prop oder reichen ihre eigene Map durch
-// (vue-i18n-Resolver auf dieser Form aufbauen).
+// Default i18n map for the tenant plan section. Consumers override individual
+// keys via the `i18n` prop or pass their own map through (build a vue-i18n
+// resolver on top of this shape).
 
 export interface TenantPlanSectionI18n {
     sectionTitle: string;
@@ -24,11 +24,11 @@ export interface TenantPlanSectionI18n {
     changePlanButton: string;
     cancelSubscriptionButton: string;
     usageTitle: string;
-    /** #18 — Feature-/Leistungsumfang-Matrix (enthalten + gesperrt). */
+    /** #18 — feature / scope-of-services matrix (included + locked). */
     featuresOverviewTitle: string;
     featuresActive: string;
     featuresLocked: string;
-    /** #15 — Bundle-Store (gebuchte + verfügbare Bundles). */
+    /** #15 — bundle store (booked + available bundles). */
     bundlesStoreTitle: string;
     bundlesBookedTitle: string;
     bundlesAvailableTitle: string;
@@ -45,7 +45,7 @@ export interface TenantPlanSectionI18n {
     bundleIncludesLabel: string;
     bundleAlreadyBooked: string;
     bundleIncompatible: string;
-    /** #37/#61 — requires-Ausgrauen + Buchungs-/Kündigungs-Vorschau. */
+    /** #37/#61 — requires graying-out + booking/cancellation preview. */
     bundleMissingRequires: string;
     bundlePreviewAddTitle: string;
     bundlePreviewCancelTitle: string;
@@ -109,21 +109,21 @@ export interface TenantPlanSectionI18n {
     wizardConfirmScheduled: string;
     wizardConfirmAction: string;
     wizardConfirmInProgress: string;
-    /** #17 — Preisübersicht im Bestätigen-Schritt. */
+    /** #17 — price overview in the confirm step. */
     wizardConfirmPriceTitle: string;
     wizardConfirmProratedNow: string;
     wizardConfirmRecurringNext: string;
     wizardConfirmRecurringFrom: string;
     wizardConfirmPerCycleMonthly: string;
     wizardConfirmPerCycleYearly: string;
-    /** #17 — Trial-Fall im Bestätigen-Schritt (während Testphase nichts fällig). */
+    /** #17 — trial case in the confirm step (nothing due during the trial). */
     wizardConfirmTrialNote: string;
     wizardConfirmRecurringTrialEnd: string;
     wizardChangeTypeUpgrade: string;
     wizardChangeTypeDowngrade: string;
     wizardChangeTypeCycle: string;
     wizardChangeTypeNoop: string;
-    /** P11.4: Paket-Snapshot read-only Anzeige. */
+    /** P11.4: read-only display of the package snapshot. */
     packageSnapshotTitle: string;
     packageSnapshotSubtitle: string;
     packageSnapshotCapturedAt: string;
@@ -141,7 +141,7 @@ export interface TenantPlanSectionI18n {
     packageSnapshotHideRaw: string;
 }
 
-/** Deutsche Default-Strings — Apps können sie selektiv overriden. */
+/** German default strings — apps can override them selectively. */
 export const DEFAULT_I18N_DE: TenantPlanSectionI18n = {
     sectionTitle: 'Paket & Verbrauch',
     sectionSubtitle: 'Aktuelles Paket, Verbrauch und Bundles.',

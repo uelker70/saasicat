@@ -25,7 +25,7 @@ const SAMPLE = {
 const ENDPOINT = '/api/billing/entitlement';
 
 describe('useEntitlement', () => {
-    test('autoLoad lädt Snapshot', async () => {
+    test('autoLoad loads the snapshot', async () => {
         const { http } = buildHttp({ body: SAMPLE });
         const ent = useEntitlement({ http, endpoint: ENDPOINT });
         await new Promise((r) => setTimeout(r, 0));
@@ -34,7 +34,7 @@ describe('useEntitlement', () => {
         assert.equal(ent.entitlement.value.quotas.vehicles, 15);
     });
 
-    test('hasFeature(key) gibt boolean', async () => {
+    test('hasFeature(key) returns a boolean', async () => {
         const { http } = buildHttp({ body: SAMPLE });
         const ent = useEntitlement({ http, endpoint: ENDPOINT, autoLoad: false });
         await ent.load();
@@ -42,13 +42,13 @@ describe('useEntitlement', () => {
         assert.equal(ent.hasFeature('SSO'), false);
     });
 
-    test('hasFeature ohne geladenes Entitlement → false', () => {
+    test('hasFeature without a loaded Entitlement → false', () => {
         const { http } = buildHttp({ body: SAMPLE });
         const ent = useEntitlement({ http, endpoint: ENDPOINT, autoLoad: false });
         assert.equal(ent.hasFeature('CASHBOOK'), false);
     });
 
-    test('Auth-Token wird mitgesendet', async () => {
+    test('Auth token is sent along', async () => {
         const { http, calls } = buildHttp({ body: SAMPLE });
         const ent = useEntitlement({
             http,
@@ -60,7 +60,7 @@ describe('useEntitlement', () => {
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-x');
     });
 
-    test('500 → error gesetzt, entitlement null', async () => {
+    test('500 → error set, entitlement null', async () => {
         const { http } = buildHttp({ status: 500 });
         const ent = useEntitlement({ http, endpoint: ENDPOINT, autoLoad: false });
         await ent.load();
@@ -68,7 +68,7 @@ describe('useEntitlement', () => {
         assert.notEqual(ent.error.value, null);
     });
 
-    test('endpoint=Pflicht: ohne Endpoint wirft useEntitlement', () => {
+    test('endpoint is required: without an endpoint useEntitlement throws', () => {
         const { http } = buildHttp({ body: SAMPLE });
         assert.throws(() => useEntitlement({ http }), /endpoint.*Pflicht/);
     });

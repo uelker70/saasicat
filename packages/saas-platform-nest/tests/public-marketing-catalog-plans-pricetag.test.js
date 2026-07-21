@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 import { PublicMarketingCatalogService } from '../dist/catalog/index.js';
 import { FakePlanRepository } from '../dist/testing/index.js';
 
-// PublicMarketingCatalogService — Plan-Pfad: priceTag der MarketingProjection
-// landet im PublicMarketingPlan-Payload (#47). Abwärtskompatibel: ohne
-// gepflegtes priceTag bleibt das Feld null und Frontends formatieren aus
+// PublicMarketingCatalogService — plan path: the MarketingProjection's priceTag
+// lands in the PublicMarketingPlan payload (#47). Backwards compatible: without a
+// maintained priceTag the field stays null and frontends format from
 // monthlyNet/yearlyNet.
 
 const PROJECT = 'demoapp';
@@ -78,7 +78,7 @@ async function seedLivePlan({ planKey, planVersionId }) {
 }
 
 describe('PublicMarketingCatalogService — Plan priceTag (#47)', () => {
-    test('priceTag der Plan-MarketingProjection landet im Payload', async () => {
+    test('the plan MarketingProjection priceTag lands in the payload', async () => {
         await seedLivePlan({ planKey: 'ENTERPRISE', planVersionId: 'pv-ent-1' });
         marketingRepo.set({
             targetType: 'PLAN',
@@ -94,7 +94,7 @@ describe('PublicMarketingCatalogService — Plan priceTag (#47)', () => {
         assert.equal(cat.plans[0].priceTag, 'auf Anfrage');
     });
 
-    test('priceTag ist null, wenn die Projection keins pflegt (abwärtskompatibel)', async () => {
+    test('priceTag is null when the projection maintains none (backwards compatible)', async () => {
         await seedLivePlan({ planKey: 'STANDARD', planVersionId: 'pv-std-1' });
         marketingRepo.set({
             targetType: 'PLAN',

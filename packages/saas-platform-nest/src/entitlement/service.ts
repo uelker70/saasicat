@@ -1,9 +1,9 @@
-// EntitlementService — Slice B: NestJS-Service mit DI, LRU-Cache,
-// Repository-Ports + transactional `enforceLimit`.
+// EntitlementService — Slice B: NestJS service with DI, LRU cache,
+// repository ports + transactional `enforceLimit`.
 //
-// Slice A (aggregation.ts + plan-resolution.ts) liefert die Pure-Functions;
-// dieser Service orchestriert sie mit den Konsumenten-Adaptern (Subscription/
-// PlanVersion-Repositories, TransactionRunner) und einem In-Memory-Cache.
+// Slice A (aggregation.ts + plan-resolution.ts) provides the pure functions;
+// this service orchestrates them with the consumer adapters (Subscription/
+// PlanVersion repositories, TransactionRunner) and an in-memory cache.
 
 import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import type {
@@ -48,42 +48,42 @@ interface CacheEntry {
 }
 
 export interface EnforceLimitInput<T> {
-    /** Tenant, gegen dessen Subscription geprüft wird. */
+    /** Tenant whose subscription is checked. */
     tenantId: string;
-    /** Quota-Key aus saas.yaml (`users`, `vehicles`, `storageGb`, …). */
+    /** Quota key from saas.yaml (`users`, `vehicles`, `storageGb`, …). */
     dimension: string;
     /**
-     * Zähler für aktuell verbrauchte Einheiten innerhalb der Transaktion.
-     * Konsument zählt z. B. `users WHERE tenantId AND deletedAt IS NULL`.
+     * Counter for the units currently consumed within the transaction.
+     * The consumer counts e.g. `users WHERE tenantId AND deletedAt IS NULL`.
      */
     currentUsage: (tx: TransactionContext, tenantId: string) => Promise<number>;
     /**
-     * Fügt die neue Row(s) ein. Wird nur ausgeführt, wenn das Limit nach
-     * Inkrement nicht überschritten wird.
+     * Inserts the new row(s). Only executed when the limit is not exceeded
+     * after the increment.
      */
     insert: (tx: TransactionContext) => Promise<T>;
     /**
-     * Inkrement, das durch `insert` zur Nutzung dazukommt. Default 1
-     * (USERS/VEHICLES — eine Row pro Insert). Bei STORAGE-Inserts kann der
-     * Caller variable GB-Werte durchreichen, damit auch eine 10-GB-Datei
-     * gegen ein 1-GB-Limit blockt.
+     * Increment that `insert` adds to the usage. Default 1
+     * (USERS/VEHICLES — one row per insert). For STORAGE inserts the caller
+     * can pass variable GB values through, so that even a 10 GB file blocks
+     * against a 1 GB limit.
      */
     delta?: number;
-    /** Override für Tests; Default `new Date()`. */
+    /** Override for tests; default `new Date()`. */
     now?: Date;
 }
 
 @Injectable()
 export class EntitlementService {
-    // Map preserviert Insert-Order — bei Hit wird der Eintrag entfernt und
-    // neu eingefügt (LRU). TTL ist Sicherheitsnetz für vergessene
-    // Invalidationen — 60s reicht, weil Limits sich in der Regel nur durch
-    // Mutationen ändern, nicht durch Zeit (Pending-Plan-Effektiv-Datum ist
-    // tagestäglich).
+    // Map preserves insert order — on a hit the entry is removed and
+    // re-inserted (LRU). The TTL is a safety net for forgotten
+    // invalidations — 60s is enough, because limits generally only change
+    // through mutations, not through time (a pending plan's effective date
+    // is day-granular).
     private readonly cache = new Map<string, CacheEntry>();
 
-    // #39 — replaces-Alias-Index, lazy aus dem Boot-statischen Snapshot
-    // gebaut; wirft bei replaces-Zyklen (klarer Fehler statt Endlosschleife).
+    // #39 — replaces alias index, built lazily from the boot-static snapshot;
+    // throws on replaces cycles (a clear error instead of an infinite loop).
     private replacedByIndex: ReplacedByIndex | null = null;
 
     constructor(
@@ -97,8 +97,8 @@ export class EntitlementService {
         @Optional()
         @Inject(ENTITLEMENT_RESOLUTION_CONFIG_TOKEN)
         private readonly resolutionConfig: EntitlementResolutionConfig | null = null,
-        // P11.7.3 — SubscriptionBundle-Aggregation. Optional, damit Apps
-        // ohne Bundle-Buchungen den Service unverändert weiter nutzen.
+        // P11.7.3 — SubscriptionBundle aggregation. Optional, so that apps
+        // without bundle bookings keep using the service unchanged.
         @Optional()
         @Inject(SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN)
         private readonly subscriptionBundles: SubscriptionBundleRepository | null = null,
@@ -108,16 +108,17 @@ export class EntitlementService {
         @Optional()
         @Inject(SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN)
         private readonly subscriptionContracts: SubscriptionContractRepository | null = null,
-        // #39 — replaces-Aliase: Verträge mit altem Feature-Key liefern das
-        // neue Feature. Optional, damit Apps ohne DiscoveryModule den Service
-        // unverändert weiter nutzen (dann keine Alias-Auflösung).
+        // #39 — replaces aliases: contracts with an old feature key also
+        // grant the new feature. Optional, so that apps without a
+        // DiscoveryModule keep using the service unchanged (then no alias
+        // resolution).
         @Optional()
         @Inject(DISCOVERY_SNAPSHOT_TOKEN)
         private readonly discoverySnapshot: DiscoverySnapshot | null = null,
     ) {}
 
     // ---------------------------------------------------------------------
-    // Lese-Pfad — für FeatureGuard, Sidebar-Hooks, GET /billing/entitlement
+    // Read path — for FeatureGuard, sidebar hooks, GET /billing/entitlement
     // ---------------------------------------------------------------------
 
     async computeLimits(tenantId: string, now = new Date()): Promise<EffectiveLimits> {
@@ -134,23 +135,23 @@ export class EntitlementService {
     }
 
     /**
-     * Räumt den Cache-Eintrag eines Tenants. MUSS aufgerufen werden, sobald
-     * eine Mutation Subscription, Bundle-Buchung oder PlanVersion-Bindung
-     * verändert — sonst bleiben FeatureGuard und Sidebar bis zu 60s auf
-     * altem Stand.
+     * Clears a tenant's cache entry. MUST be called as soon as a mutation
+     * changes the subscription, a bundle booking, or a PlanVersion binding —
+     * otherwise FeatureGuard and the sidebar stay on stale state for up to
+     * 60s.
      */
     invalidateTenant(tenantId: string): void {
         this.cache.delete(tenantId);
     }
 
-    /** Räumt den kompletten Cache. Nur für Tests / Bootstrap. */
+    /** Clears the entire cache. Only for tests / bootstrap. */
     invalidateAll(): void {
         this.cache.clear();
     }
 
     /**
-     * Aggregator-Pfad — auch direkt aufrufbar von Konsumenten, die schon
-     * eine `SubscriptionRecord` (z. B. innerhalb einer Transaktion) haben.
+     * Aggregator path — also callable directly by consumers that already
+     * have a `SubscriptionRecord` (e.g. within a transaction).
      */
     async deriveLimits(
         sub: SubscriptionRecord,
@@ -183,9 +184,9 @@ export class EntitlementService {
     }
 
     /**
-     * Bestandsschutz (#39): gewährte alte Feature-Keys gewähren transitiv
-     * ihre Nachfolger aus den `replaces`-Ketten des Discovery-Snapshots.
-     * Ohne Snapshot oder ohne replaces-Deklarationen ein No-op.
+     * Grandfathering (#39): granted old feature keys transitively grant
+     * their successors from the `replaces` chains of the discovery snapshot.
+     * A no-op without a snapshot or without replaces declarations.
      */
     private withReplacedFeatureAliases(limits: EffectiveLimits): EffectiveLimits {
         if (!this.discoverySnapshot) return limits;
@@ -214,11 +215,11 @@ export class EntitlementService {
     }
 
     /**
-     * Lädt die aktiven Bundle-Buchungen einer Subscription und löst pro
-     * Eintrag die `BundleVersion`-Features/Quotas auf. Ohne registriertes
-     * `SubscriptionBundleRepository` oder `BundleRepository` liefert die
-     * Methode eine leere Liste — Apps ohne Bundle-Schema bleiben damit
-     * unverändert (Plan-only-Aggregation).
+     * Loads a subscription's active bundle bookings and resolves the
+     * `BundleVersion` features/quotas per entry. Without a registered
+     * `SubscriptionBundleRepository` or `BundleRepository` the method
+     * returns an empty list — apps without a bundle schema stay unchanged
+     * (plan-only aggregation).
      */
     private async loadSubscriptionBundleSnapshots(
         subscriptionId: string,
@@ -231,9 +232,9 @@ export class EntitlementService {
             active.map(async (booking) => {
                 const bv = await this.bundles!.findVersionById(booking.bundleVersionId);
                 if (!bv) {
-                    // Hard-Fail: eine aktive Buchung zeigt auf eine nicht
-                    // mehr existierende BundleVersion — Daten-Inkonsistenz,
-                    // sollte nie passieren (BundleVersion ist Restrict-FK).
+                    // Hard fail: an active booking points to a BundleVersion
+                    // that no longer exists — data inconsistency, should never
+                    // happen (BundleVersion is a Restrict FK).
                     throw new Error(
                         `BundleVersion '${booking.bundleVersionId}' aus aktiver SubscriptionBundle nicht gefunden`,
                     );
@@ -249,9 +250,9 @@ export class EntitlementService {
     }
 
     // ---------------------------------------------------------------------
-    // Schreibe-/Verbrauchs-Pfad — Row-Lock + Count + Insert in derselben
-    // Transaktion. Schützt gegen Race-Conditions bei konkurrierenden
-    // Anlagen am gleichen Tenant.
+    // Write/consumption path — row lock + count + insert in the same
+    // transaction. Protects against race conditions on concurrent creations
+    // for the same tenant.
     // ---------------------------------------------------------------------
 
     async enforceLimit<T>(input: EnforceLimitInput<T>): Promise<T> {
@@ -273,7 +274,7 @@ export class EntitlementService {
             }
 
             const used = await input.currentUsage(tx, input.tenantId);
-            // -1 = unbegrenzt (Catalog-Konvention).
+            // -1 = unlimited (catalog convention).
             if (max !== -1 && used + delta > max) {
                 throw new LimitExceededError(input.dimension, max, used);
             }
@@ -287,10 +288,10 @@ export class EntitlementService {
     // ---------------------------------------------------------------------
 
     /**
-     * Plan-Fallback bei TRIAL/PENDING_SALES: liefert die zu `asOf` aktive
-     * PlanVersion (SPEC_V2 §4.2). Wenn das Repo `findActive` nicht
-     * implementiert, fallen wir auf `findLatestLive` zurück (Backward-Compat
-     * für Adapter ohne `validFrom`-Spalten).
+     * Plan fallback for TRIAL/PENDING_SALES: returns the PlanVersion active
+     * as of `asOf` (SPEC_V2 §4.2). If the repo does not implement
+     * `findActive`, we fall back to `findLatestLive` (backward compat for
+     * adapters without `validFrom` columns).
      */
     private async findActivePlanVersionOrFallback(
         planId: string,
@@ -316,7 +317,7 @@ export class EntitlementService {
             this.cache.delete(tenantId);
             return null;
         }
-        // LRU: Hit-Eintrag ans Ende der Insert-Order schieben.
+        // LRU: move the hit entry to the end of the insert order.
         this.cache.delete(tenantId);
         this.cache.set(tenantId, entry);
         return entry.value;
@@ -325,7 +326,7 @@ export class EntitlementService {
     private writeCache(tenantId: string, value: EffectiveLimits, nowMs: number): void {
         if (this.cache.has(tenantId)) this.cache.delete(tenantId);
         this.cache.set(tenantId, { value, expiresAt: nowMs + CACHE_TTL_MS });
-        // Eviction: ältesten Eintrag droppen, bis Cache-Grenze eingehalten.
+        // Eviction: drop the oldest entry until the cache limit is met.
         while (this.cache.size > CACHE_MAX_ENTRIES) {
             const oldest = this.cache.keys().next().value;
             if (oldest === undefined) break;

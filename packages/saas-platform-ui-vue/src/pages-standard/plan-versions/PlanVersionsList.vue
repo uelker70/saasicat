@@ -102,9 +102,9 @@ import PlanVersionsKpi from './PlanVersionsKpi.vue';
 import { fmtEuro } from './format.js';
 
 /**
- * Konfiguration einer Quota-Spalte (z. B. `users` → "Benutzer"). Optional
- * `fractional: true` → 1 Nachkommastelle (Storage-GB). Optional `unit` →
- * Suffix wie "GB" hinter dem Wert. `-1` wird als ∞ ausgegeben.
+ * Configuration of a quota column (e.g. `users` → "Benutzer"). Optional
+ * `fractional: true` → 1 decimal place (storage GB). Optional `unit` →
+ * suffix like "GB" after the value. `-1` is rendered as ∞.
  */
 export interface QuotaColumnConfig {
     key: string;
@@ -116,17 +116,17 @@ export interface QuotaColumnConfig {
 const props = defineProps<{
     snapshot: CatalogSnapshot;
     /**
-     * Optional: alle erwarteten Plan-IDs. Wenn gesetzt, zeigt die Liste eine
-     * Warnung mit „Draft anlegen"-Buttons für fehlende Pläne.
+     * Optional: all expected plan IDs. When set, the list shows a
+     * warning with "create draft" buttons for missing plans.
      */
     expectedPlanIds?: readonly string[];
     /**
-     * Optional: zusätzliche Quota-Spalten zwischen "Preis" und "Features".
-     * Beispiel: `[{ key: 'users', label: 'Benutzer' },
+     * Optional: additional quota columns between "Preis" and "Features".
+     * Example: `[{ key: 'users', label: 'Benutzer' },
      * { key: 'members', label: 'Mitglieder' }, { key: 'storageGb',
      * label: 'Speicher (GB)', fractional: true }, { key: 'resources',
-     * label: 'Plätze' }]`. Default: keine zusätzlichen Spalten
-     * (rückwärtskompatibel).
+     * label: 'Plätze' }]`. Default: no additional columns
+     * (backwards-compatible).
      */
     quotaColumns?: ReadonlyArray<QuotaColumnConfig>;
 }>();
@@ -154,7 +154,7 @@ const rowGridStyle = computed(() => {
     if (quotaColumns.value.length === 0) {
         return { gridTemplateColumns: '1.6fr 1fr 0.6fr' };
     }
-    // Name (1.6fr), Preis (1fr), N×Quota (0.7fr), Features (0.5fr)
+    // Name (1.6fr), price (1fr), N×quota (0.7fr), features (0.5fr)
     const quotaCols = Array(quotaColumns.value.length).fill('0.7fr').join(' ');
     return { gridTemplateColumns: `1.6fr 1fr ${quotaCols} 0.5fr` };
 });

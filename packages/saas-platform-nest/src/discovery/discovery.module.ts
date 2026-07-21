@@ -1,7 +1,7 @@
-// DiscoveryModule — bindet den DiscoveryScanner und liefert den
-// DiscoverySnapshot via DI-Token.
+// DiscoveryModule — binds the DiscoveryScanner and provides the
+// DiscoverySnapshot via a DI token.
 //
-// Konsumenten-Setup:
+// Consumer setup:
 //
 // ```ts
 // @Module({
@@ -15,13 +15,13 @@
 // export class AppModule {}
 // ```
 //
-// Konsumenten injizieren den Snapshot via:
+// Consumers inject the snapshot via:
 //
 // ```ts
 // constructor(@Inject(DISCOVERY_SNAPSHOT_TOKEN) snapshot: DiscoverySnapshot) {…}
 // ```
 //
-// oder direkt den Scanner für Re-Build (`DiscoveryScanner.rebuildSnapshot()`).
+// or the scanner directly for a re-build (`DiscoveryScanner.rebuildSnapshot()`).
 
 import {
     type CanActivate,
@@ -45,43 +45,42 @@ import type { DiscoverySnapshot } from './types.js';
 
 export interface DiscoveryControllerConfig {
     /**
-     * Class-Level-Guards für `GET /admin/discovery`. PFLICHT — `forRoot()`
-     * wirft sonst beim Boot. Übergebe `[]` explizit, wenn der Endpoint
-     * absichtlich auth-frei sein soll (z. B. CI/Smoke-Test).
+     * Class-level guards for `GET /admin/discovery`. MANDATORY — `forRoot()`
+     * throws at boot otherwise. Pass `[]` explicitly if the endpoint should
+     * deliberately be auth-free (e.g. CI/smoke test).
      */
     guards: Array<Type<CanActivate>>;
 }
 
 export interface DiscoveryModuleOptions {
-    /** App-Identität, die in den Snapshot übernommen wird (`app.key`/`app.version`). */
+    /** App identity that is adopted into the snapshot (`app.key`/`app.version`). */
     app: DiscoveryAppInfo;
     /**
-     * Controller-Mount für `GET /admin/discovery`. Wenn weggelassen, wird der
-     * Endpoint nicht registriert — Konsumenten können ihn dann selbst bauen
-     * (z. B. mit anderem Pfad oder zusätzlichen Guards) und den Scanner via
-     * `DISCOVERY_SNAPSHOT_TOKEN` injizieren.
+     * Controller mount for `GET /admin/discovery`. If omitted, the endpoint
+     * is not registered — consumers can then build it themselves (e.g. with
+     * a different path or additional guards) and inject the scanner via
+     * `DISCOVERY_SNAPSHOT_TOKEN`.
      */
     controller?: DiscoveryControllerConfig;
     /**
-     * Module, deren Provider im DI-Scope dieses DynamicModules sichtbar sein
-     * müssen — typisch: `AuthModule`, das den `JwtAuthGuard` aus
-     * `controller.guards` exportiert. Ohne diesen Eintrag schlägt NestJS
-     * mit `UnknownDependenciesException` für den Guard fehl, wenn das
-     * AuthModule nicht global ist.
+     * Modules whose providers must be visible in the DI scope of this
+     * DynamicModule — typically: `AuthModule`, which exports the `JwtAuthGuard`
+     * from `controller.guards`. Without this entry, NestJS fails with an
+     * `UnknownDependenciesException` for the guard if the AuthModule is not
+     * global.
      */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /**
-     * Optional: Modul global registrieren — `DISCOVERY_SNAPSHOT_TOKEN` und
-     * `DiscoveryScanner` sind dann ohne erneuten `imports`-Eintrag verfügbar.
+     * Optional: register the module globally — `DISCOVERY_SNAPSHOT_TOKEN` and
+     * `DiscoveryScanner` are then available without another `imports` entry.
      * Default: `true`.
      */
     isGlobal?: boolean;
     /**
-     * Optional: Pfad, in den der DiscoveryScanner beim
-     * `OnApplicationBootstrap` den Snapshot als JSON schreibt. Konsumenten
-     * (CI-Gates, Preflight-CLIs) können die Datei mit
-     * `loadDiscoverySnapshotFromFile(path)` lesen, ohne selbst alle App-
-     * Module zu booten. Wenn weggelassen, wird nichts geschrieben.
+     * Optional: path into which the DiscoveryScanner writes the snapshot as
+     * JSON on `OnApplicationBootstrap`. Consumers (CI gates, preflight CLIs)
+     * can read the file with `loadDiscoverySnapshotFromFile(path)` without
+     * booting all app modules themselves. If omitted, nothing is written.
      */
     snapshotPath?: string | null;
 }

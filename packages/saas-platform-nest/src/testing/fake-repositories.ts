@@ -1,8 +1,8 @@
-// Fake-Adapter für Plattform-Service-Tests.
+// Fake adapters for platform service tests.
 //
-// In-Memory-Implementierungen der Adapter-Ports für unit-Tests im Plattform-
-// Paket und in Konsumenten, die die Plattform-Services testen wollen ohne
-// gegen eine echte DB zu fahren.
+// In-memory implementations of the adapter ports for unit tests in the
+// platform package and in consumers that want to test the platform services
+// without running against a real DB.
 
 import type {
     BundleListFilter,
@@ -55,11 +55,11 @@ import type {
 import { startOfUtcDay } from '@saasicat/types';
 
 /**
- * In-Memory FakeSubscriptionRepository — speichert Subscriptions per
- * `tenantId` und liefert sie als Read-Snapshot zurück. Lock-Semantik wird
- * nicht emuliert (`findByTenantIdLocked` delegiert an `findByTenantId`).
+ * In-memory FakeSubscriptionRepository — stores subscriptions by
+ * `tenantId` and returns them as a read snapshot. Lock semantics are not
+ * emulated (`findByTenantIdLocked` delegates to `findByTenantId`).
  *
- * Test-Setup:
+ * Test setup:
  *
  *     const repo = new FakeSubscriptionRepository();
  *     repo.set({ id: 'sub-1', tenantId: 't1', plan: 'STANDARD', ... });
@@ -67,10 +67,10 @@ import { startOfUtcDay } from '@saasicat/types';
 export class FakeSubscriptionRepository implements SubscriptionRepository {
     private readonly byTenantId = new Map<string, SubscriptionRecord>();
     /**
-     * Test-Stubs für die `countBy*`-Editierbarkeits-Methoden. Tests setzen
-     * sie direkt; Default 0 (= „keine Subscription bindet die Version" →
-     * published-but-future Versions sind editierbar, wenn sie latest-in-chain
-     * sind und validFrom in der Zukunft liegt).
+     * Test stubs for the `countBy*` editability methods. Tests set them
+     * directly; default 0 (= "no subscription binds the version" →
+     * published-but-future versions are editable when they are latest-in-chain
+     * and validFrom lies in the future).
      */
     private readonly planVersionCounts = new Map<string, number>();
     private readonly bundleVersionCounts = new Map<string, number>();
@@ -89,12 +89,12 @@ export class FakeSubscriptionRepository implements SubscriptionRepository {
         this.bundleVersionCounts.clear();
     }
 
-    /** Test-Helper: Anzahl Subscriptions für eine PlanVersion forcieren. */
+    /** Test helper: force the number of subscriptions for a PlanVersion. */
     setPlanVersionCount(planVersionId: string, count: number): void {
         this.planVersionCounts.set(planVersionId, count);
     }
 
-    /** Test-Helper: Anzahl Subscriptions für eine BundleVersion forcieren. */
+    /** Test helper: force the number of subscriptions for a BundleVersion. */
     setBundleVersionCount(bundleVersionId: string, count: number): void {
         this.bundleVersionCounts.set(bundleVersionId, count);
     }
@@ -120,12 +120,12 @@ export class FakeSubscriptionRepository implements SubscriptionRepository {
 }
 
 /**
- * In-Memory FakeSubscriptionBundleRepository — speichert
- * `subscription_bundles`-Einträge per id. `add` / `cancel` sind
- * fail-fast (kein Re-Cancel); Mindestlaufzeit-Default kommt vom Service
- * (heute noch nicht implementiert — Tests setzen das Feld explizit).
+ * In-memory FakeSubscriptionBundleRepository — stores
+ * `subscription_bundles` entries by id. `add` / `cancel` are
+ * fail-fast (no re-cancel); the minimum-term default comes from the service
+ * (not implemented yet today — tests set the field explicitly).
  *
- * Test-Setup:
+ * Test setup:
  *
  *     const repo = new FakeSubscriptionBundleRepository();
  *     const row = await repo.add({ subscriptionId: 's1',
@@ -240,9 +240,9 @@ export class FakeSubscriptionBundleRepository implements SubscriptionBundleRepos
 }
 
 /**
- * In-Memory FakeSubscriptionContractRepository — modelliert das V3
- * append-only Contract-Schema. `create` klont Snapshots tief genug für
- * Immutability-Tests; `terminate` ändert nur Status/effectiveUntil.
+ * In-memory FakeSubscriptionContractRepository — models the V3
+ * append-only contract schema. `create` clones snapshots deeply enough for
+ * immutability tests; `terminate` only changes status/effectiveUntil.
  */
 export class FakeSubscriptionContractRepository implements SubscriptionContractRepository {
     private readonly byId = new Map<string, SubscriptionContractRecord>();
@@ -378,8 +378,8 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
 }
 
 /**
- * In-Memory FakePlanVersionRepository — speichert PlanVersions pro `planId`
- * und liefert die zuletzt gesetzte als „latest live".
+ * In-memory FakePlanVersionRepository — stores PlanVersions per `planId`
+ * and returns the most recently set one as "latest live".
  */
 export class FakePlanVersionRepository implements PlanVersionRepository {
     private readonly byPlanId = new Map<string, PlanVersionRecord>();
@@ -399,10 +399,10 @@ export class FakePlanVersionRepository implements PlanVersionRepository {
         return this.byPlanId.get(planId) ?? null;
     }
 
-    // Fake hält nur ein Record pro planId — `findActive` liefert dasselbe
-    // wie `findLatestLive`. Echte time-window-Semantik testen Konsumenten
-    // gegen die Prisma-Implementierung oder gegen `FakePlanRepository`
-    // (das mehrere Versions pro planKey unterstützt).
+    // The fake keeps only one record per planId — `findActive` returns the
+    // same as `findLatestLive`. Consumers test real time-window semantics
+    // against the Prisma implementation or against `FakePlanRepository`
+    // (which supports multiple versions per planKey).
     async findActive(
         planId: string,
         _asOf?: Date,
@@ -413,13 +413,13 @@ export class FakePlanVersionRepository implements PlanVersionRepository {
 }
 
 /**
- * Fake-TransactionRunner für Tests — führt die Callback-Funktion direkt aus
- * und übergibt einen Sentinel-`tx`-Wert. Kein Rollback-Verhalten, keine
- * Atomic-Garantien — Tests, die die Tx-Semantik prüfen müssen, sollten
- * gegen eine echte DB laufen.
+ * Fake TransactionRunner for tests — runs the callback function directly
+ * and passes a sentinel `tx` value. No rollback behavior, no atomic
+ * guarantees — tests that need to check the tx semantics should run
+ * against a real DB.
  */
 export class FakeTransactionRunner implements TransactionRunner {
-    /** Sentinel-Wert, der als TransactionContext durchgereicht wird. */
+    /** Sentinel value passed through as the TransactionContext. */
     static readonly TX_SENTINEL = Symbol.for('FakeTransactionRunner.tx');
 
     runCount = 0;
@@ -431,10 +431,10 @@ export class FakeTransactionRunner implements TransactionRunner {
 }
 
 /**
- * In-Memory-Implementierung von `BundleRepository` für Tests des
- * `BundlesService`. Implementiert die Partial-Unique-Constraints (max. 1
- * Draft pro Bundle) und die Publish-Semantik (vorherige Live wird
- * superseded) als Pure-JS-Logik.
+ * In-memory implementation of `BundleRepository` for tests of the
+ * `BundlesService`. Implements the partial unique constraints (max. 1
+ * draft per bundle) and the publish semantics (previous live gets
+ * superseded) as pure-JS logic.
  */
 export class FakeBundleRepository implements BundleRepository {
     private readonly bundles = new Map<string, BundleRow>();
@@ -442,9 +442,9 @@ export class FakeBundleRepository implements BundleRepository {
     private nextId = 1;
 
     private genId(prefix: string): string {
-        // Echtes UUID-Format wird vom ParseUUIDPipe an der Controller-
-        // Grenze erwartet; Tests, die direkt den Service aufrufen, brauchen
-        // das nicht — wir geben hier deterministische, gültige UUIDs aus.
+        // A real UUID format is expected by the ParseUUIDPipe at the
+        // controller boundary; tests that call the service directly do not
+        // need it — here we emit deterministic, valid UUIDs.
         const n = this.nextId++;
         const suffix = n.toString(16).padStart(12, '0');
         return `${prefix}aaaa-aaaa-aaaa-aaaa-${suffix}`;
@@ -454,7 +454,7 @@ export class FakeBundleRepository implements BundleRepository {
         return new Date().toISOString();
     }
 
-    // Test-Helper
+    // Test helpers
     seedBundle(row: BundleRow): void {
         this.bundles.set(row.id, row);
     }
@@ -468,7 +468,7 @@ export class FakeBundleRepository implements BundleRepository {
         this.versions.clear();
     }
 
-    // ─── Stamm-Operationen ───
+    // ─── Master operations ───
 
     async list(filter: BundleListFilter): Promise<BundleRow[]> {
         const excludeDeleted = filter.excludeDeleted ?? true;
@@ -531,7 +531,7 @@ export class FakeBundleRepository implements BundleRepository {
         this.bundles.set(bundleId, { ...existing, deletedAt: this.nowIso() });
     }
 
-    // ─── Version-Operationen ───
+    // ─── Version operations ───
 
     async listVersions(bundleId: string): Promise<BundleVersionRow[]> {
         return [...this.versions.values()]
@@ -605,8 +605,8 @@ export class FakeBundleRepository implements BundleRepository {
     ): Promise<BundleVersionRow> {
         const existing = this.versions.get(versionId);
         if (!existing) throw new Error(`BundleVersion '${versionId}' nicht gefunden`);
-        // Service prüft Editierbarkeit (Draft oder published-but-future,
-        // SPEC_V2 §11.1 M6 Pack 2c). Adapter persistiert nur.
+        // The service checks editability (draft or published-but-future,
+        // SPEC_V2 §11.1 M6 Pack 2c). The adapter only persists.
         const updated: BundleVersionRow = {
             ...existing,
             features: data.features ?? existing.features,
@@ -652,8 +652,8 @@ export class FakeBundleRepository implements BundleRepository {
         const now = this.nowIso();
         const validFromIso = publishMeta.validFrom.toISOString();
         const validUntilIso = publishMeta.validUntil ? publishMeta.validUntil.toISOString() : null;
-        // 1. Vorherige Live → superseded + Auto-Sukzession (validUntil =
-        //    validFrom des Nachfolgers - 1 Tag), analog FakePlanRepository.
+        // 1. Previous live → superseded + auto-succession (validUntil =
+        //    validFrom of the successor - 1 day), analogous to FakePlanRepository.
         const previous = await this.findLatestLive(draft.bundleId);
         if (previous) {
             const dayMs = 24 * 60 * 60 * 1000;
@@ -684,9 +684,9 @@ export class FakeBundleRepository implements BundleRepository {
 }
 
 /**
- * In-Memory-Implementierung von `BusinessTypeRepository`. Hält die
- * BusinessTypeBundle-Junction direkt in den BusinessTypeVersionRow-Objekten
- * (analog zur Wire-Format-Konvention).
+ * In-memory implementation of `BusinessTypeRepository`. Keeps the
+ * BusinessTypeBundle junction directly inside the BusinessTypeVersionRow objects
+ * (analogous to the wire-format convention).
  */
 export class FakeBusinessTypeRepository implements BusinessTypeRepository {
     private readonly types = new Map<string, BusinessTypeRow>();
@@ -919,9 +919,9 @@ export class FakeBusinessTypeRepository implements BusinessTypeRepository {
 }
 
 /**
- * In-Memory-Implementierung von `MarketingProjectionRepository`. Erzwingt
- * Eindeutigkeit über (`targetType`, `targetVersionId`, `locale`) wie das
- * DB-Schema.
+ * In-memory implementation of `MarketingProjectionRepository`. Enforces
+ * uniqueness over (`targetType`, `targetVersionId`, `locale`) like the
+ * DB schema.
  */
 export class FakeMarketingProjectionRepository implements MarketingProjectionRepository {
     private readonly rows = new Map<string, MarketingProjectionRow>();
@@ -1039,7 +1039,7 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
 }
 
 // =============================================================================
-// FakePlanRepository — In-Memory `Plan`-Stamm (SPEC_V2 §11.1 M6, Pack 1).
+// FakePlanRepository — in-memory `Plan` master (SPEC_V2 §11.1 M6, Pack 1).
 // =============================================================================
 
 export class FakePlanRepository implements PlanRepository {
@@ -1079,7 +1079,7 @@ export class FakePlanRepository implements PlanRepository {
 
     async list(filter: PlanListFilter): Promise<PlanRow[]> {
         const excludeDeleted = filter.excludeDeleted ?? true;
-        // Weiche Bindung Plan.planKey === PlanVersion.planId (s. Lifecycle unten).
+        // Soft binding Plan.planKey === PlanVersion.planId (see lifecycle below).
         const liveKeys = filter.onlyPublished
             ? new Set(
                   [...this.versions.values()]
@@ -1156,17 +1156,17 @@ export class FakePlanRepository implements PlanRepository {
         const existing = this.plans.get(planId);
         if (!existing) return; // idempotent
         this.plans.delete(planId);
-        // Sicherheitsnetz: räume etwaige verwaiste Versionen mit auf —
-        // der Service prüft das vorher, hier ist es nur Defense-in-Depth.
+        // Safety net: also clean up any orphaned versions —
+        // the service checks this beforehand, here it is only defense-in-depth.
         for (const [id, v] of this.versions.entries()) {
             if (v.planId === existing.planKey) this.versions.delete(id);
         }
     }
 
     // ─── Lifecycle (SPEC_V2 §11.1 M6 Pack 2a) ───
-    // Bindung Plan ↔ PlanVersion: PlanVersion.planId === Plan.planKey
-    // (weiche String-Referenz). Lifecycle-Methoden nehmen planKey
-    // entgegen — der Service resolvet die Plan-UUID vorher.
+    // Binding Plan ↔ PlanVersion: PlanVersion.planId === Plan.planKey
+    // (soft string reference). Lifecycle methods take planKey
+    // as input — the service resolves the plan UUID beforehand.
 
     async listVersions(planKey: string): Promise<PlanVersionRow[]> {
         return [...this.versions.values()]
@@ -1210,25 +1210,25 @@ export class FakePlanRepository implements PlanRepository {
         const matches = [...this.versions.values()].filter((v) => {
             if (v.planId !== planKey) return false;
             if (v.publishedAt === null) return false;
-            // validFrom NULL = „gilt seit jeher" (tolerant ggü. Altdaten ohne Startdatum).
+            // validFrom NULL = "valid since forever" (tolerant of legacy data without a start date).
             if (v.validFrom) {
                 const from = new Date(v.validFrom).getTime();
                 if (Number.isNaN(from) || from > t) return false;
             }
-            // validUntil ist tag-inklusiv: erst ab dem Folgetag dunkel.
+            // validUntil is day-inclusive: dark only from the following day.
             if (v.validUntil) {
                 const until = new Date(v.validUntil).getTime();
                 if (!Number.isNaN(until) && until < dayStart) return false;
             }
-            // endsAt ist eine präzise Terminierung (Zeitstempel), nicht tagweise.
+            // endsAt is a precise termination (timestamp), not day-wise.
             if (v.endsAt) {
                 const ends = new Date(v.endsAt).getTime();
                 if (!Number.isNaN(ends) && ends <= t) return false;
             }
             return true;
         });
-        // Höchstes validFrom gewinnt; bei Gleichstand höchste version.
-        // validFrom NULL sortiert zuletzt (0) — echter Fallback, kein Override.
+        // Highest validFrom wins; on a tie the highest version.
+        // validFrom NULL sorts last (0) — a real fallback, not an override.
         matches.sort((a, b) => {
             const fa = a.validFrom ? new Date(a.validFrom).getTime() : 0;
             const fb = b.validFrom ? new Date(b.validFrom).getTime() : 0;
@@ -1239,7 +1239,7 @@ export class FakePlanRepository implements PlanRepository {
     }
 
     async createPlanVersionDraft(data: CreatePlanVersionDraftData): Promise<PlanVersionRow> {
-        // data.planId ist hier bereits planKey (Service hat resolved).
+        // data.planId is already planKey here (the service has resolved it).
         const planKey = data.planId;
         const versions = [...this.versions.values()].filter((v) => v.planId === planKey);
         const nextVersion = versions.reduce((max, v) => Math.max(max, v.version), 0) + 1;
@@ -1307,8 +1307,8 @@ export class FakePlanRepository implements PlanRepository {
         if (!draft) throw new Error(`PlanVersion '${versionId}' nicht gefunden`);
         const planKey = draft.planId;
         const now = this.nowIso();
-        // Vorgängerin: supersededAt + Auto-Sukzession von validUntil
-        // (= validFrom des Nachfolgers - 1 Tag).
+        // Predecessor: supersededAt + auto-succession of validUntil
+        // (= validFrom of the successor - 1 day).
         const dayMs = 24 * 60 * 60 * 1000;
         const inheritedValidUntil = new Date(publishMeta.validFrom.getTime() - dayMs).toISOString();
         for (const v of this.versions.values()) {

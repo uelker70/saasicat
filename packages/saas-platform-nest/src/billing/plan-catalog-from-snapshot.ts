@@ -1,12 +1,12 @@
-// buildPlanCatalogFromSnapshot — Pure-Function (DI-frei), die einen
-// `PlanCatalog`-Snapshot aus DB-Reads zusammenbaut (SPEC_V2 §11.1 M6 Pack 2c).
+// buildPlanCatalogFromSnapshot — pure function (DI-free) that assembles a
+// `PlanCatalog` snapshot from DB reads (SPEC_V2 §11.1 M6 Pack 2c).
 //
-// Eingaben:
-//  - App-globale Settings (projectKey, currency, vatRate) —
-//    Build-Time-Identity, kommen vom AppModule statisch.
-//  - DB-Snapshot mit Plans + live PlanVersions + FeatureCatalogEntries.
+// Inputs:
+//  - App-global settings (projectKey, currency, vatRate) —
+//    build-time identity, provided statically by the AppModule.
+//  - DB snapshot with Plans + live PlanVersions + FeatureCatalogEntries.
 //
-// Ausgabe: `PlanCatalog` (gleiches Wire-Format wie der YAML-Loader).
+// Output: `PlanCatalog` (same wire format as the YAML loader).
 //
 // Mapping:
 //  - PlanDef ← Plan + matching live PlanVersion (via planKey === planId)
@@ -23,11 +23,11 @@ import type {
 
 export interface PlanCatalogBuildSettings {
     projectKey: string;
-    /** App-Identity (Branding + Version) aus `config/saas.yaml#app`. Optional. */
+    /** App identity (branding + version) from `config/saas.yaml#app`. Optional. */
     app?: PlanCatalog['app'];
     currency: string;
     vatRate: number;
-    /** App-weite Marketing-Konfiguration (SPEC_V2 §6.5). Optional. */
+    /** App-wide marketing configuration (SPEC_V2 §6.5). Optional. */
     marketing?: PlanCatalog['marketing'];
 }
 
@@ -35,7 +35,7 @@ export function buildPlanCatalogFromSnapshot(
     settings: PlanCatalogBuildSettings,
     snapshot: PlanCatalogReadSnapshot,
 ): PlanCatalog {
-    // Index live PlanVersions by planKey für O(1)-Lookup
+    // Index live PlanVersions by planKey for O(1) lookup
     const liveByPlanKey = new Map(snapshot.livePlanVersions.map((v) => [v.planId, v]));
 
     const plans: PlanDef[] = snapshot.plans
@@ -44,11 +44,11 @@ export function buildPlanCatalogFromSnapshot(
         .map((stem) => {
             const live = liveByPlanKey.get(stem.planKey);
             if (!live) {
-                // Plan ohne live-Version — minimaler Stub, damit der Catalog
-                // strukturell vollständig ist (getPlan() findet ihn weiter).
-                // marketed: false, sonst erscheinen unveröffentlichte Pläne
-                // als „auf Anfrage" in Self-Service-Listen (getMarketedPlans
-                // filtert nur `!== false`).
+                // Plan without a live version — minimal stub so the catalog
+                // is structurally complete (getPlan() still finds it).
+                // marketed: false, otherwise unpublished plans appear
+                // as "on request" in self-service lists (getMarketedPlans
+                // only filters `!== false`).
                 return {
                     id: stem.planKey,
                     name: stem.label,

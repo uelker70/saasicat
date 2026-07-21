@@ -1,12 +1,12 @@
-// DI-Tokens für das First-Run-SetupModule. Eigene Symbole (nicht mit den
-// CLI-Tokens geteilt) — jeder Modul-`forRoot` bindet seinen Port selbst.
+// DI tokens for the first-run SetupModule. Own symbols (not shared with the
+// CLI tokens) — each module `forRoot` binds its own port.
 
 export const SETUP_PROVISIONING_PORT_TOKEN = Symbol.for('saas-platform/SetupProvisioningPort');
 export const SETUP_CONFIG_TOKEN = Symbol.for('saas-platform/SetupConfig');
 
 export interface SetupConfig {
-    /** Env-Var-Name des Setup-Tokens. Ohne gesetzte Var ist Setup deaktiviert. */
+    /** Env-var name of the setup token. Without the var set, setup is disabled. */
     setupTokenEnvVar: string;
-    /** Authenticator-Issuer für das MFA-Enrollment im Wizard. */
+    /** Authenticator issuer for the MFA enrollment in the wizard. */
     mfaIssuer: string;
 }

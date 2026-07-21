@@ -98,8 +98,8 @@ import SuperAdminSetupWizard from './SuperAdminSetupWizard.vue';
 
 interface Props {
     /**
-     * Optional zusätzlicher Subtitle unter dem Titel (z. B. Hinweis auf
-     * SUPER_ADMIN-Rolle). Default leer.
+     * Optional additional subtitle below the title (e.g. a hint about the
+     * SUPER_ADMIN role). Empty by default.
      */
     subtitle?: string;
 }
@@ -117,8 +117,8 @@ const form = reactive({ email: adapter.devHint?.email ?? '', password: '' });
 const showPw = ref(false);
 const loading = ref(false);
 const errorMessage = ref<string | null>(null);
-// First-Run: solange kein SUPER_ADMIN existiert, zeigt diese Seite statt des
-// Logins den Setup-Wizard. Apps ohne SetupModule liefern 404 → bleibt false.
+// First run: as long as no SUPER_ADMIN exists, this page shows the setup
+// wizard instead of the login. Apps without a SetupModule return 404 → stays false.
 const needsSetup = ref(false);
 
 const brandName = computed(() => boot.boot.value?.project.displayName ?? brand.name);
@@ -153,7 +153,7 @@ async function checkSetup(): Promise<void> {
         );
         needsSetup.value = status.needsSetup === true;
     } catch {
-        // Setup-Endpoint nicht vorhanden (App ohne SetupModule) → normaler Login.
+        // Setup endpoint not present (app without a SetupModule) → normal login.
     }
 }
 

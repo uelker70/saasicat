@@ -39,9 +39,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-// Sprachwähler steuert, in welcher Locale Feature-/Quota-Labels in der Anlage
-// und im Detail aufgelöst werden (Fallback Locale → DE → Key). Default ist die
-// Default-Locale (DE); weitere Optionen kommen aus den aktiven Projekt-Locales.
+// The language selector controls which locale feature/quota labels are resolved
+// on the create form and in the detail view (fallback locale → DE → key). The default is the
+// default locale (DE); further options come from the active project locales.
 
 const props = defineProps<{
     loading: boolean;

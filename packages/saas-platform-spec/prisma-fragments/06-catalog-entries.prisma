@@ -1,74 +1,74 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: Catalog-Entries (Discovery-Review + Marketing)
+// SaaS-Platform Prisma fragment: catalog entries (discovery review + marketing)
 // =============================================================================
 //
-// REFERENZ-SNIPPET — siehe 03-plan-versions.prisma für Konventionen.
+// REFERENCE SNIPPET — see 03-plan-versions.prisma for conventions.
 //
-// Drei Tabellen:
-//   - CapabilityCatalogEntry  — SuperAdmin-Review-Status pro Code-deklarierter
-//                               Capability (Discovery-Projektion)
-//   - FeatureCatalogEntry     — dito für Features + Marketing-Felder
-//   - MarketingProjection     — Marketing-Texte/Pricing/Highlights pro
-//                               Plan/Bundle/BusinessType-Version (Locale-Pivot)
+// Three tables:
+//   - CapabilityCatalogEntry  — SuperAdmin review status per code-declared
+//                               capability (discovery projection)
+//   - FeatureCatalogEntry     — ditto for features + marketing fields
+//   - MarketingProjection     — marketing texts/pricing/highlights per
+//                               plan/bundle/business-type version (locale pivot)
 //
-// Freigabe-Lifecycle (#20, feature-/quota-zentriert):
-//   pending → approved (↔ entziehen) · outdated (Drift) · obsolete
-// Freigegeben wird je FEATURE/QUOTA — Capabilities tragen nur noch den
-// read-only Code-Status (active | experimental | deprecated | retired).
+// Approval lifecycle (#20, feature-/quota-centric):
+//   pending → approved (↔ revoke) · outdated (drift) · obsolete
+// Approval happens per FEATURE/QUOTA — capabilities now only carry the
+// read-only code status (active | experimental | deprecated | retired).
 //
-// Backfill bei Migration von der alten Vokabel (je Konsumenten-DB):
+// Backfill when migrating from the old vocabulary (per consumer DB):
 //   feature_/quota_catalog_entries.discoveryStatus:
 //     discovered→pending · accepted→approved · active→approved ·
 //     ignored→pending · deprecated→outdated · retired→obsolete
-//   capability_catalog_entries: Spalte discoveryStatus → codeStatus umbenennen,
-//     Werte: deprecated→deprecated · retired→retired · alles andere→active
+//   capability_catalog_entries: rename column discoveryStatus → codeStatus,
+//     values: deprecated→deprecated · retired→retired · everything else→active
 //
-// Globale Katalog-Tabellen (kein tenantId, kein RLS). Schreibzugriff nur über
-// SUPER_ADMIN-Guard im AdminController.
+// Global catalog tables (no tenantId, no RLS). Write access only via the
+// SUPER_ADMIN guard in the AdminController.
 
 // -----------------------------------------------------------------------------
-// CapabilityCatalogEntry — read-only Code-Fakt pro Code-Capability (#20).
+// CapabilityCatalogEntry — read-only code fact per code capability (#20).
 //
-// Jede via @ImplementsCapability(...) deklarierte Capability erscheint hier
-// nach dem ersten Discovery-Scan mit ihrem Decorator-Status (`codeStatus`).
-// Der Sync überschreibt den Code-Status immer; `retired` setzt er, wenn die
-// Capability im neuen Snapshot fehlt. Eine fachliche Freigabe gibt es auf
-// Capability-Ebene nicht mehr — die liegt am Feature/an der Quota.
+// Every capability declared via @ImplementsCapability(...) appears here after
+// the first discovery scan with its decorator status (`codeStatus`). The sync
+// always overwrites the code status; it sets `retired` when the capability is
+// missing from the new snapshot. There is no longer a business approval at the
+// capability level — that lives on the feature/quota.
 //
-// `featureKey` und `bundleKey` sind die im Decorator deklarierten Aggregations-
-// Hüllen — denormalisiert für schnellen Lookup im Discovery-UI; verbindlich
-// bleibt aber die Code-Annotation, nicht dieser DB-Eintrag.
+// `featureKey` and `bundleKey` are the aggregation wrappers declared in the
+// decorator — denormalized for fast lookup in the discovery UI; the binding
+// source, however, remains the code annotation, not this DB entry.
 // -----------------------------------------------------------------------------
 
 model CapabilityCatalogEntry {
     id            String  @id @default(uuid())
-    projectKey    String // z. B. 'clubapp' | 'demoapp' | …
+    projectKey    String // e.g. 'clubapp' | 'demoapp' | …
     capabilityKey String // 'invoice.create' | 'member.archive' | …
     label         String
     description   String?
 
-    // Aggregations-Hüllen aus dem Decorator (denormalisiert).
+    // Aggregation wrappers from the decorator (denormalized).
     featureKey String?
     bundleKey  String?
 
-    // Read-only Code-Status aus dem Decorator (#20); 'retired' = aus Code entfernt.
+    // Read-only code status from the decorator (#20); 'retired' = removed from code.
     codeStatus String @default("active") // active | experimental | deprecated | retired
 
-    // Code-Owner-Tag für Audit (z. B. 'accounting', 'membership').
+    // Code owner tag for audit (e.g. 'accounting', 'membership').
     owner String?
 
-    // Implementierungs-Art (entspricht decorator.kind):
+    // Implementation kind (matches decorator.kind):
     // 'endpoint' | 'service' | 'job' | 'event'
     kind String
 
-    // Bei deprecated: Zielversion + geplantes Removal.
+    // When deprecated: target version + planned removal.
     replacementKey   String?
     deprecatedAt     DateTime?
     removalPlannedAt DateTime?
     reason           String?
 
-    // Locale-Übersetzungen: { "en": { label, description }, "tr": {…} }.
-    // Default-Locale fehlt bewusst — Fallback im UI. SPEC_V2 §6.3.
+    // Locale translations: { "en": { label, description }, "tr": {…} }.
+    // The default locale is deliberately absent — fallback in the UI. SPEC_V2 §6.3.
     i18n Json @default("{}")
 
     sortOrder Int @default(0)
@@ -84,19 +84,18 @@ model CapabilityCatalogEntry {
 }
 
 // -----------------------------------------------------------------------------
-// FeatureCatalogEntry — SuperAdmin-Review-Status + Marketing-Stammdaten pro
-// Feature. Aggregation aus den Capabilities, die im Decorator
-// `feature: 'XYZ'` deklarieren.
+// FeatureCatalogEntry — SuperAdmin review status + marketing master data per
+// feature. Aggregation from the capabilities that declare `feature: 'XYZ'`
+// in the decorator.
 //
-// Marketing-Texte (`marketingLabel` / `marketingDescription`) sind der
-// Kurz-Slot für die Sidebar/Comparison-Matrix; die *langen* Locale-spezifischen
-// Texte liegen in MarketingProjection (separate Tabelle, Locale-Pivot).
+// Marketing texts (`marketingLabel` / `marketingDescription`) are the short
+// slot for the sidebar/comparison matrix; the *long* locale-specific texts
+// live in MarketingProjection (separate table, locale pivot).
 //
-// `plannedOnly = true` erlaubt dem SuperAdmin, ein noch nicht im Code
-// existierendes Feature in einen Plan aufzunehmen (z. B. für Roadmap-
-// Vermarktung). Der blocking Strict-Mode-Check (SPEC_V2 §8.1) lehnt
-// `plannedOnly`-Features beim Plan-Publish ab — sie dürfen nur in
-// internen Drafts oder warn-only-Builds erscheinen.
+// `plannedOnly = true` lets the SuperAdmin add a feature that does not yet
+// exist in code to a plan (e.g. for roadmap marketing). The blocking strict-
+// mode check (SPEC_V2 §8.1) rejects `plannedOnly` features at plan publish —
+// they may only appear in internal drafts or warn-only builds.
 // -----------------------------------------------------------------------------
 
 model FeatureCatalogEntry {
@@ -106,33 +105,32 @@ model FeatureCatalogEntry {
     label       String
     description String?
 
-    // Marketing-Kurzform (für Sidebar/Comparison). Ausführliche Texte
-    // pro Locale → MarketingProjection.
+    // Marketing short form (for sidebar/comparison). Detailed texts
+    // per locale → MarketingProjection.
     marketingLabel       String?
     marketingDescription String?
     icon                 String?
 
-    // Tier-Hint für Comparison-Matrix-Sortierung.
-    // Konvention: 'CORE' < 'ADVANCED' < 'PRO' < 'ENTERPRISE'
+    // Tier hint for comparison-matrix sorting.
+    // Convention: 'CORE' < 'ADVANCED' < 'PRO' < 'ENTERPRISE'
     tier String?
 
-    // Freigabe-Lifecycle (#20): pending | approved | outdated | obsolete.
+    // Approval lifecycle (#20): pending | approved | outdated | obsolete.
     discoveryStatus String @default("pending")
 
-    // Approval-Signatur (#20): friert das Capability-Set zum Freigabe-
-    // Zeitpunkt ein ('capabilityKey@codeStatus', sortiert, '|'-separiert).
-    // Der Auto-Sync vergleicht gegen den aktuellen Snapshot → bei Drift
-    // approved → outdated.
+    // Approval signature (#20): freezes the capability set at approval time
+    // ('capabilityKey@codeStatus', sorted, '|'-separated). The auto-sync
+    // compares against the current snapshot → on drift approved → outdated.
     approvedAt        DateTime?
     approvedBy        String?
     approvedSignature String?
 
-    // True = Feature ist im SuperAdmin geplant, aber noch nicht im Code
-    // implementiert. blocking Strict-Mode lehnt Plan-Publish mit
-    // plannedOnly-Features ab.
+    // True = feature is planned in the SuperAdmin but not yet implemented in
+    // code. Blocking strict mode rejects plan publish with plannedOnly
+    // features.
     plannedOnly Boolean @default(false)
 
-    // Locale-Übersetzungen { "en": { label, description }, … }. SPEC_V2 §6.3.
+    // Locale translations { "en": { label, description }, … }. SPEC_V2 §6.3.
     i18n Json @default("{}")
 
     sortOrder Int @default(0)
@@ -148,11 +146,11 @@ model FeatureCatalogEntry {
 }
 
 // -----------------------------------------------------------------------------
-// QuotaCatalogEntry — SuperAdmin-Review-Status pro code-deklarierter Quota
-// (`@DefinesQuota`). `usageProvider` ist die Klasse, die die Quota
-// bereitstellt; `null` = referenziert (`@EnforceQuota`), aber von keiner
-// Klasse bereitgestellt. Eine harte Quota ohne `usageProvider` ist nicht
-// deploy-fähig — `yada app preflight` blockt sie (SPEC_V2 §6.3 + §8.3).
+// QuotaCatalogEntry — SuperAdmin review status per code-declared quota
+// (`@DefinesQuota`). `usageProvider` is the class that provides the quota;
+// `null` = referenced (`@EnforceQuota`) but provided by no class. A hard quota
+// without `usageProvider` is not deployable — `yada app preflight` blocks it
+// (SPEC_V2 §6.3 + §8.3).
 // -----------------------------------------------------------------------------
 
 model QuotaCatalogEntry {
@@ -162,24 +160,24 @@ model QuotaCatalogEntry {
     label       String
     description String?
 
-    unit       String // Anzeige-Einheit: 'members' | 'GB' | '/month' | …
-    featureKey String? // Aggregations-Hülle aus dem Decorator (denormalisiert)
+    unit       String // Display unit: 'members' | 'GB' | '/month' | …
+    featureKey String? // Aggregation wrapper from the decorator (denormalized)
 
-    // Klasse, die die Quota via @DefinesQuota deklariert (= UsageProvider).
+    // Class that declares the quota via @DefinesQuota (= UsageProvider).
     usageProvider   String?
     enforcementMode String  @default("soft") // hard | soft
 
-    // Freigabe-Lifecycle (#20): pending | approved | outdated | obsolete.
+    // Approval lifecycle (#20): pending | approved | outdated | obsolete.
     discoveryStatus String @default("pending")
 
-    // Approval-Signatur (#20): code-abgeleitete Quota-Fakten zum Freigabe-
-    // Zeitpunkt ('unit|enforcementMode|usageProvider|featureKey'); bei
-    // Drift approved → outdated.
+    // Approval signature (#20): code-derived quota facts at approval time
+    // ('unit|enforcementMode|usageProvider|featureKey'); on drift approved →
+    // outdated.
     approvedAt        DateTime?
     approvedBy        String?
     approvedSignature String?
 
-    // Locale-Übersetzungen { "en": { label, unit, description }, … }.
+    // Locale translations { "en": { label, unit, description }, … }.
     i18n Json @default("{}")
 
     sortOrder Int @default(0)
@@ -194,63 +192,62 @@ model QuotaCatalogEntry {
 }
 
 // -----------------------------------------------------------------------------
-// MarketingProjection — Locale-spezifische Marketing-Texte pro
-// Plan/Bundle/BusinessType-Version.
+// MarketingProjection — locale-specific marketing texts per
+// plan/bundle/business-type version.
 //
-// Wird vom Public-Catalog-Controller (`GET /public/catalog?locale=de`)
-// gelesen und projiziert. Nur Versionen mit Status `marketed` und
-// passendem MarketingProjection-Eintrag erscheinen in der öffentlichen
-// Liste.
+// Read and projected by the public catalog controller
+// (`GET /public/catalog?locale=de`). Only versions with status `marketed` and
+// a matching MarketingProjection entry appear in the public list.
 //
-// Polymorphe Referenz über (`targetType`, `targetVersionId`) statt drei
-// separate FK-Spalten — bewusst, weil Cascade-Delete für drei Models
-// kompliziert wäre und die Eindeutigkeit über (targetType, targetVersionId,
-// locale) reicht. App-Logik prüft die Existenz beim Lesen.
+// Polymorphic reference via (`targetType`, `targetVersionId`) instead of three
+// separate FK columns — deliberate, because a cascade delete for three models
+// would be complicated and uniqueness via (targetType, targetVersionId,
+// locale) is sufficient. App logic checks existence on read.
 //
-// MVP: Locale `de` ist Pflicht; weitere Locales (z. B. `en`) sind als
-// Schema-Vorbereitung erlaubt, aber nicht erzwungen (siehe SPEC_V2 V2-Q1).
+// MVP: locale `de` is mandatory; further locales (e.g. `en`) are allowed as
+// schema preparation but not enforced (see SPEC_V2 V2-Q1).
 // -----------------------------------------------------------------------------
 
 model MarketingProjection {
     id         String @id @default(uuid())
     projectKey String
 
-    // Polymorphe Referenz auf eine versionierte Entität.
+    // Polymorphic reference to a versioned entity.
     targetType      String // 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE'
     targetVersionId String // PlanVersion.id | BundleVersion.id | BusinessTypeVersion.id
 
-    locale String @default("de") // ISO-639-1, ggf. mit Region-Suffix ('de', 'en', 'de-AT')
+    locale String @default("de") // ISO-639-1, optionally with a region suffix ('de', 'en', 'de-AT')
 
     displayLabel String
     description  String
 
-    // Sichtbarkeit im Public-Catalog — false = Projektion existiert,
-    // erscheint aber nicht auf der Pricing-Page.
+    // Visibility in the public catalog — false = projection exists but does
+    // not appear on the pricing page.
     visible Boolean @default(true)
 
-    // Optionales Badge oben auf der Karte ('Beliebt', 'Neu'). '' = kein Badge.
+    // Optional badge at the top of the card ('Beliebt', 'Neu'). '' = no badge.
     badge String @default("")
 
-    // Top-Features für die Public-Catalog-Karte: [{ label, strong }].
-    // Reihenfolge ist die Anzeige-Reihenfolge.
+    // Top features for the public catalog card: [{ label, strong }].
+    // Order is the display order.
     topFeatures Json @default("[]") // { label: string; strong: string }[]
 
-    // Kostenlose Testphase — steuert den automatisch generierten CTA-Text.
+    // Free trial period — controls the auto-generated CTA text.
     trialEnabled Boolean @default(false)
     trialDays    Int     @default(30)
 
-    // Optional formatted Pricing-Tag (z. B. "€ 9,90 / Monat" oder "auf Anfrage").
-    // Wenn null: Pricing wird automatisch aus PlanVersion.monthlyNet etc.
-    // zur Public-Catalog-Render-Zeit formatiert.
+    // Optional formatted pricing tag (e.g. "€ 9,90 / Monat" or "auf Anfrage").
+    // If null: pricing is formatted automatically from PlanVersion.monthlyNet
+    // etc. at public-catalog render time.
     priceTag String?
 
-    // Überschreibt den automatisch generierten Call-to-Action-Text.
+    // Overrides the auto-generated call-to-action text.
     ctaLabel String?
 
-    // Sortierung in der Public-Liste (DESC). Höhere Werte zuerst.
+    // Sort order in the public list (DESC). Higher values first.
     priority Int @default(0)
 
-    // "Empfohlen"-Stern bzw. Featured-Hervorhebung in der UI.
+    // "Empfohlen" star / featured highlight in the UI.
     highlight Boolean @default(false)
 
     createdAt DateTime @default(now())
@@ -262,11 +259,11 @@ model MarketingProjection {
 }
 
 // -----------------------------------------------------------------------------
-// MarketingSettings — projekt-weite, runtime-editierbare Marketing-Konfig.
-// Eine Row pro Projekt (`projectKey` unique). Aktuell genau ein Feld:
-// `activeLocales` — die im Marketing-Catalog aktivierte Teilmenge des
-// `availableLocales`-Pools (der Pool kommt aus der app-config, SPEC_V2 §6.5).
-// Fehlt die Row, gilt der volle Pool als aktiv.
+// MarketingSettings — project-wide, runtime-editable marketing config.
+// One row per project (`projectKey` unique). Currently exactly one field:
+// `activeLocales` — the subset of the `availableLocales` pool activated in the
+// marketing catalog (the pool comes from the app config, SPEC_V2 §6.5).
+// If the row is missing, the full pool counts as active.
 // -----------------------------------------------------------------------------
 
 model MarketingSettings {

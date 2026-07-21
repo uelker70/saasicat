@@ -1,14 +1,13 @@
-// useBundleVersionsMap — lädt parallel pro Bundle die Versionen und
-// hält das Mapping `bundleId → BundleVersionRow[]` reactive. Wird von der
-// BundlesPage gebraucht, um KPI (live / scheduled / drafts) und einen
-// Status-Filter über alle Bundles korrekt zu berechnen — bevor der User
-// ein Akkordeon öffnet.
+// useBundleVersionsMap — loads the versions for each bundle in parallel and
+// keeps the mapping `bundleId → BundleVersionRow[]` reactive. Used by the
+// BundlesPage to correctly compute KPIs (live / scheduled / drafts) and a
+// status filter across all bundles — before the user opens an accordion.
 //
-// Trade-off: 1+N HTTP-Requests beim Mount. Für SuperAdmin-Setups mit
-// wenigen Bundles (heute typisch < 20) akzeptabel. Eine Backend-
-// Optimierung über einen Aggregate-Endpoint (`/admin/catalog/bundles?
-// include=versions` oder `/admin/catalog/bundles/aggregates`) kann später
-// additiv kommen, ohne diese Composable-API zu brechen.
+// Trade-off: 1+N HTTP requests on mount. Acceptable for SuperAdmin setups
+// with few bundles (today typically < 20). A backend optimization via an
+// aggregate endpoint (`/admin/catalog/bundles?include=versions` or
+// `/admin/catalog/bundles/aggregates`) can come later additively, without
+// breaking this composable API.
 
 import { ref, watch, type Ref } from 'vue';
 import type { BundleRow, BundleVersionRow } from '@saasicat/types';
@@ -16,20 +15,20 @@ import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface UseBundleVersionsMapOptions {
     adminEndpoint: string;
-    /** Reactive Liste der Bundle-Stämme; Watcher lädt neu, wenn sich die IDs ändern. */
+    /** Reactive list of bundle roots; the watcher reloads when the IDs change. */
     bundles: Ref<BundleRow[]>;
     http?: HttpClient;
     getAuthToken?: () => string | null;
 }
 
 export interface UseBundleVersionsMapResult {
-    /** `bundleId → BundleVersionRow[]`. Leere Liste bei Bundles ohne Versionen. */
+    /** `bundleId → BundleVersionRow[]`. Empty list for bundles without versions. */
     versionsByBundle: Ref<Record<string, BundleVersionRow[]>>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
-    /** Erzwingt Neuladen aller Bundle-Versionen. */
+    /** Forces a reload of all bundle versions. */
     refresh: () => Promise<void>;
-    /** Refresh nur für ein einzelnes Bundle (z. B. nach Inline-Editor-Save). */
+    /** Refresh only a single bundle (e.g. after an inline-editor save). */
     refreshOne: (bundleId: string) => Promise<void>;
 }
 
@@ -99,7 +98,7 @@ export function useBundleVersionsMap(
         }
     }
 
-    // Auto-Refresh, wenn sich die Bundle-Liste ändert (Anlage, Soft-Delete).
+    // Auto-refresh when the bundle list changes (creation, soft-delete).
     watch(
         () => options.bundles.value.map((b) => b.id).join(','),
         () => {

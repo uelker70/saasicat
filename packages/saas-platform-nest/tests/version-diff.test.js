@@ -1,5 +1,5 @@
-// Tests für @saasicat/nest/billing — Version-Diff-Klassifikation.
-// Spec: ROADMAP_PLANS_AND_ENTITLEMENT.md §2 Nr. 2 (Regression-Regel).
+// Tests for @saasicat/nest/billing — version diff classification.
+// Spec: ROADMAP_PLANS_AND_ENTITLEMENT.md §2 No. 2 (regression rule).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -9,7 +9,7 @@ import { classifyPlanDiff } from '../dist/billing/index.js';
 // classifyPlanDiff
 // ──────────────────────────────────────────────────────────────────
 
-test('classifyPlanDiff — identische Versionen → keine Changes, nonRegressive=true', () => {
+test('classifyPlanDiff — identical versions → no changes, nonRegressive=true', () => {
     const v = {
         features: ['F1', 'F2'],
         maxUsers: 5,
@@ -23,7 +23,7 @@ test('classifyPlanDiff — identische Versionen → keine Changes, nonRegressive
     assert.equal(result.nonRegressive, true);
 });
 
-test('classifyPlanDiff — Limit-Erhöhung → IMPROVEMENT, nonRegressive=true', () => {
+test('classifyPlanDiff — limit increase → IMPROVEMENT, nonRegressive=true', () => {
     const oldV = {
         features: [],
         maxUsers: 3,
@@ -40,7 +40,7 @@ test('classifyPlanDiff — Limit-Erhöhung → IMPROVEMENT, nonRegressive=true',
     assert.equal(result.changes[0].direction, 'IMPROVEMENT');
 });
 
-test('classifyPlanDiff — Limit-Senkung → REGRESSION, nonRegressive=false', () => {
+test('classifyPlanDiff — limit decrease → REGRESSION, nonRegressive=false', () => {
     const oldV = {
         features: [],
         maxUsers: 5,
@@ -55,7 +55,7 @@ test('classifyPlanDiff — Limit-Senkung → REGRESSION, nonRegressive=false', (
     assert.equal(result.changes[0].direction, 'REGRESSION');
 });
 
-test('classifyPlanDiff — Preis-Erhöhung → REGRESSION', () => {
+test('classifyPlanDiff — price increase → REGRESSION', () => {
     const oldV = {
         features: [],
         maxUsers: 5,
@@ -74,7 +74,7 @@ test('classifyPlanDiff — Preis-Erhöhung → REGRESSION', () => {
     assert.equal(priceChange.newValue, '54.90');
 });
 
-test('classifyPlanDiff — Preis-Senkung → IMPROVEMENT', () => {
+test('classifyPlanDiff — price decrease → IMPROVEMENT', () => {
     const oldV = {
         features: [],
         maxUsers: 5,
@@ -90,7 +90,7 @@ test('classifyPlanDiff — Preis-Senkung → IMPROVEMENT', () => {
     assert.equal(priceChange.direction, 'IMPROVEMENT');
 });
 
-test('classifyPlanDiff — Feature entfernt → REGRESSION', () => {
+test('classifyPlanDiff — feature removed → REGRESSION', () => {
     const oldV = {
         features: ['F1', 'F2', 'F3'],
         maxUsers: 5,
@@ -107,7 +107,7 @@ test('classifyPlanDiff — Feature entfernt → REGRESSION', () => {
     assert.equal(removed.direction, 'REGRESSION');
 });
 
-test('classifyPlanDiff — Feature hinzu → IMPROVEMENT', () => {
+test('classifyPlanDiff — feature added → IMPROVEMENT', () => {
     const oldV = {
         features: ['F1'],
         maxUsers: 5,
@@ -124,7 +124,7 @@ test('classifyPlanDiff — Feature hinzu → IMPROVEMENT', () => {
     assert.equal(added.direction, 'IMPROVEMENT');
 });
 
-test('classifyPlanDiff — gemischt: 1 Verbesserung + 1 Regression → nonRegressive=false', () => {
+test('classifyPlanDiff — mixed: 1 improvement + 1 regression → nonRegressive=false', () => {
     const oldV = {
         features: ['F1', 'F2'],
         maxUsers: 3,
@@ -135,9 +135,9 @@ test('classifyPlanDiff — gemischt: 1 Verbesserung + 1 Regression → nonRegres
     };
     const newV = { ...oldV, maxUsers: 5, monthlyNet: '54.90' };
     const result = classifyPlanDiff(oldV, newV);
-    // ROADMAP §2 Nr. 2: "sobald MINDESTENS EINE einzelne Änderung REGRESSION
-    // hat, gilt die gesamte Version als regressiv" — auch bei positiven
-    // Anteilen.
+    // ROADMAP §2 No. 2: "as soon as AT LEAST ONE individual change is a
+    // REGRESSION, the entire version counts as regressive" — even when there
+    // are positive parts.
     assert.equal(result.nonRegressive, false);
 });
 
@@ -145,7 +145,7 @@ test('classifyPlanDiff — gemischt: 1 Verbesserung + 1 Regression → nonRegres
 // Decimal-like inputs
 // ──────────────────────────────────────────────────────────────────
 
-test('classifyPlanDiff — Decimal-like-Objekt mit toNumber() akzeptiert', () => {
+test('classifyPlanDiff — Decimal-like object with toNumber() accepted', () => {
     const decimal = { toNumber: () => 49.9 };
     const oldV = {
         features: [],

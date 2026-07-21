@@ -122,9 +122,9 @@ const props = defineProps<{
     previous: BusinessTypeVersionRow | null;
     warnings: StrictModeWarning[];
     /**
-     * Pure-Function-Diff-Klassifikator für BusinessTypeVersion. Konsument-
-     * Wrapper importiert `classifyBusinessTypeVersionDiff` aus
-     * `@saasicat/types` und reicht es durch.
+     * Pure-function diff classifier for BusinessTypeVersion. The consumer
+     * wrapper imports `classifyBusinessTypeVersionDiff` from
+     * `@saasicat/types` and passes it through.
      */
     classifyDiff: (
         previous: BusinessTypeVersionRow,

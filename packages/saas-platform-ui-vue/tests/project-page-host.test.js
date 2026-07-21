@@ -1,14 +1,14 @@
-// ProjectPageHost — Unit-Tests, die ohne echten DOM auskommen.
+// ProjectPageHost — unit tests that work without a real DOM.
 //
-// Vue 3 `app.mount()` braucht ein vollwertiges `window` (es nutzt
-// document/HTMLElement-APIs intern), das wir hier nicht stellen wollen ohne
-// jsdom-Dependency. Stattdessen prüfen wir:
-//   - dass `createProjectPageHostRoute()` ein konsistentes Route-Record-
-//     Shape zurückgibt;
-//   - dass die Plattform die Inject-Keys `SUPER_ADMIN_EXTENSIONS_KEY` und
-//     `SUPER_ADMIN_MANIFEST_KEY` exportiert (Vertrag mit dem App-Wiring);
-//   - dass `useSuperAdminManifest()` ohne provided Accessor `null` liefert.
-// Render-Fälle deckt der App-Build des Konsumenten am Live-DOM ab.
+// Vue 3 `app.mount()` needs a full-fledged `window` (it uses
+// document/HTMLElement APIs internally), which we don't want to provide here
+// without a jsdom dependency. Instead we verify:
+//   - that `createProjectPageHostRoute()` returns a consistent route-record
+//     shape;
+//   - that the platform exports the inject keys `SUPER_ADMIN_EXTENSIONS_KEY` and
+//     `SUPER_ADMIN_MANIFEST_KEY` (contract with the app wiring);
+//   - that `useSuperAdminManifest()` returns `null` without a provided accessor.
+// Render cases are covered by the consumer's app build against the live DOM.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,20 +23,20 @@ import {
 } from '../dist/index.js';
 
 describe('createProjectPageHostRoute', () => {
-    test('liefert eine Catch-all-Route mit ProjectPageHost-Komponente', () => {
+    test('returns a catch-all route with the ProjectPageHost component', () => {
         const route = createProjectPageHostRoute();
         assert.equal(route.path, ':projectPagePath(.+)');
         assert.equal(route.component, ProjectPageHost);
         assert.equal(route.meta?.isProjectPageHost, true);
     });
 
-    test('Pfad-Pattern lässt sich überschreiben', () => {
+    test('path pattern can be overridden', () => {
         const route = createProjectPageHostRoute({ path: ':bundleSlug' });
         assert.equal(route.path, ':bundleSlug');
         assert.equal(route.component, ProjectPageHost);
     });
 
-    test('matcht nicht den leeren /admin-Pfad, damit das Dashboard-Redirect greift', async () => {
+    test('does not match the empty /admin path so the dashboard redirect applies', async () => {
         const router = createRouter({
             history: createMemoryHistory(),
             routes: [
@@ -68,13 +68,13 @@ describe('createProjectPageHostRoute', () => {
     });
 });
 
-describe('ProjectPageHost — Plattform-Vertrag', () => {
-    test('exportiert SUPER_ADMIN_EXTENSIONS_KEY und SUPER_ADMIN_MANIFEST_KEY', () => {
+describe('ProjectPageHost — platform contract', () => {
+    test('exports SUPER_ADMIN_EXTENSIONS_KEY and SUPER_ADMIN_MANIFEST_KEY', () => {
         assert.equal(typeof SUPER_ADMIN_EXTENSIONS_KEY, 'symbol');
         assert.equal(typeof SUPER_ADMIN_MANIFEST_KEY, 'symbol');
     });
 
-    test('ProjectPageHost ist eine defineComponent-kompatible Komponente', () => {
+    test('ProjectPageHost is a defineComponent-compatible component', () => {
         assert.equal(typeof ProjectPageHost, 'object');
         assert.equal(ProjectPageHost.name, 'ProjectPageHost');
         assert.equal(typeof ProjectPageHost.setup, 'function');
@@ -82,7 +82,7 @@ describe('ProjectPageHost — Plattform-Vertrag', () => {
 });
 
 describe('useSuperAdminManifest', () => {
-    test('liefert null, wenn kein Accessor provided wurde', () => {
+    test('returns null when no accessor was provided', () => {
         const app = createApp({ render: () => null });
         let result = 'unset';
         const Probe = defineComponent({
@@ -91,19 +91,19 @@ describe('useSuperAdminManifest', () => {
                 return () => null;
             },
         });
-        // Inject ohne provide() laufen lassen
+        // Run inject without provide()
         app.runWithContext(() => {
             const probe = defineComponent({
                 setup: Probe.setup,
                 render: () => null,
             });
-            // Direkt setup() ausführen — kein Mount nötig
+            // Run setup() directly — no mount needed
             probe.setup();
         });
         assert.equal(result, null);
     });
 
-    test('liefert den Manifest-Wert via provided Accessor', () => {
+    test('returns the manifest value via a provided accessor', () => {
         const app = createApp({ render: () => null });
         const fakeManifest = { build: { manifestHash: 'abc' } };
         app.provide(SUPER_ADMIN_MANIFEST_KEY, () => fakeManifest);

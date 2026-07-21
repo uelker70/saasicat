@@ -1,10 +1,10 @@
-// useAuditEntries — Vue-Composable über den Admin-Audit-Endpoint.
+// useAuditEntries — Vue composable over the admin audit endpoint.
 //
-// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert
-// (z. B. `/api/admin/audit` oder `/api/v1/admin/audit`).
+// **The endpoint is mandatory** and is supplied by the consuming app
+// (e.g. `/api/admin/audit` or `/api/v1/admin/audit`).
 //
-// Konsument-Backend exposed den Endpoint via `AuditQueryPort.list`-Adapter.
-// Composable typisiert den Response als `AuditEntry[]`.
+// The consumer backend exposes the endpoint via an `AuditQueryPort.list` adapter.
+// The composable types the response as `AuditEntry[]`.
 
 import { ref, type Ref } from 'vue';
 import type { AuditEntry, AuditQuery } from '@saasicat/types';
@@ -12,8 +12,8 @@ import { useApiList, type UseApiListOptions, type UseApiListResult } from './use
 
 export interface UseAuditEntriesOptions {
     /**
-     * Voll-qualifizierter Audit-Endpoint inkl. App-globalPrefix
-     * (`/api/admin/audit`, `/api/v1/admin/audit`, …). Pflicht.
+     * Fully-qualified audit endpoint including the app's globalPrefix
+     * (`/api/admin/audit`, `/api/v1/admin/audit`, …). Mandatory.
      */
     endpoint: string;
     filter?: Ref<AuditQuery>;
@@ -35,8 +35,8 @@ export function useAuditEntries(options: UseAuditEntriesOptions): UseAuditEntrie
         );
     }
     const filter = options.filter ?? ref<AuditQuery>({});
-    // AuditQuery hat optional-only-Felder; Index-Signature-Cast für
-    // useApiList-Constraint.
+    // AuditQuery has optional-only fields; index-signature cast for the
+    // useApiList constraint.
     const list = useApiList<AuditEntry>({
         endpoint: options.endpoint,
         filter: filter as unknown as Ref<Record<string, unknown>>,

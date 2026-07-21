@@ -1,4 +1,4 @@
-// Quasar theme variables — überschreibe hier dein Branding.
+// Quasar theme variables — override your branding here.
 $primary: #1e40af;
 $secondary: #475569;
 $accent: #0ea5e9;

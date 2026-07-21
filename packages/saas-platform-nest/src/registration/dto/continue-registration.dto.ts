@@ -1,9 +1,9 @@
 import { IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
- * Eingabe fuer `POST /auth/register/continue`. Das Frontend liest den
- * `?resume=<jwt>`-Query aus dem Magic-Link der Resume-Mail und uebergibt
- * ihn an diesen Endpoint.
+ * Input for `POST /auth/register/continue`. The frontend reads the
+ * `?resume=<jwt>` query from the magic link in the resume email and passes
+ * it to this endpoint.
  */
 export class ContinueRegistrationDto {
     @IsString()

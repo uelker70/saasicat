@@ -1,7 +1,7 @@
-// Smoke-Tests für PromoCodePublicController.
-// Direktes Instanziieren ohne NestJS-Bootstrap, mit minimaler PromoCodesService-
-// Stub-Implementierung. RateLimitGuard wird nicht in diesen Tests exercised
-// (eigener Guard-Test).
+// Smoke tests for PromoCodePublicController.
+// Direct instantiation without NestJS bootstrap, using a minimal PromoCodesService
+// stub implementation. RateLimitGuard is not exercised in these tests
+// (has its own guard test).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,7 +45,7 @@ function buildReq() {
     };
 }
 
-test('preview reicht code/plan/billingCycle 1:1 an den Service durch', async () => {
+test('preview passes code/plan/billingCycle 1:1 through to the service', async () => {
     const promo = buildPromoStub();
     const ctrl = new PromoCodePublicController(promo);
     const result = await ctrl.preview(
@@ -60,7 +60,7 @@ test('preview reicht code/plan/billingCycle 1:1 an den Service durch', async () 
     assert.equal(call.billingCycle, 'YEARLY');
 });
 
-test('preview reicht email + ipHash + sessionId an den Service durch', async () => {
+test('preview passes email + ipHash + sessionId through to the service', async () => {
     const promo = buildPromoStub();
     const ctrl = new PromoCodePublicController(promo);
     await ctrl.preview(
@@ -78,7 +78,7 @@ test('preview reicht email + ipHash + sessionId an den Service durch', async () 
     assert.match(call.ipHash ?? '', /^ip[0-9a-f]+$/);
 });
 
-test('preview leitet invalid-Antwort 1:1 weiter', async () => {
+test('preview forwards invalid response 1:1', async () => {
     const promo = buildPromoStub({
         previewResult: { valid: false, reason: 'EXPIRED' },
     });
@@ -91,7 +91,7 @@ test('preview leitet invalid-Antwort 1:1 weiter', async () => {
     assert.equal(result.reason, 'EXPIRED');
 });
 
-test('preview funktioniert ohne authentifizierten Nutzer (sessionId undefined)', async () => {
+test('preview works without an authenticated user (sessionId undefined)', async () => {
     const promo = buildPromoStub();
     const ctrl = new PromoCodePublicController(promo);
     await ctrl.preview(

@@ -6,9 +6,9 @@
 </template>
 
 <script setup lang="ts">
-// Generischer Key-Value-Display-Block. Genutzt in Detail-Pages und
-// allen Stellen, an denen ein Label/Wert-Paar in einheitlichem Stil
-// gerendert werden soll.
+// Generic key-value display block. Used on detail pages and
+// everywhere a label/value pair should be rendered in a consistent
+// style.
 
 defineProps<{ label: string; value: string }>();
 </script>

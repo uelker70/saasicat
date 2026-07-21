@@ -1,9 +1,9 @@
-// BundlesController — REST-Endpunkte für `bundles` + `bundle_versions`.
+// BundlesController — REST endpoints for `bundles` + `bundle_versions`.
 //
-// Pfad-Konvention: alle Endpoints unter `/admin/catalog/bundles`. Der
-// Controller wird zur Boot-Zeit dynamisch gebaut, damit der Konsument die
-// Class-Level-Guards selbst bestimmt (`SuperAdminGuard`, MFA, …) — analog
-// zu DiscoveryController.
+// Path convention: all endpoints under `/admin/catalog/bundles`. The
+// controller is built dynamically at boot time so that the consumer decides
+// the class-level guards itself (`SuperAdminGuard`, MFA, …) — analogous to
+// DiscoveryController.
 
 import {
     Body,
@@ -33,8 +33,8 @@ import {
 } from './dto/bundles.dto.js';
 
 /**
- * Baut zur Boot-Zeit die Controller-Klasse mit den vom Konsumenten
- * konfigurierten Guards. Pattern analog zu `buildDiscoveryController`.
+ * Builds the controller class at boot time with the guards configured by the
+ * consumer. Pattern analogous to `buildDiscoveryController`.
  */
 export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/bundles')
@@ -45,7 +45,7 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
             private readonly service: BundlesService,
         ) {}
 
-        // ─── Stamm-Operationen ───
+        // ─── Root operations ───
 
         @Get()
         listBundles(@Query('projectKey') projectKey: string) {
@@ -76,7 +76,7 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
             await this.service.softDeleteBundle(bundleId);
         }
 
-        // ─── Version-Operationen ───
+        // ─── Version operations ───
 
         @Get(':id/versions')
         listVersions(@Param('id', new ParseUUIDPipe()) bundleId: string) {
@@ -109,10 +109,10 @@ export function buildBundlesController(guards: Array<Type<CanActivate>>): Type {
 }
 
 /**
- * Zweiter Controller mit den Version-spezifischen Endpunkten. Bewusst
- * separat, weil sie nicht über `bundles/:id/versions/:vid` gehen, sondern
- * über stabile Version-IDs (`/admin/catalog/bundle-versions/:id`) — so
- * kann das UI mit einem Version-ID-Refer arbeiten ohne Bundle-Lookup.
+ * Second controller with the version-specific endpoints. Deliberately
+ * separate, because they do not go through `bundles/:id/versions/:vid` but
+ * through stable version IDs (`/admin/catalog/bundle-versions/:id`) — this
+ * way the UI can work with a version-ID reference without a bundle lookup.
  */
 export function buildBundleVersionsController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin/catalog/bundle-versions')
@@ -148,7 +148,7 @@ export function buildBundleVersionsController(guards: Array<Type<CanActivate>>):
             @Body() dto: PublishBundleVersionDto,
         ) {
             return this.service.publishBundleVersion(versionId, {
-                publishedByUserId: null, // wird vom @CurrentUser() der App gesetzt; in M3 noch nicht verdrahtet
+                publishedByUserId: null, // set by the app's @CurrentUser(); not yet wired up in M3
                 forceRegressive: dto.forceRegressive,
                 allowZeroPrice: dto.allowZeroPrice,
                 validFrom: dto.validFrom,

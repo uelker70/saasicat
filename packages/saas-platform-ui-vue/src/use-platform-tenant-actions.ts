@@ -1,15 +1,15 @@
-// usePlatformTenantActions — kapselt die Orchestrierung, die vorher in
-// jedem App-Wrapper (den Tenants-Pages der Konsumenten-Admins)
-// dupliziert wurde:
-//   - MFA-Dialog-State + Promise-Resolver (Quasar-Dialog × Promise-Flow)
-//   - Confirm-Dialog-State + Promise-Resolver
-//   - `useTenantActionFlow`-Wiring (confirm/mfa/notify/onSuccess Providers)
-//   - Manifest → `TenantRowAction`-Mapping (icon/tone + condition/handler)
-//   - Drift-Diagnose (`realOrphans` mit Capability-Filter)
+// usePlatformTenantActions — encapsulates the orchestration that was
+// previously duplicated in every app wrapper (the tenants pages of the
+// consumer admins):
+//   - MFA dialog state + promise resolver (Quasar dialog × promise flow)
+//   - Confirm dialog state + promise resolver
+//   - `useTenantActionFlow` wiring (confirm/mfa/notify/onSuccess providers)
+//   - Manifest → `TenantRowAction` mapping (icon/tone + condition/handler)
+//   - Drift diagnosis (`realOrphans` with capability filter)
 //
-// Wird intern von `pages-standard/TenantsPage.vue` benutzt, wenn die App
-// einen `manifest`-Prop liefert. Apps müssen das State-Boilerplate dann
-// nicht mehr selbst aufsetzen.
+// Used internally by `pages-standard/TenantsPage.vue` when the app
+// provides a `manifest` prop. Apps then no longer have to set up the
+// state boilerplate themselves.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
@@ -32,19 +32,19 @@ export interface PlatformTenantActionRow<TRow extends TenantRowLike> {
 }
 
 export interface PlatformTenantActionsOptions<TRow extends TenantRowLike> {
-    /** Reaktive Manifest-Quelle — i. d. R. `storeToRefs(useManifestStore()).manifest`. */
+    /** Reactive manifest source — usually `storeToRefs(useManifestStore()).manifest`. */
     manifest: Ref<AdminManifest | null>;
-    /** Notify-Provider (Toast/Snackbar). */
+    /** Notify provider (toast/snackbar). */
     notify: (kind: 'positive' | 'negative', message: string) => void;
-    /** Success-Hook nach erfolgreichem Dispatch (z. B. Liste reloaden). */
+    /** Success hook after a successful dispatch (e.g. reload the list). */
     onSuccess: () => Promise<void> | void;
-    /** Row-spezifische Sichtbarkeit. Default: suspend nur für aktive, reactivate nur für inaktive Tenants. */
+    /** Row-specific visibility. Default: suspend only for active, reactivate only for inactive tenants. */
     visibleForRow?: (def: TenantActionDef, row: TRow) => boolean;
-    /** MFA-Dialog-Beschreibung. Default: `"{def.label} — Tenant „{row.name}". TOTP-Code aus Authenticator eingeben."`. */
+    /** MFA dialog description. Default: `"{def.label} — Tenant „{row.name}". TOTP-Code aus Authenticator eingeben."`. */
     mfaDescription?: (def: TenantActionDef, row: TRow) => string;
-    /** Manifest-Action → Icon. Default: suspend→block, reactivate→play_arrow, grant→star, revoke→star_outline, impersonate→switch_account, export→download, sonst→bolt. */
+    /** Manifest action → icon. Default: suspend→block, reactivate→play_arrow, grant→star, revoke→star_outline, impersonate→switch_account, export→download, otherwise→bolt. */
     iconForActionKey?: (actionKey: string) => string;
-    /** Manifest-Action → Tone. Default: suspend/revoke→negative, reactivate/grant→positive, sonst→primary. */
+    /** Manifest action → tone. Default: suspend/revoke→negative, reactivate/grant→positive, otherwise→primary. */
     toneForActionKey?: (actionKey: string) => PlatformTenantActionTone['tone'];
 }
 
@@ -67,15 +67,15 @@ export interface ConfirmDialogState<TRow extends TenantRowLike> {
 }
 
 export interface PlatformTenantActionsResult<TRow extends TenantRowLike> {
-    /** Reaktive Liste fertig konfigurierter Row-Actions — direkt an die Page-Action-Renderer reichen. */
+    /** Reactive list of fully configured row actions — pass straight to the page action renderer. */
     manifestActions: ComputedRef<PlatformTenantActionRow<TRow>[]>;
-    /** Manifest-Drift: deklarierte Actions ohne Handler (Capability=false rausgefiltert). */
+    /** Manifest drift: declared actions without a handler (Capability=false filtered out). */
     realOrphans: ComputedRef<string[]>;
-    // MFA-Dialog-State + Handler — direkt an `<MfaPromptDialog>` binden.
+    // MFA dialog state + handler — bind directly to `<MfaPromptDialog>`.
     mfa: Ref<MfaDialogState>;
     onMfaConfirm: (code: string) => void;
     onMfaDialogVisibility: (open: boolean) => void;
-    // Confirm-Dialog-State + Handler — direkt an `<TenantActionConfirmDialog>` binden.
+    // Confirm dialog state + handler — bind directly to `<TenantActionConfirmDialog>`.
     confirmDialog: Ref<ConfirmDialogState<TRow>>;
     onConfirmSubmit: (payload: { reason: string | null; extras?: Record<string, unknown> }) => void;
     onConfirmCancel: () => void;
@@ -113,16 +113,16 @@ const DEFAULT_TONE_FOR_ACTION_KEY = (actionKey: string): PlatformTenantActionTon
 };
 
 /**
- * Default-Helper für Apps, die `iconForActionKey` selbst überschreiben
- * wollen, aber als Fallback die Plattform-Defaults nutzen wollen.
+ * Default helper for apps that want to override `iconForActionKey`
+ * themselves but use the platform defaults as a fallback.
  */
 export function defaultIconForActionKey(actionKey: string): string {
     return DEFAULT_ICON_FOR_ACTION_KEY(actionKey);
 }
 
 /**
- * Default-Helper für Apps, die `toneForActionKey` selbst überschreiben
- * wollen, aber als Fallback die Plattform-Defaults nutzen wollen.
+ * Default helper for apps that want to override `toneForActionKey`
+ * themselves but use the platform defaults as a fallback.
  */
 export function defaultToneForActionKey(actionKey: string): PlatformTenantActionTone['tone'] {
     return DEFAULT_TONE_FOR_ACTION_KEY(actionKey);
@@ -136,11 +136,11 @@ export function usePlatformTenantActions<TRow extends TenantRowLike>(
     const toneForActionKey = options.toneForActionKey ?? DEFAULT_TONE_FOR_ACTION_KEY;
     const visibleForRow = options.visibleForRow ?? DEFAULT_VISIBLE_FOR_ROW;
 
-    // ── MFA-Dialog-State + Resolver ───────────────────────────────────
-    // Der `mfa`-Provider unten setzt `pendingMfaResolve` und wartet, bis
-    // `onMfaConfirm` (Submit) oder Abbruch (Update v-model auf false) ihn
-    // auflöst. Damit verschmilzt das deklarative Quasar-Dialog mit dem
-    // promise-basierten Action-Flow.
+    // ── MFA dialog state + resolver ───────────────────────────────────
+    // The `mfa` provider below sets `pendingMfaResolve` and waits until
+    // `onMfaConfirm` (submit) or cancellation (updating v-model to false)
+    // resolves it. This merges the declarative Quasar dialog with the
+    // promise-based action flow.
     const mfa = ref<MfaDialogState>({ show: false, description: '', error: '' });
     let pendingMfaResolve: ((code: string | null) => void) | null = null;
 
@@ -163,10 +163,10 @@ export function usePlatformTenantActions<TRow extends TenantRowLike>(
         mfa.value.show = false;
     }
 
-    // Dialog kann auch über v-close-popup (Abbrechen-Button), ESC oder
-    // Backdrop-Klick geschlossen werden — in dem Fall feuert nur
-    // `update:modelValue=false`, kein `@confirm`. Ohne diesen Handler würde
-    // der Action-Flow-Promise hängen.
+    // The dialog can also be closed via v-close-popup (cancel button), ESC
+    // or a backdrop click — in that case only `update:modelValue=false`
+    // fires, not `@confirm`. Without this handler the action-flow promise
+    // would hang.
     function onMfaDialogVisibility(open: boolean): void {
         mfa.value.show = open;
         if (!open && pendingMfaResolve) {
@@ -174,7 +174,7 @@ export function usePlatformTenantActions<TRow extends TenantRowLike>(
         }
     }
 
-    // ── Confirm-Dialog-State + Resolver ───────────────────────────────
+    // ── Confirm dialog state + resolver ───────────────────────────────
     const confirmDialog = ref<ConfirmDialogState<TRow>>({
         show: false,
         def: null,
@@ -228,11 +228,11 @@ export function usePlatformTenantActions<TRow extends TenantRowLike>(
     });
 
     // ── Manifest → TenantRowAction mapping ────────────────────────────
-    // `availableActions` ist row-unabhängig (Capability + Handler-Existenz)
-    // — die row-spezifische Sichtbarkeit kommt über `condition()` +
-    // `actionsForRow(row)`. Damit erscheint z. B. `tenants.reactivate`
-    // für inaktive Tenants, obwohl bei der Initial-Berechnung keine
-    // echte Row vorliegt.
+    // `availableActions` is row-independent (capability + handler existence)
+    // — the row-specific visibility comes via `condition()` +
+    // `actionsForRow(row)`. This is why e.g. `tenants.reactivate` appears
+    // for inactive tenants even though no real row is available during the
+    // initial computation.
     const manifestActions = computed<PlatformTenantActionRow<TRow>[]>(() =>
         flow.availableActions.value.map((def) => ({
             id: def.id,
@@ -246,21 +246,20 @@ export function usePlatformTenantActions<TRow extends TenantRowLike>(
                 const resolved = flow
                     .actionsForRow(row)
                     .find((a) => a.def.actionKey === def.actionKey);
-                // Kann nur passieren, wenn die Sichtbarkeit zwischen
-                // condition() und handler() gewechselt hat (z. B. paralleler
-                // Reload). Dann bricht der Composable den Flow sauber ab.
+                // Can only happen if the visibility changed between
+                // condition() and handler() (e.g. a parallel reload). In
+                // that case the composable aborts the flow cleanly.
                 void resolved?.invoke(row);
             },
         })),
     );
 
-    // ── Drift-Diagnose ────────────────────────────────────────────────
-    // Wir filtern Orphans, deren `requiredCapability` im Manifest auf
-    // `false` gesetzt ist, raus: Plattform-Core deklariert z. B.
-    // `tenants.impersonate` und `subscriptions.cancel`, die manche Apps
-    // bewusst nicht implementieren (Capability=false, Button bleibt
-    // ausgeblendet). Sie sind kein Drift, sondern absichtliche Nicht-
-    // Implementierung — nicht warnen.
+    // ── Drift diagnosis ───────────────────────────────────────────────
+    // We filter out orphans whose `requiredCapability` is set to `false`
+    // in the manifest: platform core declares e.g. `tenants.impersonate`
+    // and `subscriptions.cancel`, which some apps deliberately do not
+    // implement (Capability=false, the button stays hidden). These are
+    // not drift but intentional non-implementation — do not warn.
     const realOrphans = computed<string[]>(() => {
         const caps = options.manifest.value?.capabilities ?? {};
         const defs = options.manifest.value?.tenants?.actions ?? [];

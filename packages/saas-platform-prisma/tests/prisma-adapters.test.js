@@ -7,7 +7,7 @@ import {
 } from '../dist/index.js';
 
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P4.
-// Fake-PrismaLike — strukturelles Sub-Interface, das die Adapter erwarten.
+// Fake PrismaLike — structural sub-interface that the adapters expect.
 
 function fakePrisma() {
     const calls = { upsert: [], create: [], findUniqueMfa: [], findUniqueUser: [] };
@@ -57,13 +57,13 @@ function fakePrisma() {
 }
 
 describe('PrismaMfaAdapter', () => {
-    test('getSecret liefert null wenn kein Eintrag', async () => {
+    test('getSecret returns null when there is no entry', async () => {
         const p = fakePrisma();
         const a = new PrismaMfaAdapter(p);
         assert.equal(await a.getSecret('u1'), null);
     });
 
-    test('setSecret legt Eintrag mit enabledAt an', async () => {
+    test('setSecret creates an entry with enabledAt', async () => {
         const p = fakePrisma();
         const a = new PrismaMfaAdapter(p);
         await a.setSecret('u1', 'B32X');
@@ -71,7 +71,7 @@ describe('PrismaMfaAdapter', () => {
         assert.ok(p.state.mfa.get('u1').enabledAt instanceof Date);
     });
 
-    test('setSecret(null) entfernt Secret + enabledAt', async () => {
+    test('setSecret(null) removes secret + enabledAt', async () => {
         const p = fakePrisma();
         p.state.mfa.set('u1', { userId: 'u1', secret: 'X', enabledAt: new Date() });
         const a = new PrismaMfaAdapter(p);
@@ -80,7 +80,7 @@ describe('PrismaMfaAdapter', () => {
         assert.equal(p.state.mfa.get('u1').enabledAt, null);
     });
 
-    test('isEnabled = true nur wenn secret + enabledAt gesetzt', async () => {
+    test('isEnabled = true only when secret + enabledAt are set', async () => {
         const p = fakePrisma();
         const a = new PrismaMfaAdapter(p);
         assert.equal(await a.isEnabled('u1'), false);
@@ -92,7 +92,7 @@ describe('PrismaMfaAdapter', () => {
 });
 
 describe('PrismaAuditAdapter', () => {
-    test('write speichert mit CLI-Source-Mapping', async () => {
+    test('write stores with CLI source mapping', async () => {
         const p = fakePrisma();
         const a = new PrismaAuditAdapter(p);
         await a.write({
@@ -107,7 +107,7 @@ describe('PrismaAuditAdapter', () => {
         assert.deepEqual(p.state.audit[0].changes, { reason: 'demo' });
     });
 
-    test('write ohne changes default {}', async () => {
+    test('write without changes defaults to {}', async () => {
         const p = fakePrisma();
         const a = new PrismaAuditAdapter(p);
         await a.write({
@@ -122,12 +122,12 @@ describe('PrismaAuditAdapter', () => {
 });
 
 describe('AsyncLocalRlsBypassAdapter', () => {
-    test('isBypassActive = false ausserhalb runWithBypass', () => {
+    test('isBypassActive = false outside runWithBypass', () => {
         const a = new AsyncLocalRlsBypassAdapter();
         assert.equal(a.isBypassActive(), false);
     });
 
-    test('isBypassActive = true innerhalb runWithBypass', async () => {
+    test('isBypassActive = true inside runWithBypass', async () => {
         const a = new AsyncLocalRlsBypassAdapter();
         const result = await a.runWithBypass(async () => {
             assert.equal(a.isBypassActive(), true);
@@ -137,7 +137,7 @@ describe('AsyncLocalRlsBypassAdapter', () => {
         assert.equal(a.isBypassActive(), false);
     });
 
-    test('nested runWithBypass bleibt true im inneren Callback', async () => {
+    test('nested runWithBypass stays true in the inner callback', async () => {
         const a = new AsyncLocalRlsBypassAdapter();
         await a.runWithBypass(async () => {
             await a.runWithBypass(async () => {

@@ -7,14 +7,13 @@ import type {
 } from '@saasicat/types';
 
 /**
- * Baut den `ConfiguratorCatalog` (fuer Onboarding-Step 3) aus den
- * live `plan_versions` (SuperAdmin definiert Plans + Preise) plus der
- * App-spezifischen Plan-Marketing-Quelle (`ConfiguratorMarketingProvider`).
+ * Builds the `ConfiguratorCatalog` (for onboarding step 3) from the
+ * live `plan_versions` (SuperAdmin defines plans + prices) plus the
+ * app-specific plan-marketing source (`ConfiguratorMarketingProvider`).
  *
- * Bewusst kein DI auf den Marketing-Provider via Token — der Builder ist
- * eine reine Pure-Function-aehnliche Klasse, die Konsumenten direkt
- * aufrufen (typischerweise in einem App-Adapter, der
- * `RegistrationConfiguratorLookup.getCatalog()` implementiert).
+ * Deliberately no DI on the marketing provider via token — the builder is
+ * a pure-function-like class that consumers call directly (typically in an
+ * app adapter that implements `RegistrationConfiguratorLookup.getCatalog()`).
  */
 @Injectable()
 export class ConfiguratorCatalogBuilder {
@@ -46,7 +45,7 @@ function buildModel(
     marketing: Map<string, ReturnType<ConfiguratorMarketingProvider['listPlanMarketing']>[number]>,
 ): ConfiguratorCatalog['models'][number] | null {
     const m = marketing.get(row.planId);
-    if (!m) return null; // App hat keinen Marketing-Eintrag fuer diesen Plan → versteckt.
+    if (!m) return null; // App has no marketing entry for this plan → hidden.
     return {
         id: row.planId.toLowerCase(),
         code: m.code,
@@ -66,8 +65,8 @@ function buildModel(
 function normalizeQuotas(quotas: Record<string, number>): Record<string, number> {
     const out: Record<string, number> = {};
     for (const [k, v] of Object.entries(quotas)) {
-        // Plan-Catalog speichert `-1` als "unbegrenzt" — wir mappen das auf
-        // einen hohen Wert, damit die UI numerisch rechnen kann.
+        // The plan catalog stores `-1` as "unlimited" — we map that to a high
+        // value so the UI can compute numerically.
         out[k] = v === -1 ? Number.MAX_SAFE_INTEGER : v;
     }
     return out;

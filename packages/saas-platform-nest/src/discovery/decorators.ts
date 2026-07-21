@@ -1,13 +1,13 @@
-// Discovery-Decorators für Code-Capabilities, Quotas und Runtime-Enforcement.
+// Discovery decorators for code capabilities, quotas and runtime enforcement.
 //
-// Vier Decorators:
-//   - @ImplementsCapability(key, options)  — Methoden-Level: Discovery-Marker
-//   - @RequiresCapability(...keys)         — Methoden-/Klassen-Level: Runtime-Guard
-//   - @DefinesQuota(options)               — Klassen-Level: QuotaProvider-Marker
-//   - @EnforceQuota(key, options)          — Methoden-Level: Runtime-Increment
+// Four decorators:
+//   - @ImplementsCapability(key, options)  — method level: Discovery marker
+//   - @RequiresCapability(...keys)         — method/class level: runtime guard
+//   - @DefinesQuota(options)               — class level: QuotaProvider marker
+//   - @EnforceQuota(key, options)          — method level: runtime increment
 //
-// Pattern analog zu billing/require-feature.decorator.ts: SetMetadata aus
-// @nestjs/common; der Discovery-Scanner liest die Metadata zur Boot-Zeit
+// Pattern analogous to billing/require-feature.decorator.ts: SetMetadata from
+// @nestjs/common; the Discovery scanner reads the metadata at boot time
 // via Reflector + DiscoveryService.
 
 import { SetMetadata } from '@nestjs/common';
@@ -25,29 +25,29 @@ import type {
 } from './types.js';
 
 /**
- * Internal-Metadata-Shape, unter dem `@ImplementsCapability` die Daten ablegt.
- * Der Scanner liest das wieder aus.
+ * Internal metadata shape under which `@ImplementsCapability` stores its data.
+ * The scanner reads it back out.
  */
 export interface ImplementsCapabilityMetadata extends ImplementsCapabilityOptions {
     capabilityKey: string;
 }
 
 /**
- * Markiert eine Methode als Implementierung einer technischen Capability.
+ * Marks a method as the implementation of a technical capability.
  *
- * Die Capability ist die kleinste prüfbare Einheit (z. B. `invoice.create`).
- * Mehrere Methoden können dieselbe Capability deklarieren — der
- * Discovery-Scanner dedupliziert nach `capabilityKey`.
+ * The capability is the smallest checkable unit (e.g. `invoice.create`).
+ * Multiple methods may declare the same capability — the
+ * Discovery scanner deduplicates by `capabilityKey`.
  *
- * Optionale Felder:
- * - `feature` aggregiert Capabilities zu Feature-Hüllen, die der
- *   SuperAdmin in Plans referenzieren kann.
- * - `status` steuert Sichtbarkeit/Lifecycle (default `active`).
- * - `kind` deklariert die Implementierungs-Art (default `endpoint`).
+ * Optional fields:
+ * - `feature` aggregates capabilities into feature wrappers that the
+ *   SuperAdmin can reference in plans.
+ * - `status` controls visibility/lifecycle (default `active`).
+ * - `kind` declares the implementation kind (default `endpoint`).
  *
- * **Bundles werden bewusst NICHT im Decorator deklariert** (SPEC_V2 §3.1).
- * Sie entstehen ausschließlich im SuperAdmin-UI (DB-Tabelle `bundles`),
- * indem der Admin Features dort gruppiert.
+ * **Bundles are deliberately NOT declared in the decorator** (SPEC_V2 §3.1).
+ * They are created exclusively in the SuperAdmin UI (DB table `bundles`),
+ * by the admin grouping features there.
  *
  * @example
  * ```ts
@@ -71,13 +71,13 @@ export const ImplementsCapability = (
     } satisfies ImplementsCapabilityMetadata);
 
 /**
- * Runtime-Guard: Tenant muss **alle** angegebenen Capabilities haben.
- * Mehrere Aufrufe (oder mehrere Keys) werden als Logical-AND ausgewertet.
+ * Runtime guard: the tenant must have **all** specified capabilities.
+ * Multiple calls (or multiple keys) are evaluated as a logical AND.
  *
- * Im Gegensatz zu `@RequireFeature(...)` (existiert in
- * `billing/require-feature.decorator.ts`, Logical-OR) prüft Capability-Guard
- * auf Capability-Ebene — feinkörniger, weil ein Feature mehrere Capabilities
- * hat.
+ * In contrast to `@RequireFeature(...)` (defined in
+ * `billing/require-feature.decorator.ts`, logical OR), the capability guard
+ * checks at the capability level — finer-grained, because a feature has
+ * multiple capabilities.
  *
  * @example
  * ```ts
@@ -91,13 +91,12 @@ export const RequiresCapability = (...capabilityKeys: string[]) =>
     SetMetadata(REQUIRES_CAPABILITY_KEY, capabilityKeys);
 
 /**
- * Markiert eine Klasse als QuotaProvider für einen QuotaKey. Der
- * Discovery-Scanner aggregiert daraus die Liste aller im Code definierten
- * Quotas; der SuperAdmin kann diese in Plans/Bundles als Limits
- * referenzieren.
+ * Marks a class as a QuotaProvider for a QuotaKey. The
+ * Discovery scanner aggregates from it the list of all quotas defined in
+ * code; the SuperAdmin can reference these as limits in plans/bundles.
  *
- * Eine Klasse darf mehrere `@DefinesQuota`-Decorators haben (z. B. ein
- * Provider, der Counter für mehrere QuotaKeys hält).
+ * A class may have multiple `@DefinesQuota` decorators (e.g. a
+ * provider that holds counters for multiple QuotaKeys).
  *
  * @example
  * ```ts
@@ -116,19 +115,19 @@ export const DefinesQuota = (options: DefinesQuotaOptions) =>
     SetMetadata(DEFINES_QUOTA_KEY, options);
 
 /**
- * Internal-Metadata-Shape, unter dem `@EnforceQuota` die Daten ablegt.
+ * Internal metadata shape under which `@EnforceQuota` stores its data.
  */
 export interface EnforceQuotaMetadata extends EnforceQuotaOptions {
     quotaKey: string;
 }
 
 /**
- * Runtime-Enforcement: prüft + inkrementiert einen Quota-Counter pro Aufruf.
- * Der zugehörige `@DefinesQuota`-Provider muss in mindestens einer Klasse
- * registriert sein (Strict-Mode-Check verifiziert das).
+ * Runtime enforcement: checks + increments a quota counter per call.
+ * The corresponding `@DefinesQuota` provider must be registered in at least
+ * one class (the strict-mode check verifies this).
  *
- * Default `incrementBy: 1`, `timing: 'before'`. Bei Quota-Überschreitung
- * wirft der QuotaGuard eine `LimitExceededError` (siehe
+ * Default `incrementBy: 1`, `timing: 'before'`. On quota overrun the
+ * QuotaGuard throws a `LimitExceededError` (see
  * `entitlement/limit-exceeded-error.ts`).
  *
  * @example

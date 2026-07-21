@@ -1,10 +1,10 @@
 // DoctorFlow — `<app> doctor`.
 //
-// Ausführbarer Health-Check-Lauf: lädt eine Liste von `DoctorCheck`-
-// Implementierungen und führt sie nacheinander aus. Konsumenten registrieren
-// projektspezifische Checks (z. B. Sidecar-Reachability,
-// Stammdaten-Vollständigkeit) zusätzlich zu den Plattform-
-// Default-Checks.
+// Executable health-check run: loads a list of `DoctorCheck`
+// implementations and runs them one after another. Consumers register
+// project-specific checks (e.g. sidecar reachability,
+// master-data completeness) in addition to the platform
+// default checks.
 
 import { Inject, Injectable } from '@nestjs/common';
 import { DOCTOR_CHECKS_TOKEN } from './tokens.js';
@@ -12,9 +12,9 @@ import { DOCTOR_CHECKS_TOKEN } from './tokens.js';
 export type CheckSeverity = 'ok' | 'warning' | 'error';
 
 export interface DoctorCheck {
-    /** Eindeutiger Slug (z. B. "platform.user-port", "demoapp.kosit-sidecar"). */
+    /** Unique slug (e.g. "platform.user-port", "demoapp.kosit-sidecar"). */
     readonly id: string;
-    /** Anzeigetext im Output. */
+    /** Display text in the output. */
     readonly label: string;
     run(): Promise<DoctorCheckResult>;
 }
@@ -22,12 +22,12 @@ export interface DoctorCheck {
 export interface DoctorCheckResult {
     severity: CheckSeverity;
     message: string;
-    /** Optional: Detail-Daten für den JSON-Output. */
+    /** Optional: detail data for the JSON output. */
     details?: Record<string, unknown>;
 }
 
 export interface DoctorReport {
-    /** Gesamtstatus = max(severity) über alle Checks. */
+    /** Overall status = max(severity) across all checks. */
     overall: CheckSeverity;
     checks: Array<{
         id: string;
@@ -57,7 +57,7 @@ export class DoctorFlow {
                     id: check.id,
                     label: check.label,
                     severity: 'error',
-                    message: `Check warf eine Exception: ${message}`,
+                    message: `Check threw an exception: ${message}`,
                 });
                 overall = 'error';
             }
@@ -66,7 +66,7 @@ export class DoctorFlow {
         return { overall, checks: results };
     }
 
-    /** Liefert den passenden CLI-Exit-Code: 0 bei `ok`/`warning`, 4 bei `error`. */
+    /** Returns the appropriate CLI exit code: 0 for `ok`/`warning`, 4 for `error`. */
     exitCodeFor(report: DoctorReport): number {
         return report.overall === 'error' ? 4 : 0;
     }

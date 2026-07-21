@@ -1,9 +1,9 @@
 // AuditTailFlow — `<app> audit tail [--actor=<email>] [--action=<X>] [--entity=<Y>]
 //                                    [--since=<ISO>] [--limit=<N>]`.
 //
-// Liest die letzten Audit-Log-Einträge über `AuditQueryPort` und formatiert
-// sie als ASCII-Tabelle. Lese-only — kein MFA, kein Audit-Log, keine
-// Production-Confirm.
+// Reads the most recent audit-log entries via `AuditQueryPort` and formats
+// them as an ASCII table. Read-only — no MFA, no audit log, no
+// production confirm.
 
 import { Inject, Injectable } from '@nestjs/common';
 import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/types';
@@ -14,7 +14,7 @@ export interface AuditTailOptions {
     action?: string;
     entity?: string;
     since?: string;
-    /** Default 50, max 500 — vom Konsumenten-Adapter durchgesetzt. */
+    /** Default 50, max 500 — enforced by the consumer adapter. */
     limit?: number;
 }
 
@@ -32,7 +32,7 @@ export class AuditTailFlow {
         return this.auditQuery.list(filter);
     }
 
-    /** Ergebnis als ASCII-Tabelle für `console.table` formatieren. */
+    /** Format the result as an ASCII table for `console.table`. */
     formatRows(entries: AuditEntry[]): Record<string, string>[] {
         return entries.map((e) => ({
             createdAt: e.createdAt,

@@ -24,7 +24,7 @@
             </div>
 
             <template v-else-if="data">
-                <!-- Stammdaten -->
+                <!-- Master data -->
                 <div class="sa-card q-mb-md">
                     <header class="sa-tenant-detail__card-head">
                         <div>
@@ -72,7 +72,7 @@
                     </slot>
                 </div>
 
-                <!-- Verbrauch -->
+                <!-- Usage -->
                 <div v-if="verbrauchFields.length > 0" class="sa-card q-mb-md">
                     <h3 class="sa-card__title">{{ verbrauchLabel }}</h3>
                     <div class="sa-tenant-detail__grid">
@@ -146,15 +146,15 @@ export interface TenantDetailData {
         pilotEndsAt?: string | null;
     } | null;
     users?: Array<Record<string, unknown> & { id: string }>;
-    /** Frei wählbare Verbrauchszahlen — Page rendert sie über `verbrauchFields`. */
+    /** Freely selectable usage numbers — the page renders them via `verbrauchFields`. */
     counts?: Record<string, number | string>;
 }
 
 export interface VerbrauchField {
     label: string;
-    /** Lookup-Key in `data.counts`. */
+    /** Lookup key in `data.counts`. */
     key?: string;
-    /** Alternative: Custom-Getter. Hat Vorrang vor `key`. */
+    /** Alternative: custom getter. Takes precedence over `key`. */
     getter?: (data: TenantDetailData) => string | number;
 }
 

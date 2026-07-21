@@ -1,10 +1,10 @@
-// AdminModule — DI-Wrapper um die SuperAdmin-Bausteine.
+// AdminModule — DI wrapper around the SuperAdmin building blocks.
 //
-// Konsumenten registrieren die drei Adapter (`MfaPort`, `AuditPort`,
-// `RlsBypassPort`) über `AdminModule.forRoot({...})` und bekommen die
-// Plattform-Services (`MfaService`, `AdminAuditService`) plus die
-// Guards/Interceptor (`SuperAdminGuard`, `MfaGuard`,
-// `AdminBypassRlsInterceptor`) als injectable Provider zurück.
+// Consumers register the three adapters (`MfaPort`, `AuditPort`,
+// `RlsBypassPort`) via `AdminModule.forRoot({...})` and get back the
+// platform services (`MfaService`, `AdminAuditService`) plus the
+// guards/interceptor (`SuperAdminGuard`, `MfaGuard`,
+// `AdminBypassRlsInterceptor`) as injectable providers.
 
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
 import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/types';
@@ -20,7 +20,7 @@ export interface AdminModuleOptions {
     mfaPort: ProviderSpec<MfaPort>;
     auditPort: ProviderSpec<AuditPort>;
     rlsBypassPort: ProviderSpec<RlsBypassPort>;
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 

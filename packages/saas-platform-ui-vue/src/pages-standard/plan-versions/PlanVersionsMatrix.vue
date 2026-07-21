@@ -55,11 +55,11 @@ import { computed } from 'vue';
 import type { CatalogSnapshot } from '../../plan-versions-catalog.js';
 import { fmtEuro } from './format.js';
 
-// Generische Feature-Matrix. Apps reichen `featureRegistry` für Label/Icon/
-// PlannedOnly-Hint und optional `featureGroups` für die UX-Gruppierung der
-// Reihen (z. B. Kern, Rechnung, Daten, …).
+// Generic feature matrix. Apps pass `featureRegistry` for label/icon/
+// plannedOnly hint and optionally `featureGroups` for the UX grouping of
+// the rows (e.g. Core, Billing, Data, …).
 //
-// Ohne `featureGroups` rendert die Matrix eine einzige Gruppe ohne Header.
+// Without `featureGroups` the matrix renders a single group without a header.
 
 interface FeatureMeta {
     label?: string;
@@ -68,11 +68,11 @@ interface FeatureMeta {
 }
 
 interface FeatureGroupsConfig {
-    /** Reihenfolge der Gruppen-Header. */
+    /** Order of the group headers. */
     order: readonly string[];
-    /** Map FeatureKey → Gruppen-Name. Unzugeordnete Features landen in „Sonstige". */
+    /** Map featureKey → group name. Unassigned features land in "Sonstige". */
     byKey: Record<string, string>;
-    /** Default-Bucket für Features ohne `byKey`-Eintrag. Default: 'Sonstige'. */
+    /** Default bucket for features without a `byKey` entry. Default: 'Sonstige'. */
     fallbackGroup?: string;
 }
 

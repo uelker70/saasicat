@@ -1,10 +1,10 @@
-// PublicMarketingCatalogService — auth-freie Marketing-Projektion für die
-// Webseite (Pricing-Page). Merged marketed Plans + Live-PlanVersion-Pricing
-// + MarketingProjection (Locale) + aktive Promotions + Vergleichs-Matrix.
+// PublicMarketingCatalogService — auth-free marketing projection for the
+// website (pricing page). Merges marketed plans + live PlanVersion pricing
+// + MarketingProjection (locale) + active promotions + comparison matrix.
 //
-// Top-Feature-Labels mit `key`-Referenz werden hier locale-aufgelöst
-// (`FeatureCatalogEntry`/`QuotaCatalogEntry` i18n) — die Karte bleibt
-// sprach-reaktiv.
+// Top-feature labels with a `key` reference are locale-resolved here
+// (`FeatureCatalogEntry`/`QuotaCatalogEntry` i18n) — the card stays
+// language-reactive.
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import {
@@ -47,7 +47,7 @@ function toNumber(decimal: string | null): number | null {
 interface FeatureMeta {
     label: string;
     sortOrder: number;
-    /** Code-discoverte Feature-Abhängigkeiten (#35) aus dem FeatureCatalogEntry. */
+    /** Code-discovered feature dependencies (#35) from the FeatureCatalogEntry. */
     requires: string[];
 }
 interface QuotaMeta {
@@ -69,13 +69,13 @@ export class PublicMarketingCatalogService {
         private readonly marketingRepo: MarketingProjectionRepository,
         @Inject(PROMOTION_REPOSITORY_TOKEN)
         private readonly promotionRepo: PromotionRepository,
-        // Optional — liefert lesbare, übersetzte Feature-/Quota-Labels für
-        // Top-Features + Matrix. Fehlt der Adapter, Fallback auf die Keys.
+        // Optional — supplies readable, translated feature/quota labels for
+        // top features + matrix. If the adapter is missing, falls back to the keys.
         @Optional()
         @Inject(CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntryRepo: CatalogEntryRepository | null = null,
-        // P11.7.3 + P11.7.4 — Bundle-Anzeige im Public-Catalog. Optional;
-        // ohne Adapter bleibt `bundles: []` (Plan-only-Vermarktung).
+        // P11.7.3 + P11.7.4 — bundle display in the public catalog. Optional;
+        // without the adapter, `bundles: []` remains (plan-only marketing).
         @Optional()
         @Inject(BUNDLE_REPOSITORY_TOKEN)
         private readonly bundleRepo: BundleRepository | null = null,
@@ -89,9 +89,9 @@ export class PublicMarketingCatalogService {
         asOf: Date = new Date(),
     ): Promise<PublicMarketingCatalogResponse> {
         const empty = { features: [], quotas: [] };
-        // `findActivePlanVersion` ist zeit-bewusst (validFrom/validUntil);
-        // Fallback auf `findLatestLivePlanVersion` für Adapter, die noch
-        // nicht auf SPEC_V2 §4.2 (Gültigkeitszeitraum) gehoben sind.
+        // `findActivePlanVersion` is time-aware (validFrom/validUntil);
+        // falls back to `findLatestLivePlanVersion` for adapters not yet
+        // raised to SPEC_V2 §4.2 (validity period).
         const findActive = this.planRepo.findActivePlanVersion?.bind(this.planRepo);
         const findLatest = this.planRepo.findLatestLivePlanVersion?.bind(this.planRepo);
         if (!findActive && !findLatest) {
@@ -163,8 +163,8 @@ export class PublicMarketingCatalogService {
         }
 
         out.sort((a, b) => b.priority - a.priority);
-        // requiresFeatures (#35): Index einmal pro Request aus den geladenen
-        // FeatureCatalogEntries — ohne CatalogEntryRepository leer → [].
+        // requiresFeatures (#35): index built once per request from the loaded
+        // FeatureCatalogEntries — empty without a CatalogEntryRepository → [].
         const requiresIndex = buildFeatureRequiresIndex(
             [...labelMeta.features].map(([featureKey, meta]) => ({
                 featureKey,
@@ -190,10 +190,10 @@ export class PublicMarketingCatalogService {
     }
 
     /**
-     * Lädt alle published-and-live Bundle-Versions für ein Project und
-     * filtert auf `marketed === true`. Ohne registriertes
-     * `BundleRepository` (Apps ohne SuperAdmin-Bundle-Editor) leere
-     * Liste — Public-Catalog bleibt Plan-only.
+     * Loads all published-and-live bundle versions for a project and
+     * filters on `marketed === true`. Without a registered
+     * `BundleRepository` (apps without the SuperAdmin bundle editor) the
+     * list is empty — the public catalog stays plan-only.
      */
     private async loadMarketedBundles(projectKey: string): Promise<BundleVersionRow[]> {
         if (!this.bundleRepo) return [];
@@ -209,14 +209,14 @@ export class PublicMarketingCatalogService {
     }
 
     /**
-     * Map BundleVersionRow → PublicMarketingBundle. Locale-Auflösung
-     * läuft über `MarketingProjectionRepository.findByTarget('BUNDLE',
-     * bundleVersionId, locale)` — bei Fehlen wird auf `DEFAULT_LOCALE`
-     * gefallback. Wenn auch der Fallback fehlt, kommen Label/Description
-     * direkt aus dem Bundle-Stamm (denormalisiert in `BundleVersionRow`).
+     * Maps BundleVersionRow → PublicMarketingBundle. Locale resolution
+     * runs via `MarketingProjectionRepository.findByTarget('BUNDLE',
+     * bundleVersionId, locale)` — on a miss it falls back to
+     * `DEFAULT_LOCALE`. If the fallback is missing too, label/description
+     * come directly from the bundle root (denormalized in `BundleVersionRow`).
      *
-     * Wenn die Marketing-Projection `visible === false` ist, wird das
-     * Bundle aus der Public-Antwort ausgeblendet (Vorbereitungs-Phase).
+     * If the marketing projection is `visible === false`, the bundle is
+     * hidden from the public response (preparation phase).
      */
     private async toPublicBundle(
         bv: BundleVersionRow,
@@ -263,11 +263,11 @@ export class PublicMarketingCatalogService {
     }
 
     /**
-     * Labels für Bundle-Features ∪ deren requires (#48): `comparison.features`
-     * deckt nur die Plan-Feature-Union ab — Bundle-only-Features bekämen im
-     * Public-Payload sonst kein Label. Nur kuratierte Keys; ohne
-     * CatalogEntryRepository bleibt die Map leer (Frontends fallen auf den
-     * Key zurück).
+     * Labels for bundle features ∪ their requires (#48): `comparison.features`
+     * only covers the plan-feature union — bundle-only features would
+     * otherwise get no label in the public payload. Curated keys only;
+     * without a CatalogEntryRepository the map stays empty (frontends fall
+     * back to the key).
      */
     private resolveBundleFeatureLabels(
         featureKeys: string[],
@@ -281,7 +281,7 @@ export class PublicMarketingCatalogService {
         return labels;
     }
 
-    /** Lädt die übersetzten Feature-/Quota-Labels (+ sortOrder) für eine Locale. */
+    /** Loads the translated feature/quota labels (+ sortOrder) for a locale. */
     private async loadLabelMeta(projectKey: string, locale: string): Promise<LabelMeta> {
         const features = new Map<string, FeatureMeta>();
         const quotas = new Map<string, QuotaMeta>();
@@ -309,15 +309,15 @@ export class PublicMarketingCatalogService {
     }
 
     /**
-     * Löst das angezeigte Label eines Top-Features auf: `label`-Override
-     * gewinnt; sonst das übersetzte Label des referenzierten `key`.
+     * Resolves the displayed label of a top feature: the `label` override
+     * wins; otherwise the translated label of the referenced `key`.
      */
     private resolveTopFeature(tf: MarketingTopFeature, meta: LabelMeta): MarketingTopFeature {
         let key = tf.key;
         let override = (tf.label ?? '').trim();
-        // Migration: Alt-Einträge ohne `key`, deren `label` selbst ein
-        // bekannter Feature-/Quota-Key ist, werden key-referenziert behandelt
-        // — so wird auch ungemigrierter Bestand locale-aufgelöst.
+        // Migration: legacy entries without a `key` whose `label` is itself a
+        // known feature/quota key are treated as key-referenced — so even
+        // unmigrated data gets locale-resolved.
         if (!key && override && (meta.features.has(override) || meta.quotas.has(override))) {
             key = override;
             override = '';
@@ -328,7 +328,7 @@ export class PublicMarketingCatalogService {
         return { key, label: resolved, strong: tf.strong ?? '' };
     }
 
-    /** Zeilen-Definitionen der Vergleichs-Matrix (Feature-/Quota-Union + Labels). */
+    /** Row definitions of the comparison matrix (feature/quota union + labels). */
     private buildComparison(
         plans: PublicMarketingPlan[],
         meta: LabelMeta,
@@ -340,11 +340,11 @@ export class PublicMarketingCatalogService {
             for (const q of Object.keys(plan.quotas)) quotaKeys.add(q);
         }
 
-        // Treppen-Sortierung: zuerst Features mit der breitesten Plan-Abdeckung,
-        // bei Gleichstand zuerst die in den vorderen Plan-Spalten enthaltenen
-        // (Spaltenreihenfolge = Payload-Reihenfolge der Pläne), dann Label.
-        // Frontends rendern die Zeilen in Payload-Reihenfolge — so entsteht
-        // überall dieselbe Treppenmatrix wie im AdminUI-Plan-Vergleich.
+        // Staircase sort: features with the broadest plan coverage first,
+        // on a tie those contained in the leading plan columns first
+        // (column order = payload order of the plans), then by label.
+        // Frontends render the rows in payload order — producing the same
+        // staircase matrix everywhere as in the AdminUI plan comparison.
         const presence = new Map<string, { count: number; mask: string }>();
         for (const key of featureKeys) {
             let count = 0;

@@ -32,9 +32,9 @@
 </template>
 
 <script setup lang="ts">
-// WizardStepper — generische Schritt-Leiste für mehrstufige SuperAdmin-
-// Wizards (Plan-Anlage, Bundle-Anlage, …). Rein präsentativ: der Host
-// steuert `currentIndex`; die Komponente kennt den Flow nicht.
+// WizardStepper — generic step bar for multi-step SuperAdmin
+// wizards (plan creation, bundle creation, …). Purely presentational: the host
+// controls `currentIndex`; the component does not know the flow.
 
 export interface WizardStep {
     label: string;
@@ -42,9 +42,9 @@ export interface WizardStep {
 
 defineProps<{
     steps: WizardStep[];
-    /** 0-basierter Index des aktuellen Schritts. */
+    /** 0-based index of the current step. */
     currentIndex: number;
-    /** Optionaler Hinweistext, rechtsbündig (z. B. „Jederzeit als Draft speicherbar"). */
+    /** Optional hint text, right-aligned (e.g. "Jederzeit als Draft speicherbar"). */
     hint?: string;
 }>();
 </script>

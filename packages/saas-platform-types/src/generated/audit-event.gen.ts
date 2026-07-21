@@ -1,44 +1,44 @@
-// AUTO-GENERATED — nicht manuell editieren.
+// AUTO-GENERATED — do not edit manually.
 //
-// Quelle: @saasicat/spec/schemas/audit-event.schema.json
-// Regenerieren: `pnpm --filter @saasicat/types gen:types`
-// Drift-Gate: tests/codegen-drift.test.js bricht den PR, wenn Schema und
-// generierter Output auseinanderlaufen.
+// Source: @saasicat/spec/schemas/audit-event.schema.json
+// Regenerate: `pnpm --filter @saasicat/types gen:types`
+// Drift gate: tests/codegen-drift.test.js fails the PR when the schema and
+// the generated output diverge.
 
 /**
- * Sprach-neutrales Format eines AuditLog-Eintrags. Pro Konsument-App eigene AuditLog-Tabelle, gleiche Struktur.
+ * Language-neutral format of an AuditLog entry. Each consumer app has its own AuditLog table, same structure.
  */
 export interface AuditEvent {
     id: string;
     /**
-     * null = Plattform-Aktion (z. B. SUPER_ADMIN ohne Mandantenkontext).
+     * null = platform action (e.g. SUPER_ADMIN without tenant context).
      */
     tenantId?: string | null;
     /**
-     * null = System / Cron-getriggert.
+     * null = system / cron-triggered.
      */
     userId?: string | null;
     /**
-     * Convenience-Lookup für die Anzeige; Backend resolvet aus userId.
+     * Convenience lookup for display; backend resolves from userId.
      */
     userEmail?: string | null;
     /**
-     * z. B. 'Tenant', 'PromoCode', 'Subscription', 'PlanVersion', 'User'.
+     * e.g. 'Tenant', 'PromoCode', 'Subscription', 'PlanVersion', 'User'.
      */
     entity: string;
     entityId: string;
     /**
-     * SCREAMING_SNAKE_CASE, vergangenheitsform-orientiert. Beispiele: TENANT_SUSPEND, PILOT_GRANT, PROMO_CODE_CREATE, PLAN_VERSION_PUBLISH.
+     * SCREAMING_SNAKE_CASE, past-tense oriented. Examples: TENANT_SUSPEND, PILOT_GRANT, PROMO_CODE_CREATE, PLAN_VERSION_PUBLISH.
      */
     action: string;
     /**
-     * Frei strukturiertes JSON. Konvention für Feld-Diffs: { field: { old, new } }. Für Workflow-Aktionen: { reason, actor_tag, ... }.
+     * Freely structured JSON. Convention for field diffs: { field: { old, new } }. For workflow actions: { reason, actor_tag, ... }.
      */
     changes?: {
         [k: string]: unknown;
     } | null;
     /**
-     * Herkunfts-Marker. Format: 'web:<email>:<sessionId>' oder 'cli:<email>:<host>'.
+     * Origin marker. Format: 'web:<email>:<sessionId>' or 'cli:<email>:<host>'.
      */
     actorTag?: string | null;
     ipAddress?: string | null;
@@ -47,12 +47,12 @@ export interface AuditEvent {
 }
 
 /**
- * Verbindliches Format für actorTag.
+ * Mandatory format for actorTag.
  */
 export type ActorTagPattern = string;
 
 /**
- * Query-Parameter für GET /api/v1/admin/audit. Vorlage admin-api.openapi.yaml.
+ * Query parameters for GET /api/v1/admin/audit. Template admin-api.openapi.yaml.
  */
 export interface AuditQuery {
     tenantId?: string;
@@ -61,7 +61,7 @@ export interface AuditQuery {
     entityId?: string;
     action?: string;
     /**
-     * Wildcard-fähig, z. B. 'cli:*'.
+     * Wildcard-capable, e.g. 'cli:*'.
      */
     actorTag?: string;
     from?: string;

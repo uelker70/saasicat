@@ -2,10 +2,10 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { usePlanEditor, PlannedOnlyFeatureError } from '../dist/index.js';
 
-// Q.5 — usePlanEditor: Plan-Editor-Discovery + Validation auf Plattform-Ebene.
-// SuperAdmin-UI ruft den Composable in ihrer .vue-Komponente und bekommt
-// (1) die Catalog-Features inkl. plannedOnly-Marker, (2) Tier-Gruppierung,
-// (3) Toggle mit Sicherheits-Guards, (4) Pre-Save-Validation.
+// Q.5 — usePlanEditor: plan-editor discovery + validation at the platform level.
+// The SuperAdmin UI calls the composable in its .vue component and gets
+// (1) the catalog features incl. plannedOnly marker, (2) tier grouping,
+// (3) toggle with safety guards, (4) pre-save validation.
 
 function buildManifest({ features, plans = [] } = {}) {
     return {
@@ -38,7 +38,7 @@ const SAMPLE_FEATURES = [
 ];
 
 describe('usePlanEditor — Discovery (availableFeatures)', () => {
-    test('listet alle Catalog-Features mit korrekten Marker-Flags', () => {
+    test('lists all catalog features with correct marker flags', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m, {
             initialFeatures: ['VEHICLE_INVENTORY', 'CUSTOMER_MANAGEMENT'],
@@ -50,9 +50,9 @@ describe('usePlanEditor — Discovery (availableFeatures)', () => {
 
         const veh = rows.find((r) => r.def.key === 'VEHICLE_INVENTORY');
         assert.equal(veh.isSelected, true);
-        assert.equal(veh.isInherited, true); // im Base
+        assert.equal(veh.isInherited, true); // in base
         assert.equal(veh.isPlannedOnly, false);
-        assert.equal(veh.canToggle, false); // gelocked durch nonRegressive
+        assert.equal(veh.canToggle, false); // locked by nonRegressive
 
         const cash = rows.find((r) => r.def.key === 'CASHBOOK');
         assert.equal(cash.isSelected, false);
@@ -64,21 +64,21 @@ describe('usePlanEditor — Discovery (availableFeatures)', () => {
         assert.equal(sso.canToggle, false);
     });
 
-    test('featuresByTier gruppiert + sortiert nach Tier-Reihenfolge', () => {
+    test('featuresByTier groups + sorts by tier order', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m);
         const groups = editor.featuresByTier.value;
         const tiers = groups.map((g) => g.tier);
         assert.deepEqual(tiers, ['CORE', 'ADVANCED', 'PRO', 'BUSINESS', 'ENTERPRISE_ONLY']);
         assert.equal(groups[0].rows.length, 2); // VEHICLE_INVENTORY + CUSTOMER_MANAGEMENT
-        assert.equal(groups[4].rows.length, 2); // API_ACCESS + SSO (beide plannedOnly)
+        assert.equal(groups[4].rows.length, 2); // API_ACCESS + SSO (both plannedOnly)
     });
 
-    test('Features ohne tier landen in OTHER-Gruppe ans Ende', () => {
+    test('features without tier land in OTHER group at the end', () => {
         const m = buildManifest({
             features: [
                 { key: 'A', tier: 'CORE' },
-                { key: 'B' }, // ohne tier
+                { key: 'B' }, // without tier
             ],
         });
         const editor = usePlanEditor(m);
@@ -87,7 +87,7 @@ describe('usePlanEditor — Discovery (availableFeatures)', () => {
         assert.equal(groups[groups.length - 1].rows[0].def.key, 'B');
     });
 
-    test('manifest ohne features-Block: leer aber kein Crash', () => {
+    test('manifest without features block: empty but no crash', () => {
         const m = buildManifest({ features: undefined });
         const editor = usePlanEditor(m);
         assert.equal(editor.availableFeatures.value.length, 0);
@@ -96,7 +96,7 @@ describe('usePlanEditor — Discovery (availableFeatures)', () => {
 });
 
 describe('usePlanEditor — toggleFeature', () => {
-    test('toggle hinzufügen + entfernen', () => {
+    test('toggle add + remove', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m, { initialFeatures: [] });
         editor.toggleFeature('CASHBOOK');
@@ -105,7 +105,7 @@ describe('usePlanEditor — toggleFeature', () => {
         assert.equal(editor.selectedFeatures.value.has('CASHBOOK'), false);
     });
 
-    test('toggle auf plannedOnly-Feature wird ignoriert (kein State-Change)', () => {
+    test('toggle on plannedOnly feature is ignored (no state change)', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m, { initialFeatures: [] });
         editor.toggleFeature('SSO');
@@ -114,7 +114,7 @@ describe('usePlanEditor — toggleFeature', () => {
         assert.equal(editor.selectedFeatures.value.has('API_ACCESS'), false);
     });
 
-    test('nonRegressive: Inherited-Feature kann nicht entfernt werden', () => {
+    test('nonRegressive: inherited feature cannot be removed', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m, {
             initialFeatures: ['VEHICLE_INVENTORY'],
@@ -125,7 +125,7 @@ describe('usePlanEditor — toggleFeature', () => {
         assert.equal(editor.selectedFeatures.value.has('VEHICLE_INVENTORY'), true);
     });
 
-    test('nonRegressive=false: Inherited-Feature darf entfernt werden', () => {
+    test('nonRegressive=false: inherited feature may be removed', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m, {
             initialFeatures: ['VEHICLE_INVENTORY'],
@@ -138,7 +138,7 @@ describe('usePlanEditor — toggleFeature', () => {
 });
 
 describe('usePlanEditor — validateDraft + snapshot', () => {
-    test('snapshot liefert sortierte Selection', () => {
+    test('snapshot returns sorted selection', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m, {
             initialFeatures: ['DMS', 'CASHBOOK', 'CALENDAR'],
@@ -146,26 +146,26 @@ describe('usePlanEditor — validateDraft + snapshot', () => {
         assert.deepEqual(editor.snapshot(), ['CALENDAR', 'CASHBOOK', 'DMS']);
     });
 
-    test('validateDraft akzeptiert eine cleane Selection', () => {
+    test('validateDraft accepts a clean selection', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
         const editor = usePlanEditor(m, {
             initialFeatures: ['CASHBOOK', 'DMS'],
         });
-        editor.validateDraft(); // wirft nicht
+        editor.validateDraft(); // does not throw
     });
 
-    test('validateDraft wirft PlannedOnlyFeatureError, wenn (z.B. via direktes Set) ein plannedOnly-Key drin ist', () => {
+    test('validateDraft throws PlannedOnlyFeatureError when (e.g. via direct set) a plannedOnly key is present', () => {
         const m = buildManifest({ features: SAMPLE_FEATURES });
-        // Bewusst toggle umgangen, um den Validation-Pfad zu prüfen — simuliert
-        // einen externen State-Push (z. B. aus einem Server-Draft, der noch
-        // plannedOnly-Keys enthielt vor dem Backend-Fix).
+        // Deliberately bypassed toggle to exercise the validation path — simulates
+        // an external state push (e.g. from a server draft that still contained
+        // plannedOnly keys before the backend fix).
         const editor = usePlanEditor(m);
         editor.selectedFeatures.value = new Set(['CASHBOOK', 'SSO', 'API_ACCESS']);
         assert.throws(
             () => editor.validateDraft(),
             (err) => {
                 assert.ok(err instanceof PlannedOnlyFeatureError);
-                // PlannedOnlyFeatureError sortiert violations alphabetisch — stabil.
+                // PlannedOnlyFeatureError sorts violations alphabetically — stable.
                 assert.deepEqual(err.violations, ['API_ACCESS', 'SSO']);
                 assert.match(err.message, /plannedOnly/);
                 return true;

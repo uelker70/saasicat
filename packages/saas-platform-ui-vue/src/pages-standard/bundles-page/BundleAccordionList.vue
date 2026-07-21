@@ -81,10 +81,10 @@ function statusTooltip(bundle: BundleRow): string | undefined {
 </script>
 
 <style scoped>
-/* Status-Chips co-lokalisiert beim Markup (analog PlanList .pl-chip*). Bewusst
-   scoped: die identisch benannte globale .sa-chip-Regel in DiscoveryPage.vue
-   würde sonst .sa-chip--live (gleiche Spezifität, spätere Quellreihenfolge)
-   übersteuern und das „Live"-Tag grau statt grün rendern. */
+/* Status chips co-located with the markup (analogous to PlanList .pl-chip*).
+   Deliberately scoped: the identically named global .sa-chip rule in
+   DiscoveryPage.vue would otherwise override .sa-chip--live (same specificity,
+   later source order) and render the "Live" tag grey instead of green. */
 .sa-chip {
     font-size: 10px;
     font-weight: 600;

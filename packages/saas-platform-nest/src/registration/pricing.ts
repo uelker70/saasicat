@@ -1,9 +1,9 @@
-// Pure-Function-Pricing-Engine fuer den Konfigurator.
+// Pure-function pricing engine for the configurator.
 //
-// Bewusst frei von DI / NestJS — direkt aus dem Service aufrufbar und
-// unabhaengig testbar. Single Source of Truth fuer die Berechnung in
-// Step 3 (Live-Build-Summary) und Step 4 (Checkout-Sidebar): das Backend
-// schickt den Breakdown an den Client; das Frontend zeigt ihn nur an.
+// Deliberately free of DI / NestJS — callable directly from the service and
+// testable independently. Single source of truth for the computation in
+// Step 3 (live build summary) and Step 4 (checkout sidebar): the backend
+// sends the breakdown to the client; the frontend only displays it.
 
 import type {
     ConfiguratorCatalog,
@@ -16,17 +16,17 @@ function round2(value: number): number {
 }
 
 export interface PromoEvaluation {
-    /** Rabatt in EUR auf den Subtotal (Brutto oder Netto je nach Catalog-Konvention; hier auf Netto). */
+    /** Discount in EUR on the subtotal (gross or net depending on catalog convention; here on net). */
     discountAmount: number;
-    /** Prozent fuer UI-Anzeige. */
+    /** Percentage for UI display. */
     percent: number;
     label: string;
 }
 
 /**
- * Validiert die Auswahl gegen den Catalog und liefert den vollstaendigen
- * Preis-Breakdown. Bei ungueltigen Inputs (z. B. unbekanntes Modell) wirft
- * ein `Error` — der Service uebersetzt das in eine BadRequestException.
+ * Validates the selection against the catalog and returns the complete price
+ * breakdown. On invalid inputs (e.g. unknown model) it throws an `Error` — the
+ * service translates that into a BadRequestException.
  */
 export function computeBreakdown(
     catalog: ConfiguratorCatalog,
@@ -70,7 +70,7 @@ export function computeBreakdown(
     };
 }
 
-/** Modell aus dem Catalog ziehen; wirft bei Unbekannt. */
+/** Pull a model from the catalog; throws if unknown. */
 export function resolveModel(
     catalog: ConfiguratorCatalog,
     modelId: string,

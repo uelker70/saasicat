@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-// Q.5 — Browser-validierter E2E für `usePlanEditor`.
+// Q.5 — Browser-validated E2E for `usePlanEditor`.
 //
-// Lädt das gebaute Plattform-Bundle in echtem Chromium-Headless und prüft,
-// dass Discovery + plannedOnly-Filter + Validation auch in der echten
-// ESM-Bundle-Variante funktionieren — kein Node-Leak, kein Vue-Reactivity-
-// Bug nach Tree-Shaking, kein Subtle-Closure-Mismatch zwischen TS-Build und
-// Browser.
+// Loads the built platform bundle in a real headless Chromium and checks
+// that Discovery + plannedOnly filter + validation also work in the real
+// ESM bundle variant — no Node leak, no Vue reactivity
+// bug after tree-shaking, no subtle closure mismatch between the TS build and
+// the browser.
 
 const FIXTURE_URL = '/tests-e2e/fixtures/index.html';
 
@@ -50,7 +50,7 @@ const SAMPLE_MANIFEST = {
 };
 
 test.describe('usePlanEditor — Browser Smoke', () => {
-    test('Discovery: alle Catalog-Features reaktiv mit Markern', async ({ page }) => {
+    test('Discovery: all catalog features reactive with markers', async ({ page }) => {
         await page.goto(FIXTURE_URL);
         await page.waitForFunction(() =>
             Boolean((globalThis as { __platform?: unknown }).__platform),
@@ -102,12 +102,12 @@ test.describe('usePlanEditor — Browser Smoke', () => {
         expect(result.count).toBe(8);
         expect(result.selected).toEqual(['CASHBOOK', 'DMS']);
         expect(result.plannedOnly).toEqual(['API_ACCESS', 'SSO']);
-        // gelocked = plannedOnly + nonRegressive-inherited-selected
+        // gelocked = plannedOnly + nonRegressive-inherited-selected (locked)
         expect(result.gelocked).toEqual(['API_ACCESS', 'SSO']);
         expect(result.tiers).toEqual(['CORE', 'ADVANCED', 'PRO', 'BUSINESS', 'ENTERPRISE_ONLY']);
     });
 
-    test('toggleFeature: plannedOnly wird ignoriert, normales Feature reagiert', async ({
+    test('toggleFeature: plannedOnly is ignored, a normal feature reacts', async ({
         page,
     }) => {
         await page.goto(FIXTURE_URL);
@@ -130,14 +130,14 @@ test.describe('usePlanEditor — Browser Smoke', () => {
             ).__platform;
             const editor = usePlanEditor(manifest, { initialFeatures: [] });
             editor.toggleFeature('CASHBOOK');
-            editor.toggleFeature('SSO'); // plannedOnly → ignoriert
+            editor.toggleFeature('SSO'); // plannedOnly → ignored
             editor.toggleFeature('CALENDAR');
             return [...editor.selectedFeatures.value].sort();
         }, SAMPLE_MANIFEST);
         expect(result).toEqual(['CALENDAR', 'CASHBOOK']);
     });
 
-    test('validateDraft wirft PlannedOnlyFeatureError mit violations-Property', async ({
+    test('validateDraft throws PlannedOnlyFeatureError with violations property', async ({
         page,
     }) => {
         await page.goto(FIXTURE_URL);
@@ -159,8 +159,8 @@ test.describe('usePlanEditor — Browser Smoke', () => {
                 }
             ).__platform;
             const editor = usePlanEditor(manifest, { initialFeatures: [] });
-            // Bewusst Validierung umgangen, simulate externer State (z. B. ein
-            // Server-Draft, der noch vor dem Backend-Fix plannedOnly-Keys hatte).
+            // Deliberately bypass validation, simulate external state (e.g. a
+            // server draft that still had plannedOnly keys before the backend fix).
             editor.selectedFeatures.value = new Set(['CASHBOOK', 'SSO', 'API_ACCESS']);
             try {
                 editor.validateDraft();
@@ -181,7 +181,7 @@ test.describe('usePlanEditor — Browser Smoke', () => {
         expect(result.message).toContain('plannedOnly');
     });
 
-    test('snapshot liefert sortierte Selection (deterministisch für PATCH-Body)', async ({
+    test('snapshot returns sorted selection (deterministic for PATCH body)', async ({
         page,
     }) => {
         await page.goto(FIXTURE_URL);

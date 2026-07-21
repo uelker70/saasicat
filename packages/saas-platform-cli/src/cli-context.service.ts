@@ -1,14 +1,14 @@
-// CliContextService — Cross-Cutting-Helpers für Konsumenten-CLIs (jede App
-// bringt ihr eigenes `<app>`-Binary mit). Folgt den Konventionen aus
+// CliContextService — cross-cutting helpers for consumer CLIs (each app
+// ships its own `<app>` binary). Follows the conventions from
 // `@saasicat/spec/cli-conventions.md`:
 //
-//   - Identitäts-Pflicht via Env-Var (`<APP>_ADMIN_EMAIL`) oder `--as`-Flag
-//   - MFA-Pflicht für kritische Befehle (TOTP via Plattform-MfaService)
-//   - Production-Confirmation via Env-Var-Detection
-//   - AuditLog mit `actor=cli:<email>:<host>` via AdminAuditService
+//   - Mandatory identity via env var (`<APP>_ADMIN_EMAIL`) or `--as` flag
+//   - Mandatory MFA for critical commands (TOTP via the platform MfaService)
+//   - Production confirmation via env-var detection
+//   - AuditLog with `actor=cli:<email>:<host>` via AdminAuditService
 //
-// Konsumenten konfigurieren das Service via `forRoot({...})` mit ihren
-// projektspezifischen Env-Var-Namen und Adapter-Implementierungen.
+// Consumers configure the service via `forRoot({...})` with their
+// project-specific env-var names and adapter implementations.
 
 import * as os from 'node:os';
 import * as readline from 'node:readline';
@@ -19,25 +19,25 @@ import { CLI_CONTEXT_CONFIG_TOKEN, USER_PORT_TOKEN } from './tokens.js';
 
 export interface CliContextConfig {
     /**
-     * Env-Var-Name für die Admin-Email (z. B. `MYAPP_ADMIN_EMAIL`).
-     * Plattform-Default: `SAAS_ADMIN_EMAIL`.
+     * Env-var name for the admin email (e.g. `MYAPP_ADMIN_EMAIL`).
+     * Platform default: `SAAS_ADMIN_EMAIL`.
      */
     adminEmailEnvVar: string;
     /**
-     * Funktion, die `true` liefert, wenn das CLI gegen eine Production-
-     * Umgebung läuft. Konsument prüft eigene Env-Vars (z. B.
-     * `MYAPP_ENV === 'production'`, `DATABASE_URL`-Host etc.).
+     * Function that returns `true` when the CLI runs against a production
+     * environment. The consumer checks its own env vars (e.g.
+     * `MYAPP_ENV === 'production'`, `DATABASE_URL` host, etc.).
      */
     isProductionEnvironment: () => boolean;
     /**
-     * Env-Var-Name für den MFA-Bypass-Schalter (z. B. `MYAPP_SKIP_MFA`).
-     * Plattform-Default: `SAAS_PLATFORM_SKIP_MFA`. Bypass greift nur,
-     * wenn `isProductionEnvironment()` `false` ist.
+     * Env-var name for the MFA-bypass switch (e.g. `MYAPP_SKIP_MFA`).
+     * Platform default: `SAAS_PLATFORM_SKIP_MFA`. The bypass only takes
+     * effect when `isProductionEnvironment()` is `false`.
      */
     mfaSkipEnvVar: string;
     /**
-     * Anzeige-Issuer für `<app> admin mfa-setup` im Authenticator
-     * (z. B. "DemoApp SuperAdmin", "ClubApp SuperAdmin").
+     * Display issuer for `<app> admin mfa-setup` in the authenticator
+     * (e.g. "DemoApp SuperAdmin", "ClubApp SuperAdmin").
      * Default: `"SuperAdmin"`.
      */
     mfaIssuer?: string;
@@ -46,7 +46,7 @@ export interface CliContextConfig {
 export interface CliIdentity {
     email: string;
     host: string;
-    /** "cli:<email>:<host>" — kanonischer Audit-Actor-Tag. */
+    /** "cli:<email>:<host>" — canonical audit actor tag. */
     actor: string;
 }
 
@@ -60,7 +60,7 @@ export class CliContextService {
     ) {}
 
     // ---------------------------------------------------------------------
-    // §1 Identität
+    // §1 Identity
     // ---------------------------------------------------------------------
 
     resolveIdentity(asFlag?: string): CliIdentity {
@@ -78,11 +78,11 @@ export class CliContextService {
     }
 
     /**
-     * Lädt + validiert den User für eine CLI-Identität:
-     *   - User existiert + aktiv
-     *   - User hat Plattform-Rolle SUPER_ADMIN
+     * Loads + validates the user for a CLI identity:
+     *   - user exists + active
+     *   - user has platform role SUPER_ADMIN
      *
-     * Wirft `CliError(NOT_SUPER_ADMIN, exit=2)` sonst.
+     * Throws `CliError(NOT_SUPER_ADMIN, exit=2)` otherwise.
      */
     async ensureSuperAdmin(identity: CliIdentity): Promise<PlatformUserDto> {
         const user = await this.users.findByEmail(identity.email);
@@ -104,14 +104,14 @@ export class CliContextService {
     }
 
     // ---------------------------------------------------------------------
-    // §2 MFA — TOTP-Pflicht
+    // §2 MFA — mandatory TOTP
     // ---------------------------------------------------------------------
 
     /**
-     * Fordert einen TOTP-Code vom Benutzer und prüft ihn gegen das gespeicherte
-     * Secret (via Plattform-`MfaService` → `MfaPort`).
+     * Prompts the user for a TOTP code and verifies it against the stored
+     * secret (via the platform `MfaService` → `MfaPort`).
      *
-     * Bypass: `process.env[mfaSkipEnvVar] === '1'` UND `!isProductionEnvironment()`.
+     * Bypass: `process.env[mfaSkipEnvVar] === '1'` AND `!isProductionEnvironment()`.
      */
     async requireMfa(userId: string): Promise<void> {
         if (
@@ -138,7 +138,7 @@ export class CliContextService {
     }
 
     // ---------------------------------------------------------------------
-    // §3 Production-Confirmation
+    // §3 Production confirmation
     // ---------------------------------------------------------------------
 
     async ensureProductionConfirmation(opts: { yes?: boolean } = {}): Promise<void> {
@@ -159,8 +159,8 @@ export class CliContextService {
     // ---------------------------------------------------------------------
 
     /**
-     * Schreibt einen Audit-Log-Eintrag mit dem CLI-Actor-Tag. Wrapper über
-     * `AdminAuditService.log` mit automatischer `fromCli`-Konstruktion.
+     * Writes an audit-log entry with the CLI actor tag. Wrapper over
+     * `AdminAuditService.log` with automatic `fromCli` construction.
      */
     async log(input: {
         identity: CliIdentity;
@@ -184,7 +184,7 @@ export class CliContextService {
     }
 
     // ---------------------------------------------------------------------
-    // Output-Helpers (§4)
+    // Output helpers (§4)
     // ---------------------------------------------------------------------
 
     table(rows: Record<string, unknown>[]): void {
@@ -196,9 +196,9 @@ export class CliContextService {
     }
 
     /**
-     * Liest eine Zeile von stdin. Override-Hook für Tests: setze
-     * `process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY` auf eine Antwort, dann
-     * wird die Methode ohne Interaktion erfolgreich.
+     * Reads a line from stdin. Override hook for tests: set
+     * `process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY` to a reply, then
+     * the method succeeds without interaction.
      */
     async prompt(question: string): Promise<string> {
         const testReply = process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY;
@@ -214,11 +214,11 @@ export class CliContextService {
 }
 
 /**
- * Strukturierter CLI-Fehler mit `exitCode`-Mapping nach
+ * Structured CLI error with `exitCode` mapping per
  * `cli-conventions.md` §6:
  *
- *   1 = User-Error, 2 = Auth, 3 = MFA, 4 = Connectivity,
- *   5 = Permission, 6 = Conflict, 7 = Drift, 99 = Internal.
+ *   1 = user error, 2 = auth, 3 = MFA, 4 = connectivity,
+ *   5 = permission, 6 = conflict, 7 = drift, 99 = internal.
  */
 export class CliError extends Error {
     constructor(

@@ -1,7 +1,7 @@
-// usePlans + usePlanVersions — Vue-3-Composables für die SuperAdmin-
-// Plan-Verwaltung. SPEC_V2 §11.1 M6:
-//   Pack 1 → usePlans (Stamm-CRUD)
-//   Pack 2a → usePlanVersions (Draft-/Publish-Lifecycle)
+// usePlans + usePlanVersions — Vue 3 composables for the SuperAdmin
+// plan management. SPEC_V2 §11.1 M6:
+//   Pack 1 → usePlans (root CRUD)
+//   Pack 2a → usePlanVersions (draft/publish lifecycle)
 
 import { ref, type Ref } from 'vue';
 import type {
@@ -17,15 +17,15 @@ import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface UsePlansOptions {
     /**
-     * Voll-qualifizierter Admin-Endpoint-Prefix inkl. App-globalPrefix
-     * (`/api/admin`, `/api/v1/admin`, …). Pflicht.
+     * Fully-qualified admin endpoint prefix incl. the app globalPrefix
+     * (`/api/admin`, `/api/v1/admin`, …). Required.
      */
     adminEndpoint: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
-    /** Pflicht: projectKey, gegen den die Liste gefiltert wird. */
+    /** Required: projectKey the list is filtered against. */
     projectKey: string;
-    /** Bei `true` wird beim Composable-Init geladen. Default `false`. */
+    /** With `true`, loads on composable init. Default `false`. */
     autoLoad?: boolean;
 }
 
@@ -45,27 +45,27 @@ export interface UsePlansResult {
     loading: Ref<boolean>;
     error: Ref<Error | null>;
     /**
-     * planKey → Anzahl aktiver (ACTIVE/TRIAL) Subscriptions, versions- und
-     * tenant-übergreifend. Pläne ohne Abo fehlen in der Map (Default 0 beim
-     * Lesen). Befüllt durch `loadTenantCounts()`.
+     * planKey → number of active (ACTIVE/TRIAL) subscriptions, across
+     * versions and tenants. Plans without a subscription are absent from the
+     * map (default 0 on read). Populated by `loadTenantCounts()`.
      */
     tenantCountsByPlanKey: Ref<Record<string, number>>;
 
     load: () => Promise<void>;
     /**
-     * Lädt die plattformweiten Tenant-Zähler
-     * (`GET /admin/catalog/plans/tenant-counts?projectKey=…`) und schreibt sie
-     * nach `tenantCountsByPlanKey`. Best-effort: Fehler werden geschluckt
-     * (leere Map), da die Zähler nur dekorativ in der Plan-Übersicht sind.
+     * Loads the platform-wide tenant counters
+     * (`GET /admin/catalog/plans/tenant-counts?projectKey=…`) and writes them
+     * into `tenantCountsByPlanKey`. Best-effort: errors are swallowed
+     * (empty map), since the counters are only decorative in the plan overview.
      */
     loadTenantCounts: () => Promise<void>;
     create: (data: CreatePlanData) => Promise<PlanRow>;
     update: (planId: string, data: UpdatePlanData) => Promise<PlanRow>;
     softDelete: (planId: string) => Promise<void>;
     /**
-     * Hartes Löschen (`DELETE /admin/catalog/plans/:id/purge`). Nur erlaubt
-     * für Pläne ohne PlanVersionen — Backend antwortet sonst mit 422
-     * `PLAN_HAS_VERSIONS`. Entfernt den Plan auch aus `plans`.
+     * Hard delete (`DELETE /admin/catalog/plans/:id/purge`). Only allowed
+     * for plans without PlanVersions — otherwise the backend responds with
+     * 422 `PLAN_HAS_VERSIONS`. Also removes the plan from `plans`.
      */
     hardDelete: (planId: string) => Promise<void>;
 }
@@ -137,7 +137,7 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             );
             tenantCountsByPlanKey.value = data ?? {};
         } catch {
-            // Best-effort: Zähler sind dekorativ — kein Block des Plan-Ladens.
+            // Best-effort: counters are decorative — do not block plan loading.
             tenantCountsByPlanKey.value = {};
         }
     }
@@ -191,13 +191,13 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
 }
 
 // =============================================================================
-// usePlanVersions — Lifecycle-Operations für eine konkrete Plan-ID
+// usePlanVersions — lifecycle operations for a specific plan ID
 // (SPEC_V2 §11.1 M6 Pack 2a).
 // =============================================================================
 
 export interface UsePlanVersionsOptions {
     adminEndpoint: string;
-    /** UUID des Plan-Stamms (Plan.id), nicht der planKey. */
+    /** UUID of the plan root (Plan.id), not the planKey. */
     planId: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
@@ -211,8 +211,8 @@ export interface UsePlanVersionsResult {
 
     load: () => Promise<void>;
     /**
-     * `data.planId` braucht der Caller nicht zu setzen — kommt aus den
-     * Composable-Options (`adminEndpoint/catalog/plans/:id/versions`).
+     * The caller does not need to set `data.planId` — it comes from the
+     * composable options (`adminEndpoint/catalog/plans/:id/versions`).
      */
     createDraft: (
         data: Omit<CreatePlanVersionDraftData, 'planId'>,
@@ -231,14 +231,14 @@ export interface UsePlanVersionsResult {
         },
     ) => Promise<PlanVersionMutationResult>;
     /**
-     * Verwirft einen Draft (`DELETE /admin/catalog/plan-versions/:id`).
-     * Published Versions können nicht verworfen werden — die API antwortet
-     * mit 422 und Code `PLAN_VERSION_ALREADY_PUBLISHED`.
+     * Discards a draft (`DELETE /admin/catalog/plan-versions/:id`).
+     * Published versions cannot be discarded — the API responds with
+     * 422 and code `PLAN_VERSION_ALREADY_PUBLISHED`.
      */
     discardDraft: (versionId: string) => Promise<void>;
     /**
-     * Terminiert eine live PlanVersion mit `endsAt` (ohne Nachfolge-Version).
-     * Idempotent — zweiter Aufruf mit anderem Datum überschreibt.
+     * Terminates a live PlanVersion with `endsAt` (without a successor
+     * version). Idempotent — a second call with a different date overwrites.
      */
     terminateVersion: (versionId: string, endsAt: string) => Promise<PlanVersionRow>;
 }

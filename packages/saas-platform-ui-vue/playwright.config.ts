@@ -1,18 +1,18 @@
 import { defineConfig } from '@playwright/test';
 
-// Playwright-Setup für die Plattform-UI-Vue-Pakete.
+// Playwright setup for the platform-ui-vue packages.
 //
-// Ein minimaler Node-HTTP-Server (siehe `tests-e2e/serve.mjs`) serviert das
-// Paket-Root unter http://localhost:5174, sodass `index.html` aus
-// `tests-e2e/fixtures/` per HTTP auf `../../dist/index.js` zugreifen kann.
-// `file://`-URLs lehnen ESM-Module-Imports wegen CORS ab; ein echter
-// HTTP-Server umgeht das ohne Vite-/Webpack-Toolchain.
+// A minimal Node HTTP server (see `tests-e2e/serve.mjs`) serves the package
+// root at http://localhost:5174, so that `index.html` from
+// `tests-e2e/fixtures/` can access `../../dist/index.js` over HTTP.
+// `file://` URLs reject ESM module imports due to CORS; a real HTTP server
+// works around that without a Vite/Webpack toolchain.
 //
-// Alle App-HTTP-Requests im Test (Backend-Boot/Manifest/Publish) werden
-// per `page.route()` gemockt — kein Backend nötig.
+// All app HTTP requests in the test (backend boot/manifest/publish) are
+// mocked via `page.route()` — no backend needed.
 //
-// Konsumenten-Admin-Apps haben ihre eigene playwright-Config (verbunden mit
-// vite preview); diese hier deckt die Plattform-Bibliothek selbst ab.
+// Consumer admin apps have their own playwright config (wired to vite
+// preview); this one here covers the platform library itself.
 
 export default defineConfig({
     testDir: './tests-e2e',

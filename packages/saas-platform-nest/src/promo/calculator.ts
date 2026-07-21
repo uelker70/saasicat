@@ -1,8 +1,8 @@
-// Promo-Code-Calculator — pure functions. Keine DB, keine Seiteneffekte.
+// Promo code calculator — pure functions. No DB, no side effects.
 //
-// Statt Prisma-Typen nutzt der Calculator die generischen Wire-Format-
-// Types aus @saasicat/types. Damit ist er für alle konsumierenden Apps
-// (auch rein über das Wire-Format) gleichermaßen nutzbar.
+// Instead of Prisma types, the calculator uses the generic wire-format
+// types from @saasicat/types. This makes it equally usable for all
+// consuming apps (including those working purely via the wire format).
 
 import type {
     BillingCycle,
@@ -11,11 +11,11 @@ import type {
 } from '@saasicat/types';
 import { round2 } from './math.js';
 
-/** Strukturelle Sicht auf einen PromoCode für die Calculator-Funktionen.
+/** Structural view of a PromoCode for the calculator functions.
  *
- * `value` akzeptiert bewusst `number | string | { toString(): string }`, damit
- * Prisma `Decimal` (eigene Klasse mit `toString()`) ohne Cast übergeben werden
- * kann. Innen wird `Number(...)` aufgerufen.
+ * `value` deliberately accepts `number | string | { toString(): string }`, so
+ * that a Prisma `Decimal` (its own class with `toString()`) can be passed
+ * without a cast. Internally `Number(...)` is called.
  */
 export interface PromoCodeForCalc {
     valueType: PromoCodeValueType | string;
@@ -40,9 +40,9 @@ export function computeDiscountedGross(planGross: number, discountGross: number)
 }
 
 /**
- * Nächstes Datum, an dem wieder der Listenpreis gilt (= Ende der
- * Rabatt-Laufzeit). Bei ONCE: erste Rechnung ist rabattiert, alle weiteren
- * regulär — also direkt die zweite Periode.
+ * Next date on which the list price applies again (= end of the discount
+ * period). For ONCE: the first invoice is discounted, all others are
+ * regular — so directly the second period.
  */
 export function computeRegularStartsAt(
     startsAt: Date,
@@ -88,7 +88,7 @@ export function buildLabel(
         const m = code.durationValue ?? 0;
         return m === 1 ? `${valueStr} im ersten Monat` : `${valueStr} für ${m} Monate`;
     }
-    // BILLING_CYCLES (oder undefined)
+    // BILLING_CYCLES (or undefined)
     const n = code.durationValue ?? 0;
     if (n === 1)
         return cycle === 'YEARLY' ? `${valueStr} im ersten Jahr` : `${valueStr} im ersten Monat`;

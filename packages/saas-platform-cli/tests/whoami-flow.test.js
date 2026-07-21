@@ -50,7 +50,7 @@ function buildHarness({
 }
 
 describe('WhoAmIFlow.run', () => {
-    test('SUPER_ADMIN mit MFA → vollständige Diagnose', async () => {
+    test('SUPER_ADMIN with MFA → full diagnosis', async () => {
         const { flow, cleanup } = buildHarness();
         try {
             const r = await flow.run();
@@ -65,7 +65,7 @@ describe('WhoAmIFlow.run', () => {
         }
     });
 
-    test('User nicht gefunden → isSuperAdmin=false, kein crash', async () => {
+    test('user not found → isSuperAdmin=false, no crash', async () => {
         const { flow, cleanup } = buildHarness({ user: null });
         try {
             const r = await flow.run();
@@ -77,7 +77,7 @@ describe('WhoAmIFlow.run', () => {
         }
     });
 
-    test('Production wird erkannt', async () => {
+    test('production is detected', async () => {
         const { flow, cleanup } = buildHarness({ isProduction: true });
         try {
             const r = await flow.run();
@@ -88,7 +88,7 @@ describe('WhoAmIFlow.run', () => {
         }
     });
 
-    test('MFA-Skip in non-prod sichtbar', async () => {
+    test('MFA skip visible in non-prod', async () => {
         const { flow, cleanup } = buildHarness({ skipEnvSet: true });
         try {
             const r = await flow.run();
@@ -98,7 +98,7 @@ describe('WhoAmIFlow.run', () => {
         }
     });
 
-    test('MFA-Skip NICHT in production aktiv', async () => {
+    test('MFA skip NOT active in production', async () => {
         const { flow, cleanup } = buildHarness({ skipEnvSet: true, isProduction: true });
         try {
             const r = await flow.run();
@@ -110,7 +110,7 @@ describe('WhoAmIFlow.run', () => {
 });
 
 describe('WhoAmIFlow.formatResult', () => {
-    test('zeigt SUPER_ADMIN-Häkchen + MFA-Status', () => {
+    test('shows SUPER_ADMIN checkmark + MFA status', () => {
         const { flow, cleanup } = buildHarness();
         try {
             const out = flow.formatResult({
@@ -131,7 +131,7 @@ describe('WhoAmIFlow.formatResult', () => {
         }
     });
 
-    test('zeigt Bypass-Warnung, wenn aktiv', () => {
+    test('shows bypass warning when active', () => {
         const { flow, cleanup } = buildHarness();
         try {
             const out = flow.formatResult({

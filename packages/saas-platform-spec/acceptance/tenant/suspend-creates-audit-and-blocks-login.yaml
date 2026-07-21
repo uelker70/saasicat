@@ -1,10 +1,10 @@
 scenario: 'Tenant suspend writes audit log and blocks subsequent tenant-user login'
 description: |
-    Standard-SuperAdmin-Aktion. Pflicht-Verhalten:
-      - 401 ohne MFA-Header (MfaGuard)
-      - 200 mit gültigem MFA + reason
-      - AuditLog-Entry mit action=TENANT_SUSPEND, actorTag=web:..., reason
-      - Folge-Login eines Tenant-Users → 403 oder 401 (Tenant ist suspended)
+    Standard SuperAdmin action. Required behavior:
+      - 401 without MFA header (MfaGuard)
+      - 200 with valid MFA + reason
+      - AuditLog entry with action=TENANT_SUSPEND, actorTag=web:..., reason
+      - Subsequent login of a tenant user → 403 or 401 (tenant is suspended)
 
     Spec: SPEC §10 + admin-api.openapi.yaml /tenants/{slug}/suspend.
 

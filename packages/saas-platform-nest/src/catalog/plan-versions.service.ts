@@ -1,12 +1,12 @@
-// PlanVersionsService — PlanVersion-Lifecycle (SPEC_V2 §11.1 M6 Pack 2a + 3a).
+// PlanVersionsService — PlanVersion lifecycle (SPEC_V2 §11.1 M6 Pack 2a + 3a).
 //
-// Strukturell analog zu BundlesService' Version-Operationen:
-// listVersions/getVersion/createDraft/updateDraft/publish, mit
-// Vertragsschutz P3 (Diff-basierte Regressions-Gate) und seit Pack 3a
-// auch Strict-Mode-Check (`validatePlanDraft` aus strict-mode-check.ts):
-// Feature-Existenz + Quota-Existenz im DiscoverySnapshot. Mode (warn-only
-// vs. blocking) kommt aus `CatalogServiceConfig.strictModeCheckMode`,
-// gemeinsam mit den anderen Catalog-Services.
+// Structurally analogous to BundlesService' version operations:
+// listVersions/getVersion/createDraft/updateDraft/publish, with
+// contract protection P3 (diff-based regression gate) and, since Pack 3a,
+// also a strict mode check (`validatePlanDraft` from strict-mode-check.ts):
+// feature existence + quota existence in the DiscoverySnapshot. Mode (warn-only
+// vs. blocking) comes from `CatalogServiceConfig.strictModeCheckMode`,
+// shared with the other catalog services.
 
 import {
     Inject,
@@ -74,7 +74,7 @@ export class PlanVersionsService {
     ) {
         this.mode = config.strictModeCheckMode ?? 'blocking';
         this.marketedOnly = new Set(config.marketedOnlyFeatures ?? []);
-        // #25: blocking ohne Snapshot-Quelle nicht crashen — laut loggen + degradieren.
+        // #25: don't crash when blocking without a snapshot source — log loudly + degrade.
         if (this.mode === 'blocking' && !hasDiscoverySnapshotSource(this.snapshot, this.scanner)) {
             this.logger.error(
                 'PlanVersionsService: strictModeCheckMode=blocking ohne DiscoverySnapshot-Quelle — ' +
@@ -82,10 +82,10 @@ export class PlanVersionsService {
             );
             this.mode = 'warn-only';
         }
-        // Hard-fail beim Boot, wenn das Repository die Lifecycle-Methoden
-        // nicht implementiert. Apps ohne SuperAdmin-Plan-Editor sollten
-        // PlanVersionsService gar nicht registrieren (CatalogModule.forRoot
-        // Pack 2: explizites Opt-in via `planRepository` mit Lifecycle-Methods).
+        // Hard-fail at boot if the repository does not implement the lifecycle
+        // methods. Apps without the SuperAdmin plan editor should not register
+        // PlanVersionsService at all (CatalogModule.forRoot
+        // Pack 2: explicit opt-in via `planRepository` with lifecycle methods).
         const required: Array<keyof PlanRepository> = [
             'listVersions',
             'findVersionById',
@@ -106,13 +106,13 @@ export class PlanVersionsService {
     }
 
     /**
-     * Verwirft eine Draft-Version. Erlaubt nur, wenn die Version noch nicht
-     * published wurde — published Versions bleiben unveränderlich erhalten,
-     * weil Bestand-Subscriptions sie referenzieren (Vertragsschutz P1).
+     * Discards a draft version. Allowed only while the version has not yet
+     * been published — published versions are preserved immutably,
+     * because existing subscriptions reference them (contract protection P1).
      *
-     * Wenn das Repository die Methode nicht implementiert, antwortet der
-     * Endpoint mit 501 Not Implemented (Konsumenten ohne Editor-Stack
-     * sollten `PlanVersionsService` ohnehin nicht registrieren).
+     * If the repository does not implement the method, the endpoint
+     * responds with 501 Not Implemented (consumers without the editor stack
+     * should not register `PlanVersionsService` anyway).
      */
     async discardPlanDraft(versionId: string): Promise<void> {
         const existing = await this.repo.findVersionById!(versionId);
@@ -137,9 +137,9 @@ export class PlanVersionsService {
     }
 
     /**
-     * @param planUuid UUID des Plan-Stamms (Plan.id) — wird vor dem Repo-Call
-     *   zu planKey resolved (Lifecycle-Methoden arbeiten mit planKey, weil
-     *   PlanVersion.planId im Schema ein String ist).
+     * @param planUuid UUID of the plan root (Plan.id) — resolved to planKey
+     *   before the repo call (lifecycle methods work with planKey because
+     *   PlanVersion.planId is a string in the schema).
      */
     async listPlanVersions(planUuid: string): Promise<PlanVersionRow[]> {
         const plan = await this.repo.findById(planUuid);
@@ -160,11 +160,11 @@ export class PlanVersionsService {
     }
 
     /**
-     * Reichert jede Version mit `isLatestInChain` (höchste Versions-Nummer
-     * im Stamm) + `subscriptionCount` an, damit UI und Backend dieselbe
-     * Editierbarkeits-Entscheidung treffen. `subscriptionCount` bleibt
-     * `undefined`, wenn kein SubscriptionRepository registriert ist —
-     * `isVersionEditable` interpretiert das fail-closed (= eingefroren).
+     * Annotates each version with `isLatestInChain` (highest version number
+     * in the root) + `subscriptionCount` so that UI and backend make the same
+     * editability decision. `subscriptionCount` stays
+     * `undefined` when no SubscriptionRepository is registered —
+     * `isVersionEditable` interprets that fail-closed (= frozen).
      */
     private async annotateEditability(versions: PlanVersionRow[]): Promise<PlanVersionRow[]> {
         if (versions.length === 0) return versions;
@@ -176,9 +176,9 @@ export class PlanVersionsService {
         return Promise.all(
             versions.map(async (v) => {
                 const isLatestInChain = v.version === maxVersion;
-                // Nur die latest-in-chain published Version kann via
-                // pre-active editiert werden; für alle anderen sparen wir
-                // den COUNT(*).
+                // Only the latest-in-chain published version can be edited
+                // via pre-active; for all others we save the
+                // COUNT(*).
                 const subscriptionCount =
                     counter && isLatestInChain && v.publishedAt !== null && v.supersededAt === null
                         ? await counter(v.id)
@@ -189,8 +189,8 @@ export class PlanVersionsService {
     }
 
     /**
-     * @param data.planId — vom Controller die Plan-UUID. Wird vor dem
-     *   Repo-Aufruf zu planKey resolved.
+     * @param data.planId — the plan UUID from the controller. Resolved to
+     *   planKey before the repo call.
      */
     async createPlanDraft(data: CreatePlanVersionDraftData): Promise<PlanVersionMutationResult> {
         const plan = await this.repo.findById(data.planId);
@@ -206,7 +206,7 @@ export class PlanVersionsService {
             );
         }
 
-        // baseVersionId default: latest live (oder null bei v1)
+        // baseVersionId default: latest live (or null for v1)
         let baseVersionId = data.baseVersionId;
         if (baseVersionId === undefined) {
             const latestLive = await this.repo.findLatestLivePlanVersion!(planKey);
@@ -236,10 +236,10 @@ export class PlanVersionsService {
             throw new NotFoundException(`PlanVersion '${versionId}' nicht gefunden`);
         }
 
-        // Editierbarkeits-Gate: Draft (klassisch) oder published-but-future
-        // (latest-in-chain + keine Subscription + validFrom > now).
-        // Wir reichern die Version frisch an, damit der Check dieselben
-        // computed Felder sieht wie der List-Read in der UI.
+        // Editability gate: draft (classic) or published-but-future
+        // (latest-in-chain + no subscription + validFrom > now).
+        // We annotate the version freshly so the check sees the same
+        // computed fields as the list read in the UI.
         const [annotated] = await this.annotateEditability([existing]);
         const { editable } = isVersionEditable(annotated);
         if (!editable) {
@@ -283,11 +283,11 @@ export class PlanVersionsService {
         });
         this.gateOrPass(warnings);
 
-        // ─── Preis-Gate (Schutz gegen versehentliches Publish von Seed-Platzhaltern) ───
-        // Plan-Preise sind non-null Decimals; 0,00 ist der Seed-Entwurfs-Platzhalter
-        // ("Preise vor dem Publish setzen"). Ein versehentlicher Batch-Publish mit 0,00
-        // hat die Tarife schon einmal auf gratis gestellt. Kostenlose Sonderverträge
-        // (z.B. ENTERPRISE) setzen `allowZeroPrice: true`.
+        // ─── Price gate (protection against accidental publish of seed placeholders) ───
+        // Plan prices are non-null decimals; 0.00 is the seed draft placeholder
+        // ("set prices before publishing"). An accidental batch publish with 0.00
+        // once set the tariffs to free. Deliberately free special contracts
+        // (e.g. ENTERPRISE) set `allowZeroPrice: true`.
         if (!publishMeta.allowZeroPrice) {
             const monthly = Number.parseFloat(String(draft.monthlyNet ?? '0'));
             const yearly = Number.parseFloat(String(draft.yearlyNet ?? '0'));
@@ -305,7 +305,7 @@ export class PlanVersionsService {
 
         const previous = await this.repo.findLatestLivePlanVersion!(draft.planId);
 
-        // ─── validFrom (Pflicht beim Publish, SPEC_V2 §4.2) ───
+        // ─── validFrom (required at publish, SPEC_V2 §4.2) ───
         const validFromInput = publishMeta.validFrom ?? draft.validFrom;
         if (!validFromInput) {
             throw new UnprocessableEntityException({
@@ -329,11 +329,11 @@ export class PlanVersionsService {
                     message: `validFrom (${validFrom.toISOString()}) muss strikt nach validFrom der Vorgänger-Version (${previous.validFrom}) liegen.`,
                 });
             }
-            // SPEC_V2 §4.2.1 Regel 3 (erweitert): lückenlose Sukzession, wenn
-            // der Vorgänger bereits einen `validUntil` trägt. Dann muss der
-            // Nachfolger nahtlos am Folgetag anschließen — sonst entsteht
-            // entweder eine Lücke (keine gültige Version) oder eine
-            // Überlappung (zwei live gleichzeitig).
+            // SPEC_V2 §4.2.1 rule 3 (extended): gapless succession when
+            // the predecessor already carries a `validUntil`. Then the
+            // successor must connect seamlessly on the following day — otherwise
+            // there is either a gap (no valid version) or an
+            // overlap (two live at the same time).
             if (previous.validUntil) {
                 const prevUntil = new Date(previous.validUntil);
                 const dayMs = 24 * 60 * 60 * 1000;
@@ -352,8 +352,8 @@ export class PlanVersionsService {
             }
         }
 
-        // validUntil (optional, null = unbegrenzt). Konsistenz-Check
-        // gegen validFrom; Auto-Sukzession des Vorgängers passiert im Repo.
+        // validUntil (optional, null = unbounded). Consistency check
+        // against validFrom; auto-succession of the predecessor happens in the repo.
         const validUntilInput =
             publishMeta.validUntil !== undefined ? publishMeta.validUntil : draft.validUntil;
         const validUntil = validUntilInput ? new Date(validUntilInput) : null;
@@ -370,10 +370,10 @@ export class PlanVersionsService {
             });
         }
 
-        // classifyPlanDiff erwartet flat fields (Legacy-Form: maxUsers,
-        // maxVehicles, maxStorageGb). PlanVersionRow.quotas ist generisch;
-        // wir mappen die drei Standard-Keys, andere Quota-Keys werden vom
-        // Diff (noch) ignoriert — Pack 2c generalisiert classifyPlanDiff.
+        // classifyPlanDiff expects flat fields (legacy form: maxUsers,
+        // maxVehicles, maxStorageGb). PlanVersionRow.quotas is generic;
+        // we map the three standard keys, other quota keys are (still)
+        // ignored by the diff — Pack 2c generalizes classifyPlanDiff.
         const fieldsFor = (v: PlanVersionRow) => ({
             features: v.features,
             maxUsers: v.quotas?.['users'] ?? 0,
@@ -407,20 +407,20 @@ export class PlanVersionsService {
     }
 
     /**
-     * Terminiert eine **live** PlanVersion durch Setzen von `endsAt`.
-     * Im Gegensatz zu Auto-Sukzession (validUntil) ist das ein expliziter
-     * User-Eingriff: die Version wird nicht durch eine Nachfolge-Version
-     * ersetzt, sondern läuft am gewählten Datum aus. Bestand-Subscriptions
-     * (P1) bleiben gebunden — wirkt nur auf neue Buchungen.
+     * Terminates a **live** PlanVersion by setting `endsAt`.
+     * Unlike auto-succession (validUntil), this is an explicit
+     * user action: the version is not replaced by a successor version
+     * but expires on the chosen date. Existing subscriptions
+     * (P1) stay bound — this only affects new bookings.
      *
-     * Idempotent — ein zweiter Aufruf mit anderem Datum überschreibt.
+     * Idempotent — a second call with a different date overwrites.
      *
-     * Vorbedingungen:
-     *   - Version muss live sein (`publishedAt != null && supersededAt == null`).
-     *   - `endsAt` muss in der Zukunft liegen (`endsAt > now`).
+     * Preconditions:
+     *   - Version must be live (`publishedAt != null && supersededAt == null`).
+     *   - `endsAt` must lie in the future (`endsAt > now`).
      *
-     * Wenn das Repository die Methode nicht implementiert, antwortet der
-     * Endpoint mit 422 `PLAN_TERMINATE_NOT_IMPLEMENTED`.
+     * If the repository does not implement the method, the endpoint
+     * responds with 422 `PLAN_TERMINATE_NOT_IMPLEMENTED`.
      */
     async terminatePlanVersion(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
         const existing = await this.repo.findVersionById!(versionId);
@@ -463,7 +463,7 @@ export class PlanVersionsService {
     }
 
     // =========================================================================
-    // Strict-Mode-Check Helpers (Pack 3a)
+    // Strict mode check helpers (Pack 3a)
     // =========================================================================
 
     private async runStrictCheck(draft: {
@@ -472,13 +472,13 @@ export class PlanVersionsService {
     }): Promise<StrictModeWarning[]> {
         const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
         if (!snapshot) return [];
-        // Approved-Gate (#20 Slice 5): projectKey == snapshot.app.key (Konvention).
+        // Approved gate (#20 Slice 5): projectKey == snapshot.app.key (convention).
         const approved = await loadApprovedCatalogKeys(this.catalogEntries, snapshot.app.key);
         return validatePlanDraft(draft, snapshot, this.marketedOnly, approved);
     }
 
     private gateOrPass(warnings: StrictModeWarning[]): void {
-        // Advisory-Warnings (#35) gaten nie — sie gehen nur als Banner ins UI.
+        // Advisory warnings (#35) never gate — they only go into the UI as a banner.
         if (blockingStrictModeWarnings(warnings).length === 0) return;
         if (this.mode === 'blocking') {
             throw new UnprocessableEntityException({
@@ -487,6 +487,6 @@ export class PlanVersionsService {
                 warnings,
             });
         }
-        // warn-only: durchlassen, Warnings hängen am Result.
+        // warn-only: let through, warnings are attached to the result.
     }
 }

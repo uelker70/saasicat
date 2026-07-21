@@ -2,19 +2,19 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://saasicat.dev/schemas/promo-code.schema.json",
     "title": "PromoCode",
-    "description": "Sprach-neutrale Definition von Promo-Codes für die SaaS-Plattform inkl. Redemption-Lifecycle.",
+    "description": "Language-neutral definition of promo codes for the SaaS platform, including redemption lifecycle.",
     "type": "object",
     "$defs": {
         "ValueType": {
             "type": "string",
             "enum": ["PERCENT", "ABSOLUTE"],
-            "description": "PERCENT: value ist Prozentsatz (1–100). ABSOLUTE: value ist Netto-Betrag in der Catalog-Currency."
+            "description": "PERCENT: value is a percentage (1–100). ABSOLUTE: value is a net amount in the catalog currency."
         },
 
         "DurationType": {
             "type": "string",
             "enum": ["ONCE", "MONTHS", "BILLING_CYCLES"],
-            "description": "ONCE: einmaliger Rabatt. MONTHS: durationValue Monate ab Redemption. BILLING_CYCLES: durationValue Abrechnungszyklen."
+            "description": "ONCE: one-time discount. MONTHS: durationValue months from redemption. BILLING_CYCLES: durationValue billing cycles."
         },
 
         "Status": {
@@ -56,21 +56,21 @@
                 "code": {
                     "type": "string",
                     "pattern": "^[A-Z0-9_-]{4,32}$",
-                    "description": "Großbuchstaben, Ziffern, '-' und '_'. Case-insensitive geprüft, in UPPER gespeichert."
+                    "description": "Uppercase letters, digits, '-' and '_'. Checked case-insensitively, stored in UPPER."
                 },
                 "valueType": { "$ref": "#/$defs/ValueType" },
                 "value": {
                     "type": "number",
                     "exclusiveMinimum": 0,
                     "multipleOf": 0.01,
-                    "description": "Bei PERCENT: 0.01–100. Bei ABSOLUTE: > 0 in Catalog-Currency."
+                    "description": "For PERCENT: 0.01–100. For ABSOLUTE: > 0 in catalog currency."
                 },
                 "durationType": { "$ref": "#/$defs/DurationType" },
                 "durationValue": {
                     "type": ["integer", "null"],
                     "minimum": 1,
                     "maximum": 24,
-                    "description": "Pflicht bei MONTHS / BILLING_CYCLES, null bei ONCE."
+                    "description": "Required for MONTHS / BILLING_CYCLES, null for ONCE."
                 },
                 "validFrom": { "type": ["string", "null"], "format": "date-time" },
                 "validUntil": { "type": ["string", "null"], "format": "date-time" },
@@ -79,7 +79,7 @@
                     "type": "array",
                     "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+$" },
                     "uniqueItems": true,
-                    "description": "Leer = alle Pläne."
+                    "description": "Empty = all plans."
                 },
                 "appliesToBilling": {
                     "anyOf": [{ "$ref": "#/$defs/BillingCycle" }, { "type": "null" }]
@@ -93,14 +93,14 @@
                 "allowZeroInvoice": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Default: Rabatt darf Rechnung nicht auf 0 senken."
+                    "description": "Default: discount must not reduce the invoice to 0."
                 },
                 "description": { "type": ["string", "null"], "maxLength": 1000 },
                 "campaignTag": { "type": ["string", "null"], "maxLength": 100 },
                 "revenueDeductionAccount": {
                     "type": ["string", "null"],
                     "maxLength": 16,
-                    "description": "SKR-Konto für die Rechnungslegung; projekt-spezifisch."
+                    "description": "SKR account for accounting; project-specific."
                 }
             }
         },
@@ -201,10 +201,10 @@
                 "promoCodeId": {
                     "type": ["string", "null"],
                     "format": "uuid",
-                    "description": "null bei NOT_FOUND"
+                    "description": "null for NOT_FOUND"
                 },
                 "codeAttempt": { "type": "string" },
-                "ipHash": { "type": ["string", "null"], "description": "kein Klartext-IP" },
+                "ipHash": { "type": ["string", "null"], "description": "no plaintext IP" },
                 "sessionId": { "type": ["string", "null"] },
                 "result": { "$ref": "#/$defs/ValidationResult" },
                 "createdAt": { "type": "string", "format": "date-time" }

@@ -2,11 +2,11 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AdminManifestModule } from '../dist/admin/index.js';
 
-// Plattform-Sicherheit: AdminManifestModule.forRoot() darf einen
-// Manifest-Endpoint NIEMALS stillschweigend auth-frei registrieren.
-// Wenn der Konsument `includeManifestController: true` (Default) und keine
-// `guards` setzt, MUSS forRoot() werfen — sonst rutscht eine ungeschützte
-// `GET /admin/manifest`-Route in Production. Spec: SUPERADMIN-Findings §1.
+// Platform security: AdminManifestModule.forRoot() must NEVER silently
+// register a manifest endpoint without auth. If the consumer sets
+// `includeManifestController: true` (default) and no `guards`, forRoot()
+// MUST throw — otherwise an unprotected `GET /admin/manifest` route slips
+// into production. Spec: SUPERADMIN findings §1.
 
 const MINIMAL_CONFIG = {
     project: { key: 'test-app', displayName: 'Test', environment: 'development' },
@@ -33,38 +33,38 @@ class FakeSuperAdminGuard {
     }
 }
 
-describe('AdminManifestModule.forRoot — Guard-Konfiguration', () => {
-    test('wirft, wenn Controller registriert werden soll und `guards` fehlt', () => {
+describe('AdminManifestModule.forRoot — guard configuration', () => {
+    test('throws when the controller should be registered and `guards` is missing', () => {
         assert.throws(
             () =>
                 AdminManifestModule.forRoot({
                     config: MINIMAL_CONFIG,
-                    // includeManifestController default true, guards fehlt
+                    // includeManifestController defaults to true, guards is missing
                 }),
             /guards.*Pflicht/,
         );
     });
 
-    test('akzeptiert leere `guards: []` als explizite auth-frei-Wahl', () => {
+    test('accepts empty `guards: []` as an explicit auth-free choice', () => {
         const dyn = AdminManifestModule.forRoot({
             config: MINIMAL_CONFIG,
             guards: [],
         });
-        assert.ok(Array.isArray(dyn.controllers), 'controllers muss Array sein');
+        assert.ok(Array.isArray(dyn.controllers), 'controllers must be an array');
         // PublicBoot + generated Manifest = 2 controllers
         assert.equal(dyn.controllers?.length, 2);
     });
 
-    test('wirft NICHT, wenn `includeManifestController: false`', () => {
+    test('does NOT throw when `includeManifestController: false`', () => {
         const dyn = AdminManifestModule.forRoot({
             config: MINIMAL_CONFIG,
             includeManifestController: false,
         });
-        // Nur PublicBoot
+        // Only PublicBoot
         assert.equal(dyn.controllers?.length, 1);
     });
 
-    test('akzeptiert konfigurierte `guards`-Liste', () => {
+    test('accepts a configured `guards` list', () => {
         const dyn = AdminManifestModule.forRoot({
             config: MINIMAL_CONFIG,
             guards: [FakeJwtGuard, FakeSuperAdminGuard],
@@ -72,7 +72,7 @@ describe('AdminManifestModule.forRoot — Guard-Konfiguration', () => {
         assert.equal(dyn.controllers?.length, 2);
     });
 
-    test('akzeptiert zusätzlich `reloadGuards` für MFA-Schutz auf reload', () => {
+    test('additionally accepts `reloadGuards` for MFA protection on reload', () => {
         const dyn = AdminManifestModule.forRoot({
             config: MINIMAL_CONFIG,
             guards: [FakeJwtGuard, FakeSuperAdminGuard],
@@ -81,13 +81,13 @@ describe('AdminManifestModule.forRoot — Guard-Konfiguration', () => {
         assert.equal(dyn.controllers?.length, 2);
     });
 
-    test('wirft bei fehlendem `guards` auch ohne explizites includeManifestController', () => {
-        // Default ist true — Boot-Crash schützt vor versehentlich auth-freier Registrierung
+    test('throws on missing `guards` even without an explicit includeManifestController', () => {
+        // Default is true — boot crash guards against accidentally auth-free registration
         assert.throws(
             () =>
                 AdminManifestModule.forRoot({
                     config: MINIMAL_CONFIG,
-                    reloadGuards: [FakeJwtGuard], // nur reloadGuards reicht nicht
+                    reloadGuards: [FakeJwtGuard], // reloadGuards alone is not enough
                 }),
             /guards.*Pflicht/,
         );

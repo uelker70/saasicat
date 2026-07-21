@@ -14,10 +14,10 @@
 </template>
 
 <script setup lang="ts">
-// LimitsRow — eine Zeile in der Limits-Vergleichs-Tabelle des Plan-Change-
-// Wizards (Verbrauch / Aktuelles Limit / Ziel-Limit, exceeded farblich
-// hervorgehoben). Wird vom PlanChangeWizard für jeden quotaKey aus
-// `preview.limitsCheck` gerendert.
+// LimitsRow — one row in the limits comparison table of the plan change
+// wizard (usage / current limit / target limit, exceeded highlighted in
+// color). Rendered by the PlanChangeWizard for each quotaKey from
+// `preview.limitsCheck`.
 
 interface Props {
     label: string;

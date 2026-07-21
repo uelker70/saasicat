@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// `pnpm create saasicat-admin <dir>` — Scaffold.
+// `pnpm create saasicat-admin <dir>` — scaffold.
 //
-// Liest alle `*.tpl` aus `../templates/`, ersetzt Tokens `__KEY__`, schreibt
-// in `<dir>/`. Tokens kommen aus Argv-Flags + Defaults.
+// Reads all `*.tpl` files from `../templates/`, replaces `__KEY__` tokens, writes
+// into `<dir>/`. Tokens come from argv flags + defaults.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P6.
 

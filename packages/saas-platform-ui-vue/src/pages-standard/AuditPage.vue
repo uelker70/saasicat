@@ -62,8 +62,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 
-// Plattform-Standard-Page: Audit-Trail. Datenagnostisch — App reicht
-// `loadAudit({ actor, action, entity, since, limit })` durch.
+// Platform standard page: audit trail. Data-agnostic — the app passes
+// `loadAudit({ actor, action, entity, since, limit })` through.
 
 export interface AuditRow {
     id: string;
@@ -131,7 +131,7 @@ async function reload() {
             limit: props.pageSize ?? 200,
         });
     } catch (err) {
-        // Backend-Endpoint fehlt → leere Tabelle, keine Page-Crash.
+        // Backend endpoint missing → empty table, no page crash.
         rows.value = [];
         console.warn('[AuditPage] loadAudit failed:', err);
     } finally {

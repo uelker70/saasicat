@@ -1,39 +1,39 @@
-// First-Run-Setup — Wire-Typen für den öffentlichen, selbstverriegelnden
-// SuperAdmin-Bootstrap über das Admin-UI (`/api/v1/admin/setup`).
+// First-run setup — wire types for the public, self-locking SuperAdmin
+// bootstrap via the admin UI (`/api/v1/admin/setup`).
 //
-// Das Fenster ist nur offen, solange 0 SUPER_ADMIN existieren, und zusätzlich
-// durch ein operator-gesetztes `SETUP_TOKEN` (Env-Var) geschützt.
+// The window is only open while 0 SUPER_ADMIN exist, and is additionally
+// protected by an operator-set `SETUP_TOKEN` (env var).
 
 export interface SetupStatusResponse {
-    /** true, solange kein SUPER_ADMIN existiert — UI zeigt dann den Wizard. */
+    /** true as long as no SUPER_ADMIN exists — the UI then shows the wizard. */
     needsSetup: boolean;
 }
 
 export interface SetupRequest {
-    /** Muss dem server-seitigen `SETUP_TOKEN` (Env-Var) entsprechen. */
+    /** Must match the server-side `SETUP_TOKEN` (env var). */
     token: string;
     email: string;
-    /** Optional — fehlt es, generiert der Server eines und gibt es zurück. */
+    /** Optional — if absent, the server generates one and returns it. */
     password?: string;
 }
 
 export interface SetupResult {
     userId: string;
     email: string;
-    /** otpauth://-URI (Fallback / Tiefenlink). */
+    /** otpauth:// URI (fallback / deep link). */
     otpauthUri: string;
-    /** Serverseitig gerenderter QR-Code als PNG-Data-URL zum Scannen. */
+    /** Server-side rendered QR code as a PNG data URL for scanning. */
     qrDataUrl: string;
-    /** Base32-TOTP-Secret als Fallback zur manuellen Eingabe. */
+    /** Base32 TOTP secret as a fallback for manual entry. */
     secret: string;
-    /** Gesetzt, wenn der Server das Passwort generiert hat (kein `password` im Request). */
+    /** Set when the server generated the password (no `password` in the request). */
     generatedPassword?: string;
 }
 
 export interface SetupConfirmMfaRequest {
     token: string;
     userId: string;
-    /** TOTP-Code aus der Authenticator-App. */
+    /** TOTP code from the authenticator app. */
     code: string;
 }
 

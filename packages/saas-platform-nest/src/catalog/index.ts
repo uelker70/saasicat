@@ -1,13 +1,13 @@
-// @saasicat/nest/catalog — Bundle/BusinessType/Marketing-Editor
-// für SuperAdmin (SPEC_V2 §11.1 M3).
+// @saasicat/nest/catalog — Bundle/BusinessType/Marketing editor
+// for SuperAdmin (SPEC_V2 §11.1 M3).
 //
-// In M3.1 enthalten:
-//   - BundlesService (CRUD für Bundle + BundleVersion mit Strict-Mode-Check)
-//   - BundlesController + BundleVersionsController (REST unter /admin/catalog/...)
+// Included in M3.1:
+//   - BundlesService (CRUD for Bundle + BundleVersion with strict-mode check)
+//   - BundlesController + BundleVersionsController (REST under /admin/catalog/...)
 //   - CatalogModule.forRoot()
-//   - validateBundleDraft (Pure-Function-Strict-Check)
+//   - validateBundleDraft (pure-function strict check)
 //
-// Folgt: BusinessTypesService (M3.2), MarketingProjectionService (M3.3).
+// Coming next: BusinessTypesService (M3.2), MarketingProjectionService (M3.3).
 
 export { BundlesService, type CatalogServiceConfig } from './bundles.service.js';
 export { BusinessTypesService } from './business-types.service.js';

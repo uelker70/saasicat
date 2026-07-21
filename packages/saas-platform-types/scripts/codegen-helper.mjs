@@ -1,15 +1,15 @@
-// Q.4.1 — Gemeinsame Codegen-Logik für `gen-types-from-schemas.mjs` und
-// `tests/codegen-drift.test.js`. Beide nutzen exakt denselben Compile-Pfad,
-// damit das Drift-Gate semantisch identisch zum Build-Pfad ist.
+// Q.4.1 — Shared codegen logic for `gen-types-from-schemas.mjs` and
+// `tests/codegen-drift.test.js`. Both use exactly the same compile path,
+// so that the drift-gate is semantically identical to the build path.
 
 import { compile } from 'json-schema-to-typescript';
 
-export const HEADER = `// AUTO-GENERATED — nicht manuell editieren.
+export const HEADER = `// AUTO-GENERATED — do not edit manually.
 //
-// Quelle: @saasicat/spec/schemas/{{schemaFile}}
-// Regenerieren: \`pnpm --filter @saasicat/types gen:types\`
-// Drift-Gate: tests/codegen-drift.test.js bricht den PR, wenn Schema und
-// generierter Output auseinanderlaufen.
+// Source: @saasicat/spec/schemas/{{schemaFile}}
+// Regenerate: \`pnpm --filter @saasicat/types gen:types\`
+// Drift gate: tests/codegen-drift.test.js fails the PR when the schema and
+// the generated output diverge.
 `;
 
 const COMPILE_OPTIONS = {
@@ -19,11 +19,10 @@ const COMPILE_OPTIONS = {
 };
 
 /**
- * Schemas, die nur `$defs` ohne Top-Level-`properties` liefern (z. B.
- * promo-code.schema.json), produzieren ohne dieses Helper-Setup ein leeres
- * `interface PromoCode {}`. Wir kompilieren deshalb ZUSÄTZLICH jeden
- * `$defs`-Eintrag als eigenen Root, sodass das Drift-Gate auch die
- * Sub-Definitionen abdeckt.
+ * Schemas that only provide `$defs` without top-level `properties` (e.g.
+ * promo-code.schema.json) produce an empty `interface PromoCode {}` without
+ * this helper setup. We therefore ADDITIONALLY compile every `$defs` entry as
+ * its own root, so that the drift-gate also covers the sub-definitions.
  */
 export async function compileSchemaWithDefs(schema, rootName) {
     const seen = new Set();
@@ -50,9 +49,9 @@ export async function compileSchemaWithDefs(schema, rootName) {
                 }
             }
         } catch (err) {
-            // Ignorieren — der Drift-Gate-Test fängt Cases, die wir wirklich
-            // brauchen. $defs ohne sinnvolle TS-Form (z. B. reine String-Enums
-            // ohne Wrapping) können hier still scheitern.
+            // Ignore — the drift-gate test catches the cases we really
+            // need. $defs without a meaningful TS form (e.g. pure string enums
+            // without wrapping) may fail silently here.
 
             console.warn(`  ⚠ ${defName}: ${err.message}`);
         }

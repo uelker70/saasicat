@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import { SubscriptionBundlesService } from '../dist/billing/index.js';
 import { FakeBundleRepository, FakeSubscriptionBundleRepository } from '../dist/testing/index.js';
 
-// SubscriptionBundlesService — Service-Tests gegen die In-Memory-Adapter
-// (FakeBundleRepository + FakeSubscriptionBundleRepository). Deckt:
-// Plan-Kompat-Check, Mindestlaufzeit-Default, Idempotenz, Effektiv-Datum-
-// Rechnung.
+// SubscriptionBundlesService — service tests against the in-memory adapters
+// (FakeBundleRepository + FakeSubscriptionBundleRepository). Covers:
+// plan compatibility check, minimum-term default, idempotency, effective-date
+// computation.
 
 const PROJECT = 'clubapp';
 const STARTER = 'STARTER';
@@ -46,7 +46,7 @@ async function createPublishedBundle({ key, planIds, features = ['F'] } = {}) {
 }
 
 describe('SubscriptionBundlesService — addBundleToSubscription', () => {
-    test('legt Buchung an + setzt Mindestlaufzeit auf +12 Monate Default', async () => {
+    test('creates the booking + sets the minimum term to the +12 months default', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
         const startedAt = new Date('2026-03-15T00:00:00Z');
         const row = await service.addBundleToSubscription({
@@ -58,11 +58,11 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
         assert.equal(row.subscriptionId, SUB_A);
         assert.equal(row.bundleVersionId, bv.id);
         assert.equal(row.canceledAt, null);
-        // 12 Monate später (UTC), Tag 15 bleibt erhalten
+        // 12 months later (UTC), day 15 is preserved
         assert.equal(row.minimumTermEndsAt?.toISOString(), '2027-03-15T00:00:00.000Z');
     });
 
-    test('minimumTermMonths=0 → null (keine Mindestlaufzeit)', async () => {
+    test('minimumTermMonths=0 → null (no minimum term)', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
@@ -74,7 +74,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
         assert.equal(row.minimumTermEndsAt, null);
     });
 
-    test('Plan-Kompat-Check: 422 BUNDLE_INCOMPATIBLE_WITH_PLAN bei falschem Plan', async () => {
+    test('plan compatibility check: 422 BUNDLE_INCOMPATIBLE_WITH_PLAN on the wrong plan', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [PRO] });
         await assert.rejects(
             () =>
@@ -91,7 +91,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
         );
     });
 
-    test('Plan-Kompat: leeres planIds-Array = alle Pläne erlaubt', async () => {
+    test('plan compatibility: empty planIds array = all plans allowed', async () => {
         const bv = await createPublishedBundle({ key: 'B1' });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
@@ -101,7 +101,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
         assert.equal(row.bundleVersionId, bv.id);
     });
 
-    test('Idempotenz: zweite Buchung derselben BundleVersion → 422 BUNDLE_ALREADY_SUBSCRIBED', async () => {
+    test('idempotency: second booking of the same bundle version → 422 BUNDLE_ALREADY_SUBSCRIBED', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
         await service.addBundleToSubscription({
             subscriptionId: SUB_A,
@@ -123,7 +123,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
         );
     });
 
-    test('Draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED', async () => {
+    test('draft (publishedAt=null) → 422 BUNDLE_VERSION_NOT_PUBLISHED', async () => {
         const bundle = await bundleRepo.create({
             projectKey: PROJECT,
             bundleKey: 'B1',
@@ -145,7 +145,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
         );
     });
 
-    test('Custom defaultMinimumTermMonths aus Config-Token wirkt', async () => {
+    test('custom defaultMinimumTermMonths from the config token takes effect', async () => {
         const svc = new SubscriptionBundlesService(subBundleRepo, bundleRepo, {
             defaultMinimumTermMonths: 24,
         });
@@ -161,7 +161,7 @@ describe('SubscriptionBundlesService — addBundleToSubscription', () => {
 });
 
 describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
-    test('canceledEffectiveAt = currentPeriodEnd, wenn Mindestlaufzeit schon abgelaufen', async () => {
+    test('canceledEffectiveAt = currentPeriodEnd when the minimum term has already elapsed', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
@@ -170,7 +170,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
             startedAt: new Date('2025-01-01T00:00:00Z'),
             minimumTermMonths: 6,
         });
-        // Min-Term endete am 2025-07-01; jetzt kündigen mit periodEnd 2026-04-30
+        // Minimum term ended on 2025-07-01; now cancel with periodEnd 2026-04-30
         const periodEnd = new Date('2026-04-30T00:00:00Z');
         const canceled = await service.cancelBundleFromSubscription({
             subscriptionBundleId: row.id,
@@ -180,7 +180,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
         assert.equal(canceled.canceledEffectiveAt?.toISOString(), periodEnd.toISOString());
     });
 
-    test('canceledEffectiveAt = minimumTermEndsAt, wenn Mindestlaufzeit länger als Periode', async () => {
+    test('canceledEffectiveAt = minimumTermEndsAt when the minimum term is longer than the period', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
@@ -198,7 +198,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
         assert.equal(canceled.canceledEffectiveAt?.toISOString(), '2027-01-01T00:00:00.000Z');
     });
 
-    test('zweite Kündigung → 422 SUBSCRIPTION_BUNDLE_ALREADY_CANCELED', async () => {
+    test('second cancellation → 422 SUBSCRIPTION_BUNDLE_ALREADY_CANCELED', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
@@ -224,7 +224,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
         );
     });
 
-    test('unbekannte ID → 404', async () => {
+    test('unknown ID → 404', async () => {
         await assert.rejects(
             () =>
                 service.cancelBundleFromSubscription({
@@ -240,7 +240,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
 });
 
 describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
-    test('Vertriebs-only-Bundle wirft 422 BUNDLE_NOT_SELF_SERVICE', async () => {
+    test('sales-only bundle throws 422 BUNDLE_NOT_SELF_SERVICE', async () => {
         const bv = await createPublishedBundle({ key: 'ENTERPRISE_PACK' });
         const blocked = new SubscriptionBundlesService(
             subBundleRepo,
@@ -263,7 +263,7 @@ describe('SubscriptionBundlesService — Self-Service-Policy (#37)', () => {
         );
     });
 
-    test('ohne Policy bleibt das Bundle buchbar', async () => {
+    test('without a policy the bundle stays bookable', async () => {
         const bv = await createPublishedBundle({ key: 'ENTERPRISE_PACK' });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,

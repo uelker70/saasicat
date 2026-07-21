@@ -1,12 +1,12 @@
-// @saasicat/nest/promo — Sub-Entry für Promo-Code-Logik.
+// @saasicat/nest/promo — sub-entry for promo-code logic.
 //
-// Inhalte:
-//   - calculator: Pure Functions (computeDiscountGross, buildLabel, ...)
+// Contents:
+//   - calculator: pure functions (computeDiscountGross, buildLabel, ...)
 //   - math:       round2, computeIncludedVat
-//   - service:    PromoCodesService (CRUD, Preview, Redeem, Reverse, Stats)
-//   - expirer:    PromoCodeExpirer (Cron @ 3am Europe/Berlin)
+//   - service:    PromoCodesService (CRUD, preview, redeem, reverse, stats)
+//   - expirer:    PromoCodeExpirer (cron @ 3am Europe/Berlin)
 //   - rate-limit.guard: PromoCodeRateLimitGuard + ipFingerprint/hashIp
-//   - tokens:     DI-Tokens für die Adapter-Ports
+//   - tokens:     DI tokens for the adapter ports
 //   - module:     PromoCodesModule.forRoot({ adapters... })
 
 export * from './calculator.js';

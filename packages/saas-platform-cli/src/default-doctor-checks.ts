@@ -1,19 +1,19 @@
-// DEFAULT_DOCTOR_CHECKS — Plattform-Standard-Checks für `<app> doctor`.
+// DEFAULT_DOCTOR_CHECKS — platform default checks for `<app> doctor`.
 //
-// Konsumenten können sie via `doctorChecks: [...DEFAULT_DOCTOR_CHECKS, ...projectSpecific]`
-// im `CliContextModule.forRoot()` einfließen lassen — analog zu
+// Consumers can fold them in via `doctorChecks: [...DEFAULT_DOCTOR_CHECKS, ...projectSpecific]`
+// in `CliContextModule.forRoot()` — analogous to
 // `DEFAULT_MANIFEST_CHECKS`.
 //
-// Vier Plattform-Checks:
+// Four platform checks:
 //
-//   1. **`platform.plan-catalog`** — `PLAN_CATALOG_TOKEN` ist im DI verfügbar
-//      und enthält mindestens einen Plan.
-//   2. **`platform.discovery-snapshot`** — `DISCOVERY_SNAPSHOT_TOKEN` lieferbar
-//      und enthält mindestens eine Capability.
-//   3. **`platform.user-port`** — `UserPort.findByEmail` antwortet für eine
-//      Test-Email (auch wenn `null` zurückkommt — Hauptsache kein Throw).
+//   1. **`platform.plan-catalog`** — `PLAN_CATALOG_TOKEN` is available in DI
+//      and contains at least one plan.
+//   2. **`platform.discovery-snapshot`** — `DISCOVERY_SNAPSHOT_TOKEN` is deliverable
+//      and contains at least one capability.
+//   3. **`platform.user-port`** — `UserPort.findByEmail` responds for a
+//      test email (even if `null` comes back — as long as it does not throw).
 //   4. **`platform.admin-manifest`** — `AdminManifestService.getManifest()`
-//      liefert ohne Exception.
+//      returns without an exception.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P12.
 
@@ -120,8 +120,7 @@ export class AdminManifestDoctorCheck implements DoctorCheck {
 }
 
 /**
- * Default-Liste, die Konsumenten im `CliContextModule.forRoot({ doctorChecks })`
- * spreizen können:
+ * Default list that consumers can spread in `CliContextModule.forRoot({ doctorChecks })`:
  *
  * ```ts
  * doctorChecks: [
@@ -130,9 +129,9 @@ export class AdminManifestDoctorCheck implements DoctorCheck {
  * ],
  * ```
  *
- * Plattform-Checks brauchen DI-Provider — werden vom `CliContextModule`
- * automatisch als `extraProviders` instanziiert, wenn die App
- * `defaultDoctorChecks: true` setzt.
+ * Platform checks need DI providers — they are instantiated automatically by
+ * `CliContextModule` as `extraProviders` when the app sets
+ * `defaultDoctorChecks: true`.
  */
 export const PLATFORM_DOCTOR_CHECK_PROVIDERS: Array<Type<DoctorCheck>> = [
     PlanCatalogDoctorCheck,

@@ -1,12 +1,12 @@
-// Entitlement-Provider — App-weiter Inject-Key für FeatureGate / Router-Guard.
+// Entitlement provider — app-wide inject key for FeatureGate / router guard.
 //
-// Konsumenten rufen einmal beim App-Bootstrap `provideEntitlement(app, ent)`
-// auf, wo `ent` das Result von `useEntitlement({...})` ist. Anschließend
-// können <FeatureGate>-Komponenten und der Router-Guard ohne erneute
-// Endpoint-Konfiguration darauf zugreifen.
+// Consumers call `provideEntitlement(app, ent)` once at app bootstrap,
+// where `ent` is the result of `useEntitlement({...})`. Afterwards
+// <FeatureGate> components and the router guard can access it without
+// reconfiguring the endpoint.
 //
-// `Symbol.for(...)` damit Multi-Bundle-Setups (App-Bundle + Pages-Bundle)
-// auf dieselbe Identity auflösen — analog zu den Inject-Keys in
+// `Symbol.for(...)` so that multi-bundle setups (app bundle + pages bundle)
+// resolve to the same identity — analogous to the inject keys in
 // create-super-admin-app.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P8.
@@ -19,17 +19,17 @@ export const ENTITLEMENT_INJECTION_KEY: InjectionKey<UseEntitlementResult> = Sym
 );
 
 /**
- * Bindet ein `useEntitlement(...)`-Result für die ganze App, sodass
- * `<FeatureGate>` und Router-Guards es injecten können.
+ * Binds a `useEntitlement(...)` result for the whole app so that
+ * `<FeatureGate>` and router guards can inject it.
  */
 export function provideEntitlement(app: App, entitlement: UseEntitlementResult): void {
     app.provide(ENTITLEMENT_INJECTION_KEY, entitlement);
 }
 
 /**
- * Holt das gebundene Entitlement-Result. Liefert `null`, wenn der
- * Konsument `provideEntitlement(...)` nicht aufgerufen hat — `<FeatureGate>`
- * fällt dann auf „alles erlaubt" zurück (mit Dev-Warning).
+ * Fetches the bound entitlement result. Returns `null` when the
+ * consumer did not call `provideEntitlement(...)` — `<FeatureGate>`
+ * then falls back to "everything allowed" (with a dev warning).
  */
 export function useInjectedEntitlement(): UseEntitlementResult | null {
     return inject(ENTITLEMENT_INJECTION_KEY, null);

@@ -41,7 +41,7 @@ function buildManifest(columns = [], capabilities = {}) {
 }
 
 describe('BatchColumnFetcher.fetchAll', () => {
-    test('1 Request pro Spalte mit comma-getrennten tenantIds', async () => {
+    test('1 request per column with comma-separated tenantIds', async () => {
         const m = buildManifest([
             {
                 key: 'datev_status',
@@ -81,7 +81,7 @@ describe('BatchColumnFetcher.fetchAll', () => {
         assert.match(calls[0].url, /tenantIds=t1&tenantIds=t2/);
     });
 
-    test('Capability-Filter: ungenügende Spalten werden nicht gefetcht', async () => {
+    test('Capability filter: insufficient columns are not fetched', async () => {
         const m = buildManifest(
             [
                 {
@@ -107,7 +107,7 @@ describe('BatchColumnFetcher.fetchAll', () => {
         assert.ok('allowed' in data);
     });
 
-    test('leere tenantIds-Liste → leeres Object, kein Request', async () => {
+    test('empty tenantIds list → empty object, no request', async () => {
         const m = buildManifest([{ key: 'k', label: 'K', endpoint: '/api/v1/admin/extras/k' }]);
         const { http, calls } = buildHttp();
         const fetcher = new BatchColumnFetcher({ http });
@@ -116,7 +116,7 @@ describe('BatchColumnFetcher.fetchAll', () => {
         assert.deepEqual(data, {});
     });
 
-    test('Auth-Token wird als Bearer-Header mitgesendet', async () => {
+    test('auth token is sent as a Bearer header', async () => {
         const m = buildManifest([{ key: 'k', label: 'K', endpoint: '/api/v1/admin/extras/k' }]);
         const { http, calls } = buildHttp([{ status: 200, body: {} }]);
         const fetcher = new BatchColumnFetcher({
@@ -127,7 +127,7 @@ describe('BatchColumnFetcher.fetchAll', () => {
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-abc');
     });
 
-    test('hängt korrekt an Endpoint mit existierendem Query', async () => {
+    test('appends correctly to an endpoint with an existing query', async () => {
         const m = buildManifest([
             { key: 'k', label: 'K', endpoint: '/api/v1/admin/extras/k?cached=1' },
         ]);
@@ -138,8 +138,8 @@ describe('BatchColumnFetcher.fetchAll', () => {
     });
 });
 
-describe('BatchColumnFetcher — Drift-Detection', () => {
-    test('per-Tenant-Placeholder im endpoint → BatchColumnDriftError', async () => {
+describe('BatchColumnFetcher — drift detection', () => {
+    test('per-Tenant placeholder in endpoint → BatchColumnDriftError', async () => {
         const m = buildManifest([
             {
                 key: 'bad',
@@ -154,7 +154,7 @@ describe('BatchColumnFetcher — Drift-Detection', () => {
         );
     });
 
-    test('listDriftIssues sammelt alle problematischen Spalten', () => {
+    test('listDriftIssues collects all problematic columns', () => {
         const m = buildManifest([
             { key: 'ok', label: 'OK', endpoint: '/api/v1/admin/extras/ok' },
             { key: 'bad1', label: 'B1', endpoint: '' },
@@ -171,7 +171,7 @@ describe('BatchColumnFetcher — Drift-Detection', () => {
         assert.equal(issues[1].column.key, 'bad2');
     });
 
-    test('non-200-Response wirft Error', async () => {
+    test('non-200 response throws an error', async () => {
         const m = buildManifest([{ key: 'k', label: 'K', endpoint: '/api/v1/admin/extras/k' }]);
         const { http } = buildHttp([{ status: 503, body: null }]);
         const fetcher = new BatchColumnFetcher({ http });
@@ -180,7 +180,7 @@ describe('BatchColumnFetcher — Drift-Detection', () => {
 });
 
 describe('BatchColumnFetcher.eligibleColumns', () => {
-    test('liefert nur Spalten mit erfüllter Capability', () => {
+    test('returns only columns with a satisfied Capability', () => {
         const m = buildManifest(
             [
                 {

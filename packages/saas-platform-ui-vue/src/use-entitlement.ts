@@ -1,15 +1,15 @@
-// useEntitlement — Vue-Composable über den Tenant-Entitlement-Endpoint.
+// useEntitlement — Vue composable over the tenant entitlement endpoint.
 //
-// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert
-// (z. B. `/api/billing/entitlement` oder `/api/v1/billing/entitlement`).
+// **Endpoint is mandatory** and is supplied by the app consumer
+// (e.g. `/api/billing/entitlement` or `/api/v1/billing/entitlement`).
 //
-// Liefert die effektiven Limits eines Tenants als reaktiver Ref. Konsumenten-
-// Backend exposed den Endpoint via Plattform-`EntitlementService.computeLimits`
-// (siehe @saasicat/nest).
+// Returns a tenant's effective limits as a reactive Ref. The consumer
+// backend exposes the endpoint via the platform `EntitlementService.computeLimits`
+// (see @saasicat/nest).
 //
-// Output ist die `EffectiveLimitsSnapshot`-Form aus saas-platform-nest —
-// hier als generische Shape gemappt, weil das Plattform-Types-Paket den
-// Snapshot nicht exposed (lebt in saas-platform-nest/entitlement).
+// Output is the `EffectiveLimitsSnapshot` shape from saas-platform-nest —
+// mapped here as a generic shape because the platform types package does not
+// expose the snapshot (it lives in saas-platform-nest/entitlement).
 
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from './types.js';
@@ -22,8 +22,8 @@ export interface EntitlementSnapshotShape {
 
 export interface UseEntitlementOptions {
     /**
-     * Voll-qualifizierter Entitlement-Endpoint inkl. App-globalPrefix
-     * (`/api/billing/entitlement`, `/api/v1/billing/entitlement`, …). Pflicht.
+     * Fully-qualified entitlement endpoint including the app globalPrefix
+     * (`/api/billing/entitlement`, `/api/v1/billing/entitlement`, …). Mandatory.
      */
     endpoint: string;
     http?: HttpClient;
@@ -37,7 +37,7 @@ export interface UseEntitlementResult {
     loading: Ref<boolean>;
     error: Ref<Error | null>;
     load: () => Promise<void>;
-    /** Convenience: prüft ob ein FeatureKey im Set ist. */
+    /** Convenience: checks whether a FeatureKey is in the set. */
     hasFeature: (key: string) => boolean;
 }
 

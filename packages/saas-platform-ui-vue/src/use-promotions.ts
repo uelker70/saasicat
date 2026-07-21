@@ -1,8 +1,8 @@
-// usePromotions — Vue-3-Composable für die SuperAdmin-Aktionen-Verwaltung
-// (Backend: PromotionsController unter /admin/catalog/promotions).
+// usePromotions — Vue 3 composable for SuperAdmin promotions management
+// (backend: PromotionsController under /admin/catalog/promotions).
 //
-// **Admin-Endpoint-Prefix ist Pflicht** und wird vom Konsumenten geliefert
-// (z. B. `/api/admin` oder `/api/v1/admin`).
+// **The admin endpoint prefix is mandatory** and is supplied by the consumer
+// (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
 import type {

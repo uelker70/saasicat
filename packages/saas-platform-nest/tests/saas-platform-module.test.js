@@ -10,7 +10,7 @@ import {
     StaticPlanResolver,
 } from '../dist/platform/index.js';
 
-// Plattform-Sicherheits-Tests für das Quickstart-Mega-Modul.
+// Platform safety tests for the quickstart mega-module.
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P1.
 
 class FakeJwtGuard {
@@ -49,7 +49,7 @@ const MINIMAL_CATALOG = {
 };
 
 describe('SaasPlatformModule.forRoot', () => {
-    test('wirft, wenn weder planCatalog noch planCatalogReadSink gesetzt sind', () => {
+    test('throws when neither planCatalog nor planCatalogReadSink is set', () => {
         assert.throws(
             () =>
                 SaasPlatformModule.forRoot({
@@ -64,7 +64,7 @@ describe('SaasPlatformModule.forRoot', () => {
         );
     });
 
-    test('Quickstart-Pfad: planCatalog + 3 Adapter reichen', () => {
+    test('quickstart path: planCatalog + 3 adapters are enough', () => {
         const dyn = SaasPlatformModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
@@ -75,13 +75,13 @@ describe('SaasPlatformModule.forRoot', () => {
             },
         });
         assert.equal(dyn.module.name, 'SaasPlatformModule');
-        assert.ok(Array.isArray(dyn.imports), 'imports muss Array sein');
-        // PlanCatalog + Discovery + Admin + AdminManifest = 4 Sub-Module
-        assert.equal(dyn.imports.length, 4, 'genau 4 Sub-Module ohne Entitlement');
-        assert.equal(dyn.global, true, 'Mega-Modul ist global registriert');
+        assert.ok(Array.isArray(dyn.imports), 'imports must be an array');
+        // PlanCatalog + Discovery + Admin + AdminManifest = 4 sub-modules
+        assert.equal(dyn.imports.length, 4, 'exactly 4 sub-modules without Entitlement');
+        assert.equal(dyn.global, true, 'mega-module is registered globally');
     });
 
-    test('Entitlement opt-in: aktiviert ohne Repos -> Fehler', () => {
+    test('Entitlement opt-in: enabled without repos -> error', () => {
         assert.throws(
             () =>
                 SaasPlatformModule.forRoot({
@@ -98,7 +98,7 @@ describe('SaasPlatformModule.forRoot', () => {
         );
     });
 
-    test('Entitlement aktiv mit allen Repos -> 5 Sub-Module', () => {
+    test('Entitlement active with all repos -> 5 sub-modules', () => {
         const dyn = SaasPlatformModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
@@ -112,10 +112,10 @@ describe('SaasPlatformModule.forRoot', () => {
             },
             entitlement: {},
         });
-        assert.equal(dyn.imports.length, 5, 'mit Entitlement: 5 Sub-Module');
+        assert.equal(dyn.imports.length, 5, 'with Entitlement: 5 sub-modules');
     });
 
-    test('akzeptiert leere guards: [] als explizite Wahl', () => {
+    test('accepts empty guards: [] as an explicit choice', () => {
         const dyn = SaasPlatformModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },
@@ -125,10 +125,10 @@ describe('SaasPlatformModule.forRoot', () => {
                 rlsBypass: new FakeRlsBypassPort(),
             },
         });
-        assert.ok(dyn.imports, 'forRoot muss DynamicModule mit imports liefern');
+        assert.ok(dyn.imports, 'forRoot must return a DynamicModule with imports');
     });
 
-    test('ohne defaultPlanId & ohne planResolver: kein Lightweight-Stack', () => {
+    test('without defaultPlanId & without planResolver: no lightweight stack', () => {
         const dyn = SaasPlatformModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
@@ -142,13 +142,13 @@ describe('SaasPlatformModule.forRoot', () => {
         assert.equal(
             exports_.includes(StaticEntitlementService),
             false,
-            'StaticEntitlementService darf ohne Resolver nicht exportiert sein',
+            'StaticEntitlementService must not be exported without a resolver',
         );
         const providers = dyn.providers ?? [];
-        assert.equal(providers.length, 0, 'keine Lightweight-Provider ohne Resolver');
+        assert.equal(providers.length, 0, 'no lightweight providers without a resolver');
     });
 
-    test('mit defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registriert', () => {
+    test('with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered', () => {
         const dyn = SaasPlatformModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
@@ -163,27 +163,27 @@ describe('SaasPlatformModule.forRoot', () => {
         const tokens = providers.map((p) => p.provide ?? p);
         assert.ok(
             tokens.includes(StaticEntitlementService),
-            'StaticEntitlementService muss Provider sein',
+            'StaticEntitlementService must be a provider',
         );
         assert.ok(
             tokens.includes(StaticFeatureGuard),
-            'StaticFeatureGuard muss Provider sein',
+            'StaticFeatureGuard must be a provider',
         );
         assert.ok(
             tokens.includes(EnforceQuotaInterceptor),
-            'EnforceQuotaInterceptor muss Provider sein',
+            'EnforceQuotaInterceptor must be a provider',
         );
         assert.ok(
             tokens.includes(PLAN_RESOLVER_PORT_TOKEN),
-            'PLAN_RESOLVER_PORT_TOKEN muss Provider sein',
+            'PLAN_RESOLVER_PORT_TOKEN must be a provider',
         );
         assert.ok(
             tokens.includes(QUOTA_PROVIDERS_TOKEN),
-            'QUOTA_PROVIDERS_TOKEN muss Provider sein',
+            'QUOTA_PROVIDERS_TOKEN must be a provider',
         );
     });
 
-    test('mit quotaProviders: Klassen werden als Provider + im Registry-Token aggregiert', () => {
+    test('with quotaProviders: classes become providers + aggregated in the registry token', () => {
         class FakeQuotaProvider {
             constructor() {
                 this.key = 'notes.max';
@@ -205,14 +205,14 @@ describe('SaasPlatformModule.forRoot', () => {
         });
         const providers = dyn.providers ?? [];
         const tokens = providers.map((p) => p.provide ?? p);
-        assert.ok(tokens.includes(FakeQuotaProvider), 'QuotaProvider-Klasse als Provider');
+        assert.ok(tokens.includes(FakeQuotaProvider), 'QuotaProvider class as provider');
         const registry = providers.find((p) => p.provide === QUOTA_PROVIDERS_TOKEN);
         assert.deepEqual(registry.inject, [FakeQuotaProvider]);
     });
 });
 
 describe('StaticEntitlementService (via StaticPlanResolver)', () => {
-    test('snapshot liefert features+quotas aus dem Plan-Catalog', async () => {
+    test('snapshot returns features+quotas from the plan catalog', async () => {
         const catalog = {
             ...MINIMAL_CATALOG,
             plans: [
@@ -228,7 +228,7 @@ describe('StaticEntitlementService (via StaticPlanResolver)', () => {
         assert.equal(snap.quotas['notes.max'], 1000);
     });
 
-    test('hasFeature + quotaLimit als Convenience-Methoden', async () => {
+    test('hasFeature + quotaLimit as convenience methods', async () => {
         const catalog = {
             ...MINIMAL_CATALOG,
             plans: [{ id: 'starter', features: ['NOTES'], quotas: { 'notes.max': 25 } }],
@@ -240,7 +240,7 @@ describe('StaticEntitlementService (via StaticPlanResolver)', () => {
         assert.equal(await svc.quotaLimit('t', 'unbekannt'), null);
     });
 
-    test('snapshot bei nicht aufgelöstem Plan = leeres Set', async () => {
+    test('snapshot with an unresolved plan = empty set', async () => {
         const resolver = { async getPlanIdForTenant() { return null; } };
         const svc = new StaticEntitlementService(MINIMAL_CATALOG, resolver);
         const snap = await svc.snapshot('any');

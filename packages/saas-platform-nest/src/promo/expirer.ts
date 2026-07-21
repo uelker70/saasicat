@@ -6,9 +6,9 @@ import type {
 } from '@saasicat/types';
 import { PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN, PROMO_CODE_REPOSITORY_TOKEN } from './tokens.js';
 
-// Hintergrund-Cron für PromoCode-Auslauf. Setzt Codes mit überschrittenem
-// validUntil auf EXPIRED und abgelaufene Redemptions auf EXPIRED. Der
-// lazyExpire()-Pfad im PromoCodesService bleibt als Defense-in-depth.
+// Background cron for PromoCode expiry. Sets codes whose validUntil has
+// passed to EXPIRED and expired redemptions to EXPIRED. The lazyExpire()
+// path in PromoCodesService remains as defense-in-depth.
 
 @Injectable()
 export class PromoCodeExpirer {

@@ -1,9 +1,9 @@
-// Gemeinsame Konfigurations-Typen für alle UI-Vue-Loader/-Composables.
+// Shared configuration types for all UI-Vue loaders/composables.
 
 /**
- * Minimale Abstraktion über `fetch`. Konsumenten dürfen eine eigene
- * Implementation übergeben (z. B. axios-Wrapper, der Auth-Header und
- * Tenant-Header bereits einhängt).
+ * Minimal abstraction over `fetch`. Consumers may pass their own
+ * implementation (e.g. an axios wrapper that already injects auth headers
+ * and tenant headers).
  */
 export type HttpClient = (
     url: string,
@@ -21,7 +21,7 @@ export interface HttpResponse {
     text(): Promise<string>;
 }
 
-/** Einfacher Persistenz-Adapter; Default ist `localStorage`. */
+/** Simple persistence adapter; default is `localStorage`. */
 export interface KvStore {
     get(key: string): string | null;
     set(key: string, value: string): void;
@@ -29,12 +29,12 @@ export interface KvStore {
 }
 
 /**
- * Liefert einen `KvStore`-Wrapper um `localStorage` (oder `null` bei SSR).
- * Tests dürfen einen In-Memory-Stub übergeben.
+ * Returns a `KvStore` wrapper around `localStorage` (or `null` under SSR).
+ * Tests may pass an in-memory stub.
  */
 export function defaultKvStore(): KvStore {
     if (typeof globalThis.localStorage === 'undefined') {
-        // SSR / non-browser → No-op-Stub.
+        // SSR / non-browser → no-op stub.
         return {
             get: () => null,
             set: () => {},
@@ -50,9 +50,8 @@ export function defaultKvStore(): KvStore {
 }
 
 /**
- * Default-`HttpClient` über `fetch`. Konsumenten reichen eine eigene
- * Variante durch, wenn sie Auth-Header / Tenant-Header / Retry-Logik
- * brauchen.
+ * Default `HttpClient` over `fetch`. Consumers pass their own variant
+ * through when they need auth headers / tenant headers / retry logic.
  */
 export function defaultHttpClient(): HttpClient {
     return (url, init) => fetch(url, init);

@@ -1,10 +1,10 @@
-// useMarketingProjections — Vue-3-Composable über den
+// useMarketingProjections — Vue 3 composable over the
 // MarketingProjectionsController (`/admin/catalog/marketing-projections`).
 //
-// Anders als Bundle/BusinessType **ohne Versionierung**: Marketing-Edits
-// gehen direkt live. Das Composable cached die Liste pro Filter-Tupel
-// nicht, sondern lädt bei jedem `load()` frisch — Marketing-Pflege ist
-// niedrig-frequent und Konsistenz wichtiger als Performance.
+// Unlike Bundle/BusinessType, **without versioning**: marketing edits
+// go live directly. The composable does not cache the list per filter tuple,
+// but reloads fresh on every `load()` — marketing maintenance is
+// low-frequency and consistency matters more than performance.
 
 import { ref, type Ref } from 'vue';
 import type {
@@ -19,7 +19,7 @@ export interface UseMarketingProjectionsOptions {
     adminEndpoint: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
-    /** Filter, der bei `load()` aktiv ist. Kann via `setFilter()` geändert werden. */
+    /** Filter that is active on `load()`. Can be changed via `setFilter()`. */
     filter: MarketingProjectionFilter;
     autoLoad?: boolean;
 }
@@ -41,7 +41,7 @@ export interface UseMarketingProjectionsResult {
     loading: Ref<boolean>;
     error: Ref<Error | null>;
 
-    /** Ändert den Filter und lädt frisch. */
+    /** Changes the filter and reloads fresh. */
     setFilter: (next: MarketingProjectionFilter) => Promise<void>;
     load: () => Promise<void>;
     create: (data: CreateMarketingProjectionData) => Promise<MarketingProjectionRow>;
@@ -126,8 +126,8 @@ export function useMarketingProjections(
         if (!created) {
             throw new MarketingProjectionsApiError(0, null, 'Create gab keinen Body zurück');
         }
-        // Nach Create: liste neu laden (eindeutiges Tupel-Insert kann
-        // sich auf Filter auswirken).
+        // After create: reload the list (a unique tuple insert can
+        // affect the filter).
         await load();
         return created;
     }

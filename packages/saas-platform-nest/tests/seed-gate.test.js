@@ -7,8 +7,8 @@ import {
     seedGateExitCode,
 } from '../dist/catalog/index.js';
 
-// Seed-Gate — Pre-Persistence-Validierung geseedeter Plan-/Bundle-Drafts gegen
-// den Discovery-Snapshot (#12 Slice 2). Pure Functions, kein DI.
+// Seed-Gate — pre-persistence validation of seeded plan/bundle drafts against
+// the discovery snapshot (#12 Slice 2). Pure functions, no DI.
 
 function snapshot({ features = [], quotas = [] } = {}) {
     return {
@@ -31,7 +31,7 @@ function snapshot({ features = [], quotas = [] } = {}) {
 }
 
 describe('validateSeedAgainstSnapshot', () => {
-    test('alle geseedeten Features discovered → overall ok', () => {
+    test('all seeded features discovered → overall ok', () => {
         const report = validateSeedAgainstSnapshot({
             snapshot: snapshot({ features: ['MEMBERS', 'SEPA'], quotas: ['apiCalls'] }),
             plans: [{ planKey: 'STARTER', features: ['MEMBERS'], quotas: { apiCalls: 1000 } }],
@@ -42,7 +42,7 @@ describe('validateSeedAgainstSnapshot', () => {
         assert.equal(seedGateExitCode(report), 0);
     });
 
-    test('Plan mit nicht-discovertem Feature → PLAN_FEATURE_UNKNOWN + error', () => {
+    test('plan with an undiscovered feature → PLAN_FEATURE_UNKNOWN + error', () => {
         const report = validateSeedAgainstSnapshot({
             snapshot: snapshot({ features: ['MEMBERS'] }),
             plans: [{ planKey: 'PRO', features: ['MEMBERS', 'LUFTSCHLOSS'] }],
@@ -57,7 +57,7 @@ describe('validateSeedAgainstSnapshot', () => {
         assert.equal(seedGateExitCode(report), 4);
     });
 
-    test('Bundle mit nicht-discovertem Feature → BUNDLE_FEATURE_UNKNOWN', () => {
+    test('bundle with an undiscovered feature → BUNDLE_FEATURE_UNKNOWN', () => {
         const report = validateSeedAgainstSnapshot({
             snapshot: snapshot({ features: ['SEPA'] }),
             bundles: [{ bundleKey: 'SPORT', features: ['SEPA', 'GHOST'] }],
@@ -67,7 +67,7 @@ describe('validateSeedAgainstSnapshot', () => {
         assert.equal(report.findings[0].warning.code, 'BUNDLE_FEATURE_UNKNOWN');
     });
 
-    test('nicht-discoverte Quota → QUOTA_MISSING', () => {
+    test('undiscovered quota → QUOTA_MISSING', () => {
         const report = validateSeedAgainstSnapshot({
             snapshot: snapshot({ features: ['MEMBERS'] }),
             plans: [{ planKey: 'STARTER', features: ['MEMBERS'], quotas: { ghostQuota: 5 } }],
@@ -76,13 +76,13 @@ describe('validateSeedAgainstSnapshot', () => {
         assert.equal(report.findings[0].warning.code, 'QUOTA_MISSING');
     });
 
-    test('leere Eingabe → ok', () => {
+    test('empty input → ok', () => {
         const report = validateSeedAgainstSnapshot({ snapshot: snapshot() });
         assert.equal(report.overall, 'ok');
         assert.equal(report.counts.total, 0);
     });
 
-    test('formatSeedGateReport zeigt Entity + Code', () => {
+    test('formatSeedGateReport shows entity + code', () => {
         const report = validateSeedAgainstSnapshot({
             snapshot: snapshot({ features: [] }),
             plans: [{ planKey: 'PRO', features: ['LUFTSCHLOSS'] }],

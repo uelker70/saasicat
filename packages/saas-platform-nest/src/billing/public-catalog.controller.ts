@@ -25,14 +25,14 @@ import {
 } from './public-catalog.tokens.js';
 import { getMarketedPlans } from './plan-helpers.js';
 
-// PublicCatalogController — Auth-frei lesbarer Catalog für Marketing,
-// Onboarding und Tenant-Self-Service-UIs.
+// PublicCatalogController — auth-free readable catalog for marketing,
+// onboarding and tenant self-service UIs.
 //
 // SPEC_V2 §11.1 M6 Pack 2c:
-//   - GET /billing/plans?locale=de: Marketing-Merge optional (wenn
-//     MarketingProjection-Repo + projectKey konfiguriert)
-//   - GET /billing/bundles?locale=de: NEU (M6 Pack 2c)
-//   - GET /billing/business-types?locale=de: NEU (M6 Pack 2c)
+//   - GET /billing/plans?locale=de: marketing merge optional (if a
+//     MarketingProjection repo + projectKey are configured)
+//   - GET /billing/bundles?locale=de: NEW (M6 Pack 2c)
+//   - GET /billing/business-types?locale=de: NEW (M6 Pack 2c)
 
 interface MarketingFields {
     displayLabel?: string;
@@ -57,7 +57,7 @@ interface PlanResponseEntry {
     popular: boolean;
     quotas: Record<string, number>;
     features: string[];
-    /** SPEC_V2 §11.1 M6 — optional, kommt wenn MarketingProjection existiert. */
+    /** SPEC_V2 §11.1 M6 — optional, present if a MarketingProjection exists. */
     marketing?: MarketingFields;
 }
 
@@ -71,11 +71,11 @@ interface PublicBundleEntry {
     monthlyNet: string | null;
     yearlyNet: string | null;
     /**
-     * Ungedeckte Feature-Abhängigkeiten (#35): Union der `requires` der
-     * enthaltenen Features minus der im Bundle selbst enthaltenen. Der
-     * Konfigurator graut das Bundle aus, wenn diese Keys weder im Plan
-     * noch in der aktuellen Auswahl liegen. Leer ohne
-     * CatalogEntryRepository (keine requires-Daten verfügbar).
+     * Uncovered feature dependencies (#35): union of the `requires` of the
+     * contained features minus the ones contained in the bundle itself. The
+     * configurator greys out the bundle if these keys are neither in the plan
+     * nor in the current selection. Empty without a CatalogEntryRepository
+     * (no requires data available).
      */
     requiresFeatures: string[];
     marketing?: MarketingFields;
@@ -120,8 +120,8 @@ export class PublicCatalogController {
         @Query('lang') lang?: string,
         @Query('locale') localeParam = 'de',
     ): Promise<PlanResponseEntry[]> {
-        // SPEC_V2 §9 — `?lang=XX` ist der dokumentierte Query-Param,
-        // `?locale=XX` bleibt als Alias akzeptiert.
+        // SPEC_V2 §9 — `?lang=XX` is the documented query param,
+        // `?locale=XX` remains accepted as an alias.
         const locale = lang || localeParam;
         const plans = getMarketedPlans(this.planCatalog).map((plan) => ({
             id: plan.id,
@@ -133,22 +133,22 @@ export class PublicCatalogController {
             quotas: plan.quotas,
             features: plan.features,
         }));
-        // Marketing-Merge: pro PlanVersion eine optionale Projection.
-        // Aktuell nicht möglich, weil Plans im PublicCatalog nur planKey
-        // tragen, kein PlanVersion-ID. Marketing-Lookup für Plan ist
-        // daher in M6 Pack 2c noch ein No-op — sobald PlanVersion-IDs
-        // im Catalog landen, wird hier geMerged.
-        // (Bundles + BusinessTypes haben PlanVersion-IDs, dort funktioniert's.)
+        // Marketing merge: one optional projection per PlanVersion.
+        // Currently not possible because plans in the PublicCatalog only carry
+        // a planKey, no PlanVersion ID. The marketing lookup for a plan is
+        // therefore still a no-op in M6 Pack 2c — once PlanVersion IDs land in
+        // the catalog, it will be merged here.
+        // (Bundles + BusinessTypes have PlanVersion IDs, where it works.)
         void locale;
         return plans;
     }
 
     @Get('feature-registry')
     async listFeatureRegistry(): Promise<FeatureUiRegistry> {
-        // Overlay (#13): editierbares FeatureCatalogEntry.icon aus der DB
-        // gewinnt über das statische Registry-Icon; label/description bleiben
-        // aus der Registry (Auto-Sync setzt label=featureKey-Fallback). DB-Fehler
-        // dürfen den auth-freien Endpoint nicht brechen → Fallback auf Registry.
+        // Overlay (#13): the editable FeatureCatalogEntry.icon from the DB
+        // wins over the static registry icon; label/description stay from the
+        // registry (auto-sync sets label=featureKey fallback). DB errors must
+        // not break the auth-free endpoint → fall back to the registry.
         if (!this.catalogEntryRepo || !this.projectKey) return this.featureRegistry;
         let rows;
         try {
@@ -162,7 +162,7 @@ export class PublicCatalogController {
             const dbIcon = byKey.get(key)?.icon;
             merged[key] = dbIcon ? { ...meta, icon: dbIcon } : meta;
         }
-        // discovered-only Keys (in DB, nicht in der statischen Registry) ergänzen
+        // add discovered-only keys (in the DB, not in the static registry)
         for (const row of rows) {
             if (merged[row.featureKey]) continue;
             merged[row.featureKey] = {
@@ -176,10 +176,9 @@ export class PublicCatalogController {
     }
 
     /**
-     * SPEC_V2 §11.1 M6 Pack 2c — Public-Catalog-Endpoint für Bundles
-     * (Stamm-Liste mit live-Versions). Wenn `MarketingProjection` mit
-     * `targetType=BUNDLE` + passender locale existiert, wird sie
-     * reingemerged.
+     * SPEC_V2 §11.1 M6 Pack 2c — public catalog endpoint for bundles
+     * (stem list with live versions). If a `MarketingProjection` with
+     * `targetType=BUNDLE` + matching locale exists, it is merged in.
      */
     @Get('bundles')
     async listBundles(
@@ -202,10 +201,10 @@ export class PublicCatalogController {
     }
 
     /**
-     * `requires`-Daten für `requiresFeatures` (#35) — kommen aus den
-     * FeatureCatalogEntries. Ohne CatalogEntryRepository bzw. bei DB-Fehlern
-     * leerer Index: der auth-freie Endpoint darf daran nicht brechen,
-     * `requiresFeatures` bleibt dann konservativ leer.
+     * `requires` data for `requiresFeatures` (#35) — comes from the
+     * FeatureCatalogEntries. Without a CatalogEntryRepository or on DB errors,
+     * an empty index: the auth-free endpoint must not break on this,
+     * `requiresFeatures` then stays conservatively empty.
      */
     private async loadFeatureRequiresIndex(): Promise<FeatureRequiresIndex> {
         if (!this.catalogEntryRepo || !this.projectKey) return new Map();
@@ -218,8 +217,8 @@ export class PublicCatalogController {
     }
 
     /**
-     * SPEC_V2 §11.1 M6 Pack 2c — Public-Catalog-Endpoint für BusinessTypes
-     * (Stamm-Liste mit live-Versions + Bundle-Komposition + Marketing).
+     * SPEC_V2 §11.1 M6 Pack 2c — public catalog endpoint for BusinessTypes
+     * (stem list with live versions + bundle composition + marketing).
      */
     @Get('business-types')
     async listBusinessTypes(

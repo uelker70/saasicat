@@ -58,9 +58,9 @@ interface SnapshotEntityDiff {
 const props = defineProps<{
     from: CatalogSnapshot;
     to: CatalogSnapshot;
-    /** Per-Plan-ID Akzentfarbe (für die Diff-Card-Icons). */
+    /** Accent color per plan ID (for the diff card icons). */
     planAccents?: Record<string, string>;
-    /** Field-Label-Overrides (z. B. `{ maxVehicles: 'Max. Fahrzeuge' }`). */
+    /** Field label overrides (e.g. `{ maxVehicles: 'Max. Fahrzeuge' }`). */
     fieldLabels?: Record<string, string>;
 }>();
 
@@ -111,7 +111,7 @@ function diffPlan(a: ResolvedPlan | null, b: ResolvedPlan | null): VersionChange
     if (!a || !b) return [];
     const out: VersionChange[] = [];
     pushFeatures(out, a.features, b.features);
-    // Quotas: alle bekannten Keys aus beiden Snapshots vergleichen.
+    // Quotas: compare all known keys from both snapshots.
     const quotaKeys = new Set<string>([...Object.keys(a.quotas), ...Object.keys(b.quotas)]);
     for (const key of quotaKeys) {
         pushNumber(out, `quotas.${key}`, a.quotas[key] ?? 0, b.quotas[key] ?? 0, 'higher');

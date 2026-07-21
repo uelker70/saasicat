@@ -1,14 +1,14 @@
-// EnforceQuotaInterceptor — Auto-Enforcement für `@EnforceQuota(key)`.
+// EnforceQuotaInterceptor — auto-enforcement for `@EnforceQuota(key)`.
 //
-// Liest die Metadata, befragt den passenden `QuotaProvider` (via
-// QuotaProviders-Registry) nach dem aktuellen Verbrauch des Tenants,
-// vergleicht mit dem Plan-Limit aus `StaticEntitlementService` und wirft
-// `LimitExceededError` (→ 429) bei Überschreitung.
+// Reads the metadata, asks the matching `QuotaProvider` (via the
+// QuotaProviders registry) for the tenant's current usage, compares it with
+// the plan limit from `StaticEntitlementService`, and throws
+// `LimitExceededError` (→ 429) on overrun.
 //
-// **Soft-Check.** Race zwischen Count und Insert ist möglich. Für strikt
-// transaktionalen Enforce (z. B. Storage-GB bei großen Files) bleibt
-// `EntitlementService.enforceLimit(...)` als imperative API der
-// vorzuziehende Pfad.
+// **Soft check.** A race between count and insert is possible. For strictly
+// transactional enforcement (e.g. storage GB for large files),
+// `EntitlementService.enforceLimit(...)` remains the preferable path as an
+// imperative API.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P7.
 
@@ -67,7 +67,7 @@ export class EnforceQuotaInterceptor implements NestInterceptor {
     ): Promise<void> {
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         const user = request.user;
-        if (!user) return; // ohne User: kein Tenant, kein Limit-Check (Auth-Guard sollte vorher 401)
+        if (!user) return; // without a user: no tenant, no limit check (auth guard should 401 first)
         const role = user.role ?? user.platformRole;
         if (role === 'SUPER_ADMIN') return;
         const tenantId = request.tenantId ?? user.tenantId;
@@ -75,13 +75,13 @@ export class EnforceQuotaInterceptor implements NestInterceptor {
 
         const provider = (this.providers ?? []).find((p) => p.key === meta.quotaKey);
         if (!provider) {
-            // Kein Provider registriert → Plattform kann nicht enforcen,
-            // also durchlassen. Discovery zeigt die Lücke separat an.
+            // No provider registered → the platform cannot enforce, so let it
+            // through. Discovery flags the gap separately.
             return;
         }
 
         const limit = await this.entitlements.quotaLimit(tenantId, meta.quotaKey);
-        if (limit === null || limit === -1) return; // -1 = unbegrenzt, null = keine Quota im Plan
+        if (limit === null || limit === -1) return; // -1 = unlimited, null = no quota in the plan
         const current = await provider.count(tenantId);
         const delta = meta.incrementBy ?? 1;
         if (current + delta > limit) {

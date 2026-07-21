@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { PublicMarketingCatalogService } from '../dist/catalog/index.js';
 import { FakeBundleRepository, FakePlanRepository } from '../dist/testing/index.js';
 
-// PublicMarketingCatalogService — Bundles-Pfad (P11.7.3 + P11.7.4).
-// Service liefert pro live BundleVersion einen `PublicMarketingBundle`-
-// Eintrag mit `compatiblePlanKeys`. Filter (welche Bundles ein Tenant
-// kaufen kann) läuft client-seitig in der Tenant-Self-Service-UI; das
-// Backend liefert alle.
+// PublicMarketingCatalogService — bundles path (P11.7.3 + P11.7.4).
+// The service returns one `PublicMarketingBundle` entry per live
+// BundleVersion with `compatiblePlanKeys`. The filter (which bundles a
+// tenant can buy) runs client-side in the tenant self-service UI; the
+// backend returns them all.
 
 const PROJECT = 'clubapp';
 
@@ -107,19 +107,19 @@ async function createLiveBundle({
 }
 
 describe('PublicMarketingCatalogService — Bundles', () => {
-    test('getCatalog liefert leere bundles[] ohne BundleRepository', async () => {
+    test('getCatalog returns empty bundles[] without a BundleRepository', async () => {
         const svc = new PublicMarketingCatalogService(
             planRepo,
             marketingRepo,
             NOOP_PROMOTION_REPO,
             null,
-            null, // kein BundleRepository
+            null, // no BundleRepository
         );
         const cat = await svc.getCatalog(PROJECT, 'de', 'EUR', 19);
         assert.deepEqual(cat.bundles, []);
     });
 
-    test('getCatalog liefert published live Bundles mit compatiblePlanKeys', async () => {
+    test('getCatalog returns published live bundles with compatiblePlanKeys', async () => {
         await createLiveBundle({
             bundleKey: 'COMMUNICATION_PRO',
             features: ['CAMPAIGNS', 'WHATSAPP'],
@@ -145,7 +145,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         assert.deepEqual(fin.compatiblePlanKeys, ['STANDARD', 'PRO']);
     });
 
-    test('requiresFeatures (#35): ungedeckte requires der Bundle-Features aus den FeatureCatalogEntries', async () => {
+    test('requiresFeatures (#35): uncovered requires of the bundle features from the FeatureCatalogEntries', async () => {
         await createLiveBundle({ bundleKey: 'TURNIERE', features: ['TOURNAMENT_MANAGEMENT'] });
         await createLiveBundle({
             bundleKey: 'SPORTPLATZ',
@@ -175,16 +175,16 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         const turniere = cat.bundles.find((b) => b.bundleKey === 'TURNIERE');
         assert.deepEqual(turniere.requiresFeatures, ['RESOURCE_MANAGEMENT']);
         const sportplatz = cat.bundles.find((b) => b.bundleKey === 'SPORTPLATZ');
-        assert.deepEqual(sportplatz.requiresFeatures, [], 'Kombi-Bundle ist self-contained');
+        assert.deepEqual(sportplatz.requiresFeatures, [], 'combo bundle is self-contained');
     });
 
-    test('requiresFeatures ohne CatalogEntryRepository: leer (graceful)', async () => {
+    test('requiresFeatures without a CatalogEntryRepository: empty (graceful)', async () => {
         await createLiveBundle({ bundleKey: 'TURNIERE', features: ['TOURNAMENT_MANAGEMENT'] });
         const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19);
         assert.deepEqual(cat.bundles[0].requiresFeatures, []);
     });
 
-    test('getCatalog filtert nicht-marketed Bundles raus', async () => {
+    test('getCatalog filters out non-marketed bundles', async () => {
         await createLiveBundle({ bundleKey: 'INTERN_ONLY', marketed: false });
         await createLiveBundle({ bundleKey: 'PUBLIC', marketed: true });
 
@@ -193,7 +193,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         assert.equal(cat.bundles[0].bundleKey, 'PUBLIC');
     });
 
-    test('getCatalog filtert Bundles mit sichtbarer MarketingProjection=false raus', async () => {
+    test('getCatalog filters out bundles with MarketingProjection visible=false', async () => {
         const hidden = await createLiveBundle({ bundleKey: 'HIDDEN_BUNDLE' });
         await createLiveBundle({ bundleKey: 'PUBLIC_BUNDLE' });
         marketingRepo.set({
@@ -212,7 +212,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         );
     });
 
-    test('getCatalog ignoriert Drafts (nur live = published+not-superseded)', async () => {
+    test('getCatalog ignores drafts (only live = published+not-superseded)', async () => {
         const bundle = await bundleRepo.create({
             projectKey: PROJECT,
             bundleKey: 'DRAFT_ONLY',
@@ -224,7 +224,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         assert.deepEqual(cat.bundles, []);
     });
 
-    test('i18n: MarketingProjection überschreibt label + füllt description (matching locale)', async () => {
+    test('i18n: MarketingProjection overrides label + fills description (matching locale)', async () => {
         const bv = await createLiveBundle({ bundleKey: 'COMMUNICATION_PRO' });
         marketingRepo.set({
             targetType: 'BUNDLE',
@@ -252,7 +252,7 @@ describe('PublicMarketingCatalogService — Bundles', () => {
         assert.equal(de.bundles[0].label, 'Communication Pro DE');
     });
 
-    test('i18n: Fallback auf DE-Projection wenn Locale fehlt', async () => {
+    test('i18n: falls back to DE projection when locale is missing', async () => {
         const bv = await createLiveBundle({ bundleKey: 'FINANCE_PLUS', monthlyNet: '12.00' });
         marketingRepo.set({
             targetType: 'BUNDLE',
@@ -261,20 +261,20 @@ describe('PublicMarketingCatalogService — Bundles', () => {
             displayLabel: 'Finance Plus DE',
             description: 'Erweiterte Finanzfunktionen.',
         });
-        // Keine `tr`-Projection — soll auf DE zurückfallen.
+        // No `tr` projection — should fall back to DE.
         const tr = await service.getCatalog(PROJECT, 'tr', 'EUR', 19);
         assert.equal(tr.bundles[0].label, 'Finance Plus DE');
         assert.equal(tr.bundles[0].description, 'Erweiterte Finanzfunktionen.');
     });
 
-    test('i18n: ohne Projection greift der Bundle-Stamm-Label (description bleibt leer)', async () => {
+    test('i18n: without a projection the bundle root label applies (description stays empty)', async () => {
         await createLiveBundle({ bundleKey: 'EVENTS_PRO' });
         const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19);
         assert.equal(cat.bundles[0].label, 'EVENTS_PRO');
         assert.equal(cat.bundles[0].description, '');
     });
 
-    test('Bundle-Promotions werden targetType=BUNDLE aufgelöst', async () => {
+    test('bundle promotions are resolved with targetType=BUNDLE', async () => {
         await createLiveBundle({ bundleKey: 'FINANCE_PLUS', monthlyNet: '12.00' });
         const promoRepo = new FakePromotionRepo([
             {
@@ -312,10 +312,10 @@ describe('PublicMarketingCatalogService — Bundles', () => {
     });
 });
 
-// PlanVersion-Pfad: validFrom-NULL-Toleranz (Altdaten ohne Startdatum, publiziert
-// vor der §4.2-Publish-Pflicht). Solche live Versionen dürfen nicht aus dem
-// öffentlichen Katalog fallen. `validFrom IS NULL` = „gilt seit jeher", sortiert
-// aber hinter datierten Versionen (Fallback, kein Override).
+// PlanVersion path: validFrom NULL tolerance (legacy data without a start date, published
+// before the §4.2 publish requirement). Such live versions must not drop out of the
+// public catalog. `validFrom IS NULL` = "valid since forever", but sorts
+// behind dated versions (fallback, not an override).
 const ASOF = new Date('2026-06-03T12:00:00Z');
 
 function seedPlanVersion(
@@ -348,8 +348,8 @@ function seedPlanVersion(
     });
 }
 
-describe('PublicMarketingCatalogService — Plans (validFrom-Toleranz)', () => {
-    test('live Plan-Version mit validFrom=NULL erscheint im Katalog', async () => {
+describe('PublicMarketingCatalogService — Plans (validFrom tolerance)', () => {
+    test('live plan version with validFrom=NULL appears in the catalog', async () => {
         planRepo.seed({
             id: 'plan-pro',
             projectKey: PROJECT,
@@ -375,13 +375,13 @@ describe('PublicMarketingCatalogService — Plans (validFrom-Toleranz)', () => {
         assert.equal(cat.plans[0].planVersionId, 'pv-pro');
     });
 
-    test('findActivePlanVersion liefert die NULL-validFrom-Version, wenn sie die einzige live ist', async () => {
+    test('findActivePlanVersion returns the NULL-validFrom version when it is the only live one', async () => {
         seedPlanVersion(planRepo, { id: 'pv-only', planKey: 'BASIC', validFrom: null });
         const active = await planRepo.findActivePlanVersion('BASIC', ASOF);
         assert.equal(active?.id, 'pv-only');
     });
 
-    test('datierte Version gewinnt gegen NULL-validFrom (Fallback, kein Override)', async () => {
+    test('dated version wins over NULL-validFrom (fallback, not an override)', async () => {
         seedPlanVersion(planRepo, {
             id: 'pv-null',
             planKey: 'STANDARD',
@@ -399,12 +399,12 @@ describe('PublicMarketingCatalogService — Plans (validFrom-Toleranz)', () => {
     });
 });
 
-// validUntil-Tagessemantik: eine Version ist an ihrem eigenen letzten Tag
-// (validUntil = heute) noch aktiv — sonst klafft am Sukzessions-Stichtag ein
-// „toter Tag" (Vorgänger validUntil=heute schon dunkel, Nachfolger ab morgen).
+// validUntil day semantics: a version is still active on its own last day
+// (validUntil = today) — otherwise a "dead day" would gape open at the succession
+// cutoff (predecessor validUntil=today already dark, successor only from tomorrow).
 // ASOF = 2026-06-03T12:00:00Z.
-describe('PublicMarketingCatalogService — Plans (validUntil tag-inklusiv)', () => {
-    test('Ein-Tages-Version (validFrom=validUntil=heute) ist heute aktiv', async () => {
+describe('PublicMarketingCatalogService — Plans (validUntil day-inclusive)', () => {
+    test('single-day version (validFrom=validUntil=today) is active today', async () => {
         seedPlanVersion(planRepo, {
             id: 'pv-today',
             planKey: 'BASIC',
@@ -415,7 +415,7 @@ describe('PublicMarketingCatalogService — Plans (validUntil tag-inklusiv)', ()
         assert.equal(active?.id, 'pv-today');
     });
 
-    test('validUntil = gestern → heute dunkel', async () => {
+    test('validUntil = yesterday → dark today', async () => {
         seedPlanVersion(planRepo, {
             id: 'pv-yesterday',
             planKey: 'BASIC',
@@ -426,7 +426,7 @@ describe('PublicMarketingCatalogService — Plans (validUntil tag-inklusiv)', ()
         assert.equal(active, null);
     });
 
-    test('Sukzession ohne toten Tag: v1 (…–heute) heute aktiv, v2 (morgen–) noch nicht', async () => {
+    test('succession without a dead day: v1 (…–today) active today, v2 (tomorrow–) not yet', async () => {
         planRepo.seed({
             id: 'plan-basic',
             projectKey: PROJECT,
@@ -467,11 +467,11 @@ describe('PublicMarketingCatalogService — Plans (validUntil tag-inklusiv)', ()
     });
 });
 
-// Treppen-Sortierung der Vergleichs-Matrix: Frontends rendern die Zeilen in
-// Payload-Reihenfolge — die Treppe (breiteste Abdeckung oben, dann vordere
-// Spalten, dann Label) muss daher hier im Service entstehen.
-describe('PublicMarketingCatalogService — Vergleichs-Matrix (Treppen-Sortierung)', () => {
-    test('Feature-Zeilen: breiteste Abdeckung zuerst, bei Gleichstand vordere Plan-Spalte', async () => {
+// Staircase sorting of the comparison matrix: frontends render the rows in
+// payload order — so the staircase (widest coverage on top, then leading
+// columns, then label) has to be produced here in the service.
+describe('PublicMarketingCatalogService — comparison matrix (staircase sorting)', () => {
+    test('feature rows: widest coverage first, on a tie the leading plan column', async () => {
         planRepo.seed({
             id: 'plan-basis',
             projectKey: PROJECT,
@@ -529,8 +529,8 @@ describe('PublicMarketingCatalogService — Vergleichs-Matrix (Treppen-Sortierun
         const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19, ASOF);
         assert.equal(cat.plans.length, 2);
 
-        // Erwartete Treppe aus der tatsächlichen Spaltenreihenfolge ableiten
-        // (Plan-Sortierung ist nicht Gegenstand dieses Tests).
+        // Derive the expected staircase from the actual column order
+        // (plan sorting is not the subject of this test).
         const firstOnly = cat.plans[0].planKey === 'BASIS' ? 'NUR_BASIS' : 'NUR_PRO';
         const secondOnly = firstOnly === 'NUR_BASIS' ? 'NUR_PRO' : 'NUR_BASIS';
         assert.deepEqual(
@@ -541,7 +541,7 @@ describe('PublicMarketingCatalogService — Vergleichs-Matrix (Treppen-Sortierun
 });
 
 describe('PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)', () => {
-    test('priceTag der Bundle-MarketingProjection landet im Payload', async () => {
+    test('priceTag of the bundle MarketingProjection lands in the payload', async () => {
         const bv = await createLiveBundle({ bundleKey: 'FINANCE_PLUS', monthlyNet: '12.00' });
         marketingRepo.set({
             targetType: 'BUNDLE',
@@ -556,13 +556,13 @@ describe('PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
         assert.equal(cat.bundles[0].priceTag, 'ab 12 € / Monat');
     });
 
-    test('priceTag ist null ohne MarketingProjection (abwärtskompatibel)', async () => {
+    test('priceTag is null without a MarketingProjection (backward compatible)', async () => {
         await createLiveBundle({ bundleKey: 'FINANCE_PLUS' });
         const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19);
         assert.equal(cat.bundles[0].priceTag, null);
     });
 
-    test('featureLabels (#48): Labels für Bundle-Features ∪ requiresFeatures aus den FeatureCatalogEntries (inkl. i18n)', async () => {
+    test('featureLabels (#48): labels for bundle features ∪ requiresFeatures from the FeatureCatalogEntries (incl. i18n)', async () => {
         await createLiveBundle({ bundleKey: 'TURNIERE', features: ['TOURNAMENT_MANAGEMENT'] });
         const catalogEntryRepo = {
             listFeatures: async () => [
@@ -604,7 +604,7 @@ describe('PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
         });
     });
 
-    test('featureLabels: nicht-kuratierte Keys fehlen, ohne CatalogEntryRepository leer (graceful)', async () => {
+    test('featureLabels: non-curated keys are missing, empty without a CatalogEntryRepository (graceful)', async () => {
         await createLiveBundle({ bundleKey: 'TURNIERE', features: ['TOURNAMENT_MANAGEMENT'] });
         const cat = await service.getCatalog(PROJECT, 'de', 'EUR', 19);
         assert.deepEqual(cat.bundles[0].featureLabels, {});

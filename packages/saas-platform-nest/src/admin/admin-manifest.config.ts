@@ -1,5 +1,5 @@
-// Statische, App-spezifische Manifest-Bestandteile, die nicht via DI-Contributions
-// kommen. Wird beim Boot in den AdminManifestService injiziert.
+// Static, app-specific manifest parts that do not come via DI contributions.
+// Injected into the AdminManifestService at boot.
 
 import type { AdminManifest } from '@saasicat/types';
 

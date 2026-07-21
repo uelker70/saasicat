@@ -1,27 +1,27 @@
-// Reine Helper-Funktionen für die Bundle-Versions-UI — analog zur
-// Plan-Simulation (saasadminui/project/bundles.jsx). Die Logik kennt nur
-// das Wire-Format (`BundleVersionRow`, `PlanVersionRow`), kein DOM, keine
-// API-Calls — damit ist sie 1:1 vom Inline-Editor + Strip + Status-Banner
-// + Compat-Picker konsumierbar und in Tests pure aufrufbar.
+// Pure helper functions for the bundle-version UI — analogous to the
+// plan simulation (saasadminui/project/bundles.jsx). The logic knows only
+// the wire format (`BundleVersionRow`, `PlanVersionRow`), no DOM, no
+// API calls — so it can be consumed 1:1 by the inline editor + strip +
+// status banner + compat picker and called purely in tests.
 
 import type { BundleVersionRow, PlanVersionRow } from '@saasicat/types';
 
-/** UI-Lifecycle-Status einer einzelnen BundleVersion. */
+/** UI lifecycle status of a single BundleVersion. */
 export type BundleVersionUiStatus = 'draft' | 'live' | 'scheduled' | 'superseded';
 
-/** Top-Level-Status eines Bundle-Stamms über alle Versionen. */
+/** Top-level status of a bundle stem across all versions. */
 export type BundleAggregateStatus = BundleVersionUiStatus | 'retired';
 
 /**
- * Status einer BundleVersion zu einem Stichtag. Mapping:
+ * Status of a BundleVersion at a given date. Mapping:
  *   - draft     : publishedAt === null
- *   - superseded: supersededAt !== null  ODER  validUntil < today
+ *   - superseded: supersededAt !== null  OR  validUntil < today
  *   - scheduled : published, validFrom > today, supersededAt === null
- *   - live      : sonst (published, validFrom ≤ today ≤ validUntil)
+ *   - live      : otherwise (published, validFrom ≤ today ≤ validUntil)
  *
- * Wenn `validFrom` null ist (Bestand-Version ohne Lifecycle-Backfill),
- * wird die Version als „live" interpretiert — das ist das pragmatische
- * Übergangs-Verhalten bis zur Backfill-Migration.
+ * When `validFrom` is null (legacy version without lifecycle backfill),
+ * the version is interpreted as "live" — this is the pragmatic
+ * transitional behavior until the backfill migration.
  */
 export function bundleVersionStatus(
     v: BundleVersionRow,
@@ -44,7 +44,7 @@ export function bundleVersionStatus(
     return 'live';
 }
 
-/** UI-Meta-Daten für einen Status (Label, CSS-Klasse, Tooltip). */
+/** UI metadata for a status (label, CSS class, tooltip). */
 export interface BundleStatusMeta {
     label: string;
     cls: 'draft' | 'live' | 'scheduled' | 'supersed';
@@ -80,8 +80,8 @@ export const BUNDLE_STATUS_META: Record<BundleAggregateStatus, BundleStatusMeta>
 };
 
 /**
- * Sortiert die Versionen einer Bundle-Linie aufsteigend nach
- * `validFrom` (Drafts ohne validFrom ans Ende).
+ * Sorts the versions of a bundle line ascending by
+ * `validFrom` (drafts without validFrom go to the end).
  */
 export function bundleVersionsSorted(versions: BundleVersionRow[]): BundleVersionRow[] {
     return [...versions].sort((a, b) => {
@@ -95,9 +95,9 @@ export function bundleVersionsSorted(versions: BundleVersionRow[]): BundleVersio
 }
 
 /**
- * Aktuell aktive (live) Bundle-Version oder `null`.
- * Im Gegensatz zu `bundleVersionStatus` bezogen auf den ganzen Bundle-
- * Stamm — wird im Card-Header für „Live · v3"-Anzeige genutzt.
+ * Currently active (live) bundle version or `null`.
+ * Unlike `bundleVersionStatus`, this refers to the whole bundle
+ * stem — used in the card header for the "Live · v3" display.
  */
 export function bundleActiveVersionAt(
     versions: BundleVersionRow[],
@@ -131,10 +131,10 @@ export function bundleAggregateStatus(
 }
 
 /**
- * Überschneidung zwischen einer BundleVersion und einer PlanVersion:
- * Features + Quotas, die der Plan bereits enthält. Doppelte Berechnung
- * → Warnung im Editor (Bundle würde im kombinierten Tarif Features
- * mehrfach zählen).
+ * Overlap between a BundleVersion and a PlanVersion:
+ * features + quotas that the plan already contains. Double counting
+ * → warning in the editor (the bundle would count features multiple
+ * times in the combined plan).
  */
 export interface BundlePlanOverlap {
     features: string[];
@@ -154,7 +154,7 @@ export function findBundlePlanOverlap(
     return { features, quotas, hasAny: features.length > 0 || quotas.length > 0 };
 }
 
-/** ISO-`YYYY-MM-DD` → `DD.MM.YYYY` für UI-Anzeige; null/leer → '—'. */
+/** ISO `YYYY-MM-DD` → `DD.MM.YYYY` for UI display; null/empty → '—'. */
 export function formatDateDE(iso: string | null | undefined): string {
     if (!iso) return '—';
     const day = iso.slice(0, 10);

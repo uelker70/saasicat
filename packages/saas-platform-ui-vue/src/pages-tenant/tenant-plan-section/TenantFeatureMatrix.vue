@@ -40,16 +40,16 @@ import { computed } from 'vue';
 import type { FeatureUiRegistry } from '@saasicat/types';
 import type { TenantPlanSectionI18n } from '../default-i18n.js';
 
-// TenantFeatureMatrix — vollständige Leistungsumfang-Übersicht (#18):
-// alle bekannten Features, getrennt nach enthalten/gesperrt, mit
-// Übersetzung aus dem Feature-Registry (Fallback: featureLabel-Hook → Key).
+// TenantFeatureMatrix — complete feature-scope overview (#18):
+// all known features, split into included/locked, with translation
+// from the feature registry (fallback: featureLabel hook → key).
 
 const props = defineProps<{
-    /** Feature-Registry (Label/Beschreibung/Icon je FeatureKey). */
+    /** Feature registry (label/description/icon per FeatureKey). */
     featureRegistry: FeatureUiRegistry | null;
-    /** Im aktuellen Plan freigeschaltete FeatureKeys. */
+    /** FeatureKeys unlocked in the current plan. */
     activeFeatures: string[];
-    /** Fallback-Label, falls das Registry den Key nicht kennt. */
+    /** Fallback label if the registry does not know the key. */
     featureLabel: (key: string) => string;
     i18n: TenantPlanSectionI18n;
 }>();
@@ -65,8 +65,8 @@ interface FeatureRow {
 const features = computed<FeatureRow[]>(() => {
     const registry = props.featureRegistry ?? {};
     const active = new Set(props.activeFeatures);
-    // Vereinigung: alle Registry-Keys + alle aktiven Keys (falls ein aktives
-    // Feature ausnahmsweise nicht im Registry steht).
+    // Union: all registry keys + all active keys (in case an active
+    // feature is exceptionally not present in the registry).
     const keys = new Set<string>([...Object.keys(registry), ...props.activeFeatures]);
     const rows: FeatureRow[] = [...keys].map((key) => {
         const meta = registry[key];
@@ -78,7 +78,7 @@ const features = computed<FeatureRow[]>(() => {
             icon: meta?.icon ?? null,
         };
     });
-    // Enthaltene zuerst, danach alphabetisch nach Label.
+    // Included first, then alphabetically by label.
     return rows.sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.label.localeCompare(b.label, 'de');

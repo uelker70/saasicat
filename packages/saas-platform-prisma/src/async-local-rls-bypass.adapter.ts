@@ -3,21 +3,21 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { RlsBypassPort } from '@saasicat/types';
 
 /**
- * Default-Implementation für `RlsBypassPort` via `node:async_hooks`.
+ * Default implementation of `RlsBypassPort` via `node:async_hooks`.
  *
- * Setzt `bypass: true` für die Dauer des übergebenen Callbacks im aktuellen
- * Async-Context. Dein PrismaService liest `isBypassActive()` (z. B. in einer
- * Prisma-Middleware oder einem Interceptor) und setzt `SET LOCAL row_security
- * = off` in der aktuellen Transaktion, wenn aktiv.
+ * Sets `bypass: true` for the duration of the given callback in the current
+ * async context. Your PrismaService reads `isBypassActive()` (e.g. in a
+ * Prisma middleware or an interceptor) and issues `SET LOCAL row_security
+ * = off` in the current transaction when active.
  *
- * Beispiel-Middleware:
+ * Example middleware:
  *
  * ```ts
  * constructor(private readonly rls: AsyncLocalRlsBypassAdapter) {
  *     super();
  *     this.$use(async (params, next) => {
  *         if (this.rls.isBypassActive() && params.action.startsWith('find')) {
- *             // Bypass-Modus aktiv — RLS für diese Query deaktivieren.
+ *             // Bypass mode active — disable RLS for this query.
  *             await this.$executeRawUnsafe('SET LOCAL row_security = off');
  *         }
  *         return next(params);
@@ -34,8 +34,8 @@ export class AsyncLocalRlsBypassAdapter implements RlsBypassPort {
     }
 
     /**
-     * `true` während der Ausführung eines `runWithBypass(...)`-Callbacks.
-     * Im PrismaService oder Interceptor abfragen.
+     * `true` during the execution of a `runWithBypass(...)` callback.
+     * Query this in the PrismaService or an interceptor.
      */
     isBypassActive(): boolean {
         return this.storage.getStore()?.bypass === true;

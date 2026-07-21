@@ -63,12 +63,12 @@ const props = defineProps<{
     modelValue: string | null;
     plans: CatalogPlan[];
     cycle: BillingCycleStr;
-    /** Anzuzeigende quotaKeys in Reihenfolge. */
+    /** quotaKeys to display, in order. */
     catalogQuotaKeys: string[];
-    /** Aktuelle Subscription, optional — wenn gesetzt, wird die Plan-Karte mit „Aktuell" markiert. */
+    /** Current subscription, optional — when set, the plan card is marked with "Aktuell". */
     currentPlanId?: string | null;
     formatCurrency: (n: number) => string;
-    /** Formatiert einen einzelnen Quota-Wert (`-1` → ∞, sonst Zahl + Einheit). */
+    /** Formats a single Quota value (`-1` → ∞, otherwise number + unit). */
     formatQuotaValue: (key: string, value: number) => string;
     quotaLabel: (key: string) => string;
     i18n: I18n;
@@ -92,7 +92,7 @@ function planPrice(plan: CatalogPlan): number | null {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 12px;
 }
-/* CSS-Vars für Light + Dark Mode. Quasar's `body--dark` triggert das Dark-Set. */
+/* CSS vars for light + dark mode. Quasar's `body--dark` triggers the dark set. */
 .sp-models {
     --sp-card-bg: #fff;
     --sp-card-border: rgba(0, 0, 0, 0.1);

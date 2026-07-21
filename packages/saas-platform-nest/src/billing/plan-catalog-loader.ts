@@ -6,15 +6,15 @@ import addFormats from 'ajv-formats';
 import { planCatalogSchema } from '@saasicat/spec';
 import type { PlanCatalog } from '@saasicat/types';
 
-// Plan-Catalog-Loader — Pure Function.
+// Plan catalog loader — pure function.
 //
-// Lädt eine YAML-Datei, parst sie als JSON-kompatibles Objekt, validiert
-// sie gegen `@saasicat/spec/schemas/plan-catalog.schema.json`,
-// liefert ein typed `PlanCatalog`-Objekt zurück.
+// Loads a YAML file, parses it as a JSON-compatible object, validates
+// it against `@saasicat/spec/schemas/plan-catalog.schema.json`,
+// returns a typed `PlanCatalog` object.
 
 /**
- * Schema-Validierungsfehler mit allen Ajv-Errors gebündelt — ein Aufruf liefert
- * die volle Liste, kein Round-Trip-Editing nötig.
+ * Schema validation error bundling all Ajv errors — one call returns
+ * the full list, no round-trip editing needed.
  */
 export interface AjvErrorLike {
     instancePath?: string;
@@ -37,21 +37,21 @@ export class PlanCatalogValidationError extends Error {
 
 export interface LoadPlanCatalogOptions {
     /**
-     * Absoluter Pfad oder relativer Pfad (zum CWD aufgelöst).
+     * Absolute path or relative path (resolved against CWD).
      */
     path: string;
     /**
-     * Optional: zusätzliche cross-field Validierungen, die das JSON-Schema
-     * nicht abdecken kann. Default: alle aktivieren (s. validateConsistency).
+     * Optional: additional cross-field validations that the JSON schema
+     * cannot cover. Default: enable all (see validateConsistency).
      */
     crossFieldChecks?: boolean;
 }
 
 /**
- * Lädt + validiert eine saas.yaml-Datei.
+ * Loads + validates a saas.yaml file.
  *
- * Wirft `PlanCatalogValidationError` bei Schema-Verletzungen oder
- * cross-field-Verletzungen. Wirft `Error` bei IO/YAML-Parse-Fehlern.
+ * Throws `PlanCatalogValidationError` on schema violations or
+ * cross-field violations. Throws `Error` on IO/YAML parse errors.
  */
 export function loadPlanCatalogFromFile(opts: LoadPlanCatalogOptions): PlanCatalog {
     const absolutePath = resolvePath(opts.path);
@@ -63,8 +63,8 @@ export function loadPlanCatalogFromFile(opts: LoadPlanCatalogOptions): PlanCatal
 }
 
 /**
- * Variante für Tests / In-Memory-Loading: nimmt YAML-Inhalt als String,
- * `source` ist nur fürs Fehler-Logging.
+ * Variant for tests / in-memory loading: takes YAML content as a string,
+ * `source` is only for error logging.
  */
 export function loadPlanCatalogFromString(
     yamlContent: string,
@@ -93,29 +93,29 @@ export function loadPlanCatalogFromString(
 }
 
 /**
- * Cross-field-Validierungen, die JSON-Schema nicht ausdrücken kann:
+ * Cross-field validations that JSON schema cannot express:
  *
- *   - Jeder Feature-Key in einem Plan muss in `features[].key` deklariert sein.
- *   - Plan-IDs sind eindeutig.
+ *   - Every feature key in a plan must be declared in `features[].key`.
+ *   - Plan IDs are unique.
  *
- * Quota-Keys werden hier bewusst NICHT geprüft — Source-of-Truth dafür ist
- * der Code (`@DefinesQuota`); der Abgleich läuft zur Laufzeit über den
- * Discovery-Snapshot (Strict-Mode-Check, SPEC_V2 §8).
+ * Quota keys are deliberately NOT checked here — the source of truth is
+ * the code (`@DefinesQuota`); the reconciliation runs at runtime via the
+ * discovery snapshot (strict mode check, SPEC_V2 §8).
  *
- * **`plannedOnly: true` ist KEIN Block** für Plan-Referenzen. Der Flag
- * markiert "im Catalog gelistet, im Code (noch) nicht implementiert" — Plans
- * dürfen das Feature als Roadmap-Marker führen. Aktivierungs-Schutz liegt in
- * `getActiveFeatureKeys` (Filter aus Entitlements). SPEC_V2 §8.2.
+ * **`plannedOnly: true` is NOT a block** for plan references. The flag
+ * marks "listed in the catalog, not (yet) implemented in code" — plans
+ * may carry the feature as a roadmap marker. Activation protection lives in
+ * `getActiveFeatureKeys` (filter from entitlements). SPEC_V2 §8.2.
  *
- * Der Loader sammelt alle Verletzungen und wirft sie gebündelt — damit ein
- * Editor alle Fehler auf einmal sieht und nicht zwölf Round-Trips braucht.
+ * The loader collects all violations and throws them bundled — so an
+ * editor sees all errors at once and does not need twelve round-trips.
  */
 function validateConsistency(catalog: PlanCatalog, source: string): void {
     const errors: string[] = [];
 
     const declaredFeatureKeys = new Set((catalog.features ?? []).map((f) => f.key));
 
-    // Plan-IDs eindeutig?
+    // Plan IDs unique?
     const planIds = new Set<string>();
     for (const plan of catalog.plans ?? []) {
         if (planIds.has(plan.id)) {
@@ -123,7 +123,7 @@ function validateConsistency(catalog: PlanCatalog, source: string): void {
         }
         planIds.add(plan.id);
 
-        // Plan-Features referenzieren erklärte features?
+        // Plan features reference declared features?
         if (catalog.features) {
             for (const fk of plan.features) {
                 if (!declaredFeatureKeys.has(fk)) {

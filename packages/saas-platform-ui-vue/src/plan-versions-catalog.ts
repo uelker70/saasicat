@@ -1,19 +1,19 @@
-// Catalog-Snapshot-Builder — projiziert PlanVersion-Rows auf synthetische
-// Catalog-Snapshots, die die Plan-Versions-UI rendert.
+// Catalog snapshot builder — projects PlanVersion rows onto synthetic
+// catalog snapshots that the plan-versions UI renders.
 //
-// Das Backend kennt keine Catalog-Snapshots; wir leiten sie aus den realen
-// `publishedAt` / `supersededAt`-Events ab. Drei Snapshot-Sorten:
+// The backend knows no catalog snapshots; we derive them from the real
+// `publishedAt` / `supersededAt` events. Three snapshot kinds:
 //
-//   - `drafts`     : Hypothetischer "nach Publish aller offenen Drafts"-Stand
-//   - `active`     : Aktuell live (publishedAt set, supersededAt null)
-//   - `historical` : Pro Publish-Event ein Snapshot, vor `active`
+//   - `drafts`     : Hypothetical "after publishing all open drafts" state
+//   - `active`     : Currently live (publishedAt set, supersededAt null)
+//   - `historical` : One snapshot per publish event, before `active`
 //
-// Plan-IDs werden alphabetisch sortiert; Konsumenten dürfen via
-// `planSortOrder` eine bevorzugte Reihenfolge erzwingen (z. B.
+// Plan IDs are sorted alphabetically; consumers may enforce a preferred
+// order via `planSortOrder` (e.g.
 // BASIC < STANDARD < PROFESSIONAL < BUSINESS < ENTERPRISE).
 //
-// Phase 2b: Aus einem Konsumenten-Admin portiert,
-// app-spezifische Felder via Generics offen gehalten.
+// Phase 2b: ported from a consumer admin,
+// app-specific fields kept open via generics.
 
 import type { PlanVersionRow } from '@saasicat/types';
 
@@ -34,36 +34,36 @@ export interface CatalogSnapshot<P extends PlanVersionRow = PlanVersionRow> {
 
     plans: ResolvedPlan<P>[];
 
-    /** Anzahl offener Drafts für `drafts`-Snapshot, sonst 0. */
+    /** Number of open drafts for the `drafts` snapshot, otherwise 0. */
     draftCount: number;
-    /** Anzahl Entitäten in diesem Snapshot, deren Veröffentlichung mindestens
-     *  eine Regression markierte (`nonRegressive === false`). */
+    /** Number of entities in this snapshot whose publication flagged at least
+     *  one regression (`nonRegressive === false`). */
     regressionCount: number;
 }
 
 export interface ResolvedPlan<P extends PlanVersionRow = PlanVersionRow> {
-    /** Welcher PlanVersionRow ausgewählt wurde, um diesen Slot zu repräsentieren. */
+    /** Which PlanVersionRow was selected to represent this slot. */
     source: P;
-    /** Live-Vorgänger (nur gesetzt, wenn `source` ein DRAFT ist; sonst null). */
+    /** Live predecessor (only set when `source` is a DRAFT; otherwise null). */
     liveBase: P | null;
     isDraft: boolean;
     planId: string;
     features: string[];
-    /** Quota-Map (aus `source.quotas` oder Legacy-Felder; leer wenn keins). */
+    /** Quota map (from `source.quotas` or legacy fields; empty if none). */
     quotas: Record<string, number>;
     monthlyNet: number;
     yearlyNet: number;
     marketed: boolean;
     version: number;
 
-    // Legacy-Quota-Mirrors für UI-Komponenten, die noch nicht auf `quotas[key]`
-    // umgestellt sind. Werden aus `quotas['users'] / 'vehicles' / 'storageGb'`
-    // gespiegelt; für Apps ohne diese Quotas bleiben sie undefined.
-    /** @deprecated Aus `quotas['users']` lesen. */
+    // Legacy quota mirrors for UI components that have not yet switched to
+    // `quotas[key]`. Mirrored from `quotas['users'] / 'vehicles' / 'storageGb'`;
+    // for apps without these quotas they stay undefined.
+    /** @deprecated Read from `quotas['users']`. */
     maxUsers?: number;
-    /** @deprecated Legacy-Feld; aus `quotas['vehicles']` lesen. */
+    /** @deprecated Legacy field; read from `quotas['vehicles']`. */
     maxVehicles?: number;
-    /** @deprecated Aus `quotas['storageGb']` lesen. */
+    /** @deprecated Read from `quotas['storageGb']`. */
     maxStorageGb?: number;
 }
 
@@ -73,9 +73,9 @@ export interface RawCatalogData<P extends PlanVersionRow = PlanVersionRow> {
 
 export interface BuildSnapshotsOptions {
     /**
-     * App-spezifische Plan-Reihenfolge, z. B. `['BASIC', 'STANDARD',
-     * 'PROFESSIONAL', 'BUSINESS', 'ENTERPRISE']`. Plan-IDs außerhalb der Liste
-     * landen alphabetisch sortiert hinten.
+     * App-specific plan order, e.g. `['BASIC', 'STANDARD',
+     * 'PROFESSIONAL', 'BUSINESS', 'ENTERPRISE']`. Plan IDs outside the list
+     * end up sorted alphabetically at the back.
      */
     planSortOrder?: readonly string[];
 }
@@ -88,7 +88,7 @@ function extractQuotas(p: PlanVersionRow): Record<string, number> {
     if (p.quotas && Object.keys(p.quotas).length > 0) {
         return { ...p.quotas };
     }
-    // Legacy-Fallback: flache Felder einsammeln.
+    // Legacy fallback: collect the flat fields.
     const out: Record<string, number> = {};
     if (typeof p.maxUsers === 'number') out.users = p.maxUsers;
     if (typeof p.maxVehicles === 'number') out.vehicles = p.maxVehicles;
@@ -107,9 +107,9 @@ const sortByPublishedDesc = <T extends { publishedAt: string | null; version: nu
     });
 
 /**
- * Findet die für einen Entity-Slot zum Zeitpunkt `asOf` gültige Live-Version.
- * Eine Version war live, wenn `publishedAt <= asOf` und (`supersededAt == null`
- * oder `supersededAt > asOf`) galten.
+ * Finds the live version valid for an entity slot at the point in time `asOf`.
+ * A version was live when `publishedAt <= asOf` and (`supersededAt == null`
+ * or `supersededAt > asOf`) held.
  */
 function findLiveAt<
     T extends { publishedAt: string | null; supersededAt: string | null; version: number },
@@ -166,7 +166,7 @@ function resolvePlan<P extends PlanVersionRow>(source: P, liveBase: P | null): R
     };
 }
 
-// ─── Snapshot-Konstruktoren ──────────────────────────────────────────────
+// ─── Snapshot constructors ───────────────────────────────────────────────
 
 function dateLabelDe(iso: string): string {
     return new Date(iso).toLocaleDateString('de-DE', {
@@ -262,8 +262,8 @@ function buildHistoricalSnapshots<P extends PlanVersionRow>(
 
     const planByKey = groupBy(data.planVersions, (r) => r.planId);
 
-    // Aktuell-Snapshot überlappt sich mit dem letzten Publish-Event. Wir nehmen
-    // den letzten in `active`, und bilden hier nur die Events *davor* ab.
+    // The active snapshot overlaps with the last publish event. We take the
+    // latest one in `active`, and map only the events *before* it here.
     const liveTimestamps = new Set<string>();
     for (const rows of planByKey.values()) {
         const live = findCurrentLive(rows);
@@ -277,7 +277,7 @@ function buildHistoricalSnapshots<P extends PlanVersionRow>(
     const out: CatalogSnapshot<P>[] = [];
     for (const ts of sortedDesc) {
         if (latestLive && Date.parse(ts) >= Date.parse(latestLive)) continue;
-        const tMs = Date.parse(ts) + 1; // *nach* dem Event
+        const tMs = Date.parse(ts) + 1; // *after* the event
         const plans: ResolvedPlan<P>[] = [];
         for (const [, rows] of planByKey) {
             const live = findLiveAt(rows, tMs);
@@ -323,7 +323,7 @@ function detailEvent(rows: PlanVersionRow[]): string {
     return note.length > 0 ? note : 'Snapshot rekonstruiert aus per-Entity-Versionen.';
 }
 
-// ─── Sortierung ──────────────────────────────────────────────────────────
+// ─── Sorting ─────────────────────────────────────────────────────────────
 
 function sortPlansBy<P extends PlanVersionRow>(
     order: readonly string[] | undefined,

@@ -1,21 +1,21 @@
-// Pure Helper-Funktionen fuer das Registration-Module.
-// Bewusst frei von DI / NestJS — direkt importierbar fuer Unit-Tests.
+// Pure helper functions for the Registration module.
+// Deliberately free of DI / NestJS — directly importable for unit tests.
 
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
 
-/** 6-stelliger numerischer OTP-Code, gleichverteilt aus 100000..999999. */
+/** 6-digit numeric OTP code, uniformly distributed from 100000..999999. */
 export function generateOtpCode(): string {
     return String(randomInt(100000, 1000000));
 }
 
-/** SHA-256-Hash eines OTP-Codes (Hex). OTPs werden nie im Klartext gespeichert. */
+/** SHA-256 hash of an OTP code (hex). OTPs are never stored in plaintext. */
 export function hashOtpCode(code: string): string {
     return createHash('sha256').update(code).digest('hex');
 }
 
 /**
- * Konstantzeit-Vergleich von OTP-Hash und Klartext-Code.
- * Verhindert Timing-Angriffe gegen kurze numerische Codes.
+ * Constant-time comparison of an OTP hash against a plaintext code.
+ * Prevents timing attacks against short numeric codes.
  */
 export function verifyOtpCode(expectedHash: string, code: string): boolean {
     const actual = hashOtpCode(code);
@@ -30,10 +30,10 @@ export function verifyOtpCode(expectedHash: string, code: string): boolean {
 }
 
 /**
- * Vereins-/Tenant-Slug aus einem Klartext-Namen.
- * Lowercase, ASCII, nur a-z0-9 und Bindestrich.
- * Leerzeichen und Sonderzeichen werden zu '-' kollabiert.
- * Ergebnis ist niemals leer (Fallback `'verein'`).
+ * Club/Tenant slug from a plaintext name.
+ * Lowercase, ASCII, only a-z0-9 and hyphen.
+ * Whitespace and special characters are collapsed to '-'.
+ * The result is never empty (fallback `'verein'`).
  */
 export function slugify(name: string): string {
     const transliterated = name

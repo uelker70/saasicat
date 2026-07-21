@@ -1,4 +1,4 @@
-// DTOs für den MarketingSettings-Controller (SPEC_V2 §6.5).
+// DTOs for the MarketingSettings controller (SPEC_V2 §6.5).
 
 import { ArrayUnique, IsArray, IsString, Matches } from 'class-validator';
 
@@ -11,7 +11,7 @@ export class ListMarketingSettingsQueryDto {
     projectKey!: string;
 }
 
-/** Body von `PUT /admin/catalog/marketing-settings`. */
+/** Body of `PUT /admin/catalog/marketing-settings`. */
 export class UpdateMarketingSettingsDto {
     @IsString()
     @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey muss kebab-case sein' })

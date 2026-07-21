@@ -1,14 +1,14 @@
-// WebAuditLogger — geteilter Web-Request → Audit-Log-Helfer für SuperAdmin-
-// Controller (#13).
+// WebAuditLogger — shared web-request → audit-log helper for SuperAdmin
+// controllers (#13).
 //
-// Baut einen AdminActor aus dem Request (User-ID/Email/Kontext via optionale
-// Resolver mit sinnvollen Defaults) und loggt best-effort über den
-// AdminAuditService, ohne den Write-Pfad zu brechen. Alle Abhängigkeiten sind
-// @Optional: fehlt der AdminAuditService (minimaler Deploy ohne Admin-Modul im
-// Scope), ist `logFromRequest` ein stiller No-op.
+// Builds an AdminActor from the request (user ID/email/context via optional
+// resolvers with sensible defaults) and logs best-effort via the
+// AdminAuditService, without breaking the write path. All dependencies are
+// @Optional: if the AdminAuditService is missing (minimal deploy without the admin
+// module in scope), `logFromRequest` is a silent no-op.
 //
-// SSOT für das Actor-/Audit-Muster (zuvor controller-privat in
-// tenant-billing.controller.ts; dieser kann später hierauf migrieren).
+// SSOT for the actor/audit pattern (previously controller-private in
+// tenant-billing.controller.ts; that one can migrate here later).
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { AdminActor } from '@saasicat/types';
@@ -48,9 +48,9 @@ export class WebAuditLogger {
     ) {}
 
     /**
-     * Löst die User-ID aus dem Request auf (Resolver-Token oder JWT-Default) —
-     * auch für fachliche Felder nutzbar (z. B. `approvedBy`, #20), nicht nur
-     * fürs Audit-Log.
+     * Resolves the user ID from the request (resolver token or JWT default) —
+     * also usable for domain fields (e.g. `approvedBy`, #20), not just
+     * for the audit log.
      */
     resolveUserId(req: unknown): string | null {
         return (
@@ -77,9 +77,9 @@ export class WebAuditLogger {
     }
 
     /**
-     * Best-effort Audit-Log aus einem Web-Request. Schreibt nichts und wirft
-     * nie, wenn kein AdminAuditService injiziert ist; Schreibfehler werden
-     * verschluckt (eine Beobachtungslücke ist besser als ein Outage).
+     * Best-effort audit log from a web request. Writes nothing and never
+     * throws when no AdminAuditService is injected; write errors are
+     * swallowed (an observability gap is better than an outage).
      */
     async logFromRequest(
         req: unknown,
@@ -98,7 +98,7 @@ export class WebAuditLogger {
                 changes,
             });
         } catch {
-            // Audit-Failures dürfen den SuperAdmin-Write-Pfad nicht brechen.
+            // Audit failures must not break the SuperAdmin write path.
         }
     }
 }

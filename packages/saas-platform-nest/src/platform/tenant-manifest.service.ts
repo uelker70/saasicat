@@ -1,5 +1,5 @@
-// TenantManifestService — App registriert NavItems, Service rendert pro
-// Tenant ein gefiltertes Manifest.
+// TenantManifestService — the app registers NavItems, the service renders a
+// filtered manifest per Tenant.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
@@ -14,8 +14,8 @@ export class TenantManifestService {
     constructor(private readonly entitlements: StaticEntitlementService) {}
 
     /**
-     * Im `OnModuleInit` der App aufrufen: registriert App-Navigation für die
-     * Tenant-UI. Idempotent: gleicher `id` überschreibt.
+     * Call in the app's `OnModuleInit`: registers app navigation for the
+     * Tenant UI. Idempotent: the same `id` overwrites.
      */
     registerNavItem(item: TenantNavItem): void {
         const existing = this.navItems.findIndex((i) => i.id === item.id);
@@ -23,15 +23,15 @@ export class TenantManifestService {
         else this.navItems.push(item);
     }
 
-    /** Bulk-Variante. */
+    /** Bulk variant. */
     registerNavItems(items: TenantNavItem[]): void {
         for (const item of items) this.registerNavItem(item);
     }
 
     /**
-     * Liefert das gefilterte Manifest für einen Tenant. NavItems mit
-     * `requiresFeature` werden serverseitig ausgesiebt, sobald keines der
-     * geforderten Features im Entitlement-Snapshot enthalten ist.
+     * Returns the filtered manifest for a Tenant. NavItems with
+     * `requiresFeature` are filtered out server-side as soon as none of the
+     * required features are present in the entitlement snapshot.
      */
     async getManifest(tenantId: string): Promise<TenantManifest> {
         const snap = await this.entitlements.snapshot(tenantId);

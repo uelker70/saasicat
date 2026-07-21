@@ -1,14 +1,14 @@
-// useTenantBilling — Vue-Composable für die Tenant-Self-Service-Endpunkte
+// useTenantBilling — Vue composable for the tenant self-service endpoints
 // (`/billing/usage`, `/billing/entitlement`, `/billing/plan/preview`,
 // `/billing/plan`, `/billing/subscription-bundles`, `/billing/cancel`).
 //
-// Konsument liefert HTTP-Adapter (axios-Wrapper mit Auth-Header) und
-// optional `apiPrefix`. **Konvention**: `apiPrefix` ist der Sub-Pfad UNTER
-// der App-API-Base-URL, die der HTTP-Adapter selbst hält. Beispiele:
-//   - HTTP-Adapter baseURL `/api`        + apiPrefix `/billing` → `/api/billing/...`
-//   - HTTP-Adapter baseURL `/api/v1`     + apiPrefix `/billing` → `/api/v1/billing/...`
-// **NICHT** `apiPrefix='/api/billing'` setzen, wenn der HTTP-Adapter bereits
-// `/api` als baseURL hat — das Resultat wäre `/api/api/billing/...` (404).
+// The consumer supplies the HTTP adapter (axios wrapper with auth header) and
+// optionally an `apiPrefix`. **Convention**: `apiPrefix` is the sub-path UNDER
+// the app API base URL that the HTTP adapter itself holds. Examples:
+//   - HTTP adapter baseURL `/api`        + apiPrefix `/billing` → `/api/billing/...`
+//   - HTTP adapter baseURL `/api/v1`     + apiPrefix `/billing` → `/api/v1/billing/...`
+// Do **NOT** set `apiPrefix='/api/billing'` when the HTTP adapter already
+// has `/api` as its baseURL — the result would be `/api/api/billing/...` (404).
 
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from './types.js';
@@ -55,22 +55,22 @@ export interface UsageSnapshotShape {
     };
     usage: Record<string, number>;
     /**
-     * P11.4 (METAMODELL §17a): Read-only Paket-Snapshot aus dem
-     * ursprünglichen CheckoutOffer. `null` für Subscriptions ohne
-     * CheckoutOffer-Herkunft. JSON-Struktur entspricht dem Offer-
-     * Schema; UI kann u. a. `bundleVersionIds`, `currency`,
-     * `priceTotal` daraus lesen.
+     * P11.4 (METAMODELL §17a): Read-only package snapshot from the
+     * original CheckoutOffer. `null` for subscriptions without a
+     * CheckoutOffer origin. The JSON structure matches the Offer
+     * schema; the UI can read `bundleVersionIds`, `currency`,
+     * `priceTotal` and more from it.
      */
     packageSnapshot: PackageSnapshotShape | null;
-    /** P11.4: Optionaler Verweis auf den ursprünglichen CheckoutOffer. */
+    /** P11.4: Optional reference to the original CheckoutOffer. */
     checkoutOfferId: string | null;
 }
 
 /**
- * Self-contained Paket-Snapshot (Form von `CheckoutOffer.snapshot`).
- * Felder sind alle optional, weil das Snapshot-Schema sich erweitern darf
- * und ältere Subscriptions schmälere Snapshots haben können. Die UI muss
- * defensive gegen fehlende Felder bleiben.
+ * Self-contained package snapshot (shape of `CheckoutOffer.snapshot`).
+ * All fields are optional because the snapshot schema may grow and older
+ * subscriptions can carry leaner snapshots. The UI must stay defensive
+ * against missing fields.
  */
 export interface PackageSnapshotShape {
     planId?: string;
@@ -92,7 +92,7 @@ export interface PlanChangePreviewShape {
     target: { plan: PlanSnapshotShape; billingCycle: BillingCycleStr };
     effectiveAt: string | null;
     isImmediate: boolean;
-    /** Projiziertes neues Trial-Ende (ISO) nach dem Wechsel, sonst null. */
+    /** Projected new trial end (ISO) after the change, otherwise null. */
     projectedTrialEndsAt: string | null;
     proration: {
         daysRemainingInPeriod: number;
@@ -128,18 +128,18 @@ export interface PlanSnapshotShape {
 }
 
 /**
- * Gebuchtes Catalog-Bundle (Wire-Form von `SubscriptionBundleRecord`, Daten
- * als ISO-Strings). Quelle: `GET /billing/subscription-bundles`. Das Label/
- * der Preis wird vom Konsumenten über `bundleVersionId` gegen den Bundle-
- * Katalog (`GET /billing/bundles`) gejoint — der Record selbst trägt nur die
- * Version-Referenz.
+ * Booked catalog bundle (wire shape of `SubscriptionBundleRecord`, dates
+ * as ISO strings). Source: `GET /billing/subscription-bundles`. The label/
+ * price is joined by the consumer via `bundleVersionId` against the bundle
+ * catalog (`GET /billing/bundles`) — the record itself carries only the
+ * version reference.
  */
 export interface SubscriptionBundleShape {
     id: string;
     subscriptionId: string;
     bundleVersionId: string;
-    /** Denormalisiert (server-seitig aus der gebuchten bundleVersion): Label/
-     *  Key/Preis, damit gebuchte Bundles ohne Katalog-Join angezeigt werden. */
+    /** Denormalized (server-side from the booked bundleVersion): label/
+     *  key/price, so that booked bundles can be shown without a catalog join. */
     bundleKey?: string | null;
     label?: string | null;
     monthlyNet?: string | null;
@@ -162,7 +162,7 @@ export interface BundlePreviewSnapshotShape {
     quotas: Record<string, number>;
 }
 
-/** AK-13: Feature ist bereits anderweitig bezahlt — Doppelbezahlungs-Hinweis. */
+/** AK-13: Feature is already paid for elsewhere — double-payment hint. */
 export interface RedundantFeatureHintShape {
     featureKey: string;
     coveredBy: 'PLAN' | 'BUNDLE';
@@ -170,9 +170,9 @@ export interface RedundantFeatureHintShape {
 }
 
 /**
- * Wire-Form von `SubscriptionBundleAddPreviewDto` (#37,
- * `POST /billing/subscription-bundles/preview` mit `bundleVersionId`).
- * `proration` ist `null` im TRIAL oder ohne gepflegten Listenpreis.
+ * Wire shape of `SubscriptionBundleAddPreviewDto` (#37,
+ * `POST /billing/subscription-bundles/preview` with `bundleVersionId`).
+ * `proration` is `null` during TRIAL or without a maintained list price.
  */
 export interface BundleAddPreviewShape {
     action: 'add';
@@ -197,8 +197,8 @@ export interface BundleAddPreviewShape {
 }
 
 /**
- * Wire-Form von `SubscriptionBundleCancelPreviewDto` (#37, Preview mit
- * `subscriptionBundleId`). `effectiveAt` = max(Periodenende, Mindestlaufzeit).
+ * Wire shape of `SubscriptionBundleCancelPreviewDto` (#37, preview with
+ * `subscriptionBundleId`). `effectiveAt` = max(period end, minimum term).
  */
 export interface BundleCancelPreviewShape {
     action: 'cancel';
@@ -215,9 +215,9 @@ export type BundlePreviewShape = BundleAddPreviewShape | BundleCancelPreviewShap
 
 export interface UseTenantBillingOptions {
     /**
-     * Default `'/billing'`. Der App-HTTP-Adapter setzt die API-Base-URL
-     * (z. B. `/api` oder `/api/v1`); `apiPrefix` ist
-     * der Sub-Pfad darunter. Doppelter `/api`-Prefix führt zu HTTP 404.
+     * Default `'/billing'`. The app HTTP adapter sets the API base URL
+     * (e.g. `/api` or `/api/v1`); `apiPrefix` is
+     * the sub-path below it. A doubled `/api` prefix leads to HTTP 404.
      */
     apiPrefix?: string;
     http?: HttpClient;
@@ -242,33 +242,33 @@ export interface UseTenantBillingResult {
     ) => Promise<void>;
     acceptPendingPlanVersion: () => Promise<void>;
     cancelSubscription: (immediately: boolean) => Promise<void>;
-    /** True wenn `usage.value.features` den FeatureKey enthält. */
+    /** True if `usage.value.features` contains the FeatureKey. */
     hasFeature: (key: string) => boolean;
 
     /**
-     * Gebuchte Catalog-Bundles des Tenants (`/billing/subscription-bundles`).
-     * Wird beim `reload()` mitgeladen. Fehlt der Endpoint (Konsument ohne
-     * `SubscriptionBundleModule`), bleibt die Liste leer ohne den Haupt-
-     * `error` zu setzen — die Seite degradiert sauber.
+     * The tenant's booked catalog bundles (`/billing/subscription-bundles`).
+     * Loaded along with `reload()`. If the endpoint is missing (consumer
+     * without `SubscriptionBundleModule`), the list stays empty without
+     * setting the main `error` — the page degrades gracefully.
      */
     subscriptionBundles: Ref<SubscriptionBundleShape[]>;
-    /** Lädt nur die gebuchten Bundles neu (non-fatal). */
+    /** Reloads only the booked bundles (non-fatal). */
     loadBundles: () => Promise<void>;
-    /** Bucht ein Bundle per `bundleVersionId` + lädt die Liste neu. */
+    /** Books a bundle via `bundleVersionId` + reloads the list. */
     addBundle: (bundleVersionId: string, minimumTermMonths?: number) => Promise<void>;
-    /** Kündigt ein gebuchtes Bundle per SubscriptionBundle-PK + lädt neu. */
+    /** Cancels a booked bundle via SubscriptionBundle PK + reloads. */
     cancelBundle: (subscriptionBundleId: string) => Promise<void>;
-    /** Macht eine (noch nicht wirksame) Kündigung rückgängig + lädt neu. */
+    /** Reverses a cancellation that has not yet taken effect + reloads. */
     reactivateBundle: (subscriptionBundleId: string) => Promise<void>;
     /**
-     * Add-Preview (#37): Proration, Folgeperioden-Preis, Redundanz-Hinweis,
-     * requires-Check und Blocker — VOR der Buchung anzeigen.
+     * Add preview (#37): proration, next-period price, redundancy hint,
+     * requires check and blockers — show BEFORE booking.
      */
     previewAddBundle: (
         bundleVersionId: string,
         minimumTermMonths?: number,
     ) => Promise<BundleAddPreviewShape>;
-    /** Cancel-Preview (#37): Wirksamkeits-Datum + Ersparnis ab Folgeperiode. */
+    /** Cancel preview (#37): effective date + savings from the next period on. */
     previewCancelBundle: (subscriptionBundleId: string) => Promise<BundleCancelPreviewShape>;
 }
 
@@ -298,8 +298,8 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
             body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
         });
         if (res.status >= 400) {
-            // Wrapper-Error mit Status — Caller (UI) entscheidet, ob spezifische
-            // Codes (402 Payment Required, 403 Feature Locked) sonderbehandelt werden.
+            // Wrapper error with status — the caller (UI) decides whether specific
+            // codes (402 Payment Required, 403 Feature Locked) get special handling.
             let body: unknown;
             try {
                 body = await res.json();
@@ -328,8 +328,8 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
         } finally {
             loading.value = false;
         }
-        // Bundles non-fatal nachladen — ein fehlender/4xx Endpoint darf die
-        // Plan-Seite nicht in den Fehlerzustand kippen.
+        // Reload bundles non-fatally — a missing/4xx endpoint must not tip the
+        // plan page into an error state.
         await loadBundles();
     }
 

@@ -4,10 +4,10 @@ import { Command, CommandRunner, Option } from 'nest-commander';
 import { CliContextService } from './cli-context.service.js';
 import { DoctorFlow } from './doctor-flow.js';
 
-// Geteiltes `<app> doctor`-Command. Bindet den Plattform-`DoctorFlow` an die
-// nest-commander-CLI. Die ausgeführten Checks bestimmt der Consumer über
-// `CliContextModule.forRoot({ doctorChecks | defaultDoctorChecks })`; ohne
-// Checks läuft der Flow durch und meldet Gesamtstatus `OK`.
+// Shared `<app> doctor` command. Binds the platform `DoctorFlow` to the
+// nest-commander CLI. The consumer determines which checks run via
+// `CliContextModule.forRoot({ doctorChecks | defaultDoctorChecks })`; without
+// any checks the flow completes and reports an overall status of `OK`.
 
 interface AsFlag {
     as?: string;

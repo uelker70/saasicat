@@ -201,31 +201,31 @@ function buildSvc(overrides = {}) {
     );
 }
 
-describe('PromoCodesService.create — Validierung', () => {
-    test('akzeptiert validen Code', async () => {
+describe('PromoCodesService.create — validation', () => {
+    test('accepts a valid code', async () => {
         const svc = buildSvc();
         const created = await svc.create(BASE_INPUT);
         assert.equal(created.code, 'BLACKFRIDAY25');
     });
 
-    test('lehnt Code mit ungültigem Pattern ab', async () => {
+    test('rejects a code with an invalid pattern', async () => {
         const svc = buildSvc();
         await assert.rejects(svc.create({ ...BASE_INPUT, code: 'ab' }));
         await assert.rejects(svc.create({ ...BASE_INPUT, code: 'WITH SPACE' }));
     });
 
-    test('PERCENT muss 0–100 sein', async () => {
+    test('PERCENT must be 0–100', async () => {
         const svc = buildSvc();
         await assert.rejects(svc.create({ ...BASE_INPUT, value: 0 }));
         await assert.rejects(svc.create({ ...BASE_INPUT, value: 101 }));
     });
 
-    test('ABSOLUTE muss positiv sein', async () => {
+    test('ABSOLUTE must be positive', async () => {
         const svc = buildSvc();
         await assert.rejects(svc.create({ ...BASE_INPUT, valueType: 'ABSOLUTE', value: 0 }));
     });
 
-    test('ONCE darf keinen durationValue haben', async () => {
+    test('ONCE must not have a durationValue', async () => {
         const svc = buildSvc();
         await assert.rejects(
             svc.create({
@@ -237,7 +237,7 @@ describe('PromoCodesService.create — Validierung', () => {
         );
     });
 
-    test('MONTHS / BILLING_CYCLES brauchen 1–24 als durationValue', async () => {
+    test('MONTHS / BILLING_CYCLES need 1–24 as durationValue', async () => {
         const svc = buildSvc();
         await assert.rejects(
             svc.create({ ...BASE_INPUT, durationType: 'MONTHS', durationValue: 0 }),
@@ -250,12 +250,12 @@ describe('PromoCodesService.create — Validierung', () => {
         );
     });
 
-    test('lehnt nonRedeemablePlans-Whitelist ab (ENTERPRISE)', async () => {
+    test('rejects the nonRedeemablePlans whitelist (ENTERPRISE)', async () => {
         const svc = buildSvc();
         await assert.rejects(svc.create({ ...BASE_INPUT, appliesToPlans: ['ENTERPRISE'] }));
     });
 
-    test('lehnt validUntil ≤ validFrom ab', async () => {
+    test('rejects validUntil ≤ validFrom', async () => {
         const svc = buildSvc();
         await assert.rejects(
             svc.create({
@@ -266,9 +266,9 @@ describe('PromoCodesService.create — Validierung', () => {
         );
     });
 
-    test('lehnt ABSOLUTE ≥ niedrigster Plan-Brutto ohne allowZeroInvoice ab', async () => {
+    test('rejects ABSOLUTE ≥ lowest plan gross without allowZeroInvoice', async () => {
         const svc = buildSvc();
-        // BASIC monatlich 9.9 net → brutto ~11.78 → 12 ist drüber
+        // BASIC monthly 9.9 net → gross ~11.78 → 12 is above it
         await assert.rejects(
             svc.create({
                 ...BASE_INPUT,
@@ -280,7 +280,7 @@ describe('PromoCodesService.create — Validierung', () => {
         );
     });
 
-    test('akzeptiert ABSOLUTE-Rabatt ≥ Plan-Brutto wenn allowZeroInvoice=true', async () => {
+    test('accepts an ABSOLUTE discount ≥ plan gross when allowZeroInvoice=true', async () => {
         const svc = buildSvc();
         const created = await svc.create({
             ...BASE_INPUT,
@@ -294,15 +294,15 @@ describe('PromoCodesService.create — Validierung', () => {
         assert.equal(created.allowZeroInvoice, true);
     });
 
-    test('lehnt Doppel-Code ab', async () => {
+    test('rejects a duplicate code', async () => {
         const svc = buildSvc();
         await svc.create(BASE_INPUT);
         await assert.rejects(svc.create(BASE_INPUT));
     });
 });
 
-describe('PromoCodesService.preview — Eligibility', () => {
-    test('NOT_FOUND wenn kein Code existiert', async () => {
+describe('PromoCodesService.preview — eligibility', () => {
+    test('NOT_FOUND when no code exists', async () => {
         const svc = buildSvc();
         const r = await svc.preview({
             code: 'GHOST',
@@ -313,7 +313,7 @@ describe('PromoCodesService.preview — Eligibility', () => {
         assert.equal(r.reason, 'NOT_FOUND');
     });
 
-    test('PLAN_MISMATCH bei Whitelist ohne den Plan', async () => {
+    test('PLAN_MISMATCH when the whitelist excludes the plan', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({ promoRepo: repo });
         await svc.create({ ...BASE_INPUT, appliesToPlans: ['PROFESSIONAL'] });
@@ -326,7 +326,7 @@ describe('PromoCodesService.preview — Eligibility', () => {
         assert.equal(r.reason, 'PLAN_MISMATCH');
     });
 
-    test('PLAN_MISMATCH bei nonRedeemable (ENTERPRISE)', async () => {
+    test('PLAN_MISMATCH on nonRedeemable (ENTERPRISE)', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({ promoRepo: repo });
         await svc.create(BASE_INPUT);
@@ -339,7 +339,7 @@ describe('PromoCodesService.preview — Eligibility', () => {
         assert.equal(r.reason, 'PLAN_MISMATCH');
     });
 
-    test('NOT_FIRST_TIME_CUSTOMER bei firstTimeCustomersOnly + bestehendem Kunden', async () => {
+    test('NOT_FIRST_TIME_CUSTOMER with firstTimeCustomersOnly + an existing customer', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({
             promoRepo: repo,
@@ -360,7 +360,7 @@ describe('PromoCodesService.preview — Eligibility', () => {
         assert.equal(r.reason, 'NOT_FIRST_TIME_CUSTOMER');
     });
 
-    test('valid=true mit Preisvorschau für PROFESSIONAL/YEARLY/25%', async () => {
+    test('valid=true with price preview for PROFESSIONAL/YEARLY/25%', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({ promoRepo: repo });
         await svc.create(BASE_INPUT);
@@ -370,14 +370,14 @@ describe('PromoCodesService.preview — Eligibility', () => {
             billingCycle: 'YEARLY',
         });
         assert.equal(r.valid, true);
-        // 499 Net + 19% USt = 593.81 brutto · 25% = 148.45
+        // 499 net + 19% VAT = 593.81 gross · 25% = 148.45
         assert.equal(r.price.originalGross, '593.81');
         assert.equal(r.price.discountGross, '148.45');
         assert.equal(r.price.discountedGross, '445.36');
     });
 });
 
-describe('PromoCodesService.redeem — Eligibility', () => {
+describe('PromoCodesService.redeem — eligibility', () => {
     const SUBSCRIPTION_LOOKUP = {
         async findById() {
             return {
@@ -390,7 +390,7 @@ describe('PromoCodesService.redeem — Eligibility', () => {
         },
     };
 
-    test('erzwingt firstTimeCustomersOnly auch beim finalen Redeem mit Email', async () => {
+    test('enforces firstTimeCustomersOnly also at the final redeem with email', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({
             promoRepo: repo,
@@ -416,7 +416,7 @@ describe('PromoCodesService.redeem — Eligibility', () => {
         );
     });
 
-    test('blockt firstTimeCustomersOnly beim finalen Redeem ohne Email fail-closed', async () => {
+    test('blocks firstTimeCustomersOnly at the final redeem without email, fail-closed', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({
             promoRepo: repo,
@@ -435,7 +435,7 @@ describe('PromoCodesService.redeem — Eligibility', () => {
         );
     });
 
-    test('laesst firstTimeCustomersOnly beim ersten Kunden final einloesen', async () => {
+    test('lets firstTimeCustomersOnly be redeemed for a first-time customer', async () => {
         const repo = new FakePromoRepo();
         const svc = buildSvc({
             promoRepo: repo,

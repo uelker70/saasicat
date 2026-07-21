@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { BundlesService, BusinessTypesService } from '../dist/catalog/index.js';
 import { FakeBundleRepository, FakeBusinessTypeRepository } from '../dist/testing/index.js';
 
-// BusinessTypesService — CRUD + Komposition aus published BundleVersions +
-// Strict-Check (Disjointness, Compatibility, Bundle-Existence) + Diff.
+// BusinessTypesService — CRUD + composition from published BundleVersions +
+// strict check (disjointness, compatibility, bundle existence) + diff.
 
 const PROJECT = 'clubapp';
 
@@ -63,11 +63,11 @@ async function createPublishedBundle(bundleKey, features, opts = {}) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Stamm-Operationen
+// Master operations
 // ─────────────────────────────────────────────────────────────────
 
-describe('BusinessTypesService — Stamm-Operationen', () => {
-    test('createBusinessType + Doppelt-Anlage wirft 422', async () => {
+describe('BusinessTypesService — master operations', () => {
+    test('createBusinessType + duplicate creation throws 422', async () => {
         await btService.createBusinessType({
             projectKey: PROJECT,
             businessTypeKey: 'SPORT_VEREIN',
@@ -84,7 +84,7 @@ describe('BusinessTypesService — Stamm-Operationen', () => {
         );
     });
 
-    test('softDelete ist idempotent', async () => {
+    test('softDelete is idempotent', async () => {
         const bt = await btService.createBusinessType({
             projectKey: PROJECT,
             businessTypeKey: 'X',
@@ -94,7 +94,7 @@ describe('BusinessTypesService — Stamm-Operationen', () => {
         await btService.softDeleteBusinessType(bt.id);
     });
 
-    test('list filtert soft-deleted', async () => {
+    test('list filters out soft-deleted', async () => {
         const a = await btService.createBusinessType({
             projectKey: PROJECT,
             businessTypeKey: 'A',
@@ -113,11 +113,11 @@ describe('BusinessTypesService — Stamm-Operationen', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Version-Lifecycle + Bundle-Komposition
+// Version lifecycle + bundle composition
 // ─────────────────────────────────────────────────────────────────
 
-describe('BusinessTypesService — Version-Lifecycle', () => {
-    test('createDraft mit einem published Bundle: v1, baseVersionId=null, keine Warnings', async () => {
+describe('BusinessTypesService — version lifecycle', () => {
+    test('createDraft with a single published bundle: v1, baseVersionId=null, no warnings', async () => {
         const bundle = await createPublishedBundle('CONTRIBUTIONS_BUNDLE', ['CONTRIBUTIONS']);
         const bt = await btService.createBusinessType({
             projectKey: PROJECT,
@@ -134,7 +134,7 @@ describe('BusinessTypesService — Version-Lifecycle', () => {
         assert.deepEqual(result.warnings, []);
     });
 
-    test('createDraft ohne Bundles wirft 422', async () => {
+    test('createDraft without bundles throws 422', async () => {
         const bt = await btService.createBusinessType({
             projectKey: PROJECT,
             businessTypeKey: 'X',
@@ -146,7 +146,7 @@ describe('BusinessTypesService — Version-Lifecycle', () => {
         );
     });
 
-    test('createDraft mit nicht-published Bundle wirft 422', async () => {
+    test('createDraft with a non-published bundle throws 422', async () => {
         const bundle = await bundlesService.createBundle({
             projectKey: PROJECT,
             bundleKey: 'X',
@@ -171,7 +171,7 @@ describe('BusinessTypesService — Version-Lifecycle', () => {
         );
     });
 
-    test('publish klassifiziert Diff (Bundle hinzugefügt = IMPROVEMENT)', async () => {
+    test('publish classifies diff (bundle added = IMPROVEMENT)', async () => {
         const b1 = await createPublishedBundle('B1', ['F1']);
         const b2 = await createPublishedBundle('B2', ['F2']);
         const bt = await btService.createBusinessType({
@@ -202,7 +202,7 @@ describe('BusinessTypesService — Version-Lifecycle', () => {
         );
     });
 
-    test('publish blockt regressive (Bundle entfernt) ohne forceRegressive', async () => {
+    test('publish blocks regressive (bundle removed) without forceRegressive', async () => {
         const b1 = await createPublishedBundle('B1', ['F1']);
         const b2 = await createPublishedBundle('B2', ['F2']);
         const bt = await btService.createBusinessType({
@@ -220,7 +220,7 @@ describe('BusinessTypesService — Version-Lifecycle', () => {
 
         const v2 = await btService.createBusinessTypeDraft({
             businessTypeId: bt.id,
-            bundles: [{ bundleVersionId: b1.id }], // b2 entfernt
+            bundles: [{ bundleVersionId: b1.id }], // b2 removed
         });
         await assert.rejects(
             () =>
@@ -233,11 +233,11 @@ describe('BusinessTypesService — Version-Lifecycle', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// Strict-Mode-Check: Disjointness + Compatibility + QuotaOverride
+// Strict-mode check: disjointness + compatibility + QuotaOverride
 // ─────────────────────────────────────────────────────────────────
 
-describe('BusinessTypesService — Strict-Mode-Check', () => {
-    test('Disjointness: zwei Bundles mit gleichem Feature → BUNDLE_DISJOINTNESS-Warnung', async () => {
+describe('BusinessTypesService — strict-mode check', () => {
+    test('disjointness: two bundles with the same feature → BUNDLE_DISJOINTNESS warning', async () => {
         const b1 = await createPublishedBundle('B1', ['SHARED', 'A']);
         const b2 = await createPublishedBundle('B2', ['SHARED', 'B']);
         const bt = await btService.createBusinessType({
@@ -253,7 +253,7 @@ describe('BusinessTypesService — Strict-Mode-Check', () => {
         assert.ok(codes.includes('BUNDLE_DISJOINTNESS'));
     });
 
-    test('Compatibility: Bundle-Whitelist ohne BusinessType-Key → BUNDLE_COMPATIBILITY-Warnung', async () => {
+    test('compatibility: bundle whitelist without BusinessType key → BUNDLE_COMPATIBILITY warning', async () => {
         const b1 = await createPublishedBundle('B1', ['F'], {
             compatibility: { businessTypeKeys: ['OTHER'] },
         });
@@ -270,7 +270,7 @@ describe('BusinessTypesService — Strict-Mode-Check', () => {
         assert.ok(codes.includes('BUNDLE_COMPATIBILITY'));
     });
 
-    test('warn-only ohne Snapshot: Disjointness wird trotzdem gefunden, QuotaOverrides übersprungen', async () => {
+    test('warn-only without snapshot: disjointness is still found, QuotaOverrides skipped', async () => {
         const b1 = await createPublishedBundle('B1', ['SHARED']);
         const b2 = await createPublishedBundle('B2', ['SHARED']);
         const bt = await btService.createBusinessType({
@@ -283,13 +283,13 @@ describe('BusinessTypesService — Strict-Mode-Check', () => {
             bundles: [{ bundleVersionId: b1.id }, { bundleVersionId: b2.id }],
             quotaOverrides: { unknownQuota: 100 },
         });
-        // Disjointness wird gefunden, QuotaOverrides nicht (kein Snapshot)
+        // Disjointness is found, QuotaOverrides are not (no snapshot)
         const codes = result.warnings.map((w) => w.code);
         assert.ok(codes.includes('BUNDLE_DISJOINTNESS'));
         assert.ok(!codes.includes('QUOTA_MISSING'));
     });
 
-    test('mit Snapshot: QuotaOverride-Drift erkannt', async () => {
+    test('with snapshot: QuotaOverride drift detected', async () => {
         const snapshot = buildSnapshot([], ['storageGb']);
         const svc = new BusinessTypesService(btRepo, bundleRepo, snapshot, { strictModeCheckMode: 'warn-only' });
         const b1 = await createPublishedBundle('B1', ['F']);
@@ -308,7 +308,7 @@ describe('BusinessTypesService — Strict-Mode-Check', () => {
         assert.equal(result.warnings[0].value, 'unknownQuota');
     });
 
-    test('blocking-Modus: BUNDLE_DISJOINTNESS wirft 422', async () => {
+    test('blocking mode: BUNDLE_DISJOINTNESS throws 422', async () => {
         const svc = new BusinessTypesService(btRepo, bundleRepo, null, {
             strictModeCheckMode: 'blocking',
         });

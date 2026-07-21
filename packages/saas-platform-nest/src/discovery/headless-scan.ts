@@ -1,16 +1,16 @@
-// Headless Discovery-Scan (#23) — geteilter Runner für die Konsumenten-
-// Scan-Entrypoints (Migrate-Container/CI, vor dem Seed).
+// Headless discovery scan (#23) — shared runner for the consumer
+// scan entrypoints (migrate container/CI, before the seed).
 //
-// Bootet einen Nest-ApplicationContext OHNE HTTP-Listener: dabei laufen die
-// Bootstrap-Hooks — der DiscoveryScanner schreibt den Snapshot an den via
-// `DiscoveryModule.forRoot({ snapshotPath })` konfigurierten Pfad und der
-// Catalog-Auto-Sync (idempotent) spiegelt ihn in die Catalog-Entries.
+// Boots a Nest ApplicationContext WITHOUT an HTTP listener: this runs the
+// bootstrap hooks — the DiscoveryScanner writes the snapshot to the path
+// configured via `DiscoveryModule.forRoot({ snapshotPath })` and the
+// catalog auto-sync (idempotent) mirrors it into the catalog entries.
 //
-// WICHTIG: Konsumenten übergeben ihren **vollen AppModule** — nur er enthält
-// alle @ImplementsCapability-/@DefinesQuota-Annotationen. Ein Teil-Modul-Scan
-// würde fehlende Features fälschlich als obsolete syncen.
+// IMPORTANT: consumers pass their **full AppModule** — only it contains
+// all @ImplementsCapability/@DefinesQuota annotations. A partial-module scan
+// would wrongly sync missing features as obsolete.
 //
-// Konsumenten-Entry (z. B. `src/discovery-scan.main.ts`) bleibt ein Shim:
+// Consumer entry (e.g. `src/discovery-scan.main.ts`) stays a shim:
 //
 //   import { runHeadlessDiscoveryScan } from '@saasicat/nest';
 //   import { AppModule } from './app.module';
@@ -24,20 +24,20 @@ import { DISCOVERY_SNAPSHOT_TOKEN } from './tokens.js';
 import type { DiscoverySnapshot } from './types.js';
 
 export interface HeadlessScanOptions {
-    /** Log-Level des Boot-Kontexts. Default `['error', 'warn', 'log']`. */
+    /** Log level of the boot context. Default `['error', 'warn', 'log']`. */
     logger?: LogLevel[] | false;
     /**
-     * Exit-Funktion bei Fehlern — Default `process.exit(4)` (analog
-     * Seed-Gate/Preflight). In Tests injizierbar.
+     * Exit function on errors — default `process.exit(4)` (analogous to
+     * Seed-Gate/Preflight). Injectable in tests.
      */
     exit?: (code: number) => never;
 }
 
 /**
- * Führt den Headless-Scan aus und liefert den Snapshot. Bei Boot-/Scan-
- * Fehlern wird der Fehler geloggt und der Prozess mit Exit 4 beendet —
- * den gestuften Rollout (non-fatal) steuert der Migrate-Pfad des
- * Konsumenten (`… || echo WARN`), nicht dieser Runner.
+ * Runs the headless scan and returns the snapshot. On boot/scan
+ * errors the error is logged and the process exits with code 4 —
+ * the staged rollout (non-fatal) is controlled by the consumer's
+ * migrate path (`… || echo WARN`), not by this runner.
  */
 export async function runHeadlessDiscoveryScan(
     appModule: Type,
@@ -60,12 +60,12 @@ export async function runHeadlessDiscoveryScan(
 }
 
 /**
- * Zweistufige Auflösung (#25-Falle): Konsumenten importieren das
- * DiscoveryModule üblicherweise über den `/discovery`-Subpath-Entry — die
- * `DiscoveryScanner`-Klasse dieses Root-Entries ist dann ein anderes
- * Objekt und als DI-Token unbrauchbar. `DISCOVERY_SNAPSHOT_TOKEN` ist via
- * `Symbol.for` bundle-übergreifend stabil und greift zuerst; die Klasse
- * bleibt als Same-Bundle-Fallback.
+ * Two-stage resolution (#25 trap): consumers usually import the
+ * DiscoveryModule via the `/discovery` subpath entry — the
+ * `DiscoveryScanner` class of this root entry is then a different
+ * object and unusable as a DI token. `DISCOVERY_SNAPSHOT_TOKEN` is
+ * stable across bundles via `Symbol.for` and takes precedence; the class
+ * remains as a same-bundle fallback.
  */
 function resolveSnapshotFromContext(app: INestApplicationContext): DiscoverySnapshot {
     try {

@@ -1,14 +1,14 @@
-// useDiscovery — Vue-3-Composable über den Discovery-Endpoint
+// useDiscovery — Vue 3 composable over the discovery endpoint
 // (`GET /admin/discovery`).
 //
-// Liefert den Boot-Zeit-Snapshot des laufenden Backends — Capabilities,
-// Features, Bundles und Quotas, die im Code via @ImplementsCapability,
-// @DefinesQuota etc. annotiert sind. ETag-Caching: bei Folge-Requests
-// wird `If-None-Match: <hash>` mitgeschickt; bei 304 bleibt der gecachte
-// Snapshot bestehen, kein Re-Parse nötig.
+// Returns the boot-time snapshot of the running backend — capabilities,
+// features, bundles and quotas that are annotated in code via
+// @ImplementsCapability, @DefinesQuota etc. ETag caching: on follow-up
+// requests `If-None-Match: <hash>` is sent along; on 304 the cached
+// snapshot stays in place, no re-parse needed.
 //
-// **Endpoint ist Pflicht** und wird vom Konsumenten geliefert
-// (z. B. `/api/admin/discovery` oder `/api/v1/admin/discovery`).
+// **The endpoint is mandatory** and is supplied by the consumer
+// (e.g. `/api/admin/discovery` or `/api/v1/admin/discovery`).
 
 import { ref, type Ref } from 'vue';
 import type { DiscoverySnapshot } from '@saasicat/types';
@@ -16,20 +16,20 @@ import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface UseDiscoveryOptions {
     /**
-     * Voll-qualifizierter Discovery-Endpoint inkl. App-globalPrefix
-     * (`/api/admin/discovery`, `/api/v1/admin/discovery`, …). Pflicht.
+     * Fully qualified discovery endpoint including the app globalPrefix
+     * (`/api/admin/discovery`, `/api/v1/admin/discovery`, …). Mandatory.
      */
     endpoint: string;
     http?: HttpClient;
     /**
-     * Auth-Header für `Authorization: Bearer <token>`. Wird bei jedem
-     * Request mitgeschickt. Konsument liefert eine Funktion, die den
-     * aktuellen Token aus dem Auth-Store zieht.
+     * Auth header for `Authorization: Bearer <token>`. Sent along with every
+     * request. The consumer supplies a function that pulls the current token
+     * from the auth store.
      */
     getAuthToken?: () => string | null;
     /**
-     * Bei `true` wird beim Composable-Init automatisch geladen. Default
-     * `false` — Konsument triggert `load()` selbst (z. B. nach Page-Mount).
+     * When `true`, loads automatically on composable init. Default
+     * `false` — the consumer triggers `load()` itself (e.g. after page mount).
      */
     autoLoad?: boolean;
 }
@@ -46,23 +46,23 @@ export class DiscoveryLoadError extends Error {
 
 export interface UseDiscoveryResult {
     snapshot: Ref<DiscoverySnapshot | null>;
-    /** ETag-Header des letzten 200er-Responses, oder null. */
+    /** ETag header of the last 200 response, or null. */
     etag: Ref<string | null>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
     /**
-     * Lädt frisch. Bei Cache-Hit (HTTP 304) bleibt `snapshot` unverändert,
-     * `etag` ebenfalls.
+     * Loads fresh. On a cache hit (HTTP 304) `snapshot` stays unchanged,
+     * as does `etag`.
      */
     load: () => Promise<void>;
     /**
-     * Wirft Cache weg (etag = null) und lädt ohne If-None-Match. Sinnvoll
-     * nach Code-Deploys, wenn ein neuer Snapshot erwartet wird.
+     * Discards the cache (etag = null) and loads without If-None-Match. Useful
+     * after code deploys, when a new snapshot is expected.
      */
     reload: () => Promise<void>;
     /**
-     * `POST <endpoint>/rescan` — erzwingt im Backend einen frischen
-     * Code-Scan (neues `scannedAt`) und übernimmt den Snapshot.
+     * `POST <endpoint>/rescan` — forces a fresh code scan in the backend
+     * (new `scannedAt`) and adopts the snapshot.
      */
     rescan: () => Promise<void>;
 }
@@ -96,7 +96,7 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
             const res = await http(options.endpoint, { method: 'GET', headers });
 
             if (res.status === 304) {
-                // Cache-Hit: snapshot bleibt unverändert, kein Re-Parse.
+                // Cache hit: snapshot stays unchanged, no re-parse.
                 return;
             }
             if (res.status !== 200) {

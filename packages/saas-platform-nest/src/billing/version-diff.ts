@@ -1,10 +1,10 @@
-// Re-Export der Diff-Klassifikations-Funktionen aus
-// `@saasicat/types`. Die Pure Functions sind seit M3.4-vfx
-// nach types verschoben, damit auch das UI-Paket sie ohne NestJS-Dependency
-// nutzen kann (z. B. BundlesPage's Diff-Preview-Modal).
+// Re-export of the diff classification functions from
+// `@saasicat/types`. Since M3.4-vfx the pure functions have been moved
+// to types so that the UI package can also use them without a NestJS
+// dependency (e.g. BundlesPage's diff preview modal).
 //
-// Bestandsimporte aus `@saasicat/nest/billing` bleiben
-// unverändert kompatibel.
+// Existing imports from `@saasicat/nest/billing` remain
+// compatible unchanged.
 
 export { classifyBundleVersionDiff, classifyPlanDiff } from '@saasicat/types';
 export type {

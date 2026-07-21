@@ -1,14 +1,13 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: SubscriptionContract + ContractLineItem
+// SaaS platform Prisma fragment: SubscriptionContract + ContractLineItem
 // =============================================================================
 //
-// REFERENZ-SNIPPET — kein eigenständiges Schema. Konsumenten kopieren die
-// Models in ihre `schema.prisma` und ergänzen FK-Relationen zu Tenant/User.
+// REFERENCE SNIPPET — not a standalone schema. Consumers copy the models into
+// their `schema.prisma` and add FK relations to Tenant/User.
 //
-// V3-Regel: Billing und Entitlement dürfen nicht von live veränderbaren
-// Katalogtabellen abhängen. `SubscriptionContract` und `ContractLineItem`
-// speichern deshalb vollständige Snapshots. Katalog-FKs sind optional und
-// nur Audit-/Trace-Referenzen.
+// V3 rule: billing and entitlement must not depend on live-mutable catalog
+// tables. `SubscriptionContract` and `ContractLineItem` therefore store full
+// snapshots. Catalog FKs are optional and only audit/trace references.
 
 enum SubscriptionContractStatus {
     active
@@ -34,13 +33,13 @@ model SubscriptionContract {
     effectiveFrom  DateTime
     effectiveUntil DateTime?
 
-    // Optionales Trace zurück zum Offer/Katalog. Der Contract bleibt gültig,
-    // auch wenn diese Zielobjekte archiviert oder physisch gelöscht werden.
+    // Optional trace back to the offer/catalog. The contract stays valid even
+    // when these target objects are archived or physically deleted.
     originalOfferId          String?
     originalPlanVersionId    String?
     originalBundleVersionIds Json @default("[]")
 
-    // Vollständige Snapshots für Runtime, Billing und spätere Anzeige.
+    // Full snapshots for runtime, billing, and later display.
     entitlementSnapshot Json?
     priceSnapshot       Json
     promotionSnapshots  Json @default("[]")

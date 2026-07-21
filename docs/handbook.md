@@ -1,115 +1,115 @@
-# SaaS-Plattform — Handbuch
+# SaaS Platform — Handbook
 
-Anleitung, wie eine NestJS- oder Express-Anwendung mit den `@saasicat/*`-Paketen
-SaaS-fähig gemacht wird: Mandanten, Pläne, Bundles, Quotas, Features, SuperAdmin-UI,
-MFA, Audit, Promo-Codes, Checkout, Subscription-Contracts.
+Guide on how to make a NestJS or Express application SaaS-capable with the `@saasicat/*`
+packages: tenants, plans, bundles, quotas, features, SuperAdmin UI,
+MFA, audit, promo codes, checkout, subscription contracts.
 
-> **Zielgruppe:** Externe Entwickler / neue Teams, die die Plattform zum ersten Mal einsetzen.
-> Setzt Kenntnis von NestJS, Prisma und Vue/Quasar voraus, aber **kein** Vorwissen
-> über die internen Begriffe (Capability, Feature, Quota, Bundle, Plan, Contract).
+> **Audience:** External developers / new teams deploying the platform for the first time.
+> Assumes knowledge of NestJS, Prisma and Vue/Quasar, but **no** prior knowledge
+> of the internal concepts (Capability, Feature, Quota, Bundle, Plan, Contract).
 >
-> **Schneller Einstieg:** Wenn du eine bestehende NestJS-App auf die Plattform
-> aufsatteln willst, beginne mit dem [Quickstart](saas-platform-quickstart.md) —
-> 10 Schritte, ~60 Minuten zum funktionierenden SuperAdmin. Dieses Handbuch ist
-> das Nachschlagewerk, das du danach brauchst.
+> **Quick start:** If you want to bolt the platform onto an existing NestJS
+> app, start with the [Quickstart](saas-platform-quickstart.md) —
+> 10 steps, ~60 minutes to a working SuperAdmin. This handbook is
+> the reference work you'll need afterwards.
 
 ---
 
-## Inhalt
+## Contents
 
-1. [Was die Plattform liefert](#1-was-die-plattform-liefert)
-2. [Begriffe](#2-begriffe)
-3. [Architektur](#3-architektur)
-4. [Die fünf Pakete](#4-die-fünf-pakete)
-5. [Voraussetzungen](#5-voraussetzungen)
-6. [NestJS-Integration — Schritt für Schritt](#6-nestjs-integration--schritt-für-schritt)
-7. [Express-Integration](#7-express-integration)
-8. [Admin-Frontend (Vue/Quasar)](#8-admin-frontend-vuequasar)
-9. [CLI-Integration](#9-cli-integration)
-10. [Verifikations-Checkliste](#10-verifikations-checkliste)
-11. [Häufige Fallstricke](#11-häufige-fallstricke)
-12. [Weiterführend](#12-weiterführend)
+1. [What the Platform Provides](#1-what-the-platform-provides)
+2. [Concepts](#2-concepts)
+3. [Architecture](#3-architecture)
+4. [The Five Packages](#4-the-five-packages)
+5. [Prerequisites](#5-prerequisites)
+6. [NestJS Integration — Step by Step](#6-nestjs-integration--step-by-step)
+7. [Express Integration](#7-express-integration)
+8. [Admin Frontend (Vue/Quasar)](#8-admin-frontend-vuequasar)
+9. [CLI Integration](#9-cli-integration)
+10. [Verification Checklist](#10-verification-checklist)
+11. [Common Pitfalls](#11-common-pitfalls)
+12. [Further Reading](#12-further-reading)
 
 ---
 
-## 1. Was die Plattform liefert
+## 1. What the Platform Provides
 
-Eine fertig konstruierte SuperAdmin-Schicht für deine App:
+A ready-built SuperAdmin layer for your app:
 
-- **Mandanten-Verwaltung** (Listing, Detail, suspendieren/reaktivieren, impersonate, export).
-- **Pläne & Plan-Versionen** (CRUD inkl. Plan-Editor, Audit, Bundle-Persistenz).
-- **Bundles & Business-Types** (versionierte Produkt-Optionen, Marketing-Projektion).
-- **Discovery-Loop** (Code deklariert Capabilities/Features/Quotas per Decorator → Plattform
-  scannt → SuperAdmin reviewt → freigegebene Einträge werden im Marketing-Catalog
-  übersetzt und zu Plänen zugeordnet).
-- **Marketing-Catalog** (i18n-Labels, Beschreibungen, Highlights, Promo-Aktionen) inklusive
-  öffentlichem REST-Endpoint (`/public/catalog`) für Pricing-Pages.
-- **Checkout-Offer + Subscription-Contract** (V3): eingefrorene Kaufabsichten → immutable
-  Verträge als alleinige Quelle für Billing und Entitlement.
-- **Entitlement** zur Laufzeit (`@RequireFeature`, `@EnforceQuota`); fehlende Features
-  antworten mit strukturiertem 403 (`code: FEATURE_NOT_LICENSED` + Upsell-`offers`
-  über den optionalen `UpsellOfferResolver`-Port).
-- **MFA (TOTP)** für SuperAdmin-Aktionen, **AuditService** für jede sensible Operation,
-  **RLS-Bypass-Interceptor** für globale Reads.
-- **Promo-Codes** (Generator, Lifecycle, Redemption-Tracking).
-- **CLI-Bausteine** (`<app> admin mfa-setup|whoami`, `<app> audit tail`, `<app> doctor`,
+- **Tenant management** (listing, detail, suspend/reactivate, impersonate, export).
+- **Plans & plan versions** (CRUD incl. plan editor, audit, bundle persistence).
+- **Bundles & business types** (versioned product options, marketing projection).
+- **Discovery loop** (code declares capabilities/features/quotas via decorators → the platform
+  scans → SuperAdmin reviews → released entries are translated in the marketing catalog
+  and mapped to plans).
+- **Marketing catalog** (i18n labels, descriptions, highlights, promo actions) including a
+  public REST endpoint (`/public/catalog`) for pricing pages.
+- **Checkout offer + subscription contract** (V3): frozen purchase intents → immutable
+  contracts as the single source for billing and entitlement.
+- **Entitlement** at runtime (`@RequireFeature`, `@EnforceQuota`); missing features
+  respond with a structured 403 (`code: FEATURE_NOT_LICENSED` + upsell `offers`
+  via the optional `UpsellOfferResolver` port).
+- **MFA (TOTP)** for SuperAdmin actions, **AuditService** for every sensitive operation,
+  **RLS bypass interceptor** for global reads.
+- **Promo codes** (generator, lifecycle, redemption tracking).
+- **CLI building blocks** (`<app> admin mfa-setup|whoami`, `<app> audit tail`, `<app> doctor`,
   `<app> manifest dump|hash|validate|check`).
-- **Vue/Quasar-Standard-Pages**, die per Manifest dynamisch aktiv/inaktiv geschaltet
-  werden — du steckst sie nur als Routen rein und reichst Daten durch.
+- **Vue/Quasar standard pages** that are dynamically toggled active/inactive via the
+  manifest — you just wire them in as routes and pass data through.
 
-Du implementierst:
+You implement:
 
-- Persistenz (Prisma-Adapter zu den Plattform-Ports — siehe §6.3),
-- App-spezifische Capabilities (`@ImplementsCapability(...)` auf deinen Controllern),
-- Manifest-Contributions (welche KPI-Cards, Tenant-Actions, Project-Pages deine App ergänzt),
-- App-spezifische Quota-Provider (`count(tenantId)` für jede Quota).
+- persistence (Prisma adapters to the platform ports — see §6.3),
+- app-specific capabilities (`@ImplementsCapability(...)` on your controllers),
+- manifest contributions (which KPI cards, tenant actions, project pages your app adds),
+- app-specific quota providers (`count(tenantId)` for each quota).
 
-Alles andere kommt aus den Paketen.
-
----
-
-## 2. Begriffe
-
-Die Plattform trennt sauber zwischen **Code-Realität**, **Produkt-Definition** und **verkauftem Vertrag**:
-
-| Begriff                        | Bedeutung                                                                                                                                                                                                                                    |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Capability**                 | Eine konkrete Fähigkeit im Code, deklariert mit `@ImplementsCapability('dms.upload', {...})`. Atomare technische Einheit, z. B. ein Endpoint.                                                                                                |
-| **Feature**                    | Vermarktbares Bündel mehrerer Capabilities (z. B. `DMS` = Upload + Download + Preview). Wird im Marketing-Catalog übersetzt, Preisen zugeordnet, in Plänen referenziert.                                                                     |
-| **Quota**                      | Numerische Begrenzung (z. B. `users=10`, `storageGb=5`). Deklariert mit `@DefinesQuota(...)` auf einem `QuotaProvider`, der `count(tenantId)` liefert. Wird per `@EnforceQuota('users')` an Endpoints geprüft.                               |
-| **Discovery-Snapshot**         | Statisches Abbild aller Decorator-Aufrufe (Capabilities, Features, Quotas), das die Plattform beim Boot in `var/discovery-snapshot.json` schreibt. Speist die SuperAdmin-Discovery-Page.                                                     |
-| **Catalog-Entry**              | DB-projizierte Sicht auf eine Capability/Feature/Quota mit Lifecycle-Status (`discovered → accepted → active → deprecated → retired` / `ignored`).                                                                                           |
-| **Bundle**                     | Versionierte Gruppierung von Features + Quota-Effekten — eigenständig buchbar oder in Plan-Versionen enthalten (Addon-Verkauf entfernt, #49).                                                                                                |
-| **Plan / Plan-Version**        | Verkaufsangebot mit Preis, enthaltenen Features, Quota-Limits. Plan = unveränderlicher Bezeichner, Plan-Version = veröffentlichter Snapshot.                                                                                                 |
-| **Checkout-Offer**             | Eingefrorenes Angebot (Plan + Bundles + Cycle + Preis + Gültigkeitsdatum), bevor ein Vertrag entsteht.                                                                                                                                       |
-| **Subscription-Contract** (V3) | Immutable Vertrag, der zum Kaufzeitpunkt aus der Checkout-Offer erzeugt wird. **Alleinige Quelle** für Billing und Entitlement zur Laufzeit. Bei Plan-Wechsel: neuer Vertrag, alter Vertrag wird `superseded`.                               |
-| **Entitlement-Snapshot**       | Aggregierte Sicht aller Features und Quota-Limits aus den aktiven Vertrags-Line-Items eines Mandanten. Wird von `EntitlementService` zur Laufzeit berechnet.                                                                                 |
-| **Manifest**                   | UI-Discovery-Projektion deiner App (`/api/v1/admin/manifest`): welche Standard-Pages sind aktiv, welche Project-Pages ergänzt deine App, welche KPI-Cards, welche Tenant-Actions. Spec: `@saasicat/spec/schemas/admin-manifest.schema.json`. |
-
-**Faustregel:** Capability ist _technisch_, Feature ist _vermarktbar_, Quota ist _zählbar_,
-Plan ist _verkäuflich_, Contract ist _verkauft_.
-
-**Verkaufsmodell (seit v1.5.0, #49):** Verkauft werden ausschließlich
-**Plan-Versionen** und **Bundles**; effektive Features/Quotas eines Tenants sind
-die Vereinigung aus Plan ∪ gebuchten Bundles. SSOT für Plans, Bundles und Preise
-ist das AdminUI — Seeds dürfen nur Entwürfe anlegen (`publishedAt = null`);
-Publish passiert ausschließlich im AdminUI (beim Bundle-Publish ist `validFrom`
-Pflicht).
+Everything else comes from the packages.
 
 ---
 
-## 3. Architektur
+## 2. Concepts
 
-### 3.1 Datenfluss
+The platform cleanly separates **code reality**, **product definition** and **sold contract**:
+
+| Concept                        | Meaning                                                                                                                                                                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Capability**                 | A concrete capability in code, declared with `@ImplementsCapability('dms.upload', {...})`. Atomic technical unit, e.g. an endpoint.                                                                                                   |
+| **Feature**                    | Marketable bundle of several capabilities (e.g. `DMS` = upload + download + preview). Translated in the marketing catalog, mapped to prices, referenced in plans.                                                                     |
+| **Quota**                      | Numeric limit (e.g. `users=10`, `storageGb=5`). Declared with `@DefinesQuota(...)` on a `QuotaProvider` that provides `count(tenantId)`. Enforced at endpoints via `@EnforceQuota('users')`.                                          |
+| **Discovery snapshot**         | Static snapshot of all decorator calls (capabilities, features, quotas) that the platform writes to `var/discovery-snapshot.json` at boot. Feeds the SuperAdmin discovery page.                                                       |
+| **Catalog-Entry**              | DB-projected view of a capability/feature/quota with lifecycle status (`discovered → accepted → active → deprecated → retired` / `ignored`).                                                                                          |
+| **Bundle**                     | Versioned grouping of features + quota effects — bookable on its own or included in plan versions (addon sales removed, #49).                                                                                                         |
+| **Plan / Plan version**        | Sales offer with price, included features, quota limits. Plan = immutable identifier, plan version = published snapshot.                                                                                                              |
+| **Checkout-Offer**             | Frozen offer (plan + bundles + cycle + price + validity date) before a contract is created.                                                                                                                                           |
+| **Subscription-Contract** (V3) | Immutable contract created at purchase time from the checkout offer. **Single source** for billing and entitlement at runtime. On plan change: new contract, old contract becomes `superseded`.                                       |
+| **Entitlement-Snapshot**       | Aggregated view of all features and quota limits from a tenant's active contract line items. Computed at runtime by `EntitlementService`.                                                                                             |
+| **Manifest**                   | UI discovery projection of your app (`/api/v1/admin/manifest`): which standard pages are active, which project pages your app adds, which KPI cards, which tenant actions. Spec: `@saasicat/spec/schemas/admin-manifest.schema.json`. |
+
+**Rule of thumb:** Capability is _technical_, Feature is _marketable_, Quota is _countable_,
+Plan is _sellable_, Contract is _sold_.
+
+**Sales model (since v1.5.0, #49):** Only **plan versions** and
+**bundles** are sold; a tenant's effective features/quotas are
+the union of plan ∪ booked bundles. The SSOT for plans, bundles and prices
+is the AdminUI — seeds may only create drafts (`publishedAt = null`);
+publishing happens exclusively in the AdminUI (bundle publish requires
+`validFrom`).
+
+---
+
+## 3. Architecture
+
+### 3.1 Data Flow
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
-│ App-Code                                                         │
+│ App code                                                         │
 │  @ImplementsCapability('dms.upload', {...})                      │
 │  @DefinesQuota({ key: 'storageGb', ... })                        │
 │  @EnforceQuota('storageGb')                                      │
 └────────────────────────────┬─────────────────────────────────────┘
-                             │ (Boot-Scan)
+                             │ (boot scan)
                              ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ DiscoveryModule  →  var/discovery-snapshot.json                  │
@@ -117,7 +117,7 @@ Pflicht).
                              │
                              ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ CatalogEntryRepository  (DB-Projektion mit Lifecycle)            │
+│ CatalogEntryRepository  (DB projection with lifecycle)           │
 │   - capability_catalog_entry                                     │
 │   - feature_catalog_entry                                        │
 │   - quota_catalog_entry                                          │
@@ -126,10 +126,10 @@ Pflicht).
                   ▼                                ▼
 ┌─────────────────────────────┐   ┌────────────────────────────────┐
 │ SuperAdmin-UI               │   │ AdminManifestService           │
-│  - Discovery-Page (Review)  │   │  → /api/v1/admin/manifest      │
-│  - Marketing-Catalog-Page   │   │  (KPI-Cards, Nav, Actions)     │
-│  - Bundles-Page             │   └────────────────────────────────┘
-│  - Plans-Page               │
+│  - Discovery page (review)  │   │  → /api/v1/admin/manifest      │
+│  - Marketing catalog page   │   │  (KPI cards, nav, actions)     │
+│  - Bundles page             │   └────────────────────────────────┘
+│  - Plans page               │
 └─────────────┬───────────────┘
               │ (publish)
               ▼
@@ -142,15 +142,15 @@ Pflicht).
                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ PublicMarketingCatalog  →  GET /public/catalog                   │
-│   (Pricing-Page der App liest hier — niemals lokal berechnen)    │
+│   (the app's pricing page reads here — never compute locally)    │
 └─────────────────┬────────────────────────────────────────────────┘
-                  │ (Kunde wählt)
+                  │ (customer selects)
                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ CheckoutOfferService    →  GET /api/v1/checkout/offer/:id        │
-│   (eingefrorene Auswahl mit Ablaufdatum)                         │
+│   (frozen selection with expiry date)                            │
 └─────────────────┬────────────────────────────────────────────────┘
-                  │ (Bezahlung)
+                  │ (payment)
                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │ SubscriptionContractService    (immutable!)                      │
@@ -160,35 +160,35 @@ Pflicht).
                   │
                   ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ EntitlementService    (Runtime-Aggregation aus Verträgen)        │
-│   - @RequireFeature('DMS')  →  403 wenn nicht enthalten          │
+│ EntitlementService    (runtime aggregation from contracts)       │
+│   - @RequireFeature('DMS')  →  403 if not included               │
 │   - @EnforceQuota('storageGb')  →  LimitExceededError            │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**Wichtigster Architektur-Invariant:** Der Subscription-Contract ist **unveränderlich**.
-Wenn die SuperAdmin-UI nachträglich einen Plan ändert, ist das eine _neue_ Version —
-laufende Verträge bleiben unangetastet. Damit kann nie ein Live-Catalog-Edit historische
-Rechnungen oder Quotas retroaktiv brechen.
+**Most important architecture invariant:** The subscription contract is **immutable**.
+If the SuperAdmin UI later changes a plan, that is a _new_ version —
+running contracts remain untouched. This way a live catalog edit can never
+retroactively break historical invoices or quotas.
 
-### 3.2 Drei-Schichten-Wiring im Konsumenten
+### 3.2 Three-Layer Wiring in the Consumer
 
 ```text
 ┌──────────────────────────────────────────────────────────────────┐
 │ Backend (NestJS)                                                 │
-│  ├─ PlatformAdaptersModule  (deine Prisma-Implementierungen)     │
+│  ├─ PlatformAdaptersModule  (your Prisma implementations)        │
 │  ├─ PlanCatalogModule.forRoot({ sink: PrismaPlanCatalogReadSink })│
 │  ├─ DiscoveryModule.forRoot({ app, controller, snapshotPath })   │
 │  ├─ CatalogModule.forRoot({ ...Repositories })                   │
 │  ├─ CheckoutOfferModule.forRoot({ ...Repositories })             │
 │  ├─ SubscriptionContractModule.forRoot({ ... })                  │
 │  ├─ EntitlementModule.forRoot({ ... })                           │
-│  └─ AdminModule (= PlatformAdminModule + dein AdminController)   │
+│  └─ AdminModule (= PlatformAdminModule + your AdminController)   │
 ├──────────────────────────────────────────────────────────────────┤
-│ Admin-Frontend (Vue 3 + Quasar)                                  │
+│ Admin frontend (Vue 3 + Quasar)                                  │
 │  ├─ createPlatformLoaders({ endpoints, http, getAuthToken })     │
 │  ├─ createManifestStore({ loader })                              │
-│  ├─ Standard-Pages aus @saasicat/ui-vue/pages/...  │
+│  ├─ Standard pages from @saasicat/ui-vue/pages/... │
 │  └─ createSuperAdminApp({ loginAdapter, actions, ... })          │
 ├──────────────────────────────────────────────────────────────────┤
 │ CLI (nest-commander)                                             │
@@ -198,19 +198,19 @@ Rechnungen oder Quotas retroaktiv brechen.
 
 ---
 
-## 4. Die fünf Pakete
+## 4. The Five Packages
 
-| Paket              | Inhalt                                                                                                                                                    | Konsumiert                          |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `@saasicat/spec`   | JSON-Schemas (Manifest, Plan-Catalog, Promo-Code, Audit-Event), OpenAPI, Acceptance-Test-Szenarien. **Sprach-neutral.**                                   | Backend & beliebige andere Sprachen |
-| `@saasicat/types`  | TypeScript-Interfaces, die aus den Schemas abgeleitet sind (`AdminManifest`, `PlanCatalog`, `Subscription`, `Ports`).                                     | Backend & Frontend                  |
-| `@saasicat/nest`   | NestJS-Module/Services/Decorators/Guards (`AdminModule`, `DiscoveryModule`, `CatalogModule`, `EntitlementModule`, …).                                     | Backend                             |
-| `@saasicat/ui-vue` | Vue/Quasar-Komponenten, Pinia-Stores, Composables (`useDiscovery`, `useCatalogEntries`), Standard-Pages (`DiscoveryPage`, `TenantsPage`, `PlansPage`, …). | Frontend                            |
-| `@saasicat/cli`    | `nest-commander`-Flows (`ManifestCliFlow`, `MfaSetupFlow`, `AuditTailFlow`, `DoctorFlow`) für deine App-CLI.                                              | Backend (CLI-Submodule)             |
+| Package            | Contents                                                                                                                                                 | Consumed by                   |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `@saasicat/spec`   | JSON schemas (manifest, plan catalog, promo code, audit event), OpenAPI, acceptance test scenarios. **Language-neutral.**                                | Backend & any other languages |
+| `@saasicat/types`  | TypeScript interfaces derived from the schemas (`AdminManifest`, `PlanCatalog`, `Subscription`, `Ports`).                                                | Backend & frontend            |
+| `@saasicat/nest`   | NestJS modules/services/decorators/guards (`AdminModule`, `DiscoveryModule`, `CatalogModule`, `EntitlementModule`, …).                                   | Backend                       |
+| `@saasicat/ui-vue` | Vue/Quasar components, Pinia stores, composables (`useDiscovery`, `useCatalogEntries`), standard pages (`DiscoveryPage`, `TenantsPage`, `PlansPage`, …). | Frontend                      |
+| `@saasicat/cli`    | `nest-commander` flows (`ManifestCliFlow`, `MfaSetupFlow`, `AuditTailFlow`, `DoctorFlow`) for your app CLI.                                              | Backend (CLI submodule)       |
 
 ### 4.1 `saas-platform-nest` — Sub-Entries
 
-Importiere immer den Sub-Entry, nie das Root:
+Always import the sub-entry, never the root:
 
 ```ts
 import { PlanCatalogModule, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
@@ -238,70 +238,70 @@ import {
 import { RegistrationModule } from '@saasicat/nest/registration';
 ```
 
-### 4.2 Standard-Pages aus `saas-platform-ui-vue`
+### 4.2 Standard Pages from `saas-platform-ui-vue`
 
-Pfad: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
+Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 
-| Page                                     | Zweck                                                       |
-| ---------------------------------------- | ----------------------------------------------------------- |
-| `SuperAdminLoginPage`                    | Login-Formular                                              |
-| `AdminLayout`                            | Sidebar, Nav-Guard, MFA-Prompt                              |
-| `DashboardPage`                          | KPI-Cards (vom Manifest gespeist)                           |
-| `TenantsPage` / `TenantDetailPage`       | Mandanten-Verwaltung + Actions                              |
-| `PlansPage` / `PlanVersionsPage`         | Pläne, Plan-Editor, Version-Diff                            |
-| `BundlesPage`                            | Bundle-/BundleVersion-CRUD                                  |
-| `BusinessTypesPage`                      | Business-Types (optional im Manifest aktivierbar)           |
-| `DiscoveryPage`                          | Capability-/Feature-/Quota-Review mit Lifecycle-Transitions |
-| `MarketingCatalogPage`                   | i18n-Marketing-Texte + Pricing-Actions                      |
-| `SubscriptionsPage`                      | Vertrags-Verwaltung (V3)                                    |
-| `AuditPage`                              | Audit-Log-Browser                                           |
-| `UsersPage`                              | SuperAdmin-User-Verwaltung (MFA, PW-Reset, Rolle)           |
-| `PilotsPage`                             | Pilot-Feature-Grants (Feature-Flags)                        |
-| `PromoCodesPage` / `PromoCodeDetailPage` | Promo-Code-CRUD + Redemption-Tracking                       |
+| Page                                     | Purpose                                                    |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `SuperAdminLoginPage`                    | Login form                                                 |
+| `AdminLayout`                            | Sidebar, nav guard, MFA prompt                             |
+| `DashboardPage`                          | KPI cards (fed by the manifest)                            |
+| `TenantsPage` / `TenantDetailPage`       | Tenant management + actions                                |
+| `PlansPage` / `PlanVersionsPage`         | Plans, plan editor, version diff                           |
+| `BundlesPage`                            | Bundle/BundleVersion CRUD                                  |
+| `BusinessTypesPage`                      | Business types (optionally enabled via the manifest)       |
+| `DiscoveryPage`                          | Capability/feature/quota review with lifecycle transitions |
+| `MarketingCatalogPage`                   | i18n marketing texts + pricing actions                     |
+| `SubscriptionsPage`                      | Contract management (V3)                                   |
+| `AuditPage`                              | Audit log browser                                          |
+| `UsersPage`                              | SuperAdmin user management (MFA, password reset, role)     |
+| `PilotsPage`                             | Pilot feature grants (feature flags)                       |
+| `PromoCodesPage` / `PromoCodeDetailPage` | Promo code CRUD + redemption tracking                      |
 
 ---
 
-## 5. Voraussetzungen
+## 5. Prerequisites
 
 - **Node.js 24+**, **pnpm 10+**.
-- **NestJS 11+** mit Fastify- oder Express-Adapter.
-- **Prisma 5+** mit PostgreSQL (RLS-Support gewünscht — die Plattform setzt ein
-  `RlsBypassPort` voraus).
-- **Authentifizierung**: JWT-basiert wird empfohlen; ein `JwtAuthGuard`-Äquivalent
-  muss existieren (wird in `controller.guards` der Plattform-Module reingereicht).
-- **Vue 3 + Quasar 2** für das Admin-Frontend; Vite als Build-Tool.
+- **NestJS 11+** with Fastify or Express adapter.
+- **Prisma 5+** with PostgreSQL (RLS support desired — the platform requires an
+  `RlsBypassPort`).
+- **Authentication**: JWT-based is recommended; a `JwtAuthGuard` equivalent
+  must exist (passed into `controller.guards` of the platform modules).
+- **Vue 3 + Quasar 2** for the admin frontend; Vite as the build tool.
 
-### 5.1 Pakete installieren
+### 5.1 Installing Packages
 
 ```bash
 # Backend
 pnpm add @saasicat/spec @saasicat/types @saasicat/nest @saasicat/cli
 
-# Admin-Frontend
+# Admin frontend
 pnpm add @saasicat/types @saasicat/ui-vue
 ```
 
-Für lokale Entwicklung gegen einen Checkout dieses Repos eignen sich
-`pnpm.overrides` mit `link:`-Pfaden (nicht `file:` — siehe Hinweis unten).
+For local development against a checkout of this repo, use
+`pnpm.overrides` with `link:` paths (not `file:` — see the note below).
 
-> **Wichtig:** `file:`-Dependencies werden von pnpm in `node_modules/.pnpm/...` **kopiert**,
-> nicht symlinked. Nach einem Plattform-Build musst du im Konsumenten ein `pnpm install`
-> ausführen, damit der neue Stand übernommen wird. Im Container-Setup hilft ein
-> Helfer-Script (z. B. `scripts/ensure-container-deps.cjs`) oder ein manueller
-> `pnpm install` im Container; danach **muss der Vite-Dev-Cache (`.vite/deps`)
-> geleert und der Admin-Container neugestartet werden**, sonst serviert Vite die
-> alte gebundelte Version.
+> **Important:** `file:` dependencies are **copied** by pnpm into `node_modules/.pnpm/...`,
+> not symlinked. After a platform build you have to run `pnpm install` in the consumer
+> so the new state is picked up. In the container setup, a
+> helper script (e.g. `scripts/ensure-container-deps.cjs`) or a manual
+> `pnpm install` in the container helps; afterwards **you must clear the Vite dev cache
+> (`.vite/deps`) and restart the admin container**, otherwise Vite serves the
+> old bundled version.
 
-### 5.2 Prisma-Schema-Fragmente
+### 5.2 Prisma Schema Fragments
 
-Die Plattform-Module liefern (Stand 2026-05) **keine fertigen Prisma-Schema-Fragmente**.
-Du musst die folgenden Tabellen selbst anlegen. Die normative Quelle ist der
-JSON-Schema-Vertrag in [`@saasicat/spec/schemas/`](../packages/saas-platform-spec/schemas/)
-plus die TypeScript-Interfaces in [`@saasicat/types/src/`](../packages/saas-platform-types/src/).
-Der [Quickstart §3](saas-platform-quickstart.md#schritt-3--prisma-schema-erg%C3%A4nzen)
-zeigt ein vollständiges Minimal-Schema zum Copy-Paste. Die relevanten Tabellen-Familien:
+The platform modules (as of 2026-05) provide **no ready-made Prisma schema fragments**.
+You have to create the following tables yourself. The normative source is the
+JSON schema contract in [`@saasicat/spec/schemas/`](../packages/saas-platform-spec/schemas/)
+plus the TypeScript interfaces in [`@saasicat/types/src/`](../packages/saas-platform-types/src/).
+The [Quickstart §3](saas-platform-quickstart.md#schritt-3--prisma-schema-erg%C3%A4nzen)
+shows a complete minimal schema for copy-paste. The relevant table families:
 
-- `capabilityCatalogEntry`, `featureCatalogEntry`, `quotaCatalogEntry` (Discovery-Projektion)
+- `capabilityCatalogEntry`, `featureCatalogEntry`, `quotaCatalogEntry` (discovery projection)
 - `plan`, `catalogPlanVersion`
 - `catalogBundle`, `catalogBundleVersion`
 - `catalogBusinessType`, `catalogBusinessTypeVersion`
@@ -312,26 +312,26 @@ zeigt ein vollständiges Minimal-Schema zum Copy-Paste. Die relevanten Tabellen-
 - `auditEntry`
 - `superAdminUser`, `superAdminMfa`
 
-Schema-Schnipsel werden bewusst nicht im Plattform-Paket mitgeliefert — jede App pflegt ihr
-Schema selbst (Constraints, Indices und RLS-Policies sind App-spezifisch). Ein
-fertiges Minimal-Schema steht im [Quickstart §3](saas-platform-quickstart.md#schritt-3--prisma-schema-erg%C3%A4nzen).
+Schema snippets are deliberately not shipped in the platform package — every app maintains
+its own schema (constraints, indexes and RLS policies are app-specific). A
+ready-made minimal schema is in the [Quickstart §3](saas-platform-quickstart.md#schritt-3--prisma-schema-erg%C3%A4nzen).
 
 ---
 
-## 6. NestJS-Integration — Schritt für Schritt
+## 6. NestJS Integration — Step by Step
 
 ### 6.1 App-Identity YAML
 
-Lege `config/saas.yaml` an (Schema:
-`@saasicat/spec/schemas/plan-catalog.schema.json`). Die Datei trägt **nur**
-die App-Identität (Branding + Version) und die App-globale Marketing-Konfig —
-Source-of-Truth-Trennung:
+Create `config/saas.yaml` (schema:
+`@saasicat/spec/schemas/plan-catalog.schema.json`). The file carries **only**
+the app identity (branding + version) and the app-global marketing config —
+source-of-truth separation:
 
-- **App-Identity** (Branding, Version, Project-Key) → diese Datei.
-- **Features / Quotas / Capabilities** → Code (`@ImplementsCapability`,
-  `@DefinesQuota`), via Discovery publiziert.
-- **Plans / Bundles** → DB-Tabellen `plan` + `catalogPlanVersion` + `bundles`.
-  Source-of-Truth ist allein das SuperAdmin-UI.
+- **App identity** (branding, version, project key) → this file.
+- **Features / quotas / capabilities** → code (`@ImplementsCapability`,
+  `@DefinesQuota`), published via discovery.
+- **Plans / bundles** → DB tables `plan` + `catalogPlanVersion` + `bundles`.
+  The single source of truth is the SuperAdmin UI alone.
 
 ```yaml
 schemaVersion: 1
@@ -346,11 +346,11 @@ marketing:
     availableLocales: [de, en]
 ```
 
-> `features:` und `plans:` sind im Schema weiterhin als optionale Blöcke
-> erlaubt — nur für statische Setups ohne Admin-UI (Tests, Smoke-Umgebungen).
-> Produktiv werden sie bewusst NICHT im YAML gepflegt.
+> `features:` and `plans:` are still allowed as optional blocks in the schema —
+> only for static setups without an admin UI (tests, smoke environments).
+> In production they are deliberately NOT maintained in the YAML.
 
-### 6.2 Plan-Catalog beim Boot laden
+### 6.2 Loading the Plan Catalog at Boot
 
 ```ts
 // app.module.ts
@@ -360,34 +360,34 @@ const SAAS_CONFIG_PATH = process.env.MYAPP_SAAS_CONFIG_PATH ?? 'config/saas.yaml
 const SAAS_CONFIG = loadPlanCatalogFromFile({ path: SAAS_CONFIG_PATH });
 ```
 
-`loadPlanCatalogFromFile` validiert die YAML gegen das Schema aus
-`saas-platform-spec` — Fehler werfen früh beim Boot.
+`loadPlanCatalogFromFile` validates the YAML against the schema from
+`saas-platform-spec` — errors throw early at boot.
 
-### 6.3 Platform-Adapters-Modul (Prisma)
+### 6.3 Platform Adapters Module (Prisma)
 
-Das ist die größte Aufgabe für den Konsumenten. Pro Port eine `@Injectable`-Klasse, die
-das Interface aus `@saasicat/types/ports` (bzw. die spezifischen Repository-
-Interfaces aus den `saas-platform-nest`-Sub-Entries) implementiert.
+This is the biggest task for the consumer. One `@Injectable` class per port that implements
+the interface from `@saasicat/types/ports` (or the specific repository
+interfaces from the `saas-platform-nest` sub-entries).
 
-| Adapter                                           | Interface (aus)                   | Was tun                                                                        |
-| ------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------ |
-| `PrismaPlanCatalogReadSink`                       | `PlanCatalogReadSink`             | **Boot-Read-only** Snapshot von Plänen + Versionen; RLS-Bypass-Kontext setzen! |
-| `PrismaPlanRepository`                            | `PlanRepository`                  | CRUD für `plan` + `catalogPlanVersion` (von SuperAdmin-UI konsumiert)          |
-| `PrismaBundleRepository`                          | `BundleRepository`                | CRUD für `catalogBundle` + `catalogBundleVersion`                              |
-| `PrismaBusinessTypeRepository`                    | `BusinessTypeRepository`          | CRUD für `catalogBusinessType` + `catalogBusinessTypeVersion`                  |
-| `PrismaCatalogEntryRepository`                    | `CatalogEntryRepository`          | Lifecycle-Transitions + i18n-Speicherung für Capability/Feature/Quota          |
-| `PrismaMarketingProjectionRepository`             | `MarketingProjectionRepository`   | i18n-Marketing-Texte (Label, Beschreibung, Highlights pro Locale)              |
-| `PrismaMarketingSettingsRepository`               | `MarketingSettingsRepository`     | Aktive Locales                                                                 |
-| `PrismaPromotionRepository`                       | `PromotionRepository`             | Zeitbegrenzte Pricing-Actions                                                  |
-| `PrismaCheckoutOfferRepository`                   | `CheckoutOfferRepository`         | Frozen Checkout-Snapshots                                                      |
-| `PrismaSubscriptionContractRepository`            | `SubscriptionContractRepository`  | Append-only immutable Verträge                                                 |
-| `UsersQuotaProvider`, `StorageGbQuotaProvider`, … | `QuotaProvider` (eines pro Quota) | `count(tenantId): Promise<number>`; mit `@DefinesQuota({...})` decorieren      |
-| `PrismaMfaAdapter`                                | `MfaPort`                         | TOTP-Setup, -Verify, -Disable                                                  |
-| `PrismaAuditAdapter`                              | `AuditPort`                       | Audit-Entry schreiben                                                          |
-| `AsyncLocalRlsBypassAdapter`                      | `RlsBypassPort`                   | Plattform: `node:async_hooks`-basiert; meist 1:1 übernehmbar                   |
+| Adapter                                           | Interface (from)                 | What to do                                                                   |
+| ------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
+| `PrismaPlanCatalogReadSink`                       | `PlanCatalogReadSink`            | **Boot read-only** snapshot of plans + versions; set the RLS bypass context! |
+| `PrismaPlanRepository`                            | `PlanRepository`                 | CRUD for `plan` + `catalogPlanVersion` (consumed by the SuperAdmin UI)       |
+| `PrismaBundleRepository`                          | `BundleRepository`               | CRUD for `catalogBundle` + `catalogBundleVersion`                            |
+| `PrismaBusinessTypeRepository`                    | `BusinessTypeRepository`         | CRUD for `catalogBusinessType` + `catalogBusinessTypeVersion`                |
+| `PrismaCatalogEntryRepository`                    | `CatalogEntryRepository`         | Lifecycle transitions + i18n storage for capability/feature/quota            |
+| `PrismaMarketingProjectionRepository`             | `MarketingProjectionRepository`  | i18n marketing texts (label, description, highlights per locale)             |
+| `PrismaMarketingSettingsRepository`               | `MarketingSettingsRepository`    | Active locales                                                               |
+| `PrismaPromotionRepository`                       | `PromotionRepository`            | Time-limited pricing actions                                                 |
+| `PrismaCheckoutOfferRepository`                   | `CheckoutOfferRepository`        | Frozen checkout snapshots                                                    |
+| `PrismaSubscriptionContractRepository`            | `SubscriptionContractRepository` | Append-only immutable contracts                                              |
+| `UsersQuotaProvider`, `StorageGbQuotaProvider`, … | `QuotaProvider` (one per quota)  | `count(tenantId): Promise<number>`; decorate with `@DefinesQuota({...})`     |
+| `PrismaMfaAdapter`                                | `MfaPort`                        | TOTP setup, verify, disable                                                  |
+| `PrismaAuditAdapter`                              | `AuditPort`                      | Write audit entry                                                            |
+| `AsyncLocalRlsBypassAdapter`                      | `RlsBypassPort`                  | Platform: `node:async_hooks`-based; usually reusable 1:1                     |
 
-Bündele alles in einem **`@Global()`-Modul**, damit DynamicModule-Factories die Adapter
-per `inject:` auflösen können:
+Bundle everything in a **`@Global()` module** so the DynamicModule factories can resolve the
+adapters via `inject:`:
 
 ```ts
 // modules/platform-adapters/platform-adapters.module.ts
@@ -405,16 +405,16 @@ per `inject:` auflösen können:
         PrismaAuditAdapter,
         { provide: 'RLS_BYPASS_PORT', useClass: AsyncLocalRlsBypassAdapter },
     ],
-    exports: [/* dito */],
+    exports: [/* ditto */],
 })
 export class PlatformAdaptersModule {}
 ```
 
-### 6.4 AppModule wiren
+### 6.4 Wiring the AppModule
 
-> **Reihenfolge zählt.** `PlatformAdaptersModule` muss in `imports[]` **vor** den
-> `DynamicModule.forRoot(...)`-Aufrufen stehen, sonst können die Factories
-> ihre `inject:`-Tokens nicht auflösen.
+> **Order matters.** `PlatformAdaptersModule` must appear in `imports[]` **before** the
+> `DynamicModule.forRoot(...)` calls, otherwise the factories cannot resolve
+> their `inject:` tokens.
 
 ```ts
 // app.module.ts
@@ -453,9 +453,9 @@ export class PlatformAdaptersModule {}
             planRepository: { useExisting: PrismaPlanRepository },
             controller: { guards: [JwtAuthGuard] },
             imports: [AuthModule],
-            strictModeCheckMode: 'blocking', // Default (#12); 'warn-only' als Übergang bis 100 % Discovery-Coverage
+            strictModeCheckMode: 'blocking', // Default (#12); 'warn-only' as a transition until 100% discovery coverage
             publicMarketingCatalog: {
-                guards: [], // öffentlich
+                guards: [], // public
                 projectKey: 'myapp',
                 currency: 'EUR',
                 vatRate: 19.0,
@@ -466,7 +466,7 @@ export class PlatformAdaptersModule {}
             checkoutOfferRepository: { useExisting: PrismaCheckoutOfferRepository },
             bundleRepository: { useExisting: PrismaBundleRepository },
             planRepository: { useExisting: PrismaPlanRepository },
-            controller: { guards: [] }, // pre-tenant, öffentlich
+            controller: { guards: [] }, // pre-tenant, public
         }),
 
         SubscriptionContractModule.forRoot({
@@ -478,16 +478,16 @@ export class PlatformAdaptersModule {}
             contractRepository: { useExisting: PrismaSubscriptionContractRepository },
         }),
 
-        AdminModule, // dein eigenes Modul, s. 6.5
+        AdminModule, // your own module, see 6.5
     ],
 })
 export class AppModule {}
 ```
 
-### 6.5 Admin-Modul
+### 6.5 Admin Module
 
-Das eigene `AdminModule` bündelt `PlatformAdminModule`, `AdminManifestModule`,
-`AdminStatsModule` und registriert in `onModuleInit` deine Manifest-Contributions:
+Your own `AdminModule` bundles `PlatformAdminModule`, `AdminManifestModule`,
+`AdminStatsModule` and registers your manifest contributions in `onModuleInit`:
 
 ```ts
 // admin/admin.module.ts
@@ -500,7 +500,7 @@ Das eigene `AdminModule` bündelt `PlatformAdminModule`, `AdminManifestModule`,
             rlsBypassPort: new AsyncLocalRlsBypassAdapter(),
         }),
         AdminManifestModule.forRoot({
-            includeManifestController: false, // wir bauen einen eigenen, s. 6.7
+            includeManifestController: false, // we build our own, see 6.7
             extraProviders: [AdminManifestConfigFactory],
             config: {
                 useFactory: (f: AdminManifestConfigFactory) => f.build(),
@@ -529,16 +529,16 @@ export class AdminModule implements OnModuleInit {
     onModuleInit(): void {
         this.manifest.register(MYAPP_CORE_MANIFEST_CONTRIBUTION);
         this.manifest.register(PROMO_CODES_MANIFEST_CONTRIBUTION);
-        // … weitere Contributions
+        // … more contributions
     }
 }
 ```
 
-### 6.6 Manifest-Contributions
+### 6.6 Manifest Contributions
 
-Eine Contribution beschreibt, _was deine App zur SuperAdmin-UI beiträgt_ — welche
-Capabilities sie hat, welche Standard-Pages an/aus sind, welche KPI-Cards, welche
-Tenant-Actions, welche Project-Pages (eigene Seiten unter `/admin/...`).
+A contribution describes _what your app contributes to the SuperAdmin UI_ — which
+capabilities it has, which standard pages are on/off, which KPI cards, which
+tenant actions, which project pages (your own pages under `/admin/...`).
 
 ```ts
 // admin/manifest-contributions/myapp-core.manifest.ts
@@ -556,7 +556,7 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
     navigation: {
         standardPages: {
             subscriptions: { enabled: false, requiredCapability: 'subscriptions.read' },
-            planVersions: { enabled: false }, // im Plans-Cockpit integriert
+            planVersions: { enabled: false }, // integrated in the Plans cockpit
             businessTypes: { enabled: false },
         },
         projectPages: [
@@ -566,7 +566,7 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
                 label: 'Auswertung',
                 icon: 'analytics',
                 requiredCapability: 'reports.read',
-                component: 'MyAppReportPage', // wird in der UI per Lazy-Loader aufgelöst
+                component: 'MyAppReportPage', // resolved in the UI via lazy loader
             },
         ],
     },
@@ -597,10 +597,10 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
 };
 ```
 
-### 6.7 Eigener `AdminManifestController` mit Caching + MFA
+### 6.7 Custom `AdminManifestController` with Caching + MFA
 
-Standard-Controller deaktivieren (`includeManifestController: false`) und einen
-eigenen schreiben, der deine App-Guards einhängt und ETag-Caching betreibt:
+Disable the standard controller (`includeManifestController: false`) and write your
+own that hooks in your app guards and does ETag caching:
 
 ```ts
 @Controller('admin')
@@ -626,9 +626,9 @@ export class AdminManifestController {
 }
 ```
 
-### 6.8 Capabilities / Features / Quotas im Code deklarieren
+### 6.8 Declaring Capabilities / Features / Quotas in Code
 
-Auf den Controllern deiner App:
+On your app's controllers:
 
 ```ts
 // dms/dms.controller.ts
@@ -653,7 +653,7 @@ export class DmsController {
 }
 ```
 
-Auf den Quota-Providern:
+On the quota providers:
 
 ```ts
 // modules/platform-adapters/quota-providers.ts
@@ -677,14 +677,14 @@ export class StorageGbQuotaProvider implements QuotaProvider {
 }
 ```
 
-> Nach jedem Hinzufügen/Ändern eines Decorators muss die App neu starten, damit der
-> Discovery-Snapshot neu geschrieben wird. Erst dann erscheinen die Einträge in der
-> SuperAdmin-Discovery-Page.
+> After adding/changing any decorator, the app must restart so the
+> discovery snapshot is rewritten. Only then do the entries appear on the
+> SuperAdmin discovery page.
 
 ### 6.9 `AdminManifestConfigFactory`
 
-Baut die statische Konfiguration für das Manifest aus dem Plan-Catalog, dem Environment
-und der `package.json`:
+Builds the static configuration for the manifest from the plan catalog, the environment
+and `package.json`:
 
 ```ts
 @Injectable()
@@ -718,18 +718,18 @@ export class AdminManifestConfigFactory {
 
 ---
 
-### 6.10 First-Run-Setup (SuperAdmin-Bootstrap übers Admin-UI)
+### 6.10 First-Run Setup (SuperAdmin Bootstrap via the Admin UI)
 
-Beim allerersten Start existiert noch kein SUPER_ADMIN — also auch niemand, der sich einloggen oder per CLI einen Admin anlegen könnte (Henne-Ei). Das `SetupModule` löst das mit einem **öffentlichen, selbstverriegelnden** Bootstrap-Endpoint, den die geteilte Login-Seite automatisch als Wizard anzeigt.
+On the very first start there is no SUPER_ADMIN yet — so there's also nobody who could log in or create an admin via CLI (chicken-and-egg). The `SetupModule` solves this with a **public, self-locking** bootstrap endpoint that the shared login page automatically shows as a wizard.
 
-**Sicherheitsmodell (zwei Schranken, beide müssen erfüllt sein):**
+**Security model (two barriers, both must be satisfied):**
 
-1. **Self-Disable** — Setup läuft nur, solange `provisioningPort.countSuperAdmins() === 0`. Nach Anlage des ersten SUPER_ADMIN antwortet der Endpoint dauerhaft mit `409 SETUP_ALREADY_DONE`.
-2. **Setup-Token** — ein vom Betreiber gesetztes Geheimnis (Env-Var, Default `SETUP_TOKEN`). Ohne gesetzte Var ist Setup komplett deaktiviert (`403 SETUP_DISABLED`); der Vergleich ist timing-safe.
+1. **Self-disable** — setup runs only while `provisioningPort.countSuperAdmins() === 0`. After the first SUPER_ADMIN is created, the endpoint permanently responds with `409 SETUP_ALREADY_DONE`.
+2. **Setup token** — a secret set by the operator (env var, default `SETUP_TOKEN`). Without the var set, setup is completely disabled (`403 SETUP_DISABLED`); the comparison is timing-safe.
 
-So kann selbst bei öffentlich erreichbarer App niemand den ersten Admin „erraten/grabben".
+This way, even with a publicly reachable app, nobody can "guess/grab" the first admin.
 
-**Du brauchst genau einen App-Adapter** — den `SuperAdminProvisioningPort` (2 Methoden). Ein voller `UserManagementPort`-Adapter (CLI) erfüllt ihn ebenfalls, lässt sich also teilen:
+**You need exactly one app adapter** — the `SuperAdminProvisioningPort` (2 methods). A full `UserManagementPort` adapter (CLI) satisfies it too, so it can be shared:
 
 ```ts
 import { Injectable } from '@nestjs/common';
@@ -751,18 +751,18 @@ export class PrismaSuperAdminProvisioningAdapter implements SuperAdminProvisioni
     async createSuperAdmin(input: CreateSuperAdminCliInput): Promise<PlatformUserDto> {
         const email = input.email.toLowerCase();
         const existing = await this.prisma.user.findUnique({ where: { email } });
-        // WICHTIG: den geteilten Fehler werfen — der SetupService mappt ihn auf
-        // 409 EMAIL_EXISTS (sonst 500). Der Guard ist `code`-basiert (realm-safe).
+        // IMPORTANT: throw the shared error — the SetupService maps it to
+        // 409 EMAIL_EXISTS (otherwise 500). The guard is `code`-based (realm-safe).
         if (existing) throw new PlatformUserExistsError(email, existing.role);
         const user = await this.prisma.user.create({
             data: { email, passwordHash: await hash(input.password), role: 'SUPER_ADMIN' /* … */ },
         });
-        return toPlatformUserDto(user); // Passwort-Hashing bleibt app-spezifisch (argon2/bcrypt)
+        return toPlatformUserDto(user); // password hashing stays app-specific (argon2/bcrypt)
     }
 }
 ```
 
-**Wiring (`AppModule`)** — `SetupModule` MUSS **nach** `AdminModule.forRoot` stehen (es injiziert dessen globalen `MfaService` fürs MFA-Enrollment):
+**Wiring (`AppModule`)** — `SetupModule` MUST come **after** `AdminModule.forRoot` (it injects its global `MfaService` for MFA enrollment):
 
 ```ts
 SetupModule.forRoot({
@@ -771,35 +771,35 @@ SetupModule.forRoot({
     useFactory: (prisma: PrismaService) => new PrismaSuperAdminProvisioningAdapter(prisma),
     inject: [PrismaService],
   },
-  setupTokenEnvVar: 'SETUP_TOKEN',   // Default; Betreiber setzt die Env-Var
-  mfaIssuer: 'MeineApp',             // Anzeige im Authenticator
+  setupTokenEnvVar: 'SETUP_TOKEN',   // Default; the operator sets the env var
+  mfaIssuer: 'MeineApp',             // shown in the authenticator
 }),
 ```
 
-Das mountet drei öffentliche Routen unter `${apiBase}` (z. B. `/api/v1/admin`):
+This mounts three public routes under `${apiBase}` (e.g. `/api/v1/admin`):
 
-| Route                      | Zweck                                                                                                 |
-| -------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `GET …/setup/status`       | `{ needsSetup }` — die Login-Seite fragt das beim Mount ab                                            |
-| `POST …/setup`             | legt den ersten SUPER_ADMIN an + MFA-Enrollment → `{ userId, qrDataUrl, secret, generatedPassword? }` |
-| `POST …/setup/confirm-mfa` | verifiziert den TOTP-Code (token-geschützt)                                                           |
+| Route                      | Purpose                                                                                              |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `GET …/setup/status`       | `{ needsSetup }` — the login page queries this on mount                                              |
+| `POST …/setup`             | creates the first SUPER_ADMIN + MFA enrollment → `{ userId, qrDataUrl, secret, generatedPassword? }` |
+| `POST …/setup/confirm-mfa` | verifies the TOTP code (token-protected)                                                             |
 
-Der **QR-Code wird serverseitig** als Data-URL erzeugt (`qrDataUrl`) — das Frontend rendert nur `<img>`, keine QR-Dependency nötig.
+The **QR code is generated server-side** as a data URL (`qrDataUrl`) — the frontend only renders `<img>`, no QR dependency needed.
 
-**Frontend:** Nichts zu tun, wenn die App die geteilte `SuperAdminLoginPage` nutzt (siehe §8.4). Sie ruft beim Mount `setup/status` ab und rendert bei `needsSetup` den `SuperAdminSetupWizard` statt des Login-Formulars. Apps **ohne** `SetupModule` bekommen `404` → der Wizard bleibt aus, normaler Login.
+**Frontend:** Nothing to do if the app uses the shared `SuperAdminLoginPage` (see §8.4). On mount it calls `setup/status` and, when `needsSetup`, renders the `SuperAdminSetupWizard` instead of the login form. Apps **without** `SetupModule` get `404` → the wizard stays off, normal login.
 
-> **Voraussetzung & Reihenfolge:** `AdminModule.forRoot` global importiert; globale `ValidationPipe` aktiv (für die Setup-DTOs); `apiBase` im Admin-UI = Mount-Prefix des `SetupController`.
+> **Prerequisite & order:** `AdminModule.forRoot` imported globally; global `ValidationPipe` active (for the setup DTOs); `apiBase` in the admin UI = mount prefix of the `SetupController`.
 
 ---
 
-## 7. Express-Integration
+## 7. Express Integration
 
-Die Plattform ist **NestJS-native**. Eine reine Express-App hat zwei Wege:
+The platform is **NestJS-native**. A pure Express app has two options:
 
-### 7.1 NestJS-Standalone hinter Express mounten (empfohlen)
+### 7.1 Mount NestJS Standalone Behind Express (recommended)
 
-NestJS unterstützt sowohl Fastify als auch Express als HTTP-Adapter; eine bestehende
-Express-App kann die SaaS-Endpoints als Sub-App betreiben.
+NestJS supports both Fastify and Express as HTTP adapters; an existing
+Express app can run the SaaS endpoints as a sub-app.
 
 ```ts
 import express from 'express';
@@ -818,35 +818,35 @@ root.use('/', saasExpressInstance); // /api/v1/admin/* etc.
 root.listen(3000);
 ```
 
-Vorteile: alle Decorators, Guards, Interceptors funktionieren unverändert; alle
-Standard-Pages der SuperAdmin-UI laufen ohne Anpassung.
+Advantages: all decorators, guards, interceptors work unchanged; all
+standard pages of the SuperAdmin UI run without modification.
 
-### 7.2 Reine Express-App ohne NestJS
+### 7.2 Pure Express App Without NestJS
 
-Nur dann sinnvoll, wenn du NestJS nicht haben willst. Du nutzt dann ausschließlich:
+Only sensible if you don't want NestJS. You then use exclusively:
 
-- `@saasicat/types` (TypeScript-Interfaces)
-- `@saasicat/spec` (JSON-Schemas + OpenAPI als Vertrag)
-- `@saasicat/nest/promo` (pure Funktionen)
-- `@saasicat/nest/billing` → `aggregateLimits`, `version-publish`, `version-renewal` (pure Funktionen)
+- `@saasicat/types` (TypeScript interfaces)
+- `@saasicat/spec` (JSON schemas + OpenAPI as contract)
+- `@saasicat/nest/promo` (pure functions)
+- `@saasicat/nest/billing` → `aggregateLimits`, `version-publish`, `version-renewal` (pure functions)
 - `@saasicat/nest/entitlement` → `aggregateLimits`, `resolveEntitlementPlan`, `LimitExceededError`
 
-und implementierst die **Endpoints**, **Guards**, **Audit**, **MFA**, **RLS-Bypass**,
-**Discovery-Scan** selbst gegen die Schemas in `saas-platform-spec/admin-api.openapi.yaml`.
-Das ist im Wesentlichen eine _Neuimplementierung_ der Plattform-Module — sinnvoll nur
-bei einer komplett anderen Sprache (z. B. Django/Python) sinnvoll.
+and implement the **endpoints**, **guards**, **audit**, **MFA**, **RLS bypass**,
+**discovery scan** yourself against the schemas in `saas-platform-spec/admin-api.openapi.yaml`.
+This is essentially a _reimplementation_ of the platform modules — sensible only
+for a completely different language (e.g. Django/Python).
 
-> Empfehlung: Variante 7.1. Variante 7.2 ist explizit für sprachfremde Backends gedacht
-> und sollte in einer reinen Node-Codebase vermieden werden.
+> Recommendation: option 7.1. Option 7.2 is explicitly meant for foreign-language backends
+> and should be avoided in a pure Node codebase.
 
 ---
 
-## 8. Admin-Frontend (Vue/Quasar)
+## 8. Admin Frontend (Vue/Quasar)
 
-### 8.1 Platform-Loaders
+### 8.1 Platform Loaders
 
-Pro App einen HTTP-Client wrappen (Axios oder Fetch) und an `createPlatformLoaders`
-reichen — der setzt Endpoints zusammen und kümmert sich um ETag-Caching.
+Wrap one HTTP client per app (Axios or Fetch) and pass it to `createPlatformLoaders`
+— it assembles the endpoints and handles ETag caching.
 
 ```ts
 // services/platform-loaders.ts
@@ -888,7 +888,7 @@ export const loaders = createPlatformLoaders({
 export const platformHttpClient = httpClient;
 ```
 
-### 8.2 Manifest-Store
+### 8.2 Manifest Store
 
 ```ts
 // stores/manifest.ts
@@ -936,13 +936,13 @@ export const adminRoutes = [
             },
             { path: 'audit', component: () => import('../pages/AdminAuditPage.vue') },
             // …
-            createProjectPageHostRoute(), // Catch-all für Manifest-Projekt-Pages
+            createProjectPageHostRoute(), // Catch-all for manifest project pages
         ],
     },
 ];
 ```
 
-### 8.4 App-Bootstrap
+### 8.4 App Bootstrap
 
 ```ts
 // main.ts
@@ -966,7 +966,7 @@ const actions: ActionsMap = {
     'tenants.suspend': (i) => adminApi.tenants.suspend(i.row.slug, i.payload),
     'tenants.reactivate': (i) => adminApi.tenants.reactivate(i.row.slug),
     'myapp.tenants.export': (i) => adminApi.tenants.export(i.row.slug),
-    // … alle in Manifest deklarierten Actions auflisten
+    // … list all actions declared in the manifest
 };
 
 const app = createSuperAdminApp({
@@ -980,11 +980,11 @@ const app = createSuperAdminApp({
 app.mount('#app');
 ```
 
-### 8.5 Wrapper-Pages: Dumb-Components mit Data-Composables
+### 8.5 Wrapper Pages: Dumb Components with Data Composables
 
-Plattform-Pages sind absichtlich _dumb_: sie kriegen Daten + Callbacks als Props
-reingereicht. Im Konsumenten verheiratet ein dünner Wrapper Composables mit der Page.
-Beispiel `AdminDiscoveryPage`:
+Platform pages are deliberately _dumb_: they receive data + callbacks as props.
+In the consumer, a thin wrapper marries composables to the page.
+Example `AdminDiscoveryPage`:
 
 ```vue
 <template>
@@ -1056,23 +1056,23 @@ onMounted(() => {
 </script>
 ```
 
-> **Anti-Pattern:** Code aus den Standard-Pages in den Konsumenten kopieren. Dann driftet
-> die UI bei Plattform-Updates und du verlierst die i18n-/Action-Synchronisation. Geteilte
-> Logik gehört in die Plattform-Pakete — der App-Wrapper bleibt thin.
+> **Anti-pattern:** Copying code from the standard pages into the consumer. Then the UI
+> drifts on platform updates and you lose the i18n/action synchronization. Shared
+> logic belongs in the platform packages — the app wrapper stays thin.
 
 ---
 
-## 9. CLI-Integration
+## 9. CLI Integration
 
-Optionale aber dringend empfohlene Integration für Ops-Workflows.
+Optional but strongly recommended integration for ops workflows.
 
 ```ts
 // cli/cli.module.ts
 @Module({
     imports: [
         PrismaModule,
-        PlanCatalogModule.forRoot({/* wie 6.4 */}),
-        PlatformAdminModule.forRoot({/* wie 6.5 */}),
+        PlanCatalogModule.forRoot({/* like 6.4 */}),
+        PlatformAdminModule.forRoot({/* like 6.5 */}),
         CliContextModule.forRoot({
             config: {
                 adminEmailEnvVar: 'MYAPP_ADMIN_EMAIL',
@@ -1083,17 +1083,17 @@ Optionale aber dringend empfohlene Integration für Ops-Workflows.
             auditQueryPort: { useExisting: PrismaAuditQueryAdapter },
             manifestAccessPort: { useExisting: AdminManifestService },
             doctorChecks: [
-                // Plattform-Defaults werden NICHT automatisch geladen — explizit auflisten:
+                // Platform defaults are NOT loaded automatically — list explicitly:
                 new DatabaseReachableCheck(),
                 new EmailServiceReachableCheck(),
             ],
         }),
     ],
     providers: [
-        // App-spezifische Commands:
+        // App-specific commands:
         PaketApplyCommand,
         PilotCreateCommand,
-        // Plattform-Flow-Wrappers:
+        // Platform flow wrappers:
         AdminMfaSetupCommand, // wraps MfaSetupFlow
         AdminWhoAmICommand, // wraps WhoAmIFlow
         AuditTailCommand, // wraps AuditTailFlow
@@ -1107,7 +1107,7 @@ Optionale aber dringend empfohlene Integration für Ops-Workflows.
 export class CliModule {}
 ```
 
-Damit hat deine App z. B.:
+With this your app has, for example:
 
 ```bash
 myapp admin mfa-setup --as taci@example.com
@@ -1115,106 +1115,106 @@ myapp admin whoami    --as taci@example.com
 myapp audit tail      --since "2026-05-01" --limit 50
 myapp doctor
 myapp manifest dump | jq .
-myapp manifest hash                                          # für CI-Pinning
-myapp manifest check                                         # Drift-Detection
+myapp manifest hash                                          # for CI pinning
+myapp manifest check                                         # drift detection
 ```
 
-**Exit-Codes** sind standardisiert (siehe `saas-platform-spec/cli-conventions.md`):
+**Exit codes** are standardized (see `saas-platform-spec/cli-conventions.md`):
 `0=ok`, `1=user-error`, `2=identity`, `3=mfa`, `4=connectivity`, `5=permission`,
 `6=conflict`, `7=drift`, `99=internal`.
 
 ---
 
-## 10. Verifikations-Checkliste
+## 10. Verification Checklist
 
-Nach der Integration:
+After integration:
 
-- [ ] Backend startet ohne `P2028 "Unable to start a transaction"` — wenn doch:
-      `PrismaPlanCatalogReadSink` bypassen RLS nicht korrekt.
-- [ ] `var/discovery-snapshot.json` wird beim Boot geschrieben und enthält deine
-      `@ImplementsCapability`-Einträge.
-- [ ] `GET /api/v1/admin/manifest` antwortet mit Status 200 + `ETag` und enthält
-      alle Standard-Pages, dein Manifest-Contribution + KPI-Cards.
-- [ ] `GET /public/catalog` liefert die im Plan-Catalog deklarierten Pläne.
-- [ ] SuperAdmin-Login funktioniert, `MfaGuard` blockt ohne MFA.
-- [ ] SuperAdmin-UI lädt:
-    - [ ] `/admin/dashboard` zeigt deine KPI-Cards.
-    - [ ] `/admin/tenants` listet Mandanten.
-    - [ ] `/admin/discovery` zeigt Capabilities/Features/Quotas (sind die Tabs leer? — siehe §11).
-    - [ ] `/admin/plans` zeigt deine YAML-Pläne.
-    - [ ] `/admin/marketing-catalog` zeigt Features für Locale-Übersetzung.
-- [ ] Ein Endpoint mit `@EnforceQuota('xxx')` wirft `LimitExceededError` bei Überschreitung.
-- [ ] Ein Endpoint mit `@RequireFeature('XXX')` antwortet 403 mit
-      `code: FEATURE_NOT_LICENSED`, wenn der Plan das Feature nicht enthält.
-- [ ] `myapp manifest hash` ist deterministisch (gleicher Code → gleicher Hash).
-- [ ] `myapp doctor` läuft ohne Fehler durch.
-
----
-
-## 11. Häufige Fallstricke
-
-1. **Reihenfolge von `imports[]`.** `PlatformAdaptersModule` (mit den Repository-Providern)
-   **muss** vor den `DynamicModule.forRoot(...)`-Aufrufen stehen. Sonst `Nest can't resolve
-dependencies of the X (?, ...)`-Fehler. NestJS 11+ ist hier strenger als 9/10.
-
-2. **`@Global()` auf `AdminModule`.** Wenn das CLI über `AdminManifestService` injecten
-   will, muss das Modul global sein. Sonst findet die DynamicModule-Factory den Service nicht.
-
-3. **`includeManifestController: false`.** Wenn du einen eigenen `AdminManifestController`
-   schreibst (für eigene Guards / Caching), unbedingt im `AdminManifestModule.forRoot()`
-   den Standard-Controller deaktivieren — sonst Duplicate-Route-Error.
-
-4. **`extraProviders` statt globale Providers.** DynamicModule-Factories sehen nur, was
-   _im selben DynamicModule-Scope_ deklariert ist. Dependencies einer
-   `useFactory({ inject })`-Config müssen via `extraProviders: [...]` in
-   `forRoot()` mitgegeben werden, nicht als externe `providers:`-Liste.
-
-5. **RLS-Bypass für globale Reads.** Plan-Catalog, Bundles, Discovery sind _nicht_
-   mandantengebunden. Reads müssen RLS bypassen. Der `AdminBypassRlsInterceptor` löst
-   das für Controller-Routen; in Adaptern, die _außerhalb_ eines Requests (Boot,
-   Scheduler) laufen, musst du selbst `rlsBypassPort.run(() => …)` aufrufen.
-
-6. **Discovery-Snapshot ist Boot-Cache.** Decorator-Änderungen werden erst beim
-   _nächsten Start_ sichtbar. Im Dev-Container reicht `restart`, in der UI musst du
-   anschließend in der Discovery-Page „Discovery starten" klicken (oder
-   `myapp doctor` callen, falls eingebaut).
-
-7. **`SubscriptionContract` ist immutable.** Plan-Wechsel = neuer Contract + alter wird
-   `superseded`. Niemals direkt updaten — sonst brechen historische Rechnungen.
-
-8. **Public-Catalog niemals im Frontend cachen.** Pricing-Page liest jedes Mal frisch
-   `/public/catalog`. Lokal cached → veraltete Preise. Klassische Quelle für
-   Live-Billing-Bugs.
-
-9. **Manifest-Hash in CI pinnen.** `myapp manifest hash` in einem Pre-Deploy-Step
-   gegen einen Sollwert prüfen; ungewollte Manifest-Drifts ändern UI und
-   Permission-Checks ohne dass es im Code-Diff offensichtlich ist.
-
-10. **`@DefinesQuota` auf der Klasse, nicht auf dem Interface.** Der Discovery-Scanner
-    liest nur konkrete Klassen.
-
-11. **Vite-Cache nach Plattform-Build leeren.** `file:`-Deps werden von pnpm kopiert,
-    aber Vite bundle't sie in `node_modules/.vite/deps`. Nach
-    `pnpm --filter @saasicat/ui-vue build` + `pnpm install` im
-    Konsumenten musst du `.vite/deps` löschen und den Dev-Server neustarten — sonst
-    serviert Vite die alte Version.
-
-12. **`AdminManifestConfig` ist Boot-Snapshot.** Plan-Änderungen via SuperAdmin-UI
-    werden erst nach Manifest-Reload (`POST /admin/manifest/reload`, MFA-pflichtig)
-    sichtbar — nicht automatisch.
+- [ ] Backend starts without `P2028 "Unable to start a transaction"` — if it does:
+      `PrismaPlanCatalogReadSink` doesn't bypass RLS correctly.
+- [ ] `var/discovery-snapshot.json` is written at boot and contains your
+      `@ImplementsCapability` entries.
+- [ ] `GET /api/v1/admin/manifest` responds with status 200 + `ETag` and contains
+      all standard pages, your manifest contribution + KPI cards.
+- [ ] `GET /public/catalog` returns the plans declared in the plan catalog.
+- [ ] SuperAdmin login works, `MfaGuard` blocks without MFA.
+- [ ] The SuperAdmin UI loads:
+    - [ ] `/admin/dashboard` shows your KPI cards.
+    - [ ] `/admin/tenants` lists tenants.
+    - [ ] `/admin/discovery` shows capabilities/features/quotas (are the tabs empty? — see §11).
+    - [ ] `/admin/plans` shows your YAML plans.
+    - [ ] `/admin/marketing-catalog` shows features for locale translation.
+- [ ] An endpoint with `@EnforceQuota('xxx')` throws `LimitExceededError` when exceeded.
+- [ ] An endpoint with `@RequireFeature('XXX')` responds 403 with
+      `code: FEATURE_NOT_LICENSED` when the plan doesn't include the feature.
+- [ ] `myapp manifest hash` is deterministic (same code → same hash).
+- [ ] `myapp doctor` runs through without errors.
 
 ---
 
-## 12. Weiterführend
+## 11. Common Pitfalls
+
+1. **Order of `imports[]`.** `PlatformAdaptersModule` (with the repository providers)
+   **must** come before the `DynamicModule.forRoot(...)` calls. Otherwise `Nest can't resolve
+dependencies of the X (?, ...)` errors. NestJS 11+ is stricter here than 9/10.
+
+2. **`@Global()` on `AdminModule`.** If the CLI wants to inject via `AdminManifestService`,
+   the module must be global. Otherwise the DynamicModule factory won't find the service.
+
+3. **`includeManifestController: false`.** If you write your own `AdminManifestController`
+   (for your own guards / caching), be sure to disable the standard controller in
+   `AdminManifestModule.forRoot()` — otherwise a duplicate-route error.
+
+4. **`extraProviders` instead of global providers.** DynamicModule factories only see what is
+   declared _in the same DynamicModule scope_. Dependencies of a
+   `useFactory({ inject })` config must be passed via `extraProviders: [...]` in
+   `forRoot()`, not as an external `providers:` list.
+
+5. **RLS bypass for global reads.** Plan catalog, bundles, discovery are _not_
+   tenant-bound. Reads must bypass RLS. The `AdminBypassRlsInterceptor` solves
+   this for controller routes; in adapters that run _outside_ a request (boot,
+   scheduler) you have to call `rlsBypassPort.run(() => …)` yourself.
+
+6. **Discovery snapshot is a boot cache.** Decorator changes only become
+   visible on the _next start_. In the dev container a `restart` suffices; in the UI you then
+   have to click "Discovery starten" on the discovery page (or
+   call `myapp doctor`, if built in).
+
+7. **`SubscriptionContract` is immutable.** Plan change = new contract + the old one becomes
+   `superseded`. Never update directly — otherwise historical invoices break.
+
+8. **Never cache the public catalog in the frontend.** The pricing page reads
+   `/public/catalog` fresh every time. Cached locally → stale prices. A classic source of
+   live billing bugs.
+
+9. **Pin the manifest hash in CI.** Check `myapp manifest hash` in a pre-deploy step
+   against an expected value; unwanted manifest drifts change the UI and
+   permission checks without it being obvious in the code diff.
+
+10. **`@DefinesQuota` on the class, not the interface.** The discovery scanner
+    only reads concrete classes.
+
+11. **Clear the Vite cache after a platform build.** `file:` deps are copied by pnpm,
+    but Vite bundles them into `node_modules/.vite/deps`. After
+    `pnpm --filter @saasicat/ui-vue build` + `pnpm install` in the
+    consumer you have to delete `.vite/deps` and restart the dev server — otherwise
+    Vite serves the old version.
+
+12. **`AdminManifestConfig` is a boot snapshot.** Plan changes via the SuperAdmin UI
+    only become visible after a manifest reload (`POST /admin/manifest/reload`, MFA-required)
+    — not automatically.
+
+---
+
+## 12. Further Reading
 
 - **Spec**: `packages/saas-platform-spec/`
     - `schemas/admin-manifest.schema.json`
     - `schemas/plan-catalog.schema.json`
     - `schemas/promo-code.schema.json`
     - `schemas/audit-event.schema.json`
-    - `admin-api.openapi.yaml` (normativer REST-Vertrag)
+    - `admin-api.openapi.yaml` (normative REST contract)
     - `cli-conventions.md`
-- **Acceptance-Tests** (geplant): `packages/saas-platform-spec/acceptance/*.yaml`.
+- **Acceptance tests** (planned): `packages/saas-platform-spec/acceptance/*.yaml`.
 
-Bei Discrepancies zwischen Code und Spec gilt: Spec ist normativ,
-Code ist Implementierungsstand.
+In case of discrepancies between code and spec: the spec is normative,
+the code is the implementation status.

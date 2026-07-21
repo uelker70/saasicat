@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Q.4 — Codegen TS-Interfaces aus den JSON-Schemas in @saasicat/spec.
+// Q.4 — Codegen TS interfaces from the JSON schemas in @saasicat/spec.
 //
-// Liest die 4 Schema-Files, generiert pro Schema ein `src/generated/*.gen.ts`.
-// Snapshots werden committed; ein Konsistenz-Test (`tests/codegen-drift.test.js`)
-// regeneriert + vergleicht — Drift fail.
+// Reads the 4 schema files, generates one `src/generated/*.gen.ts` per schema.
+// Snapshots are committed; a consistency test (`tests/codegen-drift.test.js`)
+// regenerates + compares — drift fails.
 //
-// Aufruf:
+// Usage:
 //   pnpm --filter @saasicat/types gen:types
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';

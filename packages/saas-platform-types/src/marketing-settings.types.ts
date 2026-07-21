@@ -1,20 +1,20 @@
-// MarketingSettings — projekt-weite, runtime-editierbare Marketing-Konfig
-// (SPEC_V2 §6.5). Aktuell genau ein Feld: `activeLocales` — die im
-// Marketing-Catalog aktivierte Teilmenge des `availableLocales`-Pools
-// (der Pool selbst kommt aus der app-config `saas.yaml`).
+// MarketingSettings — project-wide, runtime-editable marketing config
+// (SPEC_V2 §6.5). Currently exactly one field: `activeLocales` — the subset
+// of the `availableLocales` pool that is activated in the marketing catalog
+// (the pool itself comes from the app-config `saas.yaml`).
 //
-// Eine Row pro Projekt (`projectKey` unique). Fehlt die Row, gilt der
-// volle Pool als aktiv.
+// One row per project (`projectKey` unique). If the row is missing, the
+// full pool is considered active.
 
-/** Wire-Format der `marketing_settings`-Row. */
+/** Wire format of the `marketing_settings` row. */
 export interface MarketingSettingsRow {
     projectKey: string;
-    /** Runtime-aktivierte Teilmenge des `availableLocales`-Pools. */
+    /** Runtime-activated subset of the `availableLocales` pool. */
     activeLocales: string[];
     updatedAt: string;
 }
 
-/** Body von `PUT /admin/catalog/marketing-settings`. */
+/** Body of `PUT /admin/catalog/marketing-settings`. */
 export interface UpdateMarketingSettingsData {
     activeLocales: string[];
 }

@@ -26,7 +26,7 @@
             </q-card-section>
 
             <q-card-section class="pc-dlg__body">
-                <!-- Section: Code & Rabatt -->
+                <!-- Section: Code & Discount -->
                 <div class="pc-section">
                     <div class="pc-section__title">Code &amp; Rabatt</div>
                     <div class="pc-grid pc-grid--2">
@@ -84,7 +84,7 @@
                     </div>
                 </div>
 
-                <!-- Section: Gültigkeit & Laufzeit -->
+                <!-- Section: Validity & Duration -->
                 <div class="pc-section">
                     <div class="pc-section__title">Gültigkeit &amp; Laufzeit</div>
 
@@ -165,7 +165,7 @@
                     </div>
                 </div>
 
-                <!-- Section: Kampagne & Notiz -->
+                <!-- Section: Campaign & Note -->
                 <div class="pc-section">
                     <div class="pc-section__title">Kampagne &amp; Notizen</div>
                     <div v-if="showCampaignTag" class="pc-field">
@@ -188,7 +188,7 @@
                     </div>
                 </div>
 
-                <!-- Section: Erweitert (Backend-only Felder, eingeklappt) -->
+                <!-- Section: Advanced (backend-only fields, collapsed) -->
                 <div class="pc-section">
                     <button
                         type="button"
@@ -243,7 +243,7 @@
                     </div>
                 </div>
 
-                <!-- Live-Preview -->
+                <!-- Live preview -->
                 <div class="pc-preview">
                     <div class="pc-preview__eyebrow">Vorschau im Catalog</div>
                     <div class="pc-preview__body">
@@ -280,10 +280,10 @@ import type {
     PromoCodeValueType,
 } from './types.js';
 
-// Plattform-PromoCode-Create-Dialog (Sim-Layout: Sektionen, Type-Grid,
-// Plan-Picker, Live-Preview). App liefert Submit-Handler und optional die
-// Plan-Liste für den Plan-Picker (z. B. aus dem Manifest-Snapshot). Wenn
-// keine Pläne durchgereicht werden, blendet die Plan-Auswahl-Sektion aus.
+// Platform promo-code create dialog (sim layout: sections, type grid, plan
+// picker, live preview). The app supplies the submit handler and optionally
+// the plan list for the plan picker (e.g. from the manifest snapshot). If no
+// plans are passed through, the plan selection section is hidden.
 
 const props = withDefaults(
     defineProps<{

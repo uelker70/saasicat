@@ -84,7 +84,7 @@
                 </div>
 
                 <template v-for="p in filteredPlans" :key="p.plan.id">
-                    <!-- Parent row: aktuell live Version (oder erste future / nichts) -->
+                    <!-- Parent row: currently live version (or first future / nothing) -->
                     <div
                         :class="['pl-row', { 'pl-row--new': highlightPlanKey === p.planKey }]"
                         @click="$emit('openPlan', p.plan)"
@@ -287,7 +287,7 @@
                         </div>
                     </div>
 
-                    <!-- Sub rows: drafts + future-scheduled Versionen, eingerückt -->
+                    <!-- Sub rows: drafts + future-scheduled versions, indented -->
                     <div
                         v-for="sub in p.subRows"
                         :key="`${p.plan.id}-${sub.id}`"
@@ -436,10 +436,10 @@
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 
-// PlanList — Listenansicht aller Pläne (Default-Sicht in PlansPage,
-// entspricht dem ListScreen aus der Plan-Simulation). Eine Reihe pro
-// Plan mit Mark-Chip, Status, Version, Preis, Tenant-Progress, Row-
-// Actions (Klon · Neue Version · Öffnen).
+// PlanList — list view of all plans (default view in PlansPage,
+// corresponds to the ListScreen from the plan simulation). One row per
+// plan with mark chip, status, version, price, tenant progress, row
+// actions (clone · new version · open).
 
 const props = withDefaults(
     defineProps<{
@@ -447,7 +447,7 @@ const props = withDefaults(
         versionsByPlanId: Record<string, PlanVersionRow[]>;
         tenantCountsByPlanKey?: Record<string, number>;
         planAccents?: Record<string, string>;
-        /** Plan-Key, der zuletzt angelegt/aktualisiert wurde — bekommt NEU-Highlight. */
+        /** Plan key that was last created/updated — gets the NEU highlight. */
         highlightPlanKey?: string | null;
     }>(),
     {
@@ -475,17 +475,17 @@ interface ResolvedPlan {
     planKey: string;
     label: string;
     description: string | null;
-    /** Aktuell für neue Buchungen aktive Version (validFrom ≤ today < validUntil oder validUntil null). */
+    /** Version currently active for new bookings (validFrom ≤ today < validUntil or validUntil null). */
     currentLive: PlanVersionRow | null;
-    /** Version, die auf der Parent-Row angezeigt wird (currentLive bevorzugt). */
+    /** Version shown on the parent row (currentLive preferred). */
     primary: PlanVersionRow | null;
-    /** Drafts + future-published Versionen (sortiert: future ASC nach validFrom, drafts ans Ende). */
+    /** Drafts + future-published versions (sorted: future ASC by validFrom, drafts at the end). */
     subRows: PlanVersionRow[];
-    /** True, wenn der Plan überhaupt Versionen hat (für Hide-Logik). */
+    /** True if the plan has any versions at all (for hide logic). */
     hasAnyVersion: boolean;
-    /** True, wenn alle Versionen abgelaufen sind (validUntil < today, kein draft / kein future). */
+    /** True if all versions are expired (validUntil < today, no draft / no future). */
     allExpired: boolean;
-    /** Erster offener Draft (für Header-KPI „offene Drafts"). */
+    /** First open draft (for the header KPI "offene Drafts"). */
     draft: PlanVersionRow | null;
     tenantCount: number;
 }
@@ -546,11 +546,11 @@ const resolvedPlans = computed<ResolvedPlan[]>(() => {
                 .filter((v) => isFutureScheduled(v, today))
                 .sort((a, b) => (a.validFrom ?? '').localeCompare(b.validFrom ?? ''));
 
-            // Parent = currentLive bevorzugt; sonst die nächste anstehende
-            // future-Version; sonst null (nur Drafts → Stamm-Row ohne Version).
+            // Parent = currentLive preferred; otherwise the next upcoming
+            // future version; otherwise null (drafts only → root row without a version).
             const primary = currentLive ?? futureScheduled[0] ?? null;
 
-            // Sub-rows = alle visible Versionen außer Parent
+            // Sub-rows = all visible versions except the parent
             const subSet = new Set<string>();
             if (primary) subSet.add(primary.id);
             const subRows: PlanVersionRow[] = [];
@@ -590,9 +590,9 @@ const resolvedPlans = computed<ResolvedPlan[]>(() => {
 });
 
 const filteredPlans = computed(() => {
-    // Plans mit ausschließlich abgelaufenen Versionen werden komplett
-    // versteckt (SPEC_V2 §4.2.1: nur aktuell-gültige + zukünftige bleiben
-    // im Admin-Listing sichtbar).
+    // Plans with only expired versions are hidden entirely
+    // (SPEC_V2 §4.2.1: only currently-valid + future ones stay visible
+    // in the admin listing).
     const base = resolvedPlans.value.filter((p) => !p.allExpired);
     const q = search.value.trim().toLocaleLowerCase('de-DE');
     if (!q) return base;
@@ -620,10 +620,10 @@ function tenantBarWidth(count: number): string {
 }
 
 function onNewVersion(row: ResolvedPlan): void {
-    if (row.draft) return; // schon offener Draft → kein neuer
+    if (row.draft) return; // already an open draft → no new one
     const basis = row.currentLive;
     if (!basis) {
-        // ohne live-Version: über den Cockpit-Weg
+        // without a live version: via the cockpit path
         emit('openPlan', row.plan);
         return;
     }
@@ -631,8 +631,8 @@ function onNewVersion(row: ResolvedPlan): void {
 }
 
 function hasAnyPublished(row: ResolvedPlan): boolean {
-    // Auch superseded oder expired zählt — der Plan-Stamm bleibt aus
-    // Vertragsschutz-P1-Gründen für immer in der DB.
+    // Superseded or expired counts too — the plan root stays in the DB
+    // forever for contract-protection P1 reasons.
     const versions = props.versionsByPlanId[row.plan.id] ?? [];
     return versions.some((v) => v.publishedAt !== null);
 }
@@ -847,7 +847,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     }
 }
 
-/* Sub-Rows (Drafts + future-scheduled Versionen, eingerückt unter Parent) */
+/* Sub-rows (drafts + future-scheduled versions, indented under the parent) */
 .pl-row--sub > .pl-cell {
     background: #fafbfd;
     padding-top: 10px;

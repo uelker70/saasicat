@@ -1,18 +1,18 @@
-// PlanCatalogImporterService — One-Shot-Import `saas.yaml → DB`
+// PlanCatalogImporterService — one-shot import `saas.yaml → DB`
 // (SPEC_V2 §11.1 M6 Pack 2c).
 //
-// Liest eine `saas.yaml` (als String oder via Loader-File), validiert sie
-// gegen das Plattform-Schema und ruft den App-spezifischen
-// `PlanCatalogImportSink` für jeden Eintrag auf. Idempotent: bei
-// existierenden Rows zählt der Sink "skipped", der Service einfach durch.
+// Reads a `saas.yaml` (as a string or via a loader file), validates it
+// against the platform schema and calls the app-specific
+// `PlanCatalogImportSink` for each entry. Idempotent: for existing rows
+// the sink counts "skipped" and the service simply moves on.
 //
 // Mapping YAML → DB:
-//  - `plans[]`    → `Plan` (Stamm) + `PlanVersion` v1 (published)
+//  - `plans[]`    → `Plan` (master) + `PlanVersion` v1 (published)
 //  - `features[]` → `FeatureCatalogEntry`
 //
-// App-globale Settings (`projectKey`, `currency`, `vatRate`)
-// werden NICHT importiert — die bleiben als statische `forRoot()`-Optionen
-// im AppModule (Build-Time-Identity, gehört nicht ins runtime-DB).
+// App-global settings (`projectKey`, `currency`, `vatRate`)
+// are NOT imported — they stay as static `forRoot()` options
+// in the AppModule (build-time identity, does not belong in the runtime DB).
 
 import { Inject, Injectable } from '@nestjs/common';
 import type {
@@ -35,11 +35,11 @@ export class PlanCatalogImporterService {
     ) {}
 
     /**
-     * Import direkt aus YAML-String. Apps reichen den Inhalt der
-     * `saas.yaml` per HTTP-Body durch; CLI-Tools können den File-Inhalt
-     * vorher selber lesen.
+     * Import directly from a YAML string. Apps pass the contents of the
+     * `saas.yaml` through via the HTTP body; CLI tools can read the file
+     * contents themselves beforehand.
      *
-     * @throws beim Schema-Failure des YAML (vorher Validate-Aufruf via Loader).
+     * @throws on a schema failure of the YAML (validated first via the loader).
      */
     async importFromYaml(
         yamlContent: string,
@@ -77,7 +77,7 @@ export class PlanCatalogImporterService {
             else report.featureEntriesSkipped++;
         }
 
-        // ─── Plans + erste PlanVersion v1 ───
+        // ─── Plans + first PlanVersion v1 ───
         for (const plan of catalog.plans ?? []) {
             const planResult = await this.sink.upsertPlan({
                 projectKey: catalog.projectKey,

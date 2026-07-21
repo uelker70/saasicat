@@ -1,9 +1,9 @@
 import { IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
- * Eingabe fuer Schritt 3 (Paketauswahl) — `POST /auth/register/select-plan`.
- * Das Frontend uebergibt die PendingRegistration-ID (aus verify-otp-Response
- * oder Login-Onboarding-Antwort) und den gewaehlten PlanId.
+ * Input for step 3 (plan selection) — `POST /auth/register/select-plan`.
+ * The frontend passes the PendingRegistration ID (from the verify-otp response
+ * or the login onboarding response) and the chosen PlanId.
  */
 export class SelectRegistrationPlanDto {
     @IsString()

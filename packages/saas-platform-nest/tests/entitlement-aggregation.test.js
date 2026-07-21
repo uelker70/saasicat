@@ -45,12 +45,12 @@ const PLAN_VERSION = {
 };
 
 describe('filterPlannedOnlyFeatures', () => {
-    test('plannedOnly-Features werden ausgefiltert', () => {
+    test('plannedOnly features are filtered out', () => {
         const out = filterPlannedOnlyFeatures(new Set(['CASHBOOK', 'API_ACCESS']), CATALOG);
         assert.deepEqual([...out], ['CASHBOOK']);
     });
 
-    test('Unbekannte Features (nicht im Catalog) bleiben drin', () => {
+    test('unknown features (not in catalog) stay in', () => {
         const out = filterPlannedOnlyFeatures(new Set(['UNKNOWN_FEATURE']), CATALOG);
         assert.deepEqual([...out], ['UNKNOWN_FEATURE']);
     });
@@ -63,7 +63,7 @@ describe('applyCustomLimits', () => {
         features: new Set(['CASHBOOK']),
     };
 
-    test('null/undefined Custom: keine Änderung', () => {
+    test('null/undefined custom: no change', () => {
         const r1 = applyCustomLimits(base, null);
         const r2 = applyCustomLimits(base, undefined);
         assert.deepEqual(r1.quotas, base.quotas);
@@ -71,36 +71,36 @@ describe('applyCustomLimits', () => {
         assert.deepEqual(r2.quotas, base.quotas);
     });
 
-    test('quotas-Override überschreibt feldweise', () => {
+    test('quotas override overwrites field by field', () => {
         const r = applyCustomLimits(base, { quotas: { vehicles: 9999 } });
         assert.equal(r.quotas.vehicles, 9999);
-        assert.equal(r.quotas.users, 1); // unverändert
+        assert.equal(r.quotas.users, 1); // unchanged
         assert.equal(r.quotas.storageGb, 5);
     });
 
-    test('features-Override ergänzt', () => {
+    test('features override adds', () => {
         const r = applyCustomLimits(base, { features: ['DMS', 'CALENDAR'] });
         assert.equal(r.features.has('CASHBOOK'), true);
         assert.equal(r.features.has('DMS'), true);
         assert.equal(r.features.has('CALENDAR'), true);
     });
 
-    test('Mutation des Inputs ist verboten (Pure Function)', () => {
+    test('mutation of the input is forbidden (pure function)', () => {
         const before = { ...base.quotas };
         applyCustomLimits(base, { quotas: { vehicles: 9999 } });
         assert.deepEqual(base.quotas, before);
     });
 });
 
-describe('aggregateLimits — Hauptaggregator', () => {
-    test('Plan-Default ohne Bundles', () => {
+describe('aggregateLimits — main aggregator', () => {
+    test('plan default without bundles', () => {
         const r = aggregateLimits({ plan: 'BASIC', planVersion: PLAN_VERSION }, CATALOG, NOW);
         assert.equal(r.plan, 'BASIC');
         assert.deepEqual(r.quotas, { users: 1, vehicles: 50, storageGb: 5 });
         assert.deepEqual([...r.features], ['CASHBOOK']);
     });
 
-    test('Plan + Bundle-Quotas summieren additiv', () => {
+    test('plan + bundle quotas sum additively', () => {
         const r = aggregateLimits(
             {
                 plan: 'BASIC',
@@ -121,7 +121,7 @@ describe('aggregateLimits — Hauptaggregator', () => {
         assert.equal(r.quotas.storageGb, 105); // 5 plan + 100 bundle
     });
 
-    test('Bundle-Features ergänzen das features-Set', () => {
+    test('bundle features add to the features set', () => {
         const r = aggregateLimits(
             {
                 plan: 'BASIC',
@@ -143,7 +143,7 @@ describe('aggregateLimits — Hauptaggregator', () => {
         assert.equal(r.features.has('AI_ASSISTANT_EXTENDED'), true);
     });
 
-    test('plannedOnly-Features werden konsequent ausgeblendet', () => {
+    test('plannedOnly features are consistently hidden', () => {
         const r = aggregateLimits(
             {
                 plan: 'BASIC',
@@ -158,7 +158,7 @@ describe('aggregateLimits — Hauptaggregator', () => {
         assert.equal(r.features.has('SSO'), false);
     });
 
-    test('customLimits.quotas überschreibt Plan + Bundles', () => {
+    test('customLimits.quotas overrides plan + bundles', () => {
         const r = aggregateLimits(
             {
                 plan: 'BASIC',
@@ -176,10 +176,10 @@ describe('aggregateLimits — Hauptaggregator', () => {
             CATALOG,
             NOW,
         );
-        assert.equal(r.quotas.users, 999); // Override gewinnt über (1 + 5)
+        assert.equal(r.quotas.users, 999); // override wins over (1 + 5)
     });
 
-    test('Gekündigte Bundles (canceledEffectiveAt < now) gehen nicht ein', () => {
+    test('canceled bundles (canceledEffectiveAt < now) are not included', () => {
         const r = aggregateLimits(
             {
                 plan: 'BASIC',
@@ -196,13 +196,13 @@ describe('aggregateLimits — Hauptaggregator', () => {
             CATALOG,
             NOW,
         );
-        assert.equal(r.quotas.users, 1); // nur Plan-Default
+        assert.equal(r.quotas.users, 1); // plan default only
     });
 
-    test('Bundle-Quota in einer Quota-Dimension, die der Plan nicht hat, wird durchgereicht', () => {
+    test('bundle quota in a quota dimension the plan does not have is passed through', () => {
         const planWithoutStorage = {
             ...PLAN_VERSION,
-            quotas: { users: 1, vehicles: 50 }, // kein storageGb
+            quotas: { users: 1, vehicles: 50 }, // no storageGb
         };
         const r = aggregateLimits(
             {
@@ -230,21 +230,21 @@ describe('hasFeature / hasAnyFeature', () => {
         quotas: {},
         features: new Set(['CASHBOOK', 'DMS']),
     };
-    test('hasFeature trifft', () => {
+    test('hasFeature matches', () => {
         assert.equal(hasFeature(limits, 'CASHBOOK'), true);
         assert.equal(hasFeature(limits, 'CALENDAR'), false);
     });
-    test('hasAnyFeature: mindestens eines reicht', () => {
+    test('hasAnyFeature: at least one is enough', () => {
         assert.equal(hasAnyFeature(limits, ['CALENDAR', 'DMS']), true);
         assert.equal(hasAnyFeature(limits, ['CALENDAR', 'API_ACCESS']), false);
     });
-    test('hasAnyFeature: leere Liste → false', () => {
+    test('hasAnyFeature: empty list → false', () => {
         assert.equal(hasAnyFeature(limits, []), false);
     });
 });
 
 describe('toEffectiveLimitsSnapshot', () => {
-    test('Set wird zu sortiertem Array (deterministisch)', () => {
+    test('set becomes sorted array (deterministic)', () => {
         const snap = toEffectiveLimitsSnapshot({
             plan: 'BASIC',
             quotas: { users: 5 },
@@ -255,7 +255,7 @@ describe('toEffectiveLimitsSnapshot', () => {
         assert.equal(snap.plan, 'BASIC');
     });
 
-    test('Snapshot ist unabhängig vom Original-Quota-Object (deep-copy)', () => {
+    test('snapshot is independent of the original quota object (deep copy)', () => {
         const limits = {
             plan: 'BASIC',
             quotas: { users: 5 },

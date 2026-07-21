@@ -17,8 +17,8 @@ import type {
 // -----------------------------------------------------------------------------
 
 /**
- * Snapshot-Form einer `Subscription`-Row für die EntitlementService-
- * Berechnung. Konsument mappt seine Prisma-Struktur auf diese Form.
+ * Snapshot form of a `Subscription` row for the EntitlementService
+ * computation. The consumer maps its Prisma structure onto this form.
  */
 export interface SubscriptionRecord {
     id: string;
@@ -34,7 +34,7 @@ export interface SubscriptionRecord {
     planVersion: PlanVersionRecord;
 }
 
-/** Snapshot einer `PlanVersion`-Row. */
+/** Snapshot of a `PlanVersion` row. */
 export interface PlanVersionRecord {
     planId: string;
     quotas: Record<string, number>;
@@ -42,18 +42,17 @@ export interface PlanVersionRecord {
 }
 
 /**
- * Lese-Adapter für Subscriptions. Konsument-Implementation lädt aus seiner
- * eigenen `Subscription`-Tabelle inkl. eager-loaded `planVersion`
- * und mappt auf `SubscriptionRecord`.
+ * Read adapter for subscriptions. The consumer implementation loads from its
+ * own `Subscription` table incl. eager-loaded `planVersion`
+ * and maps to `SubscriptionRecord`.
  */
 export interface SubscriptionRepository {
-    /** Liefert die Subscription eines Tenants oder null. */
+    /** Returns a tenant's subscription or null. */
     findByTenantId(tenantId: string): Promise<SubscriptionRecord | null>;
     /**
-     * Wie `findByTenantId`, aber innerhalb der Transaktion mit Row-Lock
-     * (`SELECT ... FOR UPDATE`). Wird vom transactional `enforceLimit`-
-     * Pfad benutzt, um konkurrierende Anlagen am gleichen Tenant zu
-     * serialisieren.
+     * Like `findByTenantId`, but within the transaction with a row lock
+     * (`SELECT ... FOR UPDATE`). Used by the transactional `enforceLimit`
+     * path to serialize concurrent creations on the same tenant.
      */
     findByTenantIdLocked(
         tenantId: string,
@@ -61,73 +60,72 @@ export interface SubscriptionRepository {
     ): Promise<SubscriptionRecord | null>;
 
     /**
-     * Zählt Subscriptions, die eine konkrete PlanVersion binden — sowohl
-     * via aktivem `planVersionId` als auch via geplantem `pendingPlanVersionId`.
-     * Wird vom `PlanVersionsService` zur Editierbarkeits-Entscheidung
-     * benötigt: eine published-but-future PlanVersion bleibt nur dann
-     * korrigierbar, solange keine Buchung sie referenziert.
+     * Counts subscriptions that bind a specific PlanVersion — both
+     * via the active `planVersionId` and via the scheduled `pendingPlanVersionId`.
+     * Needed by the `PlanVersionsService` for the editability decision:
+     * a published-but-future PlanVersion stays correctable only as long
+     * as no booking references it.
      *
-     * Optional aus Backwards-Compat-Gründen — wenn ein Adapter die Methode
-     * nicht implementiert, behandelt der Service die Version defensiv als
-     * eingefroren (fail-closed). Implementierungs-Hinweis: zähle in einem
-     * COUNT(*) über die Subscription-Tabelle mit OR-Verknüpfung der beiden
-     * FK-Spalten — nicht in zwei separaten Queries, um Race-Conditions zu
-     * vermeiden.
+     * Optional for backwards-compat reasons — if an adapter does not
+     * implement the method, the service defensively treats the version as
+     * frozen (fail-closed). Implementation hint: count in a single
+     * COUNT(*) over the subscription table with an OR over the two
+     * FK columns — not in two separate queries, to avoid race conditions.
      */
     countByPlanVersionId?(planVersionId: string): Promise<number>;
 
     /**
-     * Zählt aktive (= nicht-gekündigte oder Kündigung noch in der Zukunft)
-     * SubscriptionBundle-Einträge, die eine konkrete BundleVersion binden.
-     * Bundles werden eigenständig versioniert und vermarktet (analog zu
-     * Plänen); der `BundlesService` braucht den Count zur Editierbarkeits-
-     * Entscheidung einer published-but-future BundleVersion.
+     * Counts active (= not-canceled, or cancellation still in the future)
+     * SubscriptionBundle entries that bind a specific BundleVersion.
+     * Bundles are versioned and marketed independently (analogous to
+     * plans); the `BundlesService` needs the count for the editability
+     * decision of a published-but-future BundleVersion.
      *
-     * Implementierung seit P11.7.3: direkter COUNT auf
+     * Implementation since P11.7.3: direct COUNT on
      * `subscription_bundles WHERE bundleVersionId = ? AND
-     * (canceledAt IS NULL OR canceledEffectiveAt > NOW())`. Apps ohne
-     * SubscriptionBundle-Schema (oder ohne Plattform-Migration) können
-     * weiterhin 0 liefern; das Editierbarkeits-Feature ist dann nicht
-     * mehr fail-closed gegen Buchungen, aber weiterhin latest-in-chain +
-     * validFrom-Future.
+     * (canceledAt IS NULL OR canceledEffectiveAt > NOW())`. Apps without
+     * a SubscriptionBundle schema (or without the platform migration) can
+     * still return 0; the editability feature is then no longer
+     * fail-closed against bookings, but still latest-in-chain +
+     * validFrom-future.
      *
-     * Optional — wenn nicht implementiert, behandelt der Service die
-     * Version defensiv als eingefroren (fail-closed).
+     * Optional — if not implemented, the service defensively treats the
+     * version as frozen (fail-closed).
      */
     countByBundleVersionId?(bundleVersionId: string): Promise<number>;
 
     /**
-     * Zählt aktive Subscriptions (status `ACTIVE` oder `TRIAL`) je Plan-Key,
-     * plattformweit über alle Tenants des Projekts — speist die Mandanten-
-     * Spalte der SuperAdmin-Plan-Liste (`GET /admin/catalog/plans/tenant-counts`).
-     * Versions-übergreifend: zählt den Plan, nicht eine einzelne PlanVersion
-     * (Subscriptions auf supersedeten Versionen zählen mit). `projectKey` ist
-     * für Single-Project-Konsumenten informativ.
+     * Counts active subscriptions (status `ACTIVE` or `TRIAL`) per plan key,
+     * platform-wide across all tenants of the project — feeds the tenant
+     * column of the SuperAdmin plan list (`GET /admin/catalog/plans/tenant-counts`).
+     * Cross-version: counts the plan, not a single PlanVersion
+     * (subscriptions on superseded versions are included). `projectKey` is
+     * informational for single-project consumers.
      *
-     * Liefert eine Map `planKey → Anzahl`; Pläne ohne aktive Subscription
-     * fehlen (UI defaultet auf 0). Plattform-Zählung über alle Tenants →
-     * Adapter müssen RLS-exempt zählen.
+     * Returns a map `planKey → count`; plans without an active subscription
+     * are missing (UI defaults to 0). Platform-wide count across all tenants →
+     * adapters must count RLS-exempt.
      *
-     * Optional — wenn nicht implementiert, bleibt die Mandanten-Spalte 0.
+     * Optional — if not implemented, the tenant column stays 0.
      */
     countActiveByPlanKey?(projectKey: string): Promise<Record<string, number>>;
 }
 
 /**
- * Adapter für `subscription_bundles`-Junction (SPEC_V2 §11.1 M6 Pack 2e).
- * Konsumenten implementieren das gegen ihre Prisma-Tabelle. Schreiben
- * über `add` / `cancel` ist immer Side-Effect der Subscription-Service-
- * Methoden — der Repository ist dumb persistence, keine fachlichen
- * Constraints (Plan-Kompat, Mindestlaufzeit-Default) hier.
+ * Adapter for the `subscription_bundles` junction (SPEC_V2 §11.1 M6 Pack 2e).
+ * Consumers implement it against their Prisma table. Writing
+ * via `add` / `cancel` is always a side effect of the subscription-service
+ * methods — the repository is dumb persistence, no domain
+ * constraints (plan compatibility, minimum-term default) here.
  */
 export interface SubscriptionBundleRepository {
-    /** Alle Bundle-Buchungen einer Subscription, neueste zuerst. */
+    /** All bundle bookings of a subscription, newest first. */
     listBySubscription(subscriptionId: string): Promise<SubscriptionBundleRecord[]>;
-    /** Eine einzelne Buchung (für Cancel-/Detail-Flow). */
+    /** A single booking (for the cancel/detail flow). */
     findById(subscriptionBundleId: string): Promise<SubscriptionBundleRecord | null>;
     /**
-     * Aktive Buchungen einer Subscription (`canceledAt IS NULL OR
-     * canceledEffectiveAt > NOW()`). Wird vom Entitlement-Pfad genutzt.
+     * Active bookings of a subscription (`canceledAt IS NULL OR
+     * canceledEffectiveAt > NOW()`). Used by the Entitlement path.
      */
     listActiveBySubscription(
         subscriptionId: string,
@@ -135,34 +133,34 @@ export interface SubscriptionBundleRepository {
     ): Promise<SubscriptionBundleRecord[]>;
     add(data: CreateSubscriptionBundleData): Promise<SubscriptionBundleRecord>;
     /**
-     * Setzt `canceledAt` + `canceledEffectiveAt`. Wirft auf bereits
-     * gekündigten Buchungen — der Service bietet ggf. „Kündigung
-     * rückgängig" als separaten Pfad an (nicht in dieser Iter).
+     * Sets `canceledAt` + `canceledEffectiveAt`. Throws on already
+     * canceled bookings — the service may offer "undo cancellation"
+     * as a separate path (not in this iteration).
      */
     cancel(
         subscriptionBundleId: string,
         data: CancelSubscriptionBundleData,
     ): Promise<SubscriptionBundleRecord>;
     /**
-     * „Kündigung rückgängig": setzt `canceledAt` + `canceledEffectiveAt` auf
-     * NULL. Nur sinnvoll, solange die Kündigung noch nicht wirksam ist
-     * (`canceledEffectiveAt > NOW()`); die Gültigkeitsprüfung macht der Service.
+     * "Undo cancellation": resets `canceledAt` + `canceledEffectiveAt` to
+     * NULL. Only meaningful as long as the cancellation is not yet effective
+     * (`canceledEffectiveAt > NOW()`); the validity check is done by the service.
      */
     reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord>;
     /**
-     * Zählt aktive Bundle-Buchungen für eine BundleVersion (gleiche
-     * Semantik wie `SubscriptionRepository.countByBundleVersionId`, nur
-     * direkt am Junction-Adapter). Wird von beiden Repository-
-     * Implementierungen geteilt, um Drift zu vermeiden.
+     * Counts active bundle bookings for a BundleVersion (same
+     * semantics as `SubscriptionRepository.countByBundleVersionId`, only
+     * directly on the junction adapter). Shared by both repository
+     * implementations to avoid drift.
      */
     countActiveByBundleVersionId(bundleVersionId: string, asOf?: Date): Promise<number>;
 }
 
 /**
- * Append-only Repository für V3 SubscriptionContracts. Contracts sind die
- * vertragsfeste Quelle für Billing und Entitlement; Katalog-FKs sind nur
- * Trace-Daten. Implementierungen dürfen bestehende Contracts nur über
- * `terminate` fachlich schließen, nicht LineItems/Snapshots überschreiben.
+ * Append-only repository for V3 SubscriptionContracts. Contracts are the
+ * contractually binding source for billing and entitlement; catalog FKs are only
+ * trace data. Implementations may close existing contracts (at the domain level)
+ * only via `terminate`, not overwrite LineItems/Snapshots.
  */
 export interface SubscriptionContractRepository {
     list(filter: SubscriptionContractFilter): Promise<SubscriptionContractRecord[]>;
@@ -176,26 +174,26 @@ export interface SubscriptionContractRepository {
 }
 
 // -----------------------------------------------------------------------------
-// Tenant-Billing-Ports (Phase B — UI-/Display-Form für GET /billing/usage)
+// Tenant billing ports (Phase B — UI/display form for GET /billing/usage)
 // -----------------------------------------------------------------------------
 
 /**
- * Display-Form einer Subscription für die Tenant-Self-Service-UI.
- * Reicher als `SubscriptionRecord` (das nur die Aggregation-Form ist), enthält
- * Zusatzfelder wie `billingCycle`, Pilot-/Trial-Datum und vollständige
- * Plan-Version-Metadaten.
+ * Display form of a subscription for the tenant self-service UI.
+ * Richer than `SubscriptionRecord` (which is only the aggregation form); contains
+ * additional fields such as `billingCycle`, pilot/trial date and full
+ * plan-version metadata.
  *
- * Plattform-Controller `GET /billing/usage` mappt diese Form 1:1 in den
- * Response-Body. Konsumenten-Adapter lädt aus seiner eigenen Subscription-
- * Tabelle (Prisma include planVersion + pendingPlanVersion).
+ * The platform controller `GET /billing/usage` maps this form 1:1 into the
+ * response body. The consumer adapter loads from its own subscription
+ * table (Prisma include planVersion + pendingPlanVersion).
  */
 export interface SubscriptionUsageRecord {
     /**
-     * Subscription-Primary-Key. Optional, weil bestehende Adapter die Spalte
-     * möglicherweise noch nicht durchreichen — der Plattform-Service nutzt sie
-     * nur für nachgelagerte Schritte wie atomares Promo-Redeem im
-     * Onboarding-Endpoint. Adapter, die `POST /billing/onboarding/initial-subscription`
-     * mit Promo-Code unterstützen wollen, müssen `id` setzen.
+     * Subscription primary key. Optional, because existing adapters may not
+     * yet pass the column through — the platform service uses it
+     * only for downstream steps such as atomic promo-redeem in the
+     * onboarding endpoint. Adapters that want to support `POST /billing/onboarding/initial-subscription`
+     * with a promo code must set `id`.
      */
     id?: string;
     plan: string;
@@ -204,9 +202,9 @@ export interface SubscriptionUsageRecord {
     isPilot: boolean;
     pilotEndsAt: Date | null;
     trialEndsAt: Date | null;
-    /** Subscription-Start (= Periodenfenster-Anker für `periodEndAfter`). */
+    /** Subscription start (= period-window anchor for `periodEndAfter`). */
     startedAt: Date | null;
-    /** Aktuelles Periodenfenster — für Proration und Wechsel-Effektiv-Datum. */
+    /** Current period window — for proration and change-effective date. */
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
     pendingPlan: string | null;
@@ -226,74 +224,74 @@ export interface SubscriptionUsageRecord {
         version: number;
         nonRegressive: boolean;
         changeNote: string | null;
-        /** Catalog-Diff-Form aus version-publish; freie JSON-Struktur. */
+        /** Catalog diff form from version-publish; free-form JSON structure. */
         publishedChanges: unknown;
     } | null;
     pendingPlanVersionEffectiveAt: Date | null;
     pendingPlanVersionAccepted: boolean;
     pendingPlanVersionAcceptedAt: Date | null;
     /**
-     * P11.4 (METAMODELL §17a): eingefrorener Paket-Snapshot aus dem
-     * `CheckoutOffer`, der beim Onboarding aktiviert wurde. Read-only —
-     * dient nur der Anzeige in der Tenant-Self-Service-UI, damit der
-     * Tenant weiß, *welches* beworbene Paket konkret gebucht wurde.
-     * `null` für Subscriptions, die nicht aus einem CheckoutOffer
-     * entstanden sind (Direkt-Anlage, Migration).
+     * P11.4 (METAMODELL §17a): frozen package snapshot from the
+     * `CheckoutOffer` that was activated during onboarding. Read-only —
+     * serves only for display in the tenant self-service UI, so that the
+     * tenant knows *which* advertised package was concretely booked.
+     * `null` for subscriptions that did not originate from a CheckoutOffer
+     * (direct creation, migration).
      */
     packageSnapshot?: unknown | null;
     /**
-     * P11.4: Referenz auf den ursprünglichen `CheckoutOffer.id`. Für die UI
-     * meist nicht nötig (Snapshot ist self-contained), aber für Support-
-     * Werkzeuge und Audit nützlich.
+     * P11.4: reference to the original `CheckoutOffer.id`. Mostly not needed
+     * for the UI (the snapshot is self-contained), but useful for support
+     * tools and audit.
      */
     checkoutOfferId?: string | null;
 }
 
 /**
- * Lese-Adapter für die UI-/Display-Form einer Subscription. Wird von
- * `TenantBillingController.getUsage` benutzt.
+ * Read adapter for the UI/display form of a subscription. Used by
+ * `TenantBillingController.getUsage`.
  */
 export interface SubscriptionUsagePort {
     findForTenant(tenantId: string): Promise<SubscriptionUsageRecord | null>;
 }
 
 /**
- * Liefert den aktuellen Verbrauch für alle via `@DefinesQuota` deklarierten
- * quotaKeys eines Tenants (z. B. `{ users: 4, members: 850, storageGb: 1.2 }`).
- * Konsument darf eigene Counter-Strategien verwenden (Prisma-Counts,
- * DMS-Service-Roundtrip, Cached-Storage-Tracker, …) und muss soft-fail-
- * Verhalten selbst entscheiden.
+ * Returns the current usage for all quotaKeys of a tenant declared via
+ * `@DefinesQuota` (e.g. `{ users: 4, members: 850, storageGb: 1.2 }`).
+ * The consumer may use its own counter strategies (Prisma counts,
+ * DMS-service roundtrip, cached storage tracker, …) and must decide
+ * soft-fail behavior itself.
  *
- * Fehlt ein quotaKey im Rückgabe-Objekt, mappt der Plattform-Controller
- * auf `0` — robuste Anzeige, auch wenn ein Counter (noch) nicht implementiert ist.
+ * If a quotaKey is missing from the return object, the platform controller
+ * maps it to `0` — robust display, even if a counter is not (yet) implemented.
  */
 export interface UsageSnapshotPort {
     snapshot(tenantId: string): Promise<Record<string, number>>;
 }
 
 // -----------------------------------------------------------------------------
-// Tenant-Billing-Write-Port (Phase C — Plan-Wechsel)
+// Tenant billing write port (Phase C — plan change)
 // -----------------------------------------------------------------------------
 
-/** Eingabe für `changePlanImmediate` mit optionalem Periodenfenster-Reset. */
+/** Input for `changePlanImmediate` with optional period-window reset. */
 export interface ImmediatePlanChangeInput {
     planId: string;
     cycle: string;
-    /** Periodenfenster zurücksetzen (Pro-rata-Wechsel). NULL bei TRIAL. */
+    /** Reset the period window (pro-rata change). NULL for TRIAL. */
     periodStart: Date | null;
     periodEnd: Date | null;
-    /** Zielstatus — bei TRIAL wird der Status nicht überschrieben. */
+    /** Target status — for TRIAL the status is not overwritten. */
     nextStatus: string | null;
     /**
-     * Trial-Carry-over (#17): neues Trial-Ende beim Wechsel WÄHREND des Trials.
-     * Vom Plattform-`changePlan`-Pfad aus dem `TrialProjectionPort` berechnet.
-     * `undefined`/`null` → Adapter lässt `trialEndsAt` unverändert (kein Trial-
-     * Wechsel bzw. Ziel-Paket ohne Trial). Ein `Date` wird persistiert.
+     * Trial carry-over (#17): new trial end when changing DURING the trial.
+     * Computed by the platform `changePlan` path from the `TrialProjectionPort`.
+     * `undefined`/`null` → adapter leaves `trialEndsAt` unchanged (no trial
+     * change, or target package without trial). A `Date` is persisted.
      */
     trialEndsAt?: Date | null;
 }
 
-/** Eingabe für `schedulePlanChange` (Wechsel zum Periodenende). */
+/** Input for `schedulePlanChange` (change at period end). */
 export interface ScheduledPlanChangeInput {
     pendingPlan: string;
     pendingBillingCycle: string;
@@ -301,36 +299,36 @@ export interface ScheduledPlanChangeInput {
 }
 
 /**
- * Eingabe für `applyOnboardingSelection`. Plan-Change-Felder, die der
- * Adapter atomar in einer einzigen Transaktion persistiert.
+ * Input for `applyOnboardingSelection`. Plan-change fields that the
+ * adapter persists atomically in a single transaction.
  */
 export interface ApplyOnboardingSelectionInput {
     planId: string;
     cycle: string;
-    /** Bei TRIAL → null, sonst Periodenstart aus `initialPeriodWindow`. */
+    /** For TRIAL → null, otherwise period start from `initialPeriodWindow`. */
     periodStart: Date | null;
     periodEnd: Date | null;
-    /** Bei TRIAL → null, sonst typisch `'ACTIVE'`. */
+    /** For TRIAL → null, otherwise typically `'ACTIVE'`. */
     nextStatus: string | null;
 }
 
 /**
- * Ergebnis des atomar-ausgeführten Onboarding-Schritts. Enthält alle
- * Effekte, die der Plattform-Service downstream loggen / responsen kann.
+ * Result of the atomically executed onboarding step. Contains all
+ * effects that the platform service can log / respond with downstream.
  */
 export interface ApplyOnboardingSelectionResult {
     plan: string;
     billingCycle: string;
     subscriptionId: string;
-    /** null, wenn kein redeemPromo-Callback geliefert oder der Callback null lieferte. */
+    /** null if no redeemPromo callback was provided or the callback returned null. */
     promoRedemption: PromoCodeRedemptionRecord | null;
 }
 
 /**
- * Callback-Signatur für die Promo-Code-Einlösung INNERHALB der Onboarding-
- * Transaktion. Plattform-Service injiziert eine Closure, die `PromoCodesService.
- * redeemInTransaction(...)` aufruft; der Adapter ruft sie nach dem
- * Subscription-Update auf, sodass alles in einer DB-Transaktion lebt.
+ * Callback signature for promo-code redemption WITHIN the onboarding
+ * transaction. The platform service injects a closure that calls `PromoCodesService.
+ * redeemInTransaction(...)`; the adapter calls it after the
+ * subscription update, so that everything lives in a single DB transaction.
  */
 export type RedeemPromoInTransactionCallback = (
     tx: TransactionContext,
@@ -338,28 +336,28 @@ export type RedeemPromoInTransactionCallback = (
 ) => Promise<PromoCodeRedemptionRecord>;
 
 /**
- * Schreibe-Adapter für Tenant-Self-Service-Mutationen
+ * Write adapter for tenant self-service mutations
  * (`POST /billing/plan`, `/billing/cancel` etc.).
  *
- * Konsument-Implementation persistiert in seine Subscription-Tabelle.
- * Atomicity liegt im Adapter, weil Transaction-Client-Typen App-spezifisch
- * sind. Plattform-Service ruft `invalidateTenant` im EntitlementService
- * nach erfolgreichem Adapter-Call.
+ * The consumer implementation persists into its subscription table.
+ * Atomicity lies in the adapter, because transaction-client types are
+ * app-specific. The platform service calls `invalidateTenant` in the
+ * EntitlementService after a successful adapter call.
  */
 export interface TenantSubscriptionWritePort {
-    /** Sofort-Wechsel: Plan + Cycle setzen, Pending-Felder löschen, Periode optional resetten. */
+    /** Immediate change: set plan + cycle, clear pending fields, optionally reset the period. */
     changePlanImmediate(
         tenantId: string,
         input: ImmediatePlanChangeInput,
     ): Promise<{ plan: string; billingCycle: string }>;
 
-    /** Wechsel zum Periodenende: Pending-Felder setzen. */
+    /** Change at period end: set pending fields. */
     schedulePlanChange(tenantId: string, input: ScheduledPlanChangeInput): Promise<void>;
 
     /**
-     * Markiert die Pending-PlanVersion als akzeptiert. Idempotent — doppelter
-     * Accept ist no-op. Liefert `alreadyAccepted: true`, wenn der Status schon
-     * gesetzt war.
+     * Marks the pending PlanVersion as accepted. Idempotent — a duplicate
+     * accept is a no-op. Returns `alreadyAccepted: true` if the status was
+     * already set.
      */
     acceptPendingPlanVersion(
         tenantId: string,
@@ -373,8 +371,8 @@ export interface TenantSubscriptionWritePort {
     }>;
 
     /**
-     * Subscription kündigen. `immediate=true` → Status CANCELED ab now;
-     * `false` → canceledAt = currentPeriodEnd, Status bleibt erhalten.
+     * Cancel the subscription. `immediate=true` → status CANCELED from now;
+     * `false` → canceledAt = currentPeriodEnd, status is preserved.
      */
     cancelSubscription(
         tenantId: string,
@@ -383,15 +381,15 @@ export interface TenantSubscriptionWritePort {
     ): Promise<{ canceledAt: Date | null; status: string }>;
 
     /**
-     * Atomare Onboarding-Anlage: setzt Plan + Cycle + Periodenfenster
-     * UND ruft optional einen Promo-Redeem-Callback — alles in einer
-     * einzigen Konsumenten-Transaktion. Ohne diese Methode fällt der
-     * Plattform-Service auf sequenzielle `changePlanImmediate +
-     * promoCodes.redeem`-Calls zurück (best-effort,
-     * P10.1.1-Übergangslösung).
+     * Atomic onboarding creation: sets plan + cycle + period window
+     * AND optionally calls a promo-redeem callback — all in a
+     * single consumer transaction. Without this method the
+     * platform service falls back to sequential `changePlanImmediate +
+     * promoCodes.redeem` calls (best-effort,
+     * P10.1.1 transitional solution).
      *
-     * Optional, weil bestehende Adapter die Unterstützung schrittweise
-     * nachziehen können — fehlende Implementation ist kein Hard-Error.
+     * Optional, because existing adapters can add the support
+     * incrementally — a missing implementation is not a hard error.
      */
     applyOnboardingSelection?(
         tenantId: string,
@@ -400,27 +398,27 @@ export interface TenantSubscriptionWritePort {
     ): Promise<ApplyOnboardingSelectionResult>;
 }
 
-/** Lese-Adapter für PlanVersions. */
+/** Read adapter for PlanVersions. */
 export interface PlanVersionRepository {
     /**
-     * Aktuell veröffentlichte (= live) PlanVersion eines Plans:
-     * `publishedAt IS NOT NULL AND supersededAt IS NULL`. Optional in einer
-     * Transaktion.
+     * Currently published (= live) PlanVersion of a plan:
+     * `publishedAt IS NOT NULL AND supersededAt IS NULL`. Optionally within a
+     * transaction.
      *
-     * Hinweis: ignoriert `validFrom`/`validUntil`. Für zeit-bewusste
-     * Resolution (Onboarding, Plan-Fallback bei TRIAL) `findActive` nutzen.
+     * Note: ignores `validFrom`/`validUntil`. For time-aware
+     * resolution (onboarding, plan fallback for TRIAL) use `findActive`.
      */
     findLatestLive(planId: string, tx?: TransactionContext): Promise<PlanVersionRecord | null>;
 
     /**
-     * Zu `asOf` aktive PlanVersion eines Plans:
+     * PlanVersion of a plan active at `asOf`:
      *   `publishedAt IS NOT NULL`
      *   `validFrom <= asOf`
      *   `(validUntil IS NULL OR validUntil > asOf)`
      *
-     * Wenn mehrere matchen: höchstes `validFrom`. Adapter, die noch keine
-     * `validFrom`/`validUntil`-Spalten haben, dürfen das Feld weglassen
-     * (Consumer fallen auf `findLatestLive` zurück).
+     * If multiple match: highest `validFrom`. Adapters that do not yet have
+     * `validFrom`/`validUntil` columns may omit the field
+     * (consumers fall back to `findLatestLive`).
      */
     findActive?(
         planId: string,

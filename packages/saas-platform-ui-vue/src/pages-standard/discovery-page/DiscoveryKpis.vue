@@ -33,8 +33,8 @@
 </template>
 
 <script setup lang="ts">
-// Feature-zentrierte KPI-Leiste (#20 Slice 1, Sim-Layout): die Freigabe-
-// Zahlen beziehen sich auf Features, nicht mehr auf Capability-Reviews.
+// Feature-centric KPI bar (#20 Slice 1, sim layout): the approval
+// counts refer to features, no longer to capability reviews.
 defineProps<{
     featuresCount: number;
     capabilitiesCount: number;

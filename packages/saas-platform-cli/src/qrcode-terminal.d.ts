@@ -1,5 +1,5 @@
-// qrcode-terminal liefert keine eigenen Typen — minimale Deklaration für die
-// einzige Funktion, die `admin mfa-setup` braucht.
+// qrcode-terminal ships no types of its own — minimal declaration for the
+// only function that `admin mfa-setup` needs.
 declare module 'qrcode-terminal' {
     export function generate(
         text: string,

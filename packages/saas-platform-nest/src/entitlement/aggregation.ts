@@ -1,8 +1,8 @@
-// Entitlement-Aggregation — Pure Functions über PlanVersion + Bundles + Catalog.
+// Entitlement aggregation — pure functions over PlanVersion + Bundles + Catalog.
 //
-// Konsumenten ziehen ihre Subscription/PlanVersion/Bundle-Daten aus der DB,
-// mappen sie auf die Snapshot-Form (siehe `types.ts`) und rufen
-// `aggregateLimits()` für die effektiven Limits.
+// Consumers pull their subscription/PlanVersion/Bundle data from the DB,
+// map it to the snapshot shape (see `types.ts`) and call
+// `aggregateLimits()` for the effective limits.
 
 import type {
     ContractLineItemRecord,
@@ -21,13 +21,13 @@ import type {
 } from './types.js';
 
 /**
- * Aggregiert die Quotas einer BusinessTypeVersion: Σ(Bundle-Quotas) pro
- * QuotaKey, dann Override durch `quotaOverrides[k]` falls gesetzt.
+ * Aggregates the quotas of a BusinessTypeVersion: Σ(bundle quotas) per
+ * QuotaKey, then override via `quotaOverrides[k]` if set.
  *
- * `-1` (unbegrenzt) wird wie folgt behandelt:
- * - In Σ-Summation: -1 dominiert (wenn ein Bundle -1 für einen Key hat,
- *   ist die Σ ebenfalls -1 für diesen Key — unabhängig der anderen Werte).
- * - In Overrides: wenn der Override -1 ist, ersetzt er die Summe komplett.
+ * `-1` (unlimited) is handled as follows:
+ * - In Σ summation: -1 dominates (if a bundle has -1 for a key,
+ *   the Σ is likewise -1 for that key — regardless of the other values).
+ * - In overrides: if the override is -1, it replaces the sum entirely.
  *
  * Spec: GESCHAEFTSTYP_SPEC §6.2.
  */
@@ -44,7 +44,7 @@ export function aggregateBusinessTypeQuotas(
             }
         }
     }
-    // Overrides anwenden — Key gesetzt = ersetzt Σ.
+    // Apply overrides — key set = replaces Σ.
     for (const [key, value] of Object.entries(snapshot.quotaOverrides)) {
         if (value !== undefined) {
             sums[key] = value;
@@ -54,8 +54,8 @@ export function aggregateBusinessTypeQuotas(
 }
 
 /**
- * Filtert SubscriptionBundle-Buchungen auf solche, die zum gegebenen
- * Zeitpunkt aktiv sind. Aktiv = `canceledEffectiveAt === null` oder
+ * Filters SubscriptionBundle bookings down to those active at the given
+ * point in time. Active = `canceledEffectiveAt === null` or
  * `canceledEffectiveAt > now`.
  *
  * Spec: SPEC_V2 §11.1 M6 Pack 2e + P11.7.3.
@@ -68,9 +68,9 @@ export function filterActiveSubscriptionBundles(
 }
 
 /**
- * Aggregiert die Quotas aller aktiven SubscriptionBundle-Buchungen:
- * Σ pro QuotaKey, `-1` (unbegrenzt) dominiert. Bundle-Features +
- * Bundle-Quotas sind **additiv** zur PlanVersion (nicht ersetzend).
+ * Aggregates the quotas of all active SubscriptionBundle bookings:
+ * Σ per QuotaKey, `-1` (unlimited) dominates. Bundle features +
+ * bundle quotas are **additive** to the PlanVersion (not replacing).
  */
 export function aggregateSubscriptionBundleQuotas(
     bundles: readonly SubscriptionBundleSnapshot[],
@@ -89,8 +89,8 @@ export function aggregateSubscriptionBundleQuotas(
 }
 
 /**
- * Sammelt alle Feature-Keys aus aktiven SubscriptionBundle-Buchungen
- * (Set-Union; doppelte Features werden einmal aufgenommen).
+ * Collects all feature keys from active SubscriptionBundle bookings
+ * (set union; duplicate features are included once).
  */
 export function collectSubscriptionBundleFeatures(
     bundles: readonly SubscriptionBundleSnapshot[],
@@ -103,9 +103,9 @@ export function collectSubscriptionBundleFeatures(
 }
 
 /**
- * V3-Aggregation direkt aus eingefrorenen ContractLineItems. Diese Funktion
- * benutzt keine Katalog-Lookups: `featuresSnapshot` und
- * `quotaEffectsSnapshot` sind die vertragliche Wahrheit.
+ * V3 aggregation directly from frozen ContractLineItems. This function
+ * uses no catalog lookups: `featuresSnapshot` and
+ * `quotaEffectsSnapshot` are the contractual truth.
  */
 export function aggregateContractLineItemEntitlements(
     lineItems: readonly Pick<
@@ -136,8 +136,8 @@ export function aggregateContractLineItemEntitlements(
 }
 
 /**
- * Sammelt alle Feature-Keys aus allen Bundles einer BusinessTypeVersion
- * (Set-Union; doppelte Features werden einmal aufgenommen).
+ * Collects all feature keys from all bundles of a BusinessTypeVersion
+ * (set union; duplicate features are included once).
  *
  * Spec: GESCHAEFTSTYP_SPEC §6.3.
  */
@@ -152,9 +152,9 @@ export function collectBusinessTypeFeatures(snapshot: BusinessTypeVersionSnapsho
 }
 
 /**
- * Filtert `plannedOnly`-Features konsequent aus — egal ob sie aus dem Plan,
- * einem Bundle oder customLimits stammen. `plannedOnly` heißt: Feature ist im
- * Catalog deklariert, aber noch nicht produktiv ausgerollt.
+ * Consistently filters out `plannedOnly` features — regardless of whether they
+ * come from the plan, a bundle or customLimits. `plannedOnly` means: the feature
+ * is declared in the catalog, but not yet rolled out to production.
  */
 export function filterPlannedOnlyFeatures(
     features: ReadonlySet<FeatureKey>,
@@ -170,9 +170,9 @@ export function filterPlannedOnlyFeatures(
 }
 
 /**
- * Wendet `customLimits` (ENTERPRISE-Sondervertrag, Pilot) feldweise auf die
- * Plan-Default-Limits an. `quotas[k]` überschreibt; `features[]` ergänzt.
- * Nicht gesetzte Felder im Override fallen auf den Default zurück.
+ * Applies `customLimits` (ENTERPRISE special contract, pilot) field-by-field to
+ * the plan default limits. `quotas[k]` overrides; `features[]` adds.
+ * Fields not set in the override fall back to the default.
  */
 export function applyCustomLimits(
     base: EffectiveLimits,
@@ -193,18 +193,18 @@ export function applyCustomLimits(
 }
 
 /**
- * Hauptaggregator — ergibt die effektiven Limits aus PlanVersion + optionaler
- * BusinessTypeVersion + aktiven Bundle-Buchungen + Catalog + optionalem
- * CustomLimits-Override.
+ * Main aggregator — yields the effective limits from PlanVersion + optional
+ * BusinessTypeVersion + active bundle bookings + catalog + optional
+ * CustomLimits override.
  *
- * Reihenfolge (SPEC_V2 §11.1 M5 + GESCHAEFTSTYP_SPEC §6):
- *   1. Aktive Bundle-Buchungen filtern (canceledEffectiveAt).
- *   2. Plan-Quotas + (BusinessType-Quotas mit Override-Logik) + Bundle-Quotas
- *      pro `quotaKey` summieren. -1 (unbegrenzt) dominiert.
- *   3. Plan-Features ∪ BusinessType-Features ∪ Bundle-Features sammeln
- *      (Set-Union, deduplikziert).
- *   4. CustomLimits anwenden (Quotas überschreiben, Features ergänzen).
- *   5. plannedOnly-Features konsequent ausblenden.
+ * Order (SPEC_V2 §11.1 M5 + GESCHAEFTSTYP_SPEC §6):
+ *   1. Filter active bundle bookings (canceledEffectiveAt).
+ *   2. Sum plan quotas + (BusinessType quotas with override logic) + bundle quotas
+ *      per `quotaKey`. -1 (unlimited) dominates.
+ *   3. Collect plan features ∪ BusinessType features ∪ bundle features
+ *      (set union, deduplicated).
+ *   4. Apply CustomLimits (quotas override, features add).
+ *   5. Consistently hide plannedOnly features.
  */
 export function aggregateLimits(
     input: SubscriptionLimitsInput,
@@ -223,11 +223,11 @@ export function aggregateLimits(
     const subBundleFeatures = collectSubscriptionBundleFeatures(activeBundles);
 
     const quotas: Record<QuotaKey, number> = {};
-    // Plan-Defaults als Basis.
+    // Plan defaults as base.
     for (const [k, v] of Object.entries(input.planVersion.quotas)) {
         quotas[k] = v;
     }
-    // BusinessType-Anteil dazu (mit -1-Dominanz).
+    // Add the BusinessType share (with -1 dominance).
     for (const [k, v] of Object.entries(businessTypeQuotas)) {
         if (quotas[k] === -1 || v === -1) {
             quotas[k] = -1;
@@ -235,8 +235,8 @@ export function aggregateLimits(
             quotas[k] = (quotas[k] ?? 0) + v;
         }
     }
-    // SubscriptionBundle-Quotas dazu (mit -1-Dominanz). Eigenständig
-    // gebuchte Bundles addieren ihre Quotas zu Plan + BusinessType.
+    // Add SubscriptionBundle quotas (with -1 dominance). Independently
+    // booked bundles add their quotas on top of plan + BusinessType.
     for (const [k, v] of Object.entries(subBundleQuotas)) {
         if (quotas[k] === -1 || v === -1) {
             quotas[k] = -1;
@@ -261,23 +261,23 @@ export function aggregateLimits(
 }
 
 /**
- * Prüft, ob ein Feature in den effektiven Limits enthalten ist.
+ * Checks whether a feature is contained in the effective limits.
  */
 export function hasFeature(limits: EffectiveLimits, feature: FeatureKey): boolean {
     return limits.features.has(feature);
 }
 
 /**
- * Prüft, ob mindestens eines der gegebenen Features in den effektiven Limits
- * enthalten ist. Empty-Liste ergibt `false`.
+ * Checks whether at least one of the given features is contained in the
+ * effective limits. An empty list yields `false`.
  */
 export function hasAnyFeature(limits: EffectiveLimits, features: readonly FeatureKey[]): boolean {
     return features.some((f) => limits.features.has(f));
 }
 
 /**
- * Wandelt EffectiveLimits in eine JSON-serialisierbare Form (Set → sortiertes
- * Array). Verwendung z. B. in `Invoice.entitlementSnapshot`.
+ * Converts EffectiveLimits into a JSON-serializable shape (Set → sorted
+ * array). Used e.g. in `Invoice.entitlementSnapshot`.
  */
 export function toEffectiveLimitsSnapshot(limits: EffectiveLimits): EffectiveLimitsSnapshot {
     return {

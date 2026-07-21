@@ -8,16 +8,16 @@ import {
 } from '@nestjs/common';
 import { TENANT_AUTH_GUARDS_TOKEN, type AuthGuardList } from './tenant-billing.tokens.js';
 
-// ComposedTenantAuthGuard — bündelt eine Liste konsumenten-spezifischer
-// Guards (z. B. JwtAuthGuard + TenantGuard + RolesGuard) in einen einzigen
-// `@UseGuards()`-Eintrag. Wird vom `TenantBillingController` verwendet, weil
-// die zu prüfenden Guards pro App unterschiedlich sind und `@UseGuards()`
-// zur Compile-Zeit aufgelöst wird.
+// ComposedTenantAuthGuard — bundles a list of consumer-specific guards
+// (e.g. JwtAuthGuard + TenantGuard + RolesGuard) into a single
+// `@UseGuards()` entry. Used by the `TenantBillingController` because the
+// guards to check differ per app and `@UseGuards()` is resolved at
+// compile time.
 //
-// Konsument registriert die Liste via `TenantBillingModule.forRoot.authGuards`
-// (entweder direkter Array oder useFactory-Provider, der die Guards aus dem
-// DI-Container holt). Reihenfolge ist signifikant — die erste Verweigerung
-// blockt alle nachfolgenden Guards.
+// The consumer registers the list via `TenantBillingModule.forRoot.authGuards`
+// (either a direct array or a useFactory provider that pulls the guards from
+// the DI container). Order is significant — the first denial blocks all
+// subsequent guards.
 
 @Injectable()
 export class ComposedTenantAuthGuard implements CanActivate {
@@ -29,9 +29,9 @@ export class ComposedTenantAuthGuard implements CanActivate {
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         if (!this.guards || this.guards.length === 0) {
-            // Kein konfigurierter Guard ist ein Setup-Fehler — sonst wären
-            // tenant-scoped Endpunkte ohne Auth-Schutz. Lieber laut scheitern
-            // als still durchwinken.
+            // No configured guard is a setup error — otherwise tenant-scoped
+            // endpoints would have no auth protection. Better to fail loudly
+            // than to wave requests through silently.
             throw new ForbiddenException(
                 'TenantBillingModule.forRoot.authGuards ist nicht konfiguriert.',
             );

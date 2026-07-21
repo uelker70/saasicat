@@ -1,14 +1,14 @@
-// Seed-Gate-Runner (#23) — geteilte I/O-Schale um das pure Seed-Gate
-// (`validateSeedAgainstSnapshot` in seed-gate.ts), damit die Konsumenten-
-// Seeds (z. B. `prisma/seed-gate.js` oder `scripts/seed-plan-versions.mjs`)
-// keine eigene Modus-/Lade-Logik duplizieren.
+// Seed-Gate-Runner (#23) — shared I/O shell around the pure Seed-Gate
+// (`validateSeedAgainstSnapshot` in seed-gate.ts), so that the consumer
+// seeds (e.g. `prisma/seed-gate.js` or `scripts/seed-plan-versions.mjs`)
+// don't duplicate their own mode/loading logic.
 //
-// Verhalten je Modus:
-//   - 'report-only' (Default): fehlender Snapshot → Warnung + skip;
-//     Verstöße → Report + Warnung, der Seed läuft weiter.
-//   - 'blocking' (#23-Akzeptanz): fehlender Snapshot ODER Verstöße →
-//     Exit 4 (`seedGateExitCode`). Umstellen, sobald der Headless-Scan
-//     (`runHeadlessDiscoveryScan`) im Migrate-Container verifiziert ist.
+// Behavior per mode:
+//   - 'report-only' (default): missing snapshot → warning + skip;
+//     violations → report + warning, the seed keeps running.
+//   - 'blocking' (#23 acceptance): missing snapshot OR violations →
+//     exit 4 (`seedGateExitCode`). Switch over once the headless scan
+//     (`runHeadlessDiscoveryScan`) is verified in the migrate container.
 
 import {
     DiscoverySnapshotNotFoundError,
@@ -27,27 +27,27 @@ import {
 export type SeedGateMode = 'report-only' | 'blocking';
 
 export interface SeedGateRunOptions {
-    /** Pfad der vom Scanner persistierten Snapshot-Datei. */
+    /** Path of the snapshot file persisted by the scanner. */
     snapshotPath: string;
     plans?: SeedPlanDraft[];
     bundles?: SeedBundleDraft[];
-    /** Approved-Gate (#20 Slice 5) — `null`/weggelassen = nur Existenz-Checks. */
+    /** Approved gate (#20 Slice 5) — `null`/omitted = existence checks only. */
     approved?: ApprovedCatalogKeys | null;
-    /** Default `'report-only'`; Konsumenten mappen ihre Env-Variable hierauf. */
+    /** Default `'report-only'`; consumers map their env variable onto this. */
     mode?: SeedGateMode;
-    /** Log-Senken — Default `console.log`/`console.warn`/`console.error`. */
+    /** Log sinks — default `console.log`/`console.warn`/`console.error`. */
     log?: (line: string) => void;
     warn?: (line: string) => void;
     error?: (line: string) => void;
-    /** Exit-Funktion im blocking-Fall — Default `process.exit`. In Tests injizierbar. */
+    /** Exit function in the blocking case — default `process.exit`. Injectable in tests. */
     exit?: (code: number) => never;
 }
 
 /**
- * Lädt den Snapshot, validiert die Seed-Drafts und druckt den Report.
- * Liefert den Report — bzw. `null`, wenn der Snapshot fehlt und der Modus
- * report-only ist (Gate übersprungen). Im blocking-Modus kehrt die Funktion
- * bei Verstößen oder fehlendem Snapshot nicht zurück (Exit 4).
+ * Loads the snapshot, validates the seed drafts and prints the report.
+ * Returns the report — or `null` if the snapshot is missing and the mode
+ * is report-only (gate skipped). In blocking mode the function does not
+ * return on violations or a missing snapshot (exit 4).
  */
 export function runSeedGateFromFile(options: SeedGateRunOptions): SeedGateReport | null {
     const mode = options.mode ?? 'report-only';

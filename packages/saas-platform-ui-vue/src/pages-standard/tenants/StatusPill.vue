@@ -6,10 +6,10 @@
 </template>
 
 <script setup lang="ts">
-// Generische Status-Pill für Tenant-Status, Pilot-Markierung,
-// Suspended-Markierung etc. Apps reichen `label`/`icon`/`tone` durch und
-// kombinieren mehrere Pills nebeneinander für zusammengesetzte Status-
-// Anzeigen (z. B. "Aktiv + PILOT" oder "Trial + SUSPENDIERT").
+// Generic status pill for tenant status, pilot marker,
+// suspended marker etc. Apps pass `label`/`icon`/`tone` through and
+// combine several pills side by side for composite status
+// displays (e.g. "Aktiv + PILOT" or "Trial + SUSPENDIERT").
 
 export type PillTone = 'positive' | 'warning' | 'negative' | 'muted' | 'primary' | 'accent';
 

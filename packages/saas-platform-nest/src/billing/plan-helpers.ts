@@ -1,9 +1,9 @@
-// Plan-Helper — Pure Functions über einen geladenen PlanCatalog.
+// Plan helpers — pure functions over a loaded PlanCatalog.
 //
-// Konsumenten injizieren den Catalog via PLAN_CATALOG_TOKEN und delegieren
-// an diese Funktionen. Das ersetzt die statischen Top-Level-Funktionen
+// Consumers inject the catalog via PLAN_CATALOG_TOKEN and delegate to these
+// functions. This replaces the static top-level functions
 // (`getPlan`, `getPlanPriceNet`, `getPlanPriceGross`, `getMarketedPlans`),
-// die noch über eine statische TS-Const arbeiten.
+// which still operate over a static TS const.
 
 import type {
     BillingCycle,
@@ -16,16 +16,16 @@ import type {
 import { round2 } from '../promo/math.js';
 
 /**
- * Findet einen Plan im Catalog. `undefined` wenn nicht vorhanden.
+ * Finds a plan in the catalog. `undefined` if it does not exist.
  */
 export function findPlan(catalog: PlanCatalog, planId: PlanId): PlanDef | undefined {
     return (catalog.plans ?? []).find((p) => p.id === planId);
 }
 
 /**
- * Wie `findPlan`, wirft aber einen typed Error wenn der Plan nicht existiert.
- * Für Code-Pfade, in denen das Fehlen ein Bug ist (Plan-Wechsel-Validierung,
- * Subscription-Snapshot beim Anlegen).
+ * Like `findPlan`, but throws a typed error if the plan does not exist.
+ * For code paths where its absence is a bug (plan-change validation,
+ * subscription snapshot on creation).
  */
 export function getPlanOrThrow(catalog: PlanCatalog, planId: PlanId): PlanDef {
     const plan = findPlan(catalog, planId);
@@ -36,21 +36,21 @@ export function getPlanOrThrow(catalog: PlanCatalog, planId: PlanId): PlanDef {
 }
 
 /**
- * Liefert alle vermarkteten Pläne (`marketed: true` oder undefined). Reihenfolge
- * wie im Catalog. ENTERPRISE und andere `marketed: false`-Pläne sind NICHT
- * enthalten — diese sind nur via `ahp paket apply` / Sondervertrag aktivierbar
- * und gehören nicht in Self-Service-Onboarding-Listen.
+ * Returns all marketed plans (`marketed: true` or undefined). Order as in the
+ * catalog. ENTERPRISE and other `marketed: false` plans are NOT included —
+ * these can only be activated via `ahp paket apply` / special contract and do
+ * not belong in self-service onboarding lists.
  */
 export function getMarketedPlans(catalog: PlanCatalog): PlanDef[] {
     return (catalog.plans ?? []).filter((p) => p.marketed !== false);
 }
 
 /**
- * Netto-Listenpreis aus dem Catalog. `null` wenn:
- *   - der Plan nicht existiert
- *   - der Plan `marketed: false` ist (z. B. ENTERPRISE — Sondervertrag,
- *     kein Listenpreis)
- *   - der Plan keinen Preis für den Cycle hat (`monthlyNet`/`yearlyNet === null`)
+ * Net list price from the catalog. `null` when:
+ *   - the plan does not exist
+ *   - the plan is `marketed: false` (e.g. ENTERPRISE — special contract,
+ *     no list price)
+ *   - the plan has no price for the cycle (`monthlyNet`/`yearlyNet === null`)
  */
 export function getPlanPriceNet(
     catalog: PlanCatalog,
@@ -65,9 +65,9 @@ export function getPlanPriceNet(
 }
 
 /**
- * Brutto-Listenpreis aus dem Catalog (Netto * (1 + vatRate/100)).
- * `null` mit gleichen Regeln wie `getPlanPriceNet`. `vatRate` ist optional;
- * Default: `catalog.vatRate`.
+ * Gross list price from the catalog (net * (1 + vatRate/100)).
+ * `null` with the same rules as `getPlanPriceNet`. `vatRate` is optional;
+ * default: `catalog.vatRate`.
  */
 export function getPlanPriceGross(
     catalog: PlanCatalog,
@@ -82,13 +82,13 @@ export function getPlanPriceGross(
 }
 
 /**
- * Prüft, ob ein Plan ein Feature direkt enthält (ohne Bundles / Subscription
- * zu betrachten). Für Marketing-Listen, Plan-Vergleichs-Tabellen.
+ * Checks whether a plan directly contains a feature (without considering
+ * Bundles / subscription). For marketing lists, plan comparison tables.
  *
- * Achtung: das ist NICHT der Entitlement-Check für einen konkreten Tenant.
- * Der echte Entitlement-Check (`EntitlementService.computeLimits`) berücksichtigt
- * Bundle-Buchungen und custom-Limits — diese Helper-Funktion ist nur die
- * statische Plan-Definition.
+ * Note: this is NOT the entitlement check for a concrete tenant.
+ * The real entitlement check (`EntitlementService.computeLimits`) takes
+ * Bundle bookings and custom limits into account — this helper function is
+ * only the static plan definition.
  */
 export function isFeatureInPlan(
     catalog: PlanCatalog,
@@ -101,11 +101,11 @@ export function isFeatureInPlan(
 }
 
 /**
- * Aggregierte Plan-Quota für einen Key. Liefert `undefined`, wenn der
- * Plan oder der Key nicht existiert.
+ * Aggregated plan Quota for a key. Returns `undefined` when the plan or the
+ * key does not exist.
  *
- * `-1` ist Catalog-Konvention für „unbegrenzt"; Konsumenten müssen das
- * selbst auf `Number.POSITIVE_INFINITY` mappen, wenn sie damit rechnen.
+ * `-1` is the catalog convention for "unlimited"; consumers must map that to
+ * `Number.POSITIVE_INFINITY` themselves if they compute with it.
  */
 export function getPlanQuota(
     catalog: PlanCatalog,
@@ -117,17 +117,17 @@ export function getPlanQuota(
 }
 
 /**
- * Liste aller Feature-Keys, die im Catalog deklariert sind und nicht
- * `plannedOnly: true` sind. Für UI-Listen, die buchbare Features zeigen.
+ * List of all feature keys declared in the catalog that are not
+ * `plannedOnly: true`. For UI lists that show bookable features.
  */
 export function getActiveFeatureKeys(catalog: PlanCatalog): FeatureKey[] {
     return (catalog.features ?? []).filter((f) => !f.plannedOnly).map((f) => f.key);
 }
 
 /**
- * Prüft, ob ein Feature `plannedOnly: true` ist. Wenn das Feature nicht im
- * Catalog deklariert ist, liefert die Funktion `false` (konservativ:
- * unbekannte Keys werden nicht als „planned" markiert).
+ * Checks whether a feature is `plannedOnly: true`. If the feature is not
+ * declared in the catalog, the function returns `false` (conservative:
+ * unknown keys are not marked as "planned").
  */
 export function isFeaturePlannedOnly(catalog: PlanCatalog, featureKey: FeatureKey): boolean {
     const def = (catalog.features ?? []).find((f) => f.key === featureKey);

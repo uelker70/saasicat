@@ -15,8 +15,8 @@ beforeEach(() => {
     service = new MarketingProjectionsService(repo);
 });
 
-describe('MarketingProjectionsService — Stamm-Operationen', () => {
-    test('create legt eine MarketingProjection an (default locale=de)', async () => {
+describe('MarketingProjectionsService — master data operations', () => {
+    test('create creates a MarketingProjection (default locale=de)', async () => {
         const row = await service.create({
             projectKey: PROJECT,
             targetType: 'BUNDLE',
@@ -31,7 +31,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         assert.deepEqual(row.topFeatures, []);
     });
 
-    test('create setzt Marketing-Defaults (visible, badge, trial)', async () => {
+    test('create sets marketing defaults (visible, badge, trial)', async () => {
         const row = await service.create({
             projectKey: PROJECT,
             targetType: 'PLAN',
@@ -45,7 +45,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         assert.equal(row.trialDays, 30);
     });
 
-    test('update ändert Top-Features, Badge und Trial', async () => {
+    test('update changes top features, badge and trial', async () => {
         const created = await service.create({
             projectKey: PROJECT,
             targetType: 'PLAN',
@@ -69,7 +69,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         ]);
     });
 
-    test('create wirft 409 bei Doppel-Anlage (gleicher Target+Locale)', async () => {
+    test('create throws 409 on duplicate creation (same Target+Locale)', async () => {
         await service.create({
             projectKey: PROJECT,
             targetType: 'BUNDLE',
@@ -90,7 +90,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         );
     });
 
-    test('create akzeptiert mehrere Locales pro Target', async () => {
+    test('create accepts multiple locales per target', async () => {
         await service.create({
             projectKey: PROJECT,
             targetType: 'BUNDLE',
@@ -112,7 +112,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         assert.equal(list.length, 2);
     });
 
-    test('update ändert Pflicht- und Marketing-Felder', async () => {
+    test('update changes required and marketing fields', async () => {
         const created = await service.create({
             projectKey: PROJECT,
             targetType: 'BUNDLE',
@@ -132,7 +132,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         assert.equal(updated.priceTag, '€ 9,90 / Monat');
     });
 
-    test('delete entfernt die Row', async () => {
+    test('delete removes the row', async () => {
         const created = await service.create({
             projectKey: PROJECT,
             targetType: 'BUNDLE',
@@ -145,7 +145,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         assert.equal(after, null);
     });
 
-    test('list filtert nach targetType + locale', async () => {
+    test('list filters by targetType + locale', async () => {
         await service.create({
             projectKey: PROJECT,
             targetType: 'BUNDLE',
@@ -164,7 +164,7 @@ describe('MarketingProjectionsService — Stamm-Operationen', () => {
         assert.equal(bundles.length, 1);
     });
 
-    test('getById wirft 404 bei fehlender ID', async () => {
+    test('getById throws 404 for missing ID', async () => {
         await assert.rejects(
             () => service.getById('99999999-9999-9999-9999-999999999999'),
             /nicht gefunden/,
