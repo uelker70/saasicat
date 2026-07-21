@@ -13,8 +13,22 @@ import { join } from 'node:path';
 
 const REPO_ROOT = new URL('../../../', import.meta.url).pathname;
 
-/** `@saasicat/x@1.2.3`, `@saasicat/x@^1.2`, `create-saasicat-admin@~1.0` — but not `@latest`. */
-const PINNED = /(?:@saasicat\/[a-z-]+|create-saasicat-admin)@[\^~]?\d[\w.-]*/g;
+/**
+ * Captures the spec after a package name: `@saasicat/x@<spec>`.
+ *
+ * Matching the spec loosely and classifying it afterwards is deliberate.
+ * Enumerating range syntax misses forms npm happily accepts — `@v0.2.1`,
+ * `@=0.2.1`, `@>=0.2.0` all install fine and all rot the same way.
+ */
+const SPEC = /(?:@saasicat\/[a-z-]+|create-saasicat-admin)@([^\s`'")\]]+)/g;
+
+/**
+ * A spec is a version pin if it carries a number. Dist-tags (`latest`, `next`,
+ * `beta`) resolve at install time and never go stale, so they stay allowed.
+ */
+function isVersionPin(spec) {
+    return /\d/.test(spec);
+}
 
 function docFiles() {
     const files = [];
@@ -43,7 +57,8 @@ test('documentation pins no package versions (they rot at every release)', () =>
     for (const file of docFiles()) {
         const lines = readFileSync(file, 'utf8').split('\n');
         lines.forEach((line, i) => {
-            for (const hit of line.match(PINNED) ?? []) {
+            for (const [hit, spec] of line.matchAll(SPEC)) {
+                if (!isVersionPin(spec)) continue;
                 offenders.push(`${file.replace(REPO_ROOT, '')}:${i + 1}  ${hit}`);
             }
         });
@@ -53,4 +68,38 @@ test('documentation pins no package versions (they rot at every release)', () =>
         [],
         `Remove the version pin(s); docs should resolve to latest:\n  ${offenders.join('\n  ')}`,
     );
+});
+
+test('pin detection covers every spec form npm accepts', () => {
+    // Regression guard for the detector itself. `v0.2.1`, `=0.2.1` and
+    // `>=0.2.0` were accepted by an earlier caret/tilde-only pattern even
+    // though npm installs all three — a doc using them would have rotted
+    // unnoticed.
+    const pinned = [
+        '@saasicat/nest@0.2.1',
+        '@saasicat/nest@^0.1.0',
+        '@saasicat/nest@~0.1.0',
+        '@saasicat/nest@v0.2.1',
+        '@saasicat/nest@=0.2.1',
+        '@saasicat/nest@>=0.2.0',
+        '@saasicat/nest@0.2.x',
+        'create-saasicat-admin@0.2.0',
+    ];
+    for (const sample of pinned) {
+        const hits = [...sample.matchAll(SPEC)].filter(([, spec]) => isVersionPin(spec));
+        assert.equal(hits.length, 1, `should be flagged as a pin: ${sample}`);
+    }
+
+    // Dist-tags and bare names resolve at install time and must stay allowed.
+    const allowed = [
+        '@saasicat/nest@latest',
+        'create-saasicat-admin@latest',
+        '@saasicat/nest@next',
+        '@saasicat/nest',
+        'pnpm add @saasicat/nest @saasicat/types',
+    ];
+    for (const sample of allowed) {
+        const hits = [...sample.matchAll(SPEC)].filter(([, spec]) => isVersionPin(spec));
+        assert.equal(hits.length, 0, `should NOT be flagged: ${sample}`);
+    }
 });
