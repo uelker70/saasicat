@@ -10,7 +10,7 @@ Cross-cutting helpers for consumer CLIs. Provides:
 - `ManifestCliFlow` + `DEFAULT_MANIFEST_CHECKS` (12 platform checks) —
   `<app> manifest dump|validate|hash|diff|check`
 
-Spec: [`saas-platform-spec/cli-conventions.md`](../saas-platform-spec/cli-conventions.md).
+Spec: [`saas-platform-spec/cli-conventions.md`](https://github.com/uelker70/saasicat/blob/main/packages/saas-platform-spec/cli-conventions.md).
 
 ## Plugin Architecture
 
@@ -126,7 +126,7 @@ domain commands on top.
 
 ## Exit codes
 
-Per [`cli-conventions.md`](../saas-platform-spec/cli-conventions.md) §6:
+Per [`cli-conventions.md`](https://github.com/uelker70/saasicat/blob/main/packages/saas-platform-spec/cli-conventions.md) §6:
 
 | Code | Meaning                                 |
 | ---- | --------------------------------------- |

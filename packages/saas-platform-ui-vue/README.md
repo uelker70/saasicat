@@ -34,8 +34,8 @@ The fastest way to a running admin app is the scaffolder:
 pnpm create saasicat-admin admin --project-key=myapp
 ```
 
-See the [quickstart](../../docs/quickstart.md) (step 9) for the full setup
-and the [handbook](../../docs/handbook.md) for the architecture.
+See the [quickstart](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md) (step 9) for the full setup
+and the [handbook](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md) for the architecture.
 
 ## Build
 
