@@ -49,8 +49,8 @@ saasicat is **embeddable, not hosted**: your application keeps its own database,
 Add the backend packages to an existing multi-tenant NestJS app (Prisma + PostgreSQL + JWT auth):
 
 ```bash
-pnpm add @saasicat/nest@^0.1.0 @saasicat/types@^0.1.0 @saasicat/spec@^0.1.0 \
-         @saasicat/prisma@^0.1.0 @saasicat/cli@^0.1.0
+pnpm add @saasicat/nest @saasicat/types @saasicat/spec \
+         @saasicat/prisma @saasicat/cli
 ```
 
 Scaffold the SuperAdmin frontend in one command:
