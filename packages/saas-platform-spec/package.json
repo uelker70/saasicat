@@ -19,7 +19,9 @@
         },
         "./schemas/*.json": "./schemas/*.json",
         "./prisma-fragments/*.prisma": "./prisma-fragments/*.prisma",
-        "./prisma-fragments/": "./prisma-fragments/"
+        "./prisma-fragments/": "./prisma-fragments/",
+        "./sql/*.sql": "./sql/*.sql",
+        "./package.json": "./package.json"
     },
     "files": [
         "index.js",
@@ -30,14 +32,17 @@
         "admin-api.openapi.yaml",
         "cli-conventions.md",
         "acceptance/",
-        "prisma-fragments/"
+        "prisma-fragments/",
+        "sql/"
     ],
     "scripts": {
+        "gen:sql": "node scripts/generate-reference-sql.mjs",
         "test": "node --test tests/*.test.js"
     },
     "devDependencies": {
         "ajv": "^8.17.1",
-        "ajv-formats": "^3.0.1"
+        "ajv-formats": "^3.0.1",
+        "prisma": "^6.19.0"
     },
     "keywords": [
         "saas",

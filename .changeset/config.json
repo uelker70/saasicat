@@ -7,7 +7,8 @@
       "@saasicat/spec",
       "@saasicat/types",
       "@saasicat/nest",
-      "@saasicat/prisma",
+      "@saasicat/adapter-prisma",
+      "@saasicat/persistence-testing",
       "@saasicat/cli",
       "@saasicat/ui-vue",
       "create-saasicat-admin"

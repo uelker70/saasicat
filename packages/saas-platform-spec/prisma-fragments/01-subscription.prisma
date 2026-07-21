@@ -76,9 +76,8 @@ model Subscription {
     // Subscription may have either `planVersionId` or
     // `businessTypeVersionId` (or both) set. The DB CHECK
     // constraint "at least one of the two set" is added by the consumer in
-    // the SQL migration (Prisma cannot express this directly):
-    //   ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_plan_or_bt_check
-    //     CHECK (plan_version_id IS NOT NULL OR business_type_version_id IS NOT NULL);
+    // the SQL migration (Prisma cannot express this directly) — see
+    // sql/constraints.postgres.sql (`subscriptions_plan_or_bt_check`).
     planVersionId                      String?
     pendingPlanVersionId               String?
     pendingPlanVersionEffectiveAt      DateTime?

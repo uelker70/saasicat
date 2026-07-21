@@ -8,7 +8,7 @@ export default tseslint.config(
     ...tseslint.configs.recommended,
     eslintConfigPrettier,
     {
-        ignores: ['**/dist/**', '**/node_modules/**', '**/.prisma/**', '**/generated/**'],
+        ignores: ['**/dist/**', '**/node_modules/**', '**/.prisma/**', '**/generated/**', '**/.integration-tmp/**'],
     },
     {
         // Tests, scripts, and server-side code (NestJS services) run under

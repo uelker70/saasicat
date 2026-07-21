@@ -265,8 +265,12 @@ Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 
 - **Node.js 24+**, **pnpm 10+**.
 - **NestJS 11+** with Fastify or Express adapter.
-- **Prisma 5+** with PostgreSQL (RLS support desired — the platform requires an
-  `RlsBypassPort`).
+- **PostgreSQL** (the platform is PostgreSQL-first: transactions, row locks
+  and optional RLS are part of the persistence contract — see
+  [data model](data-model.md)). The ready-made adapter package is
+  `@saasicat/adapter-prisma` (Prisma 6); other ORMs/schemas plug in through
+  the same ports and are held to the same semantics by
+  `@saasicat/persistence-testing`.
 - **Authentication**: JWT-based is recommended; a `JwtAuthGuard` equivalent
   must exist (passed into `controller.guards` of the platform modules).
 - **Vue 3 + Quasar 2** for the admin frontend; Vite as the build tool.
@@ -275,7 +279,8 @@ Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 
 ```bash
 # Backend
-pnpm add @saasicat/spec @saasicat/types @saasicat/nest @saasicat/cli
+pnpm add @saasicat/spec @saasicat/types @saasicat/nest \
+         @saasicat/adapter-prisma @saasicat/cli
 
 # Admin frontend
 pnpm add @saasicat/types @saasicat/ui-vue
@@ -292,29 +297,31 @@ For local development against a checkout of this repo, use
 > (`.vite/deps`) and restart the admin container**, otherwise Vite serves the
 > old bundled version.
 
-### 5.2 Prisma Schema Fragments
+### 5.2 The canonical schema
 
-The platform modules (as of 2026-05) provide **no ready-made Prisma schema fragments**.
-You have to create the following tables yourself. The normative source is the
-JSON schema contract in [`@saasicat/spec/schemas/`](../packages/saas-platform-spec/schemas/)
-plus the TypeScript interfaces in [`@saasicat/types/src/`](../packages/saas-platform-types/src/).
-The [Quickstart §3](saas-platform-quickstart.md#schritt-3--prisma-schema-erg%C3%A4nzen)
-shows a complete minimal schema for copy-paste. The relevant table families:
+The data model has one normative source: the
+[logical data model](data-model.md) plus the SQL artifacts in
+[`@saasicat/spec/sql/`](../packages/saas-platform-spec/sql/)
+(`reference-schema.postgres.sql` — full DDL, generated from the fragments;
+`constraints.postgres.sql` — the invariants Prisma cannot express: partial
+unique draft indexes, the subscription CHECK). The
+[Prisma fragments](../packages/saas-platform-spec/prisma-fragments/) are the
+derived Prisma-DSL rendering of that model; `saas-platform schema apply`
+splices them into your `schema.prisma` (see [Quickstart §3](quickstart.md)).
+The JSON Schemas in `@saasicat/spec/schemas/` govern **wire formats**, not
+tables.
 
-- `capabilityCatalogEntry`, `featureCatalogEntry`, `quotaCatalogEntry` (discovery projection)
-- `plan`, `catalogPlanVersion`
-- `catalogBundle`, `catalogBundleVersion`
-- `catalogBusinessType`, `catalogBusinessTypeVersion`
-- `catalogMarketingProjection`, `marketingSettings`
-- `checkoutOffer`
-- `subscriptionContract`, `contractLineItem`
-- `promoCode`, `promoCodeRedemption`
-- `auditEntry`
-- `superAdminUser`, `superAdminMfa`
+Ownership stays with the app: the platform ships the canonical tables and
+constraints, while FK relations to your `Tenant`/`User` models and all RLS
+policies remain app-specific (the fragments carry them as commented-out
+examples). Canonical `@@map` table names (`subscriptions`, `plan_versions`,
+`audit_logs`, `super_admin_users`, …) must not be renamed — the shipped
+adapters and CLI commands rely on them.
 
-Schema snippets are deliberately not shipped in the platform package — every app maintains
-its own schema (constraints, indexes and RLS policies are app-specific). A
-ready-made minimal schema is in the [Quickstart §3](saas-platform-quickstart.md#schritt-3--prisma-schema-erg%C3%A4nzen).
+Whether a schema/adapter combination actually delivers the required
+semantics (row locks, atomic promo claims, rollback, tenant isolation) is
+verified by the executable contract in `@saasicat/persistence-testing` —
+CI runs it for `@saasicat/adapter-prisma` against a real PostgreSQL.
 
 ---
 
@@ -365,13 +372,16 @@ const SAAS_CONFIG = loadPlanCatalogFromFile({ path: SAAS_CONFIG_PATH });
 
 ### 6.3 Platform Adapters Module (Prisma)
 
-This is the biggest task for the consumer. One `@Injectable` class per port that implements
-the interface from `@saasicat/types/ports` (or the specific repository
-interfaces from the `saas-platform-nest` sub-entries).
+One `@Injectable` class per port that implements the interface from
+`@saasicat/types/ports` (or the specific repository interfaces from the
+`saas-platform-nest` sub-entries). Rows marked **(ships)** come ready-made
+from `@saasicat/adapter-prisma` on the canonical schema — import instead of
+writing them (or take the whole `prismaPersistence()` bundle, quickstart
+step 5); the unmarked rows are still consumer-written today.
 
 | Adapter                                           | Interface (from)                 | What to do                                                                   |
 | ------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
-| `PrismaPlanCatalogReadSink`                       | `PlanCatalogReadSink`            | **Boot read-only** snapshot of plans + versions; set the RLS bypass context! |
+| `PrismaPlanCatalogReadSink` **(ships)**           | `PlanCatalogReadSink`            | **Boot read-only** snapshot of plans + versions; set the RLS bypass context! |
 | `PrismaPlanRepository`                            | `PlanRepository`                 | CRUD for `plan` + `catalogPlanVersion` (consumed by the SuperAdmin UI)       |
 | `PrismaBundleRepository`                          | `BundleRepository`               | CRUD for `catalogBundle` + `catalogBundleVersion`                            |
 | `PrismaBusinessTypeRepository`                    | `BusinessTypeRepository`         | CRUD for `catalogBusinessType` + `catalogBusinessTypeVersion`                |
@@ -382,9 +392,9 @@ interfaces from the `saas-platform-nest` sub-entries).
 | `PrismaCheckoutOfferRepository`                   | `CheckoutOfferRepository`        | Frozen checkout snapshots                                                    |
 | `PrismaSubscriptionContractRepository`            | `SubscriptionContractRepository` | Append-only immutable contracts                                              |
 | `UsersQuotaProvider`, `StorageGbQuotaProvider`, … | `QuotaProvider` (one per quota)  | `count(tenantId): Promise<number>`; decorate with `@DefinesQuota({...})`     |
-| `PrismaMfaAdapter`                                | `MfaPort`                        | TOTP setup, verify, disable                                                  |
-| `PrismaAuditAdapter`                              | `AuditPort`                      | Write audit entry                                                            |
-| `AsyncLocalRlsBypassAdapter`                      | `RlsBypassPort`                  | Platform: `node:async_hooks`-based; usually reusable 1:1                     |
+| `PrismaMfaAdapter` **(ships)**                    | `MfaPort`                        | TOTP setup, verify, disable                                                  |
+| `PrismaAuditAdapter` **(ships)**                  | `AuditPort`                      | Write audit entry (`audit_logs`, actorTag format)                            |
+| `AsyncLocalRlsBypassAdapter` **(ships)**          | `RlsBypassPort`                  | Platform: `node:async_hooks`-based; usually reusable 1:1                     |
 
 Bundle everything in a **`@Global()` module** so the DynamicModule factories can resolve the
 adapters via `inject:`:

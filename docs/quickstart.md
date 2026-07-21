@@ -34,7 +34,7 @@ pnpm add \
     @saasicat/types \
     @saasicat/spec \
     @saasicat/nest \
-    @saasicat/prisma \
+    @saasicat/adapter-prisma \
     @saasicat/cli
 ```
 
@@ -68,19 +68,23 @@ marketing:
 ## Step 3 — Prisma schema + migration in one command
 
 ```bash
-pnpm exec saas-platform schema migrate --name=add_saas_platform --fragments=04,06
+pnpm exec saas-platform schema migrate --name=add_saas_platform --fragments=04,06,10
 pnpm prisma generate
 ```
 
 `schema migrate` does two things: it idempotently inserts the platform models
 from the selected Prisma fragments into your `schema.prisma`, and it directly
 calls `prisma migrate dev` for the DB migration. For the quickstart scope,
-fragments `04` (AuditLog) and `06` (CatalogEntries) are enough; `--all`
-additionally loads bundles, subscriptions and promo codes.
+fragments `04` (AuditLog), `06` (CatalogEntries) and `10` (SuperAdmin +
+MFA) are enough; `--all` additionally loads bundles, subscriptions and promo
+codes.
 
 Before migrating, briefly review `schema.prisma` to check whether FK pointers
 to your `User`/`Tenant` tables need to be enabled manually (commented-out
-`@relation` lines in the fragments).
+`@relation` lines in the fragments). If you take `--all`, also add
+`@saasicat/spec/sql/constraints.postgres.sql` to the migration — the partial
+unique indexes and the subscription CHECK are part of the canonical schema
+(details: [data model](data-model.md)).
 
 ## Step 4 — Write a quota provider
 
@@ -122,63 +126,37 @@ export class NotesQuotaProvider implements QuotaProvider {
 }
 ```
 
-## Step 5 — Create the adapter module
+## Step 5 — Build the persistence bundle
 
-Instead of writing 3 Prisma adapters yourself, you import them from
-`@saasicat/prisma` and bind your `PrismaService` to the platform token.
-
-| Class                        | Implements port |
-| ---------------------------- | --------------- |
-| `PrismaMfaAdapter`           | `MfaPort`       |
-| `PrismaAuditAdapter`         | `AuditPort`     |
-| `AsyncLocalRlsBypassAdapter` | `RlsBypassPort` |
-
-> **Why not everything inside the platform?** The platform ships the
-> **adapters**; you bind **your own PrismaService** as `PRISMA_CLIENT_TOKEN`.
-> If you use Drizzle, TypeORM or a diverging schema, you still write your own
-> adapters — the platform ports stay identical.
-
-`backend/src/saas-adapters/saas-adapters.module.ts`:
+One factory call replaces the hand-written adapter module:
+`prismaPersistence({ client })` bundles every shipped Prisma adapter (MFA,
+audit incl. query/stats, RLS bypass, transaction runner, subscription/plan
+version/promo repositories, SuperAdmin bootstrap, plan-catalog sinks) plus
+the declared **capabilities** of the adapter+database combination.
 
 ```ts
-import { Global, Module } from '@nestjs/common';
-import {
-    AsyncLocalRlsBypassAdapter,
-    PrismaAuditAdapter,
-    PrismaMfaAdapter,
-    PrismaSuperAdminBootstrapAdapter,
-    PRISMA_CLIENT_TOKEN,
-} from '@saasicat/prisma';
-import { PrismaModule } from '../prisma/prisma.module';
+import { prismaPersistence } from '@saasicat/adapter-prisma';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotesQuotaProvider } from './notes-quota.provider';
+import { Argon2Hasher } from '../auth/argon2.hasher'; // your PasswordHasher
 
-@Global()
-@Module({
-    imports: [PrismaModule],
-    providers: [
-        { provide: PRISMA_CLIENT_TOKEN, useExisting: PrismaService },
-        PrismaMfaAdapter,
-        PrismaAuditAdapter,
-        AsyncLocalRlsBypassAdapter,
-        PrismaSuperAdminBootstrapAdapter,
-        NotesQuotaProvider,
-    ],
-    exports: [
-        PrismaMfaAdapter,
-        PrismaAuditAdapter,
-        AsyncLocalRlsBypassAdapter,
-        PrismaSuperAdminBootstrapAdapter,
-        NotesQuotaProvider,
-    ],
-})
-export class SaasAdaptersModule {}
+export const persistence = prismaPersistence({
+    client: PrismaService,
+    passwordHasher: Argon2Hasher, // enables the SuperAdmin setup wizard
+});
 ```
 
+> **Why not everything inside the platform?** The platform defines the
+> **ports**; the bundle is just the Prisma implementation of them against the
+> canonical schema. If you use Drizzle, TypeORM or a diverging schema, you
+> provide your own adapters via the same `adapters`/`persistence` options —
+> the platform ports stay identical, and
+> `@saasicat/persistence-testing` verifies your adapter delivers the same
+> semantics.
+>
 > **RLS bypass:** In your `PrismaService`, check `rls.isBypassActive()` (e.g.
 > in a Prisma middleware) and set `SET LOCAL row_security = off` for the
-> current transaction when it is active. Snippet in the README of
-> `@saasicat/prisma`.
+> current transaction when it is active — then pass `rlsIntegration: true`.
+> Snippet in the README of `@saasicat/adapter-prisma`.
 
 ## Step 6 — Wire the AppModule (incl. auto-enforcement)
 
@@ -191,7 +169,8 @@ interceptor** as soon as you pass `defaultPlanId` (quickstart path) or
 | ------------------- | ------------------------------------------------------------------------------------------ |
 | `planCatalog`       | App identity (branding, currency, locales) from the YAML.                                  |
 | `controller.guards` | Mandatory guards for `/admin/manifest` + `/admin/discovery` (typically `[JwtAuthGuard]`).  |
-| `adapters`          | The Prisma adapters from step 5 via `useExisting`.                                         |
+| `persistence`       | The bundle from step 5. Capabilities are validated fail-fast at boot.                      |
+| `adapters`          | Optional field-by-field overrides of the bundle (custom schema, other ORM).                |
 | `defaultPlanId`     | Fallback plan for all tenants when no `planResolver` is set — dev/smoke.                   |
 | `quotaProviders`    | `QuotaProvider` classes from step 4 — `EnforceQuotaInterceptor` uses them for `count()`.   |
 | `tenantManifest`    | Activates `GET /tenant/manifest` (features + quotas + filtered navigation).                |
@@ -202,37 +181,33 @@ interceptor** as soon as you pass `defaultPlanId` (quickstart path) or
 import { Module } from '@nestjs/common';
 import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { SaasPlatformModule } from '@saasicat/nest/platform';
+import { prismaPersistence } from '@saasicat/adapter-prisma';
 
 import { PrismaModule } from './prisma/prisma.module';
+import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
+import { Argon2Hasher } from './auth/argon2.hasher';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { NotesModule } from './notes/notes.module';
-import { SaasAdaptersModule } from './saas-adapters/saas-adapters.module';
-import {
-    PrismaMfaAdapter,
-    PrismaAuditAdapter,
-    AsyncLocalRlsBypassAdapter,
-} from '@saasicat/prisma';
 import { NotesQuotaProvider } from './saas-adapters/notes-quota.provider';
 
 @Module({
     imports: [
-        PrismaModule,
+        PrismaModule, // @Global — PrismaService resolvable for the bundle factories
         AuthModule,
-        SaasAdaptersModule,
 
         SaasPlatformModule.forRoot({
             planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
             controller: { guards: [JwtAuthGuard] },
             imports: [AuthModule],
-            adapters: {
-                mfa: { useExisting: PrismaMfaAdapter },
-                audit: { useExisting: PrismaAuditAdapter },
-                rlsBypass: { useExisting: AsyncLocalRlsBypassAdapter },
-                // For V3 (real contracts), additionally:
-                //   planResolver: { useExisting: MyTenantPlanResolver },
-                // As long as it is omitted, defaultPlanId applies.
-            },
+            persistence: prismaPersistence({
+                client: PrismaService,
+                passwordHasher: Argon2Hasher,
+            }),
+            // adapters: { ... }  // optional field-by-field overrides
+            // For V3 (real contracts), additionally:
+            //   adapters: { planResolver: { useExisting: MyTenantPlanResolver } }
+            // As long as it is omitted, defaultPlanId applies.
             defaultPlanId: 'starter',
             quotaProviders: [NotesQuotaProvider],
 
@@ -321,9 +296,12 @@ Create the first SuperAdmin + MFA via the **first-run setup wizard** in the
 Admin UI (set `SETUP_TOKEN`; the login page then shows the wizard as long as
 no SUPER_ADMIN exists). See the [handbook](handbook.md), §6.10.
 
-> Prerequisite: your app CLI registers `AdminBootstrapCommand` as a
-> `nest-commander` subcommand, and `PrismaSuperAdminBootstrapAdapter` is
-> registered in `CliContextModule.forRoot({ superAdminBootstrapPort })`.
+> Prerequisite: `prismaPersistence({ passwordHasher })` is set (step 5) —
+> that activates the shipped `PrismaSuperAdminBootstrapAdapter` against the
+> `super_admin_users` table (fragment `10`). For the app CLI, register
+> `AdminBootstrapCommand` as a `nest-commander` subcommand and pass
+> `persistence.core.superAdminProvisioning` to
+> `CliContextModule.forRoot({ superAdminBootstrapPort })`.
 
 Optional but recommended: `notesapp doctor` for a platform self-check (plan
 catalog loaded, discovery snapshot, UserPort reachable, AdminManifest
@@ -444,11 +422,13 @@ dashboard. The **Discovery page** shows `notes.create` as "discovered", the
 
 Add these in this order:
 
-1. **V3 contracts** instead of `defaultPlanId`: implement
-   `SubscriptionRepository`, `PlanVersionRepository`, `TransactionRunner` →
-   activate `entitlement: { ... }` in `SaasPlatformModule.forRoot()`.
-   Schema templates in `prisma-fragments/01-subscription.prisma` and
-   `prisma-fragments/03-plan-versions.prisma`.
+1. **V3 contracts** instead of `defaultPlanId`: add fragments `01`
+   (Subscription) + `03` (Plan/PlanVersion) to your schema and activate
+   `entitlement: {}` in `SaasPlatformModule.forRoot()` — the bundle from
+   step 5 already ships `SubscriptionRepository`, `PlanVersionRepository`
+   and `TransactionRunner` (verified against a real PostgreSQL by
+   `@saasicat/persistence-testing`, incl. the transactional
+   `enforceLimit()` row lock).
 
 2. **Catalog adapters** (`PlanRepository`, `BundleRepository`,
    `MarketingProjectionRepository`, `CatalogEntryRepository`) + wire
@@ -477,9 +457,9 @@ Add these in this order:
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `saas-platform: command not found`                      | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.                              |
 | `prisma-fragments/` directory not found                 | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                                              |
-| `Nest can't resolve dependencies of X (?, ...)`         | `SaasAdaptersModule` is not listed **before** `SaasPlatformModule.forRoot()` in `imports[]`.                   |
+| `Nest can't resolve dependencies of X (?, ...)`         | The bundle factories inject your `PrismaService` — its `PrismaModule` must be `@Global` (or in `imports`).     |
 | Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.                        |
-| `discovery-snapshot.json` is empty                      | The module holding the decorators (`NotesModule`, `SaasAdaptersModule`) is missing from `AppModule.imports[]`. |
+| `discovery-snapshot.json` is empty                      | The module holding the decorators (e.g. `NotesModule`) is missing from `AppModule.imports[]`.                  |
 | `@RequireFeature` lets everything through               | Neither `defaultPlanId` nor `adapters.planResolver` is set → no static entitlement active.                     |
 | `@EnforceQuota` never blocks                            | The `QuotaProvider` class is not listed in `quotaProviders: [...]` of `SaasPlatformModule.forRoot()`.          |
 | `@RequireFeature('NOTES')` throws 403                   | The test tenant is not on a plan that includes `NOTES` — with `defaultPlanId` all tenants are equal.           |

@@ -15,6 +15,7 @@ dist
 coverage
 test-results
 playwright-report
+.integration-tmp
 
 # Environment & secrets
 .env

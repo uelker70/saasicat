@@ -28,7 +28,7 @@
 import { Module, type DynamicModule, type Type } from '@nestjs/common';
 import type { PlanCatalog, QuotaProvider } from '@saasicat/types';
 import { SaasPlatformModule } from '../platform/saas-platform.module.js';
-import type { SaasPlatformModuleOptions } from '../platform/saas-platform.module.js';
+import type { SaasPlatformAdapters } from '../platform/saas-platform.module.js';
 
 /** No-op stub for `MfaPort`. */
 export class StubMfaPort {
@@ -79,11 +79,7 @@ export interface CreateSaasPlatformTestModuleOptions {
     /** QuotaProvider classes for the `EnforceQuotaInterceptor`. */
     quotaProviders?: Array<Type<QuotaProvider>>;
     /** Overrides — if the test needs a different adapter. */
-    overrides?: Partial<{
-        mfa: SaasPlatformModuleOptions['adapters']['mfa'];
-        audit: SaasPlatformModuleOptions['adapters']['audit'];
-        rlsBypass: SaasPlatformModuleOptions['adapters']['rlsBypass'];
-    }>;
+    overrides?: Partial<Pick<SaasPlatformAdapters, 'mfa' | 'audit' | 'rlsBypass'>>;
 }
 
 /**

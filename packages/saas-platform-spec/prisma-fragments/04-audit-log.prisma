@@ -21,6 +21,10 @@ model AuditLog {
     entityId  String
     action    String // SCREAMING_SNAKE_CASE; e.g. "PROMO_CODE_REDEEM"
     changes   Json? // { field: { old: …, new: … } }
+    // Origin marker 'web:<email>:<sessionId>' | 'cli:<email>:<host>' — see
+    // audit-event.schema.json `actorTag`. Queryable with a trailing wildcard
+    // ('cli:*') via AuditQueryPort.
+    actorTag  String?
     ipAddress String?
     userAgent String?
 
@@ -34,5 +38,6 @@ model AuditLog {
     @@index([tenantId, entity, entityId])
     @@index([tenantId, createdAt])
     @@index([entity, action, createdAt])
+    @@index([actorTag, createdAt])
     @@map("audit_logs")
 }

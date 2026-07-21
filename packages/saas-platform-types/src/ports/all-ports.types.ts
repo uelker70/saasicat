@@ -7,3 +7,4 @@ export * from './admin-ports.types.js';
 export * from './promo-ports.types.js';
 export * from './catalog-ports.types.js';
 export * from './checkout-ports.types.js';
+export * from './persistence-ports.types.js';

@@ -10,9 +10,21 @@ related:
 
 # Prisma Fragments
 
-Reference snippets that document the **canonical database schema** of the SaaS
-platform. Consumer apps copy the models into their own `schema.prisma` and add
-FK relations to their project-specific `Tenant`/`User` models.
+Prisma-DSL rendering of the SaaSicat data model, **derived from the normative
+sources**: the logical data model in [`docs/data-model.md`](../../../docs/data-model.md)
+and the PostgreSQL artifacts in [`../sql/`](../sql/)
+(`reference-schema.postgres.sql` is generated FROM these fragments via
+`pnpm run gen:sql`; `constraints.postgres.sql` carries the invariants Prisma
+cannot express and is hand-maintained). When fragments and data model
+disagree, the data model + constraints win; the adapter contract tests
+(`@saasicat/persistence-testing`) are the executable arbiter.
+
+Consumer apps copy the models into their own `schema.prisma` and add FK
+relations to their project-specific `Tenant`/`User` models.
+
+Two guards keep the artifacts honest in CI: the fragments must compose into
+one valid Prisma schema, and `reference-schema.postgres.sql` must be
+regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 
 ## Files
 
@@ -27,6 +39,7 @@ FK relations to their project-specific `Tenant`/`User` models.
 | [`07-promotion.prisma`](07-promotion.prisma)                         | `Promotion`                                                                            |
 | [`08-subscription-contract.prisma`](08-subscription-contract.prisma) | `SubscriptionContract`, `ContractLineItem`                                             |
 | [`09-pending-registration.prisma`](09-pending-registration.prisma)   | `PendingRegistration`, `PaymentEventLog` + `RegistrationStatus`                        |
+| [`10-super-admin.prisma`](10-super-admin.prisma)                     | `SuperAdminUser`, `SuperAdminMfa`                                                      |
 
 ## How the consumer uses the fragments
 
@@ -84,22 +97,19 @@ All monetary amounts are `Decimal(10, 2)` (max ±99,999,999.99 €), promo-code
 values are `Decimal(8, 2)` (percentage or amount). Consumers should not relax
 this precision.
 
-### 5. Partial unique index for drafts
+### 5. Constraints Prisma cannot express
 
-`PlanVersion`, `BundleVersion`
-and `BusinessTypeVersion` allow **exactly one** draft per
-identity key (`publishedAt IS NULL`). The Prisma schema cannot express this —
-add it in the SQL migration:
+`PlanVersion`, `BundleVersion` and `BusinessTypeVersion` allow **exactly
+one** draft per identity key (`publishedAt IS NULL`), and a `Subscription`
+must bind a PlanVersion or a BusinessTypeVersion. Both live as SQL in
+[`../sql/constraints.postgres.sql`](../sql/constraints.postgres.sql) —
+add that file to your migration verbatim. Note that column names are
+**camelCase** (the fragments `@@map` table names only), e.g.:
 
 ```sql
 CREATE UNIQUE INDEX plan_versions_draft_per_plan
-    ON plan_versions (plan_id) WHERE published_at IS NULL;
+    ON plan_versions ("planId") WHERE "publishedAt" IS NULL;
 ```
-
-Likewise for:
-
-- `bundle_versions` (per `bundle_id`)
-- `business_type_versions` (per `business_type_id`)
 
 ## Design decisions
 
