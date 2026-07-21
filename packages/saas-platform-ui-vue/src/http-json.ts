@@ -29,6 +29,18 @@ async function extractCode(res: { json(): Promise<unknown> }): Promise<string | 
     }
 }
 
+/**
+ * Removes trailing slashes so an API prefix can be concatenated with paths
+ * that start with `/`. Deliberately index-based instead of
+ * `replace(/\/+$/, '')`: the regex backtracks quadratically on inputs that
+ * end in many slashes.
+ */
+export function trimTrailingSlashes(url: string): string {
+    let end = url.length;
+    while (end > 0 && url[end - 1] === '/') end--;
+    return url.slice(0, end);
+}
+
 export async function getJson<T>(http: HttpClient, url: string): Promise<T> {
     const res = await http(url);
     if (res.status < 200 || res.status >= 300) {

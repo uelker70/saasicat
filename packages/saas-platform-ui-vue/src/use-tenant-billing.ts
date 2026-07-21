@@ -12,6 +12,7 @@
 
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from './types.js';
+import { trimTrailingSlashes } from './http-json.js';
 
 export type BillingCycleStr = 'MONTHLY' | 'YEARLY';
 
@@ -273,7 +274,7 @@ export interface UseTenantBillingResult {
 }
 
 export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTenantBillingResult {
-    const apiPrefix = (options.apiPrefix ?? '/billing').replace(/\/+$/, '');
+    const apiPrefix = trimTrailingSlashes(options.apiPrefix ?? '/billing');
     const http = options.http ?? defaultHttpClient();
 
     const usage = ref<UsageSnapshotShape | null>(null);
