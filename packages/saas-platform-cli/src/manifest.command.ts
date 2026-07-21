@@ -4,17 +4,17 @@ import { Command, CommandRunner, Option, SubCommand } from 'nest-commander';
 import { CliContextService } from './cli-context.service.js';
 import { ManifestCliFlow } from './manifest-cli-flow.js';
 
-// Geteilte `<app> manifest …`-Commands für alle Plattform-Consumer.
-// Bindet den Plattform-`ManifestCliFlow` an die
-// nest-commander-CLI-Tree. Consumer registrieren diese Klassen in den
-// Providern ihres CLI-Moduls; `CliContextService` + `ManifestCliFlow` kommen
-// aus `CliContextModule.forRoot({ manifestAccessPort })`.
+// Shared `<app> manifest …` commands for all platform consumers.
+// Binds the platform `ManifestCliFlow` to the
+// nest-commander CLI tree. Consumers register these classes in the
+// providers of their CLI module; `CliContextService` + `ManifestCliFlow` come
+// from `CliContextModule.forRoot({ manifestAccessPort })`.
 //
-// Sub-Commands:
-//   <app> manifest dump      — JSON-Ausgabe des Live-Manifests
-//   <app> manifest hash      — manifestHash für CI-Pinning
-//   <app> manifest validate  — schemaVersion + project.key + manifestHash-Sanity
-//   <app> manifest check     — alle registrierten Checks (Exit 7 bei error)
+// Sub-commands:
+//   <app> manifest dump      — JSON output of the live manifest
+//   <app> manifest hash      — manifestHash for CI pinning
+//   <app> manifest validate  — schemaVersion + project.key + manifestHash sanity
+//   <app> manifest check     — all registered checks (exit 7 on error)
 
 interface AsFlag {
     as?: string;

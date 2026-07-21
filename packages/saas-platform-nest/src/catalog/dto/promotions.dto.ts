@@ -1,4 +1,4 @@
-// DTOs für `PromotionsController` (SPEC_V2 §9a).
+// DTOs for `PromotionsController` (SPEC_V2 §9a).
 
 import {
     IsArray,
@@ -46,7 +46,7 @@ export class CreatePromotionDto {
     @IsIn(TYPES as unknown as string[])
     type!: PromotionType;
 
-    /** Typ-abhängig: number | { price, months }. */
+    /** Type-dependent: number | { price, months }. */
     @IsDefined()
     value!: PromotionValue;
 

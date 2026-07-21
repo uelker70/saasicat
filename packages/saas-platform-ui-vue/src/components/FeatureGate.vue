@@ -8,9 +8,9 @@
 </template>
 
 <script setup lang="ts">
-// FeatureGate — deklarative Show/Hide-Komponente auf Basis Entitlement.
+// FeatureGate — declarative show/hide component based on Entitlement.
 //
-// Verwendung:
+// Usage:
 //
 // ```vue
 // <FeatureGate feature="DMS">
@@ -25,20 +25,20 @@
 // </FeatureGate>
 // ```
 //
-// Mehrere Features → Logical-OR (sobald **eines** im Plan ist, wird der
-// Default-Slot gerendert). Identisch zu `@RequireFeature(...)` im Backend.
+// Multiple features → logical OR (as soon as **one** is in the plan, the
+// default slot is rendered). Identical to `@RequireFeature(...)` in the backend.
 //
-// Voraussetzung: `provideEntitlement(app, ent)` im App-Bootstrap. Ohne
-// Provider rendert die Komponente den Default-Slot (Fail-Open im Dev-Mode,
-// Konsole-Warning). Apps, die das härter haben wollen, setzen
-// `strictMode: true` im Provider — dann wirft `useInjectedEntitlement` statt
-// `null` zu liefern. (Strict-Mode kommt später; aktuell Default = lenient.)
+// Prerequisite: `provideEntitlement(app, ent)` in the app bootstrap. Without a
+// provider the component renders the default slot (fail-open in dev mode,
+// console warning). Apps that want stricter behavior set
+// `strictMode: true` in the provider — then `useInjectedEntitlement` throws
+// instead of returning `null`. (Strict mode comes later; currently default = lenient.)
 
 import { computed } from 'vue';
 import { useInjectedEntitlement } from '../entitlement-provider.js';
 
 interface Props {
-    /** Ein FeatureKey oder mehrere als Logical-OR. */
+    /** A single FeatureKey or several as a logical OR. */
     feature: string | readonly string[];
 }
 
@@ -47,7 +47,7 @@ const ent = useInjectedEntitlement();
 
 const visible = computed<boolean>(() => {
     if (!ent) {
-        // Kein Provider — Dev-Fallback: rendern.
+        // No provider — dev fallback: render.
         return true;
     }
     const required = Array.isArray(props.feature) ? props.feature : [props.feature];

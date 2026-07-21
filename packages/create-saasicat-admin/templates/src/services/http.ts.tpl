@@ -1,7 +1,7 @@
-// HTTP-Client + LoginAdapter für `createSuperAdminApp`.
+// HTTP client + login adapter for `createSuperAdminApp`.
 //
-// TODO: `adminLogin` an dein Backend-Auth anpassen — POST-Body und Token-
-// Speicherung sind App-spezifisch.
+// TODO: adapt `adminLogin` to your backend auth — POST body and token
+// storage are app-specific.
 
 import axios from 'axios';
 import type { HttpClient, HttpResponse } from '@saasicat/ui-vue';
@@ -41,7 +41,7 @@ export const platformHttp: HttpClient = async (url, init) => {
 
 export async function adminLogin(email: string, password: string) {
     try {
-        // TODO: ersetze den Endpoint durch dein Auth-Backend.
+        // TODO: replace the endpoint with your auth backend.
         const r = await api.post('/auth/admin-login', { email, password });
         localStorage.setItem(TOKEN_KEY, r.data.token);
         return { ok: true as const };

@@ -1,7 +1,7 @@
-// SuperAdminGuard — schützt Plattform-/Admin-Routen auf `role === 'SUPER_ADMIN'`.
+// SuperAdminGuard — protects platform/admin routes on `role === 'SUPER_ADMIN'`.
 //
-// Erwartet ein `request.user.role`-Feld (NestJS-Passport-Konvention). Die
-// Auth-Pipeline (JwtAuthGuard) muss vor diesem Guard laufen.
+// Expects a `request.user.role` field (NestJS/Passport convention). The
+// auth pipeline (JwtAuthGuard) must run before this guard.
 
 import {
     type CanActivate,

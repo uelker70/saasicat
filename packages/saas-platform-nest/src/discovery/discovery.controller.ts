@@ -1,9 +1,9 @@
-// Discovery-Controller — `GET /admin/discovery` liefert den DiscoverySnapshot
-// als JSON mit ETag-Caching.
+// Discovery controller — `GET /admin/discovery` returns the DiscoverySnapshot
+// as JSON with ETag caching.
 //
-// Der Controller wird zur Boot-Zeit dynamisch gebaut, damit der Konsument
-// die Class-Level-Guards selbst bestimmt (`SuperAdminGuard`, MFA, …).
-// Pattern analog zu admin/admin-manifest.module.ts (`buildManifestController`).
+// The controller is built dynamically at boot time so that the consumer
+// decides the class-level guards themselves (`SuperAdminGuard`, MFA, …).
+// Pattern analogous to admin/admin-manifest.module.ts (`buildManifestController`).
 
 import {
     type CanActivate,
@@ -28,17 +28,17 @@ interface HttpResponseLike {
 }
 
 /**
- * Baut zur Boot-Zeit eine Controller-Klasse mit den vom Konsumenten
- * konfigurierten Guards. Wird vom DiscoveryModule.forRoot() aufgerufen,
- * wenn `controller`-Option gesetzt ist.
+ * Builds a controller class at boot time with the guards configured by the
+ * consumer. Called by DiscoveryModule.forRoot() when the `controller`
+ * option is set.
  */
 export function buildDiscoveryController(guards: Array<Type<CanActivate>>): Type {
     @Controller('admin')
     @UseGuards(...guards)
     class GeneratedDiscoveryController {
-        // Explizites @Inject statt Type-Reflection: tsup/esbuild emittieren
-        // keine `design:paramtypes`-Metadata, sodass Nest den Service-Typ am
-        // Constructor sonst nicht auflösen kann.
+        // Explicit @Inject instead of type reflection: tsup/esbuild do not emit
+        // any `design:paramtypes` metadata, so otherwise Nest cannot resolve the
+        // service type on the constructor.
         constructor(@Inject(DiscoveryScanner) private readonly scanner: DiscoveryScanner) {}
 
         @Get('discovery')
@@ -48,8 +48,8 @@ export function buildDiscoveryController(guards: Array<Type<CanActivate>>): Type
             @Res({ passthrough: true }) res: HttpResponseLike,
         ): DiscoverySnapshot | null {
             const snapshot = this.scanner.getSnapshot();
-            // `hash` deckt nur die fachlichen Daten ab — `scannedAt` muss in
-            // den ETag, sonst liefert ein 304 einen veralteten Scan-Zeitpunkt.
+            // `hash` covers only the domain data — `scannedAt` must go into
+            // the ETag, otherwise a 304 returns a stale scan timestamp.
             const etag = `"${snapshot.hash}-${snapshot.scannedAt}"`;
             res.header('ETag', etag);
 
@@ -62,9 +62,9 @@ export function buildDiscoveryController(guards: Array<Type<CanActivate>>): Type
         }
 
         /**
-         * Erzwingt einen frischen Code-Scan und liefert den neuen Snapshot.
-         * `scannedAt` wird aktualisiert; die Capability-/Feature-/Quota-Daten
-         * sind im laufenden Prozess identisch (Code ist zur Laufzeit stabil).
+         * Forces a fresh code scan and returns the new snapshot.
+         * `scannedAt` is updated; the Capability/Feature/Quota data
+         * are identical within the running process (code is stable at runtime).
          */
         @Post('discovery/rescan')
         rescanDiscovery(): DiscoverySnapshot {

@@ -1,8 +1,8 @@
-// Tests für den Contract-Re-Freeze nach Bundle-Add/-Cancel (#61) im
-// generierten TenantSubscriptionBundlesController: Konsumenten mit
-// `CONTRACT_FREEZE_PORT_TOKEN` bekommen nach erfolgreicher Mutation ein
-// Amendment mit unverändertem Plan; ohne Port bleibt alles wie bisher;
-// Freeze-Fehler sind non-fatal (Mutation ist bereits persistiert).
+// Tests for the contract re-freeze after bundle add/cancel (#61) in the
+// generated TenantSubscriptionBundlesController: consumers with
+// `CONTRACT_FREEZE_PORT_TOKEN` get an amendment with an unchanged plan after a
+// successful mutation; without the port everything stays as before;
+// freeze errors are non-fatal (the mutation is already persisted).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -57,7 +57,7 @@ function buildController({ contractFreeze = null } = {}) {
     return { ctrl, serviceCalls };
 }
 
-test('add re-freezed den Contract mit unverändertem Plan', async () => {
+test('add re-freezes the contract with an unchanged plan', async () => {
     const freezeCalls = [];
     const { ctrl } = buildController({
         contractFreeze: {
@@ -72,7 +72,7 @@ test('add re-freezed den Contract mit unverändertem Plan', async () => {
     assert.equal(cycle, 'MONTHLY');
 });
 
-test('cancel re-freezed den Contract', async () => {
+test('cancel re-freezes the contract', async () => {
     const freezeCalls = [];
     const { ctrl } = buildController({
         contractFreeze: {
@@ -84,14 +84,14 @@ test('cancel re-freezed den Contract', async () => {
     assert.equal(freezeCalls[0][0], 't1');
 });
 
-test('ohne ContractFreezePort funktioniert add unverändert', async () => {
+test('without a ContractFreezePort, add works unchanged', async () => {
     const { ctrl, serviceCalls } = buildController();
     const result = await ctrl.add(REQ, { bundleVersionId: 'bv-1' });
     assert.equal(result.bundleVersionId, 'bv-1');
     assert.equal(serviceCalls.length, 1);
 });
 
-test('Freeze-Fehler ist non-fatal — Mutation-Ergebnis kommt trotzdem zurück', async () => {
+test('freeze error is non-fatal — the mutation result still comes back', async () => {
     const { ctrl } = buildController({
         contractFreeze: {
             freezeOnPlanChange: async () => {
@@ -103,7 +103,7 @@ test('Freeze-Fehler ist non-fatal — Mutation-Ergebnis kommt trotzdem zurück',
     assert.equal(result.bundleVersionId, 'bv-1');
 });
 
-test('fehlgeschlagene Mutation triggert keinen Freeze', async () => {
+test('a failed mutation triggers no freeze', async () => {
     const freezeCalls = [];
     const Ctrl = buildTenantSubscriptionBundlesController();
     const ctrl = new Ctrl(

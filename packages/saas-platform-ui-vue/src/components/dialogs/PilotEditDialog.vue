@@ -65,7 +65,7 @@
                     </div>
                 </section>
 
-                <!-- Section 2: Enddatum -->
+                <!-- Section 2: End date -->
                 <section class="ple-section">
                     <header class="ple-section__head">
                         <span class="ple-section__num">2</span>
@@ -102,7 +102,7 @@
                     </div>
                 </section>
 
-                <!-- Section 3: Notiz -->
+                <!-- Section 3: Note -->
                 <section class="ple-section">
                     <header class="ple-section__head">
                         <span class="ple-section__num">3</span>
@@ -157,10 +157,10 @@ import {
     type PilotEditResult,
 } from './types.js';
 
-// Plattform-Dialog zum Bearbeiten einer bestehenden Pilot-Subscription
-// (Sim-Layout: nummerierte Sektionen, Plan-Tile-Picker, Endet-Quick-Sets).
-// Nur veränderte Felder werden gesendet — der Server lässt nicht-mitgesendete
-// Felder unangetastet.
+// Platform dialog for editing an existing pilot subscription
+// (sim layout: numbered sections, plan tile picker, ends-at quick sets).
+// Only changed fields are sent — the server leaves fields that are not
+// included untouched.
 
 type PlanOption = string | { label?: string; value: string; color?: string };
 
@@ -169,7 +169,7 @@ const props = withDefaults(
         modelValue: boolean;
         row: PilotRow | null;
         planOptions: readonly PlanOption[];
-        /** Mandanten-spezifische Labels/Placeholder; neutrale Defaults sonst. */
+        /** Tenant-specific labels/placeholders; neutral defaults otherwise. */
         copy?: PilotCopy;
         requireMfa?: boolean;
         mfaSetupHint?: string;
@@ -203,9 +203,9 @@ function normalize(opt: PlanOption): { value: string; label: string; color?: str
     return { value: opt.value, label: opt.label ?? opt.value, color: opt.color };
 }
 
-// Falls die aktuelle Plan-ID nicht (mehr) im Katalog steht — z. B. Legacy-Wert
-// wie "STANDARD" aus einer früheren Seed-Generation —, taucht sie trotzdem im
-// Picker auf, damit der User sie sieht und gezielt umstellen kann.
+// If the current plan ID is not (or no longer) in the catalog — e.g. a legacy
+// value like "STANDARD" from an earlier seed generation — it still appears in
+// the picker, so the user can see it and deliberately switch away from it.
 const effectivePlanOptions = computed<Array<{ value: string; label: string; color?: string }>>(
     () => {
         const opts = props.planOptions.map(normalize);
@@ -256,9 +256,9 @@ watch(
     },
 );
 
-// Nur veränderte Felder ans Backend schicken. Leeres `endsAt` → `null`
-// (Datum löschen), leere Notiz → `null`. So bleiben unveränderte Felder
-// serverseitig stabil und der Audit-Log enthält nur echte Änderungen.
+// Send only changed fields to the backend. Empty `endsAt` → `null`
+// (clear the date), empty note → `null`. This keeps unchanged fields
+// stable server-side and the audit log contains only real changes.
 const diff = computed<PilotEditPayload>(() => {
     const out: PilotEditPayload = {};
     if (form.plan !== initial.value.plan) out.plan = form.plan;

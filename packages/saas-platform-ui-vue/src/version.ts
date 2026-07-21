@@ -1,9 +1,10 @@
-// Single Source of Truth für die im SuperAdmin-UI angezeigte Version (Drawer-
-// Brand-Tag). Liegt bewusst in `src/`, damit das DEV-Source-Overlay sie immer
-// frisch serviert (die `file:`-Kopie im node_modules-Volume bliebe sonst stale).
+// Single Source of Truth for the version shown in the SuperAdmin UI (drawer
+// brand tag). Deliberately kept in `src/` so the DEV source overlay always
+// serves it fresh (the `file:` copy in the node_modules volume would otherwise
+// go stale).
 //
-// Versionsschema <major>.<minor>.<patch>:
-//   - patch  : Fehlerfix
-//   - minor  : einzelne neue Funktion
-//   - major  : grundlegende Änderung
+// Version scheme <major>.<minor>.<patch>:
+//   - patch  : bug fix
+//   - minor  : single new feature
+//   - major  : fundamental change
 export const ADMIN_UI_VERSION = '1.2.0';

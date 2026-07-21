@@ -1,12 +1,12 @@
-// StaticEntitlementService — Lightweight-Entitlement aus statischem
-// PlanCatalog. Im Quickstart-Pfad reicht das, weil noch keine
-// SubscriptionContracts existieren.
+// StaticEntitlementService — lightweight entitlement from a static
+// PlanCatalog. In the quickstart path this suffices, because no
+// SubscriptionContracts exist yet.
 //
-// Pfade-Unterscheidung:
-//   - Quickstart (hier): Plan-Catalog + PlanResolverPort → Features/Quotas
-//   - Volles V3-Setup:   SubscriptionContract → EntitlementService
-//     (eigenständiger Service im billing/entitlement-Sub-Entry, der die
-//      vollständige Vertrags-/Bundle-Aggregation übernimmt).
+// Path distinction:
+//   - Quickstart (here):  plan catalog + PlanResolverPort → features/quotas
+//   - Full V3 setup:      SubscriptionContract → EntitlementService
+//     (a standalone service in the billing/entitlement sub-entry that
+//      handles the full contract/bundle aggregation).
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P7+P9.
 
@@ -18,7 +18,7 @@ import { PLAN_RESOLVER_PORT_TOKEN, type PlanResolverPort } from './plan-resolver
 export interface StaticEntitlementSnapshot {
     planId: string | null;
     features: readonly string[];
-    /** quotaKey → Limit (`-1` = unbegrenzt). */
+    /** quotaKey → limit (`-1` = unlimited). */
     quotas: Readonly<Record<string, number>>;
 }
 
@@ -30,9 +30,9 @@ export class StaticEntitlementService {
     ) {}
 
     /**
-     * Liefert die effektiven Features+Quotas eines Tenants aus dem
-     * Plan-Catalog. Bei fehlendem Plan: leeres Snapshot (kein Feature, alle
-     * Quotas auf 0).
+     * Returns the effective features + quotas of a tenant from the
+     * plan catalog. When the plan is missing: an empty snapshot (no feature,
+     * all quotas at 0).
      */
     async snapshot(tenantId: string): Promise<StaticEntitlementSnapshot> {
         const planId = await this.resolver.getPlanIdForTenant(tenantId);
@@ -50,7 +50,7 @@ export class StaticEntitlementService {
         };
     }
 
-    /** Bequeme Helper für Tests / synchrone Checks im UI-Manifest. */
+    /** Convenience helper for tests / synchronous checks in the UI manifest. */
     async hasFeature(tenantId: string, featureKey: string): Promise<boolean> {
         const snap = await this.snapshot(tenantId);
         return snap.features.includes(featureKey);

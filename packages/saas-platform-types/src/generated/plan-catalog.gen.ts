@@ -1,9 +1,9 @@
-// AUTO-GENERATED — nicht manuell editieren.
+// AUTO-GENERATED — do not edit manually.
 //
-// Quelle: @saasicat/spec/schemas/plan-catalog.schema.json
-// Regenerieren: `pnpm --filter @saasicat/types gen:types`
-// Drift-Gate: tests/codegen-drift.test.js bricht den PR, wenn Schema und
-// generierter Output auseinanderlaufen.
+// Source: @saasicat/spec/schemas/plan-catalog.schema.json
+// Regenerate: `pnpm --filter @saasicat/types gen:types`
+// Drift gate: tests/codegen-drift.test.js fails the PR when the schema and
+// the generated output diverge.
 
 /**
  * Language-neutral definition of a plan catalog + app identity for a SaaS app. Maintained by the consumer as a YAML/JSON file (`config/saas.yaml`) and mirrored into platform tables at backend boot.

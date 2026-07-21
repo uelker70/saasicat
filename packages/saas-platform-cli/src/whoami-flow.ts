@@ -1,7 +1,7 @@
 // WhoAmIFlow — `<app> admin whoami`.
 //
-// Liefert eine Diagnose-Übersicht über die aktive CLI-Identität, MFA-Setup-
-// Status und Production-Detection. Lese-only, kein Audit-Log, kein MFA.
+// Provides a diagnostic overview of the active CLI identity, MFA setup
+// status and production detection. Read-only, no audit log, no MFA.
 //
 // Spec: packages/saas-platform-spec/cli-conventions.md §1.
 
@@ -44,9 +44,9 @@ export class WhoAmIFlow {
             isSuperAdmin = true;
             mfaEnabled = await this.mfa.isEnabled(user.id);
         } catch {
-            // User nicht gefunden / nicht SUPER_ADMIN — wird in der Output-
-            // Zeile sichtbar; whoami soll auch dann Diagnose liefern können,
-            // wenn die Identität gar nicht existiert.
+            // User not found / not SUPER_ADMIN — surfaced in the output
+            // line; whoami should still provide diagnostics even when the
+            // identity does not exist at all.
         }
 
         return {

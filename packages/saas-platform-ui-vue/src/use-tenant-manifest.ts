@@ -1,9 +1,9 @@
-// useTenantManifest — Vue-Composable für den Tenant-Manifest-Endpoint
-// (siehe @saasicat/nest §P14: `GET /tenant/manifest`).
+// useTenantManifest — Vue composable for the Tenant manifest endpoint
+// (see @saasicat/nest §P14: `GET /tenant/manifest`).
 //
-// Liefert Plan-ID, Features, Quotas und die gefilterte Navigation, die das
-// Backend pro Tenant rendert. Damit kann die App-UI die Navigation
-// deklarativ aus dem Manifest aufbauen statt selbst zu filtern.
+// Returns the plan ID, features, quotas and the filtered navigation that the
+// backend renders per Tenant. This lets the app UI build the navigation
+// declaratively from the Manifest instead of filtering it itself.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
@@ -28,11 +28,11 @@ export interface TenantManifestShape {
 }
 
 export interface UseTenantManifestOptions {
-    /** z. B. `/api/tenant/manifest` (Pflicht). */
+    /** e.g. `/api/tenant/manifest` (mandatory). */
     endpoint: string;
     http?: HttpClient;
     getAuthToken?: () => string | null;
-    /** Default `true`. */
+    /** Defaults to `true`. */
     autoLoad?: boolean;
 }
 
@@ -42,7 +42,7 @@ export interface UseTenantManifestResult {
     error: Ref<Error | null>;
     load: () => Promise<void>;
     hasFeature: (key: string) => boolean;
-    /** Quota-Limit (`null` falls Quota nicht im Plan). */
+    /** Quota limit (`null` if the Quota is not in the Plan). */
     quotaLimit: (key: string) => number | null;
 }
 

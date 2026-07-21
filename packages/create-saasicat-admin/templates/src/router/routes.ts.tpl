@@ -7,8 +7,8 @@ import TenantsPage from '@saasicat/ui-vue/pages/TenantsPage.vue';
 import PlansPage from '@saasicat/ui-vue/pages/PlansPage.vue';
 import DiscoveryPage from '@saasicat/ui-vue/pages/DiscoveryPage.vue';
 
-// Standard-Pages der Plattform. Eigene Project-Pages werden über
-// `createProjectPageHostRoute()` als Catch-all am Ende gemountet.
+// Standard platform pages. Your own project pages are mounted via
+// `createProjectPageHostRoute()` as a catch-all at the end.
 
 export const appRoutes: RouteRecordRaw[] = [
     { path: '/login', component: SuperAdminLoginPage, meta: { public: true } },

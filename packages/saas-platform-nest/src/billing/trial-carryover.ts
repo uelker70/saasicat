@@ -1,15 +1,15 @@
-// Trial-Carry-over-Formel (#17) — generisch in der Plattform.
+// Trial carry-over formula (#17) — generic in the platform.
 //
-// Wechselt ein Tenant WÄHREND des Trials das Paket, wird die verbleibende
-// Trialzeit übertragen:
-//   Trialzeit_neu = Trialtage(Ziel) − aufgebrauchte Trialtage, min. 0
-//   aufgebraucht  = Trialtage(aktuell) − Resttage; Resttage aus `currentTrialEndsAt`.
+// When a Tenant switches Plan DURING the trial, the remaining trial time is
+// carried over:
+//   newTrialTime = trialDays(target) − consumed trial days, min. 0
+//   consumed     = trialDays(current) − remaining days; remaining days from `currentTrialEndsAt`.
 //
-// Da `currentTrialEndsAt − Trialtage(aktuell)` den Trial-Start invariant
-// rekonstruiert, ist die Berechnung über mehrere Wechsel driftfrei. Die
-// Trial-Config (Trialtage je Plan) bleibt konsumentenseitig (z. B.
-// `MarketingProjection.trialDays`) und wird über den `TrialProjectionPort`
-// hereingereicht — nur die Formel ist generisch.
+// Since `currentTrialEndsAt − trialDays(current)` invariantly reconstructs the
+// trial start, the calculation is drift-free across multiple switches. The
+// trial config (trial days per Plan) stays consumer-side (e.g.
+// `MarketingProjection.trialDays`) and is passed in via the `TrialProjectionPort`
+// — only the formula is generic.
 
 const MS_PER_DAY = 86_400_000;
 

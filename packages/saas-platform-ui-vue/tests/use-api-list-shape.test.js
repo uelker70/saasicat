@@ -1,11 +1,11 @@
-// Test: useApiList akzeptiert sowohl roh-Array als auch
-// `{items, total, page, pageSize}`-Wrapper-Responses.
+// Test: useApiList accepts both a raw array and
+// `{items, total, page, pageSize}` wrapper responses.
 //
-// Bug-Klasse, die dieser Test abfängt (2026-05-10):
-// Manche Admin-Backends liefern ein rohes Array `[{...}, …]`.
-// Plattform-Composable hatte vorher `body.items ?? []`, weil es ein
-// Wrapper-Objekt erwartete — die Tabelle blieb leer trotz HTTP 200 +
-// 3 Tenants im Body.
+// Bug class this test guards against (2026-05-10):
+// Some admin backends return a raw array `[{...}, …]`.
+// The platform composable previously had `body.items ?? []` because it
+// expected a wrapper object — the table stayed empty despite HTTP 200 +
+// 3 tenants in the body.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,16 +22,16 @@ function makeStubHttp(body, status = 200) {
 }
 
 async function flushAutoLoad() {
-    // useApiList triggert autoLoad in einem Microtask; mehrere ticks warten
-    // bis die fetch-Promise resolved und der Ref aktualisiert ist.
+    // useApiList triggers autoLoad in a microtask; wait several ticks
+    // until the fetch promise resolves and the ref is updated.
     for (let i = 0; i < 5; i++) {
         await Promise.resolve();
         await nextTick();
     }
 }
 
-describe('useApiList Response-Shape-Toleranz', () => {
-    test('Roh-Array `[{...}, {...}]` wird als items[]+total konsumiert (Array-Shape)', async () => {
+describe('useApiList response shape tolerance', () => {
+    test('Raw array `[{...}, {...}]` is consumed as items[]+total (array shape)', async () => {
         const sample = [
             { id: '1', slug: 'demo', name: 'Demo' },
             { id: '2', slug: 'damla', name: 'Damla Auto' },
@@ -42,12 +42,12 @@ describe('useApiList Response-Shape-Toleranz', () => {
             http: makeStubHttp(sample),
         });
         await flushAutoLoad();
-        assert.equal(list.items.value.length, 3, 'Items aus rohem Array übernommen');
+        assert.equal(list.items.value.length, 3, 'Items taken from raw array');
         assert.equal(list.items.value[0].slug, 'demo');
         assert.equal(list.total.value, 3, 'Total = Array.length');
     });
 
-    test('Wrapper-Object `{items, total, page, pageSize}` wird genauso unterstützt (Wrapper-Shape)', async () => {
+    test('Wrapper object `{items, total, page, pageSize}` is supported the same way (wrapper shape)', async () => {
         const sample = {
             items: [{ id: '1', slug: 'verein-1' }],
             total: 7,
@@ -65,7 +65,7 @@ describe('useApiList Response-Shape-Toleranz', () => {
         assert.equal(list.pageSize.value, 25);
     });
 
-    test('Leeres Array → items=[], total=0', async () => {
+    test('Empty array → items=[], total=0', async () => {
         const list = useApiList({
             endpoint: '/api/admin/tenants',
             http: makeStubHttp([]),
@@ -75,7 +75,7 @@ describe('useApiList Response-Shape-Toleranz', () => {
         assert.equal(list.total.value, 0);
     });
 
-    test('null/undefined Body → items=[], kein Crash', async () => {
+    test('null/undefined body → items=[], no crash', async () => {
         const list = useApiList({
             endpoint: '/api/admin/tenants',
             http: makeStubHttp(null),

@@ -13,20 +13,21 @@ import { PromoCodesService, type PreviewResult } from './service.js';
 import { PromoCodeRateLimitGuard, hashIp } from './rate-limit.guard.js';
 import { PreviewPromoCodeDto } from './dto/promo-public.dto.js';
 
-// PromoCodePublicController — öffentlicher REST-Aufruf für `Preview-Validierung`.
+// PromoCodePublicController — public REST call for `preview validation`.
 //
-// Zweck: Die Konfigurator-/Onboarding-UI prüft live, ob ein Promo-Code für
-// den gewählten Plan + Billing-Cycle gültig ist, und zeigt das berechnete
-// Preis-Delta.
+// Purpose: the configurator/onboarding UI checks live whether a promo code is
+// valid for the selected plan + billing cycle, and displays the computed
+// price delta.
 //
-// Auth-Stack: bewusst KEIN App-Auth-Guard (Marketing-/Onboarding-UI ruft
-// das ohne Tenant-Kontext auf). Schutz allein über `PromoCodeRateLimitGuard`
-// (20 Requests / IP / Minute, 50 / Session / Stunde — siehe Spec).
+// Auth stack: deliberately NO app auth guard (the marketing/onboarding UI
+// calls this without tenant context). Protection solely via
+// `PromoCodeRateLimitGuard` (20 requests / IP / minute, 50 / session / hour —
+// see spec).
 //
-// Eingelöst wird der Code separat: entweder atomar im
+// The code is redeemed separately: either atomically in
 // `POST /billing/onboarding/initial-subscription` (TenantBillingController),
-// oder per `POST /billing/promo/redeem` (Tenant-authenticated; Issue-Pfad
-// für nachträgliches Anwenden auf bestehende Subscriptions).
+// or via `POST /billing/promo/redeem` (tenant-authenticated; issue path for
+// applying it retroactively to existing subscriptions).
 
 interface RequestLike {
     headers: Record<string, string | string[] | undefined>;

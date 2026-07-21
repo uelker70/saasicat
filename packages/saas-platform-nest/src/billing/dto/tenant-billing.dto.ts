@@ -1,9 +1,9 @@
 import { IsBoolean, IsOptional, IsString, Matches } from 'class-validator';
 
-// DTOs für Tenant-Self-Service-Mutationen. Plan- und Cycle-IDs werden als
-// String validiert (kein hartes Enum), weil die erlaubten Werte aus dem
-// Konsumenten-PlanCatalog stammen — der Plattform-Service prüft Zulässigkeit
-// gegen den Catalog und blockt unbekannte Plans/Kinds dort serverseitig.
+// DTOs for tenant self-service mutations. Plan and cycle IDs are validated as
+// strings (no hard enum), because the allowed values come from the consumer's
+// PlanCatalog — the platform service checks admissibility against the catalog
+// and blocks unknown plans/kinds there, server-side.
 
 const PLAN_OR_CYCLE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
@@ -20,14 +20,14 @@ export class PreviewPlanChangeDto {
 }
 
 export class ChangePlanDto extends PreviewPlanChangeDto {
-    /** Sofort-Wechsel (true) vs. Wechsel zum Periodenende (false/undefined). */
+    /** Immediate change (true) vs. change at period end (false/undefined). */
     @IsOptional()
     @IsBoolean()
     effectiveImmediately?: boolean;
 }
 
 export class CancelSubscriptionDto {
-    /** true = sofort kündigen (Status CANCELED). false/undefined = zum Periodenende. */
+    /** true = cancel immediately (status CANCELED). false/undefined = at period end. */
     @IsOptional()
     @IsBoolean()
     immediately?: boolean;

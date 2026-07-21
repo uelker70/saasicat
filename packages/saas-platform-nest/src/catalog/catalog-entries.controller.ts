@@ -1,9 +1,9 @@
-// CatalogEntriesController — REST-Endpunkte für den Discovery-Review
-// (Capabilities, Features, Quotas + Übersetzungen + Snapshot-Sync).
+// CatalogEntriesController — REST endpoints for the discovery review
+// (Capabilities, Features, Quotas + translations + snapshot sync).
 //
-// Pfad-Konvention: `/admin/catalog/{capabilities,features,quotas}` und
-// `/admin/catalog/discovery/sync`. Wie BundlesController zur Boot-Zeit
-// gebaut, damit der Konsument die Guards bestimmt.
+// Path convention: `/admin/catalog/{capabilities,features,quotas}` and
+// `/admin/catalog/discovery/sync`. Built at boot time like BundlesController,
+// so the consumer determines the guards.
 
 import {
     Body,
@@ -181,7 +181,7 @@ export function buildCatalogEntriesController(guards: Array<Type<CanActivate>>):
             return row;
         }
 
-        /** Upsertet die Catalog-Entries aus dem mitgelieferten Discovery-Snapshot. */
+        /** Upserts the catalog entries from the supplied discovery snapshot. */
         @Post('discovery/sync')
         async syncDiscovery(@Req() req: unknown, @Body() dto: SyncDiscoveryDto) {
             const result = await this.service.syncFromSnapshot(dto.snapshot);

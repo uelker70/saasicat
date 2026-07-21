@@ -65,7 +65,7 @@ function planLabel(planKey: string): string {
     return props.plans.find((p) => p.planKey === planKey)?.label ?? planKey;
 }
 
-// Leere Kompatibilitätsliste = bundle gilt für alle Pläne (vgl. PlanMatrix.hasBundle).
+// Empty compatibility list = bundle applies to all plans (cf. PlanMatrix.hasBundle).
 function compatLabel(bundle: BundleEntry): string {
     const keys = bundle.compatiblePlanKeys ?? [];
     if (keys.length === 0) return 'Alle Pläne';

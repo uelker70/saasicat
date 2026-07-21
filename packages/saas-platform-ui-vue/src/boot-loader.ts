@@ -1,11 +1,11 @@
-// BootLoader — fetcht den Public-Boot-Endpoint (öffentlich, pre-login).
+// BootLoader — fetches the public boot endpoint (public, pre-login).
 //
-// Liefert Branding-Minimaldaten für die SuperAdmin-Login-Seite (project.key,
-// displayName, logoUrl, environment) — bewusst KEINE Capabilities oder
-// Page-Definitionen vor Login.
+// Provides minimal branding data for the SuperAdmin login page (project.key,
+// displayName, logoUrl, environment) — deliberately NO capabilities or page
+// definitions before login.
 //
-// **Endpoint ist Pflicht** und wird vom App-Konsumenten geliefert, weil
-// Apps unterschiedliche `globalPrefix`-Konventionen haben:
+// **Endpoint is mandatory** and supplied by the app consumer, because apps
+// have different `globalPrefix` conventions:
 //   - `globalPrefix='api/v1'` → `/api/v1/admin/boot`
 //   - `globalPrefix='api'`    → `/api/admin/boot`
 //
@@ -16,11 +16,11 @@ import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface BootLoaderOptions {
     /**
-     * Voll-qualifizierter Boot-Endpoint inkl. App-globalPrefix
-     * (`/api/admin/boot`, `/api/v1/admin/boot`, …). Pflicht.
+     * Fully-qualified boot endpoint incl. app globalPrefix
+     * (`/api/admin/boot`, `/api/v1/admin/boot`, …). Mandatory.
      */
     endpoint: string;
-    /** Default `defaultHttpClient()` (= `fetch`). */
+    /** Defaults to `defaultHttpClient()` (= `fetch`). */
     http?: HttpClient;
 }
 

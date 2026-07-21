@@ -6,11 +6,11 @@ import {
     Injectable,
 } from '@nestjs/common';
 
-// Leichter In-Memory-Rate-Limiter für /onboarding/promo-code/preview.
-// Ohne externe Dependencies — bewusst simpel gehalten. Für skalierende
-// Deploys (Multi-Instance) sollte das später durch Redis o. ä. ersetzt werden.
+// Lightweight in-memory rate limiter for /onboarding/promo-code/preview.
+// No external dependencies — deliberately kept simple. For scaling
+// deploys (multi-instance) this should later be replaced by Redis or similar.
 //
-// Spec: max. 20 Versuche pro IP/Minute, max. 50 pro Onboarding-Session.
+// Spec: max. 20 attempts per IP/minute, max. 50 per onboarding session.
 
 const IP_WINDOW_MS = 60_000;
 const IP_LIMIT = 20;
@@ -80,8 +80,8 @@ export function ipFingerprint(req: RequestLike): string {
 }
 
 export function hashIp(req: RequestLike): string {
-    // Kein kryptografischer Hash, nur gegen versehentliches IP-Logging.
-    // Datenschutzkonform für interne Audit-Logs.
+    // Not a cryptographic hash, only to guard against accidental IP logging.
+    // Privacy-compliant for internal audit logs.
     const fp = ipFingerprint(req);
     let h = 0;
     for (let i = 0; i < fp.length; i++) {

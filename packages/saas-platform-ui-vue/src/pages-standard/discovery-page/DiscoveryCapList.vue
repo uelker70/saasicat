@@ -60,15 +60,15 @@
 import type { CapabilityCatalogEntryRow } from '@saasicat/types';
 import { kindStyle } from './discovery-ui.js';
 
-// Read-only Capability-Liste: Code-Fakten aus dem Scan (#20). Eingebettet im
-// Stammdaten-Subtab der Feature-Karte sowie im Orphan-Bucket der Seite.
+// Read-only Capability list: code facts from the scan (#20). Embedded in the
+// master-data subtab of the feature card as well as in the page's orphan bucket.
 
 const props = defineProps<{
     capabilities: CapabilityCatalogEntryRow[];
     declaredAtByKey: Record<string, string>;
     /**
-     * Baseline für das „neu"-Flag — Capabilities mit `createdAt` danach
-     * gelten als neu seit der letzten Feature-Freigabe (`approvedAt`).
+     * Baseline for the "new" flag — Capabilities with a later `createdAt`
+     * count as new since the last feature approval (`approvedAt`).
      */
     newSince?: string | null;
 }>();

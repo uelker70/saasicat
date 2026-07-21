@@ -1,10 +1,10 @@
-// usePublicBoot — Vue-3-Composable über BootLoader.
+// usePublicBoot — Vue 3 composable over BootLoader.
 //
-// Verwendung im Login-Layout:
+// Usage in the login layout:
 //
 //     const { boot, loading, error, load } = usePublicBoot();
 //     await load();
-//     // boot.value enthält jetzt project.{key,displayName,logoUrl}.
+//     // boot.value now contains project.{key,displayName,logoUrl}.
 
 import { ref, type Ref } from 'vue';
 import type { PublicBootResponse } from '@saasicat/types';

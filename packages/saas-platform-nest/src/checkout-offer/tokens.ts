@@ -1,4 +1,4 @@
-// DI-Token für das CheckoutOffer-Modul (METAMODELL §17a).
+// DI token for the CheckoutOffer module (METAMODELL §17a).
 
-/** Repository für `checkout_offers`. */
+/** Repository for `checkout_offers`. */
 export const CHECKOUT_OFFER_REPOSITORY_TOKEN = Symbol('CHECKOUT_OFFER_REPOSITORY');

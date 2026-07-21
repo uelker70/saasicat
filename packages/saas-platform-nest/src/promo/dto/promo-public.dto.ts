@@ -1,8 +1,8 @@
 import { IsEmail, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
-// DTOs für `PromoCodePublicController`. Code-Pattern deckt sich mit dem
-// internen `CODE_PATTERN` in `service.ts`; Plan-/Cycle-Pattern wie in
-// `tenant-billing.dto.ts` (SCREAMING_SNAKE_CASE — Catalog-Lookup im Service).
+// DTOs for `PromoCodePublicController`. The code pattern matches the
+// internal `CODE_PATTERN` in `service.ts`; plan/cycle pattern as in
+// `tenant-billing.dto.ts` (SCREAMING_SNAKE_CASE — catalog lookup in the service).
 
 const PLAN_OR_CYCLE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const CODE_PATTERN = /^[A-Z0-9_-]{4,32}$/i;

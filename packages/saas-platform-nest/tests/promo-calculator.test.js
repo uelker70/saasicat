@@ -1,5 +1,5 @@
-// Tests für @saasicat/nest/promo — Calculator + Math.
-// Pure-Function-Tests; keine DB, keine NestJS-DI.
+// Tests for @saasicat/nest/promo — calculator + math.
+// Pure-function tests; no DB, no NestJS DI.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,27 +18,27 @@ import {
 // Math
 // ──────────────────────────────────────────────────────────────────
 
-test('round2 rundet auf zwei Dezimalstellen', () => {
+test('round2 rounds to two decimal places', () => {
     assert.equal(round2(1.234), 1.23);
     assert.equal(round2(1.235), 1.24);
     assert.equal(round2(0.1 + 0.2), 0.3);
-    // round2 nutzt Math.round(n*100)/100 — FP-Edge-Cases wie 1.005 (entspricht
-    // intern 1.00499…) runden ab. Das entspricht der ursprünglichen Implementierung.
+    // round2 uses Math.round(n*100)/100 — FP edge cases like 1.005 (which is
+    // internally 1.00499…) round down. This matches the original implementation.
     assert.equal(round2(1.005), 1);
 });
 
-test('grossFromNet addiert MwSt', () => {
+test('grossFromNet adds VAT', () => {
     assert.equal(grossFromNet(100, 19), 119);
     assert.equal(grossFromNet(24.9, 19), 29.63);
 });
 
-test('computeIncludedVat extrahiert MwSt aus Brutto', () => {
+test('computeIncludedVat extracts VAT from gross', () => {
     assert.equal(computeIncludedVat(119, 19), 19);
     assert.equal(computeIncludedVat(29.63, 19), 4.73);
 });
 
 // ──────────────────────────────────────────────────────────────────
-// Calculator: Rabatte
+// Calculator: discounts
 // ──────────────────────────────────────────────────────────────────
 
 test('computeDiscountGross PERCENT 25%', () => {
@@ -51,28 +51,28 @@ test('computeDiscountGross ABSOLUTE 30 EUR', () => {
     assert.equal(result, 30);
 });
 
-test('computeDiscountGross akzeptiert Prisma-Decimal-String', () => {
-    // Prisma liefert Decimal als String — Number(string) muss funktionieren.
+test('computeDiscountGross accepts a Prisma decimal string', () => {
+    // Prisma returns a decimal as a string — Number(string) must work.
     const result = computeDiscountGross({ gross: 100 }, { valueType: 'PERCENT', value: '25' });
     assert.equal(result, 25);
 });
 
-test('computeDiscountedGross subtrahiert', () => {
+test('computeDiscountedGross subtracts', () => {
     assert.equal(computeDiscountedGross(100, 25), 75);
     assert.equal(computeDiscountedGross(50, 12.5), 37.5);
-    // FP-Edge-Case: 29.9 - 7.475 wäre mathematisch 22.425, FP liefert ~22.4249…,
-    // round2 → 22.42. Wir akzeptieren das, weil die ursprüngliche Logik
-    // identisch arbeitet.
+    // FP edge case: 29.9 - 7.475 would mathematically be 22.425, but FP yields ~22.4249…,
+    // so round2 → 22.42. We accept this because the original logic
+    // behaves identically.
     assert.equal(computeDiscountedGross(29.9, 7.475), 22.42);
 });
 
 // ──────────────────────────────────────────────────────────────────
-// Calculator: Datums-Mathematik
+// Calculator: date math
 // ──────────────────────────────────────────────────────────────────
 
-// Date-Komponenten in lokaler Zeit prüfen — die Calculator-Funktionen nutzen
-// setMonth/setFullYear (lokale Zeit), wie in der ursprünglichen Vorlage. Tests sind
-// damit Timezone-/DST-stabil.
+// Check date components in local time — the calculator functions use
+// setMonth/setFullYear (local time), as in the original template. This keeps the
+// tests timezone- and DST-stable.
 function expectLocalDate(actual, year, monthIndex, day) {
     assert.equal(actual.getFullYear(), year);
     assert.equal(actual.getMonth(), monthIndex);
@@ -80,7 +80,7 @@ function expectLocalDate(actual, year, monthIndex, day) {
 }
 
 test('addCycles MONTHLY +3', () => {
-    const start = new Date(2026, 0, 15, 12, 0, 0); // 15.01.2026 lokal
+    const start = new Date(2026, 0, 15, 12, 0, 0); // 2026-01-15 local
     const result = addCycles(start, 'MONTHLY', 3);
     expectLocalDate(result, 2026, 3, 15);
 });
@@ -91,7 +91,7 @@ test('addCycles YEARLY +2', () => {
     expectLocalDate(result, 2028, 0, 15);
 });
 
-test('computeRegularStartsAt ONCE → eine Periode', () => {
+test('computeRegularStartsAt ONCE → one period', () => {
     const start = new Date(2026, 0, 15, 12, 0, 0);
     const result = computeRegularStartsAt(start, 'MONTHLY', 'ONCE', null);
     expectLocalDate(result, 2026, 1, 15);
@@ -137,7 +137,7 @@ test('buildLabel BILLING_CYCLES 1 YEARLY → "im ersten Jahr"', () => {
     assert.equal(label, '10 % im ersten Jahr');
 });
 
-test('buildLabel MONTHS 1 → Singular', () => {
+test('buildLabel MONTHS 1 → singular', () => {
     const label = buildLabel(
         { valueType: 'PERCENT', value: 25, durationType: 'MONTHS', durationValue: 1 },
         'MONTHLY',

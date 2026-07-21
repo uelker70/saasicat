@@ -21,29 +21,29 @@ import {
     SUBSCRIPTION_STATS_PORT_TOKEN,
 } from './admin-stats.tokens.js';
 
-// AdminStatsModule — registriert `GET /admin/stats/dashboard` mit den drei
-// App-Adaptern. Konsumenten implementieren `SubscriptionStatsPort`,
-// `PromoCodeStatsPort`, `AuditStatsPort` und reichen sie via forRoot durch.
+// AdminStatsModule — registers `GET /admin/stats/dashboard` with the three
+// app adapters. Consumers implement `SubscriptionStatsPort`,
+// `PromoCodeStatsPort`, `AuditStatsPort` and pass them through via forRoot.
 //
-// Voraussetzung: `SuperAdminGuard` ist im DI-Scope verfügbar — entweder
-// durch `AdminModule.forRoot({...})` (das ihn als Provider exportiert) oder
-// durch direktes Provider-Registrieren in der App.
+// Prerequisite: `SuperAdminGuard` is available in the DI scope — either
+// through `AdminModule.forRoot({...})` (which exports it as a provider) or
+// by registering the provider directly in the app.
 
 export interface AdminStatsModuleOptions {
     subscriptionStatsPort: ProviderSpec<SubscriptionStatsPort>;
     promoCodeStatsPort: ProviderSpec<PromoCodeStatsPort>;
     auditStatsPort: ProviderSpec<AuditStatsPort>;
-    /** Audit-Fenster in Tagen für die "letzte N Tage"-KPI. Default 7. */
+    /** Audit window in days for the "last N days" KPI. Default 7. */
     auditWindowDays?: number;
     /**
-     * Module, deren Provider im DI-Scope dieses DynamicModules sichtbar sein
-     * müssen — z. B. das App-Modul, das die Adapter-Klassen registriert, die
-     * die Factory-`inject`-Listen referenzieren.
+     * Modules whose providers must be visible in the DI scope of this
+     * DynamicModule — e.g. the app module that registers the adapter classes
+     * referenced by the factory `inject` lists.
      */
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
-    /** Zusätzliche Provider, die im DynamicModule selbst registriert werden. */
+    /** Additional providers registered in the DynamicModule itself. */
     extraProviders?: Provider[];
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 

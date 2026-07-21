@@ -20,18 +20,18 @@ const LOCALE_PATTERN = /^[a-z]{2}(-[A-Z]{2})?$/;
 const TARGET_TYPES = ['PLAN', 'BUNDLE', 'BUSINESS_TYPE'] as const;
 
 export class MarketingTopFeatureDto {
-    /** Optionale Feature-/Quota-Key-Referenz (Auto-Übersetzung des Labels). */
+    /** Optional feature/quota key reference (auto-translation of the label). */
     @IsOptional()
     @IsString()
     @MaxLength(120)
     key?: string;
 
-    /** Fließtext bzw. Override; leer + `key` gesetzt = Auto-Label. */
+    /** Free text or override; empty + `key` set = auto label. */
     @IsString()
     @MaxLength(120)
     label!: string;
 
-    /** Optionaler fett gesetzter Zusatz — darf leer sein. */
+    /** Optional bold addendum — may be empty. */
     @IsString()
     @MaxLength(80)
     strong!: string;

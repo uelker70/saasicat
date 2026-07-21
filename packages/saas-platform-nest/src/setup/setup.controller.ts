@@ -1,8 +1,8 @@
-// SetupController — öffentlicher First-Run-Endpoint des Admin-UI.
+// SetupController — public first-run endpoint of the admin UI.
 //
-// BEWUSST OHNE Auth-Guards: vor dem ersten SUPER_ADMIN gibt es keine Session.
-// Der Schutz liegt im SetupService (SETUP_TOKEN + Self-Disable). Validierung der
-// Eingaben via class-validator (globale ValidationPipe des Konsumenten).
+// DELIBERATELY WITHOUT auth guards: before the first SUPER_ADMIN there is no session.
+// Protection lives in the SetupService (SETUP_TOKEN + self-disable). Input
+// validation via class-validator (the consumer's global ValidationPipe).
 
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import type {

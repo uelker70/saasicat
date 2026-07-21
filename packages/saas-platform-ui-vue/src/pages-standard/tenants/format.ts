@@ -1,8 +1,8 @@
-// Format-Helfer für die Tenants-Page.
+// Formatting helpers for the tenants page.
 //
-// Geteilt zwischen TenantsPage.vue und Subkomponenten (Avatar, Pill).
-// Apps mit eigenen Plan-Akzenten reichen sie via `planAccents`-Prop durch;
-// die Default-Map deckt die Standard-Plan-IDs (BASIC..ENTERPRISE) ab.
+// Shared between TenantsPage.vue and subcomponents (Avatar, Pill).
+// Apps with their own plan accents pass them through via the `planAccents` prop;
+// the default map covers the standard plan IDs (BASIC..ENTERPRISE).
 
 export const DEFAULT_PLAN_ACCENTS: Record<string, string> = {
     BASIC: '#94a3b8',

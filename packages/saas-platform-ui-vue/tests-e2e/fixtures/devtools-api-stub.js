@@ -1,4 +1,4 @@
-// No-op-Stub für `@vue/devtools-api` im E2E-Fixture. Der pinia
-// esm-browser-Build importiert `setupDevtoolsPlugin` statisch; ohne
-// laufende Devtools ist der Hook funktionslos, muss aber auflösbar sein.
+// No-op stub for `@vue/devtools-api` in the E2E fixture. The pinia
+// esm-browser build imports `setupDevtoolsPlugin` statically; without
+// running Devtools the hook does nothing, but it must still be resolvable.
 export function setupDevtoolsPlugin() {}

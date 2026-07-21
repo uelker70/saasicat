@@ -1,10 +1,10 @@
-// CheckoutOfferModule — DI-Wrapper um den CheckoutOfferService (METAMODELL §17a).
+// CheckoutOfferModule — DI wrapper around the CheckoutOfferService (METAMODELL §17a).
 //
 // ```ts
 // CheckoutOfferModule.forRoot({
 //   checkoutOfferRepository: { useFactory: (r: PrismaCheckoutOfferRepository) => r,
 //                              inject: [PrismaCheckoutOfferRepository] },
-//   controller: { guards: [] }, // auth-frei — Offer entsteht vor Tenant-Anlage
+//   controller: { guards: [] }, // auth-free — offer is created before tenant creation
 //   imports: [PrismaModule],
 // })
 // ```
@@ -35,32 +35,31 @@ import { buildCheckoutOfferController } from './checkout-offer.controller.js';
 import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './tokens.js';
 
 export interface CheckoutOfferControllerConfig {
-    /** Class-Level-Guards; `[]` für auth-freie Public-Endpoints. */
+    /** Class-level guards; `[]` for auth-free public endpoints. */
     guards: Array<Type<CanActivate>>;
 }
 
 export interface CheckoutOfferModuleOptions {
     checkoutOfferRepository: ProviderSpec<CheckoutOfferRepository>;
     /**
-     * Optional für V3-Revalidation beim Consume: wenn gesetzt, prüft der
-     * Service, ob referenzierte BundleVersionen weiterhin buchbar sind.
-     * Liefert außerdem die Bundle-Features für die requires-Validierung
-     * (#35 P6).
+     * Optional for V3 revalidation on consume: if set, the service checks
+     * whether referenced bundle versions are still bookable. Also provides
+     * the bundle features for the requires validation (#35 P6).
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
     /**
-     * Optional für die requires-Validierung (#35 P6): Plan-Features der
-     * gewählten PlanVersion. Ohne Wiring Fallback auf die featuresSnapshot
-     * der Plan-LineItem.
+     * Optional for the requires validation (#35 P6): plan features of the
+     * chosen plan version. Without wiring, falls back to the featuresSnapshot
+     * of the plan line item.
      */
     planRepository?: ProviderSpec<PlanRepository>;
     /**
-     * Optional für die requires-Validierung (#35 P6): requires-Quelle =
-     * kuratierte FeatureCatalogEntries. Ohne Wiring wird die Validierung
-     * übersprungen (graceful).
+     * Optional for the requires validation (#35 P6): requires source =
+     * curated FeatureCatalogEntries. Without wiring, the validation is
+     * skipped (graceful).
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
-    /** Controller-Mount für `/public/checkout-offer`. Weggelassen = nur Service. */
+    /** Controller mount for `/public/checkout-offer`. Omitted = service only. */
     controller?: CheckoutOfferControllerConfig;
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     extraProviders?: Provider[];

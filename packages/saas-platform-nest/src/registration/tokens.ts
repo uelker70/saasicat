@@ -1,5 +1,5 @@
-// DI-Tokens fuer das Registration-Module.
-// Konsumenten injizieren ihre Adapter-Implementations ueber diese Symbol-Tokens
+// DI tokens for the Registration module.
+// Consumers inject their adapter implementations via these symbol tokens
 // in `RegistrationModule.forRoot({...})`.
 
 export const PENDING_REGISTRATION_REPOSITORY_TOKEN = Symbol('PENDING_REGISTRATION_REPOSITORY');
@@ -17,10 +17,10 @@ export const REGISTRATION_RESUME_DELIVERY_TOKEN = Symbol('REGISTRATION_RESUME_DE
 export const REGISTRATION_RESUME_BASE_URL_TOKEN = Symbol('REGISTRATION_RESUME_BASE_URL');
 export const REGISTRATION_CONFIGURATOR_LOOKUP_TOKEN = Symbol('REGISTRATION_CONFIGURATOR_LOOKUP');
 export const REGISTRATION_PROMO_PREVIEW_TOKEN = Symbol('REGISTRATION_PROMO_PREVIEW');
-/** SPEC_V2 §11.1 M5.3 — published BusinessTypeVersion-Lookup für Konfigurator-Wahl. */
+/** SPEC_V2 §11.1 M5.3 — published BusinessTypeVersion lookup for configurator selection. */
 export const REGISTRATION_BUSINESS_TYPE_LOOKUP_TOKEN = Symbol('REGISTRATION_BUSINESS_TYPE_LOOKUP');
 
-/** Optional injizierbare Konfiguration — fallback auf Default-TTLs aus saas-platform-types. */
+/** Optionally injectable configuration — falls back to default TTLs from saas-platform-types. */
 export const REGISTRATION_CONFIG_TOKEN = Symbol('REGISTRATION_CONFIG');
 
 export interface PasswordHasher {

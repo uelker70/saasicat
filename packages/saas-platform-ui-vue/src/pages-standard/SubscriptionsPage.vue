@@ -27,9 +27,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 
-// Plattform-Standard-Page: Abonnements (minimal). Apps reichen
-// `loadSubscriptions` + optional `columns` durch — Default-Spalten zeigen
-// Tenant/Plan/Status/Period.
+// Platform standard page: subscriptions (minimal). Apps pass
+// `loadSubscriptions` + optional `columns` through — default columns show
+// tenant/plan/status/period.
 
 export interface SubscriptionRow {
     id: string;

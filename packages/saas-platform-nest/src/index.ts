@@ -1,25 +1,25 @@
-// @saasicat/nest — Top-Level-Exports.
+// @saasicat/nest — top-level exports.
 //
-// Sub-Entries (siehe package.json exports):
-//   ./promo        — Promo-Code-Calculator + Math-Helpers
-//   ./billing      — Billing-Period-Math, Version-Diff-Klassifikation,
-//                    RequireFeature-Decorator, PlanCatalogModule, plan-helpers,
-//                    version-publish (Pure-Function-Validierung),
-//                    version-renewal (Pure-Function-Math)
+// Sub-entries (see package.json exports):
+//   ./promo        — promo-code calculator + math helpers
+//   ./billing      — billing-period math, version-diff classification,
+//                    RequireFeature decorator, PlanCatalogModule, plan-helpers,
+//                    version-publish (pure-function validation),
+//                    version-renewal (pure-function math)
 //   ./entitlement  — aggregateLimits, resolveEntitlementPlan,
 //                    LimitExceededError, EntitlementService, EntitlementModule
 //   ./admin        — SuperAdminGuard, MfaGuard, RequireMfa, MfaService,
 //                    AdminAuditService, AdminBypassRlsInterceptor, AdminModule
-//   ./registration — PendingRegistrationService, RegistrationModule, OTP/Slug-Helpers
-//                    fuer den mehrstufigen Registrierungs-Flow.
+//   ./registration — PendingRegistrationService, RegistrationModule, OTP/slug helpers
+//                    for the multi-step registration flow.
 //   ./discovery    — @ImplementsCapability/@RequiresCapability/@DefinesQuota/
-//                    @EnforceQuota Decorators, DiscoveryScanner, DiscoveryModule
-//                    (siehe SPEC_V2.md §3)
-//   ./catalog      — BundlesService + Controller + Module für Bundle/BundleVersion-
-//                    CRUD im SuperAdmin (SPEC_V2.md §11.1 M3)
-//   ./checkout-offer — CheckoutOfferModule/Service fuer Paket-Snapshots
-//   ./subscription-contract — immutable SubscriptionContract-Service fuer V3
-//   ./testing      — Fake-Adapter (FakeSubscriptionRepository, …) für Tests
+//                    @EnforceQuota decorators, DiscoveryScanner, DiscoveryModule
+//                    (see SPEC_V2.md §3)
+//   ./catalog      — BundlesService + Controller + Module for Bundle/BundleVersion
+//                    CRUD in SuperAdmin (SPEC_V2.md §11.1 M3)
+//   ./checkout-offer — CheckoutOfferModule/Service for package snapshots
+//   ./subscription-contract — immutable SubscriptionContract service for V3
+//   ./testing      — fake adapters (FakeSubscriptionRepository, …) for tests
 
 export * from './core/di.js';
 export * from './promo/index.js';

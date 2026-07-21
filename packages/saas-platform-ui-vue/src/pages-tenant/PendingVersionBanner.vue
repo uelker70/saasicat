@@ -30,11 +30,11 @@
 </template>
 
 <script setup lang="ts">
-// PendingVersionBanner — informiert Tenant über eine anstehende PlanVersion-
-// Änderung (Phase-4-Roadmap). Für regressive (= einschränkende) Änderungen
-// erfordert die Plattform eine explizite Bestätigung — der Banner bietet
-// einen "Akzeptieren"-Button. Für non-regressive Änderungen läuft das per
-// Renewal-Cron automatisch durch.
+// PendingVersionBanner — informs the tenant about an upcoming PlanVersion
+// change (Phase 4 roadmap). For regressive (= restricting) changes
+// the platform requires an explicit confirmation — the banner provides
+// an "Accept" button. For non-regressive changes this runs automatically
+// via the renewal cron.
 
 interface PendingPlanVersion {
     id: string;

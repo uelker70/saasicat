@@ -1,8 +1,8 @@
-// PlanCatalogImporterModule — DI-Wrapper um den Importer-Service.
+// PlanCatalogImporterModule — DI wrapper around the importer service.
 // SPEC_V2 §11.1 M6 Pack 2c.
 //
-// Konsumenten reichen ihren App-spezifischen `PlanCatalogImportSink`
-// durch und bekommen den Service plus optional einen Admin-Endpoint
+// Consumers pass their app-specific `PlanCatalogImportSink` through and
+// get the service plus optionally an admin endpoint
 // (`POST /admin/billing/plan-catalog/import`).
 
 import {
@@ -24,9 +24,9 @@ import { asProvider, type ProviderSpec } from '../core/di.js';
 
 export interface PlanCatalogImporterControllerConfig {
     /**
-     * Class-Level-Guards für `/admin/billing/plan-catalog/import`. Pflicht
-     * wenn `controller` gesetzt — übergebe `[]` explizit für auth-frei
-     * (nur in Tests sinnvoll).
+     * Class-level guards for `/admin/billing/plan-catalog/import`. Required
+     * when `controller` is set — pass `[]` explicitly for auth-free
+     * (only sensible in tests).
      */
     guards: Array<Type<CanActivate>>;
 }

@@ -25,7 +25,7 @@
             </q-card-section>
 
             <q-card-section class="pc-dlg__body">
-                <!-- Section: Code & Rabatt -->
+                <!-- Section: Code & discount -->
                 <div class="pc-section">
                     <div class="pc-section__title">Code &amp; Rabatt</div>
                     <div class="pc-grid pc-grid--2">
@@ -71,7 +71,7 @@
                     </div>
                 </div>
 
-                <!-- Section: Gültigkeit & Laufzeit -->
+                <!-- Section: Validity & duration -->
                 <div class="pc-section">
                     <div class="pc-section__title">Gültigkeit &amp; Laufzeit</div>
 
@@ -178,7 +178,7 @@
                     </div>
                 </div>
 
-                <!-- Section: Kampagne & Notiz -->
+                <!-- Section: Campaign & note -->
                 <div class="pc-section">
                     <div class="pc-section__title">Kampagne &amp; Notizen</div>
                     <div v-if="showCampaignTag" class="pc-field">
@@ -201,7 +201,7 @@
                     </div>
                 </div>
 
-                <!-- Section: Erweitert -->
+                <!-- Section: Advanced -->
                 <div class="pc-section">
                     <button
                         type="button"
@@ -256,7 +256,7 @@
                     </div>
                 </div>
 
-                <!-- Live-Preview -->
+                <!-- Live preview -->
                 <div class="pc-preview">
                     <div class="pc-preview__eyebrow">Vorschau im Catalog</div>
                     <div class="pc-preview__body">
@@ -293,12 +293,12 @@ import type {
     PromoCodeValueType,
 } from './types.js';
 
-// Plattform-PromoCode-Edit-Dialog. Layout identisch zu PromoCodeCreateDialog
-// (Sektionen, Type-Grid, Plan-Picker), nur `code` ist disabled — der Code
-// bleibt nach Anlage stabil, weil bereits ausgegebene Codes sonst nicht
-// nachvollziehbar wären. Alle anderen Felder lassen sich nachträglich
-// pflegen; bestehende Redemptions sind über `appliedValue`-Snapshots
-// gefroren und bleiben durch Änderungen unberührt.
+// Platform PromoCode edit dialog. Layout identical to PromoCodeCreateDialog
+// (sections, type grid, plan picker), only `code` is disabled — the code
+// stays stable after creation, because already-issued codes would otherwise
+// no longer be traceable. All other fields can be maintained afterwards;
+// existing redemptions are frozen via `appliedValue` snapshots and remain
+// untouched by changes.
 
 export interface PromoCodeEditRow {
     id: string;

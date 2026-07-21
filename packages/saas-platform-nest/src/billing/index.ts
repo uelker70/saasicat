@@ -1,17 +1,17 @@
-// @saasicat/nest/billing — Sub-Entry für Billing-Logik.
+// @saasicat/nest/billing — sub-entry for billing logic.
 //
-// Aktuell (P1-Slice):
+// Currently (P1 slice):
 //   - billing-period:    periodEndAfter, initialPeriodWindow, periodEndWithMinLead
 //   - version-diff:      classifyPlanDiff, classifyBundleVersionDiff
-//   - require-feature:   @RequireFeature(...keys) Decorator + REQUIRE_FEATURE_KEY
+//   - require-feature:   @RequireFeature(...keys) decorator + REQUIRE_FEATURE_KEY
 //   - plan-catalog-loader: loadPlanCatalogFromFile() / loadPlanCatalogFromString()
-//   - PlanCatalogModule: NestJS-Modul mit forRoot({ path }) + PLAN_CATALOG_TOKEN
+//   - PlanCatalogModule: NestJS module with forRoot({ path }) + PLAN_CATALOG_TOKEN
 //   - plan-helpers:      findPlan, getPlanOrThrow, getMarketedPlans,
 //                        getPlanPriceNet/Gross, getPlanQuota,
 //                        isFeatureInPlan, isFeaturePlannedOnly
 //
-// Folge-Phasen ergänzen: PlanVersionsService, Plan-Version-Renewal/
-// Notification-Cron, TrialExpirationService.
+// Later phases add: PlanVersionsService, plan version renewal/
+// notification cron, TrialExpirationService.
 
 export * from './billing-period.js';
 export * from './version-diff.js';

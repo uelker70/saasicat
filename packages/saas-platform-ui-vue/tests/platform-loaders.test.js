@@ -1,6 +1,6 @@
-// createPlatformLoaders — Tests dass die Factory aus einer einzigen
-// `endpoints`-Konstante korrekt `BootLoader` + `ManifestLoader` baut und
-// dabei sowohl Default-Ableitung als auch explizite Overrides respektiert.
+// createPlatformLoaders — tests that the factory correctly builds
+// `BootLoader` + `ManifestLoader` from a single `endpoints` constant,
+// respecting both default derivation and explicit overrides.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,7 +33,7 @@ function buildHttp(responses) {
 }
 
 describe('createPlatformLoaders', () => {
-    test('liefert BootLoader + ManifestLoader-Instanzen', () => {
+    test('returns BootLoader + ManifestLoader instances', () => {
         const { http } = buildHttp([{ status: 200, body: {} }]);
         const loaders = createPlatformLoaders({
             endpoints: { apiBase: '/api/admin' },
@@ -43,7 +43,7 @@ describe('createPlatformLoaders', () => {
         assert.ok(loaders.manifestLoader instanceof ManifestLoader);
     });
 
-    test('leitet Default-Endpoints aus apiBase ab', async () => {
+    test('derives default endpoints from apiBase', async () => {
         const { http, calls } = buildHttp([
             { status: 200, body: { project: { key: 'cf', displayName: 'CF' } } },
             { status: 200, body: { schemaVersion: 1 }, headers: { etag: '"a"' } },
@@ -59,7 +59,7 @@ describe('createPlatformLoaders', () => {
         assert.equal(calls[1].url, '/api/admin/manifest');
     });
 
-    test('honoriert explizite Endpoint-Overrides', async () => {
+    test('honors explicit endpoint overrides', async () => {
         const { http, calls } = buildHttp([
             { status: 200, body: { project: { key: 'ma', displayName: 'MA' } } },
             { status: 200, body: { schemaVersion: 1 }, headers: { etag: '"b"' } },
@@ -79,7 +79,7 @@ describe('createPlatformLoaders', () => {
         assert.equal(calls[1].url, '/api/v1/admin/manifest');
     });
 
-    test('reicht storageKeyPrefix + getAuthToken an ManifestLoader durch', async () => {
+    test('passes storageKeyPrefix + getAuthToken through to ManifestLoader', async () => {
         const storage = buildStorage();
         const { http, calls } = buildHttp([
             { status: 200, body: { schemaVersion: 1 }, headers: { etag: '"v1"' } },

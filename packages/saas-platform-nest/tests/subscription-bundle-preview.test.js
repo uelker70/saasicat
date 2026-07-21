@@ -8,15 +8,15 @@ import {
     FakeSubscriptionBundleRepository,
 } from '../dist/testing/index.js';
 
-// SubscriptionBundlePreviewService (#37) — Add-/Cancel-Vorschau mit
-// Proration (geteilter computeProration-Helper), Redundanz-Hinweis
-// (sakarel AK-13), requires-Dependency-Check (#35) und Self-Service-Policy.
+// SubscriptionBundlePreviewService (#37) — add/cancel preview with
+// proration (shared computeProration helper), redundancy hint
+// (sakarel AK-13), requires dependency check (#35) and self-service policy.
 
 const PROJECT = 'clubapp';
 const SUB_A = 'sub-a';
 const NOW = new Date('2026-05-17T00:00:00Z');
 
-// Mai 2026: 31 Periodentage, ab 17.05. verbleiben 15 Tage.
+// May 2026: 31 period days, from 05-17 there are 15 days remaining.
 const CTX = {
     subscriptionId: SUB_A,
     currentPlanKey: 'PRO',
@@ -106,7 +106,7 @@ async function createPublishedBundle({
 }
 
 describe('SubscriptionBundlePreviewService — previewAdd', () => {
-    test('Proration: anteiliger Betrag bis Periodenende + Folgeperioden-Preis', async () => {
+    test('proration: prorated amount until period end + next-period price', async () => {
         const bv = await createPublishedBundle({ key: 'B1', monthlyNet: '31.00' });
         const dto = await buildService().previewAdd(CTX, { bundleVersionId: bv.id }, NOW);
 
@@ -120,7 +120,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.deepEqual(dto.blockers, []);
     });
 
-    test('YEARLY-Cycle nutzt yearlyNet, plan-spezifischer Pricing-Override gewinnt', async () => {
+    test('YEARLY cycle uses yearlyNet, plan-specific pricing override wins', async () => {
         const bv = await createPublishedBundle({
             key: 'B1',
             yearlyNet: '310.00',
@@ -135,7 +135,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.equal(dto.proration.targetPriceNet, 250);
     });
 
-    test('TRIAL: keine Proration (noch keine bezahlte Periode)', async () => {
+    test('TRIAL: no proration (no paid period yet)', async () => {
         const bv = await createPublishedBundle({ key: 'B1' });
         const dto = await buildService().previewAdd(
             { ...CTX, status: 'TRIAL' },
@@ -146,7 +146,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.equal(dto.nextPeriodPriceNet, 31);
     });
 
-    test('Mindestlaufzeit: Default 12 Monate ab now, 0 = keine', async () => {
+    test('minimum term: default 12 months from now, 0 = none', async () => {
         const bv = await createPublishedBundle({ key: 'B1' });
         const svc = buildService();
 
@@ -162,7 +162,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.equal(none.minimumTermEndsAt, null);
     });
 
-    test('Redundanz (AK-13): Feature bereits im Plan → Hinweis + Warning', async () => {
+    test('redundancy (AK-13): feature already in plan → hint + warning', async () => {
         const bv = await createPublishedBundle({ key: 'B1', features: ['WHATSAPP', 'NEU'] });
         const dto = await buildService().previewAdd(CTX, { bundleVersionId: bv.id }, NOW);
 
@@ -172,7 +172,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.ok(dto.warnings.some((w) => w.code === 'REDUNDANT_FEATURES'));
     });
 
-    test('Redundanz: Feature bereits in anderem aktiven Bundle → Hinweis mit bundleKey', async () => {
+    test('redundancy: feature already in another active bundle → hint with bundleKey', async () => {
         const existing = await createPublishedBundle({ key: 'ALT', features: ['CAMPAIGNS'] });
         await subBundleRepo.add({
             subscriptionId: SUB_A,
@@ -188,7 +188,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         ]);
     });
 
-    test('requires (#35): ungedeckte Abhängigkeit → missingRequires + Blocker', async () => {
+    test('requires (#35): uncovered dependency → missingRequires + blocker', async () => {
         const bv = await createPublishedBundle({
             key: 'TURNIERE',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -203,7 +203,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.ok(dto.blockers.some((b) => b.code === 'BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED'));
     });
 
-    test('requires: Deckung durch Plan oder aktives Bundle → kein Blocker', async () => {
+    test('requires: coverage by plan or active bundle → no blocker', async () => {
         const planCovered = await createPublishedBundle({ key: 'P', features: ['X'] });
         const svc = buildService({
             catalogEntryRepo: catalogEntryRepoWith({ X: ['WHATSAPP'] }),
@@ -233,7 +233,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.deepEqual(viaBundle.missingRequires, []);
     });
 
-    test('requires: ohne CatalogEntryRepository kein Check (graceful)', async () => {
+    test('requires: without CatalogEntryRepository no check (graceful)', async () => {
         const bv = await createPublishedBundle({
             key: 'TURNIERE',
             features: ['TOURNAMENT_MANAGEMENT'],
@@ -242,7 +242,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.deepEqual(dto.missingRequires, []);
     });
 
-    test('Self-Service-Policy: Vertriebs-only-Bundle → Blocker BUNDLE_NOT_SELF_SERVICE', async () => {
+    test('self-service policy: sales-only bundle → blocker BUNDLE_NOT_SELF_SERVICE', async () => {
         const bv = await createPublishedBundle({ key: 'ENTERPRISE_PACK' });
         const dto = await buildService({
             blockedBundles: { bundleKeys: ['ENTERPRISE_PACK'] },
@@ -250,7 +250,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.ok(dto.blockers.some((b) => b.code === 'BUNDLE_NOT_SELF_SERVICE'));
     });
 
-    test('Blocker: plan-inkompatibel + bereits gebucht', async () => {
+    test('blocker: plan-incompatible + already booked', async () => {
         const incompatible = await createPublishedBundle({ key: 'B1', planIds: ['STARTER'] });
         const svc = buildService();
         const dto = await svc.previewAdd(CTX, { bundleVersionId: incompatible.id }, NOW);
@@ -267,7 +267,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
         assert.ok(again.blockers.some((b) => b.code === 'BUNDLE_ALREADY_SUBSCRIBED'));
     });
 
-    test('unbekannte BundleVersion → NotFound', async () => {
+    test('unknown bundle version → NotFound', async () => {
         await assert.rejects(
             () => buildService().previewAdd(CTX, { bundleVersionId: 'nope' }, NOW),
             /nicht gefunden/,
@@ -276,7 +276,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
 });
 
 describe('SubscriptionBundlePreviewService — previewCancel', () => {
-    test('effectiveAt = Periodenende, wenn Mindestlaufzeit abgelaufen', async () => {
+    test('effectiveAt = period end when minimum term expired', async () => {
         const bv = await createPublishedBundle({ key: 'B1', monthlyNet: '31.00' });
         const booking = await subBundleRepo.add({
             subscriptionId: SUB_A,
@@ -297,7 +297,7 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
         assert.deepEqual(dto.warnings, []);
     });
 
-    test('Mindestlaufzeit bindet über Periodenende hinaus → effectiveAt + Warning', async () => {
+    test('minimum term binds beyond period end → effectiveAt + warning', async () => {
         const bv = await createPublishedBundle({ key: 'B1' });
         const booking = await subBundleRepo.add({
             subscriptionId: SUB_A,
@@ -315,7 +315,7 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
         assert.ok(dto.warnings.some((w) => w.code === 'MINIMUM_TERM_BINDS'));
     });
 
-    test('bereits gekündigt → Blocker', async () => {
+    test('already canceled → blocker', async () => {
         const bv = await createPublishedBundle({ key: 'B1' });
         const booking = await subBundleRepo.add({
             subscriptionId: SUB_A,
@@ -336,7 +336,7 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
         assert.ok(dto.blockers.some((b) => b.code === 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED'));
     });
 
-    test('fremde Subscription → NotFound (kein Cross-Tenant-Leak)', async () => {
+    test('foreign subscription → NotFound (no cross-tenant leak)', async () => {
         const bv = await createPublishedBundle({ key: 'B1' });
         const booking = await subBundleRepo.add({
             subscriptionId: 'sub-other',

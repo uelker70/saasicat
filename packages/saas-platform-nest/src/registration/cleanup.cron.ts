@@ -4,16 +4,15 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PendingRegistrationService } from './pending-registration.service.js';
 
 /**
- * Taeglicher Cleanup-Cron fuer abgelaufene `PendingRegistration`-Datensaetze.
+ * Daily cleanup cron for expired `PendingRegistration` records.
  *
- * Laeuft 04:15 Europe/Berlin (passend zu `trial-expiration.cron` und
- * `PromoCodeExpirer`). Loescht in Batches von 500 — der Cron
- * laeuft so lange, bis `moreAvailable` false ist (Schutz vor Memory-Spike
- * bei grossen Backlogs).
+ * Runs at 04:15 Europe/Berlin (aligned with `trial-expiration.cron` and
+ * `PromoCodeExpirer`). Deletes in batches of 500 — the cron
+ * keeps running until `moreAvailable` is false (protection against memory
+ * spikes on large backlogs).
  *
- * Kann via `RegistrationModule.forRoot({ includeCleanupCron: false })`
- * deaktiviert werden — z. B. fuer CLI-Boots oder Test-Setups ohne
- * `ScheduleModule`.
+ * Can be disabled via `RegistrationModule.forRoot({ includeCleanupCron: false })`
+ * — e.g. for CLI boots or test setups without `ScheduleModule`.
  */
 @Injectable()
 export class RegistrationCleanupCron {
@@ -27,14 +26,14 @@ export class RegistrationCleanupCron {
     }
 
     /**
-     * Public-API: laesst sich manuell aus einem Admin-Endpoint /
-     * `/admin/registration/run-cleanup` triggern (gleicher Pattern wie
-     * `PromoCodeExpirer.run` in den konsumierenden Apps).
+     * Public API: can be triggered manually from an admin endpoint /
+     * `/admin/registration/run-cleanup` (same pattern as
+     * `PromoCodeExpirer.run` in the consuming apps).
      */
     async runCleanup(now: Date = new Date(), batchSize = 500): Promise<void> {
         let totalDeleted = 0;
         let iterations = 0;
-        const MAX_ITERATIONS = 50; // 25k Datensaetze pro Lauf — harte Obergrenze.
+        const MAX_ITERATIONS = 50; // 25k records per run — hard upper bound.
 
         while (iterations < MAX_ITERATIONS) {
             const result = await this.service.runCleanup(now, batchSize);
@@ -53,5 +52,5 @@ export class RegistrationCleanupCron {
     }
 }
 
-/** Re-export, damit Konsumenten den Cron-Trigger im Admin-Modul wiederverwenden koennen. */
+/** Re-export so consumers can reuse the cron trigger in the admin module. */
 export { CronExpression };

@@ -1,23 +1,23 @@
-// AuditEvent — Format eines AuditLog-Eintrags.
-// Schema-Quelle: @saasicat/spec/schemas/audit-event.schema.json
+// AuditEvent — format of an AuditLog entry.
+// Schema source: @saasicat/spec/schemas/audit-event.schema.json
 
-/** Format: 'web:<email>:<sessionId>' oder 'cli:<email>:<host>'. */
+/** Format: 'web:<email>:<sessionId>' or 'cli:<email>:<host>'. */
 export type ActorTag = string;
 
 export interface AuditEntry {
     id: string;
-    /** null = Plattform-Aktion ohne Mandantenkontext (SUPER_ADMIN). */
+    /** null = platform action without tenant context (SUPER_ADMIN). */
     tenantId: string | null;
-    /** null = System / Cron-getriggert. */
+    /** null = system / cron-triggered. */
     userId: string | null;
-    /** Convenience-Feld; Backend resolvet aus userId. */
+    /** Convenience field; backend resolves it from userId. */
     userEmail: string | null;
-    /** z. B. 'Tenant', 'PromoCode', 'Subscription', 'PlanVersion', 'User'. */
+    /** e.g. 'Tenant', 'PromoCode', 'Subscription', 'PlanVersion', 'User'. */
     entity: string;
     entityId: string;
-    /** SCREAMING_SNAKE_CASE; vergangenheitsform-orientiert. */
+    /** SCREAMING_SNAKE_CASE; past-tense oriented. */
     action: string;
-    /** Frei strukturiert. Konvention: { field: { old, new } } oder { reason, ... }. */
+    /** Freely structured. Convention: { field: { old, new } } or { reason, ... }. */
     changes: Record<string, unknown> | null;
     actorTag: ActorTag | null;
     ipAddress: string | null;
@@ -31,7 +31,7 @@ export interface AuditQuery {
     entity?: string;
     entityId?: string;
     action?: string;
-    /** Wildcard-fähig, z. B. 'cli:*'. */
+    /** Wildcard-capable, e.g. 'cli:*'. */
     actorTag?: string;
     from?: string;
     to?: string;

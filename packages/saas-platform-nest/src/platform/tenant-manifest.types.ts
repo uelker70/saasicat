@@ -1,39 +1,39 @@
-// Tenant-Manifest — UI-Snapshot pro Tenant. Liefert Features+Quotas (aus
-// Entitlement) plus eine gefilterte Navigation, sodass die App-UI Sichtbarkeit
-// von Menü-Punkten/Routen deklarativ vom Backend bekommt — analog zum
-// AdminManifest, aber für die Tenant-User-UI.
+// Tenant manifest — UI snapshot per tenant. Delivers features+quotas (from
+// Entitlement) plus a filtered navigation, so the app UI gets visibility of
+// menu items/routes declaratively from the backend — analogous to the
+// AdminManifest, but for the tenant user UI.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
 export interface TenantNavItem {
-    /** Eindeutiger Slug, z. B. "notes", "billing", "settings". */
+    /** Unique slug, e.g. "notes", "billing", "settings". */
     id: string;
-    /** Anzeige-Label (übersetzbar — Pattern siehe AdminManifest). */
+    /** Display label (translatable — see AdminManifest for the pattern). */
     label: string;
-    /** Frontend-Route, z. B. "/notes". */
+    /** Frontend route, e.g. "/notes". */
     path: string;
-    /** Optional: Quasar/Material-Icon. */
+    /** Optional: Quasar/Material icon. */
     icon?: string;
-    /** Sortier-Priorität, niedriger = weiter oben. Default 100. */
+    /** Sort priority, lower = higher up. Default 100. */
     order?: number;
     /**
-     * Wenn gesetzt, ist der Item nur sichtbar, wenn der Tenant **eines**
-     * dieser Features hat. Backend filtert serverseitig — die App kann sich
-     * darauf verlassen, dass nur erlaubte Items im Manifest stehen.
+     * When set, the item is only visible if the tenant has **one** of these
+     * features. The backend filters server-side — the app can rely on only
+     * permitted items being present in the manifest.
      */
     requiresFeature?: string | readonly string[];
 }
 
 export interface TenantManifest {
     schemaVersion: 1;
-    /** Tenant-Identität, an die das Manifest gebunden ist. */
+    /** Tenant identity the manifest is bound to. */
     tenant: { id: string };
-    /** Aktiver Plan (aus PlanResolverPort bzw. SubscriptionContract). */
+    /** Active plan (from PlanResolverPort or SubscriptionContract). */
     planId: string | null;
-    /** Freigeschaltete Features (Set als Array). */
+    /** Unlocked features (set as array). */
     features: readonly string[];
-    /** quotaKey → Limit (`-1` = unbegrenzt). */
+    /** quotaKey → limit (`-1` = unlimited). */
     quotas: Readonly<Record<string, number>>;
-    /** Sichtbare Navigation, bereits nach Feature gefiltert. */
+    /** Visible navigation, already filtered by feature. */
     navigation: TenantNavItem[];
 }

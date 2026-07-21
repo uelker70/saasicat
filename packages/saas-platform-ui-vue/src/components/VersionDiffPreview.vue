@@ -29,10 +29,9 @@
 <script setup lang="ts">
 import type { VersionChange } from '@saasicat/types';
 
-// Plattform-Default-Field-Labels (Plan-Catalog-Quotas + Pricing).
-// Konsumenten-Apps koennen via `fieldLabels`-Prop App-spezifische Labels
-// (z. B. maxVehicles oder maxMembers) ergaenzen oder
-// ueberschreiben.
+// Platform default field labels (plan-catalog quotas + pricing).
+// Consumer apps can add or override app-specific labels
+// (e.g. maxVehicles or maxMembers) via the `fieldLabels` prop.
 const PLATFORM_FIELD_LABELS: Readonly<Record<string, string>> = Object.freeze({
     'features.added': 'Hinzugefügte Features',
     'features.removed': 'Entfernte Features',
@@ -45,7 +44,7 @@ const PLATFORM_FIELD_LABELS: Readonly<Record<string, string>> = Object.freeze({
 
 const props = defineProps<{
     changes?: VersionChange[] | null;
-    /** App-spezifische Field-Labels; werden mit Plattform-Defaults gemerged. */
+    /** App-specific field labels; merged with the platform defaults. */
     fieldLabels?: Record<string, string>;
 }>();
 

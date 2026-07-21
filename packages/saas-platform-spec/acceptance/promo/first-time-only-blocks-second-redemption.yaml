@@ -1,7 +1,7 @@
 scenario: 'PromoCode with firstTimeCustomersOnly rejects second redemption from same email domain'
 description: |
-    Wenn ein Code firstTimeCustomersOnly=true hat, darf jede E-Mail-Domain ihn
-    maximal einmal einlösen. Zweite Redemption → 422 FIRST_TIME_ONLY.
+    When a code has firstTimeCustomersOnly=true, each email domain may redeem it
+    at most once. Second redemption → 422 FIRST_TIME_ONLY.
 
 setup:
     - createPromoCode:
@@ -13,15 +13,15 @@ setup:
     - createTenant:
           slug: 'test-a'
           email: 'ada@example.com'
-          planId: 'STARTER' # Konsument-spezifisch; Acceptance-Runner mappt auf passenden marketed-Plan
+          planId: 'STARTER' # consumer-specific; acceptance runner maps to a matching marketed plan
     - redeemPromoCode:
           code: 'WELCOME25'
           tenantSlug: 'test-a'
 
 when:
-    # Zweite Anlage mit anderer Domain — sollte gehen.
-    # Aber zweite mit gleicher Domain (sub.example.com) muss blocken,
-    # wenn die Implementation per E-Mail-Domain dedupliziert.
+    # Second creation with a different domain — should work.
+    # But a second one with the same domain (sub.example.com) must block,
+    # if the implementation deduplicates by email domain.
     - createTenant:
           slug: 'test-a-second'
           email: 'bob@example.com'

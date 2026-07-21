@@ -20,7 +20,7 @@ function fakeEntitlement({ features = [], loading = false, snapshot = {} } = {})
 }
 
 describe('provideEntitlement', () => {
-    test('app.provide wird mit dem Inject-Key aufgerufen', () => {
+    test('app.provide is called with the inject key', () => {
         const recorded = [];
         const app = { provide: (key, value) => recorded.push({ key, value }) };
         const ent = fakeEntitlement({ features: ['NOTES'] });
@@ -38,13 +38,13 @@ describe('buildFeatureRouterGuard', () => {
         });
     }
 
-    test('Route ohne meta.requiresFeature passiert immer', async () => {
+    test('route without meta.requiresFeature always passes', async () => {
         const guard = buildFeatureRouterGuard({ getEntitlement: () => null });
         const r = await callGuard(guard, { path: '/free', meta: {} });
-        assert.equal(r, undefined, 'next() ohne Argument = passieren lassen');
+        assert.equal(r, undefined, 'next() without argument = let it pass');
     });
 
-    test('kein Entitlement gebunden -> passieren', async () => {
+    test('no entitlement bound -> pass', async () => {
         const guard = buildFeatureRouterGuard({ getEntitlement: () => null });
         const r = await callGuard(guard, {
             path: '/dms',
@@ -53,7 +53,7 @@ describe('buildFeatureRouterGuard', () => {
         assert.equal(r, undefined);
     });
 
-    test('Feature vorhanden -> passieren', async () => {
+    test('feature present -> pass', async () => {
         const ent = fakeEntitlement({ features: ['DMS'] });
         const guard = buildFeatureRouterGuard({ getEntitlement: () => ent });
         const r = await callGuard(guard, {
@@ -63,7 +63,7 @@ describe('buildFeatureRouterGuard', () => {
         assert.equal(r, undefined);
     });
 
-    test('Feature fehlt + kein redirectTo -> next(false)', async () => {
+    test('feature missing + no redirectTo -> next(false)', async () => {
         const ent = fakeEntitlement({ features: [] });
         const guard = buildFeatureRouterGuard({ getEntitlement: () => ent });
         const r = await callGuard(guard, {
@@ -73,7 +73,7 @@ describe('buildFeatureRouterGuard', () => {
         assert.equal(r, false);
     });
 
-    test('Feature fehlt + redirectTo -> next("/upgrade")', async () => {
+    test('feature missing + redirectTo -> next("/upgrade")', async () => {
         const ent = fakeEntitlement({ features: [] });
         const guard = buildFeatureRouterGuard({
             getEntitlement: () => ent,
@@ -86,7 +86,7 @@ describe('buildFeatureRouterGuard', () => {
         assert.equal(r, '/upgrade');
     });
 
-    test('Array requiresFeature -> Logical-OR', async () => {
+    test('array requiresFeature -> logical OR', async () => {
         const ent = fakeEntitlement({ features: ['STORAGE_PRO'] });
         const guard = buildFeatureRouterGuard({ getEntitlement: () => ent });
         const r = await callGuard(guard, {
@@ -96,7 +96,7 @@ describe('buildFeatureRouterGuard', () => {
         assert.equal(r, undefined);
     });
 
-    test('loading + null snapshot + allowWhileLoading default -> passieren', async () => {
+    test('loading + null snapshot + allowWhileLoading default -> pass', async () => {
         const ent = fakeEntitlement({ loading: true, snapshot: null });
         const guard = buildFeatureRouterGuard({ getEntitlement: () => ent });
         const r = await callGuard(guard, {

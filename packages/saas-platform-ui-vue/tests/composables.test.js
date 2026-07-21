@@ -32,7 +32,7 @@ describe('usePublicBoot', () => {
         assert.equal(error.value, null);
     });
 
-    test('load() füllt boot.value', async () => {
+    test('load() fills boot.value', async () => {
         const { boot, load } = usePublicBoot({
             endpoint: '/api/v1/admin/boot',
             http: buildHttp({
@@ -43,7 +43,7 @@ describe('usePublicBoot', () => {
         assert.equal(boot.value.project.key, 'demoapp');
     });
 
-    test('load() setzt error bei HTTP-Fehler', async () => {
+    test('load() sets error on HTTP failure', async () => {
         const { boot, error, load } = usePublicBoot({
             endpoint: '/api/v1/admin/boot',
             http: buildHttp({ status: 500 }),
@@ -53,7 +53,7 @@ describe('usePublicBoot', () => {
         assert.notEqual(error.value, null);
     });
 
-    test('loading-State wechselt korrekt', async () => {
+    test('loading state toggles correctly', async () => {
         let resolve;
         const http = () =>
             new Promise((r) => {
@@ -61,7 +61,7 @@ describe('usePublicBoot', () => {
             });
         const { loading, load } = usePublicBoot({ http, endpoint: '/api/v1/admin/boot' });
         const p = load();
-        // Mikrotask später ist loading=true
+        // one microtask later loading=true
         await Promise.resolve();
         assert.equal(loading.value, true);
         resolve({
@@ -86,7 +86,7 @@ describe('useManifest', () => {
         assert.equal(manifest.value, null);
     });
 
-    test('load() füllt manifest', async () => {
+    test('load() fills manifest', async () => {
         const storage = buildStorage();
         const { manifest, load } = useManifest({
             endpoint: '/api/v1/admin/manifest',
@@ -118,7 +118,7 @@ describe('useManifest', () => {
         assert.equal(manifest.value.build.manifestHash, 'sha256-abc');
     });
 
-    test('reload() verwirft Cache + lädt frisch', async () => {
+    test('reload() discards cache + loads fresh', async () => {
         const storage = buildStorage();
         let callCount = 0;
         const http = () => {
@@ -152,11 +152,11 @@ describe('useManifest', () => {
         assert.equal(callCount, 1);
         await reload();
         assert.equal(callCount, 2);
-        // Reload räumte den Cache → kein If-None-Match → keine 304-Mechanik
-        // Wir verifizieren nur, dass ein zweiter HTTP-Call passiert.
+        // Reload cleared the cache → no If-None-Match → no 304 mechanics
+        // We only verify that a second HTTP call happens.
     });
 
-    test('clearCache() setzt manifest auf null', async () => {
+    test('clearCache() sets manifest to null', async () => {
         const storage = buildStorage();
         const { manifest, load, clearCache } = useManifest({
             endpoint: '/api/v1/admin/manifest',

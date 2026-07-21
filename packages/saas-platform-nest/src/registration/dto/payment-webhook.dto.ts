@@ -1,15 +1,15 @@
 import { IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
- * Webhook-Vertrag fuer `POST /webhooks/payment`.
+ * Webhook contract for `POST /webhooks/payment`.
  *
- * Provider-agnostisch: Stripe-Adapter (Phase 2.4) mapped Stripe's
+ * Provider-agnostic: the Stripe adapter (phase 2.4) maps Stripe's
  * `checkout.session.completed` → `{ eventId, sessionId, status: 'SUCCEEDED' }`,
  * `payment_intent.payment_failed` → `{ status: 'FAILED' }`, etc.
  *
- * In Production sollte die Signatur-Verifikation (Stripe `Stripe-Signature`-
- * Header) VOR der DTO-Validierung greifen — siehe StripeWebhookGuard im
- * App-Modul.
+ * In production the signature verification (Stripe `Stripe-Signature`
+ * header) should run BEFORE the DTO validation — see StripeWebhookGuard in
+ * the app module.
  */
 export class PaymentWebhookDto {
     @IsString()

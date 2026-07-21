@@ -92,7 +92,7 @@ const props = defineProps<{
     bundles: PublicMarketingBundle[];
     selected: Set<string>;
     cycle: BillingCycleStr;
-    /** Features des gewählten Plans — Basis der requires-/Redundanz-Deckung (#35). */
+    /** Features of the selected plan — basis for requires/redundancy coverage (#35). */
     planFeatures: string[];
     formatCurrency: (value: number) => string;
     featureLabel: (key: string) => string;
@@ -109,21 +109,21 @@ interface BundleRow {
     state: BundleAvailabilityState;
     missingRequires: string[];
     selected: boolean;
-    /** Nur nicht-gewählte, nicht-buchbare Bundles sind gesperrt. */
+    /** Only unselected, non-bookable bundles are locked. */
     disabled: boolean;
 }
 
-// Deckung pro Bundle = Plan-Features ∪ Features der übrigen *gewählten* Bundles.
-// Geteilt mit dem Subscription-Draft, damit Ausgrauung und Preis-Exklusion
-// dieselbe Redundanz sehen.
+// Coverage per bundle = plan features ∪ features of the other *selected* bundles.
+// Shared with the subscription draft, so that graying-out and price exclusion
+// see the same redundancy.
 const selectedBundleShapes = computed(() =>
     props.bundles.filter((b) => props.selected.has(b.bundleVersionId)),
 );
 
-// Ein bereits gewähltes Bundle bleibt abwählbar, auch wenn es durch eine
-// spätere Auswahl `covered` wurde — sonst steckt es fest. Gesperrt wird nur
-// das *Anwählen* eines nicht-buchbaren Bundles (missing-requires oder ein
-// noch nicht gewähltes covered-Bundle).
+// An already-selected bundle stays deselectable, even when it became
+// `covered` through a later selection — otherwise it gets stuck. Only
+// *selecting* a non-bookable bundle is locked (missing-requires or a
+// not-yet-selected covered bundle).
 const bundleRows = computed<BundleRow[]>(() =>
     props.bundles.map((bundle) => {
         const covered = coverageExcludingSelf(

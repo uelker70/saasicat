@@ -1,7 +1,7 @@
-// Geteilte UI-Helfer der Discovery-Seite (Feature-/Quota-Karten, Orphans,
-// Übersetzungs-Panel, StatusControl). In einer eigenen Datei, weil
-// `<script setup>` keine Named-Exports erlaubt und die Karten dieselben
-// Labels/Farben/Coverage-Berechnungen teilen.
+// Shared UI helpers for the discovery page (feature/quota cards, orphans,
+// translation panel, StatusControl). In its own file because
+// `<script setup>` allows no named exports and the cards share the same
+// labels/colors/coverage calculations.
 
 import type {
     CapabilityCodeStatus,
@@ -9,15 +9,15 @@ import type {
     DiscoveryStatus,
 } from '@saasicat/types';
 
-/** Übersetzbare Felder eines Catalog-Entry. */
+/** Translatable fields of a catalog entry. */
 export type I18nField = 'label' | 'description' | 'unit';
 
-/** Normalisierter Eintrag für das Übersetzungs-Panel (Feature / Quota). */
+/** Normalized entry for the translation panel (feature / quota). */
 export interface TransEntry {
     key: string;
     label: string;
     description: string | null;
-    /** Nur Quotas — Anzeige-Einheit, code-abgeleitet (Default-Locale nicht editierbar). */
+    /** Quotas only — display unit, code-derived (default locale not editable). */
     unit?: string;
     i18n: CatalogEntryI18n;
 }
@@ -47,7 +47,7 @@ export function i18nFieldLabel(f: I18nField): string {
     return f === 'label' ? 'Label' : f === 'description' ? 'Beschreibung' : 'Einheit';
 }
 
-// ─── Freigabe-Lifecycle (#20): Status-Anzeige + Zustandsautomat ──────────────
+// ─── Approval lifecycle (#20): status display + state machine ────────────────
 
 export const STATUS_META: Record<DiscoveryStatus, { label: string; hint: string }> = {
     pending: {
@@ -71,12 +71,12 @@ export const STATUS_META: Record<DiscoveryStatus, { label: string; hint: string 
 export interface ReviewAction {
     label: string;
     to: DiscoveryStatus;
-    /** Primär-Stil (Freigeben/Erneut freigeben) vs. Ghost (entziehen/reaktivieren). */
+    /** Primary style (approve/re-approve) vs. ghost (revoke/reactivate). */
     emphasized: boolean;
     danger?: boolean;
 }
 
-/** Primär-Aktion je Status (Design-Sim `StatusControl`, #20). */
+/** Primary action per status (design sim `StatusControl`, #20). */
 export function primaryReviewAction(status: DiscoveryStatus): ReviewAction {
     switch (status) {
         case 'pending':
@@ -90,7 +90,7 @@ export function primaryReviewAction(status: DiscoveryStatus): ReviewAction {
     }
 }
 
-/** Kebab-Menü-Aktionen je Status (Design-Sim `StatusControl`, #20). */
+/** Kebab menu actions per status (design sim `StatusControl`, #20). */
 export function reviewMenuActions(status: DiscoveryStatus): ReviewAction[] {
     switch (status) {
         case 'pending':
@@ -112,7 +112,7 @@ export function reviewMenuActions(status: DiscoveryStatus): ReviewAction[] {
     }
 }
 
-// ─── Capability-Code-Status (read-only Code-Fakten, #20) ────────────────────
+// ─── Capability code status (read-only code facts, #20) ──────────────────────
 
 const CODE_STATUS_LABELS: Record<CapabilityCodeStatus, string> = {
     active: 'Aktiv',
@@ -138,8 +138,8 @@ export function kindStyle(kind: string): Record<string, string> {
 }
 
 /**
- * Anteil 0..1 der gefüllten Übersetzungsfelder eines Eintrags in einer Locale.
- * Felder ohne Default-Wert zählen nicht (außer `label` — das ist Pflicht).
+ * Fraction 0..1 of filled translation fields of an entry in a given locale.
+ * Fields without a default value don't count (except `label` — that's mandatory).
  */
 export function entryCoverage(entry: TransEntry, locale: string, fields: I18nField[]): number {
     let total = 0;

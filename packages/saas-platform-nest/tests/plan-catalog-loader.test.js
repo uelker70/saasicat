@@ -1,4 +1,4 @@
-// Tests für plan-catalog-loader.ts — YAML-Loading + Schema- + Cross-field-Validation.
+// Tests for plan-catalog-loader.ts — YAML loading + schema + cross-field validation.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,7 +33,7 @@ plans:
 // Happy path
 // ──────────────────────────────────────────────────────────────────
 
-test('loadPlanCatalogFromString akzeptiert valides Beispiel', () => {
+test('loadPlanCatalogFromString accepts valid example', () => {
     const catalog = loadPlanCatalogFromString(VALID_YAML, { source: 'inline-test' });
     assert.equal(catalog.projectKey, 'demoapp');
     assert.equal(catalog.plans.length, 1);
@@ -41,10 +41,10 @@ test('loadPlanCatalogFromString akzeptiert valides Beispiel', () => {
 });
 
 // ──────────────────────────────────────────────────────────────────
-// Schema-Verletzungen
+// Schema violations
 // ──────────────────────────────────────────────────────────────────
 
-test('loadPlanCatalogFromString lehnt schemaVersion != 1 ab', () => {
+test('loadPlanCatalogFromString rejects schemaVersion != 1', () => {
     const yaml = VALID_YAML.replace('schemaVersion: 1', 'schemaVersion: 2');
     assert.throws(
         () => loadPlanCatalogFromString(yaml, { source: 'bad-schema' }),
@@ -52,7 +52,7 @@ test('loadPlanCatalogFromString lehnt schemaVersion != 1 ab', () => {
     );
 });
 
-test('loadPlanCatalogFromString lehnt fehlende Pflichtfelder ab', () => {
+test('loadPlanCatalogFromString rejects missing required fields', () => {
     const yaml = `
 schemaVersion: 1
 projectKey: test-app
@@ -69,7 +69,7 @@ plans:
     );
 });
 
-test('loadPlanCatalogFromString lehnt addons-Block ab (#49 — kein Addon-Verkauf)', () => {
+test('loadPlanCatalogFromString rejects addons block (#49 — no addon sales)', () => {
     const yaml = `
 schemaVersion: 1
 projectKey: test-app
@@ -89,10 +89,10 @@ addons:
 });
 
 // ──────────────────────────────────────────────────────────────────
-// Cross-field-Validierungen
+// Cross-field validations
 // ──────────────────────────────────────────────────────────────────
 
-test('cross-field: Plan referenziert unbekannten featureKey → Fehler', () => {
+test('cross-field: plan references unknown featureKey → error', () => {
     const yaml = `
 schemaVersion: 1
 projectKey: test-app
@@ -111,7 +111,7 @@ plans:
     );
 });
 
-test('cross-field: doppelte Plan-IDs → Fehler', () => {
+test('cross-field: duplicate plan IDs → error', () => {
     const yaml = `
 schemaVersion: 1
 projectKey: test-app
@@ -131,10 +131,10 @@ plans:
     );
 });
 
-test('cross-field: plannedOnly:true erlaubt Plan-Referenz (Roadmap-Marker)', () => {
-    // Semantik (SPEC_V2 §8.2): plannedOnly = "im Catalog gelistet, im Code (noch) nicht
-    // implementiert". Plans dürfen das Feature als Roadmap-Marker führen —
-    // Aktivierungs-Schutz liegt in getActiveFeatureKeys.
+test('cross-field: plannedOnly:true allows plan reference (roadmap marker)', () => {
+    // Semantics (SPEC_V2 §8.2): plannedOnly = "listed in the catalog, not (yet)
+    // implemented in code". Plans may carry the feature as a roadmap marker —
+    // activation protection lives in getActiveFeatureKeys.
     const yaml = `
 schemaVersion: 1
 projectKey: test-app
@@ -152,7 +152,7 @@ plans:
     assert.equal(catalog.plans[0].features.length, 2);
 });
 
-test('crossFieldChecks: false überspringt Konsistenz-Checks', () => {
+test('crossFieldChecks: false skips consistency checks', () => {
     const yaml = `
 schemaVersion: 1
 projectKey: test-app
@@ -165,7 +165,7 @@ plans:
     quotas: { users: 1 }
     features: [F1, F2]
 `;
-    // Mit checks aktiviert → Fehler (F2 nicht deklariert). Ohne → kein Fehler.
+    // With checks enabled → error (F2 not declared). Without → no error.
     const catalog = loadPlanCatalogFromString(yaml, {
         source: 'no-checks',
         crossFieldChecks: false,
@@ -177,7 +177,7 @@ plans:
 // File-Loading
 // ──────────────────────────────────────────────────────────────────
 
-test('loadPlanCatalogFromFile liest YAML-Datei vom Disk', () => {
+test('loadPlanCatalogFromFile reads YAML file from disk', () => {
     const dir = mkdtempSync(join(tmpdir(), 'plan-catalog-'));
     const path = join(dir, 'plans.yaml');
     writeFileSync(path, VALID_YAML, 'utf-8');
@@ -190,11 +190,11 @@ test('loadPlanCatalogFromFile liest YAML-Datei vom Disk', () => {
     }
 });
 
-test('loadPlanCatalogFromFile wirft bei nicht existenter Datei', () => {
+test('loadPlanCatalogFromFile throws for non-existent file', () => {
     assert.throws(() => loadPlanCatalogFromFile({ path: '/tmp/does-not-exist-12345.yaml' }));
 });
 
-test('PlanCatalogValidationError enthält error-Liste', () => {
+test('PlanCatalogValidationError contains error list', () => {
     try {
         loadPlanCatalogFromString('schemaVersion: 9', { source: 'bad' });
         assert.fail('expected throw');

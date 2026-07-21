@@ -1,5 +1,5 @@
-// DI-Tokens für die Promo-Module-Adapter.
-// Konsumenten injizieren ihre Adapter-Implementations über diese Symbol-Tokens
+// DI tokens for the promo-module adapters.
+// Consumers inject their adapter implementations through these symbol tokens
 // in `PromoCodesModule.forRoot({...})`.
 
 export const PROMO_CODE_REPOSITORY_TOKEN = Symbol('PROMO_CODE_REPOSITORY');

@@ -1,60 +1,60 @@
 // =============================================================================
-// SaaS-Platform Prisma-Fragment: Promotion (zeitgesteuerte Preis-Aktionen)
+// SaaS-Platform Prisma fragment: Promotion (time-scheduled pricing campaigns)
 // =============================================================================
 //
-// REFERENZ-SNIPPET — siehe 03-plan-versions.prisma für Konventionen.
+// REFERENCE SNIPPET — see 03-plan-versions.prisma for conventions.
 //
-// Eine Promotion ist eine katalog-seitige, zeitlich begrenzte Preis-Aktion.
-// Sie überschreibt den Pricing-Page-Preis automatisch (ohne Code-Eingabe,
-// es sei denn `requiresCoupon`). Getrennt von `PromoCode` (einlösbarer
-// Checkout-Gutschein, 02-promo-code.prisma) — `requiresCoupon = true`
-// koppelt eine Promotion über `codes` an bestehende PromoCode-Codes.
+// A Promotion is a catalog-side, time-limited pricing campaign.
+// It overrides the pricing-page price automatically (without entering a code,
+// unless `requiresCoupon`). Separate from `PromoCode` (a redeemable
+// checkout voucher, 02-promo-code.prisma) — `requiresCoupon = true`
+// couples a Promotion to existing PromoCode codes via `codes`.
 //
-// Globale Katalog-Tabelle (kein tenantId, kein RLS). Schreibzugriff nur
-// über SUPER_ADMIN-Guard im AdminController.
+// Global catalog table (no tenantId, no RLS). Write access only
+// via the SUPER_ADMIN guard in the AdminController.
 
 model Promotion {
     id         String @id @default(uuid())
-    projectKey String // z. B. 'clubapp' | 'demoapp' | …
+    projectKey String // e.g. 'clubapp' | 'demoapp' | …
 
-    // Interne Bezeichnung (nicht öffentlich).
+    // Internal label (not public).
     internalLabel String
 
-    // Aktions-Art: percent | amount | intro | freeMonths
+    // Campaign type: percent | amount | intro | freeMonths
     type String
 
-    // Typ-abhängiger Wert:
+    // Type-dependent value:
     //   percent/amount → number
     //   intro          → { price, months }
     //   freeMonths     → number
     value Json
 
-    // Zieltyp der Keys in `appliesTo`: PLAN | BUNDLE | OFFER.
-    // Null/fehlend in Altbeständen wird als PLAN interpretiert.
+    // Target type of the keys in `appliesTo`: PLAN | BUNDLE | OFFER.
+    // Null/missing in legacy records is interpreted as PLAN.
     targetType String @default("PLAN")
 
-    // Ziel-Keys, auf die die Aktion wirkt.
+    // Target keys the campaign applies to.
     appliesTo Json @default("[]") // string[]
 
-    // Abrechnungs-Zyklus: monthly | yearly | both
+    // Billing cycle: monthly | yearly | both
     billingCycle String @default("both")
 
     validFrom DateTime
     validTo   DateTime
 
-    // Bei Überschneidung gewinnt der höchste Wert.
+    // On overlap, the highest value wins.
     priority Int @default(0)
 
-    // Sprach-Beschränkung; null = alle Locales.
+    // Language restriction; null = all locales.
     onlyLocales Json? // string[] | null
 
     requiresCoupon Boolean @default(false)
-    codes          Json    @default("[]") // string[] — referenzierte PromoCode-Codes
+    codes          Json    @default("[]") // string[] — referenced PromoCode codes
 
-    // UI-Akzentfarbe (Timeline/Ribbon).
+    // UI accent color (timeline/ribbon).
     color String @default("#2563eb")
 
-    // Locale-Texte { "de": { badge, fineprint }, … }.
+    // Locale texts { "de": { badge, fineprint }, … }.
     i18n Json @default("{}")
 
     createdAt DateTime @default(now())

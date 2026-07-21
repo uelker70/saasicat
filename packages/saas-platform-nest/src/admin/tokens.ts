@@ -1,7 +1,7 @@
-// DI-Tokens für die Admin-Ports.
+// DI tokens for the admin ports.
 //
-// Konsumenten registrieren Implementierungen über `AdminModule.forRoot` oder
-// als Custom-Provider. Die Tokens sind Symbol-basiert und kollisionsfrei.
+// Consumers register implementations via `AdminModule.forRoot` or as custom
+// providers. The tokens are Symbol-based and collision-free.
 
 export const MFA_PORT_TOKEN = Symbol.for('saas-platform/MfaPort');
 export const AUDIT_PORT_TOKEN = Symbol.for('saas-platform/AuditPort');

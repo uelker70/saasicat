@@ -1,12 +1,12 @@
-// Typen der geteilten EmailHistoryPage (Plattform-E-Mail-Verlauf) — bewusst aus
-// der `.vue` ausgelagert, damit Konsumenten sie als reguläre TS-Typen importieren
-// können (ein Named-Type-Import direkt aus einer `.vue` wird über den
-// `*.vue`-Modul-Shim nicht aufgelöst, aus dieser `.ts` schon; re-exportiert über
-// den Paket-Index).
+// Types of the shared EmailHistoryPage (platform email history) — deliberately
+// extracted from the `.vue` so consumers can import them as regular TS types
+// (a named type import directly from a `.vue` is not resolved through the
+// `*.vue` module shim, but it is from this `.ts`; re-exported via the package
+// index).
 
 export type EmailHistoryStatus = 'PENDING' | 'SENT' | 'FAILED' | 'BOUNCED';
 
-/** Listen-Projektion — bewusst ohne Body (wird erst im Detail geladen). */
+/** List projection — deliberately without body (loaded only in the detail view). */
 export interface EmailHistoryRow {
     id: string;
     fromEmail: string;
@@ -17,7 +17,7 @@ export interface EmailHistoryRow {
     createdAt: string;
 }
 
-/** Vollständiger Eintrag inkl. Inhalt, Kopfzeilen, SMTP-Antwort und Fehler. */
+/** Complete entry including content, headers, SMTP response and errors. */
 export interface EmailHistoryDetail extends EmailHistoryRow {
     ccEmail?: string | null;
     bccEmail?: string | null;
@@ -27,7 +27,7 @@ export interface EmailHistoryDetail extends EmailHistoryRow {
     smtpResponse?: string | null;
 }
 
-/** Such-/Filter-/Pagination-Eingabe — Feldnamen wie das Backend (QueryEmailLogDto). */
+/** Search/filter/pagination input — field names as in the backend (QueryEmailLogDto). */
 export interface EmailHistoryFilter {
     search?: string;
     status?: EmailHistoryStatus;

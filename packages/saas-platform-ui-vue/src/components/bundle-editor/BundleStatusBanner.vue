@@ -105,13 +105,13 @@ import type { BundleVersionRow } from '@saasicat/types';
 
 import { bundleVersionStatus, formatDateDE } from './bundle-version-status';
 
-// BundleStatusBanner — Inline-Hinweis pro Bundle-Version mit Klartext zur
-// Editierbarkeit (nach Plan-Simulation). Zeigt Status + die fachliche
-// Konsequenz (live = read-only, scheduled = editierbar).
+// BundleStatusBanner — inline hint per bundle version with plain-text info on
+// editability (after plan simulation). Shows the status + the business
+// consequence (live = read-only, scheduled = editable).
 
 const props = defineProps<{
     version: BundleVersionRow;
-    /** Optional: Referenz-Zeitpunkt für den Status-Check (Tests). */
+    /** Optional: reference point in time for the status check (tests). */
     now?: Date;
 }>();
 

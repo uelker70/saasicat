@@ -1,7 +1,7 @@
-// EntitlementModule — DI-Wrapper um EntitlementService.
+// EntitlementModule — DI wrapper around EntitlementService.
 //
-// Konsumenten registrieren ihre Adapter-Implementierungen über
-// `EntitlementModule.forRoot({...})` oder als Custom-Provider direkt im
+// Consumers register their adapter implementations via
+// `EntitlementModule.forRoot({...})` or as custom providers directly in the
 // AppModule.
 
 import { type DynamicModule, Module, type Provider } from '@nestjs/common';
@@ -27,27 +27,27 @@ import {
 } from './tokens.js';
 
 export interface EntitlementModuleOptions {
-    /** Konsumenten-Implementation der `SubscriptionRepository`-Schnittstelle. */
+    /** Consumer implementation of the `SubscriptionRepository` interface. */
     subscriptionRepository: ProviderSpec<SubscriptionRepository>;
-    /** Konsumenten-Implementation der `PlanVersionRepository`-Schnittstelle. */
+    /** Consumer implementation of the `PlanVersionRepository` interface. */
     planVersionRepository: ProviderSpec<PlanVersionRepository>;
-    /** Konsumenten-Implementation der `TransactionRunner`-Schnittstelle. */
+    /** Consumer implementation of the `TransactionRunner` interface. */
     transactionRunner: ProviderSpec<TransactionRunner>;
-    /** Optionale Konsumenten-Resolution-Strategie (Pilot/Trial/Pending). */
+    /** Optional consumer resolution strategy (Pilot/Trial/Pending). */
     resolutionConfig?: EntitlementResolutionConfig;
-    /** Optionaler V3-Contract-Adapter. Wenn gesetzt, liest der Service zuerst Contracts. */
+    /** Optional V3 contract adapter. If set, the service reads contracts first. */
     subscriptionContractRepository?: ProviderSpec<SubscriptionContractRepository>;
     /**
-     * Optional (P11.7.3/#61) — BEIDE zusammen aktivieren die Aggregation
-     * eigenständig gebuchter Catalog-Bundles (`subscription_bundles`) in
-     * `computeLimits`. Ohne sie zählt nur Plan + BusinessType — mid-cycle
-     * zugebuchte Bundles wären dann NICHT in den Entitlements (und ein
-     * Contract-Re-Freeze fröre sie nicht ein).
+     * Optional (P11.7.3/#61) — BOTH together enable the aggregation of
+     * independently booked catalog bundles (`subscription_bundles`) in
+     * `computeLimits`. Without them, only plan + BusinessType count — bundles
+     * booked mid-cycle would then NOT be in the entitlements (and a contract
+     * re-freeze would not freeze them in).
      */
     subscriptionBundleRepository?: ProviderSpec<SubscriptionBundleRepository>;
-    /** Siehe `subscriptionBundleRepository` — löst BundleVersion-Features/Quotas auf. */
+    /** See `subscriptionBundleRepository` — resolves BundleVersion features/quotas. */
     bundleRepository?: ProviderSpec<BundleRepository>;
-    /** Modul global registrieren — Default `false`. */
+    /** Register the module globally — default `false`. */
     global?: boolean;
 }
 

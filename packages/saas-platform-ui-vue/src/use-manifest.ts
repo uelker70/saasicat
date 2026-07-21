@@ -1,6 +1,6 @@
-// useManifest — Vue-3-Composable über ManifestLoader mit ETag-Cache.
+// useManifest — Vue 3 composable over ManifestLoader with ETag cache.
 //
-// Verwendung in der Shell-App nach Login:
+// Usage in the shell app after login:
 //
 //     const { manifest, loading, error, load, reload } = useManifest({
 //       getAuthToken: () => authStore.token,
@@ -15,11 +15,11 @@ export interface UseManifestResult {
     manifest: Ref<AdminManifest | null>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
-    /** Lädt einmalig (oder liefert Cache); bricht bei Re-Aufruf nicht ab. */
+    /** Loads once (or returns the cache); does not abort on re-call. */
     load: () => Promise<void>;
-    /** Verwirft den Cache und lädt frisch (z. B. nach manifest/reload). */
+    /** Discards the cache and loads fresh (e.g. after manifest/reload). */
     reload: () => Promise<void>;
-    /** Räumt den Cache — z. B. bei Logout. */
+    /** Clears the cache — e.g. on logout. */
     clearCache: () => void;
 }
 

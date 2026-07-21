@@ -97,9 +97,9 @@ import {
     type TransEntry,
 } from './discovery-ui.js';
 
-// Ausklappbare Quota-Karte (#20 Slice 1, Sim `QuotaRow`) — gleicher Lebens-
-// zyklus wie Features. Body = Übersetzungen (label/unit/description); `unit`
-// ist code-abgeleitet und nur pro Ziel-Locale übersetzbar.
+// Expandable Quota card (#20 Slice 1, sim `QuotaRow`) — same lifecycle as
+// Features. Body = translations (label/unit/description); `unit` is
+// code-derived and only translatable per target locale.
 
 const props = defineProps<{
     quota: QuotaCatalogEntryRow;
@@ -114,12 +114,12 @@ const emit = defineEmits<{
     'quota-locale': [key: string, locale: string, patch: CatalogEntryI18nFields];
 }>();
 
-// Draft-Puffer für das Header-Label — die Felder selbst puffert das
-// CatalogEntryTransPanel; hier nur, damit der Titel beim Tippen mitzieht.
+// Draft buffer for the header label — the fields themselves are buffered by
+// the CatalogEntryTransPanel; here only so the title follows along while typing.
 const drafts = reactive<{ label?: string }>({});
 const labelValue = computed(() => drafts.label ?? props.quota.label ?? '');
 
-/** Basis-Edits aus dem Übersetzungs-Panel spiegeln + nach oben reichen. */
+/** Mirror base edits from the translation panel + bubble them up. */
 function onTransBase(patch: { label?: string; description?: string }): void {
     if (patch.label !== undefined) drafts.label = patch.label;
     emit('quota-base', props.quota.quotaKey, patch);

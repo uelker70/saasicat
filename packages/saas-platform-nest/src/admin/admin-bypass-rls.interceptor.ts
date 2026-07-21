@@ -1,11 +1,11 @@
-// AdminBypassRlsInterceptor — wrappt die Request-Pipeline in einen
-// RLS-Bypass-Kontext. Plattform-/Admin-Routen sind plattform-weit (kein
-// Tenant-Scope), daher müssen RLS-Policies, die auf
-// `tenantId = app_current_tenant()` filtern, explizit umgangen werden.
+// AdminBypassRlsInterceptor — wraps the request pipeline in an
+// RLS-bypass context. Platform/admin routes are platform-wide (no
+// tenant scope), so RLS policies that filter on
+// `tenantId = app_current_tenant()` must be explicitly bypassed.
 //
-// Konsument liefert die `RlsBypassPort`-Implementation (z. B. ein
+// The consumer supplies the `RlsBypassPort` implementation (e.g. an
 // `tenantContext.run({bypassRls: true}, …)` AsyncLocalStorage,
-// Django-`contextvars`-Pendant, …). Plattform-Code ruft nur den Port.
+// a Django `contextvars` equivalent, …). Platform code only calls the port.
 
 import {
     type CallHandler,
@@ -24,15 +24,15 @@ export class AdminBypassRlsInterceptor implements NestInterceptor {
     constructor(@Inject(RLS_BYPASS_PORT_TOKEN) private readonly port: RlsBypassPort) {}
 
     intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
-        // `runWithBypass` setzt den Konsumenten-AsyncLocalStorage-Frame und
-        // ruft die Callback-Funktion synchron innerhalb dieses Frames auf.
-        // Wir rufen dort `next.handle().toPromise()` (via firstValueFrom) — der
-        // Handler-Code läuft dann komplett im Bypass-Frame.
+        // `runWithBypass` sets up the consumer AsyncLocalStorage frame and
+        // calls the callback function synchronously inside that frame.
+        // There we call `next.handle().toPromise()` (via firstValueFrom) — the
+        // handler code then runs entirely inside the bypass frame.
         return defer(() =>
             from(
                 this.port.runWithBypass(async () => {
-                    // toPromise() würde alle Werte sammeln; wir wollen den
-                    // Stream durchreichen. Daher als Observable wieder rauspipen.
+                    // toPromise() would collect all values; we want to pass the
+                    // stream through. So we pipe it back out as an Observable.
                     return next.handle();
                 }),
             ).pipe(switchAll()),

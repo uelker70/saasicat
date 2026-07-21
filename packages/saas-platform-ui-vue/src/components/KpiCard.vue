@@ -10,8 +10,8 @@
 </template>
 
 <script setup lang="ts">
-// Generische KPI-Card mit Icon, Label, Wert und optionalem Footer-Slot.
-// Akzent-Farbe ueber `accent`-Prop (CSS-Color).
+// Generic KPI card with icon, label, value and optional footer slot.
+// Accent color via `accent` prop (CSS color).
 
 defineProps<{
     label: string;

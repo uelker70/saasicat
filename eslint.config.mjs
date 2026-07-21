@@ -11,18 +11,18 @@ export default tseslint.config(
         ignores: ['**/dist/**', '**/node_modules/**', '**/.prisma/**', '**/generated/**'],
     },
     {
-        // Tests, Scripts und Server-Side-Code (NestJS-Services) laufen unter
+        // Tests, scripts, and server-side code (NestJS services) run under
         // Node.js — `process`, `console`, `setTimeout`, `URL`, `Buffer` etc.
-        // sind dort globale Bindings, nicht Browser-only.
+        // are global bindings there, not browser-only.
         languageOptions: {
             globals: {
                 ...globals.node,
             },
         },
         rules: {
-            // Unused-Imports / -Vars mit Unterstrich-Präfix bewusst ignorieren
-            // (Convention für absichtlich-ungenutzte Parameter, z. B. in
-            // Stubs/Adapter-Signaturen, die das Plattform-Interface erfüllen).
+            // Deliberately ignore unused imports / vars with an underscore prefix
+            // (convention for intentionally-unused parameters, e.g. in
+            // stub/adapter signatures that fulfill the platform interface).
             '@typescript-eslint/no-unused-vars': [
                 'error',
                 {
@@ -34,24 +34,24 @@ export default tseslint.config(
         },
     },
     {
-        // Module-Interfaces (NestJS-DynamicModule-Options) verwenden bewusst
-        // `any` als loosely-typed Slot für Konsumenten-Factories — der
-        // Typecheck passiert auf der Konsumenten-Seite.
+        // Module interfaces (NestJS DynamicModule options) deliberately use
+        // `any` as a loosely-typed slot for consumer factories — the
+        // typecheck happens on the consumer side.
         files: ['**/*-nest.interfaces.ts'],
         rules: {
             '@typescript-eslint/no-explicit-any': 'off',
         },
     },
     {
-        // CJS-Entry-Points dürfen `require()` benutzen — sie sind genau dafür da.
+        // CJS entry points may use `require()` — that's exactly what they're for.
         files: ['**/*.cjs'],
         rules: {
             '@typescript-eslint/no-require-imports': 'off',
         },
     },
     {
-        // Vite-Env-Deklarationen sind per Definition leere Interfaces +
-        // generische `any`-Slots, die den Standard-Slot erweitern.
+        // Vite env declarations are by definition empty interfaces +
+        // generic `any` slots that extend the standard slot.
         files: ['**/env.d.ts', '**/*.d.ts'],
         rules: {
             '@typescript-eslint/no-empty-object-type': 'off',

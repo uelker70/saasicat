@@ -1,8 +1,8 @@
-// createSaasPlatformTestModule — Convenience für Integration-Tests, die das
-// `SaasPlatformModule` mit Fake-Adaptern und einem statischen In-Memory-
-// PlanCatalog hochfahren wollen. Spart pro Test-Datei ~50 Zeilen Setup.
+// createSaasPlatformTestModule — convenience for integration tests that want to
+// spin up the `SaasPlatformModule` with fake adapters and a static in-memory
+// PlanCatalog. Saves ~50 lines of setup per test file.
 //
-// Verwendung:
+// Usage:
 //
 // ```ts
 // import { Test } from '@nestjs/testing';
@@ -30,7 +30,7 @@ import type { PlanCatalog, QuotaProvider } from '@saasicat/types';
 import { SaasPlatformModule } from '../platform/saas-platform.module.js';
 import type { SaasPlatformModuleOptions } from '../platform/saas-platform.module.js';
 
-/** No-op-Stub für `MfaPort`. */
+/** No-op stub for `MfaPort`. */
 export class StubMfaPort {
     private secrets = new Map<string, string>();
     async getSecret(userId: string): Promise<string | null> {
@@ -45,7 +45,7 @@ export class StubMfaPort {
     }
 }
 
-/** No-op-Stub für `AuditPort`. Behält Aufrufe als Liste für Asserts. */
+/** No-op stub for `AuditPort`. Keeps calls as a list for asserts. */
 export class StubAuditPort {
     public readonly calls: Array<{
         actor: unknown;
@@ -65,7 +65,7 @@ export class StubAuditPort {
     }
 }
 
-/** No-op-Stub für `RlsBypassPort` — ruft den Callback ohne Wrapping. */
+/** No-op stub for `RlsBypassPort` — calls the callback without wrapping. */
 export class StubRlsBypassPort {
     async runWithBypass<T>(fn: () => Promise<T>): Promise<T> {
         return fn();
@@ -74,11 +74,11 @@ export class StubRlsBypassPort {
 
 export interface CreateSaasPlatformTestModuleOptions {
     planCatalog: PlanCatalog;
-    /** Default `'starter'` falls Catalog mindestens einen Plan hat. */
+    /** Default `'starter'` if the catalog has at least one plan. */
     defaultPlanId?: string;
-    /** QuotaProvider-Klassen für den `EnforceQuotaInterceptor`. */
+    /** QuotaProvider classes for the `EnforceQuotaInterceptor`. */
     quotaProviders?: Array<Type<QuotaProvider>>;
-    /** Overrides — falls der Test einen anderen Adapter braucht. */
+    /** Overrides — if the test needs a different adapter. */
     overrides?: Partial<{
         mfa: SaasPlatformModuleOptions['adapters']['mfa'];
         audit: SaasPlatformModuleOptions['adapters']['audit'];
@@ -87,10 +87,9 @@ export interface CreateSaasPlatformTestModuleOptions {
 }
 
 /**
- * Liefert ein `DynamicModule`, das das SaasPlatformModule mit Stub-Adaptern
- * + dem übergebenen PlanCatalog im Static-Entitlement-Modus aufsetzt.
- * Tests können das in `Test.createTestingModule({ imports: [...] })`
- * einkippen.
+ * Returns a `DynamicModule` that sets up the SaasPlatformModule with stub
+ * adapters + the given PlanCatalog in static entitlement mode.
+ * Tests can drop this into `Test.createTestingModule({ imports: [...] })`.
  */
 export function createSaasPlatformTestModule(
     options: CreateSaasPlatformTestModuleOptions,
@@ -102,7 +101,7 @@ export function createSaasPlatformTestModule(
         imports: [
             SaasPlatformModule.forRoot({
                 planCatalog: options.planCatalog,
-                controller: { guards: [] }, // Tests laufen ohne Auth-Guard
+                controller: { guards: [] }, // Tests run without an auth guard
                 adapters: {
                     mfa: options.overrides?.mfa ?? new StubMfaPort(),
                     audit: options.overrides?.audit ?? new StubAuditPort(),

@@ -1,10 +1,10 @@
-// Geteilte Proration-Rechnung für Self-Service-Previews (#37).
+// Shared proration calculation for self-service previews (#37).
 //
-// Plan-Wechsel (PlanChangePreviewService) und Bundle-Add
-// (SubscriptionBundlePreviewService) rechnen mit derselben Formel:
-// anteiliger Mehr-/Minderbetrag = (Zielpreis − aktueller Preis) ×
-// Resttage / Periodentage. Tages-Granularität, kaufmännisch auf 2
-// Nachkommastellen gerundet.
+// Plan change (PlanChangePreviewService) and bundle add
+// (SubscriptionBundlePreviewService) use the same formula:
+// prorated surcharge/credit = (target price − current price) ×
+// remaining days / period days. Day granularity, commercially rounded
+// to 2 decimal places.
 
 const DAY_MS = 86_400_000;
 
@@ -15,7 +15,7 @@ export interface ProrationDto {
     periodEnd: Date;
     currentPriceNet: number;
     targetPriceNet: number;
-    /** Anteiliger Mehr-/Minderbetrag bis Periodenende. Negativ = Gutschrift. */
+    /** Prorated surcharge/credit until end of period. Negative = credit. */
     prorataDeltaNet: number;
 }
 
@@ -23,7 +23,7 @@ export interface ProrationInput {
     periodStart: Date;
     periodEnd: Date;
     now: Date;
-    /** Bisheriger Periodenpreis (Bundle-Add: 0 — es kommt nur etwas hinzu). */
+    /** Previous period price (bundle add: 0 — something is only added). */
     currentPriceNet: number;
     targetPriceNet: number;
 }
@@ -54,9 +54,9 @@ export function computeProration(input: ProrationInput): ProrationDto {
     };
 }
 
-// Lokal statt aus ../promo importiert: die Sub-Entries (billing/promo)
-// bundeln getrennt — ein Cross-Entry-Import würde das Promo-Modul in den
-// Billing-Chunk duplizieren.
+// Local instead of imported from ../promo: the sub-entries (billing/promo)
+// bundle separately — a cross-entry import would duplicate the promo module
+// into the billing chunk.
 function round2(n: number): number {
     return Math.round(n * 100) / 100;
 }

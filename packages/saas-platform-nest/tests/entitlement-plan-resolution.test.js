@@ -5,12 +5,12 @@ import { resolveEntitlementPlan } from '../dist/entitlement/index.js';
 const NOW = new Date('2026-05-08T12:00:00Z');
 
 describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
-    test('Default: kein Override → subscription.plan', () => {
+    test('Default: no override → subscription.plan', () => {
         const plan = resolveEntitlementPlan({ plan: 'STANDARD', status: 'ACTIVE' }, {}, NOW);
         assert.equal(plan, 'STANDARD');
     });
 
-    test('Pilot: pilotEntitlementPlan überschreibt', () => {
+    test('Pilot: pilotEntitlementPlan overrides', () => {
         const plan = resolveEntitlementPlan(
             { plan: 'STANDARD', status: 'ACTIVE', isPilot: true },
             { pilotEntitlementPlan: 'BUSINESS' },
@@ -19,7 +19,7 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'BUSINESS');
     });
 
-    test('Pilot ohne Config: fällt auf subscription.plan zurück', () => {
+    test('Pilot without config: falls back to subscription.plan', () => {
         const plan = resolveEntitlementPlan(
             { plan: 'STANDARD', status: 'ACTIVE', isPilot: true },
             {},
@@ -28,7 +28,7 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'STANDARD');
     });
 
-    test('TRIAL: subscription.trialEntitlementPlan gewinnt', () => {
+    test('TRIAL: subscription.trialEntitlementPlan wins', () => {
         const plan = resolveEntitlementPlan(
             { plan: 'BASIC', status: 'TRIAL', trialEntitlementPlan: 'PROFESSIONAL' },
             { defaultTrialEntitlementPlan: 'STANDARD' },
@@ -37,7 +37,7 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'PROFESSIONAL');
     });
 
-    test('TRIAL ohne trialEntitlementPlan: fällt auf defaultTrialEntitlementPlan', () => {
+    test('TRIAL without trialEntitlementPlan: falls back to defaultTrialEntitlementPlan', () => {
         const plan = resolveEntitlementPlan(
             { plan: 'BASIC', status: 'TRIAL', trialEntitlementPlan: null },
             { defaultTrialEntitlementPlan: 'PROFESSIONAL' },
@@ -46,12 +46,12 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'PROFESSIONAL');
     });
 
-    test('TRIAL ganz ohne Config: fällt auf subscription.plan zurück', () => {
+    test('TRIAL with no config at all: falls back to subscription.plan', () => {
         const plan = resolveEntitlementPlan({ plan: 'BASIC', status: 'TRIAL' }, {}, NOW);
         assert.equal(plan, 'BASIC');
     });
 
-    test('PENDING_SALES: pendingSalesEntitlementPlan überschreibt', () => {
+    test('PENDING_SALES: pendingSalesEntitlementPlan overrides', () => {
         const plan = resolveEntitlementPlan(
             { plan: 'ENTERPRISE', status: 'PENDING_SALES' },
             { pendingSalesEntitlementPlan: 'PROFESSIONAL' },
@@ -60,7 +60,7 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'PROFESSIONAL');
     });
 
-    test('Pending-Plan-Wechsel: greift, sobald pendingEffectiveAt in der Vergangenheit', () => {
+    test('Pending plan change: takes effect once pendingEffectiveAt is in the past', () => {
         const plan = resolveEntitlementPlan(
             {
                 plan: 'PROFESSIONAL',
@@ -74,7 +74,7 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'STANDARD');
     });
 
-    test('Pending-Plan-Wechsel: greift NICHT, solange pendingEffectiveAt in der Zukunft', () => {
+    test('Pending plan change: does NOT take effect while pendingEffectiveAt is in the future', () => {
         const plan = resolveEntitlementPlan(
             {
                 plan: 'PROFESSIONAL',
@@ -88,7 +88,7 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'PROFESSIONAL');
     });
 
-    test('Pilot schlägt Pending-Plan-Wechsel: Pilot dominiert', () => {
+    test('Pilot beats pending plan change: Pilot dominates', () => {
         const plan = resolveEntitlementPlan(
             {
                 plan: 'STANDARD',
@@ -103,7 +103,7 @@ describe('resolveEntitlementPlan — Trial / Pilot / Pending', () => {
         assert.equal(plan, 'BUSINESS');
     });
 
-    test('TRIAL schlägt Pending-Plan-Wechsel: Trial dominiert', () => {
+    test('TRIAL beats pending plan change: Trial dominates', () => {
         const plan = resolveEntitlementPlan(
             {
                 plan: 'BASIC',

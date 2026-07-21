@@ -4,10 +4,10 @@ import { Command, CommandRunner, Option, SubCommand } from 'nest-commander';
 import { AuditTailFlow } from './audit-tail-flow.js';
 import { CliContextService } from './cli-context.service.js';
 
-// Geteilte `<app> audit …`-Commands. Bindet den Plattform-`AuditTailFlow` an
-// die nest-commander-CLI. Setzt voraus, dass der Consumer in
-// `CliContextModule.forRoot({ auditQueryPort })` einen AuditQueryPort-Adapter
-// liefert — sonst ist der Flow nicht registriert und der Command-Boot scheitert.
+// Shared `<app> audit …` commands. Binds the platform `AuditTailFlow` to
+// the nest-commander CLI. Requires the consumer to supply an AuditQueryPort
+// adapter in `CliContextModule.forRoot({ auditQueryPort })` — otherwise the
+// flow is not registered and command boot fails.
 
 interface TailFlags {
     as?: string;

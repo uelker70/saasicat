@@ -1,11 +1,11 @@
 scenario: 'Full manifest endpoint requires SUPER_ADMIN role'
 description: |
-    GET /api/v1/admin/manifest MUSS:
-      - 401 ohne JWT
-      - 403 mit JWT, aber Rolle != SUPER_ADMIN
-      - 200 mit SUPER_ADMIN-JWT
-    Manifest ist nie Security-Quelle, aber der Endpoint selbst ist
-    schutzwürdig (verrät Capabilities, Endpoints, Page-Liste).
+    GET /api/v1/admin/manifest MUST:
+      - 401 without JWT
+      - 403 with JWT but role != SUPER_ADMIN
+      - 200 with SUPER_ADMIN JWT
+    The manifest is never a security source, but the endpoint itself is
+    worth protecting (it exposes capabilities, endpoints, page list).
     Spec: SPEC §10.4.
 
 setup:

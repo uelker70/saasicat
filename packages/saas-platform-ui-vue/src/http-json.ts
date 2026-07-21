@@ -1,14 +1,14 @@
-// Geteilte JSON-Helfer über den injizierbaren `HttpClient`. Ein einziger
-// Request-/Fehler-Pfad für alle Pre-Login-Calls (Boot, Setup-Status, Setup),
-// statt rohem `fetch` mit divergenter Fehlerbehandlung je Komponente. Ein
-// Konsument-`HttpClient` (Auth-Header, baseURL, Retry) greift damit überall.
+// Shared JSON helpers over the injectable `HttpClient`. A single
+// request/error path for all pre-login calls (boot, setup status, setup),
+// instead of raw `fetch` with divergent error handling per component. A
+// consumer `HttpClient` (auth header, baseURL, retry) then applies everywhere.
 
 import type { HttpClient } from './types.js';
 
 /**
- * Fehler bei Nicht-2xx-Antworten. `code` ist der maschinenlesbare Fehlercode
- * aus dem JSON-Body (`{ code }`), falls vorhanden — Aufrufer mappen ihn auf
- * eine Meldung (z. B. über `SETUP_ERROR_CODES`).
+ * Error for non-2xx responses. `code` is the machine-readable error code
+ * from the JSON body (`{ code }`), if present — callers map it to
+ * a message (e.g. via `SETUP_ERROR_CODES`).
  */
 export class HttpJsonError extends Error {
     constructor(

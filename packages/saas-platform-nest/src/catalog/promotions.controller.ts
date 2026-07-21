@@ -1,6 +1,6 @@
-// PromotionsController — REST-Endpunkte für `promotions` (SPEC_V2 §9a).
-// Pfad: `/admin/catalog/promotions`. Wie BundlesController zur Boot-Zeit
-// gebaut, damit der Konsument die Guards bestimmt.
+// PromotionsController — REST endpoints for `promotions` (SPEC_V2 §9a).
+// Path: `/admin/catalog/promotions`. Built at boot time like BundlesController
+// so that the consumer determines the guards.
 
 import {
     Body,

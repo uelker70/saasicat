@@ -1,6 +1,6 @@
-// MarketingSettingsService — projekt-weite Marketing-Konfig (SPEC_V2 §6.5).
-// Aktuell: `activeLocales` — die im Marketing-Catalog aktivierte Teilmenge
-// des `availableLocales`-Pools.
+// MarketingSettingsService — project-wide marketing config (SPEC_V2 §6.5).
+// Currently: `activeLocales` — the subset of the `availableLocales` pool
+// activated in the marketing catalog.
 
 import { Inject, Injectable } from '@nestjs/common';
 import type {
@@ -18,7 +18,7 @@ export class MarketingSettingsService {
         private readonly repo: MarketingSettingsRepository,
     ) {}
 
-    /** Liefert die gespeicherte Konfig oder `null` (dann gilt der volle Pool). */
+    /** Returns the stored config or `null` (in which case the full pool applies). */
     get(projectKey: string): Promise<MarketingSettingsRow | null> {
         return this.repo.get(projectKey);
     }

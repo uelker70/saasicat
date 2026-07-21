@@ -3,10 +3,10 @@ import type { MfaPort } from '@saasicat/types';
 import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 
 /**
- * Default-Implementation für `MfaPort` gegen die `SuperAdminMfa`-Tabelle
- * aus dem Plattform-Prisma-Fragment.
+ * Default implementation of `MfaPort` against the `SuperAdminMfa` table
+ * from the platform Prisma fragment.
  *
- * Schema-Annahme:
+ * Schema assumption:
  *
  * ```prisma
  * model SuperAdminMfa {

@@ -1,22 +1,22 @@
-// AUTO-GENERATED — nicht manuell editieren.
+// AUTO-GENERATED — do not edit manually.
 //
-// Quelle: @saasicat/spec/schemas/promo-code.schema.json
-// Regenerieren: `pnpm --filter @saasicat/types gen:types`
-// Drift-Gate: tests/codegen-drift.test.js bricht den PR, wenn Schema und
-// generierter Output auseinanderlaufen.
+// Source: @saasicat/spec/schemas/promo-code.schema.json
+// Regenerate: `pnpm --filter @saasicat/types gen:types`
+// Drift gate: tests/codegen-drift.test.js fails the PR when the schema and
+// the generated output diverge.
 
 /**
- * Sprach-neutrale Definition von Promo-Codes für die SaaS-Plattform inkl. Redemption-Lifecycle.
+ * Language-neutral definition of promo codes for the SaaS platform, including redemption lifecycle.
  */
 export interface PromoCode {}
 
 /**
- * PERCENT: value ist Prozentsatz (1–100). ABSOLUTE: value ist Netto-Betrag in der Catalog-Currency.
+ * PERCENT: value is a percentage (1–100). ABSOLUTE: value is a net amount in the catalog currency.
  */
 export type ValueType = 'PERCENT' | 'ABSOLUTE';
 
 /**
- * ONCE: einmaliger Rabatt. MONTHS: durationValue Monate ab Redemption. BILLING_CYCLES: durationValue Abrechnungszyklen.
+ * ONCE: one-time discount. MONTHS: durationValue months from redemption. BILLING_CYCLES: durationValue billing cycles.
  */
 export type DurationType = 'ONCE' | 'MONTHS' | 'BILLING_CYCLES';
 
@@ -39,45 +39,45 @@ export type ValidationResult =
     | 'RATE_LIMITED';
 
 /**
- * PERCENT: value ist Prozentsatz (1–100). ABSOLUTE: value ist Netto-Betrag in der Catalog-Currency.
+ * PERCENT: value is a percentage (1–100). ABSOLUTE: value is a net amount in the catalog currency.
  */
 /**
- * ONCE: einmaliger Rabatt. MONTHS: durationValue Monate ab Redemption. BILLING_CYCLES: durationValue Abrechnungszyklen.
+ * ONCE: one-time discount. MONTHS: durationValue months from redemption. BILLING_CYCLES: durationValue billing cycles.
  */
 
 export interface CreatePromoCodeRequest {
     /**
-     * Großbuchstaben, Ziffern, '-' und '_'. Case-insensitive geprüft, in UPPER gespeichert.
+     * Uppercase letters, digits, '-' and '_'. Checked case-insensitively, stored in UPPER.
      */
     code: string;
     valueType: ValueType;
     /**
-     * Bei PERCENT: 0.01–100. Bei ABSOLUTE: > 0 in Catalog-Currency.
+     * For PERCENT: 0.01–100. For ABSOLUTE: > 0 in catalog currency.
      */
     value: number;
     durationType: DurationType;
     /**
-     * Pflicht bei MONTHS / BILLING_CYCLES, null bei ONCE.
+     * Required for MONTHS / BILLING_CYCLES, null for ONCE.
      */
     durationValue?: number | null;
     validFrom?: string | null;
     validUntil?: string | null;
     maxRedemptions?: number | null;
     /**
-     * Leer = alle Pläne.
+     * Empty = all plans.
      */
     appliesToPlans?: string[];
     appliesToBilling?: BillingCycle | null;
     firstTimeCustomersOnly?: boolean;
     minimumPlanAmountGross?: number | null;
     /**
-     * Default: Rabatt darf Rechnung nicht auf 0 senken.
+     * Default: discount must not reduce the invoice to 0.
      */
     allowZeroInvoice?: boolean;
     description?: string | null;
     campaignTag?: string | null;
     /**
-     * SKR-Konto für die Rechnungslegung; projekt-spezifisch.
+     * SKR account for accounting; project-specific.
      */
     revenueDeductionAccount?: string | null;
 }
@@ -91,10 +91,10 @@ export interface UpdatePromoCodeRequest {
 }
 
 /**
- * PERCENT: value ist Prozentsatz (1–100). ABSOLUTE: value ist Netto-Betrag in der Catalog-Currency.
+ * PERCENT: value is a percentage (1–100). ABSOLUTE: value is a net amount in the catalog currency.
  */
 /**
- * ONCE: einmaliger Rabatt. MONTHS: durationValue Monate ab Redemption. BILLING_CYCLES: durationValue Abrechnungszyklen.
+ * ONCE: one-time discount. MONTHS: durationValue months from redemption. BILLING_CYCLES: durationValue billing cycles.
  */
 
 export interface PromoCodeRedemption {
@@ -116,12 +116,12 @@ export interface PromoCodeRedemption {
 export interface PromoCodeValidationLog {
     id: string;
     /**
-     * null bei NOT_FOUND
+     * null for NOT_FOUND
      */
     promoCodeId?: string | null;
     codeAttempt: string;
     /**
-     * kein Klartext-IP
+     * no plaintext IP
      */
     ipHash?: string | null;
     sessionId?: string | null;

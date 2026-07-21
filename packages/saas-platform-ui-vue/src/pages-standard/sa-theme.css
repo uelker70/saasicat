@@ -1,10 +1,10 @@
-/* SuperAdmin-UI Theme — CSS-Variablen für die Plattform-Pages.
+/* SuperAdmin UI theme — CSS variables for the platform pages.
  *
- * Konsumenten-Apps können einzelne
- * Variablen via eigenem `:root`-Block in der App-CSS überschreiben — wie
- * jede CSS-Var-Override. Klassen-Namen folgen dem `sa-`-Prefix-Konvention,
- * d. h. eine App-CSS kann z. B. `.sa-tenants__title` punkt-genau
- * neuformatieren ohne den Plattform-Code anzufassen.
+ * Consumer apps can override individual
+ * variables via their own `:root` block in the app CSS — like
+ * any CSS var override. Class names follow the `sa-` prefix convention,
+ * i.e. an app CSS can, for example, re-style `.sa-tenants__title` precisely
+ * without touching the platform code.
  *
  */
 
@@ -37,10 +37,10 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Shared Page-Chrome — Header-Strip, Stat-Pills, Toolbar, Card.
- * Pattern aus der Plan-Simulation; Pages nutzen sie statt eigene
- * BEM-Varianten anzulegen, damit der Look in der ganzen
- * SuperAdmin-Surface konsistent bleibt.
+ * Shared page chrome — header strip, stat pills, toolbar, card.
+ * Pattern from the plan simulation; pages use it instead of creating their own
+ * BEM variants, so the look stays consistent across the entire
+ * SuperAdmin surface.
  * ───────────────────────────────────────────────────────────── */
 
 .sa-page-head {
@@ -70,7 +70,7 @@
     align-items: center;
 }
 
-/* Stat-Pill-Strip — klickbare Filter-Tiles (siehe pl-stat in der Sim). */
+/* Stat pill strip — clickable filter tiles (see pl-stat in the sim). */
 .sa-stats {
     display: flex;
     gap: 8px;
@@ -125,7 +125,7 @@
     color: #94a3b8;
     margin-top: 1px;
 }
-/* Farbvarianten — analog active-state/warn-state/danger-state der Sim. */
+/* Color variants — analogous to active-state/warn-state/danger-state in the sim. */
 .sa-stat--positive .sa-stat__num {
     color: var(--sa-positive);
 }
@@ -175,7 +175,7 @@
         0 2px 6px rgba(168, 85, 247, 0.1);
 }
 
-/* Toolbar (Search + Filter-Buttons + Sort). */
+/* Toolbar (search + filter buttons + sort). */
 .sa-toolbar {
     display: flex;
     align-items: center;
@@ -206,7 +206,7 @@
     color: #94a3b8;
 }
 
-/* Generic Card (Cards in Dashboard/Detail-Sektionen). */
+/* Generic card (cards in dashboard/detail sections). */
 .sa-card {
     background: var(--sa-bg-surface);
     border: 1px solid var(--sa-border);

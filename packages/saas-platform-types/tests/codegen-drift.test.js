@@ -1,9 +1,9 @@
-// Q.4 — Codegen-Drift-Gate für die generated TypeScript-Types.
+// Q.4 — Codegen drift gate for the generated TypeScript types.
 //
-// Regeneriert die TS-Files aus den JSON-Schemas und vergleicht sie mit dem
-// committed Stand. Drift = PR-Block. Wer ein Schema ändert, MUSS auch
-// `pnpm gen:types` laufen lassen und die neuen Snapshots committen — das
-// macht jeden Schema-Cut sichtbar im PR-Diff.
+// Regenerates the TS files from the JSON schemas and compares them against the
+// committed state. Drift = PR block. Anyone who changes a schema MUST also run
+// `pnpm gen:types` and commit the new snapshots — that makes every schema cut
+// visible in the PR diff.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,10 +31,10 @@ async function regenerate(schemaFile, rootName) {
     return banner + '\n' + body;
 }
 
-describe('Q.4 Codegen-Drift-Gate', () => {
+describe('Q.4 Codegen drift gate', () => {
     for (const { file, rootName } of SCHEMAS) {
         const genFile = file.replace('.schema.json', '.gen.ts');
-        test(`${genFile} ist im Sync mit ${file}`, async () => {
+        test(`${genFile} is in sync with ${file}`, async () => {
             const fresh = await regenerate(file, rootName);
             const committed = await readFile(join(GEN_DIR, genFile), 'utf8');
             if (fresh !== committed) {

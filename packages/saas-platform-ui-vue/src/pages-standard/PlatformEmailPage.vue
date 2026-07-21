@@ -161,10 +161,10 @@ import type {
     PlatformEmailTestResult,
 } from './platform-email.types';
 
-// Plattform-Standard-Page: System-/Plattform-E-Mail-Absender. Wie alle
-// Standard-Pages datenagnostisch — die App reicht die API-Calls als Props
-// (mit eigenem Auth-/MFA-Wiring). Create/Update/Delete sind MFA-pflichtig,
-// der Test-Versand nicht.
+// Platform standard page: system/platform email sender. Like all standard
+// pages, data-agnostic — the app passes the API calls in as props (with its
+// own auth/MFA wiring). Create/update/delete require MFA, the test send does
+// not.
 
 const props = withDefaults(
     defineProps<{
@@ -217,7 +217,7 @@ const testForm = reactive<PlatformEmailTestInput>({ toEmail: '', subject: '' });
 const testResult = ref<PlatformEmailTestResult | null>(null);
 const testing = ref(false);
 
-// MFA-Loop analog UsersPage (Promise-Resolver-Pattern).
+// MFA loop analogous to UsersPage (promise-resolver pattern).
 const showMfa = ref(false);
 const mfaError = ref('');
 const mfaDescription = ref('');
@@ -305,7 +305,7 @@ function openEdit(row: PlatformEmailProvider): void {
     showForm.value = true;
 }
 
-// MFA-Loop: bei 401 bleibt der Dialog offen und fragt erneut.
+// MFA loop: on 401 the dialog stays open and asks again.
 async function runWrite(label: string, invoke: (code: string) => Promise<unknown>): Promise<boolean> {
     if (!props.requireMfaForWrite) {
         try {
@@ -346,7 +346,7 @@ function buildWriteInput(): PlatformEmailWriteInput {
         fromEmail: form.fromEmail,
         fromName: form.fromName || undefined,
     };
-    // Passwort nur senden, wenn gesetzt — bei Update bedeutet leer „unverändert".
+    // Only send the password when set — on update, empty means "unchanged".
     if (form.smtpPassword && form.smtpPassword.length > 0) {
         input.smtpPassword = form.smtpPassword;
     }

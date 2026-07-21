@@ -1,8 +1,8 @@
 scenario: 'TOTP-Verify accepts good code, rejects bad code'
 description: |
-    MFA-Mechanik. SuperAdmin hat ein registriertes TOTP-Secret. Bei
-    MFA-pflichtigen Endpoints wird X-Mfa-Code geprüft via @levminer/speakeasy
-    (Nest) bzw. pyotp (Django). Spec: SPEC §10.5.
+    MFA mechanics. SuperAdmin has a registered TOTP secret. For
+    MFA-required endpoints the X-Mfa-Code is verified via @levminer/speakeasy
+    (Nest) or pyotp (Django). Spec: SPEC §10.5.
 
 setup:
     - createUser:
@@ -10,9 +10,9 @@ setup:
           role: 'SUPER_ADMIN'
     - enrollMfa:
           email: 'super@platform.example'
-          # TOTP-Secret ist im Test deterministisch via Mock-RNG; der
-          # Acceptance-Runner kennt das Secret und kann gültige Codes
-          # generieren.
+          # In the test the TOTP secret is deterministic via mock RNG; the
+          # acceptance runner knows the secret and can generate valid
+          # codes.
 
 cases:
     - name: 'valid TOTP code'

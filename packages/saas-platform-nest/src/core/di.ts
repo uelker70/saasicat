@@ -1,20 +1,20 @@
-// Geteilte DI-Helfer für alle `*.forRoot()`-Module — eine Implementierung statt
-// je Modul kopiert. Auch für Extension-Autoren exportiert, die eigene
-// `forRoot`-Module gegen das Framework bauen.
+// Shared DI helpers for all `*.forRoot()` modules — one implementation instead
+// of copying it per module. Also exported for extension authors who build their
+// own `forRoot` modules against the framework.
 
 import type { FactoryProvider, Provider } from '@nestjs/common';
 
 /**
- * Eine Port-Implementierung kann als fertiger Wert ODER als Factory
- * (`{ useFactory, inject }`) übergeben werden — Konsumenten reichen so ihre
- * Adapter ein, ohne die Instanziierung selbst zu kennen.
+ * A port implementation can be passed as a ready-made value OR as a factory
+ * (`{ useFactory, inject }`) — this way consumers supply their adapters
+ * without needing to know the instantiation themselves.
  */
 export type ProviderSpec<T> = T | Pick<FactoryProvider, 'useFactory' | 'inject'>;
 
 /**
- * Normalisiert eine `ProviderSpec<T>` zu einem Nest-`Provider` für `token`:
- * eine `{ useFactory, inject }`-Form wird zum Factory-Provider, alles andere
- * zum `useValue`-Provider.
+ * Normalizes a `ProviderSpec<T>` into a Nest `Provider` for `token`:
+ * a `{ useFactory, inject }` form becomes a factory provider, everything else
+ * a `useValue` provider.
  */
 export function asProvider<T>(token: symbol, impl: ProviderSpec<T>): Provider {
     if (

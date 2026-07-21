@@ -1,7 +1,7 @@
-// useNav — Vue-3-Composable über NavBuilder.
+// useNav — Vue 3 composable over NavBuilder.
 //
-// Wrappt einen reaktiven `Ref<AdminManifest | null>` (typischerweise aus
-// `useManifest()`) und liefert reaktive `routes` + `sidebar` -ComputedRefs.
+// Wraps a reactive `Ref<AdminManifest | null>` (typically from
+// `useManifest()`) and returns reactive `routes` + `sidebar` ComputedRefs.
 
 import { computed, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest } from '@saasicat/types';
@@ -14,9 +14,9 @@ import {
 } from './nav-builder.js';
 
 export interface UseNavResult {
-    /** Liste aller via Manifest verfügbaren Routen — nach Capabilities gefiltert. */
+    /** List of all routes available via the manifest — filtered by capabilities. */
     routes: ComputedRef<BuildRouteEntry[]>;
-    /** Drawer-Items, gruppiert nach navSection. */
+    /** Drawer items, grouped by navSection. */
     sidebar: ComputedRef<SidebarSection[]>;
 }
 

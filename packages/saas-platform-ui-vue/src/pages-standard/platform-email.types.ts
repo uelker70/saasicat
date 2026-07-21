@@ -1,7 +1,7 @@
-// Typen der shared PlatformEmailPage — bewusst aus der `.vue` ausgelagert, damit
-// Konsumenten sie als reguläre TS-Typen importieren können. Ein Named-Type-Import
-// direkt aus einer `.vue` wird über den `*.vue`-Modul-Shim (vue-tsc) nicht
-// aufgelöst; aus dieser `.ts` schon (re-exportiert über den Paket-Index).
+// Types of the shared PlatformEmailPage — deliberately extracted from the `.vue` so that
+// consumers can import them as regular TS types. A named type import
+// directly from a `.vue` is not resolved via the `*.vue` module shim (vue-tsc);
+// from this `.ts` it is (re-exported via the package index).
 
 export interface PlatformEmailProvider {
     id: string;

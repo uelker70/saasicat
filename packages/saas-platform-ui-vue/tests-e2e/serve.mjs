@@ -1,6 +1,6 @@
-// Minimaler HTTP-Server für Playwright-E2E. Serviert das Paket-Root,
-// damit `tests-e2e/fixtures/index.html` auf `dist/index.js` als
-// relativem `..`-Pfad zugreifen kann (CORS lehnt file:// → file:// ab).
+// Minimal HTTP server for Playwright E2E. Serves the package root
+// so that `tests-e2e/fixtures/index.html` can access `dist/index.js`
+// via a relative `..` path (CORS rejects file:// → file://).
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';

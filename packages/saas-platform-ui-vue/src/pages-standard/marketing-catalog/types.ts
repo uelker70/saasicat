@@ -7,9 +7,9 @@ import type {
 
 export type MarketingCatalogTab = 'preview' | 'admin' | 'promos';
 
-/** Aufgelöste Marketing-Werte — aus der Projektion oder Plan-Defaults. */
+/** Resolved marketing values — from the projection or plan defaults. */
 export interface ResolvedMarketing {
-    /** Locale-spezifischer Plan-Name; leer = Fallback auf `plan.label` (DE-Stammdaten). */
+    /** Locale-specific plan name; empty = fallback to `plan.label` (DE master data). */
     displayLabel: string;
     visible: boolean;
     highlight: boolean;
@@ -26,18 +26,18 @@ export interface ResolvedMarketing {
 export interface MarketingRow {
     plan: PlanRow;
     accent: string;
-    /** Aktuell im UI ausgewählte Version (Default: today-active). */
+    /** Version currently selected in the UI (default: today-active). */
     liveVersion: PlanVersionRow | null;
-    /** Alle published Versions des Plans, sortiert nach validFrom asc. */
+    /** All published versions of the plan, sorted by validFrom asc. */
     publishedVersions: PlanVersionRow[];
     projection: MarketingProjectionRow | null;
     m: ResolvedMarketing;
 }
 
 export interface FeatureSuggestion {
-    /** Feature-/Quota-Key — wird auf dem Top-Feature persistiert. */
+    /** Feature/quota key — persisted on the top feature. */
     key: string;
-    /** Übersetztes Anzeige-Label (nur für den Vorschlags-Chip). */
+    /** Translated display label (only for the suggestion chip). */
     label: string;
     strong: string;
 }

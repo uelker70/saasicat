@@ -1,9 +1,9 @@
-// SPEC_V2 §11.1 M5.3 — saveConfiguration validiert eine optional gesetzte
-// `RegistrationConfigSelection.businessTypeVersionId` gegen den App-Adapter
-// `RegistrationBusinessTypeLookup`. Drei Pfade:
-//   1. Lookup nicht konfiguriert + ID gesetzt → ID wird ungeprüft akzeptiert
-//   2. Lookup konfiguriert + ID liefert View → success
-//   3. Lookup konfiguriert + ID liefert null → BadRequest BUSINESS_TYPE_NOT_AVAILABLE
+// SPEC_V2 §11.1 M5.3 — saveConfiguration validates an optionally set
+// `RegistrationConfigSelection.businessTypeVersionId` against the app adapter
+// `RegistrationBusinessTypeLookup`. Three paths:
+//   1. Lookup not configured + ID set → ID is accepted unchecked
+//   2. Lookup configured + ID yields view → success
+//   3. Lookup configured + ID yields null → BadRequest BUSINESS_TYPE_NOT_AVAILABLE
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -194,8 +194,8 @@ const baseSelection = {
     appliedPromoCode: null,
 };
 
-test('saveConfiguration: ohne BusinessType-Lookup wird die ID ungeprüft akzeptiert', async () => {
-    const { service, repo } = makeService(); // kein businessTypeLookup
+test('saveConfiguration: without a BusinessType lookup the ID is accepted unchecked', async () => {
+    const { service, repo } = makeService(); // no businessTypeLookup
     const pending = await seedEmailVerified(repo);
 
     const result = await service.saveConfiguration({
@@ -209,7 +209,7 @@ test('saveConfiguration: ohne BusinessType-Lookup wird die ID ungeprüft akzepti
     assert.equal(stored.configJson.businessTypeVersionId, UNKNOWN_UUID);
 });
 
-test('saveConfiguration: mit Lookup → bekannte ID akzeptiert + persistiert', async () => {
+test('saveConfiguration: with lookup → known ID accepted + persisted', async () => {
     const businessTypeLookup = new FakeBusinessTypeLookup(
         new Map([
             [
@@ -239,8 +239,8 @@ test('saveConfiguration: mit Lookup → bekannte ID akzeptiert + persistiert', a
     assert.equal(stored.configJson.businessTypeVersionId, VALID_UUID);
 });
 
-test('saveConfiguration: mit Lookup → unbekannte ID wirft BUSINESS_TYPE_NOT_AVAILABLE', async () => {
-    const businessTypeLookup = new FakeBusinessTypeLookup(); // leer
+test('saveConfiguration: with lookup → unknown ID throws BUSINESS_TYPE_NOT_AVAILABLE', async () => {
+    const businessTypeLookup = new FakeBusinessTypeLookup(); // empty
     const { service, repo } = makeService({ businessTypeLookup });
     const pending = await seedEmailVerified(repo);
 
@@ -258,7 +258,7 @@ test('saveConfiguration: mit Lookup → unbekannte ID wirft BUSINESS_TYPE_NOT_AV
     );
 });
 
-test('saveConfiguration: mit Lookup, ohne BusinessType-Wahl → kein Lookup-Call', async () => {
+test('saveConfiguration: with lookup, without BusinessType choice → no lookup call', async () => {
     let calls = 0;
     const businessTypeLookup = {
         async findPublishedVersion() {
@@ -271,14 +271,14 @@ test('saveConfiguration: mit Lookup, ohne BusinessType-Wahl → kein Lookup-Call
 
     const result = await service.saveConfiguration({
         pendingRegistrationId: pending.id,
-        selection: { ...baseSelection /* keine businessTypeVersionId */ },
+        selection: { ...baseSelection /* no businessTypeVersionId */ },
     });
 
     assert.equal(result.status, 'PLAN_SELECTED');
-    assert.equal(calls, 0, 'Lookup darf bei null/undefined-ID nicht aufgerufen werden');
+    assert.equal(calls, 0, 'lookup must not be called for a null/undefined ID');
 });
 
-test('saveConfiguration: businessTypeVersionId === null → kein Lookup-Call', async () => {
+test('saveConfiguration: businessTypeVersionId === null → no lookup call', async () => {
     let calls = 0;
     const businessTypeLookup = {
         async findPublishedVersion() {

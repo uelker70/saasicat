@@ -115,10 +115,10 @@ import type {
     PublicMarketingBundle,
 } from '@saasicat/types';
 
-// OnboardingConfigurator — Page-Komponente für Tenant-Self-Service-Onboarding.
-// Komponiert die Sub-Components, hält den Draft-State, ruft die Submit/Preview-
-// Hooks des Konsumenten. Bewusst HTTP-frei: der Konsument injiziert
-// `previewPromo()` + `submit()` über die Props (Axios-Wrapper o.ä.).
+// OnboardingConfigurator — page component for tenant self-service onboarding.
+// Composes the sub-components, holds the draft state, calls the consumer's
+// submit/preview hooks. Deliberately HTTP-free: the consumer injects
+// `previewPromo()` + `submit()` via the props (Axios wrapper or similar).
 
 interface SectionI18n {
     eyebrow: string;
@@ -152,9 +152,9 @@ interface OnboardingI18n {
         empty: string;
         allPlans: string;
         priceOnRequest: string;
-        /** Bundle vollständig durch Plan/andere Bundles gedeckt — nicht doppelt buchbar. */
+        /** Bundle fully covered by the plan/other bundles — not bookable twice. */
         alreadyBooked: string;
-        /** Präfix vor der Liste fehlender Voraussetzungs-Features. */
+        /** Prefix before the list of missing prerequisite features. */
         missingRequires: string;
     };
     promo: { openLabel: string; placeholder: string; apply: string; remove: string };
@@ -173,13 +173,13 @@ interface OnboardingI18n {
         yearSavings: string;
         disclaimer?: string;
     };
-    /** Wird aus dem Backend-Reason-String gemacht (`PromoPreviewInvalidReason` → Anzeige-Text). */
+    /** Derived from the backend reason string (`PromoPreviewInvalidReason` → display text). */
     promoReason: Record<string, string>;
 }
 
 const props = defineProps<{
     plans: CatalogPlan[] | null;
-    /** Eigenständig buchbare Bundles aus `PublicMarketingCatalogResponse.bundles`. */
+    /** Independently bookable bundles from `PublicMarketingCatalogResponse.bundles`. */
     availableBundles?: PublicMarketingBundle[];
     catalogQuotaKeys: string[];
     initialPlan?: string | null;
@@ -190,11 +190,11 @@ const props = defineProps<{
     formatQuotaValue: (key: string, value: number) => string;
     quotaLabel: (key: string) => string;
     featureLabel: (key: string) => string;
-    /** Async-Hook für `POST /billing/promo/preview`. */
+    /** Async hook for `POST /billing/promo/preview`. */
     previewPromo?: (req: PromoPreviewRequest) => Promise<PromoPreviewResponse>;
-    /** Async-Hook für `POST /billing/onboarding/initial-subscription`. */
+    /** Async hook for `POST /billing/onboarding/initial-subscription`. */
     submit: (payload: OnboardingSelectionRequest) => Promise<OnboardingSelectionResponse>;
-    /** Optional: Zurück-Button-Handler. */
+    /** Optional: back-button handler. */
     onBack?: () => void;
     i18n: OnboardingI18n;
 }>();

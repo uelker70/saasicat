@@ -25,7 +25,7 @@ function buildManifest(actions = []) {
 }
 
 describe('ActionRegistry.get + dispatch', () => {
-    test('liefert {def, handler} für registrierten Key', () => {
+    test('returns {def, handler} for a registered key', () => {
         const m = buildManifest([
             {
                 id: 'cf.tenant.suspend',
@@ -48,7 +48,7 @@ describe('ActionRegistry.get + dispatch', () => {
         assert.equal(action.def.confirmType, 'typed-slug');
     });
 
-    test('dispatch ruft Handler mit Input', async () => {
+    test('dispatch calls handler with input', async () => {
         const m = buildManifest([
             {
                 id: 'cf.t.x',
@@ -64,8 +64,8 @@ describe('ActionRegistry.get + dispatch', () => {
     });
 });
 
-describe('ActionRegistry.get — Fehlerpfade', () => {
-    test('ActionDefNotInManifestError für unbekannten Key', () => {
+describe('ActionRegistry.get — error paths', () => {
+    test('ActionDefNotInManifestError for an unknown key', () => {
         const m = buildManifest([]);
         const registry = new ActionRegistry(m, {});
         assert.throws(
@@ -74,7 +74,7 @@ describe('ActionRegistry.get — Fehlerpfade', () => {
         );
     });
 
-    test('MissingHandlerError für deklarierten Key ohne Handler', () => {
+    test('MissingHandlerError for a declared key without a handler', () => {
         const m = buildManifest([
             {
                 id: 'cf.t.x',
@@ -90,8 +90,8 @@ describe('ActionRegistry.get — Fehlerpfade', () => {
     });
 });
 
-describe('ActionRegistry.register — Late-Binding', () => {
-    test('akzeptiert Handler-Registrierung für deklarierten Key', () => {
+describe('ActionRegistry.register — late binding', () => {
+    test('accepts handler registration for a declared key', () => {
         const m = buildManifest([
             {
                 id: 'cf.t.x',
@@ -101,12 +101,12 @@ describe('ActionRegistry.register — Late-Binding', () => {
         ]);
         const registry = new ActionRegistry(m, {});
         registry.register('X', async () => 'done');
-        // Sollte jetzt nicht mehr werfen
+        // Should no longer throw now
         const action = registry.get('X');
         assert.equal(action.def.actionKey, 'X');
     });
 
-    test('lehnt Registrierung für nicht-deklarierte Keys ab', () => {
+    test('rejects registration for non-declared keys', () => {
         const m = buildManifest([]);
         const registry = new ActionRegistry(m, {});
         assert.throws(
@@ -116,8 +116,8 @@ describe('ActionRegistry.register — Late-Binding', () => {
     });
 });
 
-describe('ActionRegistry — Drift-Detection', () => {
-    test('listOrphanedDefs: Manifest-deklarierte Actions ohne Handler', () => {
+describe('ActionRegistry — drift detection', () => {
+    test('listOrphanedDefs: manifest-declared actions without a handler', () => {
         const m = buildManifest([
             { id: 'a', label: 'A', actionKey: 'A' },
             { id: 'b', label: 'B', actionKey: 'B' },
@@ -130,13 +130,13 @@ describe('ActionRegistry — Drift-Detection', () => {
         assert.deepEqual(orphaned.sort(), ['B', 'C']);
     });
 
-    test('listOrphanedHandlers: registrierte Handler ohne Manifest-Def', () => {
+    test('listOrphanedHandlers: registered handlers without a manifest def', () => {
         const m = buildManifest([{ id: 'a', label: 'A', actionKey: 'A' }]);
         const registry = new ActionRegistry(m, {
             A: async () => null,
         });
-        // Registry erlaubt Bypass via Constructor (für Tests / dynamische Keys)
-        // Wir prüfen den drift-detection-Output:
+        // Registry allows bypass via constructor (for tests / dynamic keys)
+        // We check the drift-detection output:
         const orphaned = registry.listOrphanedHandlers();
         assert.equal(orphaned.length, 0);
     });

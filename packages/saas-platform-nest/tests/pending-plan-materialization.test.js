@@ -1,6 +1,6 @@
-// Tests für PendingPlanMaterializationService (#19) — materialisiert fällige
-// geplante Plan-Wechsel über changePlanImmediate, invalidiert je Tenant den
-// Entitlement-Cache, und ist non-fatal pro Tenant.
+// Tests for PendingPlanMaterializationService (#19) — materializes due
+// scheduled plan changes via changePlanImmediate, invalidates the
+// entitlement cache per tenant, and is non-fatal per tenant.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,9 +43,9 @@ test('materializes all due pending plan changes and invalidates each tenant', as
     const t1 = calls.changePlan[0].input;
     assert.equal(t1.planId, 'STANDARD');
     assert.equal(t1.cycle, 'YEARLY');
-    // Status bleibt erhalten — nur der Plan wird materialisiert.
+    // Status is preserved — only the plan is materialized.
     assert.equal(t1.nextStatus, null);
-    // Periodenfenster wird auf now (+1 Cycle) zurückgesetzt.
+    // Period window is reset to now (+1 cycle).
     assert.equal(t1.periodStart.getTime(), now.getTime());
     assert.equal(t1.periodEnd.getUTCFullYear(), 2027);
 });
@@ -59,7 +59,7 @@ test('defaults to MONTHLY cycle when pendingBillingCycle is null', async () => {
     await service.materializeDuePlanChanges(now);
 
     assert.equal(calls.changePlan[0].input.cycle, 'MONTHLY');
-    assert.equal(calls.changePlan[0].input.periodEnd.getUTCMonth(), 6); // Juni → Juli
+    assert.equal(calls.changePlan[0].input.periodEnd.getUTCMonth(), 6); // June → July
 });
 
 test('is non-fatal per tenant — one failure does not abort the run', async () => {

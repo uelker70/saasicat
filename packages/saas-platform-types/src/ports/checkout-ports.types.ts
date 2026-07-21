@@ -6,19 +6,19 @@ import type {
 } from '../checkout-offer.types.js';
 
 // =============================================================================
-// CheckoutOffer — Persistenz-Adapter (METAMODELL §17a — Paket-Snapshot)
+// CheckoutOffer — persistence adapter (METAMODELL §17a — bundle snapshot)
 // =============================================================================
 
 /**
- * Adapter für `checkout_offers`. Der Offer ist ein unveränderlicher
- * Paket-Snapshot: `create` legt ihn an, `update` erlaubt nur Individuali-
- * sierung solange `status = 'open'`, `consume` friert ihn ein.
+ * Adapter for `checkout_offers`. The offer is an immutable bundle snapshot:
+ * `create` creates it, `update` only allows customization while
+ * `status = 'open'`, `consume` freezes it.
  */
 export interface CheckoutOfferRepository {
     list(filter: CheckoutOfferFilter): Promise<CheckoutOfferRow[]>;
     findById(id: string): Promise<CheckoutOfferRow | null>;
     create(data: CreateCheckoutOfferData): Promise<CheckoutOfferRow>;
     update(id: string, data: UpdateCheckoutOfferData): Promise<CheckoutOfferRow>;
-    /** Setzt `status = 'consumed'` + `consumedAt = NOW()`. */
+    /** Sets `status = 'consumed'` + `consumedAt = NOW()`. */
     consume(id: string): Promise<CheckoutOfferRow>;
 }

@@ -9,8 +9,8 @@ import {
     MinLength,
 } from 'class-validator';
 
-// DTOs für PlansController — class-validator-Validation an der HTTP-Grenze.
-// SPEC_V2 §11.1 M6 (Pack 1): nur Plan-Stamm-CRUD, kein PlanVersion-Lifecycle.
+// DTOs for PlansController — class-validator validation at the HTTP boundary.
+// SPEC_V2 §11.1 M6 (Pack 1): only plan master-record CRUD, no PlanVersion lifecycle.
 
 const KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;

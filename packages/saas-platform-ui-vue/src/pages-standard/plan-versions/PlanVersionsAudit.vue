@@ -60,12 +60,12 @@ import { onMounted, ref, watch } from 'vue';
 import type { CatalogSnapshot } from '../../plan-versions-catalog.js';
 import { formatTsDe } from './format.js';
 
-// PlanVersionsAudit — datenagnostisch. Konsumenten reichen einen `loadAudit`-
-// Loader ein, der Events liefert; die Komponente filtert sie passend zum
-// aktuellen Snapshot (drafts/active = alles ≤ 50, historical = ≤ asOf).
+// PlanVersionsAudit — data-agnostic. Consumers pass in a `loadAudit` loader
+// that supplies events; the component filters them to match the current
+// snapshot (drafts/active = everything ≤ 50, historical = ≤ asOf).
 //
-// Action-Meta-Map kann pro App erweitert werden, damit zusätzliche Aktionen
-// (z. B. App-spezifische Audit-Keys) eigene Icons und Labels bekommen.
+// The action meta map can be extended per app so that additional actions
+// (e.g. app-specific audit keys) get their own icons and labels.
 
 interface AuditRow {
     id: string;
@@ -74,9 +74,9 @@ interface AuditRow {
     entity: string;
     entityId: string;
     changes: Record<string, unknown> | null;
-    /** Legacy-Style: nested user-Objekt mit email. */
+    /** Legacy style: nested user object with email. */
     user?: { email: string; firstName?: string; lastName?: string } | null;
-    /** Plattform-Style: flaches userEmail-Feld. */
+    /** Platform style: flat userEmail field. */
     userEmail?: string | null;
 }
 

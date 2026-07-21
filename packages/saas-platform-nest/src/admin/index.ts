@@ -1,18 +1,18 @@
-// @saasicat/nest/admin — SuperAdmin-Bausteine.
+// @saasicat/nest/admin — SuperAdmin building blocks.
 //
-// Inhalte:
+// Contents:
 //   - tokens:               MFA_PORT_TOKEN, AUDIT_PORT_TOKEN, RLS_BYPASS_PORT_TOKEN
 //   - super-admin.guard:    SuperAdminGuard (role === 'SUPER_ADMIN')
-//   - mfa.guard:            MfaGuard + RequireMfa() Decorator + REQUIRE_MFA_KEY
-//   - mfa:                  MfaService (TOTP-Setup/Verify via MfaPort)
+//   - mfa.guard:            MfaGuard + RequireMfa() decorator + REQUIRE_MFA_KEY
+//   - mfa:                  MfaService (TOTP setup/verify via MfaPort)
 //   - admin-audit.service:  AdminAuditService (via AuditPort)
 //   - admin-bypass-rls.interceptor: AdminBypassRlsInterceptor (via RlsBypassPort)
 //   - module:               AdminModule.forRoot({ mfaPort, auditPort, rlsBypassPort })
 //
-// `AdminManifestController` ist NICHT exportiert — der Controller wird zur
-// Boot-Zeit im `AdminManifestModule.forRoot({ guards, reloadGuards })`
-// dynamisch generiert. Das verhindert, dass Konsumenten versehentlich eine
-// auth-freie Variante in eigenen Modulen registrieren.
+// `AdminManifestController` is NOT exported — the controller is generated
+// dynamically at boot time in `AdminManifestModule.forRoot({ guards, reloadGuards })`.
+// This prevents consumers from accidentally registering an auth-free variant
+// in their own modules.
 
 export * from './tokens.js';
 export * from './super-admin.guard.js';

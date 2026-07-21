@@ -1,8 +1,8 @@
-// @saasicat/nest/platform — Mega-Modul für den Quickstart-Pfad.
+// @saasicat/nest/platform — mega module for the quickstart path.
 //
-// Bündelt die fünf Plattform-Module (PlanCatalog, Discovery, Admin,
-// AdminManifest, optional Entitlement) in einem einzigen forRoot()-Call.
-// Reduziert AppModule-Boilerplate und eliminiert die Reihenfolge-Falle.
+// Bundles the five platform modules (PlanCatalog, Discovery, Admin,
+// AdminManifest, optionally Entitlement) into a single forRoot() call.
+// Reduces AppModule boilerplate and eliminates the ordering trap.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P1.
 

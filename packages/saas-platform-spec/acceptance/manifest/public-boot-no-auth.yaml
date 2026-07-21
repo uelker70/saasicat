@@ -1,8 +1,8 @@
 scenario: 'Public-Boot is reachable without auth and contains only branding'
 description: |
-    Pre-Login-Boot (/api/v1/admin/boot) MUSS ohne Bearer-Token erreichbar sein
-    und ausschließlich Branding-Felder zurückgeben. Niemals Capabilities,
-    Pages, oder Endpoints. Spec: SPEC §10.4 + admin-api.openapi.yaml.
+    Pre-login boot (/api/v1/admin/boot) MUST be reachable without a Bearer token
+    and return only branding fields. Never Capabilities, pages, or endpoints.
+    Spec: SPEC §10.4 + admin-api.openapi.yaml.
 
 setup: []
 
@@ -10,7 +10,7 @@ when:
     - request:
           method: GET
           path: /api/v1/admin/boot
-          # Kein Authorization-Header
+          # No Authorization header
 
 then:
     status: 200
@@ -28,9 +28,9 @@ then:
                     displayName: { type: string }
                     logoUrl: { type: string }
                     environment: { type: string, enum: [production, staging, development] }
-    # Defense-in-depth-Check: bestätige explizit, dass die kritischen
-    # Felder NICHT auftauchen (auch wenn additionalProperties: false das
-    # impliziert — Test soll bei Schema-Drift trotzdem klar fehlschlagen).
+    # Defense-in-depth check: explicitly confirm that the critical
+    # fields do NOT appear (even though additionalProperties: false
+    # implies it — the test should still fail clearly on schema drift).
     bodyMustNotContain:
         - capabilities
         - navigation

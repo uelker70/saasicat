@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { LimitExceededFilter } from '../dist/billing/index.js';
 import { LimitExceededError } from '../dist/entitlement/index.js';
 
-// LimitExceededFilter mappt domänen-neutrale `LimitExceededError` auf
-// HTTP 402 (Payment Required) und ein konsistentes JSON-Body-Format. Tests
-// stellen sicher, dass alle Konsumenten das gleiche
-// Antwortschema sehen — das Frontend wertet `dimension`, `used`, `max`
-// für Upgrade-Hints aus.
+// LimitExceededFilter maps the domain-neutral `LimitExceededError` onto
+// HTTP 402 (Payment Required) and a consistent JSON body format. The tests
+// ensure that all consumers see the same
+// response schema — the frontend reads `dimension`, `used`, `max`
+// to build upgrade hints.
 
 function buildHost({ method = 'POST', url = '/api/v1/members' } = {}) {
     let captured = null;
@@ -35,7 +35,7 @@ function buildHost({ method = 'POST', url = '/api/v1/members' } = {}) {
 }
 
 describe('LimitExceededFilter', () => {
-    test('antwortet mit HTTP 402 + Standard-Body-Shape', () => {
+    test('responds with HTTP 402 + standard body shape', () => {
         const filter = new LimitExceededFilter();
         const harness = buildHost();
         const error = new LimitExceededError('members', 250, 250);
@@ -56,7 +56,7 @@ describe('LimitExceededFilter', () => {
         });
     });
 
-    test('trägt die Quota-Dimension korrekt aus der Exception', () => {
+    test('carries the quota dimension correctly from the exception', () => {
         const filter = new LimitExceededFilter();
         const harness = buildHost();
 
@@ -67,9 +67,9 @@ describe('LimitExceededFilter', () => {
         assert.equal(harness.captured.body.max, 10);
     });
 
-    test('lässt fließkomma-`used`/`max` für Storage durchlaufen', () => {
-        // storageGb läuft mit Bruchteilen (e.g. 0.512 GiB für eine 512 MB-
-        // Datei). Body darf das nicht runden.
+    test('lets floating-point `used`/`max` pass through for storage', () => {
+        // storageGb works with fractional values (e.g. 0.512 GiB for a 512 MB
+        // file). The body must not round this.
         const filter = new LimitExceededFilter();
         const harness = buildHost({ url: '/api/v1/dms/upload' });
 
@@ -79,9 +79,9 @@ describe('LimitExceededFilter', () => {
         assert.equal(harness.captured.body.max, 2.5);
     });
 
-    test('robust bei fehlendem method/url im Request', () => {
-        // Logger lesen `request.method ?? '?'` und `request.url ?? ''` — das
-        // darf nicht crashen, auch wenn der Request ein leeres Objekt ist.
+    test('robust when method/url are missing from the request', () => {
+        // The logger reads `request.method ?? '?'` and `request.url ?? ''` — this
+        // must not crash, even when the request is an empty object.
         const filter = new LimitExceededFilter();
         let captured = null;
         const host = {

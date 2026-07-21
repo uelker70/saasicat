@@ -1,19 +1,19 @@
 import { test, expect } from '@playwright/test';
 
-// Browser-validated E2E: lädt das gebaute Plattform-Bundle in einem echten
-// Chromium-Headless, mockt alle HTTP-Requests via page.route() und prüft die
-// Loader/Composables an dem Stand, wie sie im Konsumenten-Browser landen.
+// Browser-validated E2E: loads the built platform bundle in a real
+// headless Chromium, mocks all HTTP requests via page.route() and checks the
+// loaders/composables in the state they land in the consumer's browser.
 //
-// Verifiziert insbesondere:
-//   - dist/index.js lädt sauber als ESM in echtem Browser (kein
-//     "process is not defined" o. ä. Node-Leak in der Bundle-Form).
-//   - localStorage-Persistenz funktioniert wirklich (kein In-Memory-Mock).
-//   - fetch via window.fetch wird korrekt vom ManifestLoader genutzt.
+// Verifies in particular:
+//   - dist/index.js loads cleanly as ESM in a real browser (no
+//     "process is not defined" or similar Node leak in the bundle form).
+//   - localStorage persistence really works (no in-memory mock).
+//   - fetch via window.fetch is used correctly by the ManifestLoader.
 
 const FIXTURE_URL = '/tests-e2e/fixtures/index.html';
 
 test.describe('Platform UI Bundle — Browser Smoke', () => {
-    test('Bundle lädt als ESM ohne Node-Leak', async ({ page }) => {
+    test('Bundle loads as ESM without Node leak', async ({ page }) => {
         const errors: string[] = [];
         const consoleMsgs: string[] = [];
         page.on('pageerror', (err) => errors.push(err.message));
@@ -35,7 +35,7 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
         await expect(page.locator('#root')).toContainText('Platform UI Bundle loaded.');
         expect(errors).toEqual([]);
 
-        // Globale __platform-Symbol vorhanden
+        // Global __platform symbol present
         const exposedKeys = await page.evaluate(() =>
             Object.keys((globalThis as unknown as { __platform: object }).__platform).sort(),
         );
@@ -46,7 +46,7 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
         expect(exposedKeys).toContain('buildSidebar');
     });
 
-    test('BootLoader fetcht /admin/boot via echtem fetch + page.route-Mock', async ({ page }) => {
+    test('BootLoader fetches /admin/boot via real fetch + page.route mock', async ({ page }) => {
         await page.route('**/admin/boot', (route) => {
             return route.fulfill({
                 status: 200,
@@ -74,7 +74,7 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
         expect((result as { project: { key: string } }).project.key).toBe('cf');
     });
 
-    test('ManifestLoader persistiert ETag in localStorage', async ({ page }) => {
+    test('ManifestLoader persists ETag in localStorage', async ({ page }) => {
         let callCount = 0;
         await page.route('**/admin/manifest', (route) => {
             callCount += 1;
@@ -122,7 +122,7 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
         expect(callCount).toBe(1);
     });
 
-    test('ManifestLoader: zweiter Load schickt If-None-Match + nutzt Cache bei 304', async ({
+    test('ManifestLoader: second load sends If-None-Match + uses cache on 304', async ({
         page,
     }) => {
         const calls: { hadIfNoneMatch: boolean }[] = [];
@@ -187,7 +187,7 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
         expect(calls[1].hadIfNoneMatch).toBe(true);
     });
 
-    test('buildRoutes + buildSidebar im Browser', async ({ page }) => {
+    test('buildRoutes + buildSidebar in the browser', async ({ page }) => {
         await page.goto(FIXTURE_URL);
         await page.waitForFunction(() =>
             Boolean((globalThis as { __platform?: unknown }).__platform),
@@ -246,13 +246,13 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
         });
         expect(result.routeIds).toContain('tenants');
         expect(result.routeIds).toContain('cf.reports');
-        // Standard-Pages tragen ihre Default-Sektion (tenants → 'Kunden');
-        // unbekannte Sektionen folgen alphabetisch nach der sectionOrder.
+        // Standard pages carry their default section (tenants → 'Kunden');
+        // unknown sections follow alphabetically after the sectionOrder.
         expect(result.sidebarSections[0].section).toBe('Kunden');
         expect(result.sidebarSections[1].section).toBe('MyApp');
     });
 
-    test('Bulk-Publish: POST mit X-Mfa-Code-Header + parallele Calls', async ({ page }) => {
+    test('Bulk publish: POST with X-Mfa-Code header + parallel calls', async ({ page }) => {
         const seenHeaders: Array<{ url: string; mfaCode: string | undefined }> = [];
         await page.route('**/api/v1/admin/plan-versions/*/publish', (route, request) => {
             seenHeaders.push({

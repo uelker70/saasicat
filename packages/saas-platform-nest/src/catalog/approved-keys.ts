@@ -1,8 +1,8 @@
-// Approved-Gate-Helfer (#20 Slice 5): lädt die freigegebenen Feature-/
-// Quota-Keys aus den Catalog-Entries, damit Strict-Mode-Check/Seed-Gate/
-// Preflight „nur Approved ist verkaufbar" prüfen können. `null`-Repo →
-// `null` (Approval-Teil wird übersprungen, z. B. minimaler Deploy ohne
-// Catalog-Entries).
+// Approved-gate helper (#20 Slice 5): loads the approved feature/quota
+// keys from the catalog entries so that strict-mode check / Seed-Gate /
+// Preflight can verify "only approved is sellable". `null` repo →
+// `null` (the approval part is skipped, e.g. minimal deploy without
+// catalog entries).
 
 import type { ApprovedCatalogKeys, CatalogEntryRepository } from '@saasicat/types';
 

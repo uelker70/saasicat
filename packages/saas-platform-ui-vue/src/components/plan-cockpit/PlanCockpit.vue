@@ -72,24 +72,24 @@ import type {
     TimelineSegment,
 } from './types';
 
-// PlanCockpit — V3 Drill-In für einen einzelnen Plan: Versions-Timeline,
-// Diff Draft→Live, Tenant-Impact, Audit-Log. Daten kommen vom Konsumenten
-// (PlansPage). Diff wird lokal aus zwei PlanVersionRows berechnet.
+// PlanCockpit — V3 drill-in for a single plan: version timeline,
+// diff draft→live, tenant impact, audit log. Data comes from the consumer
+// (PlansPage). The diff is computed locally from two PlanVersionRows.
 
 const props = withDefaults(
     defineProps<{
         plan: PlanRow;
         versions: PlanVersionRow[];
-        /** Akzentfarbe für den Plan-Header. */
+        /** Accent color for the plan header. */
         accent?: string;
-        /** Optional: Tenant-Impact-Daten für die Publish-Vorschau. */
+        /** Optional: tenant impact data for the publish preview. */
         tenantImpact?: TenantImpact | null;
-        /** Tenant-Anzahl pro Version (für „Impact"-Spalte in der Versions-Tabelle). */
+        /** Tenant count per version (for the "Impact" column in the versions table). */
         impactByVersion?: Record<number, number>;
-        /** Audit-Log-Einträge für diesen Plan. */
+        /** Audit log entries for this plan. */
         auditRows?: AuditRow[];
         loadingAudit?: boolean;
-        /** Discovery-Quotas (für Diff-Labels). */
+        /** Discovery quotas (for diff labels). */
         availableQuotas?: DiscoveryQuota[];
         featureRegistry?: Record<string, FeatureMeta>;
     }>(),
@@ -641,9 +641,9 @@ const diffRows = computed<DiffRow[]>(() => {
     color: var(--pc-text-3);
 }
 
-/* Version row — flexible Spalten, damit die Action-Buttons (Publish /
-   Bearbeiten) bei schmaler Karte nicht abgeschnitten werden. Actions =
-   `auto` (content-breit), Rest flext. */
+/* Version row — flexible columns so the action buttons (Publish /
+   Edit) aren't clipped on a narrow card. Actions =
+   `auto` (content-width), the rest flexes. */
 .pc-vrow {
     display: grid;
     grid-template-columns:

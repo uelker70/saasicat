@@ -22,7 +22,7 @@ function buildHttp(responseFor) {
 }
 
 describe('useBulkPublish.setItems', () => {
-    test('setzt Items mit Default-Status pending', () => {
+    test('sets items with default status pending', () => {
         const { http } = buildHttp(() => null);
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS });
         bp.setItems([
@@ -36,8 +36,8 @@ describe('useBulkPublish.setItems', () => {
     });
 });
 
-describe('useBulkPublish.run — parallele Publishes', () => {
-    test('alle erfolgreich → success-Count = 3, done=true', async () => {
+describe('useBulkPublish.run — parallel publishes', () => {
+    test('all successful → success count = 3, done=true', async () => {
         const { http, calls } = buildHttp(() => ({ status: 200, body: { id: 'p' } }));
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS });
         bp.setItems([
@@ -53,7 +53,7 @@ describe('useBulkPublish.run — parallele Publishes', () => {
         assert.equal(bp.progress.value, 1);
     });
 
-    test('einzelner Fehler → success=2, failure=1, done=true', async () => {
+    test('single error → success=2, failure=1, done=true', async () => {
         const { http } = buildHttp((url) => {
             if (url.includes('/2/')) return { status: 409, body: 'CONFLICT' };
             return { status: 200, body: { id: 'p' } };
@@ -72,17 +72,17 @@ describe('useBulkPublish.run — parallele Publishes', () => {
         assert.match(failed.error, /HTTP 409/);
     });
 
-    test('leere changeNote → alle Items failed', async () => {
+    test('empty changeNote → all items failed', async () => {
         const { http, calls } = buildHttp(() => ({ status: 200, body: {} }));
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS });
         bp.setItems([{ key: 'p:1', kind: 'plan', draftId: '1', label: 'A' }]);
         await bp.run({ changeNote: '   ' });
-        assert.equal(calls.length, 0); // kein HTTP-Aufruf
+        assert.equal(calls.length, 0); // no HTTP call
         assert.equal(bp.failureCount.value, 1);
         assert.match(bp.items.value[0].error, /Pflicht/);
     });
 
-    test('mfaCode setzt X-Mfa-Code-Header', async () => {
+    test('mfaCode sets X-Mfa-Code header', async () => {
         const { http, calls } = buildHttp(() => ({ status: 200, body: {} }));
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS });
         bp.setItems([{ key: 'p:1', kind: 'plan', draftId: '1', label: 'A' }]);
@@ -90,7 +90,7 @@ describe('useBulkPublish.run — parallele Publishes', () => {
         assert.equal(calls[0].init.headers['X-Mfa-Code'], '482159');
     });
 
-    test('Auth-Token wird mitgesendet', async () => {
+    test('auth token is sent along', async () => {
         const { http, calls } = buildHttp(() => ({ status: 200, body: {} }));
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS, getAuthToken: () => 'jwt-x' });
         bp.setItems([{ key: 'p:1', kind: 'plan', draftId: '1', label: 'A' }]);
@@ -99,8 +99,8 @@ describe('useBulkPublish.run — parallele Publishes', () => {
     });
 });
 
-describe('useBulkPublish — Endpoint-Mapping', () => {
-    test('Endpoints werden je Kind aufgerufen', async () => {
+describe('useBulkPublish — endpoint mapping', () => {
+    test('endpoints are called per kind', async () => {
         const { http, calls } = buildHttp(() => ({ status: 200, body: {} }));
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS });
         bp.setItems([
@@ -112,7 +112,7 @@ describe('useBulkPublish — Endpoint-Mapping', () => {
         assert.match(calls[1].url, /\/api\/v1\/admin\/plan-versions\/2\/publish/);
     });
 
-    test('Override-Endpoints konfigurierbar', async () => {
+    test('override endpoints configurable', async () => {
         const { http, calls } = buildHttp(() => ({ status: 200, body: {} }));
         const bp = useBulkPublish({
             http,
@@ -126,15 +126,15 @@ describe('useBulkPublish — Endpoint-Mapping', () => {
     });
 });
 
-describe('useBulkPublish — Progress', () => {
-    test('progress=0 bei leerem Set', () => {
+describe('useBulkPublish — progress', () => {
+    test('progress=0 for empty set', () => {
         const { http } = buildHttp(() => null);
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS });
         assert.equal(bp.progress.value, 0);
         assert.equal(bp.done.value, false);
     });
 
-    test('progress=0 vor Run, =1 nach Run', async () => {
+    test('progress=0 before run, =1 after run', async () => {
         const { http } = buildHttp(() => ({ status: 200, body: {} }));
         const bp = useBulkPublish({ http, endpoints: ENDPOINTS });
         bp.setItems([

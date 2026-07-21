@@ -17,22 +17,22 @@ import {
     type ContractFreezeSourcePort,
 } from './contract-freeze.tokens.js';
 
-// SubscriptionContractFreezeService (#18) — friert beim Paketwechsel den
-// vereinbarten Dienst als `SubscriptionContract` mit `entitlementSnapshot` ein.
-// Der `EntitlementService` liest den aktiven Contract ZUERST → die Entitlements
-// des Tenants sind ab dem Wechsel katalog-unabhängig (AdminUI-Edits/Deletes
-// berühren den laufenden Plan nicht mehr), und der Wechsel ist über die
-// eingefrorenen Line-Items + Preise audit-sicher dokumentiert.
+// SubscriptionContractFreezeService (#18) — on a plan change, freezes the
+// agreed service as a `SubscriptionContract` with `entitlementSnapshot`.
+// The `EntitlementService` reads the active contract FIRST → from the change
+// onward the tenant's entitlements are catalog-independent (AdminUI edits/deletes
+// no longer touch the running plan), and the change is documented audit-safely
+// via the frozen line items + prices.
 //
-// Generisch: nutzt EntitlementService + SubscriptionContractService + PlanCatalog.
-// Konsumentenspezifisch sind nur `projectKey` (Config) und der Bundle-/
-// Versions-Datenzugriff (`ContractFreezeSourcePort`).
+// Generic: uses EntitlementService + SubscriptionContractService + PlanCatalog.
+// Consumer-specific are only `projectKey` (config) and the bundle/version
+// data access (`ContractFreezeSourcePort`).
 
 @Injectable()
 export class SubscriptionContractFreezeService implements ContractFreezePort {
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
-        // tsup-Build hat kein emitDecoratorMetadata — Class-Type-Args explizit @Inject.
+        // tsup build has no emitDecoratorMetadata — class type args explicitly @Inject.
         @Inject(EntitlementService) private readonly entitlements: EntitlementService,
         @Inject(SubscriptionContractService)
         private readonly contracts: SubscriptionContractService,
@@ -52,8 +52,8 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         const bundles = await this.source.loadBookedBundles(tenantId, cycle, vatRate);
         const livePlanVersionId = await this.source.findLivePlanVersionId(newPlan);
 
-        // Alten aktiven Contract beenden, damit `computeLimits` den Katalog-Pfad
-        // nimmt (sonst läse es den ALTEN eingefrorenen Snapshot zurück).
+        // Terminate the old active contract so that `computeLimits` takes the
+        // catalog path (otherwise it would read back the OLD frozen snapshot).
         const previous = await this.contracts.findActiveByTenantId(tenantId, effectiveFrom);
         if (previous) {
             await this.contracts.terminate(previous.id, {
@@ -63,8 +63,8 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         }
         this.entitlements.invalidateTenant(tenantId);
 
-        // Effektive Entitlements (Plan + Bundles + Add-ons) als Snapshot — exakt
-        // das, was der Tenant ohne Freeze bekäme. Damit ist der Snapshot korrekt.
+        // Effective entitlements (plan + bundles + add-ons) as a snapshot — exactly
+        // what the tenant would get without the freeze. That makes the snapshot correct.
         const limits = await this.entitlements.computeLimits(tenantId, effectiveFrom);
 
         const planDef = findPlan(this.catalog, newPlan);
@@ -116,7 +116,7 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
         };
 
         await this.contracts.create(data);
-        // Nächster Read nutzt den neuen Contract-Snapshot.
+        // The next read uses the new contract snapshot.
         this.entitlements.invalidateTenant(tenantId);
     }
 }

@@ -1,6 +1,6 @@
-// Tests für SubscriptionContractFreezeService (#18) — generischer Freeze:
-// Plan-Line-Item aus dem Catalog, Bundle-Line-Items aus dem Source-Port,
-// entitlementSnapshot aus computeLimits, vorheriger Contract wird superseded.
+// Tests for SubscriptionContractFreezeService (#18) — generic freeze:
+// plan line item from the catalog, bundle line items from the source port,
+// entitlementSnapshot from computeLimits, previous contract is superseded.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -116,6 +116,6 @@ test('appends consumer bundle line items + version ids', async () => {
     assert.equal(contract.lineItems.length, 2);
     assert.equal(contract.lineItems[1].kind, 'bundle');
     assert.deepEqual(contract.originalBundleVersionIds, ['bv-1']);
-    // Subtotal = Plan 49 + Bundle 20 = 69.
+    // Subtotal = plan 49 + bundle 20 = 69.
     assert.equal(contract.priceSnapshot.subtotalNet, 69);
 });

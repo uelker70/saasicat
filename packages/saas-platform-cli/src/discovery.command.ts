@@ -5,18 +5,18 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { Command, CommandRunner, Option, SubCommand } from 'nest-commander';
 import { DISCOVERY_SNAPSHOT_PATH_TOKEN, DiscoveryScanner } from '@saasicat/nest';
 
-// Geteiltes `<app> discovery scan`-Command (#23): erzeugt den Discovery-
-// Snapshot headless — d. h. im Migrate-Container oder in CI, VOR dem Seed —
-// und persistiert ihn an den via `DiscoveryModule.forRoot({ snapshotPath })`
-// konfigurierten Pfad (zusätzlich via `--out` an einen expliziten Pfad).
-// Damit hat das Seed-Gate zur Seed-Zeit einen Snapshot und kann von
-// report-only auf blocking.
+// Shared `<app> discovery scan` command (#23): builds the discovery
+// snapshot headless — i.e. in the migrate container or in CI, BEFORE the seed —
+// and persists it to the path configured via
+// `DiscoveryModule.forRoot({ snapshotPath })` (additionally to an explicit
+// path via `--out`). This gives the Seed-Gate a snapshot at seed time so it
+// can switch from report-only to blocking.
 //
-// Kein Identity-/MFA-Check wie bei den Admin-Commands: der Scan ist eine
-// Build-/Deploy-Operation ohne User-Kontext und liest nur Code-Annotationen.
+// No identity/MFA check as in the admin commands: the scan is a
+// build/deploy operation without a user context and only reads code annotations.
 //
-// Rollout gestuft (#23): zunächst mit `--non-fatal` verdrahten (Scan-Fehler
-// bricht den Migrate-Pfad nicht), dann auf hart umstellen (Exit 4).
+// Staged rollout (#23): first wire it up with `--non-fatal` (a scan error
+// does not break the migrate path), then switch to hard failure (Exit 4).
 
 interface ScanFlags {
     out?: string;
@@ -49,7 +49,7 @@ export class DiscoveryScanCommand extends CommandRunner {
             return;
         }
         try {
-            // rebuildSnapshot persistiert an den konfigurierten snapshotPath.
+            // rebuildSnapshot persists to the configured snapshotPath.
             const snapshot = this.scanner.rebuildSnapshot();
             if (flags.out) {
                 const outPath = resolvePath(flags.out);
@@ -77,7 +77,7 @@ export class DiscoveryScanCommand extends CommandRunner {
         }
     }
 
-    /** Exit 4 (analog Seed-Gate/Preflight) — mit `--non-fatal` nur Warnung. */
+    /** Exit 4 (analogous to Seed-Gate/Preflight) — only a warning with `--non-fatal`. */
     private fail(message: string, flags: ScanFlags): void {
         if (flags.nonFatal) {
             process.stderr.write(`[discovery scan] WARN (non-fatal): ${message}\n`);

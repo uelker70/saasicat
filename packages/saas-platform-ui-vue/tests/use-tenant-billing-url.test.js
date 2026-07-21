@@ -1,11 +1,11 @@
-// Test: useTenantBilling + useTenantBillingCatalog bauen Endpoint-URLs
-// korrekt ZUSAMMEN mit dem App-HTTP-Adapter — verhindert die Bug-Klasse
-// "doppelter /api-Prefix" (`/api/api/billing/usage` HTTP 404).
+// Test: useTenantBilling + useTenantBillingCatalog build endpoint URLs
+// correctly TOGETHER with the app HTTP adapter — prevents the bug class
+// "doubled /api prefix" (`/api/api/billing/usage` HTTP 404).
 //
-// Konvention: HTTP-Adapter setzt die App-API-Base-URL (z. B. `/api`
-// oder `/api/v1`), `apiPrefix` ist der Sub-Pfad darunter
-// (Default `/billing`). Der Composable ruft `http(apiPrefix + path)` —
-// der Adapter fügt seine baseURL davor.
+// Convention: the HTTP adapter sets the app API base URL (e.g. `/api`
+// or `/api/v1`), `apiPrefix` is the sub-path below it
+// (default `/billing`). The composable calls `http(apiPrefix + path)` —
+// the adapter prepends its baseURL.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,15 +28,15 @@ function makeRecordingHttp() {
     };
 }
 
-describe('useTenantBilling URL-Konstruktion', () => {
-    test('Default apiPrefix ist /billing (kein /api-Prefix → keine Doppelung)', async () => {
+describe('useTenantBilling URL construction', () => {
+    test('default apiPrefix is /billing (no /api prefix → no doubling)', async () => {
         const { client, calls } = makeRecordingHttp();
         const billing = useTenantBilling({ http: client, autoLoad: false });
         await billing.reload();
         assert.equal(calls[0].url, '/billing/usage');
     });
 
-    test('Custom apiPrefix /api/v1/billing wird 1:1 als Subpath benutzt (kein /api-Adapter)', async () => {
+    test('custom apiPrefix /api/v1/billing is used 1:1 as sub-path (no /api adapter)', async () => {
         const { client, calls } = makeRecordingHttp();
         const billing = useTenantBilling({
             http: client,
@@ -47,7 +47,7 @@ describe('useTenantBilling URL-Konstruktion', () => {
         assert.equal(calls[0].url, '/api/v1/billing/usage');
     });
 
-    test('Trailing slash im apiPrefix wird normalisiert (kein //billing)', async () => {
+    test('trailing slash in apiPrefix is normalized (no //billing)', async () => {
         const { client, calls } = makeRecordingHttp();
         const billing = useTenantBilling({
             http: client,
@@ -58,7 +58,7 @@ describe('useTenantBilling URL-Konstruktion', () => {
         assert.equal(calls[0].url, '/billing/usage');
     });
 
-    test('Plan-Preview, Bundles und Cancel gehen alle unter dem gleichen Prefix', async () => {
+    test('plan preview, bundles and cancel all go under the same prefix', async () => {
         const { client, calls } = makeRecordingHttp();
         const billing = useTenantBilling({ http: client, autoLoad: false });
         await billing.previewPlanChange('STANDARD', 'MONTHLY');
@@ -66,8 +66,8 @@ describe('useTenantBilling URL-Konstruktion', () => {
         await billing.cancelBundle('sb-1');
         await billing.previewAddBundle('bv-1');
         await billing.previewCancelBundle('sb-1');
-        // Mutations triggern automatisch reload() — wir prüfen hier nur, dass
-        // ALLE Aufrufe unter `/billing/...` landen (kein doppelter `/api`).
+        // Mutations automatically trigger reload() — here we only verify that
+        // ALL calls land under `/billing/...` (no doubled `/api`).
         const urls = new Set(calls.map((c) => `${c.method} ${c.url}`));
         for (const expected of [
             'POST /billing/plan/preview',
@@ -75,21 +75,21 @@ describe('useTenantBilling URL-Konstruktion', () => {
             'DELETE /billing/subscription-bundles/sb-1',
             'POST /billing/subscription-bundles/preview',
         ]) {
-            assert.ok(urls.has(expected), `Erwartete URL nicht aufgerufen: ${expected}`);
+            assert.ok(urls.has(expected), `Expected URL not called: ${expected}`);
         }
-        // Defensive: keine URL beginnt mit /api/api oder doppelt /billing.
+        // Defensive: no URL starts with /api/api or doubles /billing.
         for (const url of urls) {
-            assert.ok(!url.includes('/api/api/'), `Doppelter /api-Prefix in URL: ${url}`);
+            assert.ok(!url.includes('/api/api/'), `Doubled /api prefix in URL: ${url}`);
             assert.ok(
                 !url.match(/\/billing\/billing\//),
-                `Doppelter /billing-Prefix in URL: ${url}`,
+                `Doubled /billing prefix in URL: ${url}`,
             );
         }
     });
 });
 
-describe('useTenantBillingCatalog URL-Konstruktion', () => {
-    test('Default apiPrefix ist /billing — Catalog-Endpoints landen unter /billing/{plans,bundles,feature-registry}', async () => {
+describe('useTenantBillingCatalog URL construction', () => {
+    test('default apiPrefix is /billing — catalog endpoints land under /billing/{plans,bundles,feature-registry}', async () => {
         const { client, calls } = makeRecordingHttp();
         const catalog = useTenantBillingCatalog({ http: client, autoLoad: false });
         await catalog.load();

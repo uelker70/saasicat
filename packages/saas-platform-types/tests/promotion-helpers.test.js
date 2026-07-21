@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { promoStatus, pickActivePromo, applyPromo } from '../dist/index.js';
 
-// Promotion-Pure-Functions (SPEC_V2 §9a) — geteilt zwischen Public-Catalog-
-// Backend und UI-Vorschau.
+// Promotion pure functions (SPEC_V2 §9a) — shared between the public catalog
+// backend and the UI preview.
 
 const TODAY = new Date('2026-05-17T12:00:00Z');
 
@@ -32,41 +32,41 @@ function promo(over = {}) {
 }
 
 describe('promoStatus', () => {
-    test('active im Fenster', () => {
+    test('active within the window', () => {
         assert.equal(promoStatus(promo(), TODAY), 'active');
     });
-    test('scheduled vor validFrom', () => {
+    test('scheduled before validFrom', () => {
         assert.equal(promoStatus(promo({ validFrom: '2026-08-01' }), TODAY), 'scheduled');
     });
-    test('expired nach validTo', () => {
+    test('expired after validTo', () => {
         assert.equal(promoStatus(promo({ validTo: '2026-05-10' }), TODAY), 'expired');
     });
 });
 
 describe('pickActivePromo', () => {
-    test('höchste Priorität gewinnt bei Überschneidung', () => {
+    test('highest priority wins on overlap', () => {
         const low = promo({ id: 'low', priority: 5 });
         const high = promo({ id: 'high', priority: 30 });
         const r = pickActivePromo([low, high], 'STANDARD', 'de', 'monthly', TODAY);
         assert.equal(r.id, 'high');
     });
-    test('onlyLocales filtert', () => {
+    test('onlyLocales filters', () => {
         const trOnly = promo({ onlyLocales: ['tr'] });
         assert.equal(pickActivePromo([trOnly], 'STANDARD', 'de', 'monthly', TODAY), null);
         assert.ok(pickActivePromo([trOnly], 'STANDARD', 'tr', 'monthly', TODAY));
     });
-    test('billingCycle filtert', () => {
+    test('billingCycle filters', () => {
         const yearly = promo({ billingCycle: 'yearly' });
         assert.equal(pickActivePromo([yearly], 'STANDARD', 'de', 'monthly', TODAY), null);
     });
-    test('requiresCoupon-Aktionen werden nicht automatisch gewählt', () => {
+    test('requiresCoupon promotions are not selected automatically', () => {
         const coupon = promo({ requiresCoupon: true });
         assert.equal(pickActivePromo([coupon], 'STANDARD', 'de', 'monthly', TODAY), null);
     });
-    test('nicht passender Plan → null', () => {
+    test('non-matching plan → null', () => {
         assert.equal(pickActivePromo([promo()], 'PRO', 'de', 'monthly', TODAY), null);
     });
-    test('targetType filtert Bundle-Promotions separat von Plan-Promotions', () => {
+    test('targetType filters bundle promotions separately from plan promotions', () => {
         const bundlePromo = promo({
             id: 'bundle',
             appliesTo: ['FINANCE_PLUS'],
@@ -92,7 +92,7 @@ describe('applyPromo', () => {
         assert.equal(r.kind, 'amount');
         assert.equal(r.discounted, 34);
     });
-    test('amount klemmt bei 0', () => {
+    test('amount clamps at 0', () => {
         const r = applyPromo(promo({ type: 'amount', value: 999 }), 49);
         assert.equal(r.discounted, 0);
     });
@@ -108,7 +108,7 @@ describe('applyPromo', () => {
         assert.equal(r.discounted, 0);
         assert.equal(r.months, 2);
     });
-    test('null bei fehlender Promotion', () => {
+    test('null when promotion is missing', () => {
         assert.equal(applyPromo(null, 100), null);
     });
 });

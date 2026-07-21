@@ -1,18 +1,18 @@
-// @saasicat/cli — Cross-Cutting-Helpers für Konsumenten-CLIs.
+// @saasicat/cli — cross-cutting helpers for consumer CLIs.
 //
 // Spec: packages/saas-platform-spec/cli-conventions.md.
 //
-// Inhalte:
+// Contents:
 //   - tokens:              CLI_CONTEXT_CONFIG_TOKEN, USER_PORT_TOKEN,
 //                          AUDIT_QUERY_PORT_TOKEN, DOCTOR_CHECKS_TOKEN,
 //                          MANIFEST_ACCESS_PORT_TOKEN, MANIFEST_CHECKS_TOKEN
 //   - cli-context.service: CliContextService (Identity/MFA/Confirm/Audit) + CliError
-//   - mfa-setup-flow:      MfaSetupFlow für `<app> admin mfa-setup`
-//   - whoami-flow:         WhoAmIFlow für `<app> admin whoami`
-//   - audit-tail-flow:     AuditTailFlow für `<app> audit tail`
-//   - doctor-flow:         DoctorFlow + DoctorCheck-Interface
-//   - manifest-cli-flow:   ManifestCliFlow + ManifestCheck-Interface
-//   - manifest-checks:     DEFAULT_MANIFEST_CHECKS (10 Plattform-Defaults)
+//   - mfa-setup-flow:      MfaSetupFlow for `<app> admin mfa-setup`
+//   - whoami-flow:         WhoAmIFlow for `<app> admin whoami`
+//   - audit-tail-flow:     AuditTailFlow for `<app> audit tail`
+//   - doctor-flow:         DoctorFlow + DoctorCheck interface
+//   - manifest-cli-flow:   ManifestCliFlow + ManifestCheck interface
+//   - manifest-checks:     DEFAULT_MANIFEST_CHECKS (10 platform defaults)
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
 export * from './tokens.js';

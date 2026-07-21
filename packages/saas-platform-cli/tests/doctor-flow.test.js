@@ -21,7 +21,7 @@ function buildThrowingCheck(id, label, errorMessage) {
 }
 
 describe('DoctorFlow.run', () => {
-    test('alle Checks ok → overall=ok, exitCode=0', async () => {
+    test('all checks ok → overall=ok, exitCode=0', async () => {
         const checks = [
             buildCheck('c1', 'Check 1', { severity: 'ok', message: 'fine' }),
             buildCheck('c2', 'Check 2', { severity: 'ok', message: 'fine' }),
@@ -33,7 +33,7 @@ describe('DoctorFlow.run', () => {
         assert.equal(flow.exitCodeFor(report), 0);
     });
 
-    test('ein warning + ok → overall=warning, exitCode=0', async () => {
+    test('one warning + ok → overall=warning, exitCode=0', async () => {
         const checks = [
             buildCheck('c1', 'Check 1', { severity: 'ok', message: 'fine' }),
             buildCheck('c2', 'Check 2', { severity: 'warning', message: 'meh' }),
@@ -44,7 +44,7 @@ describe('DoctorFlow.run', () => {
         assert.equal(flow.exitCodeFor(report), 0);
     });
 
-    test('ein error → overall=error, exitCode=4', async () => {
+    test('one error → overall=error, exitCode=4', async () => {
         const checks = [
             buildCheck('c1', 'Check 1', { severity: 'ok', message: 'fine' }),
             buildCheck('c2', 'Check 2', { severity: 'error', message: 'broken' }),
@@ -56,7 +56,7 @@ describe('DoctorFlow.run', () => {
         assert.equal(flow.exitCodeFor(report), 4);
     });
 
-    test('Exception in Check → severity=error mit Exception-Message', async () => {
+    test('exception in check → severity=error with exception message', async () => {
         const checks = [
             buildCheck('c1', 'Check 1', { severity: 'ok', message: 'fine' }),
             buildThrowingCheck('c2', 'Crashy', 'kaputt'),
@@ -68,7 +68,7 @@ describe('DoctorFlow.run', () => {
         assert.match(report.checks[1].message, /kaputt/);
     });
 
-    test('leere Check-Liste → overall=ok', async () => {
+    test('empty check list → overall=ok', async () => {
         const flow = new DoctorFlow([]);
         const report = await flow.run();
         assert.equal(report.overall, 'ok');
@@ -77,7 +77,7 @@ describe('DoctorFlow.run', () => {
 });
 
 describe('DoctorFlow.formatReport', () => {
-    test('zeigt Icons je Severity', async () => {
+    test('shows icons per severity', async () => {
         const flow = new DoctorFlow([]);
         const report = {
             overall: 'warning',

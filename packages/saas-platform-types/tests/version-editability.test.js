@@ -19,32 +19,32 @@ function version(overrides = {}) {
 }
 
 describe('isVersionEditable', () => {
-    test('Drafts bleiben editierbar', () => {
+    test('drafts remain editable', () => {
         assert.deepEqual(isVersionEditable(version({ publishedAt: null }), NOW), {
             editable: true,
             reason: 'draft',
         });
     });
 
-    test('published-but-future ist nur latest-in-chain ohne Subscription editierbar', () => {
+    test('published-but-future is only editable when latest-in-chain without a subscription', () => {
         assert.deepEqual(isVersionEditable(version(), NOW), {
             editable: true,
             reason: 'pre-active',
         });
     });
 
-    test('subscriptionCount undefined blockiert fail-closed', () => {
+    test('subscriptionCount undefined blocks fail-closed', () => {
         assert.equal(
             isVersionEditable(version({ subscriptionCount: undefined }), NOW).editable,
             false,
         );
     });
 
-    test('referenzierte Versionen bleiben eingefroren', () => {
+    test('referenced versions remain frozen', () => {
         assert.equal(isVersionEditable(version({ subscriptionCount: 1 }), NOW).editable, false);
     });
 
-    test('nicht-latest, superseded und bereits aktive Versionen bleiben eingefroren', () => {
+    test('non-latest, superseded and already-active versions remain frozen', () => {
         assert.equal(isVersionEditable(version({ isLatestInChain: false }), NOW).editable, false);
         assert.equal(
             isVersionEditable(version({ supersededAt: '2026-05-20T00:00:00Z' }), NOW).editable,

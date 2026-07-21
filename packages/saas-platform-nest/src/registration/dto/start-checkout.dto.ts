@@ -1,10 +1,10 @@
 import { IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
 
 /**
- * Eingabe fuer Schritt 4 (Checkout starten) — `POST /auth/register/start-checkout`.
- * Das Frontend uebergibt die PendingRegistration-ID und die Redirect-URLs
- * (success / cancel), an die der Payment-Provider nach der Bezahl-Aktion
- * zurueckleitet.
+ * Input for step 4 (start checkout) — `POST /auth/register/start-checkout`.
+ * The frontend passes the PendingRegistration ID and the redirect URLs
+ * (success / cancel) that the payment provider redirects to after the payment
+ * action.
  */
 export class StartRegistrationCheckoutDto {
     @IsString()

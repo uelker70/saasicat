@@ -57,34 +57,34 @@
 import { computed } from 'vue';
 import type { DiscoveredFeature } from '@saasicat/types';
 
-// BundleFeaturesEditor — gruppierte Pills für die Feature-Auswahl einer
-// Bundle-Version (nach Plan-Simulation). Source-of-Truth für die
-// Library ist der Discovery-Snapshot; das `featureRegistry`-Mapping aus
-// dem Wrapper liefert nur das anzuzeigende Label + den Gruppen-Bucket
-// (analog `PlanVersionEditor`).
+// BundleFeaturesEditor — grouped pills for the feature selection of a
+// bundle version (after plan simulation). The source of truth for the
+// library is the discovery snapshot; the `featureRegistry` mapping from
+// the wrapper provides only the label to display + the group bucket
+// (analogous to `PlanVersionEditor`).
 //
-// `locked` = Live-/Superseded-Version → die Pills sind disabled
-// (Vertragsschutz; UI spiegelt die Backend-Regel `isVersionEditable`).
-// `overlapKeys` = Features, die in einem kompatiblen Plan schon enthalten
-// sind → werden als „Doppelpunkt" markiert (Doppel-Berechnung warnen).
+// `locked` = live/superseded version → the pills are disabled
+// (contract protection; UI mirrors the backend rule `isVersionEditable`).
+// `overlapKeys` = features already contained in a compatible plan
+// → are marked as an "overlap" (warn about double billing).
 
 export interface FeatureMeta {
-    /** Anzeigename; Fallback = featureKey. */
+    /** Display name; fallback = featureKey. */
     label?: string;
-    /** Library-Bucket (z. B. „Communication", „Finance"). Default „Allgemein". */
+    /** Library bucket (e.g. "Communication", "Finance"). Default "Allgemein". */
     group?: string;
 }
 
 const props = defineProps<{
-    /** Library = Discovery-Snapshot-Features. */
+    /** Library = discovery snapshot features. */
     availableFeatures: DiscoveredFeature[];
-    /** Aktuell selektierte Feature-Keys auf der Version. */
+    /** Currently selected feature keys on the version. */
     features: string[];
-    /** Read-only schalten (live/superseded). */
+    /** Switch to read-only (live/superseded). */
     locked?: boolean;
-    /** Display-Mapping pro Feature-Key. */
+    /** Display mapping per feature key. */
     featureRegistry?: Record<string, FeatureMeta>;
-    /** Features, die in einem ausgewählten kompatiblen Plan schon enthalten sind. */
+    /** Features already contained in a selected compatible plan. */
     overlapKeys?: string[];
 }>();
 

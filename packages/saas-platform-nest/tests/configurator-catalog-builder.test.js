@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 
 import { ConfiguratorCatalogBuilder } from '../dist/billing/index.js';
 
-// ConfiguratorCatalogBuilder — baut den Onboarding-Catalog aus live
-// PlanVersions + App-Plan-Marketing. Seit #49 ohne Addon-Quellen:
-// verkauft werden nur PlanVersionen (+ Bundles über den Public-Catalog).
+// ConfiguratorCatalogBuilder — builds the onboarding catalog from live
+// PlanVersions + app plan marketing. Since #49 without addon sources:
+// only PlanVersions are sold (+ Bundles via the public catalog).
 
 const SOURCES = {
     listLivePlans: async () => [
@@ -48,7 +48,7 @@ const MARKETING = {
 };
 
 describe('ConfiguratorCatalogBuilder', () => {
-    test('mappt marketed live PlanVersions auf Modelle (inkl. Quota-Normalisierung)', async () => {
+    test('maps marketed live PlanVersions onto models (incl. quota normalization)', async () => {
         const catalog = await new ConfiguratorCatalogBuilder().build({
             sources: SOURCES,
             marketing: MARKETING,
@@ -57,7 +57,7 @@ describe('ConfiguratorCatalogBuilder', () => {
         assert.equal(catalog.cycleDiscount, 10);
         assert.equal(catalog.currency, 'EUR');
         assert.equal(catalog.vatRate, 19);
-        assert.equal(catalog.models.length, 1, 'nicht-marketed Pläne fallen raus');
+        assert.equal(catalog.models.length, 1, 'non-marketed plans are dropped');
 
         const starter = catalog.models[0];
         assert.equal(starter.planId, 'STARTER');
@@ -67,7 +67,7 @@ describe('ConfiguratorCatalogBuilder', () => {
         assert.equal(starter.quotaBase.storageGb, Number.MAX_SAFE_INTEGER, '-1 → MAX_SAFE_INTEGER');
     });
 
-    test('Plan ohne Marketing-Eintrag wird versteckt', async () => {
+    test('plan without a marketing entry is hidden', async () => {
         const catalog = await new ConfiguratorCatalogBuilder().build({
             sources: SOURCES,
             marketing: { ...MARKETING, listPlanMarketing: () => [] },

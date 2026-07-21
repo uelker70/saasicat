@@ -2,18 +2,18 @@ import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
 import { AdminStatsService, type AdminStatsSnapshot } from './admin-stats.service.js';
 import { SuperAdminGuard } from './super-admin.guard.js';
 
-// AdminStatsController — `GET /admin/stats/dashboard` für die SuperAdmin-
-// Dashboard-Page. SuperAdminGuard schützt vor Tenant-Zugriff. App-spezifische
-// Extra-KPIs (z. B. DATEV- oder Bundles/Members-Usage) bleiben in den
-// jeweiligen App-eigenen `/admin/extras/*`-Endpoints — der Plattform-Endpoint
-// liefert nur die generischen Subscription-/Promo-/Audit-Aggregate.
+// AdminStatsController — `GET /admin/stats/dashboard` for the SuperAdmin
+// dashboard page. SuperAdminGuard guards against tenant access. App-specific
+// extra KPIs (e.g. DATEV or bundles/members usage) stay in the respective
+// app-owned `/admin/extras/*` endpoints — the platform endpoint only
+// delivers the generic subscription/promo/audit aggregates.
 
 @Controller('admin/stats')
 @UseGuards(SuperAdminGuard)
 export class AdminStatsController {
-    // Explizites @Inject statt Type-Reflection: tsup/esbuild emittieren keine
-    // `design:paramtypes`-Metadata, sodass Nest den Service-Typ am Constructor
-    // sonst nicht auflösen kann.
+    // Explicit @Inject instead of type reflection: tsup/esbuild do not emit
+    // `design:paramtypes` metadata, so Nest could otherwise not resolve the
+    // service type at the constructor.
     constructor(@Inject(AdminStatsService) private readonly stats: AdminStatsService) {}
 
     @Get('dashboard')

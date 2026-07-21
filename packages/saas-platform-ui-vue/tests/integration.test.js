@@ -1,14 +1,14 @@
-// Integration-Tests: full boot → manifest → nav → action-registry Flow.
+// Integration tests: full boot → manifest → nav → action-registry flow.
 //
-// Diese Tests simulieren den Konsumenten-Bootstrap mit
-// einer scripted-HTTP-Sequence:
+// These tests simulate the consumer bootstrap with
+// a scripted HTTP sequence:
 //
-//   1. Pre-Login: GET /admin/boot → Branding lesen.
-//   2. Post-Login: GET /admin/manifest → Manifest mit ETag persistieren.
-//   3. App-Boot: buildRoutes/buildSidebar → reaktive Vue-Composables.
-//   4. Tenant-Action: ActionRegistry.dispatch → handler ruft Server.
-//   5. Bulk-Publish: useBulkPublish.run → parallele Publishes.
-//   6. Logout: clearCache → ETag verschwindet.
+//   1. Pre-login: GET /admin/boot → read branding.
+//   2. Post-login: GET /admin/manifest → persist manifest with ETag.
+//   3. App boot: buildRoutes/buildSidebar → reactive Vue composables.
+//   4. Tenant action: ActionRegistry.dispatch → handler calls the server.
+//   5. Bulk publish: useBulkPublish.run → parallel publishes.
+//   6. Logout: clearCache → ETag disappears.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -101,11 +101,11 @@ function buildStorage() {
     };
 }
 
-describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => {
-    test('Konsumenten-Login-Bootstrap-Sequenz', async () => {
+describe('Full bootstrap flow: Boot → Manifest → Routes → Actions', () => {
+    test('Consumer login bootstrap sequence', async () => {
         const storage = buildStorage();
         const { http, calls } = buildScriptedHttp([
-            // 1. Pre-Login: Boot
+            // 1. Pre-login: Boot
             () => ({
                 status: 200,
                 body: {
@@ -116,7 +116,7 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
                     },
                 },
             }),
-            // 2. Post-Login: Manifest
+            // 2. Post-login: Manifest
             () => ({
                 status: 200,
                 body: SAMPLE_MANIFEST,
@@ -124,13 +124,13 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
             }),
         ]);
 
-        // Schritt 1: Pre-Login Branding
+        // Step 1: Pre-login branding
         const bootLoader = new BootLoader({ http, endpoint: '/api/v1/admin/boot' });
         const boot = await bootLoader.load();
         assert.equal(boot.project.key, 'demoapp');
         assert.equal(boot.project.displayName, 'DemoApp');
 
-        // Schritt 2: Login passiert (außerhalb), dann Manifest
+        // Step 2: Login happens (externally), then manifest
         const manifestLoader = new ManifestLoader({
             http,
             storage,
@@ -139,18 +139,18 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         });
         const manifest = await manifestLoader.load();
         assert.equal(manifest.build.manifestHash, 'sha256-abc123');
-        // ETag wurde persistiert
+        // ETag was persisted
         assert.equal(storage.get('manifest:etag'), '"sha256-abc123"');
 
-        // Schritt 3: Routes + Sidebar bauen
+        // Step 3: Build routes + sidebar
         const routes = buildRoutes(manifest);
         assert.equal(routes.length, 3); // tenants, audit, datev
         assert.ok(routes.find((r) => r.id === 'tenants'));
         assert.ok(routes.find((r) => r.id === 'cf.datev'));
 
         const sidebar = buildSidebar(routes);
-        // StandardPages erben Default-Sections (tenants→Kunden, audit→System);
-        // ProjectPages-Section "DemoApp" hängt alphabetisch hinten dran.
+        // StandardPages inherit default sections (tenants→Kunden, audit→System);
+        // the ProjectPages section "DemoApp" is appended alphabetically at the end.
         assert.equal(sidebar[0].section, 'Kunden');
         assert.equal(sidebar[0].items[0].id, 'tenants');
         assert.equal(sidebar[1].section, 'System');
@@ -158,7 +158,7 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         assert.equal(sidebar[2].section, 'DemoApp');
         assert.equal(sidebar[2].items.length, 1); // datev
 
-        // Schritt 4: Action-Registry mit Handler
+        // Step 4: Action registry with handler
         let actionInput = null;
         const registry = new ActionRegistry(manifest, {
             DATEV_EXPORT_RUN: async (input) => {
@@ -167,7 +167,7 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
             },
         });
         const action = registry.get('DATEV_EXPORT_RUN');
-        assert.equal(action.def.requiresMfa, true); // UI muss MFA-Modal zeigen
+        assert.equal(action.def.requiresMfa, true); // UI must show the MFA modal
 
         const result = await registry.dispatch('DATEV_EXPORT_RUN', {
             tenantSlug: 'demo',
@@ -175,13 +175,13 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         assert.deepEqual(result, { ok: true, exportId: 'exp-1' });
         assert.deepEqual(actionInput, { tenantSlug: 'demo' });
 
-        // Verifikation: Boot + Manifest = 2 HTTP-Calls
+        // Verification: Boot + Manifest = 2 HTTP calls
         assert.equal(calls.length, 2);
     });
 
-    test('Cache-Hit-Pfad: zweiter Manifest-Load liefert 304', async () => {
+    test('Cache-hit path: second manifest load returns 304', async () => {
         const storage = buildStorage();
-        // Erst-Load: persistiert Cache
+        // First load: persists the cache
         const { http: http1 } = buildScriptedHttp([
             () => ({
                 status: 200,
@@ -196,7 +196,7 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         });
         await loader1.load();
 
-        // Zweit-Load: Server liefert 304, Cache greift
+        // Second load: server returns 304, cache kicks in
         const { http: http2, calls: calls2 } = buildScriptedHttp([
             () => ({ status: 304, body: null }),
         ]);
@@ -206,11 +206,11 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
             endpoint: '/api/v1/admin/manifest',
         });
         const m = await loader2.load();
-        assert.equal(m.build.manifestHash, 'sha256-abc123'); // aus Cache
+        assert.equal(m.build.manifestHash, 'sha256-abc123'); // from cache
         assert.equal(calls2[0].init.headers['If-None-Match'], '"v1"');
     });
 
-    test('Logout-Pfad: clearCache räumt komplett', async () => {
+    test('Logout path: clearCache clears everything', async () => {
         const storage = buildStorage();
         const { http } = buildScriptedHttp([
             () => ({ status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"v1"' } }),
@@ -224,7 +224,7 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         assert.equal(storage.get('manifest:body'), null);
     });
 
-    test('Manifest-Reload nach `manifest reload`-Action invalidiert Cache', async () => {
+    test('Manifest reload after a `manifest reload` action invalidates the cache', async () => {
         const storage = buildStorage();
         const { http } = buildScriptedHttp([
             () => ({ status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"v1"' } }),
@@ -241,7 +241,7 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
         const first = await loader.load();
         assert.equal(first.build.manifestHash, 'sha256-abc123');
 
-        // Konsument: nach `<app> paket apply` triggert manifest/reload
+        // Consumer: after `<app> paket apply`, triggers manifest/reload
         loader.clearCache();
         const second = await loader.load();
         assert.equal(second.build.manifestHash, 'sha256-v2');
@@ -249,20 +249,20 @@ describe('Full Bootstrap-Flow: Boot → Manifest → Routes → Actions', () => 
     });
 });
 
-describe('Drift-Detection: Manifest vs. Konsumenten-Shell-Build', () => {
-    test('Action-Drift erkannt: Manifest-Action ohne Handler', () => {
+describe('Drift detection: manifest vs. consumer shell build', () => {
+    test('Action drift detected: manifest action without a handler', () => {
         const registry = new ActionRegistry(SAMPLE_MANIFEST, {
-            // DATEV_EXPORT_RUN ist im Manifest, aber kein Handler registriert
+            // DATEV_EXPORT_RUN is in the manifest, but no handler is registered
         });
         const orphaned = registry.listOrphanedDefs();
         assert.deepEqual(orphaned, ['DATEV_EXPORT_RUN']);
     });
 
-    test('UI lehnt Capability-fehlende Routes ab', () => {
+    test('UI rejects routes with a missing capability', () => {
         const m = JSON.parse(JSON.stringify(SAMPLE_MANIFEST));
         m.capabilities['datev:export:run'] = false;
         const routes = buildRoutes(m);
-        // tenants + audit ja, datev nicht (Capability false)
+        // tenants + audit yes, datev no (capability false)
         assert.equal(
             routes.find((r) => r.id === 'cf.datev'),
             undefined,
@@ -270,8 +270,8 @@ describe('Drift-Detection: Manifest vs. Konsumenten-Shell-Build', () => {
     });
 });
 
-describe('Bulk-Publish: end-to-end mit Server-Pfad', () => {
-    test('3 Drafts publizieren: 2 OK, 1 Konflikt — atomarer Fortschritt', async () => {
+describe('Bulk publish: end-to-end with server path', () => {
+    test('Publish 3 drafts: 2 OK, 1 conflict — atomic progress', async () => {
         const { http } = buildScriptedHttp([
             ({ url }) => {
                 if (url.includes('/draft-2/')) {

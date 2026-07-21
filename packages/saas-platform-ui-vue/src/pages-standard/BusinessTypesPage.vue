@@ -74,7 +74,7 @@
             </q-table>
         </div>
 
-        <!-- Create-Dialog -->
+        <!-- Create dialog -->
         <q-dialog v-model="createOpen">
             <q-card style="min-width: 480px; max-width: 96vw">
                 <q-card-section>
@@ -119,7 +119,7 @@
             </q-card>
         </q-dialog>
 
-        <!-- Detail-Drawer -->
+        <!-- Detail drawer -->
         <q-drawer v-model="detailOpen" side="right" :width="560" bordered overlay>
             <div v-if="detailType" class="sa-bts__drawer">
                 <header class="sa-bts__drawer-head">
@@ -227,7 +227,7 @@
             </div>
         </q-drawer>
 
-        <!-- Strict-Mode-Warnings -->
+        <!-- Strict mode warnings -->
         <q-banner
             v-if="lastWarnings.length > 0"
             class="sa-bts__warnings-banner"
@@ -250,7 +250,7 @@
             </template>
         </q-banner>
 
-        <!-- Editor + Publish-Dialoge -->
+        <!-- Editor + publish dialogs -->
         <BusinessTypeVersionEditorDialog
             v-if="detailType && editorOpen"
             v-model="editorOpen"
@@ -324,9 +324,9 @@ const props = defineProps<{
         versionId: string,
         opts: { forceRegressive?: boolean },
     ) => Promise<BusinessTypeVersionMutationResult>;
-    /** Liste aller verfügbaren published BundleVersions im Projekt. */
+    /** List of all available published BundleVersions in the project. */
     availableBundles: BundleVersionRow[];
-    /** Pure-Function-Diff-Klassifikator. */
+    /** Pure-function diff classifier. */
     classifyDiff: (
         previous: BusinessTypeVersionRow,
         draft: BusinessTypeVersionRow,
@@ -358,7 +358,7 @@ const columns: QTableColumn[] = [
     { name: 'actions', label: '', field: () => '', align: 'right' },
 ];
 
-// ─── Create-Dialog ───
+// ─── Create dialog ───
 const createOpen = ref(false);
 const createSubmitting = ref(false);
 const createForm = ref<{
@@ -407,7 +407,7 @@ async function submitCreate(): Promise<void> {
     }
 }
 
-// ─── Detail-Drawer ───
+// ─── Detail drawer ───
 const detailOpen = ref(false);
 const detailType = ref<BusinessTypeRow | null>(null);
 const detailVersions = ref<BusinessTypeVersionRow[]>([]);
@@ -467,10 +467,10 @@ watch(
     },
 );
 
-// ─── Strict-Mode-Warnings ───
+// ─── Strict mode warnings ───
 const lastWarnings = ref<StrictModeWarning[]>([]);
 
-// ─── Editor-Modal ───
+// ─── Editor modal ───
 const editorOpen = ref(false);
 const editorMode = ref<'create' | 'edit'>('create');
 const editorDraft = ref<BusinessTypeVersionRow | null>(null);
@@ -516,7 +516,7 @@ async function onEditorSubmitted(result: BusinessTypeVersionMutationResult): Pro
     }
 }
 
-// ─── Publish-Modal ───
+// ─── Publish modal ───
 const publishOpen = ref(false);
 const publishDraft = ref<BusinessTypeVersionRow | null>(null);
 

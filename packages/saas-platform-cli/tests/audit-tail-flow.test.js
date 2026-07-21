@@ -28,8 +28,8 @@ const SAMPLE = {
     userAgent: null,
 };
 
-describe('AuditTailFlow.run — Filter-Mapping', () => {
-    test('leerer Filter → leeres Query-Object', async () => {
+describe('AuditTailFlow.run — filter mapping', () => {
+    test('empty filter → empty query object', async () => {
         const { flow, calls } = buildHarness();
         await flow.run();
         assert.deepEqual(calls[0], {});
@@ -62,7 +62,7 @@ describe('AuditTailFlow.run — Filter-Mapping', () => {
 });
 
 describe('AuditTailFlow.formatRows', () => {
-    test('mappt Felder + truncated entityId', () => {
+    test('maps fields + truncated entityId', () => {
         const { flow } = buildHarness([SAMPLE]);
         const rows = flow.formatRows([SAMPLE]);
         assert.equal(rows.length, 1);
@@ -78,7 +78,7 @@ describe('AuditTailFlow.formatRows', () => {
         assert.equal(rows[0].actor, '—');
     });
 
-    test('kurze entityId nicht truncated', () => {
+    test('short entityId not truncated', () => {
         const { flow } = buildHarness();
         const rows = flow.formatRows([{ ...SAMPLE, entityId: 'pc-1' }]);
         assert.equal(rows[0].entityId, 'pc-1');

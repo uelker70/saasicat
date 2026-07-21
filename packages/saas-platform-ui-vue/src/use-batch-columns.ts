@@ -1,10 +1,10 @@
-// useBatchColumns — Vue-3-Composable über BatchColumnFetcher.
+// useBatchColumns — Vue 3 composable on top of BatchColumnFetcher.
 //
-// Lädt die Custom-TenantColumn-Daten reaktiv neu, wenn sich entweder die
-// `tenantIds`-Liste (Pagination → andere Tenant-IDs) oder das Manifest
-// ändert (z. B. nach `manifest reload`). Loading- und Error-State werden
-// pro Spalte aggregiert; granulares Loading-State pro Spalte können
-// Konsumenten via direkter `fetcher.fetchOne` nachrüsten.
+// Reactively reloads the custom TenantColumn data whenever either the
+// `tenantIds` list (pagination → different tenant IDs) or the Manifest
+// changes (e.g. after `manifest reload`). Loading and error state are
+// aggregated per column; granular per-column loading state can be added
+// by consumers via a direct `fetcher.fetchOne` call.
 
 import { ref, watch, type Ref } from 'vue';
 import type { AdminManifest } from '@saasicat/types';
@@ -15,11 +15,11 @@ import {
 } from './batch-column-fetcher.js';
 
 export interface UseBatchColumnsResult {
-    /** Daten pro Spalten-Key (`columnKey → tenantId → value`). */
+    /** Data per column key (`columnKey → tenantId → value`). */
     data: Ref<BatchColumnData>;
     loading: Ref<boolean>;
     error: Ref<Error | null>;
-    /** Manueller Re-Fetch (z. B. nach Mutation). */
+    /** Manual re-fetch (e.g. after a mutation). */
     reload: () => Promise<void>;
 }
 
@@ -50,7 +50,7 @@ export function useBatchColumns(
         }
     }
 
-    // Reaktiv: lädt neu, sobald sich Manifest oder tenantIds ändern.
+    // Reactive: reloads as soon as the Manifest or tenantIds change.
     watch([manifest, tenantIds], () => {
         void load();
     });

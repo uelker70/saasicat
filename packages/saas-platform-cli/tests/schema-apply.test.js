@@ -9,7 +9,7 @@ import {
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
 
 describe('extractModelNames', () => {
-    test('findet Top-Level-Models', () => {
+    test('finds top-level models', () => {
         const schema = `
 generator client { provider = "prisma-client-js" }
 datasource db { provider = "postgresql" }
@@ -23,13 +23,13 @@ model User { id String @id }
         assert.deepEqual(extractModelNames(schema), ['Plan', 'User']);
     });
 
-    test('ignoriert auskommentierte Models', () => {
+    test('ignores commented-out models', () => {
         const schema = `// model OldThing { id String @id }
 model Real { id String @id }`;
         assert.deepEqual(extractModelNames(schema), ['Real']);
     });
 
-    test('findet keine enum-Blöcke', () => {
+    test('does not find enum blocks', () => {
         const schema = `enum Role { ADMIN USER }
 model X { id String @id }`;
         assert.deepEqual(extractModelNames(schema), ['X']);
@@ -37,7 +37,7 @@ model X { id String @id }`;
 });
 
 describe('extractModelBlocks', () => {
-    test('Block bleibt komplett mit allen Zeilen', () => {
+    test('block stays complete with all lines', () => {
         const fragment = `// Kommentar
 model Plan {
   id   String @id @default(cuid())
@@ -65,7 +65,7 @@ describe('applyFragmentBlocks', () => {
         ['AuditEntry', 'model AuditEntry {\n  id String @id\n}'],
     ]);
 
-    test('fügt alle Models hinzu wenn Schema leer von Plattform-Models', () => {
+    test('adds all models when schema is empty of platform models', () => {
         const schema = `model User { id String @id }\n`;
         const result = applyFragmentBlocks(schema, FRAGMENT);
         assert.deepEqual(result.added, ['Plan', 'Bundle', 'AuditEntry']);
@@ -76,24 +76,24 @@ describe('applyFragmentBlocks', () => {
         assert.match(result.schema, /model AuditEntry \{/);
     });
 
-    test('idempotent: existierende Models bleiben unangetastet', () => {
+    test('idempotent: existing models remain untouched', () => {
         const schema = `model User { id String @id }\nmodel Plan { id Int @id }\n`;
         const result = applyFragmentBlocks(schema, FRAGMENT);
         assert.deepEqual(result.added, ['Bundle', 'AuditEntry']);
         assert.deepEqual(result.skipped, ['Plan']);
-        // Existierender Plan-Block hat `Int @id` — neuer Block würde `String @id` mitbringen.
-        // Existierender bleibt:
+        // Existing Plan block has `Int @id` — a new block would bring `String @id`.
+        // The existing one stays:
         assert.match(result.schema, /model Plan \{ id Int @id \}/);
     });
 
-    test('returns identisches Schema, wenn alle Models schon da', () => {
+    test('returns identical schema when all models already present', () => {
         const schema = `model Plan { id String @id }\nmodel Bundle { id String @id }\nmodel AuditEntry { id String @id }\n`;
         const result = applyFragmentBlocks(schema, FRAGMENT);
         assert.deepEqual(result.added, []);
         assert.equal(result.schema, schema);
     });
 
-    test('Label kommt in den Header-Kommentar', () => {
+    test('label appears in the header comment', () => {
         const schema = `model User { id String @id }\n`;
         const result = applyFragmentBlocks(schema, FRAGMENT, {
             fragmentLabel: '01-subscription.prisma',

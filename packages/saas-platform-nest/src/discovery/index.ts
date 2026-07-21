@@ -1,13 +1,13 @@
-// @saasicat/nest/discovery — Code-Discovery via Decorators.
+// @saasicat/nest/discovery — code Discovery via decorators.
 //
-// Vier Decorators (siehe `decorators.ts`):
+// Four decorators (see `decorators.ts`):
 //   - @ImplementsCapability(key, options)
 //   - @RequiresCapability(...keys)
 //   - @DefinesQuota(options)
 //   - @EnforceQuota(key, options)
 //
-// Plus der Boot-Zeit-Scanner (`DiscoveryScanner`), das DI-Modul
-// (`DiscoveryModule`) und die Tokens für Consumer.
+// Plus the boot-time scanner (`DiscoveryScanner`), the DI module
+// (`DiscoveryModule`) and the tokens for consumers.
 
 export * from './decorators.js';
 export {

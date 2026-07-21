@@ -50,14 +50,14 @@ function buildHarness({
 }
 
 describe('CliContextService.resolveIdentity', () => {
-    test('akzeptiert --as Flag', () => {
+    test('accepts --as flag', () => {
         const { svc } = buildHarness();
         const id = svc.resolveIdentity('Taci@Example.com');
         assert.equal(id.email, 'taci@example.com');
         assert.match(id.actor, /^cli:taci@example\.com:/);
     });
 
-    test('fällt auf Env-Var zurück', () => {
+    test('falls back to env var', () => {
         const old = process.env.TEST_ADMIN_EMAIL;
         process.env.TEST_ADMIN_EMAIL = 'env@example.com';
         try {
@@ -70,7 +70,7 @@ describe('CliContextService.resolveIdentity', () => {
         }
     });
 
-    test('wirft NO_IDENTITY mit Exit-Code 2, wenn nichts gesetzt', () => {
+    test('throws NO_IDENTITY with exit code 2 when nothing is set', () => {
         const old = process.env.TEST_ADMIN_EMAIL;
         delete process.env.TEST_ADMIN_EMAIL;
         try {
@@ -85,7 +85,7 @@ describe('CliContextService.resolveIdentity', () => {
         }
     });
 
-    test('--as überschreibt Env-Var', () => {
+    test('--as overrides env var', () => {
         const old = process.env.TEST_ADMIN_EMAIL;
         process.env.TEST_ADMIN_EMAIL = 'env@example.com';
         try {
@@ -102,7 +102,7 @@ describe('CliContextService.resolveIdentity', () => {
 describe('CliContextService.ensureSuperAdmin', () => {
     const id = { email: 'a@b.de', host: 'h', actor: 'cli:a@b.de:h' };
 
-    test('akzeptiert SUPER_ADMIN-User', async () => {
+    test('accepts SUPER_ADMIN user', async () => {
         const { svc } = buildHarness({
             user: {
                 id: 'u1',
@@ -117,7 +117,7 @@ describe('CliContextService.ensureSuperAdmin', () => {
         assert.equal(u.id, 'u1');
     });
 
-    test('lehnt nicht-existierenden User ab (USER_NOT_FOUND, exit 2)', async () => {
+    test('rejects non-existent user (USER_NOT_FOUND, exit 2)', async () => {
         const { svc } = buildHarness({ user: null });
         await assert.rejects(
             svc.ensureSuperAdmin(id),
@@ -125,7 +125,7 @@ describe('CliContextService.ensureSuperAdmin', () => {
         );
     });
 
-    test('lehnt deaktivierten User ab', async () => {
+    test('rejects deactivated user', async () => {
         const { svc } = buildHarness({
             user: {
                 id: 'u1',
@@ -139,7 +139,7 @@ describe('CliContextService.ensureSuperAdmin', () => {
         await assert.rejects(svc.ensureSuperAdmin(id), CliError);
     });
 
-    test('lehnt non-SUPER_ADMIN ab (NOT_SUPER_ADMIN)', async () => {
+    test('rejects non-SUPER_ADMIN (NOT_SUPER_ADMIN)', async () => {
         const { svc } = buildHarness({
             user: {
                 id: 'u1',
@@ -168,7 +168,7 @@ describe('CliContextService.requireMfa', () => {
         }
     });
 
-    test('Bypass NICHT in Production', async () => {
+    test('bypass NOT in production', async () => {
         const oldSkip = process.env.TEST_SKIP_MFA;
         const oldReply = process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY;
         process.env.TEST_SKIP_MFA = '1';
@@ -190,7 +190,7 @@ describe('CliContextService.requireMfa', () => {
         }
     });
 
-    test('MFA_NOT_SET_UP, wenn Plattform-MfaService isEnabled=false', async () => {
+    test('MFA_NOT_SET_UP when platform MfaService isEnabled=false', async () => {
         const oldReply = process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY;
         process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY = '000000';
         try {
@@ -202,7 +202,7 @@ describe('CliContextService.requireMfa', () => {
         }
     });
 
-    test('MFA_FAILED bei ungültigem Code', async () => {
+    test('MFA_FAILED on invalid code', async () => {
         const oldReply = process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY;
         process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY = '000000';
         try {
@@ -222,7 +222,7 @@ describe('CliContextService.requireMfa', () => {
         }
     });
 
-    test('akzeptiert validen Code', async () => {
+    test('accepts valid code', async () => {
         const oldReply = process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY;
         process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY = '482159';
         try {
@@ -239,17 +239,17 @@ describe('CliContextService.requireMfa', () => {
 });
 
 describe('CliContextService.ensureProductionConfirmation', () => {
-    test('skipt in non-prod automatisch', async () => {
+    test('skips automatically in non-prod', async () => {
         const { svc } = buildHarness({ isProduction: false });
         await svc.ensureProductionConfirmation();
     });
 
-    test('skipt mit yes=true in prod', async () => {
+    test('skips with yes=true in prod', async () => {
         const { svc } = buildHarness({ isProduction: true });
         await svc.ensureProductionConfirmation({ yes: true });
     });
 
-    test('akzeptiert "production" als Antwort', async () => {
+    test('accepts "production" as answer', async () => {
         const oldReply = process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY;
         process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY = 'production';
         try {
@@ -261,7 +261,7 @@ describe('CliContextService.ensureProductionConfirmation', () => {
         }
     });
 
-    test('lehnt andere Antworten ab (PRODUCTION_CONFIRM_ABORTED, exit 1)', async () => {
+    test('rejects other answers (PRODUCTION_CONFIRM_ABORTED, exit 1)', async () => {
         const oldReply = process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY;
         process.env.SAAS_PLATFORM_CLI_PROMPT_REPLY = 'no';
         try {
@@ -278,7 +278,7 @@ describe('CliContextService.ensureProductionConfirmation', () => {
 });
 
 describe('CliContextService.log', () => {
-    test('schreibt durch Plattform-AdminAuditService mit cli-Actor', async () => {
+    test('writes through platform AdminAuditService with cli actor', async () => {
         const { svc, auditCalls } = buildHarness();
         await svc.log({
             identity: { email: 'a@b.de', host: 'h', actor: 'cli:a@b.de:h' },
@@ -297,7 +297,7 @@ describe('CliContextService.log', () => {
 });
 
 describe('CliError', () => {
-    test('hat code, message und exitCode', () => {
+    test('has code, message and exitCode', () => {
         const e = new CliError('FOO', 'bar', 7);
         assert.equal(e.name, 'CliError');
         assert.equal(e.code, 'FOO');

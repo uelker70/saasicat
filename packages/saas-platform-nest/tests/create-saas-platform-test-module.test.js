@@ -10,7 +10,7 @@ import {
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P13.
 
 describe('createSaasPlatformTestModule', () => {
-    test('liefert ein DynamicModule mit Test-Host', () => {
+    test('returns a DynamicModule with a test host', () => {
         const dyn = createSaasPlatformTestModule({
             planCatalog: {
                 schemaVersion: 1,
@@ -20,11 +20,11 @@ describe('createSaasPlatformTestModule', () => {
                 plans: [{ id: 'starter', features: ['NOTES'], quotas: {} }],
             },
         });
-        assert.ok(dyn.module, 'DynamicModule.module muss gesetzt sein');
+        assert.ok(dyn.module, 'DynamicModule.module must be set');
         assert.equal(dyn.module.name, 'SaasPlatformTestHost');
     });
 
-    test('Default Stubs sind no-op-fähig', async () => {
+    test('default stubs are no-op capable', async () => {
         const mfa = new StubMfaPort();
         assert.equal(await mfa.getSecret('u'), null);
         await mfa.setSecret('u', 'XX');
@@ -42,7 +42,7 @@ describe('createSaasPlatformTestModule', () => {
         assert.equal(result, 42);
     });
 
-    test('overrides können einzelne Adapter ersetzen', () => {
+    test('overrides can replace individual adapters', () => {
         const customAudit = { write: async () => {} };
         const dyn = createSaasPlatformTestModule({
             planCatalog: {
@@ -54,6 +54,6 @@ describe('createSaasPlatformTestModule', () => {
             },
             overrides: { audit: customAudit },
         });
-        assert.ok(dyn.module, 'liefert DynamicModule mit Override');
+        assert.ok(dyn.module, 'returns DynamicModule with override');
     });
 });

@@ -1,10 +1,10 @@
-// TenantManifestController — Endpoint-Factory für `GET /tenant/manifest`.
+// TenantManifestController — endpoint factory for `GET /tenant/manifest`.
 //
-// Plattform liefert keine fixe Route, sondern eine Controller-Factory:
-// die App kann den Pfad anpassen (`/tenant/manifest` vs.
-// `/api/v1/tenant/manifest` etc.) und eigene Guards einhängen. Im
+// The platform does not provide a fixed route, but a controller factory:
+// the app can adjust the path (`/tenant/manifest` vs.
+// `/api/v1/tenant/manifest` etc.) and hook in its own guards. In
 // `SaasPlatformModule.forRoot({ tenantManifest: { controller: {...} } })`
-// ist Default `controller: { guards: [JwtAuthGuard] }`.
+// the default is `controller: { guards: [JwtAuthGuard] }`.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
@@ -30,13 +30,13 @@ export interface TenantManifestControllerOptions {
 }
 
 /**
- * Erzeugt einen Controller-Klasse, die `GET <path>` auf
- * `TenantManifestService.getManifest(tenantId)` mappt. `tenantId` kommt
- * aus `request.user.tenantId` (default — passt zum JwtAuthGuard-Pattern
- * der meisten Apps) oder aus `request.tenantId`.
+ * Creates a controller class that maps `GET <path>` to
+ * `TenantManifestService.getManifest(tenantId)`. `tenantId` comes from
+ * `request.user.tenantId` (default — matches the JwtAuthGuard pattern of
+ * most apps) or from `request.tenantId`.
  *
- * Routen-Pfad: Default `tenant/manifest`. Apps mit globalPrefix `/api/v1`
- * bekommen damit `/api/v1/tenant/manifest`.
+ * Route path: default `tenant/manifest`. Apps with a globalPrefix `/api/v1`
+ * thus get `/api/v1/tenant/manifest`.
  */
 export function buildTenantManifestController(
     options: TenantManifestControllerOptions,

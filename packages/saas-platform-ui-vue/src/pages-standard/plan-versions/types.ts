@@ -1,7 +1,7 @@
-// Geteilte Typen der Plan-Versions-Views.
+// Shared types of the plan version views.
 //
-// Phase 2c: Aus einem Konsumenten-Admin portiert;
-// Source-Type generisch über die Plattform-Versions-Rows.
+// Phase 2c: ported from a consumer admin;
+// source type generic over the platform version rows.
 
 import type { PlanVersionRow } from '@saasicat/types';
 

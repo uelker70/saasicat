@@ -7,10 +7,10 @@ import {
     filterActiveSubscriptionBundles,
 } from '../dist/entitlement/index.js';
 
-// SubscriptionBundle-Aggregation (P11.7.3) — Pure-Function-Tests gegen
-// die neuen Helper + Integration in `aggregateLimits`. Bundles addieren
-// additiv zu PlanVersion-Quotas/Features (mit -1-Dominanz und
-// Set-Union).
+// SubscriptionBundle aggregation (P11.7.3) — pure-function tests against
+// the new helpers + integration in `aggregateLimits`. Bundles add
+// additively to PlanVersion quotas/features (with -1 dominance and
+// set union).
 
 const NOW = new Date('2026-05-08T12:00:00Z');
 const PAST = new Date('2026-04-01T00:00:00Z');
@@ -40,8 +40,8 @@ const PLAN_INPUT = {
     planVersion: { planId: 'STARTER', quotas: { users: 1, storageGb: 5 }, features: ['CASHBOOK'] },
 };
 
-describe('SubscriptionBundle-Aggregation (P11.7.3)', () => {
-    test('filterActiveSubscriptionBundles: gekündigte mit vergangenem Effektiv-Datum raus', () => {
+describe('SubscriptionBundle aggregation (P11.7.3)', () => {
+    test('filterActiveSubscriptionBundles: canceled with a past effective date are dropped', () => {
         const bundles = [
             { bundleKey: 'A', features: ['DMS'], quotas: {}, canceledEffectiveAt: null },
             { bundleKey: 'B', features: ['CAMPAIGNS'], quotas: {}, canceledEffectiveAt: PAST },
@@ -54,7 +54,7 @@ describe('SubscriptionBundle-Aggregation (P11.7.3)', () => {
         );
     });
 
-    test('aggregateSubscriptionBundleQuotas: Σ pro Key, -1 dominiert', () => {
+    test('aggregateSubscriptionBundleQuotas: Σ per key, -1 dominates', () => {
         const sums = aggregateSubscriptionBundleQuotas([
             {
                 bundleKey: 'A',
@@ -69,7 +69,7 @@ describe('SubscriptionBundle-Aggregation (P11.7.3)', () => {
         assert.equal(sums.storageGb, -1);
     });
 
-    test('collectSubscriptionBundleFeatures: Set-Union', () => {
+    test('collectSubscriptionBundleFeatures: set union', () => {
         const features = collectSubscriptionBundleFeatures([
             {
                 bundleKey: 'A',
@@ -87,7 +87,7 @@ describe('SubscriptionBundle-Aggregation (P11.7.3)', () => {
         assert.deepEqual([...features].sort(), ['CAMPAIGNS', 'CASHBOOK', 'DMS']);
     });
 
-    test('aggregateLimits: Bundle-Quotas addieren zu Plan-Quotas + Bundle-Features kommen dazu', () => {
+    test('aggregateLimits: bundle quotas add to plan quotas + bundle features are included', () => {
         const limits = aggregateLimits(
             {
                 ...PLAN_INPUT,
@@ -109,7 +109,7 @@ describe('SubscriptionBundle-Aggregation (P11.7.3)', () => {
         assert.ok(limits.features.has('DMS'));
     });
 
-    test('aggregateLimits: gekündigte Bundle wird ignoriert', () => {
+    test('aggregateLimits: canceled bundle is ignored', () => {
         const limits = aggregateLimits(
             {
                 ...PLAN_INPUT,
@@ -125,11 +125,11 @@ describe('SubscriptionBundle-Aggregation (P11.7.3)', () => {
             CATALOG,
             NOW,
         );
-        assert.equal(limits.quotas.users, 1); // bundle ignoriert
+        assert.equal(limits.quotas.users, 1); // bundle ignored
         assert.equal(limits.features.has('CAMPAIGNS'), false);
     });
 
-    test('aggregateLimits: -1 in Bundle-Quota macht Gesamt-Quota unbegrenzt', () => {
+    test('aggregateLimits: -1 in a bundle quota makes the total quota unlimited', () => {
         const limits = aggregateLimits(
             {
                 ...PLAN_INPUT,
@@ -148,7 +148,7 @@ describe('SubscriptionBundle-Aggregation (P11.7.3)', () => {
         assert.equal(limits.quotas.storageGb, -1);
     });
 
-    test('aggregateLimits ohne subscriptionBundles → Plan-only-Verhalten unverändert', () => {
+    test('aggregateLimits without subscriptionBundles → plan-only behavior unchanged', () => {
         const withoutBundles = aggregateLimits(PLAN_INPUT, CATALOG, NOW);
         const withEmptyBundles = aggregateLimits(
             { ...PLAN_INPUT, subscriptionBundles: [] },

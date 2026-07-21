@@ -261,12 +261,12 @@ export class AppModule {}
 
 Four decorators marry your code to the platform:
 
-| Decorator                                      | Where                                | Effect                                                                                                     |
-| ---------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| `@DefinesQuota({ key, feature, ... })`         | Class implementing `QuotaProvider`   | "This quota exists, and I can count it." → discovery UI + interceptor source.                              |
-| `@ImplementsCapability(key, { feature, ... })` | Endpoint method                      | "This endpoint realizes the capability." → discovery UI, can be included in plans.                         |
-| `@RequireFeature(...keys)`                     | Endpoint method                      | The platform `StaticFeatureGuard` checks per request: is at least **one** of the features in the active plan? |
-| `@EnforceQuota(quotaKey)`                      | Endpoint method                      | The platform `EnforceQuotaInterceptor` calls the `QuotaProvider` and compares `count + delta ≤ planLimit`. |
+| Decorator                                      | Where                              | Effect                                                                                                        |
+| ---------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `@DefinesQuota({ key, feature, ... })`         | Class implementing `QuotaProvider` | "This quota exists, and I can count it." → discovery UI + interceptor source.                                 |
+| `@ImplementsCapability(key, { feature, ... })` | Endpoint method                    | "This endpoint realizes the capability." → discovery UI, can be included in plans.                            |
+| `@RequireFeature(...keys)`                     | Endpoint method                    | The platform `StaticFeatureGuard` checks per request: is at least **one** of the features in the active plan? |  
+| `@EnforceQuota(quotaKey)`                      | Endpoint method                    | The platform `EnforceQuotaInterceptor` calls the `QuotaProvider` and compares `count + delta ≤ planLimit`.    |
 
 `backend/src/notes/notes.controller.ts`:
 
@@ -473,18 +473,18 @@ Add these in this order:
 
 ## Common quickstart failures
 
-| Symptom                                                | Cause                                                                                        |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `saas-platform: command not found`                     | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.            |
-| `prisma-fragments/` directory not found                | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                            |
-| `Nest can't resolve dependencies of X (?, ...)`        | `SaasAdaptersModule` is not listed **before** `SaasPlatformModule.forRoot()` in `imports[]`. |
-| Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.     |
-| `discovery-snapshot.json` is empty                     | The module holding the decorators (`NotesModule`, `SaasAdaptersModule`) is missing from `AppModule.imports[]`. |
-| `@RequireFeature` lets everything through              | Neither `defaultPlanId` nor `adapters.planResolver` is set → no static entitlement active.   |
-| `@EnforceQuota` never blocks                           | The `QuotaProvider` class is not listed in `quotaProviders: [...]` of `SaasPlatformModule.forRoot()`. |
-| `@RequireFeature('NOTES')` throws 403                  | The test tenant is not on a plan that includes `NOTES` — with `defaultPlanId` all tenants are equal. |
-| Discovery tabs stay empty                              | Vite cache holding a stale build. `rm -rf node_modules/.vite && pnpm dev`.                   |
-| Setup wizard does not appear / `403 SETUP_DISABLED`    | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).   |
-| `tenantManifest` throws at boot                        | `tenantManifest` is active, but neither `defaultPlanId` nor `adapters.planResolver` is set.  |
+| Symptom                                                 | Cause                                                                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `saas-platform: command not found`                      | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.                              |
+| `prisma-fragments/` directory not found                 | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                                              |
+| `Nest can't resolve dependencies of X (?, ...)`         | `SaasAdaptersModule` is not listed **before** `SaasPlatformModule.forRoot()` in `imports[]`.                   |
+| Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.                        |
+| `discovery-snapshot.json` is empty                      | The module holding the decorators (`NotesModule`, `SaasAdaptersModule`) is missing from `AppModule.imports[]`. |
+| `@RequireFeature` lets everything through               | Neither `defaultPlanId` nor `adapters.planResolver` is set → no static entitlement active.                     |
+| `@EnforceQuota` never blocks                            | The `QuotaProvider` class is not listed in `quotaProviders: [...]` of `SaasPlatformModule.forRoot()`.          |
+| `@RequireFeature('NOTES')` throws 403                   | The test tenant is not on a plan that includes `NOTES` — with `defaultPlanId` all tenants are equal.           |
+| Discovery tabs stay empty                               | Vite cache holding a stale build. `rm -rf node_modules/.vite && pnpm dev`.                                     |
+| Setup wizard does not appear / `403 SETUP_DISABLED`     | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).                     |
+| `tenantManifest` throws at boot                         | `tenantManifest` is active, but neither `defaultPlanId` nor `adapters.planResolver` is set.                    |
 
 For deeper troubleshooting, see the [handbook](handbook.md), §11.

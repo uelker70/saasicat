@@ -22,23 +22,23 @@ function buildContext({ user, headers = {} }) {
 describe('SuperAdminGuard', () => {
     const guard = new SuperAdminGuard();
 
-    test('akzeptiert SUPER_ADMIN', () => {
+    test('accepts SUPER_ADMIN', () => {
         assert.equal(guard.canActivate(buildContext({ user: { role: 'SUPER_ADMIN' } })), true);
     });
 
-    test('lehnt TENANT_ADMIN ab', () => {
+    test('rejects TENANT_ADMIN', () => {
         assert.throws(
             () => guard.canActivate(buildContext({ user: { role: 'TENANT_ADMIN' } })),
             /Nur SUPER_ADMIN-Rolle erlaubt/,
         );
     });
 
-    test('lehnt fehlenden User ab', () => {
+    test('rejects a missing user', () => {
         assert.throws(() => guard.canActivate(buildContext({})), /Nicht authentifiziert/);
     });
 });
 
-describe('MfaService — TOTP-Setup + Verify', () => {
+describe('MfaService — TOTP setup + verify', () => {
     function buildPort() {
         const store = new Map();
         return {
@@ -58,7 +58,7 @@ describe('MfaService — TOTP-Setup + Verify', () => {
         };
     }
 
-    test('setup() generiert Secret + otpauth-URI und persistiert via Port', async () => {
+    test('setup() generates secret + otpauth URI and persists via port', async () => {
         const { port, store } = buildPort();
         const svc = new MfaService(port);
         const result = await svc.setup('u1', 'taci@example.com', 'DemoApp');
@@ -67,20 +67,20 @@ describe('MfaService — TOTP-Setup + Verify', () => {
         assert.equal(store.get('u1'), result.secret);
     });
 
-    test('verify() lehnt ab, wenn kein Secret vorhanden', async () => {
+    test('verify() rejects when no secret exists', async () => {
         const { port } = buildPort();
         const svc = new MfaService(port);
         assert.equal(await svc.verify({ userId: 'u1', code: '123456' }), false);
     });
 
-    test('verify() lehnt ungültigen Code ab', async () => {
+    test('verify() rejects an invalid code', async () => {
         const { port } = buildPort();
         const svc = new MfaService(port);
         await svc.setup('u1', 'taci@example.com', 'DemoApp');
         assert.equal(await svc.verify({ userId: 'u1', code: '000000' }), false);
     });
 
-    test('disable() löscht das Secret', async () => {
+    test('disable() deletes the secret', async () => {
         const { port, store } = buildPort();
         const svc = new MfaService(port);
         await svc.setup('u1', 'taci@example.com', 'DemoApp');
@@ -88,7 +88,7 @@ describe('MfaService — TOTP-Setup + Verify', () => {
         assert.equal(store.has('u1'), false);
     });
 
-    test('isEnabled() spiegelt Port-State', async () => {
+    test('isEnabled() reflects port state', async () => {
         const { port } = buildPort();
         const svc = new MfaService(port);
         assert.equal(await svc.isEnabled('u1'), false);
@@ -97,7 +97,7 @@ describe('MfaService — TOTP-Setup + Verify', () => {
     });
 });
 
-describe('MfaGuard — RequireMfa-Decorator + Header-Check', () => {
+describe('MfaGuard — RequireMfa decorator + header check', () => {
     function buildReflector(required) {
         return { getAllAndOverride: () => required };
     }
@@ -108,14 +108,14 @@ describe('MfaGuard — RequireMfa-Decorator + Header-Check', () => {
         };
     }
 
-    test('SetMetadata-Decorator setzt REQUIRE_MFA_KEY', () => {
-        // Smoke: RequireMfa() liefert eine SetMetadata-Funktion zurück
+    test('SetMetadata decorator sets REQUIRE_MFA_KEY', () => {
+        // Smoke: RequireMfa() returns a SetMetadata function
         const dec = RequireMfa();
         assert.equal(typeof dec, 'function');
-        assert.ok(REQUIRE_MFA_KEY); // exportiert
+        assert.ok(REQUIRE_MFA_KEY); // exported
     });
 
-    test('passiert durch, wenn Endpoint nicht MFA-pflichtig', async () => {
+    test('passes through when endpoint is not MFA-required', async () => {
         const guard = new MfaGuard(buildReflector(false), buildMfaService({}));
         assert.equal(await guard.canActivate(buildContext({})), true);
     });
@@ -127,12 +127,12 @@ describe('MfaGuard — RequireMfa-Decorator + Header-Check', () => {
         });
     }
 
-    test('NOT_AUTHENTICATED bei fehlendem User', async () => {
+    test('NOT_AUTHENTICATED on missing user', async () => {
         const guard = new MfaGuard(buildReflector(true), buildMfaService({}));
         await expectReason(guard.canActivate(buildContext({})), 'NOT_AUTHENTICATED');
     });
 
-    test('MFA_NOT_SET_UP, wenn Port enabled=false', async () => {
+    test('MFA_NOT_SET_UP when port enabled=false', async () => {
         const guard = new MfaGuard(buildReflector(true), buildMfaService({ enabled: false }));
         await expectReason(
             guard.canActivate(buildContext({ user: { id: 'u1' } })),
@@ -140,12 +140,12 @@ describe('MfaGuard — RequireMfa-Decorator + Header-Check', () => {
         );
     });
 
-    test('MFA_REQUIRED, wenn kein X-Mfa-Code-Header', async () => {
+    test('MFA_REQUIRED when no X-Mfa-Code header', async () => {
         const guard = new MfaGuard(buildReflector(true), buildMfaService({ enabled: true }));
         await expectReason(guard.canActivate(buildContext({ user: { id: 'u1' } })), 'MFA_REQUIRED');
     });
 
-    test('MFA_FAILED bei ungültigem Code', async () => {
+    test('MFA_FAILED on invalid code', async () => {
         const guard = new MfaGuard(
             buildReflector(true),
             buildMfaService({ enabled: true, verifyResult: false }),
@@ -161,7 +161,7 @@ describe('MfaGuard — RequireMfa-Decorator + Header-Check', () => {
         );
     });
 
-    test('akzeptiert validen Code', async () => {
+    test('accepts a valid code', async () => {
         const guard = new MfaGuard(
             buildReflector(true),
             buildMfaService({ enabled: true, verifyResult: true }),
@@ -175,7 +175,7 @@ describe('MfaGuard — RequireMfa-Decorator + Header-Check', () => {
         assert.equal(result, true);
     });
 
-    test('Bypass mit SAAS_PLATFORM_SKIP_MFA=1 in non-prod', async () => {
+    test('bypass with SAAS_PLATFORM_SKIP_MFA=1 in non-prod', async () => {
         const oldSkip = process.env.SAAS_PLATFORM_SKIP_MFA;
         const oldEnv = process.env.NODE_ENV;
         process.env.SAAS_PLATFORM_SKIP_MFA = '1';
@@ -189,7 +189,7 @@ describe('MfaGuard — RequireMfa-Decorator + Header-Check', () => {
         }
     });
 
-    test('Bypass NICHT in production', async () => {
+    test('no bypass in production', async () => {
         const oldSkip = process.env.SAAS_PLATFORM_SKIP_MFA;
         const oldEnv = process.env.NODE_ENV;
         process.env.SAAS_PLATFORM_SKIP_MFA = '1';
@@ -220,7 +220,7 @@ describe('AdminAuditService', () => {
         };
     }
 
-    test('actorTag formatiert source:email:context', () => {
+    test('actorTag formats source:email:context', () => {
         const { port } = buildPort();
         const svc = new AdminAuditService(port);
         assert.equal(
@@ -234,7 +234,7 @@ describe('AdminAuditService', () => {
         );
     });
 
-    test('log() schreibt durch und hängt actor-Tag in changes', async () => {
+    test('log() writes through and appends the actor tag to changes', async () => {
         const { port, calls } = buildPort();
         const svc = new AdminAuditService(port);
         await svc.log({
@@ -257,7 +257,7 @@ describe('AdminAuditService', () => {
         assert.equal(calls[0].changes.actor, 'web:a@b.de:sess-1');
     });
 
-    test('fromWebRequest baut AdminActor mit source=web', () => {
+    test('fromWebRequest builds AdminActor with source=web', () => {
         const { port } = buildPort();
         const svc = new AdminAuditService(port);
         const a = svc.fromWebRequest({ id: 'u1', email: 'a@b.de' }, 'sess-1');
@@ -266,14 +266,14 @@ describe('AdminAuditService', () => {
         assert.equal(a.context, 'sess-1');
     });
 
-    test('fromWebRequest fällt auf "unknown" zurück, wenn keine Session', () => {
+    test('fromWebRequest falls back to "unknown" when there is no session', () => {
         const { port } = buildPort();
         const svc = new AdminAuditService(port);
         const a = svc.fromWebRequest({ id: 'u1', email: 'a@b.de' });
         assert.equal(a.context, 'unknown');
     });
 
-    test('fromCli baut AdminActor mit source=cli + Hostname', () => {
+    test('fromCli builds AdminActor with source=cli + hostname', () => {
         const { port } = buildPort();
         const svc = new AdminAuditService(port);
         const a = svc.fromCli({ id: 'u1', email: 'a@b.de' });

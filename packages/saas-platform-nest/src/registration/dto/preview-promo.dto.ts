@@ -1,9 +1,9 @@
 import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 /**
- * Eingabe fuer `POST /auth/register/preview-promo`. Wenn `code` leer ist,
- * wird der Effekt eines bisher angewendeten Codes entfernt (Preview ohne
- * Promo). Verandert die gespeicherte Pending NICHT — nur Preview-Berechnung.
+ * Input for `POST /auth/register/preview-promo`. If `code` is empty, the
+ * effect of a previously applied code is removed (preview without promo).
+ * Does NOT change the stored pending — only the preview calculation.
  */
 export class PreviewRegistrationPromoDto {
     @IsString()

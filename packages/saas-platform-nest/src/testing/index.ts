@@ -1,7 +1,7 @@
-// @saasicat/nest/testing — Test-Utilities.
+// @saasicat/nest/testing — test utilities.
 //
-// Fake-Adapter für die Repository-Ports + TransactionRunner. Für unit-Tests
-// im Plattform-Paket und in Konsumenten ohne DB-Bedarf.
+// Fake adapters for the repository ports + TransactionRunner. For unit tests
+// in the platform package and in consumers without a DB requirement.
 
 export * from './fake-repositories.js';
 export * from './create-saas-platform-test-module.js';

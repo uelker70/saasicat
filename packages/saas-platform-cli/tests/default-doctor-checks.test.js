@@ -11,14 +11,14 @@ import {
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P12.
 
 describe('PlanCatalogDoctorCheck', () => {
-    test('error wenn keine Pläne', async () => {
+    test('error when no plans', async () => {
         const check = new PlanCatalogDoctorCheck({ projectKey: 'app', plans: [] });
         const r = await check.run();
         assert.equal(r.severity, 'error');
         assert.match(r.message, /keine Pläne/);
     });
 
-    test('ok mit Plänen + Details enthalten planIds', async () => {
+    test('ok with plans + details contain planIds', async () => {
         const check = new PlanCatalogDoctorCheck({
             projectKey: 'app',
             plans: [{ id: 'starter' }, { id: 'pro' }],
@@ -32,7 +32,7 @@ describe('PlanCatalogDoctorCheck', () => {
 });
 
 describe('DiscoverySnapshotDoctorCheck', () => {
-    test('warning wenn snapshot leer', async () => {
+    test('warning when snapshot empty', async () => {
         const check = new DiscoverySnapshotDoctorCheck({
             capabilities: [],
             features: [],
@@ -42,7 +42,7 @@ describe('DiscoverySnapshotDoctorCheck', () => {
         assert.equal(r.severity, 'warning');
     });
 
-    test('ok mit Inhalt', async () => {
+    test('ok with content', async () => {
         const check = new DiscoverySnapshotDoctorCheck({
             capabilities: [{ capabilityKey: 'x' }],
             features: [{ key: 'F' }],
@@ -55,13 +55,13 @@ describe('DiscoverySnapshotDoctorCheck', () => {
 });
 
 describe('UserPortDoctorCheck', () => {
-    test('ok wenn findByEmail nicht wirft', async () => {
+    test('ok when findByEmail does not throw', async () => {
         const port = { findByEmail: async () => null };
         const r = await new UserPortDoctorCheck(port).run();
         assert.equal(r.severity, 'ok');
     });
 
-    test('error wenn findByEmail wirft', async () => {
+    test('error when findByEmail throws', async () => {
         const port = {
             findByEmail: async () => {
                 throw new Error('DB unreachable');
@@ -74,7 +74,7 @@ describe('UserPortDoctorCheck', () => {
 });
 
 describe('AdminManifestDoctorCheck', () => {
-    test('ok mit standardPages-Count', async () => {
+    test('ok with standardPages count', async () => {
         const svc = {
             getManifest: () => ({
                 navigation: { standardPages: { dashboard: {}, tenants: {}, plans: {} } },
@@ -87,7 +87,7 @@ describe('AdminManifestDoctorCheck', () => {
         assert.match(r.message, /sha256-abcde/);
     });
 
-    test('error wenn getManifest wirft', async () => {
+    test('error when getManifest throws', async () => {
         const svc = {
             getManifest: () => {
                 throw new Error('Manifest broken');
@@ -99,7 +99,7 @@ describe('AdminManifestDoctorCheck', () => {
 });
 
 describe('PLATFORM_DOCTOR_CHECK_PROVIDERS', () => {
-    test('enthält genau 4 Provider-Klassen', () => {
+    test('contains exactly 4 provider classes', () => {
         assert.equal(PLATFORM_DOCTOR_CHECK_PROVIDERS.length, 4);
         assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(PlanCatalogDoctorCheck));
         assert.ok(PLATFORM_DOCTOR_CHECK_PROVIDERS.includes(DiscoverySnapshotDoctorCheck));

@@ -1,8 +1,8 @@
-// buildNavigationGuard — Tests für Auth- und Manifest-Guard-Verhalten.
+// buildNavigationGuard — tests for auth and manifest guard behavior.
 //
-// Schwerpunkt: Manifest-Load-Fehler dürfen NICHT silent fail-open sein,
-// wenn der Konsument `errorRoute` setzt. Dieser Test verhindert die
-// Drift, dass `.catch(() => undefined)` zurück in den Pfad rutscht.
+// Focus: manifest load errors must NOT silently fail open when the
+// consumer sets `errorRoute`. This test prevents the drift of
+// `.catch(() => undefined)` slipping back into the path.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,13 +12,13 @@ function makeRoute(path, meta = {}) {
     return { path, meta, fullPath: path };
 }
 
-describe('buildNavigationGuard — Auth-Pfad', () => {
-    test('liefert null, wenn weder authGuard noch manifestGuard gesetzt sind', () => {
+describe('buildNavigationGuard — auth path', () => {
+    test('returns null when neither authGuard nor manifestGuard is set', () => {
         const guard = buildNavigationGuard({});
         assert.equal(guard, null);
     });
 
-    test('redirectet auf onUnauthenticated(), wenn isAuthenticated false', async () => {
+    test('redirects to onUnauthenticated() when isAuthenticated is false', async () => {
         const guard = buildNavigationGuard({
             authGuard: {
                 isAuthenticated: () => false,
@@ -29,7 +29,7 @@ describe('buildNavigationGuard — Auth-Pfad', () => {
         assert.equal(result, '/login');
     });
 
-    test('lässt public-Routen am Auth-Guard vorbei', async () => {
+    test('lets public routes bypass the auth guard', async () => {
         const guard = buildNavigationGuard({
             authGuard: {
                 isAuthenticated: () => false,
@@ -40,7 +40,7 @@ describe('buildNavigationGuard — Auth-Pfad', () => {
         assert.equal(result, true);
     });
 
-    test('redirectet auf onUnauthenticated, wenn isSuperAdmin false', async () => {
+    test('redirects to onUnauthenticated when isSuperAdmin is false', async () => {
         const guard = buildNavigationGuard({
             authGuard: {
                 isAuthenticated: () => true,
@@ -53,8 +53,8 @@ describe('buildNavigationGuard — Auth-Pfad', () => {
     });
 });
 
-describe('buildNavigationGuard — Manifest-Fail-Closed', () => {
-    test('redirectet auf errorRoute, wenn ensureLoaded rejected und errorRoute gesetzt ist', async () => {
+describe('buildNavigationGuard — manifest fail-closed', () => {
+    test('redirects to errorRoute when ensureLoaded rejects and errorRoute is set', async () => {
         const guard = buildNavigationGuard({
             manifestGuard: {
                 ensureLoaded: async () => {
@@ -67,7 +67,7 @@ describe('buildNavigationGuard — Manifest-Fail-Closed', () => {
         assert.equal(result, '/admin/error');
     });
 
-    test('vermeidet Redirect-Loop: wenn aktuelle Route bereits errorRoute ist, wird true zurückgegeben', async () => {
+    test('avoids redirect loop: when the current route is already errorRoute, returns true', async () => {
         const guard = buildNavigationGuard({
             manifestGuard: {
                 ensureLoaded: async () => {
@@ -80,7 +80,7 @@ describe('buildNavigationGuard — Manifest-Fail-Closed', () => {
         assert.equal(result, true);
     });
 
-    test('fällt auf Render-Allow + console.error zurück, wenn KEIN errorRoute gesetzt ist', async () => {
+    test('falls back to render-allow + console.error when NO errorRoute is set', async () => {
         const originalError = console.error;
         let captured = null;
         console.error = (...args) => {
@@ -96,14 +96,14 @@ describe('buildNavigationGuard — Manifest-Fail-Closed', () => {
             });
             const result = await guard(makeRoute('/admin/tenants'));
             assert.equal(result, true);
-            assert.ok(captured, 'console.error wurde nicht aufgerufen');
+            assert.ok(captured, 'console.error was not called');
             assert.match(String(captured[0]), /\[SuperAdmin\] manifest load failed/);
         } finally {
             console.error = originalError;
         }
     });
 
-    test('lässt Render durch, wenn ensureLoaded erfolgreich resolved', async () => {
+    test('lets the render through when ensureLoaded resolves successfully', async () => {
         let calls = 0;
         const guard = buildNavigationGuard({
             manifestGuard: {
