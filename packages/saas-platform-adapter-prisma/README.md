@@ -38,6 +38,12 @@ Options:
 - `rlsIntegration: true` — declare the `rowLevelSecurity` capability once
   your Prisma middleware really applies the bypass (see below).
 
+The bundle also ships `planCatalogReadSink` for DB hydration. To use it,
+omit `planCatalog` and pass the identity the database cannot provide:
+`SaasPlatformModule.forRoot({ persistence, dbCatalog: { projectKey,
+currency, vatRate } })` — without `dbCatalog` the module refuses to boot
+(the sink would otherwise load an empty catalog for project key `''`).
+
 Slices the mega module does not wire (promo) spread into the domain module:
 
 ```ts

@@ -100,11 +100,24 @@ export interface SaasPlatformAdapters {
 export interface SaasPlatformModuleOptions {
     /**
      * Plan catalog. Either as an already-loaded object (quickstart, comes
-     * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or as a
-     * sink reference in `adapters.planCatalogReadSink` /
-     * `persistence.planCatalogReadSink` for DB hydration.
+     * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or via DB
+     * hydration: a sink reference in `adapters.planCatalogReadSink` /
+     * `persistence.planCatalogReadSink` **plus** the `dbCatalog` identity.
      */
     planCatalog?: PlanCatalog;
+    /**
+     * App identity for the DB-hydration path — required when `planCatalog`
+     * is omitted. The read sink only loads plans/features (filtered by
+     * `projectKey`); branding, currency and VAT cannot come from the
+     * database and must be supplied here.
+     */
+    dbCatalog?: {
+        projectKey: string;
+        currency: string;
+        vatRate: number;
+        app?: PlanCatalog['app'];
+        marketing?: PlanCatalog['marketing'];
+    };
     /**
      * Aggregate persistence bundle from an adapter package (e.g.
      * `prismaPersistence({ client: PrismaService })` from
@@ -270,10 +283,13 @@ export class SaasPlatformModule {
                 `SaasPlatformModule.forRoot: adapters missing (provide them via \`adapters\` or a \`persistence\` bundle): ${missingCore.join(', ')}`,
             );
         }
-        if (!options.planCatalog && !adapters.planCatalogReadSink) {
+        if (!options.planCatalog && (!adapters.planCatalogReadSink || !options.dbCatalog)) {
+            // Without the identity the sink would load with projectKey '' and
+            // the app would boot with a silently empty catalog.
             throw new Error(
-                'SaasPlatformModule.forRoot: either `planCatalog` (quickstart) or a ' +
-                    'planCatalogReadSink (`adapters`/`persistence`, DB hydration) must be set.',
+                'SaasPlatformModule.forRoot: either set `planCatalog` (quickstart YAML path) or, ' +
+                    'for DB hydration, BOTH a planCatalogReadSink (`adapters`/`persistence`) AND ' +
+                    '`dbCatalog` ({ projectKey, currency, vatRate }).',
             );
         }
         if (options.entitlement) {
@@ -297,19 +313,23 @@ export class SaasPlatformModule {
             }
         }
 
+        // Validation above guarantees dbCatalog on the DB-hydration branch.
+        const dbCatalog = options.dbCatalog as NonNullable<typeof options.dbCatalog>;
         const planCatalogModule: DynamicModule = options.planCatalog
             ? PlanCatalogModule.forRootWithCatalog(options.planCatalog, { global: true })
             : PlanCatalogModule.forRoot({
-                  projectKey: '',
-                  currency: '',
-                  vatRate: 0,
+                  projectKey: dbCatalog.projectKey,
+                  app: dbCatalog.app,
+                  currency: dbCatalog.currency,
+                  vatRate: dbCatalog.vatRate,
+                  marketing: dbCatalog.marketing,
                   sink: adapters.planCatalogReadSink as ProviderSpec<PlanCatalogReadSink>,
                   imports: options.imports,
               });
 
         const appInfo: DiscoveryAppInfo = options.app ?? {
-            key: options.planCatalog?.projectKey ?? 'app',
-            version: options.planCatalog?.app?.version ?? '0.0.0',
+            key: options.planCatalog?.projectKey ?? options.dbCatalog?.projectKey ?? 'app',
+            version: options.planCatalog?.app?.version ?? options.dbCatalog?.app?.version ?? '0.0.0',
         };
 
         const imports: DynamicModule[] = [

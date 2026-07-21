@@ -60,7 +60,7 @@ describe('SaasPlatformModule.forRoot', () => {
                         rlsBypass: new FakeRlsBypassPort(),
                     },
                 }),
-            /planCatalog.*or a.*planCatalogReadSink/,
+            /planCatalog.*planCatalogReadSink.*dbCatalog/,
         );
     });
 

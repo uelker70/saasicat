@@ -33,6 +33,7 @@ function fakeBundle(capabilityOverrides = {}) {
             subscriptionRepository: spec,
             planVersionRepository: spec,
         },
+        planCatalogReadSink: spec,
     };
 }
 
@@ -91,6 +92,44 @@ describe('SaasPlatformModule persistence bundle', () => {
             adapters: { mfa: explicitMfa },
         });
         assert.ok(mod.module);
+    });
+
+    test('DB hydration forwards the dbCatalog identity to the plan-catalog factory', async () => {
+        const seenProjectKeys = [];
+        const sink = {
+            loadSnapshot: async (projectKey) => {
+                seenProjectKeys.push(projectKey);
+                return { plans: [], livePlanVersions: [], featureEntries: [] };
+            },
+        };
+        const mod = SaasPlatformModule.forRoot({
+            controller: { guards: [] },
+            persistence: fakeBundle(),
+            adapters: { planCatalogReadSink: sink },
+            dbCatalog: { projectKey: 'notesapp', currency: 'EUR', vatRate: 19 },
+        });
+
+        const planCatalogModule = mod.imports[0];
+        const catalogFactory = planCatalogModule.providers.find(
+            (provider) => typeof provider.useFactory === 'function',
+        );
+        const catalog = await catalogFactory.useFactory(sink);
+
+        assert.deepEqual(seenProjectKeys, ['notesapp']);
+        assert.equal(catalog.projectKey, 'notesapp');
+        assert.equal(catalog.currency, 'EUR');
+        assert.equal(catalog.vatRate, 19);
+    });
+
+    test('DB hydration without dbCatalog fails fast instead of loading an empty catalog', () => {
+        assert.throws(
+            () =>
+                SaasPlatformModule.forRoot({
+                    controller: { guards: [] },
+                    persistence: fakeBundle(), // provides a read sink, but no identity
+                }),
+            /dbCatalog/,
+        );
     });
 
     test('bundle without entitlement slice still requires repositories for entitlement', () => {
