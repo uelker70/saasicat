@@ -1,0 +1,448 @@
+// NotesApp example — Prisma schema.
+//
+// App-owned tables (Tenant, User, Note) plus the platform tables from the
+// canonical @saasicat/spec prisma-fragments 04 (AuditLog), 06 (catalog
+// entries) and 10 (SuperAdmin + MFA). The platform blocks below are
+// verbatim copies — regenerate them with:
+//   pnpm exec saas-platform schema apply --fragments=04,06,10
+// Fragments 01/02/03 (+ sql/constraints.postgres.sql) join in once you
+// enable V3 contracts and promo codes.
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// App tables — everything below is ordinary application modeling.
+// -----------------------------------------------------------------------------
+
+model Tenant {
+    id        String   @id @default(uuid())
+    slug      String   @unique
+    name      String
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    users User[]
+    notes Note[]
+
+    @@map("tenants")
+}
+
+model User {
+    id        String   @id @default(uuid())
+    tenantId  String
+    email     String   @unique
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+    @@index([tenantId])
+    @@map("users")
+}
+
+model Note {
+    id        String   @id @default(uuid())
+    tenantId  String
+    title     String
+    body      String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+    @@index([tenantId, createdAt])
+    @@map("notes")
+}
+
+// =============================================================================
+// SaaS-Platform Prisma fragment: audit log
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// Generic audit log for tenant- and admin-side actions. Consumers
+// can share the log or keep their own parallel logs — the
+// `@saasicat/nest` package writes into this schema.
+//
+// `action` must follow SCREAMING_SNAKE_CASE (see
+// `schemas/audit-event.schema.json` action pattern). Consumer-specific
+// actions are allowed; platform actions are cataloged in the `AuditActionDef`
+// list of the manifest contributions.
+
+model AuditLog {
+    id        String  @id @default(uuid())
+    tenantId  String? // null for platform-global actions (plan publish etc.)
+    userId    String? // actor — null for system cron or pre-auth actions
+    entity    String // e.g. "Subscription", "PromoCode", "PlanVersion"
+    entityId  String
+    action    String // SCREAMING_SNAKE_CASE; e.g. "PROMO_CODE_REDEEM"
+    changes   Json? // { field: { old: …, new: … } }
+    // Origin marker 'web:<email>:<sessionId>' | 'cli:<email>:<host>' — see
+    // audit-event.schema.json `actorTag`. Queryable with a trailing wildcard
+    // ('cli:*') via AuditQueryPort.
+    actorTag  String?
+    ipAddress String?
+    userAgent String?
+
+    createdAt DateTime @default(now())
+
+    // Relations — the consumer must define `Tenant` and `User` and
+    // enable relations. Userless system actions leave userId null.
+    // tenant Tenant? @relation(fields: [tenantId], references: [id])
+    // user   User?   @relation("AuditLogUser", fields: [userId], references: [id])
+
+    @@index([tenantId, entity, entityId])
+    @@index([tenantId, createdAt])
+    @@index([entity, action, createdAt])
+    @@index([actorTag, createdAt])
+    @@map("audit_logs")
+}
+
+// =============================================================================
+// SaaS-Platform Prisma fragment: catalog entries (discovery review + marketing)
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 03-plan-versions.prisma for conventions.
+//
+// Three tables:
+//   - CapabilityCatalogEntry  — SuperAdmin review status per code-declared
+//                               capability (discovery projection)
+//   - FeatureCatalogEntry     — ditto for features + marketing fields
+//   - MarketingProjection     — marketing texts/pricing/highlights per
+//                               plan/bundle/business-type version (locale pivot)
+//
+// Approval lifecycle (#20, feature-/quota-centric):
+//   pending → approved (↔ revoke) · outdated (drift) · obsolete
+// Approval happens per FEATURE/QUOTA — capabilities now only carry the
+// read-only code status (active | experimental | deprecated | retired).
+//
+// Backfill when migrating from the old vocabulary (per consumer DB):
+//   feature_/quota_catalog_entries.discoveryStatus:
+//     discovered→pending · accepted→approved · active→approved ·
+//     ignored→pending · deprecated→outdated · retired→obsolete
+//   capability_catalog_entries: rename column discoveryStatus → codeStatus,
+//     values: deprecated→deprecated · retired→retired · everything else→active
+//
+// Global catalog tables (no tenantId, no RLS). Write access only via the
+// SUPER_ADMIN guard in the AdminController.
+
+// -----------------------------------------------------------------------------
+// CapabilityCatalogEntry — read-only code fact per code capability (#20).
+//
+// Every capability declared via @ImplementsCapability(...) appears here after
+// the first discovery scan with its decorator status (`codeStatus`). The sync
+// always overwrites the code status; it sets `retired` when the capability is
+// missing from the new snapshot. There is no longer a business approval at the
+// capability level — that lives on the feature/quota.
+//
+// `featureKey` and `bundleKey` are the aggregation wrappers declared in the
+// decorator — denormalized for fast lookup in the discovery UI; the binding
+// source, however, remains the code annotation, not this DB entry.
+// -----------------------------------------------------------------------------
+
+model CapabilityCatalogEntry {
+    id            String  @id @default(uuid())
+    projectKey    String // e.g. 'clubapp' | 'demoapp' | …
+    capabilityKey String // 'invoice.create' | 'member.archive' | …
+    label         String
+    description   String?
+
+    // Aggregation wrappers from the decorator (denormalized).
+    featureKey String?
+    bundleKey  String?
+
+    // Read-only code status from the decorator (#20); 'retired' = removed from code.
+    codeStatus String @default("active") // active | experimental | deprecated | retired
+
+    // Code owner tag for audit (e.g. 'accounting', 'membership').
+    owner String?
+
+    // Implementation kind (matches decorator.kind):
+    // 'endpoint' | 'service' | 'job' | 'event'
+    kind String
+
+    // When deprecated: target version + planned removal.
+    replacementKey   String?
+    deprecatedAt     DateTime?
+    removalPlannedAt DateTime?
+    reason           String?
+
+    // Locale translations: { "en": { label, description }, "tr": {…} }.
+    // The default locale is deliberately absent — fallback in the UI. SPEC_V2 §6.3.
+    i18n Json @default("{}")
+
+    sortOrder Int @default(0)
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deletedAt DateTime?
+
+    @@unique([projectKey, capabilityKey])
+    @@index([projectKey, codeStatus])
+    @@index([projectKey, featureKey])
+    @@map("capability_catalog_entries")
+}
+
+// -----------------------------------------------------------------------------
+// FeatureCatalogEntry — SuperAdmin review status + marketing master data per
+// feature. Aggregation from the capabilities that declare `feature: 'XYZ'`
+// in the decorator.
+//
+// Marketing texts (`marketingLabel` / `marketingDescription`) are the short
+// slot for the sidebar/comparison matrix; the *long* locale-specific texts
+// live in MarketingProjection (separate table, locale pivot).
+//
+// `plannedOnly = true` lets the SuperAdmin add a feature that does not yet
+// exist in code to a plan (e.g. for roadmap marketing). The blocking strict-
+// mode check (SPEC_V2 §8.1) rejects `plannedOnly` features at plan publish —
+// they may only appear in internal drafts or warn-only builds.
+// -----------------------------------------------------------------------------
+
+model FeatureCatalogEntry {
+    id          String  @id @default(uuid())
+    projectKey  String
+    featureKey  String // 'INVOICE_MANAGEMENT' | 'MEMBER_LIST' | …
+    label       String
+    description String?
+
+    // Marketing short form (for sidebar/comparison). Detailed texts
+    // per locale → MarketingProjection.
+    marketingLabel       String?
+    marketingDescription String?
+    icon                 String?
+
+    // Tier hint for comparison-matrix sorting.
+    // Convention: 'CORE' < 'ADVANCED' < 'PRO' < 'ENTERPRISE'
+    tier String?
+
+    // True = base feature, always included (not bookable per plan).
+    core Boolean @default(false)
+
+    // Code-discovered feature dependencies (#35) and succession (#39) —
+    // see FeatureCatalogEntryRow in @saasicat/types.
+    requires     String[]
+    replaces     String[]
+    successorKey String?
+
+    // Approval lifecycle (#20): pending | approved | outdated | obsolete.
+    discoveryStatus String @default("pending")
+
+    // Approval signature (#20): freezes the capability set at approval time
+    // ('capabilityKey@codeStatus', sorted, '|'-separated). The auto-sync
+    // compares against the current snapshot → on drift approved → outdated.
+    approvedAt        DateTime?
+    approvedBy        String?
+    approvedSignature String?
+
+    // True = feature is planned in the SuperAdmin but not yet implemented in
+    // code. Blocking strict mode rejects plan publish with plannedOnly
+    // features.
+    plannedOnly Boolean @default(false)
+
+    // Locale translations { "en": { label, description }, … }. SPEC_V2 §6.3.
+    i18n Json @default("{}")
+
+    sortOrder Int @default(0)
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deletedAt DateTime?
+
+    @@unique([projectKey, featureKey])
+    @@index([projectKey, discoveryStatus])
+    @@index([projectKey, plannedOnly])
+    @@map("feature_catalog_entries")
+}
+
+// -----------------------------------------------------------------------------
+// QuotaCatalogEntry — SuperAdmin review status per code-declared quota
+// (`@DefinesQuota`). `usageProvider` is the class that provides the quota;
+// `null` = referenced (`@EnforceQuota`) but provided by no class. A hard quota
+// without `usageProvider` is not deployable — `yada app preflight` blocks it
+// (SPEC_V2 §6.3 + §8.3).
+// -----------------------------------------------------------------------------
+
+model QuotaCatalogEntry {
+    id          String  @id @default(uuid())
+    projectKey  String
+    quotaKey    String // 'invoicesPerMonth' | 'members' | 'storageGb' | …
+    label       String
+    description String?
+
+    unit       String // Display unit: 'members' | 'GB' | '/month' | …
+    featureKey String? // Aggregation wrapper from the decorator (denormalized)
+
+    // Class that declares the quota via @DefinesQuota (= UsageProvider).
+    usageProvider   String?
+    enforcementMode String  @default("soft") // hard | soft
+
+    // Approval lifecycle (#20): pending | approved | outdated | obsolete.
+    discoveryStatus String @default("pending")
+
+    // Approval signature (#20): code-derived quota facts at approval time
+    // ('unit|enforcementMode|usageProvider|featureKey'); on drift approved →
+    // outdated.
+    approvedAt        DateTime?
+    approvedBy        String?
+    approvedSignature String?
+
+    // Locale translations { "en": { label, unit, description }, … }.
+    i18n Json @default("{}")
+
+    sortOrder Int @default(0)
+
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    deletedAt DateTime?
+
+    @@unique([projectKey, quotaKey])
+    @@index([projectKey, discoveryStatus])
+    @@map("quota_catalog_entries")
+}
+
+// -----------------------------------------------------------------------------
+// MarketingProjection — locale-specific marketing texts per
+// plan/bundle/business-type version.
+//
+// Read and projected by the public catalog controller
+// (`GET /public/catalog?locale=de`). Only versions with status `marketed` and
+// a matching MarketingProjection entry appear in the public list.
+//
+// Polymorphic reference via (`targetType`, `targetVersionId`) instead of three
+// separate FK columns — deliberate, because a cascade delete for three models
+// would be complicated and uniqueness via (targetType, targetVersionId,
+// locale) is sufficient. App logic checks existence on read.
+//
+// MVP: locale `de` is mandatory; further locales (e.g. `en`) are allowed as
+// schema preparation but not enforced (see SPEC_V2 V2-Q1).
+// -----------------------------------------------------------------------------
+
+model MarketingProjection {
+    id         String @id @default(uuid())
+    projectKey String
+
+    // Polymorphic reference to a versioned entity.
+    targetType      String // 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE'
+    targetVersionId String // PlanVersion.id | BundleVersion.id | BusinessTypeVersion.id
+
+    locale String @default("de") // ISO-639-1, optionally with a region suffix ('de', 'en', 'de-AT')
+
+    displayLabel String
+    description  String
+
+    // Visibility in the public catalog — false = projection exists but does
+    // not appear on the pricing page.
+    visible Boolean @default(true)
+
+    // Optional badge at the top of the card ('Beliebt', 'Neu'). '' = no badge.
+    badge String @default("")
+
+    // Top features for the public catalog card: [{ label, strong }].
+    // Order is the display order.
+    topFeatures Json @default("[]") // { label: string; strong: string }[]
+
+    // Free trial period — controls the auto-generated CTA text.
+    trialEnabled Boolean @default(false)
+    trialDays    Int     @default(30)
+
+    // Optional formatted pricing tag (e.g. "€ 9,90 / Monat" or "auf Anfrage").
+    // If null: pricing is formatted automatically from PlanVersion.monthlyNet
+    // etc. at public-catalog render time.
+    priceTag String?
+
+    // Overrides the auto-generated call-to-action text.
+    ctaLabel String?
+
+    // Sort order in the public list (DESC). Higher values first.
+    priority Int @default(0)
+
+    // "Empfohlen" star / featured highlight in the UI.
+    highlight Boolean @default(false)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([targetType, targetVersionId, locale])
+    @@index([projectKey, targetType, locale, priority])
+    @@map("marketing_projections")
+}
+
+// -----------------------------------------------------------------------------
+// MarketingSettings — project-wide, runtime-editable marketing config.
+// One row per project (`projectKey` unique). Currently exactly one field:
+// `activeLocales` — the subset of the `availableLocales` pool activated in the
+// marketing catalog (the pool comes from the app config, SPEC_V2 §6.5).
+// If the row is missing, the full pool counts as active.
+// -----------------------------------------------------------------------------
+
+model MarketingSettings {
+    id         String @id @default(uuid())
+    projectKey String @unique
+
+    activeLocales Json @default("[]") // string[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@map("marketing_settings")
+}
+
+// =============================================================================
+// SaaS-Platform Prisma fragment: SuperAdmin identity + MFA
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// Platform-owned SuperAdmin accounts, separate from the consumer's tenant
+// user model. The `@saasicat/adapter-prisma` adapters
+// (`PrismaSuperAdminBootstrapAdapter`, `PrismaMfaAdapter`) write into these
+// tables; the consumer's admin auth reads them for SuperAdmin login.
+//
+// Apps that keep SuperAdmins inside their own user table skip this fragment
+// and implement `SuperAdminProvisioningPort` / `MfaPort` themselves.
+//
+// Global tables (no tenantId, no RLS).
+
+model SuperAdminUser {
+    id           String  @id @default(uuid())
+    email        String  @unique // stored lowercase; adapters normalize
+    passwordHash String
+    firstName    String?
+    lastName     String?
+
+    // Constant today ('SUPER_ADMIN'); column exists so later platform roles
+    // do not need a migration.
+    platformRole String  @default("SUPER_ADMIN")
+    isActive     Boolean @default(true)
+
+    lastLoginAt DateTime?
+    deletedAt   DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([isActive, deletedAt])
+    @@map("super_admin_users")
+}
+
+model SuperAdminMfa {
+    // Admin user ID — deliberately NO hard FK: `MfaPort` also serves apps
+    // that keep their admin identities in their own user table. Apps whose
+    // admins live exclusively in `super_admin_users` may add the relation:
+    // user SuperAdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    String    @id
+    secret    String? // TOTP secret; null after reset
+    enabledAt DateTime? // set when a secret is stored, null after reset
+
+    updatedAt DateTime @updatedAt
+
+    @@map("super_admin_mfa")
+}

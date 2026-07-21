@@ -113,7 +113,7 @@ import { PrismaService } from '../prisma/prisma.service';
     key: 'notesMax', // camelCase; referenced by @EnforceQuota and plan limits
     label: 'Notes count',
     unit: 'count',
-    policy: 'hard', // 'hard' = blocks, 'soft' = warns only
+    policy: 'hardCap', // 'hardCap' blocks at the limit; 'continuous'/'monthlyReset' describe usage semantics
     feature: 'NOTES', // links the quota to the feature declared in step 7
 })
 export class NotesQuotaProvider implements QuotaProvider {
@@ -221,6 +221,12 @@ import { NotesQuotaProvider } from './saas-adapters/notes-quota.provider';
 export class AppModule {}
 ```
 
+> **Auth ordering:** register your `JwtAuthGuard` as a **global** guard
+> (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`) in a module imported
+> **before** `SaasPlatformModule.forRoot`. The platform's feature guard and
+> quota interceptor are global and read `request.user` — controller-level
+> `@UseGuards` runs after global guards and would be too late for them.
+
 **What happens automatically here:**
 
 - `StaticEntitlementService` is registered — per tenant, it reads features +
@@ -267,7 +273,7 @@ export class NotesController {
         owner: 'notes',
     })
     @RequireFeature('NOTES') // 403 if the plan does not include the feature
-    @EnforceQuota('notesMax') // 429 LimitExceeded when count(tenantId) >= 25 (Starter)
+    @EnforceQuota('notesMax') // 402 LimitExceeded when count(tenantId) >= 25 (Starter)
     create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateNoteDto) {
         return this.notes.create(user.tenantId, dto);
     }
@@ -403,7 +409,7 @@ for i in {1..30}; do
   curl -X POST -H "Authorization: Bearer <tenant-token>" -H "Content-Type: application/json" \
        -d '{"title":"test '$i'"}' localhost:3000/notes
 done
-#   → 25 ok, from #26 → 429 limit reached for notesMax: 25/25
+#   → 25 ok, from #26 → 402 limit reached for notesMax: 25/25
 
 # 3. Check the feature gate (an endpoint with @RequireFeature for a feature not in the plan)
 curl -X POST -H "Authorization: Bearer <tenant-token>" \

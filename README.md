@@ -46,6 +46,14 @@ All packages are released in lockstep and share one version number.
 
 saasicat is **embeddable, not hosted**: your application keeps its own database, auth and HTTP stack. The platform defines narrow **ports** (persistence, MFA, audit, RLS bypass, plan resolution) and you plug in **adapters** — for Prisma + PostgreSQL they ship ready-made. Discovery, catalog, entitlement, admin API and admin UI then come entirely from the packages.
 
+## Reference implementation
+
+[`examples/notesapp`](examples/notesapp/) is a small runnable NestJS app that
+walks the quickstart end to end — plans from `saas.yaml`, `@DefinesQuota` +
+`@RequireFeature`/`@EnforceQuota` enforcement (402/403 verified via curl),
+the `prismaPersistence()` bundle and the admin manifest. Start there if you
+prefer reading code over docs.
+
 ## Getting started
 
 Add the backend packages to an existing multi-tenant NestJS app (Prisma + PostgreSQL + JWT auth):

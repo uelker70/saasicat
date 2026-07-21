@@ -1,0 +1,32 @@
+schemaVersion: 1
+projectKey: notesapp
+
+app:
+    name: NotesApp
+    label: NotesApp Cockpit
+
+currency: EUR
+vatRate: 19.0
+
+marketing:
+    availableLocales: [en]
+
+# Static quickstart path: plans live directly in the YAML. Apps that manage
+# plans in the SuperAdmin UI omit this block and use the DB catalog instead
+# (SaasPlatformModule.forRoot({ persistence, dbCatalog })).
+plans:
+    - id: STARTER
+      name: Starter
+      monthlyNet: 9
+      yearlyNet: 90
+      features: [NOTES]
+      quotas:
+          notesMax: 25
+    - id: PRO
+      name: Pro
+      popular: true
+      monthlyNet: 29
+      yearlyNet: 290
+      features: [NOTES, NOTES_EXPORT]
+      quotas:
+          notesMax: 1000

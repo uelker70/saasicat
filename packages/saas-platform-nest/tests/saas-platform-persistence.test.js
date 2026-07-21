@@ -1,6 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SaasPlatformModule } from '../dist/platform/index.js';
+import 'reflect-metadata';
+import { Test } from '@nestjs/testing';
+import { SaasPlatformModule, StaticEntitlementService } from '../dist/platform/index.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -130,6 +132,44 @@ describe('SaasPlatformModule persistence bundle', () => {
                 }),
             /dbCatalog/,
         );
+    });
+
+    test('the mega module COMPILES through Nest DI with a bundle (boot smoke)', async () => {
+        // forRoot() is a pure function — only a real compile catches DI wiring
+        // bugs like exporting an imported module's token (UnknownExportException).
+        const instanceBundle = {
+            capabilities: {
+                transactions: true,
+                pessimisticLocking: true,
+                rowLevelSecurity: false,
+                advisoryLocks: false,
+            },
+            core: {
+                mfa: { getSecret: async () => null, setSecret: async () => {}, isEnabled: async () => false },
+                audit: { write: async () => {} },
+                rlsBypass: { runWithBypass: (fn) => fn() },
+                transactionRunner: { run: (fn) => fn({}) },
+            },
+        };
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                SaasPlatformModule.forRoot({
+                    planCatalog: {
+                        ...planCatalog,
+                        plans: [{ id: 'STARTER', features: ['NOTES'], quotas: { notesMax: 25 } }],
+                    },
+                    controller: { guards: [] },
+                    persistence: instanceBundle,
+                    defaultPlanId: 'STARTER',
+                }),
+            ],
+        }).compile();
+
+        const entitlement = moduleRef.get(StaticEntitlementService);
+        const snapshot = await entitlement.snapshot('tenant-a');
+        assert.equal(snapshot.planId, 'STARTER');
+        assert.ok(snapshot.features.includes('NOTES'));
+        await moduleRef.close();
     });
 
     test('bundle without entitlement slice still requires repositories for entitlement', () => {
