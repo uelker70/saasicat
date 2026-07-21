@@ -8,6 +8,7 @@
       "@saasicat/types",
       "@saasicat/nest",
       "@saasicat/adapter-prisma",
+      "@saasicat/adapter-drizzle",
       "@saasicat/persistence-testing",
       "@saasicat/cli",
       "@saasicat/ui-vue",

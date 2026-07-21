@@ -1,9 +1,9 @@
 # @saasicat/persistence-testing
 
 The executable persistence contract for SaaSicat adapters. One `node:test`
-suite that every adapter (Prisma today, Drizzle/TypeORM tomorrow) must pass
-**against a real database** — this is what makes "functionally equivalent
-adapters" a verified claim instead of prose.
+suite that every adapter (Prisma and Drizzle ship today, TypeORM plugs into
+the same harness) must pass **against a real database** — this is what makes
+"functionally equivalent adapters" a verified claim instead of prose.
 
 Verified scenarios:
 

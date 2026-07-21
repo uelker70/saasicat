@@ -268,7 +268,8 @@ Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 - **PostgreSQL** (the platform is PostgreSQL-first: transactions, row locks
   and optional RLS are part of the persistence contract — see
   [data model](data-model.md)). The ready-made adapter package is
-  `@saasicat/adapter-prisma` (Prisma 6); other ORMs/schemas plug in through
+  `@saasicat/adapter-prisma` (Prisma 6) or `@saasicat/adapter-drizzle`
+  (drizzle-orm, driver-independent); other ORMs/schemas plug in through
   the same ports and are held to the same semantics by
   `@saasicat/persistence-testing`.
 - **Authentication**: JWT-based is recommended; a `JwtAuthGuard` equivalent
