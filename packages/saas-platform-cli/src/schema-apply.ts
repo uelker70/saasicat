@@ -8,12 +8,22 @@
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
 
+/**
+ * Cuts off a trailing `//` comment. Deliberately index-based instead of
+ * `replace(/\/\/.*$/, '')`: the regex backtracks quadratically on lines with
+ * many single slashes.
+ */
+function stripLineComment(line: string): string {
+    const commentStart = line.indexOf('//');
+    return commentStart === -1 ? line : line.slice(0, commentStart);
+}
+
 /** Returns the names of all top-level `model X { ... }` blocks in the schema. */
 export function extractModelNames(schema: string): string[] {
     const names: string[] = [];
     const lines = schema.split('\n');
     for (const line of lines) {
-        const stripped = line.replace(/\/\/.*$/, '').trim();
+        const stripped = stripLineComment(line).trim();
         const match = stripped.match(/^model\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{/);
         if (match) names.push(match[1]);
     }
@@ -36,7 +46,7 @@ export function extractModelBlocks(fragment: string): Map<string, string> {
     let current: { name: string; lines: string[]; depth: number } | null = null;
 
     for (const rawLine of lines) {
-        const stripped = rawLine.replace(/\/\/.*$/, '');
+        const stripped = stripLineComment(rawLine);
         if (!current) {
             const match = rawLine.match(/^\s*model\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{/);
             if (match) {

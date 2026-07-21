@@ -9,6 +9,7 @@
 import { ref, type Ref } from 'vue';
 import type { FeatureUiRegistry } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from './types.js';
+import { trimTrailingSlashes } from './http-json.js';
 
 export interface CatalogPlan {
     id: string;
@@ -95,7 +96,7 @@ export interface UseTenantBillingCatalogResult {
 export function useTenantBillingCatalog(
     options: UseTenantBillingCatalogOptions = {},
 ): UseTenantBillingCatalogResult {
-    const apiPrefix = (options.apiPrefix ?? '/billing').replace(/\/+$/, '');
+    const apiPrefix = trimTrailingSlashes(options.apiPrefix ?? '/billing');
     const http = options.http ?? defaultHttpClient();
 
     const plans = ref<CatalogPlan[] | null>(null);
