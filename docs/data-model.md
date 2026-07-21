@@ -19,8 +19,9 @@ artifact hierarchy:
    `@saasicat/spec`), but authoritative for column names/types: the adapter
    integration tests build their database from this file.
 3. **[`prisma-fragments/`](../packages/saas-platform-spec/prisma-fragments/)** —
-   Prisma-DSL rendering for consumers on the Prisma golden path. Derived; a
-   future `adapter-drizzle` ships its own rendering of the same model.
+   Prisma-DSL rendering for consumers on the Prisma golden path. Derived;
+   `@saasicat/adapter-drizzle` ships its own query-side rendering of the
+   same model (`saasicatSchema`).
 4. **`@saasicat/persistence-testing`** — the executable arbiter: every
    persistence adapter must pass the contract suite against a real database
    built from (2).

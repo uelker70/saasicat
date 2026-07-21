@@ -59,12 +59,16 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Build adapter and its workspace dependencies
-        run: pnpm --filter "@saasicat/adapter-prisma..." build
-      - name: Run persistence contract against PostgreSQL
+      - name: Build adapters and their workspace dependencies
+        run: pnpm --filter "@saasicat/adapter-prisma..." --filter "@saasicat/adapter-drizzle..." build
+      - name: Run persistence contract against PostgreSQL (adapter-prisma)
         env:
           SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
         run: pnpm --filter "@saasicat/adapter-prisma" test:integration
+      - name: Run persistence contract against PostgreSQL (adapter-drizzle)
+        env:
+          SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
+        run: pnpm --filter "@saasicat/adapter-drizzle" test:integration
 
   e2e:
     runs-on: ubuntu-latest

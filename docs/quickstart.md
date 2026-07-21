@@ -147,11 +147,12 @@ export const persistence = prismaPersistence({
 
 > **Why not everything inside the platform?** The platform defines the
 > **ports**; the bundle is just the Prisma implementation of them against the
-> canonical schema. If you use Drizzle, TypeORM or a diverging schema, you
-> provide your own adapters via the same `adapters`/`persistence` options —
-> the platform ports stay identical, and
-> `@saasicat/persistence-testing` verifies your adapter delivers the same
-> semantics.
+> canonical schema. Drizzle users take `drizzlePersistence({ db })` from
+> `@saasicat/adapter-drizzle` instead — same slices, same verified
+> semantics. For TypeORM or a diverging schema you provide your own adapters
+> via the same `adapters`/`persistence` options; the platform ports stay
+> identical, and `@saasicat/persistence-testing` verifies your adapter
+> delivers the same semantics.
 >
 > **RLS bypass:** In your `PrismaService`, check `rls.isBypassActive()` (e.g.
 > in a Prisma middleware) and set `SET LOCAL row_security = off` for the

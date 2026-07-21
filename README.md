@@ -34,6 +34,7 @@ Your app keeps implementing what only it can know: persistence adapters, its own
 | `@saasicat/types` | TypeScript types generated from the spec schemas. |
 | `@saasicat/nest` | The backend core: NestJS modules, services, guards and decorators. |
 | `@saasicat/adapter-prisma` | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
+| `@saasicat/adapter-drizzle` | The Drizzle + PostgreSQL persistence adapter: `drizzlePersistence()` bundle — same ports, same canonical schema, verified by the same contract. |
 | `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …). |
 | `@saasicat/cli` | nest-commander command flows to embed in your application CLI. |
 | `@saasicat/ui-vue` | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables. |
