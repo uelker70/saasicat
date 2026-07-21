@@ -1,5 +1,13 @@
 # @saasicat/cli
 
+## 0.2.1
+
+### Patch Changes
+
+- @saasicat/spec@0.2.1
+- @saasicat/types@0.2.1
+- @saasicat/nest@0.2.1
+
 ## 0.2.0
 
 ### Patch Changes
