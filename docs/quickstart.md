@@ -31,11 +31,11 @@ per tenant, and a SuperAdmin UI.
 ```bash
 cd notesapp/backend
 pnpm add \
-    @saasicat/types@^0.1.0 \
-    @saasicat/spec@^0.1.0 \
-    @saasicat/nest@^0.1.0 \
-    @saasicat/prisma@^0.1.0 \
-    @saasicat/cli@^0.1.0
+    @saasicat/types \
+    @saasicat/spec \
+    @saasicat/nest \
+    @saasicat/prisma \
+    @saasicat/cli
 ```
 
 > All saasicat packages are versioned in lockstep — always keep them on the

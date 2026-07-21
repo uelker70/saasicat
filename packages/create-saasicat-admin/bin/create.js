@@ -8,8 +8,17 @@
 
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, relative } from 'node:path';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile, stat } from 'node:fs/promises';
+
+// The scaffolded project must depend on the platform packages that match this
+// scaffolder. All packages are released in lockstep, so our own version is the
+// correct range — deriving it here keeps the template from drifting out of
+// date on every release (a hardcoded `^0.1.0` would not match `0.2.0`, because
+// caret pins the minor for 0.x versions).
+const OWN_VERSION = JSON.parse(
+    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+).version;
 
 export const DEFAULT_TOKENS = {
     PROJECT_KEY: 'app',
@@ -18,6 +27,7 @@ export const DEFAULT_TOKENS = {
     API_BASE: '/api/v1/admin',
     DEV_PORT: '9100',
     BACKEND_PORT: '3000',
+    PLATFORM_VERSION: `^${OWN_VERSION}`,
 };
 
 const TOKEN_FLAGS = {
@@ -82,10 +92,14 @@ export async function walkTemplates(root) {
 
 export async function scaffold({ targetDir, templatesDir, tokens, dryRun = false }) {
     const files = await walkTemplates(templatesDir);
+    // Merge over the defaults so intrinsic tokens (PLATFORM_VERSION) are always
+    // present — a caller passing only the user-facing tokens must not end up
+    // with an unsubstituted dependency range in the generated package.json.
+    const effectiveTokens = { ...DEFAULT_TOKENS, ...tokens };
     const writes = [];
     for (const { relPath, absPath } of files) {
         const raw = await readFile(absPath, 'utf8');
-        const rendered = applyTokens(raw, tokens);
+        const rendered = applyTokens(raw, effectiveTokens);
         const dest = join(targetDir, relPath);
         writes.push({ relPath, dest, rendered });
     }
@@ -106,14 +120,14 @@ async function main() {
         console.log('Usage: pnpm create saasicat-admin <dir> [flags]');
         console.log('');
         console.log('Flags:');
-        console.log('  --project-key=app           Storage-Key-Prefix');
-        console.log('  --brand-name=App            Brand-Name im Header');
-        console.log('  --logo-text=AP              2-Letter-Badge');
-        console.log('  --api-base=/api/v1/admin    Backend-Prefix');
-        console.log('  --dev-port=9100             Vite-Port');
-        console.log('  --backend-port=3000         Backend-Port (Vite-Proxy)');
-        console.log('  --dry-run                   listet nur, was erzeugt würde');
-        console.log('  --no-install                springt nach Erzeugung raus, kein pnpm install');
+        console.log('  --project-key=app           storage key prefix');
+        console.log('  --brand-name=App            brand name in the header');
+        console.log('  --logo-text=AP              two-letter badge');
+        console.log('  --api-base=/api/v1/admin    backend prefix');
+        console.log('  --dev-port=9100             Vite port');
+        console.log('  --backend-port=3000         backend port (Vite proxy)');
+        console.log('  --dry-run                   only list what would be created');
+        console.log('  --no-install                stop after generating, skip pnpm install');
         process.exit(0);
     }
 
@@ -121,14 +135,14 @@ async function main() {
     if (existsSync(targetDir) && !flags.dryRun) {
         const contents = await readdir(targetDir).catch(() => []);
         if (contents.length > 0) {
-            console.error(`✗ Zielverzeichnis ${targetDir} ist nicht leer. Abbruch.`);
+            console.error(`✗ Target directory ${targetDir} is not empty. Aborting.`);
             process.exit(1);
         }
     }
 
     const templatesDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'templates');
     if (!existsSync(templatesDir)) {
-        console.error(`✗ Templates nicht gefunden: ${templatesDir}`);
+        console.error(`✗ Templates not found: ${templatesDir}`);
         process.exit(99);
     }
 
@@ -140,21 +154,21 @@ async function main() {
     });
 
     if (flags.dryRun) {
-        console.log(`(--dry-run) Würde anlegen in ${targetDir}:`);
+        console.log(`(--dry-run) Would create in ${targetDir}:`);
         for (const w of writes) console.log(`    ${w.relPath}`);
         return;
     }
 
-    console.log(`✓ ${writes.length} Datei(en) erzeugt unter ${targetDir}`);
+    console.log(`✓ Created ${writes.length} file(s) in ${targetDir}`);
     for (const w of writes) console.log(`    ${w.relPath}`);
 
     console.log('');
-    console.log('Nächste Schritte:');
+    console.log('Next steps:');
     console.log(`  cd ${relative(process.cwd(), targetDir) || '.'}`);
     console.log('  pnpm install');
     console.log('  pnpm dev');
     console.log('');
-    console.log(`Login-Adapter (\`src/services/http.ts#adminLogin\`) an dein Backend anpassen.`);
+    console.log(`Adapt the login adapter (\`src/services/http.ts#adminLogin\`) to your backend.`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -10,8 +10,8 @@
     },
     "dependencies": {
         "@quasar/extras": "^1.16.0",
-        "@saasicat/types": "^0.1.0",
-        "@saasicat/ui-vue": "^0.1.0",
+        "@saasicat/types": "__PLATFORM_VERSION__",
+        "@saasicat/ui-vue": "__PLATFORM_VERSION__",
         "axios": "^1.15.0",
         "pinia": "^3.0.0",
         "quasar": "^2.18.0",

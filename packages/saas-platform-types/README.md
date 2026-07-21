@@ -5,7 +5,7 @@ AdminManifest, PlanCatalog, PromoCode, AuditEvent, Subscription, PlanVersion
 and the adapter ports.
 
 Derived from the JSON Schemas in
-[`@saasicat/spec`](../saas-platform-spec/README.md). The `src/generated/`
+[`@saasicat/spec`](https://www.npmjs.com/package/@saasicat/spec). The `src/generated/`
 types are generated from the schemas via `pnpm gen:types`
 (`json-schema-to-typescript`); a drift test keeps schemas and snapshots in
 sync.

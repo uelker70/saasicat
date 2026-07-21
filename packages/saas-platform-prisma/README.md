@@ -52,7 +52,7 @@ export class SaasAdaptersModule {}
 
 Then wire it via
 `SaasPlatformModule.forRoot({ adapters: { mfa: PrismaMfaAdapter, ... } })` —
-see [quickstart steps 5/6](../../docs/quickstart.md).
+see [quickstart steps 5/6](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md).
 
 ## Schema assumptions
 
