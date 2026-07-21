@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/nest",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "NestJS implementation of the SaaS platform: billing, promo codes, admin backend, audit, MFA, adapter ports.",
     "type": "module",
     "main": "./dist/index.cjs",

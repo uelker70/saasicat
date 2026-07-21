@@ -1,6 +1,6 @@
 {
     "name": "create-saasicat-admin",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "Scaffolding CLI for SuperAdmin frontend projects (Vue 3 + Quasar + Vite). Generates a minimal working admin app built on @saasicat/ui-vue. Usage: `pnpm create saasicat-admin <dir>`.",
     "type": "module",
     "bin": {
