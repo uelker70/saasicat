@@ -1,4 +1,4 @@
-# @saasicat/prisma
+# @saasicat/adapter-prisma
 
 ## 0.3.0
 
