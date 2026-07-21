@@ -40,10 +40,7 @@ import { assertPersistenceCapabilities } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminModule } from '../admin/module.js';
 import { AdminManifestModule } from '../admin/admin-manifest.module.js';
-import {
-    type AdminManifestConfig,
-    ADMIN_MANIFEST_CONFIG,
-} from '../admin/admin-manifest.config.js';
+import { type AdminManifestConfig } from '../admin/admin-manifest.config.js';
 import { PlanCatalogModule, PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { DiscoveryModule } from '../discovery/discovery.module.js';
 import type { DiscoveryAppInfo } from '../discovery/discovery.scanner.js';
@@ -444,9 +441,11 @@ export class SaasPlatformModule {
                 PlanCatalogModule,
                 DiscoveryModule,
                 AdminModule,
+                // ADMIN_MANIFEST_CONFIG travels transitively: re-exporting an
+                // imported module's token directly is an UnknownExportException
+                // at boot — the module export below already carries it.
                 AdminManifestModule,
                 ...(options.entitlement ? [EntitlementModule] : []),
-                ADMIN_MANIFEST_CONFIG,
                 ...lightweightExports,
             ],
             global: true,

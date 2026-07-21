@@ -1,0 +1,38 @@
+{
+    "name": "notesapp-example",
+    "version": "0.0.0",
+    "private": true,
+    "description": "Reference implementation: a minimal multi-tenant NestJS notes app made SaaS-capable with the saasicat packages — plans/quotas from saas.yaml, automatic feature/quota enforcement, admin manifest, Prisma persistence bundle.",
+    "scripts": {
+        "prebuild": "prisma generate",
+        "build": "tsc -p tsconfig.json",
+        "pretypecheck": "prisma generate",
+        "typecheck": "tsc --noEmit",
+        "pretest": "pnpm run build",
+        "test": "node --test tests/*.test.mjs",
+        "start": "node dist/main.js",
+        "db:push": "prisma db push",
+        "db:seed": "node dist/seed.js"
+    },
+    "dependencies": {
+        "@nestjs/common": "^11.0.0",
+        "@nestjs/core": "^11.0.0",
+        "@nestjs/platform-express": "^11.0.0",
+        "@nestjs/schedule": "^6.0.0",
+        "@prisma/client": "^6.19.0",
+        "@saasicat/adapter-prisma": "workspace:^",
+        "@saasicat/nest": "workspace:^",
+        "@saasicat/spec": "workspace:^",
+        "@saasicat/types": "workspace:^",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.14.0",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.0"
+    },
+    "devDependencies": {
+        "@nestjs/testing": "^11.0.0",
+        "@types/node": "^25.6.0",
+        "prisma": "^6.19.0",
+        "typescript": "^6.0.0"
+    }
+}
