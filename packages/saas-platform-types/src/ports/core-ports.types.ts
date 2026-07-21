@@ -148,6 +148,16 @@ export interface QuotaProvider {
     readonly cacheTtlSeconds?: number;
 }
 
+/**
+ * Password hashing adapter. The algorithm (argon2/bcrypt) stays app-specific;
+ * platform flows that persist credentials (registration, SuperAdmin
+ * bootstrap) hash through this port instead of choosing an algorithm.
+ */
+export interface PasswordHasher {
+    hash(plain: string): Promise<string>;
+    verify(hash: string, plain: string): Promise<boolean>;
+}
+
 /** Adapter for MFA secret persistence. */
 export interface MfaPort {
     /** Returns the stored TOTP secret or null. */

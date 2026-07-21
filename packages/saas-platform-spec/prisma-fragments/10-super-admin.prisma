@@ -1,0 +1,51 @@
+// =============================================================================
+// SaaS-Platform Prisma fragment: SuperAdmin identity + MFA
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// Platform-owned SuperAdmin accounts, separate from the consumer's tenant
+// user model. The `@saasicat/adapter-prisma` adapters
+// (`PrismaSuperAdminBootstrapAdapter`, `PrismaMfaAdapter`) write into these
+// tables; the consumer's admin auth reads them for SuperAdmin login.
+//
+// Apps that keep SuperAdmins inside their own user table skip this fragment
+// and implement `SuperAdminProvisioningPort` / `MfaPort` themselves.
+//
+// Global tables (no tenantId, no RLS).
+
+model SuperAdminUser {
+    id           String  @id @default(uuid())
+    email        String  @unique // stored lowercase; adapters normalize
+    passwordHash String
+    firstName    String?
+    lastName     String?
+
+    // Constant today ('SUPER_ADMIN'); column exists so later platform roles
+    // do not need a migration.
+    platformRole String  @default("SUPER_ADMIN")
+    isActive     Boolean @default(true)
+
+    lastLoginAt DateTime?
+    deletedAt   DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@index([isActive, deletedAt])
+    @@map("super_admin_users")
+}
+
+model SuperAdminMfa {
+    // Admin user ID — deliberately NO hard FK: `MfaPort` also serves apps
+    // that keep their admin identities in their own user table. Apps whose
+    // admins live exclusively in `super_admin_users` may add the relation:
+    // user SuperAdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId    String    @id
+    secret    String? // TOTP secret; null after reset
+    enabledAt DateTime? // set when a secret is stored, null after reset
+
+    updatedAt DateTime @updatedAt
+
+    @@map("super_admin_mfa")
+}

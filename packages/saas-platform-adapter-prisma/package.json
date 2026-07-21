@@ -1,7 +1,7 @@
 {
-    "name": "@saasicat/prisma",
+    "name": "@saasicat/adapter-prisma",
     "version": "0.2.1",
-    "description": "Default Prisma adapters for the SaaS platform: PrismaMfaAdapter, PrismaAuditAdapter, AsyncLocalRlsBypassAdapter, PrismaPlanCatalogReadSink. Assumes the prisma-fragments schema from @saasicat/spec (table names like SuperAdminMfa, AuditEntry, Plan, CatalogPlanVersion, ...). Apps with a diverging schema write their own adapters — the platform ports stay identical.",
+    "description": "Prisma + PostgreSQL persistence adapter for SaaSicat: prismaPersistence() bundle plus the individual adapters (MFA, audit, RLS bypass, transaction runner, subscription/plan-version/promo repositories, SuperAdmin bootstrap, plan-catalog sinks). Targets the canonical schema from @saasicat/spec prisma-fragments; apps with a diverging schema write their own adapters — the platform ports stay identical.",
     "type": "module",
     "main": "./dist/index.cjs",
     "module": "./dist/index.js",
@@ -24,7 +24,8 @@
     "scripts": {
         "build": "tsup src/index.ts --format esm,cjs --dts --clean --external @saasicat/types --external @nestjs/common",
         "pretest": "pnpm run build",
-        "test": "node --test tests/**/*.test.js"
+        "test": "node --test tests/**/*.test.js",
+        "test:integration": "node --test tests-integration/**/*.test.js"
     },
     "dependencies": {
         "@saasicat/types": "workspace:^"
@@ -34,7 +35,11 @@
     },
     "devDependencies": {
         "@nestjs/common": "^11.0.0",
+        "@saasicat/persistence-testing": "workspace:^",
+        "@saasicat/spec": "workspace:^",
         "@types/node": "^25.6.0",
+        "prisma": "^6.19.0",
+        "@prisma/client": "^6.19.0",
         "tsup": "^8.0.0",
         "typescript": "^6.0.0"
     },
@@ -44,7 +49,7 @@
     "repository": {
         "type": "git",
         "url": "https://github.com/uelker70/saasicat.git",
-        "directory": "packages/saas-platform-prisma"
+        "directory": "packages/saas-platform-adapter-prisma"
     },
     "bugs": {
         "url": "https://github.com/uelker70/saasicat/issues"

@@ -31,9 +31,11 @@ import type {
     PlanVersionRepository,
     QuotaProvider,
     RlsBypassPort,
+    SaasicatPersistenceAdapter,
     SubscriptionRepository,
     TransactionRunner,
 } from '@saasicat/types';
+import { assertPersistenceCapabilities } from '@saasicat/types';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminModule } from '../admin/module.js';
@@ -99,13 +101,24 @@ export interface SaasPlatformModuleOptions {
     /**
      * Plan catalog. Either as an already-loaded object (quickstart, comes
      * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or as a
-     * sink reference in `adapters.planCatalogReadSink` for DB hydration.
+     * sink reference in `adapters.planCatalogReadSink` /
+     * `persistence.planCatalogReadSink` for DB hydration.
      */
     planCatalog?: PlanCatalog;
     /**
-     * Adapter bindings.
+     * Aggregate persistence bundle from an adapter package (e.g.
+     * `prismaPersistence({ client: PrismaService })` from
+     * `@saasicat/adapter-prisma`). Fills every port the bundle ships;
+     * individual `adapters` entries override bundle slices. The declared
+     * `capabilities` are validated fail-fast against the enabled feature set
+     * (e.g. `entitlement: true` requires transactions + pessimistic locking).
      */
-    adapters: SaasPlatformAdapters;
+    persistence?: SaasicatPersistenceAdapter;
+    /**
+     * Individual adapter bindings. Optional when `persistence` provides the
+     * respective port; explicit entries take precedence over the bundle.
+     */
+    adapters?: SaasPlatformAdapters;
     /**
      * Class-level guards for the platform controllers (`GET /admin/discovery`
      * and `GET /admin/manifest`). REQUIRED — otherwise the platform throws at
@@ -216,38 +229,70 @@ function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory' | 'inj
  * Entitlement) into a single `forRoot({...})` call. Reduces AppModule
  * boilerplate and eliminates the ordering trap.
  *
- * Quickstart path:
+ * Quickstart path (Prisma + PostgreSQL on the canonical schema):
  *
  * ```ts
  * SaasPlatformModule.forRoot({
  *     planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
  *     controller: { guards: [JwtAuthGuard] },
  *     imports: [AuthModule],
- *     adapters: {
- *         mfa: PrismaMfaAdapter,           // from @saasicat/prisma
- *         audit: PrismaAuditAdapter,
- *         rlsBypass: AsyncLocalRlsBypassAdapter,
- *     },
+ *     persistence: prismaPersistence({ client: PrismaService }), // @saasicat/adapter-prisma
  * })
  * ```
+ *
+ * Individual `adapters` entries stay supported (custom schema / other ORM)
+ * and override bundle slices field by field.
  */
 @Module({})
 export class SaasPlatformModule {
     static forRoot(options: SaasPlatformModuleOptions): DynamicModule {
-        if (!options.planCatalog && !options.adapters.planCatalogReadSink) {
+        const explicit = options.adapters ?? ({} as SaasPlatformAdapters);
+        const persistence = options.persistence;
+        // Explicit adapter entries override the bundle slices.
+        const adapters: SaasPlatformAdapters = {
+            mfa: explicit.mfa ?? persistence?.core.mfa,
+            audit: explicit.audit ?? persistence?.core.audit,
+            rlsBypass: explicit.rlsBypass ?? persistence?.core.rlsBypass,
+            planCatalogReadSink: explicit.planCatalogReadSink ?? persistence?.planCatalogReadSink,
+            planResolver: explicit.planResolver,
+            subscriptionRepository:
+                explicit.subscriptionRepository ?? persistence?.entitlement?.subscriptionRepository,
+            planVersionRepository:
+                explicit.planVersionRepository ?? persistence?.entitlement?.planVersionRepository,
+            transactionRunner: explicit.transactionRunner ?? persistence?.core.transactionRunner,
+        } as SaasPlatformAdapters;
+
+        const missingCore = (['mfa', 'audit', 'rlsBypass'] as const).filter(
+            (key) => adapters[key] === undefined,
+        );
+        if (missingCore.length) {
             throw new Error(
-                'SaasPlatformModule.forRoot: entweder `planCatalog` (Quickstart) ' +
-                    'oder `adapters.planCatalogReadSink` (DB-Hydration) muss gesetzt sein.',
+                `SaasPlatformModule.forRoot: adapters missing (provide them via \`adapters\` or a \`persistence\` bundle): ${missingCore.join(', ')}`,
+            );
+        }
+        if (!options.planCatalog && !adapters.planCatalogReadSink) {
+            throw new Error(
+                'SaasPlatformModule.forRoot: either `planCatalog` (quickstart) or a ' +
+                    'planCatalogReadSink (`adapters`/`persistence`, DB hydration) must be set.',
             );
         }
         if (options.entitlement) {
             const missing: string[] = [];
-            if (!options.adapters.subscriptionRepository) missing.push('subscriptionRepository');
-            if (!options.adapters.planVersionRepository) missing.push('planVersionRepository');
-            if (!options.adapters.transactionRunner) missing.push('transactionRunner');
+            if (!adapters.subscriptionRepository) missing.push('subscriptionRepository');
+            if (!adapters.planVersionRepository) missing.push('planVersionRepository');
+            if (!adapters.transactionRunner) missing.push('transactionRunner');
             if (missing.length) {
                 throw new Error(
-                    `SaasPlatformModule.forRoot: entitlement aktiv, aber Adapter fehlen: ${missing.join(', ')}`,
+                    `SaasPlatformModule.forRoot: entitlement active, but adapters are missing: ${missing.join(', ')}`,
+                );
+            }
+            if (persistence) {
+                // The transactional enforceLimit() path is only correct with
+                // real transactions + row locks — refuse to boot degraded.
+                assertPersistenceCapabilities(
+                    persistence.capabilities,
+                    { transactions: true, pessimisticLocking: true },
+                    'SaasPlatformModule entitlement (transactional enforceLimit)',
                 );
             }
         }
@@ -258,8 +303,7 @@ export class SaasPlatformModule {
                   projectKey: '',
                   currency: '',
                   vatRate: 0,
-                  sink: options.adapters
-                      .planCatalogReadSink as ProviderSpec<PlanCatalogReadSink>,
+                  sink: adapters.planCatalogReadSink as ProviderSpec<PlanCatalogReadSink>,
                   imports: options.imports,
               });
 
@@ -280,9 +324,9 @@ export class SaasPlatformModule {
                         : options.discoverySnapshotPath,
             }),
             AdminModule.forRoot({
-                mfaPort: options.adapters.mfa,
-                auditPort: options.adapters.audit,
-                rlsBypassPort: options.adapters.rlsBypass,
+                mfaPort: adapters.mfa,
+                auditPort: adapters.audit,
+                rlsBypassPort: adapters.rlsBypass,
                 global: true,
             }),
             AdminManifestModule.forRoot({
@@ -295,13 +339,18 @@ export class SaasPlatformModule {
         if (options.entitlement) {
             imports.push(
                 EntitlementModule.forRoot({
-                    subscriptionRepository: options.adapters
-                        .subscriptionRepository as ProviderSpec<SubscriptionRepository>,
-                    planVersionRepository: options.adapters
-                        .planVersionRepository as ProviderSpec<PlanVersionRepository>,
-                    transactionRunner: options.adapters
-                        .transactionRunner as ProviderSpec<TransactionRunner>,
+                    subscriptionRepository:
+                        adapters.subscriptionRepository as ProviderSpec<SubscriptionRepository>,
+                    planVersionRepository:
+                        adapters.planVersionRepository as ProviderSpec<PlanVersionRepository>,
+                    transactionRunner:
+                        adapters.transactionRunner as ProviderSpec<TransactionRunner>,
                     resolutionConfig: options.entitlement.resolutionConfig,
+                    subscriptionContractRepository:
+                        persistence?.entitlement?.subscriptionContractRepository,
+                    subscriptionBundleRepository:
+                        persistence?.entitlement?.subscriptionBundleRepository,
+                    bundleRepository: persistence?.entitlement?.bundleRepository,
                 }),
             );
         }
@@ -314,14 +363,14 @@ export class SaasPlatformModule {
         // ------------------------------------------------------------------
         const lightweightProviders: Provider[] = [];
         const lightweightExports: NonNullable<DynamicModule['exports']> = [];
-        const hasResolver = !!options.adapters.planResolver;
+        const hasResolver = !!adapters.planResolver;
         const hasFallback = !!options.defaultPlanId;
         if (hasResolver || hasFallback) {
             lightweightProviders.push(
                 hasResolver
                     ? asProvider(
                           PLAN_RESOLVER_PORT_TOKEN,
-                          options.adapters.planResolver as ProviderSpec<PlanResolverPort>,
+                          adapters.planResolver as ProviderSpec<PlanResolverPort>,
                       )
                     : {
                           provide: PLAN_RESOLVER_PORT_TOKEN,

@@ -115,6 +115,15 @@ model FeatureCatalogEntry {
     // Convention: 'CORE' < 'ADVANCED' < 'PRO' < 'ENTERPRISE'
     tier String?
 
+    // True = base feature, always included (not bookable per plan).
+    core Boolean @default(false)
+
+    // Code-discovered feature dependencies (#35) and succession (#39) —
+    // see FeatureCatalogEntryRow in @saasicat/types.
+    requires     String[]
+    replaces     String[]
+    successorKey String?
+
     // Approval lifecycle (#20): pending | approved | outdated | obsolete.
     discoveryStatus String @default("pending")
 

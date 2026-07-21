@@ -167,14 +167,11 @@ model BusinessTypeVersion {
     derivedVersions BusinessTypeVersion[] @relation("BusinessTypeVersionLineage")
     bundles         BusinessTypeBundle[]
 
-    // Consumers add the Subscription relation in their own schema.prisma.
-    // Example (commented out):
-    //
-    // subscriptionsCurrent Subscription[] @relation("SubscriptionBusinessTypeVersion")
-    //
-    // Prerequisite: in M5 Subscription gets the field
-    // `businessTypeVersionId String?` plus a CHECK constraint
-    // "at least one of planVersionId / businessTypeVersionId set".
+    // Opposite side of Subscription.businessTypeVersion (01-subscription.prisma,
+    // M5). Subscription carries `businessTypeVersionId String?` plus the CHECK
+    // constraint "at least one of planVersionId / businessTypeVersionId set"
+    // (sql/constraints.postgres.sql).
+    subscriptionsCurrent Subscription[] @relation("SubscriptionBusinessTypeVersion")
 
     @@unique([businessTypeId, version])
     @@index([businessTypeId, supersededAt])

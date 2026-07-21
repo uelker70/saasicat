@@ -1,0 +1,51 @@
+{
+    "name": "@saasicat/persistence-testing",
+    "version": "0.0.0",
+    "description": "Contract test kit for SaaSicat persistence adapters: one node:test suite that every adapter (Prisma, Drizzle, ...) must pass against a real database — locks, transaction rollback, atomic promo claims, tenant isolation, audit/MFA roundtrips.",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "pretest": "pnpm run build",
+        "test": "node --test tests/**/*.test.js"
+    },
+    "dependencies": {
+        "@saasicat/types": "workspace:^"
+    },
+    "devDependencies": {
+        "@types/node": "^25.6.0",
+        "tsup": "^8.0.0",
+        "typescript": "^6.0.0"
+    },
+    "license": "Apache-2.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/saas-platform-persistence-testing"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

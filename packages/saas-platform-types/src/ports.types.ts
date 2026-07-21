@@ -9,3 +9,4 @@ export * from './ports/admin-ports.types.js';
 export * from './ports/promo-ports.types.js';
 export * from './ports/catalog-ports.types.js';
 export * from './ports/checkout-ports.types.js';
+export * from './ports/persistence-ports.types.js';

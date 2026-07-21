@@ -33,7 +33,8 @@ Your app keeps implementing what only it can know: persistence adapters, its own
 | `@saasicat/spec` | The language-neutral contract: OpenAPI, JSON Schemas, Prisma fragments, CLI conventions. |
 | `@saasicat/types` | TypeScript types generated from the spec schemas. |
 | `@saasicat/nest` | The backend core: NestJS modules, services, guards and decorators. |
-| `@saasicat/prisma` | Ready-made Prisma adapters for the platform ports — bind your own Prisma client, no extra toolchain. |
+| `@saasicat/adapter-prisma` | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
+| `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …). |
 | `@saasicat/cli` | nest-commander command flows to embed in your application CLI. |
 | `@saasicat/ui-vue` | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables. |
 | `create-saasicat-admin` | Scaffolder — `pnpm create saasicat-admin` produces a ready-to-run admin frontend. |
@@ -50,7 +51,7 @@ Add the backend packages to an existing multi-tenant NestJS app (Prisma + Postgr
 
 ```bash
 pnpm add @saasicat/nest @saasicat/types @saasicat/spec \
-         @saasicat/prisma @saasicat/cli
+         @saasicat/adapter-prisma @saasicat/cli
 ```
 
 Scaffold the SuperAdmin frontend in one command:

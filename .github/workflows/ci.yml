@@ -32,6 +32,40 @@ jobs:
       - name: Typecheck
         run: pnpm -r typecheck
 
+  persistence-contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: saasicat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Enable corepack
+        run: corepack enable
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build adapter and its workspace dependencies
+        run: pnpm --filter "@saasicat/adapter-prisma..." build
+      - name: Run persistence contract against PostgreSQL
+        env:
+          SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
+        run: pnpm --filter "@saasicat/adapter-prisma" test:integration
+
   e2e:
     runs-on: ubuntu-latest
     steps:

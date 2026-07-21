@@ -23,7 +23,7 @@ export const REGISTRATION_BUSINESS_TYPE_LOOKUP_TOKEN = Symbol('REGISTRATION_BUSI
 /** Optionally injectable configuration — falls back to default TTLs from saas-platform-types. */
 export const REGISTRATION_CONFIG_TOKEN = Symbol('REGISTRATION_CONFIG');
 
-export interface PasswordHasher {
-    hash(plain: string): Promise<string>;
-    verify(hash: string, plain: string): Promise<boolean>;
-}
+// PasswordHasher moved to @saasicat/types (core port — the SuperAdmin
+// bootstrap adapter in @saasicat/adapter-prisma implements against it too).
+// Re-exported here so `@saasicat/nest/registration` keeps its public surface.
+export type { PasswordHasher } from '@saasicat/types';

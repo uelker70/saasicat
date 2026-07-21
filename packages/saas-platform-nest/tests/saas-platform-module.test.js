@@ -60,7 +60,7 @@ describe('SaasPlatformModule.forRoot', () => {
                         rlsBypass: new FakeRlsBypassPort(),
                     },
                 }),
-            /planCatalog.*oder.*planCatalogReadSink/,
+            /planCatalog.*or a.*planCatalogReadSink/,
         );
     });
 
@@ -94,7 +94,7 @@ describe('SaasPlatformModule.forRoot', () => {
                     },
                     entitlement: {},
                 }),
-            /entitlement.*Adapter fehlen.*subscriptionRepository.*planVersionRepository.*transactionRunner/,
+            /entitlement active.*adapters are missing.*subscriptionRepository.*planVersionRepository.*transactionRunner/,
         );
     });
 
