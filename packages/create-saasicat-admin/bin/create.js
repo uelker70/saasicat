@@ -8,7 +8,7 @@
 
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, relative } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile, stat } from 'node:fs/promises';
 
 // The scaffolded project must depend on the platform packages that match this
@@ -171,7 +171,23 @@ async function main() {
     console.log(`Adapt the login adapter (\`src/services/http.ts#adminLogin\`) to your backend.`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * True when this file is the entry point rather than an import.
+ *
+ * Compares real paths: package managers expose the bin through a symlink in
+ * `node_modules/.bin/`, so under `npm create` / `npx` the invoked path and the
+ * module path differ and a plain string comparison silently skips `main()`.
+ */
+function isDirectInvocation() {
+    if (!process.argv[1]) return false;
+    try {
+        return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+    } catch {
+        return false;
+    }
+}
+
+if (isDirectInvocation()) {
     main().catch((err) => {
         console.error('✗ ' + (err?.message ?? String(err)));
         process.exit(99);

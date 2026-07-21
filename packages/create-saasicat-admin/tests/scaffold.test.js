@@ -1,8 +1,9 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import {
     applyTokens,
     DEFAULT_TOKENS,
@@ -99,6 +100,36 @@ describe('scaffold', () => {
             await assert.rejects(() => readFile(join(target, 'package.json'), 'utf8'));
         } finally {
             await rm(target, { recursive: true, force: true });
+        }
+    });
+});
+
+describe('bin entry point', () => {
+    // Regression guard: package managers expose the bin through a symlink in
+    // node_modules/.bin, so `npm create` / `npx` invoke a path that differs
+    // from the module path. A plain `import.meta.url === file://argv[1]`
+    // comparison silently skips main() there — the published 0.2.0 scaffolder
+    // exited 0 without writing anything because of exactly that.
+    test('runs through a bin symlink, as npm create / npx invoke it', async () => {
+        const dir = await mkdtemp(join(tmpdir(), 'spa-binlink-'));
+        try {
+            const link = join(dir, 'create-saasicat-admin');
+            await symlink(new URL('../bin/create.js', import.meta.url).pathname, link);
+
+            const target = join(dir, 'generated');
+            const res = spawnSync(
+                process.execPath,
+                [link, target, '--project-key=demoapp', '--no-install'],
+                { encoding: 'utf8' },
+            );
+
+            assert.equal(res.status, 0, `exited ${res.status}: ${res.stderr}`);
+            assert.match(res.stdout, /Created \d+ file\(s\)/, 'scaffolder produced no output');
+
+            const pkg = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'));
+            assert.match(pkg.dependencies['@saasicat/ui-vue'], /^\^\d+\.\d+\.\d+$/);
+        } finally {
+            await rm(dir, { recursive: true, force: true });
         }
     });
 });
