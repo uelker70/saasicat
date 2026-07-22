@@ -1,6 +1,6 @@
 <template>
     <div v-if="!changes || changes.length === 0" class="diff-empty">
-        Keine Änderungen gegenüber der Vorgängerversion.
+        {{ msg.diffPreview.empty }}
     </div>
     <div v-else class="diff-list">
         <div v-for="(c, idx) in changes" :key="idx" class="diff-row" :class="rowClass(c.direction)">
@@ -27,26 +27,30 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/types';
-
-// Platform default field labels (plan-catalog quotas + pricing).
-// Consumer apps can add or override app-specific labels
-// (e.g. maxVehicles or maxMembers) via the `fieldLabels` prop.
-const PLATFORM_FIELD_LABELS: Readonly<Record<string, string>> = Object.freeze({
-    'features.added': 'Hinzugefügte Features',
-    'features.removed': 'Entfernte Features',
-    maxUsers: 'Max. Benutzer',
-    maxStorageGb: 'Speicher (GB)',
-    monthlyNet: 'Preis monatlich (netto)',
-    yearlyNet: 'Preis jährlich (netto)',
-    unitSize: 'Einheitsgröße',
-});
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
     changes?: VersionChange[] | null;
     /** App-specific field labels; merged with the platform defaults. */
     fieldLabels?: Record<string, string>;
 }>();
+
+const msg = useSaMessages('planVersions');
+
+// Platform default field labels (plan-catalog quotas + pricing).
+// Consumer apps can add or override app-specific labels
+// (e.g. maxVehicles or maxMembers) via the `fieldLabels` prop.
+const platformFieldLabels = computed<Record<string, string>>(() => ({
+    'features.added': msg.value.diffFields.featuresAdded,
+    'features.removed': msg.value.diffFields.featuresRemoved,
+    maxUsers: msg.value.diffFields.maxUsers,
+    maxStorageGb: msg.value.diffFields.maxStorageGb,
+    monthlyNet: msg.value.diffFields.monthlyNet,
+    yearlyNet: msg.value.diffFields.yearlyNet,
+    unitSize: msg.value.diffFields.unitSize,
+}));
 
 function iconFor(direction: VersionChange['direction']): string {
     if (direction === 'IMPROVEMENT') return 'trending_up';
@@ -55,9 +59,9 @@ function iconFor(direction: VersionChange['direction']): string {
 }
 
 function labelFor(direction: VersionChange['direction']): string {
-    if (direction === 'IMPROVEMENT') return 'Verbesserung';
-    if (direction === 'REGRESSION') return 'Verschlechterung';
-    return 'Neutral';
+    if (direction === 'IMPROVEMENT') return msg.value.diffPreview.improvement;
+    if (direction === 'REGRESSION') return msg.value.diffPreview.regression;
+    return msg.value.diffPreview.neutral;
 }
 
 function rowClass(direction: VersionChange['direction']): string {
@@ -67,7 +71,7 @@ function rowClass(direction: VersionChange['direction']): string {
 }
 
 function humanFieldLabel(field: string): string {
-    return props.fieldLabels?.[field] ?? PLATFORM_FIELD_LABELS[field] ?? field;
+    return props.fieldLabels?.[field] ?? platformFieldLabels.value[field] ?? field;
 }
 
 function formatValue(value: unknown): string {

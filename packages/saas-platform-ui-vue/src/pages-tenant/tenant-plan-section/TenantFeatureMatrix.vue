@@ -38,6 +38,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { FeatureUiRegistry } from '@saasicat/types';
+import { useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import type { TenantPlanSectionI18n } from '../default-i18n.js';
 
 // TenantFeatureMatrix — complete feature-scope overview (#18):
@@ -53,6 +54,8 @@ const props = defineProps<{
     featureLabel: (key: string) => string;
     i18n: TenantPlanSectionI18n;
 }>();
+
+const { intlLocale } = useSuperAdminI18n();
 
 interface FeatureRow {
     key: string;
@@ -81,7 +84,7 @@ const features = computed<FeatureRow[]>(() => {
     // Included first, then alphabetically by label.
     return rows.sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
-        return a.label.localeCompare(b.label, 'de');
+        return a.label.localeCompare(b.label, intlLocale.value);
     });
 });
 </script>

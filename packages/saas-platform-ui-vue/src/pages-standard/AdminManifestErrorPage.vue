@@ -3,21 +3,16 @@
         <q-card class="sa-manifest-error__card">
             <q-card-section class="sa-manifest-error__head">
                 <q-icon name="cloud_off" size="32px" color="negative" />
-                <h1 class="sa-manifest-error__title">Admin-Manifest nicht erreichbar</h1>
+                <h1 class="sa-manifest-error__title">{{ msg.manifestError.title }}</h1>
             </q-card-section>
             <q-card-section>
-                <p class="sa-manifest-error__lead">
-                    Das Plattform-Manifest konnte nicht geladen werden. Ohne Manifest sind Sidebar,
-                    Capabilities und Action-Buttons nicht zuverlässig — die UI würde sonst falsche
-                    oder unerreichbare Buttons rendern. Der Router hat dich deshalb hierher
-                    geschickt (fail-closed).
-                </p>
+                <p class="sa-manifest-error__lead">{{ msg.manifestError.lead }}</p>
                 <p v-if="errorMessage" class="sa-manifest-error__detail">
-                    <strong>Detail:</strong> {{ errorMessage }}
+                    <strong>{{ msg.manifestError.detailLabel }}</strong> {{ errorMessage }}
                 </p>
                 <div class="sa-manifest-error__actions">
-                    <q-btn unelevated color="primary" label="Erneut laden" @click="onRetry" />
-                    <q-btn flat label="Logout" @click="onLogout" />
+                    <q-btn unelevated color="primary" :label="common.reload" @click="onRetry" />
+                    <q-btn flat :label="msg.header.logout" @click="onLogout" />
                 </div>
             </q-card-section>
         </q-card>
@@ -25,10 +20,15 @@
 </template>
 
 <script setup lang="ts">
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+
 // Platform standard error page for `manifestGuard.errorRoute`.
 // Consumers pass `onRetry`/`onLogout` in as callbacks and decide
 // themselves what happens (e.g. manifestStore.clearCache() + ensureLoaded,
 // authStore.logout, router.replace).
+
+const msg = useSaMessages('shell');
+const common = useSaMessages('common');
 
 defineProps<{
     errorMessage?: string | null;

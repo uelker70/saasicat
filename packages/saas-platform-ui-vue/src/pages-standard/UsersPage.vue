@@ -2,11 +2,17 @@
     <div class="sa-users">
         <header class="sa-page-head">
             <div>
-                <h1 class="sa-page-head__title">{{ title }}</h1>
+                <h1 class="sa-page-head__title">{{ resolvedTitle }}</h1>
                 <p v-if="subtitle" class="sa-page-head__sub">{{ subtitle }}</p>
             </div>
             <div class="sa-page-head__actions">
-                <q-btn unelevated color="primary" icon="search" label="Suchen" @click="reload" />
+                <q-btn
+                    unelevated
+                    color="primary"
+                    icon="search"
+                    :label="common.search"
+                    @click="reload"
+                />
             </div>
         </header>
 
@@ -31,7 +37,7 @@
                 v-model="filter.q"
                 outlined
                 dense
-                label="E-Mail oder Name"
+                :label="msg.filterQuery"
                 clearable
                 @keyup.enter="reload"
                 @clear="reload"
@@ -40,7 +46,7 @@
                 v-model="filter.tenant"
                 outlined
                 dense
-                label="Tenant-Slug"
+                :label="msg.filterTenant"
                 clearable
                 @keyup.enter="reload"
                 @clear="reload"
@@ -62,12 +68,12 @@
                     <q-td>
                         <q-badge
                             :color="row.isActive ? 'positive' : 'grey'"
-                            :label="row.isActive ? 'aktiv' : 'deaktiviert'"
+                            :label="row.isActive ? msg.statusActive : msg.statusDeactivated"
                         />
                         <q-badge
                             v-if="row.invitationStatus === 'PENDING'"
                             color="amber-7"
-                            label="Pending"
+                            :label="msg.badgePending"
                             class="q-ml-xs"
                         />
                     </q-td>
@@ -108,6 +114,8 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: user search. Data-agnostic.
 //
@@ -166,7 +174,6 @@ const props = withDefaults(
         submitDeactivate?: (id: string, reason: string, mfaCode?: string) => Promise<void>;
     }>(),
     {
-        title: 'Benutzer',
         requireMfaForResetPassword: false,
         requireMfaForDeactivate: false,
     },
@@ -174,6 +181,12 @@ const props = withDefaults(
 
 const q = useQuasar();
 const notify = useSuperAdminNotify();
+const msg = useSaMessages('users');
+const common = useSaMessages('common');
+const shell = useSaMessages('shell');
+const { intlLocale } = useSuperAdminI18n();
+
+const resolvedTitle = computed(() => props.title ?? msg.value.title);
 const rows = ref<UserRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ q: '', tenant: '' });
@@ -256,42 +269,42 @@ const statTiles = computed<
         if (isSuperAdmin(r)) supr++;
     }
     return [
-        { id: 'all', label: 'Alle', count: rows.value.length },
-        { id: 'active', label: 'Aktiv', count: active, tone: 'positive' },
-        { id: 'blocked', label: 'Gesperrt', count: blocked, tone: 'muted' },
-        { id: 'never', label: 'Nie eingeloggt', count: never, tone: 'warn' },
-        { id: 'super', label: 'Super-Admins', count: supr, tone: 'purple' },
+        { id: 'all', label: common.value.all, count: rows.value.length },
+        { id: 'active', label: common.value.active, count: active, tone: 'positive' },
+        { id: 'blocked', label: msg.value.tiles.blocked, count: blocked, tone: 'muted' },
+        { id: 'never', label: msg.value.tiles.neverLoggedIn, count: never, tone: 'warn' },
+        { id: 'super', label: msg.value.tiles.superAdmins, count: supr, tone: 'purple' },
     ];
 });
 
-const baseColumns = [
+const baseColumns = computed(() => [
     {
         name: 'email',
-        label: 'E-Mail',
+        label: msg.value.columns.email,
         field: 'email',
         align: 'left' as const,
         sortable: true,
     },
     {
         name: 'name',
-        label: 'Name',
+        label: common.value.name,
         field: (r: UserRow) => `${r.firstName} ${r.lastName}`,
         align: 'left' as const,
     },
     {
         name: 'tenant',
-        label: 'Tenant',
-        field: (r: UserRow) => r.tenantSlug ?? '— (SuperAdmin)',
+        label: msg.value.columns.tenant,
+        field: (r: UserRow) => r.tenantSlug ?? msg.value.tenantFallback,
         align: 'left' as const,
     },
-    { name: 'role', label: 'Rolle', field: 'role', align: 'left' as const },
-    { name: 'status', label: 'Status', field: 'isActive', align: 'left' as const },
+    { name: 'role', label: msg.value.columns.role, field: 'role', align: 'left' as const },
+    { name: 'status', label: common.value.status, field: 'isActive', align: 'left' as const },
     {
         name: 'lastLogin',
-        label: 'Letzter Login',
+        label: msg.value.columns.lastLogin,
         field: (r: UserRow) =>
             r.lastLoginAt
-                ? new Date(r.lastLoginAt).toLocaleDateString('de-DE', {
+                ? new Date(r.lastLoginAt).toLocaleDateString(intlLocale.value, {
                       day: '2-digit',
                       month: 'short',
                       year: 'numeric',
@@ -299,7 +312,7 @@ const baseColumns = [
                 : '—',
         align: 'left' as const,
     },
-];
+]);
 
 // Built-in default actions — APPENDED to consumer actions, not replaced.
 const bakedActions = computed<UserRowAction[]>(() => {
@@ -307,7 +320,7 @@ const bakedActions = computed<UserRowAction[]>(() => {
     if (props.enableResetPassword && props.submitResetPassword) {
         out.push({
             id: 'reset-password',
-            label: 'Passwort zurücksetzen',
+            label: msg.value.resetPassword.action,
             icon: 'lock_reset',
             color: 'primary',
             handler: (row) => onResetPasswordClick(row),
@@ -316,7 +329,7 @@ const bakedActions = computed<UserRowAction[]>(() => {
     if (props.enableDeactivate && props.submitDeactivate) {
         out.push({
             id: 'deactivate',
-            label: 'Deaktivieren',
+            label: msg.value.deactivate.action,
             icon: 'block',
             color: 'negative',
             condition: (row) => (row as UserRow & { status?: string }).status !== 'suspended',
@@ -332,7 +345,7 @@ const mergedActions = computed<readonly UserRowAction[]>(() => [
 ]);
 
 const effectiveColumns = computed(() => {
-    const cols = [...baseColumns];
+    const cols = [...baseColumns.value];
     if (mergedActions.value.length > 0) {
         cols.push({
             name: 'actions',
@@ -371,7 +384,7 @@ function errMsg(err: unknown): string {
     return (
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         (err as Error)?.message ??
-        'Aktion fehlgeschlagen'
+        msg.value.errorAction
     );
 }
 
@@ -404,7 +417,7 @@ async function runAction<R>(
         } catch (err) {
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 401) {
-                mfaError.value = 'TOTP-Code ungültig oder MFA nicht eingerichtet.';
+                mfaError.value = shell.value.mfa.invalidCode;
                 continue;
             }
             showMfa.value = false;
@@ -418,15 +431,18 @@ function onResetPasswordClick(row: UserRow): void {
     if (!props.submitResetPassword) return;
     const submit = props.submitResetPassword;
     q.dialog({
-        title: `Passwort für "${row.email}" zurücksetzen`,
-        message: 'Grund für Audit (Pflichtfeld):',
+        title: formatMessage(msg.value.resetPassword.dialogTitle, { email: row.email }),
+        message: msg.value.reasonPrompt,
         prompt: { model: '', type: 'text' },
-        cancel: 'Abbrechen',
-        ok: { label: 'Zurücksetzen', color: 'primary' },
+        cancel: common.value.cancel,
+        ok: { label: common.value.reset, color: 'primary' },
     }).onOk(async (reason: string) => {
         if (!reason || reason.trim().length === 0) return;
         await runAction(
-            `Passwort für "${row.email}" zurücksetzen — ${reason.trim()}.`,
+            formatMessage(msg.value.resetPassword.mfaDescription, {
+                email: row.email,
+                reason: reason.trim(),
+            }),
             !!props.requireMfaForResetPassword,
             (code) => submit(row.id, reason, code),
             (data) => {
@@ -435,12 +451,14 @@ function onResetPasswordClick(row: UserRow): void {
                 // void → Notify only.
                 if (data && typeof data === 'object' && 'oneTimePassword' in data) {
                     q.dialog({
-                        title: 'Einmal-Passwort generiert',
-                        message: `Bitte sicher übermitteln: ${data.oneTimePassword}`,
-                        ok: { label: 'Verstanden' },
+                        title: msg.value.resetPassword.otpTitle,
+                        message: formatMessage(msg.value.resetPassword.otpMessage, {
+                            password: data.oneTimePassword,
+                        }),
+                        ok: { label: msg.value.resetPassword.otpAcknowledge },
                     });
                 } else {
-                    notify('positive', 'Passwort-Reset ausgelöst.');
+                    notify('positive', msg.value.resetPassword.success);
                 }
                 void reload();
             },
@@ -452,19 +470,25 @@ function onDeactivateClick(row: UserRow): void {
     if (!props.submitDeactivate) return;
     const submit = props.submitDeactivate;
     q.dialog({
-        title: `User "${row.email}" deaktivieren`,
-        message: 'Grund für Audit (Pflichtfeld):',
+        title: formatMessage(msg.value.deactivate.dialogTitle, { email: row.email }),
+        message: msg.value.reasonPrompt,
         prompt: { model: '', type: 'text' },
-        cancel: 'Abbrechen',
-        ok: { label: 'Deaktivieren', color: 'negative' },
+        cancel: common.value.cancel,
+        ok: { label: msg.value.deactivate.action, color: 'negative' },
     }).onOk(async (reason: string) => {
         if (!reason || reason.trim().length === 0) return;
         await runAction(
-            `User "${row.email}" deaktivieren — ${reason.trim()}.`,
+            formatMessage(msg.value.deactivate.mfaDescription, {
+                email: row.email,
+                reason: reason.trim(),
+            }),
             !!props.requireMfaForDeactivate,
             (code) => submit(row.id, reason, code),
             () => {
-                notify('positive', `${row.email} deaktiviert.`);
+                notify(
+                    'positive',
+                    formatMessage(msg.value.deactivate.success, { email: row.email }),
+                );
                 void reload();
             },
         );

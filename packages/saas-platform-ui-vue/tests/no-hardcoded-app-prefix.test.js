@@ -52,7 +52,7 @@ function* walk(dir) {
 //   - `new BootLoader({ endpoint: '/api/v1/...' })`      (constructor with hardcoded default)
 //
 // NOT flagged:
-//   - `throw new Error('... "/api/admin/..." ist Pflicht ...')`
+//   - `throw new Error('... "/api/admin/..." is required ...')`
 //   - JSDoc examples in comments
 const FALLBACK_PATTERNS = [
     // `?? '/api/...'` — classic default-fallback pattern
@@ -117,7 +117,7 @@ describe('Platform package: useTenants explicitly requires an endpoint', () => {
         assert.throws(
             // @ts-expect-error — we test the runtime error when the required prop is missing.
             () => useTenants({ http: async () => ({ status: 200 }), autoLoad: false }),
-            /endpoint.*Pflicht/i,
+            /endpoint.*required/i,
             'useTenants WITHOUT an endpoint should throw a descriptive error message',
         );
     });

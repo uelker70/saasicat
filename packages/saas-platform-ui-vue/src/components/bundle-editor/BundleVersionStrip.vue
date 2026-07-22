@@ -1,6 +1,6 @@
 <template>
     <div class="bv-vstrip">
-        <div class="bv-vstrip-label">Versionen</div>
+        <div class="bv-vstrip-label">{{ msg.versionStrip.label }}</div>
         <div class="bv-vstrip-tabs">
             <button
                 v-for="v in sortedVersions"
@@ -8,20 +8,23 @@
                 type="button"
                 class="bv-vtab"
                 :class="[`bv-vtab-${statusOf(v)}`, { 'bv-vtab-current': v.id === modelValue }]"
-                :title="BUNDLE_STATUS_META[statusOf(v)].tooltip"
+                :title="statusMetaOf(v).tooltip"
                 @click="$emit('update:modelValue', v.id)"
             >
                 <span class="bv-vtab-name">v{{ v.version }}</span>
                 <span :class="['bv-vtab-status', statusOf(v)]">
-                    {{ BUNDLE_STATUS_META[statusOf(v)].label }}
+                    {{ statusMetaOf(v).label }}
                 </span>
                 <span class="bv-vtab-dates">
-                    {{ formatDateDE(v.validFrom) }}
-                    <template v-if="v.validUntil"> – {{ formatDateDE(v.validUntil) }}</template>
-                    <template v-else> – offen</template>
+                    {{ formatDate(v.validFrom, locale) }}
+                    <template v-if="v.validUntil">
+                        – {{ formatDate(v.validUntil, locale) }}</template
+                    >
+                    <template v-else> – {{ msg.fields.validUntilOpen }}</template>
                 </span>
                 <span class="bv-vtab-price">
-                    {{ v.monthlyNet ?? '—' }}<template v-if="v.monthlyNet"> €</template> / Mo
+                    {{ v.monthlyNet ?? '—' }}<template v-if="v.monthlyNet"> €</template>
+                    {{ msg.versionStrip.perMonth }}
                 </span>
             </button>
             <button
@@ -30,8 +33,8 @@
                 :disabled="!canAddVersion"
                 :title="
                     canAddVersion
-                        ? 'Neue, zukünftige Version anlegen'
-                        : 'Bundle hat bereits eine Draft-Version — erst publishen oder verwerfen'
+                        ? msg.versionStrip.addTooltip
+                        : msg.versionStrip.addDisabledTooltip
                 "
                 @click="$emit('addVersion')"
             >
@@ -45,7 +48,7 @@
                 >
                     <path d="M12 5v14M5 12h14" />
                 </svg>
-                <span>Neue Version</span>
+                <span>{{ msg.versionStrip.addVersion }}</span>
             </button>
         </div>
     </div>
@@ -56,11 +59,13 @@ import { computed } from 'vue';
 import type { BundleVersionRow } from '@saasicat/types';
 
 import {
-    BUNDLE_STATUS_META,
+    bundleStatusMeta,
     bundleVersionStatus,
     bundleVersionsSorted,
-    formatDateDE,
+    formatDate,
+    type BundleStatusMeta,
 } from './bundle-version-status';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleVersionStrip — tab bar across all versions of a bundle, modeled on
 // the plan simulation (saasadminui/project/bundles.jsx → BundleVersionStrip).
@@ -82,12 +87,19 @@ defineEmits<{
     (e: 'addVersion'): void;
 }>();
 
+const msg = useSaMessages('bundles');
+const { locale } = useSuperAdminI18n();
+
 const sortedVersions = computed(() => bundleVersionsSorted(props.versions));
 
 const canAddVersion = computed(() => !props.versions.some((v) => v.publishedAt === null));
 
 function statusOf(v: BundleVersionRow) {
     return bundleVersionStatus(v, props.now);
+}
+
+function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
+    return bundleStatusMeta(statusOf(v), locale.value);
 }
 </script>
 

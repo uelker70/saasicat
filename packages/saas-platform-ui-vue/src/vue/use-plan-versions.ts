@@ -57,9 +57,9 @@ function buildVersionsComposable(label: string) {
     return function (options: VersionsOptions): VersionsResult {
         if (!options?.endpoint) {
             throw new Error(
-                `${label}: \`endpoint\` ist Pflicht (z. B. "/api/admin/${label}" ` +
-                    `oder "/api/v1/admin/${label}"). Plattform hat keinen Default, ` +
-                    `weil Apps unterschiedliche globalPrefix-Konventionen haben.`,
+                `${label}: \`endpoint\` is required (e.g. "/api/admin/${label}" ` +
+                    `or "/api/v1/admin/${label}"). The platform has no default ` +
+                    `because apps use different globalPrefix conventions.`,
             );
         }
         const filter = options.filter ?? ref<PlanVersionListFilter>({});

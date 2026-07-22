@@ -2,14 +2,9 @@
     <section class="pc-card">
         <div class="pc-card-head">
             <div class="pc-card-head-text">
-                <div class="pc-card-title">
-                    <template v-if="diffPair">
-                        Diff v{{ diffPair.from.version }} → v{{ diffPair.to.version }}
-                    </template>
-                    <template v-else>Diff</template>
-                </div>
+                <div class="pc-card-title">{{ panelTitle }}</div>
                 <div class="pc-card-sub">
-                    {{ diffPair ? 'Was sich beim Publish ändert' : 'Kein Vergleich verfügbar' }}
+                    {{ diffPair ? msg.diff.subOnPublish : msg.diff.noComparison }}
                 </div>
             </div>
             <div v-if="diffPair" class="pc-pillrow">
@@ -74,18 +69,32 @@
                 </span>
             </div>
             <div v-if="diffRows.length === 0" class="pc-empty pc-empty--inline">
-                Keine Änderungen erkannt.
+                {{ msg.diff.noChangesDetected }}
             </div>
         </div>
     </section>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { DiffRow, DiffSummary, PlanVersionPair } from './types';
 
-defineProps<{
+const props = defineProps<{
     diffPair: PlanVersionPair | null;
     diff: DiffSummary;
     diffRows: DiffRow[];
 }>();
+
+const msg = useSaMessages('planDetail');
+
+const panelTitle = computed(() => {
+    const pair = props.diffPair;
+    if (!pair) return msg.value.diff.title;
+    return formatMessage(msg.value.diff.titleCompare, {
+        from: pair.from.version,
+        to: pair.to.version,
+    });
+});
 </script>

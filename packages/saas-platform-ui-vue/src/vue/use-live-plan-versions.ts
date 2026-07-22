@@ -33,10 +33,10 @@ export function useLivePlanVersions(
     options: UseLivePlanVersionsOptions,
 ): UseLivePlanVersionsResult {
     if (!options?.adminEndpoint) {
-        throw new Error('useLivePlanVersions: `adminEndpoint` ist Pflicht.');
+        throw new Error('useLivePlanVersions: `adminEndpoint` is required.');
     }
     if (!options?.plans) {
-        throw new Error('useLivePlanVersions: `plans` ist Pflicht.');
+        throw new Error('useLivePlanVersions: `plans` is required.');
     }
 
     const http = options.http ?? defaultHttpClient();
@@ -55,7 +55,7 @@ export function useLivePlanVersions(
             headers: { 'content-type': 'application/json', ...authHeaders() },
         });
         if (res.status >= 400) {
-            throw new Error(`HTTP ${res.status} beim Laden der Versionen für Plan '${planId}'`);
+            throw new Error(`HTTP ${res.status} while loading the versions of plan '${planId}'`);
         }
         const versions = (await res.json().catch(() => null)) as PlanVersionRow[] | null;
         if (!versions || versions.length === 0) return null;
@@ -75,7 +75,7 @@ export function useLivePlanVersions(
                         // Do not aggregate per-plan errors — the other plans
                         // should keep working; just set the mapping entry to null.
                         console.warn(
-                            `useLivePlanVersions: Plan '${plan.planKey}' Versions-Load failed`,
+                            `useLivePlanVersions: loading the versions of plan '${plan.planKey}' failed`,
                             err,
                         );
                         return [plan.planKey, null] as const;

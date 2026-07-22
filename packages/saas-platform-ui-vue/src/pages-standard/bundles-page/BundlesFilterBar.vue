@@ -5,7 +5,7 @@
             dense
             outlined
             clearable
-            placeholder="Bundle-Key oder Label suchen …"
+            :placeholder="msg.filterBar.searchPlaceholder"
             class="sa-bundles__search"
             @update:model-value="emitQuery"
         >
@@ -26,12 +26,15 @@
 
 <script setup lang="ts">
 import type { BundlesStatusFilter, BundlesStatusFilterOption } from './types.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 defineProps<{
     query: string;
     statusFilter: BundlesStatusFilter;
     statusFilterOptions: BundlesStatusFilterOption[];
 }>();
+
+const msg = useSaMessages('bundles');
 
 const emit = defineEmits<{
     'update:query': [value: string];

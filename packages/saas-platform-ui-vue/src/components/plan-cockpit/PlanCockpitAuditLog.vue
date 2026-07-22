@@ -2,12 +2,14 @@
     <section v-if="auditRows.length > 0 || loadingAudit" class="pc-card pc-audit-card">
         <div class="pc-card-head pc-card-head--audit">
             <div class="pc-card-head-text">
-                <div class="pc-card-title">Audit-Log</div>
-                <div class="pc-card-sub">Letzte Änderungen an diesem Plan</div>
+                <div class="pc-card-title">{{ msg.auditLog.title }}</div>
+                <div class="pc-card-sub">{{ msg.auditLog.subtitle }}</div>
             </div>
         </div>
         <div class="pc-audit">
-            <div v-if="loadingAudit" class="pc-empty pc-empty--inline">Lade Audit-Log…</div>
+            <div v-if="loadingAudit" class="pc-empty pc-empty--inline">
+                {{ msg.auditLog.loading }}
+            </div>
             <div v-for="a in auditRows" :key="a.id" class="pc-audit-row">
                 <span :class="['pc-audit-dot', `pc-audit-${auditKind(a.action)}`]" />
                 <span class="pc-audit-when">{{ formatAuditDate(a.createdAt) }}</span>
@@ -20,12 +22,17 @@
 </template>
 
 <script setup lang="ts">
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import type { AuditRow } from './types';
 
 defineProps<{
     auditRows: AuditRow[];
     loadingAudit: boolean;
 }>();
+
+const msg = useSaMessages('planDetail');
+const { intlLocale } = useSuperAdminI18n();
 
 function auditKind(action: string): string {
     const a = action.toLowerCase();
@@ -58,8 +65,8 @@ function formatAuditDate(iso: string): string {
     if (Number.isNaN(d.getTime())) return iso;
     const today = new Date();
     const isToday = d.toDateString() === today.toDateString();
-    const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return `heute · ${time}`;
-    return `${d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })} · ${time}`;
+    const time = d.toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return formatMessage(msg.value.auditLog.today, { time });
+    return `${d.toLocaleDateString(intlLocale.value, { day: '2-digit', month: 'short' })} · ${time}`;
 }
 </script>

@@ -5,11 +5,11 @@
             <div class="sa-trans-lang__head">
                 <span class="sa-trans-lang__code">{{ defaultLocale.toUpperCase() }}</span>
                 <span class="sa-trans-lang__name">{{ localeFull(defaultLocale) }}</span>
-                <span class="sa-trans-lang__badge">Source</span>
+                <span class="sa-trans-lang__badge">{{ msg.trans.sourceBadge }}</span>
             </div>
             <div class="sa-trans-fields">
                 <div v-for="f in fields" :key="f" class="sa-trans-field">
-                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f) }}</label>
+                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f, uiLocale) }}</label>
                     <q-input
                         v-if="f !== 'unit'"
                         dense
@@ -21,7 +21,7 @@
                     />
                     <div v-else class="sa-trans-locked">
                         {{ entry.unit || '—' }}
-                        <span class="sa-trans-locked__hint">aus Code</span>
+                        <span class="sa-trans-locked__hint">{{ msg.trans.unitFromCode }}</span>
                     </div>
                 </div>
             </div>
@@ -38,23 +38,23 @@
                     no-caps
                     size="sm"
                     icon="content_copy"
-                    label="Aus DE"
+                    :label="msg.trans.copyFromDefault"
                     class="sa-trans-lang__copy"
                     @click="copyFromDefault(lng)"
                 >
-                    <q-tooltip>Leere Felder aus der Default-Locale übernehmen</q-tooltip>
+                    <q-tooltip>{{ msg.trans.copyFromDefaultHint }}</q-tooltip>
                 </q-btn>
             </div>
             <div class="sa-trans-fields">
                 <div v-for="f in fields" :key="f" class="sa-trans-field">
-                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f) }}</label>
+                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f, uiLocale) }}</label>
                     <q-input
                         dense
                         outlined
                         :type="f === 'description' ? 'textarea' : 'text'"
                         :autogrow="f === 'description'"
                         :model-value="localeValue(lng, f)"
-                        :placeholder="baseValue(f) ? `Fallback: „${baseValue(f)}“` : '—'"
+                        :placeholder="fallbackPlaceholder(f)"
                         @update:model-value="(v) => onLocale(lng, f, String(v ?? ''))"
                     />
                 </div>
@@ -62,7 +62,7 @@
         </div>
 
         <div v-if="targetLocales.length === 0" class="sa-trans__empty">
-            Keine weiteren Sprachen aktiv — Sprachen werden im Marketing-Catalog aktiviert.
+            {{ msg.trans.noOtherLocales }}
         </div>
     </div>
 </template>
@@ -70,6 +70,8 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
 import type { CatalogEntryI18nFields } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import {
     DISCOVERY_DEFAULT_LOCALE,
     i18nFieldLabel,
@@ -103,6 +105,10 @@ const emit = defineEmits<{
     'update:locale': [locale: string, patch: CatalogEntryI18nFields];
 }>();
 
+const msg = useSaMessages('discovery');
+// Renamed: `locale` is the catalog-entry data locale everywhere else in this file.
+const { locale: uiLocale } = useSuperAdminI18n();
+
 const targetLocales = computed(() => props.activeLocales.filter((l) => l !== props.defaultLocale));
 
 // Local input buffer: once a field has been edited, the draft wins over
@@ -122,6 +128,12 @@ function localeValue(locale: string, f: I18nField): string {
     const dk = `l|${locale}|${f}`;
     if (dk in drafts) return drafts[dk];
     return props.entry.i18n?.[locale]?.[f] ?? '';
+}
+
+/** Shows the default-locale value that a blank target field falls back to. */
+function fallbackPlaceholder(f: I18nField): string {
+    const base = baseValue(f);
+    return base ? formatMessage(msg.value.trans.fallbackPlaceholder, { value: base }) : '—';
 }
 
 function onBase(f: I18nField, value: string): void {

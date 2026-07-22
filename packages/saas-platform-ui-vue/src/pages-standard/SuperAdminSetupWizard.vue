@@ -4,8 +4,8 @@
             <div class="sa-setup-head">
                 <div class="sa-setup-badge">{{ iconText }}</div>
                 <div>
-                    <div class="sa-setup-title">Erst­einrichtung</div>
-                    <div class="sa-setup-sub">{{ brandName }} · ersten SuperAdmin anlegen</div>
+                    <div class="sa-setup-title">{{ msg.setup.title }}</div>
+                    <div class="sa-setup-sub">{{ subtitleText }}</div>
                 </div>
             </div>
 
@@ -16,40 +16,44 @@
             <!-- Step 1: create SuperAdmin -->
             <q-form v-if="step === 'form'" @submit.prevent="submitCreate" class="sa-setup-form">
                 <p class="sa-setup-hint">
-                    Es existiert noch kein SuperAdmin. Gib das vom Betreiber gesetzte
-                    <code>SETUP_TOKEN</code> ein und lege den ersten Account an.
+                    {{ msg.setup.tokenHintBefore }}
+                    <code>SETUP_TOKEN</code>
+                    {{ msg.setup.tokenHintAfter }}
                 </p>
                 <q-input
                     v-model="form.token"
-                    label="Setup-Token"
+                    :label="msg.setup.tokenLabel"
                     type="password"
                     outlined
                     dense
                     autofocus
                     :disable="loading"
                     class="q-mb-sm"
-                    :rules="[(v: string) => v.length > 0 || 'Setup-Token ist Pflicht']"
+                    :rules="[(v: string) => v.length > 0 || msg.setup.tokenRequired]"
                 />
                 <q-input
                     v-model="form.email"
-                    label="E-Mail"
+                    :label="msg.emailLabel"
                     type="email"
                     outlined
                     dense
                     :disable="loading"
                     class="q-mb-sm"
-                    :rules="[(v: string) => /\S+@\S+\.\S+/.test(v) || 'Bitte gültige E-Mail']"
+                    :rules="[(v: string) => /\S+@\S+\.\S+/.test(v) || msg.invalidEmail]"
                 />
                 <q-input
                     v-model="form.password"
-                    label="Passwort (leer = generieren)"
+                    :label="msg.setup.passwordLabel"
                     :type="showPw ? 'text' : 'password'"
                     outlined
                     dense
                     :disable="loading"
-                    hint="Mindestens 8 Zeichen, oder leer lassen für ein generiertes Passwort."
+                    :hint="msg.setup.passwordHint"
                     class="q-mb-sm"
-                    :rules="[(v: string) => v.length === 0 || v.length >= 8 || 'Mindestens 8 Zeichen']"
+                    :rules="[
+                        (v: string) =>
+                            v.length === 0 || v.length >= 8 || msg.setup.passwordMinLength,
+                    ]"
                 >
                     <template #append>
                         <q-icon
@@ -63,7 +67,7 @@
                     unelevated
                     color="primary"
                     icon="person_add"
-                    label="SuperAdmin anlegen"
+                    :label="msg.setup.submit"
                     :loading="loading"
                     :disable="!canCreate"
                     class="full-width q-mt-sm"
@@ -74,48 +78,48 @@
             <!-- Step 2: set up MFA -->
             <div v-else-if="step === 'mfa' && result" class="sa-setup-mfa">
                 <p class="sa-setup-hint">
-                    Account <strong>{{ result.email }}</strong> angelegt. Richte jetzt die
-                    Zwei-Faktor-Authentisierung (TOTP) ein.
+                    {{ msg.setup.mfaIntroBefore }} <strong>{{ result.email }}</strong>
+                    {{ msg.setup.mfaIntroAfter }}
                 </p>
 
                 <div v-if="result.generatedPassword" class="sa-setup-secret">
-                    <div class="sa-setup-secret__label">Generiertes Passwort (einmalig sichern)</div>
+                    <div class="sa-setup-secret__label">
+                        {{ msg.setup.generatedPasswordLabel }}
+                    </div>
                     <code class="sa-setup-secret__value">{{ result.generatedPassword }}</code>
                 </div>
 
                 <div v-if="result.qrDataUrl" class="sa-setup-qr">
-                    <img :src="result.qrDataUrl" alt="MFA-QR-Code" width="200" height="200" />
-                    <div class="sa-setup-qr__hint">Mit der Authenticator-App scannen</div>
+                    <img :src="result.qrDataUrl" :alt="msg.setup.qrAlt" width="200" height="200" />
+                    <div class="sa-setup-qr__hint">{{ msg.setup.qrHint }}</div>
                 </div>
 
                 <div class="sa-setup-secret">
-                    <div class="sa-setup-secret__label">
-                        In Authenticator-App als „Schlüssel manuell eingeben"
-                    </div>
+                    <div class="sa-setup-secret__label">{{ msg.setup.manualSecretLabel }}</div>
                     <code class="sa-setup-secret__value">{{ result.secret }}</code>
                 </div>
                 <details class="sa-setup-uri">
-                    <summary>otpauth-URI (für QR-Generator)</summary>
+                    <summary>{{ msg.setup.otpauthSummary }}</summary>
                     <code class="sa-setup-uri__value">{{ result.otpauthUri }}</code>
                 </details>
 
                 <q-form @submit.prevent="submitConfirm" class="sa-setup-form q-mt-md">
                     <q-input
                         v-model="mfaCode"
-                        label="6-stelliger Code aus der App"
+                        :label="msg.setup.codeLabel"
                         outlined
                         dense
                         autofocus
                         inputmode="numeric"
                         maxlength="6"
                         :disable="loading"
-                        :rules="[(v: string) => /^\d{6}$/.test(v) || '6-stelliger Code']"
+                        :rules="[(v: string) => /^\d{6}$/.test(v) || msg.setup.codeInvalid]"
                     />
                     <q-btn
                         unelevated
                         color="primary"
                         icon="verified_user"
-                        label="MFA bestätigen"
+                        :label="msg.setup.confirmMfa"
                         :loading="loading"
                         :disable="!/^\d{6}$/.test(mfaCode) || loading"
                         class="full-width q-mt-sm"
@@ -123,21 +127,19 @@
                     />
                 </q-form>
                 <button class="sa-setup-skip" type="button" @click="step = 'done'">
-                    Überspringen — Code beim ersten Login eingeben
+                    {{ msg.setup.skip }}
                 </button>
             </div>
 
             <!-- Step 3: done -->
             <div v-else-if="step === 'done'" class="sa-setup-done">
                 <q-icon name="check_circle" color="positive" size="48px" />
-                <p class="sa-setup-hint">
-                    Einrichtung abgeschlossen. Melde dich jetzt mit dem neuen SuperAdmin an.
-                </p>
+                <p class="sa-setup-hint">{{ msg.setup.doneHint }}</p>
                 <q-btn
                     unelevated
                     color="primary"
                     icon="login"
-                    label="Zum Login"
+                    :label="msg.setup.toLogin"
                     class="full-width"
                     @click="emit('done')"
                 />
@@ -148,11 +150,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
-import {
-    SETUP_ERROR_CODES,
-    type SetupConfirmMfaResponse,
-    type SetupResult,
-} from '@saasicat/types';
+import { SETUP_ERROR_CODES, type SetupConfirmMfaResponse, type SetupResult } from '@saasicat/types';
 
 import {
     useSuperAdminBrand,
@@ -160,6 +158,8 @@ import {
     useSuperAdminHttp,
 } from '../vue/use-super-admin-context.js';
 import { HttpJsonError, postJson as httpPostJson } from '../client/http-json.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 interface Props {
     /** Display name + badge abbreviation (override the app branding, e.g. from PublicBoot). */
@@ -172,12 +172,16 @@ const props = defineProps<Props>();
 // shown again — the freshly created SuperAdmin then signs in.
 const emit = defineEmits<{ done: [] }>();
 
+const msg = useSaMessages('shell');
 const brand = useSuperAdminBrand();
 const endpoints = useSuperAdminEndpoints();
 const http = useSuperAdminHttp();
 
 const brandName = computed(() => props.displayName ?? brand.name);
 const iconText = computed(() => props.icon ?? brand.logoText);
+const subtitleText = computed(() =>
+    formatMessage(msg.value.setup.subtitle, { brand: brandName.value }),
+);
 
 const step = ref<'form' | 'mfa' | 'done'>('form');
 const form = reactive({ token: '', email: '', password: '' });
@@ -195,15 +199,13 @@ const canCreate = computed(
         !loading.value,
 );
 
-const ERROR_BY_CODE: Record<string, string> = {
-    [SETUP_ERROR_CODES.SETUP_DISABLED]: 'Setup ist serverseitig deaktiviert (SETUP_TOKEN nicht gesetzt).',
-    [SETUP_ERROR_CODES.INVALID_SETUP_TOKEN]: 'Setup-Token ungültig.',
-    [SETUP_ERROR_CODES.SETUP_ALREADY_DONE]:
-        'Es existiert bereits ein SuperAdmin — Setup ist abgeschlossen.',
-    [SETUP_ERROR_CODES.INVALID_EMAIL]: 'Ungültige E-Mail-Adresse.',
-    [SETUP_ERROR_CODES.EMAIL_EXISTS]:
-        'Diese E-Mail ist bereits vergeben. Wähle eine andere oder hebe den bestehenden User per CLI/DB zum SUPER_ADMIN an.',
-};
+const errorByCode = computed<Record<string, string>>(() => ({
+    [SETUP_ERROR_CODES.SETUP_DISABLED]: msg.value.setup.errorSetupDisabled,
+    [SETUP_ERROR_CODES.INVALID_SETUP_TOKEN]: msg.value.setup.errorInvalidToken,
+    [SETUP_ERROR_CODES.SETUP_ALREADY_DONE]: msg.value.setup.errorAlreadyDone,
+    [SETUP_ERROR_CODES.INVALID_EMAIL]: msg.value.setup.errorInvalidEmail,
+    [SETUP_ERROR_CODES.EMAIL_EXISTS]: msg.value.setup.errorEmailExists,
+}));
 
 // Goes through the injected HttpClient (consumer's auth/baseURL apply);
 // maps the error code from the body to a readable message.
@@ -213,7 +215,8 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     } catch (err) {
         if (err instanceof HttpJsonError) {
             throw new Error(
-                (err.code && ERROR_BY_CODE[err.code]) || `Fehler (HTTP ${err.status}).`,
+                (err.code && errorByCode.value[err.code]) ||
+                    formatMessage(msg.value.setup.errorHttp, { status: err.status }),
             );
         }
         throw err;
@@ -232,7 +235,7 @@ async function submitCreate(): Promise<void> {
         });
         step.value = 'mfa';
     } catch (err) {
-        errorMessage.value = err instanceof Error ? err.message : 'Setup fehlgeschlagen.';
+        errorMessage.value = err instanceof Error ? err.message : msg.value.setup.errorFailed;
     } finally {
         loading.value = false;
     }
@@ -251,10 +254,11 @@ async function submitConfirm(): Promise<void> {
         if (res.ok) {
             step.value = 'done';
         } else {
-            errorMessage.value = 'Code ungültig — bitte erneut versuchen.';
+            errorMessage.value = msg.value.setup.errorCodeInvalid;
         }
     } catch (err) {
-        errorMessage.value = err instanceof Error ? err.message : 'Bestätigung fehlgeschlagen.';
+        errorMessage.value =
+            err instanceof Error ? err.message : msg.value.setup.errorConfirmFailed;
     } finally {
         loading.value = false;
     }

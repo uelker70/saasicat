@@ -128,14 +128,14 @@ export class BatchColumnFetcher {
 
     private validateBatchEndpoint(col: TenantColumnDef): void {
         if (!col.endpoint || col.endpoint.trim().length === 0) {
-            throw new BatchColumnDriftError(col, 'endpoint ist leer');
+            throw new BatchColumnDriftError(col, 'endpoint is empty');
         }
         if (col.endpoint.includes('{slug}') || col.endpoint.includes('{tenantId}')) {
             throw new BatchColumnDriftError(
                 col,
-                'endpoint enthält per-Tenant-Placeholder ({slug}/{tenantId}). ' +
-                    'Spalten-Endpoints müssen batchfähig sein — bitte Backend ' +
-                    'auf `?tenantIds=...`-Parameter umstellen.',
+                'endpoint contains per-tenant placeholders ({slug}/{tenantId}). ' +
+                    'Column endpoints must be batchable — switch the backend ' +
+                    'to a `?tenantIds=...` parameter.',
             );
         }
     }

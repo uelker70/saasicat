@@ -122,7 +122,11 @@
             <!-- Reactivate confirmation (analogous to cancellation): deliberate action -->
             <q-dialog
                 :model-value="reactivateConfirmId !== null"
-                @update:model-value="(v) => { if (!v) closeReactivateConfirm(); }"
+                @update:model-value="
+                    (v) => {
+                        if (!v) closeReactivateConfirm();
+                    }
+                "
             >
                 <q-card style="min-width: 360px; max-width: 480px">
                     <q-card-section>
@@ -194,7 +198,7 @@ import { computed, ref } from 'vue';
 import PackageSnapshotPanel from './PackageSnapshotPanel.vue';
 import PendingVersionBanner from './PendingVersionBanner.vue';
 import PlanChangeWizard from './PlanChangeWizard.vue';
-import { DEFAULT_I18N_DE, type TenantPlanSectionI18n } from './default-i18n.js';
+import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
 import BundlePreviewDialog from './tenant-plan-section/BundlePreviewDialog.vue';
 import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
@@ -210,6 +214,7 @@ import {
     type CatalogBundle,
     type CatalogPlan,
 } from '../vue/use-tenant-billing-catalog.js';
+import { useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import type { HttpClient } from '../client/types.js';
 
 // TenantPlanSection — main component for the tenant plan/bundle self-service
@@ -234,7 +239,8 @@ interface Props {
      * Plain value per quota key (e.g. "200" or "10 GB") — separate from the
      * label so the wizard's `<PlanGrid>` can render value + label separately.
      * Optional; without an override the wizard default applies
-     * (`value.toLocaleString('de-DE')` + `GB` for storage keys, ∞ for -1).
+     * (`value.toLocaleString()` in the active UI locale + `GB` for storage
+     * keys, ∞ for -1).
      */
     formatQuotaValue?: (key: string, value: number) => string;
 
@@ -245,7 +251,7 @@ interface Props {
     /** Default: storage quotas (float), all others integer. */
     isFractionalQuota?: (key: string) => boolean;
 
-    /** i18n overrides — missing keys fall back to DEFAULT_I18N_DE. */
+    /** i18n overrides — missing keys fall back to the active locale's map. */
     i18n?: Partial<TenantPlanSectionI18n>;
 
     /**
@@ -263,6 +269,8 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const { locale } = useSuperAdminI18n();
 
 const billing = useTenantBilling({
     http: props.http,
@@ -287,8 +295,7 @@ const bundleError = ref<string | null>(null);
 
 // Bundle preview dialog state (#37/#61)
 type PendingBundleAction =
-    | { kind: 'add'; bundleVersionId: string }
-    | { kind: 'cancel'; subscriptionBundleId: string };
+    { kind: 'add'; bundleVersionId: string } | { kind: 'cancel'; subscriptionBundleId: string };
 const bundlePreviewOpen = ref(false);
 const bundlePreview = ref<BundlePreviewShape | null>(null);
 const bundlePreviewLoading = ref(false);
@@ -301,7 +308,7 @@ const loading = computed(() => billing.loading.value || catalog.loading.value);
 const error = computed(() => billing.error.value ?? catalog.error.value);
 
 const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
-    ...DEFAULT_I18N_DE,
+    ...defaultTenantPlanSectionI18n(locale.value),
     ...(props.i18n ?? {}),
 }));
 
@@ -331,10 +338,7 @@ const availableBundles = computed<CatalogBundle[]>(() => catalog.bundles.value ?
 // no longer active and disappears from the list.
 function isSubscriptionBundleActive(b: SubscriptionBundleShape): boolean {
     if (b.canceledAt === null) return true;
-    return (
-        b.canceledEffectiveAt !== null &&
-        new Date(b.canceledEffectiveAt).getTime() > Date.now()
-    );
+    return b.canceledEffectiveAt !== null && new Date(b.canceledEffectiveAt).getTime() > Date.now();
 }
 
 const bookedBundles = computed<SubscriptionBundleShape[]>(() =>
@@ -348,8 +352,7 @@ const hasBundleStore = computed(
 const featureRegistry = computed(() => catalog.featureRegistry.value);
 const activeFeatures = computed<string[]>(() => usage.value?.limits.features ?? []);
 const hasFeatureOverview = computed(
-    () =>
-        Object.keys(featureRegistry.value ?? {}).length > 0 || activeFeatures.value.length > 0,
+    () => Object.keys(featureRegistry.value ?? {}).length > 0 || activeFeatures.value.length > 0,
 );
 
 const currentPlanName = computed(() => {
@@ -435,6 +438,7 @@ const wizardI18n = computed(() => ({
     badgeCurrent: effectiveI18n.value.wizardBadgeCurrent,
     badgePopular: effectiveI18n.value.wizardBadgePopular,
     priceUnitMonthly: effectiveI18n.value.wizardPriceUnitMonthly,
+    priceUnitYearly: effectiveI18n.value.wizardPriceUnitYearly,
     priceOnRequest: effectiveI18n.value.wizardPriceOnRequest,
     stepChoose: effectiveI18n.value.wizardStepChoose,
     stepChooseIntro: effectiveI18n.value.wizardStepChooseIntro,

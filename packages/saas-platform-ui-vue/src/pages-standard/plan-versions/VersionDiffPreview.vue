@@ -1,6 +1,6 @@
 <template>
     <div v-if="!changes || changes.length === 0" class="sa-pv-diff-preview__empty">
-        Keine Änderungen gegenüber der Vorgängerversion.
+        {{ msg.diffPreview.empty }}
     </div>
     <div v-else class="sa-pv-diff-preview__list">
         <div
@@ -34,6 +34,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/types';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
     changes?: VersionChange[] | null;
@@ -45,18 +46,20 @@ const props = defineProps<{
     fieldLabels?: Record<string, string>;
 }>();
 
-const DEFAULT_FIELD_LABELS: Record<string, string> = {
-    'features.added': 'Hinzugefügte Features',
-    'features.removed': 'Entfernte Features',
-    maxUsers: 'Max. Benutzer',
-    maxStorageGb: 'Speicher (GB)',
-    monthlyNet: 'Preis monatlich (netto)',
-    yearlyNet: 'Preis jährlich (netto)',
-    unitSize: 'Einheitsgröße',
-};
+const msg = useSaMessages('planVersions');
+
+const defaultFieldLabels = computed<Record<string, string>>(() => ({
+    'features.added': msg.value.diffFields.featuresAdded,
+    'features.removed': msg.value.diffFields.featuresRemoved,
+    maxUsers: msg.value.diffFields.maxUsers,
+    maxStorageGb: msg.value.diffFields.maxStorageGb,
+    monthlyNet: msg.value.diffFields.monthlyNet,
+    yearlyNet: msg.value.diffFields.yearlyNet,
+    unitSize: msg.value.diffFields.unitSize,
+}));
 
 const mergedFieldLabels = computed(() => ({
-    ...DEFAULT_FIELD_LABELS,
+    ...defaultFieldLabels.value,
     ...(props.fieldLabels ?? {}),
 }));
 
@@ -67,9 +70,9 @@ function iconFor(direction: VersionChange['direction']): string {
 }
 
 function labelFor(direction: VersionChange['direction']): string {
-    if (direction === 'IMPROVEMENT') return 'Verbesserung';
-    if (direction === 'REGRESSION') return 'Verschlechterung';
-    return 'Neutral';
+    if (direction === 'IMPROVEMENT') return msg.value.diffPreview.improvement;
+    if (direction === 'REGRESSION') return msg.value.diffPreview.regression;
+    return msg.value.diffPreview.neutral;
 }
 
 function rowClass(direction: VersionChange['direction']): string {

@@ -39,7 +39,7 @@ export function useSuperAdminBrand(): SuperAdminBrand {
     const brand = inject(SUPER_ADMIN_BRAND_KEY);
     if (!brand) {
         throw new Error(
-            'useSuperAdminBrand(): kein SuperAdmin-Branding im Inject-Scope. Wurde die Komponente innerhalb createSuperAdminApp() gemounted?',
+            'useSuperAdminBrand(): no SuperAdmin branding in inject scope. Was the component mounted inside createSuperAdminApp()?',
         );
     }
     return brand;
@@ -50,7 +50,7 @@ export function useSuperAdminEndpoints(): Required<SuperAdminEndpoints> {
     const endpoints = inject(SUPER_ADMIN_ENDPOINTS_KEY);
     if (!endpoints) {
         throw new Error(
-            'useSuperAdminEndpoints(): keine Endpoints im Inject-Scope. Wurde die Komponente innerhalb createSuperAdminApp() gemounted?',
+            'useSuperAdminEndpoints(): no endpoints in inject scope. Was the component mounted inside createSuperAdminApp()?',
         );
     }
     return endpoints;
@@ -77,7 +77,7 @@ export function useSuperAdminLoginAdapter(): SuperAdminLoginAdapter {
     const adapter = inject(SUPER_ADMIN_LOGIN_ADAPTER_KEY);
     if (!adapter) {
         throw new Error(
-            'useSuperAdminLoginAdapter(): kein Login-Adapter registriert. Reiche ihn via createSuperAdminApp({ loginAdapter }) ein.',
+            'useSuperAdminLoginAdapter(): no login adapter registered. Pass it via createSuperAdminApp({ loginAdapter }).',
         );
     }
     return adapter;

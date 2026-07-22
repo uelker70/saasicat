@@ -11,12 +11,13 @@
                     size="22px"
                     :color="isDangerous ? 'negative' : 'primary'"
                 />
-                <div class="text-h6">{{ def?.label ?? 'Aktion bestätigen' }}</div>
+                <div class="text-h6">{{ def?.label ?? msg.actions.confirmTitle }}</div>
             </q-card-section>
 
             <q-card-section v-if="def">
                 <p class="tenant-action-confirm__lead">
-                    Aktion <strong>„{{ def.label }}"</strong> für Tenant
+                    {{ msg.actions.leadAction }} <strong>„{{ def.label }}"</strong>
+                    {{ msg.actions.leadForTenant }}
                     <strong>„{{ row?.name ?? row?.slug ?? '–' }}"</strong>.
                 </p>
 
@@ -24,7 +25,7 @@
                      gate against accidentally clicking destructive actions. -->
                 <template v-if="needsTypedSlug">
                     <p class="tenant-action-confirm__hint">
-                        Bestätige durch Eintippen des Slugs
+                        {{ msg.actions.typedSlugHint }}
                         <code>{{ row?.slug }}</code
                         >:
                     </p>
@@ -51,9 +52,7 @@
                         :min="dateMin"
                         :label="dateLabel"
                         :error="dateError"
-                        :error-message="
-                            dateError ? 'Bitte ein Datum in der Zukunft wählen.' : undefined
-                        "
+                        :error-message="dateError ? msg.actions.dateFutureError : undefined"
                     />
                 </template>
 
@@ -69,22 +68,18 @@
                     autogrow
                     class="q-mt-md"
                     :autofocus="!needsTypedSlug && !needsDate"
-                    label="Grund (Pflicht für Audit-Log, mindestens 5 Zeichen)"
+                    :label="msg.actions.reasonLabel"
                     :error="reasonError"
-                    :error-message="
-                        reasonError
-                            ? 'Bitte einen Grund mit mindestens 5 Zeichen angeben.'
-                            : undefined
-                    "
+                    :error-message="reasonError ? msg.actions.reasonError : undefined"
                 />
             </q-card-section>
 
             <q-card-actions align="right">
-                <q-btn flat label="Abbrechen" @click="onCancel" />
+                <q-btn flat :label="common.cancel" @click="onCancel" />
                 <q-btn
                     unelevated
                     :color="isDangerous ? 'negative' : 'primary'"
-                    :label="def?.label ?? 'Bestätigen'"
+                    :label="def?.label ?? common.confirm"
                     :disable="!canSubmit"
                     @click="onConfirm"
                 />
@@ -96,6 +91,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { TenantActionDef, TenantDto } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 // Platform-standard confirm dialog for tenant actions. Covers both confirm
 // paths from the manifest in a single UI:
@@ -128,6 +125,9 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
+const msg = useSaMessages('tenants');
+const common = useSaMessages('common');
+
 const slugInput = ref('');
 const reasonInput = ref('');
 const dateInput = ref('');
@@ -136,7 +136,9 @@ const reasonError = ref(false);
 const dateError = ref(false);
 
 const slugErrorMessage = computed(() =>
-    slugError.value ? `Muss exakt „${props.row?.slug}“ sein` : undefined,
+    slugError.value
+        ? formatMessage(msg.value.actions.slugMismatch, { slug: props.row?.slug ?? '' })
+        : undefined,
 );
 
 watch(
@@ -161,8 +163,8 @@ const needsDate = computed(() => props.def?.confirmType === 'date');
 const dateMin = computed(() => new Date().toISOString().slice(0, 10));
 const dateLabel = computed(() => {
     const key = props.def?.actionKey ?? '';
-    if (key.endsWith('.extend')) return 'Verlängern bis (Datum)';
-    return 'Datum';
+    if (key.endsWith('.extend')) return msg.value.actions.extendUntilLabel;
+    return common.value.date;
 });
 
 const isDangerous = computed(() => {

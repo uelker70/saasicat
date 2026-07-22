@@ -2,18 +2,51 @@
     <div class="sa-audit">
         <header class="sa-audit__head">
             <div>
-                <h1 class="sa-audit__title">Audit-Trail</h1>
-                <p class="sa-audit__sub">{{ rows.length }} Einträge · plattformweit.</p>
+                <h1 class="sa-audit__title">{{ msg.title }}</h1>
+                <p class="sa-audit__sub">
+                    {{ formatMessage(msg.subtitle, { count: rows.length }) }}
+                </p>
             </div>
-            <q-btn unelevated color="primary" icon="refresh" label="Filtern" @click="reload" />
+            <q-btn
+                unelevated
+                color="primary"
+                icon="refresh"
+                :label="msg.filterButton"
+                @click="reload"
+            />
         </header>
 
         <div class="sa-audit__body">
             <div class="sa-audit__filter">
-                <q-input v-model="filter.actor" outlined dense label="Actor (E-Mail)" clearable />
-                <q-input v-model="filter.action" outlined dense label="Action" clearable />
-                <q-input v-model="filter.entity" outlined dense label="Entity" clearable />
-                <q-input v-model="filter.since" outlined dense type="date" label="Seit" clearable />
+                <q-input
+                    v-model="filter.actor"
+                    outlined
+                    dense
+                    :label="msg.filters.actor"
+                    clearable
+                />
+                <q-input
+                    v-model="filter.action"
+                    outlined
+                    dense
+                    :label="msg.filters.action"
+                    clearable
+                />
+                <q-input
+                    v-model="filter.entity"
+                    outlined
+                    dense
+                    :label="msg.filters.entity"
+                    clearable
+                />
+                <q-input
+                    v-model="filter.since"
+                    outlined
+                    dense
+                    type="date"
+                    :label="msg.filters.since"
+                    clearable
+                />
             </div>
 
             <div class="sa-audit__card">
@@ -29,7 +62,7 @@
                     <template #body-cell-changes="{ row }">
                         <q-td>
                             <q-btn flat dense icon="code" color="primary" @click="openDetail(row)">
-                                <q-tooltip>Details</q-tooltip>
+                                <q-tooltip>{{ common.details }}</q-tooltip>
                             </q-btn>
                         </q-td>
                     </template>
@@ -42,7 +75,7 @@
                 <q-card-section>
                     <div class="text-h6">{{ detail?.action }} · {{ detail?.entity }}</div>
                     <div class="text-caption text-grey-7">
-                        {{ detail ? formatTs(detail.createdAt) : '' }} · Actor:
+                        {{ detail ? formatTs(detail.createdAt) : '' }} · {{ msg.detailActorPrefix }}
                         {{ detail ? actorEmail(detail) : '—' }}
                     </div>
                 </q-card-section>
@@ -52,7 +85,7 @@
                     }}</pre>
                 </q-card-section>
                 <q-card-actions align="right">
-                    <q-btn v-close-popup flat label="Schließen" />
+                    <q-btn v-close-popup flat :label="common.close" />
                 </q-card-actions>
             </q-card>
         </q-dialog>
@@ -60,7 +93,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: audit trail. Data-agnostic — the app passes
 // `loadAudit({ actor, action, entity, since, limit })` through.
@@ -89,36 +124,40 @@ const props = defineProps<{
     pageSize?: number;
 }>();
 
+const msg = useSaMessages('audit');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
+
 const rows = ref<AuditRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ actor: '', action: '', entity: '', since: '' });
 const detailOpen = ref(false);
 const detail = ref<AuditRow | null>(null);
 
-const columns = [
+const columns = computed(() => [
     {
         name: 'createdAt',
-        label: 'Zeit',
+        label: msg.value.columns.time,
         field: (r: AuditRow) => formatTs(r.createdAt),
         align: 'left' as const,
         sortable: true,
     },
     {
         name: 'actor',
-        label: 'Actor',
+        label: msg.value.columns.actor,
         field: actorEmail,
         align: 'left' as const,
     },
-    { name: 'action', label: 'Action', field: 'action', align: 'left' as const },
-    { name: 'entity', label: 'Entity', field: 'entity', align: 'left' as const },
+    { name: 'action', label: msg.value.columns.action, field: 'action', align: 'left' as const },
+    { name: 'entity', label: msg.value.columns.entity, field: 'entity', align: 'left' as const },
     {
         name: 'entityId',
-        label: 'ID',
+        label: msg.value.columns.id,
         field: (r: AuditRow) => r.entityId.slice(0, 8),
         align: 'left' as const,
     },
     { name: 'changes', label: '', field: 'id', align: 'right' as const },
-];
+]);
 
 async function reload() {
     loading.value = true;
@@ -153,7 +192,7 @@ function actorEmail(r: AuditRow): string {
 function formatTs(iso: string | null | undefined): string {
     if (!iso) return '—';
     try {
-        return new Date(iso).toLocaleString('de-DE', {
+        return new Date(iso).toLocaleString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',

@@ -2,9 +2,9 @@
     <aside class="sa-pv-timeline">
         <div class="sa-pv-timeline__head">
             <div class="sa-pv-timeline__row">
-                <div class="sa-pv-timeline__title">{{ title ?? 'Plan-Catalog' }}</div>
+                <div class="sa-pv-timeline__title">{{ title ?? msg.timeline.title }}</div>
             </div>
-            <div class="sa-pv-timeline__count">{{ snapshots.length }} Snapshots</div>
+            <div class="sa-pv-timeline__count">{{ snapshotCountLabel }}</div>
         </div>
 
         <div class="sa-pv-timeline__list">
@@ -56,7 +56,7 @@
         <div class="sa-pv-timeline__foot">
             <div class="sa-pv-timeline__hint">
                 <q-icon name="info" size="13px" />
-                <span>Rechtsklick auf Snapshot → vergleichen</span>
+                <span>{{ msg.timeline.compareHint }}</span>
             </div>
             <button
                 v-if="compareId"
@@ -64,17 +64,20 @@
                 class="sa-pv-timeline__clear-btn"
                 @click="emit('clearCompare')"
             >
-                Vergleich beenden
+                {{ msg.compareEnd }}
             </button>
         </div>
     </aside>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
-import { formatRelativeDe } from './format.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { formatRelative } from './format.js';
 
-defineProps<{
+const props = defineProps<{
     snapshots: CatalogSnapshot[];
     selectedId: string;
     compareId: string | null;
@@ -87,18 +90,27 @@ const emit = defineEmits<{
     (e: 'clearCompare'): void;
 }>();
 
+const msg = useSaMessages('planVersions');
+const { locale } = useSuperAdminI18n();
+
+const snapshotCountLabel = computed(() =>
+    formatMessage(msg.value.timeline.snapshotCount, { count: props.snapshots.length }),
+);
+
 function statusLabel(status: CatalogSnapshot['status']): string {
-    if (status === 'DRAFT') return 'DRAFT';
-    if (status === 'ACTIVE') return 'AKTIV';
-    return 'ARCHIV';
+    if (status === 'DRAFT') return msg.value.status.draft;
+    if (status === 'ACTIVE') return msg.value.status.active;
+    return msg.value.status.archived;
 }
 
 function metaText(s: CatalogSnapshot): string {
     if (s.kind === 'drafts') {
-        return s.draftCount === 0 ? 'keine offenen Drafts' : `${s.draftCount} offen`;
+        return s.draftCount === 0
+            ? msg.value.timeline.noOpenDrafts
+            : formatMessage(msg.value.timeline.openCount, { count: s.draftCount });
     }
-    if (s.publishedAt) return formatRelativeDe(s.publishedAt);
-    return 'unbekannt';
+    if (s.publishedAt) return formatRelative(s.publishedAt, locale.value);
+    return msg.value.timeline.unknown;
 }
 </script>
 

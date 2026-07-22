@@ -8,13 +8,15 @@
         <div class="pcd-modal" role="dialog" aria-labelledby="pcd-title">
             <div class="pcd-head">
                 <div class="pcd-head-text">
-                    <div id="pcd-title" class="pcd-title">Neuen Plan anlegen</div>
-                    <div class="pcd-sub">
-                        Plan-Stamm anlegen. Im nächsten Schritt weist du Features, Quotas und
-                        Bundles zu.
-                    </div>
+                    <div id="pcd-title" class="pcd-title">{{ msg.createDialog.title }}</div>
+                    <div class="pcd-sub">{{ msg.createDialog.subtitle }}</div>
                 </div>
-                <button class="pcd-close" type="button" aria-label="Schließen" @click="onCancel">
+                <button
+                    class="pcd-close"
+                    type="button"
+                    :aria-label="common.close"
+                    @click="onCancel"
+                >
                     <svg
                         width="14"
                         height="14"
@@ -32,41 +34,43 @@
                 <div class="pcd-row pcd-row--2col">
                     <div class="pcd-field">
                         <div class="pcd-field-label">
-                            Plan-Key
+                            {{ msg.createDialog.labelPlanKey }}
                             <span class="pcd-kbd">UNIQUE</span>
                         </div>
                         <input
                             ref="keyInput"
                             class="pcd-input"
                             :class="{ 'pcd-input--error': keyError }"
-                            placeholder="z. B. SCALE"
+                            :placeholder="msg.createDialog.placeholderPlanKey"
                             :value="form.planKey"
                             @input="onPlanKeyInput"
                         />
                         <div v-if="keyError" class="pcd-hint pcd-hint--error">{{ keyError }}</div>
-                        <div v-else class="pcd-hint">
-                            Großbuchstaben + Unterstriche · API-stabil, nicht änderbar nach Publish
-                        </div>
+                        <div v-else class="pcd-hint">{{ msg.createDialog.hintPlanKey }}</div>
                     </div>
                     <div class="pcd-field">
-                        <div class="pcd-field-label">Anzeigename</div>
-                        <input class="pcd-input" placeholder="z. B. Scale" v-model="form.label" />
-                        <div class="pcd-hint">Wie der Plan im Catalog erscheint</div>
+                        <div class="pcd-field-label">{{ msg.createDialog.labelDisplayName }}</div>
+                        <input
+                            class="pcd-input"
+                            :placeholder="msg.createDialog.placeholderDisplayName"
+                            v-model="form.label"
+                        />
+                        <div class="pcd-hint">{{ msg.createDialog.hintDisplayName }}</div>
                     </div>
                 </div>
 
                 <div class="pcd-field">
-                    <div class="pcd-field-label">Beschreibung</div>
+                    <div class="pcd-field-label">{{ common.description }}</div>
                     <textarea
                         class="pcd-input pcd-input--textarea"
                         rows="2"
-                        placeholder="Was bekommt der Kunde mit diesem Plan?"
+                        :placeholder="msg.createDialog.placeholderDescription"
                         v-model="form.description"
                     />
                 </div>
 
                 <div class="pcd-field">
-                    <div class="pcd-field-label">Basis für die erste Version</div>
+                    <div class="pcd-field-label">{{ msg.createDialog.labelBasis }}</div>
                     <div class="pcd-choice-grid">
                         <button
                             v-for="opt in choiceOptions"
@@ -87,7 +91,7 @@
 
             <div class="pcd-foot">
                 <button class="pcd-btn pcd-btn--ghost" type="button" @click="onCancel">
-                    Abbrechen
+                    {{ common.cancel }}
                 </button>
                 <button
                     class="pcd-btn pcd-btn--primary"
@@ -95,7 +99,9 @@
                     :disabled="!canSubmit || submitting"
                     @click="onSubmit"
                 >
-                    <span>{{ submitting ? 'Wird angelegt…' : 'Weiter · Komponenten' }}</span>
+                    <span>{{
+                        submitting ? msg.createDialog.submitting : msg.createDialog.submit
+                    }}</span>
                     <span class="pcd-ico" aria-hidden="true">
                         <svg
                             width="14"
@@ -116,6 +122,8 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // PlanCreateDialog — step 1 of the "new plan" flow from the plan
 // simulation. Collects the plan master data (key, label, description) plus the
@@ -168,13 +176,16 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
-const EMPTY_BASIS: TemplateOption = {
+const msg = useSaMessages('plans');
+const common = useSaMessages('common');
+
+const emptyBasis = computed<TemplateOption>(() => ({
     key: 'empty',
-    label: 'Leerer Plan',
+    label: msg.value.createDialog.emptyPlan,
     features: [],
     quotas: {},
     bundles: [],
-};
+}));
 
 const form = reactive({
     planKey: '',
@@ -206,10 +217,10 @@ function onPlanKeyInput(e: Event): void {
 const keyError = computed<string | null>(() => {
     if (!form.planKey) return null;
     if (!/^[A-Z][A-Z0-9_]*$/.test(form.planKey)) {
-        return 'Muss mit Buchstabe beginnen, nur A–Z, 0–9, _.';
+        return msg.value.createDialog.errorKeyFormat;
     }
     if (props.existingPlanKeys.includes(form.planKey)) {
-        return `„${form.planKey}" existiert bereits.`;
+        return formatMessage(msg.value.createDialog.errorKeyExists, { key: form.planKey });
     }
     return null;
 });
@@ -222,12 +233,12 @@ const choiceOptions = computed(() => {
     const options = [
         {
             key: 'empty',
-            title: 'Leerer Plan',
-            subtitle: 'Im Editor alles selbst zusammenstellen',
+            title: msg.value.createDialog.emptyPlan,
+            subtitle: msg.value.createDialog.emptyPlanHint,
         },
         ...props.availableTemplates.map((t) => ({
             key: t.key,
-            title: `Klon von ${t.label}`,
+            title: formatMessage(msg.value.createDialog.cloneOf, { label: t.label }),
             subtitle: countsLabel(t),
         })),
     ];
@@ -235,17 +246,16 @@ const choiceOptions = computed(() => {
 });
 
 function countsLabel(t: TemplateOption): string {
-    const parts = [
-        `${t.features.length} Features`,
-        `${Object.keys(t.quotas).length} Quotas`,
-        `${t.bundles.length} Bundles`,
-    ];
-    return parts.join(' · ');
+    return formatMessage(msg.value.createDialog.counts, {
+        features: t.features.length,
+        quotas: Object.keys(t.quotas).length,
+        bundles: t.bundles.length,
+    });
 }
 
 function selectedTemplate(): TemplateOption {
-    if (form.basis === 'empty') return EMPTY_BASIS;
-    return props.availableTemplates.find((t) => t.key === form.basis) ?? EMPTY_BASIS;
+    if (form.basis === 'empty') return emptyBasis.value;
+    return props.availableTemplates.find((t) => t.key === form.basis) ?? emptyBasis.value;
 }
 
 function onSubmit(): void {

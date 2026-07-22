@@ -2,12 +2,12 @@
     <section class="pd-panel pd-audit">
         <div class="pd-panel-head">
             <div style="min-width: 0">
-                <h3 class="pd-panel-title">Audit-Log</h3>
-                <div class="pd-panel-sub">Letzte Änderungen an diesem Plan</div>
+                <h3 class="pd-panel-title">{{ msg.auditLog.title }}</h3>
+                <div class="pd-panel-sub">{{ msg.auditLog.subtitle }}</div>
             </div>
         </div>
         <div class="pd-audit-body">
-            <div v-if="loadingAudit" class="pd-diff-empty">Lade Audit-Log…</div>
+            <div v-if="loadingAudit" class="pd-diff-empty">{{ msg.auditLog.loading }}</div>
             <div v-for="a in auditRows" :key="a.id" class="pd-audit-row">
                 <span :class="['pd-audit-dot', `pd-audit-${auditKind(a.action)}`]" />
                 <span class="pd-audit-when">{{ formatAuditDate(a.createdAt) }}</span>
@@ -20,12 +20,17 @@
 </template>
 
 <script setup lang="ts">
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import type { AuditRow } from './types.js';
 
 defineProps<{
     auditRows: AuditRow[];
     loadingAudit: boolean;
 }>();
+
+const msg = useSaMessages('planDetail');
+const { intlLocale } = useSuperAdminI18n();
 
 function auditKind(action: string): string {
     const a = action.toLowerCase();
@@ -51,9 +56,9 @@ function formatAuditDate(iso: string): string {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
     const isToday = d.toDateString() === new Date().toDateString();
-    const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    const time = d.toLocaleTimeString(intlLocale.value, { hour: '2-digit', minute: '2-digit' });
     return isToday
-        ? `heute · ${time}`
-        : `${d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })} · ${time}`;
+        ? formatMessage(msg.value.auditLog.today, { time })
+        : `${d.toLocaleDateString(intlLocale.value, { day: '2-digit', month: 'short' })} · ${time}`;
 }
 </script>

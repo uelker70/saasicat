@@ -1,4 +1,4 @@
-// Bootstrap. createSuperAdminApp erledigt Quasar+Pinia+Router+Guards.
+// Bootstrap. createSuperAdminApp wires up Quasar + Pinia + Router + guards.
 
 import 'quasar/src/css/index.sass';
 import '@quasar/extras/material-icons/material-icons.css';
@@ -29,6 +29,9 @@ const handle = createSuperAdminApp({
     },
     actions: {},
     extensions: {},
+    // UI language: 'de' (default) or 'en'. Pass a Ref to switch at runtime,
+    // `overrides` to replace individual strings (handbook §8.6).
+    i18n: { locale: 'de' },
 });
 
 handle.mount('#app');

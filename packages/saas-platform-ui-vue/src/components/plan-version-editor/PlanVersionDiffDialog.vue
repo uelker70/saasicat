@@ -4,20 +4,17 @@
             <div class="pve-diff-head">
                 <div>
                     <div id="pve-diff-title" class="pve-diff-title">
-                        Diff
+                        {{ msg.diffDialog.title }}
                         <template v-if="predecessorVersion">
                             v{{ predecessorVersion.version }} → v{{ version }}
                         </template>
                     </div>
-                    <div class="pve-diff-sub">
-                        Was sich gegenüber der Vorgänger-Version ändert (aktueller, ungespeicherter
-                        Stand).
-                    </div>
+                    <div class="pve-diff-sub">{{ msg.diffDialog.subtitle }}</div>
                 </div>
                 <button
                     class="pve-diff-close"
                     type="button"
-                    aria-label="Schließen"
+                    :aria-label="common.close"
                     @click="$emit('update:modelValue', false)"
                 >
                     <svg
@@ -61,7 +58,7 @@
                     >
                 </div>
                 <div v-if="diffRows.length === 0" class="pve-diff-empty">
-                    Keine Änderungen gegenüber der Vorgänger-Version.
+                    {{ msg.diffDialog.empty }}
                 </div>
             </div>
         </div>
@@ -69,6 +66,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { EditorDiffRow, PredecessorVersion } from './types.js';
 
 defineProps<{
@@ -81,4 +79,7 @@ defineProps<{
 defineEmits<{
     (e: 'update:modelValue', value: boolean): void;
 }>();
+
+const msg = useSaMessages('planEditor');
+const common = useSaMessages('common');
 </script>

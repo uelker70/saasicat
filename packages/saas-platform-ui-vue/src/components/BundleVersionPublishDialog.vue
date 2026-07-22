@@ -2,15 +2,17 @@
     <q-dialog v-model="open" persistent>
         <q-card style="min-width: 560px; max-width: 96vw">
             <q-card-section>
-                <div class="text-h6">BundleVersion publishen</div>
+                <div class="text-h6">{{ msg.publishDialog.title }}</div>
                 <p class="text-caption text-grey-7">
-                    Bundle <code>{{ bundleKey }}</code> · v{{ draft.version }}
+                    {{ msg.publishDialog.bundleLabel }} <code>{{ bundleKey }}</code> · v{{
+                        draft.version
+                    }}
                 </p>
             </q-card-section>
 
             <q-card-section v-if="!previewLoaded" class="bvpd__loading">
                 <q-spinner color="primary" size="32px" />
-                <span class="q-ml-sm">Diff zur Vorgänger-Version wird geladen …</span>
+                <span class="q-ml-sm">{{ msg.publishDialog.loadingDiff }}</span>
             </q-card-section>
 
             <q-card-section v-else class="bvpd__body">
@@ -19,7 +21,7 @@
                     <template #avatar>
                         <q-icon name="warning" color="warning" />
                     </template>
-                    <strong>{{ warnings.length }} Strict-Mode-Warnung(en)</strong>
+                    <strong>{{ strictWarningsText }}</strong>
                     <ul class="bvpd__list">
                         <li v-for="(w, i) in warnings" :key="i">
                             <code>{{ w.code }}</code>
@@ -32,14 +34,14 @@
                 </q-banner>
 
                 <div class="bvpd__validity">
-                    <div class="bvpd__label">Gültigkeit</div>
+                    <div class="bvpd__label">{{ msg.fields.validity }}</div>
                     <div class="bvpd__validity-grid">
                         <label class="bvpd__field">
-                            <span>Gültig ab</span>
+                            <span>{{ msg.fields.validFrom }}</span>
                             <input v-model="validFromInput" class="bvpd__input" type="date" />
                         </label>
                         <label class="bvpd__field">
-                            <span>Gültig bis</span>
+                            <span>{{ msg.fields.validUntil }}</span>
                             <input v-model="validUntilInput" class="bvpd__input" type="date" />
                         </label>
                     </div>
@@ -47,22 +49,19 @@
                 </div>
 
                 <div>
-                    <q-toggle
-                        v-model="allowZeroPrice"
-                        label="Preis 0,00 bewusst zulassen (kostenloses Bundle)"
-                    />
+                    <q-toggle v-model="allowZeroPrice" :label="msg.publishDialog.allowZeroPrice" />
                     <p class="bvpd__label" style="margin-top: 6px">
-                        Standard: Publish mit explizitem Preis 0,00 wird blockiert (Seed-Schutz).
+                        {{ msg.publishDialog.allowZeroPriceHint }}
                     </p>
                 </div>
 
                 <!-- Diff against the previous version -->
                 <div>
                     <div class="bvpd__label">
-                        Änderungen gegenüber
+                        {{ msg.publishDialog.changesVs }}
                         <span v-if="previousVersion"> v{{ previousVersion }} </span>
                         <span v-else class="text-grey-7">
-                            — keine Vorgänger-Version (Erst-Veröffentlichung)
+                            {{ msg.publishDialog.noPrevious }}
                         </span>
                     </div>
                     <q-banner
@@ -74,7 +73,7 @@
                         <template #avatar>
                             <q-icon name="info" color="grey-7" />
                         </template>
-                        Keine Änderungen — die Versionen sind inhaltlich gleich.
+                        {{ msg.publishDialog.noChanges }}
                     </q-banner>
                     <q-list v-else-if="changes.length > 0" bordered separator>
                         <q-item v-for="(c, i) in changes" :key="i">
@@ -106,14 +105,13 @@
                     <template #avatar>
                         <q-icon name="error" color="negative" />
                     </template>
-                    <strong>Regressive Änderung erkannt.</strong>
-                    Diese Version entfernt Features, senkt Quotas oder erhöht Preise. Vertragsschutz
-                    P3 (SPEC.md §6) verlangt Bestand-Opt-in. Publish erfordert deinen ausdrücklichen
-                    <code>force</code>-Confirm.
+                    <strong>{{ msg.publishDialog.regressionTitle }}</strong>
+                    {{ msg.publishDialog.regressionBody }}
+                    <code>force</code>{{ msg.publishDialog.regressionBodySuffix }}
                     <template #action>
                         <q-toggle
                             v-model="forceRegressive"
-                            label="Trotzdem publishen"
+                            :label="msg.publishDialog.forceRegressive"
                             color="negative"
                         />
                     </template>
@@ -121,11 +119,15 @@
             </q-card-section>
 
             <q-card-actions align="right">
-                <q-btn flat label="Abbrechen" @click="close" />
+                <q-btn flat :label="common.cancel" @click="close" />
                 <q-btn
                     unelevated
                     :color="isRegression ? 'negative' : 'positive'"
-                    :label="isRegression ? 'Regressiv publishen' : 'Publishen'"
+                    :label="
+                        isRegression
+                            ? msg.publishDialog.confirmRegressive
+                            : msg.publishDialog.confirm
+                    "
                     :loading="submitting"
                     :disable="!canSubmit"
                     @click="submit"
@@ -143,6 +145,9 @@ import type {
     StrictModeWarning,
     VersionChange,
 } from '@saasicat/types';
+
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 // BundleVersionPublishDialog — confirm modal for publishing a draft version.
 // Shows the diff against the previous version (publishedChanges) and blocks
@@ -178,6 +183,9 @@ const emit = defineEmits<{
     (e: 'submitted', result: BundleVersionMutationResult): void;
 }>();
 
+const msg = useSaMessages('bundles');
+const common = useSaMessages('common');
+
 const open = computed({
     get: () => props.modelValue,
     set: (v) => emit('update:modelValue', v),
@@ -194,10 +202,13 @@ const validUntilInput = ref('');
 
 const previousVersion = computed(() => props.previous?.version ?? null);
 const isRegression = computed(() => previewLoaded.value && !nonRegressive.value);
+const strictWarningsText = computed(() =>
+    formatMessage(msg.value.publishDialog.strictWarnings, { count: props.warnings.length }),
+);
 const validityError = computed<string | null>(() => {
-    if (!validFromInput.value) return 'Gültig ab ist Pflicht.';
+    if (!validFromInput.value) return msg.value.validation.validFromRequired;
     if (validUntilInput.value && validUntilInput.value <= validFromInput.value) {
-        return 'Gültig bis muss nach Gültig ab liegen.';
+        return msg.value.validation.validUntilAfterValidFrom;
     }
     return null;
 });

@@ -1,23 +1,29 @@
 <template>
     <section class="sa-bundles">
         <div class="sa-bundles__head">
-            <h2 class="sa-bundles__title">Bundles</h2>
+            <h2 class="sa-bundles__title">{{ msg.bundleOverview.title }}</h2>
             <span class="sa-bundles__count">{{ bundles.length }}</span>
         </div>
 
         <div v-if="bundles.length === 0" class="sa-bundles__empty">
-            Keine Bundles vorhanden.
+            {{ msg.bundleOverview.empty }}
         </div>
 
         <div v-else class="sa-bundles__grid">
-            <q-card v-for="bundle in bundles" :key="bundle.bundleKey" flat bordered class="sa-bundle">
+            <q-card
+                v-for="bundle in bundles"
+                :key="bundle.bundleKey"
+                flat
+                bordered
+                class="sa-bundle"
+            >
                 <q-card-section class="sa-bundle__header">
                     <div class="sa-bundle__label">{{ bundle.label ?? bundle.bundleKey }}</div>
                     <div class="sa-bundle__key">{{ bundle.bundleKey }}</div>
                 </q-card-section>
                 <q-separator />
                 <q-card-section>
-                    <div class="sa-bundle__caption">Enthält</div>
+                    <div class="sa-bundle__caption">{{ msg.bundleOverview.contains }}</div>
                     <div class="sa-bundle__chips">
                         <q-chip
                             v-for="feature in bundle.features"
@@ -33,7 +39,7 @@
                     </div>
                 </q-card-section>
                 <q-card-section class="sa-bundle__compat">
-                    <div class="sa-bundle__caption">Kompatibel mit</div>
+                    <div class="sa-bundle__caption">{{ msg.bundleOverview.compatibleWith }}</div>
                     <div class="sa-bundle__plans">{{ compatLabel(bundle) }}</div>
                 </q-card-section>
             </q-card>
@@ -43,6 +49,7 @@
 
 <script setup lang="ts">
 import type { PlanRow } from '@saasicat/types';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 interface BundleEntry {
     bundleKey: string;
@@ -57,6 +64,8 @@ const props = defineProps<{
     featureRegistry: Record<string, { label?: string; group?: string }>;
 }>();
 
+const msg = useSaMessages('plans');
+
 function featureLabel(featureKey: string): string {
     return props.featureRegistry[featureKey]?.label ?? featureKey;
 }
@@ -68,7 +77,7 @@ function planLabel(planKey: string): string {
 // Empty compatibility list = bundle applies to all plans (cf. PlanMatrix.hasBundle).
 function compatLabel(bundle: BundleEntry): string {
     const keys = bundle.compatiblePlanKeys ?? [];
-    if (keys.length === 0) return 'Alle Pläne';
+    if (keys.length === 0) return msg.value.bundleOverview.allPlans;
     return keys.map(planLabel).join(', ');
 }
 </script>

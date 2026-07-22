@@ -1,8 +1,7 @@
 <template>
     <div v-if="capabilities.length === 0" class="sa-caps__empty">
         <q-icon name="warning" size="14px" />
-        Feature im Katalog ohne implementierende Capability — blockiert im blocking-Strict-Mode das
-        Plan-Publish.
+        {{ msg.capList.orphanFeature }}
     </div>
     <div v-else class="sa-caps">
         <div
@@ -37,7 +36,7 @@
                         v-if="cap.codeStatus === 'retired'"
                         class="sa-caps-row__flag sa-caps-row__flag--gone"
                     >
-                        aus Code entfernt
+                        {{ msg.capList.removedFromCode }}
                     </span>
                 </div>
                 <div class="sa-caps-row__meta">
@@ -59,6 +58,7 @@
 <script setup lang="ts">
 import type { CapabilityCatalogEntryRow } from '@saasicat/types';
 import { kindStyle } from './discovery-ui.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // Read-only Capability list: code facts from the scan (#20). Embedded in the
 // master-data subtab of the feature card as well as in the page's orphan bucket.
@@ -72,6 +72,8 @@ const props = defineProps<{
      */
     newSince?: string | null;
 }>();
+
+const msg = useSaMessages('discovery');
 
 function isNew(cap: CapabilityCatalogEntryRow): boolean {
     return Boolean(props.newSince && cap.createdAt > props.newSince);

@@ -32,6 +32,7 @@ export * from './client/index.js';
 export * from './vue/super-admin-context.js';
 export * from './vue/ui-notify.js';
 export * from './vue/use-super-admin-context.js';
+export * from './vue/use-super-admin-i18n.js';
 
 // ---------------------------------------------------------------------------
 // Vue layer: composables, guards, hosts, store factory.

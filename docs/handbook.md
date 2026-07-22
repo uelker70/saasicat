@@ -1068,6 +1068,80 @@ onMounted(() => {
 > drifts on platform updates and you lose the i18n/action synchronization. Shared
 > logic belongs in the platform packages — the app wrapper stays thin.
 
+### 8.6 UI Language (i18n)
+
+The SuperAdmin UI ships complete message catalogs in **German** (reference) and
+**English**. There is no `vue-i18n` dependency — the catalogs are plain typed
+objects, so consumers get autocompletion and a compile error when a key is
+missing.
+
+**Choosing the language** — via `createSuperAdminApp()`:
+
+```ts
+const app = createSuperAdminApp({
+    // …
+    i18n: { locale: 'en' },
+});
+```
+
+Default is `'de'`. To let users switch at runtime, pass a `Ref` and write to it
+(or write to the handle, which exposes the same context):
+
+```ts
+import { ref } from 'vue';
+
+const uiLocale = ref<SaLocale>(loadUserPreference() ?? 'de');
+const app = createSuperAdminApp({ i18n: { locale: uiLocale } });
+
+// later, e.g. in a header switcher:
+uiLocale.value = 'en'; // or: app.i18n.locale.value = 'en'
+```
+
+Switching the locale re-renders every catalog text, the sidebar labels and the
+drawer section names; `Intl` formatting (dates, numbers) follows along.
+
+**Overriding individual strings** — apps replace single keys without forking a
+page. Everything not listed keeps the platform text:
+
+```ts
+createSuperAdminApp({
+    i18n: {
+        locale: 'en',
+        overrides: {
+            en: { nav: { pages: { tenants: 'Dealerships' } } },
+            de: { nav: { pages: { tenants: 'Autohäuser' } } },
+        },
+    },
+});
+```
+
+**Reading messages in your own components:**
+
+```ts
+import { useSaMessages, useSuperAdminI18n } from '@saasicat/ui-vue';
+
+const msg = useSaMessages('tenants'); // namespace-focused
+const { locale, intlLocale } = useSuperAdminI18n();
+```
+
+In the template `{{ msg.list.title }}`, in the script `msg.value.list.title`.
+For placeholders use `formatMessage(msg.value.deleteConfirm, { name })`. Outside
+a shell (isolated mounts, unit tests) the composables fall back to a German
+instance, so no setup is required.
+
+**Tenant-facing pages** (`@saasicat/ui-vue/pages-tenant/*`) are embedded in the
+consumer's own app rather than the SuperAdmin shell and therefore keep their
+prop-based map (`TenantPlanSectionI18n`). They now ship a German **and** an
+English default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by
+`defaultTenantPlanSectionI18n(locale)`); the `i18n` prop still overrides
+individual keys.
+
+**Adding a language** is a platform change, not an app change: add the locale to
+`SA_LOCALES`/`SA_INTL_LOCALES` and a third variant per namespace under
+`packages/saas-platform-ui-vue/src/client/i18n/messages/`. The German object is
+the reference structure — the compiler rejects a translation with missing or
+extra keys.
+
 ---
 
 ## 9. CLI Integration

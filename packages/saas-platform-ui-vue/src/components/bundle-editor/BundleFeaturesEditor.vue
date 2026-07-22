@@ -48,7 +48,7 @@
             </div>
         </template>
         <div v-if="groupedFeatures.length === 0" class="bd-features-empty">
-            Keine Features im Discovery-Snapshot.
+            {{ msg.featuresEditor.empty }}
         </div>
     </div>
 </template>
@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { DiscoveredFeature } from '@saasicat/types';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleFeaturesEditor — grouped pills for the feature selection of a
 // bundle version (after plan simulation). The source of truth for the
@@ -88,6 +89,9 @@ const props = defineProps<{
     overlapKeys?: string[];
 }>();
 
+const msg = useSaMessages('bundles');
+const { intlLocale } = useSuperAdminI18n();
+
 const emit = defineEmits<{
     (e: 'toggle', featureKey: string): void;
 }>();
@@ -97,15 +101,17 @@ function featureLabel(key: string): string {
 }
 
 function featureGroup(key: string): string {
-    return props.featureRegistry?.[key]?.group ?? 'Allgemein';
+    return props.featureRegistry?.[key]?.group ?? msg.value.featuresEditor.fallbackGroup;
 }
 
 function pillTitle(key: string): string {
-    if (props.locked) return 'Live-Version ist read-only';
+    if (props.locked) return msg.value.compatPicker.lockedTooltip;
     if (props.overlapKeys?.includes(key)) {
-        return 'Feature ist im kompatiblen Plan bereits enthalten — Doppel-Berechnung';
+        return msg.value.featuresEditor.overlapTooltip;
     }
-    return props.features.includes(key) ? 'Aus Bundle entfernen' : 'In Bundle aufnehmen';
+    return props.features.includes(key)
+        ? msg.value.featuresEditor.removeTooltip
+        : msg.value.featuresEditor.addTooltip;
 }
 
 const overlapKeys = computed(() => props.overlapKeys ?? []);
@@ -119,7 +125,7 @@ const groupedFeatures = computed(() => {
         byGroup.set(g, list);
     }
     return [...byGroup.entries()]
-        .sort(([a], [b]) => a.localeCompare(b, 'de-DE'))
+        .sort(([a], [b]) => a.localeCompare(b, intlLocale.value))
         .map(([key, rows]) => ({ key, label: key, rows }));
 });
 

@@ -60,13 +60,15 @@ export const ProjectPageHost = defineComponent({
             const page = matchingPage.value;
             const cmp = resolvedComponent.value;
             if (page && cmp) return h(cmp);
+            // Misconfiguration diagnostics — developer-facing, therefore not
+            // part of the localized catalog.
             return h('div', { class: 'sa-project-page-host__missing', role: 'alert' }, [
-                h('h2', 'Seite nicht verfügbar'),
+                h('h2', 'Page not available'),
                 h(
                     'p',
                     page
-                        ? `componentKey "${page.componentKey}" ist nicht in der extensions:-Map registriert. Apps müssen die Komponente in createSuperAdminApp({ extensions }) eintragen.`
-                        : `Keine Manifest-Definition für ${route.path}. Entweder fehlt die ProjectPage im Manifest, oder die Capability ist nicht aktiv.`,
+                        ? `componentKey "${page.componentKey}" is not registered in the extensions: map. Apps must register the component in createSuperAdminApp({ extensions }).`
+                        : `No manifest definition for ${route.path}. Either the ProjectPage is missing from the manifest, or the capability is not active.`,
                 ),
             ]);
         };

@@ -7,34 +7,38 @@
                     <code class="sa-fc__key">{{ feature.featureKey }}</code>
                     <span class="sa-fc__label">{{ labelValue || feature.featureKey }}</span>
                     <span v-if="newCapsCount > 0" class="sa-fc__flag sa-fc__flag--new">
-                        {{ newCapsCount }} neu
+                        {{ newCapsLabel }}
                     </span>
                     <span v-if="deprecatedCapsCount > 0" class="sa-fc__flag sa-fc__flag--dep">
-                        {{ deprecatedCapsCount }} deprecated
+                        {{ deprecatedCapsLabel }}
                     </span>
                     <span
                         v-if="feature.successorKey"
                         class="sa-fc__flag sa-fc__flag--succ"
-                        :title="`ersetzt durch ${feature.successorKey}`"
+                        :title="replacedByLabel"
                     >
-                        ersetzt durch {{ feature.successorKey }}
+                        {{ replacedByLabel }}
                     </span>
                     <span
                         v-if="feature.replaces.length"
                         class="sa-fc__flag sa-fc__flag--repl"
-                        :title="`ersetzt: ${feature.replaces.join(', ')}`"
+                        :title="replacesLabel"
                     >
-                        ersetzt: {{ feature.replaces.join(', ') }}
+                        {{ replacesLabel }}
                     </span>
                 </div>
                 <div class="sa-fc__sub">
                     <template v-if="owners.length">
-                        <span class="sa-muted">Owner</span>
+                        <span class="sa-muted">{{ msg.owner }}</span>
                         {{ owners.join(', ') }}
                         <span class="sa-fc__dot">·</span>
                     </template>
                     {{ capabilities.length }}
-                    Capabilit{{ capabilities.length === 1 ? 'y' : 'ies' }}
+                    {{
+                        capabilities.length === 1
+                            ? msg.feature.capabilityOne
+                            : msg.feature.capabilityMany
+                    }}
                     <template v-if="tierValue">
                         <span class="sa-fc__dot">·</span>
                         <span class="sa-fc__tier">{{ tierValue }}</span>
@@ -65,34 +69,31 @@
             <div v-if="feature.discoveryStatus === 'outdated'" class="sa-fc__banner warn">
                 <q-icon name="warning" size="16px" />
                 <span>
-                    Die Implementierung hat sich seit der letzten Freigabe geändert. Bitte
-                    Stammdaten &amp; Capabilities prüfen und <b>erneut freigeben</b>.
+                    {{ msg.feature.outdatedBanner }} <b>{{ msg.reapproveEmphasis }}</b
+                    >.
                 </span>
             </div>
             <div v-if="feature.discoveryStatus === 'obsolete'" class="sa-fc__banner mute">
                 <q-icon name="info" size="16px" />
-                <span>
-                    Dieses Feature ist abgekündigt. Es sollte in neuen Plänen nicht mehr verwendet
-                    werden.
-                </span>
+                <span>{{ msg.feature.obsoleteBanner }}</span>
             </div>
 
             <q-tabs v-model="sub" dense align="left" class="sa-fc__subtabs">
-                <q-tab name="stamm" label="Stammdaten" />
-                <q-tab name="i18n" label="Übersetzungen" />
+                <q-tab name="stamm" :label="msg.feature.tabBaseData" />
+                <q-tab name="i18n" :label="msg.feature.tabTranslations" />
             </q-tabs>
 
             <div v-if="sub === 'stamm'" class="sa-fc__split">
                 <div class="sa-fc__split-col">
-                    <div class="sa-fc__split-head">Einstellungen</div>
+                    <div class="sa-fc__split-head">{{ msg.feature.settings }}</div>
                     <div class="sa-fc__fields">
                         <div class="sa-fc-field">
-                            <label class="sa-fc-field__cap">Icon (Quasar-Icon-Name)</label>
+                            <label class="sa-fc-field__cap">{{ msg.feature.iconLabel }}</label>
                             <q-input
                                 dense
                                 outlined
                                 :model-value="iconValue"
-                                placeholder="z. B. directions_car"
+                                :placeholder="msg.feature.iconPlaceholder"
                                 @update:model-value="(v) => onField('icon', String(v ?? ''))"
                             >
                                 <template #prepend>
@@ -101,7 +102,7 @@
                             </q-input>
                         </div>
                         <div class="sa-fc-field">
-                            <label class="sa-fc-field__cap">Tier</label>
+                            <label class="sa-fc-field__cap">{{ msg.feature.tierLabel }}</label>
                             <q-select
                                 dense
                                 outlined
@@ -117,10 +118,8 @@
                 </div>
                 <div class="sa-fc__split-col">
                     <div class="sa-fc__split-head">
-                        Code Capabilities
-                        <span class="sa-fc__split-count">
-                            {{ capabilities.length }} · read-only
-                        </span>
+                        {{ msg.feature.codeCapabilities }}
+                        <span class="sa-fc__split-count">{{ codeCapabilitiesCountLabel }}</span>
                     </div>
                     <DiscoveryCapList
                         :capabilities="capabilities"
@@ -156,6 +155,8 @@ import type {
 import CatalogEntryTransPanel from './CatalogEntryTransPanel.vue';
 import DiscoveryCapList from './DiscoveryCapList.vue';
 import DiscoveryStatusControl from './DiscoveryStatusControl.vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import {
     coverageClass,
     coveragePct,
@@ -188,6 +189,8 @@ const emit = defineEmits<{
 }>();
 
 const TIER_OPTIONS = ['CORE', 'ADVANCED', 'PRO', 'ENTERPRISE'];
+
+const msg = useSaMessages('discovery');
 
 const sub = ref<'stamm' | 'i18n'>('stamm');
 
@@ -230,6 +233,22 @@ const newCapsCount = computed(() => {
 });
 const deprecatedCapsCount = computed(
     () => props.capabilities.filter((c) => c.codeStatus === 'deprecated').length,
+);
+
+const newCapsLabel = computed(() =>
+    formatMessage(msg.value.feature.newCaps, { count: newCapsCount.value }),
+);
+const deprecatedCapsLabel = computed(() =>
+    formatMessage(msg.value.feature.deprecatedCaps, { count: deprecatedCapsCount.value }),
+);
+const replacedByLabel = computed(() =>
+    formatMessage(msg.value.replacedBy, { key: props.feature.successorKey ?? '' }),
+);
+const replacesLabel = computed(() =>
+    formatMessage(msg.value.replaces, { keys: props.feature.replaces.join(', ') }),
+);
+const codeCapabilitiesCountLabel = computed(() =>
+    formatMessage(msg.value.feature.codeCapabilitiesCount, { count: props.capabilities.length }),
 );
 
 const targetLocales = computed(() =>

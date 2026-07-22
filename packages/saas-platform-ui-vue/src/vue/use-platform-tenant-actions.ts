@@ -14,6 +14,8 @@
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
 import { useTenantActionFlow } from './use-tenant-action-flow.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 export type TenantRowLike = TenantDto & Record<string, unknown>;
 
@@ -91,11 +93,6 @@ const DEFAULT_VISIBLE_FOR_ROW = <TRow extends TenantRowLike>(
     return true;
 };
 
-const DEFAULT_MFA_DESCRIPTION = <TRow extends TenantRowLike>(
-    def: TenantActionDef,
-    row: TRow,
-): string => `${def.label} — Tenant „${row.name}". TOTP-Code aus Authenticator eingeben.`;
-
 const DEFAULT_ICON_FOR_ACTION_KEY = (actionKey: string): string => {
     if (actionKey.endsWith('.suspend')) return 'block';
     if (actionKey.endsWith('.reactivate')) return 'play_arrow';
@@ -131,7 +128,13 @@ export function defaultToneForActionKey(actionKey: string): PlatformTenantAction
 export function usePlatformTenantActions<TRow extends TenantRowLike>(
     options: PlatformTenantActionsOptions<TRow>,
 ): PlatformTenantActionsResult<TRow> {
-    const mfaDescription = options.mfaDescription ?? DEFAULT_MFA_DESCRIPTION;
+    const msg = useSaMessages('tenants');
+    const defaultMfaDescription = (def: TenantActionDef, row: TRow): string =>
+        formatMessage(msg.value.actions.mfaDescription, {
+            action: def.label,
+            tenant: row.name,
+        });
+    const mfaDescription = options.mfaDescription ?? defaultMfaDescription;
     const iconForActionKey = options.iconForActionKey ?? DEFAULT_ICON_FOR_ACTION_KEY;
     const toneForActionKey = options.toneForActionKey ?? DEFAULT_TONE_FOR_ACTION_KEY;
     const visibleForRow = options.visibleForRow ?? DEFAULT_VISIBLE_FOR_ROW;

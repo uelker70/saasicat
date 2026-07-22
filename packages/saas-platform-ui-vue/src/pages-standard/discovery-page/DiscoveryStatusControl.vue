@@ -1,8 +1,8 @@
 <template>
     <div class="sa-stc" @click.stop>
         <span class="sa-review" :class="`sa-review--${status}`">
-            {{ STATUS_META[status].label }}
-            <q-tooltip>{{ STATUS_META[status].hint }}</q-tooltip>
+            {{ statusLabel(status, locale) }}
+            <q-tooltip>{{ statusHint(status, locale) }}</q-tooltip>
         </span>
         <q-btn
             dense
@@ -15,7 +15,7 @@
             :loading="busy"
             @click="emit('set-status', primary.to)"
         >
-            <q-tooltip>{{ STATUS_META[primary.to].hint }}</q-tooltip>
+            <q-tooltip>{{ statusHint(primary.to, locale) }}</q-tooltip>
         </q-btn>
         <q-btn v-if="menu.length" dense flat round size="sm" icon="more_horiz">
             <q-menu auto-close anchor="bottom right" self="top right">
@@ -39,7 +39,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { DiscoveryStatus } from '@saasicat/types';
-import { primaryReviewAction, reviewMenuActions, STATUS_META } from './discovery-ui.js';
+import { useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { primaryReviewAction, reviewMenuActions, statusHint, statusLabel } from './discovery-ui.js';
 
 // StatusControl (#20, design sim): status chip + contextual primary action
 // + kebab menu for the remaining lifecycle transitions. Shared by the feature
@@ -56,8 +57,10 @@ const emit = defineEmits<{
     'set-status': [target: DiscoveryStatus];
 }>();
 
-const primary = computed(() => primaryReviewAction(props.status));
-const menu = computed(() => reviewMenuActions(props.status));
+const { locale } = useSuperAdminI18n();
+
+const primary = computed(() => primaryReviewAction(props.status, locale.value));
+const menu = computed(() => reviewMenuActions(props.status, locale.value));
 </script>
 
 <style scoped>

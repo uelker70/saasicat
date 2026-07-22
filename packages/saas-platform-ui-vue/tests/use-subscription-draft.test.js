@@ -271,7 +271,7 @@ describe('useSubscriptionDraft — toApiPayload', () => {
 
     test('throws when plan is not set', () => {
         const d = buildDraft({ initialPlan: null });
-        assert.throws(() => d.toApiPayload(), /plan ist nicht gesetzt/);
+        assert.throws(() => d.toApiPayload(), /plan is not set/);
     });
 });
 

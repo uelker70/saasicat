@@ -51,35 +51,29 @@
         </span>
         <div class="bv-status-text">
             <template v-if="status === 'live'">
-                <b>v{{ version.version }}</b> ist <b>live</b> seit
-                {{ formatDateDE(version.validFrom) }} — wird aktuell als Add-On angeboten.
-                <span class="bv-status-warn">
-                    Inhalt &amp; Preis sind read-only (laufende Verträge). Für Änderungen eine neue
-                    Version anlegen.
-                </span>
+                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
+                <b>{{ msg.statusBanner.live }}</b> {{ liveTail }}
+                <span class="bv-status-warn">{{ msg.statusBanner.liveWarning }}</span>
             </template>
             <template v-else-if="status === 'scheduled'">
-                <b>v{{ version.version }}</b> ist <b>geplant</b> für
-                {{ formatDateDE(version.validFrom) }} — wird ab dann verkaufbar.
-                <span class="bv-status-ok">Frei editierbar bis dahin.</span>
+                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
+                <b>{{ msg.statusBanner.scheduled }}</b> {{ scheduledTail }}
+                <span class="bv-status-ok">{{ msg.statusBanner.scheduledOk }}</span>
             </template>
             <template v-else-if="status === 'superseded'">
-                <b>v{{ version.version }}</b> ist <b>abgelöst</b> ({{
-                    formatDateDE(version.validFrom)
-                }}
-                – {{ formatDateDE(version.validUntil) }}) — wird nicht mehr angeboten, Bestand
-                bleibt für Abrechnung erhalten.
+                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
+                <b>{{ msg.statusBanner.superseded }}</b> {{ supersededTail }}
             </template>
             <template v-else>
-                <b>v{{ version.version }}</b> ist <b>Draft</b> — noch nicht published, frei
-                editierbar.
+                <b>v{{ version.version }}</b> {{ msg.statusBanner.is }}
+                <b>{{ msg.statusBanner.draft }}</b> {{ msg.statusBanner.draftTail }}
             </template>
         </div>
         <button
             v-if="status === 'scheduled' || status === 'draft'"
             class="bv-status-discard"
             type="button"
-            title="Geplante Version verwerfen"
+            :title="msg.statusBanner.discardTooltip"
             @click="$emit('discard')"
         >
             <svg
@@ -94,7 +88,7 @@
                     d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
                 />
             </svg>
-            <span>Verwerfen</span>
+            <span>{{ msg.statusBanner.discard }}</span>
         </button>
     </div>
 </template>
@@ -103,7 +97,9 @@
 import { computed } from 'vue';
 import type { BundleVersionRow } from '@saasicat/types';
 
-import { bundleVersionStatus, formatDateDE } from './bundle-version-status';
+import { bundleVersionStatus, formatDate } from './bundle-version-status';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleStatusBanner — inline hint per bundle version with plain-text info on
 // editability (after plan simulation). Shows the status + the business
@@ -119,7 +115,27 @@ defineEmits<{
     (e: 'discard'): void;
 }>();
 
+const msg = useSaMessages('bundles');
+const { locale } = useSuperAdminI18n();
+
 const status = computed(() => bundleVersionStatus(props.version, props.now));
+
+const liveTail = computed(() =>
+    formatMessage(msg.value.statusBanner.liveTail, {
+        date: formatDate(props.version.validFrom, locale.value),
+    }),
+);
+const scheduledTail = computed(() =>
+    formatMessage(msg.value.statusBanner.scheduledTail, {
+        date: formatDate(props.version.validFrom, locale.value),
+    }),
+);
+const supersededTail = computed(() =>
+    formatMessage(msg.value.statusBanner.supersededTail, {
+        from: formatDate(props.version.validFrom, locale.value),
+        until: formatDate(props.version.validUntil, locale.value),
+    }),
+);
 </script>
 
 <style scoped>

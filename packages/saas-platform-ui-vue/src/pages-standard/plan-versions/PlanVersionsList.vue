@@ -1,21 +1,29 @@
 <template>
     <div class="sa-pv-list">
         <div class="sa-pv-list__kpis">
-            <PlanVersionsKpi label="Pakete" :value="snapshot.plans.length" icon="inventory_2" />
             <PlanVersionsKpi
-                label="Self-Service"
+                :label="msg.list.kpiPlans"
+                :value="snapshot.plans.length"
+                icon="inventory_2"
+            />
+            <PlanVersionsKpi
+                :label="msg.list.kpiSelfService"
                 :value="marketedCount"
                 icon="storefront"
-                :sub="`von ${snapshot.plans.length}`"
+                :sub="totalPlansLabel"
             />
-            <PlanVersionsKpi label="Features gesamt" :value="totalFeatures" icon="extension" />
+            <PlanVersionsKpi
+                :label="msg.list.kpiFeaturesTotal"
+                :value="totalFeatures"
+                icon="extension"
+            />
         </div>
 
         <div v-if="missingPlans.length > 0" class="sa-pv-list__missing">
             <q-icon name="info" size="16px" />
             <div>
-                <strong>Fehlende Pakete:</strong> {{ missingPlans.join(', ') }} — keine Live-Version
-                in diesem Snapshot.
+                <strong>{{ msg.list.missingPlansLabel }}</strong> {{ missingPlans.join(', ') }}
+                {{ msg.list.missingPlansHint }}
                 <template v-if="canEdit">
                     <button
                         v-for="planId in missingPlans"
@@ -24,7 +32,7 @@
                         class="sa-pv-list__missing-btn"
                         @click="emit('createPlanDraft', planId)"
                     >
-                        Draft für {{ planId }}
+                        {{ createDraftLabel(planId) }}
                     </button>
                 </template>
             </div>
@@ -36,8 +44,8 @@
                     class="sa-pv-list__head sa-pv-list__row sa-pv-list__row--default"
                     :style="rowGridStyle"
                 >
-                    <div>Paket</div>
-                    <div class="sa-pv-list__th--num">Preis (netto)</div>
+                    <div>{{ msg.list.colPlan }}</div>
+                    <div class="sa-pv-list__th--num">{{ msg.list.colPriceNet }}</div>
                     <div
                         v-for="col in quotaColumns"
                         :key="`hd-${col.key}`"
@@ -45,7 +53,7 @@
                     >
                         {{ col.label }}
                     </div>
-                    <div class="sa-pv-list__th--num">Features</div>
+                    <div class="sa-pv-list__th--num">{{ msg.list.colFeatures }}</div>
                 </div>
             </slot>
 
@@ -65,7 +73,9 @@
                         <div class="sa-pv-list__default-name">
                             <strong>{{ plan.planId }}</strong>
                             <span class="sa-pv-list__default-version">v{{ plan.version }}</span>
-                            <span v-if="plan.isDraft" class="sa-pv-list__default-chip">DRAFT</span>
+                            <span v-if="plan.isDraft" class="sa-pv-list__default-chip">{{
+                                msg.status.draft
+                            }}</span>
                         </div>
                         <div class="sa-pv-list__th--num">
                             {{ formatEuro(plan.monthlyNet) }}
@@ -86,10 +96,10 @@
         <div v-if="snapshot.kind === 'drafts'" class="sa-pv-list__draft-hint">
             <q-icon name="info" size="18px" />
             <div>
-                <strong>Arbeitsstand:</strong> Drafts oben in der Liste. Limits, Preise und Features
-                per Klick auf <em>„Bearbeiten"</em> ändern (ohne MFA). Erst
-                <strong>Publish-Flow</strong> (Validate → Diff-Review → MFA → Apply) macht sie für
-                künftige Renewals wirksam.
+                <strong>{{ msg.list.draftHintLabel }}</strong> {{ msg.list.draftHintBefore }}
+                <em>{{ msg.list.draftHintEditButton }}</em> {{ msg.list.draftHintMiddle }}
+                <strong>{{ msg.list.draftHintPublishFlow }}</strong>
+                {{ msg.list.draftHintAfter }}
             </div>
         </div>
     </div>
@@ -98,6 +108,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanVersionsKpi from './PlanVersionsKpi.vue';
 import { fmtEuro } from './format.js';
 
@@ -136,8 +148,15 @@ const emit = defineEmits<{
     (e: 'createPlanDraft', planId: string): void;
 }>();
 
+const msg = useSaMessages('planVersions');
+const { locale } = useSuperAdminI18n();
+
 const openId = ref<string | null>(null);
 const canEdit = computed(() => props.snapshot.kind === 'drafts');
+
+const totalPlansLabel = computed(() =>
+    formatMessage(msg.value.list.kpiOfTotal, { count: props.snapshot.plans.length }),
+);
 
 const marketedCount = computed(() => props.snapshot.plans.filter((p) => p.marketed).length);
 const totalFeatures = computed(() => new Set(props.snapshot.plans.flatMap((p) => p.features)).size);
@@ -163,8 +182,12 @@ function onToggle(id: string): void {
     openId.value = openId.value === id ? null : id;
 }
 
+function createDraftLabel(planId: string): string {
+    return formatMessage(msg.value.list.createDraftFor, { planId });
+}
+
 function formatEuro(n: number): string {
-    return fmtEuro(n);
+    return fmtEuro(n, locale.value);
 }
 
 function formatQuotaValue(value: number | undefined, col: QuotaColumnConfig): string {

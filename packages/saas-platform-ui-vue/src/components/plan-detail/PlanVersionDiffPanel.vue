@@ -2,22 +2,8 @@
     <section class="pd-panel">
         <div class="pd-panel-head">
             <div style="min-width: 0">
-                <h3 class="pd-panel-title">
-                    <template v-if="predecessor">
-                        Diff v{{ predecessor.version }} → v{{ selectedVersion?.version }}
-                    </template>
-                    <template v-else>Komponenten · v{{ selectedVersion?.version }}</template>
-                </h3>
-                <div class="pd-panel-sub">
-                    <template v-if="predecessor && selectedVersion">
-                        {{
-                            statusOf(selectedVersion) === 'draft'
-                                ? 'Was sich beim Publish ändert'
-                                : `Änderungen v${predecessor.version} → v${selectedVersion.version}`
-                        }}
-                    </template>
-                    <template v-else>Initialversion · kein Vorgänger zum Vergleich</template>
-                </div>
+                <h3 class="pd-panel-title">{{ panelTitle }}</h3>
+                <div class="pd-panel-sub">{{ panelSubtitle }}</div>
             </div>
             <div class="pd-panel-head-right pd-diff-chips">
                 <template v-if="predecessor">
@@ -39,10 +25,10 @@
                     <span class="pd-diff-kind">
                         {{
                             d.kind === 'add'
-                                ? 'Hinzugefügt'
+                                ? msg.diff.kindAdded
                                 : d.kind === 'rm'
-                                  ? 'Entfernt'
-                                  : 'Geändert'
+                                  ? msg.diff.kindRemoved
+                                  : msg.diff.kindChanged
                         }}
                     </span>
                     <span class="pd-diff-label">{{ d.label }}</span>
@@ -56,8 +42,8 @@
                 </div>
             </div>
             <div v-if="diffRows.length === 0" class="pd-diff-empty">
-                <b>Keine Änderungen</b>
-                v{{ selectedVersion?.version }} ist identisch zu v{{ predecessor.version }}.
+                <b>{{ msg.diff.emptyTitle }}</b>
+                {{ emptyText }}
             </div>
         </div>
 
@@ -66,13 +52,17 @@
                 v-if="selectedVersion.features.length === 0 && quotaCount(selectedVersion) === 0"
                 class="pd-diff-empty"
             >
-                <b>Keine Komponenten</b>
-                Diese Version enthält weder Features noch Quotas.
+                <b>{{ msg.diff.noComponentsTitle }}</b>
+                {{ msg.diff.noComponentsText }}
             </div>
             <template v-if="selectedVersion.features.length > 0">
                 <div class="pd-diff-section">
                     <hr />
-                    <span>Features · {{ selectedVersion.features.length }}</span>
+                    <span>{{
+                        formatMessage(msg.diff.sectionFeatures, {
+                            count: selectedVersion.features.length,
+                        })
+                    }}</span>
                     <hr />
                 </div>
                 <div
@@ -90,7 +80,11 @@
             <template v-if="quotaCount(selectedVersion) > 0">
                 <div class="pd-diff-section">
                     <hr />
-                    <span>Quotas · {{ quotaCount(selectedVersion) }}</span>
+                    <span>{{
+                        formatMessage(msg.diff.sectionQuotas, {
+                            count: quotaCount(selectedVersion),
+                        })
+                    }}</span>
                     <hr />
                 </div>
                 <div
@@ -109,7 +103,11 @@
             <template v-if="(selectedVersion.bundles ?? []).length > 0">
                 <div class="pd-diff-section">
                     <hr />
-                    <span>Bundles · {{ (selectedVersion.bundles ?? []).length }}</span>
+                    <span>{{
+                        formatMessage(msg.diff.sectionBundles, {
+                            count: (selectedVersion.bundles ?? []).length,
+                        })
+                    }}</span>
                     <hr />
                 </div>
                 <div
@@ -129,10 +127,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { DiffRow, PlanVersionDiff, StatusOf } from './types.js';
 
-defineProps<{
+const props = defineProps<{
     selectedVersion: PlanVersionRow | null;
     predecessor: PlanVersionRow | null;
     diff: PlanVersionDiff;
@@ -146,4 +147,36 @@ defineProps<{
     quotaUnit: (key: string) => string;
     bundleLabel: (key: string) => string;
 }>();
+
+const msg = useSaMessages('planDetail');
+
+const panelTitle = computed(() =>
+    props.predecessor
+        ? formatMessage(msg.value.diff.titleCompare, {
+              from: props.predecessor.version,
+              to: props.selectedVersion?.version ?? '',
+          })
+        : formatMessage(msg.value.diff.titleComponents, {
+              version: props.selectedVersion?.version ?? '',
+          }),
+);
+
+const panelSubtitle = computed(() => {
+    const predecessor = props.predecessor;
+    const selected = props.selectedVersion;
+    if (!predecessor || !selected) return msg.value.diff.subInitialVersion;
+    return props.statusOf(selected) === 'draft'
+        ? msg.value.diff.subOnPublish
+        : formatMessage(msg.value.diff.subChanges, {
+              from: predecessor.version,
+              to: selected.version,
+          });
+});
+
+const emptyText = computed(() =>
+    formatMessage(msg.value.diff.emptyText, {
+        selected: props.selectedVersion?.version ?? '',
+        predecessor: props.predecessor?.version ?? '',
+    }),
+);
 </script>

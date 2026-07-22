@@ -1,10 +1,9 @@
 <template>
     <header class="sa-discovery__head">
         <div>
-            <h1 class="sa-discovery__title">Discovery</h1>
+            <h1 class="sa-discovery__title">{{ msg.title }}</h1>
             <p class="sa-discovery__sub">
-                Capabilities, die der Code <b>aktuell</b> implementiert. Discovery ist Ist-Zustand —
-                die Freigabe für Produkt &amp; Marketing erfolgt im Review.
+                {{ msg.subtitleLead }} <b>{{ msg.subtitleEmphasis }}</b> {{ msg.subtitleTail }}
             </p>
         </div>
         <div class="sa-discovery__head-actions">
@@ -12,7 +11,7 @@
                 unelevated
                 color="primary"
                 icon="bolt"
-                label="Discovery neu ausführen"
+                :label="msg.runDiscovery"
                 :loading="loading"
                 @click="emit('runDiscovery')"
             />
@@ -21,6 +20,8 @@
 </template>
 
 <script setup lang="ts">
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+
 defineProps<{
     loading: boolean;
 }>();
@@ -28,4 +29,6 @@ defineProps<{
 const emit = defineEmits<{
     (e: 'runDiscovery'): void;
 }>();
+
+const msg = useSaMessages('discovery');
 </script>

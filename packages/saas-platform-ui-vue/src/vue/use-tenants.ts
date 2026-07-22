@@ -44,9 +44,9 @@ export function useTenants<T extends TenantDto = TenantDto>(
 ): UseTenantsResult<T> {
     if (!options?.endpoint) {
         throw new Error(
-            'useTenants: `endpoint` ist Pflicht (z. B. "/api/v1/admin/tenants" oder ' +
-                '"/api/admin/tenants"). Plattform hat keinen Default, weil Apps ' +
-                'unterschiedliche globalPrefix-Konventionen haben.',
+            'useTenants: `endpoint` is required (e.g. "/api/v1/admin/tenants" or ' +
+                '"/api/admin/tenants"). The platform has no default because apps ' +
+                'use different globalPrefix conventions.',
         );
     }
     const filter = options.filter ?? ref<TenantListFilter>({});

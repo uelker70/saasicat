@@ -29,9 +29,9 @@ export interface UseAuditEntriesResult extends UseApiListResult<AuditEntry> {
 export function useAuditEntries(options: UseAuditEntriesOptions): UseAuditEntriesResult {
     if (!options?.endpoint) {
         throw new Error(
-            'useAuditEntries: `endpoint` ist Pflicht (z. B. "/api/admin/audit" ' +
-                'oder "/api/v1/admin/audit"). Plattform hat keinen Default, weil ' +
-                'Apps unterschiedliche globalPrefix-Konventionen haben.',
+            'useAuditEntries: `endpoint` is required (e.g. "/api/admin/audit" ' +
+                'or "/api/v1/admin/audit"). The platform has no default because ' +
+                'apps use different globalPrefix conventions.',
         );
     }
     const filter = options.filter ?? ref<AuditQuery>({});

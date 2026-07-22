@@ -2,15 +2,17 @@
     <q-dialog v-model="open" persistent>
         <q-card style="min-width: 600px; max-width: 96vw">
             <q-card-section>
-                <div class="text-h6">BusinessTypeVersion publishen</div>
+                <div class="text-h6">{{ msg.publish.title }}</div>
                 <p class="text-caption text-grey-7">
-                    BusinessType <code>{{ businessTypeKey }}</code> · v{{ draft.version }}
+                    {{ msg.businessTypeLabel }} <code>{{ businessTypeKey }}</code> · v{{
+                        draft.version
+                    }}
                 </p>
             </q-card-section>
 
             <q-card-section v-if="!previewLoaded" class="bvtp__loading">
                 <q-spinner color="primary" size="32px" />
-                <span class="q-ml-sm">Diff wird geladen …</span>
+                <span class="q-ml-sm">{{ msg.publish.loadingDiff }}</span>
             </q-card-section>
 
             <q-card-section v-else class="bvtp__body">
@@ -18,7 +20,7 @@
                     <template #avatar>
                         <q-icon name="warning" color="warning" />
                     </template>
-                    <strong>{{ warnings.length }} Strict-Mode-Warnung(en)</strong>
+                    <strong>{{ strictWarningsLabel }}</strong>
                     <ul class="bvtp__list">
                         <li v-for="(w, i) in warnings" :key="i">
                             <code>{{ w.code }}</code>
@@ -32,11 +34,9 @@
 
                 <div>
                     <div class="bvtp__label">
-                        Änderungen gegenüber
+                        {{ msg.publish.changesAgainst }}
                         <span v-if="previousVersion">v{{ previousVersion }}</span>
-                        <span v-else class="text-grey-7">
-                            — keine Vorgänger-Version (Erst-Veröffentlichung)
-                        </span>
+                        <span v-else class="text-grey-7">{{ msg.publish.noPrevious }}</span>
                     </div>
                     <q-banner
                         v-if="changes.length === 0 && previousVersion"
@@ -47,7 +47,7 @@
                         <template #avatar>
                             <q-icon name="info" color="grey-7" />
                         </template>
-                        Keine Änderungen — die Versionen sind inhaltlich gleich.
+                        {{ msg.publish.noChanges }}
                     </q-banner>
                     <q-list v-else-if="changes.length > 0" bordered separator>
                         <q-item v-for="(c, i) in changes" :key="i">
@@ -78,13 +78,12 @@
                     <template #avatar>
                         <q-icon name="error" color="negative" />
                     </template>
-                    <strong>Regressive Änderung erkannt.</strong>
-                    Diese Version entfernt Bundles, senkt Quota-Overrides oder erhöht Preise.
-                    Vertragsschutz P3 verlangt Bestand-Opt-in.
+                    <strong>{{ msg.publish.regressionTitle }}</strong>
+                    {{ msg.publish.regressionHint }}
                     <template #action>
                         <q-toggle
                             v-model="forceRegressive"
-                            label="Trotzdem publishen"
+                            :label="msg.publish.publishAnyway"
                             color="negative"
                         />
                     </template>
@@ -92,11 +91,11 @@
             </q-card-section>
 
             <q-card-actions align="right">
-                <q-btn flat label="Abbrechen" @click="close" />
+                <q-btn flat :label="common.cancel" @click="close" />
                 <q-btn
                     unelevated
                     :color="isRegression ? 'negative' : 'positive'"
-                    :label="isRegression ? 'Regressiv publishen' : 'Publishen'"
+                    :label="isRegression ? msg.publish.submitRegressive : msg.publish.submit"
                     :loading="submitting"
                     :disable="isRegression && !forceRegressive"
                     @click="submit"
@@ -114,6 +113,8 @@ import type {
     StrictModeWarning,
     VersionChange,
 } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
     modelValue: boolean;
@@ -149,8 +150,14 @@ const nonRegressive = ref(true);
 const forceRegressive = ref(false);
 const submitting = ref(false);
 
+const msg = useSaMessages('businessTypes');
+const common = useSaMessages('common');
+
 const previousVersion = computed(() => props.previous?.version ?? null);
 const isRegression = computed(() => previewLoaded.value && !nonRegressive.value);
+const strictWarningsLabel = computed(() =>
+    formatMessage(msg.value.strictWarnings, { count: props.warnings.length }),
+);
 
 watch(
     () => [props.modelValue, props.draft, props.previous],

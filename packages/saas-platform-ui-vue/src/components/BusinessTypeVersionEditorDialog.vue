@@ -3,21 +3,23 @@
         <q-card style="min-width: 720px; max-width: 96vw">
             <q-card-section>
                 <div class="text-h6">
-                    {{ mode === 'create' ? 'Neue BusinessTypeVersion' : 'Draft bearbeiten' }}
+                    {{ mode === 'create' ? msg.editor.titleCreate : msg.editor.titleEdit }}
                 </div>
                 <p class="text-caption text-grey-7">
-                    BusinessType <code>{{ businessTypeKey }}</code> · v{{ versionNumber }}
-                    {{ mode === 'create' ? '(neu)' : '(Draft)' }}
+                    {{ msg.businessTypeLabel }} <code>{{ businessTypeKey }}</code> · v{{
+                        versionNumber
+                    }}
+                    {{ mode === 'create' ? msg.editor.modeNew : msg.editor.modeDraft }}
                 </p>
             </q-card-section>
 
             <q-card-section class="bvt__body">
                 <!-- Bundle composition -->
                 <div>
-                    <div class="bvt__label">Bundle-Komposition</div>
+                    <div class="bvt__label">{{ msg.editor.bundleComposition }}</div>
                     <p class="text-caption text-grey-7 q-mb-sm">
-                        BusinessType referenziert konkrete <strong>published</strong>
-                        BundleVersions. Reihenfolge bestimmt die Sortierung im UI.
+                        {{ msg.editor.bundleHintBefore }} <strong>published</strong>
+                        {{ msg.editor.bundleHintAfter }}
                     </p>
 
                     <q-list bordered separator dense>
@@ -35,7 +37,7 @@
                                     map-options
                                     outlined
                                     dense
-                                    label="BundleVersion"
+                                    :label="msg.editor.bundleVersion"
                                     @update:model-value="(v) => updateBundleAt(idx, String(v))"
                                 />
                             </q-item-section>
@@ -76,14 +78,13 @@
                         <template #avatar>
                             <q-icon name="warning" color="warning" />
                         </template>
-                        Mindestens ein Bundle muss referenziert werden, bevor die Version published
-                        werden kann.
+                        {{ msg.editor.noBundlesWarning }}
                     </q-banner>
                     <q-btn
                         flat
                         dense
                         icon="add"
-                        label="Bundle ergänzen"
+                        :label="msg.editor.addBundle"
                         color="primary"
                         :disable="availableBundles.length === 0"
                         @click="addBundle"
@@ -92,11 +93,8 @@
 
                 <!-- Quota overrides -->
                 <div>
-                    <div class="bvt__label">Quota-Overrides</div>
-                    <p class="text-caption text-grey-7 q-mb-sm">
-                        Fehlender Key = Σ(Bundle-Quotas); gesetzter Key ersetzt die Summe (-1 =
-                        unbegrenzt).
-                    </p>
+                    <div class="bvt__label">{{ msg.editor.quotaOverrides }}</div>
+                    <p class="text-caption text-grey-7 q-mb-sm">{{ msg.editor.quotaHint }}</p>
                     <div class="bvt__quotas">
                         <div
                             v-for="(_value, key) in form.quotaOverrides"
@@ -107,7 +105,7 @@
                                 :model-value="key"
                                 outlined
                                 dense
-                                label="Key"
+                                :label="msg.keyLabel"
                                 @update:model-value="(newKey) => renameQuota(key, String(newKey))"
                             />
                             <q-input
@@ -115,7 +113,7 @@
                                 outlined
                                 dense
                                 type="number"
-                                label="Wert"
+                                :label="msg.editor.quotaValue"
                             />
                             <q-btn
                                 flat
@@ -130,7 +128,7 @@
                             flat
                             dense
                             icon="add"
-                            label="Quota-Override ergänzen"
+                            :label="msg.editor.addQuotaOverride"
                             color="primary"
                             @click="addQuota"
                         />
@@ -143,20 +141,20 @@
                         v-model="form.monthlyNet"
                         outlined
                         dense
-                        label="Monatspreis (Override, EUR)"
-                        hint="leer = Σ(Bundle-Preise)"
+                        :label="msg.editor.monthlyNet"
+                        :hint="msg.editor.monthlyNetHint"
                         clearable
                     />
                     <q-input
                         v-model="form.yearlyNet"
                         outlined
                         dense
-                        label="Jahrespreis (Override, EUR)"
+                        :label="msg.editor.yearlyNet"
                         clearable
                     />
                 </div>
 
-                <q-toggle v-model="form.marketed" label="In Public-Catalog vermarkten" />
+                <q-toggle v-model="form.marketed" :label="msg.editor.marketed" />
 
                 <q-input
                     v-model="form.changeNote"
@@ -164,7 +162,7 @@
                     dense
                     type="textarea"
                     autogrow
-                    label="Change-Note"
+                    :label="msg.editor.changeNote"
                 />
 
                 <q-banner
@@ -176,7 +174,7 @@
                     <template #avatar>
                         <q-icon name="warning" color="warning" />
                     </template>
-                    <strong>{{ lastWarnings.length }} Strict-Mode-Warnung(en):</strong>
+                    <strong>{{ strictWarningsLabel }}:</strong>
                     <ul class="bvt__warnings-list">
                         <li v-for="(w, i) in lastWarnings" :key="i">
                             <code>{{ w.code }}</code>
@@ -190,11 +188,11 @@
             </q-card-section>
 
             <q-card-actions align="right">
-                <q-btn flat label="Abbrechen" @click="close" />
+                <q-btn flat :label="common.cancel" @click="close" />
                 <q-btn
                     unelevated
                     color="primary"
-                    :label="mode === 'create' ? 'Anlegen' : 'Speichern'"
+                    :label="mode === 'create' ? common.create : common.save"
                     :disable="form.bundles.length === 0"
                     :loading="submitting"
                     @click="submit"
@@ -214,6 +212,8 @@ import type {
     StrictModeWarning,
     UpdateBusinessTypeVersionDraftData,
 } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 interface FormState {
     bundles: Array<{ bundleVersionId: string; sortOrder: number }>;
@@ -245,6 +245,9 @@ const emit = defineEmits<{
     (e: 'submitted', result: BusinessTypeVersionMutationResult): void;
 }>();
 
+const msg = useSaMessages('businessTypes');
+const common = useSaMessages('common');
+
 const open = computed({
     get: () => props.modelValue,
     set: (v) => emit('update:modelValue', v),
@@ -254,10 +257,18 @@ const form = ref<FormState>(buildInitialForm());
 const submitting = ref(false);
 const lastWarnings = ref<StrictModeWarning[]>([]);
 
+const strictWarningsLabel = computed(() =>
+    formatMessage(msg.value.strictWarnings, { count: lastWarnings.value.length }),
+);
+
 const bundleOptions = computed(() =>
     props.availableBundles.map((bv) => ({
         value: bv.id,
-        label: `${bv.bundleKey} · v${bv.version} (${bv.features.length} Features)`,
+        label: formatMessage(msg.value.editor.bundleOption, {
+            key: bv.bundleKey,
+            version: bv.version,
+            count: bv.features.length,
+        }),
     })),
 );
 

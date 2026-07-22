@@ -43,6 +43,12 @@ import {
     type SuperAdminLoginAdapter,
 } from '../vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from '../vue/ui-notify.js';
+import {
+    SUPER_ADMIN_I18N_KEY,
+    createSuperAdminI18n,
+    type SuperAdminI18n,
+    type SuperAdminI18nOptions,
+} from '../vue/use-super-admin-i18n.js';
 import { quasarNotify } from './notify.js';
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
@@ -98,12 +104,21 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * including for the setup wizard. Consumed via `useSuperAdminHttp()`.
      */
     http?: HttpClient;
+    /**
+     * Optional: UI locale + string overrides. Default is German. The created
+     * context is returned on the handle (`handle.i18n`) — set
+     * `handle.i18n.locale.value = 'en'` (or pass a `Ref` here) to switch at
+     * runtime. Consumed via `useSuperAdminI18n()` / `useSaMessages()`.
+     */
+    i18n?: SuperAdminI18nOptions;
 }
 
 export interface SuperAdminAppHandle {
     app: App;
     router: Router;
     pinia: Pinia;
+    /** i18n context of the shell — switch locale via `i18n.locale.value`. */
+    i18n: SuperAdminI18n;
     /** Mounts the app on a selector. Returns the root component instance. */
     mount: (selector: string | Element) => ReturnType<App['mount']>;
 }
@@ -147,7 +162,10 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
             options.endpoints.manifestEndpoint ?? `${options.endpoints.apiBase}/manifest`,
     };
 
+    const i18n = createSuperAdminI18n(options.i18n);
+
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
+    app.provide(SUPER_ADMIN_I18N_KEY, i18n);
     app.provide(SUPER_ADMIN_ENDPOINTS_KEY, endpoints);
     app.provide(SUPER_ADMIN_EXTENSIONS_KEY, options.extensions ?? {});
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
@@ -168,6 +186,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
         app,
         router,
         pinia,
+        i18n,
         mount: (selector) => app.mount(selector),
     };
 }

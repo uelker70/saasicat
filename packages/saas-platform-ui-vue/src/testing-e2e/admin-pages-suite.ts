@@ -109,7 +109,7 @@ export function runAdminPagesSuite(
 
     test.describe(`${config.appName}: SuperAdmin-Pages Smoke`, () => {
         for (const pageDef of config.pages) {
-            test(`${pageDef.name} rendert ohne Fehler`, async ({ page }) => {
+            test(`${pageDef.name} renders without errors`, async ({ page }) => {
                 const errors = attachListeners(
                     page,
                     config.consoleErrorAllowlist,
@@ -127,19 +127,19 @@ export function runAdminPagesSuite(
                         timeout: 5_000,
                     });
                 }
-                expect(errors.pageErrors, `pageerror-Events auf ${pageDef.path}`).toHaveLength(0);
+                expect(errors.pageErrors, `pageerror events on ${pageDef.path}`).toHaveLength(0);
                 expect(
                     errors.consoleErrors,
-                    `console.error-Events auf ${pageDef.path}`,
+                    `console.error events on ${pageDef.path}`,
                 ).toHaveLength(0);
                 expect(
                     errors.networkErrors,
-                    `HTTP-Errors auf /api/ während ${pageDef.path}`,
+                    `HTTP errors on /api/ during ${pageDef.path}`,
                 ).toHaveLength(0);
             });
         }
 
-        test('Dashboard zeigt erwartete KPIs, Distributions und Shortcuts', async ({ page }) => {
+        test('Dashboard shows the expected KPIs, distributions and shortcuts', async ({ page }) => {
             attachListeners(page, config.consoleErrorAllowlist);
             await loginIfNeeded(page, config);
             const origin = new URL(config.loginUrl).origin;
@@ -151,7 +151,9 @@ export function runAdminPagesSuite(
             const kpiLabels = await page.locator('.sa-kpi__label').allTextContents();
             const normalizedKpis = kpiLabels.map((s) => s.trim());
             for (const expected of config.expectedKpiLabels) {
-                expect(normalizedKpis, `KPI '${expected}' fehlt auf Dashboard`).toContain(expected);
+                expect(normalizedKpis, `KPI '${expected}' missing on the dashboard`).toContain(
+                    expected,
+                );
             }
 
             if (config.expectedDistributionTitles?.length) {
@@ -162,7 +164,7 @@ export function runAdminPagesSuite(
                 for (const expected of config.expectedDistributionTitles) {
                     expect(
                         normalizedDist,
-                        `Distribution '${expected}' fehlt auf Dashboard`,
+                        `Distribution '${expected}' missing on the dashboard`,
                     ).toContain(expected);
                 }
             }
@@ -172,14 +174,15 @@ export function runAdminPagesSuite(
                 .allTextContents();
             const normalizedShortcuts = shortcutTitles.map((s) => s.trim());
             for (const expected of config.expectedShortcutTitles) {
-                expect(normalizedShortcuts, `Shortcut '${expected}' fehlt auf Dashboard`).toContain(
-                    expected,
-                );
+                expect(
+                    normalizedShortcuts,
+                    `Shortcut '${expected}' missing on the dashboard`,
+                ).toContain(expected);
             }
             for (const forbidden of config.forbiddenShortcutTitles ?? []) {
                 expect(
                     normalizedShortcuts,
-                    `Shortcut '${forbidden}' darf nicht auf Dashboard sein`,
+                    `Shortcut '${forbidden}' must not be on the dashboard`,
                 ).not.toContain(forbidden);
             }
         });

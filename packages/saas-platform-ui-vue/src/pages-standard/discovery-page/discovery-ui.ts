@@ -3,11 +3,10 @@
 // `<script setup>` allows no named exports and the cards share the same
 // labels/colors/coverage calculations.
 
-import type {
-    CapabilityCodeStatus,
-    CatalogEntryI18n,
-    DiscoveryStatus,
-} from '@saasicat/types';
+import type { CatalogEntryI18n, DiscoveryStatus } from '@saasicat/types';
+import { DEFAULT_SA_LOCALE, type SaLocale } from '../../client/i18n/locale.js';
+import { commonMessages } from '../../client/i18n/messages/common.js';
+import { discoveryMessages } from '../../client/i18n/messages/discovery.js';
 
 /** Translatable fields of a catalog entry. */
 export type I18nField = 'label' | 'description' | 'unit';
@@ -43,30 +42,21 @@ export function localeFull(locale: string): string {
     return LOCALE_NAMES[locale]?.full ?? locale;
 }
 
-export function i18nFieldLabel(f: I18nField): string {
-    return f === 'label' ? 'Label' : f === 'description' ? 'Beschreibung' : 'Einheit';
+export function i18nFieldLabel(f: I18nField, locale: SaLocale = DEFAULT_SA_LOCALE): string {
+    if (f === 'label') return discoveryMessages[locale].trans.fieldLabel;
+    if (f === 'description') return commonMessages[locale].description;
+    return discoveryMessages[locale].unit;
 }
 
 // ─── Approval lifecycle (#20): status display + state machine ────────────────
 
-export const STATUS_META: Record<DiscoveryStatus, { label: string; hint: string }> = {
-    pending: {
-        label: 'Pending',
-        hint: 'Im Code gefunden, noch nicht freigegeben — steht der Planung nicht zur Verfügung.',
-    },
-    approved: {
-        label: 'Approved',
-        hint: 'Für Pläne, Bundles & Marketing freigegeben.',
-    },
-    outdated: {
-        label: 'Outdated',
-        hint: 'Code hat sich seit der Freigabe geändert — bitte erneut prüfen und freigeben.',
-    },
-    obsolete: {
-        label: 'Obsolete',
-        hint: 'Abgekündigt — nicht mehr verwenden, in neuen Plänen ausblenden.',
-    },
-};
+export function statusLabel(status: DiscoveryStatus, locale: SaLocale = DEFAULT_SA_LOCALE): string {
+    return discoveryMessages[locale].statusLabels[status];
+}
+
+export function statusHint(status: DiscoveryStatus, locale: SaLocale = DEFAULT_SA_LOCALE): string {
+    return discoveryMessages[locale].statusHints[status];
+}
 
 export interface ReviewAction {
     label: string;
@@ -77,53 +67,51 @@ export interface ReviewAction {
 }
 
 /** Primary action per status (design sim `StatusControl`, #20). */
-export function primaryReviewAction(status: DiscoveryStatus): ReviewAction {
+export function primaryReviewAction(
+    status: DiscoveryStatus,
+    locale: SaLocale = DEFAULT_SA_LOCALE,
+): ReviewAction {
+    const actions = discoveryMessages[locale].reviewActions;
     switch (status) {
         case 'pending':
-            return { label: 'Freigeben', to: 'approved', emphasized: true };
+            return { label: actions.approve, to: 'approved', emphasized: true };
         case 'approved':
-            return { label: 'Freigabe entziehen', to: 'pending', emphasized: false };
+            return { label: actions.revoke, to: 'pending', emphasized: false };
         case 'outdated':
-            return { label: 'Erneut freigeben', to: 'approved', emphasized: true };
+            return { label: actions.reapprove, to: 'approved', emphasized: true };
         case 'obsolete':
-            return { label: 'Reaktivieren', to: 'pending', emphasized: false };
+            return { label: actions.reactivate, to: 'pending', emphasized: false };
     }
 }
 
 /** Kebab menu actions per status (design sim `StatusControl`, #20). */
-export function reviewMenuActions(status: DiscoveryStatus): ReviewAction[] {
+export function reviewMenuActions(
+    status: DiscoveryStatus,
+    locale: SaLocale = DEFAULT_SA_LOCALE,
+): ReviewAction[] {
+    const actions = discoveryMessages[locale].reviewActions;
+    const markObsolete: ReviewAction = {
+        label: actions.markObsolete,
+        to: 'obsolete',
+        emphasized: false,
+        danger: true,
+    };
     switch (status) {
         case 'pending':
-            return [
-                { label: 'Als obsolet markieren', to: 'obsolete', emphasized: false, danger: true },
-            ];
+            return [markObsolete];
         case 'approved':
             return [
-                { label: 'Als veraltet markieren', to: 'outdated', emphasized: false },
-                { label: 'Als obsolet markieren', to: 'obsolete', emphasized: false, danger: true },
+                { label: actions.markOutdated, to: 'outdated', emphasized: false },
+                markObsolete,
             ];
         case 'outdated':
-            return [
-                { label: 'Freigabe entziehen', to: 'pending', emphasized: false },
-                { label: 'Als obsolet markieren', to: 'obsolete', emphasized: false, danger: true },
-            ];
+            return [{ label: actions.revoke, to: 'pending', emphasized: false }, markObsolete];
         case 'obsolete':
             return [];
     }
 }
 
-// ─── Capability code status (read-only code facts, #20) ──────────────────────
-
-const CODE_STATUS_LABELS: Record<CapabilityCodeStatus, string> = {
-    active: 'Aktiv',
-    experimental: 'Experimental',
-    deprecated: 'Deprecated',
-    retired: 'Retired',
-};
-
-export function codeStatusLabel(status: CapabilityCodeStatus): string {
-    return CODE_STATUS_LABELS[status] ?? status;
-}
+// ─── Capability kind styling (read-only code facts, #20) ─────────────────────
 
 const KIND_COLORS: Record<string, string> = {
     endpoint: '#2563eb',

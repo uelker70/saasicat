@@ -3,11 +3,8 @@
         <!-- Page header -->
         <div class="pl-page-head">
             <div>
-                <h2 class="pl-h-title">Alle Pläne</h2>
-                <p class="pl-h-sub">
-                    {{ resolvedPlans.length }} Pläne · {{ liveCount }} live ·
-                    {{ draftCount }} offene Drafts · {{ totalTenants }} Mandanten zugeordnet
-                </p>
+                <h2 class="pl-h-title">{{ msg.list.title }}</h2>
+                <p class="pl-h-sub">{{ summary }}</p>
             </div>
             <div class="pl-head-actions">
                 <button class="pl-btn" type="button" @click="$emit('showMatrix')">
@@ -24,7 +21,7 @@
                         <rect x="3" y="14" width="7" height="7" rx="1" />
                         <rect x="14" y="14" width="7" height="7" rx="1" />
                     </svg>
-                    <span>Matrix-Ansicht</span>
+                    <span>{{ msg.list.matrixView }}</span>
                 </button>
                 <button class="pl-btn pl-btn--primary" type="button" @click="$emit('createPlan')">
                     <svg
@@ -37,7 +34,7 @@
                     >
                         <path d="M12 5v14M5 12h14" />
                     </svg>
-                    <span>Neuer Plan</span>
+                    <span>{{ msg.list.newPlan }}</span>
                 </button>
             </div>
         </div>
@@ -59,28 +56,28 @@
                             <path d="M21 21l-4.35-4.35" />
                         </svg>
                     </span>
-                    <input v-model="search" placeholder="Plan suchen…" />
+                    <input v-model="search" :placeholder="msg.list.searchPlaceholder" />
                     <span class="pl-kbd">⌘ K</span>
                 </div>
                 <div class="pl-toolbar-spacer" />
-                <div class="pl-sortinfo">Sortiert nach: Order</div>
+                <div class="pl-sortinfo">{{ msg.list.sortedBy }}</div>
             </div>
 
             <div class="pl-list">
                 <div class="pl-list-head">
-                    <div>Plan</div>
-                    <div>Status</div>
-                    <div>Version</div>
-                    <div>Preis</div>
-                    <div>Mandanten</div>
+                    <div>{{ msg.list.columnPlan }}</div>
+                    <div>{{ common.status }}</div>
+                    <div>{{ msg.list.columnVersion }}</div>
+                    <div>{{ msg.list.columnPrice }}</div>
+                    <div>{{ msg.list.columnTenants }}</div>
                     <div />
                 </div>
 
                 <div v-if="filteredPlans.length === 0" class="pl-empty">
                     <template v-if="resolvedPlans.length === 0">
-                        Noch keine Pläne — über „Neuer Plan" oben rechts den ersten anlegen.
+                        {{ msg.list.emptyNoPlans }}
                     </template>
-                    <template v-else> Keine Pläne entsprechen der Suche „{{ search }}". </template>
+                    <template v-else>{{ emptyNoMatch }}</template>
                 </div>
 
                 <template v-for="p in filteredPlans" :key="p.plan.id">
@@ -107,7 +104,7 @@
                                         <span
                                             v-if="highlightPlanKey === p.planKey"
                                             class="pl-chip pl-chip--new"
-                                            >NEU</span
+                                            >{{ msg.list.badgeNew }}</span
                                         >
                                     </div>
                                     <div class="pl-plan-desc">{{ p.description || '—' }}</div>
@@ -117,22 +114,24 @@
 
                         <div class="pl-cell pl-cell--status">
                             <template v-if="p.currentLive">
-                                <span class="pl-chip pl-chip--live pl-chip--dot">live</span>
+                                <span class="pl-chip pl-chip--live pl-chip--dot">{{
+                                    msg.list.chipLive
+                                }}</span>
                                 <span
                                     v-if="!p.currentLive.marketed"
                                     class="pl-chip pl-chip--supersed pl-chip--tiny"
-                                    >privat</span
+                                    >{{ msg.list.chipPrivate }}</span
                                 >
                             </template>
                             <template v-else-if="p.primary && p.primary.publishedAt">
                                 <span class="pl-chip pl-chip--scheduled pl-chip--dot">
-                                    ab {{ p.primary.validFrom?.slice(0, 10) }}
+                                    {{ validFromLabel(p.primary.validFrom) }}
                                 </span>
                             </template>
                             <template v-else>
-                                <span class="pl-chip pl-chip--supersed pl-chip--dot"
-                                    >keine live</span
-                                >
+                                <span class="pl-chip pl-chip--supersed pl-chip--dot">{{
+                                    msg.list.chipNoLive
+                                }}</span>
                             </template>
                         </div>
 
@@ -142,11 +141,13 @@
                             </div>
                             <div v-else class="pl-version-num pl-version-num--muted">—</div>
                             <div v-if="p.primary?.validFrom" class="pl-version-sub">
-                                {{ p.currentLive ? 'seit' : 'ab' }}
-                                {{ p.primary.validFrom.slice(0, 10)
-                                }}<template v-if="p.primary.validUntil">
-                                    bis {{ p.primary.validUntil.slice(0, 10) }}</template
-                                >
+                                {{
+                                    validityRange(
+                                        p.currentLive ? msg.list.since : msg.list.from,
+                                        p.primary.validFrom,
+                                        p.primary.validUntil,
+                                    )
+                                }}
                             </div>
                         </div>
 
@@ -160,17 +161,20 @@
                                     Number(p.primary.yearlyNet) === 0
                                 "
                             >
-                                <span class="pl-price-text">Kostenlos</span>
+                                <span class="pl-price-text">{{ msg.list.priceFree }}</span>
                             </template>
                             <template v-else>
                                 <div>
                                     <span class="pl-price-big">{{
                                         formatMoney(p.primary.monthlyNet)
                                     }}</span>
-                                    <span class="pl-price-unit"> / Mo</span>
+                                    <span class="pl-price-unit">{{
+                                        ' ' + msg.list.perMonthShort
+                                    }}</span>
                                 </div>
                                 <div class="pl-price-sub">
-                                    {{ formatMoney(p.primary.yearlyNet) }} / Jahr
+                                    {{ formatMoney(p.primary.yearlyNet) }}
+                                    {{ msg.list.perYearShort }}
                                 </div>
                             </template>
                         </div>
@@ -194,7 +198,7 @@
                                 class="pl-btn pl-btn--sm pl-btn--ghost"
                                 type="button"
                                 disabled
-                                title="Plan hat published Versionen — kann nicht gelöscht werden (Vertragsschutz P1)"
+                                :title="msg.list.actionDeleteBlocked"
                             >
                                 <svg
                                     width="14"
@@ -213,7 +217,7 @@
                                 v-else
                                 class="pl-btn pl-btn--sm pl-btn--ghost pl-btn--danger"
                                 type="button"
-                                title="Plan komplett löschen"
+                                :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
                             >
                                 <svg
@@ -232,7 +236,7 @@
                             <button
                                 class="pl-btn pl-btn--sm pl-btn--ghost"
                                 type="button"
-                                title="Plan klonen"
+                                :title="msg.list.actionClonePlan"
                                 @click="$emit('clonePlan', p.plan)"
                             >
                                 <svg
@@ -250,7 +254,7 @@
                             <button
                                 class="pl-btn pl-btn--sm pl-btn--ghost"
                                 type="button"
-                                title="Neue Version anlegen"
+                                :title="msg.list.actionNewVersion"
                                 :disabled="!!p.draft"
                                 @click="onNewVersion(p)"
                             >
@@ -270,7 +274,7 @@
                             <button
                                 class="pl-btn pl-btn--sm"
                                 type="button"
-                                title="Plan öffnen"
+                                :title="msg.list.actionOpenPlan"
                                 @click="$emit('openPlan', p.plan)"
                             >
                                 <svg
@@ -304,18 +308,18 @@
                                     <template v-if="sub.publishedAt === null">
                                         <span
                                             class="pl-chip pl-chip--draft pl-chip--dot pl-chip--tiny"
-                                            >Draft</span
+                                            >{{ msg.list.chipDraft }}</span
                                         >
                                     </template>
                                     <template v-else>
                                         <span
                                             class="pl-chip pl-chip--scheduled pl-chip--dot pl-chip--tiny"
-                                            >geplant</span
+                                            >{{ msg.list.chipScheduled }}</span
                                         >
                                     </template>
                                 </div>
                                 <div class="pl-sub-desc">
-                                    {{ sub.changeNote || 'keine Change-Note' }}
+                                    {{ sub.changeNote || msg.list.noChangeNote }}
                                 </div>
                             </div>
                         </div>
@@ -324,22 +328,19 @@
                             <span
                                 v-if="sub.publishedAt === null"
                                 class="pl-chip pl-chip--draft pl-chip--dot pl-chip--tiny"
-                                >Draft</span
+                                >{{ msg.list.chipDraft }}</span
                             >
                             <span
                                 v-else
                                 class="pl-chip pl-chip--scheduled pl-chip--dot pl-chip--tiny"
-                                >ab {{ sub.validFrom?.slice(0, 10) }}</span
+                                >{{ validFromLabel(sub.validFrom) }}</span
                             >
                         </div>
 
                         <div class="pl-cell">
                             <div class="pl-version-num pl-version-num--sub">v{{ sub.version }}</div>
                             <div v-if="sub.validFrom" class="pl-version-sub">
-                                ab {{ sub.validFrom.slice(0, 10)
-                                }}<template v-if="sub.validUntil">
-                                    bis {{ sub.validUntil.slice(0, 10) }}</template
-                                >
+                                {{ validityRange(msg.list.from, sub.validFrom, sub.validUntil) }}
                             </div>
                         </div>
 
@@ -347,23 +348,27 @@
                             <template
                                 v-if="Number(sub.monthlyNet) === 0 && Number(sub.yearlyNet) === 0"
                             >
-                                <span class="pl-price-text">Kostenlos</span>
+                                <span class="pl-price-text">{{ msg.list.priceFree }}</span>
                             </template>
                             <template v-else>
                                 <div>
                                     <span class="pl-price-big">{{
                                         formatMoney(sub.monthlyNet)
                                     }}</span>
-                                    <span class="pl-price-unit"> / Mo</span>
+                                    <span class="pl-price-unit">{{
+                                        ' ' + msg.list.perMonthShort
+                                    }}</span>
                                 </div>
                                 <div class="pl-price-sub">
-                                    {{ formatMoney(sub.yearlyNet) }} / Jahr
+                                    {{ formatMoney(sub.yearlyNet) }} {{ msg.list.perYearShort }}
                                 </div>
                             </template>
                         </div>
 
                         <div class="pl-cell pl-cell--sub-impact">
-                            <span class="pl-version-sub">{{ p.tenantCount }} Mandanten</span>
+                            <span class="pl-version-sub">{{
+                                tenantCountLabel(p.tenantCount)
+                            }}</span>
                         </div>
 
                         <div class="pl-cell pl-cell--actions" @click.stop>
@@ -371,7 +376,7 @@
                                 v-if="sub.publishedAt === null"
                                 class="pl-btn pl-btn--sm pl-btn--ghost pl-btn--danger"
                                 type="button"
-                                :title="`Draft v${sub.version} verwerfen`"
+                                :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
                             >
                                 <svg
@@ -391,7 +396,7 @@
                                 v-if="sub.publishedAt === null"
                                 class="pl-btn pl-btn--sm pl-btn--ghost"
                                 type="button"
-                                title="Draft bearbeiten"
+                                :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
                             >
                                 <svg
@@ -410,7 +415,7 @@
                             <button
                                 class="pl-btn pl-btn--sm"
                                 type="button"
-                                title="Im Cockpit öffnen"
+                                :title="msg.list.actionOpenInCockpit"
                                 @click="$emit('openPlan', p.plan)"
                             >
                                 <svg
@@ -435,6 +440,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { formatCurrency } from '../../client/i18n/currency.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // PlanList — list view of all plans (default view in PlansPage,
 // corresponds to the ListScreen from the plan simulation). One row per
@@ -467,6 +475,10 @@ const emit = defineEmits<{
     (e: 'archivePlan', plan: PlanRow, hasLive: boolean): void;
     (e: 'showMatrix'): void;
 }>();
+
+const msg = useSaMessages('plans');
+const { locale, intlLocale } = useSuperAdminI18n();
+const common = useSaMessages('common');
 
 const search = ref('');
 
@@ -594,12 +606,12 @@ const filteredPlans = computed(() => {
     // (SPEC_V2 §4.2.1: only currently-valid + future ones stay visible
     // in the admin listing).
     const base = resolvedPlans.value.filter((p) => !p.allExpired);
-    const q = search.value.trim().toLocaleLowerCase('de-DE');
+    const q = search.value.trim().toLocaleLowerCase(intlLocale.value);
     if (!q) return base;
     return base.filter(
         (p) =>
-            p.planKey.toLocaleLowerCase('de-DE').includes(q) ||
-            p.label.toLocaleLowerCase('de-DE').includes(q),
+            p.planKey.toLocaleLowerCase(intlLocale.value).includes(q) ||
+            p.label.toLocaleLowerCase(intlLocale.value).includes(q),
     );
 });
 
@@ -607,11 +619,41 @@ const liveCount = computed(() => resolvedPlans.value.filter((p) => p.currentLive
 const draftCount = computed(() => resolvedPlans.value.filter((p) => p.draft !== null).length);
 const totalTenants = computed(() => resolvedPlans.value.reduce((sum, p) => sum + p.tenantCount, 0));
 
+const summary = computed(() =>
+    formatMessage(msg.value.list.summary, {
+        plans: resolvedPlans.value.length,
+        live: liveCount.value,
+        drafts: draftCount.value,
+        tenants: totalTenants.value,
+    }),
+);
+
+const emptyNoMatch = computed(() =>
+    formatMessage(msg.value.list.emptyNoMatch, { query: search.value }),
+);
+
+function validFromLabel(validFrom: string | null | undefined): string {
+    return formatMessage(msg.value.list.validFrom, { date: validFrom?.slice(0, 10) ?? '' });
+}
+
+function validityRange(prefix: string, validFrom: string, validUntil: string | null): string {
+    const range = `${prefix} ${validFrom.slice(0, 10)}`;
+    if (!validUntil) return range;
+    return `${range} ${msg.value.list.until} ${validUntil.slice(0, 10)}`;
+}
+
+function tenantCountLabel(count: number): string {
+    return formatMessage(msg.value.list.tenantCount, { count });
+}
+
+function discardDraftTitle(version: number): string {
+    return formatMessage(msg.value.list.actionDiscardDraft, { version });
+}
+
 function formatMoney(raw: string | number): string {
     const num = typeof raw === 'string' ? Number(raw) : raw;
     if (!Number.isFinite(num)) return String(raw);
-    if (Number.isInteger(num)) return `${num} €`;
-    return `${num.toFixed(2).replace('.', ',')} €`;
+    return formatCurrency(num, locale.value);
 }
 
 function tenantBarWidth(count: number): string {

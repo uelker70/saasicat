@@ -17,6 +17,10 @@
 
 import type { PlanVersionRow } from '@saasicat/types';
 
+import { formatMessage } from './i18n/format.js';
+import { DEFAULT_SA_LOCALE, SA_INTL_LOCALES, type SaLocale } from './i18n/locale.js';
+import { planVersionsMessages } from './i18n/messages/plan-versions.js';
+
 export type SnapshotKind = 'drafts' | 'active' | 'historical';
 
 export interface CatalogSnapshot<P extends PlanVersionRow = PlanVersionRow> {
@@ -78,6 +82,8 @@ export interface BuildSnapshotsOptions {
      * end up sorted alphabetically at the back.
      */
     planSortOrder?: readonly string[];
+    /** UI locale for the generated snapshot labels/titles/descriptions. */
+    locale?: SaLocale;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -168,8 +174,16 @@ function resolvePlan<P extends PlanVersionRow>(source: P, liveBase: P | null): R
 
 // ─── Snapshot constructors ───────────────────────────────────────────────
 
-function dateLabelDe(iso: string): string {
-    return new Date(iso).toLocaleDateString('de-DE', {
+type CatalogMessages = (typeof planVersionsMessages)['de']['catalog'];
+
+function draftsTitle(draftCount: number, msg: CatalogMessages): string {
+    if (draftCount === 0) return msg.draftsTitleEmpty;
+    const template = draftCount === 1 ? msg.draftsTitleOne : msg.draftsTitleMany;
+    return formatMessage(template, { count: draftCount });
+}
+
+function dateLabel(iso: string, locale: SaLocale): string {
+    return new Date(iso).toLocaleDateString(SA_INTL_LOCALES[locale], {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -179,7 +193,9 @@ function dateLabelDe(iso: string): string {
 function buildDraftsSnapshot<P extends PlanVersionRow>(
     data: RawCatalogData<P>,
     sortPlansFn: (rows: ResolvedPlan<P>[]) => ResolvedPlan<P>[],
+    locale: SaLocale,
 ): CatalogSnapshot<P> {
+    const msg = planVersionsMessages[locale].catalog;
     const planByKey = groupBy(data.planVersions, (r) => r.planId);
 
     const plans: ResolvedPlan<P>[] = [];
@@ -196,15 +212,9 @@ function buildDraftsSnapshot<P extends PlanVersionRow>(
         id: 'drafts',
         kind: 'drafts',
         status: 'DRAFT',
-        label: 'Arbeitsstand',
-        title:
-            draftCount === 0
-                ? 'Keine offenen Drafts'
-                : `${draftCount} offene${draftCount === 1 ? 'r' : ''} Draft${draftCount === 1 ? '' : 's'} bereit für Publish`,
-        description:
-            draftCount === 0
-                ? 'Lege einen Draft an, um Limits, Preise oder Features zu ändern. Drafts sind ohne MFA editierbar und werden erst beim Publish wirksam.'
-                : 'Diese Tabelle zeigt, wie der Catalog nach Publish aller Drafts aussehen würde. Bestehende Mandanten bleiben auf der vorherigen Version, bis sie aktiv migriert werden.',
+        label: msg.draftsLabel,
+        title: draftsTitle(draftCount, msg),
+        description: draftCount === 0 ? msg.draftsDescriptionEmpty : msg.draftsDescription,
         asOf: null,
         createdAt: null,
         publishedAt: null,
@@ -218,7 +228,9 @@ function buildDraftsSnapshot<P extends PlanVersionRow>(
 function buildActiveSnapshot<P extends PlanVersionRow>(
     data: RawCatalogData<P>,
     sortPlansFn: (rows: ResolvedPlan<P>[]) => ResolvedPlan<P>[],
+    locale: SaLocale,
 ): CatalogSnapshot<P> | null {
+    const msg = planVersionsMessages[locale].catalog;
     const planByKey = groupBy(data.planVersions, (r) => r.planId);
 
     const plans: ResolvedPlan<P>[] = [];
@@ -238,10 +250,9 @@ function buildActiveSnapshot<P extends PlanVersionRow>(
         id: 'active',
         kind: 'active',
         status: 'ACTIVE',
-        label: 'Aktuell',
-        title: 'Live-Catalog',
-        description:
-            'Diese Plan-Versionen sind aktuell für neue Onboardings und für Renewals nach Stichtag aktiv.',
+        label: msg.activeLabel,
+        title: msg.activeTitle,
+        description: msg.activeDescription,
         asOf: latestPublished ?? null,
         createdAt: null,
         publishedAt: latestPublished ?? null,
@@ -255,7 +266,9 @@ function buildActiveSnapshot<P extends PlanVersionRow>(
 function buildHistoricalSnapshots<P extends PlanVersionRow>(
     data: RawCatalogData<P>,
     sortPlansFn: (rows: ResolvedPlan<P>[]) => ResolvedPlan<P>[],
+    locale: SaLocale,
 ): CatalogSnapshot<P>[] {
+    const msg = planVersionsMessages[locale].catalog;
     const allPublishedAt = new Set<string>();
     for (const r of data.planVersions) if (r.publishedAt) allPublishedAt.add(r.publishedAt);
     if (allPublishedAt.size === 0) return [];
@@ -293,9 +306,9 @@ function buildHistoricalSnapshots<P extends PlanVersionRow>(
             id: `hist-${ts}`,
             kind: 'historical',
             status: 'ARCHIVED',
-            label: dateLabelDe(ts),
-            title: summarizeEvent(publishedAtThisEvent),
-            description: detailEvent(publishedAtThisEvent),
+            label: dateLabel(ts, locale),
+            title: summarizeEvent(publishedAtThisEvent, msg),
+            description: detailEvent(publishedAtThisEvent, msg),
             asOf: ts,
             createdAt: ts,
             publishedAt: ts,
@@ -308,19 +321,19 @@ function buildHistoricalSnapshots<P extends PlanVersionRow>(
     return out;
 }
 
-function summarizeEvent(rows: PlanVersionRow[]): string {
-    if (rows.length === 0) return 'Publish-Event';
+function summarizeEvent(rows: PlanVersionRow[], msg: CatalogMessages): string {
+    if (rows.length === 0) return msg.publishEvent;
     if (rows.length === 1) {
         const r = rows[0]!;
-        return `${r.planId} v${r.version} publiziert`;
+        return formatMessage(msg.publishEventSingle, { planId: r.planId, version: r.version });
     }
-    return `${rows.length} Versionen publiziert`;
+    return formatMessage(msg.publishEventMultiple, { count: rows.length });
 }
 
-function detailEvent(rows: PlanVersionRow[]): string {
+function detailEvent(rows: PlanVersionRow[], msg: CatalogMessages): string {
     if (rows.length === 0) return '';
     const note = rows[0]?.changeNote ?? '';
-    return note.length > 0 ? note : 'Snapshot rekonstruiert aus per-Entity-Versionen.';
+    return note.length > 0 ? note : msg.reconstructedSnapshot;
 }
 
 // ─── Sorting ─────────────────────────────────────────────────────────────
@@ -348,10 +361,11 @@ export function buildSnapshots<P extends PlanVersionRow>(
     data: RawCatalogData<P>,
     options: BuildSnapshotsOptions = {},
 ): CatalogSnapshot<P>[] {
+    const locale = options.locale ?? DEFAULT_SA_LOCALE;
     const sortPlansFn = sortPlansBy<P>(options.planSortOrder);
-    const drafts = buildDraftsSnapshot(data, sortPlansFn);
-    const active = buildActiveSnapshot(data, sortPlansFn);
-    const historical = buildHistoricalSnapshots(data, sortPlansFn);
+    const drafts = buildDraftsSnapshot(data, sortPlansFn, locale);
+    const active = buildActiveSnapshot(data, sortPlansFn, locale);
+    const historical = buildHistoricalSnapshots(data, sortPlansFn, locale);
 
     const out: CatalogSnapshot<P>[] = [drafts];
     if (active) out.push(active);
@@ -359,9 +373,7 @@ export function buildSnapshots<P extends PlanVersionRow>(
     return out;
 }
 
-export function listOpenDrafts<P extends PlanVersionRow>(
-    data: RawCatalogData<P>,
-): { plans: P[] } {
+export function listOpenDrafts<P extends PlanVersionRow>(data: RawCatalogData<P>): { plans: P[] } {
     return {
         plans: sortByPublishedDesc(data.planVersions).filter((r) => r.publishedAt === null),
     };

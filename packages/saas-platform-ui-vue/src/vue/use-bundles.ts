@@ -58,13 +58,13 @@ export interface UseBundlesResult {
 export function useBundles(options: UseBundlesOptions): UseBundlesResult {
     if (!options?.adminEndpoint) {
         throw new Error(
-            'useBundles: `adminEndpoint` ist Pflicht (z. B. "/api/admin" oder ' +
-                '"/api/v1/admin"). Plattform hat keinen Default, weil Apps ' +
-                'unterschiedliche globalPrefix-Konventionen haben.',
+            'useBundles: `adminEndpoint` is required (e.g. "/api/admin" or ' +
+                '"/api/v1/admin"). The platform has no default, because apps use ' +
+                'different globalPrefix conventions.',
         );
     }
     if (!options?.projectKey) {
-        throw new Error('useBundles: `projectKey` ist Pflicht.');
+        throw new Error('useBundles: `projectKey` is required.');
     }
 
     const http = options.http ?? defaultHttpClient();
@@ -91,7 +91,7 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
             throw new BundlesApiError(
                 res.status,
                 body,
-                `Bundles-API antwortete mit HTTP ${res.status}`,
+                `Bundles API responded with HTTP ${res.status}`,
             );
         }
         return body as T;
@@ -117,7 +117,7 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new BundlesApiError(0, null, 'Create gab keinen Body zurück');
+        if (!created) throw new BundlesApiError(0, null, 'Create returned no body');
         bundles.value = [...bundles.value, created];
         return created;
     }
@@ -127,7 +127,7 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new BundlesApiError(0, null, 'Update gab keinen Body zurück');
+        if (!updated) throw new BundlesApiError(0, null, 'Update returned no body');
         bundles.value = bundles.value.map((b) => (b.id === bundleId ? updated : b));
         return updated;
     }
@@ -189,10 +189,10 @@ export interface UseBundleVersionsResult {
 
 export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleVersionsResult {
     if (!options?.adminEndpoint) {
-        throw new Error('useBundleVersions: `adminEndpoint` ist Pflicht.');
+        throw new Error('useBundleVersions: `adminEndpoint` is required.');
     }
     if (!options?.bundleId) {
-        throw new Error('useBundleVersions: `bundleId` ist Pflicht.');
+        throw new Error('useBundleVersions: `bundleId` is required.');
     }
 
     const http = options.http ?? defaultHttpClient();
@@ -220,7 +220,7 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             throw new BundlesApiError(
                 res.status,
                 body,
-                `BundleVersions-API antwortete mit HTTP ${res.status}`,
+                `BundleVersions API responded with HTTP ${res.status}`,
             );
         }
         return body as T;
@@ -246,7 +246,7 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!result) throw new BundlesApiError(0, null, 'CreateDraft gab keinen Body zurück');
+        if (!result) throw new BundlesApiError(0, null, 'CreateDraft returned no body');
         versions.value = [...versions.value, result.bundleVersion];
         return result;
     }
@@ -259,7 +259,7 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             `${versionUrlBase}/${versionId}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!result) throw new BundlesApiError(0, null, 'UpdateDraft gab keinen Body zurück');
+        if (!result) throw new BundlesApiError(0, null, 'UpdateDraft returned no body');
         versions.value = versions.value.map((v) => (v.id === versionId ? result.bundleVersion : v));
         return result;
     }
@@ -277,7 +277,7 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             `${versionUrlBase}/${versionId}/publish`,
             { method: 'POST', body: JSON.stringify(opts) },
         );
-        if (!result) throw new BundlesApiError(0, null, 'Publish gab keinen Body zurück');
+        if (!result) throw new BundlesApiError(0, null, 'Publish returned no body');
         // Reload versions, because publishing may mark another version as
         // superseded — the local cache would otherwise be inconsistent.
         await load();

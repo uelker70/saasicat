@@ -55,6 +55,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { formatCurrency } from '../../client/i18n/currency.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanCockpitAuditLog from './PlanCockpitAuditLog.vue';
 import PlanCockpitDiffPanel from './PlanCockpitDiffPanel.vue';
 import PlanCockpitHeader from './PlanCockpitHeader.vue';
@@ -113,6 +116,9 @@ const emit = defineEmits<{
     (e: 'viewCatalog'): void;
     (e: 'viewDiff', from: PlanVersionRow, to: PlanVersionRow): void;
 }>();
+
+const msg = useSaMessages('planDetail');
+const { locale } = useSuperAdminI18n();
 
 function forwardViewDiff(from: PlanVersionRow, to: PlanVersionRow): void {
     emit('viewDiff', from, to);
@@ -176,7 +182,7 @@ const timelineAxis = computed(() => {
     for (const v of [...props.versions].sort((a, b) => a.version - b.version)) {
         if (v.validFrom) labels.push(v.validFrom.slice(0, 7));
     }
-    labels.push('jetzt');
+    labels.push(msg.value.versions.timelineNow);
     return labels;
 });
 
@@ -184,8 +190,7 @@ const timelineAxis = computed(() => {
 function formatMoney(raw: string | number): string {
     const num = typeof raw === 'string' ? Number(raw) : raw;
     if (!Number.isFinite(num)) return String(raw);
-    if (Number.isInteger(num)) return `${num} €`;
-    return `${num.toFixed(2).replace('.', ',')} €`;
+    return formatCurrency(num, locale.value);
 }
 
 // ── Diff ────────────────────────────────────────────────────────────
@@ -255,34 +260,44 @@ const diff = computed<DiffSummary>(() => {
         removedQuotas,
         changedQuotas,
         priceChanged,
-        priceFrom: `${formatMoney(from.monthlyNet)} / Mo · ${formatMoney(from.yearlyNet)} / J`,
-        priceTo: `${formatMoney(to.monthlyNet)} / Mo · ${formatMoney(to.yearlyNet)} / J`,
+        priceFrom: formatPricePair(from),
+        priceTo: formatPricePair(to),
     };
 });
 
+function formatPricePair(version: PlanVersionRow): string {
+    return formatMessage(msg.value.diff.pricePair, {
+        monthly: formatMoney(version.monthlyNet),
+        yearly: formatMoney(version.yearlyNet),
+    });
+}
+
 const STYLES = {
-    added: { bg: '#ecfdf5', border: '#a7f3d0', color: '#047857', sign: '+', tag: 'neu' },
-    removed: { bg: '#fef2f2', border: '#fecaca', color: '#b91c1c', sign: '−', tag: 'entfernt' },
-    changed: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', sign: '~', tag: 'geändert' },
+    added: { bg: '#ecfdf5', border: '#a7f3d0', color: '#047857', sign: '+' },
+    removed: { bg: '#fef2f2', border: '#fecaca', color: '#b91c1c', sign: '−' },
+    changed: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', sign: '~' },
 } as const;
 
 const diffRows = computed<DiffRow[]>(() => {
+    const texts = msg.value.diff;
     const out: DiffRow[] = [];
     for (const f of diff.value.addedFeatures) {
         out.push({
             id: `add-f-${f}`,
-            section: 'Features',
+            section: texts.sectionLabelFeatures,
             label: featureLabel(f),
             sub: f,
+            tag: texts.tagNew,
             ...STYLES.added,
         });
     }
     for (const f of diff.value.removedFeatures) {
         out.push({
             id: `rem-f-${f}`,
-            section: 'Features',
+            section: texts.sectionLabelFeatures,
             label: featureLabel(f),
             sub: f,
+            tag: texts.tagRemoved,
             ...STYLES.removed,
         });
     }
@@ -290,11 +305,12 @@ const diffRows = computed<DiffRow[]>(() => {
         const unit = quotaUnit(q.key);
         out.push({
             id: `chg-q-${q.key}`,
-            section: 'Quotas',
+            section: texts.sectionLabelQuotas,
             label: quotaLabel(q.key),
             sub: q.key,
             from: `${q.from}${unit ? ' ' + unit : ''}`,
             to: `${q.to}${unit ? ' ' + unit : ''}`,
+            tag: texts.tagChanged,
             ...STYLES.changed,
         });
     }
@@ -302,10 +318,11 @@ const diffRows = computed<DiffRow[]>(() => {
         const unit = quotaUnit(q.key);
         out.push({
             id: `add-q-${q.key}`,
-            section: 'Quotas',
+            section: texts.sectionLabelQuotas,
             label: quotaLabel(q.key),
             sub: q.key,
             to: `${q.value}${unit ? ' ' + unit : ''}`,
+            tag: texts.tagNew,
             ...STYLES.added,
         });
     }
@@ -313,20 +330,22 @@ const diffRows = computed<DiffRow[]>(() => {
         const unit = quotaUnit(q.key);
         out.push({
             id: `rem-q-${q.key}`,
-            section: 'Quotas',
+            section: texts.sectionLabelQuotas,
             label: quotaLabel(q.key),
             sub: q.key,
             from: `${q.value}${unit ? ' ' + unit : ''}`,
+            tag: texts.tagRemoved,
             ...STYLES.removed,
         });
     }
     if (diff.value.priceChanged) {
         out.push({
             id: 'chg-price',
-            section: 'Preis',
-            label: 'Jahres- + Monatspreis',
+            section: texts.sectionLabelPrice,
+            label: texts.priceYearMonthLabel,
             from: diff.value.priceFrom,
             to: diff.value.priceTo,
+            tag: texts.tagChanged,
             ...STYLES.changed,
         });
     }

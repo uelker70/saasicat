@@ -8,15 +8,15 @@
     >
         <div class="pve-col-header pve-col-header--basket">
             <div>
-                <div class="pve-col-title">Plan-Korb · v{{ form.version }}</div>
-                <div class="pve-col-sub">Was dieser Plan enthält · live editierbar</div>
+                <div class="pve-col-title">{{ title }}</div>
+                <div class="pve-col-sub">{{ msg.basket.subtitle }}</div>
             </div>
-            <span class="pve-chip pve-chip--changes">{{ changeCount }} Änderungen</span>
+            <span class="pve-chip pve-chip--changes">{{ changeCountLabel }}</span>
         </div>
 
         <div class="pve-basket-settings">
             <div class="pve-bs-row">
-                <div class="pve-bs-label">Gültig ab</div>
+                <div class="pve-bs-label">{{ msg.basket.validFrom }}</div>
                 <input
                     class="pve-bs-input"
                     :class="{ 'pve-bs-input--error': !!validFromError }"
@@ -26,7 +26,7 @@
                     placeholder="YYYY-MM-DD"
                     @input="emitTextInput('update:validFrom', $event)"
                 />
-                <div class="pve-bs-label pve-bs-label--inline">bis</div>
+                <div class="pve-bs-label pve-bs-label--inline">{{ msg.basket.until }}</div>
                 <input
                     class="pve-bs-input"
                     type="date"
@@ -51,7 +51,7 @@
                 <span>{{ validFromError }}</span>
             </div>
             <div class="pve-bs-row">
-                <div class="pve-bs-label">Preis</div>
+                <div class="pve-bs-label">{{ msg.sections.price }}</div>
                 <div class="pve-bs-input-grp">
                     <span class="pve-bs-prefix">€</span>
                     <input
@@ -60,7 +60,7 @@
                         inputmode="decimal"
                         @input="emitTextInput('update:monthlyNet', $event)"
                     />
-                    <span class="pve-bs-suffix">/ Mo</span>
+                    <span class="pve-bs-suffix">{{ msg.perMonthShort }}</span>
                 </div>
                 <div class="pve-bs-input-grp pve-bs-input-grp--gap">
                     <span class="pve-bs-prefix">€</span>
@@ -70,11 +70,11 @@
                         inputmode="decimal"
                         @input="emitTextInput('update:yearlyNet', $event)"
                     />
-                    <span class="pve-bs-suffix">/ J</span>
+                    <span class="pve-bs-suffix">{{ msg.perYearShort }}</span>
                 </div>
             </div>
             <div class="pve-bs-row">
-                <div class="pve-bs-label">Im Public-Catalog</div>
+                <div class="pve-bs-label">{{ msg.basket.inPublicCatalog }}</div>
                 <label class="pve-toggle">
                     <input type="checkbox" :checked="form.marketed" @change="emitCheckboxInput" />
                     <span />
@@ -82,7 +82,7 @@
                 <input
                     class="pve-bs-input pve-bs-input--grow"
                     :value="form.changeNote"
-                    placeholder="Change-Note (Pflicht beim Publish)…"
+                    :placeholder="msg.basket.changeNotePlaceholder"
                     @input="emitTextInput('update:changeNote', $event)"
                 />
             </div>
@@ -91,8 +91,8 @@
         <div class="pve-basket-group">
             <div class="pve-bg-header">
                 <span class="pve-bg-dot pve-bg-dot--quota" />
-                <span class="pve-bg-title">Quotas</span>
-                <span class="pve-bg-count">{{ selectedQuotaList.length }} zugewiesen</span>
+                <span class="pve-bg-title">{{ msg.sections.quotas }}</span>
+                <span class="pve-bg-count">{{ assignedCount(selectedQuotaList.length) }}</span>
             </div>
             <div class="pve-dz">
                 <div v-for="row in selectedQuotaList" :key="row.quotaKey" class="pve-sel-row">
@@ -113,7 +113,7 @@
                     <button
                         class="pve-sel-x"
                         type="button"
-                        aria-label="Quota entfernen"
+                        :aria-label="msg.basket.removeQuota"
                         @click="$emit('toggle-quota', row.quotaKey, false)"
                     >
                         <svg
@@ -129,7 +129,7 @@
                     </button>
                 </div>
                 <div v-if="selectedQuotaList.length === 0" class="pve-dz-empty">
-                    Quotas aus der Library ziehen oder anklicken
+                    {{ msg.basket.emptyQuotas }}
                 </div>
             </div>
         </div>
@@ -137,8 +137,8 @@
         <div class="pve-basket-group">
             <div class="pve-bg-header">
                 <span class="pve-bg-dot pve-bg-dot--feature" />
-                <span class="pve-bg-title">Features</span>
-                <span class="pve-bg-count">{{ form.features.length }} zugewiesen</span>
+                <span class="pve-bg-title">{{ msg.sections.features }}</span>
+                <span class="pve-bg-count">{{ assignedCount(form.features.length) }}</span>
             </div>
             <div class="pve-dz">
                 <div v-for="key in sortedSelectedFeatures" :key="key" class="pve-sel-row">
@@ -150,7 +150,7 @@
                     <button
                         class="pve-sel-x"
                         type="button"
-                        aria-label="Feature entfernen"
+                        :aria-label="msg.basket.removeFeature"
                         @click="$emit('toggle-feature', key, false)"
                     >
                         <svg
@@ -166,7 +166,7 @@
                     </button>
                 </div>
                 <div v-if="form.features.length === 0" class="pve-dz-empty">
-                    Features aus der Library ziehen oder anklicken
+                    {{ msg.basket.emptyFeatures }}
                 </div>
             </div>
         </div>
@@ -174,8 +174,8 @@
         <div class="pve-basket-group">
             <div class="pve-bg-header">
                 <span class="pve-bg-dot pve-bg-dot--bundle" />
-                <span class="pve-bg-title">Bundles</span>
-                <span class="pve-bg-count">{{ activeBundles.length }} zugewiesen</span>
+                <span class="pve-bg-title">{{ msg.sections.bundles }}</span>
+                <span class="pve-bg-count">{{ assignedCount(activeBundles.length) }}</span>
             </div>
             <div class="pve-dz">
                 <div v-for="b in activeBundles" :key="b.bundleKey" class="pve-sel-row">
@@ -183,13 +183,13 @@
                     <div class="pve-sel-body">
                         <div class="pve-sel-label">{{ b.label || b.bundleKey }}</div>
                         <div class="pve-sel-sub">
-                            {{ b.bundleKey }} · {{ b.features.length }} Features
+                            {{ b.bundleKey }} · {{ bundleFeatureCount(b.features.length) }}
                         </div>
                     </div>
                     <button
                         class="pve-sel-x"
                         type="button"
-                        aria-label="Bundle entfernen"
+                        :aria-label="msg.basket.removeBundle"
                         @click="$emit('toggle-bundle', b, false)"
                     >
                         <svg
@@ -205,7 +205,7 @@
                     </button>
                 </div>
                 <div v-if="activeBundles.length === 0" class="pve-dz-empty pve-dz-empty--center">
-                    Keine Bundles zugewiesen — aus der Library ziehen
+                    {{ msg.basket.emptyBundles }}
                 </div>
             </div>
         </div>
@@ -213,9 +213,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { BundleEntry, DraftForm, SelectedQuotaRow } from './types.js';
 
-defineProps<{
+const props = defineProps<{
     form: DraftForm;
     dragOver: boolean;
     changeCount: number;
@@ -242,6 +245,24 @@ const emit = defineEmits<{
     (e: 'drag-leave', event: DragEvent): void;
     (e: 'drop'): void;
 }>();
+
+const msg = useSaMessages('planEditor');
+
+const title = computed(() =>
+    formatMessage(msg.value.basket.title, { version: props.form.version }),
+);
+
+const changeCountLabel = computed(() =>
+    formatMessage(msg.value.basket.changeCount, { count: props.changeCount }),
+);
+
+function assignedCount(count: number): string {
+    return formatMessage(msg.value.basket.assignedCount, { count });
+}
+
+function bundleFeatureCount(count: number): string {
+    return formatMessage(msg.value.basket.bundleFeatureCount, { count });
+}
 
 type TextInputEvent =
     | 'update:validFrom'

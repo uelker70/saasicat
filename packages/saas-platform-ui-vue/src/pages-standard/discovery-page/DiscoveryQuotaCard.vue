@@ -15,26 +15,25 @@
                     <span
                         v-if="quota.successorKey"
                         class="sa-qc__flag sa-qc__flag--succ"
-                        :title="`ersetzt durch ${quota.successorKey}`"
+                        :title="replacedByLabel"
                     >
-                        ersetzt durch {{ quota.successorKey }}
+                        {{ replacedByLabel }}
                     </span>
                     <span
                         v-if="quota.replaces.length"
                         class="sa-qc__flag sa-qc__flag--repl"
-                        :title="`ersetzt: ${quota.replaces.join(', ')}`"
+                        :title="replacesLabel"
                     >
-                        ersetzt: {{ quota.replaces.join(', ') }}
+                        {{ replacesLabel }}
                     </span>
                 </div>
                 <div class="sa-qc__sub">
-                    Einheit <code>{{ quota.unit }}</code> · UsageProvider
+                    {{ msg.unit }} <code>{{ quota.unit }}</code> · {{ msg.quota.usageProvider }}
                     <code v-if="quota.usageProvider">{{ quota.usageProvider }}</code>
-                    <span v-else class="sa-qc__missing">fehlt</span>
+                    <span v-else class="sa-qc__missing">{{ msg.quota.usageProviderMissing }}</span>
                 </div>
                 <div v-if="!quota.usageProvider" class="sa-qc__warning">
-                    Eine harte Quota ohne UsageProvider ist nicht deploy-fähig (Preflight, SPEC_V2
-                    §6.3).
+                    {{ msg.quota.noUsageProviderWarning }}
                 </div>
             </div>
 
@@ -61,8 +60,8 @@
             <div v-if="quota.discoveryStatus === 'outdated'" class="sa-qc__banner">
                 <q-icon name="warning" size="16px" />
                 <span>
-                    Die code-abgeleiteten Quota-Fakten (Einheit/Enforcement/Provider) haben sich
-                    seit der letzten Freigabe geändert — bitte prüfen und <b>erneut freigeben</b>.
+                    {{ msg.quota.outdatedBanner }} <b>{{ msg.reapproveEmphasis }}</b
+                    >.
                 </span>
             </div>
             <CatalogEntryTransPanel
@@ -88,6 +87,8 @@ import type {
 } from '@saasicat/types';
 import CatalogEntryTransPanel from './CatalogEntryTransPanel.vue';
 import DiscoveryStatusControl from './DiscoveryStatusControl.vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import {
     coverageClass,
     coveragePct,
@@ -114,10 +115,19 @@ const emit = defineEmits<{
     'quota-locale': [key: string, locale: string, patch: CatalogEntryI18nFields];
 }>();
 
+const msg = useSaMessages('discovery');
+
 // Draft buffer for the header label — the fields themselves are buffered by
 // the CatalogEntryTransPanel; here only so the title follows along while typing.
 const drafts = reactive<{ label?: string }>({});
 const labelValue = computed(() => drafts.label ?? props.quota.label ?? '');
+
+const replacedByLabel = computed(() =>
+    formatMessage(msg.value.replacedBy, { key: props.quota.successorKey ?? '' }),
+);
+const replacesLabel = computed(() =>
+    formatMessage(msg.value.replaces, { keys: props.quota.replaces.join(', ') }),
+);
 
 /** Mirror base edits from the translation panel + bubble them up. */
 function onTransBase(patch: { label?: string; description?: string }): void {

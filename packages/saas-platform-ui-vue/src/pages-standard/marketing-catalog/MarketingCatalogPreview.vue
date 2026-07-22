@@ -7,15 +7,13 @@
             <div class="mc-chrome-url">{{ previewUrl }}</div>
         </div>
         <div class="mc-canvas">
-            <div class="mc-eyebrow">Preise &amp; Pakete</div>
-            <h1 class="mc-hero">Der passende Plan</h1>
-            <p class="mc-sub">
-                Flexibel skalieren, jederzeit upgraden. Kein Setup-Fee, monatlich kündbar.
-            </p>
+            <div class="mc-eyebrow">{{ msg.preview.eyebrow }}</div>
+            <h1 class="mc-hero">{{ msg.preview.hero }}</h1>
+            <p class="mc-sub">{{ msg.preview.sub }}</p>
 
             <div v-if="visibleRows.length === 0" class="mc-banner mc-banner--info">
-                Kein Plan ist aktuell für den Public-Catalog sichtbar. Aktiviere die Sichtbarkeit im
-                Tab <strong>Marketing-Verwaltung</strong>.
+                {{ msg.preview.emptyBefore }} <strong>{{ msg.tabs.admin }}</strong
+                >{{ msg.preview.emptyAfter }}
             </div>
 
             <div v-else class="mc-grid">
@@ -49,42 +47,46 @@
                         </template>
                         <template v-else-if="!row.liveVersion">
                             <span class="mc-card-price-big" style="font-size: 22px">
-                                Auf Anfrage
+                                {{ msg.preview.priceOnRequest }}
                             </span>
                         </template>
                         <template v-else-if="promoResultOf(row)">
                             <span class="mc-card-price-big">
                                 {{ formatEuro(promoResultOf(row)?.discounted ?? 0) }}
                             </span>
-                            <span class="mc-card-price-unit">/ Monat</span>
+                            <span class="mc-card-price-unit">{{ msg.preview.perMonth }}</span>
                         </template>
                         <template v-else>
                             <span class="mc-card-price-big">
                                 {{ formatEuro(monthlyOf(row)) }}
                             </span>
-                            <span class="mc-card-price-unit">/ Monat</span>
+                            <span class="mc-card-price-unit">{{ msg.preview.perMonth }}</span>
                         </template>
                     </div>
                     <div v-if="promoResultOf(row)" class="mc-card-price-strike">
                         <s>{{ formatEuro(promoResultOf(row)?.original ?? 0) }}</s>
-                        <span class="mc-price-regular">regulär</span>
+                        <span class="mc-price-regular">{{ msg.preview.regularPrice }}</span>
                     </div>
                     <div
                         v-else-if="row.liveVersion && yearlyOf(row) > 0 && !row.m.priceTag"
                         class="mc-card-price-y"
                     >
-                        oder {{ formatEuro(yearlyOf(row)) }} jährlich
+                        {{
+                            formatMessage(msg.preview.orYearly, {
+                                price: formatEuro(yearlyOf(row)),
+                            })
+                        }}
                     </div>
 
                     <button type="button" class="mc-card-cta">{{ ctaText(row) }}</button>
                     <div v-if="showTrialNote(row) && !promoOf(row)" class="mc-card-trialnote">
-                        {{ row.m.trialDays }} Tage kostenlos · keine Kreditkarte nötig
+                        {{ formatMessage(msg.preview.trialNote, { days: row.m.trialDays }) }}
                     </div>
                     <div v-if="promoFineprintOf(row)" class="mc-card-fineprint">
                         {{ promoFineprintOf(row) }}
                     </div>
 
-                    <div class="mc-card-includes">Top-Features</div>
+                    <div class="mc-card-includes">{{ msg.topFeatures }}</div>
                     <ul v-if="row.m.topFeatures.length > 0" class="mc-card-features">
                         <li v-for="(f, i) in row.m.topFeatures" :key="i">
                             <span class="mc-tick">
@@ -105,7 +107,9 @@
                             </span>
                         </li>
                     </ul>
-                    <div v-else class="mc-card-features-empty">Keine Top-Features gepflegt.</div>
+                    <div v-else class="mc-card-features-empty">
+                        {{ msg.preview.noTopFeatures }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -113,11 +117,9 @@
 </template>
 
 <script setup lang="ts">
-import type {
-    MarketingTopFeature,
-    PromotionResult,
-    PromotionRow,
-} from '@saasicat/types';
+import type { MarketingTopFeature, PromotionResult, PromotionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { MarketingRow } from './types.js';
 
 defineProps<{
@@ -135,4 +137,6 @@ defineProps<{
     showTrialNote: (row: MarketingRow) => boolean;
     topFeatureLabel: (feature: MarketingTopFeature) => string;
 }>();
+
+const msg = useSaMessages('marketing');
 </script>

@@ -14,7 +14,9 @@ import type {
     UpdateBusinessTypeData,
     UpdateBusinessTypeVersionDraftData,
 } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 export interface UseBusinessTypesOptions {
     adminEndpoint: string;
@@ -48,12 +50,13 @@ export interface UseBusinessTypesResult {
 
 export function useBusinessTypes(options: UseBusinessTypesOptions): UseBusinessTypesResult {
     if (!options?.adminEndpoint) {
-        throw new Error('useBusinessTypes: `adminEndpoint` ist Pflicht.');
+        throw new Error('useBusinessTypes: `adminEndpoint` is required.');
     }
     if (!options?.projectKey) {
-        throw new Error('useBusinessTypes: `projectKey` ist Pflicht.');
+        throw new Error('useBusinessTypes: `projectKey` is required.');
     }
 
+    const msg = useSaMessages('businessTypes');
     const http = options.http ?? defaultHttpClient();
     const businessTypes = ref<BusinessTypeRow[]>([]);
     const loading = ref(false);
@@ -78,7 +81,7 @@ export function useBusinessTypes(options: UseBusinessTypesOptions): UseBusinessT
             throw new BusinessTypesApiError(
                 res.status,
                 body,
-                `BusinessTypes-API antwortete mit HTTP ${res.status}`,
+                formatMessage(msg.value.errorApiHttp, { status: res.status }),
             );
         }
         return body as T;
@@ -104,7 +107,7 @@ export function useBusinessTypes(options: UseBusinessTypesOptions): UseBusinessT
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new BusinessTypesApiError(0, null, 'Create gab keinen Body zurück');
+        if (!created) throw new BusinessTypesApiError(0, null, 'Create returned no body');
         businessTypes.value = [...businessTypes.value, created];
         return created;
     }
@@ -117,7 +120,7 @@ export function useBusinessTypes(options: UseBusinessTypesOptions): UseBusinessT
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new BusinessTypesApiError(0, null, 'Update gab keinen Body zurück');
+        if (!updated) throw new BusinessTypesApiError(0, null, 'Update returned no body');
         businessTypes.value = businessTypes.value.map((b) =>
             b.id === businessTypeId ? updated : b,
         );
@@ -171,12 +174,13 @@ export function useBusinessTypeVersions(
     options: UseBusinessTypeVersionsOptions,
 ): UseBusinessTypeVersionsResult {
     if (!options?.adminEndpoint) {
-        throw new Error('useBusinessTypeVersions: `adminEndpoint` ist Pflicht.');
+        throw new Error('useBusinessTypeVersions: `adminEndpoint` is required.');
     }
     if (!options?.businessTypeId) {
-        throw new Error('useBusinessTypeVersions: `businessTypeId` ist Pflicht.');
+        throw new Error('useBusinessTypeVersions: `businessTypeId` is required.');
     }
 
+    const msg = useSaMessages('businessTypes');
     const http = options.http ?? defaultHttpClient();
     const versions = ref<BusinessTypeVersionRow[]>([]);
     const loading = ref(false);
@@ -202,7 +206,7 @@ export function useBusinessTypeVersions(
             throw new BusinessTypesApiError(
                 res.status,
                 body,
-                `BusinessTypeVersions-API antwortete mit HTTP ${res.status}`,
+                formatMessage(msg.value.errorVersionsApiHttp, { status: res.status }),
             );
         }
         return body as T;
@@ -228,7 +232,7 @@ export function useBusinessTypeVersions(
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!result) throw new BusinessTypesApiError(0, null, 'CreateDraft gab keinen Body zurück');
+        if (!result) throw new BusinessTypesApiError(0, null, 'CreateDraft returned no body');
         versions.value = [...versions.value, result.businessTypeVersion];
         return result;
     }
@@ -241,7 +245,7 @@ export function useBusinessTypeVersions(
             `${versionUrlBase}/${versionId}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!result) throw new BusinessTypesApiError(0, null, 'UpdateDraft gab keinen Body zurück');
+        if (!result) throw new BusinessTypesApiError(0, null, 'UpdateDraft returned no body');
         versions.value = versions.value.map((v) =>
             v.id === versionId ? result.businessTypeVersion : v,
         );
@@ -256,7 +260,7 @@ export function useBusinessTypeVersions(
             `${versionUrlBase}/${versionId}/publish`,
             { method: 'POST', body: JSON.stringify(opts) },
         );
-        if (!result) throw new BusinessTypesApiError(0, null, 'Publish gab keinen Body zurück');
+        if (!result) throw new BusinessTypesApiError(0, null, 'Publish returned no body');
         await load();
         return result;
     }

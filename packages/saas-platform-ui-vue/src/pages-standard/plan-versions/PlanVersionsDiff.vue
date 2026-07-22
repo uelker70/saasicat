@@ -5,7 +5,7 @@
                 <q-icon name="compare_arrows" size="22px" color="white" />
             </div>
             <div>
-                <div class="sa-pv-diff__legend">Vergleich</div>
+                <div class="sa-pv-diff__legend">{{ msg.diff.legend }}</div>
                 <div class="sa-pv-diff__title">
                     {{ from.label }} <span class="sa-pv-diff__sep">→</span> {{ to.label }}
                 </div>
@@ -13,13 +13,13 @@
             <div class="sa-pv-diff__spacer" />
             <div class="sa-pv-diff__stats">
                 <div class="sa-pv-diff__stat">
-                    <div class="sa-pv-diff__stat-label">Pakete geändert</div>
+                    <div class="sa-pv-diff__stat-label">{{ msg.diff.plansChanged }}</div>
                     <div class="sa-pv-diff__stat-value sa-pv-diff__stat-value--warn">
                         {{ planChangedCount }}
                     </div>
                 </div>
                 <div v-if="regressionCount > 0" class="sa-pv-diff__stat">
-                    <div class="sa-pv-diff__stat-label">Regressionen</div>
+                    <div class="sa-pv-diff__stat-label">{{ msg.diff.regressions }}</div>
                     <div class="sa-pv-diff__stat-value sa-pv-diff__stat-value--bad">
                         {{ regressionCount }}
                     </div>
@@ -27,7 +27,7 @@
             </div>
         </div>
 
-        <h2 class="sa-pv-diff__section">Pakete</h2>
+        <h2 class="sa-pv-diff__section">{{ msg.diff.sectionPlans }}</h2>
         <PlanDiffCard
             v-for="d in planDiffs"
             :key="d.id"
@@ -38,7 +38,6 @@
             :changes="d.changes"
             :field-labels="fieldLabels"
         />
-
     </div>
 </template>
 
@@ -46,6 +45,7 @@
 import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/types';
 import type { CatalogSnapshot, ResolvedPlan } from '../../client/plan-versions-catalog.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import PlanDiffCard from './PlanDiffCard.vue';
 
 interface SnapshotEntityDiff {
@@ -63,6 +63,8 @@ const props = defineProps<{
     /** Field label overrides (e.g. `{ maxVehicles: 'Max. Fahrzeuge' }`). */
     fieldLabels?: Record<string, string>;
 }>();
+
+const msg = useSaMessages('planVersions');
 
 function planAccent(planId: string): string {
     return props.planAccents?.[planId] ?? '#3f6bff';

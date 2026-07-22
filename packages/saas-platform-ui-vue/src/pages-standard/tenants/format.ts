@@ -28,9 +28,10 @@ export function planAccent(
     return accents[planId] ?? '#3f6bff';
 }
 
-export function formatDateDe(iso: string | null | undefined): string {
+/** `locale` is a BCP-47 tag — pages pass `intlLocale.value` of the active UI locale. */
+export function formatDate(iso: string | null | undefined, locale: string): string {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('de-DE', {
+    return new Date(iso).toLocaleDateString(locale, {
         day: '2-digit',
         month: 'short',
         year: 'numeric',

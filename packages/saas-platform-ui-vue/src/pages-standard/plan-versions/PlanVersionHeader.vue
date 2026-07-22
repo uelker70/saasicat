@@ -15,7 +15,7 @@
                             class="sa-pv-header__cmp-btn"
                             @click="emit('clearCompare')"
                         >
-                            <q-icon name="close" size="14px" /> Vergleich beenden
+                            <q-icon name="close" size="14px" /> {{ msg.compareEnd }}
                         </button>
                     </template>
                 </div>
@@ -28,23 +28,21 @@
                         class="sa-pv-header__meta-item sa-pv-header__meta-item--ok"
                     >
                         <q-icon name="rocket_launch" size="14px" />
-                        Publiziert {{ formatDateDe(snapshot.publishedAt) }}
+                        {{ publishedOnLabel }}
                     </span>
                     <span
                         v-if="snapshot.kind === 'drafts'"
                         class="sa-pv-header__meta-item sa-pv-header__meta-item--warn"
                     >
                         <q-icon name="edit_note" size="14px" />
-                        <strong>{{ snapshot.draftCount }}</strong> offene Drafts
+                        <strong>{{ snapshot.draftCount }}</strong> {{ msg.header.openDrafts }}
                     </span>
                     <span
                         v-if="snapshot.regressionCount > 0"
                         class="sa-pv-header__meta-item sa-pv-header__meta-item--bad"
                     >
                         <q-icon name="trending_down" size="14px" />
-                        <strong>{{ snapshot.regressionCount }}</strong> Regression{{
-                            snapshot.regressionCount === 1 ? '' : 'en'
-                        }}
+                        <strong>{{ snapshot.regressionCount }}</strong> {{ regressionLabel }}
                     </span>
                 </div>
             </div>
@@ -57,7 +55,7 @@
                     @click="emit('publish')"
                 >
                     <q-icon name="rocket_launch" size="16px" />
-                    Publish-Flow starten
+                    {{ msg.header.startPublishFlow }}
                 </button>
             </div>
         </div>
@@ -68,7 +66,7 @@
                 :class="{ 'sa-pv-header__switcher--disabled': !!compareSnapshot }"
             >
                 <button
-                    v-for="m in modes"
+                    v-for="m in resolvedModes"
                     :key="m.id"
                     type="button"
                     class="sa-pv-header__mode-btn"
@@ -81,7 +79,7 @@
             </div>
             <span v-if="compareSnapshot" class="sa-pv-header__cmp-hint">
                 <q-icon name="compare_arrows" size="13px" />
-                Vergleichsmodus aktiv — andere Ansichten deaktiviert
+                {{ msg.header.compareModeHint }}
             </span>
         </div>
     </header>
@@ -90,25 +88,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
-import { formatDateDe } from './format.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { formatDate } from './format.js';
 import PlanVersionStatusBadge from './PlanVersionStatusBadge.vue';
 import type { PlanVersionViewMode } from './types.js';
 
-const props = withDefaults(
-    defineProps<{
-        snapshot: CatalogSnapshot;
-        viewMode: PlanVersionViewMode;
-        compareSnapshot: CatalogSnapshot | null;
-        modes?: ReadonlyArray<{ id: PlanVersionViewMode; label: string; icon: string }>;
-    }>(),
-    {
-        modes: () => [
-            { id: 'list' as const, label: 'Plan-Liste', icon: 'list' },
-            { id: 'matrix' as const, label: 'Feature-Matrix', icon: 'grid_view' },
-            { id: 'audit' as const, label: 'Aktivität', icon: 'history' },
-        ],
-    },
-);
+const props = defineProps<{
+    snapshot: CatalogSnapshot;
+    viewMode: PlanVersionViewMode;
+    compareSnapshot: CatalogSnapshot | null;
+    /** Overrides the localized default view switcher. */
+    modes?: ReadonlyArray<{ id: PlanVersionViewMode; label: string; icon: string }>;
+}>();
 
 const emit = defineEmits<{
     (e: 'viewChange', mode: PlanVersionViewMode): void;
@@ -116,8 +108,32 @@ const emit = defineEmits<{
     (e: 'clearCompare'): void;
 }>();
 
+const msg = useSaMessages('planVersions');
+const { locale } = useSuperAdminI18n();
+
 const canPublish = computed(
     () => props.snapshot.kind === 'drafts' && props.snapshot.draftCount > 0,
+);
+
+const publishedOnLabel = computed(() =>
+    formatMessage(msg.value.header.publishedOn, {
+        date: formatDate(props.snapshot.publishedAt ?? undefined, locale.value),
+    }),
+);
+
+const regressionLabel = computed(() =>
+    props.snapshot.regressionCount === 1
+        ? msg.value.header.regressionOne
+        : msg.value.header.regressionMany,
+);
+
+const resolvedModes = computed(
+    () =>
+        props.modes ?? [
+            { id: 'list' as const, label: msg.value.header.modeList, icon: 'list' },
+            { id: 'matrix' as const, label: msg.value.header.modeMatrix, icon: 'grid_view' },
+            { id: 'audit' as const, label: msg.value.header.modeAudit, icon: 'history' },
+        ],
 );
 </script>
 

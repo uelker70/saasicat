@@ -2,20 +2,15 @@
     <div class="sa-bts">
         <header class="sa-bts__head">
             <div>
-                <h1 class="sa-bts__title">BusinessTypes</h1>
-                <p class="sa-bts__sub">
-                    {{ businessTypes.length }} BusinessType{{
-                        businessTypes.length === 1 ? '' : 's'
-                    }}
-                    · Projekt {{ projectKey }}
-                </p>
+                <h1 class="sa-bts__title">{{ msg.title }}</h1>
+                <p class="sa-bts__sub">{{ subtitle }}</p>
             </div>
             <div class="sa-bts__head-actions">
                 <q-btn
                     unelevated
                     color="primary"
                     icon="add"
-                    label="Neuer BusinessType"
+                    :label="msg.newBusinessType"
                     @click="openCreateDialog"
                 />
                 <q-btn flat icon="refresh" :loading="loading" @click="load" />
@@ -24,7 +19,7 @@
 
         <q-banner v-if="error" class="sa-bts__error" inline-actions rounded>
             <template #avatar><q-icon name="warning" color="negative" /></template>
-            Fehler beim Laden: {{ error.message }}
+            {{ msg.loadError }}: {{ error.message }}
         </q-banner>
 
         <q-banner
@@ -34,8 +29,7 @@
             rounded
         >
             <template #avatar><q-icon name="info" color="info" /></template>
-            Noch keine BusinessTypes angelegt. BusinessTypes komponieren mehrere published
-            BundleVersions zu einer fachlichen Vertikale (z. B. Vereinstyp).
+            {{ msg.emptyHint }}
         </q-banner>
 
         <div v-if="businessTypes.length > 0" class="sa-bts__card">
@@ -78,39 +72,44 @@
         <q-dialog v-model="createOpen">
             <q-card style="min-width: 480px; max-width: 96vw">
                 <q-card-section>
-                    <div class="text-h6">Neuer BusinessType</div>
+                    <div class="text-h6">{{ msg.newBusinessType }}</div>
                 </q-card-section>
                 <q-card-section class="sa-bts__form">
                     <q-input
                         v-model="createForm.businessTypeKey"
                         outlined
                         dense
-                        label="BusinessType-Key (SCREAMING_SNAKE_CASE)"
+                        :label="msg.fieldBusinessTypeKey"
                     />
-                    <q-input v-model="createForm.label" outlined dense label="Label" />
+                    <q-input v-model="createForm.label" outlined dense :label="msg.fieldLabel" />
                     <q-input
                         v-model="createForm.description"
                         outlined
                         dense
                         type="textarea"
                         autogrow
-                        label="Beschreibung"
+                        :label="common.description"
                     />
-                    <q-input v-model="createForm.icon" outlined dense label="Icon (optional)" />
+                    <q-input
+                        v-model="createForm.icon"
+                        outlined
+                        dense
+                        :label="msg.fieldIconOptional"
+                    />
                     <q-input
                         v-model.number="createForm.sortOrder"
                         outlined
                         dense
                         type="number"
-                        label="Sortier-Reihenfolge"
+                        :label="msg.fieldSortOrder"
                     />
                 </q-card-section>
                 <q-card-actions align="right">
-                    <q-btn v-close-popup flat label="Abbrechen" />
+                    <q-btn v-close-popup flat :label="common.cancel" />
                     <q-btn
                         unelevated
                         color="primary"
-                        label="Anlegen"
+                        :label="common.create"
                         :loading="createSubmitting"
                         :disable="!canSubmitCreate"
                         @click="submitCreate"
@@ -131,27 +130,27 @@
                 </header>
 
                 <section class="sa-bts__form">
-                    <q-input v-model="editForm.label" outlined dense label="Label" />
+                    <q-input v-model="editForm.label" outlined dense :label="msg.fieldLabel" />
                     <q-input
                         v-model="editForm.description"
                         outlined
                         dense
                         type="textarea"
                         autogrow
-                        label="Beschreibung"
+                        :label="common.description"
                     />
-                    <q-input v-model="editForm.icon" outlined dense label="Icon" />
+                    <q-input v-model="editForm.icon" outlined dense :label="msg.fieldIcon" />
                     <q-input
                         v-model.number="editForm.sortOrder"
                         outlined
                         dense
                         type="number"
-                        label="Sortier-Reihenfolge"
+                        :label="msg.fieldSortOrder"
                     />
                     <q-btn
                         unelevated
                         color="primary"
-                        label="Speichern"
+                        :label="common.save"
                         :loading="editSubmitting"
                         @click="submitEdit"
                     />
@@ -161,7 +160,7 @@
 
                 <section>
                     <div class="sa-bts__drawer-subhead">
-                        <strong>Versionen</strong>
+                        <strong>{{ msg.versionsTitle }}</strong>
                         <span class="text-caption text-grey-7">
                             {{ detailVersions.length }}
                         </span>
@@ -172,17 +171,14 @@
                         inline-actions
                         rounded
                     >
-                        Noch keine Version. „Neuer Draft" anlegen.
+                        {{ msg.noVersions }}
                     </q-banner>
                     <q-list v-else bordered separator>
                         <q-item v-for="v in detailVersions" :key="v.id">
                             <q-item-section>
                                 <q-item-label>v{{ v.version }}</q-item-label>
                                 <q-item-label caption>
-                                    {{ v.bundles.length }} Bundle{{
-                                        v.bundles.length === 1 ? '' : 's'
-                                    }}
-                                    · {{ v.monthlyNet ?? 'Σ Bundle-Preise' }}
+                                    {{ versionBundlesLabel(v) }}
                                 </q-item-label>
                             </q-item-section>
                             <q-item-section side>
@@ -216,12 +212,12 @@
                             unelevated
                             color="primary"
                             icon="add"
-                            label="Neuer Draft"
+                            :label="msg.newDraft"
                             @click="openCreateDraft"
                         />
                     </div>
                     <q-banner v-else-if="hasDraft" class="sa-bts__hint" inline-actions rounded>
-                        Hat bereits eine Draft-Version.
+                        {{ msg.alreadyHasDraft }}
                     </q-banner>
                 </section>
             </div>
@@ -235,7 +231,7 @@
             rounded
         >
             <template #avatar><q-icon name="warning" color="warning" /></template>
-            <strong>{{ lastWarnings.length }} Strict-Mode-Warnung(en) bei letzter Operation</strong>
+            <strong>{{ strictWarningsLabel }}</strong>
             <ul class="sa-bts__warnings-list">
                 <li v-for="(w, i) in lastWarnings" :key="i">
                     <code>{{ w.code }}</code>
@@ -246,7 +242,7 @@
                 </li>
             </ul>
             <template #action>
-                <q-btn flat dense label="Schließen" @click="lastWarnings = []" />
+                <q-btn flat dense :label="common.close" @click="lastWarnings = []" />
             </template>
         </q-banner>
 
@@ -293,6 +289,8 @@ import type {
 
 import BusinessTypeVersionEditorDialog from '../components/BusinessTypeVersionEditorDialog.vue';
 import BusinessTypeVersionPublishDialog from '../components/BusinessTypeVersionPublishDialog.vue';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 interface QTableColumn {
     name: string;
@@ -333,30 +331,43 @@ const props = defineProps<{
     ) => { changes: VersionChange[]; nonRegressive: boolean };
 }>();
 
-const columns: QTableColumn[] = [
+const msg = useSaMessages('businessTypes');
+const common = useSaMessages('common');
+
+const subtitle = computed(() =>
+    formatMessage(
+        props.businessTypes.length === 1 ? msg.value.subtitleOne : msg.value.subtitleMany,
+        {
+            count: props.businessTypes.length,
+            projectKey: props.projectKey,
+        },
+    ),
+);
+
+const columns = computed<QTableColumn[]>(() => [
     {
         name: 'businessTypeKey',
-        label: 'Key',
+        label: msg.value.keyLabel,
         field: 'businessTypeKey',
         align: 'left',
         sortable: true,
     },
-    { name: 'label', label: 'Label', field: 'label', align: 'left', sortable: true },
+    { name: 'label', label: msg.value.fieldLabel, field: 'label', align: 'left', sortable: true },
     {
         name: 'description',
-        label: 'Beschreibung',
+        label: common.value.description,
         field: (row) => (row as BusinessTypeRow).description ?? '—',
         align: 'left',
     },
     {
         name: 'sortOrder',
-        label: 'Sort',
+        label: msg.value.sortLabel,
         field: 'sortOrder',
         align: 'right',
         sortable: true,
     },
     { name: 'actions', label: '', field: () => '', align: 'right' },
-];
+]);
 
 // ─── Create dialog ───
 const createOpen = ref(false);
@@ -448,7 +459,7 @@ async function submitEdit(): Promise<void> {
 }
 
 async function confirmDelete(bt: BusinessTypeRow): Promise<void> {
-    const ok = window.confirm(`BusinessType '${bt.businessTypeKey}' wirklich soft-deleten?`);
+    const ok = window.confirm(formatMessage(msg.value.deleteConfirm, { key: bt.businessTypeKey }));
     if (!ok) return;
     await props.softDelete(bt.id);
     if (detailType.value?.id === bt.id) {
@@ -469,6 +480,10 @@ watch(
 
 // ─── Strict mode warnings ───
 const lastWarnings = ref<StrictModeWarning[]>([]);
+
+const strictWarningsLabel = computed(() =>
+    formatMessage(msg.value.strictWarningsLastOperation, { count: lastWarnings.value.length }),
+);
 
 // ─── Editor modal ───
 const editorOpen = ref(false);
@@ -506,7 +521,7 @@ async function onEditorSubmit(
     if (editorMode.value === 'edit' && editorDraft.value) {
         return props.updateDraft(editorDraft.value.id, data as UpdateBusinessTypeVersionDraftData);
     }
-    throw new Error('BusinessTypesPage: editor submit ohne Kontext');
+    throw new Error('BusinessTypesPage: editor submit without context');
 }
 
 async function onEditorSubmitted(result: BusinessTypeVersionMutationResult): Promise<void> {
@@ -539,7 +554,7 @@ async function onPublishSubmit(opts: {
     forceRegressive: boolean;
 }): Promise<BusinessTypeVersionMutationResult> {
     if (!publishDraft.value) {
-        throw new Error('BusinessTypesPage: publish submit ohne Draft');
+        throw new Error('BusinessTypesPage: publish submit without a draft');
     }
     return props.publish(publishDraft.value.id, opts);
 }
@@ -552,10 +567,19 @@ async function onPublishSubmitted(result: BusinessTypeVersionMutationResult): Pr
     }
 }
 
+function versionBundlesLabel(v: BusinessTypeVersionRow): string {
+    const template =
+        v.bundles.length === 1 ? msg.value.versionBundlesOne : msg.value.versionBundlesMany;
+    return formatMessage(template, {
+        count: v.bundles.length,
+        price: v.monthlyNet ?? msg.value.sumOfBundlePrices,
+    });
+}
+
 function versionStatusLabel(v: BusinessTypeVersionRow): string {
-    if (v.publishedAt === null) return 'Draft';
-    if (v.supersededAt !== null) return 'Superseded';
-    return v.marketed ? 'Live · marketed' : 'Live · intern';
+    if (v.publishedAt === null) return msg.value.statusDraft;
+    if (v.supersededAt !== null) return msg.value.statusSuperseded;
+    return v.marketed ? msg.value.statusLiveMarketed : msg.value.statusLiveInternal;
 }
 
 function versionStatusColor(v: BusinessTypeVersionRow): string {

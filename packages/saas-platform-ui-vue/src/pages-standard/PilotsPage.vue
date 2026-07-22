@@ -2,8 +2,10 @@
     <div class="sa-pilots">
         <header class="sa-page-head">
             <div>
-                <h1 class="sa-page-head__title">Pilot-Mandanten</h1>
-                <p class="sa-page-head__sub">{{ rows.length }} Pilot-Tenants insgesamt.</p>
+                <h1 class="sa-page-head__title">{{ msg.title }}</h1>
+                <p class="sa-page-head__sub">
+                    {{ formatMessage(msg.subtitleCount, { count: rows.length }) }}
+                </p>
             </div>
             <div class="sa-page-head__actions">
                 <slot name="head-actions">
@@ -12,7 +14,7 @@
                         unelevated
                         color="primary"
                         icon="add"
-                        :label="createLabel"
+                        :label="resolvedCreateLabel"
                         @click="showCreate = true"
                     />
                 </slot>
@@ -38,7 +40,7 @@
 
         <q-banner v-if="reviewSoon.length" class="bg-amber-2 text-grey-9 q-mb-md" rounded>
             <template #avatar><q-icon name="event" color="amber-9" /></template>
-            {{ reviewSoon.length }} Pilot-Mandanten enden in den nächsten 30 Tagen — bitte prüfen.
+            {{ formatMessage(msg.list.reviewSoonBanner, { count: reviewSoon.length }) }}
         </q-banner>
 
         <div class="sa-pilots__card">
@@ -109,6 +111,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useQuasar } from 'quasar';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import PilotCreateDialog from '../components/dialogs/PilotCreateDialog.vue';
 import PilotEditDialog from '../components/dialogs/PilotEditDialog.vue';
@@ -195,10 +199,14 @@ const props = withDefaults(
         requireMfa: false,
         requireMfaForExtend: false,
         requireMfaForRevoke: false,
-        createLabel: 'Pilot anlegen',
         defaultActions: () => ['edit', 'extend', 'revoke'],
     },
 );
+
+const msg = useSaMessages('pilots');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
+const resolvedCreateLabel = computed(() => props.createLabel ?? msg.value.createAction);
 
 const q = useQuasar();
 const notify = useSuperAdminNotify();
@@ -291,53 +299,53 @@ const statTiles = computed<
     const counts = { all: rows.value.length, active: 0, expiring: 0, expired: 0 };
     for (const r of rows.value) counts[classifyRow(r)]++;
     return [
-        { id: 'all', label: 'Alle', count: counts.all },
-        { id: 'active', label: 'Aktiv', count: counts.active, tone: 'positive' },
+        { id: 'all', label: common.value.all, count: counts.all },
+        { id: 'active', label: common.value.active, count: counts.active, tone: 'positive' },
         {
             id: 'expiring',
-            label: 'Läuft bald aus',
+            label: msg.value.list.tileExpiring,
             count: counts.expiring,
             tone: 'warn',
-            hint: '≤ 14 Tage',
+            hint: msg.value.list.tileExpiringHint,
         },
-        { id: 'expired', label: 'Abgelaufen', count: counts.expired, tone: 'danger' },
+        { id: 'expired', label: msg.value.list.tileExpired, count: counts.expired, tone: 'danger' },
     ];
 });
 
-const baseColumns = [
+const baseColumns = computed(() => [
     {
         name: 'slug',
-        label: 'Slug',
+        label: msg.value.list.columnSlug,
         field: (r: PilotRow) => r.tenant.slug,
         align: 'left' as const,
         sortable: true,
     },
     {
         name: 'name',
-        label: 'Name',
+        label: common.value.name,
         field: (r: PilotRow) => r.tenant.name,
         align: 'left' as const,
     },
-    { name: 'plan', label: 'Plan', field: 'plan', align: 'left' as const },
+    { name: 'plan', label: msg.value.list.columnPlan, field: 'plan', align: 'left' as const },
     {
         name: 'note',
-        label: 'Note',
+        label: msg.value.list.columnNote,
         field: (r: PilotRow) => r.pilotNote ?? '—',
         align: 'left' as const,
     },
     {
         name: 'grantedBy',
-        label: 'Granted by',
+        label: msg.value.list.columnGrantedBy,
         field: (r: PilotRow) => r.grantedBy ?? '—',
         align: 'left' as const,
     },
     {
         name: 'pilotEndsAt',
-        label: 'Endet',
+        label: msg.value.list.columnEndsAt,
         field: (r: PilotRow) => formatDate(r.pilotEndsAt) ?? '∞',
         align: 'left' as const,
     },
-];
+]);
 
 // Built-in default actions (edit/extend/revoke) — are APPENDED to the
 // consumer `actions`, not replaced. Order follows the `defaultActions` prop.
@@ -347,7 +355,7 @@ const bakedActions = computed<PilotRowAction[]>(() => {
         if (id === 'edit' && props.enableEdit && props.submitEdit) {
             out.push({
                 id: 'edit',
-                label: 'Bearbeiten',
+                label: common.value.edit,
                 icon: 'edit',
                 color: 'primary',
                 handler: (row) => onEditClick(row),
@@ -355,7 +363,7 @@ const bakedActions = computed<PilotRowAction[]>(() => {
         } else if (id === 'extend' && props.enableExtend && props.submitExtend) {
             out.push({
                 id: 'extend',
-                label: 'Verlängern',
+                label: msg.value.list.actionExtend,
                 icon: 'event_repeat',
                 color: 'primary',
                 handler: (row) => onExtendClick(row),
@@ -363,7 +371,7 @@ const bakedActions = computed<PilotRowAction[]>(() => {
         } else if (id === 'revoke' && props.enableRevoke && props.submitRevoke) {
             out.push({
                 id: 'revoke',
-                label: 'Widerrufen',
+                label: msg.value.list.actionRevoke,
                 icon: 'block',
                 color: 'negative',
                 handler: (row) => onRevokeClick(row),
@@ -379,7 +387,7 @@ const mergedActions = computed<readonly PilotRowAction[]>(() => [
 ]);
 
 const effectiveColumns = computed(() => {
-    const cols = [...baseColumns];
+    const cols = [...baseColumns.value];
     if (mergedActions.value.length > 0) {
         cols.push({
             name: 'actions',
@@ -437,7 +445,7 @@ function errMsg(err: unknown): string {
     return (
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         (err as Error)?.message ??
-        'Aktion fehlgeschlagen'
+        msg.value.list.actionFailed
     );
 }
 
@@ -447,15 +455,23 @@ function onEditClick(row: PilotRow): void {
 }
 
 function onUpdated(result: PilotEditResult): void {
-    notify('positive', `Pilot ${result.slug} aktualisiert.`, {
-        caption: result.changed?.length ? `Geändert: ${result.changed.join(', ')}` : undefined,
+    notify('positive', formatMessage(msg.value.list.updatedNotice, { slug: result.slug }), {
+        caption: result.changed?.length
+            ? formatMessage(msg.value.list.updatedChangedCaption, {
+                  fields: result.changed.join(', '),
+              })
+            : undefined,
     });
     void reload();
 }
 
 function onCreated(result: PilotCreateResult): void {
-    notify('positive', `Pilot ${result.slug} angelegt.`, {
-        caption: result.initialPassword ? `Initial-Passwort: ${result.initialPassword}` : undefined,
+    notify('positive', formatMessage(msg.value.list.createdNotice, { slug: result.slug }), {
+        caption: result.initialPassword
+            ? formatMessage(msg.value.list.createdPasswordCaption, {
+                  password: result.initialPassword,
+              })
+            : undefined,
         timeoutMs: 8000,
     });
     void reload();
@@ -493,7 +509,7 @@ async function runAction(
         } catch (err) {
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 401) {
-                mfaError.value = 'TOTP-Code ungültig oder MFA nicht eingerichtet.';
+                mfaError.value = msg.value.mfa.invalidOrNotSetUp;
                 continue;
             }
             showMfa.value = false;
@@ -507,19 +523,19 @@ function onExtendClick(row: PilotRow): void {
     if (!props.submitExtend) return;
     const submit = props.submitExtend;
     q.dialog({
-        title: `Pilot ${row.tenant.slug} verlängern`,
-        message: 'Neues Enddatum:',
+        title: formatMessage(msg.value.list.extendTitle, { slug: row.tenant.slug }),
+        message: msg.value.list.extendMessage,
         prompt: {
             model: row.pilotEndsAt?.slice(0, 10) ?? '',
             type: 'date',
         },
-        cancel: 'Abbrechen',
-        ok: { label: 'Verlängern', color: 'primary' },
+        cancel: common.value.cancel,
+        ok: { label: msg.value.list.actionExtend, color: 'primary' },
     }).onOk(async (until: string) => {
         if (!until) return;
         await runAction(
-            `Pilot "${row.tenant.slug}" bis ${until} verlängern.`,
-            `Pilot bis ${until} verlängert.`,
+            formatMessage(msg.value.list.extendMfaDescription, { slug: row.tenant.slug, until }),
+            formatMessage(msg.value.list.extendSuccess, { until }),
             !!props.requireMfaForExtend,
             (code) => submit(row.tenant.slug, until, code),
         );
@@ -530,14 +546,14 @@ function onRevokeClick(row: PilotRow): void {
     if (!props.submitRevoke) return;
     const submit = props.submitRevoke;
     q.dialog({
-        title: `Pilot ${row.tenant.slug} widerrufen`,
-        message: 'Pilot-Status entfernen. Subscription bleibt bestehen.',
-        cancel: 'Abbrechen',
-        ok: { label: 'Widerrufen', color: 'negative' },
+        title: formatMessage(msg.value.list.revokeTitle, { slug: row.tenant.slug }),
+        message: msg.value.list.revokeMessage,
+        cancel: common.value.cancel,
+        ok: { label: msg.value.list.actionRevoke, color: 'negative' },
     }).onOk(async () => {
         await runAction(
-            `Pilot-Status für "${row.tenant.slug}" widerrufen.`,
-            'Pilot widerrufen.',
+            formatMessage(msg.value.list.revokeMfaDescription, { slug: row.tenant.slug }),
+            msg.value.list.revokeSuccess,
             !!props.requireMfaForRevoke,
             (code) => submit(row.tenant.slug, code),
         );
@@ -547,7 +563,7 @@ function onRevokeClick(row: PilotRow): void {
 function formatDate(iso: string | null | undefined): string | null {
     if (!iso) return null;
     try {
-        return new Date(iso).toLocaleDateString('de-DE', {
+        return new Date(iso).toLocaleDateString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',

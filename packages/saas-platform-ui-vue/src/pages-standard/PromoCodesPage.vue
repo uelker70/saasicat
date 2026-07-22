@@ -2,7 +2,7 @@
     <div class="sa-promo-codes">
         <header class="sa-page-head">
             <div>
-                <h1 class="sa-page-head__title">Promo-Codes</h1>
+                <h1 class="sa-page-head__title">{{ msg.title }}</h1>
                 <p v-if="subtitle" class="sa-page-head__sub">{{ subtitle }}</p>
             </div>
             <div class="sa-page-head__actions">
@@ -12,7 +12,7 @@
                         unelevated
                         color="primary"
                         icon="add"
-                        :label="createLabel"
+                        :label="resolvedCreateLabel"
                         @click="showCreate = true"
                     />
                 </slot>
@@ -41,7 +41,7 @@
                 v-model="filter.search"
                 outlined
                 dense
-                label="Suche (Code)"
+                :label="msg.list.searchLabel"
                 clearable
                 @update:model-value="reload"
             />
@@ -52,7 +52,7 @@
                 emit-value
                 map-options
                 clearable
-                label="Status"
+                :label="common.status"
                 :options="statusOptions"
                 @update:model-value="reload"
             />
@@ -138,6 +138,8 @@ export function computePlanColors(
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import PromoCodeCreateDialog from '../components/dialogs/PromoCodeCreateDialog.vue';
 import PromoCodeEditDialog, {
@@ -210,10 +212,14 @@ const props = withDefaults(
     }>(),
     {
         statusOptions: () => ['ACTIVE', 'PAUSED', 'EXHAUSTED', 'EXPIRED'],
-        createLabel: 'Promo-Code anlegen',
         planOptions: () => [],
     },
 );
+
+const msg = useSaMessages('promos');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
+const resolvedCreateLabel = computed(() => props.createLabel ?? msg.value.createAction);
 
 const q = useQuasar();
 const notify = useSuperAdminNotify();
@@ -267,23 +273,23 @@ const statTiles = computed<
         if (c) counts[c]++;
     }
     return [
-        { id: 'all', label: 'Alle', count: rows.value.length },
+        { id: 'all', label: common.value.all, count: rows.value.length },
         {
             id: 'active',
-            label: 'Aktiv',
+            label: common.value.active,
             count: counts.active,
             tone: 'positive',
-            hint: 'einlösbar',
+            hint: msg.value.list.hintRedeemable,
         },
         {
             id: 'scheduled',
-            label: 'Geplant',
+            label: msg.value.list.tileScheduled,
             count: counts.scheduled,
             tone: 'info',
-            hint: 'startet künftig',
+            hint: msg.value.list.hintStartsLater,
         },
-        { id: 'paused', label: 'Pausiert', count: counts.paused, tone: 'warn' },
-        { id: 'expired', label: 'Abgelaufen', count: counts.expired, tone: 'muted' },
+        { id: 'paused', label: msg.value.list.tilePaused, count: counts.paused, tone: 'warn' },
+        { id: 'expired', label: msg.value.list.tileExpired, count: counts.expired, tone: 'muted' },
     ];
 });
 
@@ -305,36 +311,41 @@ function onStatusTileClick(id: StatusFilter): void {
     }
 }
 
-const baseColumns = [
+const baseColumns = computed(() => [
     {
         name: 'code',
-        label: 'Code',
+        label: msg.value.list.columnCode,
         field: 'code',
         align: 'left' as const,
         sortable: true,
     },
-    { name: 'valueType', label: 'Typ', field: 'valueType', align: 'left' as const },
-    { name: 'value', label: 'Wert', field: 'value', align: 'right' as const },
-    { name: 'status', label: 'Status', field: 'status', align: 'left' as const },
+    {
+        name: 'valueType',
+        label: msg.value.list.columnValueType,
+        field: 'valueType',
+        align: 'left' as const,
+    },
+    { name: 'value', label: msg.value.list.columnValue, field: 'value', align: 'right' as const },
+    { name: 'status', label: common.value.status, field: 'status', align: 'left' as const },
     {
         name: 'redemptions',
-        label: 'Einlösungen',
+        label: msg.value.list.columnRedemptions,
         field: (r: PromoRow) => `${r.redemptionsCount} / ${r.maxRedemptions ?? '∞'}`,
         align: 'right' as const,
     },
     {
         name: 'campaign',
-        label: 'Kampagne',
+        label: msg.value.list.columnCampaign,
         field: (r: PromoRow) => r.campaignTag ?? '—',
         align: 'left' as const,
     },
     {
         name: 'validUntil',
-        label: 'Gültig bis',
+        label: msg.value.list.columnValidUntil,
         field: (r: PromoRow) => formatDate(r.validUntil) ?? '—',
         align: 'left' as const,
     },
-];
+]);
 
 // Built-in default actions — APPENDED to the consumer actions, not replacing them.
 const bakedActions = computed<PromoRowAction[]>(() => {
@@ -342,7 +353,7 @@ const bakedActions = computed<PromoRowAction[]>(() => {
     if (props.enableEdit && props.submitEdit) {
         out.push({
             id: 'edit',
-            label: 'Bearbeiten',
+            label: common.value.edit,
             icon: 'edit',
             color: 'primary',
             handler: (row) => openEdit(row),
@@ -351,7 +362,7 @@ const bakedActions = computed<PromoRowAction[]>(() => {
     if (props.enableStatusToggle && props.submitEdit) {
         out.push({
             id: 'pause',
-            label: 'Pausieren',
+            label: msg.value.list.actionPause,
             icon: 'pause',
             color: 'warning',
             condition: (row) => row.status === 'ACTIVE',
@@ -359,7 +370,7 @@ const bakedActions = computed<PromoRowAction[]>(() => {
         });
         out.push({
             id: 'activate',
-            label: 'Aktivieren',
+            label: msg.value.list.actionActivate,
             icon: 'play_arrow',
             color: 'primary',
             condition: (row) => row.status === 'PAUSED',
@@ -369,7 +380,7 @@ const bakedActions = computed<PromoRowAction[]>(() => {
     if (props.enableDelete && props.submitDelete) {
         out.push({
             id: 'delete',
-            label: 'Löschen',
+            label: common.value.delete,
             icon: 'delete',
             color: 'negative',
             handler: (row) => onDeleteClick(row),
@@ -384,7 +395,7 @@ const mergedActions = computed<readonly PromoRowAction[]>(() => [
 ]);
 
 const effectiveColumns = computed(() => {
-    const cols = [...baseColumns];
+    const cols = [...baseColumns.value];
     if (mergedActions.value.length > 0) {
         cols.push({
             name: 'actions',
@@ -503,14 +514,14 @@ function onDeleteClick(row: PromoRow): void {
     if (!props.submitDelete) return;
     const submit = props.submitDelete;
     q.dialog({
-        title: `Promo-Code "${row.code}" löschen`,
-        message: 'Soft-Delete via Status=EXPIRED. Bestehende Redemptions bleiben.',
-        cancel: 'Abbrechen',
-        ok: { label: 'Löschen', color: 'negative' },
+        title: formatMessage(msg.value.list.deleteTitle, { code: row.code }),
+        message: msg.value.list.deleteMessage,
+        cancel: common.value.cancel,
+        ok: { label: common.value.delete, color: 'negative' },
     }).onOk(async () => {
         try {
             await submit(row.id);
-            notify('positive', `${row.code} gelöscht.`);
+            notify('positive', formatMessage(msg.value.list.deletedNotice, { code: row.code }));
             await reload();
         } catch (err) {
             notify('negative', errMsg(err));
@@ -519,12 +530,12 @@ function onDeleteClick(row: PromoRow): void {
 }
 
 function onCreated(): void {
-    notify('positive', 'Promo-Code angelegt.');
+    notify('positive', msg.value.list.createdNotice);
     void reload();
 }
 
 function onUpdated(): void {
-    notify('positive', 'Promo-Code aktualisiert.');
+    notify('positive', msg.value.list.updatedNotice);
     void reload();
 }
 
@@ -532,14 +543,14 @@ function errMsg(err: unknown): string {
     return (
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         (err as Error)?.message ??
-        'Aktion fehlgeschlagen'
+        msg.value.list.actionFailed
     );
 }
 
 function formatDate(iso: string | Date | null | undefined): string | null {
     if (!iso) return null;
     try {
-        return new Date(iso).toLocaleDateString('de-DE', {
+        return new Date(iso).toLocaleDateString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',

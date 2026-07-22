@@ -59,6 +59,6 @@ describe('BootLoader.load', () => {
 
     test('endpoint is required: without an endpoint BootLoader throws', () => {
         const { http } = buildHttp({ body: {} });
-        assert.throws(() => new BootLoader({ http }), /endpoint.*Pflicht/);
+        assert.throws(() => new BootLoader({ http }), /endpoint.*required/);
     });
 });

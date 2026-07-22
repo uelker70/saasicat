@@ -2,7 +2,7 @@
     <div class="sa-dashboard">
         <header class="sa-page-head sa-dashboard__head">
             <div>
-                <h1 class="sa-page-head__title">Dashboard</h1>
+                <h1 class="sa-page-head__title">{{ msg.title }}</h1>
                 <p v-if="subtitle" class="sa-page-head__sub">{{ subtitle }}</p>
             </div>
             <div class="sa-page-head__actions">
@@ -11,22 +11,22 @@
                     dense
                     icon="refresh"
                     :loading="loading"
-                    aria-label="Neu laden"
+                    :aria-label="common.reload"
                     @click="reload"
                 />
             </div>
         </header>
 
         <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
-            <strong>Fehler:</strong> {{ error.message }}
+            <strong>{{ common.error }}:</strong> {{ error.message }}
         </q-banner>
 
         <div v-if="loading && !cards.length" class="sa-dashboard__loading">
-            <q-spinner size="32px" /> Daten werden geladen…
+            <q-spinner size="32px" /> {{ common.loadingData }}
         </div>
 
         <div v-else-if="!cards.length" class="sa-dashboard__empty">
-            Keine KPI-Cards im Manifest deklariert.
+            {{ msg.emptyKpiCards }}
         </div>
 
         <div v-else class="sa-dashboard__strip">
@@ -83,7 +83,7 @@
             class="sa-dashboard__card sa-dashboard__shortcuts"
         >
             <header class="sa-dashboard__row-head">
-                <h2>Shortcuts</h2>
+                <h2>{{ msg.shortcutsTitle }}</h2>
             </header>
             <div class="sa-dashboard__shortcut-grid">
                 <a
@@ -110,6 +110,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { AdminManifest, KpiCardDef } from '@saasicat/types';
 import type { HttpClient } from '../client/types.js';
 import { buildRoutes } from '../client/nav-builder.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: Dashboard.
 //
@@ -204,6 +206,10 @@ interface KpiCardState {
     value: string | number | null;
 }
 
+const msg = useSaMessages('dashboard');
+const common = useSaMessages('common');
+const { locale, intlLocale } = useSuperAdminI18n();
+
 const manifestRef = ref<AdminManifest | null>(props.manifest ?? null);
 const cards = reactive<KpiCardState[]>([]);
 const loading = ref(false);
@@ -238,7 +244,7 @@ const resolvedShortcuts = computed<ShortcutDef[]>(() => {
     } else if (!manifestRef.value) {
         list = [];
     } else {
-        const routes = buildRoutes(manifestRef.value);
+        const routes = buildRoutes(manifestRef.value, { locale: locale.value });
         list = routes.map((r) => ({
             id: r.id,
             label: r.label,
@@ -354,7 +360,7 @@ function extractSub(
     }
     if (hintType === 'value+delta' && typeof body.delta === 'number') {
         const sign = body.delta > 0 ? '+' : '';
-        return `${sign}${body.delta} ggü. Vorperiode`;
+        return formatMessage(msg.value.deltaVsPreviousPeriod, { delta: `${sign}${body.delta}` });
     }
     if (typeof body.sub === 'string') return body.sub;
     return undefined;
@@ -363,14 +369,14 @@ function extractSub(
 function formatValue(card: KpiCardState): string {
     const v = card.value;
     if (v === null || v === undefined || v === '') return '—';
-    if (typeof v === 'number') return v.toLocaleString('de-DE');
+    if (typeof v === 'number') return v.toLocaleString(intlLocale.value);
     if (typeof v === 'string') return v;
     return String(v);
 }
 
 function formatTimestamp(iso: string): string {
     try {
-        return new Date(iso).toLocaleString('de-DE', {
+        return new Date(iso).toLocaleString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',

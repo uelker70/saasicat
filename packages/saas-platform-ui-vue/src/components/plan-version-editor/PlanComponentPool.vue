@@ -2,8 +2,8 @@
     <section class="pve-col pve-pool">
         <div class="pve-col-header">
             <div>
-                <div class="pve-col-title">Komponenten</div>
-                <div class="pve-col-sub">Aus der Library in den Plan-Korb ziehen</div>
+                <div class="pve-col-title">{{ msg.componentPool.title }}</div>
+                <div class="pve-col-sub">{{ msg.componentPool.subtitle }}</div>
             </div>
         </div>
         <div class="pve-search">
@@ -22,7 +22,7 @@
             </span>
             <input
                 :value="searchTerm"
-                placeholder="In allen Komponenten suchen…"
+                :placeholder="msg.componentPool.searchPlaceholder"
                 @input="updateSearchTerm"
             />
             <span class="pve-kbd">⌘ K</span>
@@ -101,7 +101,7 @@
                     </div>
                 </template>
                 <div v-if="filteredFeatureGroups.length === 0" class="pve-empty">
-                    Keine Features im Discovery-Snapshot.
+                    {{ msg.componentPool.emptyFeatures }}
                 </div>
             </template>
 
@@ -162,7 +162,7 @@
                     </div>
                 </div>
                 <div v-if="filteredQuotas.length === 0" class="pve-empty">
-                    Keine Quotas im Discovery-Snapshot.
+                    {{ msg.componentPool.emptyQuotas }}
                 </div>
             </template>
 
@@ -219,12 +219,12 @@
                         <div class="pve-pool-card-meta">
                             <code class="pve-pool-card-key">{{ b.bundleKey }}</code>
                             <span class="pve-pool-card-dot">·</span>
-                            <span>{{ b.features.length }} Feature(s)</span>
+                            <span>{{ featureCount(b.features.length) }}</span>
                         </div>
                     </div>
                 </div>
                 <div v-if="filteredBundles.length === 0" class="pve-empty">
-                    Keine published Bundles im Catalog.
+                    {{ msg.componentPool.emptyBundles }}
                 </div>
             </template>
         </div>
@@ -232,6 +232,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type {
     BundleEntry,
     DiscoveryQuota,
@@ -265,6 +267,12 @@ const emit = defineEmits<{
     (e: 'drag-start', kind: PoolKind, key: string, event: DragEvent): void;
     (e: 'drag-end'): void;
 }>();
+
+const msg = useSaMessages('planEditor');
+
+function featureCount(count: number): string {
+    return formatMessage(msg.value.componentPool.featureCount, { count });
+}
 
 function updateSearchTerm(event: Event): void {
     emit('update:searchTerm', (event.target as HTMLInputElement | null)?.value ?? '');

@@ -31,8 +31,8 @@ import type { AdminManifest, FeatureDef, FeatureKey } from '@saasicat/types';
 export class PlannedOnlyFeatureError extends Error {
     constructor(public readonly violations: FeatureKey[]) {
         super(
-            `Folgende Features sind im Catalog als plannedOnly markiert und ` +
-                `dürfen nicht in einer Plan-Version stehen: ${violations.sort().join(', ')}.`,
+            `The following features are marked as plannedOnly in the catalog and ` +
+                `must not appear in a plan version: ${violations.sort().join(', ')}.`,
         );
         this.name = 'PlannedOnlyFeatureError';
     }

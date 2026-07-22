@@ -5,12 +5,10 @@
 // (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
-import type {
-    CreatePromotionData,
-    PromotionRow,
-    UpdatePromotionData,
-} from '@saasicat/types';
+import type { CreatePromotionData, PromotionRow, UpdatePromotionData } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 export interface UsePromotionsOptions {
     adminEndpoint: string;
@@ -43,12 +41,13 @@ export interface UsePromotionsResult {
 
 export function usePromotions(options: UsePromotionsOptions): UsePromotionsResult {
     if (!options?.adminEndpoint) {
-        throw new Error('usePromotions: `adminEndpoint` ist Pflicht.');
+        throw new Error('usePromotions: `adminEndpoint` is required.');
     }
     if (!options?.projectKey) {
-        throw new Error('usePromotions: `projectKey` ist Pflicht.');
+        throw new Error('usePromotions: `projectKey` is required.');
     }
 
+    const msg = useSaMessages('promos');
     const http = options.http ?? defaultHttpClient();
     const promotions = ref<PromotionRow[]>([]);
     const loading = ref(false);
@@ -74,7 +73,7 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
             throw new PromotionsApiError(
                 res.status,
                 body,
-                `Promotions-API antwortete mit HTTP ${res.status}`,
+                formatMessage(msg.value.apiErrorHttpStatus, { status: res.status }),
             );
         }
         return body as T;
@@ -98,7 +97,7 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new PromotionsApiError(0, null, 'Create gab keinen Body zurück');
+        if (!created) throw new PromotionsApiError(0, null, 'Create returned no body');
         promotions.value = [...promotions.value, created];
         return created;
     }
@@ -108,7 +107,7 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new PromotionsApiError(0, null, 'Update gab keinen Body zurück');
+        if (!updated) throw new PromotionsApiError(0, null, 'Update returned no body');
         promotions.value = promotions.value.map((p) => (p.id === id ? updated : p));
         return updated;
     }

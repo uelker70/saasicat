@@ -41,9 +41,9 @@ export class BootLoader {
     constructor(options: BootLoaderOptions) {
         if (!options?.endpoint) {
             throw new Error(
-                'BootLoader: `endpoint` ist Pflicht (z. B. "/api/admin/boot" ' +
-                    'oder "/api/v1/admin/boot"). Plattform hat keinen Default, ' +
-                    'weil Apps unterschiedliche globalPrefix-Konventionen haben.',
+                'BootLoader: `endpoint` is required (e.g. "/api/admin/boot" ' +
+                    'or "/api/v1/admin/boot"). The platform has no default ' +
+                    'because apps use different globalPrefix conventions.',
             );
         }
         this.endpoint = options.endpoint;

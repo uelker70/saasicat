@@ -14,6 +14,8 @@ import type {
     UpdateMarketingProjectionData,
 } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 export interface UseMarketingProjectionsOptions {
     adminEndpoint: string;
@@ -53,12 +55,13 @@ export function useMarketingProjections(
     options: UseMarketingProjectionsOptions,
 ): UseMarketingProjectionsResult {
     if (!options?.adminEndpoint) {
-        throw new Error('useMarketingProjections: `adminEndpoint` ist Pflicht.');
+        throw new Error('useMarketingProjections: `adminEndpoint` is required.');
     }
     if (!options?.filter?.projectKey) {
-        throw new Error('useMarketingProjections: `filter.projectKey` ist Pflicht.');
+        throw new Error('useMarketingProjections: `filter.projectKey` is required.');
     }
 
+    const msg = useSaMessages('marketing');
     const http = options.http ?? defaultHttpClient();
     const projections = ref<MarketingProjectionRow[]>([]);
     const filter = ref<MarketingProjectionFilter>({ ...options.filter });
@@ -94,7 +97,7 @@ export function useMarketingProjections(
             throw new MarketingProjectionsApiError(
                 res.status,
                 body,
-                `MarketingProjections-API antwortete mit HTTP ${res.status}`,
+                formatMessage(msg.value.errors.projectionsApi, { status: res.status }),
             );
         }
         return body as T;
@@ -124,7 +127,7 @@ export function useMarketingProjections(
             body: JSON.stringify(data),
         });
         if (!created) {
-            throw new MarketingProjectionsApiError(0, null, 'Create gab keinen Body zurück');
+            throw new MarketingProjectionsApiError(0, null, 'Create returned no body');
         }
         // After create: reload the list (a unique tuple insert can
         // affect the filter).
@@ -141,7 +144,7 @@ export function useMarketingProjections(
             body: JSON.stringify(data),
         });
         if (!updated) {
-            throw new MarketingProjectionsApiError(0, null, 'Update gab keinen Body zurück');
+            throw new MarketingProjectionsApiError(0, null, 'Update returned no body');
         }
         projections.value = projections.value.map((p) => (p.id === id ? updated : p));
         return updated;

@@ -13,7 +13,7 @@
                     <path d="M5 12h14M13 5l7 7-7 7" />
                 </svg>
             </span>
-            <span>Zurück zur Liste</span>
+            <span>{{ msg.header.backToList }}</span>
         </button>
     </div>
 
@@ -24,7 +24,7 @@
             </div>
             <div class="pc-header-titles">
                 <h2 class="pc-h-title">{{ plan.label }}</h2>
-                <p class="pc-h-sub">{{ plan.description || 'Keine Beschreibung.' }}</p>
+                <p class="pc-h-sub">{{ plan.description || msg.header.noDescription }}</p>
             </div>
         </div>
         <div class="pc-header-right">
@@ -40,7 +40,7 @@
                     <rect x="9" y="9" width="11" height="11" rx="2" />
                     <path d="M5 15V5a2 2 0 012-2h10" />
                 </svg>
-                <span>Plan klonen</span>
+                <span>{{ msg.header.clonePlan }}</span>
             </button>
             <button class="pc-btn" type="button" @click="emit('viewCatalog')">
                 <svg
@@ -54,13 +54,13 @@
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                     <circle cx="12" cy="12" r="3" />
                 </svg>
-                <span>Im Katalog ansehen</span>
+                <span>{{ msg.header.viewInCatalog }}</span>
             </button>
             <button
                 class="pc-btn pc-btn--primary"
                 type="button"
                 :disabled="hasOpenDraft"
-                :title="hasOpenDraft ? 'Es gibt bereits eine offene Draft' : undefined"
+                :title="hasOpenDraft ? msg.header.draftAlreadyOpen : undefined"
                 @click="emit('createDraft')"
             >
                 <svg
@@ -73,7 +73,7 @@
                 >
                     <path d="M12 5v14M5 12h14" />
                 </svg>
-                <span>Neue Draft-Version</span>
+                <span>{{ msg.header.newDraftVersion }}</span>
             </button>
         </div>
     </div>
@@ -81,6 +81,7 @@
 
 <script setup lang="ts">
 import type { PlanRow } from '@saasicat/types';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 defineProps<{
     plan: PlanRow;
@@ -95,4 +96,6 @@ const emit = defineEmits<{
     (e: 'viewCatalog'): void;
     (e: 'createDraft'): void;
 }>();
+
+const msg = useSaMessages('planDetail');
 </script>

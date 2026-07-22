@@ -2,13 +2,10 @@
     <section class="bcp">
         <div class="bcp-head">
             <div>
-                <div class="bcp-title">Neues Bundle anlegen</div>
-                <div class="bcp-sub">
-                    Features &amp; Quotas zu einem Add-On bündeln — bepreist und kompatibel mit
-                    ausgewählten Plänen.
-                </div>
+                <div class="bcp-title">{{ msg.create.title }}</div>
+                <div class="bcp-sub">{{ msg.create.subtitle }}</div>
             </div>
-            <button class="bcp-close" type="button" aria-label="Schließen" @click="close">
+            <button class="bcp-close" type="button" :aria-label="common.close" @click="close">
                 <svg
                     width="14"
                     height="14"
@@ -28,26 +25,24 @@
                 <div class="bcp-section-head">
                     <span class="bcp-section-num">1</span>
                     <div>
-                        <div class="bcp-section-title">Stammdaten</div>
-                        <div class="bcp-section-sub">Sichtbarer Name + technischer Key.</div>
+                        <div class="bcp-section-title">{{ msg.fields.masterData }}</div>
+                        <div class="bcp-section-sub">{{ msg.create.masterDataHint }}</div>
                     </div>
                 </div>
                 <div class="bcp-grid">
                     <label class="bcp-field bcp-col-2">
-                        <span class="bcp-field-label">Label</span>
+                        <span class="bcp-field-label">{{ msg.fields.label }}</span>
                         <input
                             ref="labelInput"
                             v-model="form.label"
                             class="bcp-input"
-                            placeholder="z. B. Communication Pro"
+                            :placeholder="msg.create.labelPlaceholder"
                         />
                     </label>
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">
-                            Bundle-Key
-                            <span class="bcp-field-hint">
-                                API-stabil · wird aus dem Label erzeugt
-                            </span>
+                            {{ msg.create.bundleKey }}
+                            <span class="bcp-field-hint">{{ msg.create.bundleKeyHint }}</span>
                         </span>
                         <input
                             v-model="form.bundleKey"
@@ -60,12 +55,12 @@
                         </span>
                     </label>
                     <label class="bcp-field bcp-col-2">
-                        <span class="bcp-field-label">Beschreibung</span>
+                        <span class="bcp-field-label">{{ common.description }}</span>
                         <textarea
                             v-model="form.description"
                             rows="2"
                             class="bcp-input bcp-textarea"
-                            placeholder="z. B. Kampagnen, WhatsApp und Korrespondenz für aktive Vereine."
+                            :placeholder="msg.create.descriptionPlaceholder"
                         />
                     </label>
                 </div>
@@ -76,15 +71,13 @@
                 <div class="bcp-section-head">
                     <span class="bcp-section-num">2</span>
                     <div>
-                        <div class="bcp-section-title">v1 · Pricing &amp; Gültigkeit</div>
-                        <div class="bcp-section-sub">
-                            Monats- &amp; Jahrespreis sowie Datum, ab dem das Bundle verkaufbar wird.
-                        </div>
+                        <div class="bcp-section-title">{{ msg.create.sectionPricing }}</div>
+                        <div class="bcp-section-sub">{{ msg.create.pricingHint }}</div>
                     </div>
                 </div>
                 <div class="bcp-grid">
                     <label class="bcp-field">
-                        <span class="bcp-field-label">Monatspreis</span>
+                        <span class="bcp-field-label">{{ msg.fields.monthlyPrice }}</span>
                         <div class="bcp-input-grp">
                             <input
                                 v-model="form.monthlyNet"
@@ -93,11 +86,11 @@
                                 class="bcp-input"
                                 placeholder="9.90"
                             />
-                            <span class="bcp-input-unit">€/Mo</span>
+                            <span class="bcp-input-unit">{{ msg.fields.perMonthUnit }}</span>
                         </div>
                     </label>
                     <label class="bcp-field">
-                        <span class="bcp-field-label">Jahrespreis</span>
+                        <span class="bcp-field-label">{{ msg.fields.yearlyPrice }}</span>
                         <div class="bcp-input-grp">
                             <input
                                 v-model="form.yearlyNet"
@@ -106,23 +99,13 @@
                                 class="bcp-input"
                                 placeholder="99.00"
                             />
-                            <span class="bcp-input-unit">€/Jahr</span>
+                            <span class="bcp-input-unit">{{ msg.fields.perYearUnit }}</span>
                         </div>
                     </label>
                     <label class="bcp-field bcp-col-2">
-                        <span class="bcp-field-label">Gültig ab</span>
+                        <span class="bcp-field-label">{{ msg.fields.validFrom }}</span>
                         <input v-model="form.validFrom" type="date" class="bcp-input" />
-                        <span class="bcp-field-hint">
-                            <template v-if="form.validFrom && form.validFrom <= todayIso">
-                                ✓ Bundle ist nach Anlage sofort live und verkaufbar.
-                            </template>
-                            <template v-else-if="form.validFrom">
-                                ⏳ Geplant — wird ab {{ formatDateDE(form.validFrom) }} verkaufbar.
-                            </template>
-                            <template v-else>
-                                Pflicht beim Publish — kann auch nach Anlage gesetzt werden.
-                            </template>
-                        </span>
+                        <span class="bcp-field-hint">{{ validFromHint }}</span>
                     </label>
                 </div>
             </section>
@@ -132,11 +115,8 @@
                 <div class="bcp-section-head">
                     <span class="bcp-section-num">3</span>
                     <div>
-                        <div class="bcp-section-title">Kompatibel mit Plänen</div>
-                        <div class="bcp-section-sub">
-                            Mit welchen Plänen darf dieses Bundle als Add-On gebucht werden?
-                            Überschneidungen werden direkt markiert.
-                        </div>
+                        <div class="bcp-section-title">{{ msg.fields.planCompat }}</div>
+                        <div class="bcp-section-sub">{{ msg.create.planCompatHint }}</div>
                     </div>
                 </div>
                 <BundlePlanCompatPicker
@@ -157,10 +137,8 @@
                 <div class="bcp-section-head">
                     <span class="bcp-section-num">4</span>
                     <div>
-                        <div class="bcp-section-title">Features im Bundle</div>
-                        <div class="bcp-section-sub">
-                            {{ form.features.length }} von {{ availableFeatures.length }} ausgewählt
-                        </div>
+                        <div class="bcp-section-title">{{ msg.create.sectionFeatures }}</div>
+                        <div class="bcp-section-sub">{{ featureSelectionText }}</div>
                     </div>
                 </div>
                 <BundleFeaturesEditor
@@ -178,12 +156,12 @@
                     <span class="bcp-section-num">5</span>
                     <div>
                         <div class="bcp-section-title">
-                            Quotas
-                            <span class="bcp-field-hint" style="margin-left: 6px">optional</span>
+                            {{ msg.fields.quotas }}
+                            <span class="bcp-field-hint" style="margin-left: 6px">
+                                {{ msg.create.quotasOptional }}
+                            </span>
                         </div>
-                        <div class="bcp-section-sub">
-                            Quotas, die das Bundle on top des Plans setzt.
-                        </div>
+                        <div class="bcp-section-sub">{{ msg.create.quotasHint }}</div>
                     </div>
                 </div>
                 <BundleQuotasEditor
@@ -201,10 +179,7 @@
 
         <div class="bcp-foot">
             <span v-if="overlapPlansCount > 0" class="bcp-foot-hint bcp-foot-hint--warn">
-                ⚠ Überschneidung mit {{ overlapPlansCount }} Plan{{
-                    overlapPlansCount === 1 ? '' : 'en'
-                }}
-                — bitte prüfen
+                {{ overlapWarningText }}
             </span>
             <span v-else-if="form.features.length > 0" class="bcp-foot-hint">
                 <svg
@@ -218,25 +193,33 @@
                     <path d="M5 13l4 4L19 7" />
                 </svg>
                 <span>
-                    <b>{{ form.features.length }}</b> Feature{{
-                        form.features.length === 1 ? '' : 's'
+                    <b>{{ form.features.length }}</b>
+                    {{
+                        form.features.length === 1
+                            ? msg.create.summaryFeatureOne
+                            : msg.create.summaryFeatureMany
                     }}
                     <template v-if="quotaCount > 0">
-                        · <b>{{ quotaCount }}</b> Quota{{ quotaCount === 1 ? '' : 's' }}
+                        · <b>{{ quotaCount }}</b>
+                        {{
+                            quotaCount === 1
+                                ? msg.create.summaryQuotaOne
+                                : msg.create.summaryQuotaMany
+                        }}
                     </template>
                     <template v-if="form.planIds.length > 0">
-                        · <b>{{ form.planIds.length }}</b> Plan-Kompat.
+                        · <b>{{ form.planIds.length }}</b> {{ msg.create.summaryPlanCompat }}
                     </template>
                 </span>
             </span>
-            <button class="bcp-btn" type="button" @click="close">Abbrechen</button>
+            <button class="bcp-btn" type="button" @click="close">{{ common.cancel }}</button>
             <button
                 class="bcp-btn bcp-btn--primary"
                 type="button"
                 :disabled="!canSubmit || submitting"
                 @click="submit"
             >
-                {{ submitting ? 'Lege an …' : 'Bundle anlegen' }}
+                {{ submitting ? msg.create.submitting : msg.create.submit }}
             </button>
         </div>
     </section>
@@ -259,7 +242,9 @@ import BundleFeaturesEditor, { type FeatureMeta } from './BundleFeaturesEditor.v
 import BundlePlanCompatPicker from './BundlePlanCompatPicker.vue';
 import BundleQuotasEditor from './BundleQuotasEditor.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
-import { findBundlePlanOverlap, formatDateDE } from './bundle-version-status';
+import { findBundlePlanOverlap, formatDate } from './bundle-version-status';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleCreatePanel — expandable inline panel for creating a new
 // bundle (root + v1 draft) at the top of the bundle list. Uses the same
@@ -306,7 +291,19 @@ const emit = defineEmits<{
     (e: 'created', bundle: BundleRow): void;
 }>();
 
+const msg = useSaMessages('bundles');
+const common = useSaMessages('common');
+const { locale } = useSuperAdminI18n();
+
 const todayIso = computed(() => new Date().toISOString().slice(0, 10));
+
+const validFromHint = computed(() => {
+    if (!form.validFrom) return msg.value.create.validFromHint;
+    if (form.validFrom <= todayIso.value) return msg.value.create.validFromImmediate;
+    return formatMessage(msg.value.create.validFromScheduled, {
+        date: formatDate(form.validFrom, locale.value),
+    });
+});
 
 const BUNDLE_KEY_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 const PRICE_RE = /^\d+(\.\d{1,2})?$/;
@@ -362,13 +359,20 @@ function onBundleKeyInput(event: Event): void {
 const bundleKeyError = computed<string | null>(() => {
     if (!form.bundleKey) return null;
     if (!BUNDLE_KEY_PATTERN.test(form.bundleKey)) {
-        return 'Nur A-Z, 0-9, Underscore; muss mit Buchstabe beginnen.';
+        return msg.value.create.errorKeyFormat;
     }
     if (props.existingBundleKeys.includes(form.bundleKey)) {
-        return 'Dieser Bundle-Key existiert bereits.';
+        return msg.value.create.errorKeyExists;
     }
     return null;
 });
+
+const featureSelectionText = computed(() =>
+    formatMessage(msg.value.create.selectedOfTotal, {
+        selected: form.features.length,
+        total: props.availableFeatures.length,
+    }),
+);
 
 const canSubmit = computed(() => {
     if (!form.label.trim()) return false;
@@ -407,6 +411,15 @@ const overlapPlansCount = computed(
                     props.livePlanVersions[k] ?? null,
                 ).hasAny,
         ).length,
+);
+
+const overlapWarningText = computed(() =>
+    formatMessage(
+        overlapPlansCount.value === 1
+            ? msg.value.create.overlapWarningOne
+            : msg.value.create.overlapWarningMany,
+        { count: overlapPlansCount.value },
+    ),
 );
 
 const quotaCount = computed(() => Object.keys(form.quotas).length);
