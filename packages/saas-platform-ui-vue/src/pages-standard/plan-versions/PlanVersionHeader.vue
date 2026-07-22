@@ -89,7 +89,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CatalogSnapshot } from '../../plan-versions-catalog.js';
+import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
 import { formatDateDe } from './format.js';
 import PlanVersionStatusBadge from './PlanVersionStatusBadge.vue';
 import type { PlanVersionViewMode } from './types.js';

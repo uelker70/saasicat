@@ -125,12 +125,12 @@
 import { computed, onMounted, ref, toRef } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
 import type { QTableColumn } from 'quasar';
-import { useQuasar } from 'quasar';
+import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
 import KvBlock from '../components/KvBlock.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../components/TenantActionConfirmDialog.vue';
-import { useTenantActionFlow } from '../use-tenant-action-flow.js';
+import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
 export interface TenantDetailData {
     id: string;
@@ -200,7 +200,7 @@ const props = withDefaults(
     },
 );
 
-const q = useQuasar();
+const notify = useSuperAdminNotify();
 const data = ref<TenantDetailData | null>(null);
 const loading = ref(false);
 
@@ -317,7 +317,7 @@ const tenantRow = computed<TenantDto | null>(() => {
 const flow = useTenantActionFlow<TenantDto>(manifestRef, {
     confirm: showConfirmDialog,
     mfa: showMfaDialog,
-    notify: (kind, message) => q.notify({ type: kind, message, position: 'top' }),
+    notify,
     onSuccess: () => void load(),
     visibleForRow: (def, row) => {
         if (def.actionKey === 'tenants.suspend') return row.isActive;

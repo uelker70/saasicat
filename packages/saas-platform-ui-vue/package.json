@@ -17,6 +17,26 @@
                 "default": "./dist/index.cjs"
             }
         },
+        "./client": {
+            "import": {
+                "types": "./dist/client/index.d.ts",
+                "default": "./dist/client/index.js"
+            },
+            "require": {
+                "types": "./dist/client/index.d.cts",
+                "default": "./dist/client/index.cjs"
+            }
+        },
+        "./quasar": {
+            "import": {
+                "types": "./dist/quasar/index.d.ts",
+                "default": "./dist/quasar/index.js"
+            },
+            "require": {
+                "types": "./dist/quasar/index.d.cts",
+                "default": "./dist/quasar/index.cjs"
+            }
+        },
         "./pages/*": "./src/pages-standard/*",
         "./pages-standard/*": "./src/pages-standard/*",
         "./pages-tenant/*": "./src/pages-tenant/*",
@@ -33,7 +53,7 @@
         "src"
     ],
     "scripts": {
-        "build": "tsup src/index.ts --format esm,cjs --dts --clean --external @saasicat/types --external vue --external vue-router --external pinia --external quasar && tsup src/testing-e2e/admin-pages-suite.ts --format esm,cjs --dts --out-dir dist/testing-e2e --external @playwright/test",
+        "build": "tsup",
         "typecheck": "vue-tsc --noEmit -p tsconfig.json",
         "pretest": "pnpm run build",
         "test": "node --test tests/**/*.test.js",

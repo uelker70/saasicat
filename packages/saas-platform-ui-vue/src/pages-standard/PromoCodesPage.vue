@@ -138,6 +138,7 @@ export function computePlanColors(
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
+import { useSuperAdminNotify } from '../quasar/notify.js';
 import PromoCodeCreateDialog from '../components/dialogs/PromoCodeCreateDialog.vue';
 import PromoCodeEditDialog, {
     type PromoCodeEditRow,
@@ -215,6 +216,7 @@ const props = withDefaults(
 );
 
 const q = useQuasar();
+const notify = useSuperAdminNotify();
 const rows = ref<PromoRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ search: '', status: null as string | null });
@@ -490,14 +492,10 @@ async function onPatch(row: PromoRow, data: PromoCodeUpdatePayload): Promise<voi
     if (!props.submitEdit) return;
     try {
         await props.submitEdit(row.id, data);
-        q.notify({
-            type: 'positive',
-            message: `${row.code} → ${data.status}`,
-            position: 'top',
-        });
+        notify('positive', `${row.code} → ${data.status}`);
         await reload();
     } catch (err) {
-        q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+        notify('negative', errMsg(err));
     }
 }
 
@@ -512,33 +510,21 @@ function onDeleteClick(row: PromoRow): void {
     }).onOk(async () => {
         try {
             await submit(row.id);
-            q.notify({
-                type: 'positive',
-                message: `${row.code} gelöscht.`,
-                position: 'top',
-            });
+            notify('positive', `${row.code} gelöscht.`);
             await reload();
         } catch (err) {
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
         }
     });
 }
 
 function onCreated(): void {
-    q.notify({
-        type: 'positive',
-        message: 'Promo-Code angelegt.',
-        position: 'top',
-    });
+    notify('positive', 'Promo-Code angelegt.');
     void reload();
 }
 
 function onUpdated(): void {
-    q.notify({
-        type: 'positive',
-        message: 'Promo-Code aktualisiert.',
-        position: 'top',
-    });
+    notify('positive', 'Promo-Code aktualisiert.');
     void reload();
 }
 

@@ -106,6 +106,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
+import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 
 // Platform standard page: user search. Data-agnostic.
@@ -172,6 +173,7 @@ const props = withDefaults(
 );
 
 const q = useQuasar();
+const notify = useSuperAdminNotify();
 const rows = ref<UserRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ q: '', tenant: '' });
@@ -387,7 +389,7 @@ async function runAction<R>(
             const result = await invoke('');
             onSuccess(result);
         } catch (err) {
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
         }
         return;
     }
@@ -406,7 +408,7 @@ async function runAction<R>(
                 continue;
             }
             showMfa.value = false;
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
             return;
         }
     }
@@ -438,11 +440,7 @@ function onResetPasswordClick(row: UserRow): void {
                         ok: { label: 'Verstanden' },
                     });
                 } else {
-                    q.notify({
-                        type: 'positive',
-                        message: 'Passwort-Reset ausgelöst.',
-                        position: 'top',
-                    });
+                    notify('positive', 'Passwort-Reset ausgelöst.');
                 }
                 void reload();
             },
@@ -466,11 +464,7 @@ function onDeactivateClick(row: UserRow): void {
             !!props.requireMfaForDeactivate,
             (code) => submit(row.id, reason, code),
             () => {
-                q.notify({
-                    type: 'positive',
-                    message: `${row.email} deaktiviert.`,
-                    position: 'top',
-                });
+                notify('positive', `${row.email} deaktiviert.`);
                 void reload();
             },
         );

@@ -4,13 +4,7 @@ import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import {
-    applyTokens,
-    DEFAULT_TOKENS,
-    parseArgs,
-    scaffold,
-    walkTemplates,
-} from '../bin/create.js';
+import { applyTokens, DEFAULT_TOKENS, parseArgs, scaffold, walkTemplates } from '../bin/create.js';
 
 const TEMPLATES = new URL('../templates', import.meta.url).pathname;
 
@@ -77,7 +71,13 @@ describe('scaffold', () => {
             const main = await readFile(join(target, 'src/main.ts'), 'utf8');
             assert.match(main, /logoText: 'NA'/);
             assert.match(main, /name: 'NotesApp'/);
-            assert.match(main, /apiBase: '\/api\/v1\/admin'/);
+
+            const loaders = await readFile(
+                join(target, 'src/services/platform-loaders.ts'),
+                'utf8',
+            );
+            assert.match(loaders, /apiBase: '\/api\/v1\/admin'/);
+            assert.match(loaders, /storageKeyPrefix: 'notesapp:'/);
 
             const http = await readFile(join(target, 'src/services/http.ts'), 'utf8');
             assert.match(http, /notesapp-admin-token/);

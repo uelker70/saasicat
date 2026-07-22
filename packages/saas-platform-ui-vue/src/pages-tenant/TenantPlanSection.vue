@@ -204,13 +204,13 @@ import {
     useTenantBilling,
     type BundlePreviewShape,
     type SubscriptionBundleShape,
-} from '../use-tenant-billing.js';
+} from '../vue/use-tenant-billing.js';
 import {
     useTenantBillingCatalog,
     type CatalogBundle,
     type CatalogPlan,
-} from '../use-tenant-billing-catalog.js';
-import type { HttpClient } from '../types.js';
+} from '../vue/use-tenant-billing-catalog.js';
+import type { HttpClient } from '../client/types.js';
 
 // TenantPlanSection — main component for the tenant plan/bundle self-service
 // UI. The consumer (app) embeds it in its settings page and passes through

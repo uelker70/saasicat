@@ -76,8 +76,8 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type { CatalogSnapshot, RawCatalogData } from '../plan-versions-catalog.js';
-import { buildSnapshots } from '../plan-versions-catalog.js';
+import type { CatalogSnapshot, RawCatalogData } from '../client/plan-versions-catalog.js';
+import { buildSnapshots } from '../client/plan-versions-catalog.js';
 import PlanVersionsTimeline from './plan-versions/PlanVersionsTimeline.vue';
 import PlanVersionHeader from './plan-versions/PlanVersionHeader.vue';
 import PlanVersionsList, { type QuotaColumnConfig } from './plan-versions/PlanVersionsList.vue';

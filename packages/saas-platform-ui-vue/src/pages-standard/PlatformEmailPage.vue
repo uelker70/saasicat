@@ -153,6 +153,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
+import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import type {
     PlatformEmailProvider,
@@ -188,6 +189,7 @@ const props = withDefaults(
 );
 
 const q = useQuasar();
+const notify = useSuperAdminNotify();
 const rows = ref<PlatformEmailProvider[]>([]);
 const loading = ref(false);
 
@@ -274,7 +276,7 @@ async function reload(): Promise<void> {
         rows.value = await props.loadProviders();
     } catch (err) {
         rows.value = [];
-        q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+        notify('negative', errMsg(err));
     } finally {
         loading.value = false;
     }
@@ -312,7 +314,7 @@ async function runWrite(label: string, invoke: (code: string) => Promise<unknown
             await invoke('');
             return true;
         } catch (err) {
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
             return false;
         }
     }
@@ -330,7 +332,7 @@ async function runWrite(label: string, invoke: (code: string) => Promise<unknown
                 continue;
             }
             showMfa.value = false;
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
             return false;
         }
     }
@@ -368,7 +370,7 @@ async function onSubmit(): Promise<void> {
     );
     if (ok) {
         showForm.value = false;
-        q.notify({ type: 'positive', message: 'Gespeichert.', position: 'top' });
+        notify('positive', 'Gespeichert.');
         void reload();
     }
 }
@@ -384,7 +386,7 @@ function onDelete(row: PlatformEmailProvider): void {
             props.deleteProvider(row.id, code || undefined),
         );
         if (ok) {
-            q.notify({ type: 'positive', message: 'Gelöscht.', position: 'top' });
+            notify('positive', 'Gelöscht.');
             void reload();
         }
     });

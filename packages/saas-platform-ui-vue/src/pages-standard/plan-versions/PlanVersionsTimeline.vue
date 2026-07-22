@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CatalogSnapshot } from '../../plan-versions-catalog.js';
+import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
 import { formatRelativeDe } from './format.js';
 
 defineProps<{

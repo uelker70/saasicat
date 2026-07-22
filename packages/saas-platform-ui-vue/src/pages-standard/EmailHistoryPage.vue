@@ -197,7 +197,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { useQuasar } from 'quasar';
+import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import type {
     EmailHistoryRow,
@@ -231,7 +231,7 @@ const props = withDefaults(
     },
 );
 
-const q = useQuasar();
+const notify = useSuperAdminNotify();
 
 const rows = ref<EmailHistoryRow[]>([]);
 const loading = ref(false);
@@ -312,7 +312,7 @@ async function reload(): Promise<void> {
         if (seq !== reloadSeq) return;
         rows.value = [];
         pagination.value.rowsNumber = 0;
-        q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+        notify('negative', errMsg(err));
     } finally {
         if (seq === reloadSeq) loading.value = false;
     }
@@ -342,7 +342,7 @@ async function openDetail(row: EmailHistoryRow): Promise<void> {
         detail.value = await props.loadEmailDetail(row.id);
     } catch (err) {
         detailOpen.value = false;
-        q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+        notify('negative', errMsg(err));
     } finally {
         detailLoading.value = false;
     }
@@ -354,13 +354,9 @@ async function onResend(id: string): Promise<void> {
     );
     if (!ok) return;
     if (result && result.success === false) {
-        q.notify({
-            type: 'negative',
-            message: result.message ?? 'Versand fehlgeschlagen',
-            position: 'top',
-        });
+        notify('negative', result.message ?? 'Versand fehlgeschlagen');
     } else {
-        q.notify({ type: 'positive', message: 'E-Mail erneut versendet', position: 'top' });
+        notify('positive', 'E-Mail erneut versendet');
     }
     await reload();
 }
@@ -378,7 +374,7 @@ async function confirmDelete(): Promise<void> {
         props.deleteEmail(id, code || undefined),
     );
     if (!ok) return;
-    q.notify({ type: 'positive', message: 'Aus Verlauf entfernt', position: 'top' });
+    notify('positive', 'Aus Verlauf entfernt');
     if (detail.value?.id === id) detailOpen.value = false;
     await reload();
 }
@@ -394,7 +390,7 @@ async function runWrite<T>(
             const result = await invoke('');
             return { ok: true, result };
         } catch (err) {
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
             return { ok: false };
         }
     }
@@ -412,7 +408,7 @@ async function runWrite<T>(
                 continue;
             }
             showMfa.value = false;
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
             return { ok: false };
         }
     }

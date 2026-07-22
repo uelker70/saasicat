@@ -168,7 +168,7 @@ import type {
     BundleAddPreviewShape,
     BundleCancelPreviewShape,
     BundlePreviewShape,
-} from '../../use-tenant-billing.js';
+} from '../../vue/use-tenant-billing.js';
 
 // BundlePreviewDialog (#37/#61) — preview BEFORE bundle add/cancel in the
 // tenant self-service: proration until period end, next-period price,

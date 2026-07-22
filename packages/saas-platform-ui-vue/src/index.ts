@@ -1,75 +1,88 @@
-// @saasicat/ui-vue — Vue 3 components + composables for the
-// SuperAdmin UI shell.
+// @saasicat/ui-vue — Vue 3 composables + loaders for the SuperAdmin UI shell.
 //
-// P4.1 (Phase 30): public boot loader + manifest loader (ETag cache).
-// P4.2 (Phase 31): nav builder + extension host + action registry.
-// P4.3 (Phase 32): batch column fetcher.
-// P4.4 (Phase 33): composables for standard pages (Tenants, Audit, Entitlement).
-// P4.5 (Phase 34): plan-versions list composables + bulk-publish orchestration.
+// The package is layered; each layer has its own entry:
 //
-// Contents:
-//   - types:                HttpClient, KvStore, defaultHttpClient, defaultKvStore
-//   - boot-loader:          BootLoader (framework-agnostic) + BootLoadError
-//   - manifest-loader:      ManifestLoader with ETag cache + ManifestLoadError
-//   - nav-builder:          buildRoutes, buildSidebar, resolveExtension
-//   - action-registry:      ActionRegistry, MissingHandlerError, ActionDefNotInManifestError
-//   - batch-column-fetcher: BatchColumnFetcher + BatchColumnDriftError
-//   - use-api-list:         useApiList<T> generic list composable
-//   - use-tenants:          useTenants typed wrapper
-//   - use-audit-entries:    useAuditEntries typed wrapper
-//   - use-entitlement:      useEntitlement composable
-//   - use-plan-versions:    usePlanVersionsCatalog
-//   - use-bulk-publish:     useBulkPublish (parallel publishes with status tracking)
-//   - use-plan-editor:      usePlanEditor composable (feature discovery, plannedOnly filter)
-//   - use-public-boot:      usePublicBoot composable
-//   - use-manifest:         useManifest composable
-//   - use-nav:              useNav composable
-//   - use-actions:          useActions composable
-//   - use-batch-columns:    useBatchColumns composable
+//   - `@saasicat/ui-vue/client` (`src/client/`)  — framework-free core:
+//     loaders, nav builder, action registry, HTTP contract. No Vue, no
+//     Pinia, no Quasar.
+//   - `@saasicat/ui-vue` (this entry, `src/vue/`) — Vue bindings: composables,
+//     router guards, injection keys, optional Pinia store factory. Re-exports
+//     the client layer. No Quasar.
+//   - `@saasicat/ui-vue/quasar` (`src/quasar/`)   — Quasar bootstrap:
+//     `createSuperAdminApp()` and the Quasar notify port implementation.
+//   - Quasar standard pages/components             — raw SFCs via the
+//     `./pages-standard/*`, `./pages-tenant/*` and `./components/*` subpath
+//     exports (tsup ignores `.vue`).
+//
+// Layer rule (enforced via ESLint `no-restricted-imports`): client imports
+// nothing framework-specific; vue never imports quasar; this entry never
+// reaches the quasar layer or the SFC directories (except the whitelisted
+// framework-free type/i18n modules below).
 
-export * from './version.js';
-export * from './types.js';
-export * from './http-json.js';
-export * from './create-admin-routes.js';
-export * from './boot-loader.js';
-export * from './manifest-loader.js';
-export * from './nav-builder.js';
-export * from './action-registry.js';
-export * from './batch-column-fetcher.js';
-export * from './use-api-list.js';
-export * from './use-tenants.js';
-export * from './use-audit-entries.js';
-export * from './use-entitlement.js';
-export * from './use-tenant-manifest.js';
-export * from './entitlement-provider.js';
-export * from './feature-router-guard.js';
+// ---------------------------------------------------------------------------
+// Client layer (framework-free core).
+// ---------------------------------------------------------------------------
+export * from './client/index.js';
+
+// ---------------------------------------------------------------------------
+// Vue layer: shell contract (injection keys, option types, navigation guard)
+// and the UI notify port. `createSuperAdminApp()` itself lives in
+// `@saasicat/ui-vue/quasar`.
+// ---------------------------------------------------------------------------
+export * from './vue/super-admin-context.js';
+export * from './vue/ui-notify.js';
+export * from './vue/use-super-admin-context.js';
+
+// ---------------------------------------------------------------------------
+// Vue layer: composables, guards, hosts, store factory.
+// ---------------------------------------------------------------------------
+export * from './vue/create-admin-routes.js';
+export * from './vue/use-api-list.js';
+export * from './vue/use-tenants.js';
+export * from './vue/use-audit-entries.js';
+export * from './vue/use-entitlement.js';
+export * from './vue/use-tenant-manifest.js';
+export * from './vue/entitlement-provider.js';
+export * from './vue/feature-router-guard.js';
 // FeatureGate.vue is not bundled — consumers import it directly:
 //   import FeatureGate from '@saasicat/ui-vue/components/FeatureGate.vue';
-export * from './use-tenant-billing-catalog.js';
-export * from './use-tenant-billing.js';
-export * from './use-subscription-draft.js';
-export * from './pages-tenant/default-i18n.js';
-export * from './use-plan-versions.js';
-export * from './use-bulk-publish.js';
-export * from './use-plan-editor.js';
-export * from './use-public-boot.js';
-export * from './use-discovery.js';
-export * from './use-catalog-entries.js';
-export * from './use-bundles.js';
-export * from './use-bundle-versions-map.js';
-export * from './use-tenant-subscription-bundles.js';
-export * from './use-business-types.js';
-export * from './use-marketing-projections.js';
-export * from './use-promotions.js';
-export * from './use-plans.js';
-export * from './use-live-plan-versions.js';
-export * from './use-manifest.js';
-export * from './use-nav.js';
-export * from './use-actions.js';
-export * from './use-tenant-action-flow.js';
-export * from './use-platform-tenant-actions.js';
-export * from './use-batch-columns.js';
-export * from './plan-versions-catalog.js';
+export * from './vue/use-tenant-billing-catalog.js';
+export * from './vue/use-tenant-billing.js';
+export * from './vue/use-subscription-draft.js';
+export * from './vue/use-plan-versions.js';
+export * from './vue/use-bulk-publish.js';
+export * from './vue/use-plan-editor.js';
+export * from './vue/use-public-boot.js';
+export * from './vue/use-discovery.js';
+export * from './vue/use-catalog-entries.js';
+export * from './vue/use-bundles.js';
+export * from './vue/use-bundle-versions-map.js';
+export * from './vue/use-tenant-subscription-bundles.js';
+export * from './vue/use-business-types.js';
+export * from './vue/use-marketing-projections.js';
+export * from './vue/use-promotions.js';
+export * from './vue/use-plans.js';
+export * from './vue/use-live-plan-versions.js';
+export * from './vue/use-manifest.js';
+export * from './vue/use-nav.js';
+export * from './vue/use-actions.js';
+export * from './vue/use-tenant-action-flow.js';
+export * from './vue/use-platform-tenant-actions.js';
+export * from './vue/use-batch-columns.js';
+// Loader factory that builds BootLoader + ManifestLoader from the same
+// endpoint configuration as createSuperAdminApp() — so that endpoints live
+// in a single place per app.
+export * from './vue/platform-loaders.js';
+// ProjectPageHost: resolves manifest projectPages dynamically against the
+// extensions: map — replaces static route duplication in the apps.
+export * from './vue/project-page-host.js';
+// Manifest Pinia store factory — standardizes ensureLoaded/reload/clearCache.
+export * from './vue/manifest-store-factory.js';
+
+// ---------------------------------------------------------------------------
+// Framework-free type/i18n modules that deliberately stay co-located with
+// their SFCs (whitelisted in the ESLint layer rules).
+// ---------------------------------------------------------------------------
 // Platform dialog types for app wrappers that type submit handlers.
 export * from './components/dialogs/types.js';
 // Pure resolvers for translated feature/quota labels in the bundle editors.
@@ -78,18 +91,8 @@ export * from './components/bundle-editor/catalog-i18n.js';
 export * from './pages-standard/platform-email.types.js';
 // Types of the shared EmailHistoryPage (platform email history).
 export * from './pages-standard/email-history.types.js';
-// Universal bootstrap helper for SuperAdmin apps + associated composables.
-export * from './create-super-admin-app.js';
-export * from './use-super-admin-context.js';
-// Loader factory that builds BootLoader + ManifestLoader from the same
-// endpoint configuration as createSuperAdminApp() — so that endpoints live
-// in a single place per app.
-export * from './platform-loaders.js';
-// ProjectPageHost: resolves manifest projectPages dynamically against the
-// extensions: map — replaces static route duplication in the apps.
-export * from './project-page-host.js';
-// Manifest Pinia store factory — standardizes ensureLoaded/reload/clearCache.
-export * from './manifest-store-factory.js';
+// Default German labels for the tenant-facing pages.
+export * from './pages-tenant/default-i18n.js';
 
 // The shared SuperAdmin LoginPage lives at
 // `@saasicat/ui-vue/pages-standard/SuperAdminLoginPage.vue` —

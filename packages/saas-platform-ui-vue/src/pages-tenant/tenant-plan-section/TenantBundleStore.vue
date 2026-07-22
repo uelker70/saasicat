@@ -131,8 +131,8 @@
 import { computed } from 'vue';
 import { missingRequiresFor } from '@saasicat/types';
 import type { TenantPlanSectionI18n } from '../default-i18n.js';
-import type { CatalogBundle } from '../../use-tenant-billing-catalog.js';
-import type { SubscriptionBundleShape } from '../../use-tenant-billing.js';
+import type { CatalogBundle } from '../../vue/use-tenant-billing-catalog.js';
+import type { SubscriptionBundleShape } from '../../vue/use-tenant-billing.js';
 
 // TenantBundleStore — bundle sales on "Paket & Verbrauch" (#15):
 // lists booked (cancelable) and available (bookable) catalog bundles.

@@ -109,6 +109,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useQuasar } from 'quasar';
+import { useSuperAdminNotify } from '../quasar/notify.js';
 import PilotCreateDialog from '../components/dialogs/PilotCreateDialog.vue';
 import PilotEditDialog from '../components/dialogs/PilotEditDialog.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
@@ -200,6 +201,7 @@ const props = withDefaults(
 );
 
 const q = useQuasar();
+const notify = useSuperAdminNotify();
 const rows = ref<PilotRow[]>([]);
 const reviewSoon = ref<PilotRow[]>([]);
 const loading = ref(false);
@@ -445,22 +447,16 @@ function onEditClick(row: PilotRow): void {
 }
 
 function onUpdated(result: PilotEditResult): void {
-    q.notify({
-        type: 'positive',
-        message: `Pilot ${result.slug} aktualisiert.`,
+    notify('positive', `Pilot ${result.slug} aktualisiert.`, {
         caption: result.changed?.length ? `Geändert: ${result.changed.join(', ')}` : undefined,
-        position: 'top',
     });
     void reload();
 }
 
 function onCreated(result: PilotCreateResult): void {
-    q.notify({
-        type: 'positive',
-        message: `Pilot ${result.slug} angelegt.`,
+    notify('positive', `Pilot ${result.slug} angelegt.`, {
         caption: result.initialPassword ? `Initial-Passwort: ${result.initialPassword}` : undefined,
-        position: 'top',
-        timeout: 8000,
+        timeoutMs: 8000,
     });
     void reload();
 }
@@ -476,10 +472,10 @@ async function runAction(
     if (!requireMfa) {
         try {
             await invoke('');
-            q.notify({ type: 'positive', message: successMessage, position: 'top' });
+            notify('positive', successMessage);
             await reload();
         } catch (err) {
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
         }
         return;
     }
@@ -491,7 +487,7 @@ async function runAction(
         try {
             await invoke(code);
             showMfa.value = false;
-            q.notify({ type: 'positive', message: successMessage, position: 'top' });
+            notify('positive', successMessage);
             await reload();
             return;
         } catch (err) {
@@ -501,7 +497,7 @@ async function runAction(
                 continue;
             }
             showMfa.value = false;
-            q.notify({ type: 'negative', message: errMsg(err), position: 'top' });
+            notify('negative', errMsg(err));
             return;
         }
     }

@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { PackageSnapshotShape } from '../use-tenant-billing.js';
+import type { PackageSnapshotShape } from '../vue/use-tenant-billing.js';
 import type { TenantPlanSectionI18n } from './default-i18n.js';
 
 // PackageSnapshotPanel — P11.4 (METAMODELL §17a):

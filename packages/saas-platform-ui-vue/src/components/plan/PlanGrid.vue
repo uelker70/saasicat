@@ -48,8 +48,8 @@
 </template>
 
 <script setup lang="ts">
-import type { CatalogPlan } from '../../use-tenant-billing-catalog.js';
-import type { BillingCycleStr } from '../../use-tenant-billing.js';
+import type { CatalogPlan } from '../../vue/use-tenant-billing-catalog.js';
+import type { BillingCycleStr } from '../../vue/use-tenant-billing.js';
 
 interface I18n {
     popular: string;

@@ -957,11 +957,8 @@ export const adminRoutes = [
 
 ```ts
 // main.ts
-import {
-    createSuperAdminApp,
-    type SuperAdminLoginAdapter,
-    type ActionsMap,
-} from '@saasicat/ui-vue';
+import { createSuperAdminApp } from '@saasicat/ui-vue/quasar';
+import { type SuperAdminLoginAdapter, type ActionsMap } from '@saasicat/ui-vue';
 import { ADMIN_ENDPOINTS, loaders } from './services/platform-loaders';
 import { adminApi } from './services/admin-api';
 import { useAuthStore } from './stores/auth';
