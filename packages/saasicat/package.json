@@ -1,0 +1,27 @@
+{
+    "name": "saasicat",
+    "version": "0.4.0",
+    "description": "Pointer package for the SaaSiCat framework. You probably want @saasicat/nest (framework) or `npm create saasicat-admin` (scaffolding).",
+    "keywords": [
+        "saas",
+        "saasicat",
+        "nestjs",
+        "entitlements",
+        "billing",
+        "multi-tenancy"
+    ],
+    "license": "Apache-2.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/saasicat"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

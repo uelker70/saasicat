@@ -337,6 +337,8 @@ importers:
         specifier: ^3.3.3
         version: 3.3.7(typescript@6.0.3)
 
+  packages/saasicat: {}
+
 packages:
 
   '@apidevtools/json-schema-ref-parser@11.9.3':
