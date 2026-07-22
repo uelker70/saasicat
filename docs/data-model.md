@@ -1,5 +1,5 @@
 ---
-doc_title: SaaSicat Data Model
+doc_title: SaaSiCat Data Model
 status: normative
 related:
     - ../packages/saas-platform-spec/prisma-fragments/README.md
@@ -7,7 +7,7 @@ related:
     - ../packages/saas-platform-spec/sql/reference-schema.postgres.sql
 ---
 
-# SaaSicat Data Model
+# SaaSiCat Data Model
 
 This document is the **normative logical data model** of the platform. The
 artifact hierarchy:

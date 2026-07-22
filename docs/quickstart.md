@@ -1,4 +1,4 @@
-# saasicat — Quickstart
+# SaaSiCat — Quickstart
 
 Make a NestJS app SaaS-capable in **10 steps**: tenants, plans, features,
 quotas, automatic backend enforcement and a SuperAdmin UI. Goal: a working
@@ -11,7 +11,7 @@ lines of app-owned code.
 > separation first — this guide _extends_ a multi-tenant app with SaaS
 > functionality.
 >
-> A full explanation of every step lives in the [saasicat handbook](handbook.md).
+> A full explanation of every step lives in the [SaaSiCat handbook](handbook.md).
 > The quickstart shows the fastest path — if you need different schemas,
 > databases or more control, continue in the handbook.
 
@@ -38,7 +38,7 @@ pnpm add \
     @saasicat/cli
 ```
 
-> All saasicat packages are versioned in lockstep — always keep them on the
+> All SaaSiCat packages are versioned in lockstep — always keep them on the
 > same version.
 
 ## Step 2 — Create the app identity config

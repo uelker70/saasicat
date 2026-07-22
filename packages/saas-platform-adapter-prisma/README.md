@@ -1,6 +1,6 @@
 # @saasicat/adapter-prisma
 
-The Prisma + PostgreSQL persistence adapter for SaaSicat. Targets the
+The Prisma + PostgreSQL persistence adapter for SaaSiCat. Targets the
 canonical schema from `@saasicat/spec` (`prisma-fragments/` +
 `sql/constraints.postgres.sql`) and passes the executable persistence
 contract (`@saasicat/persistence-testing`) against a real PostgreSQL — locks,

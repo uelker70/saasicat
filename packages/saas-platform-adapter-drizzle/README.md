@@ -1,6 +1,6 @@
 # @saasicat/adapter-drizzle
 
-The Drizzle + PostgreSQL persistence adapter for SaaSicat. Same ports, same
+The Drizzle + PostgreSQL persistence adapter for SaaSiCat. Same ports, same
 canonical schema and the same executable contract as
 `@saasicat/adapter-prisma` — `@saasicat/persistence-testing` runs the
 identical suite against both adapters in CI, which is what makes "swap the

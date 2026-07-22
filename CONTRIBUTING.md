@@ -1,4 +1,4 @@
-# Contributing to saasicat
+# Contributing to SaaSiCat
 
 Thanks for contributing! This guide covers the workspace setup and the few rules
 that are specific to this codebase.
