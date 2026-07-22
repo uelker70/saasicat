@@ -53,10 +53,7 @@ import {
 } from './plan-resolver.port.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';
 import { StaticFeatureGuard } from './static-feature.guard.js';
-import {
-    EnforceQuotaInterceptor,
-    QUOTA_PROVIDERS_TOKEN,
-} from './enforce-quota.interceptor.js';
+import { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from './enforce-quota.interceptor.js';
 import { TenantManifestService } from './tenant-manifest.service.js';
 import {
     buildTenantManifestController,
@@ -166,8 +163,7 @@ export interface SaasPlatformModuleOptions {
      * factory.
      */
     adminManifestConfig?:
-        | AdminManifestConfig
-        | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
+        AdminManifestConfig | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
     /**
      * Default `false`. If `true`, `EntitlementModule.forRoot({...})` is called
      * with the repositories from `adapters` — only meaningful if the app
@@ -326,7 +322,8 @@ export class SaasPlatformModule {
 
         const appInfo: DiscoveryAppInfo = options.app ?? {
             key: options.planCatalog?.projectKey ?? options.dbCatalog?.projectKey ?? 'app',
-            version: options.planCatalog?.app?.version ?? options.dbCatalog?.app?.version ?? '0.0.0',
+            version:
+                options.planCatalog?.app?.version ?? options.dbCatalog?.app?.version ?? '0.0.0',
         };
 
         const imports: DynamicModule[] = [
@@ -350,6 +347,11 @@ export class SaasPlatformModule {
                 config: options.adminManifestConfig ?? buildMinimalManifestConfig(),
                 guards: options.controller.guards,
                 reloadGuards: options.reloadGuards,
+                // Global like AdminModule above: apps register their manifest
+                // contribution by injecting AdminManifestService into one of
+                // their own modules (handbook §6.6). Re-exporting the module
+                // from here does not make that injection resolvable.
+                global: true,
             }),
         ];
 

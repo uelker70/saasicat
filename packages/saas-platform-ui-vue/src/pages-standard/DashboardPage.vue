@@ -106,12 +106,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, inject, onMounted, reactive, ref, watch } from 'vue';
 import type { AdminManifest, KpiCardDef } from '@saasicat/types';
 import type { HttpClient } from '../client/types.js';
 import { buildRoutes } from '../client/nav-builder.js';
 import { formatMessage } from '../client/i18n/format.js';
+import { SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import { useSuperAdminHttp } from '../vue/use-super-admin-context.js';
 
 // Platform standard page: Dashboard.
 //
@@ -210,7 +212,14 @@ const msg = useSaMessages('dashboard');
 const common = useSaMessages('common');
 const { locale, intlLocale } = useSuperAdminI18n();
 
-const manifestRef = ref<AdminManifest | null>(props.manifest ?? null);
+// Provided by createSuperAdminApp({ manifestGuard: { getManifest } }) — lets
+// the page work as a plain route component without a wrapper.
+const injectedManifest = inject(SUPER_ADMIN_MANIFEST_KEY, null);
+// The KPI endpoints need the app's auth. Without this the page would fall back
+// to a bare fetch() and every card would render as an em dash.
+const shellHttp = useSuperAdminHttp();
+
+const manifestRef = ref<AdminManifest | null>(props.manifest ?? injectedManifest?.() ?? null);
 const cards = reactive<KpiCardState[]>([]);
 const loading = ref(false);
 const error = ref<Error | null>(null);
@@ -331,9 +340,8 @@ function defaultFormat(card: KpiCardDef, body: unknown): KpiFormatted {
 }
 
 async function callHttp(url: string): Promise<{ status: number; json: () => Promise<unknown> }> {
-    if (props.http) {
-        return props.http(url, { method: 'GET' });
-    }
+    const http = props.http ?? shellHttp;
+    if (http) return http(url, { method: 'GET' });
     const headers: Record<string, string> = {};
     const token = props.getAuthToken?.();
     if (token) headers.Authorization = `Bearer ${token}`;
