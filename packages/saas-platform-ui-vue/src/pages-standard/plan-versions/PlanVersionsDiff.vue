@@ -45,7 +45,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/types';
-import type { CatalogSnapshot, ResolvedPlan } from '../../plan-versions-catalog.js';
+import type { CatalogSnapshot, ResolvedPlan } from '../../client/plan-versions-catalog.js';
 import PlanDiffCard from './PlanDiffCard.vue';
 
 interface SnapshotEntityDiff {

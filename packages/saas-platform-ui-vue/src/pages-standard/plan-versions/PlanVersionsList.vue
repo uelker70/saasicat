@@ -97,7 +97,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { CatalogSnapshot } from '../../plan-versions-catalog.js';
+import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
 import PlanVersionsKpi from './PlanVersionsKpi.vue';
 import { fmtEuro } from './format.js';
 

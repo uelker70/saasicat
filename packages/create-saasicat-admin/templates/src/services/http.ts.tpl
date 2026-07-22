@@ -57,3 +57,8 @@ export async function adminLogin(email: string, password: string) {
 export function isAuthenticated(): boolean {
     return !!localStorage.getItem(TOKEN_KEY);
 }
+
+/** Auth-token provider for the platform loaders (`Authorization: Bearer …`). */
+export function getAuthToken(): string | null {
+    return localStorage.getItem(TOKEN_KEY);
+}

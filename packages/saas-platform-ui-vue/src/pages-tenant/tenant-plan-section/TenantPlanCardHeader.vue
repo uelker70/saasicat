@@ -45,7 +45,7 @@
 
 <script setup lang="ts">
 import type { TenantPlanSectionI18n } from '../default-i18n.js';
-import type { UsageSnapshotShape } from '../../use-tenant-billing.js';
+import type { UsageSnapshotShape } from '../../vue/use-tenant-billing.js';
 
 defineProps<{
     usage: UsageSnapshotShape;

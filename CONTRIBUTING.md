@@ -62,6 +62,16 @@ prefix. These keys are part of the runtime contract between platform and consume
 apps — **do not rename existing keys**, and use the same prefix for new cross-entry
 tokens unless a coordinated, breaking namespace migration is explicitly planned.
 
+## Layer boundaries in `@saasicat/ui-vue`
+
+`packages/saas-platform-ui-vue/src` is layered: `client/` (framework-free) ←
+`vue/` (no Quasar) ← `quasar/` + the SFC directories. Each layer has its own
+package entry, and ESLint `no-restricted-imports` rules in the root config
+enforce the boundaries — `pnpm exec eslint .` fails on an upward import.
+New logic goes into a composable (`src/vue/`) or, when framework-free, into
+`src/client/`; `.ts` files may import `quasar` only under `src/quasar/`.
+Details: [`packages/saas-platform-ui-vue/README.md`](packages/saas-platform-ui-vue/README.md).
+
 ## Codegen: never edit generated types
 
 The DTO types in `@saasicat/types` are **generated** from the JSON Schemas in

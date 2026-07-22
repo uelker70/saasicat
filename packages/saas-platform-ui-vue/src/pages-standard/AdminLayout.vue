@@ -94,8 +94,8 @@
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import type { AdminManifest, StandardPageKey } from '@saasicat/types';
-import { buildRoutes, buildSidebar, DEFAULT_SECTION_ORDER } from '../nav-builder.js';
-import { ADMIN_UI_VERSION } from '../version.js';
+import { buildRoutes, buildSidebar, DEFAULT_SECTION_ORDER } from '../client/nav-builder.js';
+import { ADMIN_UI_VERSION } from '../client/version.js';
 
 // SuperAdmin layout — universal platform shell for all consumer apps.
 // CSS classes `sa-admin-*` with BEM convention; apps can override any class

@@ -108,8 +108,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import type { AdminManifest, KpiCardDef } from '@saasicat/types';
-import type { HttpClient } from '../types.js';
-import { buildRoutes } from '../nav-builder.js';
+import type { HttpClient } from '../client/types.js';
+import { buildRoutes } from '../client/nav-builder.js';
 
 // Platform standard page: Dashboard.
 //

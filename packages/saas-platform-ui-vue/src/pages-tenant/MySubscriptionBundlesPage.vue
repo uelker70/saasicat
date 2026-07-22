@@ -167,7 +167,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import type { SubscriptionBundleRecord } from '@saasicat/types';
 
-import { useTenantSubscriptionBundles } from '../use-tenant-subscription-bundles.js';
+import { useTenantSubscriptionBundles } from '../vue/use-tenant-subscription-bundles.js';
 
 // MySubscriptionBundlesPage — tenant self-service page "Meine Bundles".
 // The hosting app embeds the page

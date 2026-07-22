@@ -76,7 +76,7 @@ import {
     type BundleAvailabilityState,
     type PublicMarketingBundle,
 } from '@saasicat/types';
-import type { BillingCycleStr } from '../../use-tenant-billing.js';
+import type { BillingCycleStr } from '../../vue/use-tenant-billing.js';
 
 interface I18n {
     perMonth: string;

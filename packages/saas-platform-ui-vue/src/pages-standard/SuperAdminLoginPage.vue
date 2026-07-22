@@ -86,14 +86,14 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { SetupStatusResponse } from '@saasicat/types';
 
-import { usePublicBoot } from '../use-public-boot.js';
+import { usePublicBoot } from '../vue/use-public-boot.js';
 import {
     useSuperAdminBrand,
     useSuperAdminEndpoints,
     useSuperAdminHttp,
     useSuperAdminLoginAdapter,
-} from '../use-super-admin-context.js';
-import { getJson } from '../http-json.js';
+} from '../vue/use-super-admin-context.js';
+import { getJson } from '../client/http-json.js';
 import SuperAdminSetupWizard from './SuperAdminSetupWizard.vue';
 
 interface Props {

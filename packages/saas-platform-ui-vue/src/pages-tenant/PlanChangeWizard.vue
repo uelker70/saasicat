@@ -220,8 +220,8 @@ import { computed, ref, watch } from 'vue';
 import LimitsRow from './LimitsRow.vue';
 import PlanCycleToggle from '../components/plan/PlanCycleToggle.vue';
 import PlanGrid from '../components/plan/PlanGrid.vue';
-import type { BillingCycleStr, PlanChangePreviewShape } from '../use-tenant-billing.js';
-import type { CatalogPlan } from '../use-tenant-billing-catalog.js';
+import type { BillingCycleStr, PlanChangePreviewShape } from '../vue/use-tenant-billing.js';
+import type { CatalogPlan } from '../vue/use-tenant-billing-catalog.js';
 
 // PlanChangeWizard — 3-step dialog for plan changes.
 //

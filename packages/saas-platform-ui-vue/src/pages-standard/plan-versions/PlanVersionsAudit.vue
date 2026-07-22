@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import type { CatalogSnapshot } from '../../plan-versions-catalog.js';
+import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
 import { formatTsDe } from './format.js';
 
 // PlanVersionsAudit — data-agnostic. Consumers pass in a `loadAudit` loader

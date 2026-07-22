@@ -177,8 +177,8 @@ import {
     usePlanVersions,
     type UsePlansResult,
     type UsePlanVersionsResult,
-} from '../use-plans.js';
-import type { HttpClient } from '../types.js';
+} from '../vue/use-plans.js';
+import type { HttpClient } from '../client/types.js';
 import PlanVersionEditor from '../components/plan-version-editor/PlanVersionEditor.vue';
 import PlanMatrix from '../components/plan-matrix/PlanMatrix.vue';
 import PlanDetail from '../components/plan-detail/PlanDetail.vue';

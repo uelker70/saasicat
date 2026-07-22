@@ -158,8 +158,8 @@ import {
     useSuperAdminBrand,
     useSuperAdminEndpoints,
     useSuperAdminHttp,
-} from '../use-super-admin-context.js';
-import { HttpJsonError, postJson as httpPostJson } from '../http-json.js';
+} from '../vue/use-super-admin-context.js';
+import { HttpJsonError, postJson as httpPostJson } from '../client/http-json.js';
 
 interface Props {
     /** Display name + badge abbreviation (override the app branding, e.g. from PublicBoot). */

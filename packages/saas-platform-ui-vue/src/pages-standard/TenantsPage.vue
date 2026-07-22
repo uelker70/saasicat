@@ -172,12 +172,12 @@ import type {
     TenantDto,
     TenantListFilter,
 } from '@saasicat/types';
-import type { HttpClient } from '../types.js';
-import { useTenants } from '../use-tenants.js';
+import type { HttpClient } from '../client/types.js';
+import { useTenants } from '../vue/use-tenants.js';
 import {
     usePlatformTenantActions,
     type PlatformTenantActionTone,
-} from '../use-platform-tenant-actions.js';
+} from '../vue/use-platform-tenant-actions.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../components/TenantActionConfirmDialog.vue';
 import StatusPill, { type PillTone } from './tenants/StatusPill.vue';

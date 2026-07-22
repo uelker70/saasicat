@@ -35,7 +35,7 @@
 // instead of returning `null`. (Strict mode comes later; currently default = lenient.)
 
 import { computed } from 'vue';
-import { useInjectedEntitlement } from '../entitlement-provider.js';
+import { useInjectedEntitlement } from '../vue/entitlement-provider.js';
 
 interface Props {
     /** A single FeatureKey or several as a logical OR. */

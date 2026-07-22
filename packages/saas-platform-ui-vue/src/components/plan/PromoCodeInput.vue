@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { PromoState } from '../../use-subscription-draft.js';
+import type { PromoState } from '../../vue/use-subscription-draft.js';
 
 interface I18n {
     openLabel: string;

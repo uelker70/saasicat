@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BillingCycleStr } from '../../use-tenant-billing.js';
+import type { BillingCycleStr } from '../../vue/use-tenant-billing.js';
 
 interface I18n {
     ariaLabel: string;

@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import type { DraftPricing } from '../../use-subscription-draft.js';
+import type { DraftPricing } from '../../vue/use-subscription-draft.js';
 
 interface I18n {
     noPlan: string;

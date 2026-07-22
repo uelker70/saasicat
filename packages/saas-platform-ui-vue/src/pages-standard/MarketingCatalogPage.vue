@@ -122,11 +122,11 @@ import {
     type PromotionResult,
     type PromotionRow,
 } from '@saasicat/types';
-import { usePlans } from '../use-plans.js';
-import { useMarketingProjections } from '../use-marketing-projections.js';
-import { usePromotions } from '../use-promotions.js';
-import { useCatalogEntries } from '../use-catalog-entries.js';
-import { defaultHttpClient, type HttpClient } from '../types.js';
+import { usePlans } from '../vue/use-plans.js';
+import { useMarketingProjections } from '../vue/use-marketing-projections.js';
+import { usePromotions } from '../vue/use-promotions.js';
+import { useCatalogEntries } from '../vue/use-catalog-entries.js';
+import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import MarketingPromotionsTab from '../components/MarketingPromotionsTab.vue';
 import MarketingCatalogAdmin from './marketing-catalog/MarketingCatalogAdmin.vue';
 import MarketingCatalogHeader from './marketing-catalog/MarketingCatalogHeader.vue';
