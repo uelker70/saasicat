@@ -23,10 +23,10 @@ const DEMO_PASSWORD = 'demo';
 
 export const api = axios.create({ baseURL: '/api/v1' });
 api.interceptors.request.use((cfg) => {
-    if (isAuthenticated()) {
-        cfg.headers['x-demo-tenant'] = DEMO_ADMIN_TENANT;
-        cfg.headers['x-demo-role'] = DEMO_ADMIN_ROLE;
-    }
+    // Unconditional: `/admin/boot` runs before the login page has a session,
+    // and this backend authenticates every route by header.
+    cfg.headers['x-demo-tenant'] = DEMO_ADMIN_TENANT;
+    cfg.headers['x-demo-role'] = DEMO_ADMIN_ROLE;
     return cfg;
 });
 

@@ -9,6 +9,7 @@ import { DemoPasswordHasher } from './auth/demo-password.hasher';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
+import { NotesAdminModule } from './saas/notesapp-admin.module';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
 
 /**
@@ -52,6 +53,8 @@ class DemoAuthModule {}
         }),
 
         NotesModule,
+        // Manifest contribution + KPI endpoints for the SuperAdmin UI.
+        NotesAdminModule,
     ],
     providers: [
         // Maps LimitExceededError from @EnforceQuota to HTTP 402 + quota payload.
