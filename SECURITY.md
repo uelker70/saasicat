@@ -1,13 +1,13 @@
 # Security Policy
 
-saasicat ships authentication, MFA, registration, and billing primitives. Some of its
+SaaSiCat ships authentication, MFA, registration, and billing primitives. Some of its
 security properties depend on how **you** deploy it. This document is the operating
 contract: what we guarantee, what we require from operators, and what we know is
 missing.
 
 ## Supported versions
 
-saasicat is pre-1.0. During the 0.x series, only the **latest minor release** receives
+SaaSiCat is pre-1.0. During the 0.x series, only the **latest minor release** receives
 security fixes.
 
 | Version          | Supported          |
@@ -16,7 +16,7 @@ security fixes.
 | older releases   | :x:                |
 
 All packages (`@saasicat/*`, `create-saasicat-admin`) are versioned in lockstep, so a
-security release always bumps the whole set. Upgrade all saasicat packages together.
+security release always bumps the whole set. Upgrade all SaaSiCat packages together.
 
 ## Reporting a vulnerability
 

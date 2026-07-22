@@ -1,12 +1,12 @@
-# saasicat
+# SaaSiCat
 
-**saasicat** is an embeddable SaaS platform framework for [NestJS](https://nestjs.com): plans & entitlements, bundles, promo codes, billing lifecycle, audit, MFA, first-run setup and a ready-to-use SuperAdmin UI.
+**The sassy framework for serious SaaS.**
 
-The name is *saas* + *icat* — the Turkish word for "invention" — because it is the part of a SaaS product you would otherwise have to invent yourself (and yes, it ends in a cat).
+**SaaSiCat** is an embeddable SaaS platform framework for [NestJS](https://nestjs.com): plans & entitlements, bundles, promo codes, billing lifecycle, audit, MFA, first-run setup and a ready-to-use SuperAdmin UI.
 
 > **Status: 0.x — early.**
 > The API is **not yet stable** and may change between minor releases.
-> saasicat was extracted from a production system powering two commercial SaaS products — the code is battle-tested, the public packaging is new.
+> SaaSiCat was extracted from a production system powering two commercial SaaS products — the code is battle-tested, the public packaging is new.
 
 ## What you get
 
@@ -44,7 +44,7 @@ All packages are released in lockstep and share one version number.
 
 ## Architecture in three lines
 
-saasicat is **embeddable, not hosted**: your application keeps its own database, auth and HTTP stack. The platform defines narrow **ports** (persistence, MFA, audit, RLS bypass, plan resolution) and you plug in **adapters** — for Prisma + PostgreSQL they ship ready-made. Discovery, catalog, entitlement, admin API and admin UI then come entirely from the packages.
+SaaSiCat is **embeddable, not hosted**: your application keeps its own database, auth and HTTP stack. The platform defines narrow **ports** (persistence, MFA, audit, RLS bypass, plan resolution) and you plug in **adapters** — for Prisma + PostgreSQL they ship ready-made. Discovery, catalog, entitlement, admin API and admin UI then come entirely from the packages.
 
 ## Reference implementation
 

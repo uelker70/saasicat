@@ -10,7 +10,7 @@ related:
 
 # Prisma Fragments
 
-Prisma-DSL rendering of the SaaSicat data model, **derived from the normative
+Prisma-DSL rendering of the SaaSiCat data model, **derived from the normative
 sources**: the logical data model in [`docs/data-model.md`](../../../docs/data-model.md)
 and the PostgreSQL artifacts in [`../sql/`](../sql/)
 (`reference-schema.postgres.sql` is generated FROM these fragments via

@@ -1,4 +1,4 @@
-# notesapp — saasicat reference implementation
+# notesapp — SaaSiCat reference implementation
 
 A deliberately small, **runnable** multi-tenant NestJS app that follows the
 [quickstart](../../docs/quickstart.md) end to end: two plans in
