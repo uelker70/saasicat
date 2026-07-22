@@ -12,7 +12,8 @@
       "@saasicat/persistence-testing",
       "@saasicat/cli",
       "@saasicat/ui-vue",
-      "create-saasicat-admin"
+      "create-saasicat-admin",
+      "saasicat"
     ]
   ],
   "linked": [],
