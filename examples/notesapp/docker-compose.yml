@@ -1,0 +1,59 @@
+# Runnable notesapp stack: Postgres, the NestJS backend and the SuperAdmin UI.
+#
+#   docker compose -f examples/notesapp/docker-compose.yml up --build
+#
+# Then open http://localhost:8080 and sign in with the seeded demo account
+# (admin@notesapp.example / demo — printed by the seed on startup).
+#
+# Both images build from the repo root, because the app and the admin consume
+# the `@saasicat/*` workspace packages from source.
+
+name: notesapp
+
+services:
+    db:
+        image: postgres:16-alpine
+        environment:
+            POSTGRES_USER: notesapp
+            POSTGRES_PASSWORD: notesapp
+            POSTGRES_DB: notesapp
+        # Published on 5433 so a Postgres already running on the host keeps 5432.
+        ports:
+            - '5433:5432'
+        volumes:
+            - db-data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U notesapp -d notesapp']
+            interval: 5s
+            timeout: 5s
+            retries: 20
+
+    backend:
+        build:
+            context: ../..
+            dockerfile: examples/notesapp/Dockerfile
+        environment:
+            DATABASE_URL: postgresql://notesapp:notesapp@db:5432/notesapp
+            SETUP_TOKEN: demo-setup-token
+            PORT: '3000'
+            # Set to false to keep data you changed through the UI across restarts.
+            SEED_ON_START: 'true'
+        # Exposed for the curl walkthrough in the README; the admin UI reaches
+        # the backend over the compose network, not through this port.
+        ports:
+            - '3000:3000'
+        depends_on:
+            db:
+                condition: service_healthy
+
+    admin:
+        build:
+            context: ../..
+            dockerfile: examples/notesapp/admin/Dockerfile
+        ports:
+            - '8080:80'
+        depends_on:
+            - backend
+
+volumes:
+    db-data:

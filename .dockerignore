@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/var
+.git
+.github
+**/.env
+**/*.log
+examples/notesapp/admin/dist
