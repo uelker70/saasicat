@@ -2,6 +2,8 @@
 
 **The sassy framework for serious SaaS.**
 
+![SaaSiCat — the sassy framework for serious SaaS](docs/brands/hero.png)
+
 **SaaSiCat** is an embeddable SaaS platform framework for [NestJS](https://nestjs.com): plans & entitlements, bundles, promo codes, billing lifecycle, audit, MFA, first-run setup and a ready-to-use SuperAdmin UI.
 
 > **Status: 0.x — early.**
