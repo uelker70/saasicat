@@ -244,7 +244,6 @@ export const plansMessages = defineMessages(
             title: 'Draft verwerfen?',
             bodyLead: 'Draft v{version} von',
             bodyTail: 'wird unwiderruflich gelöscht. Published Versions bleiben unverändert.',
-            confirm: 'Verwerfen',
         },
         // PlanBundleOverview — bundle cards below the plan list.
         bundleOverview: {
@@ -489,7 +488,6 @@ export const plansMessages = defineMessages(
             title: 'Discard draft?',
             bodyLead: 'Draft v{version} of',
             bodyTail: 'will be permanently deleted. Published versions remain unchanged.',
-            confirm: 'Discard',
         },
         bundleOverview: {
             title: 'Bundles',

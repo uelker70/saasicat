@@ -467,9 +467,7 @@ function formatVersionTitle(v: PlanVersionRow): string {
     const from = v.validFrom
         ? formatDateLong(v.validFrom)
         : msg.value.admin.versionValidFromUnknown;
-    const until = v.validUntil
-        ? formatDateLong(v.validUntil)
-        : msg.value.admin.versionValidUntilUnlimited;
+    const until = v.validUntil ? formatDateLong(v.validUntil) : common.value.unlimited;
     const changeNote = v.changeNote ? ` — ${v.changeNote}` : '';
     return formatMessage(msg.value.admin.versionTitle, {
         version: v.version,

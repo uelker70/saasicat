@@ -337,7 +337,7 @@
                                             <button
                                                 type="button"
                                                 class="mc-iconbtn mc-iconbtn--danger"
-                                                :title="msg.admin.removeFeature"
+                                                :title="common.remove"
                                                 :disabled="busy"
                                                 @click="$emit('remove-feature', row, i)"
                                             >

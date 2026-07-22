@@ -90,6 +90,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('bundles');
+const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
 
 const emit = defineEmits<{
@@ -101,7 +102,7 @@ function featureLabel(key: string): string {
 }
 
 function featureGroup(key: string): string {
-    return props.featureRegistry?.[key]?.group ?? msg.value.featuresEditor.fallbackGroup;
+    return props.featureRegistry?.[key]?.group ?? common.value.general;
 }
 
 function pillTitle(key: string): string {

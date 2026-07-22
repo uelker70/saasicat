@@ -231,7 +231,7 @@
                             <div class="pc-field">
                                 <div class="pc-field__label">{{ msg.form.billingCycleLabel }}</div>
                                 <select v-model="form.appliesToBilling" class="pc-input">
-                                    <option :value="null">{{ msg.form.billingCycleBoth }}</option>
+                                    <option :value="null">{{ common.both }}</option>
                                     <option value="MONTHLY">{{ common.monthly }}</option>
                                     <option value="YEARLY">{{ common.yearly }}</option>
                                 </select>

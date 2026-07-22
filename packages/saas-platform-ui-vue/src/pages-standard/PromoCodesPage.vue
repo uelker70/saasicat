@@ -289,7 +289,7 @@ const statTiles = computed<
             hint: msg.value.list.hintStartsLater,
         },
         { id: 'paused', label: msg.value.list.tilePaused, count: counts.paused, tone: 'warn' },
-        { id: 'expired', label: msg.value.list.tileExpired, count: counts.expired, tone: 'muted' },
+        { id: 'expired', label: common.value.expired, count: counts.expired, tone: 'muted' },
     ];
 });
 
@@ -321,7 +321,7 @@ const baseColumns = computed(() => [
     },
     {
         name: 'valueType',
-        label: msg.value.list.columnValueType,
+        label: common.value.type,
         field: 'valueType',
         align: 'left' as const,
     },

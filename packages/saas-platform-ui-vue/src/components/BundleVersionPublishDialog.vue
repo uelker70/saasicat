@@ -34,7 +34,7 @@
                 </q-banner>
 
                 <div class="bvpd__validity">
-                    <div class="bvpd__label">{{ msg.fields.validity }}</div>
+                    <div class="bvpd__label">{{ common.validity }}</div>
                     <div class="bvpd__validity-grid">
                         <label class="bvpd__field">
                             <span>{{ msg.fields.validFrom }}</span>

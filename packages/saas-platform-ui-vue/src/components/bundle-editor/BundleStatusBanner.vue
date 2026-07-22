@@ -88,7 +88,7 @@
                     d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
                 />
             </svg>
-            <span>{{ msg.statusBanner.discard }}</span>
+            <span>{{ common.discard }}</span>
         </button>
     </div>
 </template>
@@ -116,6 +116,7 @@ defineEmits<{
 }>();
 
 const msg = useSaMessages('bundles');
+const common = useSaMessages('common');
 const { locale } = useSuperAdminI18n();
 
 const status = computed(() => bundleVersionStatus(props.version, props.now));

@@ -198,7 +198,7 @@
                                     @click="form.pilot.endsAt = ''"
                                 >
                                     <q-icon name="close" size="12px" />
-                                    {{ msg.form.unlimited }}
+                                    {{ common.unlimited }}
                                 </button>
                             </div>
                             <div class="pl-end-presets">
@@ -472,7 +472,7 @@ async function doSubmit(code: string): Promise<void> {
         } else if (props.requireMfa && status === 401 && reason === 'MFA_NOT_SET_UP') {
             mfaError.value = response?.data?.message ?? msg.value.mfa.notSetUp;
         } else {
-            error.value = response?.data?.message ?? msg.value.createDialog.createFailed;
+            error.value = response?.data?.message ?? common.value.createFailed;
             showMfa.value = false;
         }
     } finally {

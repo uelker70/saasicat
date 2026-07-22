@@ -25,7 +25,7 @@
                     :model-value="editForm.icon"
                     outlined
                     dense
-                    :label="msg.detail.fieldIcon"
+                    :label="common.icon"
                     @update:model-value="(value) => patchEditForm({ icon: String(value ?? '') })"
                 />
                 <q-input
@@ -33,7 +33,7 @@
                     outlined
                     dense
                     type="number"
-                    :label="msg.detail.fieldSortOrder"
+                    :label="common.sortOrder"
                     @update:model-value="
                         (value) => patchEditForm({ sortOrder: Number(value ?? 0) })
                     "

@@ -168,7 +168,7 @@
                             flat
                             color="negative"
                             icon="delete"
-                            :label="msg.history.remove"
+                            :label="common.remove"
                             @click="askDelete(detail.id)"
                         />
                         <q-btn
@@ -197,7 +197,7 @@
                     <q-btn
                         unelevated
                         color="negative"
-                        :label="msg.history.remove"
+                        :label="common.remove"
                         @click="confirmDelete"
                     />
                 </q-card-actions>

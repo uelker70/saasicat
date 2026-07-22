@@ -110,7 +110,7 @@
                                 @change="patch(p, { internalLabel: inputVal($event) })"
                             />
 
-                            <label class="mc-promo-label">{{ msg.promotionsTab.typeLabel }}</label>
+                            <label class="mc-promo-label">{{ common.type }}</label>
                             <div class="mc-promo-typegrid">
                                 <button
                                     v-for="t in typeOptions"
@@ -181,7 +181,7 @@
                             </div>
 
                             <label class="mc-promo-label">
-                                {{ msg.promotionsTab.validityLabel }}
+                                {{ common.validity }}
                             </label>
                             <div class="mc-promo-valrow">
                                 <input
@@ -359,7 +359,7 @@ const typeOptions = computed<Array<{ id: PromotionType; label: string }>>(() => 
 const cycleOptions = computed<Array<{ id: PromotionBillingCycle; label: string }>>(() => [
     { id: 'monthly', label: common.value.monthly },
     { id: 'yearly', label: common.value.yearly },
-    { id: 'both', label: msg.value.promotionsTab.cycleBoth },
+    { id: 'both', label: common.value.both },
 ]);
 const COLORS = ['#10b981', '#dc2626', '#f59e0b', '#2563eb', '#7c3aed', '#0f172a'];
 

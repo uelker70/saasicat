@@ -19,7 +19,7 @@
                 <q-btn flat :label="common.cancel" @click="$emit('update:modelValue', false)" />
                 <q-btn
                     color="negative"
-                    :label="msg.discardDialog.confirm"
+                    :label="common.discard"
                     :loading="discarding"
                     @click="$emit('execute')"
                 />

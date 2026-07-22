@@ -6,7 +6,7 @@
                 {{ title }}
                 <span v-if="versionNew" class="sa-pv-diff-card__ver">v{{ versionNew }}</span>
             </div>
-            <div class="sa-pv-diff-card__sub">{{ msg.diff.noChanges }}</div>
+            <div class="sa-pv-diff-card__sub">{{ common.noChanges }}</div>
         </div>
     </div>
     <div v-else class="sa-pv-diff-card">
@@ -40,7 +40,7 @@ import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
-import VersionDiffPreview from './VersionDiffPreview.vue';
+import VersionDiffPreview from '../../components/VersionDiffPreview.vue';
 
 const props = defineProps<{
     title: string;
@@ -52,6 +52,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('planVersions');
+const common = useSaMessages('common');
 
 const changeCountLabel = computed(() => {
     const count = props.changes.length;

@@ -101,7 +101,7 @@
                         outlined
                         dense
                         type="number"
-                        :label="msg.fieldSortOrder"
+                        :label="common.sortOrder"
                     />
                 </q-card-section>
                 <q-card-actions align="right">
@@ -139,13 +139,13 @@
                         autogrow
                         :label="common.description"
                     />
-                    <q-input v-model="editForm.icon" outlined dense :label="msg.fieldIcon" />
+                    <q-input v-model="editForm.icon" outlined dense :label="common.icon" />
                     <q-input
                         v-model.number="editForm.sortOrder"
                         outlined
                         dense
                         type="number"
-                        :label="msg.fieldSortOrder"
+                        :label="common.sortOrder"
                     />
                     <q-btn
                         unelevated

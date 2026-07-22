@@ -12,7 +12,6 @@ export const bundlesMessages = defineMessages(
             yearlyPrice: 'Jahrespreis',
             perMonthUnit: '€/Mo',
             perYearUnit: '€/Jahr',
-            validity: 'Gültigkeit',
             validFrom: 'Gültig ab',
             validUntil: 'Gültig bis',
             validUntilOpen: 'offen',
@@ -90,8 +89,6 @@ export const bundlesMessages = defineMessages(
         },
         // BundleDetailPanel — master data + translations of the open bundle.
         detail: {
-            fieldIcon: 'Icon',
-            fieldSortOrder: 'Sortier-Reihenfolge',
             translations: 'Übersetzungen',
             languageCount: '{count} Sprache(n)',
             noTranslatableLocales:
@@ -165,7 +162,6 @@ export const bundlesMessages = defineMessages(
                 '({from} – {until}) — wird nicht mehr angeboten, Bestand bleibt für Abrechnung erhalten.',
             draft: 'Draft',
             draftTail: '— noch nicht published, frei editierbar.',
-            discard: 'Verwerfen',
             discardTooltip: 'Geplante Version verwerfen',
         },
         // BundleVersionInlineEditor — features/quotas/pricing of one version.
@@ -193,7 +189,6 @@ export const bundlesMessages = defineMessages(
         // BundlePlanCompatPicker — plans this bundle may be booked with.
         featuresEditor: {
             empty: 'Keine Features im Discovery-Snapshot.',
-            fallbackGroup: 'Allgemein',
             overlapTooltip: 'Feature ist im kompatiblen Plan bereits enthalten — Doppel-Berechnung',
             removeTooltip: 'Aus Bundle entfernen',
             addTooltip: 'In Bundle aufnehmen',
@@ -250,7 +245,6 @@ export const bundlesMessages = defineMessages(
             yearlyPrice: 'Yearly price',
             perMonthUnit: '€/mo',
             perYearUnit: '€/yr',
-            validity: 'Validity',
             validFrom: 'Valid from',
             validUntil: 'Valid until',
             validUntilOpen: 'open',
@@ -325,8 +319,6 @@ export const bundlesMessages = defineMessages(
             },
         },
         detail: {
-            fieldIcon: 'Icon',
-            fieldSortOrder: 'Sort order',
             translations: 'Translations',
             languageCount: '{count} language(s)',
             noTranslatableLocales:
@@ -393,7 +385,6 @@ export const bundlesMessages = defineMessages(
                 '({from} – {until}) — no longer offered, existing contracts remain for billing.',
             draft: 'Draft',
             draftTail: '— not published yet, freely editable.',
-            discard: 'Discard',
             discardTooltip: 'Discard scheduled version',
         },
         editor: {
@@ -419,7 +410,6 @@ export const bundlesMessages = defineMessages(
         },
         featuresEditor: {
             empty: 'No features in the discovery snapshot.',
-            fallbackGroup: 'General',
             overlapTooltip: 'Feature is already included in the compatible plan — double counting',
             removeTooltip: 'Remove from bundle',
             addTooltip: 'Add to bundle',

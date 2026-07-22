@@ -213,7 +213,7 @@
                                 <div class="pc-field__label">{{ msg.form.billingCycleLabel }}</div>
                                 <select v-model="form.appliesToBilling" class="pc-input">
                                     <option :value="undefined">
-                                        {{ msg.form.billingCycleBoth }}
+                                        {{ common.both }}
                                     </option>
                                     <option value="MONTHLY">{{ common.monthly }}</option>
                                     <option value="YEARLY">{{ common.yearly }}</option>
@@ -467,7 +467,7 @@ async function onSubmit() {
         error.value =
             (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
             (err as Error).message ??
-            msg.value.createDialog.createFailed;
+            common.value.createFailed;
     } finally {
         loading.value = false;
     }

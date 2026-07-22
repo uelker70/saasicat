@@ -85,7 +85,7 @@
                             @click="form.endsAt = ''"
                         >
                             <q-icon name="close" size="12px" />
-                            {{ msg.form.unlimited }}
+                            {{ common.unlimited }}
                         </button>
                     </div>
                     <div class="ple-end-presets">

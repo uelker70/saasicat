@@ -308,7 +308,7 @@ const statTiles = computed<
             tone: 'warn',
             hint: msg.value.list.tileExpiringHint,
         },
-        { id: 'expired', label: msg.value.list.tileExpired, count: counts.expired, tone: 'danger' },
+        { id: 'expired', label: common.value.expired, count: counts.expired, tone: 'danger' },
     ];
 });
 

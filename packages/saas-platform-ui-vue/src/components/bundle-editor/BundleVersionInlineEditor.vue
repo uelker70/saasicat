@@ -91,7 +91,7 @@
                 </div>
 
                 <div class="bve-section-label bve-section-label--top">
-                    <span>{{ msg.fields.validity }}</span>
+                    <span>{{ common.validity }}</span>
                     <span class="bve-section-count">{{ msg.editor.validityHint }}</span>
                 </div>
                 <div class="bve-row bve-row--validity">

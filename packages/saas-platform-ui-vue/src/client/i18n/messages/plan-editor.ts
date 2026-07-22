@@ -11,7 +11,6 @@ export const planEditorMessages = defineMessages(
             price: 'Preis',
         },
         editor: {
-            defaultFeatureGroup: 'Allgemein',
             yearlySavings: '{percent} % günstiger',
             validFromError:
                 '„Gültig ab" ({draftDay}) muss nach dem „Gültig ab" der Vorgänger-Version v{version} ({prevDay}) liegen.',
@@ -99,7 +98,6 @@ export const planEditorMessages = defineMessages(
             price: 'Price',
         },
         editor: {
-            defaultFeatureGroup: 'General',
             yearlySavings: '{percent} % cheaper',
             validFromError:
                 '"Valid from" ({draftDay}) must be later than the "Valid from" of predecessor version v{version} ({prevDay}).',

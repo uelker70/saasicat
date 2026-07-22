@@ -191,6 +191,7 @@ const emit = defineEmits<{
 }>();
 
 const msg = useSaMessages('planEditor');
+const common = useSaMessages('common');
 const { locale, intlLocale } = useSuperAdminI18n();
 
 const form = reactive<DraftForm>({
@@ -276,7 +277,7 @@ function featureLabel(key: string): string {
 }
 
 function featureGroupLabel(key: string): string {
-    return props.featureRegistry?.[key]?.group ?? msg.value.editor.defaultFeatureGroup;
+    return props.featureRegistry?.[key]?.group ?? common.value.general;
 }
 
 // Pool lists sorted by display label (not by key/snapshot order),

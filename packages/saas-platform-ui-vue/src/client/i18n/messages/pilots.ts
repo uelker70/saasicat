@@ -8,7 +8,6 @@ export const pilotsMessages = defineMessages(
         list: {
             tileExpiring: 'Läuft bald aus',
             tileExpiringHint: '≤ 14 Tage',
-            tileExpired: 'Abgelaufen',
             reviewSoonBanner:
                 '{count} Pilot-Mandanten enden in den nächsten 30 Tagen — bitte prüfen.',
             columnSlug: 'Slug',
@@ -47,7 +46,6 @@ export const pilotsMessages = defineMessages(
             planLabel: 'Plan',
             endsAtLabel: 'Endet am',
             endsAtClearTitle: 'Auf unbegrenzt setzen',
-            unlimited: 'unbegrenzt',
             preset30Days: '30 Tage',
             preset90Days: '90 Tage',
             preset6Months: '6 Monate',
@@ -79,7 +77,6 @@ export const pilotsMessages = defineMessages(
             sectionPilotSub: 'Plan-Zuweisung, Laufzeit und interne Notiz',
             invitationHint: 'Einladung geht an',
             mfaDescription: 'Pilot-Mandant "{name}" anlegen — Plan {plan}.',
-            createFailed: 'Anlegen fehlgeschlagen',
         },
         editDialog: {
             title: 'Pilot bearbeiten',
@@ -106,7 +103,6 @@ export const pilotsMessages = defineMessages(
         list: {
             tileExpiring: 'Expiring soon',
             tileExpiringHint: '≤ 14 days',
-            tileExpired: 'Expired',
             reviewSoonBanner: '{count} pilot tenants end within the next 30 days — please review.',
             columnSlug: 'Slug',
             columnPlan: 'Plan',
@@ -144,7 +140,6 @@ export const pilotsMessages = defineMessages(
             planLabel: 'Plan',
             endsAtLabel: 'Ends on',
             endsAtClearTitle: 'Set to unlimited',
-            unlimited: 'unlimited',
             preset30Days: '30 days',
             preset90Days: '90 days',
             preset6Months: '6 months',
@@ -176,7 +171,6 @@ export const pilotsMessages = defineMessages(
             sectionPilotSub: 'Plan assignment, duration and internal note',
             invitationHint: 'Invitation will be sent to',
             mfaDescription: 'Create pilot tenant "{name}" — plan {plan}.',
-            createFailed: 'Creation failed',
         },
         editDialog: {
             title: 'Edit pilot',

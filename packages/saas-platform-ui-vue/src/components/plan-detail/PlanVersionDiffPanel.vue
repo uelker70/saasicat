@@ -42,7 +42,7 @@
                 </div>
             </div>
             <div v-if="diffRows.length === 0" class="pd-diff-empty">
-                <b>{{ msg.diff.emptyTitle }}</b>
+                <b>{{ common.noChanges }}</b>
                 {{ emptyText }}
             </div>
         </div>
@@ -149,6 +149,7 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('planDetail');
+const common = useSaMessages('common');
 
 const panelTitle = computed(() =>
     props.predecessor
