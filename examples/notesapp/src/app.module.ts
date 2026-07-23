@@ -11,8 +11,10 @@ import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
+import { NotesBillingModule } from './saas/notes-billing.module';
 import { NotesCatalogModule } from './saas/notes-catalog.module';
 import { NotesPlatformPagesModule } from './saas/notes-platform-pages.module';
+import { NotesPlanResolver } from './saas/notes-plan-resolver';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
 
 @Module({
@@ -31,8 +33,16 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
                 client: PrismaService,
                 passwordHasher: DemoPasswordHasher,
             }),
-            // No planResolver yet → every tenant is on STARTER. Swap for a
-            // subscription-backed resolver when you enable V3 contracts.
+            // Enforce each tenant's ACTUAL plan (from its subscription) for
+            // @RequireFeature / @EnforceQuota — so backend enforcement matches
+            // what GET /billing/entitlement reports to the tenant web app.
+            adapters: {
+                planResolver: {
+                    useFactory: (prisma: PrismaService) => new NotesPlanResolver(prisma),
+                    inject: [PrismaService],
+                },
+            },
+            // Fallback for tenants without a subscription (resolver returns null).
             defaultPlanId: 'STARTER',
             quotaProviders: [NotesQuotaProvider],
             tenantManifest: { guards: [DemoAuthGuard] },
@@ -47,6 +57,9 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
         // App-owned domain pages (tenants, users, audit, subscriptions, promo
         // codes) — these sit on the app's own tables, not the platform's.
         NotesPlatformPagesModule,
+        // Tenant-facing billing: entitlement/usage, public catalog, plan change
+        // and the standalone add-on bundle store (all guarded by DemoAuthGuard).
+        NotesBillingModule,
     ],
     providers: [
         // Maps LimitExceededError from @EnforceQuota to HTTP 402 + quota payload.

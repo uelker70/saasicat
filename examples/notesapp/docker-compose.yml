@@ -55,5 +55,14 @@ services:
         depends_on:
             - backend
 
+    web:
+        build:
+            context: ../..
+            dockerfile: examples/notesapp/web/Dockerfile
+        ports:
+            - '8081:80'
+        depends_on:
+            - backend
+
 volumes:
     db-data:

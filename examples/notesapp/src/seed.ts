@@ -459,6 +459,53 @@ async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
     }
 }
 
+/**
+ * Books one standalone add-on bundle so the tenant bundle store has data:
+ * `acme` gets EXPORT_PRO's published v1. `SubscriptionBundle` has no natural
+ * unique key, so a fixed `id` keeps the upsert idempotent; re-seeding clears any
+ * cancellation to restore the "active add-on" baseline.
+ */
+const ACME_BUNDLE_TENANT = 'acme';
+const ACME_BUNDLE_KEY = 'EXPORT_PRO';
+const ACME_BUNDLE_BOOKING_ID = '33333333-3333-4333-8333-333333333333';
+
+async function seedSubscriptionBundles(prisma: PrismaClient): Promise<void> {
+    const subscription = await prisma.subscription.findUnique({
+        where: { tenantId: ACME_BUNDLE_TENANT },
+    });
+    if (!subscription) {
+        throw new Error(
+            `No seeded subscription for ${ACME_BUNDLE_TENANT} — run seedSubscriptions first.`,
+        );
+    }
+    const bundle = await prisma.bundle.findUnique({
+        where: { projectKey_bundleKey: { projectKey: PROJECT_KEY, bundleKey: ACME_BUNDLE_KEY } },
+    });
+    const bundleVersion = bundle
+        ? await prisma.bundleVersion.findUnique({
+              where: { bundleId_version: { bundleId: bundle.id, version: 1 } },
+          })
+        : null;
+    if (!bundleVersion) {
+        throw new Error(`No seeded ${ACME_BUNDLE_KEY} BundleVersion v1 — run seedBundles first.`);
+    }
+    await prisma.subscriptionBundle.upsert({
+        where: { id: ACME_BUNDLE_BOOKING_ID },
+        create: {
+            id: ACME_BUNDLE_BOOKING_ID,
+            subscriptionId: subscription.id,
+            bundleVersionId: bundleVersion.id,
+            startedAt: new Date(),
+        },
+        update: {
+            subscriptionId: subscription.id,
+            bundleVersionId: bundleVersion.id,
+            canceledAt: null,
+            canceledEffectiveAt: null,
+        },
+    });
+}
+
 async function seedPromoCodes(prisma: PrismaClient): Promise<void> {
     const admin = await prisma.superAdminUser.findUnique({ where: { email: SUPER_ADMIN.email } });
     const createdById = admin?.id ?? 'seed';
@@ -509,12 +556,14 @@ async function seed(): Promise<void> {
         await seedBundles(prisma);
         await seedMarketing(prisma);
         await seedSubscriptions(prisma);
+        await seedSubscriptionBundles(prisma);
         await seedPromoCodes(prisma);
         const notes = DEMO_TENANTS.reduce((sum, t) => sum + t.notes, 0);
         console.log(
             `seeded ${DEMO_TENANTS.length} tenants, ${notes} notes, ` +
                 `${PLANS.length} plans, ${BUNDLES.length} bundles, ` +
-                `${SUBSCRIPTIONS.length} subscriptions, ${PROMO_CODES.length} promo codes, ` +
+                `${SUBSCRIPTIONS.length} subscriptions (1 add-on bundle), ` +
+                `${PROMO_CODES.length} promo codes, ` +
                 `${PROMOTIONS.length} promotions, 1 marketing-settings row, ` +
                 `SuperAdmin ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`,
         );

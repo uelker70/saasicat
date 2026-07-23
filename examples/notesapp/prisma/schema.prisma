@@ -594,6 +594,8 @@ model Subscription {
     planVersion         PlanVersion?                @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
     businessTypeVersion BusinessTypeVersion?        @relation("SubscriptionBusinessTypeVersion", fields: [businessTypeVersionId], references: [id])
+    // Standalone add-on bookings (see the SubscriptionBundle model below).
+    bundles             SubscriptionBundle[]
 
     @@index([tenantId])
     @@index([planVersionId])
@@ -1017,6 +1019,9 @@ model BundleVersion {
     baseVersion         BundleVersion?       @relation("BundleVersionLineage", fields: [baseVersionId], references: [id])
     derivedVersions     BundleVersion[]      @relation("BundleVersionLineage")
     businessTypeBundles BusinessTypeBundle[]
+    // Standalone add-on bookings pinned to this version (see the
+    // SubscriptionBundle model below).
+    subscriptionBundles SubscriptionBundle[]
 
     @@unique([bundleId, version])
     @@index([bundleId, supersededAt])
@@ -1282,4 +1287,46 @@ model ContractLineItem {
     @@index([contractId, kind])
     @@index([sourceVersionId])
     @@map("contract_line_items")
+}
+
+// =============================================================================
+// SaaS-Platform Prisma fragment: SubscriptionBundle (standalone add-on booking)
+// =============================================================================
+//
+// REFERENCE SNIPPET — see 01-subscription.prisma for conventions.
+//
+// A SubscriptionBundle is a bundle booked ON TOP of a subscription's plan —
+// the tenant "bundle store". It pins a concrete BundleVersion (features/quotas
+// frozen at booking), carries its own minimum term and cancellation window,
+// and is billed independently of the plan. The reverse relations are enabled
+// on Subscription (`bundles`) and BundleVersion (`subscriptionBundles`).
+
+model SubscriptionBundle {
+    id              String @id @default(uuid())
+    subscriptionId  String
+    bundleVersionId String
+
+    startedAt DateTime
+
+    // Minimum contractual term; a cancellation before this date takes effect
+    // only at `minimumTermEndsAt`.
+    minimumTermEndsAt DateTime?
+
+    // Cancellation: requested at `canceledAt`, effective at
+    // `canceledEffectiveAt` (period/term end). Both null = active booking.
+    canceledAt          DateTime?
+    canceledEffectiveAt DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // The subscription this add-on is booked on. Restrict the BundleVersion so
+    // a booked version cannot be hard-deleted from the catalog.
+    subscription  Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    bundleVersion BundleVersion @relation(fields: [bundleVersionId], references: [id], onDelete: Restrict)
+
+    @@index([subscriptionId])
+    @@index([bundleVersionId])
+    @@index([canceledEffectiveAt])
+    @@map("subscription_bundles")
 }
