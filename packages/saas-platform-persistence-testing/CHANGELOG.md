@@ -1,5 +1,12 @@
 # @saasicat/persistence-testing
 
+## 0.6.0
+
+### Patch Changes
+
+- Updated dependencies [0c08fc3]
+    - @saasicat/types@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
