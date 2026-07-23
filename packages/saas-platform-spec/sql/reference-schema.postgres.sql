@@ -408,6 +408,8 @@ CREATE TABLE "quota_catalog_entries" (
     "usageProvider" TEXT,
     "enforcementMode" TEXT NOT NULL DEFAULT 'soft',
     "discoveryStatus" TEXT NOT NULL DEFAULT 'pending',
+    "replaces" TEXT[],
+    "successorKey" TEXT,
     "approvedAt" TIMESTAMP(3),
     "approvedBy" TEXT,
     "approvedSignature" TEXT,

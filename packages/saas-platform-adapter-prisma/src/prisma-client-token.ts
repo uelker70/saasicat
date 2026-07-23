@@ -451,3 +451,28 @@ export interface PrismaTxLike {
 export interface PrismaLike extends PrismaTxLike {
     $transaction<T>(fn: (tx: PrismaTxLike) => Promise<T>): Promise<T>;
 }
+
+/**
+ * Generic structural minimum of a Prisma model delegate. The catalog-plane
+ * repositories (bundle, business-type, plan, catalog-entry, marketing,
+ * promotion, contract) declare their own DB-row interfaces and view the
+ * injected client through `{ model: PrismaModelDelegateLike<Row> }` casts —
+ * this keeps each repo self-contained and avoids hard-coding every delegate on
+ * `PrismaTxLike`. Args mirror Prisma's `where`/`data`/`select`/`orderBy` shapes
+ * and are typed `unknown`: the repos build them inline and Prisma validates
+ * them at runtime; only the results are typed, matching the package's
+ * structural-minimum philosophy.
+ */
+export interface PrismaModelDelegateLike<Row> {
+    findMany(args?: unknown): Promise<Row[]>;
+    findUnique(args: unknown): Promise<Row | null>;
+    findFirst(args?: unknown): Promise<Row | null>;
+    create(args: unknown): Promise<Row>;
+    update(args: unknown): Promise<Row>;
+    delete(args: unknown): Promise<Row>;
+    upsert(args: unknown): Promise<Row>;
+    updateMany(args: unknown): Promise<{ count: number }>;
+    createMany(args: unknown): Promise<{ count: number }>;
+    deleteMany(args: unknown): Promise<{ count: number }>;
+    count(args?: unknown): Promise<number>;
+}

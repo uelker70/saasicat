@@ -10,6 +10,9 @@
 //   - Individual adapters for manual wiring: MFA, audit (write/query/stats),
 //     RLS bypass, transaction runner, subscription/plan-version/promo
 //     repositories, SuperAdmin bootstrap, plan-catalog sinks.
+//   - Catalog plane repositories (plan/bundle/business-type/catalog-entry/
+//     marketing/promotion) + subscription-contract, for wiring CatalogModule
+//     and the V3 contract loop without hand-writing adapters.
 
 export {
     PRISMA_CLIENT_TOKEN,
@@ -37,3 +40,13 @@ export {
 } from './prisma-super-admin-bootstrap.adapter.js';
 export { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.js';
 export { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.js';
+// Catalog plane (CatalogModule) + V3 contract log.
+export { PrismaPlanRepository } from './prisma-plan.repository.js';
+export { PrismaBundleRepository } from './prisma-bundle.repository.js';
+export { PrismaBusinessTypeRepository } from './prisma-business-type.repository.js';
+export { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
+export { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
+export { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
+export { PrismaPromotionRepository } from './prisma-promotion.repository.js';
+export { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
+export { type PrismaModelDelegateLike } from './prisma-client-token.js';

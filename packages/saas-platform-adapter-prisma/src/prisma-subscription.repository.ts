@@ -73,7 +73,10 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
         return this.toRecord(db, row);
     }
 
-    private async toRecord(db: PrismaTxLike, row: SubscriptionRowLike): Promise<SubscriptionRecord> {
+    private async toRecord(
+        db: PrismaTxLike,
+        row: SubscriptionRowLike,
+    ): Promise<SubscriptionRecord> {
         if (!row.planVersionId) {
             throw new Error(
                 `Subscription ${row.id} binds no planVersionId (businessType-only composition). ` +
