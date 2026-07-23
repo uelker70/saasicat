@@ -5,6 +5,7 @@ set -e
 
 echo "notesapp: applying prisma schema…"
 pnpm exec prisma db push --skip-generate
+pnpm exec prisma db execute --file prisma/constraints.sql --schema prisma/schema.prisma || true
 
 if [ "${SEED_ON_START:-true}" = "true" ]; then
     echo "notesapp: seeding demo data…"

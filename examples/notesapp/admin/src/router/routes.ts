@@ -3,12 +3,20 @@ import SuperAdminLoginPage from '@saasicat/ui-vue/pages/SuperAdminLoginPage.vue'
 import AdminLayout from '@saasicat/ui-vue/pages/AdminLayout.vue';
 import AdminManifestErrorPage from '@saasicat/ui-vue/pages/AdminManifestErrorPage.vue';
 import DashboardPage from '@saasicat/ui-vue/pages/DashboardPage.vue';
+import AdminDiscoveryPage from '../pages/AdminDiscoveryPage.vue';
+import AdminPlansPage from '../pages/AdminPlansPage.vue';
+import AdminPlanVersionsPage from '../pages/AdminPlanVersionsPage.vue';
+import AdminBundlesPage from '../pages/AdminBundlesPage.vue';
+import AdminBusinessTypesPage from '../pages/AdminBusinessTypesPage.vue';
+import AdminMarketingCatalogPage from '../pages/AdminMarketingCatalogPage.vue';
 
-// This example runs the lightweight (YAML-plan) platform surface, so only the
-// Dashboard is backed by endpoints. The manifest contribution
-// (`src/saas/admin-manifest.contribution.ts`) switches every other standard
-// page off, keeping the sidebar and the routes in sync. Add a page here once
-// the backend grows the tables it needs, and flip it back on there.
+// The notesapp backend serves the full DB-backed catalog plane
+// (NotesCatalogModule), so the manifest contribution switches these standard
+// pages on: dashboard, discovery, plans, planVersions, bundles, businessTypes
+// and marketingCatalog. The child paths below mirror the platform's
+// DEFAULT_STANDARD_PAGE_ROUTES so the sidebar links (built from the manifest)
+// resolve. Thin wrappers under `src/pages/` bind each platform page to
+// `platformHttp` + `projectKey='notesapp'`.
 
 export const appRoutes: RouteRecordRaw[] = [
     { path: '/login', component: SuperAdminLoginPage, meta: { public: true } },
@@ -23,6 +31,12 @@ export const appRoutes: RouteRecordRaw[] = [
         children: [
             { path: '', redirect: '/admin/dashboard' },
             { path: 'dashboard', component: DashboardPage },
+            { path: 'discovery', component: AdminDiscoveryPage },
+            { path: 'plans', component: AdminPlansPage },
+            { path: 'plan-versions', component: AdminPlanVersionsPage },
+            { path: 'bundles', component: AdminBundlesPage },
+            { path: 'business-types', component: AdminBusinessTypesPage },
+            { path: 'marketing-catalog', component: AdminMarketingCatalogPage },
         ],
     },
 ];

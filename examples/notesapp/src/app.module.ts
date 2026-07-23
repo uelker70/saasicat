@@ -1,33 +1,18 @@
-import { Global, Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
 import { prismaPersistence } from '@saasicat/adapter-prisma';
 import { LimitExceededFilter, loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { SaasPlatformModule } from '@saasicat/nest/platform';
 
 import { DemoAuthGuard } from './auth/demo-auth.guard';
+import { DemoAuthModule } from './auth/demo-auth.module';
 import { DemoPasswordHasher } from './auth/demo-password.hasher';
 import { NotesModule } from './notes/notes.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
+import { NotesCatalogModule } from './saas/notes-catalog.module';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
-
-/**
- * Auth must be a GLOBAL guard registered BEFORE the platform module: the
- * platform's StaticFeatureGuard/EnforceQuotaInterceptor are global too and
- * read `request.user` — global guards run in registration order, and
- * controller-level @UseGuards would come too late.
- */
-@Global()
-@Module({
-    providers: [
-        DemoAuthGuard,
-        DemoPasswordHasher,
-        { provide: APP_GUARD, useExisting: DemoAuthGuard },
-    ],
-    exports: [DemoAuthGuard, DemoPasswordHasher],
-})
-class DemoAuthModule {}
 
 @Module({
     imports: [
@@ -55,6 +40,9 @@ class DemoAuthModule {}
         NotesModule,
         // Manifest contribution + KPI endpoints for the SuperAdmin UI.
         NotesAdminModule,
+        // DB-backed catalog surface (plans, bundles, business types, discovery
+        // review, marketing) the SuperAdmin catalog pages read/write.
+        NotesCatalogModule,
     ],
     providers: [
         // Maps LimitExceededError from @EnforceQuota to HTTP 402 + quota payload.

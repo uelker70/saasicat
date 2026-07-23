@@ -8,35 +8,47 @@ import type { ManifestContribution } from '@saasicat/types';
  * Without this file the sidebar stays empty, because the NavBuilder filters
  * out every page whose `requiredCapability` is not `true`.
  *
- * notesapp runs the quickstart (lightweight) platform surface: plans come from
- * `config/saas.yaml`, and there are no subscription/promo/bundle tables. So the
- * pages backed by those are switched off here rather than left to fail on
+ * The catalog surface (discovery review, plans, bundles, business types and the
+ * marketing catalog) is DB-backed via NotesCatalogModule, so those pages are
+ * switched on by granting their capabilities and letting the platform-core
+ * `enabled: true` stand. The tenant/subscription/user/audit/promo/email pages
+ * still need app-owned controllers, so they stay off rather than failing on
  * their first request.
  */
 export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
     capabilities: {
         'dashboard.read': true,
+        // Discovery review page (DB-backed catalog entries from NotesCatalogModule).
+        'discovery.read': true,
+        // Plans + plan-versions pages/actions.
+        'plans.read': true,
+        'plans.publish': true,
+        // Bundles page + editor actions.
+        'bundles.read': true,
+        'bundles.write': true,
+        'bundles.publish': true,
+        // Business types page + editor.
+        'businessTypes.read': true,
+        'businessTypes.write': true,
+        // Marketing catalog page (locale pivot) + projection editor.
+        'marketingProjections.read': true,
+        'marketingProjections.write': true,
     },
 
     navigation: {
         standardPages: {
-            // Serves the raw discovery snapshot but not the DB-backed
-            // catalog-entries endpoints the page needs — off until the catalog
-            // repositories are wired.
-            discovery: { enabled: false },
-            // Needs the V3 subscription tables (prisma fragments 01/03).
+            // discovery, plans, planVersions, bundles, businessTypes and
+            // marketingCatalog inherit the platform-core `enabled: true` +
+            // requiredCapability; the capabilities above wire them into the nav.
+
+            // Still need app-owned controllers (V3 subscription tables, promo
+            // codes, platform email) — off until a later milestone.
             tenants: { enabled: false },
             subscriptions: { enabled: false },
             users: { enabled: false },
             pilots: { enabled: false },
             audit: { enabled: false },
             promoCodes: { enabled: false },
-            // Needs the DB-driven catalog; this example reads plans from YAML.
-            plans: { enabled: false },
-            planVersions: { enabled: false },
-            bundles: { enabled: false },
-            businessTypes: { enabled: false },
-            marketingCatalog: { enabled: false },
             platformEmail: { enabled: false },
             platformEmailHistory: { enabled: false },
         },
