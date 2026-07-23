@@ -1,5 +1,19 @@
 # @saasicat/adapter-drizzle
 
+## 0.6.0
+
+### Minor Changes
+
+- 0c08fc3: Remove the BusinessType catalog concept across the public contracts, NestJS
+  modules, persistence adapters, UI, OpenAPI specification, and canonical database
+  schema. Subscriptions now always reference a plan version; bundles remain the
+  only composable catalog add-on.
+
+### Patch Changes
+
+- Updated dependencies [0c08fc3]
+    - @saasicat/types@0.6.0
+
 ## 0.5.0
 
 ### Patch Changes
