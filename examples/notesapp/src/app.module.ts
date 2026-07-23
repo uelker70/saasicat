@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { NotesAdminModule } from './saas/notesapp-admin.module';
 import { NotesCatalogModule } from './saas/notes-catalog.module';
+import { NotesPlatformPagesModule } from './saas/notes-platform-pages.module';
 import { NotesQuotaProvider } from './saas/notes-quota.provider';
 
 @Module({
@@ -43,6 +44,9 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
         // DB-backed catalog surface (plans, bundles, business types, discovery
         // review, marketing) the SuperAdmin catalog pages read/write.
         NotesCatalogModule,
+        // App-owned domain pages (tenants, users, audit, subscriptions, promo
+        // codes) — these sit on the app's own tables, not the platform's.
+        NotesPlatformPagesModule,
     ],
     providers: [
         // Maps LimitExceededError from @EnforceQuota to HTTP 402 + quota payload.

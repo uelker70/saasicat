@@ -11,9 +11,10 @@ import type { ManifestContribution } from '@saasicat/types';
  * The catalog surface (discovery review, plans, bundles, business types and the
  * marketing catalog) is DB-backed via NotesCatalogModule, so those pages are
  * switched on by granting their capabilities and letting the platform-core
- * `enabled: true` stand. The tenant/subscription/user/audit/promo/email pages
- * still need app-owned controllers, so they stay off rather than failing on
- * their first request.
+ * `enabled: true` stand. The app-domain pages (tenants, users, audit,
+ * subscriptions, promo codes) are backed by NotesPlatformPagesModule and are
+ * switched on the same way. Only `pilots` and `platformEmail*` stay off —
+ * they need infrastructure (pilot workflow, SMTP sender) this example lacks.
  */
 export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
     capabilities: {
@@ -33,22 +34,37 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
         // Marketing catalog page (locale pivot) + projection editor.
         'marketingProjections.read': true,
         'marketingProjections.write': true,
+        // Tenants page + the platform-core suspend/reactivate row actions
+        // (declared in PLATFORM_CORE_MANIFEST_CONTRIBUTION.tenants.actions —
+        // granting the capabilities is enough, no need to re-declare them).
+        'tenants.read': true,
+        'tenants.suspend': true,
+        'tenants.reactivate': true,
+        // Users, audit and subscriptions pages (app-owned read endpoints).
+        'users.read': true,
+        'audit.read': true,
+        'subscriptions.read': true,
+        // Promo-codes page + create/edit/delete flows.
+        'promoCodes.read': true,
+        'promoCodes.write': true,
+        'promoCodes.delete': true,
     },
 
     navigation: {
         standardPages: {
-            // discovery, plans, planVersions, bundles, businessTypes and
-            // marketingCatalog inherit the platform-core `enabled: true` +
-            // requiredCapability; the capabilities above wire them into the nav.
+            // discovery, plans, planVersions, bundles, businessTypes,
+            // marketingCatalog, tenants, users and audit inherit the
+            // platform-core `enabled: true` + requiredCapability; the
+            // capabilities above wire them into the nav.
 
-            // Still need app-owned controllers (V3 subscription tables, promo
-            // codes, platform email) — off until a later milestone.
-            tenants: { enabled: false },
-            subscriptions: { enabled: false },
-            users: { enabled: false },
+            // subscriptions and promoCodes are NOT part of the platform-core
+            // spine (apps hold their own view of these), so declare them here.
+            subscriptions: { enabled: true, requiredCapability: 'subscriptions.read' },
+            promoCodes: { enabled: true, requiredCapability: 'promoCodes.read' },
+
+            // Need infrastructure this example lacks (pilot workflow, SMTP
+            // sender) — off until a later milestone.
             pilots: { enabled: false },
-            audit: { enabled: false },
-            promoCodes: { enabled: false },
             platformEmail: { enabled: false },
             platformEmailHistory: { enabled: false },
         },

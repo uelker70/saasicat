@@ -160,6 +160,87 @@ const PROMOTIONS: PromotionSeed[] = [
 /** 90-day validity window from a reference instant. */
 const PROMOTION_WINDOW_DAYS = 90;
 
+/**
+ * Binds a handful of the demo tenants to a live Subscription so the
+ * SuperAdmin tenants/subscriptions pages show plan + status. `planKey` maps to
+ * the seeded PlanVersion (see `seedPlans`); the DB CHECK constraint
+ * `subscriptions_plan_or_bt_check` requires the `planVersionId` this sets.
+ */
+interface SubscriptionSeed {
+    tenantId: string;
+    planKey: string;
+}
+
+const SUBSCRIPTIONS: SubscriptionSeed[] = [
+    { tenantId: 'tenant-a', planKey: 'STARTER' },
+    { tenantId: 'acme', planKey: 'PRO' },
+    { tenantId: 'globex', planKey: 'PRO' },
+];
+
+/** Days a seeded subscription's current billing period runs for (YEARLY). */
+const SUBSCRIPTION_PERIOD_DAYS = 365;
+
+/**
+ * Onboarding-checkout promo codes for the SuperAdmin promo-codes page. `code`
+ * is the unique key, so the upsert stays idempotent.
+ */
+interface PromoCodeSeed {
+    code: string;
+    valueType: 'PERCENT' | 'ABSOLUTE';
+    value: number;
+    durationType: 'ONCE' | 'MONTHS' | 'BILLING_CYCLES';
+    durationValue: number | null;
+    status: 'ACTIVE' | 'PAUSED' | 'EXHAUSTED' | 'EXPIRED';
+    maxRedemptions: number | null;
+    appliesToPlans: string[];
+    campaignTag: string;
+    description: string;
+    /** Days from now until the code expires; negative = already expired. */
+    validUntilInDays: number | null;
+}
+
+const PROMO_CODES: PromoCodeSeed[] = [
+    {
+        code: 'WELCOME25',
+        valueType: 'PERCENT',
+        value: 25,
+        durationType: 'ONCE',
+        durationValue: null,
+        status: 'ACTIVE',
+        maxRedemptions: 100,
+        appliesToPlans: [],
+        campaignTag: 'welcome',
+        description: '25% off the first invoice for new customers.',
+        validUntilInDays: 90,
+    },
+    {
+        code: 'TEAM10',
+        valueType: 'PERCENT',
+        value: 10,
+        durationType: 'BILLING_CYCLES',
+        durationValue: 12,
+        status: 'ACTIVE',
+        maxRedemptions: null,
+        appliesToPlans: ['PRO'],
+        campaignTag: 'team',
+        description: '10% off Pro for the first twelve billing cycles.',
+        validUntilInDays: null,
+    },
+    {
+        code: 'OLD2025',
+        valueType: 'PERCENT',
+        value: 15,
+        durationType: 'ONCE',
+        durationValue: null,
+        status: 'EXPIRED',
+        maxRedemptions: 500,
+        appliesToPlans: [],
+        campaignTag: 'legacy',
+        description: 'Expired 2025 launch code.',
+        validUntilInDays: -30,
+    },
+];
+
 function hashPassword(plain: string): string {
     const salt = randomBytes(16).toString('hex');
     return `scrypt:${salt}:${scryptSync(plain, salt, 64).toString('hex')}`;
@@ -341,6 +422,84 @@ async function seedMarketing(prisma: PrismaClient): Promise<void> {
     }
 }
 
+async function seedSubscriptions(prisma: PrismaClient): Promise<void> {
+    const now = new Date();
+    const periodEnd = new Date(now.getTime() + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    for (const spec of SUBSCRIPTIONS) {
+        const planVersion = await prisma.planVersion.findUnique({
+            where: { planId_version: { planId: spec.planKey, version: 1 } },
+        });
+        if (!planVersion) {
+            throw new Error(
+                `No seeded PlanVersion for plan ${spec.planKey} — run seedPlans first.`,
+            );
+        }
+        await prisma.subscription.upsert({
+            where: { tenantId: spec.tenantId },
+            create: {
+                tenantId: spec.tenantId,
+                plan: spec.planKey,
+                billingCycle: 'YEARLY',
+                status: 'ACTIVE',
+                planVersionId: planVersion.id,
+                startedAt: now,
+                currentPeriodStart: now,
+                currentPeriodEnd: periodEnd,
+            },
+            // Re-seeding restores the ACTIVE/plan baseline (e.g. after a
+            // suspend/reactivate demo through the UI). Set SEED_ON_START=false
+            // to keep UI-made changes.
+            update: {
+                plan: spec.planKey,
+                billingCycle: 'YEARLY',
+                status: 'ACTIVE',
+                planVersionId: planVersion.id,
+            },
+        });
+    }
+}
+
+async function seedPromoCodes(prisma: PrismaClient): Promise<void> {
+    const admin = await prisma.superAdminUser.findUnique({ where: { email: SUPER_ADMIN.email } });
+    const createdById = admin?.id ?? 'seed';
+    const now = Date.now();
+    for (const spec of PROMO_CODES) {
+        const validUntil =
+            spec.validUntilInDays === null
+                ? null
+                : new Date(now + spec.validUntilInDays * 24 * 60 * 60 * 1000);
+        await prisma.promoCode.upsert({
+            where: { code: spec.code },
+            create: {
+                code: spec.code,
+                valueType: spec.valueType,
+                value: spec.value,
+                durationType: spec.durationType,
+                durationValue: spec.durationValue,
+                status: spec.status,
+                maxRedemptions: spec.maxRedemptions,
+                appliesToPlans: spec.appliesToPlans,
+                campaignTag: spec.campaignTag,
+                description: spec.description,
+                validUntil,
+                createdById,
+            },
+            update: {
+                valueType: spec.valueType,
+                value: spec.value,
+                durationType: spec.durationType,
+                durationValue: spec.durationValue,
+                status: spec.status,
+                maxRedemptions: spec.maxRedemptions,
+                appliesToPlans: spec.appliesToPlans,
+                campaignTag: spec.campaignTag,
+                description: spec.description,
+                validUntil,
+            },
+        });
+    }
+}
+
 async function seed(): Promise<void> {
     const prisma = new PrismaClient();
     try {
@@ -349,10 +508,13 @@ async function seed(): Promise<void> {
         await seedPlans(prisma);
         await seedBundles(prisma);
         await seedMarketing(prisma);
+        await seedSubscriptions(prisma);
+        await seedPromoCodes(prisma);
         const notes = DEMO_TENANTS.reduce((sum, t) => sum + t.notes, 0);
         console.log(
             `seeded ${DEMO_TENANTS.length} tenants, ${notes} notes, ` +
                 `${PLANS.length} plans, ${BUNDLES.length} bundles, ` +
+                `${SUBSCRIPTIONS.length} subscriptions, ${PROMO_CODES.length} promo codes, ` +
                 `${PROMOTIONS.length} promotions, 1 marketing-settings row, ` +
                 `SuperAdmin ${SUPER_ADMIN.email} / ${SUPER_ADMIN.password}`,
         );
