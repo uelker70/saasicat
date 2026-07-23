@@ -28,6 +28,7 @@
                     v-model="form.email"
                     :label="msg.emailLabel"
                     type="email"
+                    autocomplete="username"
                     outlined
                     dense
                     autofocus
@@ -39,6 +40,7 @@
                     v-model="form.password"
                     :label="msg.passwordLabel"
                     :type="showPw ? 'text' : 'password'"
+                    autocomplete="current-password"
                     outlined
                     dense
                     :disable="loading"
