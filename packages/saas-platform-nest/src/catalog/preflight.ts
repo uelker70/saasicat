@@ -2,7 +2,7 @@
 // (SPEC_V2 §8.3 + §10).
 //
 // Compares the **entire DB catalog** (all live plans, bundles,
-// business types) against the discovery snapshot of the running backend.
+// bundles) against the discovery snapshot of the running backend.
 // Returns a `PreflightReport` with all strict-mode violations plus an
 // aggregated `overall` status.
 //
@@ -17,7 +17,6 @@
 import type {
     ApprovedCatalogKeys,
     BundleVersionRow,
-    BusinessTypeVersionRow,
     DiscoverySnapshot,
     PlanVersionRow,
     StrictModeWarning,
@@ -26,7 +25,6 @@ import type {
 import {
     ADVISORY_STRICT_MODE_CODES,
     validateBundleDraft,
-    validateBusinessTypeDraft,
     validatePlanDraft,
 } from './strict-mode-check.js';
 
@@ -36,8 +34,6 @@ export interface PreflightInput {
     planVersions: PlanVersionRow[];
     /** All live BundleVersions. */
     bundleVersions: BundleVersionRow[];
-    /** All live BusinessTypeVersions. */
-    businessTypeVersions: BusinessTypeVersionRow[];
     /**
      * Approved gate (#20 Slice 5): approved feature/quota keys from the
      * catalog entries (`loadApprovedCatalogKeys`). Omitted/`null` →
@@ -47,8 +43,8 @@ export interface PreflightInput {
 }
 
 export interface PreflightFinding {
-    /** `plan` / `bundle` / `business-type`. */
-    kind: 'plan' | 'bundle' | 'business-type';
+    /** `plan` / `bundle`. */
+    kind: 'plan' | 'bundle';
     /** ID of the specific version the violation is attached to. */
     versionId: string;
     /** Human-readable key for the UI: `STARTER` or `BANKING` or `SPORT_VEREIN`. */
@@ -65,14 +61,13 @@ export interface PreflightReport {
     counts: {
         planFindings: number;
         bundleFindings: number;
-        businessTypeFindings: number;
         total: number;
     };
     findings: PreflightFinding[];
 }
 
 /**
- * Runs all three strict checks against the discovery snapshot.
+ * Runs the plan and bundle strict checks against the discovery snapshot.
  * Collects findings by entity type and returns a sorted report
  * (deterministic for test stability).
  */
@@ -118,33 +113,6 @@ export function runPreflight(input: PreflightInput): PreflightReport {
         }
     }
 
-    // BusinessType check additionally needs the referenced bundles
-    // (for disjointness/compatibility). We index once.
-    const bundleVersionById = new Map(input.bundleVersions.map((bv) => [bv.id, bv]));
-    for (const btv of input.businessTypeVersions) {
-        const referencedBundles = btv.bundles
-            .map((b) => bundleVersionById.get(b.bundleVersionId))
-            .filter((b): b is BundleVersionRow => b !== undefined);
-        const warns = validateBusinessTypeDraft(
-            {
-                businessTypeKey: btv.businessTypeKey,
-                quotaOverrides: (btv.quotaOverrides ?? {}) as Record<string, number>,
-            },
-            referencedBundles,
-            input.snapshot,
-            approved,
-        );
-        for (const w of warns) {
-            findings.push({
-                kind: 'business-type',
-                versionId: btv.id,
-                entityKey: btv.businessTypeKey,
-                version: btv.version,
-                warning: w,
-            });
-        }
-    }
-
     findings.sort((a, b) => {
         if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
         if (a.entityKey !== b.entityKey) return a.entityKey.localeCompare(b.entityKey);
@@ -155,7 +123,6 @@ export function runPreflight(input: PreflightInput): PreflightReport {
     const counts = {
         planFindings: findings.filter((f) => f.kind === 'plan').length,
         bundleFindings: findings.filter((f) => f.kind === 'bundle').length,
-        businessTypeFindings: findings.filter((f) => f.kind === 'business-type').length,
         total: findings.length,
     };
 
@@ -179,7 +146,7 @@ export function formatPreflightReport(report: PreflightReport): string {
     const lines: string[] = [];
     lines.push(
         `Preflight (Status: ${report.overall.toUpperCase()})`,
-        `  Plans: ${report.counts.planFindings} · Bundles: ${report.counts.bundleFindings} · BusinessTypes: ${report.counts.businessTypeFindings} · Gesamt: ${report.counts.total}`,
+        `  Plans: ${report.counts.planFindings} · Bundles: ${report.counts.bundleFindings} · Gesamt: ${report.counts.total}`,
         '',
     );
     if (report.findings.length === 0) {

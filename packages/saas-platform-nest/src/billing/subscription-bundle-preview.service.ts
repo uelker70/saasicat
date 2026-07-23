@@ -280,7 +280,10 @@ export class SubscriptionBundlePreviewService {
             minimumTermEndsAt: existing.minimumTermEndsAt,
         });
         const periodEnd = ctx.currentPeriodEnd ?? now;
-        if (existing.minimumTermEndsAt && existing.minimumTermEndsAt.getTime() > periodEnd.getTime()) {
+        if (
+            existing.minimumTermEndsAt &&
+            existing.minimumTermEndsAt.getTime() > periodEnd.getTime()
+        ) {
             warnings.push({
                 code: 'MINIMUM_TERM_BINDS',
                 message:
@@ -418,21 +421,23 @@ export class SubscriptionBundlePreviewService {
 
 /**
  * List price (net) for the billing cycle including plan-specific
- * pricing override (BundlePricingOverride with `planId`, without
- * `businessTypeKey`). null = no price maintained for the cycle.
+ * pricing override (BundlePricingOverride with `planId`). null = no price
+ * maintained for the cycle.
  */
 export function resolveBundlePriceNet(
     bundleVersion: BundleVersionRow,
     planKey: string,
     billingCycle: string,
 ): number | null {
-    const override = (bundleVersion.pricingOverrides ?? []).find(
-        (o) => o.planId === planKey && !o.businessTypeKey,
-    );
+    const override = (bundleVersion.pricingOverrides ?? []).find((o) => o.planId === planKey);
     const yearly = billingCycle === 'YEARLY';
     const raw = yearly
-        ? (override?.yearlyNet !== undefined ? override.yearlyNet : bundleVersion.yearlyNet)
-        : (override?.monthlyNet !== undefined ? override.monthlyNet : bundleVersion.monthlyNet);
+        ? override?.yearlyNet !== undefined
+            ? override.yearlyNet
+            : bundleVersion.yearlyNet
+        : override?.monthlyNet !== undefined
+          ? override.monthlyNet
+          : bundleVersion.monthlyNet;
     if (raw === null || raw === undefined) return null;
     const parsed = Number.parseFloat(raw);
     return Number.isFinite(parsed) ? parsed : null;

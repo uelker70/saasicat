@@ -51,7 +51,7 @@ import { NotesQuotaProvider } from './saas/notes-quota.provider';
         NotesModule,
         // Manifest contribution + KPI endpoints for the SuperAdmin UI.
         NotesAdminModule,
-        // DB-backed catalog surface (plans, bundles, business types, discovery
+        // DB-backed catalog surface (plans, bundles, discovery
         // review, marketing) the SuperAdmin catalog pages read/write.
         NotesCatalogModule,
         // App-owned domain pages (tenants, users, audit, subscriptions, promo

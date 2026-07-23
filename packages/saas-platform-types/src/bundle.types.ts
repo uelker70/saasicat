@@ -1,17 +1,16 @@
-// BundleRow / BundleVersionRow / BusinessTypeRow / BusinessTypeVersionRow /
-// BusinessTypeBundleRow — wire format of the Bundle/BusinessType table rows.
+// BundleRow / BundleVersionRow — wire format of the Bundle table rows.
 //
 // These types are the HTTP projection of the Prisma models from
-// `saas-platform-spec/prisma-fragments/05-bundle-business-type.prisma`. They
-// are delivered by the AdminController for the SuperAdmin pages "Bundles" and
-// "BusinessTypes" and consumed by the platform UI (`saas-platform-ui-vue`).
+// `saas-platform-spec/prisma-fragments/05-bundle.prisma`. They are delivered
+// by the AdminController for the SuperAdmin page "Bundles" and consumed by
+// the platform UI (`saas-platform-ui-vue`).
 //
 // Conventions:
 // - Monetary amounts are `string | null` (Prisma Decimal serialized as a
 //   string, not as a number — otherwise loss). UI parses via `Number(s)`.
 // - Versioned rows extend `VersionedEntityBase` (analogous to
 //   PlanVersionRow).
-// - Master rows (Bundle / BusinessType) have no version fields.
+// - Bundle master rows have no version fields.
 
 import type { CatalogEntryI18n } from './catalog-entry.types.js';
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
@@ -22,36 +21,25 @@ import type { VersionedEntityBase } from './subscription.types.js';
 // =============================================================================
 
 /**
- * Usage whitelist for a bundle. Both fields empty/missing = the bundle may
- * be used in any business type and with any plan. If both are set, they
- * combine with AND.
+ * Usage whitelist for a bundle. An empty/missing list means the bundle may
+ * be used with any plan.
  */
 export interface BundleCompatibility {
     /**
-     * Whitelist of business-type keys; only these may use the bundle.
-     * Empty/missing = all business types allowed.
-     */
-    businessTypeKeys?: string[];
-    /**
      * Whitelist of plan IDs; only these may use the bundle.
-     * Relevant for apps that use Plan + BusinessType in parallel
-     * (see SPEC_V2 §5 / GESCHAEFTSTYP_SPEC §3.2 app-model matrix).
      * Empty/missing = all plans allowed.
      */
     planIds?: string[];
 }
 
 /**
- * Pricing override per context. Resolution: most-specific wins
- * (see GESCHAEFTSTYP_SPEC §6.1).
+ * Pricing override for a plan context.
  *
  * - `monthlyNet` / `yearlyNet` as string (Decimal wire format)
  * - `null` = explicit "free in this context"
  * - undefined / field missing = no override for this cycle
  */
 export interface BundlePricingOverride {
-    /** If set: override applies only in this business type. */
-    businessTypeKey?: string;
     /** If set: override applies only with this plan. */
     planId?: string;
     monthlyNet?: string | null;
@@ -84,8 +72,7 @@ export interface BundleRow {
 /**
  * BundleVersion — versioned composition (Features, Quotas, Pricing).
  * `quotas` is `Record<QuotaKey, number>`; `-1` = unlimited; a missing key
- * contributes 0. The aggregation logic (Σ over all bundles of a
- * BusinessType) is specified in GESCHAEFTSTYP_SPEC §6.2.
+ * contributes 0.
  */
 export interface BundleVersionRow extends VersionedEntityBase {
     bundleId: string;
@@ -101,70 +88,6 @@ export interface BundleVersionRow extends VersionedEntityBase {
     monthlyNet: string | null;
     yearlyNet: string | null;
     marketed: boolean;
-}
-
-// =============================================================================
-// BusinessType (master + version)
-// =============================================================================
-
-/**
- * BusinessType — business vertical (association type, industry variant).
- * Master entity; the effective bundles + pricing live on
- * BusinessTypeVersionRow.
- */
-export interface BusinessTypeRow {
-    id: string;
-    projectKey: string;
-    businessTypeKey: string;
-    label: string;
-    description: string | null;
-    icon: string | null;
-    sortOrder: number;
-    createdAt: string;
-    updatedAt: string;
-    deletedAt: string | null;
-}
-
-/**
- * BusinessTypeVersion — versioned composition of referenced bundles.
- *
- * - `quotaOverrides` is `Partial<Record<QuotaKey, number>>`; a missing key
- *   means "take Σ(bundle quotas)", a set key replaces the sum
- *   (`-1` = unlimited).
- * - `monthlyNet` null means "effective price = Σ(bundle prices after
- *   pricing-override resolution)". Set = explicit BusinessType price.
- * - `bundles` contains the referenced BundleVersion IDs in sort
- *   order (see BusinessTypeBundleRow).
- */
-export interface BusinessTypeVersionRow extends VersionedEntityBase {
-    businessTypeId: string;
-    /** Denormalized for UI. */
-    businessTypeKey: string;
-    /** Denormalized for UI. */
-    label: string;
-    quotaOverrides: Partial<Record<QuotaKey, number>>;
-    /** null = Σ(bundle prices); set = override. */
-    monthlyNet: string | null;
-    yearlyNet: string | null;
-    marketed: boolean;
-    /** In sort order (sortOrder asc). */
-    bundles: BusinessTypeBundleRow[];
-}
-
-/**
- * Junction between BusinessTypeVersion and BundleVersion. Stores the
- * *concrete* BundleVersion (not just the master), so that a published
- * BusinessType stays deterministic — even when the bundle later gets a
- * newer version.
- */
-export interface BusinessTypeBundleRow {
-    bundleVersionId: string;
-    /** Denormalized for UI: key + label of the referenced bundle. */
-    bundleKey: string;
-    bundleLabel: string;
-    /** Version number of the referenced BundleVersion. */
-    bundleVersion: number;
-    sortOrder: number;
 }
 
 // =============================================================================
@@ -321,9 +244,7 @@ export type StrictModeWarningCode =
     | 'BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED' // Bundle feature has a requires that the bundle does not contain (#35, advisory)
     | 'QUOTA_MISSING' // QuotaKey without @DefinesQuota in the code
     | 'QUOTA_NOT_APPROVED' // Quota exists but is not approved (#20)
-    | 'VERSION_PUBLISH_OVERLAP' // Multiple marketed versions with overlapping periods
-    | 'BUNDLE_DISJOINTNESS' // Two bundles in a BusinessType enable the same feature
-    | 'BUNDLE_COMPATIBILITY'; // Bundle not conformant with the BusinessType whitelist
+    | 'VERSION_PUBLISH_OVERLAP'; // Multiple marketed versions with overlapping periods
 
 /**
  * A strict-mode violation. `field` points to the violating field
@@ -340,7 +261,7 @@ export interface StrictModeWarning {
 }
 
 /**
- * Service result for mutating Bundle/BusinessType operations
+ * Service result for mutating Bundle operations
  * (createDraft, updateDraft, publish): returns the persisted row plus
  * a list of strict-mode warnings. In `warn-only` mode the
  * warnings go into the UI as a banner; in `blocking` mode the service throws
@@ -349,76 +270,4 @@ export interface StrictModeWarning {
 export interface BundleVersionMutationResult {
     bundleVersion: BundleVersionRow;
     warnings: StrictModeWarning[];
-}
-
-/** Analogous to BundleVersionMutationResult, but for BusinessTypeVersion. */
-export interface BusinessTypeVersionMutationResult {
-    businessTypeVersion: BusinessTypeVersionRow;
-    warnings: StrictModeWarning[];
-}
-
-// =============================================================================
-// BusinessType service DTOs (Create/Update)
-// =============================================================================
-
-export interface CreateBusinessTypeData {
-    projectKey: string;
-    businessTypeKey: string;
-    label: string;
-    description?: string | null;
-    icon?: string | null;
-    sortOrder?: number;
-}
-
-export interface UpdateBusinessTypeData {
-    label?: string;
-    description?: string | null;
-    icon?: string | null;
-    sortOrder?: number;
-}
-
-/**
- * Junction entry (BusinessTypeBundle) as input — references a
- * concrete BundleVersion ID, not the bundle master. This keeps the
- * composition deterministic.
- */
-export interface BusinessTypeBundleInput {
-    bundleVersionId: string;
-    sortOrder?: number;
-}
-
-export interface CreateBusinessTypeVersionDraftData {
-    businessTypeId: string;
-    baseVersionId?: string | null;
-    /**
-     * Bundles as an ordered list of the referenced BundleVersion IDs.
-     * Required: at least **one** bundle reference (see
-     * GESCHAEFTSTYP_SPEC §10 "BusinessTypeVersion publish hard-block").
-     */
-    bundles: BusinessTypeBundleInput[];
-    /**
-     * Quota overrides — a missing key means "take Σ(bundle quotas)",
-     * a set key replaces the sum (-1 = unlimited).
-     */
-    quotaOverrides?: Record<string, number>;
-    /** Override pricing; null = Σ(bundle prices after pricing-override resolution). */
-    monthlyNet?: string | null;
-    yearlyNet?: string | null;
-    marketed?: boolean;
-    changeNote?: string;
-    createdByUserId?: string | null;
-}
-
-export interface UpdateBusinessTypeVersionDraftData {
-    bundles?: BusinessTypeBundleInput[];
-    quotaOverrides?: Record<string, number>;
-    monthlyNet?: string | null;
-    yearlyNet?: string | null;
-    marketed?: boolean;
-    changeNote?: string;
-}
-
-export interface PublishBusinessTypeVersionData {
-    publishedByUserId: string | null;
-    forceRegressive?: boolean;
 }

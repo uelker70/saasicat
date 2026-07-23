@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import type {
     BundleRepository,
-    BusinessTypeRepository,
     CatalogEntryRepository,
     FeatureUiRegistry,
     MarketingProjectionRepository,
@@ -17,7 +16,6 @@ import { PublicCatalogController } from './public-catalog.controller.js';
 import { FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
-    PUBLIC_CATALOG_BUSINESS_TYPE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
@@ -25,8 +23,7 @@ import {
 
 // PublicCatalogModule — auth-free catalog endpoints under `/billing/*`.
 //
-// SPEC_V2 §11.1 M6 Pack 2c — new endpoints `/billing/bundles` and
-// `/billing/business-types` plus marketing merge in `/billing/plans`
+// SPEC_V2 §11.1 M6 Pack 2c — `/billing/bundles` plus marketing merge in `/billing/plans`
 // (provided the optional repos are configured).
 
 export interface PublicCatalogModuleOptions {
@@ -34,7 +31,7 @@ export interface PublicCatalogModuleOptions {
     featureUiRegistry: FeatureUiRegistry;
     /**
      * SPEC_V2 §11.1 M6 Pack 2c — app identity (e.g. "clubapp"). Used
-     * for marketing lookups + bundles/business-types filter.
+     * for marketing lookups + bundle filters.
      * Optional; if omitted, the new endpoints return empty lists.
      */
     projectKey?: string;
@@ -43,12 +40,8 @@ export interface PublicCatalogModuleOptions {
      */
     bundleRepository?: ProviderSpec<BundleRepository>;
     /**
-     * Optional. When set, `/billing/business-types` is active.
-     */
-    businessTypeRepository?: ProviderSpec<BusinessTypeRepository>;
-    /**
      * Optional. When set, marketing texts are merged into /billing/bundles
-     * and /billing/business-types (locale filter).
+     * (locale filter).
      */
     marketingRepository?: ProviderSpec<MarketingProjectionRepository>;
     /**
@@ -84,14 +77,6 @@ export class PublicCatalogModule {
         if (options.bundleRepository) {
             providers.push(
                 asProvider(PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN, options.bundleRepository),
-            );
-        }
-        if (options.businessTypeRepository) {
-            providers.push(
-                asProvider(
-                    PUBLIC_CATALOG_BUSINESS_TYPE_REPOSITORY_TOKEN,
-                    options.businessTypeRepository,
-                ),
             );
         }
         if (options.marketingRepository) {

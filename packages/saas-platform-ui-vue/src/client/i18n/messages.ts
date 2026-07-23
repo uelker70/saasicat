@@ -6,7 +6,6 @@ import { mergeMessages, type PartialMessages } from './define.js';
 import type { SaLocale } from './locale.js';
 import { auditMessages } from './messages/audit.js';
 import { bundlesMessages } from './messages/bundles.js';
-import { businessTypesMessages } from './messages/business-types.js';
 import { commonMessages } from './messages/common.js';
 import { dashboardMessages } from './messages/dashboard.js';
 import { discoveryMessages } from './messages/discovery.js';
@@ -39,7 +38,6 @@ export type SaMessages = {
     readonly bundles: (typeof bundlesMessages)['de'];
     readonly discovery: (typeof discoveryMessages)['de'];
     readonly marketing: (typeof marketingMessages)['de'];
-    readonly businessTypes: (typeof businessTypesMessages)['de'];
     readonly promos: (typeof promosMessages)['de'];
     readonly pilots: (typeof pilotsMessages)['de'];
     readonly email: (typeof emailMessages)['de'];
@@ -64,7 +62,6 @@ function catalogFor(locale: SaLocale): SaMessages {
         bundles: bundlesMessages[locale],
         discovery: discoveryMessages[locale],
         marketing: marketingMessages[locale],
-        businessTypes: businessTypesMessages[locale],
         promos: promosMessages[locale],
         pilots: pilotsMessages[locale],
         email: emailMessages[locale],

@@ -60,7 +60,7 @@ export interface PrismaPersistenceOptions {
  * by `SaasPlatformModule`. The catalog plane (CatalogModule) and the V3
  * contract loop take their repositories directly as `forRoot` options — wire
  * the standalone `PrismaPlanRepository` / `PrismaBundleRepository` /
- * `PrismaBusinessTypeRepository` / `PrismaCatalogEntryRepository` /
+ * `PrismaCatalogEntryRepository` /
  * `PrismaMarketingProjectionRepository` / `PrismaMarketingSettingsRepository` /
  * `PrismaPromotionRepository` / `PrismaSubscriptionContractRepository` exports
  * there. The registration and tenant-billing write ports remain app-specific.

@@ -1,5 +1,4 @@
-// CatalogModule — DI wrapper around BundlesService (M3.1) and, possibly later,
-// BusinessTypesService + MarketingProjectionService.
+// CatalogModule — DI wrapper around BundlesService and the remaining catalog services.
 //
 // Consumers pass through their repository adapters and decide the
 // class-level guards of the controllers themselves (analogous to DiscoveryModule):
@@ -24,7 +23,6 @@ import {
 } from '@nestjs/common';
 import type {
     BundleRepository,
-    BusinessTypeRepository,
     CatalogEntryRepository,
     FeatureUiRegistry,
     MarketingProjectionRepository,
@@ -45,11 +43,6 @@ import { MarketingSettingsService } from './marketing-settings.service.js';
 import { buildMarketingSettingsController } from './marketing-settings.controller.js';
 import { PublicMarketingCatalogService } from './public-marketing-catalog.service.js';
 import { buildPublicMarketingCatalogController } from './public-marketing-catalog.controller.js';
-import { BusinessTypesService } from './business-types.service.js';
-import {
-    buildBusinessTypesController,
-    buildBusinessTypeVersionsController,
-} from './business-types.controller.js';
 import { MarketingProjectionsService } from './marketing-projections.service.js';
 import { buildMarketingProjectionsController } from './marketing-projections.controller.js';
 import { PlansService } from './plans.service.js';
@@ -57,7 +50,6 @@ import { PlanVersionsService } from './plan-versions.service.js';
 import { buildPlansController, buildPlanVersionsController } from './plans.controller.js';
 import {
     BUNDLE_REPOSITORY_TOKEN,
-    BUSINESS_TYPE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
     FEATURE_UI_REGISTRY_TOKEN,
@@ -79,12 +71,6 @@ export interface CatalogControllerConfig {
 export interface CatalogModuleOptions {
     /** Adapter for `bundles` + `bundle_versions` persistence. */
     bundleRepository: ProviderSpec<BundleRepository>;
-    /**
-     * Adapter for `business_types` + `business_type_versions` +
-     * `business_type_bundles` persistence. Optional — if omitted,
-     * BusinessTypesService + controller are not registered.
-     */
-    businessTypeRepository?: ProviderSpec<BusinessTypeRepository>;
     /**
      * Adapter for `marketing_projections` persistence. Optional — if
      * omitted, MarketingProjectionsService + controller are not
@@ -125,10 +111,8 @@ export interface CatalogModuleOptions {
      */
     planRepository?: ProviderSpec<PlanRepository>;
     /**
-     * Controller mount for `/admin/catalog/bundles` + `/admin/catalog/bundle-versions`
-     * + (if businessTypeRepository is set) `/admin/catalog/business-types` +
-     * `/admin/catalog/business-type-versions`. If omitted, the
-     * endpoints are not registered — but the services remain usable via DI.
+     * Controller mount for `/admin/catalog/bundles` + `/admin/catalog/bundle-versions`.
+     * If omitted, the endpoints are not registered — but the services remain usable via DI.
      */
     controller?: CatalogControllerConfig;
     /**
@@ -174,7 +158,6 @@ export interface CatalogModuleOptions {
 @Module({})
 export class CatalogModule {
     static forRoot(options: CatalogModuleOptions): DynamicModule {
-        const hasBusinessType = options.businessTypeRepository !== undefined;
         const hasMarketing = options.marketingProjectionRepository !== undefined;
         const hasPlan = options.planRepository !== undefined;
         const hasCatalogEntry = options.catalogEntryRepository !== undefined;
@@ -186,10 +169,6 @@ export class CatalogModule {
         if (options.controller) {
             controllers.push(buildBundlesController(options.controller.guards));
             controllers.push(buildBundleVersionsController(options.controller.guards));
-            if (hasBusinessType) {
-                controllers.push(buildBusinessTypesController(options.controller.guards));
-                controllers.push(buildBusinessTypeVersionsController(options.controller.guards));
-            }
             if (hasMarketing) {
                 controllers.push(buildMarketingProjectionsController(options.controller.guards));
             }
@@ -243,7 +222,6 @@ export class CatalogModule {
         const exports: Array<
             | symbol
             | typeof BundlesService
-            | typeof BusinessTypesService
             | typeof MarketingProjectionsService
             | typeof CatalogEntriesService
             | typeof PromotionsService
@@ -252,13 +230,6 @@ export class CatalogModule {
             | typeof PlansService
             | typeof PlanVersionsService
         > = [BundlesService, BUNDLE_REPOSITORY_TOKEN];
-        if (hasBusinessType && options.businessTypeRepository) {
-            providers.push(
-                asProvider(BUSINESS_TYPE_REPOSITORY_TOKEN, options.businessTypeRepository),
-                BusinessTypesService,
-            );
-            exports.push(BusinessTypesService, BUSINESS_TYPE_REPOSITORY_TOKEN);
-        }
         if (hasMarketing && options.marketingProjectionRepository) {
             providers.push(
                 asProvider(

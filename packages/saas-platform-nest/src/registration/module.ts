@@ -18,7 +18,6 @@ import type {
     PendingRegistrationRepository,
     PlanCatalogLookup,
     RegistrationAuditLogger,
-    RegistrationBusinessTypeLookup,
     RegistrationConfiguratorLookup,
     RegistrationOtpDelivery,
     RegistrationPromoPreview,
@@ -37,7 +36,6 @@ import {
     PENDING_REGISTRATION_REPOSITORY_TOKEN,
     PLAN_CATALOG_LOOKUP_TOKEN,
     REGISTRATION_AUDIT_LOGGER_TOKEN,
-    REGISTRATION_BUSINESS_TYPE_LOOKUP_TOKEN,
     REGISTRATION_CONFIGURATOR_LOOKUP_TOKEN,
     REGISTRATION_OTP_DELIVERY_TOKEN,
     REGISTRATION_PROMO_PREVIEW_TOKEN,
@@ -83,14 +81,6 @@ export interface RegistrationModuleOptions {
      * is ignored (snapshot is stored, discount=0).
      */
     promoPreview?: ProviderSpec<RegistrationPromoPreview>;
-    /**
-     * SPEC_V2 §11.1 M5.3: validates an optionally set
-     * `RegistrationConfigSelection.businessTypeVersionId` against the
-     * SuperAdmin catalog (published BusinessTypeVersions). Without an adapter
-     * the ID is passed through unchecked — fine for apps without a
-     * BusinessType catalog.
-     */
-    businessTypeLookup?: ProviderSpec<RegistrationBusinessTypeLookup>;
     /**
      * Modules that should be visible in the DynamicModule scope — needed so
      * that factory providers with `inject: [...]` can resolve classes from
@@ -155,11 +145,6 @@ export class RegistrationModule {
         }
         if (options.promoPreview) {
             providers.push(asProvider(REGISTRATION_PROMO_PREVIEW_TOKEN, options.promoPreview));
-        }
-        if (options.businessTypeLookup) {
-            providers.push(
-                asProvider(REGISTRATION_BUSINESS_TYPE_LOOKUP_TOKEN, options.businessTypeLookup),
-            );
         }
         const includeCleanupCron = options.includeCleanupCron ?? true;
         if (includeCleanupCron) {

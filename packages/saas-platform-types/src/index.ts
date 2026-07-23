@@ -4,7 +4,7 @@
 export * from './active-plan-version-query.js';
 export * from './admin-manifest.types.js';
 export * from './audit-event.types.js';
-export * from './bundle-business-type.types.js';
+export * from './bundle.types.js';
 export * from './catalog-entry.types.js';
 export * from './promotion.types.js';
 export * from './checkout-offer.types.js';
@@ -13,14 +13,9 @@ export * from './public-marketing-catalog.types.js';
 export * from './discovery.types.js';
 export * from './entitlement-snapshot.types.js';
 export * from './feature-ui-registry.types.js';
-export {
-    classifyBundleVersionDiff,
-    classifyBusinessTypeVersionDiff,
-    classifyPlanDiff,
-} from './version-diff.js';
+export { classifyBundleVersionDiff, classifyPlanDiff } from './version-diff.js';
 export type {
     BundleVersionFields,
-    BusinessTypeVersionFields,
     ChangeDirection,
     DiffResult,
     PlanVersionFields,

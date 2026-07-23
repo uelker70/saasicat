@@ -72,13 +72,8 @@ model Subscription {
     // same plan; `pendingPlan` the change to a different plan. Both
     // can coexist.
     //
-    // Since SPEC_V2 §11.1 M5, `planVersionId` is **nullable**: a
-    // Subscription may have either `planVersionId` or
-    // `businessTypeVersionId` (or both) set. The DB CHECK
-    // constraint "at least one of the two set" is added by the consumer in
-    // the SQL migration (Prisma cannot express this directly) — see
-    // sql/constraints.postgres.sql (`subscriptions_plan_or_bt_check`).
-    planVersionId                      String?
+    // Every subscription binds a concrete published PlanVersion.
+    planVersionId                      String
     pendingPlanVersionId               String?
     pendingPlanVersionEffectiveAt      DateTime?
     pendingPlanVersionAccepted         Boolean   @default(false)
@@ -86,14 +81,6 @@ model Subscription {
     pendingPlanVersionAcceptedByUserId String?
     pendingPlanVersionNotifiedAt       DateTime?
     pendingPlanVersionReminderSentAt   DateTime?
-
-    // BusinessType composition (SPEC_V2 §11.1 M5). Optional per app: apps
-    // with a pure plan model leave the field at null; apps with domain
-    // verticals (e.g. club types)
-    // set the Subscription to a concrete published BusinessTypeVersion.
-    // Aggregation in EntitlementService.computeLimits see
-    // GESCHAEFTSTYP_SPEC.md §6.
-    businessTypeVersionId String?
 
     // Trial / scheduled plan changes
     trialEntitlementPlan String? // Default entitlement during TRIAL
@@ -125,16 +112,14 @@ model Subscription {
     // tenant             Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
     paymentMethod       SubscriptionPaymentMethod?
     promoRedemption     PromoCodeRedemption? // see 02-promo-code.prisma
-    planVersion         PlanVersion?                @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
+    planVersion         PlanVersion                 @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
-    businessTypeVersion BusinessTypeVersion?        @relation("SubscriptionBusinessTypeVersion", fields: [businessTypeVersionId], references: [id])
     // Standalone add-on bookings (see 11-subscription-bundle.prisma).
     bundles             SubscriptionBundle[]
 
     @@index([tenantId])
     @@index([planVersionId])
     @@index([pendingPlanVersionId])
-    @@index([businessTypeVersionId])
     @@index([currentPeriodEnd])
     @@map("subscriptions")
 }

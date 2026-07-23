@@ -56,33 +56,29 @@ PromoCodesModule.forRoot({
 
 ## Shipped adapters
 
-| Class | Implements port | Tables |
-| --- | --- | --- |
-| `PrismaTransactionRunner` | `TransactionRunner` | — (`$transaction`) |
-| `PrismaMfaAdapter` | `MfaPort` | `super_admin_mfa` |
-| `PrismaAuditAdapter` | `AuditPort` | `audit_logs` |
-| `PrismaAuditQueryAdapter` | `AuditQueryPort` | `audit_logs` |
-| `PrismaAuditStatsAdapter` | `AuditStatsPort` | `audit_logs` |
-| `AsyncLocalRlsBypassAdapter` | `RlsBypassPort` | (no DB access) |
-| `PrismaSubscriptionRepository` | `SubscriptionRepository` | `subscriptions`, `plan_versions` |
-| `PrismaPlanVersionRepository` | `PlanVersionRepository` | `plan_versions` |
-| `PrismaPromoCodeRepository` | `PromoCodeRepository` | `promo_codes` |
-| `PrismaPromoCodeRedemptionRepository` | `PromoCodeRedemptionRepository` | `promo_code_redemptions` |
-| `PrismaPromoCodeValidationLogRepository` | `PromoCodeValidationLogRepository` | `promo_code_validation_logs` |
-| `PrismaPromoSubscriptionLookup` | `PromoSubscriptionLookup` | `subscriptions` |
-| `ZeroPromoRevenueDeductionAggregator` | `PromoRevenueDeductionAggregator` | — (constant `'0.00'`) |
-| `PrismaSuperAdminBootstrapAdapter` | `SuperAdminProvisioningPort` | `super_admin_users` |
-| `PrismaPlanCatalogReadSink` | `PlanCatalogReadSink` | `plans`, `plan_versions`, `feature_catalog_entries` |
-| `PrismaPlanCatalogImportSink` | `PlanCatalogImportSink` | same |
+| Class                                    | Implements port                    | Tables                                              |
+| ---------------------------------------- | ---------------------------------- | --------------------------------------------------- |
+| `PrismaTransactionRunner`                | `TransactionRunner`                | — (`$transaction`)                                  |
+| `PrismaMfaAdapter`                       | `MfaPort`                          | `super_admin_mfa`                                   |
+| `PrismaAuditAdapter`                     | `AuditPort`                        | `audit_logs`                                        |
+| `PrismaAuditQueryAdapter`                | `AuditQueryPort`                   | `audit_logs`                                        |
+| `PrismaAuditStatsAdapter`                | `AuditStatsPort`                   | `audit_logs`                                        |
+| `AsyncLocalRlsBypassAdapter`             | `RlsBypassPort`                    | (no DB access)                                      |
+| `PrismaSubscriptionRepository`           | `SubscriptionRepository`           | `subscriptions`, `plan_versions`                    |
+| `PrismaPlanVersionRepository`            | `PlanVersionRepository`            | `plan_versions`                                     |
+| `PrismaPromoCodeRepository`              | `PromoCodeRepository`              | `promo_codes`                                       |
+| `PrismaPromoCodeRedemptionRepository`    | `PromoCodeRedemptionRepository`    | `promo_code_redemptions`                            |
+| `PrismaPromoCodeValidationLogRepository` | `PromoCodeValidationLogRepository` | `promo_code_validation_logs`                        |
+| `PrismaPromoSubscriptionLookup`          | `PromoSubscriptionLookup`          | `subscriptions`                                     |
+| `ZeroPromoRevenueDeductionAggregator`    | `PromoRevenueDeductionAggregator`  | — (constant `'0.00'`)                               |
+| `PrismaSuperAdminBootstrapAdapter`       | `SuperAdminProvisioningPort`       | `super_admin_users`                                 |
+| `PrismaPlanCatalogReadSink`              | `PlanCatalogReadSink`              | `plans`, `plan_versions`, `feature_catalog_entries` |
+| `PrismaPlanCatalogImportSink`            | `PlanCatalogImportSink`            | same                                                |
 
 Not shipped (custom adapters stay yours): subscription contracts, bundle
 bookings, registration, tenant-billing write ports, `FirstTimeCustomerCheck`.
 Absent optional repository methods degrade fail-closed as documented on the
 ports (e.g. `countByBundleVersionId`).
-
-Known limitation: subscriptions binding ONLY a `businessTypeVersionId` (no
-`planVersionId`) raise a descriptive error — BusinessType aggregation needs a
-custom `SubscriptionRepository`.
 
 ## Manual wiring (custom setups)
 

@@ -6,7 +6,7 @@
 //   02 (PromoCode + redemption + validation log)
 //   03 (Plan + PlanVersion)
 //   04 (AuditLog)
-//   05 (Bundle + BusinessType versioning)
+//   05 (Bundle versioning)
 //   06 (catalog entries + marketing)
 //   07 (Promotion)
 //   08 (SubscriptionContract + ContractLineItem)
@@ -129,7 +129,7 @@ model AuditLog {
 //                               capability (discovery projection)
 //   - FeatureCatalogEntry     — ditto for features + marketing fields
 //   - MarketingProjection     — marketing texts/pricing/highlights per
-//                               plan/bundle/business-type version (locale pivot)
+//                               plan/bundle version (locale pivot)
 //
 // Approval lifecycle (#20, feature-/quota-centric):
 //   pending → approved (↔ revoke) · outdated (drift) · obsolete
@@ -327,7 +327,7 @@ model QuotaCatalogEntry {
 
 // -----------------------------------------------------------------------------
 // MarketingProjection — locale-specific marketing texts per
-// plan/bundle/business-type version.
+// plan/bundle version.
 //
 // Read and projected by the public catalog controller
 // (`GET /public/catalog?locale=de`). Only versions with status `marketed` and
@@ -347,8 +347,8 @@ model MarketingProjection {
     projectKey String
 
     // Polymorphic reference to a versioned entity.
-    targetType      String // 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE'
-    targetVersionId String // PlanVersion.id | BundleVersion.id | BusinessTypeVersion.id
+    targetType      String // 'PLAN' | 'BUNDLE'
+    targetVersionId String // PlanVersion.id | BundleVersion.id
 
     locale String @default("de") // ISO-639-1, optionally with a region suffix ('de', 'en', 'de-AT')
 
@@ -538,13 +538,8 @@ model Subscription {
     // same plan; `pendingPlan` the change to a different plan. Both
     // can coexist.
     //
-    // Since SPEC_V2 §11.1 M5, `planVersionId` is **nullable**: a
-    // Subscription may have either `planVersionId` or
-    // `businessTypeVersionId` (or both) set. The DB CHECK
-    // constraint "at least one of the two set" is added by the consumer in
-    // the SQL migration (Prisma cannot express this directly) — see
-    // sql/constraints.postgres.sql (`subscriptions_plan_or_bt_check`).
-    planVersionId                      String?
+    // Every subscription binds a concrete published PlanVersion.
+    planVersionId                      String
     pendingPlanVersionId               String?
     pendingPlanVersionEffectiveAt      DateTime?
     pendingPlanVersionAccepted         Boolean   @default(false)
@@ -552,14 +547,6 @@ model Subscription {
     pendingPlanVersionAcceptedByUserId String?
     pendingPlanVersionNotifiedAt       DateTime?
     pendingPlanVersionReminderSentAt   DateTime?
-
-    // BusinessType composition (SPEC_V2 §11.1 M5). Optional per app: apps
-    // with a pure plan model leave the field at null; apps with domain
-    // verticals (e.g. club types)
-    // set the Subscription to a concrete published BusinessTypeVersion.
-    // Aggregation in EntitlementService.computeLimits see
-    // GESCHAEFTSTYP_SPEC.md §6.
-    businessTypeVersionId String?
 
     // Trial / scheduled plan changes
     trialEntitlementPlan String? // Default entitlement during TRIAL
@@ -591,16 +578,14 @@ model Subscription {
     tenant              Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
     paymentMethod       SubscriptionPaymentMethod?
     promoRedemption     PromoCodeRedemption? // see 02-promo-code.prisma
-    planVersion         PlanVersion?                @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
+    planVersion         PlanVersion                 @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
-    businessTypeVersion BusinessTypeVersion?        @relation("SubscriptionBusinessTypeVersion", fields: [businessTypeVersionId], references: [id])
     // Standalone add-on bookings (see the SubscriptionBundle model below).
     bundles             SubscriptionBundle[]
 
     @@index([tenantId])
     @@index([planVersionId])
     @@index([pendingPlanVersionId])
-    @@index([businessTypeVersionId])
     @@index([currentPeriodEnd])
     @@map("subscriptions")
 }
@@ -857,7 +842,7 @@ model PromoCodeValidationLog {
 //
 // Soft-delete via `deletedAt`. A deleted plan root hides its
 // PlanVersions in the UI, but keeps them effective for existing subscriptions
-// (contract protection P1) — analogous to Bundle/BusinessType.
+// (contract protection P1) — analogous to Bundle.
 // -----------------------------------------------------------------------------
 
 model Plan {
@@ -924,7 +909,7 @@ model PlanVersion {
 }
 
 // =============================================================================
-// SaaS platform Prisma fragment: Bundle + BusinessType (plan catalog extension)
+// SaaS platform Prisma fragment: Bundle (plan catalog extension)
 // =============================================================================
 //
 // REFERENCE SNIPPET — see 03-plan-versions.prisma for versioning conventions.
@@ -941,18 +926,11 @@ model PlanVersion {
 //   - `supersededAt` marks "no longer actively marketed"; existing bookings
 //     stay on the committed version (contractual plan guarantee P1).
 //
-// Naming note: GESCHAEFTSTYP_SPEC §3.1 partly speaks of `BundleDefinition`
-// (with suffix) and `BusinessType` (without) — that is asymmetric. SPEC_V2
-// unified this to a consistent `Bundle` / `BusinessType` (each without the
-// `Definition` suffix). This file follows the V2 convention.
-
 // -----------------------------------------------------------------------------
 // Bundle — reusable component of features + quotas + pricing.
 //
-// Tenants do **not** book bundles directly; they are a SuperAdmin maintenance
-// shell that is referenced in BusinessType versions (m:n via
-// BusinessTypeBundle). Root entity without content — the purchasable fields
-// (features, quotas, pricing) live on BundleVersion.
+// Root entity without content — the purchasable fields (features, quotas,
+// pricing) live on BundleVersion.
 // -----------------------------------------------------------------------------
 
 model Bundle {
@@ -982,10 +960,9 @@ model Bundle {
 // BundleVersion — versioned composition (features, quotas, pricing).
 // `features` is FeatureKey[] (references Discovery / FeatureCatalogEntry).
 // `quotas` is Record<QuotaKey, number>; -1 = unlimited; missing key = 0.
-// `compatibility` is BundleCompatibility (`businessTypeKeys?` /
-// `planIds?` whitelists). Both empty = usable everywhere.
-// `pricingOverrides` is Array<BundlePricingOverride> for context-dependent
-// prices (see GESCHAEFTSTYP_SPEC §6.1, "most-specific wins").
+// `compatibility` is BundleCompatibility (`planIds?` whitelist). Empty =
+// usable with every plan. `pricingOverrides` is an array of
+// BundlePricingOverride values for plan-dependent prices.
 // -----------------------------------------------------------------------------
 
 model BundleVersion {
@@ -1018,7 +995,6 @@ model BundleVersion {
     bundle              Bundle               @relation(fields: [bundleId], references: [id], onDelete: Cascade)
     baseVersion         BundleVersion?       @relation("BundleVersionLineage", fields: [baseVersionId], references: [id])
     derivedVersions     BundleVersion[]      @relation("BundleVersionLineage")
-    businessTypeBundles BusinessTypeBundle[]
     // Standalone add-on bookings pinned to this version (see the
     // SubscriptionBundle model below).
     subscriptionBundles SubscriptionBundle[]
@@ -1027,107 +1003,6 @@ model BundleVersion {
     @@index([bundleId, supersededAt])
     @@index([bundleId, publishedAt])
     @@map("bundle_versions")
-}
-
-// -----------------------------------------------------------------------------
-// BusinessType — business vertical (club type, industry variant).
-//
-// Examples for a club app: SPORT_VEREIN, MOSCHEE_GEMEINDE,
-// KIRCHEN_GEMEINDE, SOZIAL_TRAEGER. Example for a commerce app: AUTO_HANDEL.
-// At **most one** BusinessType is referenced per subscription (via the
-// associated BusinessTypeVersion). Multiple bundles at once = a dedicated
-// BusinessType that composes the bundles internally.
-// -----------------------------------------------------------------------------
-
-model BusinessType {
-    id              String   @id @default(uuid())
-    projectKey      String
-    businessTypeKey String // SCREAMING_SNAKE_CASE
-    label           String
-    description     String?
-    icon            String?
-    sortOrder       Int      @default(0)
-
-    createdAt DateTime  @default(now())
-    updatedAt DateTime  @updatedAt
-    deletedAt DateTime?
-
-    versions BusinessTypeVersion[]
-
-    @@unique([projectKey, businessTypeKey])
-    @@index([projectKey, deletedAt])
-    @@map("business_types")
-}
-
-// -----------------------------------------------------------------------------
-// BusinessTypeVersion — versioned composition of referenced bundles.
-// `quotaOverrides` is Partial<Record<QuotaKey, number>>; missing key →
-// Σ(bundle quotas), set key → replaces the sum (-1 = unlimited).
-// `monthlyNet` null → effective price = Σ(bundle prices). Set → override.
-// -----------------------------------------------------------------------------
-
-model BusinessTypeVersion {
-    id             String  @id @default(uuid())
-    businessTypeId String
-    version        Int
-    baseVersionId  String?
-
-    quotaOverrides Json @default("{}") // Partial<Record<QuotaKey, number>>
-
-    monthlyNet Decimal? @db.Decimal(10, 2) // null = Σ(bundle prices)
-    yearlyNet  Decimal? @db.Decimal(10, 2)
-    marketed   Boolean  @default(true)
-
-    publishedAt      DateTime?
-    supersededAt     DateTime?
-    publishedChanges Json?
-    changeNote       String  @default("")
-    nonRegressive    Boolean @default(true)
-
-    createdByUserId   String?
-    publishedByUserId String?
-
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    businessType    BusinessType          @relation(fields: [businessTypeId], references: [id], onDelete: Cascade)
-    baseVersion     BusinessTypeVersion?  @relation("BusinessTypeVersionLineage", fields: [baseVersionId], references: [id])
-    derivedVersions BusinessTypeVersion[] @relation("BusinessTypeVersionLineage")
-    bundles         BusinessTypeBundle[]
-
-    // Opposite side of Subscription.businessTypeVersion (01-subscription.prisma,
-    // M5). Subscription carries `businessTypeVersionId String?` plus the CHECK
-    // constraint "at least one of planVersionId / businessTypeVersionId set"
-    // (sql/constraints.postgres.sql).
-    subscriptionsCurrent Subscription[] @relation("SubscriptionBusinessTypeVersion")
-
-    @@unique([businessTypeId, version])
-    @@index([businessTypeId, supersededAt])
-    @@index([businessTypeId, publishedAt])
-    @@map("business_type_versions")
-}
-
-// -----------------------------------------------------------------------------
-// BusinessTypeBundle — m:n junction between BusinessTypeVersion and
-// BundleVersion. Stores the *concrete* BundleVersion (not just the root), so
-// that a published BusinessType stays deterministic — even when the bundle
-// later gets a newer version.
-// onDelete: Restrict for bundleVersion prevents deleting a BundleVersion that
-// is still referenced in an active BusinessTypeVersion (additionally a hard
-// block in the publish strict check).
-// -----------------------------------------------------------------------------
-
-model BusinessTypeBundle {
-    businessTypeVersionId String
-    bundleVersionId       String
-    sortOrder             Int    @default(0)
-
-    businessTypeVersion BusinessTypeVersion @relation(fields: [businessTypeVersionId], references: [id], onDelete: Cascade)
-    bundleVersion       BundleVersion       @relation(fields: [bundleVersionId], references: [id], onDelete: Restrict)
-
-    @@id([businessTypeVersionId, bundleVersionId])
-    @@index([bundleVersionId])
-    @@map("business_type_bundles")
 }
 
 // =============================================================================

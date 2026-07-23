@@ -31,7 +31,6 @@ export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
     pilots: '/admin/pilots',
     discovery: '/admin/discovery',
     bundles: '/admin/bundles',
-    businessTypes: '/admin/business-types',
     marketingCatalog: '/admin/marketing-catalog',
     platformEmail: '/admin/platform-email',
     platformEmailHistory: '/admin/platform-email-history',
@@ -99,7 +98,6 @@ const DEFAULT_ICONS: Record<StandardPageKey, string> = {
     pilots: 'flight_takeoff',
     discovery: 'travel_explore',
     bundles: 'inventory_2',
-    businessTypes: 'category',
     marketingCatalog: 'campaign',
     platformEmail: 'mail',
     platformEmailHistory: 'mark_email_read',
@@ -110,7 +108,6 @@ type SectionKey = keyof (typeof navMessages)['de']['sections'];
 const PAGE_SECTIONS: Partial<Record<StandardPageKey, SectionKey>> = {
     dashboard: 'overview',
     discovery: 'catalog',
-    businessTypes: 'catalog',
     bundles: 'catalog',
     plans: 'catalog',
     planVersions: 'catalog',

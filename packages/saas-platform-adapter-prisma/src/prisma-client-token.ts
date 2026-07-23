@@ -34,7 +34,7 @@ export interface SubscriptionRowLike {
     pendingPlan: string | null;
     pendingEffectiveAt: Date | null;
     customLimits: unknown;
-    planVersionId: string | null;
+    planVersionId: string;
     pendingPlanVersionId: string | null;
     startedAt: Date | null;
 }
@@ -454,7 +454,7 @@ export interface PrismaLike extends PrismaTxLike {
 
 /**
  * Generic structural minimum of a Prisma model delegate. The catalog-plane
- * repositories (bundle, business-type, plan, catalog-entry, marketing,
+ * repositories (bundle, plan, catalog-entry, marketing,
  * promotion, contract) declare their own DB-row interfaces and view the
  * injected client through `{ model: PrismaModelDelegateLike<Row> }` casts —
  * this keeps each repo self-contained and avoids hard-coding every delegate on

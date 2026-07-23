@@ -9,7 +9,7 @@
 //                               capability (discovery projection)
 //   - FeatureCatalogEntry     — ditto for features + marketing fields
 //   - MarketingProjection     — marketing texts/pricing/highlights per
-//                               plan/bundle/business-type version (locale pivot)
+//                               plan/bundle version (locale pivot)
 //
 // Approval lifecycle (#20, feature-/quota-centric):
 //   pending → approved (↔ revoke) · outdated (drift) · obsolete
@@ -207,7 +207,7 @@ model QuotaCatalogEntry {
 
 // -----------------------------------------------------------------------------
 // MarketingProjection — locale-specific marketing texts per
-// plan/bundle/business-type version.
+// plan/bundle version.
 //
 // Read and projected by the public catalog controller
 // (`GET /public/catalog?locale=de`). Only versions with status `marketed` and
@@ -227,8 +227,8 @@ model MarketingProjection {
     projectKey String
 
     // Polymorphic reference to a versioned entity.
-    targetType      String // 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE'
-    targetVersionId String // PlanVersion.id | BundleVersion.id | BusinessTypeVersion.id
+    targetType      String // 'PLAN' | 'BUNDLE'
+    targetVersionId String // PlanVersion.id | BundleVersion.id
 
     locale String @default("de") // ISO-639-1, optionally with a region suffix ('de', 'en', 'de-AT')
 

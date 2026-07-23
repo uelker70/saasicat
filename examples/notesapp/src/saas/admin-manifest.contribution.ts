@@ -8,7 +8,7 @@ import type { ManifestContribution } from '@saasicat/types';
  * Without this file the sidebar stays empty, because the NavBuilder filters
  * out every page whose `requiredCapability` is not `true`.
  *
- * The catalog surface (discovery review, plans, bundles, business types and the
+ * The catalog surface (discovery review, plans, bundles and the
  * marketing catalog) is DB-backed via NotesCatalogModule, so those pages are
  * switched on by granting their capabilities and letting the platform-core
  * `enabled: true` stand. The app-domain pages (tenants, users, audit,
@@ -28,9 +28,6 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
         'bundles.read': true,
         'bundles.write': true,
         'bundles.publish': true,
-        // Business types page + editor.
-        'businessTypes.read': true,
-        'businessTypes.write': true,
         // Marketing catalog page (locale pivot) + projection editor.
         'marketingProjections.read': true,
         'marketingProjections.write': true,
@@ -52,7 +49,7 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
 
     navigation: {
         standardPages: {
-            // discovery, plans, planVersions, bundles, businessTypes,
+            // discovery, plans, planVersions, bundles,
             // marketingCatalog, tenants, users and audit inherit the
             // platform-core `enabled: true` + requiredCapability; the
             // capabilities above wire them into the nav.

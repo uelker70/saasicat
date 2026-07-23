@@ -48,7 +48,6 @@ export * from './public-catalog.controller.js';
 export * from './public-catalog.module.js';
 export {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
-    PUBLIC_CATALOG_BUSINESS_TYPE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
 } from './public-catalog.tokens.js';

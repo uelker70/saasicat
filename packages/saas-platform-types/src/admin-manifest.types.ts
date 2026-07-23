@@ -82,7 +82,6 @@ export type StandardPageKey =
     | 'pilots'
     | 'discovery'
     | 'bundles'
-    | 'businessTypes'
     | 'marketingCatalog'
     | 'platformEmail'
     | 'platformEmailHistory';

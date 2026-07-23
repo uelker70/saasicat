@@ -18,11 +18,6 @@ const ACTIVE_STATUSES = ['ACTIVE', 'TRIAL'];
  * `SubscriptionRepository` against the canonical `subscriptions` +
  * `plan_versions` tables.
  *
- * Limitation: subscriptions that bind ONLY a `businessTypeVersionId` (no
- * `planVersionId`) are not supported by this shipped adapter — the
- * BusinessType composition needs app-specific aggregation. Such rows raise a
- * descriptive error instead of returning wrong entitlements.
- *
  * `countByBundleVersionId` is deliberately not implemented (the
  * `subscription_bundles` junction is not part of this adapter's slice);
  * the platform then treats affected bundle versions as frozen (fail-closed).
@@ -77,13 +72,6 @@ export class PrismaSubscriptionRepository implements SubscriptionRepository {
         db: PrismaTxLike,
         row: SubscriptionRowLike,
     ): Promise<SubscriptionRecord> {
-        if (!row.planVersionId) {
-            throw new Error(
-                `Subscription ${row.id} binds no planVersionId (businessType-only composition). ` +
-                    'The shipped @saasicat/adapter-prisma SubscriptionRepository does not support ' +
-                    'BusinessType aggregation — provide a custom SubscriptionRepository adapter.',
-            );
-        }
         const planVersion = await db.planVersion.findUnique({ where: { id: row.planVersionId } });
         if (!planVersion) {
             throw new Error(

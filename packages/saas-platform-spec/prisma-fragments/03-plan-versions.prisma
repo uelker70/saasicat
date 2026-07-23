@@ -27,7 +27,7 @@
 //
 // Soft-delete via `deletedAt`. A deleted plan root hides its
 // PlanVersions in the UI, but keeps them effective for existing subscriptions
-// (contract protection P1) — analogous to Bundle/BusinessType.
+// (contract protection P1) — analogous to Bundle.
 // -----------------------------------------------------------------------------
 
 model Plan {

@@ -1,7 +1,7 @@
 // useMarketingProjections — Vue 3 composable over the
 // MarketingProjectionsController (`/admin/catalog/marketing-projections`).
 //
-// Unlike Bundle/BusinessType, **without versioning**: marketing edits
+// Unlike bundles, **without versioning**: marketing edits
 // go live directly. The composable does not cache the list per filter tuple,
 // but reloads fresh on every `load()` — marketing maintenance is
 // low-frequency and consistency matters more than performance.

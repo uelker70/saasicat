@@ -7,7 +7,6 @@ import AdminDiscoveryPage from '../pages/AdminDiscoveryPage.vue';
 import AdminPlansPage from '../pages/AdminPlansPage.vue';
 import AdminPlanVersionsPage from '../pages/AdminPlanVersionsPage.vue';
 import AdminBundlesPage from '../pages/AdminBundlesPage.vue';
-import AdminBusinessTypesPage from '../pages/AdminBusinessTypesPage.vue';
 import AdminMarketingCatalogPage from '../pages/AdminMarketingCatalogPage.vue';
 import AdminTenantsPage from '../pages/AdminTenantsPage.vue';
 import AdminTenantDetailPage from '../pages/AdminTenantDetailPage.vue';
@@ -19,7 +18,7 @@ import AdminPromoCodesPage from '../pages/AdminPromoCodesPage.vue';
 // The notesapp backend serves the full DB-backed catalog plane
 // (NotesCatalogModule) plus the app-owned domain pages (NotesPlatformPagesModule),
 // so the manifest contribution switches these standard pages on: dashboard,
-// discovery, plans, planVersions, bundles, businessTypes, marketingCatalog,
+// discovery, plans, planVersions, bundles, marketingCatalog,
 // tenants, users, audit, subscriptions and promoCodes. The child paths below
 // mirror the platform's DEFAULT_STANDARD_PAGE_ROUTES so the sidebar links
 // (built from the manifest) resolve. Thin wrappers under `src/pages/` bind each
@@ -42,7 +41,6 @@ export const appRoutes: RouteRecordRaw[] = [
             { path: 'plans', component: AdminPlansPage },
             { path: 'plan-versions', component: AdminPlanVersionsPage },
             { path: 'bundles', component: AdminBundlesPage },
-            { path: 'business-types', component: AdminBusinessTypesPage },
             { path: 'marketing-catalog', component: AdminMarketingCatalogPage },
             { path: 'tenants', component: AdminTenantsPage },
             { path: 'tenants/:slug', component: AdminTenantDetailPage },
@@ -52,4 +50,5 @@ export const appRoutes: RouteRecordRaw[] = [
             { path: 'promo-codes', component: AdminPromoCodesPage },
         ],
     },
+    { path: '/:pathMatch(.*)*', redirect: '/admin' },
 ];

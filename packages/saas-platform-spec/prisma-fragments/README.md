@@ -28,18 +28,18 @@ regenerated after fragment changes (`tests/reference-sql-drift.test.js`).
 
 ## Files
 
-| File                                                                 | Models                                                                                 |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [`01-subscription.prisma`](01-subscription.prisma)                   | `Subscription`, `SubscriptionPaymentMethod`, `CheckoutOffer` + Enums                   |
-| [`02-promo-code.prisma`](02-promo-code.prisma)                       | `PromoCode`, `PromoCodeRedemption`, `PromoCodeValidationLog` + Enums                   |
-| [`03-plan-versions.prisma`](03-plan-versions.prisma)                 | `Plan`, `PlanVersion`                                                                  |
-| [`04-audit-log.prisma`](04-audit-log.prisma)                         | `AuditLog`                                                                             |
-| [`05-bundle-business-type.prisma`](05-bundle-business-type.prisma)   | `Bundle`, `BundleVersion`, `BusinessType`, `BusinessTypeVersion`, `BusinessTypeBundle` |
-| [`06-catalog-entries.prisma`](06-catalog-entries.prisma)             | `CapabilityCatalogEntry`, `FeatureCatalogEntry`, `MarketingProjection`                 |
-| [`07-promotion.prisma`](07-promotion.prisma)                         | `Promotion`                                                                            |
-| [`08-subscription-contract.prisma`](08-subscription-contract.prisma) | `SubscriptionContract`, `ContractLineItem`                                             |
-| [`09-pending-registration.prisma`](09-pending-registration.prisma)   | `PendingRegistration`, `PaymentEventLog` + `RegistrationStatus`                        |
-| [`10-super-admin.prisma`](10-super-admin.prisma)                     | `SuperAdminUser`, `SuperAdminMfa`                                                      |
+| File                                                                 | Models                                                                 |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [`01-subscription.prisma`](01-subscription.prisma)                   | `Subscription`, `SubscriptionPaymentMethod`, `CheckoutOffer` + Enums   |
+| [`02-promo-code.prisma`](02-promo-code.prisma)                       | `PromoCode`, `PromoCodeRedemption`, `PromoCodeValidationLog` + Enums   |
+| [`03-plan-versions.prisma`](03-plan-versions.prisma)                 | `Plan`, `PlanVersion`                                                  |
+| [`04-audit-log.prisma`](04-audit-log.prisma)                         | `AuditLog`                                                             |
+| [`05-bundle.prisma`](05-bundle.prisma)                               | `Bundle`, `BundleVersion`                                              |
+| [`06-catalog-entries.prisma`](06-catalog-entries.prisma)             | `CapabilityCatalogEntry`, `FeatureCatalogEntry`, `MarketingProjection` |
+| [`07-promotion.prisma`](07-promotion.prisma)                         | `Promotion`                                                            |
+| [`08-subscription-contract.prisma`](08-subscription-contract.prisma) | `SubscriptionContract`, `ContractLineItem`                             |
+| [`09-pending-registration.prisma`](09-pending-registration.prisma)   | `PendingRegistration`, `PaymentEventLog` + `RegistrationStatus`        |
+| [`10-super-admin.prisma`](10-super-admin.prisma)                     | `SuperAdminUser`, `SuperAdminMfa`                                      |
 
 ## How the consumer uses the fragments
 
@@ -85,7 +85,6 @@ comment. The consumer enables them using their own `Tenant`/`User` model names.
 
 `subscriptions`, `plan_versions`, `promo_codes`, `promo_code_redemptions`,
 `promo_code_validation_logs`, `audit_logs`, `bundles`, `bundle_versions`,
-`business_types`, `business_type_versions`, `business_type_bundles`,
 `capability_catalog_entries`, `feature_catalog_entries`,
 `marketing_projections`, `subscription_contracts`, `contract_line_items`.
 Please do **not change** them — otherwise platform migration scripts and the
@@ -99,9 +98,8 @@ this precision.
 
 ### 5. Constraints Prisma cannot express
 
-`PlanVersion`, `BundleVersion` and `BusinessTypeVersion` allow **exactly
-one** draft per identity key (`publishedAt IS NULL`), and a `Subscription`
-must bind a PlanVersion or a BusinessTypeVersion. Both live as SQL in
+`PlanVersion` and `BundleVersion` allow **exactly one** draft per identity key
+(`publishedAt IS NULL`). The partial indexes live as SQL in
 [`../sql/constraints.postgres.sql`](../sql/constraints.postgres.sql) —
 add that file to your migration verbatim. Note that column names are
 **camelCase** (the fragments `@@map` table names only), e.g.:

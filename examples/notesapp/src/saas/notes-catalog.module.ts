@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import {
     PrismaBundleRepository,
-    PrismaBusinessTypeRepository,
     PrismaCatalogEntryRepository,
     PrismaMarketingProjectionRepository,
     PrismaMarketingSettingsRepository,
@@ -18,9 +17,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NOTES_FEATURE_UI_REGISTRY } from './feature-ui-registry';
 
 /**
- * DB-backed catalog surface for the SuperAdmin UI: plans, bundles, business
- * types, discovery review (catalog entries), promotions and marketing
- * settings. Each repository is the `@saasicat/adapter-prisma` implementation
+ * DB-backed catalog surface for the SuperAdmin UI: plans, bundles, discovery
+ * review (catalog entries), promotions and marketing settings. Each repository
+ * is the `@saasicat/adapter-prisma` implementation
  * over PrismaService; the controllers reuse the DemoAuthGuard the rest of the
  * example runs on.
  *
@@ -38,10 +37,6 @@ import { NOTES_FEATURE_UI_REGISTRY } from './feature-ui-registry';
             },
             bundleRepository: {
                 useFactory: (prisma: PrismaLike) => new PrismaBundleRepository(prisma),
-                inject: [PrismaService],
-            },
-            businessTypeRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaBusinessTypeRepository(prisma),
                 inject: [PrismaService],
             },
             catalogEntryRepository: {

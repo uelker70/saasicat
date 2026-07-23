@@ -133,7 +133,6 @@
                         "pilots": { "$ref": "#/$defs/StandardPageDef" },
                         "discovery": { "$ref": "#/$defs/StandardPageDef" },
                         "bundles": { "$ref": "#/$defs/StandardPageDef" },
-                        "businessTypes": { "$ref": "#/$defs/StandardPageDef" },
                         "marketingCatalog": { "$ref": "#/$defs/StandardPageDef" },
                         "platformEmail": { "$ref": "#/$defs/StandardPageDef" },
                         "platformEmailHistory": { "$ref": "#/$defs/StandardPageDef" }

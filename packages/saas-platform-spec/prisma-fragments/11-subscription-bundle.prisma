@@ -12,7 +12,7 @@
 //
 // Accompanying fragments:
 //   - 01-subscription.prisma         (Subscription — the FK target)
-//   - 05-bundle-business-type.prisma (BundleVersion — the pinned version)
+//   - 05-bundle.prisma (BundleVersion — the pinned version)
 //
 // Conventions: see 01-subscription.prisma. `@@map` name is canonical — do not
 // rename. The platform's `SubscriptionBundleRepository` adapter and the tenant

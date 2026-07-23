@@ -41,7 +41,7 @@ export interface EntitlementModuleOptions {
     /**
      * Optional (P11.7.3/#61) — BOTH together enable the aggregation of
      * independently booked catalog bundles (`subscription_bundles`) in
-     * `computeLimits`. Without them, only plan + BusinessType count — bundles
+     * `computeLimits`. Without them, only the plan counts — bundles
      * booked mid-cycle would then NOT be in the entitlements (and a contract
      * re-freeze would not freeze them in).
      */

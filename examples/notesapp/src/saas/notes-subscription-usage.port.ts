@@ -9,9 +9,6 @@ import { PrismaService } from '../prisma/prisma.service';
  * platform `SubscriptionUsageRecord`. `id` is set so the tenant bundle-store
  * controller can list/add SubscriptionBundles.
  *
- * A subscription that binds no PlanVersion (BusinessType-only composition) is
- * not displayable through this simple mapper — NotesApp only books plans, so
- * such a row is treated as "no subscription" (null).
  */
 @Injectable()
 export class NotesSubscriptionUsagePort implements SubscriptionUsagePort {
@@ -22,7 +19,7 @@ export class NotesSubscriptionUsagePort implements SubscriptionUsagePort {
             where: { tenantId },
             include: { planVersion: true, pendingPlanVersion: true },
         });
-        if (!sub || !sub.planVersion) return null;
+        if (!sub) return null;
 
         return {
             id: sub.id,

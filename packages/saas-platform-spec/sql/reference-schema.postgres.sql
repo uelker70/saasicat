@@ -7,7 +7,7 @@
 --   prisma-fragments/02-promo-code.prisma
 --   prisma-fragments/03-plan-versions.prisma
 --   prisma-fragments/04-audit-log.prisma
---   prisma-fragments/05-bundle-business-type.prisma
+--   prisma-fragments/05-bundle.prisma
 --   prisma-fragments/06-catalog-entries.prisma
 --   prisma-fragments/07-promotion.prisma
 --   prisma-fragments/08-subscription-contract.prisma
@@ -62,7 +62,7 @@ CREATE TABLE "subscriptions" (
     "canceledAt" TIMESTAMP(3),
     "currentPeriodStart" TIMESTAMP(3),
     "currentPeriodEnd" TIMESTAMP(3),
-    "planVersionId" TEXT,
+    "planVersionId" TEXT NOT NULL,
     "pendingPlanVersionId" TEXT,
     "pendingPlanVersionEffectiveAt" TIMESTAMP(3),
     "pendingPlanVersionAccepted" BOOLEAN NOT NULL DEFAULT false,
@@ -70,7 +70,6 @@ CREATE TABLE "subscriptions" (
     "pendingPlanVersionAcceptedByUserId" TEXT,
     "pendingPlanVersionNotifiedAt" TIMESTAMP(3),
     "pendingPlanVersionReminderSentAt" TIMESTAMP(3),
-    "businessTypeVersionId" TEXT,
     "trialEntitlementPlan" TEXT,
     "postTrialPlan" TEXT,
     "pendingPlan" TEXT,
@@ -293,54 +292,6 @@ CREATE TABLE "bundle_versions" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "bundle_versions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "business_types" (
-    "id" TEXT NOT NULL,
-    "projectKey" TEXT NOT NULL,
-    "businessTypeKey" TEXT NOT NULL,
-    "label" TEXT NOT NULL,
-    "description" TEXT,
-    "icon" TEXT,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "deletedAt" TIMESTAMP(3),
-
-    CONSTRAINT "business_types_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "business_type_versions" (
-    "id" TEXT NOT NULL,
-    "businessTypeId" TEXT NOT NULL,
-    "version" INTEGER NOT NULL,
-    "baseVersionId" TEXT,
-    "quotaOverrides" JSONB NOT NULL DEFAULT '{}',
-    "monthlyNet" DECIMAL(10,2),
-    "yearlyNet" DECIMAL(10,2),
-    "marketed" BOOLEAN NOT NULL DEFAULT true,
-    "publishedAt" TIMESTAMP(3),
-    "supersededAt" TIMESTAMP(3),
-    "publishedChanges" JSONB,
-    "changeNote" TEXT NOT NULL DEFAULT '',
-    "nonRegressive" BOOLEAN NOT NULL DEFAULT true,
-    "createdByUserId" TEXT,
-    "publishedByUserId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "business_type_versions_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "business_type_bundles" (
-    "businessTypeVersionId" TEXT NOT NULL,
-    "bundleVersionId" TEXT NOT NULL,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT "business_type_bundles_pkey" PRIMARY KEY ("businessTypeVersionId","bundleVersionId")
 );
 
 -- CreateTable
@@ -627,9 +578,6 @@ CREATE INDEX "subscriptions_planVersionId_idx" ON "subscriptions"("planVersionId
 CREATE INDEX "subscriptions_pendingPlanVersionId_idx" ON "subscriptions"("pendingPlanVersionId");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_businessTypeVersionId_idx" ON "subscriptions"("businessTypeVersionId");
-
--- CreateIndex
 CREATE INDEX "subscriptions_currentPeriodEnd_idx" ON "subscriptions"("currentPeriodEnd");
 
 -- CreateIndex
@@ -709,24 +657,6 @@ CREATE INDEX "bundle_versions_bundleId_publishedAt_idx" ON "bundle_versions"("bu
 
 -- CreateIndex
 CREATE UNIQUE INDEX "bundle_versions_bundleId_version_key" ON "bundle_versions"("bundleId", "version");
-
--- CreateIndex
-CREATE INDEX "business_types_projectKey_deletedAt_idx" ON "business_types"("projectKey", "deletedAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "business_types_projectKey_businessTypeKey_key" ON "business_types"("projectKey", "businessTypeKey");
-
--- CreateIndex
-CREATE INDEX "business_type_versions_businessTypeId_supersededAt_idx" ON "business_type_versions"("businessTypeId", "supersededAt");
-
--- CreateIndex
-CREATE INDEX "business_type_versions_businessTypeId_publishedAt_idx" ON "business_type_versions"("businessTypeId", "publishedAt");
-
--- CreateIndex
-CREATE UNIQUE INDEX "business_type_versions_businessTypeId_version_key" ON "business_type_versions"("businessTypeId", "version");
-
--- CreateIndex
-CREATE INDEX "business_type_bundles_bundleVersionId_idx" ON "business_type_bundles"("bundleVersionId");
 
 -- CreateIndex
 CREATE INDEX "capability_catalog_entries_projectKey_codeStatus_idx" ON "capability_catalog_entries"("projectKey", "codeStatus");
@@ -813,13 +743,10 @@ CREATE INDEX "subscription_bundles_bundleVersionId_idx" ON "subscription_bundles
 CREATE INDEX "subscription_bundles_canceledEffectiveAt_idx" ON "subscription_bundles"("canceledEffectiveAt");
 
 -- AddForeignKey
-ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_pendingPlanVersionId_fkey" FOREIGN KEY ("pendingPlanVersionId") REFERENCES "plan_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_businessTypeVersionId_fkey" FOREIGN KEY ("businessTypeVersionId") REFERENCES "business_type_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscription_payment_methods" ADD CONSTRAINT "subscription_payment_methods_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -841,18 +768,6 @@ ALTER TABLE "bundle_versions" ADD CONSTRAINT "bundle_versions_bundleId_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "bundle_versions" ADD CONSTRAINT "bundle_versions_baseVersionId_fkey" FOREIGN KEY ("baseVersionId") REFERENCES "bundle_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "business_type_versions" ADD CONSTRAINT "business_type_versions_businessTypeId_fkey" FOREIGN KEY ("businessTypeId") REFERENCES "business_types"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "business_type_versions" ADD CONSTRAINT "business_type_versions_baseVersionId_fkey" FOREIGN KEY ("baseVersionId") REFERENCES "business_type_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "business_type_bundles" ADD CONSTRAINT "business_type_bundles_businessTypeVersionId_fkey" FOREIGN KEY ("businessTypeVersionId") REFERENCES "business_type_versions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "business_type_bundles" ADD CONSTRAINT "business_type_bundles_bundleVersionId_fkey" FOREIGN KEY ("bundleVersionId") REFERENCES "bundle_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "contract_line_items" ADD CONSTRAINT "contract_line_items_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -882,12 +797,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS plan_versions_draft_per_plan
 
 CREATE UNIQUE INDEX IF NOT EXISTS bundle_versions_draft_per_bundle
     ON bundle_versions ("bundleId") WHERE "publishedAt" IS NULL;
-
-CREATE UNIQUE INDEX IF NOT EXISTS business_type_versions_draft_per_business_type
-    ON business_type_versions ("businessTypeId") WHERE "publishedAt" IS NULL;
-
--- A subscription binds a PlanVersion, a BusinessTypeVersion, or both —
--- never neither (SPEC_V2 §11.1 M5).
-ALTER TABLE subscriptions
-    ADD CONSTRAINT subscriptions_plan_or_bt_check
-    CHECK ("planVersionId" IS NOT NULL OR "businessTypeVersionId" IS NOT NULL);

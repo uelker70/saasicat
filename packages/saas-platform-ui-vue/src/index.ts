@@ -59,7 +59,6 @@ export * from './vue/use-catalog-entries.js';
 export * from './vue/use-bundles.js';
 export * from './vue/use-bundle-versions-map.js';
 export * from './vue/use-tenant-subscription-bundles.js';
-export * from './vue/use-business-types.js';
 export * from './vue/use-marketing-projections.js';
 export * from './vue/use-promotions.js';
 export * from './vue/use-plans.js';

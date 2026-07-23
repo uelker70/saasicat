@@ -11,15 +11,7 @@
 //     as `text`: parameterized values are coerced by Postgres, and reads
 //     come back as strings — exactly what the platform records expect.
 
-import {
-    boolean,
-    integer,
-    jsonb,
-    numeric,
-    pgTable,
-    text,
-    timestamp,
-} from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, numeric, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 const ts = (name: string) => timestamp(name, { precision: 3, mode: 'date' });
 
@@ -33,7 +25,7 @@ export const subscriptions = pgTable('subscriptions', {
     pendingPlan: text('pendingPlan'),
     pendingEffectiveAt: ts('pendingEffectiveAt'),
     customLimits: jsonb('customLimits'),
-    planVersionId: text('planVersionId'),
+    planVersionId: text('planVersionId').notNull(),
     pendingPlanVersionId: text('pendingPlanVersionId'),
     isPilot: boolean('isPilot').notNull().default(false),
     startedAt: ts('startedAt'),

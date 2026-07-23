@@ -3,11 +3,11 @@
 // only the mutation inputs + service result live here.
 //
 // Structurally identical pattern to `CreateBundleVersionDraftData` /
-// `BundleVersionMutationResult` (see bundle-business-type.types.ts).
+// `BundleVersionMutationResult` (see bundle.types.ts).
 
 import type { FeatureKey, QuotaKey } from './plan-catalog.types.js';
 import type { PlanVersionRow } from './plan-version-row.types.js';
-import type { StrictModeWarning } from './bundle-business-type.types.js';
+import type { StrictModeWarning } from './bundle.types.js';
 
 /**
  * Fields of a new PlanVersion in draft status (`publishedAt = null`).

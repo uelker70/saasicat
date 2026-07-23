@@ -74,30 +74,12 @@ function makeBundleVersion(overrides) {
     };
 }
 
-function makeBusinessTypeVersion(overrides) {
-    return {
-        ...VERSIONED_BASE,
-        id: 'btv-1',
-        businessTypeId: 'bt-stem-1',
-        businessTypeKey: 'SPORT_VEREIN',
-        label: 'Sport-Verein',
-        version: 1,
-        bundles: [],
-        quotaOverrides: {},
-        monthlyNet: null,
-        yearlyNet: null,
-        marketed: true,
-        ...overrides,
-    };
-}
-
 describe('runPreflight', () => {
     test('empty catalog → overall=ok, total=0', () => {
         const r = runPreflight({
             snapshot: buildSnapshot(),
             planVersions: [],
             bundleVersions: [],
-            businessTypeVersions: [],
         });
         assert.equal(r.overall, 'ok');
         assert.equal(r.counts.total, 0);
@@ -109,7 +91,6 @@ describe('runPreflight', () => {
             snapshot: buildSnapshot(['MEMBERS', 'CALENDAR'], ['members']),
             planVersions: [makePlanVersion({ features: ['MEMBERS'], quotas: { members: 100 } })],
             bundleVersions: [makeBundleVersion({ features: ['CALENDAR'], quotas: {} })],
-            businessTypeVersions: [],
         });
         assert.equal(r.overall, 'ok');
         assert.equal(r.counts.total, 0);
@@ -120,7 +101,6 @@ describe('runPreflight', () => {
             snapshot: buildSnapshot(['MEMBERS'], []),
             planVersions: [makePlanVersion({ features: ['MEMBERS', 'GHOST'], quotas: {} })],
             bundleVersions: [],
-            businessTypeVersions: [],
         });
         assert.equal(r.overall, 'error');
         assert.equal(r.counts.planFindings, 1);
@@ -135,40 +115,10 @@ describe('runPreflight', () => {
             snapshot: buildSnapshot([], []),
             planVersions: [],
             bundleVersions: [makeBundleVersion({ features: ['SOMETHING'], quotas: {} })],
-            businessTypeVersions: [],
         });
         assert.equal(r.overall, 'error');
         assert.equal(r.counts.bundleFindings, 1);
         assert.equal(r.findings[0].warning.code, 'BUNDLE_FEATURE_UNKNOWN');
-    });
-
-    test('business-type with bundle disjointness violation → kind=business-type, BUNDLE_DISJOINTNESS', () => {
-        const bv1 = makeBundleVersion({
-            id: 'bv-1',
-            bundleKey: 'BANKING',
-            features: ['SEPA'],
-        });
-        const bv2 = makeBundleVersion({
-            id: 'bv-2',
-            bundleKey: 'PRO_SEPA',
-            features: ['SEPA'],
-        });
-        const r = runPreflight({
-            snapshot: buildSnapshot(['SEPA'], []),
-            planVersions: [],
-            bundleVersions: [bv1, bv2],
-            businessTypeVersions: [
-                makeBusinessTypeVersion({
-                    bundles: [
-                        { bundleVersionId: 'bv-1', bundleKey: 'BANKING', sortOrder: 0 },
-                        { bundleVersionId: 'bv-2', bundleKey: 'PRO_SEPA', sortOrder: 1 },
-                    ],
-                }),
-            ],
-        });
-        assert.equal(r.overall, 'error');
-        const btFindings = r.findings.filter((f) => f.kind === 'business-type');
-        assert.ok(btFindings.some((f) => f.warning.code === 'BUNDLE_DISJOINTNESS'));
     });
 
     test('findings are deterministically sorted (kind, entityKey, version, code)', () => {
@@ -182,7 +132,6 @@ describe('runPreflight', () => {
                 makeBundleVersion({ id: 'bv-z', bundleKey: 'Z_BUNDLE', features: ['Y'] }),
                 makeBundleVersion({ id: 'bv-a', bundleKey: 'A_BUNDLE', features: ['Y'] }),
             ],
-            businessTypeVersions: [],
         });
         // bundle before plan (alphabetical); within, a before z
         assert.deepEqual(
@@ -196,7 +145,7 @@ describe('formatPreflightReport', () => {
     test('OK report contains OK checkmark', () => {
         const out = formatPreflightReport({
             overall: 'ok',
-            counts: { planFindings: 0, bundleFindings: 0, businessTypeFindings: 0, total: 0 },
+            counts: { planFindings: 0, bundleFindings: 0, total: 0 },
             findings: [],
         });
         assert.match(out, /Status: OK/);
@@ -206,7 +155,7 @@ describe('formatPreflightReport', () => {
     test('error report lists findings with codes', () => {
         const out = formatPreflightReport({
             overall: 'error',
-            counts: { planFindings: 1, bundleFindings: 0, businessTypeFindings: 0, total: 1 },
+            counts: { planFindings: 1, bundleFindings: 0, total: 1 },
             findings: [
                 {
                     kind: 'plan',

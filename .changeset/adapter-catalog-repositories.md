@@ -7,13 +7,12 @@ Ship the catalog-plane Prisma repositories so a consumer can wire the full
 SuperAdmin surface without hand-writing adapters.
 
 `@saasicat/adapter-prisma` previously covered only the core/entitlement/promo
-slices; every app that wanted the plans/bundles/business-types/discovery-review/
+slices; every app that wanted the plans/bundles/discovery-review/
 marketing pages had to implement ~2000 lines of catalog repositories itself. The
 package now exports them:
 
 - `PrismaPlanRepository` (`PlanRepository`)
 - `PrismaBundleRepository` (`BundleRepository`)
-- `PrismaBusinessTypeRepository` (`BusinessTypeRepository`)
 - `PrismaCatalogEntryRepository` (`CatalogEntryRepository`)
 - `PrismaMarketingProjectionRepository` (`MarketingProjectionRepository`)
 - `PrismaMarketingSettingsRepository` (`MarketingSettingsRepository`)

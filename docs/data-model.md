@@ -47,49 +47,48 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 
 ### Billing core
 
-| Entity | Identity / uniqueness | Notes |
-| --- | --- | --- |
-| `Subscription` (`subscriptions`) | one per tenant (`tenantId` unique) | Binds a live `PlanVersion` and/or `BusinessTypeVersion` — **CHECK `subscriptions_plan_or_bt_check`**. Carries pending plan/version change fields, trial/pilot state, custom limits, frozen `packageSnapshot`. |
-| `SubscriptionPaymentMethod` | 1:1 subscription | Masked payment data only. |
-| `CheckoutOffer` (`checkout_offers`) | global, no RLS | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`. |
-| `SubscriptionContract` + `ContractLineItem` | append-only | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten. |
+| Entity                                      | Identity / uniqueness              | Notes                                                                                                                               |
+| ------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `Subscription` (`subscriptions`)            | one per tenant (`tenantId` unique) | Binds a live `PlanVersion`. Carries pending plan/version change fields, trial/pilot state, custom limits, frozen `packageSnapshot`. |
+| `SubscriptionPaymentMethod`                 | 1:1 subscription                   | Masked payment data only.                                                                                                           |
+| `CheckoutOffer` (`checkout_offers`)         | global, no RLS                     | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`.                |
+| `SubscriptionContract` + `ContractLineItem` | append-only                        | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten.                |
 
 ### Catalog & versioning
 
-| Entity | Identity / uniqueness | Notes |
-| --- | --- | --- |
-| `Plan` (`plans`) | `(projectKey, planKey)` unique | Stem = identity + UI ordering; soft delete keeps versions billing-valid. |
-| `PlanVersion` (`plan_versions`) | `(planId, version)` unique | Versioned sales artifact (features/quotas/prices as snapshot). |
-| `Bundle`/`BundleVersion` | `(projectKey, bundleKey)`, `(bundleId, version)` | Same lifecycle as plans. |
-| `BusinessType`/`BusinessTypeVersion`/`BusinessTypeBundle` | analogous | Vertical composition; junction pins **concrete** BundleVersions. |
-| `CapabilityCatalogEntry`, `FeatureCatalogEntry`, `QuotaCatalogEntry`, `MarketingProjection`, `MarketingSettings` | `(projectKey, key)` unique | Discovery/approval projections of code-declared capabilities. |
+| Entity                                                                                                           | Identity / uniqueness                            | Notes                                                                    |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------ |
+| `Plan` (`plans`)                                                                                                 | `(projectKey, planKey)` unique                   | Stem = identity + UI ordering; soft delete keeps versions billing-valid. |
+| `PlanVersion` (`plan_versions`)                                                                                  | `(planId, version)` unique                       | Versioned sales artifact (features/quotas/prices as snapshot).           |
+| `Bundle`/`BundleVersion`                                                                                         | `(projectKey, bundleKey)`, `(bundleId, version)` | Same lifecycle as plans.                                                 |
+| `CapabilityCatalogEntry`, `FeatureCatalogEntry`, `QuotaCatalogEntry`, `MarketingProjection`, `MarketingSettings` | `(projectKey, key)` unique                       | Discovery/approval projections of code-declared capabilities.            |
 
-**Version-lineage invariants** (all three versioned families):
+**Version-lineage invariants** (both versioned families):
 
 - At most **one draft** per lineage (`publishedAt IS NULL`) — partial unique
   indexes `*_draft_per_*` (SQL-only, see constraints file).
 - `version` is monotonically increasing per lineage.
 - At most **one live** version per lineage (`publishedAt IS NOT NULL AND
-  supersededAt IS NULL`); publishing a successor supersedes the predecessor
+supersededAt IS NULL`); publishing a successor supersedes the predecessor
   **in the same transaction** (publish-and-supersede atomicity).
 - A superseded version stays billing-valid for the subscriptions bound to it
   (contract protection P1) — versions are never deleted once published.
 
 ### Promo codes
 
-| Entity | Identity / uniqueness | Notes |
-| --- | --- | --- |
-| `PromoCode` (`promo_codes`) | `code` unique (stored UPPER) | `redemptionsCount`/`maxRedemptions` guard availability. |
-| `PromoCodeRedemption` | **`subscriptionId` unique** | One redemption per subscription — double redemption fails at the database. Snapshot of the code rule at redemption time. |
-| `PromoCodeValidationLog` | — | Anti-abuse trail incl. failed attempts. |
+| Entity                      | Identity / uniqueness        | Notes                                                                                                                    |
+| --------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `PromoCode` (`promo_codes`) | `code` unique (stored UPPER) | `redemptionsCount`/`maxRedemptions` guard availability.                                                                  |
+| `PromoCodeRedemption`       | **`subscriptionId` unique**  | One redemption per subscription — double redemption fails at the database. Snapshot of the code rule at redemption time. |
+| `PromoCodeValidationLog`    | —                            | Anti-abuse trail incl. failed attempts.                                                                                  |
 
 ### Registration & admin
 
-| Entity | Identity / uniqueness | Notes |
-| --- | --- | --- |
-| `PendingRegistration` | — | Multi-step onboarding draft; must never count as an existing customer. |
-| `PaymentEventLog` | `eventId` unique | Webhook idempotency via unique INSERT (`tryClaim`). |
-| `AuditLog` (`audit_logs`) | — | `actorTag` format `web:<email>:<sessionId>` / `cli:<email>:<host>` (see `audit-event.schema.json`); `tenantId` null = platform-global action. |
+| Entity                             | Identity / uniqueness        | Notes                                                                                                                                                              |
+| ---------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PendingRegistration`              | —                            | Multi-step onboarding draft; must never count as an existing customer.                                                                                             |
+| `PaymentEventLog`                  | `eventId` unique             | Webhook idempotency via unique INSERT (`tryClaim`).                                                                                                                |
+| `AuditLog` (`audit_logs`)          | —                            | `actorTag` format `web:<email>:<sessionId>` / `cli:<email>:<host>` (see `audit-event.schema.json`); `tenantId` null = platform-global action.                      |
 | `SuperAdminUser` / `SuperAdminMfa` | `email` unique / `userId` PK | Platform-owned SuperAdmin identity. `SuperAdminMfa.userId` deliberately has **no hard FK** — `MfaPort` also serves apps whose admins live in their own user table. |
 
 ## Transactional invariants (what adapters must guarantee)
@@ -106,7 +105,7 @@ suite is binding.**
 2. **Promo slot reservation is atomic.** `PromoCodeRepository.claimSlot`
    increments `redemptionsCount` only while
    `status = 'ACTIVE' AND (maxRedemptions IS NULL OR redemptionsCount <
-   maxRedemptions)` — as a single guarded UPDATE, exactly-once under
+maxRedemptions)` — as a single guarded UPDATE, exactly-once under
    concurrency.
 3. **One redemption per subscription** is enforced by the unique constraint,
    not by application checks.
@@ -122,12 +121,12 @@ suite is binding.**
 
 Adapters declare `PersistenceCapabilities`; the platform fail-fasts at boot:
 
-| Platform feature | Requires |
-| --- | --- |
-| `SaasPlatformModule` entitlement (`enforceLimit`) | `transactions`, `pessimisticLocking` |
-| Promo redemption flow | `transactions` (atomic `claimSlot` is part of the port contract) |
-| SuperAdmin over RLS-protected tables | `rowLevelSecurity` integration (informational; policies stay consumer-owned) |
-| — | `advisoryLocks` required by no platform path today |
+| Platform feature                                  | Requires                                                                     |
+| ------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `SaasPlatformModule` entitlement (`enforceLimit`) | `transactions`, `pessimisticLocking`                                         |
+| Promo redemption flow                             | `transactions` (atomic `claimSlot` is part of the port contract)             |
+| SuperAdmin over RLS-protected tables              | `rowLevelSecurity` integration (informational; policies stay consumer-owned) |
+| —                                                 | `advisoryLocks` required by no platform path today                           |
 
 ## Known gaps
 

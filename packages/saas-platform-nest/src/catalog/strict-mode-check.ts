@@ -1,12 +1,10 @@
 // Strict mode check — drift between the DB catalog and the discovery snapshot.
 //
 // Pure functions, no NestJS DI, no side effects. Testable in isolation.
-// Called by the BundlesService (and later the BusinessTypesService) before
-// a mutation is persisted.
+// Called by catalog services before a mutation is persisted.
 
 import type {
     ApprovedCatalogKeys,
-    BundleVersionRow,
     DiscoverySnapshot,
     StrictModeWarning,
     StrictModeWarningCode,
@@ -87,15 +85,12 @@ function dependencyWarnings(
  *
  * **Not** checked (belongs in other validations):
  * - Pricing (purely business, no discovery relation)
- * - Compatibility.businessTypeKeys whitelists (BUNDLE_COMPATIBILITY code,
- *   only checked at BusinessType publish)
- * - Disjointness (BUNDLE_DISJOINTNESS, also a BusinessType concern)
  */
 export function validateBundleDraft(
     draft: {
         features: string[];
         quotas: Record<string, number>;
-        compatibility?: { planIds?: string[]; businessTypeKeys?: string[] };
+        compatibility?: { planIds?: string[] };
     },
     snapshot: DiscoverySnapshot,
     knownPlanKeys: Set<string> | null = null,
@@ -162,93 +157,6 @@ export function validateBundleDraft(
     warnings.push(
         ...dependencyWarnings(draft.features, snapshot, 'BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED'),
     );
-
-    return warnings;
-}
-
-/**
- * Validates a BusinessType draft definition against the discovery snapshot
- * and the referenced BundleVersions. Three violations:
- *
- * - **BUNDLE_DISJOINTNESS** (GESCHAEFTSTYP_SPEC §6.3): two Bundles in
- *   the composition activate the same feature. Hard block at publish.
- * - **BUNDLE_COMPATIBILITY** (GESCHAEFTSTYP_SPEC §6.4): a Bundle has set
- *   a `compatibility.businessTypeKeys` whitelist, but the target
- *   businessTypeKey is not included. Soft warning (no
- *   hard block, but an audit marker on override).
- * - **QUOTA_MISSING**: QuotaOverride keys that do not exist in discovery
- *   (analogous to the Bundle strict check).
- *
- * Bundle existence and published status are checked in the service before
- * this check (NotFoundException on a missing version, no warning).
- */
-export function validateBusinessTypeDraft(
-    draft: {
-        businessTypeKey: string;
-        quotaOverrides: Record<string, number>;
-    },
-    bundles: BundleVersionRow[],
-    snapshot: DiscoverySnapshot,
-    approved: ApprovedCatalogKeys | null = null,
-): StrictModeWarning[] {
-    const warnings: StrictModeWarning[] = [];
-
-    // Disjointness check: same feature key in multiple Bundles
-    const featureToBundleKeys = new Map<string, string[]>();
-    for (const bundle of bundles) {
-        for (const feature of bundle.features) {
-            const list = featureToBundleKeys.get(feature) ?? [];
-            list.push(bundle.bundleKey);
-            featureToBundleKeys.set(feature, list);
-        }
-    }
-    for (const [feature, bundleKeys] of featureToBundleKeys) {
-        if (bundleKeys.length > 1) {
-            warnings.push({
-                code: 'BUNDLE_DISJOINTNESS',
-                message: `Feature '${feature}' wird von mehreren Bundles aktiviert (${bundleKeys.join(
-                    ', ',
-                )}). GESCHAEFTSTYP_SPEC §6.3 verlangt Disjointness pro Geschäftstyp — entferne das Feature aus allen Bundles bis auf eines.`,
-                field: 'bundles',
-                value: feature,
-            });
-        }
-    }
-
-    // Compatibility check: businessTypeKey in each Bundle whitelist (or empty)
-    for (const bundle of bundles) {
-        const whitelist = bundle.compatibility?.businessTypeKeys;
-        if (whitelist && whitelist.length > 0 && !whitelist.includes(draft.businessTypeKey)) {
-            warnings.push({
-                code: 'BUNDLE_COMPATIBILITY',
-                message: `Bundle '${bundle.bundleKey}' hat eine Compatibility-Whitelist [${whitelist.join(
-                    ', ',
-                )}], in der '${draft.businessTypeKey}' nicht enthalten ist. Override per Audit-Marker möglich, aber riskant.`,
-                field: `bundles[${bundle.bundleKey}].compatibility`,
-                value: bundle.bundleKey,
-            });
-        }
-    }
-
-    // Quota override check (analogous to Bundle, incl. approved gate #20)
-    const knownQuotas = new Set(snapshot.quotas.map((q) => q.quotaKey));
-    for (const quotaKey of Object.keys(draft.quotaOverrides ?? {})) {
-        if (!knownQuotas.has(quotaKey)) {
-            warnings.push({
-                code: 'QUOTA_MISSING',
-                message: `Quota-Override '${quotaKey}' existiert nicht im Discovery-Snapshot.`,
-                field: `quotaOverrides.${quotaKey}`,
-                value: quotaKey,
-            });
-        } else if (approved && !approved.quotas.has(quotaKey)) {
-            warnings.push({
-                code: 'QUOTA_NOT_APPROVED',
-                message: `Quota-Override '${quotaKey}' ist nicht freigegeben (Status != approved). Nur freigegebene Quotas sind verkaufbar — im Discovery-Review freigeben (#20).`,
-                field: `quotaOverrides.${quotaKey}`,
-                value: quotaKey,
-            });
-        }
-    }
 
     return warnings;
 }

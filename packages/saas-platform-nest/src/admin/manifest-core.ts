@@ -27,7 +27,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
         // section, see `DEFAULT_NAV_SECTIONS` in the nav-builder). The order per
         // section is deliberately curated:
         //   Overview: dashboard
-        //   Product catalog: discovery → bundles → businessTypes → plans →
+        //   Product catalog: discovery → bundles → plans →
         //                   planVersions → marketingCatalog → promoCodes
         //                   (promoCodes is appended by the app contributions
         //                   and therefore lands at the end of the section)
@@ -43,12 +43,6 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             // SPEC_V2 §11.1 M3 — Bundle editor in SuperAdmin.
             // Apps with a DB-driven catalog set `bundles.read = true`.
             bundles: { enabled: true, requiredCapability: 'bundles.read' },
-            // SPEC_V2 §11.1 M3 — BusinessType editor in SuperAdmin.
-            // Apps with domain verticals set `businessTypes.read = true`.
-            businessTypes: {
-                enabled: true,
-                requiredCapability: 'businessTypes.read',
-            },
             plans: { enabled: true, requiredCapability: 'plans.read' },
             planVersions: { enabled: true, requiredCapability: 'plans.read' },
             // SPEC_V2 §11.1 M3 — marketing catalog (locale pivot).

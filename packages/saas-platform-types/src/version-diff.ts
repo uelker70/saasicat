@@ -51,22 +51,6 @@ export interface BundleVersionFields {
     yearlyNet: DecimalLike | null;
 }
 
-export interface BusinessTypeVersionFields {
-    /**
-     * Ordered list of the referenced bundles. Only `bundleVersionId`
-     * is relevant for the diff (order is derived via sortOrder,
-     * if present). Structurally compatible with
-     * `BusinessTypeVersionRow.bundles`, so the UI can call the classifier
-     * directly with row values.
-     */
-    bundles: Array<{ bundleVersionId: string }>;
-    /** Quota overrides; missing key = Σ(bundle quotas), a set key replaces. */
-    quotaOverrides: Partial<Record<QuotaKey, number>>;
-    /** null = Σ(bundle prices); set = override. */
-    monthlyNet: DecimalLike | null;
-    yearlyNet: DecimalLike | null;
-}
-
 export function classifyPlanDiff(oldV: PlanVersionFields, newV: PlanVersionFields): DiffResult {
     const changes: VersionChange[] = [];
 
@@ -90,76 +74,6 @@ export function classifyPlanDiff(oldV: PlanVersionFields, newV: PlanVersionField
     appendDecimalChange(changes, 'yearlyNet', oldV.yearlyNet, newV.yearlyNet, 'lowerIsBetter');
 
     return buildResult(changes);
-}
-
-/**
- * Classification of a BusinessTypeVersion diff.
- *
- * - Bundle composition: added/removed (analogous to features). Adding a
- *   bundle is IMPROVEMENT, removing is REGRESSION.
- * - QuotaOverrides: comparison as with BundleVersion (-1 = unlimited).
- * - Pricing: override value ↔ null as with BundleVersion.
- */
-export function classifyBusinessTypeVersionDiff(
-    oldV: BusinessTypeVersionFields,
-    newV: BusinessTypeVersionFields,
-): DiffResult {
-    const changes: VersionChange[] = [];
-
-    appendBundleCompositionChanges(
-        changes,
-        oldV.bundles.map((b) => b.bundleVersionId),
-        newV.bundles.map((b) => b.bundleVersionId),
-    );
-    appendQuotaChanges(
-        changes,
-        oldV.quotaOverrides as Record<string, number>,
-        newV.quotaOverrides as Record<string, number>,
-    );
-    appendNullableDecimalChange(
-        changes,
-        'monthlyNet',
-        oldV.monthlyNet,
-        newV.monthlyNet,
-        'lowerIsBetter',
-    );
-    appendNullableDecimalChange(
-        changes,
-        'yearlyNet',
-        oldV.yearlyNet,
-        newV.yearlyNet,
-        'lowerIsBetter',
-    );
-
-    return buildResult(changes);
-}
-
-function appendBundleCompositionChanges(
-    out: VersionChange[],
-    oldIds: string[],
-    newIds: string[],
-): void {
-    const oldSet = new Set(oldIds);
-    const newSet = new Set(newIds);
-    const removed = oldIds.filter((id) => !newSet.has(id));
-    const added = newIds.filter((id) => !oldSet.has(id));
-
-    if (removed.length > 0) {
-        out.push({
-            field: 'bundles.removed',
-            oldValue: removed,
-            newValue: [],
-            direction: 'REGRESSION',
-        });
-    }
-    if (added.length > 0) {
-        out.push({
-            field: 'bundles.added',
-            oldValue: [],
-            newValue: added,
-            direction: 'IMPROVEMENT',
-        });
-    }
 }
 
 /**

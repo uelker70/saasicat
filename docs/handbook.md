@@ -38,7 +38,7 @@ A ready-built SuperAdmin layer for your app:
 
 - **Tenant management** (listing, detail, suspend/reactivate, impersonate, export).
 - **Plans & plan versions** (CRUD incl. plan editor, audit, bundle persistence).
-- **Bundles & business types** (versioned product options, marketing projection).
+- **Bundles** (versioned add-ons with marketing projections).
 - **Discovery loop** (code declares capabilities/features/quotas via decorators → the platform
   scans → SuperAdmin reviews → released entries are translated in the marketing catalog
   and mapped to plans).
@@ -250,7 +250,6 @@ Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 | `TenantsPage` / `TenantDetailPage`       | Tenant management + actions                                |
 | `PlansPage` / `PlanVersionsPage`         | Plans, plan editor, version diff                           |
 | `BundlesPage`                            | Bundle/BundleVersion CRUD                                  |
-| `BusinessTypesPage`                      | Business types (optionally enabled via the manifest)       |
 | `DiscoveryPage`                          | Capability/feature/quota review with lifecycle transitions |
 | `MarketingCatalogPage`                   | i18n marketing texts + pricing actions                     |
 | `SubscriptionsPage`                      | Contract management (V3)                                   |
@@ -385,7 +384,6 @@ step 5); the unmarked rows are still consumer-written today.
 | `PrismaPlanCatalogReadSink` **(ships)**           | `PlanCatalogReadSink`            | **Boot read-only** snapshot of plans + versions; set the RLS bypass context! |
 | `PrismaPlanRepository`                            | `PlanRepository`                 | CRUD for `plan` + `catalogPlanVersion` (consumed by the SuperAdmin UI)       |
 | `PrismaBundleRepository`                          | `BundleRepository`               | CRUD for `catalogBundle` + `catalogBundleVersion`                            |
-| `PrismaBusinessTypeRepository`                    | `BusinessTypeRepository`         | CRUD for `catalogBusinessType` + `catalogBusinessTypeVersion`                |
 | `PrismaCatalogEntryRepository`                    | `CatalogEntryRepository`         | Lifecycle transitions + i18n storage for capability/feature/quota            |
 | `PrismaMarketingProjectionRepository`             | `MarketingProjectionRepository`  | i18n marketing texts (label, description, highlights per locale)             |
 | `PrismaMarketingSettingsRepository`               | `MarketingSettingsRepository`    | Active locales                                                               |
@@ -458,7 +456,6 @@ export class PlatformAdaptersModule {}
 
         CatalogModule.forRoot({
             bundleRepository: { useExisting: PrismaBundleRepository },
-            businessTypeRepository: { useExisting: PrismaBusinessTypeRepository },
             catalogEntryRepository: { useExisting: PrismaCatalogEntryRepository },
             marketingProjectionRepository: { useExisting: PrismaMarketingProjectionRepository },
             planRepository: { useExisting: PrismaPlanRepository },
@@ -568,7 +565,6 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
         standardPages: {
             subscriptions: { enabled: false, requiredCapability: 'subscriptions.read' },
             planVersions: { enabled: false }, // integrated in the Plans cockpit
-            businessTypes: { enabled: false },
         },
         projectPages: [
             {
