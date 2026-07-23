@@ -48,9 +48,7 @@ export interface UseTenantManifestResult {
 
 export function useTenantManifest(options: UseTenantManifestOptions): UseTenantManifestResult {
     if (!options?.endpoint) {
-        throw new Error(
-            'useTenantManifest: `endpoint` ist Pflicht (z. B. "/api/tenant/manifest").',
-        );
+        throw new Error('useTenantManifest: `endpoint` is required (e.g. "/api/tenant/manifest").');
     }
     const http = options.http ?? defaultHttpClient();
     const manifest = ref<TenantManifestShape | null>(null);

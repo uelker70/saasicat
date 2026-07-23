@@ -65,9 +65,9 @@ export class ManifestLoader {
     constructor(options: ManifestLoaderOptions) {
         if (!options?.endpoint) {
             throw new Error(
-                'ManifestLoader: `endpoint` ist Pflicht (z. B. "/api/admin/manifest" ' +
-                    'oder "/api/v1/admin/manifest"). Plattform hat keinen Default, ' +
-                    'weil Apps unterschiedliche globalPrefix-Konventionen haben.',
+                'ManifestLoader: `endpoint` is required (e.g. "/api/admin/manifest" ' +
+                    'or "/api/v1/admin/manifest"). The platform has no default ' +
+                    'because apps use different globalPrefix conventions.',
             );
         }
         this.endpoint = options.endpoint;
@@ -97,7 +97,7 @@ export class ManifestLoader {
             if (!cachedBody) {
                 throw new ManifestLoadError(
                     304,
-                    'Server lieferte 304, aber Cache-Body fehlt — bitte clearCache() + reload',
+                    'Server returned 304 but the cache body is missing — call clearCache() and reload',
                 );
             }
             return cachedBody.body;

@@ -29,6 +29,4 @@ test('normative constraints are part of the reference schema', () => {
     );
     assert.match(sql, /plan_versions_draft_per_plan/);
     assert.match(sql, /bundle_versions_draft_per_bundle/);
-    assert.match(sql, /business_type_versions_draft_per_business_type/);
-    assert.match(sql, /subscriptions_plan_or_bt_check/);
 });

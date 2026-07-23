@@ -3,25 +3,28 @@
         <!-- Head -->
         <div class="mc-promo-head">
             <div class="mc-promo-head-text">
-                <div class="mc-promo-title">Aktionen &amp; Rabatte</div>
-                <div class="mc-promo-subtitle">
-                    Zeitlich begrenzte Preis-Aktionen — überschreiben den regulären Preis auf der
-                    Pricing-Page (SPEC_V2 §9a).
-                </div>
+                <div class="mc-promo-title">{{ msg.promotionsTab.title }}</div>
+                <div class="mc-promo-subtitle">{{ msg.promotionsTab.subtitle }}</div>
             </div>
             <div class="mc-promo-stats">
-                <span class="mc-promo-stat active">{{ counts.active }} aktiv</span>
-                <span class="mc-promo-stat scheduled">{{ counts.scheduled }} geplant</span>
-                <span class="mc-promo-stat expired">{{ counts.expired }} abgelaufen</span>
+                <span class="mc-promo-stat active">
+                    {{ counts.active }} {{ msg.promotionsTab.statusActive }}
+                </span>
+                <span class="mc-promo-stat scheduled">
+                    {{ counts.scheduled }} {{ msg.promotionsTab.statusScheduled }}
+                </span>
+                <span class="mc-promo-stat expired">
+                    {{ counts.expired }} {{ msg.promotionsTab.statusExpired }}
+                </span>
             </div>
             <button class="mc-promo-add" type="button" :disabled="busy" @click="onAdd">
-                + Aktion anlegen
+                {{ msg.promotionsTab.add }}
             </button>
         </div>
 
         <!-- Timeline -->
         <div v-if="promotions.length > 0" class="mc-promo-timeline">
-            <div class="mc-promo-timeline-head">Aktions-Timeline · gestrichelt = heute</div>
+            <div class="mc-promo-timeline-head">{{ msg.promotionsTab.timelineHead }}</div>
             <div class="mc-promo-timeline-chart" :style="{ height: `${timelineHeight}px` }">
                 <div
                     v-for="t in ticks"
@@ -32,7 +35,7 @@
                     <span class="mc-promo-tick-label">{{ t.label }}</span>
                 </div>
                 <div class="mc-promo-today" :style="{ left: `${todayX}%` }">
-                    <span>heute</span>
+                    <span>{{ msg.promotionsTab.today }}</span>
                 </div>
                 <div
                     v-for="bar in bars"
@@ -54,8 +57,8 @@
         </div>
 
         <div v-if="promotions.length === 0" class="mc-promo-empty">
-            Noch keine Aktionen. Über <strong>+ Aktion anlegen</strong> eine zeitgesteuerte
-            Preis-Aktion erstellen.
+            {{ msg.promotionsTab.emptyBefore }} <strong>{{ msg.promotionsTab.add }}</strong>
+            {{ msg.promotionsTab.emptyAfter }}
         </div>
 
         <!-- List -->
@@ -72,7 +75,7 @@
                         <div class="mc-promo-row-sub">
                             <span class="mc-promo-typechip">{{ typeChip(p) }}</span>
                             <span v-if="p.appliesTo.length === 0" class="mc-promo-muted">
-                                — keine Pläne —
+                                {{ msg.promotionsTab.noPlans }}
                             </span>
                             <span v-for="k in p.appliesTo" :key="k" class="mc-promo-planchip">
                                 {{ k }}
@@ -84,7 +87,8 @@
                         <span class="mc-promo-cycle">
                             {{ cycleLabel(p.billingCycle) }}
                             <template v-if="p.onlyLocales">
-                                · nur {{ p.onlyLocales.join(', ').toUpperCase() }}
+                                · {{ msg.promotionsTab.onlyPrefix }}
+                                {{ p.onlyLocales.join(', ').toUpperCase() }}
                             </template>
                         </span>
                     </div>
@@ -97,17 +101,19 @@
                 <div v-if="expandedId === p.id" class="mc-promo-editor">
                     <div class="mc-promo-editor-grid">
                         <div class="mc-promo-editor-col">
-                            <label class="mc-promo-label">Interne Bezeichnung</label>
+                            <label class="mc-promo-label">
+                                {{ msg.promotionsTab.internalLabelLabel }}
+                            </label>
                             <input
                                 class="mc-promo-input"
                                 :value="p.internalLabel"
                                 @change="patch(p, { internalLabel: inputVal($event) })"
                             />
 
-                            <label class="mc-promo-label">Typ</label>
+                            <label class="mc-promo-label">{{ common.type }}</label>
                             <div class="mc-promo-typegrid">
                                 <button
-                                    v-for="t in TYPE_OPTIONS"
+                                    v-for="t in typeOptions"
                                     :key="t.id"
                                     type="button"
                                     class="mc-promo-typeopt"
@@ -118,7 +124,7 @@
                                 </button>
                             </div>
 
-                            <label class="mc-promo-label">Wert</label>
+                            <label class="mc-promo-label">{{ msg.promotionsTab.valueLabel }}</label>
                             <div class="mc-promo-valrow">
                                 <template v-if="p.type === 'percent' || p.type === 'amount'">
                                     <input
@@ -128,39 +134,55 @@
                                         @change="patch(p, { value: numInput($event) })"
                                     />
                                     <span class="mc-promo-muted">
-                                        {{ p.type === 'percent' ? '% Rabatt' : '€ Festbetrag' }}
+                                        {{
+                                            p.type === 'percent'
+                                                ? msg.promotionsTab.percentUnit
+                                                : msg.promotionsTab.amountUnit
+                                        }}
                                     </span>
                                 </template>
                                 <template v-else-if="p.type === 'intro'">
-                                    <span class="mc-promo-muted">für</span>
+                                    <span class="mc-promo-muted">
+                                        {{ msg.promotionsTab.introForPrefix }}
+                                    </span>
                                     <input
                                         class="mc-promo-input mc-promo-input--sm"
                                         type="number"
                                         :value="introMonths(p)"
                                         @change="patchIntro(p, 'months', numInput($event))"
                                     />
-                                    <span class="mc-promo-muted">Monate à</span>
+                                    <span class="mc-promo-muted">
+                                        {{ msg.promotionsTab.introMonthsUnit }}
+                                    </span>
                                     <input
                                         class="mc-promo-input mc-promo-input--sm"
                                         type="number"
                                         :value="introPrice(p)"
                                         @change="patchIntro(p, 'price', numInput($event))"
                                     />
-                                    <span class="mc-promo-muted">€/Mo</span>
+                                    <span class="mc-promo-muted">
+                                        {{ msg.promotionsTab.introPriceUnit }}
+                                    </span>
                                 </template>
                                 <template v-else>
-                                    <span class="mc-promo-muted">erste</span>
+                                    <span class="mc-promo-muted">
+                                        {{ msg.promotionsTab.freeMonthsPrefix }}
+                                    </span>
                                     <input
                                         class="mc-promo-input mc-promo-input--sm"
                                         type="number"
                                         :value="numValue(p)"
                                         @change="patch(p, { value: numInput($event) })"
                                     />
-                                    <span class="mc-promo-muted">Monate gratis</span>
+                                    <span class="mc-promo-muted">
+                                        {{ msg.promotionsTab.freeMonthsUnit }}
+                                    </span>
                                 </template>
                             </div>
 
-                            <label class="mc-promo-label">Gültigkeit</label>
+                            <label class="mc-promo-label">
+                                {{ common.validity }}
+                            </label>
                             <div class="mc-promo-valrow">
                                 <input
                                     class="mc-promo-input"
@@ -177,10 +199,12 @@
                                 />
                             </div>
 
-                            <label class="mc-promo-label">Abrechnungs-Zyklus</label>
+                            <label class="mc-promo-label">
+                                {{ msg.promotionsTab.billingCycleLabel }}
+                            </label>
                             <div class="mc-promo-typegrid">
                                 <button
-                                    v-for="c in CYCLE_OPTIONS"
+                                    v-for="c in cycleOptions"
                                     :key="c.id"
                                     type="button"
                                     class="mc-promo-typeopt"
@@ -191,7 +215,9 @@
                                 </button>
                             </div>
 
-                            <label class="mc-promo-label">Priorität</label>
+                            <label class="mc-promo-label">
+                                {{ msg.promotionsTab.priorityLabel }}
+                            </label>
                             <input
                                 class="mc-promo-input mc-promo-input--sm"
                                 type="number"
@@ -201,7 +227,9 @@
                         </div>
 
                         <div class="mc-promo-editor-col">
-                            <label class="mc-promo-label">Betroffene Pläne</label>
+                            <label class="mc-promo-label">
+                                {{ msg.promotionsTab.appliesToLabel }}
+                            </label>
                             <div class="mc-promo-planlist">
                                 <button
                                     v-for="pl in plans"
@@ -216,7 +244,9 @@
                                 </button>
                             </div>
 
-                            <label class="mc-promo-label">Sprach-Beschränkung</label>
+                            <label class="mc-promo-label">
+                                {{ msg.promotionsTab.localeRestrictionLabel }}
+                            </label>
                             <div class="mc-promo-typegrid">
                                 <button
                                     type="button"
@@ -224,7 +254,7 @@
                                     :class="{ active: !p.onlyLocales }"
                                     @click="patch(p, { onlyLocales: null })"
                                 >
-                                    alle Sprachen
+                                    {{ msg.promotionsTab.allLocales }}
                                 </button>
                                 <button
                                     v-for="l in activeLocales"
@@ -234,28 +264,30 @@
                                     :class="{ active: p.onlyLocales?.includes(l) }"
                                     @click="toggleLocale(p, l)"
                                 >
-                                    nur {{ l.toUpperCase() }}
+                                    {{ msg.promotionsTab.onlyPrefix }} {{ l.toUpperCase() }}
                                 </button>
                             </div>
 
-                            <label class="mc-promo-label">Übersetzungen</label>
+                            <label class="mc-promo-label">
+                                {{ msg.promotionsTab.translationsLabel }}
+                            </label>
                             <div v-for="l in activeLocales" :key="l" class="mc-promo-i18n-block">
                                 <span class="mc-promo-i18n-code">{{ l.toUpperCase() }}</span>
                                 <input
                                     class="mc-promo-input"
-                                    placeholder="Badge-Text"
+                                    :placeholder="msg.promotionsTab.badgePlaceholder"
                                     :value="p.i18n?.[l]?.badge || ''"
                                     @change="patchI18n(p, l, 'badge', inputVal($event))"
                                 />
                                 <input
                                     class="mc-promo-input"
-                                    placeholder="Fineprint (unter dem CTA)"
+                                    :placeholder="msg.promotionsTab.fineprintPlaceholder"
                                     :value="p.i18n?.[l]?.fineprint || ''"
                                     @change="patchI18n(p, l, 'fineprint', inputVal($event))"
                                 />
                             </div>
 
-                            <label class="mc-promo-label">Farbe</label>
+                            <label class="mc-promo-label">{{ msg.promotionsTab.colorLabel }}</label>
                             <div class="mc-promo-colors">
                                 <button
                                     v-for="c in COLORS"
@@ -269,7 +301,7 @@
                             </div>
 
                             <button class="mc-promo-delete" type="button" @click="onRemove(p)">
-                                Aktion löschen
+                                {{ msg.promotionsTab.delete }}
                             </button>
                         </div>
                     </div>
@@ -290,6 +322,8 @@ import {
     type PromotionType,
     type UpdatePromotionData,
 } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Promotions tab of the Marketing Catalog (SPEC_V2 §9a). Standalone child
 // component — the MarketingCatalogPage wires `usePromotions` and passes the
@@ -309,20 +343,24 @@ const props = defineProps<{
     projectKey: string;
 }>();
 
+const msg = useSaMessages('marketing');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
+
 const busy = computed(() => props.busy ?? false);
 const expandedId = ref<string | null>(null);
 
-const TYPE_OPTIONS: Array<{ id: PromotionType; label: string }> = [
-    { id: 'percent', label: 'Prozent-Rabatt' },
-    { id: 'amount', label: 'Festbetrag' },
-    { id: 'intro', label: 'Einführungspreis' },
-    { id: 'freeMonths', label: 'Gratis-Monate' },
-];
-const CYCLE_OPTIONS: Array<{ id: PromotionBillingCycle; label: string }> = [
-    { id: 'monthly', label: 'Monatlich' },
-    { id: 'yearly', label: 'Jährlich' },
-    { id: 'both', label: 'Beide' },
-];
+const typeOptions = computed<Array<{ id: PromotionType; label: string }>>(() => [
+    { id: 'percent', label: msg.value.promotionsTab.typePercent },
+    { id: 'amount', label: msg.value.promotionsTab.typeAmount },
+    { id: 'intro', label: msg.value.promotionsTab.typeIntro },
+    { id: 'freeMonths', label: msg.value.promotionsTab.typeFreeMonths },
+]);
+const cycleOptions = computed<Array<{ id: PromotionBillingCycle; label: string }>>(() => [
+    { id: 'monthly', label: common.value.monthly },
+    { id: 'yearly', label: common.value.yearly },
+    { id: 'both', label: common.value.both },
+]);
 const COLORS = ['#10b981', '#dc2626', '#f59e0b', '#2563eb', '#7c3aed', '#0f172a'];
 
 const today = new Date();
@@ -331,7 +369,9 @@ function statusOf(p: PromotionRow): PromotionStatus {
     return promoStatus(p, today);
 }
 function statusLabel(s: PromotionStatus): string {
-    return s === 'active' ? 'aktiv' : s === 'scheduled' ? 'geplant' : 'abgelaufen';
+    if (s === 'active') return msg.value.promotionsTab.statusActive;
+    if (s === 'scheduled') return msg.value.promotionsTab.statusScheduled;
+    return msg.value.promotionsTab.statusExpired;
 }
 
 const counts = computed(() => ({
@@ -353,13 +393,20 @@ function typeChip(p: PromotionRow): string {
     if (p.type === 'percent' && typeof p.value === 'number') return `−${p.value}%`;
     if (p.type === 'amount' && typeof p.value === 'number') return `−${p.value} €`;
     if (p.type === 'intro' && typeof p.value === 'object') {
-        return `${p.value.price} € · ${p.value.months} Mo.`;
+        return formatMessage(msg.value.promotionsTab.chipIntro, {
+            price: p.value.price,
+            months: p.value.months,
+        });
     }
-    if (p.type === 'freeMonths' && typeof p.value === 'number') return `${p.value} Mo. gratis`;
+    if (p.type === 'freeMonths' && typeof p.value === 'number') {
+        return formatMessage(msg.value.promotionsTab.chipFreeMonths, { months: p.value });
+    }
     return p.type;
 }
 function cycleLabel(c: PromotionBillingCycle): string {
-    return c === 'both' ? 'mtl. & jährl.' : c === 'monthly' ? 'mtl.' : 'jährl.';
+    if (c === 'both') return msg.value.promotionsTab.cycleBothShort;
+    if (c === 'monthly') return msg.value.promotionsTab.cycleMonthlyShort;
+    return msg.value.promotionsTab.cycleYearlyShort;
 }
 
 // ─── Timeline ───
@@ -386,6 +433,12 @@ function pct(d: Date | string): number {
     return Math.max(0, Math.min(100, v));
 }
 const todayX = computed(() => pct(today));
+function tickLabel(d: Date): string {
+    const month = new Date(d.getFullYear(), d.getMonth(), 1).toLocaleDateString(intlLocale.value, {
+        month: 'short',
+    });
+    return `${month} ${d.getFullYear()}`;
+}
 const ticks = computed(() => {
     const out: Array<{ x: number; label: string }> = [];
     const start = axisStart.value;
@@ -393,10 +446,7 @@ const ticks = computed(() => {
     const d = new Date(Date.UTC(start.getFullYear(), start.getMonth(), 1));
     while (d <= end) {
         if (d.getMonth() % 3 === 0) {
-            out.push({
-                x: pct(d),
-                label: `${['Jan', 'Apr', 'Jul', 'Okt'][d.getMonth() / 3]} ${d.getFullYear()}`,
-            });
+            out.push({ x: pct(d), label: tickLabel(d) });
         }
         d.setMonth(d.getMonth() + 1);
     }
@@ -492,7 +542,7 @@ function patchI18n(
 async function onAdd(): Promise<void> {
     const created = await props.create({
         projectKey: props.projectKey,
-        internalLabel: 'Neue Aktion',
+        internalLabel: msg.value.promotionsTab.newPromotionLabel,
         type: 'percent',
         value: 10,
         appliesTo: [],
@@ -507,7 +557,10 @@ async function onAdd(): Promise<void> {
 }
 
 async function onRemove(p: PromotionRow): Promise<void> {
-    if (!window.confirm(`Aktion „${p.internalLabel}“ wirklich löschen?`)) return;
+    const question = formatMessage(msg.value.promotionsTab.deleteConfirm, {
+        label: p.internalLabel,
+    });
+    if (!window.confirm(question)) return;
     if (expandedId.value === p.id) expandedId.value = null;
     await props.remove(p.id);
 }

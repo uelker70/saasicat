@@ -1,9 +1,6 @@
 <template>
     <div class="bv-compat">
-        <div class="bv-compat-hint">
-            Pläne, mit denen dieses Bundle als Add-On gebucht werden kann. Features/Quotas, die der
-            Plan bereits enthält, werden als Überschneidung markiert (Doppel-Berechnung).
-        </div>
+        <div class="bv-compat-hint">{{ msg.compatPicker.hint }}</div>
         <div class="bv-compat-grid">
             <button
                 v-for="entry in entries"
@@ -17,10 +14,10 @@
                 :disabled="locked"
                 :title="
                     locked
-                        ? 'Live-Version ist read-only'
+                        ? msg.compatPicker.lockedTooltip
                         : selectedKeys.includes(entry.plan.planKey)
-                          ? 'Plan-Kompatibilität entfernen'
-                          : 'Plan-Kompatibilität setzen'
+                          ? msg.compatPicker.removeTooltip
+                          : msg.compatPicker.addTooltip
                 "
                 @click="onToggle(entry.plan.planKey)"
             >
@@ -48,9 +45,11 @@
                     </span>
                 </div>
                 <div v-if="showOverlap(entry)" class="bv-compat-overlap">
-                    <div class="bv-compat-overlap-head">⚠ Überschneidung</div>
+                    <div class="bv-compat-overlap-head">{{ msg.compatPicker.overlapHead }}</div>
                     <div v-if="entry.overlap.features.length > 0" class="bv-compat-overlap-list">
-                        <span class="bv-compat-overlap-kind">Features:</span>
+                        <span class="bv-compat-overlap-kind">
+                            {{ msg.compatPicker.overlapFeatures }}
+                        </span>
                         <span
                             v-for="fk in entry.overlap.features"
                             :key="fk"
@@ -60,7 +59,9 @@
                         </span>
                     </div>
                     <div v-if="entry.overlap.quotas.length > 0" class="bv-compat-overlap-list">
-                        <span class="bv-compat-overlap-kind">Quotas:</span>
+                        <span class="bv-compat-overlap-kind">
+                            {{ msg.compatPicker.overlapQuotas }}
+                        </span>
                         <span
                             v-for="qk in entry.overlap.quotas"
                             :key="qk"
@@ -72,15 +73,16 @@
                 </div>
             </button>
             <div v-if="plans.length === 0" class="bv-compat-empty">
-                Keine Pläne vorhanden — der Plan-Stamm muss zuerst angelegt werden.
+                {{ msg.compatPicker.empty }}
             </div>
         </div>
         <div v-if="overlapCount > 0" class="bv-compat-summary">
             <span class="bv-compat-summary-ico">⚠</span>
             <span>
-                <b>{{ overlapCount }}</b> Plan{{ overlapCount === 1 ? '' : 'e' }} mit Überschneidung
-                — Features/Quotas dieses Bundles sind im Plan bereits enthalten. Vor Publish
-                entweder das Bundle oder den Plan bereinigen.
+                <b>{{ overlapCount }}</b>
+                {{
+                    overlapCount === 1 ? msg.compatPicker.summaryOne : msg.compatPicker.summaryMany
+                }}
             </span>
         </div>
     </div>
@@ -94,6 +96,7 @@ import { findBundlePlanOverlap, type BundlePlanOverlap } from './bundle-version-
 
 import type { FeatureMeta } from './BundleFeaturesEditor.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // BundlePlanCompatPicker — multi-select of the plans this bundle may be
 // booked with as an add-on (plan-bundle visibility, after plan
@@ -131,6 +134,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'toggle', planKey: string): void;
 }>();
+
+const msg = useSaMessages('bundles');
 
 const entries = computed<CompatEntry[]>(() =>
     props.plans.map((plan) => ({

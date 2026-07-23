@@ -1,15 +1,12 @@
 <template>
     <div class="mc-page-head">
         <div>
-            <h2 class="mc-h-title">Marketing-Catalog</h2>
-            <p class="mc-h-sub">
-                Öffentliche Marketing-Projektion · gefilterte Sicht für Website, Pricing-Page und
-                Checkout
-            </p>
+            <h2 class="mc-h-title">{{ msg.header.title }}</h2>
+            <p class="mc-h-sub">{{ msg.header.subtitle }}</p>
         </div>
         <div class="mc-head-actions">
             <div class="mc-locale-mgr">
-                <span class="mc-locale-mgr-label">Sprachen:</span>
+                <span class="mc-locale-mgr-label">{{ msg.header.localesLabel }}</span>
                 <span
                     v-for="loc in activeLocaleSet"
                     :key="loc"
@@ -22,13 +19,15 @@
                         @click="$emit('localeChange', loc)"
                     >
                         {{ loc.toUpperCase() }}
-                        <span v-if="loc === defaultLocale" title="Default-Sprache">★</span>
+                        <span v-if="loc === defaultLocale" :title="msg.header.defaultLocale"
+                            >★</span
+                        >
                     </button>
                     <button
                         v-if="loc !== defaultLocale"
                         type="button"
                         class="mc-locale-x"
-                        title="Sprache deaktivieren"
+                        :title="msg.header.deactivateLocale"
                         @click="$emit('removeLocale', loc)"
                     >
                         ×
@@ -41,7 +40,7 @@
                         :disabled="addableLocales.length === 0"
                         @click="$emit('update:localePickerOpen', !localePickerOpen)"
                     >
-                        + Sprache
+                        {{ msg.header.addLocale }}
                     </button>
                     <div v-if="localePickerOpen" class="mc-locale-picker">
                         <button
@@ -67,13 +66,15 @@
                 >
                     <path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6" />
                 </svg>
-                <span>Aktualisieren</span>
+                <span>{{ msg.header.refresh }}</span>
             </button>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+
 defineProps<{
     activeLocaleSet: string[];
     activeLocale: string;
@@ -90,4 +91,6 @@ defineEmits<{
     (e: 'update:localePickerOpen', value: boolean): void;
     (e: 'reload'): void;
 }>();
+
+const msg = useSaMessages('marketing');
 </script>

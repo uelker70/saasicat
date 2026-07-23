@@ -56,9 +56,14 @@ export interface PrismaPersistenceOptions {
  * });
  * ```
  *
- * Slices not shipped by this adapter (contracts, bundles, registration,
- * tenant-billing write ports) stay absent — consumers keep providing custom
- * adapters for those features.
+ * This bundle covers the core/entitlement/promo/plan-catalog slices consumed
+ * by `SaasPlatformModule`. The catalog plane (CatalogModule) and the V3
+ * contract loop take their repositories directly as `forRoot` options — wire
+ * the standalone `PrismaPlanRepository` / `PrismaBundleRepository` /
+ * `PrismaCatalogEntryRepository` /
+ * `PrismaMarketingProjectionRepository` / `PrismaMarketingSettingsRepository` /
+ * `PrismaPromotionRepository` / `PrismaSubscriptionContractRepository` exports
+ * there. The registration and tenant-billing write ports remain app-specific.
  */
 export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPersistenceAdapter {
     const { client } = options;
@@ -105,9 +110,7 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
 }
 
 function isInjectionToken(value: unknown): value is PersistenceInjectionToken {
-    return (
-        typeof value === 'function' || typeof value === 'symbol' || typeof value === 'string'
-    );
+    return typeof value === 'function' || typeof value === 'symbol' || typeof value === 'string';
 }
 
 function buildProvisioning(

@@ -7,13 +7,8 @@
         <q-card class="pl-dlg">
             <q-card-section class="pl-dlg__head">
                 <div>
-                    <div class="pl-dlg__title">Pilot-Mandant anlegen</div>
-                    <div class="pl-dlg__sub">
-                        {{
-                            subtitle ??
-                            'Neuer Mandant + Initial-Admin werden in einem Schritt angelegt.'
-                        }}
-                    </div>
+                    <div class="pl-dlg__title">{{ msg.createDialog.title }}</div>
+                    <div class="pl-dlg__sub">{{ subtitle ?? msg.createDialog.subtitle }}</div>
                 </div>
                 <q-btn
                     class="pl-dlg__close"
@@ -32,7 +27,9 @@
                     <header class="pl-section__head">
                         <span class="pl-section__num">1</span>
                         <div>
-                            <div class="pl-section__title">Mandant</div>
+                            <div class="pl-section__title">
+                                {{ msg.createDialog.sectionTenant }}
+                            </div>
                             <div class="pl-section__sub">{{ copy.tenantSubtitle }}</div>
                         </div>
                     </header>
@@ -49,10 +46,8 @@
 
                         <div class="pl-field pl-field--full">
                             <label>
-                                Slug
-                                <span class="pl-field__hint"
-                                    >wird automatisch aus dem Namen erzeugt</span
-                                >
+                                {{ msg.form.slugLabel }}
+                                <span class="pl-field__hint">{{ msg.form.slugHint }}</span>
                             </label>
                             <div class="pl-slug-input">
                                 <span v-if="slugPrefix" class="pl-slug-input__prefix">{{
@@ -66,27 +61,27 @@
                                 />
                             </div>
                             <div v-if="slugConflict" class="pl-field__error">
-                                Dieser Slug ist bereits vergeben.
+                                {{ msg.form.slugConflict }}
                             </div>
                         </div>
 
                         <div v-if="showLegalFields" class="pl-field">
-                            <label>Rechtsform</label>
+                            <label>{{ msg.createDialog.legalFormLabel }}</label>
                             <input
                                 v-model="form.tenant.legalForm"
                                 class="pl-input"
-                                placeholder="e.V., GmbH, …"
+                                :placeholder="msg.createDialog.legalFormPlaceholder"
                             />
                         </div>
                         <div v-if="showLegalFields" class="pl-field">
                             <label>
-                                USt-IdNr.
-                                <span class="pl-field__hint">optional</span>
+                                {{ msg.createDialog.vatIdLabel }}
+                                <span class="pl-field__hint">{{ msg.createDialog.vatIdHint }}</span>
                             </label>
                             <input
                                 v-model="form.tenant.vatId"
                                 class="pl-input"
-                                placeholder="DE123456789"
+                                :placeholder="msg.createDialog.vatIdPlaceholder"
                             />
                         </div>
                     </div>
@@ -98,15 +93,15 @@
                     <header class="pl-section__head">
                         <span class="pl-section__num">2</span>
                         <div>
-                            <div class="pl-section__title">Initial-Admin</div>
+                            <div class="pl-section__title">{{ msg.createDialog.sectionAdmin }}</div>
                             <div class="pl-section__sub">
-                                Erhält eine Einladungs-E-Mail mit Initial-Passwort.
+                                {{ msg.createDialog.sectionAdminSub }}
                             </div>
                         </div>
                     </header>
                     <div class="pl-grid">
                         <div class="pl-field pl-field--full">
-                            <label>E-Mail</label>
+                            <label>{{ msg.createDialog.emailLabel }}</label>
                             <input
                                 v-model="form.admin.email"
                                 class="pl-input"
@@ -115,36 +110,36 @@
                                 :placeholder="copy.adminEmailPlaceholder"
                             />
                             <div v-if="form.admin.email && !emailValid" class="pl-field__error">
-                                Bitte eine gültige E-Mail-Adresse eingeben.
+                                {{ msg.createDialog.emailInvalid }}
                             </div>
                         </div>
                         <div class="pl-field">
-                            <label>Vorname</label>
+                            <label>{{ msg.createDialog.firstNameLabel }}</label>
                             <input
                                 v-model="form.admin.firstName"
                                 class="pl-input"
-                                placeholder="Erika"
+                                :placeholder="msg.createDialog.firstNamePlaceholder"
                             />
                         </div>
                         <div class="pl-field">
-                            <label>Nachname</label>
+                            <label>{{ msg.createDialog.lastNameLabel }}</label>
                             <input
                                 v-model="form.admin.lastName"
                                 class="pl-input"
-                                placeholder="Mustermann"
+                                :placeholder="msg.createDialog.lastNamePlaceholder"
                             />
                         </div>
                         <div class="pl-field pl-field--full">
                             <label>
-                                Initial-Passwort
-                                <span class="pl-field__hint"
-                                    >leer lassen → automatisch generieren</span
-                                >
+                                {{ msg.createDialog.initialPasswordLabel }}
+                                <span class="pl-field__hint">{{
+                                    msg.createDialog.initialPasswordHint
+                                }}</span>
                             </label>
                             <input
                                 v-model="form.admin.initialPassword"
                                 class="pl-input"
-                                placeholder="•••••••• (automatisch generieren)"
+                                :placeholder="msg.createDialog.initialPasswordPlaceholder"
                             />
                         </div>
                     </div>
@@ -155,15 +150,15 @@
                     <header class="pl-section__head">
                         <span class="pl-section__num">3</span>
                         <div>
-                            <div class="pl-section__title">Pilot-Konfiguration</div>
+                            <div class="pl-section__title">{{ msg.createDialog.sectionPilot }}</div>
                             <div class="pl-section__sub">
-                                Plan-Zuweisung, Laufzeit und interne Notiz
+                                {{ msg.createDialog.sectionPilotSub }}
                             </div>
                         </div>
                     </header>
                     <div class="pl-grid">
                         <div class="pl-field">
-                            <label>Plan</label>
+                            <label>{{ msg.form.planLabel }}</label>
                             <div class="pl-plan-select">
                                 <button
                                     v-for="p in normalizedPlanOptions"
@@ -192,23 +187,23 @@
                         </div>
 
                         <div class="pl-field">
-                            <label>Endet am</label>
+                            <label>{{ msg.form.endsAtLabel }}</label>
                             <div class="pl-end-row">
                                 <input v-model="form.pilot.endsAt" class="pl-input" type="date" />
                                 <button
                                     v-if="form.pilot.endsAt"
                                     type="button"
                                     class="pl-btn-mini"
-                                    title="Auf unbegrenzt setzen"
+                                    :title="msg.form.endsAtClearTitle"
                                     @click="form.pilot.endsAt = ''"
                                 >
                                     <q-icon name="close" size="12px" />
-                                    unbegrenzt
+                                    {{ common.unlimited }}
                                 </button>
                             </div>
                             <div class="pl-end-presets">
                                 <button
-                                    v-for="p in PRESET_ENDS"
+                                    v-for="p in presetEnds"
                                     :key="p.days"
                                     type="button"
                                     class="pl-preset-btn"
@@ -221,10 +216,8 @@
 
                         <div class="pl-field pl-field--full">
                             <label>
-                                Note
-                                <span class="pl-field__hint"
-                                    >intern · nicht für Kunden sichtbar</span
-                                >
+                                {{ msg.form.noteLabel }}
+                                <span class="pl-field__hint">{{ msg.form.noteHint }}</span>
                             </label>
                             <textarea
                                 v-model="form.pilot.note"
@@ -242,13 +235,13 @@
             <q-card-actions align="right" class="pl-dlg__foot">
                 <span v-if="form.admin.email && emailValid" class="pl-foot-hint">
                     <q-icon name="send" size="14px" />
-                    Einladung geht an <strong>{{ form.admin.email }}</strong>
+                    {{ msg.createDialog.invitationHint }} <strong>{{ form.admin.email }}</strong>
                 </span>
-                <q-btn flat label="Abbrechen" v-close-popup :disable="loading" />
+                <q-btn flat :label="common.cancel" v-close-popup :disable="loading" />
                 <q-btn
                     unelevated
                     color="primary"
-                    label="Pilot anlegen"
+                    :label="msg.createAction"
                     :loading="loading"
                     :disable="!isValid"
                     @click="onSubmit"
@@ -270,12 +263,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import MfaPromptDialog from '../MfaPromptDialog.vue';
-import {
-    DEFAULT_PILOT_COPY,
-    type PilotCopy,
-    type PilotCreatePayload,
-    type PilotCreateResult,
-} from './types.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import type { PilotCopy, PilotCreatePayload, PilotCreateResult } from './types.js';
 
 // Platform pilot-create dialog (sim layout: 3 numbered sections,
 // slug-prefix display, plan-tile picker, ends-at quick-sets, footer hint).
@@ -315,14 +305,17 @@ const emit = defineEmits<{
     (e: 'created', result: PilotCreateResult): void;
 }>();
 
-const PRESET_ENDS: ReadonlyArray<{ label: string; days: number }> = [
-    { label: '30 Tage', days: 30 },
-    { label: '90 Tage', days: 90 },
-    { label: '6 Monate', days: 180 },
-    { label: '1 Jahr', days: 365 },
-];
+const msg = useSaMessages('pilots');
+const common = useSaMessages('common');
 
-const copy = computed<Required<PilotCopy>>(() => ({ ...DEFAULT_PILOT_COPY, ...props.copy }));
+const presetEnds = computed<ReadonlyArray<{ label: string; days: number }>>(() => [
+    { label: msg.value.form.preset30Days, days: 30 },
+    { label: msg.value.form.preset90Days, days: 90 },
+    { label: msg.value.form.preset6Months, days: 180 },
+    { label: msg.value.form.preset1Year, days: 365 },
+]);
+
+const copy = computed<Required<PilotCopy>>(() => ({ ...msg.value.copyDefaults, ...props.copy }));
 
 const normalizedPlanOptions = computed<Array<{ value: string; label: string; color?: string }>>(
     () =>
@@ -419,7 +412,10 @@ watch(
 function onSubmit(): void {
     if (!isValid.value) return;
     if (props.requireMfa) {
-        mfaDescription.value = `Pilot-Mandant "${form.tenant.name}" anlegen — Plan ${form.pilot.plan}.`;
+        mfaDescription.value = formatMessage(msg.value.createDialog.mfaDescription, {
+            name: form.tenant.name,
+            plan: form.pilot.plan,
+        });
         mfaError.value = '';
         showMfa.value = true;
         return;
@@ -472,12 +468,11 @@ async function doSubmit(code: string): Promise<void> {
             status === 401 &&
             (reason === 'MFA_FAILED' || reason === 'MFA_REQUIRED')
         ) {
-            mfaError.value = 'TOTP-Code ungültig.';
+            mfaError.value = msg.value.mfa.invalidCode;
         } else if (props.requireMfa && status === 401 && reason === 'MFA_NOT_SET_UP') {
-            mfaError.value =
-                response?.data?.message ?? 'MFA ist für diesen Account nicht eingerichtet.';
+            mfaError.value = response?.data?.message ?? msg.value.mfa.notSetUp;
         } else {
-            error.value = response?.data?.message ?? 'Anlegen fehlgeschlagen';
+            error.value = response?.data?.message ?? common.value.createFailed;
             showMfa.value = false;
         }
     } finally {

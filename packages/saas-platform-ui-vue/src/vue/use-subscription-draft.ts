@@ -39,8 +39,7 @@ export interface PromoState {
 export interface UseSubscriptionDraftOptions {
     plans: Ref<CatalogPlan[] | null> | ComputedRef<CatalogPlan[] | null>;
     subscriptionBundles?:
-        | Ref<PublicMarketingBundle[] | null>
-        | ComputedRef<PublicMarketingBundle[] | null>;
+        Ref<PublicMarketingBundle[] | null> | ComputedRef<PublicMarketingBundle[] | null>;
     initialPlan?: string | null;
     initialCycle?: BillingCycleStr;
     initialBundleVersionIds?: ReadonlyArray<string>;
@@ -316,7 +315,7 @@ export function useSubscriptionDraft(options: UseSubscriptionDraftOptions): Subs
 
     function toApiPayload(): OnboardingSelectionRequest {
         if (!plan.value) {
-            throw new Error('useSubscriptionDraft: plan ist nicht gesetzt');
+            throw new Error('useSubscriptionDraft: plan is not set');
         }
         const payload: OnboardingSelectionRequest = {
             plan: plan.value,

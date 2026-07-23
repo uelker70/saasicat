@@ -118,16 +118,8 @@ test('listFeatureRegistry overlays the DB icon over the static registry icon (#1
         MEMBERS: { label: 'Mitglieder', description: 'd', icon: 'groups' },
         SEPA: { label: 'SEPA', description: 'd', icon: 'account_balance' },
     };
-    // Constructor args: catalog, registry, projectKey, marketingRepo, bundleRepo, businessTypeRepo, catalogEntryRepo
-    const ctrl = new PublicCatalogController(
-        CATALOG,
-        baseReg,
-        'clubapp',
-        null,
-        null,
-        null,
-        fakeRepo,
-    );
+    // Constructor args: catalog, registry, projectKey, marketingRepo, bundleRepo, catalogEntryRepo
+    const ctrl = new PublicCatalogController(CATALOG, baseReg, 'clubapp', null, null, fakeRepo);
     const reg = await ctrl.listFeatureRegistry();
     assert.equal(reg.MEMBERS.icon, 'mdi-account-group'); // DB icon wins
     assert.equal(reg.MEMBERS.label, 'Mitglieder'); // label stays from registry
@@ -186,7 +178,6 @@ test('listBundles returns requiresFeatures from the FeatureCatalogEntries (#35)'
         'clubapp',
         null,
         bundleRepo,
-        null,
         catalogEntryRepo,
     );
 

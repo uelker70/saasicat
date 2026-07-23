@@ -1,7 +1,7 @@
 <template>
     <div class="sa-pv">
         <div v-if="loading" class="sa-pv__loading">
-            <q-spinner size="32px" /> Catalog wird geladen…
+            <q-spinner size="32px" /> {{ msg.page.loadingCatalog }}
         </div>
 
         <template v-else>
@@ -63,7 +63,7 @@
                                     :action-meta="auditActionMeta"
                                 />
                                 <div v-else class="sa-pv__no-audit">
-                                    Kein Audit-Loader konfiguriert.
+                                    {{ msg.page.noAuditLoader }}
                                 </div>
                             </slot>
                         </template>
@@ -85,6 +85,7 @@ import PlanVersionsMatrix from './plan-versions/PlanVersionsMatrix.vue';
 import PlanVersionsAudit from './plan-versions/PlanVersionsAudit.vue';
 import PlanVersionsDiff from './plan-versions/PlanVersionsDiff.vue';
 import type { PlanVersionViewMode } from './plan-versions/types.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: plan versions.
 //
@@ -153,12 +154,15 @@ const emit = defineEmits<{
     (e: 'createPlanDraft', planId: string): void;
 }>();
 
+const msg = useSaMessages('planVersions');
+const { locale } = useSuperAdminI18n();
+
 const selectedId = ref<string>('drafts');
 const compareId = ref<string | null>(null);
 const viewMode = ref<PlanVersionViewMode>('list');
 
 const snapshots = computed<CatalogSnapshot[]>(() =>
-    buildSnapshots(props.data, { planSortOrder: props.planSortOrder }),
+    buildSnapshots(props.data, { planSortOrder: props.planSortOrder, locale: locale.value }),
 );
 
 const selected = computed<CatalogSnapshot | null>(

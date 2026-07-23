@@ -23,7 +23,6 @@ import type {
     RegistrationAuditContext,
     RegistrationAuditEventType,
     RegistrationAuditLogger,
-    RegistrationBusinessTypeLookup,
     RegistrationConfiguratorLookup,
     RegistrationOtpDelivery,
     RegistrationPromoPreview,
@@ -64,7 +63,6 @@ import {
     PENDING_REGISTRATION_REPOSITORY_TOKEN,
     PLAN_CATALOG_LOOKUP_TOKEN,
     REGISTRATION_AUDIT_LOGGER_TOKEN,
-    REGISTRATION_BUSINESS_TYPE_LOOKUP_TOKEN,
     REGISTRATION_CONFIGURATOR_LOOKUP_TOKEN,
     REGISTRATION_OTP_DELIVERY_TOKEN,
     REGISTRATION_PROMO_PREVIEW_TOKEN,
@@ -131,9 +129,6 @@ export class PendingRegistrationService {
         @Optional()
         @Inject(REGISTRATION_PROMO_PREVIEW_TOKEN)
         private readonly promoPreview?: RegistrationPromoPreview,
-        @Optional()
-        @Inject(REGISTRATION_BUSINESS_TYPE_LOOKUP_TOKEN)
-        private readonly businessTypeLookup?: RegistrationBusinessTypeLookup,
     ) {}
 
     private async record(
@@ -715,19 +710,6 @@ export class PendingRegistrationService {
         const model = catalog.models.find((m) => m.id === input.selection.modelId);
         if (!model) {
             throw new BadRequestException({ code: 'MODEL_NOT_AVAILABLE' });
-        }
-
-        // SPEC_V2 §11.1 M5.3 — validate the optional BusinessType choice against
-        // the lookup adapter. Only check when both are set: an ID in the
-        // selection AND a lookup in the DI graph (apps without a BusinessType
-        // catalog do not configure a lookup, in which case the ID is ignored).
-        if (input.selection.businessTypeVersionId && this.businessTypeLookup) {
-            const view = await this.businessTypeLookup.findPublishedVersion(
-                input.selection.businessTypeVersionId,
-            );
-            if (!view) {
-                throw new BadRequestException({ code: 'BUSINESS_TYPE_NOT_AVAILABLE' });
-            }
         }
 
         // Promo code optional: when present, run it against the preview adapter.

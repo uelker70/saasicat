@@ -2,7 +2,7 @@
     <div class="sa-subscriptions">
         <header class="sa-subscriptions__head">
             <div>
-                <h1 class="sa-subscriptions__title">Abonnements</h1>
+                <h1 class="sa-subscriptions__title">{{ msg.subscriptions.title }}</h1>
                 <p v-if="subtitle" class="sa-subscriptions__sub">{{ subtitle }}</p>
             </div>
             <slot name="head-actions" />
@@ -26,6 +26,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: subscriptions (minimal). Apps pass
 // `loadSubscriptions` + optional `columns` through — default columns show
@@ -60,39 +61,43 @@ const props = withDefaults(
     {},
 );
 
+const msg = useSaMessages('tenants');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
+
 const rows = ref<SubscriptionRow[]>([]);
 const loading = ref(false);
 
-const defaultColumns: Column[] = [
+const defaultColumns = computed<Column[]>(() => [
     {
         name: 'tenant',
-        label: 'Mandant',
+        label: msg.value.tenant,
         field: (r) => r.tenant?.name ?? r.tenant?.slug ?? r.tenantSlug ?? '—',
         align: 'left',
         sortable: true,
     },
     {
         name: 'plan',
-        label: 'Plan',
+        label: msg.value.plan,
         field: (r) => r.plan ?? r.planId ?? '—',
         align: 'left',
     },
     {
         name: 'status',
-        label: 'Status',
+        label: common.value.status,
         field: (r) => r.status ?? '—',
         align: 'left',
     },
     {
         name: 'periodEndsAt',
-        label: 'Endet',
+        label: msg.value.subscriptions.columnEndsAt,
         field: (r) => formatDate(r.periodEndsAt) ?? '∞',
         align: 'left',
     },
-];
+]);
 
 const effectiveColumns = computed<Column[]>(() =>
-    props.columns ? [...props.columns] : defaultColumns,
+    props.columns ? [...props.columns] : defaultColumns.value,
 );
 
 async function reload() {
@@ -112,7 +117,7 @@ onMounted(reload);
 function formatDate(iso: string | null | undefined): string | null {
     if (!iso) return null;
     try {
-        return new Date(iso).toLocaleDateString('de-DE', {
+        return new Date(iso).toLocaleDateString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',

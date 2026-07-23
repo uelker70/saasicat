@@ -36,10 +36,10 @@ export function useBundleVersionsMap(
     options: UseBundleVersionsMapOptions,
 ): UseBundleVersionsMapResult {
     if (!options?.adminEndpoint) {
-        throw new Error('useBundleVersionsMap: `adminEndpoint` ist Pflicht.');
+        throw new Error('useBundleVersionsMap: `adminEndpoint` is required.');
     }
     if (!options?.bundles) {
-        throw new Error('useBundleVersionsMap: `bundles` ist Pflicht.');
+        throw new Error('useBundleVersionsMap: `bundles` is required.');
     }
 
     const http = options.http ?? defaultHttpClient();
@@ -58,7 +58,9 @@ export function useBundleVersionsMap(
             headers: { 'content-type': 'application/json', ...authHeaders() },
         });
         if (res.status >= 400) {
-            throw new Error(`HTTP ${res.status} beim Laden der Versionen für Bundle '${bundleId}'`);
+            throw new Error(
+                `HTTP ${res.status} while loading the versions for bundle '${bundleId}'`,
+            );
         }
         return ((await res.json().catch(() => null)) as BundleVersionRow[] | null) ?? [];
     }
@@ -74,7 +76,7 @@ export function useBundleVersionsMap(
                         return [b.id, versions] as const;
                     } catch (err) {
                         console.warn(
-                            `useBundleVersionsMap: Bundle '${b.bundleKey}' Versions-Load failed`,
+                            `useBundleVersionsMap: loading versions for bundle '${b.bundleKey}' failed`,
                             err,
                         );
                         return [b.id, []] as const;

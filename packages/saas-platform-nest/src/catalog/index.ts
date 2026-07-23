@@ -1,4 +1,4 @@
-// @saasicat/nest/catalog — Bundle/BusinessType/Marketing editor
+// @saasicat/nest/catalog — Bundle/Marketing editor
 // for SuperAdmin (SPEC_V2 §11.1 M3).
 //
 // Included in M3.1:
@@ -7,10 +7,7 @@
 //   - CatalogModule.forRoot()
 //   - validateBundleDraft (pure-function strict check)
 //
-// Coming next: BusinessTypesService (M3.2), MarketingProjectionService (M3.3).
-
 export { BundlesService, type CatalogServiceConfig } from './bundles.service.js';
-export { BusinessTypesService } from './business-types.service.js';
 export { MarketingProjectionsService } from './marketing-projections.service.js';
 export { CatalogEntriesService } from './catalog-entries.service.js';
 export { buildCatalogEntriesController } from './catalog-entries.controller.js';
@@ -23,10 +20,6 @@ export { buildPublicMarketingCatalogController } from './public-marketing-catalo
 export { PlansService } from './plans.service.js';
 export { PlanVersionsService } from './plan-versions.service.js';
 export { buildBundlesController, buildBundleVersionsController } from './bundles.controller.js';
-export {
-    buildBusinessTypesController,
-    buildBusinessTypeVersionsController,
-} from './business-types.controller.js';
 export { buildMarketingProjectionsController } from './marketing-projections.controller.js';
 export { buildPlansController, buildPlanVersionsController } from './plans.controller.js';
 export {
@@ -36,7 +29,6 @@ export {
 } from './catalog.module.js';
 export {
     BUNDLE_REPOSITORY_TOKEN,
-    BUSINESS_TYPE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
     MARKETING_PROJECTION_REPOSITORY_TOKEN,
@@ -48,7 +40,6 @@ export {
     ADVISORY_STRICT_MODE_CODES,
     blockingStrictModeWarnings,
     validateBundleDraft,
-    validateBusinessTypeDraft,
     validatePlanDraft,
 } from './strict-mode-check.js';
 export { featureApprovalSignature, quotaApprovalSignature } from './approval-signature.js';
@@ -83,14 +74,6 @@ export {
     UpdateBundleDto,
     UpdateBundleVersionDraftDto,
 } from './dto/bundles.dto.js';
-export {
-    BusinessTypeBundleInputDto,
-    CreateBusinessTypeDto,
-    CreateBusinessTypeVersionDraftDto,
-    PublishBusinessTypeVersionDto,
-    UpdateBusinessTypeDto,
-    UpdateBusinessTypeVersionDraftDto,
-} from './dto/business-types.dto.js';
 export {
     CreateMarketingProjectionDto,
     ListMarketingProjectionsQueryDto,

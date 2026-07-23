@@ -5,9 +5,8 @@
         <div v-if="hasOverlap" class="bve-overlap-banner" role="alert">
             <span class="bve-overlap-ico">⚠</span>
             <span>
-                <b>{{ overlapPlansCount }}</b> Plan{{ overlapPlansCount === 1 ? '' : 'e' }} mit
-                Überschneidung — Features/Quotas dieses Bundles sind im Plan bereits enthalten.
-                Bitte vor Publish bereinigen.
+                <b>{{ overlapPlansCount }}</b>
+                {{ overlapPlansCount === 1 ? msg.editor.overlapOne : msg.editor.overlapMany }}
             </span>
         </div>
 
@@ -15,7 +14,7 @@
             <!-- LEFT: Features + Quotas -->
             <section class="bve-col">
                 <div class="bve-section-label">
-                    <span>Features</span>
+                    <span>{{ msg.editor.sectionFeatures }}</span>
                     <span class="bve-section-count">
                         {{ form.features.length }} / {{ availableFeatures.length }}
                     </span>
@@ -30,7 +29,7 @@
                 />
 
                 <div class="bve-section-label bve-section-label--top">
-                    <span>Quotas</span>
+                    <span>{{ msg.fields.quotas }}</span>
                     <span class="bve-section-count">
                         {{ Object.keys(form.quotas).length }} / {{ availableQuotas.length }}
                     </span>
@@ -49,12 +48,12 @@
             <!-- RIGHT: Pricing · Validity · Compat -->
             <section class="bve-col">
                 <div class="bve-section-label">
-                    <span>Pricing</span>
-                    <span class="bve-section-count">Bundle-Preis · zusätzlich zum Plan</span>
+                    <span>{{ msg.editor.sectionPricing }}</span>
+                    <span class="bve-section-count">{{ msg.editor.pricingHint }}</span>
                 </div>
                 <div class="bve-row bve-row--pricing">
                     <label class="bve-field">
-                        <span class="bve-field-label">Monatspreis</span>
+                        <span class="bve-field-label">{{ msg.fields.monthlyPrice }}</span>
                         <div class="bve-input-grp">
                             <input
                                 type="text"
@@ -64,11 +63,11 @@
                                 :disabled="locked"
                                 @input="onPriceInput('monthlyNet', $event)"
                             />
-                            <span class="bve-input-unit">€/Mo</span>
+                            <span class="bve-input-unit">{{ msg.fields.perMonthUnit }}</span>
                         </div>
                     </label>
                     <label class="bve-field">
-                        <span class="bve-field-label">Jahrespreis</span>
+                        <span class="bve-field-label">{{ msg.fields.yearlyPrice }}</span>
                         <div class="bve-input-grp">
                             <input
                                 type="text"
@@ -78,26 +77,26 @@
                                 :disabled="locked"
                                 @input="onPriceInput('yearlyNet', $event)"
                             />
-                            <span class="bve-input-unit">€/Jahr</span>
+                            <span class="bve-input-unit">{{ msg.fields.perYearUnit }}</span>
                         </div>
                     </label>
                     <div class="bve-savings">
                         <template v-if="savingsPercent !== null">
-                            ≈ {{ monthlyEquivalent }} €/Mo bei Jahresbuchung
+                            {{ yearlyEquivalentText }}
                             <span v-if="savingsPercent > 0" class="bve-savings-pill">
-                                {{ savingsPercent }} % sparen
+                                {{ savingsText }}
                             </span>
                         </template>
                     </div>
                 </div>
 
                 <div class="bve-section-label bve-section-label--top">
-                    <span>Gültigkeit</span>
-                    <span class="bve-section-count">validUntil automatisch (Auto-Sukzession)</span>
+                    <span>{{ common.validity }}</span>
+                    <span class="bve-section-count">{{ msg.editor.validityHint }}</span>
                 </div>
                 <div class="bve-row bve-row--validity">
                     <label class="bve-field">
-                        <span class="bve-field-label">Gültig ab</span>
+                        <span class="bve-field-label">{{ msg.fields.validFrom }}</span>
                         <input
                             type="date"
                             class="bve-input"
@@ -107,21 +106,19 @@
                         />
                     </label>
                     <label class="bve-field">
-                        <span class="bve-field-label">Gültig bis</span>
+                        <span class="bve-field-label">{{ msg.fields.validUntil }}</span>
                         <input
                             type="text"
                             class="bve-input bve-input--readonly"
-                            :value="formatDateDE(form.validUntil) || 'offen'"
+                            :value="validUntilDisplay"
                             disabled
                         />
-                        <span class="bve-field-hint">
-                            wird beim Publish einer Nachfolge-Version automatisch gesetzt
-                        </span>
+                        <span class="bve-field-hint">{{ msg.editor.validUntilHint }}</span>
                     </label>
                 </div>
 
                 <div class="bve-section-label bve-section-label--top">
-                    <span>Marketing</span>
+                    <span>{{ msg.editor.sectionMarketing }}</span>
                 </div>
                 <label class="bve-toggle-row">
                     <input
@@ -130,25 +127,25 @@
                         :disabled="locked"
                         @change="onMarketedToggle"
                     />
-                    <span class="bve-toggle-label">Im Public-Catalog vermarkten</span>
+                    <span class="bve-toggle-label">{{ msg.editor.marketed }}</span>
                 </label>
 
                 <div class="bve-section-label bve-section-label--top">
-                    <span>Change-Note</span>
-                    <span class="bve-section-count">Pflicht beim Publish</span>
+                    <span>{{ msg.editor.sectionChangeNote }}</span>
+                    <span class="bve-section-count">{{ msg.editor.changeNoteRequired }}</span>
                 </div>
                 <textarea
                     class="bve-textarea"
                     rows="2"
                     :value="form.changeNote"
                     :disabled="locked"
-                    placeholder="z. B. Add WhatsApp + Preisanpassung +4 €"
+                    :placeholder="msg.editor.changeNotePlaceholder"
                     @input="onChangeNoteInput"
                 />
 
                 <div class="bve-section-label bve-section-label--top">
-                    <span>Kompatibel mit Plänen</span>
-                    <span class="bve-section-count">{{ form.planIds.length }} ausgewählt</span>
+                    <span>{{ msg.fields.planCompat }}</span>
+                    <span class="bve-section-count">{{ selectedCountText }}</span>
                 </div>
                 <BundlePlanCompatPicker
                     :plans="plans"
@@ -172,16 +169,16 @@
                 :disabled="saving || !hasChanges"
                 @click="onReset"
             >
-                Zurücksetzen
+                {{ common.reset }}
             </button>
             <button
                 type="button"
                 class="bve-btn bve-btn--primary"
                 :disabled="!canSave || saving"
-                :title="!canSave ? 'Form ist invalide oder unverändert' : 'Änderungen speichern'"
+                :title="!canSave ? msg.editor.saveDisabledTooltip : msg.editor.saveTooltip"
                 @click="onSave"
             >
-                {{ saving ? 'Speichern …' : 'Speichern' }}
+                {{ saving ? common.saving : common.save }}
             </button>
         </div>
         <div v-if="saveError" class="bve-error">
@@ -206,7 +203,9 @@ import BundlePlanCompatPicker from './BundlePlanCompatPicker.vue';
 import BundleQuotasEditor from './BundleQuotasEditor.vue';
 import BundleStatusBanner from './BundleStatusBanner.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
-import { bundleVersionStatus, findBundlePlanOverlap, formatDateDE } from './bundle-version-status';
+import { bundleVersionStatus, findBundlePlanOverlap, formatDate } from './bundle-version-status';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // BundleVersionInlineEditor — orchestrates the five sub-components (status
 // banner + features editor + quotas editor + pricing/validity block +
@@ -262,6 +261,10 @@ const emit = defineEmits<{
 
 const PRICE_RE = /^\d+(\.\d{1,2})?$/;
 
+const msg = useSaMessages('bundles');
+const common = useSaMessages('common');
+const { locale } = useSuperAdminI18n();
+
 function buildForm(v: BundleVersionRow): Form {
     return {
         features: [...v.features],
@@ -307,20 +310,33 @@ const monthlyEquivalent = computed(() => {
     return (y / 12).toFixed(2);
 });
 
+const yearlyEquivalentText = computed(() =>
+    formatMessage(msg.value.editor.yearlyEquivalent, { amount: monthlyEquivalent.value }),
+);
+const savingsText = computed(() =>
+    formatMessage(msg.value.editor.savings, { percent: savingsPercent.value ?? 0 }),
+);
+const selectedCountText = computed(() =>
+    formatMessage(msg.value.editor.selectedCount, { count: form.planIds.length }),
+);
+const validUntilDisplay = computed(
+    () => formatDate(form.validUntil, locale.value) || msg.value.fields.validUntilOpen,
+);
+
 // ── Validation ─────────────────────────────────────────────
 const validFromError = computed<string | null>(() => {
     if (locked.value) return null;
-    if (!form.validFrom) return 'Gültig ab ist Pflicht.';
+    if (!form.validFrom) return msg.value.validation.validFromRequired;
     return null;
 });
 
 const priceError = computed<string | null>(() => {
     if (locked.value) return null;
     if (form.monthlyNet && !PRICE_RE.test(form.monthlyNet)) {
-        return 'Monatspreis: Dezimal mit max. 2 Nachkommastellen.';
+        return msg.value.validation.monthlyPriceFormat;
     }
     if (form.yearlyNet && !PRICE_RE.test(form.yearlyNet)) {
-        return 'Jahrespreis: Dezimal mit max. 2 Nachkommastellen.';
+        return msg.value.validation.yearlyPriceFormat;
     }
     return null;
 });

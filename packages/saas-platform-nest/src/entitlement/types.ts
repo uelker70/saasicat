@@ -20,35 +20,6 @@ export interface PlanVersionSnapshot {
 }
 
 /**
- * Snapshot of a published BundleVersion (for BusinessType aggregation).
- * The consumer resolves the bundle composition via repository lookup before
- * the `aggregateLimits()` call.
- */
-export interface BundleVersionSnapshot {
-    bundleKey: string;
-    quotas: Record<QuotaKey, number>;
-    features: FeatureKey[];
-}
-
-/**
- * Snapshot of the binding `BusinessTypeVersion` of a subscription
- * (SPEC_V2 §11.1 M5). Contains the resolved bundle snapshots in sortOrder
- * order, plus the quota overrides of the BusinessTypeVersion.
- *
- * Aggregation (see GESCHAEFTSTYP_SPEC §6.2):
- * - Quotas: Σ(bundle quotas) per QuotaKey, then override via
- *   `quotaOverrides[k]` if set
- * - Features: ⋃ of all bundle features (set union)
- */
-export interface BusinessTypeVersionSnapshot {
-    businessTypeKey: string;
-    /** Bundles in sortOrder order. */
-    bundles: BundleVersionSnapshot[];
-    /** Override per QuotaKey. Missing key → Σ(bundle quotas) is used. */
-    quotaOverrides: Partial<Record<QuotaKey, number>>;
-}
-
-/**
  * Snapshot of an active SubscriptionBundle booking (P11.7.3 +
  * SPEC_V2 §11.1 M6 Pack 2e). Resolved by the EntitlementService from the
  * `subscription_bundles` junction + BundleRepository.findVersionById and
@@ -87,14 +58,10 @@ export interface CustomLimitsShape {
  * `planVersion` are the result of that resolution; see
  * `resolveEntitlementPlan` for a configurable default strategy.
  *
- * `businessTypeVersion` is optional (SPEC_V2 §11.1 M5). When set, the
- * BusinessType composition is included in the aggregation in addition to
- * plan + add-ons — see GESCHAEFTSTYP_SPEC §6.
  */
 export interface SubscriptionLimitsInput {
     plan: PlanId;
     planVersion: PlanVersionSnapshot;
-    businessTypeVersion?: BusinessTypeVersionSnapshot | null;
     /**
      * Active bundle bookings (P11.7.3). The aggregator filters by
      * `canceledEffectiveAt > now` and sums quotas + collects features into

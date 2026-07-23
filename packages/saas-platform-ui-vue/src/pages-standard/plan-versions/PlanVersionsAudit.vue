@@ -3,18 +3,18 @@
         <div class="sa-pv-audit__card">
             <header class="sa-pv-audit__head">
                 <q-icon name="history" size="18px" class="sa-pv-audit__head-icon" />
-                <h3>Aktivität</h3>
-                <span class="sa-pv-audit__count">{{ events.length }} Events</span>
+                <h3>{{ msg.audit.title }}</h3>
+                <span class="sa-pv-audit__count">{{ eventCountLabel }}</span>
                 <q-space />
                 <button v-if="!loading" type="button" class="sa-pv-audit__refresh" @click="reload">
-                    <q-icon name="refresh" size="14px" /> Neu laden
+                    <q-icon name="refresh" size="14px" /> {{ common.reload }}
                 </button>
             </header>
             <div v-if="loading" class="sa-pv-audit__loading">
-                <q-spinner size="20px" /> Audit-Trail wird geladen…
+                <q-spinner size="20px" /> {{ msg.audit.loading }}
             </div>
             <div v-else-if="events.length === 0" class="sa-pv-audit__empty">
-                Keine Plan-/Add-on-Events im Audit-Log gefunden.
+                {{ msg.audit.empty }}
             </div>
             <div v-else class="sa-pv-audit__list">
                 <div
@@ -42,7 +42,7 @@
                         <div class="sa-pv-audit__meta">
                             <span
                                 ><q-icon name="schedule" size="12px" />
-                                {{ formatTsDe(e.createdAt) }}</span
+                                {{ formatTimestamp(e.createdAt, locale) }}</span
                             >
                             <span v-if="actorEmail(e)">
                                 <q-icon name="person" size="12px" /> {{ actorEmail(e) }}
@@ -56,9 +56,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
-import { formatTsDe } from './format.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { formatTimestamp } from './format.js';
 
 // PlanVersionsAudit — data-agnostic. Consumers pass in a `loadAudit` loader
 // that supplies events; the component filters them to match the current
@@ -100,34 +102,49 @@ const props = withDefaults(
 const loading = ref(false);
 const events = ref<AuditRow[]>([]);
 
-const DEFAULT_ACTION_META: Record<string, ActionMeta> = {
+const msg = useSaMessages('planVersions');
+const common = useSaMessages('common');
+const { locale } = useSuperAdminI18n();
+
+const eventCountLabel = computed(() =>
+    formatMessage(msg.value.audit.eventCount, { count: events.value.length }),
+);
+
+const ACTION_ICONS: Record<string, { icon: string; color: string }> = {
+    PLAN_VERSION_PUBLISH: { icon: 'rocket_launch', color: '#047857' },
+    PLAN_VERSION_DRAFT_CREATE: { icon: 'edit_note', color: '#b45309' },
+    PLAN_VERSION_DRAFT_UPDATE: { icon: 'edit', color: '#3f6bff' },
+    PLAN_VERSION_DRAFT_DELETE: { icon: 'delete', color: '#dc2626' },
+    PLAN_CATALOG_UPDATE: { icon: 'rocket_launch', color: '#047857' },
+};
+
+const defaultActionMeta = computed<Record<string, ActionMeta>>(() => ({
     PLAN_VERSION_PUBLISH: {
-        icon: 'rocket_launch',
-        color: '#047857',
-        label: 'Plan publiziert',
+        ...ACTION_ICONS.PLAN_VERSION_PUBLISH,
+        label: msg.value.audit.actionPlanPublished,
     },
     PLAN_VERSION_DRAFT_CREATE: {
-        icon: 'edit_note',
-        color: '#b45309',
-        label: 'Plan-Draft angelegt',
+        ...ACTION_ICONS.PLAN_VERSION_DRAFT_CREATE,
+        label: msg.value.audit.actionPlanDraftCreated,
     },
-    PLAN_VERSION_DRAFT_UPDATE: { icon: 'edit', color: '#3f6bff', label: 'Plan-Draft geändert' },
+    PLAN_VERSION_DRAFT_UPDATE: {
+        ...ACTION_ICONS.PLAN_VERSION_DRAFT_UPDATE,
+        label: msg.value.audit.actionPlanDraftUpdated,
+    },
     PLAN_VERSION_DRAFT_DELETE: {
-        icon: 'delete',
-        color: '#dc2626',
-        label: 'Plan-Draft gelöscht',
+        ...ACTION_ICONS.PLAN_VERSION_DRAFT_DELETE,
+        label: msg.value.audit.actionPlanDraftDeleted,
     },
     PLAN_CATALOG_UPDATE: {
-        icon: 'rocket_launch',
-        color: '#047857',
-        label: 'Catalog publiziert',
+        ...ACTION_ICONS.PLAN_CATALOG_UPDATE,
+        label: msg.value.audit.actionCatalogPublished,
     },
-};
+}));
 
 function meta(action: string): ActionMeta {
     return (
         props.actionMeta[action] ??
-        DEFAULT_ACTION_META[action] ?? {
+        defaultActionMeta.value[action] ?? {
             icon: 'circle',
             color: '#64748b',
             label: action,
@@ -156,8 +173,10 @@ function detail(e: AuditRow): string {
         changes?: unknown;
     };
     if (c.changeNote) return c.changeNote;
-    if (c.nonRegressive === false) return 'Mit mindestens einer Verschlechterung publiziert.';
-    if (Array.isArray(c.changes)) return `${c.changes.length} Felder geändert.`;
+    if (c.nonRegressive === false) return msg.value.audit.detailRegression;
+    if (Array.isArray(c.changes)) {
+        return formatMessage(msg.value.audit.detailFieldsChanged, { count: c.changes.length });
+    }
     return e.action;
 }
 

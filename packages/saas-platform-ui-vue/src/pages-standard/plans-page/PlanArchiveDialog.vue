@@ -6,25 +6,25 @@
     >
         <q-card style="min-width: 440px">
             <q-card-section>
-                <div class="text-h6">Plan komplett löschen?</div>
+                <div class="text-h6">{{ msg.archiveDialog.title }}</div>
                 <div class="text-body2 q-mt-sm">
-                    Plan <code>{{ target?.plan.planKey }}</code> wird
-                    <b>unwiderruflich aus der DB entfernt</b>. Da der Plan keine published Version
-                    hat, sind keine Subscriptions betroffen.
+                    {{ msg.archiveDialog.bodyLead }} <code>{{ target?.plan.planKey }}</code>
+                    {{ msg.archiveDialog.bodyVerb }}
+                    <b>{{ msg.archiveDialog.bodyEmphasis }}</b
+                    >{{ msg.archiveDialog.bodyTail }}
                 </div>
                 <div class="text-caption text-grey-7 q-mt-sm">
-                    Vertragsschutz P1: Pläne mit jemals veröffentlichten Versionen können nicht
-                    gelöscht werden — das Backend würde 422 antworten.
+                    {{ msg.archiveDialog.contractProtectionNote }}
                 </div>
             </q-card-section>
             <q-banner v-if="error" class="bg-warning q-mx-md q-mb-md" rounded>
                 {{ error }}
             </q-banner>
             <q-card-actions align="right">
-                <q-btn flat label="Abbrechen" @click="$emit('update:modelValue', false)" />
+                <q-btn flat :label="common.cancel" @click="$emit('update:modelValue', false)" />
                 <q-btn
                     color="negative"
-                    label="Löschen"
+                    :label="common.delete"
                     :loading="archiving"
                     @click="$emit('execute')"
                 />
@@ -34,7 +34,11 @@
 </template>
 
 <script setup lang="ts">
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PlanArchiveTarget } from './types.js';
+
+const msg = useSaMessages('plans');
+const common = useSaMessages('common');
 
 defineProps<{
     modelValue: boolean;

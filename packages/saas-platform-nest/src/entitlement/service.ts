@@ -194,7 +194,10 @@ export class EntitlementService {
             this.replacedByIndex = buildReplacedByIndex(this.discoverySnapshot.features);
         }
         if (this.replacedByIndex.size === 0) return limits;
-        return { ...limits, features: expandReplacedFeatures(limits.features, this.replacedByIndex) };
+        return {
+            ...limits,
+            features: expandReplacedFeatures(limits.features, this.replacedByIndex),
+        };
     }
 
     private async deriveLimitsFromContract(

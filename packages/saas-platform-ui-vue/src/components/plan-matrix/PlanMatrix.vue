@@ -3,12 +3,8 @@
         <!-- Page header -->
         <div class="pm-page-head">
             <div>
-                <h2 class="pm-h-title">Pläne · Matrix-Vergleich</h2>
-                <p class="pm-h-sub">
-                    Alle Pläne nebeneinander · {{ plans.length }} Pläne ·
-                    {{ orderedFeatureKeys.length }} Features · {{ orderedQuotaKeys.length }} Quotas
-                    · {{ orderedBundleKeys.length }} Bundles
-                </p>
+                <h2 class="pm-h-title">{{ msg.matrix.title }}</h2>
+                <p class="pm-h-sub">{{ summary }}</p>
             </div>
             <div class="pm-head-actions">
                 <button class="pm-btn" type="button" @click="$emit('viewCatalog')">
@@ -23,7 +19,7 @@
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                         <circle cx="12" cy="12" r="3" />
                     </svg>
-                    <span>Catalog-Vorschau</span>
+                    <span>{{ msg.matrix.catalogPreview }}</span>
                 </button>
                 <button class="pm-btn pm-btn--primary" type="button" @click="$emit('createPlan')">
                     <svg
@@ -36,7 +32,7 @@
                     >
                         <path d="M12 5v14M5 12h14" />
                     </svg>
-                    <span>Plan anlegen</span>
+                    <span>{{ msg.matrix.createPlan }}</span>
                 </button>
             </div>
         </div>
@@ -47,7 +43,9 @@
                 <thead>
                     <tr class="pm-head">
                         <th class="pm-rowhead-cell">
-                            <span class="pm-component-kicker">Komponente</span>
+                            <span class="pm-component-kicker">{{
+                                msg.matrix.componentColumn
+                            }}</span>
                         </th>
                         <th v-for="p in resolvedPlans" :key="p.planKey" class="pm-plan-head">
                             <div
@@ -71,17 +69,19 @@
                                 <div class="pm-plan-divider" />
 
                                 <div class="pm-status-row">
-                                    <span v-if="p.live" class="pm-chip pm-chip--live pm-chip--dot"
-                                        >v{{ p.live.version }} live</span
+                                    <span
+                                        v-if="p.live"
+                                        class="pm-chip pm-chip--live pm-chip--dot"
+                                        >{{ liveVersionLabel(p.live.version) }}</span
                                     >
-                                    <span v-else class="pm-chip pm-chip--supersed pm-chip--dot"
-                                        >keine live</span
-                                    >
+                                    <span v-else class="pm-chip pm-chip--supersed pm-chip--dot">{{
+                                        msg.matrix.chipNoLive
+                                    }}</span>
                                     <span
                                         v-if="p.draft"
                                         class="pm-chip pm-chip--draft pm-chip--dot"
                                     >
-                                        v{{ p.draft.version }} Entwurf
+                                        {{ draftVersionLabel(p.draft.version) }}
                                     </span>
                                 </div>
 
@@ -93,34 +93,46 @@
                                             Number(p.live.yearlyNet) === 0
                                         "
                                     >
-                                        <span class="pm-price-free">Kostenlos</span>
+                                        <span class="pm-price-free">{{
+                                            msg.matrix.priceFree
+                                        }}</span>
                                     </template>
                                     <template v-else-if="p.live">
                                         <span class="pm-price-big">{{
                                             formatMoney(p.live.monthlyNet)
                                         }}</span>
-                                        <span class="pm-price-unit">/ Mo</span>
+                                        <span class="pm-price-unit">{{
+                                            msg.matrix.perMonthShort
+                                        }}</span>
                                         <span class="pm-price-yearly"
-                                            >· {{ formatMoney(p.live.yearlyNet) }}/J</span
+                                            >·
+                                            {{
+                                                formatMoney(p.live.yearlyNet) +
+                                                msg.matrix.perYearShort
+                                            }}</span
                                         >
                                     </template>
                                     <template v-else-if="p.draft">
                                         <span class="pm-price-big">{{
                                             formatMoney(p.draft.monthlyNet)
                                         }}</span>
-                                        <span class="pm-price-unit">/ Mo</span>
-                                        <span class="pm-price-yearly">(Entwurf)</span>
+                                        <span class="pm-price-unit">{{
+                                            msg.matrix.perMonthShort
+                                        }}</span>
+                                        <span class="pm-price-yearly">{{
+                                            msg.matrix.priceDraftMarker
+                                        }}</span>
                                     </template>
                                     <template v-else>
-                                        <span class="pm-price-free">noch keine Preise</span>
+                                        <span class="pm-price-free">{{ msg.matrix.noPrices }}</span>
                                     </template>
                                 </div>
 
                                 <div class="pm-plan-meta">
-                                    <span>{{ p.tenantCount }} Mandanten</span>
+                                    <span>{{ tenantCountLabel(p.tenantCount) }}</span>
                                     <template v-if="p.live?.validFrom">
                                         <span>·</span>
-                                        <span>ab {{ p.live.validFrom.slice(0, 10) }}</span>
+                                        <span>{{ validFromLabel(p.live.validFrom) }}</span>
                                     </template>
                                     <span
                                         :class="[
@@ -128,7 +140,11 @@
                                             p.live?.marketed ? '' : 'pm-chip--supersed',
                                         ]"
                                     >
-                                        {{ p.live?.marketed ? 'im Katalog' : 'privat' }}
+                                        {{
+                                            p.live?.marketed
+                                                ? msg.matrix.inCatalog
+                                                : msg.matrix.private
+                                        }}
                                     </span>
                                 </div>
 
@@ -150,13 +166,13 @@
                                                 d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
                                             />
                                         </svg>
-                                        <span>Öffnen</span>
+                                        <span>{{ common.open }}</span>
                                     </button>
                                     <button
                                         class="pm-btn pm-btn--sm pm-btn--ghost"
                                         type="button"
                                         @click="$emit('clonePlan', p.plan)"
-                                        aria-label="Plan klonen"
+                                        :aria-label="msg.matrix.clonePlan"
                                     >
                                         <svg
                                             width="12"
@@ -187,8 +203,8 @@
                                         <path d="M12 5v14M5 12h14" />
                                     </svg>
                                 </div>
-                                <div class="pm-add-title">Plan anlegen</div>
-                                <div class="pm-add-sub">oder Klon erstellen</div>
+                                <div class="pm-add-title">{{ msg.matrix.createPlan }}</div>
+                                <div class="pm-add-sub">{{ msg.matrix.createPlanSub }}</div>
                             </button>
                         </th>
                     </tr>
@@ -200,7 +216,7 @@
                         <td :colspan="resolvedPlans.length + 2">
                             <div class="pm-group-inner">
                                 <span class="pm-group-dot pm-group-dot--quota" />
-                                <span>Quotas</span>
+                                <span>{{ msg.matrix.groupQuotas }}</span>
                                 <span class="pm-group-count">{{ orderedQuotaKeys.length }}</span>
                             </div>
                         </td>
@@ -239,7 +255,7 @@
                         <td :colspan="resolvedPlans.length + 2">
                             <div class="pm-group-inner">
                                 <span class="pm-group-dot pm-group-dot--feature" />
-                                <span>Features</span>
+                                <span>{{ msg.matrix.groupFeatures }}</span>
                                 <span class="pm-group-count">{{ orderedFeatureKeys.length }}</span>
                             </div>
                         </td>
@@ -270,7 +286,7 @@
                                 >
                                     <path d="M5 13l4 4L19 7" />
                                 </svg>
-                                Basis · immer enthalten
+                                {{ msg.matrix.baseBadge }}
                             </span>
                         </td>
                         <template v-else>
@@ -313,7 +329,7 @@
                         <td :colspan="resolvedPlans.length + 2">
                             <div class="pm-group-inner">
                                 <span class="pm-group-dot pm-group-dot--bundle" />
-                                <span>Bundles</span>
+                                <span>{{ msg.matrix.groupBundles }}</span>
                                 <span class="pm-group-count">{{ orderedBundleKeys.length }}</span>
                             </div>
                         </td>
@@ -375,13 +391,13 @@
                     >
                         <path d="M5 13l4 4L19 7" /></svg
                 ></span>
-                enthalten
+                {{ msg.matrix.legendIncluded }}
             </span>
             <span class="pm-legend-item">
                 <span class="pm-legend-dash">—</span>
-                nicht enthalten
+                {{ msg.matrix.legendNotIncluded }}
             </span>
-            <span v-if="loading" class="pm-legend-loading">lade Versionen…</span>
+            <span v-if="loading" class="pm-legend-loading">{{ msg.matrix.legendLoading }}</span>
         </div>
     </div>
 </template>
@@ -389,6 +405,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { formatCurrency } from '../../client/i18n/currency.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // PlanMatrix — V1 matrix overview. Plans as columns, quotas/features/
 // bundles as rows. Expects the plan master list plus, per plan, the
@@ -458,6 +477,26 @@ interface ResolvedPlan {
     live: PlanVersionRow | null;
     draft: PlanVersionRow | null;
     tenantCount: number;
+}
+
+const msg = useSaMessages('plans');
+const { locale, intlLocale } = useSuperAdminI18n();
+const common = useSaMessages('common');
+
+function liveVersionLabel(version: number): string {
+    return formatMessage(msg.value.matrix.chipLiveVersion, { version });
+}
+
+function draftVersionLabel(version: number): string {
+    return formatMessage(msg.value.matrix.chipDraftVersion, { version });
+}
+
+function tenantCountLabel(count: number): string {
+    return formatMessage(msg.value.matrix.tenantCount, { count });
+}
+
+function validFromLabel(validFrom: string): string {
+    return formatMessage(msg.value.matrix.validFrom, { date: validFrom.slice(0, 10) });
 }
 
 const DEFAULT_ACCENTS: Record<string, string> = {
@@ -587,11 +626,20 @@ const orderedFeatureKeys = computed<string[]>(() => {
         const pb = presence.get(b)!;
         if (pa.count !== pb.count) return pb.count - pa.count;
         if (pa.mask !== pb.mask) return pb.mask.localeCompare(pa.mask);
-        return featureLabel(a).localeCompare(featureLabel(b), 'de-DE');
+        return featureLabel(a).localeCompare(featureLabel(b), intlLocale.value);
     });
 });
 
 const orderedBundleKeys = computed<string[]>(() => props.availableBundles.map((b) => b.bundleKey));
+
+const summary = computed(() =>
+    formatMessage(msg.value.matrix.summary, {
+        plans: props.plans.length,
+        features: orderedFeatureKeys.value.length,
+        quotas: orderedQuotaKeys.value.length,
+        bundles: orderedBundleKeys.value.length,
+    }),
+);
 
 function quotaLabel(key: string): string {
     return props.availableQuotas.find((q) => q.quotaKey === key)?.label || key;
@@ -627,8 +675,7 @@ function hasBundle(p: ResolvedPlan, bKey: string): boolean {
 function formatMoney(raw: string | number): string {
     const num = typeof raw === 'string' ? Number(raw) : raw;
     if (!Number.isFinite(num)) return String(raw);
-    if (Number.isInteger(num)) return `${num} €`;
-    return `${num.toFixed(2).replace('.', ',')} €`;
+    return formatCurrency(num, locale.value);
 }
 
 function formatQuota(v: number | undefined): string {

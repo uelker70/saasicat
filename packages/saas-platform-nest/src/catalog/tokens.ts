@@ -1,4 +1,4 @@
-// DI tokens for the Catalog module (Bundle, BusinessType, MarketingProjection,
+// DI tokens for the Catalog module (Bundle, MarketingProjection,
 // CapabilityCatalogEntry, FeatureCatalogEntry).
 //
 // Consumers inject their adapter implementations via these tokens
@@ -9,9 +9,6 @@ export const PLAN_REPOSITORY_TOKEN = Symbol('PLAN_REPOSITORY');
 
 /** Repository for `bundles` + `bundle_versions`. */
 export const BUNDLE_REPOSITORY_TOKEN = Symbol('BUNDLE_REPOSITORY');
-
-/** Repository for `business_types` + `business_type_versions` + `business_type_bundles`. */
-export const BUSINESS_TYPE_REPOSITORY_TOKEN = Symbol('BUSINESS_TYPE_REPOSITORY');
 
 /** Repository for `marketing_projections`. */
 export const MARKETING_PROJECTION_REPOSITORY_TOKEN = Symbol('MARKETING_PROJECTION_REPOSITORY');

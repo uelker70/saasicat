@@ -10,6 +10,9 @@
 //   - Individual adapters for manual wiring: MFA, audit (write/query/stats),
 //     RLS bypass, transaction runner, subscription/plan-version/promo
 //     repositories, SuperAdmin bootstrap, plan-catalog sinks.
+//   - Catalog plane repositories (plan/bundle/catalog-entry/
+//     marketing/promotion) + subscription-contract, for wiring CatalogModule
+//     and the V3 contract loop without hand-writing adapters.
 
 export {
     PRISMA_CLIENT_TOKEN,
@@ -25,6 +28,8 @@ export { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
 export { PrismaAuditStatsAdapter } from './prisma-audit-stats.adapter.js';
 export { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
 export { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
+export { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
+export { PrismaTenantSubscriptionWriteAdapter } from './prisma-tenant-subscription-write.adapter.js';
 export { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';
 export { PrismaPromoCodeRepository } from './prisma-promo-code.repository.js';
 export { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';
@@ -37,3 +42,12 @@ export {
 } from './prisma-super-admin-bootstrap.adapter.js';
 export { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.js';
 export { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.js';
+// Catalog plane (CatalogModule) + V3 contract log.
+export { PrismaPlanRepository } from './prisma-plan.repository.js';
+export { PrismaBundleRepository } from './prisma-bundle.repository.js';
+export { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
+export { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
+export { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
+export { PrismaPromotionRepository } from './prisma-promotion.repository.js';
+export { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
+export { type PrismaModelDelegateLike } from './prisma-client-token.js';

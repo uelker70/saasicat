@@ -19,7 +19,7 @@
                             {{ statusLabel(bundle) }}
                         </span>
                         <span v-if="i18nLocaleCount(bundle) > 0" class="sa-chip sa-chip--info">
-                            {{ i18nLocaleCount(bundle) }} Übersetzung(en)
+                            {{ translationCount(bundle) }}
                         </span>
                     </div>
                     <div class="sa-bd-card__name">{{ bundle.label }}</div>
@@ -38,7 +38,7 @@
         </div>
 
         <div v-if="bundlesTotal > 0 && filteredBundles.length === 0" class="sa-bd-empty-row">
-            Keine Bundles entsprechen der Suche.
+            {{ msg.list.emptyNoMatch }}
         </div>
     </div>
 </template>
@@ -46,9 +46,11 @@
 <script setup lang="ts">
 import type { BundleRow } from '@saasicat/types';
 import {
-    BUNDLE_STATUS_META,
+    bundleStatusMeta,
     type BundleAggregateStatus,
 } from '../../components/bundle-editor/bundle-version-status.js';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
     filteredBundles: BundleRow[];
@@ -66,17 +68,27 @@ const emit = defineEmits<{
     toggle: [bundle: BundleRow];
 }>();
 
+const msg = useSaMessages('bundles');
+const { locale } = useSuperAdminI18n();
+
+function statusMetaOf(bundle: BundleRow) {
+    return bundleStatusMeta(props.aggregateStatusOf(bundle), locale.value);
+}
+
 function statusClass(bundle: BundleRow): string {
-    return BUNDLE_STATUS_META[props.aggregateStatusOf(bundle)]?.cls ?? 'draft';
+    return statusMetaOf(bundle).cls;
 }
 
 function statusLabel(bundle: BundleRow): string {
-    const status = props.aggregateStatusOf(bundle);
-    return status === 'retired' ? 'Retired' : (BUNDLE_STATUS_META[status]?.label ?? status);
+    return statusMetaOf(bundle).label;
 }
 
-function statusTooltip(bundle: BundleRow): string | undefined {
-    return BUNDLE_STATUS_META[props.aggregateStatusOf(bundle)]?.tooltip;
+function statusTooltip(bundle: BundleRow): string {
+    return statusMetaOf(bundle).tooltip;
+}
+
+function translationCount(bundle: BundleRow): string {
+    return formatMessage(msg.value.list.translationCount, { count: props.i18nLocaleCount(bundle) });
 }
 </script>
 

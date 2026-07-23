@@ -2,10 +2,8 @@
     <section v-if="tenantImpact" class="pc-card">
         <div class="pc-card-head">
             <div class="pc-card-head-text">
-                <div class="pc-card-title">Tenant-Impact</div>
-                <div class="pc-card-sub">
-                    Wer ist betroffen, wenn die nächste Version published wird
-                </div>
+                <div class="pc-card-title">{{ msg.kpis.tenantImpact }}</div>
+                <div class="pc-card-sub">{{ msg.impact.subtitle }}</div>
             </div>
         </div>
         <div class="pc-impact-strip">
@@ -19,7 +17,7 @@
                             background: '#10b981',
                         }"
                     />
-                    <span class="pc-impact-bar-label">{{ tenantImpact.auto }} auto-migrieren</span>
+                    <span class="pc-impact-bar-label">{{ autoLabel }}</span>
                 </div>
                 <div class="pc-impact-bar">
                     <span
@@ -29,9 +27,7 @@
                             background: '#f59e0b',
                         }"
                     />
-                    <span class="pc-impact-bar-label"
-                        >{{ tenantImpact.review }} brauchen Review</span
-                    >
+                    <span class="pc-impact-bar-label">{{ reviewLabel }}</span>
                 </div>
                 <div class="pc-impact-bar">
                     <span
@@ -41,7 +37,7 @@
                             background: '#ef4444',
                         }"
                     />
-                    <span class="pc-impact-bar-label">{{ tenantImpact.conflict }} Konflikt</span>
+                    <span class="pc-impact-bar-label">{{ conflictLabel }}</span>
                 </div>
             </div>
         </div>
@@ -64,12 +60,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { ImpactTenant, TenantImpact } from './types';
 
-defineProps<{
+const props = defineProps<{
     tenantImpact: TenantImpact | null;
     tenantImpactTotal: number;
 }>();
+
+const msg = useSaMessages('planDetail');
+
+const autoLabel = computed(() =>
+    formatMessage(msg.value.impact.autoMigrate, { count: props.tenantImpact?.auto ?? 0 }),
+);
+const reviewLabel = computed(() =>
+    formatMessage(msg.value.impact.needReview, { count: props.tenantImpact?.review ?? 0 }),
+);
+const conflictLabel = computed(() =>
+    formatMessage(msg.value.impact.conflict, { count: props.tenantImpact?.conflict ?? 0 }),
+);
 
 function pct(part: number, total: number): string {
     if (total <= 0) return '0%';
@@ -86,7 +97,9 @@ function initialsOf(name: string): string {
 }
 
 function impactStateLabel(state: ImpactTenant['state']): string {
-    return state === 'auto' ? 'auto' : state === 'review' ? 'review' : 'Konflikt';
+    if (state === 'auto') return msg.value.impact.stateAuto;
+    if (state === 'review') return msg.value.impact.stateReview;
+    return msg.value.impact.stateConflict;
 }
 
 function impactStateChip(state: ImpactTenant['state']): string {

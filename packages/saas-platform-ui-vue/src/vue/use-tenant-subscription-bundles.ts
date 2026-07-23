@@ -48,7 +48,7 @@ export function useTenantSubscriptionBundles(
 ): UseTenantSubscriptionBundlesResult {
     if (!options?.billingEndpoint) {
         throw new Error(
-            'useTenantSubscriptionBundles: `billingEndpoint` ist Pflicht (z. B. "/api/v1").',
+            'useTenantSubscriptionBundles: `billingEndpoint` is required (e.g. "/api/v1").',
         );
     }
     const http = options.http ?? defaultHttpClient();
@@ -75,7 +75,7 @@ export function useTenantSubscriptionBundles(
             throw new TenantSubscriptionBundlesApiError(
                 res.status,
                 body,
-                `SubscriptionBundle-API antwortete mit HTTP ${res.status}`,
+                `SubscriptionBundle API responded with HTTP ${res.status}`,
             );
         }
         return body as T;
@@ -103,7 +103,7 @@ export function useTenantSubscriptionBundles(
             body: JSON.stringify(data),
         });
         if (!result) {
-            throw new TenantSubscriptionBundlesApiError(0, null, 'add gab keinen Body zurück');
+            throw new TenantSubscriptionBundlesApiError(0, null, 'add returned no body');
         }
         const hydrated = rehydrateDates(result);
         bundles.value = [hydrated, ...bundles.value];
@@ -119,7 +119,7 @@ export function useTenantSubscriptionBundles(
             { method: 'DELETE', body: JSON.stringify(opts) },
         );
         if (!result) {
-            throw new TenantSubscriptionBundlesApiError(0, null, 'cancel gab keinen Body zurück');
+            throw new TenantSubscriptionBundlesApiError(0, null, 'cancel returned no body');
         }
         const hydrated = rehydrateDates(result);
         bundles.value = bundles.value.map((b) => (b.id === subscriptionBundleId ? hydrated : b));

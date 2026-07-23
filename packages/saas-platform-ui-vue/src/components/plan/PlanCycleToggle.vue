@@ -1,5 +1,5 @@
 <template>
-    <div class="sp-cycle" role="radiogroup" :aria-label="i18n.ariaLabel">
+    <div class="sp-cycle" role="radiogroup" :aria-label="labels.ariaLabel">
         <button
             type="button"
             class="sp-cycle__btn"
@@ -8,7 +8,7 @@
             :aria-checked="modelValue === 'MONTHLY'"
             @click="emit('update:modelValue', 'MONTHLY')"
         >
-            {{ i18n.monthly }}
+            {{ labels.monthly }}
         </button>
         <button
             type="button"
@@ -18,33 +18,44 @@
             :aria-checked="modelValue === 'YEARLY'"
             @click="emit('update:modelValue', 'YEARLY')"
         >
-            {{ i18n.yearly }}
-            <span v-if="i18n.savePill" class="sp-cycle__pill">{{ i18n.savePill }}</span>
+            {{ labels.yearly }}
+            <span v-if="labels.savePill" class="sp-cycle__pill">{{ labels.savePill }}</span>
         </button>
     </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { BillingCycleStr } from '../../vue/use-tenant-billing.js';
 
 interface I18n {
-    ariaLabel: string;
-    monthly: string;
-    yearly: string;
+    ariaLabel?: string;
+    monthly?: string;
+    yearly?: string;
     /** Optional: Spar-Pill neben "Jährlich" (z. B. "−2 Mt"). */
     savePill?: string;
 }
 
 const props = defineProps<{
     modelValue: BillingCycleStr;
-    i18n: I18n;
+    /** Per-string overrides; unset entries fall back to the platform catalog. */
+    i18n?: I18n;
 }>();
 
 const emit = defineEmits<{
     'update:modelValue': [BillingCycleStr];
 }>();
 
-void props;
+const msg = useSaMessages('plans');
+const common = useSaMessages('common');
+
+const labels = computed(() => ({
+    ariaLabel: props.i18n?.ariaLabel ?? msg.value.cycle.ariaLabel,
+    monthly: props.i18n?.monthly ?? common.value.monthly,
+    yearly: props.i18n?.yearly ?? common.value.yearly,
+    savePill: props.i18n?.savePill,
+}));
 </script>
 
 <style scoped>

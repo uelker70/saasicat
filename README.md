@@ -14,7 +14,7 @@
 
 - **Tenant administration** — list, inspect, suspend/reactivate, impersonate, export.
 - **Plans & plan versions** — plan editor, drafts and publishing; a published plan version is an immutable snapshot.
-- **Bundles & business types** — versioned product options that can be sold standalone or included in plans, with a marketing projection.
+- **Bundles** — versioned add-ons that can be sold standalone or included in plans, with a marketing projection.
 - **Discovery loop** — your code declares capabilities, features and quotas with decorators (`@ImplementsCapability`, `@DefinesQuota`); the platform scans them at boot, the SuperAdmin reviews them, and approved entries flow into the marketing catalog and plans.
 - **Runtime entitlement enforcement** — `@RequireFeature(...)` answers with a structured 403 (`FEATURE_NOT_LICENSED`, optional upsell offers), `@EnforceQuota(...)` blocks requests that would exceed a plan limit.
 - **Marketing catalog** — i18n labels, descriptions, highlights and promotions, served through a public `GET /public/catalog` endpoint for your pricing page.
@@ -30,17 +30,17 @@ Your app keeps implementing what only it can know: persistence adapters, its own
 
 ## Packages
 
-| Package | Purpose |
-| --- | --- |
-| `@saasicat/spec` | The language-neutral contract: OpenAPI, JSON Schemas, Prisma fragments, CLI conventions. |
-| `@saasicat/types` | TypeScript types generated from the spec schemas. |
-| `@saasicat/nest` | The backend core: NestJS modules, services, guards and decorators. |
-| `@saasicat/adapter-prisma` | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
-| `@saasicat/adapter-drizzle` | The Drizzle + PostgreSQL persistence adapter: `drizzlePersistence()` bundle — same ports, same canonical schema, verified by the same contract. |
-| `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …). |
-| `@saasicat/cli` | nest-commander command flows to embed in your application CLI. |
-| `@saasicat/ui-vue` | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables. |
-| `create-saasicat-admin` | Scaffolder — `pnpm create saasicat-admin` produces a ready-to-run admin frontend. |
+| Package                         | Purpose                                                                                                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@saasicat/spec`                | The language-neutral contract: OpenAPI, JSON Schemas, Prisma fragments, CLI conventions.                                                                   |
+| `@saasicat/types`               | TypeScript types generated from the spec schemas.                                                                                                          |
+| `@saasicat/nest`                | The backend core: NestJS modules, services, guards and decorators.                                                                                         |
+| `@saasicat/adapter-prisma`      | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
+| `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter: `drizzlePersistence()` bundle — same ports, same canonical schema, verified by the same contract.            |
+| `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …).           |
+| `@saasicat/cli`                 | nest-commander command flows to embed in your application CLI.                                                                                             |
+| `@saasicat/ui-vue`              | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables.                                                                                             |
+| `create-saasicat-admin`         | Scaffolder — `pnpm create saasicat-admin` produces a ready-to-run admin frontend.                                                                          |
 
 All packages are released in lockstep and share one version number.
 

@@ -13,6 +13,8 @@
 import { ref, type Ref } from 'vue';
 import type { DiscoverySnapshot } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 export interface UseDiscoveryOptions {
     /**
@@ -68,11 +70,12 @@ export interface UseDiscoveryResult {
 }
 
 export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
+    const msg = useSaMessages('discovery');
     if (!options?.endpoint) {
         throw new Error(
-            'useDiscovery: `endpoint` ist Pflicht (z. B. "/api/admin/discovery" ' +
-                'oder "/api/v1/admin/discovery"). Plattform hat keinen Default, ' +
-                'weil Apps unterschiedliche globalPrefix-Konventionen haben.',
+            'useDiscovery: `endpoint` is required (e.g. "/api/admin/discovery" ' +
+                'or "/api/v1/admin/discovery"). The platform has no default ' +
+                'because apps use different globalPrefix conventions.',
         );
     }
 
@@ -102,7 +105,7 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
             if (res.status !== 200) {
                 throw new DiscoveryLoadError(
                     res.status,
-                    `Discovery-Endpoint antwortete mit HTTP ${res.status}`,
+                    formatMessage(msg.value.errorDiscoveryHttp, { status: res.status }),
                 );
             }
 
@@ -137,7 +140,7 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
             if (res.status !== 200 && res.status !== 201) {
                 throw new DiscoveryLoadError(
                     res.status,
-                    `Discovery-Rescan antwortete mit HTTP ${res.status}`,
+                    formatMessage(msg.value.errorRescanHttp, { status: res.status }),
                 );
             }
             const body = (await res.json()) as DiscoverySnapshot;

@@ -9,18 +9,13 @@
                 <li v-for="row in bookedRows" :key="row.id" class="sp-plan-section__item">
                     <div>
                         <span class="sp-plan-section__item-label">{{ row.label }}</span>
-                        <span
-                            v-if="row.canceledAt"
-                            class="sp-plan-section__item-canceled"
-                        >
+                        <span v-if="row.canceledAt" class="sp-plan-section__item-canceled">
                             {{ i18n.bundleCanceledAt }}
                             {{ formatDate(row.canceledEffectiveAt ?? row.canceledAt) }}
                         </span>
-                        <span
-                            v-else-if="row.minimumTermEndsAt"
-                            class="sp-plan-section__item-price"
-                        >
-                            {{ i18n.bundleMinimumTermUntil }} {{ formatDate(row.minimumTermEndsAt) }}
+                        <span v-else-if="row.minimumTermEndsAt" class="sp-plan-section__item-price">
+                            {{ i18n.bundleMinimumTermUntil }}
+                            {{ formatDate(row.minimumTermEndsAt) }}
                         </span>
                     </div>
                     <div class="sp-bundle-store__booked-actions">
@@ -114,7 +109,11 @@
                         color="primary"
                         unelevated
                         class="sp-bundle-store__card-action"
-                        :label="buyingId === row.bundle.bundleVersionId ? i18n.bundleBookInProgress : i18n.bundleBookAction"
+                        :label="
+                            buyingId === row.bundle.bundleVersionId
+                                ? i18n.bundleBookInProgress
+                                : i18n.bundleBookAction
+                        "
                         :loading="buyingId === row.bundle.bundleVersionId"
                         :disable="buyingId !== null"
                         @click="emit('buy', row.bundle.bundleVersionId)"

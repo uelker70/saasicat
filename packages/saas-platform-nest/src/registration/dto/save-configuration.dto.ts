@@ -31,17 +31,6 @@ export class SaveRegistrationConfigSelectionDto {
     appliedPromoCode?: string | null;
 
     /**
-     * SPEC_V2 §11.1 M5.3 — optional business-type choice. UUID of a
-     * **published** BusinessTypeVersion. The service validates existence +
-     * live status against `RegistrationBusinessTypeLookup`. `null` = no
-     * choice (legacy Plan-only path).
-     */
-    @IsOptional()
-    @ValidateIf((_o, value) => value !== null)
-    @IsUUID()
-    businessTypeVersionId?: string | null;
-
-    /**
      * METAMODELL §17a — Bundle consistency. ID of the `CheckoutOffer` that was
      * created on the pricing page (`<app>/register?offer=<id>`). Passed
      * through unchanged in `configJson`; the ActivationOrchestrator freezes it

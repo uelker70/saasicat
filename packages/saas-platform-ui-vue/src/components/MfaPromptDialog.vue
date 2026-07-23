@@ -7,15 +7,10 @@
         <q-card class="mfa-card">
             <q-card-section class="header">
                 <q-icon name="lock" size="22px" color="amber-9" />
-                <div class="text-h6">Multi-Faktor-Bestätigung</div>
+                <div class="text-h6">{{ msg.mfa.title }}</div>
             </q-card-section>
             <q-card-section>
-                <p class="text-body2 q-mb-sm">
-                    {{
-                        description ??
-                        'Diese Aktion ist sicherheitskritisch. Bitte 6-stelligen TOTP-Code aus Authenticator eingeben.'
-                    }}
-                </p>
+                <p class="text-body2 q-mb-sm">{{ resolvedDescription }}</p>
                 <q-input
                     v-model="code"
                     autofocus
@@ -23,7 +18,7 @@
                     maxlength="6"
                     outlined
                     dense
-                    label="TOTP-Code"
+                    :label="msg.mfa.codeLabel"
                     :error="!!error"
                     :error-message="error"
                 />
@@ -36,12 +31,12 @@
                 </slot>
             </q-card-section>
             <q-card-actions align="right">
-                <q-btn flat label="Abbrechen" v-close-popup />
+                <q-btn flat :label="common.cancel" v-close-popup />
                 <q-btn
                     unelevated
                     color="amber-9"
                     text-color="black"
-                    label="Bestätigen"
+                    :label="common.confirm"
                     :disable="code.length !== 6"
                     @click="onConfirm"
                 />
@@ -51,7 +46,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 // Cross-cutting MFA confirmation dialog. An app-specific setup hint
 // (e.g. "MFA setup via CLI: ...") is shown via the `setupHint` prop or
@@ -68,6 +64,10 @@ const emit = defineEmits<{
     (e: 'update:modelValue', v: boolean): void;
     (e: 'confirm', code: string): void;
 }>();
+
+const msg = useSaMessages('shell');
+const common = useSaMessages('common');
+const resolvedDescription = computed(() => props.description ?? msg.value.mfa.defaultDescription);
 
 const code = ref('');
 

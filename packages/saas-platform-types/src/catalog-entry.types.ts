@@ -333,10 +333,10 @@ export interface SyncDiscoveryResult {
 
 /**
  * Polymorphic target type of a MarketingProjection. References the
- * versioned entity (plan, bundle, or business-type version) that is
+ * versioned entity (plan or bundle version) that is
  * marketed publicly.
  */
-export type MarketingTargetType = 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE';
+export type MarketingTargetType = 'PLAN' | 'BUNDLE';
 
 /**
  * A top-feature entry in the public-catalog card.
@@ -355,7 +355,7 @@ export interface MarketingTopFeature {
 }
 
 /**
- * Locale-specific marketing texts per plan/bundle/business-type version.
+ * Locale-specific marketing texts per plan/bundle version.
  * Read and projected by the Public-Catalog-Controller
  * (`GET /public/catalog?locale=de`).
  *

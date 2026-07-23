@@ -2,13 +2,10 @@
     <div class="sa-emh">
         <header class="sa-emh__head">
             <div>
-                <h1 class="sa-emh__title">{{ title }}</h1>
-                <p class="sa-emh__sub">
-                    Über den Plattform-Absender versendete System-Mails — Empfänger, Status und
-                    Fehler.
-                </p>
+                <h1 class="sa-emh__title">{{ resolvedTitle }}</h1>
+                <p class="sa-emh__sub">{{ msg.history.subtitle }}</p>
             </div>
-            <q-btn flat icon="refresh" label="Neu laden" @click="applyFilter" />
+            <q-btn flat icon="refresh" :label="common.reload" @click="applyFilter" />
         </header>
 
         <div class="sa-emh__body">
@@ -18,7 +15,7 @@
                     outlined
                     dense
                     clearable
-                    label="Suche (Empfänger, Betreff, Inhalt …)"
+                    :label="msg.history.searchLabel"
                     debounce="350"
                     @keyup.enter="applyFilter"
                     @update:model-value="applyFilter"
@@ -32,7 +29,7 @@
                     clearable
                     emit-value
                     map-options
-                    label="Status"
+                    :label="common.status"
                     :options="statusOptions"
                     @update:model-value="applyFilter"
                 />
@@ -42,7 +39,7 @@
                     dense
                     clearable
                     type="date"
-                    label="Von"
+                    :label="common.from"
                     @update:model-value="applyFilter"
                 />
                 <q-input
@@ -51,7 +48,7 @@
                     dense
                     clearable
                     type="date"
-                    label="Bis"
+                    :label="common.to"
                     @update:model-value="applyFilter"
                 />
             </div>
@@ -70,7 +67,10 @@
                 >
                     <template #body-cell-status="{ row }">
                         <q-td>
-                            <q-badge :color="statusColor(row.status)" :label="statusLabel(row.status)" />
+                            <q-badge
+                                :color="statusColor(row.status)"
+                                :label="statusLabel(row.status)"
+                            />
                         </q-td>
                     </template>
                     <template #body-cell-actions="{ row }">
@@ -80,7 +80,7 @@
                                 dense
                                 icon="send"
                                 color="primary"
-                                title="Erneut senden"
+                                :title="msg.history.resend"
                                 @click.stop="onResend(row.id)"
                             />
                             <q-btn
@@ -88,13 +88,13 @@
                                 dense
                                 icon="delete"
                                 color="negative"
-                                title="Aus Verlauf entfernen"
+                                :title="msg.history.removeFromHistory"
                                 @click.stop="askDelete(row.id)"
                             />
                         </q-td>
                     </template>
                     <template #no-data>
-                        <div class="sa-emh__empty">Keine E-Mails im Verlauf.</div>
+                        <div class="sa-emh__empty">{{ msg.history.empty }}</div>
                     </template>
                 </q-table>
             </div>
@@ -106,21 +106,36 @@
                 <template v-if="detail">
                     <q-card-section>
                         <div class="row items-center no-wrap q-gutter-sm">
-                            <q-badge :color="statusColor(detail.status)" :label="statusLabel(detail.status)" />
+                            <q-badge
+                                :color="statusColor(detail.status)"
+                                :label="statusLabel(detail.status)"
+                            />
                             <div class="text-h6 ellipsis">{{ detail.subject }}</div>
                         </div>
                         <div class="text-caption text-grey-7 q-mt-xs">
-                            Von {{ detail.fromEmail }} · An {{ detail.toEmail }}
+                            {{
+                                formatMessage(msg.history.detailFromTo, {
+                                    from: detail.fromEmail,
+                                    to: detail.toEmail,
+                                })
+                            }}
                             <span v-if="detail.ccEmail"> · Cc {{ detail.ccEmail }}</span>
                             <span v-if="detail.bccEmail"> · Bcc {{ detail.bccEmail }}</span>
                         </div>
                         <div class="text-caption text-grey-7">
-                            Erstellt {{ formatTs(detail.createdAt) }} · Gesendet
-                            {{ formatTs(detail.sentAt) }}
+                            {{
+                                formatMessage(msg.history.detailTimestamps, {
+                                    created: formatTs(detail.createdAt),
+                                    sent: formatTs(detail.sentAt),
+                                })
+                            }}
                         </div>
                     </q-card-section>
 
-                    <q-card-section v-if="detail.status === 'FAILED' && detail.errorMessage" class="q-pt-none">
+                    <q-card-section
+                        v-if="detail.status === 'FAILED' && detail.errorMessage"
+                        class="q-pt-none"
+                    >
                         <q-banner dense class="bg-red-1 text-red-9 sa-emh__error">
                             <template #avatar><q-icon name="error" color="negative" /></template>
                             {{ detail.errorMessage }}
@@ -137,12 +152,14 @@
                             referrerpolicy="no-referrer"
                             class="sa-emh__frame"
                         />
-                        <pre v-else-if="detail.bodyText" class="sa-emh__text">{{ detail.bodyText }}</pre>
-                        <div v-else class="text-grey-6">Kein Inhalt gespeichert.</div>
+                        <pre v-else-if="detail.bodyText" class="sa-emh__text">{{
+                            detail.bodyText
+                        }}</pre>
+                        <div v-else class="text-grey-6">{{ msg.history.noContent }}</div>
                     </q-card-section>
 
                     <q-card-section v-if="detail.smtpResponse" class="q-pt-none">
-                        <div class="text-caption text-grey-7">SMTP-Antwort</div>
+                        <div class="text-caption text-grey-7">{{ msg.history.smtpResponse }}</div>
                         <pre class="sa-emh__smtp">{{ detail.smtpResponse }}</pre>
                     </q-card-section>
 
@@ -151,17 +168,17 @@
                             flat
                             color="negative"
                             icon="delete"
-                            label="Entfernen"
+                            :label="common.remove"
                             @click="askDelete(detail.id)"
                         />
                         <q-btn
                             unelevated
                             color="primary"
                             icon="send"
-                            label="Erneut senden"
+                            :label="msg.history.resend"
                             @click="onResend(detail.id)"
                         />
-                        <q-btn v-close-popup flat label="Schließen" />
+                        <q-btn v-close-popup flat :label="common.close" />
                     </q-card-actions>
                 </template>
             </q-card>
@@ -170,15 +187,19 @@
         <q-dialog v-model="confirmDeleteOpen">
             <q-card class="sa-emh__confirm">
                 <q-card-section>
-                    <div class="text-h6">E-Mail entfernen</div>
+                    <div class="text-h6">{{ msg.history.confirmRemoveTitle }}</div>
                 </q-card-section>
                 <q-card-section class="q-pt-none">
-                    Diese E-Mail aus dem Verlauf entfernen? Der Eintrag wird ausgeblendet, bleibt
-                    aber für das Audit erhalten.
+                    {{ msg.history.confirmRemoveMessage }}
                 </q-card-section>
                 <q-card-actions align="right">
-                    <q-btn v-close-popup flat label="Abbrechen" />
-                    <q-btn unelevated color="negative" label="Entfernen" @click="confirmDelete" />
+                    <q-btn v-close-popup flat :label="common.cancel" />
+                    <q-btn
+                        unelevated
+                        color="negative"
+                        :label="common.remove"
+                        @click="confirmDelete"
+                    />
                 </q-card-actions>
             </q-card>
         </q-dialog>
@@ -196,9 +217,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import type {
     EmailHistoryRow,
     EmailHistoryDetail,
@@ -225,13 +248,18 @@ const props = withDefaults(
         mfaSetupHint?: string;
     }>(),
     {
-        title: 'Plattform-E-Mail-Verlauf',
         pageSize: 25,
         requireMfaForWrite: false,
     },
 );
 
 const notify = useSuperAdminNotify();
+const msg = useSaMessages('email');
+const common = useSaMessages('common');
+const shell = useSaMessages('shell');
+const { intlLocale } = useSuperAdminI18n();
+
+const resolvedTitle = computed(() => props.title ?? msg.value.history.title);
 
 const rows = ref<EmailHistoryRow[]>([]);
 const loading = ref(false);
@@ -249,32 +277,37 @@ const pagination = ref({
     rowsNumber: 0,
 });
 
-const statusOptions = [
-    { label: 'Gesendet', value: 'SENT' },
-    { label: 'Fehlgeschlagen', value: 'FAILED' },
-    { label: 'Ausstehend', value: 'PENDING' },
-    { label: 'Bounced', value: 'BOUNCED' },
-];
+const statusOptions = computed(() => [
+    { label: msg.value.history.statusSent, value: 'SENT' },
+    { label: msg.value.history.statusFailed, value: 'FAILED' },
+    { label: msg.value.history.statusPending, value: 'PENDING' },
+    { label: msg.value.history.statusBounced, value: 'BOUNCED' },
+]);
 
-const columns = [
-    { name: 'status', label: 'Status', field: 'status', align: 'left' as const },
-    { name: 'toEmail', label: 'Empfänger', field: 'toEmail', align: 'left' as const },
-    { name: 'subject', label: 'Betreff', field: 'subject', align: 'left' as const },
-    { name: 'fromEmail', label: 'Absender', field: 'fromEmail', align: 'left' as const },
+const columns = computed(() => [
+    { name: 'status', label: common.value.status, field: 'status', align: 'left' as const },
+    { name: 'toEmail', label: msg.value.recipient, field: 'toEmail', align: 'left' as const },
+    {
+        name: 'subject',
+        label: msg.value.history.columnSubject,
+        field: 'subject',
+        align: 'left' as const,
+    },
+    { name: 'fromEmail', label: msg.value.sender, field: 'fromEmail', align: 'left' as const },
     {
         name: 'createdAt',
-        label: 'Erstellt',
+        label: msg.value.history.columnCreatedAt,
         field: (r: EmailHistoryRow) => formatTs(r.createdAt),
         align: 'left' as const,
     },
     {
         name: 'sentAt',
-        label: 'Gesendet',
+        label: msg.value.history.columnSentAt,
         field: (r: EmailHistoryRow) => formatTs(r.sentAt),
         align: 'left' as const,
     },
     { name: 'actions', label: '', field: 'id' as never, align: 'right' as const },
-];
+]);
 
 const detailOpen = ref(false);
 const detailLoading = ref(false);
@@ -349,14 +382,14 @@ async function openDetail(row: EmailHistoryRow): Promise<void> {
 }
 
 async function onResend(id: string): Promise<void> {
-    const { ok, result } = await runWrite('Plattform-Mail erneut senden', (code) =>
+    const { ok, result } = await runWrite(msg.value.history.mfaResend, (code) =>
         props.resendEmail(id, code || undefined),
     );
     if (!ok) return;
     if (result && result.success === false) {
-        notify('negative', result.message ?? 'Versand fehlgeschlagen');
+        notify('negative', result.message ?? msg.value.history.sendFailed);
     } else {
-        notify('positive', 'E-Mail erneut versendet');
+        notify('positive', msg.value.history.resendSuccess);
     }
     await reload();
 }
@@ -370,11 +403,11 @@ async function confirmDelete(): Promise<void> {
     const id = pendingDeleteId.value;
     confirmDeleteOpen.value = false;
     if (!id) return;
-    const { ok } = await runWrite('Plattform-Mail aus Verlauf entfernen', (code) =>
+    const { ok } = await runWrite(msg.value.history.mfaRemove, (code) =>
         props.deleteEmail(id, code || undefined),
     );
     if (!ok) return;
-    notify('positive', 'Aus Verlauf entfernt');
+    notify('positive', msg.value.history.removeSuccess);
     if (detail.value?.id === id) detailOpen.value = false;
     await reload();
 }
@@ -404,7 +437,7 @@ async function runWrite<T>(
         } catch (err) {
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 401) {
-                mfaError.value = 'TOTP-Code ungültig oder MFA nicht eingerichtet.';
+                mfaError.value = shell.value.mfa.invalidCode;
                 continue;
             }
             showMfa.value = false;
@@ -453,13 +486,13 @@ function statusColor(status: EmailHistoryStatus): string {
 function statusLabel(status: EmailHistoryStatus): string {
     switch (status) {
         case 'SENT':
-            return 'Gesendet';
+            return msg.value.history.statusSent;
         case 'FAILED':
-            return 'Fehlgeschlagen';
+            return msg.value.history.statusFailed;
         case 'BOUNCED':
-            return 'Bounced';
+            return msg.value.history.statusBounced;
         default:
-            return 'Ausstehend';
+            return msg.value.history.statusPending;
     }
 }
 
@@ -467,14 +500,14 @@ function errMsg(err: unknown): string {
     return (
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         (err as Error)?.message ??
-        'Aktion fehlgeschlagen'
+        msg.value.errorAction
     );
 }
 
 function formatTs(iso: string | null | undefined): string {
     if (!iso) return '—';
     try {
-        return new Date(iso).toLocaleString('de-DE', {
+        return new Date(iso).toLocaleString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',

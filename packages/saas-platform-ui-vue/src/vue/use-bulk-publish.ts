@@ -12,6 +12,7 @@
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 export type BulkItemKind = 'plan';
 
@@ -62,11 +63,12 @@ export interface UseBulkPublishResult {
 }
 
 export function useBulkPublish(options: UseBulkPublishOptions): UseBulkPublishResult {
+    const msg = useSaMessages('planVersions');
     if (!options?.endpoints) {
         throw new Error(
-            'useBulkPublish: `endpoints` ist Pflicht (Mapping plan → URL-Builder). ' +
-                'Plattform hat keinen Default, weil Apps unterschiedliche ' +
-                'globalPrefix-Konventionen haben.',
+            'useBulkPublish: `endpoints` is required (mapping plan → URL builder). ' +
+                'The platform has no default because apps use different ' +
+                'globalPrefix conventions.',
         );
     }
     const http = options.http ?? defaultHttpClient();
@@ -128,7 +130,7 @@ export function useBulkPublish(options: UseBulkPublishOptions): UseBulkPublishRe
             // Mark all items as failed with a clear reason.
             for (const item of items.value) {
                 item.status = 'failed';
-                item.error = 'changeNote ist Pflicht beim Publish.';
+                item.error = msg.value.bulkPublish.changeNoteRequired;
             }
             return;
         }

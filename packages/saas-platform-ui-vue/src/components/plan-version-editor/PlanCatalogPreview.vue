@@ -2,8 +2,8 @@
     <section class="pve-col pve-preview">
         <div class="pve-col-header pve-col-header--preview">
             <div>
-                <div class="pve-col-title">Live-Vorschau · Public-Catalog</div>
-                <div class="pve-col-sub">So sehen Interessenten den Plan</div>
+                <div class="pve-col-title">{{ msg.catalogPreview.title }}</div>
+                <div class="pve-col-sub">{{ msg.catalogPreview.subtitle }}</div>
             </div>
             <div class="pve-preview-toggle">
                 <button
@@ -14,14 +14,14 @@
                     ]"
                     @click="$emit('update:previewMode', 'desktop')"
                 >
-                    Desktop
+                    {{ msg.catalogPreview.desktop }}
                 </button>
                 <button
                     type="button"
                     :class="['pve-btn pve-btn--sm', { 'pve-btn--ghost': previewMode !== 'mobile' }]"
                     @click="$emit('update:previewMode', 'mobile')"
                 >
-                    Mobil
+                    {{ msg.catalogPreview.mobile }}
                 </button>
             </div>
         </div>
@@ -34,22 +34,22 @@
                 <div class="pve-prev-url">{{ catalogUrl }}</div>
             </div>
             <div class="pve-prev-body">
-                <div class="pve-prev-eyebrow">Unsere Pläne · Vorschau Draft v{{ version }}</div>
+                <div class="pve-prev-eyebrow">{{ eyebrow }}</div>
                 <div class="pve-prev-title">{{ planDisplayName }}</div>
                 <div class="pve-prev-desc">
-                    {{ changeNote || 'Plan-Beschreibung wird aus der Change-Note generiert.' }}
+                    {{ changeNote || msg.catalogPreview.descriptionFallback }}
                 </div>
                 <div class="pve-prev-price">
                     <span class="pve-prev-price-big">{{ formattedMonthly }}</span>
-                    <span class="pve-prev-price-unit">/ Monat</span>
+                    <span class="pve-prev-price-unit">{{ msg.catalogPreview.perMonth }}</span>
                 </div>
                 <div v-if="yearlySavingsLabel" class="pve-prev-price-yearly">
-                    oder {{ formattedYearly }} / Jahr · {{ yearlySavingsLabel }}
+                    {{ yearlyAlternative }}
                 </div>
 
-                <button type="button" class="pve-prev-cta">Jetzt 30 Tage testen</button>
+                <button type="button" class="pve-prev-cta">{{ msg.catalogPreview.cta }}</button>
 
-                <div class="pve-prev-sep">Enthalten</div>
+                <div class="pve-prev-sep">{{ msg.catalogPreview.included }}</div>
                 <ul class="pve-prev-list">
                     <li v-for="row in selectedQuotaList" :key="`pq-${row.quotaKey}`">
                         <span class="pve-prev-tick" aria-hidden="true">
@@ -86,16 +86,14 @@
                         v-if="sortedSelectedFeatures.length === 0 && selectedQuotaList.length === 0"
                         class="pve-prev-empty"
                     >
-                        Noch keine Inhalte zugewiesen.
+                        {{ msg.catalogPreview.emptyContents }}
                     </li>
                 </ul>
 
                 <div class="pve-prev-foot">
-                    Marketing-Catalog ·
+                    {{ msg.catalogPreview.footerLabel }} ·
                     <code class="pve-mono pve-mono--xs">{{ planKey }}@v{{ version }}</code>
-                    <template v-if="changeNote">
-                        · Change-Note „{{ changeNote }}" wird bei Publish veröffentlicht.
-                    </template>
+                    <template v-if="changeNote"> · {{ footerChangeNote }} </template>
                 </div>
             </div>
         </div>
@@ -114,10 +112,8 @@
                         <path d="M5 13l4 4L19 7" />
                     </svg>
                 </span>
-                <span class="pve-prev-validate-title">Publish-Checkliste</span>
-                <span class="pve-prev-validate-count"
-                    >{{ checklistOkCount }} / {{ checklist.length }} ok</span
-                >
+                <span class="pve-prev-validate-title">{{ msg.catalogPreview.checklistTitle }}</span>
+                <span class="pve-prev-validate-count">{{ checklistCountLabel }}</span>
             </div>
             <div
                 v-for="item in checklist"
@@ -158,9 +154,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { ChecklistItem, PreviewMode, SelectedQuotaRow } from './types.js';
 
-defineProps<{
+const props = defineProps<{
     previewMode: PreviewMode;
     catalogUrl: string;
     planKey: string;
@@ -181,4 +180,28 @@ defineProps<{
 defineEmits<{
     (e: 'update:previewMode', value: PreviewMode): void;
 }>();
+
+const msg = useSaMessages('planEditor');
+
+const eyebrow = computed(() =>
+    formatMessage(msg.value.catalogPreview.eyebrow, { version: props.version }),
+);
+
+const yearlyAlternative = computed(() =>
+    formatMessage(msg.value.catalogPreview.yearlyAlternative, {
+        price: props.formattedYearly,
+        savings: props.yearlySavingsLabel ?? '',
+    }),
+);
+
+const footerChangeNote = computed(() =>
+    formatMessage(msg.value.catalogPreview.footerChangeNote, { note: props.changeNote }),
+);
+
+const checklistCountLabel = computed(() =>
+    formatMessage(msg.value.catalogPreview.checklistCount, {
+        ok: props.checklistOkCount,
+        total: props.checklist.length,
+    }),
+);
 </script>

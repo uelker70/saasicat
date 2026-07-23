@@ -82,7 +82,6 @@ export interface AdminManifest {
             pilots?: StandardPageDef;
             discovery?: StandardPageDef;
             bundles?: StandardPageDef;
-            businessTypes?: StandardPageDef;
             marketingCatalog?: StandardPageDef;
             platformEmail?: StandardPageDef;
             platformEmailHistory?: StandardPageDef;

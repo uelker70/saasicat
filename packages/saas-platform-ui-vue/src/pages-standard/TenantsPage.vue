@@ -2,7 +2,7 @@
     <div class="sa-tenants">
         <header class="sa-tenants__head">
             <div>
-                <h1 class="sa-tenants__title">Mandanten</h1>
+                <h1 class="sa-tenants__title">{{ msg.list.title }}</h1>
                 <p v-if="subtitle" class="sa-tenants__sub">{{ subtitle }}</p>
             </div>
         </header>
@@ -12,7 +12,7 @@
                 <q-icon name="search" size="15px" />
                 <input
                     v-model="searchInput"
-                    placeholder="Slug oder Name …"
+                    :placeholder="msg.list.searchPlaceholder"
                     @input="reloadDebounced"
                 />
                 <button v-if="searchInput" class="sa-tenants__clear" @click="onClearSearch">
@@ -20,8 +20,8 @@
                 </button>
             </div>
             <select v-model="statusFilter" class="sa-tenants__select" @change="applyFilter">
-                <option :value="null">Alle Aktiv-Status</option>
-                <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                <option :value="null">{{ msg.list.allStatuses }}</option>
+                <option v-for="opt in resolvedStatusOptions" :key="opt.value" :value="opt.value">
                     {{ opt.label }}
                 </option>
             </select>
@@ -31,14 +31,14 @@
                 class="sa-tenants__select"
                 @change="applyFilter"
             >
-                <option :value="null">{{ planFilterLabel }}</option>
+                <option :value="null">{{ resolvedPlanFilterLabel }}</option>
                 <option v-for="p in planOptions" :key="p" :value="p">{{ p }}</option>
             </select>
             <slot name="filters-extra" />
         </div>
 
         <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
-            <strong>Fehler:</strong> {{ error.message }}
+            <strong>{{ common.error }}:</strong> {{ error.message }}
         </q-banner>
 
         <div class="sa-tenants__card">
@@ -46,11 +46,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Mandant</th>
-                            <th v-if="showPlanColumn">{{ planColumnLabel }}</th>
-                            <th>Status</th>
-                            <th v-if="usageFields.length > 0" class="num">Verbrauch</th>
-                            <th class="num">Angelegt</th>
+                            <th>{{ msg.tenant }}</th>
+                            <th v-if="showPlanColumn">{{ resolvedPlanColumnLabel }}</th>
+                            <th>{{ common.status }}</th>
+                            <th v-if="usageFields.length > 0" class="num">
+                                {{ msg.list.columnUsage }}
+                            </th>
+                            <th class="num">{{ msg.list.columnCreatedAt }}</th>
                             <th v-if="hasActions" class="num"></th>
                         </tr>
                     </thead>
@@ -100,7 +102,7 @@
                                 </div>
                             </td>
                             <td class="num sa-tenants__mono">
-                                {{ formatDateDe(usageStr(row, 'createdAt')) }}
+                                {{ formatCreatedAt(row) }}
                             </td>
                             <td v-if="hasActions" class="num sa-tenants__actions">
                                 <slot name="row-actions" :row="row" :actions="visibleActions(row)">
@@ -127,17 +129,16 @@
                 </table>
                 <div v-if="items.length === 0 && !loading" class="sa-tenants__empty">
                     <q-icon name="search_off" size="32px" />
-                    <div>Keine Mandanten mit diesen Filtern.</div>
+                    <div>{{ msg.list.empty }}</div>
                 </div>
                 <div v-if="loading" class="sa-tenants__loading">
-                    <q-spinner size="20px" /> wird geladen…
+                    <q-spinner size="20px" /> {{ common.loading }}
                 </div>
             </div>
         </div>
 
         <footer class="sa-tenants__foot">
-            {{ total }} Mandanten · Seite {{ page }} /
-            {{ Math.max(1, Math.ceil(total / pageSize)) }}
+            {{ paginationLabel }}
         </footer>
 
         <!-- Manifest-Driven Action Flow: only mounted when the `manifest` prop
@@ -166,13 +167,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type {
-    AdminManifest,
-    TenantActionDef,
-    TenantDto,
-    TenantListFilter,
-} from '@saasicat/types';
+import type { AdminManifest, TenantActionDef, TenantDto, TenantListFilter } from '@saasicat/types';
 import type { HttpClient } from '../client/types.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useTenants } from '../vue/use-tenants.js';
 import {
     usePlatformTenantActions,
@@ -181,12 +179,7 @@ import {
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../components/TenantActionConfirmDialog.vue';
 import StatusPill, { type PillTone } from './tenants/StatusPill.vue';
-import {
-    DEFAULT_PLAN_ACCENTS,
-    formatDateDe,
-    planAccent,
-    tenantInitials,
-} from './tenants/format.js';
+import { DEFAULT_PLAN_ACCENTS, formatDate, planAccent, tenantInitials } from './tenants/format.js';
 
 // Platform standard page: tenant list.
 //
@@ -196,7 +189,7 @@ import {
 //
 // App-specific bits via props:
 //   - `subtitle`             : header subtitle
-//   - `statusOptions`        : filter dropdown values (default: Aktiv/Suspendiert)
+//   - `statusOptions`        : filter dropdown values (default: active/suspended)
 //   - `planOptions`          : filter dropdown values for plan; omitted = hides dropdown
 //   - `planAccents`          : plan id → accent color (avatar + plan dot)
 //   - `planLabelField`       : field for the plan display (e.g. "plan" or "bundleKey")
@@ -331,12 +324,6 @@ const props = withDefaults(
     }>(),
     {
         pageSize: 25,
-        statusOptions: () => [
-            { value: 'ACTIVE', label: 'Aktiv' },
-            { value: 'INACTIVE', label: 'Suspendiert' },
-        ],
-        planFilterLabel: 'Alle Pläne',
-        planColumnLabel: 'Plan',
         showPlanColumn: true,
         planLabelField: 'plan',
         planAccents: () => DEFAULT_PLAN_ACCENTS,
@@ -344,6 +331,20 @@ const props = withDefaults(
         manifest: null,
     },
 );
+
+const msg = useSaMessages('tenants');
+const common = useSaMessages('common');
+const { intlLocale } = useSuperAdminI18n();
+
+const resolvedStatusOptions = computed<ReadonlyArray<{ value: string; label: string }>>(
+    () =>
+        props.statusOptions ?? [
+            { value: 'ACTIVE', label: common.value.active },
+            { value: 'INACTIVE', label: msg.value.list.suspended },
+        ],
+);
+const resolvedPlanFilterLabel = computed(() => props.planFilterLabel ?? msg.value.list.allPlans);
+const resolvedPlanColumnLabel = computed(() => props.planColumnLabel ?? msg.value.plan);
 
 const filter = ref<TenantListFilter>({});
 const searchInput = ref('');
@@ -359,6 +360,14 @@ const list = useTenants<TenantRow>({
 const { items, page, total, loading, error, goToPage, setPageSize } = list;
 
 setPageSize(props.pageSize);
+
+const paginationLabel = computed(() =>
+    formatMessage(msg.value.list.pagination, {
+        total: total.value,
+        page: page.value,
+        pages: Math.max(1, Math.ceil(total.value / props.pageSize)),
+    }),
+);
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 function reloadDebounced(): void {
@@ -427,7 +436,7 @@ if (manifestFlow && typeof window !== 'undefined') {
             if (orphans.length > 0) {
                 // eslint-disable-next-line no-console
                 console.warn(
-                    '[PlatformTenantsPage] Manifest-Actions ohne Handler in createSuperAdminApp({ actions }):',
+                    '[PlatformTenantsPage] Manifest actions without a handler in createSuperAdminApp({ actions }):',
                     orphans,
                 );
             }
@@ -449,8 +458,8 @@ const combinedActions = computed<TenantRowAction[]>(() => {
             if (typeof window !== 'undefined') {
                 // eslint-disable-next-line no-console
                 console.warn(
-                    `[PlatformTenantsPage] Custom-Action "${a.id}" (actionKey="${a.actionKey}") ` +
-                        `kollidiert mit Manifest-Action — Manifest gewinnt.`,
+                    `[PlatformTenantsPage] Custom action "${a.id}" (actionKey="${a.actionKey}") ` +
+                        `collides with a manifest action — the manifest wins.`,
                 );
             }
             return false;
@@ -488,14 +497,18 @@ function usageStr(row: TenantRow, key: string): string | undefined {
     return typeof v === 'string' ? v : undefined;
 }
 
+function formatCreatedAt(row: TenantRow): string {
+    return formatDate(usageStr(row, 'createdAt'), intlLocale.value);
+}
+
 function resolvedPills(row: TenantRow): StatusPillDef[] {
     if (props.pillsForRow) return props.pillsForRow(row);
-    // Default: only Aktiv/Suspendiert.
+    // Default: only active/suspended.
     const isActive = (row as TenantDto).isActive;
     return [
         isActive
-            ? { label: 'Aktiv', icon: 'check_circle', tone: 'positive' }
-            : { label: 'Suspendiert', icon: 'block', tone: 'negative' },
+            ? { label: common.value.active, icon: 'check_circle', tone: 'positive' }
+            : { label: msg.value.list.suspended, icon: 'block', tone: 'negative' },
     ];
 }
 

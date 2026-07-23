@@ -2,17 +2,11 @@ import type { TransactionContext } from './core-ports.types.js';
 import type {
     BundleRow,
     BundleVersionRow,
-    BusinessTypeRow,
-    BusinessTypeVersionRow,
     CreateBundleData,
     CreateBundleVersionDraftData,
-    CreateBusinessTypeData,
-    CreateBusinessTypeVersionDraftData,
     UpdateBundleData,
     UpdateBundleVersionDraftData,
-    UpdateBusinessTypeData,
-    UpdateBusinessTypeVersionDraftData,
-} from '../bundle-business-type.types.js';
+} from '../bundle.types.js';
 import type {
     CapabilityCatalogEntryRow,
     CapabilityCodeStatus,
@@ -309,65 +303,6 @@ export interface BundleRepository {
      * `BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED`.
      */
     deleteDraft?(versionId: string): Promise<void>;
-}
-
-// =============================================================================
-// BusinessType / BusinessTypeVersion — persistence adapter (SPEC_V2 §11.1 M3)
-// =============================================================================
-
-/** Filter for `BusinessTypeRepository.list()`. */
-export interface BusinessTypeListFilter {
-    projectKey: string;
-    excludeDeleted?: boolean;
-}
-
-/**
- * Adapter for `BusinessType` + `BusinessTypeVersion` + `BusinessTypeBundle`
- * persistence. Consumers implement this against their Prisma tables
- * (`business_types`, `business_type_versions`, `business_type_bundles`).
- *
- * Like `BundleRepository`: max. 1 draft per businessTypeId; `publishDraft`
- * sets the previous live version to `supersededAt`. The bundle composition
- * is written atomically together with each BusinessTypeVersion (junction rows).
- */
-export interface BusinessTypeRepository {
-    // ─── Stem operations ───
-    list(filter: BusinessTypeListFilter): Promise<BusinessTypeRow[]>;
-    findById(businessTypeId: string): Promise<BusinessTypeRow | null>;
-    findByKey(projectKey: string, businessTypeKey: string): Promise<BusinessTypeRow | null>;
-    create(data: CreateBusinessTypeData): Promise<BusinessTypeRow>;
-    update(businessTypeId: string, data: UpdateBusinessTypeData): Promise<BusinessTypeRow>;
-    softDelete(businessTypeId: string): Promise<void>;
-
-    // ─── Version operations ───
-    listVersions(businessTypeId: string): Promise<BusinessTypeVersionRow[]>;
-    findVersionById(versionId: string): Promise<BusinessTypeVersionRow | null>;
-    findCurrentDraft(businessTypeId: string): Promise<BusinessTypeVersionRow | null>;
-    findLatestLive(
-        businessTypeId: string,
-        tx?: TransactionContext,
-    ): Promise<BusinessTypeVersionRow | null>;
-
-    /**
-     * Creates a new draft version. Throws if a draft already
-     * exists. Computes `version` as MAX+1. Writes the
-     * BusinessTypeBundle junction rows in the same transaction.
-     */
-    createDraft(data: CreateBusinessTypeVersionDraftData): Promise<BusinessTypeVersionRow>;
-    updateDraft(
-        versionId: string,
-        data: UpdateBusinessTypeVersionDraftData,
-    ): Promise<BusinessTypeVersionRow>;
-
-    publishDraft(
-        versionId: string,
-        publishMeta: {
-            publishedByUserId: string | null;
-            publishedChanges: VersionChange[];
-            nonRegressive: boolean;
-        },
-        tx?: TransactionContext,
-    ): Promise<BusinessTypeVersionRow>;
 }
 
 // =============================================================================

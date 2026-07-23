@@ -6,13 +6,13 @@
             </template>
             {{ error.message }}
             <template #action>
-                <q-btn flat label="Erneut laden" @click="load" />
+                <q-btn flat :label="common.reload" @click="load" />
             </template>
         </q-banner>
 
         <div v-if="loading && plans.length === 0" class="sa-plans__loading">
             <q-spinner size="32px" />
-            <span>Pläne werden geladen…</span>
+            <span>{{ msg.page.loading }}</span>
         </div>
 
         <template v-else>
@@ -179,6 +179,9 @@ import {
     type UsePlanVersionsResult,
 } from '../vue/use-plans.js';
 import type { HttpClient } from '../client/types.js';
+import type { SaMessages } from '../client/i18n/index.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import PlanVersionEditor from '../components/plan-version-editor/PlanVersionEditor.vue';
 import PlanMatrix from '../components/plan-matrix/PlanMatrix.vue';
 import PlanDetail from '../components/plan-detail/PlanDetail.vue';
@@ -246,6 +249,9 @@ const props = defineProps<{
     /** Optional: loader for a Plan's audit log (cockpit). */
     loadPlanAudit?: (planId: string) => Promise<AuditRow[]>;
 }>();
+
+const msg = useSaMessages('plans');
+const common = useSaMessages('common');
 
 const composable: UsePlansResult = usePlans({
     adminEndpoint: props.adminEndpoint,
@@ -390,7 +396,7 @@ async function onCreateSubmit(payload: PlanCreateSubmit): Promise<void> {
 
         await reloadAllVersions();
         flashHighlight(created.planKey);
-        flashToast(`Plan ${created.planKey} angelegt — jetzt die erste Version zusammenstellen.`);
+        flashToast(formatMessage(msg.value.page.toastPlanCreated, { planKey: created.planKey }));
         await onOpenPlan(created);
         openCreateDraftWithPrefill({
             features: payload.initialFeatures,
@@ -550,7 +556,7 @@ async function onUpdatePlanFromDetail(patch: { label: string }): Promise<void> {
         selectedPlan.value = updated;
     } catch (err: unknown) {
         // eslint-disable-next-line no-console
-        console.error('[PlansPage] Plan-Rename fehlgeschlagen', err);
+        console.error('[PlansPage] Plan rename failed', err);
     }
 }
 
@@ -564,7 +570,10 @@ const availableBundles = ref<BundleEntry[]>([]);
 // all consumer admin UIs label things identically.
 const featureCatalogEntries = ref<FeatureCatalogEntryRow[]>([]);
 const featureRegistry = computed<Record<string, { label?: string; group?: string }>>(() => ({
-    ...buildFeatureRegistry(featureCatalogEntries.value, props.displayLocale ?? CATALOG_DEFAULT_LOCALE),
+    ...buildFeatureRegistry(
+        featureCatalogEntries.value,
+        props.displayLocale ?? CATALOG_DEFAULT_LOCALE,
+    ),
     ...props.featureRegistry,
 }));
 
@@ -659,28 +668,32 @@ function describeDraftSaveError(err: unknown): string {
     const body = e?.body;
     const code = body?.code;
     if (status === 401 || status === 403) {
-        return 'Sitzung abgelaufen — bitte neu anmelden und erneut speichern.';
+        return msg.value.page.errorSessionExpiredSave;
     }
     if (status === 422 && code === 'STRICT_MODE_VIOLATIONS') {
         const list = (body?.warnings ?? [])
             .map((w) => w.message)
             .filter(Boolean)
             .join(' · ');
-        return `Strict-Mode-Check: ${list || 'Drift gegen den Discovery-Snapshot.'}`;
+        return formatMessage(msg.value.page.errorStrictMode, {
+            details: list || msg.value.page.errorStrictModeFallback,
+        });
     }
     if (status === 422 && code === 'PLAN_VERSION_REGRESSION') {
-        return 'Diese Version ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). Publish erfordert Force-Regressive — beim Speichern als Draft sollte das nicht auftreten.';
+        return msg.value.page.errorDraftRegression;
     }
     if (status === 422 && body?.message) {
         // e.g. "Plan 'BASIC' hat bereits eine Draft-Version v4 …"
         return body.message;
     }
     if (status !== undefined) {
-        return body?.message ?? `Speichern fehlgeschlagen (HTTP ${status}).`;
+        return (
+            body?.message ?? formatMessage(msg.value.page.errorSaveFailedHttp, { status: status })
+        );
     }
     return err instanceof Error
-        ? `Speichern fehlgeschlagen: ${err.message}`
-        : 'Speichern fehlgeschlagen — Details siehe Browser-Konsole.';
+        ? formatMessage(msg.value.page.errorSaveFailedDetail, { message: err.message })
+        : msg.value.page.errorSaveFailedConsole;
 }
 const draftEditing = ref<{
     editingId: string | null;
@@ -903,13 +916,18 @@ async function onReviewSaveExit(): Promise<void> {
         if (!saved) return;
         const planKey = selectedPlan.value?.planKey ?? '';
         flashHighlight(planKey);
-        flashToast(`Draft v${saved.version} von ${planKey} gespeichert.`);
+        flashToast(
+            formatMessage(msg.value.page.toastDraftSaved, {
+                version: saved.version,
+                planKey,
+            }),
+        );
         reviewDraft.value = null;
         draftEditing.value = null;
         mode.value = selectedPlan.value ? 'cockpit' : 'list';
     } catch (err: unknown) {
         // eslint-disable-next-line no-console
-        console.error('[PlansPage] Draft speichern fehlgeschlagen', err);
+        console.error('[PlansPage] Saving the draft failed', err);
         reviewError.value = describeDraftSaveError(err);
     } finally {
         draftSaving.value = false;
@@ -936,14 +954,17 @@ async function onReviewPublish(payload: {
         const planKey = selectedPlan.value.planKey;
         flashHighlight(planKey);
         flashToast(
-            `Plan ${planKey} wurde als v${result.planVersion.version} veröffentlicht — sichtbar im Katalog.`,
+            formatMessage(msg.value.page.toastPlanPublished, {
+                planKey,
+                version: result.planVersion.version,
+            }),
         );
         reviewDraft.value = null;
         draftEditing.value = null;
         mode.value = 'cockpit';
     } catch (err: unknown) {
         // eslint-disable-next-line no-console
-        console.error('[PlansPage] Publish fehlgeschlagen', err);
+        console.error('[PlansPage] Publishing failed', err);
         reviewError.value = describePublishError(err);
     } finally {
         publishing.value = false;
@@ -974,31 +995,29 @@ async function executeArchive(): Promise<void> {
         await hardDelete(plan.id);
         await reloadAllVersions();
         archiveOpen.value = false;
-        flashToast(`Plan ${plan.planKey} komplett aus der DB gelöscht.`);
+        flashToast(formatMessage(msg.value.page.toastPlanDeleted, { planKey: plan.planKey }));
     } catch (err: unknown) {
         // eslint-disable-next-line no-console
-        console.error('[PlansPage] Archive/Purge fehlgeschlagen', err);
+        console.error('[PlansPage] Archive/purge failed', err);
         const status = (err as { status?: number })?.status;
         const body = (err as { body?: { code?: string; message?: string } })?.body;
         const errMessage = err instanceof Error ? err.message : String(err);
         if (status === 422 && body?.code === 'PLAN_HAS_PUBLISHED_VERSIONS') {
-            archiveError.value =
-                body.message ??
-                'Plan hat published Versionen — kann nicht gelöscht werden (Vertragsschutz P1).';
+            archiveError.value = body.message ?? msg.value.page.errorPlanHasPublishedVersions;
         } else if (status === 422 && body?.code === 'PLAN_HAS_DRAFTS') {
-            archiveError.value =
-                body.message ??
-                'Plan hat noch einen offenen Draft — bitte erst über das Mülleimer-Icon verwerfen.';
+            archiveError.value = body.message ?? msg.value.page.errorPlanHasDrafts;
         } else if (status === 422 && body?.code === 'PLAN_HARD_DELETE_NOT_IMPLEMENTED') {
-            archiveError.value =
-                'Backend unterstützt Hard-Delete noch nicht — API-Server neu bauen + starten.';
+            archiveError.value = msg.value.page.errorHardDeleteNotImplemented;
         } else if (status === 404) {
-            archiveError.value = 'Plan wurde bereits entfernt (404). Liste wird neu geladen.';
+            archiveError.value = msg.value.page.errorPlanAlreadyRemoved;
             await reloadAllVersions();
         } else if (status !== undefined) {
-            archiveError.value = body?.message ?? `Vorgang fehlgeschlagen (HTTP ${status}).`;
+            archiveError.value =
+                body?.message ?? formatMessage(msg.value.page.errorOperationFailedHttp, { status });
         } else {
-            archiveError.value = `Vorgang fehlgeschlagen: ${errMessage}. Details siehe Browser-Konsole.`;
+            archiveError.value = formatMessage(msg.value.page.errorOperationFailedDetail, {
+                message: errMessage,
+            });
         }
     } finally {
         archiving.value = false;
@@ -1037,35 +1056,38 @@ async function executeDiscard(): Promise<void> {
         await reloadAllVersions();
         discardOpen.value = false;
         flashToast(
-            `Draft v${draft.version} von ${plan.planKey} verworfen — Live-Version unverändert.`,
+            formatMessage(msg.value.page.toastDraftDiscarded, {
+                version: draft.version,
+                planKey: plan.planKey,
+            }),
         );
     } catch (err: unknown) {
         // Full error object to the console — in the diagnostic case you can see
         // e.g. CORS preflight errors or the real network stack there.
         // eslint-disable-next-line no-console
-        console.error('[PlansPage] Discard fehlgeschlagen', err);
+        console.error('[PlansPage] Discard failed', err);
 
         const status = (err as { status?: number })?.status;
         const body = (err as { body?: { code?: string; message?: string } })?.body;
         const errMessage = err instanceof Error ? err.message : String(err);
 
         if (status === 422 && body?.code === 'PLAN_VERSION_ALREADY_PUBLISHED') {
-            discardError.value =
-                'Diese Version ist bereits published und kann nicht verworfen werden.';
+            discardError.value = msg.value.page.errorVersionAlreadyPublished;
         } else if (status === 422 && body?.code === 'PLAN_VERSION_DISCARD_NOT_IMPLEMENTED') {
-            discardError.value =
-                'Backend unterstützt das Verwerfen noch nicht — bitte API-Server neu bauen + starten.';
+            discardError.value = msg.value.page.errorDiscardNotImplemented;
         } else if (status === 404) {
-            discardError.value =
-                'Draft wurde bereits entfernt (404) — Liste wird gleich neu geladen.';
+            discardError.value = msg.value.page.errorDraftAlreadyRemoved;
             await reloadAllVersions();
         } else if (status !== undefined) {
-            discardError.value = body?.message ?? `Verwerfen fehlgeschlagen (HTTP ${status}).`;
+            discardError.value =
+                body?.message ?? formatMessage(msg.value.page.errorDiscardFailedHttp, { status });
         } else {
             // No HTTP status → usually a network error / CORS preflight / failed
             // caller-side (e.g. usePlanVersions construction). Show the real
             // error message so the diagnostic path doesn't end at "HTTP ?".
-            discardError.value = `Verwerfen fehlgeschlagen: ${errMessage}. Details siehe Browser-Konsole (oft: API-Server alt gebaut oder CORS blockiert DELETE).`;
+            discardError.value = formatMessage(msg.value.page.errorDiscardFailedDetail, {
+                message: errMessage,
+            });
         }
     } finally {
         discarding.value = false;
@@ -1078,13 +1100,15 @@ async function executeDiscard(): Promise<void> {
 // consistent after the call.
 async function onSubmitTerminate(versionId: string, endsAt: string): Promise<void> {
     if (!planVersions.value) {
-        throw new Error('PlanVersions-Composable nicht initialisiert');
+        throw new Error('PlanVersions composable is not initialized');
     }
     await planVersions.value.terminateVersion(versionId, endsAt);
     await reloadCockpitVersions();
     if (selectedPlan.value) {
         flashToast(
-            `v${versions.value.find((v) => v.id === versionId)?.version ?? '?'} terminiert.`,
+            formatMessage(msg.value.page.toastVersionTerminated, {
+                version: versions.value.find((v) => v.id === versionId)?.version ?? '?',
+            }),
         );
     }
 }
@@ -1122,7 +1146,10 @@ async function executePublish(): Promise<void> {
         if (selectedPlan.value) {
             flashHighlight(selectedPlan.value.planKey);
             flashToast(
-                `Plan ${selectedPlan.value.planKey} wurde als v${result.planVersion.version} veröffentlicht — sichtbar im Katalog.`,
+                formatMessage(msg.value.page.toastPlanPublished, {
+                    planKey: selectedPlan.value.planKey,
+                    version: result.planVersion.version,
+                }),
             );
         }
     } catch (err: unknown) {
@@ -1140,19 +1167,21 @@ async function executePublish(): Promise<void> {
     }
 }
 
-const REGRESSION_FIELD_LABELS: Record<string, string> = {
-    monthlyNet: 'Preis (monatlich, netto)',
-    yearlyNet: 'Preis (jährlich, netto)',
-    'features.removed': 'Entfernte Features',
-    'features.added': 'Hinzugefügte Features',
-    'quotas.lowered': 'Gesenkte Quotas',
-    'quotas.raised': 'Erhöhte Quotas',
-    'bundles.removed': 'Entfernte Bundles',
-    'bundles.added': 'Hinzugefügte Bundles',
+// API field path of a regression change → catalog key of its label.
+const REGRESSION_FIELD_KEYS: Record<string, keyof SaMessages['plans']['regressionFields']> = {
+    monthlyNet: 'monthlyNet',
+    yearlyNet: 'yearlyNet',
+    'features.removed': 'featuresRemoved',
+    'features.added': 'featuresAdded',
+    'quotas.lowered': 'quotasLowered',
+    'quotas.raised': 'quotasRaised',
+    'bundles.removed': 'bundlesRemoved',
+    'bundles.added': 'bundlesAdded',
 };
 
 function fieldLabel(field: string): string {
-    return REGRESSION_FIELD_LABELS[field] ?? field;
+    const key = REGRESSION_FIELD_KEYS[field];
+    return key ? msg.value.regressionFields[key] : field;
 }
 
 function formatChangeValue(value: unknown): string {
@@ -1175,21 +1204,24 @@ function describePublishError(err: unknown): string {
     const status = (err as { status?: number })?.status;
     const body = (err as { body?: { code?: string; message?: string } })?.body;
     if (status === 401 || status === 403) {
-        return 'Sitzung abgelaufen — bitte neu anmelden und erneut versuchen.';
+        return msg.value.page.errorSessionExpiredPublish;
     }
     if (status === 422 && body?.code === 'PLAN_VERSION_REGRESSION') {
-        return 'Diese Version ist regressiv. Aktiviere "Force-Publish", wenn der Schritt absichtlich ist.';
+        return msg.value.page.errorPublishRegression;
     }
     if (status === 422 && body?.code === 'PLAN_VERSION_VALID_FROM_REQUIRED') {
-        return 'Beim Publish muss "Gültig ab" gesetzt sein. Bitte den Draft öffnen und das Datum eintragen.';
+        return msg.value.page.errorValidFromRequired;
     }
     if (status === 422 && body?.code === 'PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS') {
-        return '"Gültig ab" muss strikt nach dem "Gültig ab" der Vorgänger-Version liegen. Bitte ein späteres Datum wählen.';
+        return msg.value.page.errorValidFromNotAfterPrevious;
     }
     if (status === 422 && body?.code === 'PLAN_VERSION_ZERO_PRICE') {
-        return 'Diese Version hat Preis 0,00 (Schutz gegen Seed-Platzhalter). Aktiviere "Preis 0,00 bewusst zulassen", wenn das ein gewollter kostenloser Sondervertrag ist.';
+        return msg.value.page.errorZeroPrice;
     }
-    return body?.message ?? `Publish fehlgeschlagen (HTTP ${status ?? '?'})`;
+    return (
+        body?.message ??
+        formatMessage(msg.value.page.errorPublishFailedHttp, { status: status ?? '?' })
+    );
 }
 
 watch(plans, async () => {

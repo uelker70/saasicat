@@ -17,9 +17,6 @@ export const REGISTRATION_RESUME_DELIVERY_TOKEN = Symbol('REGISTRATION_RESUME_DE
 export const REGISTRATION_RESUME_BASE_URL_TOKEN = Symbol('REGISTRATION_RESUME_BASE_URL');
 export const REGISTRATION_CONFIGURATOR_LOOKUP_TOKEN = Symbol('REGISTRATION_CONFIGURATOR_LOOKUP');
 export const REGISTRATION_PROMO_PREVIEW_TOKEN = Symbol('REGISTRATION_PROMO_PREVIEW');
-/** SPEC_V2 §11.1 M5.3 — published BusinessTypeVersion lookup for configurator selection. */
-export const REGISTRATION_BUSINESS_TYPE_LOOKUP_TOKEN = Symbol('REGISTRATION_BUSINESS_TYPE_LOOKUP');
-
 /** Optionally injectable configuration — falls back to default TTLs from saas-platform-types. */
 export const REGISTRATION_CONFIG_TOKEN = Symbol('REGISTRATION_CONFIG');
 

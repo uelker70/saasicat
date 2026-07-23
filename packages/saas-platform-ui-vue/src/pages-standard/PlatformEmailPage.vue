@@ -2,10 +2,8 @@
     <div class="sa-pemail">
         <header class="sa-page-head">
             <div>
-                <h1 class="sa-page-head__title">{{ title }}</h1>
-                <p class="sa-page-head__sub">
-                    Zentraler Absender für Registrierungs- und System-Mails dieser Plattform.
-                </p>
+                <h1 class="sa-page-head__title">{{ resolvedTitle }}</h1>
+                <p class="sa-page-head__sub">{{ msg.provider.subtitle }}</p>
             </div>
             <div class="sa-page-head__actions">
                 <q-btn
@@ -13,10 +11,10 @@
                     unelevated
                     color="primary"
                     icon="add"
-                    label="Absender"
+                    :label="msg.sender"
                     @click="openCreate"
                 />
-                <q-btn flat icon="refresh" label="Neu laden" @click="reload" />
+                <q-btn flat icon="refresh" :label="common.reload" @click="reload" />
             </div>
         </header>
 
@@ -34,7 +32,9 @@
                     <q-td>
                         <q-badge
                             :color="row.active ? 'positive' : 'grey'"
-                            :label="row.active ? 'aktiv' : 'inaktiv'"
+                            :label="
+                                row.active ? msg.provider.statusActive : msg.provider.statusInactive
+                            "
                         />
                     </q-td>
                 </template>
@@ -45,7 +45,7 @@
                             dense
                             icon="send"
                             color="primary"
-                            title="Test-Mail senden"
+                            :title="msg.provider.sendTestMail"
                             @click="openTest(row)"
                         />
                         <q-btn
@@ -53,7 +53,7 @@
                             dense
                             icon="edit"
                             color="grey-7"
-                            title="Bearbeiten"
+                            :title="common.edit"
                             @click="openEdit(row)"
                         />
                         <q-btn
@@ -61,7 +61,7 @@
                             dense
                             icon="delete"
                             color="negative"
-                            title="Löschen"
+                            :title="common.delete"
                             @click="onDelete(row)"
                         />
                     </q-td>
@@ -73,41 +73,72 @@
             <q-card class="sa-pemail__dialog">
                 <q-card-section>
                     <div class="text-h6">
-                        {{ editing ? 'Absender bearbeiten' : 'Absender anlegen' }}
+                        {{
+                            editing ? msg.provider.dialogEditTitle : msg.provider.dialogCreateTitle
+                        }}
                     </div>
                 </q-card-section>
                 <q-card-section class="q-gutter-sm">
-                    <q-input v-model="form.name" outlined dense label="Name" />
-                    <q-input v-model="form.smtpHost" outlined dense label="SMTP-Host" />
+                    <q-input v-model="form.name" outlined dense :label="common.name" />
+                    <q-input
+                        v-model="form.smtpHost"
+                        outlined
+                        dense
+                        :label="msg.provider.fieldSmtpHost"
+                    />
                     <q-input
                         v-model.number="form.smtpPort"
                         outlined
                         dense
                         type="number"
-                        label="SMTP-Port"
+                        :label="msg.provider.fieldSmtpPort"
                     />
-                    <q-input v-model="form.smtpUser" outlined dense label="SMTP-Benutzer" />
+                    <q-input
+                        v-model="form.smtpUser"
+                        outlined
+                        dense
+                        :label="msg.provider.fieldSmtpUser"
+                    />
                     <q-input
                         v-model="form.smtpPassword"
                         outlined
                         dense
                         type="password"
-                        :label="editing ? 'SMTP-Passwort (leer = unverändert)' : 'SMTP-Passwort'"
+                        :label="
+                            editing
+                                ? msg.provider.fieldSmtpPasswordEdit
+                                : msg.provider.fieldSmtpPassword
+                        "
                     />
                     <q-select
                         v-model="form.encryption"
                         outlined
                         dense
-                        label="Verschlüsselung"
+                        :label="msg.provider.fieldEncryption"
                         :options="encryptionOptions"
                     />
-                    <q-input v-model="form.fromEmail" outlined dense label="Absender-Adresse" />
-                    <q-input v-model="form.fromName" outlined dense label="Absender-Name" />
-                    <q-toggle v-if="editing" v-model="form.active" label="Aktiv" />
+                    <q-input
+                        v-model="form.fromEmail"
+                        outlined
+                        dense
+                        :label="msg.provider.fieldFromEmail"
+                    />
+                    <q-input
+                        v-model="form.fromName"
+                        outlined
+                        dense
+                        :label="msg.provider.fieldFromName"
+                    />
+                    <q-toggle v-if="editing" v-model="form.active" :label="common.active" />
                 </q-card-section>
                 <q-card-actions align="right">
-                    <q-btn flat label="Abbrechen" @click="showForm = false" />
-                    <q-btn unelevated color="primary" :label="editing ? 'Speichern' : 'Anlegen'" @click="onSubmit" />
+                    <q-btn flat :label="common.cancel" @click="showForm = false" />
+                    <q-btn
+                        unelevated
+                        color="primary"
+                        :label="editing ? common.save : common.create"
+                        @click="onSubmit"
+                    />
                 </q-card-actions>
             </q-card>
         </q-dialog>
@@ -115,22 +146,36 @@
         <q-dialog v-model="showTest">
             <q-card class="sa-pemail__dialog">
                 <q-card-section>
-                    <div class="text-h6">Test-Mail senden</div>
+                    <div class="text-h6">{{ msg.provider.sendTestMail }}</div>
                     <div class="text-caption text-grey-7">{{ testTarget?.name }}</div>
                 </q-card-section>
                 <q-card-section class="q-gutter-sm">
-                    <q-input v-model="testForm.toEmail" outlined dense label="Empfänger" type="email" />
-                    <q-input v-model="testForm.subject" outlined dense label="Betreff (optional)" />
-                    <q-banner v-if="testResult" :class="testResult.success ? 'bg-green-1' : 'bg-red-1'">
+                    <q-input
+                        v-model="testForm.toEmail"
+                        outlined
+                        dense
+                        :label="msg.recipient"
+                        type="email"
+                    />
+                    <q-input
+                        v-model="testForm.subject"
+                        outlined
+                        dense
+                        :label="msg.provider.fieldSubject"
+                    />
+                    <q-banner
+                        v-if="testResult"
+                        :class="testResult.success ? 'bg-green-1' : 'bg-red-1'"
+                    >
                         {{ testResult.message }}
                     </q-banner>
                 </q-card-section>
                 <q-card-actions align="right">
-                    <q-btn flat label="Schließen" @click="showTest = false" />
+                    <q-btn flat :label="common.close" @click="showTest = false" />
                     <q-btn
                         unelevated
                         color="primary"
-                        label="Senden"
+                        :label="msg.provider.send"
                         :loading="testing"
                         @click="onTest"
                     />
@@ -151,10 +196,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import type {
     PlatformEmailProvider,
     PlatformEmailWriteInput,
@@ -177,37 +224,49 @@ const props = withDefaults(
             mfaCode?: string,
         ) => Promise<unknown>;
         deleteProvider: (id: string, mfaCode?: string) => Promise<unknown>;
-        testProvider: (id: string, input: PlatformEmailTestInput) => Promise<PlatformEmailTestResult>;
+        testProvider: (
+            id: string,
+            input: PlatformEmailTestInput,
+        ) => Promise<PlatformEmailTestResult>;
         title?: string;
         requireMfaForWrite?: boolean;
         mfaSetupHint?: string;
     }>(),
     {
-        title: 'Plattform-E-Mail',
         requireMfaForWrite: false,
     },
 );
 
 const q = useQuasar();
 const notify = useSuperAdminNotify();
+const msg = useSaMessages('email');
+const common = useSaMessages('common');
+const shell = useSaMessages('shell');
 const rows = ref<PlatformEmailProvider[]>([]);
 const loading = ref(false);
 
+const resolvedTitle = computed(() => props.title ?? msg.value.provider.title);
+
 const encryptionOptions = ['NONE', 'SSL', 'TLS', 'STARTTLS'];
 
-const columns = [
-    { name: 'name', label: 'Name', field: 'name', align: 'left' as const },
+const columns = computed(() => [
+    { name: 'name', label: common.value.name, field: 'name', align: 'left' as const },
     {
         name: 'host',
-        label: 'Host',
+        label: msg.value.provider.columnHost,
         field: (r: PlatformEmailProvider) => `${r.smtpHost}:${r.smtpPort}`,
         align: 'left' as const,
     },
-    { name: 'fromEmail', label: 'Absender', field: 'fromEmail', align: 'left' as const },
-    { name: 'encryption', label: 'Krypto', field: 'encryption', align: 'left' as const },
-    { name: 'active', label: 'Status', field: 'active', align: 'left' as const },
+    { name: 'fromEmail', label: msg.value.sender, field: 'fromEmail', align: 'left' as const },
+    {
+        name: 'encryption',
+        label: msg.value.provider.columnEncryption,
+        field: 'encryption',
+        align: 'left' as const,
+    },
+    { name: 'active', label: common.value.status, field: 'active', align: 'left' as const },
     { name: 'actions', label: '', field: 'id' as never, align: 'right' as 'left' },
-];
+]);
 
 const showForm = ref(false);
 const editing = ref<PlatformEmailProvider | null>(null);
@@ -266,7 +325,7 @@ function errMsg(err: unknown): string {
     return (
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
         (err as Error)?.message ??
-        'Aktion fehlgeschlagen'
+        msg.value.errorAction
     );
 }
 
@@ -308,7 +367,10 @@ function openEdit(row: PlatformEmailProvider): void {
 }
 
 // MFA loop: on 401 the dialog stays open and asks again.
-async function runWrite(label: string, invoke: (code: string) => Promise<unknown>): Promise<boolean> {
+async function runWrite(
+    label: string,
+    invoke: (code: string) => Promise<unknown>,
+): Promise<boolean> {
     if (!props.requireMfaForWrite) {
         try {
             await invoke('');
@@ -328,7 +390,7 @@ async function runWrite(label: string, invoke: (code: string) => Promise<unknown
         } catch (err) {
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 401) {
-                mfaError.value = 'TOTP-Code ungültig oder MFA nicht eingerichtet.';
+                mfaError.value = shell.value.mfa.invalidCode;
                 continue;
             }
             showMfa.value = false;
@@ -362,7 +424,9 @@ async function onSubmit(): Promise<void> {
     const current = editing.value;
     const input = buildWriteInput();
     const ok = await runWrite(
-        current ? `Absender "${input.name}" speichern.` : `Absender "${input.name}" anlegen.`,
+        formatMessage(current ? msg.value.provider.mfaSave : msg.value.provider.mfaCreate, {
+            name: input.name,
+        }),
         (code) =>
             current
                 ? props.updateProvider(current.id, input, code || undefined)
@@ -370,23 +434,24 @@ async function onSubmit(): Promise<void> {
     );
     if (ok) {
         showForm.value = false;
-        notify('positive', 'Gespeichert.');
+        notify('positive', msg.value.provider.saved);
         void reload();
     }
 }
 
 function onDelete(row: PlatformEmailProvider): void {
     q.dialog({
-        title: 'Absender löschen',
-        message: `"${row.name}" wirklich löschen?`,
-        cancel: 'Abbrechen',
-        ok: { label: 'Löschen', color: 'negative' },
+        title: msg.value.provider.deleteDialogTitle,
+        message: formatMessage(msg.value.provider.deleteDialogMessage, { name: row.name }),
+        cancel: common.value.cancel,
+        ok: { label: common.value.delete, color: 'negative' },
     }).onOk(async () => {
-        const ok = await runWrite(`Absender "${row.name}" löschen.`, (code) =>
-            props.deleteProvider(row.id, code || undefined),
+        const ok = await runWrite(
+            formatMessage(msg.value.provider.mfaDelete, { name: row.name }),
+            (code) => props.deleteProvider(row.id, code || undefined),
         );
         if (ok) {
-            notify('positive', 'Gelöscht.');
+            notify('positive', msg.value.provider.deleted);
             void reload();
         }
     });

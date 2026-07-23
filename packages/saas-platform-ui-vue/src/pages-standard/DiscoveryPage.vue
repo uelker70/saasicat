@@ -11,7 +11,7 @@
 
         <q-banner v-if="error" class="sa-discovery__error" rounded>
             <template #avatar><q-icon name="warning" color="negative" /></template>
-            Fehler: {{ error.message }}
+            {{ common.error }}: {{ error.message }}
         </q-banner>
 
         <DiscoveryKpis
@@ -25,8 +25,8 @@
         />
 
         <q-tabs v-model="activeTab" align="left" dense class="sa-discovery__tabs">
-            <q-tab name="features" :label="`Features (${features.length})`" />
-            <q-tab name="quotas" :label="`Quotas (${quotas.length})`" />
+            <q-tab name="features" :label="featuresTabLabel" />
+            <q-tab name="quotas" :label="quotasTabLabel" />
         </q-tabs>
 
         <q-tab-panels v-model="activeTab" animated class="sa-discovery__panels">
@@ -37,7 +37,7 @@
                         dense
                         outlined
                         clearable
-                        placeholder="Feature-Key, Label oder Capability suchen …"
+                        :placeholder="msg.searchPlaceholder"
                         class="sa-discovery__search"
                     >
                         <template #prepend><q-icon name="search" /></template>
@@ -48,7 +48,7 @@
                         outlined
                         emit-value
                         map-options
-                        :options="STATUS_FILTER_OPTIONS"
+                        :options="statusFilterOptions"
                         class="sa-discovery__filter"
                     />
                 </div>
@@ -76,21 +76,20 @@
                     </div>
                 </div>
                 <div v-if="filteredFeatures.length === 0" class="sa-discovery__empty-row">
-                    Keine Features entsprechen den Filtern.
+                    {{ msg.noFeaturesMatchFilters }}
                 </div>
 
                 <div v-if="orphanCaps.length" class="sa-discovery__group">
                     <div class="sa-discovery__group-head">
                         <span class="sa-discovery__group-title sa-discovery__group-title--orphan">
                             <q-icon name="warning" size="14px" />
-                            Capabilities ohne Feature
+                            {{ msg.orphansTitle }}
                         </span>
                         <span class="sa-discovery__group-count">{{ orphanCaps.length }}</span>
                     </div>
                     <p class="sa-discovery__orphan-hint">
-                        Diesen Capabilities fehlt der <code>feature:</code>-Tag im
-                        <code>@ImplementsCapability</code>-Decorator — Feature-Zuordnung im Code
-                        nachziehen, sonst sind sie nicht verkaufbar.
+                        {{ msg.orphanHint.before }} <code>feature:</code>{{ msg.orphanHint.middle }}
+                        <code>@ImplementsCapability</code>{{ msg.orphanHint.after }}
                     </p>
                     <DiscoveryCapList
                         :capabilities="orphanCaps"
@@ -113,7 +112,7 @@
                         @quota-locale="onQuotaLocale"
                     />
                     <div v-if="quotas.length === 0" class="sa-discovery__empty-row">
-                        Keine Quotas im Code deklariert.
+                        {{ msg.noQuotasDeclared }}
                     </div>
                 </div>
             </q-tab-panel>
@@ -140,7 +139,9 @@ import DiscoveryHeader from './discovery-page/DiscoveryHeader.vue';
 import DiscoveryKpis from './discovery-page/DiscoveryKpis.vue';
 import DiscoveryMetaBanner from './discovery-page/DiscoveryMetaBanner.vue';
 import DiscoveryQuotaCard from './discovery-page/DiscoveryQuotaCard.vue';
-import { STATUS_META } from './discovery-page/discovery-ui.js';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import { statusLabel } from './discovery-page/discovery-ui.js';
 
 // Platform standard page: Discovery review, feature-centric (#20).
 // Two tabs (Features + Quotas); each entry is an expandable card with
@@ -174,18 +175,31 @@ const props = defineProps<{
 }>();
 
 const activeTab = ref<'features' | 'quotas'>('features');
+
+const featuresTabLabel = computed(() =>
+    formatMessage(msg.value.tabFeatures, { count: props.features.length }),
+);
+const quotasTabLabel = computed(() =>
+    formatMessage(msg.value.tabQuotas, { count: props.quotas.length }),
+);
 const featureQuery = ref('');
 const statusFilter = ref<DiscoveryStatus | 'all'>('all');
 const expandedFeature = ref<string | null>(null);
 const expandedQuota = ref<string | null>(null);
 
-const STATUS_FILTER_OPTIONS: Array<{ label: string; value: DiscoveryStatus | 'all' }> = [
-    { label: 'Alle Status', value: 'all' },
-    ...(['pending', 'approved', 'outdated', 'obsolete'] as const).map((status) => ({
-        label: STATUS_META[status].label,
-        value: status,
-    })),
-];
+const msg = useSaMessages('discovery');
+const common = useSaMessages('common');
+const { locale, intlLocale } = useSuperAdminI18n();
+
+const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStatus | 'all' }>>(
+    () => [
+        { label: msg.value.statusFilterAll, value: 'all' },
+        ...(['pending', 'approved', 'outdated', 'obsolete'] as const).map((status) => ({
+            label: statusLabel(status, locale.value),
+            value: status,
+        })),
+    ],
+);
 
 const appKey = computed(() => props.snapshot?.app.key ?? '—');
 const appLabel = computed(() => {
@@ -194,9 +208,9 @@ const appLabel = computed(() => {
 });
 const appVersion = computed(() => props.snapshot?.app.version ?? '0.0.0');
 const scanLabel = computed(() => {
-    if (!props.snapshot?.scannedAt) return 'noch nicht gescannt';
+    if (!props.snapshot?.scannedAt) return msg.value.notScannedYet;
     try {
-        return new Date(props.snapshot.scannedAt).toLocaleString('de-DE');
+        return new Date(props.snapshot.scannedAt).toLocaleString(intlLocale.value);
     } catch {
         return props.snapshot.scannedAt;
     }
@@ -277,21 +291,19 @@ const filteredFeatures = computed(() => {
     });
 });
 
-const NO_OWNER_LABEL = 'Ohne Owner';
-
-/** Grouping by primary owner (#14); "Ohne Owner" last. */
+/** Grouping by primary owner (#14); the ownerless group goes last. */
 const featureGroups = computed<Array<{ label: string; features: FeatureCatalogEntryRow[] }>>(() => {
     const groups = new Map<string, FeatureCatalogEntryRow[]>();
     for (const f of filteredFeatures.value) {
-        const owner = ownersByFeature.value.get(f.featureKey)?.[0] ?? NO_OWNER_LABEL;
+        const owner = ownersByFeature.value.get(f.featureKey)?.[0] ?? msg.value.noOwner;
         const list = groups.get(owner);
         if (list) list.push(f);
         else groups.set(owner, [f]);
     }
     return [...groups.entries()]
         .sort((a, b) => {
-            if (a[0] === NO_OWNER_LABEL) return 1;
-            if (b[0] === NO_OWNER_LABEL) return -1;
+            if (a[0] === msg.value.noOwner) return 1;
+            if (b[0] === msg.value.noOwner) return -1;
             return a[0].localeCompare(b[0]);
         })
         .map(([label, features]) => ({ label, features }));
@@ -340,7 +352,7 @@ function persist(p: Promise<unknown>): void {
     p.catch((err) => {
         // Auth renewal/redirect is handled by the HTTP client; here just log
         // so a failed save stays visible.
-        console.error('Catalog-Entry konnte nicht gespeichert werden', err);
+        console.error('Failed to save catalog entry', err);
     });
 }
 

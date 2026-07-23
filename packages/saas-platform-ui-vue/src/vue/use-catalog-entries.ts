@@ -19,7 +19,9 @@ import type {
     SyncDiscoveryResult,
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 export interface UseCatalogEntriesOptions {
     /** Admin endpoint prefix incl. globalPrefix (`/api/admin`, `/api/v1/admin`). */
@@ -75,12 +77,13 @@ export interface UseCatalogEntriesResult {
 
 export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalogEntriesResult {
     if (!options?.adminEndpoint) {
-        throw new Error('useCatalogEntries: `adminEndpoint` ist Pflicht.');
+        throw new Error('useCatalogEntries: `adminEndpoint` is required.');
     }
     if (!options?.projectKey) {
-        throw new Error('useCatalogEntries: `projectKey` ist Pflicht.');
+        throw new Error('useCatalogEntries: `projectKey` is required.');
     }
 
+    const msg = useSaMessages('discovery');
     const http = options.http ?? defaultHttpClient();
     const capabilities = ref<CapabilityCatalogEntryRow[]>([]);
     const features = ref<FeatureCatalogEntryRow[]>([]);
@@ -108,7 +111,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             throw new CatalogEntriesApiError(
                 res.status,
                 body,
-                `Catalog-Entries-API antwortete mit HTTP ${res.status}`,
+                formatMessage(msg.value.errorCatalogHttp, { status: res.status }),
             );
         }
         return body as T;
@@ -141,7 +144,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}/review?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review gab keinen Body zurück');
+        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review returned no body');
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -154,7 +157,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}/review?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review gab keinen Body zurück');
+        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review returned no body');
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -167,7 +170,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}/i18n?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n gab keinen Body zurück');
+        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n returned no body');
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -180,7 +183,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}/i18n?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n gab keinen Body zurück');
+        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n returned no body');
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -193,7 +196,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base gab keinen Body zurück');
+        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base returned no body');
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -206,7 +209,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base gab keinen Body zurück');
+        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base returned no body');
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -216,7 +219,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             method: 'POST',
             body: JSON.stringify({ snapshot }),
         });
-        if (!result) throw new CatalogEntriesApiError(0, null, 'Sync gab keinen Body zurück');
+        if (!result) throw new CatalogEntriesApiError(0, null, 'Sync returned no body');
         await load();
         return result;
     }

@@ -50,7 +50,7 @@ export default tseslint.config(
     // stay unrestricted (they are not parsed here anyway — no Vue parser).
     // ------------------------------------------------------------------
     {
-        files: ['packages/saas-platform-ui-vue/src/client/**/*.ts'],
+        files: ['packages/saas-platform-ui-vue/src/client/*.ts'],
         rules: {
             'no-restricted-imports': [
                 'error',
@@ -63,6 +63,30 @@ export default tseslint.config(
                         },
                         {
                             group: ['../**'],
+                            message:
+                                'The client layer must not reach other layers — move shared code into src/client/ instead.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        // Subdirectories of the client layer (e.g. i18n/): one `../` step
+        // stays inside the layer, so only deeper escapes are blocked.
+        files: ['packages/saas-platform-ui-vue/src/client/*/**/*.ts'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['vue', 'vue-router', 'pinia', 'quasar', '@vue/*', '@quasar/*'],
+                            message:
+                                'The client layer is framework-free — no Vue/Pinia/Quasar imports, not even type-only.',
+                        },
+                        {
+                            group: ['../../**'],
                             message:
                                 'The client layer must not reach other layers — move shared code into src/client/ instead.',
                         },

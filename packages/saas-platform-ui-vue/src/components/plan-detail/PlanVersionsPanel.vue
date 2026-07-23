@@ -2,9 +2,9 @@
     <section class="pd-panel">
         <div class="pd-panel-head">
             <div style="min-width: 0">
-                <h3 class="pd-panel-title">Versionen</h3>
+                <h3 class="pd-panel-title">{{ msg.versions.title }}</h3>
                 <div class="pd-panel-sub">
-                    Pro Plan max. 1 offene Draft-Version · Publish setzt Vorgänger auf
+                    {{ msg.versions.subtitle }}
                     <code class="pd-code">supersededAt</code>
                 </div>
             </div>
@@ -25,7 +25,7 @@
                     >
                         <path d="M12 5v14M5 12h14" />
                     </svg>
-                    <span>Draft v{{ nextDraftVersion }}</span>
+                    <span>{{ newDraftButtonLabel }}</span>
                 </button>
             </div>
         </div>
@@ -44,7 +44,7 @@
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                     </svg>
                 </span>
-                Klicke eine Version, um sie zu wählen
+                {{ msg.versions.timelineHint }}
             </div>
             <div class="pd-timeline-bar">
                 <div
@@ -56,10 +56,13 @@
                         v.id === selectedId ? 'is-selected' : '',
                     ]"
                     :style="{ flex: statusOf(v) === 'draft' ? 1.4 : 1 }"
-                    :title="`v${v.version} wählen (${statusOf(v)})`"
+                    :title="timelineSelectTitle(v)"
                     @click="$emit('update:selectedId', v.id)"
                 >
-                    v{{ v.version }}<template v-if="statusOf(v) === 'draft'"> · draft</template>
+                    v{{ v.version
+                    }}<template v-if="statusOf(v) === 'draft'">{{
+                        msg.versions.timelineDraftSuffix
+                    }}</template>
                 </div>
             </div>
             <div class="pd-timeline-ticks">
@@ -69,11 +72,11 @@
 
         <div class="pd-versions-tbl">
             <div class="pd-versions-head">
-                <div>Version</div>
-                <div>Gültig</div>
-                <div>Preis</div>
-                <div>Auswirkung</div>
-                <div>Änderungsnotiz</div>
+                <div>{{ msg.versions.colVersion }}</div>
+                <div>{{ msg.versions.colValidity }}</div>
+                <div>{{ msg.versions.colPrice }}</div>
+                <div>{{ msg.versions.colEffect }}</div>
+                <div>{{ msg.versions.colChangeNote }}</div>
                 <div></div>
             </div>
 
@@ -107,27 +110,23 @@
                             </span>
                             <span v-else class="pd-arrow-inf" style="font-size: 14px">∞</span>
                         </div>
-                        <span class="pd-validity-sub">
-                            {{
-                                statusOf(v) === 'draft'
-                                    ? 'geplant'
-                                    : statusOf(v) === 'live'
-                                      ? 'aktiv'
-                                      : 'historisch'
-                            }}
-                        </span>
+                        <span class="pd-validity-sub">{{ validityLabel(v) }}</span>
                     </div>
                 </div>
                 <div>
                     <div>
-                        <div class="pd-pricing-m">{{ formatMoney(v.monthlyNet) }} / Mo</div>
-                        <div class="pd-pricing-y">{{ formatMoney(v.yearlyNet) }} / Jahr</div>
+                        <div class="pd-pricing-m">
+                            {{ formatMoney(v.monthlyNet) }} {{ msg.versions.perMonthUnit }}
+                        </div>
+                        <div class="pd-pricing-y">
+                            {{ formatMoney(v.yearlyNet) }} {{ msg.versions.perYearUnit }}
+                        </div>
                     </div>
                 </div>
                 <div>
                     <div>
                         <div class="pd-impact-num">{{ impactByVersion[v.version] ?? 0 }}</div>
-                        <div class="pd-impact-sub">Mandanten</div>
+                        <div class="pd-impact-sub">{{ msg.versions.tenants }}</div>
                     </div>
                 </div>
                 <div>
@@ -139,18 +138,15 @@
                     <span
                         v-if="editabilityOf(v).reason === 'pre-active'"
                         class="pd-pre-active-chip"
-                        :title="
-                            'Published, aber noch nicht aktiv — Features, Quotas und ' +
-                            'Preis können bis zum Aktivierungsdatum noch korrigiert werden'
-                        "
+                        :title="msg.versions.preActiveTitle"
                     >
-                        editierbar · noch nicht aktiv
+                        {{ msg.versions.preActiveChip }}
                     </span>
                     <template v-if="statusOf(v) === 'draft'">
                         <button
                             class="btn btn--sm primary"
                             type="button"
-                            title="Draft veröffentlichen"
+                            :title="msg.versions.publishDraftTitle"
                             @click="$emit('publish', v)"
                         >
                             <svg
@@ -171,8 +167,8 @@
                             type="button"
                             :title="
                                 editabilityOf(v).reason === 'pre-active'
-                                    ? 'Future-Version bearbeiten'
-                                    : 'Draft bearbeiten'
+                                    ? msg.versions.editFutureVersionTitle
+                                    : msg.versions.editDraftTitle
                             "
                             @click="$emit('editDraft', v)"
                         >
@@ -194,14 +190,18 @@
                         <span
                             v-if="v.endsAt"
                             class="pd-endsat-badge"
-                            :title="`Endet am ${formatDate(v.endsAt)}`"
+                            :title="endsAtTitle(v.endsAt)"
                         >
-                            Endet {{ formatDate(v.endsAt) }}
+                            {{ endsAtBadge(v.endsAt) }}
                         </span>
                         <button
                             class="btn btn--sm"
                             type="button"
-                            :title="v.endsAt ? 'Enddatum ändern' : 'Version terminieren'"
+                            :title="
+                                v.endsAt
+                                    ? msg.terminateDialog.titleChangeEndDate
+                                    : msg.terminateDialog.titleTerminate
+                            "
                             @click="$emit('openTerminate', v)"
                         >
                             <svg
@@ -217,7 +217,11 @@
                                 <line x1="8" y1="2" x2="8" y2="6" />
                                 <line x1="3" y1="10" x2="21" y2="10" />
                             </svg>
-                            <span>{{ v.endsAt ? 'Enddatum…' : 'Terminieren…' }}</span>
+                            <span>{{
+                                v.endsAt
+                                    ? msg.versions.changeEndDateAction
+                                    : msg.versions.terminateAction
+                            }}</span>
                         </button>
                     </template>
                 </div>
@@ -227,10 +231,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { EditabilityOf, StatusChipOf, StatusOf } from './types.js';
 
-defineProps<{
+const props = defineProps<{
     chronological: PlanVersionRow[];
     tableRows: PlanVersionRow[];
     selectedId: string | null;
@@ -252,4 +259,32 @@ defineEmits<{
     (e: 'editDraft', version: PlanVersionRow): void;
     (e: 'openTerminate', version: PlanVersionRow): void;
 }>();
+
+const msg = useSaMessages('planDetail');
+
+const newDraftButtonLabel = computed(() =>
+    formatMessage(msg.value.versions.newDraftButton, { version: props.nextDraftVersion }),
+);
+
+function timelineSelectTitle(version: PlanVersionRow): string {
+    return formatMessage(msg.value.versions.timelineSelectTitle, {
+        version: version.version,
+        status: props.statusOf(version),
+    });
+}
+
+function validityLabel(version: PlanVersionRow): string {
+    const status = props.statusOf(version);
+    if (status === 'draft') return msg.value.versions.validityPlanned;
+    if (status === 'live') return msg.value.versions.validityActive;
+    return msg.value.versions.validityHistoric;
+}
+
+function endsAtTitle(endsAt: string): string {
+    return formatMessage(msg.value.versions.endsAtTitle, { date: props.formatDate(endsAt) });
+}
+
+function endsAtBadge(endsAt: string): string {
+    return formatMessage(msg.value.versions.endsAtBadge, { date: props.formatDate(endsAt) });
+}
 </script>

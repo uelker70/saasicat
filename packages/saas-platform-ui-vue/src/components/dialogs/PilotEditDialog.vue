@@ -7,7 +7,7 @@
         <q-card class="ple-dlg">
             <q-card-section class="ple-dlg__head">
                 <div>
-                    <div class="ple-dlg__title">Pilot bearbeiten</div>
+                    <div class="ple-dlg__title">{{ msg.editDialog.title }}</div>
                     <div class="ple-dlg__sub" v-if="row">
                         <strong>{{ row.tenant.name }}</strong>
                         <span class="ple-dlg__sep">·</span>
@@ -31,11 +31,8 @@
                     <header class="ple-section__head">
                         <span class="ple-section__num">1</span>
                         <div>
-                            <div class="ple-section__title">Plan</div>
-                            <div class="ple-section__sub">
-                                Aktive Plan-Zuweisung. Legacy-Plans tauchen als „nicht im Katalog"
-                                auf.
-                            </div>
+                            <div class="ple-section__title">{{ msg.form.planLabel }}</div>
+                            <div class="ple-section__sub">{{ msg.editDialog.sectionPlanSub }}</div>
                         </div>
                     </header>
                     <div class="ple-plan-select">
@@ -70,9 +67,11 @@
                     <header class="ple-section__head">
                         <span class="ple-section__num">2</span>
                         <div>
-                            <div class="ple-section__title">Enddatum</div>
+                            <div class="ple-section__title">
+                                {{ msg.editDialog.sectionEndDate }}
+                            </div>
                             <div class="ple-section__sub">
-                                Leeres Datum = offene Pilotphase ohne Ablauf.
+                                {{ msg.editDialog.sectionEndDateSub }}
                             </div>
                         </div>
                     </header>
@@ -82,16 +81,16 @@
                             v-if="form.endsAt"
                             type="button"
                             class="ple-btn-mini"
-                            title="Datum löschen — offene Pilotphase"
+                            :title="msg.editDialog.clearDateTitle"
                             @click="form.endsAt = ''"
                         >
                             <q-icon name="close" size="12px" />
-                            unbegrenzt
+                            {{ common.unlimited }}
                         </button>
                     </div>
                     <div class="ple-end-presets">
                         <button
-                            v-for="p in PRESET_ENDS"
+                            v-for="p in presetEnds"
                             :key="p.days"
                             type="button"
                             class="ple-preset-btn"
@@ -107,8 +106,8 @@
                     <header class="ple-section__head">
                         <span class="ple-section__num">3</span>
                         <div>
-                            <div class="ple-section__title">Notiz</div>
-                            <div class="ple-section__sub">Intern · nicht für Kunden sichtbar.</div>
+                            <div class="ple-section__title">{{ msg.editDialog.sectionNote }}</div>
+                            <div class="ple-section__sub">{{ msg.editDialog.sectionNoteSub }}</div>
                         </div>
                     </header>
                     <textarea
@@ -123,11 +122,11 @@
             </q-card-section>
 
             <q-card-actions align="right" class="ple-dlg__foot">
-                <q-btn flat label="Abbrechen" v-close-popup :disable="loading" />
+                <q-btn flat :label="common.cancel" v-close-popup :disable="loading" />
                 <q-btn
                     unelevated
                     color="primary"
-                    label="Speichern"
+                    :label="common.save"
                     :loading="loading"
                     :disable="!isDirty"
                     @click="onSubmit"
@@ -149,13 +148,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import MfaPromptDialog from '../MfaPromptDialog.vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PilotRow } from '../../pages-standard/PilotsPage.vue';
-import {
-    DEFAULT_PILOT_COPY,
-    type PilotCopy,
-    type PilotEditPayload,
-    type PilotEditResult,
-} from './types.js';
+import type { PilotCopy, PilotEditPayload, PilotEditResult } from './types.js';
 
 // Platform dialog for editing an existing pilot subscription
 // (sim layout: numbered sections, plan tile picker, ends-at quick sets).
@@ -187,15 +183,18 @@ const emit = defineEmits<{
     (e: 'updated', result: PilotEditResult): void;
 }>();
 
-const PRESET_ENDS: ReadonlyArray<{ label: string; days: number }> = [
-    { label: '30 Tage', days: 30 },
-    { label: '90 Tage', days: 90 },
-    { label: '6 Monate', days: 180 },
-    { label: '1 Jahr', days: 365 },
-];
+const msg = useSaMessages('pilots');
+const common = useSaMessages('common');
+
+const presetEnds = computed<ReadonlyArray<{ label: string; days: number }>>(() => [
+    { label: msg.value.form.preset30Days, days: 30 },
+    { label: msg.value.form.preset90Days, days: 90 },
+    { label: msg.value.form.preset6Months, days: 180 },
+    { label: msg.value.form.preset1Year, days: 365 },
+]);
 
 const notePlaceholder = computed(
-    () => props.copy?.notePlaceholder ?? DEFAULT_PILOT_COPY.notePlaceholder,
+    () => props.copy?.notePlaceholder ?? msg.value.copyDefaults.notePlaceholder,
 );
 
 function normalize(opt: PlanOption): { value: string; label: string; color?: string } {
@@ -212,7 +211,13 @@ const effectivePlanOptions = computed<Array<{ value: string; label: string; colo
         const current = props.row?.plan;
         if (!current) return opts;
         if (opts.some((o) => o.value === current)) return opts;
-        return [{ value: current, label: `${current} (nicht im Katalog)` }, ...opts];
+        return [
+            {
+                value: current,
+                label: formatMessage(msg.value.editDialog.planNotInCatalog, { plan: current }),
+            },
+            ...opts,
+        ];
     },
 );
 
@@ -276,7 +281,9 @@ const isDirty = computed(() => Object.keys(diff.value).length > 0);
 function onSubmit(): void {
     if (!isDirty.value || !props.row) return;
     if (props.requireMfa) {
-        mfaDescription.value = `Pilot "${props.row.tenant.name}" bearbeiten.`;
+        mfaDescription.value = formatMessage(msg.value.editDialog.mfaDescription, {
+            name: props.row.tenant.name,
+        });
         mfaError.value = '';
         showMfa.value = true;
         return;
@@ -309,12 +316,11 @@ async function doSubmit(code: string): Promise<void> {
             status === 401 &&
             (reason === 'MFA_FAILED' || reason === 'MFA_REQUIRED')
         ) {
-            mfaError.value = 'TOTP-Code ungültig.';
+            mfaError.value = msg.value.mfa.invalidCode;
         } else if (props.requireMfa && status === 401 && reason === 'MFA_NOT_SET_UP') {
-            mfaError.value =
-                response?.data?.message ?? 'MFA ist für diesen Account nicht eingerichtet.';
+            mfaError.value = response?.data?.message ?? msg.value.mfa.notSetUp;
         } else {
-            error.value = response?.data?.message ?? 'Speichern fehlgeschlagen';
+            error.value = response?.data?.message ?? common.value.errorSaveFailed;
             showMfa.value = false;
         }
     } finally {

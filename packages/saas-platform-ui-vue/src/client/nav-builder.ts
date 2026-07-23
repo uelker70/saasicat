@@ -9,11 +9,10 @@
 // not required at all). The manifest is Discovery, not security — the server
 // enforces the routes independently.
 
-import type {
-    AdminManifest,
-    StandardPageDef,
-    StandardPageKey,
-} from '@saasicat/types';
+import type { AdminManifest, StandardPageDef, StandardPageKey } from '@saasicat/types';
+
+import { DEFAULT_SA_LOCALE, type SaLocale } from './i18n/locale.js';
+import { navMessages } from './i18n/messages/nav.js';
 
 /**
  * Default routes for the platform standard pages. Consumers may override this
@@ -32,7 +31,6 @@ export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
     pilots: '/admin/pilots',
     discovery: '/admin/discovery',
     bundles: '/admin/bundles',
-    businessTypes: '/admin/business-types',
     marketingCatalog: '/admin/marketing-catalog',
     platformEmail: '/admin/platform-email',
     platformEmailHistory: '/admin/platform-email-history',
@@ -60,12 +58,18 @@ export interface BuildRouteEntry {
 
 export interface NavBuilderOptions {
     /**
+     * UI locale for the default labels and section names, default `'de'`.
+     * Pass the same locale to `buildSidebar()`'s `sectionOrder` (via
+     * `defaultSectionOrder(locale)`) — section names are compared as strings.
+     */
+    locale?: SaLocale;
+    /**
      * Optional: overrides the default routes for certain standard pages.
      * Consumers set this if they want an alternative URL structure.
      */
     standardPageRoutes?: Partial<Record<StandardPageKey, string>>;
     /**
-     * Default labels for standard pages — consumers may localize.
+     * Per-page label overrides layered over the locale defaults.
      */
     standardPageLabels?: Partial<Record<StandardPageKey, string>>;
     /** Default icons for standard pages. */
@@ -82,24 +86,6 @@ export interface NavBuilderOptions {
     availableExtensions?: Set<string>;
 }
 
-const DEFAULT_LABELS: Record<StandardPageKey, string> = {
-    dashboard: 'Dashboard',
-    tenants: 'Mandanten',
-    subscriptions: 'Abonnements',
-    promoCodes: 'Promo-Codes',
-    plans: 'Pläne & Versionen',
-    planVersions: 'Plan-Versionen',
-    audit: 'Audit-Log',
-    users: 'Benutzer',
-    pilots: 'Piloten',
-    discovery: 'Discovery',
-    bundles: 'Bundles',
-    businessTypes: 'Geschäftstypen',
-    marketingCatalog: 'Marketing-Catalog',
-    platformEmail: 'Plattform-E-Mail',
-    platformEmailHistory: 'E-Mail-Verlauf',
-};
-
 const DEFAULT_ICONS: Record<StandardPageKey, string> = {
     dashboard: 'dashboard',
     tenants: 'business',
@@ -112,36 +98,39 @@ const DEFAULT_ICONS: Record<StandardPageKey, string> = {
     pilots: 'flight_takeoff',
     discovery: 'travel_explore',
     bundles: 'inventory_2',
-    businessTypes: 'category',
     marketingCatalog: 'campaign',
     platformEmail: 'mail',
     platformEmailHistory: 'mark_email_read',
 };
 
-const DEFAULT_NAV_SECTIONS: Partial<Record<StandardPageKey, string>> = {
-    dashboard: 'Übersicht',
-    discovery: 'Produktkatalog',
-    businessTypes: 'Produktkatalog',
-    bundles: 'Produktkatalog',
-    plans: 'Produktkatalog',
-    planVersions: 'Produktkatalog',
-    marketingCatalog: 'Produktkatalog',
-    promoCodes: 'Produktkatalog',
-    tenants: 'Kunden',
-    subscriptions: 'Kunden',
-    users: 'Kunden',
-    pilots: 'Kunden',
-    audit: 'System',
-    platformEmail: 'System',
-    platformEmailHistory: 'System',
+type SectionKey = keyof (typeof navMessages)['de']['sections'];
+
+const PAGE_SECTIONS: Partial<Record<StandardPageKey, SectionKey>> = {
+    dashboard: 'overview',
+    discovery: 'catalog',
+    bundles: 'catalog',
+    plans: 'catalog',
+    planVersions: 'catalog',
+    marketingCatalog: 'catalog',
+    promoCodes: 'catalog',
+    tenants: 'customers',
+    subscriptions: 'customers',
+    users: 'customers',
+    pilots: 'customers',
+    audit: 'system',
+    platformEmail: 'system',
+    platformEmailHistory: 'system',
 };
 
-export const DEFAULT_SECTION_ORDER: readonly string[] = [
-    'Übersicht',
-    'Produktkatalog',
-    'Kunden',
-    'System',
-];
+/**
+ * Localized default section names in drawer order (Übersicht → Produktkatalog
+ * → Kunden → System). Pass the result to `buildSidebar()` when building routes
+ * with a non-default locale.
+ */
+export function defaultSectionOrder(locale: SaLocale = DEFAULT_SA_LOCALE): readonly string[] {
+    const sections = navMessages[locale].sections;
+    return [sections.overview, sections.catalog, sections.customers, sections.system];
+}
 
 /**
  * Returns the list of all routes defined by the current manifest —
@@ -159,10 +148,14 @@ export function buildRoutes(
 
     // StandardPages
     const standard = manifest.navigation?.standardPages ?? {};
+    const nav = navMessages[options.locale ?? DEFAULT_SA_LOCALE];
+    const defaultNavSections: Partial<Record<StandardPageKey, string>> = Object.fromEntries(
+        Object.entries(PAGE_SECTIONS).map(([page, section]) => [page, nav.sections[section]]),
+    );
     const overrideRoutes = { ...DEFAULT_STANDARD_PAGE_ROUTES, ...options.standardPageRoutes };
-    const overrideLabels = { ...DEFAULT_LABELS, ...options.standardPageLabels };
+    const overrideLabels = { ...nav.pages, ...options.standardPageLabels };
     const overrideIcons = { ...DEFAULT_ICONS, ...options.standardPageIcons };
-    const overrideNavSection = { ...DEFAULT_NAV_SECTIONS, ...options.standardPageNavSection };
+    const overrideNavSection = { ...defaultNavSections, ...options.standardPageNavSection };
 
     for (const key of Object.keys(standard) as StandardPageKey[]) {
         const def = standard[key] as StandardPageDef | undefined;
@@ -230,7 +223,7 @@ export interface SidebarSection {
  */
 export function buildSidebar(
     routes: BuildRouteEntry[],
-    sectionOrder: readonly string[] = DEFAULT_SECTION_ORDER,
+    sectionOrder: readonly string[] = defaultSectionOrder(),
 ): SidebarSection[] {
     const bySection = new Map<string | null, SidebarItem[]>();
     for (const r of routes) {

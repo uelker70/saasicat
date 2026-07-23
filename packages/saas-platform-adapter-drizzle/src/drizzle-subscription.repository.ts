@@ -5,7 +5,13 @@ import type {
     SubscriptionRepository,
     TransactionContext,
 } from '@saasicat/types';
-import { DRIZZLE_DB_TOKEN, resolveDb, toQuotaMap, toStringArray, type DrizzleClient } from './client.js';
+import {
+    DRIZZLE_DB_TOKEN,
+    resolveDb,
+    toQuotaMap,
+    toStringArray,
+    type DrizzleClient,
+} from './client.js';
 import { planVersions, subscriptions } from './schema.js';
 
 const ACTIVE_STATUSES = ['ACTIVE', 'TRIAL'];
@@ -14,9 +20,8 @@ type SubscriptionRow = typeof subscriptions.$inferSelect;
 
 /**
  * `SubscriptionRepository` against the canonical `subscriptions` +
- * `plan_versions` tables. Same limitations as the Prisma adapter:
- * businessType-only subscriptions raise a descriptive error, and
- * `countByBundleVersionId` is not implemented (fail-closed).
+ * `plan_versions` tables. `countByBundleVersionId` is not implemented
+ * (fail-closed).
  */
 @Injectable()
 export class DrizzleSubscriptionRepository implements SubscriptionRepository {
@@ -82,13 +87,6 @@ export class DrizzleSubscriptionRepository implements SubscriptionRepository {
     }
 
     private async toRecord(db: DrizzleClient, row: SubscriptionRow): Promise<SubscriptionRecord> {
-        if (!row.planVersionId) {
-            throw new Error(
-                `Subscription ${row.id} binds no planVersionId (businessType-only composition). ` +
-                    'The shipped @saasicat/adapter-drizzle SubscriptionRepository does not support ' +
-                    'BusinessType aggregation — provide a custom SubscriptionRepository adapter.',
-            );
-        }
         const versionRows = await db
             .select()
             .from(planVersions)

@@ -7,7 +7,7 @@
                 :class="{ active: tab === 'preview' }"
                 @click="$emit('update:tab', 'preview')"
             >
-                Public-Catalog Vorschau
+                {{ msg.tabs.preview }}
             </button>
             <button
                 type="button"
@@ -15,7 +15,7 @@
                 :class="{ active: tab === 'admin' }"
                 @click="$emit('update:tab', 'admin')"
             >
-                Marketing-Verwaltung
+                {{ msg.tabs.admin }}
             </button>
             <button
                 type="button"
@@ -23,7 +23,7 @@
                 :class="{ active: tab === 'promos' }"
                 @click="$emit('update:tab', 'promos')"
             >
-                Aktionen
+                {{ msg.tabs.promos }}
                 <span v-if="activePromoCount > 0" class="mc-tab-count">
                     {{ activePromoCount }}
                 </span>
@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { MarketingCatalogTab } from './types.js';
 
 defineProps<{
@@ -55,4 +56,6 @@ defineProps<{
 defineEmits<{
     (e: 'update:tab', tab: MarketingCatalogTab): void;
 }>();
+
+const msg = useSaMessages('marketing');
 </script>

@@ -199,10 +199,9 @@ describe('canonical schema structure', () => {
     test('partial unique draft indexes exist', async () => {
         const rows = await prisma.$queryRawUnsafe(
             `SELECT indexname FROM pg_indexes WHERE indexname IN
-             ('plan_versions_draft_per_plan', 'bundle_versions_draft_per_bundle',
-              'business_type_versions_draft_per_business_type')`,
+             ('plan_versions_draft_per_plan', 'bundle_versions_draft_per_bundle')`,
         );
-        assert.equal(rows.length, 3, 'all three draft-per-identity partial unique indexes');
+        assert.equal(rows.length, 2, 'both draft-per-identity partial unique indexes');
     });
 
     test('one draft per plan lineage is enforced by the database', async () => {
@@ -234,12 +233,12 @@ describe('canonical schema structure', () => {
         );
     });
 
-    test('subscriptions require planVersionId OR businessTypeVersionId', async () => {
+    test('subscriptions require planVersionId', async () => {
         await assert.rejects(
             prisma.subscription.create({
                 data: { tenantId: 'tenant-check', plan: 'STARTER' },
             }),
-            'CHECK constraint subscriptions_plan_or_bt_check must reject',
+            'required planVersionId must reject',
         );
     });
 });

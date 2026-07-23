@@ -14,7 +14,9 @@
 import { computed, type ComputedRef, type Ref } from 'vue';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
 import { ActionRegistry } from '../client/action-registry.js';
+import { formatMessage } from '../client/i18n/format.js';
 import { useSuperAdminActions } from './use-super-admin-context.js';
+import { useSaMessages } from './use-super-admin-i18n.js';
 
 /**
  * Input the app-side handler receives. `mfaCode` is populated when
@@ -125,6 +127,7 @@ export function useTenantActionFlow<TRow extends TenantDto = TenantDto>(
     providers: TenantActionFlowProviders<TRow> = {},
 ): UseTenantActionFlowResult<TRow> {
     const handlers = useSuperAdminActions();
+    const msg = useSaMessages('tenants');
     const registry = computed<ActionRegistry | null>(() => {
         if (!manifest.value) return null;
         return new ActionRegistry(manifest.value, handlers);
@@ -151,7 +154,8 @@ export function useTenantActionFlow<TRow extends TenantDto = TenantDto>(
             .filter((def) => !providers.visibleForRow || providers.visibleForRow(def, row))
             .map((def) => ({
                 def,
-                invoke: (r: TRow) => runFlow(def, r ?? row, reg, providers),
+                invoke: (r: TRow) =>
+                    runFlow(def, r ?? row, reg, providers, msg.value.actions.successNotify),
             }));
     }
 
@@ -184,6 +188,7 @@ async function runFlow<TRow extends TenantDto>(
     row: TRow,
     registry: ActionRegistry,
     providers: TenantActionFlowProviders<TRow>,
+    successTemplate: string,
 ): Promise<unknown> {
     let reason: string | null = null;
     let extras: Record<string, unknown> = {};
@@ -191,8 +196,8 @@ async function runFlow<TRow extends TenantDto>(
     if (def.confirmType && def.confirmType !== 'none') {
         if (!providers.confirm) {
             throw new Error(
-                `useTenantActionFlow: Action "${def.id}" verlangt confirmType="${def.confirmType}", ` +
-                    `aber kein \`confirm\`-Provider übergeben.`,
+                `useTenantActionFlow: action "${def.id}" requires confirmType="${def.confirmType}", ` +
+                    `but no \`confirm\` provider was supplied.`,
             );
         }
         const c = await providers.confirm(def, { row });
@@ -205,8 +210,8 @@ async function runFlow<TRow extends TenantDto>(
     if (def.requiresMfa) {
         if (!providers.mfa) {
             throw new Error(
-                `useTenantActionFlow: Action "${def.id}" verlangt MFA, aber kein ` +
-                    `\`mfa\`-Provider übergeben.`,
+                `useTenantActionFlow: action "${def.id}" requires MFA, but no ` +
+                    `\`mfa\` provider was supplied.`,
             );
         }
         mfaCode = await providers.mfa(def, { row });
@@ -225,7 +230,7 @@ async function runFlow<TRow extends TenantDto>(
     try {
         const input: TenantActionInput<TRow> = { row, mfaCode, reason, extras };
         const result = await resolved.handler(input);
-        providers.notify?.('positive', `${def.label}: erfolgreich.`);
+        providers.notify?.('positive', formatMessage(successTemplate, { action: def.label }));
         providers.onSuccess?.(def, { row });
         return result;
     } catch (err) {

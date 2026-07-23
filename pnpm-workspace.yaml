@@ -1,12 +1,17 @@
 packages:
   - 'packages/*'
   - 'examples/*'
+  - 'examples/*/admin'
+  - 'examples/*/web'
 overrides:
   # GHSA-g7r4-m6w7-qqqr: path traversal in the esbuild dev server. Pulled in
   # transitively by tsup, which still pins ^0.27.0.
   esbuild: '^0.28.1'
 allowBuilds:
   '@nestjs/core': true
+  # Native file watcher pulled in by the admin dev tooling; the JS fallback is
+  # fine and keeps the container image free of a build toolchain.
+  '@parcel/watcher': false
   # Prisma postinstall downloads the query/schema engines — required for the
   # adapter-prisma integration tests (prisma db push + generate).
   '@prisma/client': true

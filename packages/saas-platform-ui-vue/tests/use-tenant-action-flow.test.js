@@ -302,7 +302,7 @@ describe('useTenantActionFlow — provider drift', () => {
         const flow = withAppContext({ k: async () => 'ok' }, () => useTenantActionFlow(manifest));
         await assert.rejects(
             () => flow.actionsForRow(ROW)[0].invoke(ROW),
-            /verlangt MFA, aber kein .mfa.-Provider/,
+            /requires MFA, but no .mfa. provider/,
         );
     });
 
@@ -321,7 +321,7 @@ describe('useTenantActionFlow — provider drift', () => {
         const flow = withAppContext({ k: async () => 'ok' }, () => useTenantActionFlow(manifest));
         await assert.rejects(
             () => flow.actionsForRow(ROW)[0].invoke(ROW),
-            /verlangt confirmType=.simple., aber kein .confirm.-Provider/,
+            /requires confirmType="simple", but no .confirm. provider/,
         );
     });
 

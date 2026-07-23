@@ -7,10 +7,14 @@
         <q-card class="pc-dlg">
             <q-card-section class="pc-dlg__head">
                 <div>
-                    <div class="pc-dlg__title">Promo-Code bearbeiten</div>
+                    <div class="pc-dlg__title">{{ msg.editDialog.title }}</div>
                     <div class="pc-dlg__sub" v-if="row">
-                        Code <strong>{{ row.code }}</strong> ·
-                        {{ row.redemptionsCount }} Einlösungen bisher
+                        {{ msg.form.codeLabel }} <strong>{{ row.code }}</strong> ·
+                        {{
+                            formatMessage(msg.editDialog.redemptionsSoFar, {
+                                count: row.redemptionsCount,
+                            })
+                        }}
                     </div>
                 </div>
                 <q-btn
@@ -27,23 +31,23 @@
             <q-card-section class="pc-dlg__body">
                 <!-- Section: Code & discount -->
                 <div class="pc-section">
-                    <div class="pc-section__title">Code &amp; Rabatt</div>
+                    <div class="pc-section__title">{{ msg.form.sectionCodeDiscount }}</div>
                     <div class="pc-grid pc-grid--2">
                         <div class="pc-field">
-                            <div class="pc-field__label">Code</div>
+                            <div class="pc-field__label">{{ msg.form.codeLabel }}</div>
                             <input
                                 :value="row?.code ?? ''"
                                 class="pc-input pc-input--code"
                                 disabled
                             />
-                            <div class="pc-field__hint">Nach Anlage stabil.</div>
+                            <div class="pc-field__hint">{{ msg.form.codeStableHint }}</div>
                         </div>
 
                         <div class="pc-field">
-                            <div class="pc-field__label">Rabatt-Typ</div>
+                            <div class="pc-field__label">{{ msg.form.valueTypeLabel }}</div>
                             <div class="pc-type-grid">
                                 <button
-                                    v-for="o in TYPE_OPTIONS"
+                                    v-for="o in typeOptions"
                                     :key="o.k"
                                     type="button"
                                     class="pc-type-opt"
@@ -59,7 +63,11 @@
 
                     <div class="pc-field" style="max-width: 280px">
                         <div class="pc-field__label">
-                            {{ form.valueType === 'PERCENT' ? 'Rabatt in %' : 'Rabatt in €' }}
+                            {{
+                                form.valueType === 'PERCENT'
+                                    ? msg.form.valuePercentLabel
+                                    : msg.form.valueAbsoluteLabel
+                            }}
                         </div>
                         <input
                             v-model.number="form.value"
@@ -73,10 +81,10 @@
 
                 <!-- Section: Validity & duration -->
                 <div class="pc-section">
-                    <div class="pc-section__title">Gültigkeit &amp; Laufzeit</div>
+                    <div class="pc-section__title">{{ msg.form.sectionValidity }}</div>
 
                     <div v-if="plans.length > 0" class="pc-field">
-                        <div class="pc-field__label">Anwendbar auf Pläne</div>
+                        <div class="pc-field__label">{{ msg.form.plansLabel }}</div>
                         <div class="pc-plan-pick">
                             <button
                                 v-for="p in plans"
@@ -95,16 +103,20 @@
                             </button>
                         </div>
                         <div class="pc-field__hint">
-                            Leer = alle Pläne ({{ form.appliesToPlans.length }} ausgewählt)
+                            {{
+                                formatMessage(msg.form.plansHint, {
+                                    count: form.appliesToPlans.length,
+                                })
+                            }}
                         </div>
                     </div>
 
                     <div class="pc-grid pc-grid--2">
                         <div class="pc-field">
-                            <div class="pc-field__label">Laufzeit des Rabatts</div>
+                            <div class="pc-field__label">{{ msg.form.durationLabel }}</div>
                             <div class="pc-dur">
                                 <button
-                                    v-for="o in DURATION_OPTIONS"
+                                    v-for="o in durationOptions"
                                     :key="o.k"
                                     type="button"
                                     class="pc-dur-opt"
@@ -122,43 +134,45 @@
                                 min="1"
                                 style="margin-top: 8px; max-width: 120px"
                                 :placeholder="
-                                    form.durationType === 'MONTHS' ? 'Monate' : 'Perioden'
+                                    form.durationType === 'MONTHS'
+                                        ? msg.form.durationMonthsPlaceholder
+                                        : msg.form.durationCyclesPlaceholder
                                 "
                             />
                         </div>
 
                         <div class="pc-field">
-                            <div class="pc-field__label">Max. Einlösungen</div>
+                            <div class="pc-field__label">{{ msg.form.maxRedemptionsLabel }}</div>
                             <input
                                 v-model.number="form.maxRedemptions"
                                 class="pc-input"
                                 type="number"
                                 min="1"
-                                placeholder="leer = ∞"
+                                :placeholder="msg.form.maxRedemptionsPlaceholder"
                             />
                             <div class="pc-field__hint">
-                                Nur erhöhbar, nicht senkbar (bestehende Einlösungen bleiben gültig).
+                                {{ msg.form.maxRedemptionsHintEdit }}
                             </div>
                         </div>
                     </div>
 
                     <div class="pc-grid pc-grid--2">
                         <div class="pc-field">
-                            <div class="pc-field__label">Gültig ab</div>
+                            <div class="pc-field__label">{{ msg.form.validFromLabel }}</div>
                             <input v-model="form.validFrom" class="pc-input" type="date" />
                         </div>
                         <div class="pc-field">
-                            <div class="pc-field__label">Gültig bis</div>
+                            <div class="pc-field__label">{{ msg.form.validUntilLabel }}</div>
                             <input v-model="form.validUntil" class="pc-input" type="date" />
                         </div>
                     </div>
 
                     <div class="pc-grid pc-grid--2">
                         <div class="pc-field">
-                            <div class="pc-field__label">Status</div>
+                            <div class="pc-field__label">{{ common.status }}</div>
                             <div class="pc-status">
                                 <button
-                                    v-for="o in STATUS_OPTIONS"
+                                    v-for="o in statusOptions"
                                     :key="o.k"
                                     type="button"
                                     class="pc-status-opt"
@@ -171,32 +185,30 @@
                                     {{ o.label }}
                                 </button>
                             </div>
-                            <div class="pc-field__hint">
-                                Bestehende Redemptions bleiben unverändert.
-                            </div>
+                            <div class="pc-field__hint">{{ msg.form.statusHint }}</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Section: Campaign & note -->
                 <div class="pc-section">
-                    <div class="pc-section__title">Kampagne &amp; Notizen</div>
+                    <div class="pc-section__title">{{ msg.form.sectionCampaign }}</div>
                     <div v-if="showCampaignTag" class="pc-field">
-                        <div class="pc-field__label">Kampagne (optional)</div>
+                        <div class="pc-field__label">{{ msg.form.campaignLabel }}</div>
                         <input
                             v-model="form.campaignTag"
                             class="pc-input"
-                            placeholder="z. B. Frühjahrs-Aktion 2026"
+                            :placeholder="msg.form.campaignPlaceholder"
                         />
-                        <div class="pc-field__hint">Gruppiert mehrere Codes optisch</div>
+                        <div class="pc-field__hint">{{ msg.form.campaignHint }}</div>
                     </div>
                     <div class="pc-field">
-                        <div class="pc-field__label">Notiz (intern)</div>
+                        <div class="pc-field__label">{{ msg.form.noteLabel }}</div>
                         <textarea
                             v-model="form.description"
                             class="pc-input"
                             rows="2"
-                            placeholder="Kontext, Quelle, Sales-Bezug — wird nicht an Kunden ausgespielt."
+                            :placeholder="msg.form.notePlaceholder"
                         />
                     </div>
                 </div>
@@ -212,45 +224,45 @@
                             :name="advancedOpen ? 'expand_more' : 'chevron_right'"
                             size="16px"
                         />
-                        Erweiterte Einschränkungen
+                        {{ msg.form.advancedToggle }}
                     </button>
                     <div v-if="advancedOpen" class="pc-advanced">
                         <div class="pc-grid pc-grid--2">
                             <div class="pc-field">
-                                <div class="pc-field__label">Nur für Abrechnungs-Zyklus</div>
+                                <div class="pc-field__label">{{ msg.form.billingCycleLabel }}</div>
                                 <select v-model="form.appliesToBilling" class="pc-input">
-                                    <option :value="null">Beide</option>
-                                    <option value="MONTHLY">Monatlich</option>
-                                    <option value="YEARLY">Jährlich</option>
+                                    <option :value="null">{{ common.both }}</option>
+                                    <option value="MONTHLY">{{ common.monthly }}</option>
+                                    <option value="YEARLY">{{ common.yearly }}</option>
                                 </select>
                             </div>
                             <div class="pc-field">
-                                <div class="pc-field__label">Mindest-Plan-Betrag (€ brutto)</div>
+                                <div class="pc-field__label">{{ msg.form.minAmountLabel }}</div>
                                 <input
                                     v-model.number="form.minimumPlanAmountGross"
                                     class="pc-input"
                                     type="number"
                                     min="0"
-                                    placeholder="leer = keine Schwelle"
+                                    :placeholder="msg.form.minAmountPlaceholder"
                                 />
                             </div>
                         </div>
                         <div class="pc-grid pc-grid--2">
                             <label class="pc-check">
                                 <input v-model="form.firstTimeCustomersOnly" type="checkbox" />
-                                <span>Nur Neukunden</span>
+                                <span>{{ msg.form.firstTimeOnly }}</span>
                             </label>
                             <label class="pc-check">
                                 <input v-model="form.allowZeroInvoice" type="checkbox" />
-                                <span>0-€-Rechnung zulassen</span>
+                                <span>{{ msg.form.allowZeroInvoice }}</span>
                             </label>
                         </div>
                         <div class="pc-field">
-                            <div class="pc-field__label">Erlös-Minderungs-Konto (Buchhaltung)</div>
+                            <div class="pc-field__label">{{ msg.form.revenueAccountLabel }}</div>
                             <input
                                 v-model="form.revenueDeductionAccount"
                                 class="pc-input"
-                                placeholder="z. B. 8736"
+                                :placeholder="msg.form.revenueAccountPlaceholder"
                             />
                         </div>
                     </div>
@@ -258,7 +270,7 @@
 
                 <!-- Live preview -->
                 <div class="pc-preview">
-                    <div class="pc-preview__eyebrow">Vorschau im Catalog</div>
+                    <div class="pc-preview__eyebrow">{{ msg.form.previewEyebrow }}</div>
                     <div class="pc-preview__body">
                         <code class="pc-preview__code">{{ row?.code || 'CODE' }}</code>
                         <span class="pc-preview__disc">{{ previewValue }}</span>
@@ -270,11 +282,11 @@
             </q-card-section>
 
             <q-card-actions align="right" class="pc-dlg__foot">
-                <q-btn flat label="Abbrechen" v-close-popup :disable="loading" />
+                <q-btn flat :label="common.cancel" v-close-popup :disable="loading" />
                 <q-btn
                     unelevated
                     color="primary"
-                    label="Speichern"
+                    :label="common.save"
                     :loading="loading"
                     :disable="!isValid || !hasChanges"
                     @click="onSubmit"
@@ -286,6 +298,8 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type {
     PromoCodeDurationType,
     PromoCodePlanOption,
@@ -341,21 +355,36 @@ const emit = defineEmits<{
     (e: 'updated'): void;
 }>();
 
-const STATUS_OPTIONS: ReadonlyArray<{ k: 'ACTIVE' | 'PAUSED'; label: string; icon: string }> = [
-    { k: 'ACTIVE', label: 'Aktiv', icon: 'play_arrow' },
-    { k: 'PAUSED', label: 'Pausiert', icon: 'pause' },
-];
+const msg = useSaMessages('promos');
+const common = useSaMessages('common');
 
-const TYPE_OPTIONS: ReadonlyArray<{ k: PromoCodeValueType; label: string; sub: string }> = [
-    { k: 'PERCENT', label: 'Prozent', sub: '−x %' },
-    { k: 'ABSOLUTE', label: 'Fester €', sub: '−x €' },
-];
+const statusOptions = computed<
+    ReadonlyArray<{ k: 'ACTIVE' | 'PAUSED'; label: string; icon: string }>
+>(() => [
+    { k: 'ACTIVE', label: common.value.active, icon: 'play_arrow' },
+    { k: 'PAUSED', label: msg.value.form.statusPaused, icon: 'pause' },
+]);
 
-const DURATION_OPTIONS: ReadonlyArray<{ k: PromoCodeDurationType; label: string }> = [
-    { k: 'ONCE', label: 'Einmalig' },
-    { k: 'MONTHS', label: 'N Monate' },
-    { k: 'BILLING_CYCLES', label: 'N Perioden' },
-];
+const typeOptions = computed<ReadonlyArray<{ k: PromoCodeValueType; label: string; sub: string }>>(
+    () => [
+        {
+            k: 'PERCENT',
+            label: msg.value.form.valueTypePercent,
+            sub: msg.value.form.valueTypePercentSub,
+        },
+        {
+            k: 'ABSOLUTE',
+            label: msg.value.form.valueTypeAbsolute,
+            sub: msg.value.form.valueTypeAbsoluteSub,
+        },
+    ],
+);
+
+const durationOptions = computed<ReadonlyArray<{ k: PromoCodeDurationType; label: string }>>(() => [
+    { k: 'ONCE', label: msg.value.form.durationOnce },
+    { k: 'MONTHS', label: msg.value.form.durationMonths },
+    { k: 'BILLING_CYCLES', label: msg.value.form.durationBillingCycles },
+]);
 
 interface EditForm {
     status: 'ACTIVE' | 'PAUSED';
@@ -450,17 +479,20 @@ const previewValue = computed(() => {
 
 const previewMeta = computed(() => {
     const parts: string[] = [];
-    if (form.durationType === 'ONCE') parts.push('einmalig');
-    else if (form.durationType === 'MONTHS') parts.push(`${form.durationValue || 0} Monate`);
-    else parts.push(`${form.durationValue || 0} Perioden`);
+    const count = form.durationValue || 0;
+    if (form.durationType === 'ONCE') parts.push(msg.value.form.previewOnce);
+    else if (form.durationType === 'MONTHS')
+        parts.push(formatMessage(msg.value.form.previewMonths, { count }));
+    else parts.push(formatMessage(msg.value.form.previewCycles, { count }));
     parts.push(
         form.appliesToPlans.length > 0
             ? form.appliesToPlans.join(', ')
             : props.plans.length > 0
-              ? 'alle Pläne'
-              : 'kein Plan-Filter',
+              ? msg.value.form.previewAllPlans
+              : msg.value.form.previewNoPlanFilter,
     );
-    if (form.maxRedemptions) parts.push(`max. ${form.maxRedemptions}`);
+    if (form.maxRedemptions)
+        parts.push(formatMessage(msg.value.form.previewMax, { count: form.maxRedemptions }));
     return parts.join(' · ');
 });
 
@@ -554,7 +586,7 @@ async function onSubmit() {
         error.value =
             (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
             (err as Error).message ??
-            'Speichern fehlgeschlagen';
+            common.value.errorSaveFailed;
     } finally {
         loading.value = false;
     }

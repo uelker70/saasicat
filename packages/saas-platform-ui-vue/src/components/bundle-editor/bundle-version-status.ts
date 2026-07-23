@@ -6,6 +6,9 @@
 
 import type { BundleVersionRow, PlanVersionRow } from '@saasicat/types';
 
+import { SA_INTL_LOCALES, type SaLocale } from '../../client/i18n/locale.js';
+import { bundlesMessages } from '../../client/i18n/messages/bundles.js';
+
 /** UI lifecycle status of a single BundleVersion. */
 export type BundleVersionUiStatus = 'draft' | 'live' | 'scheduled' | 'superseded';
 
@@ -51,33 +54,22 @@ export interface BundleStatusMeta {
     tooltip: string;
 }
 
-export const BUNDLE_STATUS_META: Record<BundleAggregateStatus, BundleStatusMeta> = {
-    draft: {
-        label: 'Draft',
-        cls: 'draft',
-        tooltip: 'Noch nicht veröffentlicht — frei editierbar',
-    },
-    live: {
-        label: 'Live',
-        cls: 'live',
-        tooltip: 'Aktive Version · verkaufbar · read-only (laufende Verträge)',
-    },
-    scheduled: {
-        label: 'Geplant',
-        cls: 'scheduled',
-        tooltip: 'Zukünftig aktiv · noch nicht verkaufbar · frei editierbar',
-    },
-    superseded: {
-        label: 'Abgelöst',
-        cls: 'supersed',
-        tooltip: 'Durch neue Version ersetzt · Bestand bleibt',
-    },
-    retired: {
-        label: 'Retired',
-        cls: 'supersed',
-        tooltip: 'Bundle-Stamm wurde soft-deleted',
-    },
+const BUNDLE_STATUS_CLASS: Record<BundleAggregateStatus, BundleStatusMeta['cls']> = {
+    draft: 'draft',
+    live: 'live',
+    scheduled: 'scheduled',
+    superseded: 'supersed',
+    retired: 'supersed',
 };
+
+/** Label, chip class and tooltip for a status in the given UI locale. */
+export function bundleStatusMeta(
+    status: BundleAggregateStatus,
+    locale: SaLocale,
+): BundleStatusMeta {
+    const texts = bundlesMessages[locale].status[status];
+    return { label: texts.label, cls: BUNDLE_STATUS_CLASS[status], tooltip: texts.tooltip };
+}
 
 /**
  * Sorts the versions of a bundle line ascending by
@@ -154,11 +146,19 @@ export function findBundlePlanOverlap(
     return { features, quotas, hasAny: features.length > 0 || quotas.length > 0 };
 }
 
-/** ISO `YYYY-MM-DD` → `DD.MM.YYYY` for UI display; null/empty → '—'. */
-export function formatDateDE(iso: string | null | undefined): string {
+/**
+ * ISO `YYYY-MM-DD` → numeric date in the UI locale; null/empty → '—'.
+ * Formatted in UTC so a calendar day never shifts across time zones.
+ */
+export function formatDate(iso: string | null | undefined, locale: SaLocale): string {
     if (!iso) return '—';
     const day = iso.slice(0, 10);
     const [y, m, d] = day.split('-');
     if (!y || !m || !d) return iso;
-    return `${d}.${m}.${y}`;
+    return new Date(`${day}T00:00:00Z`).toLocaleDateString(SA_INTL_LOCALES[locale], {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC',
+    });
 }

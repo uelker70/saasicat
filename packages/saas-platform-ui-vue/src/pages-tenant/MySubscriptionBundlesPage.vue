@@ -2,11 +2,8 @@
     <div class="msb">
         <header class="msb-head">
             <div>
-                <h2 class="msb-title">Meine Bundles</h2>
-                <p class="msb-sub">
-                    Eigenständig gebuchte Add-On-Pakete zu deinem Plan. Mindestlaufzeit +
-                    Kündigungs- Termin pro Bundle.
-                </p>
+                <h2 class="msb-title">{{ effectiveI18n.myBundlesTitle }}</h2>
+                <p class="msb-sub">{{ effectiveI18n.myBundlesSubtitle }}</p>
             </div>
             <button class="msb-btn msb-btn--primary" type="button" @click="openAddDialog">
                 <svg
@@ -19,22 +16,24 @@
                 >
                     <path d="M12 5v14M5 12h14" />
                 </svg>
-                <span>Bundle buchen</span>
+                <span>{{ effectiveI18n.bundleBookAction }}</span>
             </button>
         </header>
 
         <div v-if="error" class="msb-error" role="alert">
-            <strong>Fehler:</strong> {{ error.message }}
+            <strong>{{ effectiveI18n.errorLabel }}:</strong> {{ error.message }}
         </div>
 
-        <div v-if="loading && bundles.length === 0" class="msb-loading">Lade …</div>
+        <div v-if="loading && bundles.length === 0" class="msb-loading">
+            {{ effectiveI18n.loading }}
+        </div>
 
         <div v-else-if="bundles.length === 0" class="msb-empty">
-            Du hast noch kein Bundle gebucht. Über
+            {{ effectiveI18n.myBundlesEmptyPrefix }}
             <button type="button" class="msb-empty-link" @click="openAddDialog">
-                Bundle buchen
+                {{ effectiveI18n.bundleBookAction }}
             </button>
-            kannst du dein Paket um zusätzliche Features &amp; Quotas erweitern.
+            {{ effectiveI18n.myBundlesEmptySuffix }}
         </div>
 
         <div v-else class="msb-list">
@@ -48,9 +47,10 @@
                             </span>
                         </div>
                         <div class="msb-card-meta">
-                            Gebucht seit {{ formatDate(b.startedAt) }}
+                            {{ effectiveI18n.myBundlesBookedSince }} {{ formatDate(b.startedAt) }}
                             <template v-if="b.minimumTermEndsAt">
-                                · Mindestlaufzeit bis {{ formatDate(b.minimumTermEndsAt) }}
+                                · {{ effectiveI18n.bundleMinimumTermUntil }}
+                                {{ formatDate(b.minimumTermEndsAt) }}
                             </template>
                         </div>
                     </div>
@@ -61,11 +61,16 @@
                         :disabled="cancellingId === b.id"
                         @click="onCancel(b)"
                     >
-                        {{ cancellingId === b.id ? 'Kündige …' : 'Kündigen' }}
+                        {{
+                            cancellingId === b.id
+                                ? effectiveI18n.myBundlesCancelInProgress
+                                : effectiveI18n.bundleCancelAction
+                        }}
                     </button>
                 </header>
                 <div v-if="b.canceledAt !== null" class="msb-cancel-info">
-                    Gekündigt am {{ formatDate(b.canceledAt) }} · läuft bis
+                    {{ effectiveI18n.myBundlesCanceledAt }} {{ formatDate(b.canceledAt) }} ·
+                    {{ effectiveI18n.myBundlesRunsUntil }}
                     <strong>{{ formatDate(b.canceledEffectiveAt) }}</strong>
                 </div>
             </article>
@@ -75,11 +80,11 @@
         <div v-if="addOpen" class="msb-modal-bg" @click="closeAddDialog">
             <div class="msb-modal" @click.stop>
                 <div class="msb-modal-head">
-                    <div class="msb-modal-title">Bundle buchen</div>
+                    <div class="msb-modal-title">{{ effectiveI18n.bundleBookAction }}</div>
                     <button
                         class="msb-modal-x"
                         type="button"
-                        aria-label="Schließen"
+                        :aria-label="effectiveI18n.wizardClose"
                         @click="closeAddDialog"
                     >
                         <svg
@@ -98,9 +103,13 @@
                     <!-- Selection list via public catalog, otherwise fallback to direct UUID input. -->
                     <template v-if="bookable.length > 0">
                         <label class="msb-field">
-                            <span class="msb-field-label">Bundle</span>
+                            <span class="msb-field-label">{{
+                                effectiveI18n.myBundlesAddBundleLabel
+                            }}</span>
                             <select v-model="addForm.bundleVersionId" class="msb-input">
-                                <option value="">— bitte wählen —</option>
+                                <option value="">
+                                    {{ effectiveI18n.myBundlesAddSelectPlaceholder }}
+                                </option>
                                 <option
                                     v-for="b in bookable"
                                     :key="b.bundleVersionId"
@@ -108,54 +117,67 @@
                                 >
                                     {{ b.label }} ({{ b.bundleKey }})
                                     <template v-if="b.monthlyNet !== null">
-                                        — {{ b.monthlyNet }} € / Mo
+                                        — {{ b.monthlyNet }}
+                                        {{ effectiveI18n.myBundlesPricePerMonthShort }}
                                     </template>
                                 </option>
                             </select>
                             <span v-if="hiddenBecauseIncompatible > 0" class="msb-field-hint">
-                                {{ hiddenBecauseIncompatible }} weitere Bundle(s) ausgeblendet —
-                                nicht kompatibel mit Plan <code>{{ currentPlanKey }}</code
+                                {{ hiddenBecauseIncompatible }}
+                                {{ effectiveI18n.myBundlesHiddenIncompatible }}
+                                <code>{{ currentPlanKey }}</code
                                 >.
                             </span>
                         </label>
                     </template>
                     <template v-else>
                         <label class="msb-field">
-                            <span class="msb-field-label">BundleVersion-ID</span>
+                            <span class="msb-field-label">
+                                {{ effectiveI18n.myBundlesBundleVersionIdLabel }}
+                            </span>
                             <input
                                 v-model="addForm.bundleVersionId"
                                 class="msb-input"
-                                placeholder="UUID der gewünschten Bundle-Version"
+                                :placeholder="effectiveI18n.myBundlesBundleVersionIdPlaceholder"
                             />
+                            <!-- Integration hint for the embedding app, not for tenants. -->
                             <span class="msb-field-hint">
-                                Aus dem öffentlichen Marketing-Catalog. Konsument kann
+                                From the public marketing catalog. Pass
                                 <code>availableBundles</code>
-                                als Prop reichen, dann erscheint hier ein Dropdown.
+                                as a prop to get a dropdown here.
                             </span>
                         </label>
                     </template>
                     <label class="msb-field">
-                        <span class="msb-field-label">Mindestlaufzeit (Monate, optional)</span>
+                        <span class="msb-field-label">{{
+                            effectiveI18n.myBundlesMinimumTermLabel
+                        }}</span>
                         <input
                             v-model.number="addForm.minimumTermMonths"
                             type="number"
                             min="0"
                             max="120"
                             class="msb-input"
-                            placeholder="Default: 12"
+                            :placeholder="effectiveI18n.myBundlesMinimumTermPlaceholder"
                         />
                     </label>
                     <div v-if="addError" class="msb-error">{{ addError }}</div>
                 </div>
                 <div class="msb-modal-foot">
-                    <button class="msb-btn" type="button" @click="closeAddDialog">Abbrechen</button>
+                    <button class="msb-btn" type="button" @click="closeAddDialog">
+                        {{ effectiveI18n.bundlePreviewClose }}
+                    </button>
                     <button
                         class="msb-btn msb-btn--primary"
                         type="button"
                         :disabled="!canSubmit || adding"
                         @click="submitAdd"
                     >
-                        {{ adding ? 'Buche …' : 'Bundle buchen' }}
+                        {{
+                            adding
+                                ? effectiveI18n.myBundlesBookInProgress
+                                : effectiveI18n.bundleBookAction
+                        }}
                     </button>
                 </div>
             </div>
@@ -167,7 +189,9 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import type { SubscriptionBundleRecord } from '@saasicat/types';
 
+import { useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useTenantSubscriptionBundles } from '../vue/use-tenant-subscription-bundles.js';
+import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
 
 // MySubscriptionBundlesPage — tenant self-service page "Meine Bundles".
 // The hosting app embeds the page
@@ -208,6 +232,8 @@ const props = withDefaults(
         currentPlanKey?: string | null;
         /** Optional: auth token provider (for the Bearer header). */
         getAuthToken?: () => string | null;
+        /** i18n overrides — missing keys fall back to the active locale's map. */
+        i18n?: Partial<TenantPlanSectionI18n>;
     }>(),
     {
         bundleLabels: () => ({}),
@@ -216,6 +242,13 @@ const props = withDefaults(
         getAuthToken: undefined,
     },
 );
+
+const { locale, intlLocale } = useSuperAdminI18n();
+
+const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
+    ...defaultTenantPlanSectionI18n(locale.value),
+    ...(props.i18n ?? {}),
+}));
 
 const { bundles, loading, error, load, add, cancel } = useTenantSubscriptionBundles({
     billingEndpoint: props.billingEndpoint,
@@ -308,9 +341,7 @@ async function submitAdd(): Promise<void> {
 const cancellingId = ref<string | null>(null);
 
 async function onCancel(b: SubscriptionBundleRecord): Promise<void> {
-    const ok = window.confirm(
-        `Bundle wirklich kündigen? Die Kündigung wird zum nächstmöglichen Termin wirksam.`,
-    );
+    const ok = window.confirm(effectiveI18n.value.myBundlesCancelConfirm);
     if (!ok) return;
     cancellingId.value = b.id;
     try {
@@ -336,9 +367,9 @@ function statusOf(b: SubscriptionBundleRecord): 'active' | 'canceled-pending' | 
 
 function statusLabel(b: SubscriptionBundleRecord): string {
     const s = statusOf(b);
-    if (s === 'active') return 'Aktiv';
-    if (s === 'canceled-pending') return 'Kündigung wirksam ab …';
-    return 'Beendet';
+    if (s === 'active') return effectiveI18n.value.statusActive;
+    if (s === 'canceled-pending') return effectiveI18n.value.myBundlesStatusCanceledPending;
+    return effectiveI18n.value.myBundlesStatusEnded;
 }
 
 function cardStatusClass(b: SubscriptionBundleRecord): string {
@@ -349,7 +380,11 @@ function formatDate(date: Date | string | null | undefined): string {
     if (!date) return '—';
     const d = typeof date === 'string' ? new Date(date) : date;
     if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    return d.toLocaleDateString(intlLocale.value, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
 }
 </script>
 

@@ -17,7 +17,7 @@ import { Type } from 'class-transformer';
 
 const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const LOCALE_PATTERN = /^[a-z]{2}(-[A-Z]{2})?$/;
-const TARGET_TYPES = ['PLAN', 'BUNDLE', 'BUSINESS_TYPE'] as const;
+const TARGET_TYPES = ['PLAN', 'BUNDLE'] as const;
 
 export class MarketingTopFeatureDto {
     /** Optional feature/quota key reference (auto-translation of the label). */
@@ -47,7 +47,7 @@ export class CreateMarketingProjectionDto {
 
     @IsString()
     @IsIn(TARGET_TYPES as unknown as string[])
-    targetType!: 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE';
+    targetType!: 'PLAN' | 'BUNDLE';
 
     @IsUUID()
     targetVersionId!: string;
@@ -182,7 +182,7 @@ export class ListMarketingProjectionsQueryDto {
     @IsOptional()
     @IsString()
     @IsIn(TARGET_TYPES as unknown as string[])
-    targetType?: 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE';
+    targetType?: 'PLAN' | 'BUNDLE';
 
     @IsOptional()
     @IsUUID()

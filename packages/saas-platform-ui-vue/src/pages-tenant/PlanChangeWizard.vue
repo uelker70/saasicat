@@ -220,6 +220,7 @@ import { computed, ref, watch } from 'vue';
 import LimitsRow from './LimitsRow.vue';
 import PlanCycleToggle from '../components/plan/PlanCycleToggle.vue';
 import PlanGrid from '../components/plan/PlanGrid.vue';
+import { useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import type { BillingCycleStr, PlanChangePreviewShape } from '../vue/use-tenant-billing.js';
 import type { CatalogPlan } from '../vue/use-tenant-billing-catalog.js';
 
@@ -239,6 +240,7 @@ interface I18nStrings {
     badgeCurrent: string;
     badgePopular: string;
     priceUnitMonthly: string;
+    priceUnitYearly: string;
     priceOnRequest: string;
     stepChoose: string;
     stepChooseIntro: string;
@@ -302,8 +304,8 @@ interface Props {
     formatQuotaLabel?: (key: string, value: number) => string;
     /**
      * Plain value per quota key, e.g. "200" or "10 GB" (for PlanGrid).
-     * Optional — default: takes `value.toLocaleString('de-DE')`, appends a
-     * `GB` suffix for `storage` keys, replaces -1 with ∞.
+     * Optional — default: takes `value.toLocaleString()` in the active UI
+     * locale, appends a `GB` suffix for `storage` keys, replaces -1 with ∞.
      */
     formatQuotaValue?: (key: string, value: number) => string;
     quotaLabel: (key: string) => string;
@@ -320,6 +322,8 @@ const emit = defineEmits<{
     'update:modelValue': [boolean];
     submitted: [];
 }>();
+
+const { intlLocale } = useSuperAdminI18n();
 
 const model = computed({
     get: () => props.modelValue,
@@ -430,7 +434,7 @@ function formatQuotaValueResolved(key: string, value: number | null | undefined)
     if (value === null || value === undefined || Number.isNaN(value)) return '–';
     if (value < 0) return '∞';
     if (key.toLowerCase().includes('storage')) return `${value} GB`;
-    return value.toLocaleString('de-DE');
+    return value.toLocaleString(intlLocale.value);
 }
 
 const cycleI18n = computed(() => ({
@@ -443,7 +447,7 @@ const planGridI18n = computed(() => ({
     popular: props.i18n.badgePopular,
     current: props.i18n.badgeCurrent,
     perMonth: props.i18n.priceUnitMonthly,
-    perYear: props.i18n.priceUnitMonthly,
+    perYear: props.i18n.priceUnitYearly,
     priceOnRequest: props.i18n.priceOnRequest,
 }));
 

@@ -77,11 +77,9 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import {
-    isVersionEditable,
-    type PlanRow,
-    type PlanVersionRow,
-} from '@saasicat/types';
+import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/types';
+import { formatCurrency } from '../../client/i18n/currency.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanAuditLog from './PlanAuditLog.vue';
 import PlanDetailHeader from './PlanDetailHeader.vue';
 import PlanDetailKpis from './PlanDetailKpis.vue';
@@ -143,6 +141,9 @@ const emit = defineEmits<{
     (e: 'terminate', versionId: string, endsAt: string): void;
 }>();
 
+const msg = useSaMessages('planDetail');
+const { locale, intlLocale } = useSuperAdminI18n();
+
 // ── Status / Selection ──────────────────────────────────────────────
 function statusOf(v: PlanVersionRow): PlanVersionStatus {
     if (v.publishedAt === null) return 'draft';
@@ -201,7 +202,7 @@ const timelineTicks = computed(() => {
     for (const v of chronological.value) {
         if (v.validFrom) ticks.push(v.validFrom.slice(0, 7));
     }
-    ticks.push('jetzt');
+    ticks.push(msg.value.versions.timelineNow);
     return ticks;
 });
 
@@ -209,9 +210,7 @@ const timelineTicks = computed(() => {
 function formatMoney(raw: string | number): string {
     const num = typeof raw === 'string' ? Number(raw) : raw;
     if (!Number.isFinite(num)) return String(raw);
-    if (num === 0) return '0 €';
-    if (Number.isInteger(num)) return `${num} €`;
-    return `${num.toFixed(2).replace('.', ',')} €`;
+    return formatCurrency(num, locale.value);
 }
 function quotasOf(v: PlanVersionRow): Record<string, number> {
     if (v.quotas && Object.keys(v.quotas).length > 0) return v.quotas;
@@ -290,7 +289,7 @@ const diffRows = computed<DiffRow[]>(() => {
             id: 'af-' + f,
             kind: 'add',
             sign: '+',
-            tag: 'neu',
+            tag: msg.value.diff.tagNew,
             label: featureLabel(f),
             key: f,
         });
@@ -299,7 +298,7 @@ const diffRows = computed<DiffRow[]>(() => {
             id: 'rf-' + f,
             kind: 'rm',
             sign: '−',
-            tag: 'entfernt',
+            tag: msg.value.diff.tagRemoved,
             label: featureLabel(f),
             key: f,
         });
@@ -309,7 +308,7 @@ const diffRows = computed<DiffRow[]>(() => {
             id: 'cq-' + q.key,
             kind: 'mod',
             sign: '~',
-            tag: 'geändert',
+            tag: msg.value.diff.tagChanged,
             label: quotaLabel(q.key),
             key: q.key,
             from: `${q.from} ${u}`.trim(),
@@ -322,7 +321,7 @@ const diffRows = computed<DiffRow[]>(() => {
             id: 'aq-' + q.key,
             kind: 'add',
             sign: '+',
-            tag: 'neu',
+            tag: msg.value.diff.tagNew,
             label: quotaLabel(q.key),
             key: q.key,
             from: '—',
@@ -335,7 +334,7 @@ const diffRows = computed<DiffRow[]>(() => {
             id: 'rq-' + q.key,
             kind: 'rm',
             sign: '−',
-            tag: 'entfernt',
+            tag: msg.value.diff.tagRemoved,
             label: quotaLabel(q.key),
             key: q.key,
             from: `${q.value} ${u}`.trim(),
@@ -347,8 +346,8 @@ const diffRows = computed<DiffRow[]>(() => {
             id: 'price',
             kind: 'mod',
             sign: '~',
-            tag: 'geändert',
-            label: 'Preis (Monat / Jahr)',
+            tag: msg.value.diff.tagChanged,
+            label: msg.value.diff.priceLabel,
             key: 'pricing',
             from: `${formatMoney(predecessor.value.monthlyNet)} / ${formatMoney(predecessor.value.yearlyNet)}`,
             to: `${formatMoney(selectedVersion.value.monthlyNet)} / ${formatMoney(selectedVersion.value.yearlyNet)}`,
@@ -375,7 +374,7 @@ function formatDate(iso: string | null | undefined): string {
     if (!iso) return '—';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString('de-DE', {
+    return d.toLocaleDateString(intlLocale.value, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -401,17 +400,16 @@ async function executeTerminate(): Promise<void> {
         const e = err as { status?: number; body?: { code?: string; message?: string } };
         const code = e?.body?.code;
         if (code === 'PLAN_TERMINATE_DATE_NOT_FUTURE') {
-            terminateError.value = 'Das Datum muss in der Zukunft liegen.';
+            terminateError.value = msg.value.terminateDialog.errorDateNotFuture;
         } else if (code === 'PLAN_VERSION_NOT_LIVE') {
-            terminateError.value =
-                'Diese Version ist nicht live (draft oder superseded) und kann nicht terminiert werden.';
+            terminateError.value = msg.value.terminateDialog.errorVersionNotLive;
         } else if (code === 'PLAN_TERMINATE_NOT_IMPLEMENTED') {
-            terminateError.value =
-                'Backend unterstützt Terminate noch nicht — bitte API-Server neu bauen.';
+            terminateError.value = msg.value.terminateDialog.errorNotImplemented;
         } else if (e?.body?.message) {
             terminateError.value = e.body.message;
         } else {
-            terminateError.value = err instanceof Error ? err.message : 'Terminate fehlgeschlagen.';
+            terminateError.value =
+                err instanceof Error ? err.message : msg.value.terminateDialog.errorFailed;
         }
     } finally {
         terminating.value = false;

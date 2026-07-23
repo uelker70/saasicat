@@ -7,17 +7,20 @@
         <q-card style="min-width: 420px">
             <q-card-section>
                 <div class="text-h6">
-                    {{ target?.endsAt ? 'Enddatum ändern' : 'Version terminieren' }}
+                    {{
+                        target?.endsAt
+                            ? msg.terminateDialog.titleChangeEndDate
+                            : msg.terminateDialog.titleTerminate
+                    }}
                 </div>
                 <div class="text-body2 q-mt-sm">
-                    Plan <code>{{ plan.planKey }}</code> — v{{ target?.version }} wird am gewählten
-                    Datum auslaufen, <b>ohne</b> durch eine Nachfolge-Version ersetzt zu werden.
-                    Bestand-Subscriptions bleiben gebunden (Vertragsschutz P1); neue Buchungen sind
-                    ab diesem Datum nicht mehr möglich.
+                    {{ msg.terminateDialog.bodyPlanPrefix }} <code>{{ plan.planKey }}</code>
+                    {{ bodyExpiry }} <b>{{ msg.terminateDialog.bodyWithout }}</b>
+                    {{ msg.terminateDialog.bodySuffix }}
                 </div>
                 <q-input
                     :model-value="dateInput"
-                    label="Enddatum (YYYY-MM-DD)"
+                    :label="msg.terminateDialog.dateLabel"
                     type="text"
                     class="q-mt-md"
                     mask="####-##-##"
@@ -43,10 +46,10 @@
                 {{ error }}
             </q-banner>
             <q-card-actions align="right">
-                <q-btn flat label="Abbrechen" @click="$emit('update:modelValue', false)" />
+                <q-btn flat :label="common.cancel" @click="$emit('update:modelValue', false)" />
                 <q-btn
                     color="primary"
-                    label="Terminieren"
+                    :label="msg.terminateDialog.submit"
                     :loading="terminating"
                     :disable="!dateInput"
                     @click="$emit('execute')"
@@ -57,9 +60,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
-defineProps<{
+const props = defineProps<{
     modelValue: boolean;
     plan: PlanRow;
     target: PlanVersionRow | null;
@@ -67,6 +73,13 @@ defineProps<{
     error: string | null;
     terminating: boolean;
 }>();
+
+const msg = useSaMessages('planDetail');
+const common = useSaMessages('common');
+
+const bodyExpiry = computed(() =>
+    formatMessage(msg.value.terminateDialog.bodyExpiry, { version: props.target?.version ?? '' }),
+);
 
 defineEmits<{
     (e: 'update:modelValue', value: boolean): void;

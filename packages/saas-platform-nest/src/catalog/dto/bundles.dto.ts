@@ -113,12 +113,11 @@ export class CreateBundleVersionDraftDto {
 
     @IsOptional()
     @IsObject()
-    compatibility?: { businessTypeKeys?: string[]; planIds?: string[] };
+    compatibility?: { planIds?: string[] };
 
     @IsOptional()
     @IsArray()
     pricingOverrides?: Array<{
-        businessTypeKey?: string;
         planId?: string;
         monthlyNet?: string | null;
         yearlyNet?: string | null;
@@ -181,12 +180,11 @@ export class UpdateBundleVersionDraftDto {
 
     @IsOptional()
     @IsObject()
-    compatibility?: { businessTypeKeys?: string[]; planIds?: string[] };
+    compatibility?: { planIds?: string[] };
 
     @IsOptional()
     @IsArray()
     pricingOverrides?: Array<{
-        businessTypeKey?: string;
         planId?: string;
         monthlyNet?: string | null;
         yearlyNet?: string | null;

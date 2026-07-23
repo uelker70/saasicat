@@ -2,7 +2,7 @@
     <q-layout view="lHh Lpr lFf">
         <div v-if="isProduction" class="sa-admin-banner sa-admin-banner--prod">
             <q-icon name="warning" size="14px" />
-            <strong>PRODUCTION</strong> — Aktionen wirken sich sofort auf alle Mandanten aus.
+            <strong>PRODUCTION</strong> — {{ msg.header.productionWarning }}
         </div>
 
         <q-header elevated class="sa-admin-header">
@@ -10,11 +10,11 @@
                 <q-btn flat dense round icon="menu" @click="leftDrawerOpen = !leftDrawerOpen" />
                 <q-toolbar-title class="text-weight-bold">
                     {{ currentPageTitle }}
-                    <div class="sa-admin-header__sub">SuperAdmin · Plattform-Verwaltung</div>
+                    <div class="sa-admin-header__sub">{{ msg.header.subtitle }}</div>
                 </q-toolbar-title>
                 <q-space />
                 <slot name="header-actions" />
-                <q-badge class="sa-admin-badge q-mr-sm">SUPER ADMIN</q-badge>
+                <q-badge class="sa-admin-badge q-mr-sm">{{ msg.header.roleBadge }}</q-badge>
                 <div class="sa-admin-user">
                     <q-avatar size="32px" class="sa-admin-user__avatar">
                         {{ initials }}
@@ -24,7 +24,7 @@
                         <div class="text-caption sa-admin-user__email">{{ userEmail }}</div>
                     </div>
                     <q-btn flat round dense icon="logout" size="sm" @click="emit('logout')">
-                        <q-tooltip>Abmelden</q-tooltip>
+                        <q-tooltip>{{ msg.header.logout }}</q-tooltip>
                     </q-btn>
                 </div>
             </q-toolbar>
@@ -39,10 +39,12 @@
         >
             <div class="sa-admin-drawer__stack">
                 <div class="sa-admin-drawer__brand">
-                    <div class="sa-admin-drawer__logo">{{ brandLogoText }}</div>
+                    <div class="sa-admin-drawer__logo">{{ brand.logoText }}</div>
                     <div>
-                        <div class="sa-admin-drawer__brand-name">{{ brandName }}</div>
-                        <div class="sa-admin-drawer__brand-tag">{{ brandTag }} v{{ adminUiVersion }}</div>
+                        <div class="sa-admin-drawer__brand-name">{{ brand.name }}</div>
+                        <div class="sa-admin-drawer__brand-tag">
+                            {{ brand.tag }} v{{ adminUiVersion }}
+                        </div>
                     </div>
                 </div>
 
@@ -75,7 +77,7 @@
                             target="_blank"
                             rel="noopener"
                         >
-                            <q-icon name="menu_book" size="14px" /> Doku öffnen
+                            <q-icon name="menu_book" size="14px" /> {{ msg.drawer.docs }}
                         </a>
                     </slot>
                 </div>
@@ -91,10 +93,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import type { AdminManifest, StandardPageKey } from '@saasicat/types';
-import { buildRoutes, buildSidebar, DEFAULT_SECTION_ORDER } from '../client/nav-builder.js';
+import { buildRoutes, buildSidebar, defaultSectionOrder } from '../client/nav-builder.js';
+import { SUPER_ADMIN_BRAND_KEY, SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { ADMIN_UI_VERSION } from '../client/version.js';
 
 // SuperAdmin layout — universal platform shell for all consumer apps.
@@ -131,8 +135,13 @@ export interface SidebarItem {
 
 const props = withDefaults(
     defineProps<{
-        brandLogoText: string;
-        brandName: string;
+        /**
+         * Branding. Optional — when the layout is mounted as a route component
+         * inside `createSuperAdminApp({ brand })`, these default to the
+         * provided brand and only need passing to override it.
+         */
+        brandLogoText?: string;
+        brandName?: string;
         brandTag?: string;
         manifest?: AdminManifest | null;
         staticNavFallback?: readonly SidebarItem[];
@@ -164,13 +173,11 @@ const props = withDefaults(
         adminPathPrefix?: string;
     }>(),
     {
-        brandTag: 'SuperAdmin',
         staticNavFallback: () => [],
         localItems: () => [],
         localItemsSection: null,
         adminPathPrefix: '/admin',
         isProduction: false,
-        sectionOrder: () => DEFAULT_SECTION_ORDER,
     },
 );
 
@@ -179,6 +186,23 @@ const emit = defineEmits<{
 }>();
 
 const route = useRoute();
+const msg = useSaMessages('shell');
+const { locale } = useSuperAdminI18n();
+// Provided by createSuperAdminApp(); null when the layout is mounted
+// stand-alone. Grouped into one object so the names cannot shadow the
+// same-named props inside the template.
+const injectedBrand = inject(SUPER_ADMIN_BRAND_KEY, null);
+// Same idea for the manifest: createSuperAdminApp({ manifestGuard: {
+// getManifest } }) provides an accessor, so pages mounted straight as route
+// components do not have to be wrapped just to thread the prop through.
+const injectedManifest = inject(SUPER_ADMIN_MANIFEST_KEY, null);
+const activeManifest = computed(() => props.manifest ?? injectedManifest?.() ?? null);
+const brand = computed(() => ({
+    logoText: props.brandLogoText ?? injectedBrand?.logoText ?? '',
+    name: props.brandName ?? injectedBrand?.name ?? '',
+    tag: props.brandTag ?? injectedBrand?.tag ?? 'SuperAdmin',
+}));
+
 const leftDrawerOpen = ref(false);
 
 const adminUiVersion = ADMIN_UI_VERSION;
@@ -195,18 +219,19 @@ interface NavSection {
 }
 
 const navSections = computed<NavSection[]>(() => {
-    const m = props.manifest;
+    const m = activeManifest.value;
     if (!m) {
         // Pre-manifest: static fallback + local items as one unnamed
         // section, so that the UI has no flicker before manifest load.
         return [{ title: null, items: [...props.staticNavFallback, ...props.localItems] }];
     }
     const routes = buildRoutes(m, {
+        locale: locale.value,
         standardPageRoutes: props.standardPageRoutes,
         standardPageNavSection: props.standardPageNavSection,
         availableExtensions: props.availableExtensions,
     });
-    const sections = buildSidebar(routes, props.sectionOrder);
+    const sections = buildSidebar(routes, props.sectionOrder ?? defaultSectionOrder(locale.value));
     const result: NavSection[] = sections.map((s) => ({
         title: s.section,
         items: s.items.map((item) => ({
@@ -241,7 +266,7 @@ const currentPageTitle = computed(() => {
     }
     // Default: sidebar item label that matches the active route.
     const item = resolvedNav.value.find((i) => i.to === route.path);
-    return item?.label ?? `${props.brandName} SuperAdmin`;
+    return item?.label ?? `${brand.value.name} SuperAdmin`;
 });
 </script>
 

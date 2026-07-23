@@ -44,9 +44,9 @@ export interface UseEntitlementResult {
 export function useEntitlement(options: UseEntitlementOptions): UseEntitlementResult {
     if (!options?.endpoint) {
         throw new Error(
-            'useEntitlement: `endpoint` ist Pflicht (z. B. "/api/billing/entitlement" ' +
-                'oder "/api/v1/billing/entitlement"). Plattform hat keinen Default, weil ' +
-                'Apps unterschiedliche globalPrefix-Konventionen haben.',
+            'useEntitlement: `endpoint` is required (e.g. "/api/billing/entitlement" ' +
+                'or "/api/v1/billing/entitlement"). The platform has no default because ' +
+                'apps use different globalPrefix conventions.',
         );
     }
     const endpoint = options.endpoint;

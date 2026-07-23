@@ -134,8 +134,7 @@ function fakePrisma() {
                 return (
                     state.featureEntries.find(
                         (f) =>
-                            f.projectKey === where.projectKey &&
-                            f.featureKey === where.featureKey,
+                            f.projectKey === where.projectKey && f.featureKey === where.featureKey,
                     ) ?? null
                 );
             },
@@ -448,13 +447,6 @@ describe('PrismaSubscriptionRepository', () => {
         assert.deepEqual(p.calls.queryRaw[0].values, ['t1']);
     });
 
-    test('businessType-only subscription raises a descriptive error', async () => {
-        const p = fakePrisma();
-        p.state.subscriptionsByTenant.set('t1', subscriptionRow({ planVersionId: null }));
-        const repo = new PrismaSubscriptionRepository(p);
-        await assert.rejects(repo.findByTenantId('t1'), /businessType-only/);
-    });
-
     test('countByPlanVersionId uses a single OR count', async () => {
         const p = fakePrisma();
         const repo = new PrismaSubscriptionRepository(p);
@@ -732,7 +724,11 @@ describe('prismaPersistence()', () => {
     test('instance client → ready instances; hasher instance enables provisioning', async () => {
         const p = fakePrisma();
         const hasher = { hash: async () => 'h', verify: async () => true };
-        const bundle = prismaPersistence({ client: p, passwordHasher: hasher, rlsIntegration: true });
+        const bundle = prismaPersistence({
+            client: p,
+            passwordHasher: hasher,
+            rlsIntegration: true,
+        });
 
         assert.ok(bundle.core.audit instanceof PrismaAuditAdapter);
         assert.ok(bundle.core.superAdminProvisioning instanceof PrismaSuperAdminBootstrapAdapter);

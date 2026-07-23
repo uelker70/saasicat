@@ -34,9 +34,9 @@ export interface PilotEditResult {
 }
 
 /**
- * Tenant-specific vocabulary for the pilot dialogs. The platform
- * provides neutral defaults ("Mandant"); consumers override with
- * their domain language (e.g. "Verein" or "Händler").
+ * Tenant-specific vocabulary for the pilot dialogs. The platform provides
+ * neutral defaults via the `pilots.copyDefaults` message namespace; consumers
+ * override with their domain language (e.g. "Verein" or "Händler").
  */
 export interface PilotCopy {
     /** Subtitle of the tenant section in the create dialog. */
@@ -52,16 +52,6 @@ export interface PilotCopy {
     /** Placeholder for the internal note (create + edit). */
     notePlaceholder?: string;
 }
-
-/** Neutral, tenant-agnostic defaults for {@link PilotCopy}. */
-export const DEFAULT_PILOT_COPY: Required<PilotCopy> = {
-    tenantSubtitle: 'Stammdaten des Mandanten',
-    tenantNameLabel: 'Name des Mandanten',
-    tenantNamePlaceholder: 'z. B. Muster GmbH',
-    slugPlaceholder: 'muster-mandant',
-    adminEmailPlaceholder: 'admin@example.com',
-    notePlaceholder: 'z. B. Sales-Pilot · Demo-Zugang',
-};
 
 export type PromoCodeValueType = 'PERCENT' | 'ABSOLUTE';
 export type PromoCodeDurationType = 'ONCE' | 'MONTHS' | 'BILLING_CYCLES';

@@ -4,8 +4,6 @@ import {
     collectUnsatisfiedRequires,
     type BundleRepository,
     type BundleVersionRow,
-    type BusinessTypeRepository,
-    type BusinessTypeVersionRow,
     type CatalogEntryRepository,
     type FeatureRequiresIndex,
     type FeatureUiRegistry,
@@ -18,7 +16,6 @@ import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
-    PUBLIC_CATALOG_BUSINESS_TYPE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
@@ -32,7 +29,6 @@ import { getMarketedPlans } from './plan-helpers.js';
 //   - GET /billing/plans?locale=de: marketing merge optional (if a
 //     MarketingProjection repo + projectKey are configured)
 //   - GET /billing/bundles?locale=de: NEW (M6 Pack 2c)
-//   - GET /billing/business-types?locale=de: NEW (M6 Pack 2c)
 
 interface MarketingFields {
     displayLabel?: string;
@@ -81,18 +77,6 @@ interface PublicBundleEntry {
     marketing?: MarketingFields;
 }
 
-interface PublicBusinessTypeEntry {
-    businessTypeVersionId: string;
-    businessTypeKey: string;
-    label: string;
-    description: string | null;
-    monthlyNet: string | null;
-    yearlyNet: string | null;
-    bundleKeys: string[];
-    quotaOverrides: Record<string, number>;
-    marketing?: MarketingFields;
-}
-
 @Controller('billing')
 export class PublicCatalogController {
     constructor(
@@ -107,9 +91,6 @@ export class PublicCatalogController {
         @Optional()
         @Inject(PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN)
         private readonly bundleRepo: BundleRepository | null = null,
-        @Optional()
-        @Inject(PUBLIC_CATALOG_BUSINESS_TYPE_REPOSITORY_TOKEN)
-        private readonly businessTypeRepo: BusinessTypeRepository | null = null,
         @Optional()
         @Inject(PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN)
         private readonly catalogEntryRepo: CatalogEntryRepository | null = null,
@@ -138,7 +119,7 @@ export class PublicCatalogController {
         // a planKey, no PlanVersion ID. The marketing lookup for a plan is
         // therefore still a no-op in M6 Pack 2c — once PlanVersion IDs land in
         // the catalog, it will be merged here.
-        // (Bundles + BusinessTypes have PlanVersion IDs, where it works.)
+        // (Bundles have version IDs, where it works.)
         void locale;
         return plans;
     }
@@ -216,46 +197,8 @@ export class PublicCatalogController {
         }
     }
 
-    /**
-     * SPEC_V2 §11.1 M6 Pack 2c — public catalog endpoint for BusinessTypes
-     * (stem list with live versions + bundle composition + marketing).
-     */
-    @Get('business-types')
-    async listBusinessTypes(
-        @Query('lang') lang?: string,
-        @Query('locale') localeParam = 'de',
-    ): Promise<PublicBusinessTypeEntry[]> {
-        const locale = lang || localeParam;
-        if (!this.businessTypeRepo || !this.bundleRepo || !this.projectKey) return [];
-        const stems = await this.businessTypeRepo.list({ projectKey: this.projectKey });
-        const out: PublicBusinessTypeEntry[] = [];
-        for (const stem of stems) {
-            const versions = await this.businessTypeRepo.listVersions(stem.id);
-            const live = versions.find((v) => v.publishedAt !== null && v.supersededAt === null);
-            if (!live) continue;
-            const bundleKeys: string[] = [];
-            for (const ref of live.bundles) {
-                const bv = await this.bundleRepo.findVersionById(ref.bundleVersionId);
-                if (bv) bundleKeys.push(bv.bundleKey);
-            }
-            const marketing = await this.lookupMarketing('BUSINESS_TYPE', live.id, locale);
-            out.push({
-                businessTypeVersionId: live.id,
-                businessTypeKey: stem.businessTypeKey,
-                label: stem.label,
-                description: stem.description ?? null,
-                monthlyNet: live.monthlyNet,
-                yearlyNet: live.yearlyNet,
-                bundleKeys,
-                quotaOverrides: live.quotaOverrides as Record<string, number>,
-                marketing,
-            });
-        }
-        return out;
-    }
-
     private async lookupMarketing(
-        targetType: 'PLAN' | 'BUNDLE' | 'BUSINESS_TYPE',
+        targetType: 'PLAN' | 'BUNDLE',
         targetVersionId: string,
         locale: string,
     ): Promise<MarketingFields | undefined> {
@@ -305,7 +248,4 @@ export class PublicCatalogController {
     }
 }
 
-export type { PlanResponseEntry, PublicBundleEntry, PublicBusinessTypeEntry, MarketingFields };
-
-// Used type to avoid unused-import warning from type-only access:
-void (null as unknown as BusinessTypeVersionRow);
+export type { PlanResponseEntry, PublicBundleEntry, MarketingFields };

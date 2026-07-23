@@ -27,8 +27,8 @@ export interface ResolvedAction<TInput = unknown, TResult = unknown> {
 export class MissingHandlerError extends Error {
     constructor(actionKey: string) {
         super(
-            `Kein Handler für actionKey "${actionKey}" registriert. ` +
-                `Konsument-Shell muss \`actions["${actionKey}"]\` bereitstellen.`,
+            `No handler registered for actionKey "${actionKey}". ` +
+                `The consumer shell must provide \`actions["${actionKey}"]\`.`,
         );
         this.name = 'MissingHandlerError';
     }
@@ -37,8 +37,8 @@ export class MissingHandlerError extends Error {
 export class ActionDefNotInManifestError extends Error {
     constructor(actionKey: string) {
         super(
-            `actionKey "${actionKey}" ist im Manifest nicht deklariert. ` +
-                `Bitte als TenantAction in einer ManifestContribution registrieren.`,
+            `actionKey "${actionKey}" is not declared in the manifest. ` +
+                `Register it as a TenantAction in a ManifestContribution.`,
         );
         this.name = 'ActionDefNotInManifestError';
     }

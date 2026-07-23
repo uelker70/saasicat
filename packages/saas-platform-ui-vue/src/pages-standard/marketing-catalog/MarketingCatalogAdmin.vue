@@ -2,21 +2,18 @@
     <div class="mc-admin">
         <div class="mc-admin-head">
             <div style="flex: 1">
-                <div class="mc-admin-title">Marketing-Verwaltung</div>
-                <div class="mc-admin-sub">
-                    Sichtbarkeit, Reihenfolge &amp; Highlight-Badges pro Plan · Edits gehen direkt
-                    live
-                </div>
+                <div class="mc-admin-title">{{ msg.tabs.admin }}</div>
+                <div class="mc-admin-sub">{{ msg.admin.subtitle }}</div>
             </div>
         </div>
 
         <div class="mc-admin-grid">
             <div class="mc-admin-thead">
-                <div>Plan</div>
-                <div>Sichtbar</div>
-                <div>Badge</div>
-                <div>Priorität</div>
-                <div>Highlight</div>
+                <div>{{ msg.admin.colPlan }}</div>
+                <div>{{ msg.admin.colVisible }}</div>
+                <div>{{ msg.admin.colBadge }}</div>
+                <div>{{ msg.admin.colPriority }}</div>
+                <div>{{ msg.admin.colHighlight }}</div>
                 <div></div>
             </div>
 
@@ -45,7 +42,9 @@
                             v-if="row.publishedVersions.length > 1"
                             class="mc-version-tabs"
                             role="tablist"
-                            :aria-label="`Plan-Versionen für ${row.plan.label}`"
+                            :aria-label="
+                                formatMessage(msg.admin.versionTabsLabel, { plan: row.plan.label })
+                            "
                         >
                             <button
                                 v-for="v in row.publishedVersions"
@@ -107,23 +106,23 @@
                     </div>
                     <div class="mc-admin-row-end">
                         <span v-if="!row.liveVersion" class="mc-chip mc-chip--muted">
-                            keine Live-Version
+                            {{ msg.admin.noLiveVersion }}
                         </span>
                         <span v-else-if="!row.m.visible" class="mc-chip mc-chip--muted">
-                            versteckt
+                            {{ msg.admin.hidden }}
                         </span>
                         <span v-else-if="row.m.highlight" class="mc-chip mc-chip--featured">
-                            Featured
+                            {{ msg.admin.featured }}
                         </span>
-                        <span v-else class="mc-chip mc-chip--live">live</span>
+                        <span v-else class="mc-chip mc-chip--live">{{ msg.admin.live }}</span>
                         <button
                             v-if="row.liveVersion"
                             type="button"
                             class="mc-expand-btn"
                             :title="
                                 expandedKey === row.plan.planKey
-                                    ? 'Schließen'
-                                    : 'Teaser, Trial & Top-Features bearbeiten'
+                                    ? common.close
+                                    : msg.admin.expandTitle
                             "
                             @click="$emit('toggle-expand', row)"
                         >
@@ -151,19 +150,27 @@
                         <div class="mc-expand-col">
                             <div class="mc-expand-sec">
                                 <div class="mc-field-head">
-                                    <label class="mc-expand-label">Plan-Name</label>
+                                    <label class="mc-expand-label">
+                                        {{ msg.admin.planNameLabel }}
+                                    </label>
                                     <span
                                         v-if="activeLocale !== defaultLocale"
                                         class="mc-source-hint"
                                     >
                                         {{ defaultLocale.toUpperCase() }}:
-                                        <em>„{{ row.plan.label }}"</em>
+                                        <em>
+                                            {{
+                                                formatMessage(msg.admin.planNameSourceValue, {
+                                                    label: row.plan.label,
+                                                })
+                                            }}
+                                        </em>
                                     </span>
                                 </div>
                                 <div v-if="activeLocale === defaultLocale" class="mc-locked-value">
                                     <span>{{ row.plan.label }}</span>
                                     <span class="mc-locked-hint">
-                                        wird in den Plan-Stammdaten gepflegt
+                                        {{ msg.admin.planNameLocked }}
                                     </span>
                                 </div>
                                 <input
@@ -178,29 +185,31 @@
                                     v-if="activeLocale !== defaultLocale && !row.m.displayLabel"
                                     class="mc-expand-hint"
                                 >
-                                    leer · Fallback auf „{{ row.plan.label }}" wird verwendet
+                                    {{
+                                        formatMessage(msg.admin.planNameFallbackHint, {
+                                            label: row.plan.label,
+                                        })
+                                    }}
                                 </div>
                             </div>
 
                             <div class="mc-expand-sec">
-                                <label class="mc-expand-label">Teaser-Text</label>
+                                <label class="mc-expand-label">{{ msg.admin.teaserLabel }}</label>
                                 <textarea
                                     class="mc-field mc-field--area"
                                     rows="2"
-                                    placeholder="Kurzbeschreibung für die Pricing-Page …"
+                                    :placeholder="msg.admin.teaserPlaceholder"
                                     :value="row.m.description"
                                     :disabled="busy"
                                     @change="
                                         $emit('patch', row, { description: textValue($event) })
                                     "
                                 />
-                                <div class="mc-expand-hint">
-                                    erscheint unter dem Plannamen in der Vorschau
-                                </div>
+                                <div class="mc-expand-hint">{{ msg.admin.teaserHint }}</div>
                             </div>
 
                             <div class="mc-expand-sec">
-                                <label class="mc-expand-label">Kostenlose Testphase</label>
+                                <label class="mc-expand-label">{{ msg.admin.trialLabel }}</label>
                                 <div class="mc-trial-row">
                                     <label class="mc-toggle">
                                         <input
@@ -216,7 +225,11 @@
                                         <span />
                                     </label>
                                     <span class="mc-trial-label">
-                                        {{ row.m.trialEnabled ? 'Trial aktiv' : 'Kein Trial' }}
+                                        {{
+                                            row.m.trialEnabled
+                                                ? msg.admin.trialOn
+                                                : msg.admin.trialOff
+                                        }}
                                     </span>
                                     <span class="mc-trial-days">
                                         <input
@@ -233,19 +246,18 @@
                                                 })
                                             "
                                         />
-                                        <span class="mc-trial-unit">Tage</span>
+                                        <span class="mc-trial-unit">
+                                            {{ msg.admin.trialDaysUnit }}
+                                        </span>
                                     </span>
                                 </div>
-                                <div class="mc-expand-hint">
-                                    CTA-Text generiert sich automatisch („Jetzt
-                                    {{ row.m.trialDays }} Tage testen“).
-                                </div>
+                                <div class="mc-expand-hint">{{ trialCtaHint(row) }}</div>
                             </div>
 
                             <div class="mc-expand-sec">
-                                <label class="mc-expand-label"
-                                    >CTA-Text überschreiben (optional)</label
-                                >
+                                <label class="mc-expand-label">
+                                    {{ msg.admin.ctaOverrideLabel }}
+                                </label>
                                 <input
                                     class="mc-field"
                                     :placeholder="autoCtaText(row)"
@@ -257,7 +269,7 @@
                                         })
                                     "
                                 />
-                                <div class="mc-expand-hint">leer lassen für Auto-Text</div>
+                                <div class="mc-expand-hint">{{ msg.admin.ctaOverrideHint }}</div>
                             </div>
                         </div>
 
@@ -265,10 +277,14 @@
                             <div class="mc-expand-sec">
                                 <div class="mc-tf-head">
                                     <label class="mc-expand-label" style="margin: 0">
-                                        Top-Features
+                                        {{ msg.topFeatures }}
                                     </label>
                                     <span class="mc-expand-hint" style="margin-left: auto">
-                                        {{ editFeatures.length }} Einträge
+                                        {{
+                                            formatMessage(msg.admin.topFeatureCount, {
+                                                count: editFeatures.length,
+                                            })
+                                        }}
                                     </span>
                                 </div>
 
@@ -280,7 +296,7 @@
                                             :placeholder="
                                                 f.key
                                                     ? resolveComponentLabel(f.key)
-                                                    : 'z. B. Beitragsverwaltung'
+                                                    : msg.admin.featureLabelPlaceholder
                                             "
                                             :value="f.label"
                                             :disabled="busy"
@@ -291,7 +307,7 @@
                                         />
                                         <input
                                             class="mc-field mc-tf-strong"
-                                            placeholder="Highlight, z. B. bis 100"
+                                            :placeholder="msg.admin.featureStrongPlaceholder"
                                             :value="f.strong"
                                             :disabled="busy"
                                             @input="
@@ -303,7 +319,7 @@
                                             <button
                                                 type="button"
                                                 class="mc-iconbtn"
-                                                title="Nach oben"
+                                                :title="msg.admin.moveUp"
                                                 :disabled="i === 0 || busy"
                                                 @click="$emit('move-feature', row, i, -1)"
                                             >
@@ -312,7 +328,7 @@
                                             <button
                                                 type="button"
                                                 class="mc-iconbtn"
-                                                title="Nach unten"
+                                                :title="msg.admin.moveDown"
                                                 :disabled="i === editFeatures.length - 1 || busy"
                                                 @click="$emit('move-feature', row, i, 1)"
                                             >
@@ -321,7 +337,7 @@
                                             <button
                                                 type="button"
                                                 class="mc-iconbtn mc-iconbtn--danger"
-                                                title="Entfernen"
+                                                :title="common.remove"
                                                 :disabled="busy"
                                                 @click="$emit('remove-feature', row, i)"
                                             >
@@ -339,8 +355,7 @@
                                         </div>
                                     </div>
                                     <div v-if="editFeatures.length === 0" class="mc-tf-empty">
-                                        Noch keine Top-Features — füge Plan-Komponenten oder freien
-                                        Text hinzu.
+                                        {{ msg.admin.topFeaturesEmpty }}
                                     </div>
                                 </div>
 
@@ -361,20 +376,26 @@
                                         >
                                             <path d="M12 5v14M5 12h14" />
                                         </svg>
-                                        <span>Eigener Eintrag</span>
+                                        <span>{{ msg.admin.addCustomFeature }}</span>
                                     </button>
                                     <div
                                         v-if="suggestionsFor(row).length > 0"
                                         class="mc-tf-suggestions"
                                     >
-                                        <span class="mc-expand-hint">aus Plan-Komponenten:</span>
+                                        <span class="mc-expand-hint">
+                                            {{ msg.admin.suggestionsLabel }}
+                                        </span>
                                         <button
                                             v-for="(s, i) in suggestionsFor(row)"
                                             :key="i"
                                             type="button"
                                             class="mc-tf-chip"
                                             :disabled="busy"
-                                            :title="`„${s.label}“ als Top-Feature übernehmen`"
+                                            :title="
+                                                formatMessage(msg.admin.addSuggestionTitle, {
+                                                    label: s.label,
+                                                })
+                                            "
                                             @click="$emit('add-suggestion', row, s)"
                                         >
                                             <svg
@@ -403,6 +424,8 @@
 
 <script setup lang="ts">
 import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { FeatureSuggestion, MarketingRow, ResolvedMarketing } from './types.js';
 
 defineProps<{
@@ -433,6 +456,15 @@ defineEmits<{
     (e: 'add-feature', row: MarketingRow): void;
     (e: 'add-suggestion', row: MarketingRow, suggestion: FeatureSuggestion): void;
 }>();
+
+const msg = useSaMessages('marketing');
+const common = useSaMessages('common');
+
+/** Hint below the trial toggle — shows the auto CTA text for the set trial days. */
+function trialCtaHint(row: MarketingRow): string {
+    const cta = formatMessage(msg.value.cta.trial, { days: row.m.trialDays });
+    return formatMessage(msg.value.admin.ctaAutoHint, { cta });
+}
 
 function textValue(event: Event): string {
     return (event.target as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? '';

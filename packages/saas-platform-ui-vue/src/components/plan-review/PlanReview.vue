@@ -3,11 +3,11 @@
         <!-- Header -->
         <div class="pr-head">
             <div class="pr-head-text">
-                <h2 class="pr-title">Review &amp; Publish</h2>
+                <h2 class="pr-title">{{ msg.review.title }}</h2>
                 <p class="pr-sub">
-                    Letzte Prüfung, bevor
+                    {{ msg.review.subtitleLead }}
                     <code class="pr-mono">{{ plan.planKey }}@v{{ version.version }}</code>
-                    live geht.
+                    {{ msg.review.subtitleTail }}
                 </p>
             </div>
             <div class="pr-head-actions">
@@ -29,7 +29,7 @@
                             <path d="M5 12h14M13 5l7 7-7 7" />
                         </svg>
                     </span>
-                    <span>Zurück</span>
+                    <span>{{ common.back }}</span>
                 </button>
                 <button
                     class="pr-btn"
@@ -37,13 +37,13 @@
                     :disabled="publishing || saving"
                     @click="$emit('saveAndExit')"
                 >
-                    {{ saving ? 'Wird gespeichert…' : 'Als Draft speichern' }}
+                    {{ saving ? msg.review.saving : msg.review.saveAsDraft }}
                 </button>
                 <button
                     class="pr-btn pr-btn--primary"
                     type="button"
                     :disabled="!canPublish || publishing || saving"
-                    :title="canPublish ? undefined : 'Publish-Checkliste noch nicht vollständig'"
+                    :title="canPublish ? undefined : msg.review.publishBlocked"
                     @click="onPublish"
                 >
                     <svg
@@ -56,9 +56,7 @@
                     >
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
                     </svg>
-                    <span>{{
-                        publishing ? 'Wird veröffentlicht…' : `Publish v${version.version}`
-                    }}</span>
+                    <span>{{ publishing ? msg.review.publishing : publishLabel }}</span>
                 </button>
             </div>
         </div>
@@ -69,100 +67,108 @@
             <!-- Left column -->
             <div class="pr-col">
                 <div class="pr-card">
-                    <h3 class="pr-card-title">Stammdaten</h3>
+                    <h3 class="pr-card-title">{{ msg.review.cardMasterData }}</h3>
                     <div class="pr-row">
-                        <div class="pr-label">Plan-Key</div>
+                        <div class="pr-label">{{ msg.review.labelPlanKey }}</div>
                         <div class="pr-val pr-mono">{{ plan.planKey }}</div>
                     </div>
                     <div class="pr-row">
-                        <div class="pr-label">Anzeigename</div>
+                        <div class="pr-label">{{ msg.review.labelDisplayName }}</div>
                         <div class="pr-val">{{ plan.label }}</div>
                     </div>
                     <div class="pr-row">
-                        <div class="pr-label">Beschreibung</div>
+                        <div class="pr-label">{{ common.description }}</div>
                         <div class="pr-val">
                             <template v-if="plan.description">{{ plan.description }}</template>
-                            <i v-else class="pr-missing">fehlt</i>
+                            <i v-else class="pr-missing">{{ msg.review.missing }}</i>
                         </div>
                     </div>
                 </div>
 
                 <div class="pr-card">
-                    <h3 class="pr-card-title">
-                        Version v{{ version.version }} · Pricing &amp; Sichtbarkeit
-                    </h3>
+                    <h3 class="pr-card-title">{{ pricingCardTitle }}</h3>
                     <div class="pr-row">
-                        <div class="pr-label">Gültig ab</div>
+                        <div class="pr-label">{{ msg.review.labelValidFrom }}</div>
                         <div class="pr-val">
                             <template v-if="version.validFrom">{{
                                 version.validFrom.slice(0, 10)
                             }}</template>
-                            <i v-else class="pr-missing">fehlt — beim Publish Pflicht</i>
+                            <i v-else class="pr-missing">{{
+                                msg.review.missingRequiredOnPublish
+                            }}</i>
                         </div>
                     </div>
                     <div class="pr-row">
-                        <div class="pr-label">Gültig bis</div>
+                        <div class="pr-label">{{ msg.review.labelValidUntil }}</div>
                         <div class="pr-val">
                             <template v-if="version.validUntil">{{
                                 version.validUntil.slice(0, 10)
                             }}</template>
-                            <span v-else class="pr-inf">∞ unbegrenzt</span>
+                            <span v-else class="pr-inf">{{ msg.review.unlimited }}</span>
                         </div>
                     </div>
                     <div class="pr-row">
-                        <div class="pr-label">Preis monatlich</div>
+                        <div class="pr-label">{{ msg.review.labelMonthlyPrice }}</div>
                         <div class="pr-val">
                             <template v-if="hasMonthly">{{
                                 formatMoney(version.monthlyNet)
                             }}</template>
-                            <i v-else class="pr-missing">fehlt</i>
+                            <i v-else class="pr-missing">{{ msg.review.missing }}</i>
                         </div>
                     </div>
                     <div class="pr-row">
-                        <div class="pr-label">Preis jährlich</div>
+                        <div class="pr-label">{{ msg.review.labelYearlyPrice }}</div>
                         <div class="pr-val">{{ formatMoney(version.yearlyNet) }}</div>
                     </div>
                     <div class="pr-row">
-                        <div class="pr-label">Public-Catalog</div>
+                        <div class="pr-label">{{ msg.review.labelPublicCatalog }}</div>
                         <div class="pr-val">
-                            <span v-if="version.marketed" class="pr-chip pr-chip--live"
-                                >Im Catalog sichtbar</span
-                            >
-                            <span v-else class="pr-chip pr-chip--muted">Ausgeblendet</span>
+                            <span v-if="version.marketed" class="pr-chip pr-chip--live">{{
+                                msg.review.visibleInCatalog
+                            }}</span>
+                            <span v-else class="pr-chip pr-chip--muted">{{
+                                msg.review.hiddenFromCatalog
+                            }}</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="pr-card">
-                    <h3 class="pr-card-title">Komponenten · {{ componentTotal }} insgesamt</h3>
+                    <h3 class="pr-card-title">{{ componentsCardTitle }}</h3>
                     <div class="pr-components">
                         <div class="pr-comp-col">
                             <div class="pr-comp-head pr-comp-head--quota">
-                                Quotas · {{ quotaList.length }}
+                                {{ quotaSectionTitle }}
                             </div>
                             <div v-for="q in quotaList" :key="q.key" class="pr-comp-item">
                                 <span>{{ q.label }}</span>
                                 <b>{{ q.value }}{{ q.unit ? ' ' + q.unit : '' }}</b>
                             </div>
-                            <div v-if="quotaList.length === 0" class="pr-comp-empty">keine</div>
+                            <div v-if="quotaList.length === 0" class="pr-comp-empty">
+                                {{ msg.review.componentEmpty }}
+                            </div>
                         </div>
                         <div class="pr-comp-col">
                             <div class="pr-comp-head pr-comp-head--feature">
-                                Features · {{ featureList.length }}
+                                {{ featureSectionTitle }}
                             </div>
                             <div v-for="f in featureList" :key="f.key" class="pr-comp-item">
                                 <span>{{ f.label }}</span>
                             </div>
-                            <div v-if="featureList.length === 0" class="pr-comp-empty">keine</div>
+                            <div v-if="featureList.length === 0" class="pr-comp-empty">
+                                {{ msg.review.componentEmpty }}
+                            </div>
                         </div>
                         <div class="pr-comp-col">
                             <div class="pr-comp-head pr-comp-head--bundle">
-                                Bundles · {{ bundleList.length }}
+                                {{ bundleSectionTitle }}
                             </div>
                             <div v-for="b in bundleList" :key="b.key" class="pr-comp-item">
                                 <span>{{ b.label }}</span>
                             </div>
-                            <div v-if="bundleList.length === 0" class="pr-comp-empty">keine</div>
+                            <div v-if="bundleList.length === 0" class="pr-comp-empty">
+                                {{ msg.review.componentEmpty }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -171,19 +177,18 @@
             <!-- Right column -->
             <div class="pr-col">
                 <div class="pr-card">
-                    <h3 class="pr-card-title">Change-Note <span class="pr-req">*</span></h3>
-                    <p class="pr-card-hint">
-                        Wird im Audit-Log gespeichert und mit der Versions-History angezeigt.
-                    </p>
+                    <h3 class="pr-card-title">
+                        {{ msg.review.cardChangeNote }} <span class="pr-req">*</span>
+                    </h3>
+                    <p class="pr-card-hint">{{ msg.review.changeNoteHint }}</p>
                     <div v-if="version.changeNote" class="pr-note">{{ version.changeNote }}</div>
                     <div v-else class="pr-note pr-note--missing">
-                        Keine Change-Note — im Editor nachtragen (Pflicht beim Publish,
-                        Vertragsschutz&nbsp;P3).
+                        {{ msg.review.changeNoteMissing }}
                     </div>
                 </div>
 
                 <div class="pr-card">
-                    <h3 class="pr-card-title">Publish-Checkliste</h3>
+                    <h3 class="pr-card-title">{{ msg.review.cardChecklist }}</h3>
                     <div class="pr-checks">
                         <div
                             v-for="c in checks"
@@ -223,46 +228,28 @@
                 </div>
 
                 <div v-if="predecessor" class="pr-card pr-card--regress">
-                    <h3 class="pr-card-title">Vertragsschutz P3 — Regression</h3>
-                    <p class="pr-card-hint">
-                        Wenn diese Version regressiv ist (Feature entfernt, Quota gesenkt, Preis
-                        erhöht), blockiert das Backend den Publish. Mit Force-Publish wird die
-                        Regression bewusst freigegeben und löst die Notification-Welle aus.
-                    </p>
+                    <h3 class="pr-card-title">{{ msg.review.cardRegression }}</h3>
+                    <p class="pr-card-hint">{{ msg.review.regressionHint }}</p>
                     <label class="pr-toggle">
                         <input v-model="forceRegressive" type="checkbox" />
-                        <span>Force-Publish auch bei Regression</span>
+                        <span>{{ msg.review.forceRegressive }}</span>
                     </label>
                 </div>
 
                 <div class="pr-card">
-                    <h3 class="pr-card-title">Preis 0,00</h3>
-                    <p class="pr-card-hint">
-                        Standardmäßig blockt das Backend einen Publish mit Preis 0,00
-                        (Schutz gegen Seed-Platzhalter). Für bewusst kostenlose
-                        Sonderverträge hier freigeben.
-                    </p>
+                    <h3 class="pr-card-title">{{ msg.review.cardZeroPrice }}</h3>
+                    <p class="pr-card-hint">{{ msg.review.zeroPriceHint }}</p>
                     <label class="pr-toggle">
                         <input v-model="allowZeroPrice" type="checkbox" />
-                        <span>Preis 0,00 bewusst zulassen</span>
+                        <span>{{ msg.review.allowZeroPrice }}</span>
                     </label>
                 </div>
 
                 <div class="pr-card pr-card--impact">
-                    <h3 class="pr-card-title">Tenant-Impact bei Publish</h3>
+                    <h3 class="pr-card-title">{{ msg.review.cardTenantImpact }}</h3>
                     <div class="pr-impact">
                         <div class="pr-impact-num">{{ tenantImpactCount }}</div>
-                        <div class="pr-impact-text">
-                            <template v-if="tenantImpactCount === 0">
-                                Aktuell sind keine Mandanten betroffen. Sobald die Version live ist,
-                                können Mandanten den Plan im Catalog buchen.
-                            </template>
-                            <template v-else>
-                                {{ tenantImpactCount }} Mandant(en) auf der aktuellen Live-Version
-                                bleiben per Bestandsschutz (P1) auf ihrer Version — neue Buchungen
-                                laufen auf v{{ version.version }}.
-                            </template>
-                        </div>
+                        <div class="pr-impact-text">{{ impactText }}</div>
                     </div>
                 </div>
             </div>
@@ -273,6 +260,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import { formatMessage } from '../../client/i18n/format.js';
+import { formatCurrency } from '../../client/i18n/currency.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 
 // PlanReview — step 3 of the plan wizard (SPEC_V2 §6, plan simulation
 // "Review & Publish"). Shows the saved draft read-only, checks the
@@ -330,8 +320,20 @@ const emit = defineEmits<{
     (e: 'publish', payload: { forceRegressive: boolean; allowZeroPrice: boolean }): void;
 }>();
 
+const msg = useSaMessages('plans');
+const { locale } = useSuperAdminI18n();
+const common = useSaMessages('common');
+
 const forceRegressive = ref(false);
 const allowZeroPrice = ref(false);
+
+const publishLabel = computed(() =>
+    formatMessage(msg.value.review.publishVersion, { version: props.version.version }),
+);
+
+const pricingCardTitle = computed(() =>
+    formatMessage(msg.value.review.cardPricing, { version: props.version.version }),
+);
 
 function quotasOf(v: PlanVersionRow): Record<string, number> {
     if (v.quotas && Object.keys(v.quotas).length > 0) return v.quotas;
@@ -369,6 +371,28 @@ const componentTotal = computed(
     () => quotaList.value.length + featureList.value.length + bundleList.value.length,
 );
 
+const componentsCardTitle = computed(() =>
+    formatMessage(msg.value.review.cardComponents, { total: componentTotal.value }),
+);
+const quotaSectionTitle = computed(() =>
+    formatMessage(msg.value.review.componentQuotas, { count: quotaList.value.length }),
+);
+const featureSectionTitle = computed(() =>
+    formatMessage(msg.value.review.componentFeatures, { count: featureList.value.length }),
+);
+const bundleSectionTitle = computed(() =>
+    formatMessage(msg.value.review.componentBundles, { count: bundleList.value.length }),
+);
+
+const impactText = computed(() =>
+    props.tenantImpactCount === 0
+        ? msg.value.review.impactNone
+        : formatMessage(msg.value.review.impactSome, {
+              count: props.tenantImpactCount,
+              version: props.version.version,
+          }),
+);
+
 // Valid price — even 0 € (free plan) counts as set; only an
 // invalid/empty value counts as "missing".
 const hasMonthly = computed(() => {
@@ -387,9 +411,8 @@ const validFromAfterPredecessor = computed(() => {
 function formatMoney(raw: string | number): string {
     const num = typeof raw === 'string' ? Number(raw) : raw;
     if (!Number.isFinite(num)) return String(raw);
-    if (num === 0) return 'Kostenlos';
-    if (Number.isInteger(num)) return `${num} €`;
-    return `${num.toFixed(2).replace('.', ',')} €`;
+    if (num === 0) return msg.value.review.priceFree;
+    return formatCurrency(num, locale.value);
 }
 
 interface Check {
@@ -399,33 +422,35 @@ interface Check {
 }
 
 const checks = computed<Check[]>(() => [
-    { id: 'key', label: 'Plan-Key vergeben', ok: Boolean(props.plan.planKey) },
-    { id: 'label', label: 'Anzeigename vorhanden', ok: Boolean(props.plan.label) },
+    { id: 'key', label: msg.value.review.checkPlanKey, ok: Boolean(props.plan.planKey) },
+    { id: 'label', label: msg.value.review.checkDisplayName, ok: Boolean(props.plan.label) },
     {
         id: 'quota',
-        label: 'Mindestens 1 Quota zugewiesen',
+        label: msg.value.review.checkQuota,
         ok: quotaList.value.length > 0,
     },
     {
         id: 'feature',
-        label: 'Mindestens 1 Feature zugewiesen',
+        label: msg.value.review.checkFeature,
         ok: featureList.value.length > 0,
     },
     {
         id: 'validFrom',
-        label: '„Gültig ab" gesetzt (Pflicht beim Publish)',
+        label: msg.value.review.checkValidFrom,
         ok: Boolean(props.version.validFrom),
     },
     {
         id: 'validFromOrder',
         label: props.predecessor
-            ? `„Gültig ab" liegt nach Vorgänger v${props.predecessor.version}`
-            : '„Gültig ab" liegt nach der Vorgänger-Version',
+            ? formatMessage(msg.value.review.checkValidFromAfterPredecessor, {
+                  version: props.predecessor.version,
+              })
+            : msg.value.review.checkValidFromAfterPrevious,
         ok: validFromAfterPredecessor.value,
     },
     {
         id: 'changeNote',
-        label: 'Change-Note vorhanden (Vertragsschutz P3)',
+        label: msg.value.review.checkChangeNote,
         ok: Boolean(props.version.changeNote && props.version.changeNote.trim()),
     },
 ]);

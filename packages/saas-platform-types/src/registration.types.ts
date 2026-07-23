@@ -314,53 +314,18 @@ export interface ConfiguratorModel {
     popular?: boolean;
 }
 
-/**
- * SPEC_V2 §11.1 M5.3 — selectable BusinessTypeVersion in the configurator.
- * One selection card per published BusinessTypeVersion of the app project.
- * `businessTypeVersionId` moves into `RegistrationConfigSelection` and
- * from there, on activate, into `Subscription.businessTypeVersionId`.
- *
- * Optionally populated by the app adapter — apps without a BusinessType
- * catalog leave the field empty/undefined, and the UI step then stays
- * hidden.
- */
-export interface ConfiguratorBusinessType {
-    businessTypeVersionId: string;
-    businessTypeKey: string;
-    label: string;
-    description?: string | null;
-    /** Selected bundle keys (overview for UI), in sort order. */
-    bundleKeys: string[];
-    /** App-specific sort order; ascending (smaller = top). */
-    sortOrder: number;
-}
-
 export interface ConfiguratorCatalog {
     /** Factor `yearlyNet = monthlyNet * cycleDiscount` (typically 10 = 2 months free). */
     cycleDiscount: number;
     currency: string;
     vatRate: number;
     models: ConfiguratorModel[];
-    /**
-     * SPEC_V2 §11.1 M5.3 — published BusinessTypeVersions as optional
-     * preselection. Apps without a BusinessType catalog omit the field
-     * or return `[]`.
-     */
-    businessTypes?: ConfiguratorBusinessType[];
 }
 
 export interface RegistrationConfigSelection {
     modelId: string;
     billingCycle: 'MONTHLY' | 'YEARLY';
     appliedPromoCode: string | null;
-    /**
-     * SPEC_V2 §11.1 M5: optional BusinessTypeVersion choice. Additive to the
-     * plan/bundle selection — the aggregation (§6) sums limits and merges
-     * features. When `null`, activation runs as before M5.3 (pure
-     * plan path). The ID is validated by the service against `RegistrationBusinessTypeLookup`
-     * (published BusinessTypeVersions in the same projectKey).
-     */
-    businessTypeVersionId?: string | null;
     /**
      * P11.4 (METAMODELL §17a): preselected CheckoutOffer from the website
      * (`?offer=<id>` parameter). Moves into `PendingRegistration.configJson`,
@@ -412,39 +377,6 @@ export interface SaveRegistrationConfigResult {
  */
 export interface RegistrationConfiguratorLookup {
     getCatalog(): Promise<ConfiguratorCatalog>;
-}
-
-/**
- * SPEC_V2 §11.1 M5.3 — narrow adapter port that the
- * `PendingRegistrationService` uses to validate a tenant-chosen
- * `businessTypeVersionId` (existence, projectKey match,
- * live status). Implemented in the app (Prisma adapter via
- * `BusinessTypeRepository.listVersions` with `publishedAt != null`).
- *
- * The validation is "soft": if no lookup is configured, the
- * selection is passed through unchecked — so apps without a
- * BusinessType catalog remain free of setup obligation.
- */
-export interface RegistrationBusinessTypeLookup {
-    /** Return only **published** versions; `null` if unknown/draft/superseded. */
-    findPublishedVersion(
-        businessTypeVersionId: string,
-    ): Promise<RegistrationBusinessTypeVersionView | null>;
-}
-
-export interface RegistrationBusinessTypeVersionView {
-    businessTypeVersionId: string;
-    businessTypeId: string;
-    businessTypeKey: string;
-    label: string;
-    version: number;
-    /**
-     * Informational: which project the version belongs to. The scope filter
-     * `projectKey === <app project>` is applied by the adapter itself — apps
-     * only ever return versions of their own projectKey in
-     * `findPublishedVersion`.
-     */
-    projectKey: string;
 }
 
 /**

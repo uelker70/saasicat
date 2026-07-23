@@ -109,6 +109,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { formatCurrency } from '../../client/i18n/currency.js';
+import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanComponentPool from './PlanComponentPool.vue';
 import PlanCatalogPreview from './PlanCatalogPreview.vue';
 import PlanVersionBasket from './PlanVersionBasket.vue';
@@ -187,6 +190,10 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
+const msg = useSaMessages('planEditor');
+const common = useSaMessages('common');
+const { locale, intlLocale } = useSuperAdminI18n();
+
 const form = reactive<DraftForm>({
     version: props.initialForm.version,
     features: [...props.initialForm.features],
@@ -238,13 +245,25 @@ const searchTerm = ref('');
 const activeTab = ref<PoolTab>('features');
 
 const poolTabs = computed<PoolTabItem[]>(() => [
-    { id: 'features' as PoolTab, label: 'Features', count: filteredFeatureCount.value },
-    { id: 'quotas' as PoolTab, label: 'Quotas', count: filteredQuotas.value.length },
-    { id: 'bundles' as PoolTab, label: 'Bundles', count: filteredBundles.value.length },
+    {
+        id: 'features' as PoolTab,
+        label: msg.value.sections.features,
+        count: filteredFeatureCount.value,
+    },
+    {
+        id: 'quotas' as PoolTab,
+        label: msg.value.sections.quotas,
+        count: filteredQuotas.value.length,
+    },
+    {
+        id: 'bundles' as PoolTab,
+        label: msg.value.sections.bundles,
+        count: filteredBundles.value.length,
+    },
 ]);
 
 function normalize(s: string): string {
-    return s.toLocaleLowerCase('de-DE');
+    return s.toLocaleLowerCase(intlLocale.value);
 }
 
 function matchesSearch(haystack: string[], needle: string): boolean {
@@ -258,12 +277,12 @@ function featureLabel(key: string): string {
 }
 
 function featureGroupLabel(key: string): string {
-    return props.featureRegistry?.[key]?.group ?? 'Allgemein';
+    return props.featureRegistry?.[key]?.group ?? common.value.general;
 }
 
 // Pool lists sorted by display label (not by key/snapshot order),
 // so that planning stays predictable — same order as in the basket.
-const byLabel = (a: string, b: string) => a.localeCompare(b, 'de-DE');
+const byLabel = (a: string, b: string) => a.localeCompare(b, intlLocale.value);
 
 const filteredFeatures = computed(() =>
     props.availableFeatures
@@ -282,7 +301,7 @@ const filteredFeatureGroups = computed<FeatureGroup[]>(() => {
         byGroup.set(g, list);
     }
     return [...byGroup.entries()]
-        .sort(([a], [b]) => a.localeCompare(b, 'de-DE'))
+        .sort(([a], [b]) => byLabel(a, b))
         .map(([key, rows]) => ({ key, label: key, rows }));
 });
 
@@ -414,8 +433,7 @@ function toTitleCase(s: string): string {
 function formatMoney(raw: string): string {
     if (!/^\d+(\.\d{1,2})?$/.test(raw)) return raw + ' €';
     const num = Number(raw);
-    if (Number.isInteger(num)) return `${num} €`;
-    return `${num.toFixed(2).replace('.', ',')} €`;
+    return formatCurrency(num, locale.value);
 }
 
 const formattedMonthly = computed(() => formatMoney(form.monthlyNet));
@@ -429,7 +447,7 @@ const yearlySavingsLabel = computed(() => {
     if (y >= fullYear) return null;
     const pct = Math.round(((fullYear - y) / fullYear) * 100);
     if (pct <= 0) return null;
-    return `${pct} % günstiger`;
+    return formatMessage(msg.value.editor.yearlySavings, { percent: pct });
 });
 
 // ── Validation ──────────────────────────────────────────────────────
@@ -443,10 +461,11 @@ const validFromError = computed<string | null>(() => {
     const draftDay = form.validFrom.slice(0, 10);
     const prevDay = prev.validFrom.slice(0, 10);
     if (draftDay <= prevDay) {
-        return (
-            `„Gültig ab" (${draftDay}) muss nach dem „Gültig ab" der ` +
-            `Vorgänger-Version v${prev.version} (${prevDay}) liegen.`
-        );
+        return formatMessage(msg.value.editor.validFromError, {
+            draftDay,
+            version: prev.version,
+            prevDay,
+        });
     }
     return null;
 });
@@ -484,47 +503,52 @@ const canSave = computed(() => {
 });
 
 const predecessorValidUntilHint = computed(() => {
-    if (!form.validFrom) return 'ab-Datum − 1 Tag';
+    const fallback = msg.value.editor.validUntilHintFallback;
+    if (!form.validFrom) return fallback;
     const d = new Date(form.validFrom);
-    if (Number.isNaN(d.getTime())) return 'ab-Datum − 1 Tag';
+    if (Number.isNaN(d.getTime())) return fallback;
     d.setDate(d.getDate() - 1);
     return d.toISOString().slice(0, 10);
 });
 
 const checklist = computed<ChecklistItem[]>(() => {
+    const texts = msg.value.editor;
     const items: ChecklistItem[] = [
         {
             id: 'prices',
-            label: 'Preise gesetzt (Mo + J)',
+            label: texts.checklistPrices,
             ok:
                 /^\d+(\.\d{1,2})?$/.test(form.monthlyNet) &&
                 /^\d+(\.\d{1,2})?$/.test(form.yearlyNet),
         },
         {
             id: 'note',
-            label: 'Change-Note vorhanden',
+            label: texts.checklistChangeNote,
             ok: form.changeNote.trim().length > 0,
         },
         {
             id: 'valid-from',
-            label: 'Gültigkeit gesetzt',
+            label: texts.checklistValidity,
             ok: !!form.validFrom,
         },
         {
             id: 'valid-from-order',
-            label: 'Gültig-ab liegt nach der Vorgänger-Version',
+            label: texts.checklistValidFromOrder,
             ok: validFromError.value === null,
         },
         {
             id: 'min-feature',
-            label: 'Mindestens 1 Feature zugewiesen',
+            label: texts.checklistMinFeature,
             ok: form.features.length > 0,
         },
     ];
     if (props.tenantImpactCount > 0) {
         items.push({
             id: 'tenant-impact',
-            label: `Tenant-Impact: <b>${props.tenantImpactCount} Mandanten</b> erhalten v${form.version} automatisch`,
+            label: formatMessage(texts.checklistTenantImpact, {
+                count: props.tenantImpactCount,
+                version: form.version,
+            }),
             ok: false,
         });
     }
@@ -537,14 +561,22 @@ const checklistOkCount = computed(() => checklist.value.filter((c) => c.ok).leng
 const showDiff = ref(false);
 
 const DIFF_STYLE = {
-    added: { bg: '#ecfdf5', border: '#a7f3d0', color: '#047857', sign: '+', tag: 'neu' },
-    removed: { bg: '#fef2f2', border: '#fecaca', color: '#b91c1c', sign: '−', tag: 'entfernt' },
-    changed: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', sign: '~', tag: 'geändert' },
+    added: { bg: '#ecfdf5', border: '#a7f3d0', color: '#047857', sign: '+' },
+    removed: { bg: '#fef2f2', border: '#fecaca', color: '#b91c1c', sign: '−' },
+    changed: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', sign: '~' },
 } as const;
+
+const diffStyles = computed(() => ({
+    added: { ...DIFF_STYLE.added, tag: msg.value.editor.diffTagAdded },
+    removed: { ...DIFF_STYLE.removed, tag: msg.value.editor.diffTagRemoved },
+    changed: { ...DIFF_STYLE.changed, tag: msg.value.editor.diffTagChanged },
+}));
 
 const diffRows = computed<EditorDiffRow[]>(() => {
     const prev = props.predecessorVersion;
     if (!prev) return [];
+    const style = diffStyles.value;
+    const sections = msg.value.sections;
     const out: EditorDiffRow[] = [];
 
     // Features
@@ -554,10 +586,10 @@ const diffRows = computed<EditorDiffRow[]>(() => {
         if (!prevFeatures.has(f)) {
             out.push({
                 id: `add-f-${f}`,
-                section: 'Features',
+                section: sections.features,
                 label: featureLabel(f),
                 sub: f,
-                ...DIFF_STYLE.added,
+                ...style.added,
             });
         }
     }
@@ -565,10 +597,10 @@ const diffRows = computed<EditorDiffRow[]>(() => {
         if (!curFeatures.has(f)) {
             out.push({
                 id: `rem-f-${f}`,
-                section: 'Features',
+                section: sections.features,
                 label: featureLabel(f),
                 sub: f,
-                ...DIFF_STYLE.removed,
+                ...style.removed,
             });
         }
     }
@@ -585,43 +617,45 @@ const diffRows = computed<EditorDiffRow[]>(() => {
         if (before === undefined && after !== undefined) {
             out.push({
                 id: `add-q-${k}`,
-                section: 'Quotas',
+                section: sections.quotas,
                 label,
                 sub: k,
                 to: fmt(after),
-                ...DIFF_STYLE.added,
+                ...style.added,
             });
         } else if (before !== undefined && after === undefined) {
             out.push({
                 id: `rem-q-${k}`,
-                section: 'Quotas',
+                section: sections.quotas,
                 label,
                 sub: k,
                 from: fmt(before),
-                ...DIFF_STYLE.removed,
+                ...style.removed,
             });
         } else if (before !== undefined && after !== undefined && before !== after) {
             out.push({
                 id: `chg-q-${k}`,
-                section: 'Quotas',
+                section: sections.quotas,
                 label,
                 sub: k,
                 from: fmt(before),
                 to: fmt(after),
-                ...DIFF_STYLE.changed,
+                ...style.changed,
             });
         }
     }
 
     // Price
     if (prev.monthlyNet !== form.monthlyNet || prev.yearlyNet !== form.yearlyNet) {
+        const perMonth = msg.value.perMonthShort;
+        const perYear = msg.value.perYearShort;
         out.push({
             id: 'chg-price',
-            section: 'Preis',
-            label: 'Monats- + Jahrespreis',
-            from: `${formatMoney(prev.monthlyNet)} / Mo · ${formatMoney(prev.yearlyNet)} / J`,
-            to: `${formattedMonthly.value} / Mo · ${formattedYearly.value} / J`,
-            ...DIFF_STYLE.changed,
+            section: sections.price,
+            label: msg.value.editor.diffPriceLabel,
+            from: `${formatMoney(prev.monthlyNet)} ${perMonth} · ${formatMoney(prev.yearlyNet)} ${perYear}`,
+            to: `${formattedMonthly.value} ${perMonth} · ${formattedYearly.value} ${perYear}`,
+            ...style.changed,
         });
     }
 

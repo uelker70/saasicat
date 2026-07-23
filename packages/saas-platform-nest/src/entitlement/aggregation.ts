@@ -4,54 +4,15 @@
 // map it to the snapshot shape (see `types.ts`) and call
 // `aggregateLimits()` for the effective limits.
 
-import type {
-    ContractLineItemRecord,
-    FeatureKey,
-    PlanCatalog,
-    QuotaKey,
-} from '@saasicat/types';
+import type { ContractLineItemRecord, FeatureKey, PlanCatalog, QuotaKey } from '@saasicat/types';
 import { isFeaturePlannedOnly } from '../billing/plan-helpers.js';
 import type {
-    BusinessTypeVersionSnapshot,
     CustomLimitsShape,
     EffectiveLimits,
     EffectiveLimitsSnapshot,
     SubscriptionBundleSnapshot,
     SubscriptionLimitsInput,
 } from './types.js';
-
-/**
- * Aggregates the quotas of a BusinessTypeVersion: Σ(bundle quotas) per
- * QuotaKey, then override via `quotaOverrides[k]` if set.
- *
- * `-1` (unlimited) is handled as follows:
- * - In Σ summation: -1 dominates (if a bundle has -1 for a key,
- *   the Σ is likewise -1 for that key — regardless of the other values).
- * - In overrides: if the override is -1, it replaces the sum entirely.
- *
- * Spec: GESCHAEFTSTYP_SPEC §6.2.
- */
-export function aggregateBusinessTypeQuotas(
-    snapshot: BusinessTypeVersionSnapshot,
-): Record<QuotaKey, number> {
-    const sums: Record<QuotaKey, number> = {};
-    for (const bundle of snapshot.bundles) {
-        for (const [key, value] of Object.entries(bundle.quotas)) {
-            if (sums[key] === -1 || value === -1) {
-                sums[key] = -1;
-            } else {
-                sums[key] = (sums[key] ?? 0) + value;
-            }
-        }
-    }
-    // Apply overrides — key set = replaces Σ.
-    for (const [key, value] of Object.entries(snapshot.quotaOverrides)) {
-        if (value !== undefined) {
-            sums[key] = value;
-        }
-    }
-    return sums;
-}
 
 /**
  * Filters SubscriptionBundle bookings down to those active at the given
@@ -136,22 +97,6 @@ export function aggregateContractLineItemEntitlements(
 }
 
 /**
- * Collects all feature keys from all bundles of a BusinessTypeVersion
- * (set union; duplicate features are included once).
- *
- * Spec: GESCHAEFTSTYP_SPEC §6.3.
- */
-export function collectBusinessTypeFeatures(snapshot: BusinessTypeVersionSnapshot): FeatureKey[] {
-    const set = new Set<FeatureKey>();
-    for (const bundle of snapshot.bundles) {
-        for (const f of bundle.features) {
-            set.add(f);
-        }
-    }
-    return Array.from(set);
-}
-
-/**
  * Consistently filters out `plannedOnly` features — regardless of whether they
  * come from the plan, a bundle or customLimits. `plannedOnly` means: the feature
  * is declared in the catalog, but not yet rolled out to production.
@@ -193,16 +138,13 @@ export function applyCustomLimits(
 }
 
 /**
- * Main aggregator — yields the effective limits from PlanVersion + optional
- * BusinessTypeVersion + active bundle bookings + catalog + optional
- * CustomLimits override.
+ * Main aggregator — yields the effective limits from PlanVersion + active
+ * bundle bookings + catalog + optional CustomLimits override.
  *
- * Order (SPEC_V2 §11.1 M5 + GESCHAEFTSTYP_SPEC §6):
+ * Order:
  *   1. Filter active bundle bookings (canceledEffectiveAt).
- *   2. Sum plan quotas + (BusinessType quotas with override logic) + bundle quotas
- *      per `quotaKey`. -1 (unlimited) dominates.
- *   3. Collect plan features ∪ BusinessType features ∪ bundle features
- *      (set union, deduplicated).
+ *   2. Sum plan quotas + bundle quotas per `quotaKey`. -1 (unlimited) dominates.
+ *   3. Collect plan features ∪ bundle features (set union, deduplicated).
  *   4. Apply CustomLimits (quotas override, features add).
  *   5. Consistently hide plannedOnly features.
  */
@@ -211,13 +153,6 @@ export function aggregateLimits(
     catalog: PlanCatalog,
     now: Date,
 ): EffectiveLimits {
-    const businessTypeQuotas = input.businessTypeVersion
-        ? aggregateBusinessTypeQuotas(input.businessTypeVersion)
-        : {};
-    const businessTypeFeatures = input.businessTypeVersion
-        ? collectBusinessTypeFeatures(input.businessTypeVersion)
-        : [];
-
     const activeBundles = filterActiveSubscriptionBundles(input.subscriptionBundles ?? [], now);
     const subBundleQuotas = aggregateSubscriptionBundleQuotas(activeBundles);
     const subBundleFeatures = collectSubscriptionBundleFeatures(activeBundles);
@@ -227,16 +162,8 @@ export function aggregateLimits(
     for (const [k, v] of Object.entries(input.planVersion.quotas)) {
         quotas[k] = v;
     }
-    // Add the BusinessType share (with -1 dominance).
-    for (const [k, v] of Object.entries(businessTypeQuotas)) {
-        if (quotas[k] === -1 || v === -1) {
-            quotas[k] = -1;
-        } else {
-            quotas[k] = (quotas[k] ?? 0) + v;
-        }
-    }
     // Add SubscriptionBundle quotas (with -1 dominance). Independently
-    // booked bundles add their quotas on top of plan + BusinessType.
+    // booked bundles add their quotas on top of the plan.
     for (const [k, v] of Object.entries(subBundleQuotas)) {
         if (quotas[k] === -1 || v === -1) {
             quotas[k] = -1;
@@ -245,11 +172,7 @@ export function aggregateLimits(
         }
     }
 
-    const features = new Set<FeatureKey>([
-        ...input.planVersion.features,
-        ...businessTypeFeatures,
-        ...subBundleFeatures,
-    ]);
+    const features = new Set<FeatureKey>([...input.planVersion.features, ...subBundleFeatures]);
 
     const withCustom = applyCustomLimits(
         { plan: input.plan, quotas, features },

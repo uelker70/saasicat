@@ -11,7 +11,7 @@
 
         <q-banner v-if="error" class="sa-bundles__error" rounded>
             <template #avatar><q-icon name="warning" color="negative" /></template>
-            Fehler beim Laden: {{ error.message }}
+            {{ loadErrorText }}
         </q-banner>
 
         <BundlesKpis
@@ -54,8 +54,8 @@
             rounded
         >
             <template #avatar><q-icon name="info" color="info" /></template>
-            Noch keine Bundles angelegt. Über <strong>Neues Bundle</strong> einen Bundle-Stamm
-            anlegen, dann Features &amp; Quotas in einer Draft-Version kuratieren.
+            {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
+            {{ msg.page.emptyAfter }}
         </q-banner>
 
         <BundleAccordionList
@@ -104,7 +104,7 @@
             rounded
         >
             <template #avatar><q-icon name="warning" color="warning" /></template>
-            <strong>{{ lastWarnings.length }} Strict-Mode-Warnung(en) bei letzter Operation</strong>
+            <strong>{{ strictWarningsText }}</strong>
             <ul class="sa-bundles__warnings-list">
                 <li v-for="(w, i) in lastWarnings" :key="i">
                     <code>{{ w.code }}</code>
@@ -115,7 +115,7 @@
                 </li>
             </ul>
             <template #action>
-                <q-btn flat dense label="Schließen" @click="lastWarnings = []" />
+                <q-btn flat dense :label="common.close" @click="lastWarnings = []" />
             </template>
         </q-banner>
 
@@ -169,6 +169,8 @@ import {
     bundleVersionsSorted,
     type BundleAggregateStatus,
 } from '../components/bundle-editor/bundle-version-status';
+import { formatMessage } from '../client/i18n/format.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import BundleAccordionList from './bundles-page/BundleAccordionList.vue';
 import BundleDetailPanel from './bundles-page/BundleDetailPanel.vue';
 import BundlesFilterBar from './bundles-page/BundlesFilterBar.vue';
@@ -263,6 +265,9 @@ const props = withDefaults(
     },
 );
 
+const msg = useSaMessages('bundles');
+const common = useSaMessages('common');
+
 const locales = computed(() => props.activeLocales ?? [DEFAULT_LOCALE]);
 const translatableLocales = computed(() => locales.value.filter((l) => l !== DEFAULT_LOCALE));
 
@@ -350,14 +355,14 @@ const createOpen = ref(false);
 /** For the bundle-key conflict check in the wizard. */
 const existingBundleKeys = computed(() => props.bundles.map((b) => b.bundleKey));
 
-const statusFilterOptions: BundlesStatusFilterOption[] = [
-    { label: 'Alle Status', value: 'all' as const },
-    { label: 'Nur Live', value: 'live' as const },
-    { label: 'Mit geplanter Version', value: 'scheduled' as const },
-    { label: 'Drafts', value: 'draft' as const },
-    { label: 'Abgelöste', value: 'superseded' as const },
-    { label: 'Retired', value: 'retired' as const },
-];
+const statusFilterOptions = computed<BundlesStatusFilterOption[]>(() => [
+    { label: msg.value.filter.all, value: 'all' },
+    { label: msg.value.filter.live, value: 'live' },
+    { label: msg.value.filter.scheduled, value: 'scheduled' },
+    { label: msg.value.filter.draft, value: 'draft' },
+    { label: msg.value.filter.superseded, value: 'superseded' },
+    { label: msg.value.filter.retired, value: 'retired' },
+]);
 
 function openCreatePanel(): void {
     createOpen.value = true;
@@ -446,8 +451,7 @@ async function submitEdit(): Promise<void> {
 
 async function confirmDelete(bundle: BundleRow): Promise<void> {
     const ok = window.confirm(
-        `Bundle '${bundle.bundleKey}' wirklich soft-deleten? Bestand bleibt durch ` +
-            `published BundleVersions geschützt.`,
+        formatMessage(msg.value.page.confirmSoftDelete, { bundleKey: bundle.bundleKey }),
     );
     if (!ok) return;
     await props.softDelete(bundle.id);
@@ -465,6 +469,13 @@ watch(
 
 // ─── Strict mode warnings ───
 const lastWarnings = ref<StrictModeWarning[]>([]);
+
+const loadErrorText = computed(() =>
+    formatMessage(msg.value.page.loadError, { message: props.error?.message ?? '' }),
+);
+const strictWarningsText = computed(() =>
+    formatMessage(msg.value.page.strictWarnings, { count: lastWarnings.value.length }),
+);
 
 // ─── Inline editor (selected version per bundle) ───
 const selectedVersionIdByBundle = ref<Record<string, string | null>>({});
@@ -565,10 +576,10 @@ async function onInlineSave(
 async function onDiscardVersion(bundleId: string, versionId: string): Promise<void> {
     if (!props.discardDraft) {
         inlineEditorError.value =
-            'Discard ist im Wrapper nicht verdrahtet — bitte `discardDraft`-Prop ergänzen.';
+            'Discard is not wired up in the wrapper — add the `discardDraft` prop.';
         return;
     }
-    const ok = window.confirm('Diese Draft-Version verwerfen? Der Inhalt geht verloren.');
+    const ok = window.confirm(msg.value.page.confirmDiscardVersion);
     if (!ok) return;
     inlineEditorSaving.value = true;
     inlineEditorError.value = null;
@@ -614,7 +625,7 @@ async function onPublishSubmit(opts: {
     validUntil?: string | null;
 }): Promise<BundleVersionMutationResult> {
     if (!publishDraft.value) {
-        throw new Error('BundlesPage: publish submit ohne Draft-Kontext');
+        throw new Error('BundlesPage: publish submit without draft context');
     }
     return props.publish(publishDraft.value.id, opts);
 }

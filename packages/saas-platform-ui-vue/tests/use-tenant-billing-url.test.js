@@ -80,10 +80,7 @@ describe('useTenantBilling URL construction', () => {
         // Defensive: no URL starts with /api/api or doubles /billing.
         for (const url of urls) {
             assert.ok(!url.includes('/api/api/'), `Doubled /api prefix in URL: ${url}`);
-            assert.ok(
-                !url.match(/\/billing\/billing\//),
-                `Doubled /billing prefix in URL: ${url}`,
-            );
+            assert.ok(!url.match(/\/billing\/billing\//), `Doubled /billing prefix in URL: ${url}`);
         }
     });
 });
@@ -94,10 +91,6 @@ describe('useTenantBillingCatalog URL construction', () => {
         const catalog = useTenantBillingCatalog({ http: client, autoLoad: false });
         await catalog.load();
         const urls = calls.map((c) => c.url).sort();
-        assert.deepEqual(urls, [
-            '/billing/bundles',
-            '/billing/feature-registry',
-            '/billing/plans',
-        ]);
+        assert.deepEqual(urls, ['/billing/bundles', '/billing/feature-registry', '/billing/plans']);
     });
 });

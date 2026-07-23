@@ -6,7 +6,7 @@
                 {{ title }}
                 <span v-if="versionNew" class="sa-pv-diff-card__ver">v{{ versionNew }}</span>
             </div>
-            <div class="sa-pv-diff-card__sub">Keine Änderungen</div>
+            <div class="sa-pv-diff-card__sub">{{ common.noChanges }}</div>
         </div>
     </div>
     <div v-else class="sa-pv-diff-card">
@@ -27,9 +27,7 @@
             <span v-else-if="versionOld != null" class="sa-pv-diff-card__ver"
                 >− v{{ versionOld }}</span
             >
-            <span class="sa-pv-diff-card__count">
-                {{ changes.length }} Änderung{{ changes.length !== 1 ? 'en' : '' }}
-            </span>
+            <span class="sa-pv-diff-card__count">{{ changeCountLabel }}</span>
         </header>
         <div class="sa-pv-diff-card__body">
             <VersionDiffPreview :changes="changes" :field-labels="fieldLabels" />
@@ -38,10 +36,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/types';
-import VersionDiffPreview from './VersionDiffPreview.vue';
+import { formatMessage } from '../../client/i18n/format.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import VersionDiffPreview from '../../components/VersionDiffPreview.vue';
 
-defineProps<{
+const props = defineProps<{
     title: string;
     versionOld: number | null;
     versionNew: number | null;
@@ -49,6 +50,15 @@ defineProps<{
     changes: VersionChange[];
     fieldLabels?: Record<string, string>;
 }>();
+
+const msg = useSaMessages('planVersions');
+const common = useSaMessages('common');
+
+const changeCountLabel = computed(() => {
+    const count = props.changes.length;
+    const template = count === 1 ? msg.value.diff.changeCountOne : msg.value.diff.changeCountMany;
+    return formatMessage(template, { count });
+});
 </script>
 
 <style scoped>

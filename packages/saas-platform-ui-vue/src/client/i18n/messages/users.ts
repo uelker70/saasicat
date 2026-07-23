@@ -1,0 +1,78 @@
+import { defineMessages } from '../define.js';
+
+export const usersMessages = defineMessages(
+    {
+        title: 'Benutzer',
+        filterQuery: 'E-Mail oder Name',
+        filterTenant: 'Tenant-Slug',
+        statusActive: 'aktiv',
+        statusDeactivated: 'deaktiviert',
+        badgePending: 'Pending',
+        tenantFallback: '— (SuperAdmin)',
+        reasonPrompt: 'Grund für Audit (Pflichtfeld):',
+        errorAction: 'Aktion fehlgeschlagen',
+        tiles: {
+            blocked: 'Gesperrt',
+            neverLoggedIn: 'Nie eingeloggt',
+            superAdmins: 'Super-Admins',
+        },
+        columns: {
+            email: 'E-Mail',
+            tenant: 'Tenant',
+            role: 'Rolle',
+            lastLogin: 'Letzter Login',
+        },
+        resetPassword: {
+            action: 'Passwort zurücksetzen',
+            dialogTitle: 'Passwort für "{email}" zurücksetzen',
+            mfaDescription: 'Passwort für "{email}" zurücksetzen — {reason}.',
+            otpTitle: 'Einmal-Passwort generiert',
+            otpMessage: 'Bitte sicher übermitteln: {password}',
+            otpAcknowledge: 'Verstanden',
+            success: 'Passwort-Reset ausgelöst.',
+        },
+        deactivate: {
+            action: 'Deaktivieren',
+            dialogTitle: 'User "{email}" deaktivieren',
+            mfaDescription: 'User "{email}" deaktivieren — {reason}.',
+            success: '{email} deaktiviert.',
+        },
+    },
+    {
+        title: 'Users',
+        filterQuery: 'Email or name',
+        filterTenant: 'Tenant slug',
+        statusActive: 'active',
+        statusDeactivated: 'deactivated',
+        badgePending: 'Pending',
+        tenantFallback: '— (SuperAdmin)',
+        reasonPrompt: 'Reason for the audit trail (required):',
+        errorAction: 'Action failed',
+        tiles: {
+            blocked: 'Blocked',
+            neverLoggedIn: 'Never logged in',
+            superAdmins: 'Super admins',
+        },
+        columns: {
+            email: 'Email',
+            tenant: 'Tenant',
+            role: 'Role',
+            lastLogin: 'Last login',
+        },
+        resetPassword: {
+            action: 'Reset password',
+            dialogTitle: 'Reset password for "{email}"',
+            mfaDescription: 'Reset password for "{email}" — {reason}.',
+            otpTitle: 'One-time password generated',
+            otpMessage: 'Please transmit securely: {password}',
+            otpAcknowledge: 'Understood',
+            success: 'Password reset triggered.',
+        },
+        deactivate: {
+            action: 'Deactivate',
+            dialogTitle: 'Deactivate user "{email}"',
+            mfaDescription: 'Deactivate user "{email}" — {reason}.',
+            success: '{email} deactivated.',
+        },
+    },
+);

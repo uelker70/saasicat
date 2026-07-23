@@ -23,7 +23,10 @@
 
             <template v-else-if="preview">
                 <!-- Blocker: booking/cancellation not possible -->
-                <q-card-section v-if="preview.blockers.length > 0" class="sp-bundle-preview__blockers">
+                <q-card-section
+                    v-if="preview.blockers.length > 0"
+                    class="sp-bundle-preview__blockers"
+                >
                     <div class="sp-bundle-preview__block-title">
                         {{ i18n.bundlePreviewBlockersTitle }}
                     </div>
@@ -77,7 +80,9 @@
                     </div>
                     <div class="sp-bundle-preview__price-row">
                         <span>{{ i18n.bundlePreviewMinimumTermLabel }}</span>
-                        <span v-if="addPreview.minimumTermMonths > 0 && addPreview.minimumTermEndsAt">
+                        <span
+                            v-if="addPreview.minimumTermMonths > 0 && addPreview.minimumTermEndsAt"
+                        >
                             {{ addPreview.minimumTermMonths }}
                             {{ i18n.bundlePreviewMinimumTermMonths }}
                             {{ formatDate(addPreview.minimumTermEndsAt) }}
@@ -123,10 +128,7 @@
                 </q-card-section>
 
                 <!-- Warnings (e.g. MINIMUM_TERM_BINDS) -->
-                <q-card-section
-                    v-if="otherWarnings.length > 0"
-                    class="sp-bundle-preview__warnings"
-                >
+                <q-card-section v-if="otherWarnings.length > 0" class="sp-bundle-preview__warnings">
                     <div class="sp-bundle-preview__block-title">
                         {{ i18n.bundlePreviewWarningsTitle }}
                     </div>

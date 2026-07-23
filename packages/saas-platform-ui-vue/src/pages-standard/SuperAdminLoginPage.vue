@@ -20,30 +20,32 @@
                 </div>
             </div>
 
-            <h1 class="sa-login-title">Anmelden</h1>
+            <h1 class="sa-login-title">{{ msg.login.signIn }}</h1>
             <p v-if="subtitle" class="sa-login-subtitle">{{ subtitle }}</p>
 
             <q-form @submit.prevent="handleSubmit" class="sa-login-form">
                 <q-input
                     v-model="form.email"
-                    label="E-Mail"
+                    :label="msg.emailLabel"
                     type="email"
+                    autocomplete="username"
                     outlined
                     dense
                     autofocus
                     :disable="loading"
                     class="q-mb-sm"
-                    :rules="[(v: string) => /\S+@\S+\.\S+/.test(v) || 'Bitte gültige E-Mail']"
+                    :rules="[(v: string) => /\S+@\S+\.\S+/.test(v) || msg.invalidEmail]"
                 />
                 <q-input
                     v-model="form.password"
-                    label="Passwort"
+                    :label="msg.passwordLabel"
                     :type="showPw ? 'text' : 'password'"
+                    autocomplete="current-password"
                     outlined
                     dense
                     :disable="loading"
                     class="q-mb-sm"
-                    :rules="[(v: string) => v.length > 0 || 'Passwort ist Pflicht']"
+                    :rules="[(v: string) => v.length > 0 || msg.login.passwordRequired]"
                 >
                     <template #append>
                         <q-icon
@@ -62,7 +64,7 @@
                     unelevated
                     color="primary"
                     icon="login"
-                    label="Anmelden"
+                    :label="msg.login.signIn"
                     :loading="loading"
                     :disable="!canSubmit"
                     class="full-width q-mt-sm"
@@ -71,7 +73,8 @@
             </q-form>
 
             <div v-if="devHint" class="sa-login-hint">
-                Test-Account: <code>{{ devHint.email }}</code> / <code>{{ devHint.password }}</code>
+                {{ msg.login.devHintLabel }} <code>{{ devHint.email }}</code> /
+                <code>{{ devHint.password }}</code>
             </div>
         </div>
 
@@ -94,6 +97,7 @@ import {
     useSuperAdminLoginAdapter,
 } from '../vue/use-super-admin-context.js';
 import { getJson } from '../client/http-json.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import SuperAdminSetupWizard from './SuperAdminSetupWizard.vue';
 
 interface Props {
@@ -107,6 +111,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const router = useRouter();
+const msg = useSaMessages('shell');
 const brand = useSuperAdminBrand();
 const endpoints = useSuperAdminEndpoints();
 const adapter = useSuperAdminLoginAdapter();
@@ -161,11 +166,9 @@ function describeError(
     result: Extract<Awaited<ReturnType<typeof adapter.login>>, { ok: false }>,
 ): string {
     if (result.message) return result.message;
-    if (result.code === 'BAD_CREDENTIALS') return 'E-Mail oder Passwort falsch.';
-    if (result.code === 'NOT_SUPER_ADMIN') {
-        return 'Dieser Account hat keine SUPER_ADMIN-Rolle. Bitte Tenant-Frontend nutzen.';
-    }
-    return 'Anmeldung fehlgeschlagen.';
+    if (result.code === 'BAD_CREDENTIALS') return msg.value.login.errorBadCredentials;
+    if (result.code === 'NOT_SUPER_ADMIN') return msg.value.login.errorNotSuperAdmin;
+    return msg.value.login.errorFailed;
 }
 
 async function handleSubmit(): Promise<void> {
@@ -182,7 +185,7 @@ async function handleSubmit(): Promise<void> {
     } catch (err) {
         const e = err as { response?: { data?: { message?: string; code?: string } } };
         errorMessage.value =
-            e.response?.data?.message ?? e.response?.data?.code ?? 'Anmeldung fehlgeschlagen.';
+            e.response?.data?.message ?? e.response?.data?.code ?? msg.value.login.errorFailed;
     } finally {
         loading.value = false;
     }

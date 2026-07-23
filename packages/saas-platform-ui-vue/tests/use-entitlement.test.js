@@ -70,6 +70,6 @@ describe('useEntitlement', () => {
 
     test('endpoint is required: without an endpoint useEntitlement throws', () => {
         const { http } = buildHttp({ body: SAMPLE });
-        assert.throws(() => useEntitlement({ http }), /endpoint.*Pflicht/);
+        assert.throws(() => useEntitlement({ http }), /endpoint.*required/);
     });
 });

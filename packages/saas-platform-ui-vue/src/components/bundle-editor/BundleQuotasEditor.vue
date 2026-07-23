@@ -15,10 +15,10 @@
                 :disabled="locked"
                 :title="
                     locked
-                        ? 'Live-Version ist read-only'
+                        ? msg.compatPicker.lockedTooltip
                         : q.quotaKey in quotas
-                          ? 'Quota entfernen'
-                          : 'Quota aufnehmen'
+                          ? msg.quotasEditor.removeTooltip
+                          : msg.quotasEditor.addTooltip
                 "
                 @click="$emit('toggle', q.quotaKey)"
             >
@@ -70,7 +70,7 @@
             </div>
         </div>
         <div v-if="availableQuotas.length === 0" class="bd-quotas-empty">
-            Keine Quotas im Discovery-Snapshot.
+            {{ msg.quotasEditor.empty }}
         </div>
     </div>
 </template>
@@ -79,6 +79,7 @@
 import { computed } from 'vue';
 import type { DiscoveredQuota } from '@saasicat/types';
 import type { QuotaMeta } from './catalog-i18n.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 // BundleQuotasEditor — toggle + numeric per Quota, against the discovery
 // snapshot as a library (after plan simulation). `quotas[key]` is the
@@ -97,6 +98,8 @@ const props = defineProps<{
     overlapKeys?: string[];
     quotaRegistry?: Record<string, QuotaMeta>;
 }>();
+
+const msg = useSaMessages('bundles');
 
 defineEmits<{
     (e: 'toggle', quotaKey: string): void;

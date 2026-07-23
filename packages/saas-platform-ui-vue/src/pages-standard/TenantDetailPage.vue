@@ -6,13 +6,13 @@
                     flat
                     dense
                     icon="arrow_back"
-                    :label="backLabel"
+                    :label="labels.back"
                     :to="backRoute"
                     class="sa-tenant-detail__back"
                 />
-                <h1 class="sa-page-head__title">{{ data?.name ?? titleLabel }}</h1>
+                <h1 class="sa-page-head__title">{{ data?.name ?? labels.title }}</h1>
                 <p v-if="data" class="sa-page-head__sub">
-                    {{ slugLabel }}: <code>{{ data.slug }}</code>
+                    {{ labels.slug }}: <code>{{ data.slug }}</code>
                 </p>
             </div>
             <slot name="header-actions" :data="data" :reload="load" />
@@ -20,7 +20,7 @@
 
         <div class="sa-tenant-detail__body">
             <div v-if="loading" class="sa-tenant-detail__state">
-                <q-spinner size="32px" /> wird geladen…
+                <q-spinner size="32px" /> {{ common.loading }}
             </div>
 
             <template v-else-if="data">
@@ -28,7 +28,7 @@
                 <div class="sa-card q-mb-md">
                     <header class="sa-tenant-detail__card-head">
                         <div>
-                            <h2 class="sa-card__title">{{ stammdatenLabel }}</h2>
+                            <h2 class="sa-card__title">{{ labels.masterData }}</h2>
                             <p v-if="stammdatenSub" class="sa-tenant-detail__card-sub">
                                 {{ stammdatenSub }}
                             </p>
@@ -49,24 +49,24 @@
                     </header>
                     <slot name="stammdaten" :data="data">
                         <div class="sa-tenant-detail__grid">
-                            <KvBlock :label="planLabel" :value="data.subscription?.plan ?? '—'" />
+                            <KvBlock :label="labels.plan" :value="data.subscription?.plan ?? '—'" />
                             <KvBlock
-                                :label="statusLabel"
+                                :label="labels.status"
                                 :value="data.subscription?.status ?? '—'"
                             />
                             <KvBlock
-                                :label="pilotLabel"
-                                :value="data.subscription?.isPilot ? 'ja' : 'nein'"
+                                :label="labels.pilot"
+                                :value="data.subscription?.isPilot ? common.yes : common.no"
                             />
                             <KvBlock
-                                :label="trialEndLabel"
+                                :label="labels.trialEnd"
                                 :value="formatDate(data.subscription?.trialEndsAt)"
                             />
                             <KvBlock
-                                :label="pilotEndLabel"
+                                :label="labels.pilotEnd"
                                 :value="formatDate(data.subscription?.pilotEndsAt)"
                             />
-                            <KvBlock v-if="data.vatId" :label="vatIdLabel" :value="data.vatId" />
+                            <KvBlock v-if="data.vatId" :label="labels.vatId" :value="data.vatId" />
                             <slot name="extra-stammdaten" :data="data" />
                         </div>
                     </slot>
@@ -74,7 +74,7 @@
 
                 <!-- Usage -->
                 <div v-if="verbrauchFields.length > 0" class="sa-card q-mb-md">
-                    <h3 class="sa-card__title">{{ verbrauchLabel }}</h3>
+                    <h3 class="sa-card__title">{{ labels.usage }}</h3>
                     <div class="sa-tenant-detail__grid">
                         <KvBlock
                             v-for="(field, i) in verbrauchFields"
@@ -87,11 +87,11 @@
 
                 <!-- Users -->
                 <div v-if="showUsers && data.users" class="sa-card q-mb-md">
-                    <h3 class="sa-card__title">{{ usersLabel }}</h3>
+                    <h3 class="sa-card__title">{{ labels.users }}</h3>
                     <q-table
                         flat
                         :rows="data.users"
-                        :columns="userColumns ?? DEFAULT_USER_COLUMNS"
+                        :columns="userColumns ?? defaultUserColumns"
                         row-key="id"
                         :pagination="{ rowsPerPage: 0 }"
                         hide-pagination
@@ -127,9 +127,11 @@ import type { RouteLocationRaw } from 'vue-router';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
+import { formatMessage } from '../client/i18n/format.js';
 import KvBlock from '../components/KvBlock.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../components/TenantActionConfirmDialog.vue';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
 export interface TenantDetailData {
@@ -185,20 +187,28 @@ const props = withDefaults(
     {
         verbrauchFields: () => [],
         showUsers: true,
-        backLabel: 'Mandanten-Liste',
-        titleLabel: 'Mandant',
-        slugLabel: 'Slug',
-        stammdatenLabel: 'Stammdaten',
-        planLabel: 'Plan',
-        statusLabel: 'Status',
-        pilotLabel: 'Pilot',
-        trialEndLabel: 'Trial-Ende',
-        pilotEndLabel: 'Pilot-Ende',
-        vatIdLabel: 'USt-IdNr.',
-        verbrauchLabel: 'Verbrauch',
-        usersLabel: 'User',
     },
 );
+
+const msg = useSaMessages('tenants');
+const common = useSaMessages('common');
+
+// Every label stays overridable via props — only the German literals moved
+// into the catalog.
+const labels = computed(() => ({
+    back: props.backLabel ?? msg.value.detail.backToList,
+    title: props.titleLabel ?? msg.value.tenant,
+    slug: props.slugLabel ?? msg.value.detail.slug,
+    masterData: props.stammdatenLabel ?? msg.value.detail.masterData,
+    plan: props.planLabel ?? msg.value.plan,
+    status: props.statusLabel ?? common.value.status,
+    pilot: props.pilotLabel ?? msg.value.detail.pilot,
+    trialEnd: props.trialEndLabel ?? msg.value.detail.trialEnd,
+    pilotEnd: props.pilotEndLabel ?? msg.value.detail.pilotEnd,
+    vatId: props.vatIdLabel ?? msg.value.detail.vatId,
+    usage: props.verbrauchLabel ?? msg.value.detail.usage,
+    users: props.usersLabel ?? msg.value.detail.users,
+}));
 
 const notify = useSuperAdminNotify();
 const data = ref<TenantDetailData | null>(null);
@@ -250,7 +260,10 @@ function showMfaDialog(def: TenantActionDef, ctx: { row: TenantDto }): Promise<s
     return new Promise((resolve) => {
         mfaState.value = {
             show: true,
-            description: `${def.label} — Tenant „${ctx.row.name}". TOTP-Code aus Authenticator eingeben.`,
+            description: formatMessage(msg.value.actions.mfaDescription, {
+                action: def.label,
+                tenant: ctx.row.name,
+            }),
             error: '',
         };
         pendingMfaResolve = (code) => {
@@ -347,34 +360,35 @@ function toneColor(actionKey: string): string {
     return 'primary';
 }
 
-const DEFAULT_USER_COLUMNS: QTableColumn[] = [
-    { name: 'email', label: 'E-Mail', field: 'email', align: 'left' },
+const defaultUserColumns = computed<QTableColumn[]>(() => [
+    { name: 'email', label: msg.value.detail.userEmail, field: 'email', align: 'left' },
     {
         name: 'name',
-        label: 'Name',
+        label: common.value.name,
         field: (r: unknown) => {
             const row = r as Record<string, unknown>;
             return `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim();
         },
         align: 'left',
     },
-    { name: 'role', label: 'Rolle', field: 'role', align: 'left' },
+    { name: 'role', label: msg.value.detail.userRole, field: 'role', align: 'left' },
     {
         name: 'status',
-        label: 'Status',
-        field: (r: unknown) => ((r as Record<string, unknown>).isActive ? 'aktiv' : 'deaktiviert'),
+        label: common.value.status,
+        field: (r: unknown) =>
+            (r as Record<string, unknown>).isActive ? common.value.active : common.value.inactive,
         align: 'left',
     },
     {
         name: 'lastLogin',
-        label: 'Letzter Login',
+        label: msg.value.detail.userLastLogin,
         field: (r: unknown) => {
             const v = (r as Record<string, unknown>).lastLoginAt;
             return v ? String(v).slice(0, 10) : '—';
         },
         align: 'left',
     },
-];
+]);
 </script>
 
 <style scoped>

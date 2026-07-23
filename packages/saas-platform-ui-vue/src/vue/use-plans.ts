@@ -73,11 +73,11 @@ export interface UsePlansResult {
 export function usePlans(options: UsePlansOptions): UsePlansResult {
     if (!options?.adminEndpoint) {
         throw new Error(
-            'usePlans: `adminEndpoint` ist Pflicht (z. B. "/api/admin" oder ' + '"/api/v1/admin").',
+            'usePlans: `adminEndpoint` is required (e.g. "/api/admin" or ' + '"/api/v1/admin").',
         );
     }
     if (!options?.projectKey) {
-        throw new Error('usePlans: `projectKey` ist Pflicht.');
+        throw new Error('usePlans: `projectKey` is required.');
     }
 
     const http = options.http ?? defaultHttpClient();
@@ -109,7 +109,7 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             throw new PlansApiError(
                 res.status,
                 body,
-                `Plans-API antwortete mit HTTP ${res.status}`,
+                `Plans API responded with HTTP ${res.status}`,
             );
         }
         return body as T;
@@ -147,7 +147,7 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new PlansApiError(0, null, 'Create gab keinen Body zurück');
+        if (!created) throw new PlansApiError(0, null, 'Create returned no body');
         plans.value = [...plans.value, created];
         return created;
     }
@@ -157,7 +157,7 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new PlansApiError(0, null, 'Update gab keinen Body zurück');
+        if (!updated) throw new PlansApiError(0, null, 'Update returned no body');
         plans.value = plans.value.map((p) => (p.id === planId ? updated : p));
         return updated;
     }
@@ -245,10 +245,10 @@ export interface UsePlanVersionsResult {
 
 export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersionsResult {
     if (!options?.adminEndpoint) {
-        throw new Error('usePlanVersions: `adminEndpoint` ist Pflicht.');
+        throw new Error('usePlanVersions: `adminEndpoint` is required.');
     }
     if (!options?.planId) {
-        throw new Error('usePlanVersions: `planId` ist Pflicht.');
+        throw new Error('usePlanVersions: `planId` is required.');
     }
 
     const http = options.http ?? defaultHttpClient();
@@ -280,7 +280,7 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             throw new PlansApiError(
                 res.status,
                 body,
-                `PlanVersions-API antwortete mit HTTP ${res.status}`,
+                `PlanVersions API responded with HTTP ${res.status}`,
             );
         }
         return body as T;
@@ -306,7 +306,7 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!result) throw new PlansApiError(0, null, 'CreateDraft gab keinen Body zurück');
+        if (!result) throw new PlansApiError(0, null, 'CreateDraft returned no body');
         versions.value = [...versions.value, result.planVersion];
         return result;
     }
@@ -319,7 +319,7 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!result) throw new PlansApiError(0, null, 'UpdateDraft gab keinen Body zurück');
+        if (!result) throw new PlansApiError(0, null, 'UpdateDraft returned no body');
         versions.value = versions.value.map((v) => (v.id === versionId ? result.planVersion : v));
         return result;
     }
@@ -337,7 +337,7 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}/publish`,
             { method: 'POST', body: JSON.stringify(opts) },
         );
-        if (!result) throw new PlansApiError(0, null, 'Publish gab keinen Body zurück');
+        if (!result) throw new PlansApiError(0, null, 'Publish returned no body');
         versions.value = versions.value.map((v) => (v.id === versionId ? result.planVersion : v));
         return result;
     }
@@ -352,7 +352,7 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}/terminate`,
             { method: 'POST', body: JSON.stringify({ endsAt }) },
         );
-        if (!updated) throw new PlansApiError(0, null, 'Terminate gab keinen Body zurück');
+        if (!updated) throw new PlansApiError(0, null, 'Terminate returned no body');
         versions.value = versions.value.map((v) => (v.id === versionId ? updated : v));
         return updated;
     }

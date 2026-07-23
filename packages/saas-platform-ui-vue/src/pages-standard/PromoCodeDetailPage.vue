@@ -6,11 +6,11 @@
                     flat
                     dense
                     icon="arrow_back"
-                    :label="backLabel"
+                    :label="labels.back"
                     :to="backRoute"
                     class="sa-promo-detail__back"
                 />
-                <h1 class="sa-page-head__title">{{ data?.promo.code ?? promoCodeLabel }}</h1>
+                <h1 class="sa-page-head__title">{{ data?.promo.code ?? labels.promoCode }}</h1>
                 <p class="sa-page-head__sub">
                     <template v-if="data">
                         {{ data.promo.valueType }} · {{ data.promo.value }} ·
@@ -28,7 +28,7 @@
                     color="primary"
                     unelevated
                     icon="edit"
-                    :label="editLabel"
+                    :label="labels.edit"
                     @click="openEdit"
                 />
                 <slot name="header-actions" />
@@ -37,20 +37,20 @@
 
         <div class="sa-promo-detail__body">
             <div v-if="loading" class="sa-promo-detail__state">
-                <q-spinner size="32px" /> wird geladen…
+                <q-spinner size="32px" /> {{ msg.detail.loading }}
             </div>
-            <div v-else-if="!data" class="sa-promo-detail__state">{{ emptyLabel }}</div>
+            <div v-else-if="!data" class="sa-promo-detail__state">{{ labels.empty }}</div>
 
             <template v-else>
                 <div class="sa-card sa-promo-detail__section">
-                    <div class="sa-promo-detail__section-head">{{ configLabel }}</div>
+                    <div class="sa-promo-detail__section-head">{{ labels.config }}</div>
                     <slot name="config" :promo="data.promo">
                         <pre class="sa-promo-detail__kv">{{ resolveFormatPromo(data.promo) }}</pre>
                     </slot>
                 </div>
 
                 <div class="sa-card sa-promo-detail__section">
-                    <div class="sa-promo-detail__section-head">{{ statsLabel }}</div>
+                    <div class="sa-promo-detail__section-head">{{ labels.stats }}</div>
                     <slot name="stats" :stats="data.stats">
                         <pre class="sa-promo-detail__kv">{{
                             JSON.stringify(data.stats, null, 2)
@@ -60,13 +60,13 @@
 
                 <div class="sa-card sa-promo-detail__section">
                     <div class="sa-promo-detail__section-head">
-                        {{ redemptionsLabel }} ({{ data.redemptions.length }})
+                        {{ labels.redemptions }} ({{ data.redemptions.length }})
                     </div>
                     <slot name="redemptions" :redemptions="data.redemptions">
                         <q-table
                             flat
                             :rows="data.redemptions"
-                            :columns="redemptionsColumns ?? DEFAULT_COLUMNS"
+                            :columns="redemptionsColumns ?? defaultColumns"
                             row-key="id"
                             :pagination="{ rowsPerPage: 0 }"
                             hide-pagination
@@ -97,6 +97,7 @@ import PromoCodeEditDialog, {
     type PromoCodeEditRow,
 } from '../components/dialogs/PromoCodeEditDialog.vue';
 import type { PromoCodePlanOption, PromoCodeUpdatePayload } from '../components/dialogs/types.js';
+import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 export interface PromoDetailData {
     promo: Record<string, unknown> & {
@@ -109,53 +110,55 @@ export interface PromoDetailData {
     redemptions: Array<Record<string, unknown> & { id: string }>;
 }
 
-const props = withDefaults(
-    defineProps<{
-        loadDetail: () => Promise<PromoDetailData>;
-        backRoute: RouteLocationRaw;
-        backLabel?: string;
-        promoCodeLabel?: string;
-        configLabel?: string;
-        statsLabel?: string;
-        redemptionsLabel?: string;
-        emptyLabel?: string;
-        redemptionsColumns?: QTableColumn[];
-        /**
-         * Maps a status string to a Quasar color name. Default: ACTIVE→positive,
-         * PAUSED→amber-7, EXPIRED→grey, else negative.
-         */
-        statusColor?: (status: string) => string;
-        /**
-         * Optional formatter for the Konfiguration JSON block. Default:
-         * `JSON.stringify(promo, null, 2)` — the consumer can pass a curated
-         * subset (e.g. only marketing-relevant fields).
-         */
-        formatPromo?: (promo: Record<string, unknown>) => string;
-        /**
-         * When set: enables the "Edit" button in the header and opens the
-         * {@link PromoCodeEditDialog}. The consumer provides the app-specific
-         * PATCH function (e.g. `adminApi.promoCodes.update`). After a
-         * successful save, the detail page automatically reloads via
-         * `loadDetail()` — the consumer needs to trigger nothing further.
-         */
-        editSubmit?: (id: string, payload: PromoCodeUpdatePayload) => Promise<void>;
-        editLabel?: string;
-        /**
-         * Plan list for the plan picker in the edit dialog. When empty, the
-         * dialog hides the plan selection.
-         */
-        editPlans?: readonly PromoCodePlanOption[];
-    }>(),
-    {
-        backLabel: 'Zurück',
-        promoCodeLabel: 'Promo-Code',
-        configLabel: 'Konfiguration',
-        statsLabel: 'Statistik',
-        redemptionsLabel: 'Einlösungen',
-        emptyLabel: 'Code nicht gefunden.',
-        editLabel: 'Bearbeiten',
-    },
-);
+const props = defineProps<{
+    loadDetail: () => Promise<PromoDetailData>;
+    backRoute: RouteLocationRaw;
+    backLabel?: string;
+    promoCodeLabel?: string;
+    configLabel?: string;
+    statsLabel?: string;
+    redemptionsLabel?: string;
+    emptyLabel?: string;
+    redemptionsColumns?: QTableColumn[];
+    /**
+     * Maps a status string to a Quasar color name. Default: ACTIVE→positive,
+     * PAUSED→amber-7, EXPIRED→grey, else negative.
+     */
+    statusColor?: (status: string) => string;
+    /**
+     * Optional formatter for the Konfiguration JSON block. Default:
+     * `JSON.stringify(promo, null, 2)` — the consumer can pass a curated
+     * subset (e.g. only marketing-relevant fields).
+     */
+    formatPromo?: (promo: Record<string, unknown>) => string;
+    /**
+     * When set: enables the "Edit" button in the header and opens the
+     * {@link PromoCodeEditDialog}. The consumer provides the app-specific
+     * PATCH function (e.g. `adminApi.promoCodes.update`). After a
+     * successful save, the detail page automatically reloads via
+     * `loadDetail()` — the consumer needs to trigger nothing further.
+     */
+    editSubmit?: (id: string, payload: PromoCodeUpdatePayload) => Promise<void>;
+    editLabel?: string;
+    /**
+     * Plan list for the plan picker in the edit dialog. When empty, the
+     * dialog hides the plan selection.
+     */
+    editPlans?: readonly PromoCodePlanOption[];
+}>();
+
+const msg = useSaMessages('promos');
+const common = useSaMessages('common');
+
+const labels = computed(() => ({
+    back: props.backLabel ?? common.value.back,
+    promoCode: props.promoCodeLabel ?? msg.value.detail.promoCodeLabel,
+    config: props.configLabel ?? msg.value.detail.configLabel,
+    stats: props.statsLabel ?? msg.value.detail.statsLabel,
+    redemptions: props.redemptionsLabel ?? msg.value.detail.redemptionsLabel,
+    empty: props.emptyLabel ?? msg.value.detail.emptyLabel,
+    edit: props.editLabel ?? common.value.edit,
+}));
 
 const data = ref<PromoDetailData | null>(null);
 const loading = ref(false);
@@ -243,24 +246,24 @@ function resolveFormatPromo(promo: Record<string, unknown>): string {
     return JSON.stringify(promo, null, 2);
 }
 
-const DEFAULT_COLUMNS: QTableColumn[] = [
+const defaultColumns = computed<QTableColumn[]>(() => [
     {
         name: 'tenant',
-        label: 'Tenant',
+        label: msg.value.detail.columnTenant,
         field: (r: unknown) =>
             ((r as Record<string, unknown>).tenant as { slug?: string } | undefined)?.slug ?? '—',
         align: 'left',
     },
-    { name: 'status', label: 'Status', field: 'status', align: 'left' },
+    { name: 'status', label: common.value.status, field: 'status', align: 'left' },
     {
         name: 'startsAt',
-        label: 'Start',
+        label: msg.value.detail.columnStart,
         field: (r: unknown) => String((r as Record<string, unknown>).startsAt ?? '').slice(0, 10),
         align: 'left',
     },
     {
         name: 'endsAt',
-        label: 'Ende',
+        label: msg.value.detail.columnEnd,
         field: (r: unknown) => {
             const v = (r as Record<string, unknown>).endsAt;
             return v ? String(v).slice(0, 10) : '∞';
@@ -269,14 +272,14 @@ const DEFAULT_COLUMNS: QTableColumn[] = [
     },
     {
         name: 'redeemedAt',
-        label: 'Eingelöst',
+        label: msg.value.detail.columnRedeemedAt,
         field: (r: unknown) =>
             String((r as Record<string, unknown>).redeemedAt ?? '')
                 .slice(0, 19)
                 .replace('T', ' '),
         align: 'left',
     },
-];
+]);
 </script>
 
 <style scoped>

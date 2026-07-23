@@ -25,10 +25,15 @@ export {
     STATIC_FEATURE_GUARD_CONFIG_TOKEN,
     type StaticFeatureGuardConfig,
 } from './static-feature.guard.js';
-export {
-    EnforceQuotaInterceptor,
-    QUOTA_PROVIDERS_TOKEN,
-} from './enforce-quota.interceptor.js';
+export { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from './enforce-quota.interceptor.js';
+// Re-exported from THIS entry on purpose. The CJS builds do not share code
+// between entries, so `AdminManifestService` imported from
+// `@saasicat/nest/admin` is a different class object than the one
+// `SaasPlatformModule` registers here — and Nest matches providers by class
+// reference. Apps that register a manifest contribution (handbook §6.6) must
+// take the service from the same entry as the module that provides it.
+export { AdminManifestService } from '../admin/admin-manifest.service.js';
+
 export { TenantManifestService } from './tenant-manifest.service.js';
 export {
     buildTenantManifestController,

@@ -32,7 +32,7 @@
         />
 
         <div v-if="pageError" class="mc-banner mc-banner--error" role="alert">
-            <strong>Fehler:</strong> {{ pageError }}
+            <strong>{{ common.error }}:</strong> {{ pageError }}
             <button class="mc-banner-x" type="button" @click="pageError = null">×</button>
         </div>
 
@@ -43,7 +43,7 @@
             :active-locale="activeLocale"
         />
 
-        <div v-if="loading" class="mc-loading">Lade Marketing-Catalog …</div>
+        <div v-if="loading" class="mc-loading">{{ msg.page.loading }}</div>
 
         <!-- ─── Tab: Promotions ─── -->
         <MarketingPromotionsTab
@@ -59,8 +59,8 @@
         />
 
         <div v-else-if="rows.length === 0" class="mc-banner mc-banner--info">
-            Noch keine Pläne angelegt — der Marketing-Catalog projiziert veröffentlichte Pläne. Lege
-            zuerst unter <strong>Pläne</strong> einen Plan mit Live-Version an.
+            {{ msg.page.emptyPlansBefore }} <strong>{{ msg.page.emptyPlansLink }}</strong>
+            {{ msg.page.emptyPlansAfter }}
         </div>
 
         <MarketingCatalogPreview
@@ -126,6 +126,9 @@ import { usePlans } from '../vue/use-plans.js';
 import { useMarketingProjections } from '../vue/use-marketing-projections.js';
 import { usePromotions } from '../vue/use-promotions.js';
 import { useCatalogEntries } from '../vue/use-catalog-entries.js';
+import { formatCurrency } from '../client/i18n/currency.js';
+import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import MarketingPromotionsTab from '../components/MarketingPromotionsTab.vue';
 import MarketingCatalogAdmin from './marketing-catalog/MarketingCatalogAdmin.vue';
@@ -155,6 +158,10 @@ const props = defineProps<{
     /** Accent color per plan key for the plan mark in the administration view. */
     planAccents?: Record<string, string>;
 }>();
+
+const msg = useSaMessages('marketing');
+const common = useSaMessages('common');
+const { locale, intlLocale } = useSuperAdminI18n();
 
 const availableLocales = computed(() =>
     props.availableLocales && props.availableLocales.length > 0 ? props.availableLocales : ['de'],
@@ -457,15 +464,25 @@ function formatVersionTab(v: PlanVersionRow): string {
 }
 
 function formatVersionTitle(v: PlanVersionRow): string {
-    const from = v.validFrom ? formatDateLong(v.validFrom) : 'unbekannt';
-    const until = v.validUntil ? formatDateLong(v.validUntil) : 'unbegrenzt';
+    const from = v.validFrom
+        ? formatDateLong(v.validFrom)
+        : msg.value.admin.versionValidFromUnknown;
+    const until = v.validUntil ? formatDateLong(v.validUntil) : common.value.unlimited;
     const changeNote = v.changeNote ? ` — ${v.changeNote}` : '';
-    return `Version ${v.version}: gültig ${from} bis ${until}${changeNote}`;
+    return formatMessage(msg.value.admin.versionTitle, {
+        version: v.version,
+        from,
+        until,
+        changeNote,
+    });
 }
 
 function formatDateShort(iso: string): string {
     try {
-        return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+        return new Date(iso).toLocaleDateString(intlLocale.value, {
+            day: '2-digit',
+            month: '2-digit',
+        });
     } catch {
         return iso.slice(0, 10);
     }
@@ -473,7 +490,7 @@ function formatDateShort(iso: string): string {
 
 function formatDateLong(iso: string): string {
     try {
-        return new Date(iso).toLocaleDateString('de-DE', {
+        return new Date(iso).toLocaleDateString(intlLocale.value, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
@@ -577,9 +594,7 @@ function yearlyOf(row: MarketingRow): number {
     return row.liveVersion ? Number.parseFloat(row.liveVersion.yearlyNet) || 0 : 0;
 }
 function formatEuro(value: number): string {
-    const rounded = Math.round(value * 100) / 100;
-    const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace('.', ',');
-    return `${text} €`;
+    return formatCurrency(Math.round(value * 100) / 100, locale.value);
 }
 
 // ─── Promo application in the preview (SPEC_V2 §9a) ───
@@ -601,7 +616,11 @@ function promoResultOf(row: MarketingRow): PromotionResult | null {
 function promoBadgeOf(row: MarketingRow): string {
     const promo = promoOf(row);
     if (!promo) return '';
-    return promo.i18n?.[activeLocale.value]?.badge || promo.i18n?.de?.badge || 'Aktion';
+    return (
+        promo.i18n?.[activeLocale.value]?.badge ||
+        promo.i18n?.de?.badge ||
+        msg.value.preview.promoBadgeFallback
+    );
 }
 function promoFineprintOf(row: MarketingRow): string {
     const promo = promoOf(row);
@@ -614,9 +633,9 @@ function promoColorOf(row: MarketingRow): string {
 
 // ─── CTA ───
 function autoCtaText(row: MarketingRow): string {
-    if (!row.liveVersion) return 'Kontakt aufnehmen';
-    if (row.m.trialEnabled) return `Jetzt ${row.m.trialDays} Tage testen`;
-    return 'Plan wählen';
+    if (!row.liveVersion) return msg.value.cta.contact;
+    if (row.m.trialEnabled) return formatMessage(msg.value.cta.trial, { days: row.m.trialDays });
+    return msg.value.cta.choosePlan;
 }
 function ctaText(row: MarketingRow): string {
     return row.m.ctaLabel && row.m.ctaLabel.length > 0 ? row.m.ctaLabel : autoCtaText(row);

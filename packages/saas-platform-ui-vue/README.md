@@ -80,6 +80,23 @@ pnpm create saasicat-admin admin --project-key=myapp
 See the [quickstart](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md) (step 9) for the full setup
 and the [handbook](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md) for the architecture.
 
+## Language
+
+The UI ships German (reference) and English catalogs — plain typed objects, no
+`vue-i18n` dependency. German is the default:
+
+```ts
+createSuperAdminApp({
+    // …
+    i18n: { locale: 'en' },
+});
+```
+
+Pass a `Ref<SaLocale>` instead of a literal to switch at runtime, and
+`i18n.overrides` to replace individual strings per locale. Components read the
+catalog via `useSaMessages('<namespace>')` / `useSuperAdminI18n()`.
+See [handbook §8.6](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md#86-ui-language-i18n).
+
 ## Build
 
 ```bash
