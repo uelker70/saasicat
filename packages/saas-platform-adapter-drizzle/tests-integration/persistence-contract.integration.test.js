@@ -197,7 +197,7 @@ describe('drizzle-specific schema interop', () => {
         assert.deepEqual(rows, [{ status: 'TRIAL', billingCycle: 'MONTHLY' }]);
     });
 
-    test('the subscription CHECK constraint bites through the drizzle write path', async () => {
+    test('the required planVersionId constraint bites through the drizzle write path', async () => {
         await db.execute(sql.raw('TRUNCATE TABLE subscriptions CASCADE'));
         await assert.rejects(
             db.insert(saasicatSchema.subscriptions).values({
@@ -206,9 +206,10 @@ describe('drizzle-specific schema interop', () => {
                 plan: 'STARTER',
                 updatedAt: new Date(),
             }),
-            // drizzle wraps the pg error ("Failed query: ...") — the
-            // constraint name lives on the cause.
-            (err) => /subscriptions_plan_or_bt_check/.test(String(err.cause ?? err)),
+            // drizzle wraps the pg error ("Failed query: ..."). PostgreSQL
+            // exposes NOT NULL violations as 23502 and identifies the column
+            // on the underlying cause.
+            (err) => err.cause?.code === '23502' && err.cause?.column === 'planVersionId',
         );
     });
 });
