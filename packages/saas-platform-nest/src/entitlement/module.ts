@@ -15,6 +15,7 @@ import type {
 } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { EntitlementService } from './service.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from './tokens.js';
 import type { EntitlementResolutionConfig } from './plan-resolution.js';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/tokens.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
@@ -59,6 +60,9 @@ export class EntitlementModule {
             asProvider(PLAN_VERSION_REPOSITORY_TOKEN, options.planVersionRepository),
             asProvider(TRANSACTION_RUNNER_TOKEN, options.transactionRunner),
             EntitlementService,
+            // Cross-bundle-stable alias so consumers in other subpath bundles
+            // (billing/TenantBillingModule) can inject the same instance.
+            { provide: ENTITLEMENT_SERVICE_TOKEN, useExisting: EntitlementService },
         ];
         if (options.resolutionConfig) {
             providers.push({
@@ -90,7 +94,7 @@ export class EntitlementModule {
             module: EntitlementModule,
             global: options.global ?? false,
             providers,
-            exports: [EntitlementService, SUBSCRIPTION_REPOSITORY_TOKEN],
+            exports: [EntitlementService, ENTITLEMENT_SERVICE_TOKEN, SUBSCRIPTION_REPOSITORY_TOKEN],
         };
     }
 }

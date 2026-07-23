@@ -63,11 +63,16 @@ import {
 /**
  * Adapter bindings for the platform ports. Accepted as class tokens, values
  * or factory specs.
+ *
+ * `mfa`/`audit`/`rlsBypass` are optional because the `persistence` bundle
+ * supplies them by default; pass them here only to override the bundle, or
+ * when wiring adapters without a bundle. The module validates that each port
+ * ends up provided by exactly one of the two paths.
  */
 export interface SaasPlatformAdapters {
-    mfa: ProviderSpec<MfaPort>;
-    audit: ProviderSpec<AuditPort>;
-    rlsBypass: ProviderSpec<RlsBypassPort>;
+    mfa?: ProviderSpec<MfaPort>;
+    audit?: ProviderSpec<AuditPort>;
+    rlsBypass?: ProviderSpec<RlsBypassPort>;
     /**
      * Optional. If provided, `PlanCatalogModule` is hydrated from this sink
      * (DB read at boot). If omitted, `planCatalog` MUST be passed as a ready
@@ -276,6 +281,10 @@ export class SaasPlatformModule {
                 `SaasPlatformModule.forRoot: adapters missing (provide them via \`adapters\` or a \`persistence\` bundle): ${missingCore.join(', ')}`,
             );
         }
+        // Non-null after the guard above — AdminModule requires them.
+        const mfaPort = adapters.mfa as ProviderSpec<MfaPort>;
+        const auditPort = adapters.audit as ProviderSpec<AuditPort>;
+        const rlsBypassPort = adapters.rlsBypass as ProviderSpec<RlsBypassPort>;
         if (!options.planCatalog && (!adapters.planCatalogReadSink || !options.dbCatalog)) {
             // Without the identity the sink would load with projectKey '' and
             // the app would boot with a silently empty catalog.
@@ -338,9 +347,9 @@ export class SaasPlatformModule {
                         : options.discoverySnapshotPath,
             }),
             AdminModule.forRoot({
-                mfaPort: adapters.mfa,
-                auditPort: adapters.audit,
-                rlsBypassPort: adapters.rlsBypass,
+                mfaPort,
+                auditPort,
+                rlsBypassPort,
                 global: true,
             }),
             AdminManifestModule.forRoot({

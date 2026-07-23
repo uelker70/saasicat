@@ -4,12 +4,7 @@
 // map it to the snapshot shape (see `types.ts`) and call
 // `aggregateLimits()` for the effective limits.
 
-import type {
-    ContractLineItemRecord,
-    FeatureKey,
-    PlanCatalog,
-    QuotaKey,
-} from '@saasicat/types';
+import type { ContractLineItemRecord, FeatureKey, PlanCatalog, QuotaKey } from '@saasicat/types';
 import { isFeaturePlannedOnly } from '../billing/plan-helpers.js';
 import type {
     BusinessTypeVersionSnapshot,

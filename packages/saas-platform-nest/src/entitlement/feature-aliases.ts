@@ -24,9 +24,7 @@ type FeatureReplacesSource = Pick<DiscoveredFeature, 'featureKey' | 'replaces'>;
  * Self-references are ignored; cycles (A replaces B, B replaces A) are a
  * code error and throw.
  */
-export function buildReplacedByIndex(
-    features: readonly FeatureReplacesSource[],
-): ReplacedByIndex {
+export function buildReplacedByIndex(features: readonly FeatureReplacesSource[]): ReplacedByIndex {
     const index = new Map<string, string[]>();
     for (const feature of features) {
         for (const oldKey of feature.replaces ?? []) {

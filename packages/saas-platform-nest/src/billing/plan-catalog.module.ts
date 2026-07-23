@@ -23,8 +23,14 @@ import type { PlanCatalog, PlanCatalogReadSink } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { buildPlanCatalogFromSnapshot } from './plan-catalog-from-snapshot.js';
 
-export const PLAN_CATALOG_TOKEN = Symbol('PLAN_CATALOG');
-export const PLAN_CATALOG_READ_SINK_TOKEN = Symbol('PLAN_CATALOG_READ_SINK');
+// `Symbol.for` (not a local `Symbol`): these tokens cross subpath-bundle
+// boundaries — a consumer may wire `EntitlementModule` (from
+// `@saasicat/nest/entitlement`) against the `PLAN_CATALOG_TOKEN` that
+// `PlanCatalogModule` (reached via `@saasicat/nest/platform`) provides. The CJS
+// builds do not share module instances, so a local `Symbol()` would be two
+// different tokens and Nest DI would fail to resolve `PLAN_CATALOG`.
+export const PLAN_CATALOG_TOKEN = Symbol.for('saasicat/nest/PLAN_CATALOG');
+export const PLAN_CATALOG_READ_SINK_TOKEN = Symbol.for('saasicat/nest/PLAN_CATALOG_READ_SINK');
 
 export interface PlanCatalogModuleOptions {
     /** Build-time identity of the app. */

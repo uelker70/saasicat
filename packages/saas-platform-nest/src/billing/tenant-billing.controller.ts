@@ -22,6 +22,7 @@ import type {
     UsageSnapshotPort,
 } from '@saasicat/types';
 import { EntitlementService, toEffectiveLimitsSnapshot } from '../entitlement/index.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { initialPeriodWindow } from './billing-period.js';
@@ -111,7 +112,7 @@ export class TenantBillingController {
     constructor(
         // The tsup build has no emitDecoratorMetadata — class-type args must
         // be annotated explicitly with @Inject(Class), otherwise DI breaks.
-        @Inject(EntitlementService) private readonly entitlements: EntitlementService,
+        @Inject(ENTITLEMENT_SERVICE_TOKEN) private readonly entitlements: EntitlementService,
         @Inject(PlanChangePreviewService)
         private readonly planPreview: PlanChangePreviewService,
         @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
@@ -388,10 +389,7 @@ export class TenantBillingController {
         // writes.
         const canRedeem = !!dto.promoCode && !!this.promoCodes && !!sub.id;
         const redeemPromoCallback = canRedeem
-            ? async (
-                  tx: import('@saasicat/types').TransactionContext,
-                  subscriptionId: string,
-              ) =>
+            ? async (tx: import('@saasicat/types').TransactionContext, subscriptionId: string) =>
                   this.promoCodes!.redeemInTransaction(
                       {
                           code: dto.promoCode!,

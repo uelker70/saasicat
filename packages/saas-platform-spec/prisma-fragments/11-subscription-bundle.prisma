@@ -1,0 +1,49 @@
+// =============================================================================
+// SaaS-Platform Prisma fragment: SubscriptionBundle (standalone add-on booking)
+// =============================================================================
+//
+// REFERENCE SNIPPET — not a standalone schema. Consumers copy the model into
+// their `schema.prisma`.
+//
+// A SubscriptionBundle is a bundle booked ON TOP of a subscription's plan —
+// the tenant "bundle store". It pins a concrete BundleVersion (features/quotas
+// frozen at booking), carries its own minimum term and cancellation window,
+// and is billed independently of the plan.
+//
+// Accompanying fragments:
+//   - 01-subscription.prisma         (Subscription — the FK target)
+//   - 05-bundle-business-type.prisma (BundleVersion — the pinned version)
+//
+// Conventions: see 01-subscription.prisma. `@@map` name is canonical — do not
+// rename. The platform's `SubscriptionBundleRepository` adapter and the tenant
+// bundle-store endpoints depend on it.
+
+model SubscriptionBundle {
+    id              String @id @default(uuid())
+    subscriptionId  String
+    bundleVersionId String
+
+    startedAt DateTime
+
+    // Minimum contractual term; a cancellation before this date takes effect
+    // only at `minimumTermEndsAt`.
+    minimumTermEndsAt DateTime?
+
+    // Cancellation: requested at `canceledAt`, effective at
+    // `canceledEffectiveAt` (period/term end). Both null = active booking.
+    canceledAt          DateTime?
+    canceledEffectiveAt DateTime?
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // The subscription this add-on is booked on. Restrict the BundleVersion so
+    // a booked version cannot be hard-deleted from the catalog.
+    subscription  Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+    bundleVersion BundleVersion @relation(fields: [bundleVersionId], references: [id], onDelete: Restrict)
+
+    @@index([subscriptionId])
+    @@index([bundleVersionId])
+    @@index([canceledEffectiveAt])
+    @@map("subscription_bundles")
+}

@@ -6,6 +6,7 @@ import type {
     UsageSnapshotPort,
 } from '@saasicat/types';
 import { EntitlementService } from '../entitlement/index.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { findPlan, getPlanPriceNet } from './plan-helpers.js';
 import { periodEndAfter } from './billing-period.js';
@@ -103,7 +104,7 @@ export class PlanChangePreviewService {
         // Explicit @Inject — the tsup build has no emitDecoratorMetadata,
         // so class-type reflection doesn't work; NestJS would otherwise throw
         // an UndefinedDependencyException on this parameter.
-        @Inject(EntitlementService) private readonly entitlements: EntitlementService,
+        @Inject(ENTITLEMENT_SERVICE_TOKEN) private readonly entitlements: EntitlementService,
         @Inject(SUBSCRIPTION_USAGE_PORT_TOKEN)
         private readonly subscriptions: SubscriptionUsagePort,
         @Inject(USAGE_SNAPSHOT_PORT_TOKEN)

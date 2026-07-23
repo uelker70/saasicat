@@ -6,6 +6,7 @@ import type {
 } from '@saasicat/types';
 
 import { EntitlementService } from '../entitlement/index.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { SubscriptionContractService } from '../subscription-contract/index.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { findPlan, getPlanPriceNet } from './plan-helpers.js';
@@ -33,11 +34,12 @@ export class SubscriptionContractFreezeService implements ContractFreezePort {
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog,
         // tsup build has no emitDecoratorMetadata — class type args explicitly @Inject.
-        @Inject(EntitlementService) private readonly entitlements: EntitlementService,
+        @Inject(ENTITLEMENT_SERVICE_TOKEN) private readonly entitlements: EntitlementService,
         @Inject(SubscriptionContractService)
         private readonly contracts: SubscriptionContractService,
         @Inject(CONTRACT_FREEZE_PROJECT_KEY_TOKEN) private readonly projectKey: string,
-        @Inject(CONTRACT_FREEZE_SOURCE_PORT_TOKEN) private readonly source: ContractFreezeSourcePort,
+        @Inject(CONTRACT_FREEZE_SOURCE_PORT_TOKEN)
+        private readonly source: ContractFreezeSourcePort,
     ) {}
 
     async freezeOnPlanChange(

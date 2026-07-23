@@ -28,6 +28,8 @@ export { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
 export { PrismaAuditStatsAdapter } from './prisma-audit-stats.adapter.js';
 export { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
 export { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
+export { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
+export { PrismaTenantSubscriptionWriteAdapter } from './prisma-tenant-subscription-write.adapter.js';
 export { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';
 export { PrismaPromoCodeRepository } from './prisma-promo-code.repository.js';
 export { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';

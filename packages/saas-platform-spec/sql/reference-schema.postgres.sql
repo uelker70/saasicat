@@ -13,6 +13,7 @@
 --   prisma-fragments/08-subscription-contract.prisma
 --   prisma-fragments/09-pending-registration.prisma
 --   prisma-fragments/10-super-admin.prisma
+--   prisma-fragments/11-subscription-bundle.prisma
 -- plus the normative constraints from sql/constraints.postgres.sql.
 -- Do not edit by hand — change the fragments/constraints and regenerate.
 
@@ -598,6 +599,21 @@ CREATE TABLE "super_admin_mfa" (
     CONSTRAINT "super_admin_mfa_pkey" PRIMARY KEY ("userId")
 );
 
+-- CreateTable
+CREATE TABLE "subscription_bundles" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "bundleVersionId" TEXT NOT NULL,
+    "startedAt" TIMESTAMP(3) NOT NULL,
+    "minimumTermEndsAt" TIMESTAMP(3),
+    "canceledAt" TIMESTAMP(3),
+    "canceledEffectiveAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "subscription_bundles_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "subscriptions_tenantId_key" ON "subscriptions"("tenantId");
 
@@ -787,6 +803,15 @@ CREATE UNIQUE INDEX "super_admin_users_email_key" ON "super_admin_users"("email"
 -- CreateIndex
 CREATE INDEX "super_admin_users_isActive_deletedAt_idx" ON "super_admin_users"("isActive", "deletedAt");
 
+-- CreateIndex
+CREATE INDEX "subscription_bundles_subscriptionId_idx" ON "subscription_bundles"("subscriptionId");
+
+-- CreateIndex
+CREATE INDEX "subscription_bundles_bundleVersionId_idx" ON "subscription_bundles"("bundleVersionId");
+
+-- CreateIndex
+CREATE INDEX "subscription_bundles_canceledEffectiveAt_idx" ON "subscription_bundles"("canceledEffectiveAt");
+
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_planVersionId_fkey" FOREIGN KEY ("planVersionId") REFERENCES "plan_versions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -831,6 +856,12 @@ ALTER TABLE "business_type_bundles" ADD CONSTRAINT "business_type_bundles_bundle
 
 -- AddForeignKey
 ALTER TABLE "contract_line_items" ADD CONSTRAINT "contract_line_items_contractId_fkey" FOREIGN KEY ("contractId") REFERENCES "subscription_contracts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_bundleVersionId_fkey" FOREIGN KEY ("bundleVersionId") REFERENCES "bundle_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
 -- SaaSicat — normative PostgreSQL constraints the Prisma DSL cannot express.

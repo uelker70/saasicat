@@ -94,6 +94,9 @@ model BundleVersion {
     baseVersion         BundleVersion?       @relation("BundleVersionLineage", fields: [baseVersionId], references: [id])
     derivedVersions     BundleVersion[]      @relation("BundleVersionLineage")
     businessTypeBundles BusinessTypeBundle[]
+    // Standalone add-on bookings pinned to this version (see
+    // 11-subscription-bundle.prisma).
+    subscriptionBundles SubscriptionBundle[]
 
     @@unique([bundleId, version])
     @@index([bundleId, supersededAt])

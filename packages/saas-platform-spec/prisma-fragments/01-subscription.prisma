@@ -128,6 +128,8 @@ model Subscription {
     planVersion         PlanVersion?                @relation("SubscriptionPlanVersion", fields: [planVersionId], references: [id])
     pendingPlanVersion  PlanVersion?                @relation("SubscriptionPendingPlanVersion", fields: [pendingPlanVersionId], references: [id])
     businessTypeVersion BusinessTypeVersion?        @relation("SubscriptionBusinessTypeVersion", fields: [businessTypeVersionId], references: [id])
+    // Standalone add-on bookings (see 11-subscription-bundle.prisma).
+    bundles             SubscriptionBundle[]
 
     @@index([tenantId])
     @@index([planVersionId])
