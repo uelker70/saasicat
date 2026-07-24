@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { TransactionContext, TransactionRunner } from '@saasicat/types';
-import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN } from './prisma-client-token.js';
+
+type TransactionMethod = <T>(fn: (tx: unknown) => Promise<T>) => Promise<T>;
 
 /**
  * `TransactionRunner` over `prisma.$transaction`. The interactive transaction
@@ -9,9 +11,15 @@ import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
  */
 @Injectable()
 export class PrismaTransactionRunner implements TransactionRunner {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Record<'$transaction', unknown>,
+    ) {}
 
     async run<T>(fn: (tx: TransactionContext) => Promise<T>): Promise<T> {
-        return this.prisma.$transaction((tx) => fn(tx));
+        const transaction = (this.prisma.$transaction as TransactionMethod).bind(
+            this.prisma,
+        ) as TransactionMethod;
+        return transaction((tx) => fn(tx as TransactionContext));
     }
 }

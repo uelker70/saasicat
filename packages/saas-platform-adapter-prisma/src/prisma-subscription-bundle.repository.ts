@@ -6,12 +6,7 @@ import type {
     SubscriptionBundleRepository,
     TransactionContext,
 } from '@saasicat/types';
-import {
-    PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
-    type PrismaModelDelegateLike,
-} from './prisma-client-token.js';
-import { resolveClient } from './tx.js';
+import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** DB columns this repository reads from `subscription_bundles`. */
 interface SubscriptionBundleDbRow {
@@ -31,6 +26,10 @@ interface SubscriptionBundlePrisma {
     subscriptionBundle: PrismaModelDelegateLike<SubscriptionBundleDbRow>;
 }
 
+interface SubscriptionBundleClient {
+    subscriptionBundle: unknown;
+}
+
 /**
  * `SubscriptionBundleRepository` against the canonical `subscription_bundles`
  * junction (SPEC_V2 §11.1 M6 Pack 2e). Dumb persistence: domain constraints
@@ -41,10 +40,13 @@ interface SubscriptionBundlePrisma {
  */
 @Injectable()
 export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: SubscriptionBundleClient,
+    ) {}
 
     private db(tx?: TransactionContext): SubscriptionBundlePrisma {
-        return resolveClient(this.prisma, tx) as unknown as SubscriptionBundlePrisma;
+        return (tx ?? this.prisma) as unknown as SubscriptionBundlePrisma;
     }
 
     async listBySubscription(subscriptionId: string): Promise<SubscriptionBundleRecord[]> {

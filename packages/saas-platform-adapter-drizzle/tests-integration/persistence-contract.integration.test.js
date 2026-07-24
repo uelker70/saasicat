@@ -155,6 +155,7 @@ function createHarness() {
 
 persistenceAdapterContract({
     name: 'adapter-drizzle @ postgres (canonical reference schema)',
+    projectKey: 'adapter-drizzle-contract',
     create: async () => createHarness(),
 });
 

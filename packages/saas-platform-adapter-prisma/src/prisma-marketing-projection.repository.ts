@@ -8,11 +8,7 @@ import type {
     MarketingTopFeature,
     UpdateMarketingProjectionData,
 } from '@saasicat/types';
-import {
-    PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
-    type PrismaModelDelegateLike,
-} from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** DB columns this repository reads from `marketing_projections`. */
 interface MarketingProjectionDbRow {
@@ -41,6 +37,10 @@ interface MarketingProjectionPrisma {
     marketingProjection: PrismaModelDelegateLike<MarketingProjectionDbRow>;
 }
 
+interface MarketingProjectionRepositoryClient {
+    marketingProjection: unknown;
+}
+
 /**
  * `MarketingProjectionRepository` against the canonical `marketing_projections`
  * table. Not versioned: per (`targetType`, `targetVersionId`, `locale`) there is
@@ -49,7 +49,10 @@ interface MarketingProjectionPrisma {
  */
 @Injectable()
 export class PrismaMarketingProjectionRepository implements MarketingProjectionRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: MarketingProjectionRepositoryClient,
+    ) {}
 
     private get db(): MarketingProjectionPrisma {
         return this.prisma as unknown as MarketingProjectionPrisma;

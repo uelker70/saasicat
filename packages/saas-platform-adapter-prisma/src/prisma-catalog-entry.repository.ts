@@ -16,11 +16,7 @@ import type {
     UpsertFeatureEntryData,
     UpsertQuotaEntryData,
 } from '@saasicat/types';
-import {
-    PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
-    type PrismaModelDelegateLike,
-} from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** DB columns this repository reads from `capability_catalog_entries`. */
 interface CapabilityCatalogEntryDbRow {
@@ -107,6 +103,12 @@ interface CatalogEntryPrisma {
     quotaCatalogEntry: PrismaModelDelegateLike<QuotaCatalogEntryDbRow>;
 }
 
+interface CatalogEntryRepositoryClient {
+    capabilityCatalogEntry: unknown;
+    featureCatalogEntry: unknown;
+    quotaCatalogEntry: unknown;
+}
+
 /**
  * `CatalogEntryRepository` against the canonical `capability_catalog_entries`,
  * `feature_catalog_entries` and `quota_catalog_entries` tables (SPEC_V2 §6.3 —
@@ -119,7 +121,10 @@ interface CatalogEntryPrisma {
  */
 @Injectable()
 export class PrismaCatalogEntryRepository implements CatalogEntryRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: CatalogEntryRepositoryClient,
+    ) {}
 
     private get db(): CatalogEntryPrisma {
         return this.prisma as unknown as CatalogEntryPrisma;

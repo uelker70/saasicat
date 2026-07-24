@@ -9,6 +9,9 @@ Verified scenarios:
 
 - tenant subscription lookup + tenant isolation
 - plan-version resolution (live vs. superseded vs. draft)
+- semantic plan-key mapping at the port boundary
+- atomic plan + `planVersionId` changes and tx-bound onboarding promo rollback
+- PlanVersion and BundleVersion validity windows with auto-succession
 - `countByPlanVersionId` counts current AND pending bindings in one query
 - transaction rollback discards writes
 - `findByTenantIdLocked` serializes concurrent transactions (row lock)
@@ -30,17 +33,21 @@ import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 
 persistenceAdapterContract({
     name: 'adapter-drizzle @ postgres',
+    projectKey: 'my-app',
     create: async () => ({
         adapter: {
-            capabilities: { transactions: true, pessimisticLocking: true, /* … */ },
+            capabilities: { transactions: true, pessimisticLocking: true /* … */ },
             transactionRunner,
             subscriptionRepository,
             planVersionRepository,
-            promoCodeRepository,          // optional slices activate more scenarios
+            promoCodeRepository, // optional slices activate more scenarios
             promoCodeRedemptionRepository,
             mfa,
             audit,
             auditQuery,
+            tenantSubscriptionWrite, // optional: enables atomic plan-binding scenarios
+            planRepository, // optional: enables plan lifecycle scenarios
+            bundleRepository, // optional: enables bundle validity scenarios
         },
         seed: { createPlanVersion, createSubscription, createPromoCode },
         reset: () => truncatePlatformTables(),

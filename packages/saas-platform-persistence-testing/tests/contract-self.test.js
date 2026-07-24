@@ -66,6 +66,57 @@ function createMemoryHarness() {
         },
     };
 
+    const tenantSubscriptionWrite = {
+        async changePlanImmediate(tenantId, input) {
+            const row = state.subscriptions.find(
+                (subscription) => subscription.tenantId === tenantId,
+            );
+            if (!row) throw new Error(`No subscription for tenant ${tenantId}.`);
+            const target = state.planVersions
+                .filter(
+                    (version) =>
+                        version.planId === input.planId &&
+                        version.publishedAt &&
+                        !version.supersededAt,
+                )
+                .sort((a, b) => b.version - a.version)[0];
+            if (!target) throw new Error(`No active PlanVersion for plan ${input.planId}.`);
+            row.plan = input.planId;
+            row.planVersionId = target.id;
+            row.pendingPlanVersionId = null;
+            return { plan: row.plan, billingCycle: input.cycle };
+        },
+        async applyOnboardingSelection(tenantId, input, redeemPromo) {
+            return transactionRunner.run(async (tx) => {
+                const changed = await tenantSubscriptionWrite.changePlanImmediate(tenantId, {
+                    ...input,
+                    trialEndsAt: null,
+                });
+                const row = state.subscriptions.find(
+                    (subscription) => subscription.tenantId === tenantId,
+                );
+                const promoRedemption = redeemPromo ? await redeemPromo(tx, row.id) : null;
+                return {
+                    ...changed,
+                    subscriptionId: row.id,
+                    promoRedemption,
+                };
+            });
+        },
+        async schedulePlanChange() {},
+        async acceptPendingPlanVersion() {
+            return {
+                accepted: true,
+                acceptedAt: new Date(),
+                effectiveAt: null,
+                alreadyAccepted: false,
+            };
+        },
+        async cancelSubscription() {
+            return { canceledAt: new Date(), status: 'CANCELED' };
+        },
+    };
+
     const promoCodeRepository = {
         async findById(id) {
             const row = state.promoCodes.find((c) => c.id === id);
@@ -222,6 +273,7 @@ function createMemoryHarness() {
             audit,
             auditQuery,
             mfa,
+            tenantSubscriptionWrite,
         },
         seed,
         async reset() {
@@ -232,5 +284,6 @@ function createMemoryHarness() {
 
 persistenceAdapterContract({
     name: 'in-memory reference adapter (self-test)',
+    projectKey: 'memory-contract',
     create: async () => createMemoryHarness(),
 });

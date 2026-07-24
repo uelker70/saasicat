@@ -8,8 +8,9 @@
 // validFrom tolerance: `validFrom IS NULL` is treated as "valid since forever".
 // Legacy data without a start date (published before the §4.2 publish
 // requirement was introduced) therefore does not drop out of the catalog. In
-// `orderBy [validFrom desc]` NULL sorts last — a genuine fallback behind dated
-// versions, not an override.
+// PostgreSQL sorts NULL first for descending order by default. Callers must
+// request `NULLS LAST` explicitly so legacy rows remain a fallback behind
+// dated versions instead of overriding them.
 //
 // validUntil day semantics: `validFrom`/`validUntil` are stored as day dates
 // (UTC midnight from 'YYYY-MM-DD') and are valid **inclusive of their day**
@@ -46,8 +47,7 @@ interface DateAfter {
 
 /** `OR` block of the validity window; exactly one date field per variant. */
 type ValidityWindowClause =
-    | { validFrom: DateAtOrBefore | null }
-    | { validUntil: DateAtOrAfter | null };
+    { validFrom: DateAtOrBefore | null } | { validUntil: DateAtOrAfter | null };
 
 /** Optional `OR` block for models with `endsAt` (precise admin termination). */
 type EndsAtClause = { endsAt: DateAfter | null };
@@ -74,8 +74,9 @@ export interface ActivePlanVersionWhereWithEndsAt {
  *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`  // day-inclusive
  *   with `withEndsAt`: additionally `(endsAt IS NULL OR endsAt > asOf)`.  // precise
  *
- * `planId` stays with the caller (repo-specific type). Matching `orderBy`:
- * `[{ validFrom: 'desc' }, { version: 'desc' }]`.
+ * `planId` stays with the caller (repo-specific type). Matching Prisma
+ * `orderBy` for PostgreSQL:
+ * `[{ validFrom: { sort: 'desc', nulls: 'last' } }, { version: 'desc' }]`.
  */
 export function buildActivePlanVersionWhere(
     asOf: Date,
@@ -102,3 +103,19 @@ export function buildActivePlanVersionWhere(
         AND: [...validityWindow, { OR: [{ endsAt: null }, { endsAt: { gt: asOf } }] }],
     };
 }
+
+/**
+ * Model-neutral name for {@link ActivePlanVersionWhere}. Bundle- and
+ * PlanVersion repositories share the same published validity-window rules.
+ */
+export type ActiveVersionWhere = ActivePlanVersionWhere;
+
+/** Model-neutral counterpart that additionally checks an `endsAt` timestamp. */
+export type ActiveVersionWhereWithEndsAt = ActivePlanVersionWhereWithEndsAt;
+
+/**
+ * Model-neutral alias for {@link buildActivePlanVersionWhere}. The original
+ * export remains available for backwards compatibility.
+ */
+export const buildActiveVersionWhere: typeof buildActivePlanVersionWhere =
+    buildActivePlanVersionWhere;

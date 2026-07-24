@@ -451,13 +451,6 @@ export class TenantBillingController {
                 periodEnd: period?.end ?? null,
                 nextStatus: wasTrial ? null : 'ACTIVE',
             });
-            await this.tryFreezeOnPlanChange(
-                tenantId,
-                dto.plan,
-                dto.billingCycle as BillingCycle,
-                wasTrial,
-            );
-
             if (dto.promoCode) {
                 if (!this.promoCodes) {
                     warnings.push(
@@ -483,6 +476,16 @@ export class TenantBillingController {
                 }
             }
         }
+
+        // Contract snapshots are a domain side effect of a successful plan
+        // change, independent of whether the persistence adapter used the
+        // atomic onboarding capability or the legacy sequential fallback.
+        await this.tryFreezeOnPlanChange(
+            tenantId,
+            dto.plan,
+            dto.billingCycle as BillingCycle,
+            wasTrial,
+        );
 
         this.entitlements.invalidateTenant(tenantId);
 

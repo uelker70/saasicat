@@ -19,8 +19,8 @@ export interface CreatePlanVersionDraftData {
     /**
      * **planKey** (e.g. "STARTER"), not the plan UUID. The service
      * resolves the plan UUID from the controller path param to
-     * planKey beforehand, because `PlanVersion.planId` is a string in
-     * the schema (soft binding; see SPEC_V2 §11.1 M6).
+     * planKey beforehand. Adapters may store that semantic key directly or
+     * translate it to a normalized `Plan.id` foreign key.
      */
     planId: string;
     /** Predecessor version the diff is computed against (null for v1). */

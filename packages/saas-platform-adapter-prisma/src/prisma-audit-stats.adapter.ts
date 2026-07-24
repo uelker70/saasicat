@@ -5,7 +5,10 @@ import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 /** `AuditStatsPort` against the canonical `audit_logs` table. */
 @Injectable()
 export class PrismaAuditStatsAdapter implements AuditStatsPort {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Pick<PrismaLike, 'auditLog'>,
+    ) {}
 
     async countSince(since: Date): Promise<number> {
         return this.prisma.auditLog.count({ where: { createdAt: { gte: since } } });

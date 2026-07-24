@@ -413,12 +413,13 @@ export interface PlanVersionRepository {
     /**
      * PlanVersion of a plan active at `asOf`:
      *   `publishedAt IS NOT NULL`
-     *   `validFrom <= asOf`
-     *   `(validUntil IS NULL OR validUntil > asOf)`
+     *   `(validFrom IS NULL OR validFrom <= asOf)`
+     *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`
      *
-     * If multiple match: highest `validFrom`. Adapters that do not yet have
-     * `validFrom`/`validUntil` columns may omit the field
-     * (consumers fall back to `findLatestLive`).
+     * `validUntil` is day-inclusive. If multiple versions match, adapters
+     * return the highest `validFrom`, explicitly ordering null start dates
+     * last as a legacy fallback. Adapters without validity columns may omit
+     * the method (consumers fall back to `findLatestLive`).
      */
     findActive?(
         planId: string,

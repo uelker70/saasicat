@@ -456,13 +456,26 @@ describe('PrismaSubscriptionRepository', () => {
         });
     });
 
-    test('countActiveByPlanKey aggregates by plan', async () => {
+    test('countActiveByPlanKey aggregates by authoritative PlanVersion identity', async () => {
         const p = fakePrisma();
-        p.state.subscriptionsByTenant.set('t1', subscriptionRow());
+        p.state.plans.push(
+            { id: 'plan-starter', projectKey: 'app', planKey: 'STARTER' },
+            { id: 'plan-pro', projectKey: 'app', planKey: 'PRO' },
+        );
+        p.state.planVersions.push(
+            planVersionRow({ id: 'pv-1', planId: 'STARTER' }),
+            planVersionRow({ id: 'pv-pro', planId: 'PRO' }),
+        );
+        p.state.subscriptionsByTenant.set('t1', subscriptionRow({ plan: 'DRIFTED' }));
         p.state.subscriptionsByTenant.set('t2', subscriptionRow({ id: 'sub-2', tenantId: 't2' }));
         p.state.subscriptionsByTenant.set(
             't3',
-            subscriptionRow({ id: 'sub-3', tenantId: 't3', plan: 'PRO' }),
+            subscriptionRow({
+                id: 'sub-3',
+                tenantId: 't3',
+                plan: 'ALSO_DRIFTED',
+                planVersionId: 'pv-pro',
+            }),
         );
         const repo = new PrismaSubscriptionRepository(p);
         assert.deepEqual(await repo.countActiveByPlanKey('app'), { STARTER: 2, PRO: 1 });

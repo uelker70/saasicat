@@ -26,6 +26,7 @@ function sleep(ms: number): Promise<void> {
  * ```ts
  * persistenceAdapterContract({
  *     name: 'adapter-prisma @ postgres',
+ *     projectKey: 'my-app',
  *     create: () => createPrismaHarness(),
  * });
  * ```
@@ -117,7 +118,284 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
 
             const live = await adapter.planVersionRepository.findLatestLive('PRO');
             assert.ok(live, 'live version expected');
+            assert.equal(
+                live.planId,
+                'PRO',
+                'port-facing plan identity must remain the semantic plan key',
+            );
             assert.deepEqual(live.quotas, { users: 2 });
+        });
+
+        test('immediate plan change binds plan and active PlanVersion consistently', async (t) => {
+            const { seed, adapter } = harness;
+            if (!adapter.tenantSubscriptionWrite) {
+                t.skip('adapter does not expose atomic plan-binding writes');
+                return;
+            }
+            const oldVersion = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: { users: 2 },
+                features: [],
+                published: true,
+            });
+            const targetVersion = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: { users: 20 },
+                features: ['PRO'],
+                published: true,
+            });
+            await seed.createSubscription({
+                tenantId: 'tenant-plan-change',
+                plan: 'STARTER',
+                planVersionId: oldVersion.planVersionId,
+            });
+
+            await adapter.tenantSubscriptionWrite.changePlanImmediate('tenant-plan-change', {
+                planId: 'PRO',
+                cycle: 'YEARLY',
+                periodStart: null,
+                periodEnd: null,
+                nextStatus: null,
+            });
+
+            const changed =
+                await adapter.subscriptionRepository.findByTenantId('tenant-plan-change');
+            assert.ok(changed, 'changed subscription expected');
+            assert.equal(changed.plan, 'PRO');
+            assert.equal(changed.planVersionId, targetVersion.planVersionId);
+            assert.equal(changed.planVersion.planId, 'PRO');
+        });
+
+        test('onboarding selection rolls plan binding and promo write back together', async (t) => {
+            const { seed, adapter } = harness;
+            const writer = adapter.tenantSubscriptionWrite;
+            if (!writer?.applyOnboardingSelection) {
+                t.skip('adapter does not expose atomic onboarding writes');
+                return;
+            }
+            const redemptions = adapter.promoCodeRedemptionRepository;
+            if (!redemptions) {
+                t.skip('adapter provides no PromoCodeRedemptionRepository');
+                return;
+            }
+            const oldVersion = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-onboarding-rollback',
+                plan: 'STARTER',
+                planVersionId: oldVersion.planVersionId,
+            });
+            const { promoCodeId } = await seed.createPromoCode({
+                code: 'ONBOARDING-ROLLBACK',
+                maxRedemptions: null,
+            });
+            const startsAt = new Date('2026-07-24T00:00:00.000Z');
+
+            await assert.rejects(
+                writer.applyOnboardingSelection(
+                    'tenant-onboarding-rollback',
+                    {
+                        planId: 'PRO',
+                        cycle: 'MONTHLY',
+                        periodStart: null,
+                        periodEnd: null,
+                        nextStatus: null,
+                    },
+                    async (tx, callbackSubscriptionId) => {
+                        assert.equal(callbackSubscriptionId, subscriptionId);
+                        await redemptions.create(
+                            {
+                                promoCodeId,
+                                subscriptionId: callbackSubscriptionId,
+                                tenantId: 'tenant-onboarding-rollback',
+                                appliedValueType: 'PERCENT',
+                                appliedValue: '10.00',
+                                appliedDurationType: 'ONCE',
+                                appliedDurationValue: null,
+                                startsAt,
+                                endsAt: null,
+                            },
+                            tx,
+                        );
+                        assert.ok(
+                            await redemptions.findBySubscription(callbackSubscriptionId, tx),
+                            'promo write must be visible inside the onboarding transaction',
+                        );
+                        throw new Error('promo redemption failed');
+                    },
+                ),
+                /promo redemption failed/,
+            );
+
+            const unchanged = await adapter.subscriptionRepository.findByTenantId(
+                'tenant-onboarding-rollback',
+            );
+            assert.ok(unchanged, 'subscription expected after rollback');
+            assert.equal(unchanged.plan, 'STARTER');
+            assert.equal(unchanged.planVersionId, oldVersion.planVersionId);
+            assert.equal(unchanged.planVersion.planId, 'STARTER');
+            assert.equal(
+                await redemptions.findBySubscription(subscriptionId),
+                null,
+                'promo callback write must be rolled back',
+            );
+        });
+
+        test('plan lifecycle keeps semantic identity and auto-succeeds validity windows', async (t) => {
+            const repository = harness.adapter.planRepository;
+            if (
+                !repository?.createPlanVersionDraft ||
+                !repository.publishPlanVersionDraft ||
+                !repository.findVersionById ||
+                !repository.findActivePlanVersion
+            ) {
+                t.skip('adapter provides no time-aware PlanRepository lifecycle');
+                return;
+            }
+            const plan = await repository.create({
+                projectKey: options.projectKey,
+                planKey: 'STANDARD',
+                label: 'Standard',
+            });
+            assert.equal(plan.projectKey, options.projectKey);
+            const firstDraft = await repository.createPlanVersionDraft({
+                planId: 'STANDARD',
+                features: ['CORE'],
+                quotas: { users: 5 },
+                monthlyNet: '10.00',
+                yearlyNet: '100.00',
+                validFrom: '2026-01-01',
+            });
+            assert.equal(firstDraft.planId, 'STANDARD');
+            const first = await repository.publishPlanVersionDraft(firstDraft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+
+            const secondDraft = await repository.createPlanVersionDraft({
+                planId: 'STANDARD',
+                baseVersionId: first.id,
+                features: ['CORE', 'PLUS'],
+                quotas: { users: 10 },
+                monthlyNet: '15.00',
+                yearlyNet: '150.00',
+                validFrom: '2026-03-01',
+            });
+            const second = await repository.publishPlanVersionDraft(secondDraft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-03-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+
+            const succeeded = await repository.findVersionById(first.id);
+            assert.ok(succeeded, 'predecessor expected');
+            assert.ok(succeeded.supersededAt, 'predecessor must be superseded');
+            assert.equal(succeeded.validUntil, '2026-02-28T00:00:00.000Z');
+            assert.equal(succeeded.planId, 'STANDARD');
+            assert.equal(
+                (
+                    await repository.findActivePlanVersion(
+                        'STANDARD',
+                        new Date('2026-02-28T23:59:59.999Z'),
+                    )
+                )?.id,
+                first.id,
+                'validUntil is day-inclusive',
+            );
+            assert.equal(
+                (
+                    await repository.findActivePlanVersion(
+                        'STANDARD',
+                        new Date('2026-03-01T00:00:00.000Z'),
+                    )
+                )?.id,
+                second.id,
+            );
+        });
+
+        test('bundle lifecycle roundtrips validity and auto-succeeds atomically', async (t) => {
+            const repository = harness.adapter.bundleRepository;
+            if (!repository?.findActiveBundleVersion) {
+                t.skip('adapter provides no time-aware BundleRepository');
+                return;
+            }
+            const bundle = await repository.create({
+                projectKey: options.projectKey,
+                bundleKey: 'REPORTING',
+                label: 'Reporting',
+            });
+            assert.equal(bundle.projectKey, options.projectKey);
+            const firstDraft = await repository.createDraft({
+                bundleId: bundle.id,
+                features: ['REPORTS'],
+                quotas: {},
+                validFrom: '2026-01-01',
+            });
+            const first = await repository.publishDraft(firstDraft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-01-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+
+            const secondDraft = await repository.createDraft({
+                bundleId: bundle.id,
+                baseVersionId: first.id,
+                features: ['REPORTS', 'EXPORTS'],
+                quotas: {},
+                validFrom: '2026-03-01',
+            });
+            const second = await repository.publishDraft(secondDraft.id, {
+                publishedByUserId: null,
+                publishedChanges: [],
+                nonRegressive: true,
+                validFrom: new Date('2026-03-01T00:00:00.000Z'),
+                validUntil: null,
+            });
+
+            const succeeded = await repository.findVersionById(first.id);
+            assert.ok(succeeded, 'predecessor expected');
+            assert.ok(succeeded.supersededAt, 'predecessor must be superseded');
+            assert.equal(succeeded.validUntil, '2026-02-28T00:00:00.000Z');
+            assert.equal(
+                (
+                    await repository.findActiveBundleVersion(
+                        bundle.id,
+                        new Date('2026-02-28T23:59:59.999Z'),
+                    )
+                )?.id,
+                first.id,
+                'validUntil is day-inclusive',
+            );
+            assert.equal(
+                (
+                    await repository.findActiveBundleVersion(
+                        bundle.id,
+                        new Date('2026-03-01T00:00:00.000Z'),
+                    )
+                )?.id,
+                second.id,
+            );
         });
 
         test('countByPlanVersionId counts current AND pending bindings in one query', async (t) => {
@@ -169,7 +447,9 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             if (!adapter.promoCodeRedemptionRepository) {
-                t.skip('adapter provides no PromoCodeRedemptionRepository (needed as tx write probe)');
+                t.skip(
+                    'adapter provides no PromoCodeRedemptionRepository (needed as tx write probe)',
+                );
                 return;
             }
             const redemptions = adapter.promoCodeRedemptionRepository;
@@ -364,14 +644,24 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
                 return;
             }
             await adapter.audit.write({
-                actor: { userId: 'admin-1', email: 'ops@example.com', source: 'cli', context: 'host1' },
+                actor: {
+                    userId: 'admin-1',
+                    email: 'ops@example.com',
+                    source: 'cli',
+                    context: 'host1',
+                },
                 entity: 'Tenant',
                 entityId: 'tenant-a',
                 action: 'TENANT_SUSPEND',
                 changes: { reason: 'test' },
             });
             await adapter.audit.write({
-                actor: { userId: 'admin-2', email: 'web@example.com', source: 'web', context: 'sess9' },
+                actor: {
+                    userId: 'admin-2',
+                    email: 'web@example.com',
+                    source: 'web',
+                    context: 'sess9',
+                },
                 entity: 'PromoCode',
                 entityId: 'promo-1',
                 action: 'PROMO_CODE_CREATE',

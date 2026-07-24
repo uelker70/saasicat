@@ -76,6 +76,12 @@ model PlanVersion {
     changeNote       String
     nonRegressive    Boolean @default(true)
 
+    // Booking window for new subscriptions. Nullable for backwards-compatible
+    // legacy rows; `endsAt` is an optional precise administrative termination.
+    validFrom  DateTime?
+    validUntil DateTime?
+    endsAt     DateTime?
+
     createdByUserId   String?
     publishedByUserId String?
 
@@ -90,5 +96,6 @@ model PlanVersion {
     @@unique([planId, version])
     @@index([planId, supersededAt])
     @@index([planId, publishedAt])
+    @@index([planId, validFrom])
     @@map("plan_versions")
 }

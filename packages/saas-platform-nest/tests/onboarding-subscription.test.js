@@ -113,6 +113,8 @@ function buildController(overrides = {}) {
         overrides.userEmailResolver ?? null,
         overrides.auditContextResolver ?? null,
         overrides.subscriptionBundles ?? null,
+        overrides.contractFreeze ?? null,
+        overrides.trialProjection ?? null,
     );
 }
 
@@ -374,14 +376,7 @@ test('atomic path: applyOnboardingSelection is used, sequential calls are avoide
         async applyOnboardingSelection(tenantId, input, redeemCb) {
             appliedCalls++;
             // In the atomic path the adapter MUST call the promo callback itself
-            const promoRedemption = redeemCb
-                ? await redeemCb(
-                      {
-                          /* stub-tx */
-                      },
-                      'sub-1',
-                  )
-                : null;
+            const promoRedemption = redeemCb ? await redeemCb({/* stub-tx */}, 'sub-1') : null;
             return {
                 plan: input.planId,
                 billingCycle: input.cycle,
@@ -407,12 +402,57 @@ test('atomic path: applyOnboardingSelection is used, sequential calls are avoide
     );
 
     assert.equal(appliedCalls, 1, 'the atomic path must be called');
-    assert.equal(
-        changePlanCalls,
-        0,
-        'sequential changePlanImmediate must NOT run additionally',
-    );
+    assert.equal(changePlanCalls, 0, 'sequential changePlanImmediate must NOT run additionally');
     assert.equal(result.plan, 'SPORT');
+});
+
+test('atomic path: successful non-trial plan change freezes the subscription contract', async () => {
+    const freezeCalls = [];
+    const atomicWrite = {
+        async applyOnboardingSelection(tenantId, input) {
+            return {
+                plan: input.planId,
+                billingCycle: input.cycle,
+                subscriptionId: 'sub-1',
+                promoRedemption: null,
+            };
+        },
+        async changePlanImmediate() {
+            throw new Error('legacy path must NOT be hit');
+        },
+        async schedulePlanChange() {},
+        async acceptPendingPlanVersion() {},
+        async cancelSubscription() {
+            return { canceledAt: null, status: 'ACTIVE' };
+        },
+    };
+    const ctrl = buildController({
+        subscriptionWrite: atomicWrite,
+        subscriptionUsage: {
+            findForTenant: async () => buildSub({ status: 'ACTIVE' }),
+        },
+        contractFreeze: {
+            async freezeOnPlanChange(tenantId, plan, cycle, now) {
+                freezeCalls.push({ tenantId, plan, cycle, now });
+            },
+        },
+    });
+
+    await ctrl.completeOnboardingSubscription(
+        { user: { tenantId: 't1', sub: 'u1' } },
+        { plan: 'SPORT', billingCycle: 'YEARLY' },
+    );
+
+    assert.equal(freezeCalls.length, 1);
+    assert.deepEqual(
+        {
+            tenantId: freezeCalls[0].tenantId,
+            plan: freezeCalls[0].plan,
+            cycle: freezeCalls[0].cycle,
+        },
+        { tenantId: 't1', plan: 'SPORT', cycle: 'YEARLY' },
+    );
+    assert.ok(freezeCalls[0].now instanceof Date);
 });
 
 test('atomic path: adapter error throws BadRequestException (no half-state)', async () => {

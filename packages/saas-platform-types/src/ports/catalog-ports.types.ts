@@ -100,12 +100,11 @@ export interface PlanRepository {
     // ─── Lifecycle operations (Pack 2a, optional) ───
     //
     // **Important:** The lifecycle methods take the **planKey**
-    // (e.g. "STARTER"), not the plan UUID. Reason: the greenfield
-    // binding runs via `PlanVersion.planId === Plan.planKey` as a
-    // string match (see SPEC_V2 §11.1 M6: no FK until the importer
-    // cutover). The `PlanVersionsService` resolves the plan UUID of the
-    // controller path param via `findById(planUuid).planKey` before it
-    // calls these methods.
+    // (e.g. "STARTER"), not the plan UUID. This is the stable port
+    // identity regardless of whether an adapter stores that key directly or
+    // resolves it to a normalized `Plan.id` foreign key. The
+    // `PlanVersionsService` resolves the plan UUID of the controller path
+    // parameter via `findById(planUuid).planKey` before calling these methods.
 
     /**
      * Returns all versions of a plan stem (drafts + published +
@@ -142,8 +141,9 @@ export interface PlanRepository {
      * Adapters build the WHERE via `buildActivePlanVersionWhere`.
      *
      * If multiple match: the one with the highest `validFrom` (= the
-     * "last active"); NULL sorts last, so it remains a genuine fallback.
-     * Default `asOf` is the call time.
+     * "last active"). Adapters must request `NULLS LAST` explicitly so a
+     * null start date remains a genuine fallback. Default `asOf` is the call
+     * time.
      *
      * Usage: everything that concerns *new* bookings/plan changes
      * (onboarding, public marketing, entitlement fallback on TRIAL).
@@ -249,8 +249,30 @@ export interface BundleRepository {
     /**
      * Currently published (= live) BundleVersion of a bundle:
      * `publishedAt IS NOT NULL AND supersededAt IS NULL`.
+     *
+     * This deliberately ignores `validFrom`/`validUntil`. For new bookings
+     * and other time-aware catalog reads use `findActiveBundleVersion`.
      */
     findLatestLive(bundleId: string, tx?: TransactionContext): Promise<BundleVersionRow | null>;
+
+    /**
+     * BundleVersion active at `asOf`:
+     *   `publishedAt IS NOT NULL`
+     *   `(validFrom IS NULL OR validFrom <= asOf)`
+     *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`
+     *
+     * Both boundaries are inclusive. If multiple versions match, adapters
+     * return the highest `validFrom`, then the highest `version`; a null
+     * `validFrom` is a legacy fallback. Default `asOf` is the call time.
+     *
+     * Optional so adapters backed by legacy schemas without validity columns
+     * can omit the capability and consumers can fall back explicitly.
+     */
+    findActiveBundleVersion?(
+        bundleId: string,
+        asOf?: Date,
+        tx?: TransactionContext,
+    ): Promise<BundleVersionRow | null>;
 
     /**
      * Creates a new draft version (`publishedAt = null`). Throws if
