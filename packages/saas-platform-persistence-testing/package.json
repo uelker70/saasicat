@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/persistence-testing",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "Contract test kit for SaaSicat persistence adapters: one node:test suite that every adapter (Prisma, Drizzle, ...) must pass against a real database — locks, transaction rollback, atomic promo claims, tenant isolation, audit/MFA roundtrips.",
     "type": "module",
     "main": "./dist/index.cjs",

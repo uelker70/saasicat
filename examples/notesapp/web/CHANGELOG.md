@@ -1,5 +1,13 @@
 # notesapp-web
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [1003a52]
+    - @saasicat/types@0.8.0
+    - @saasicat/ui-vue@0.8.0
+
 ## 0.0.3
 
 ### Patch Changes

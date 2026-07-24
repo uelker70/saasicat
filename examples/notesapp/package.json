@@ -1,6 +1,6 @@
 {
     "name": "notesapp-example",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "private": true,
     "description": "Reference implementation: a minimal multi-tenant NestJS notes app made SaaS-capable with the saasicat packages — plans/quotas from saas.yaml, automatic feature/quota enforcement, admin manifest, Prisma persistence bundle.",
     "scripts": {
