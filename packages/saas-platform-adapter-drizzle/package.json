@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/adapter-drizzle",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "description": "Drizzle + PostgreSQL persistence adapter for SaaSicat: drizzlePersistence() bundle plus the individual adapters (MFA, audit, RLS bypass, transaction runner, subscription/plan-version/promo repositories, SuperAdmin bootstrap, plan-catalog sinks). Targets the canonical schema from @saasicat/spec and passes the same executable persistence contract as @saasicat/adapter-prisma.",
     "type": "module",
     "main": "./dist/index.cjs",
