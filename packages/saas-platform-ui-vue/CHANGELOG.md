@@ -1,5 +1,23 @@
 # @saasicat/ui-vue
 
+## 0.8.0
+
+### Minor Changes
+
+- 1003a52: Remove the obsolete `PlanVersionsPage`, its standard navigation manifest key,
+  and the synthetic client-side catalog snapshot projection. Plan lifecycle and
+  per-plan version history remain in `PlansPage`; `MarketingCatalogPage` remains
+  the separate marketing projection.
+
+    Retain the reusable catalog timeline and diff components behind a presentation
+    contract that can consume immutable Publication Archive / Catalog History
+    snapshots from issues #30 and #35.
+
+### Patch Changes
+
+- Updated dependencies [1003a52]
+    - @saasicat/types@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes

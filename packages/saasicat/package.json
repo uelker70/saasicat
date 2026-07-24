@@ -1,6 +1,6 @@
 {
     "name": "saasicat",
-    "version": "0.7.0",
+    "version": "0.8.0",
     "description": "Pointer package for the SaaSiCat framework. You probably want @saasicat/nest (framework) or `npm create saasicat-admin` (scaffolding).",
     "keywords": [
         "saas",
