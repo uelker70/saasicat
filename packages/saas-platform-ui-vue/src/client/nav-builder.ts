@@ -35,6 +35,10 @@ export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
     platformEmailHistory: '/admin/platform-email-history',
 };
 
+function isSupportedStandardPageKey(key: string): key is StandardPageKey {
+    return Object.hasOwn(DEFAULT_STANDARD_PAGE_ROUTES, key);
+}
+
 export interface BuildRouteEntry {
     /** Stable identifier — the key for standard pages, the `id` for project pages. */
     id: string;
@@ -154,7 +158,11 @@ export function buildRoutes(
     const overrideIcons = { ...DEFAULT_ICONS, ...options.standardPageIcons };
     const overrideNavSection = { ...defaultNavSections, ...options.standardPageNavSection };
 
-    for (const key of Object.keys(standard) as StandardPageKey[]) {
+    for (const key of Object.keys(standard)) {
+        // Runtime manifests can come from an older/newer backend or the ETag
+        // cache. Ignore standard pages this UI build does not know instead of
+        // emitting navigation entries with undefined path/label/icon values.
+        if (!isSupportedStandardPageKey(key)) continue;
         const def = standard[key] as StandardPageDef | undefined;
         if (!def?.enabled) continue;
         const cap = def.requiredCapability ?? null;

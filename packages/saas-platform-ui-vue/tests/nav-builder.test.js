@@ -84,6 +84,26 @@ describe('buildRoutes — StandardPages filter', () => {
         assert.equal(Object.hasOwn(DEFAULT_STANDARD_PAGE_ROUTES, 'planVersions'), false);
     });
 
+    test('ignores standard pages unsupported by this UI build', () => {
+        const manifest = buildManifest();
+        manifest.navigation.standardPages.planVersions = { enabled: true };
+        manifest.navigation.standardPages.futureCatalogHistory = { enabled: true };
+
+        const routes = buildRoutes(manifest);
+
+        assert.equal(
+            routes.find((route) => route.id === 'planVersions'),
+            undefined,
+        );
+        assert.equal(
+            routes.find((route) => route.id === 'futureCatalogHistory'),
+            undefined,
+        );
+        assert.ok(routes.some((route) => route.id === 'tenants'));
+        assert.ok(routes.every((route) => typeof route.path === 'string'));
+        assert.ok(routes.every((route) => typeof route.label === 'string'));
+    });
+
     test('standardPageRoutes override', () => {
         const routes = buildRoutes(buildManifest(), {
             standardPageRoutes: { tenants: '/admin/clubs' },
