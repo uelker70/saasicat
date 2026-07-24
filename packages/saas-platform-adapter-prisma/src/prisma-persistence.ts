@@ -5,6 +5,7 @@ import type {
     SaasicatPersistenceAdapter,
 } from '@saasicat/types';
 import type { PrismaLike } from './prisma-client-token.js';
+import type { PrismaSchemaOptions } from './prisma-plan-binding.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
 import { PrismaAuditAdapter } from './prisma-audit.adapter.js';
 import { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
@@ -43,6 +44,12 @@ export interface PrismaPersistenceOptions {
      * middleware. Default false.
      */
     rlsIntegration?: boolean;
+    /**
+     * Optional plan-schema adaptations. Omitted means the exact 0.6 layout:
+     * soft `planId === planKey`, one `planVersion` delegate, no validity or
+     * termination columns.
+     */
+    schema?: PrismaSchemaOptions;
 }
 
 /**
@@ -90,8 +97,12 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
             superAdminProvisioning: buildProvisioning(client, options.passwordHasher),
         },
         entitlement: {
-            subscriptionRepository: provide((prisma) => new PrismaSubscriptionRepository(prisma)),
-            planVersionRepository: provide((prisma) => new PrismaPlanVersionRepository(prisma)),
+            subscriptionRepository: provide(
+                (prisma) => new PrismaSubscriptionRepository(prisma, options.schema),
+            ),
+            planVersionRepository: provide(
+                (prisma) => new PrismaPlanVersionRepository(prisma, options.schema),
+            ),
         },
         promo: {
             promoCodeRepository: provide((prisma) => new PrismaPromoCodeRepository(prisma)),
@@ -104,8 +115,12 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
             subscriptionLookup: provide((prisma) => new PrismaPromoSubscriptionLookup(prisma)),
             revenueAggregator: new ZeroPromoRevenueDeductionAggregator(),
         },
-        planCatalogReadSink: provide((prisma) => new PrismaPlanCatalogReadSink(prisma)),
-        planCatalogImportSink: provide((prisma) => new PrismaPlanCatalogImportSink(prisma)),
+        planCatalogReadSink: provide(
+            (prisma) => new PrismaPlanCatalogReadSink(prisma, options.schema),
+        ),
+        planCatalogImportSink: provide(
+            (prisma) => new PrismaPlanCatalogImportSink(prisma, options.schema),
+        ),
     };
 }
 

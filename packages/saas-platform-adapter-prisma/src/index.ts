@@ -21,6 +21,21 @@ export {
     type PrismaTxLike,
 } from './prisma-client-token.js';
 export { prismaPersistence, type PrismaPersistenceOptions } from './prisma-persistence.js';
+export {
+    PRISMA_SCHEMA_OPTIONS_TOKEN,
+    createPrismaPlanBindingResolver,
+    getPrismaDelegate,
+    resolvePrismaSchemaOptions,
+    type PrismaPlanBindingMode,
+    type PrismaPlanBindingOptions,
+    type PrismaPlanBindingResolver,
+    type PrismaPlanDelegateOptions,
+    type PrismaPlanVersionFieldCapabilities,
+    type PrismaPlanVersionFieldOptions,
+    type PrismaSchemaOptions,
+    type PrismaTenantSubscriptionOptions,
+    type ResolvedPrismaSchemaOptions,
+} from './prisma-plan-binding.js';
 export { PrismaTransactionRunner } from './prisma-transaction-runner.js';
 export { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 export { PrismaAuditAdapter, buildActorTag } from './prisma-audit.adapter.js';
@@ -44,7 +59,11 @@ export { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.js';
 export { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.js';
 // Catalog plane (CatalogModule) + V3 contract log.
 export { PrismaPlanRepository } from './prisma-plan.repository.js';
-export { PrismaBundleRepository } from './prisma-bundle.repository.js';
+export {
+    PRISMA_BUNDLE_REPOSITORY_OPTIONS,
+    PrismaBundleRepository,
+    type PrismaBundleRepositoryOptions,
+} from './prisma-bundle.repository.js';
 export { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
 export { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
 export { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';

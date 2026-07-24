@@ -76,6 +76,12 @@ model BundleVersion {
     changeNote       String  @default("")
     nonRegressive    Boolean @default(true)
 
+    // Booking window for new subscriptions. Both columns are nullable so this
+    // schema change is additive and existing rows remain valid. Legacy adapters
+    // may ignore them; time-aware adapters opt in explicitly.
+    validFrom  DateTime?
+    validUntil DateTime?
+
     createdByUserId   String?
     publishedByUserId String?
 
@@ -92,5 +98,6 @@ model BundleVersion {
     @@unique([bundleId, version])
     @@index([bundleId, supersededAt])
     @@index([bundleId, publishedAt])
+    @@index([bundleId, validFrom])
     @@map("bundle_versions")
 }

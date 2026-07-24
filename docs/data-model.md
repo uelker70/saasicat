@@ -47,12 +47,13 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 
 ### Billing core
 
-| Entity                                      | Identity / uniqueness              | Notes                                                                                                                               |
-| ------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `Subscription` (`subscriptions`)            | one per tenant (`tenantId` unique) | Binds a live `PlanVersion`. Carries pending plan/version change fields, trial/pilot state, custom limits, frozen `packageSnapshot`. |
-| `SubscriptionPaymentMethod`                 | 1:1 subscription                   | Masked payment data only.                                                                                                           |
-| `CheckoutOffer` (`checkout_offers`)         | global, no RLS                     | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`.                |
-| `SubscriptionContract` + `ContractLineItem` | append-only                        | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten.                |
+| Entity                                        | Identity / uniqueness              | Notes                                                                                                                               |
+| --------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `Subscription` (`subscriptions`)              | one per tenant (`tenantId` unique) | Binds a live `PlanVersion`. Carries pending plan/version change fields, trial/pilot state, custom limits, frozen `packageSnapshot`. |
+| `SubscriptionPaymentMethod`                   | 1:1 subscription                   | Masked payment data only.                                                                                                           |
+| `CheckoutOffer` (`checkout_offers`)           | global, no RLS                     | Immutable offer snapshot from pricing page to onboarding; `consumed` freezes it into `Subscription.packageSnapshot`.                |
+| `SubscriptionContract` + `ContractLineItem`   | append-only                        | Contractually binding source for billing; existing contracts are only ever `terminate`d, line items never rewritten.                |
+| `SubscriptionBundle` (`subscription_bundles`) | booking identity                   | Pins a standalone add-on booking to one concrete `BundleVersion`; cancellation becomes effective at its stored cutoff.              |
 
 ### Catalog & versioning
 
@@ -68,11 +69,17 @@ OpenAPI contract in `@saasicat/spec` — they describe formats, not tables.
 - At most **one draft** per lineage (`publishedAt IS NULL`) — partial unique
   indexes `*_draft_per_*` (SQL-only, see constraints file).
 - `version` is monotonically increasing per lineage.
-- At most **one live** version per lineage (`publishedAt IS NOT NULL AND
-supersededAt IS NULL`); publishing a successor supersedes the predecessor
-  **in the same transaction** (publish-and-supersede atomicity).
+- At most **one live** version per lineage
+  (`publishedAt IS NOT NULL AND supersededAt IS NULL`). Publishing a successor
+  supersedes the predecessor **in the same transaction**
+  (publish-and-supersede atomicity).
 - A superseded version stays billing-valid for the subscriptions bound to it
   (contract protection P1) — versions are never deleted once published.
+- Nullable `validFrom`/`validUntil` columns form the day-inclusive booking
+  window for new subscriptions. A null `validFrom` is a legacy fallback and
+  must be ordered with explicit `NULLS LAST` behind dated versions.
+- `PlanVersion.endsAt` is an optional precise administrative termination
+  timestamp; it is separate from the day-based auto-succession window.
 
 ### Promo codes
 
@@ -116,6 +123,10 @@ maxRedemptions)` — as a single guarded UPDATE, exactly-once under
 6. **Tenant scoping**: repository reads scoped by `tenantId` never return
    another tenant's rows; platform-wide counts (`countActiveByPlanKey`) are
    the documented exceptions and must run RLS-exempt.
+7. **Plan changes keep the concrete contract binding consistent.** Adapters
+   that declare atomic plan-binding support update the semantic `plan`, its
+   active `planVersionId` and stale pending-version state in one transaction.
+   A failed onboarding promo callback rolls the complete change back.
 
 ## Capability requirements
 
@@ -128,14 +139,13 @@ Adapters declare `PersistenceCapabilities`; the platform fail-fasts at boot:
 | SuperAdmin over RLS-protected tables              | `rowLevelSecurity` integration (informational; policies stay consumer-owned) |
 | —                                                 | `advisoryLocks` required by no platform path today                           |
 
-## Known gaps
+## Compatibility notes
 
-- `validFrom`/`validUntil` (booking windows, SPEC_V2 §4.2) exist in the wire
-  types (`VersionedEntityBase`) but **not yet as columns** — the schema
-  resolves "live" via `publishedAt`/`supersededAt` only, and
-  `PlanVersionRepository.findActive` is unimplemented in the shipped adapter
-  (consumers fall back to `findLatestLive`). Adding the columns is a
-  schema-versioned change, not an adapter patch.
-- `subscription_bundles` (standalone bundle bookings) has no fragment yet;
-  `SubscriptionRepository.countByBundleVersionId` is therefore absent in the
-  shipped adapter and bundle-version editability is fail-closed.
+- The canonical PlanVersion and BundleVersion fragments contain additive,
+  nullable booking-window columns. Prisma adapters keep legacy behavior by
+  default and expose time-aware reads only when their validity capability is
+  enabled explicitly.
+- The canonical `subscription_bundles` fragment and repository are shipped.
+  `PrismaSubscriptionRepository.countByBundleVersionId` is enabled by naming
+  the consumer's delegate; without that option the method remains absent and
+  bundle-version editability stays fail-closed.

@@ -226,6 +226,9 @@ CREATE TABLE "plan_versions" (
     "publishedChanges" JSONB,
     "changeNote" TEXT NOT NULL,
     "nonRegressive" BOOLEAN NOT NULL DEFAULT true,
+    "validFrom" TIMESTAMP(3),
+    "validUntil" TIMESTAMP(3),
+    "endsAt" TIMESTAMP(3),
     "createdByUserId" TEXT,
     "publishedByUserId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -286,6 +289,8 @@ CREATE TABLE "bundle_versions" (
     "publishedChanges" JSONB,
     "changeNote" TEXT NOT NULL DEFAULT '',
     "nonRegressive" BOOLEAN NOT NULL DEFAULT true,
+    "validFrom" TIMESTAMP(3),
+    "validUntil" TIMESTAMP(3),
     "createdByUserId" TEXT,
     "publishedByUserId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -629,6 +634,9 @@ CREATE INDEX "plan_versions_planId_supersededAt_idx" ON "plan_versions"("planId"
 CREATE INDEX "plan_versions_planId_publishedAt_idx" ON "plan_versions"("planId", "publishedAt");
 
 -- CreateIndex
+CREATE INDEX "plan_versions_planId_validFrom_idx" ON "plan_versions"("planId", "validFrom");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "plan_versions_planId_version_key" ON "plan_versions"("planId", "version");
 
 -- CreateIndex
@@ -654,6 +662,9 @@ CREATE INDEX "bundle_versions_bundleId_supersededAt_idx" ON "bundle_versions"("b
 
 -- CreateIndex
 CREATE INDEX "bundle_versions_bundleId_publishedAt_idx" ON "bundle_versions"("bundleId", "publishedAt");
+
+-- CreateIndex
+CREATE INDEX "bundle_versions_bundleId_validFrom_idx" ON "bundle_versions"("bundleId", "validFrom");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "bundle_versions_bundleId_version_key" ON "bundle_versions"("bundleId", "version");

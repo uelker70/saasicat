@@ -7,7 +7,6 @@ import {
     PrismaSubscriptionRepository,
     PrismaTenantSubscriptionWriteAdapter,
     PrismaTransactionRunner,
-    type PrismaLike,
 } from '@saasicat/adapter-prisma';
 import { EntitlementModule } from '@saasicat/nest/entitlement';
 import {
@@ -50,25 +49,26 @@ const PROJECT_KEY = 'notesapp';
         EntitlementModule.forRoot({
             global: true,
             subscriptionRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaSubscriptionRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaSubscriptionRepository(prisma),
                 inject: [PrismaService],
             },
             planVersionRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaPlanVersionRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaPlanVersionRepository(prisma),
                 inject: [PrismaService],
             },
             transactionRunner: {
-                useFactory: (prisma: PrismaLike) => new PrismaTransactionRunner(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaTransactionRunner(prisma),
                 inject: [PrismaService],
             },
             // Both together let independently booked add-on bundles flow into
             // computeLimits (platform #61); without them only plan quotas count.
             subscriptionBundleRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaSubscriptionBundleRepository(prisma),
+                useFactory: (prisma: PrismaService) =>
+                    new PrismaSubscriptionBundleRepository(prisma),
                 inject: [PrismaService],
             },
             bundleRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaBundleRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaBundleRepository(prisma),
                 inject: [PrismaService],
             },
             resolutionConfig: { defaultTrialEntitlementPlan: 'STARTER' },
@@ -80,13 +80,13 @@ const PROJECT_KEY = 'notesapp';
             imports: [PrismaModule],
             // projectKey + bundleRepository activate `GET /billing/bundles`.
             bundleRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaBundleRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaBundleRepository(prisma),
                 inject: [PrismaService],
             },
             // Overlays the editable FeatureCatalogEntry.icon in
             // `GET /billing/feature-registry`.
             catalogEntryRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaCatalogEntryRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaCatalogEntryRepository(prisma),
                 inject: [PrismaService],
             },
         }),
@@ -109,7 +109,7 @@ const PROJECT_KEY = 'notesapp';
                 inject: [NotesUsageSnapshotPort],
             },
             subscriptionWritePort: {
-                useFactory: (prisma: PrismaLike) =>
+                useFactory: (prisma: PrismaService) =>
                     new PrismaTenantSubscriptionWriteAdapter(prisma),
                 inject: [PrismaService],
             },
@@ -121,11 +121,12 @@ const PROJECT_KEY = 'notesapp';
             imports: [DemoAuthModule, PrismaModule],
             extraProviders: [NotesSubscriptionUsagePort],
             subscriptionBundleRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaSubscriptionBundleRepository(prisma),
+                useFactory: (prisma: PrismaService) =>
+                    new PrismaSubscriptionBundleRepository(prisma),
                 inject: [PrismaService],
             },
             bundleRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaBundleRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaBundleRepository(prisma),
                 inject: [PrismaService],
             },
             // Mounts the tenant bundle store at `/billing/subscription-bundles`.

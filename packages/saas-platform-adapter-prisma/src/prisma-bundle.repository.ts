@@ -1,26 +1,26 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type {
-    BundleCompatibility,
-    BundleListFilter,
-    BundlePricingOverride,
-    BundleRepository,
-    BundleRow,
-    BundleVersionRow,
-    CatalogEntryI18n,
-    CreateBundleData,
-    CreateBundleVersionDraftData,
-    TransactionContext,
-    UpdateBundleData,
-    UpdateBundleVersionDraftData,
-    VersionChange,
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import {
+    buildActiveVersionWhere,
+    type BundleCompatibility,
+    type BundleListFilter,
+    type BundlePricingOverride,
+    type BundleRepository,
+    type BundleRow,
+    type BundleVersionRow,
+    type CatalogEntryI18n,
+    type CreateBundleData,
+    type CreateBundleVersionDraftData,
+    type TransactionContext,
+    type UpdateBundleData,
+    type UpdateBundleVersionDraftData,
+    type VersionChange,
 } from '@saasicat/types';
 import {
     PRISMA_CLIENT_TOKEN,
     type DecimalLike,
-    type PrismaLike,
     type PrismaModelDelegateLike,
 } from './prisma-client-token.js';
-import { resolveClient, toQuotaMap, toStringArray } from './tx.js';
+import { toQuotaMap, toStringArray } from './tx.js';
 
 /** DB columns this repository reads from `bundles`. */
 interface BundleDbRow {
@@ -52,6 +52,12 @@ interface BundleVersionDbRow {
     marketed: boolean;
     publishedAt: Date | null;
     supersededAt: Date | null;
+    /**
+     * Optional at the structural boundary so the default repository remains
+     * compatible with clients generated from the 0.6 schema.
+     */
+    validFrom?: Date | null;
+    validUntil?: Date | null;
     publishedChanges: unknown;
     changeNote: string;
     nonRegressive: boolean;
@@ -68,28 +74,89 @@ interface BundlePrisma {
 }
 
 /**
+ * Root-client shape accepted by this repository. Delegates and `$transaction`
+ * stay opaque at the injection boundary because generated Prisma delegates
+ * have schema-specific generic signatures; calls are narrowed locally to the
+ * exact Bundle operations below.
+ */
+interface BundlePrismaClient {
+    bundle: unknown;
+    bundleVersion: unknown;
+    $transaction: unknown;
+}
+
+/**
+ * Optional DI token for apps that register `PrismaBundleRepository` directly
+ * as a Nest provider. Factory users may pass the same options as the second
+ * constructor argument.
+ */
+export const PRISMA_BUNDLE_REPOSITORY_OPTIONS = Symbol.for(
+    'saasicat/adapter-prisma/PrismaBundleRepositoryOptions',
+);
+
+export interface PrismaBundleRepositoryOptions {
+    /**
+     * Enables reads and writes of `BundleVersion.validFrom`/`validUntil`.
+     *
+     * Default `false` preserves compatibility with databases and Prisma
+     * clients generated from the 0.6 schema, where the columns do not exist.
+     */
+    validityWindows?: boolean;
+}
+
+/**
  * `BundleRepository` against the canonical `bundles` + `bundle_versions`
  * tables (SPEC_V2 §5 + §11.1 M3). Versioning mirrors `PlanVersion`: at most one
  * draft (`publishedAt IS NULL`) per bundle, monotonically incrementing
  * `version`, `supersededAt` marking the previous live version on publish.
  *
- * Divergence from time-aware consumer schemas: the canonical `bundle_versions`
- * table carries **no** `validFrom`/`validUntil` columns. The `BundleVersionRow`
- * therefore always reports both as `null`, and the `validFrom`/`validUntil`
- * inputs on the Create/Update DTOs and on `publishDraft`'s `publishMeta` are
- * accepted (to satisfy the port signature) but not persisted — consistent with
- * `PrismaPlanVersionRepository`, which documents the same schema gap.
+ * Validity-window support is opt-in via `{ validityWindows: true }`. The
+ * default deliberately does not select, read or write `validFrom`/
+ * `validUntil`, and therefore keeps working with the 0.6 schema. In the
+ * enabled mode the repository expects both nullable columns to exist.
  *
- * Atomicity of `publishDraft` (supersede-previous + publish-draft) is delegated
- * to the caller's `TransactionContext`, following the package convention that
- * repositories never open their own `$transaction`.
+ * In validity-window mode `publishDraft` opens an internal transaction when
+ * the caller did not provide one. This makes superseding the predecessor,
+ * applying its auto-succession end date and publishing the draft atomic.
+ * Legacy mode retains the 0.6 transaction behavior unchanged.
  */
 @Injectable()
 export class PrismaBundleRepository implements BundleRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    private readonly validityWindows: boolean;
+
+    /**
+     * Present only when validity-window mode is enabled. This mirrors the
+     * optional port capability and lets 0.6-schema consumers detect that an
+     * active-at-time lookup is unavailable.
+     */
+    readonly findActiveBundleVersion?: (
+        bundleId: string,
+        asOf?: Date,
+        tx?: TransactionContext,
+    ) => Promise<BundleVersionRow | null>;
+
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: BundlePrismaClient,
+        @Optional()
+        @Inject(PRISMA_BUNDLE_REPOSITORY_OPTIONS)
+        options: PrismaBundleRepositoryOptions = {},
+    ) {
+        this.validityWindows = options.validityWindows ?? false;
+        if (this.validityWindows) {
+            this.findActiveBundleVersion = (bundleId, asOf, tx) =>
+                this.findActiveBundleVersionWithValidity(bundleId, asOf ?? new Date(), tx);
+        }
+    }
 
     private db(tx?: TransactionContext): BundlePrisma {
-        return resolveClient(this.prisma, tx) as unknown as BundlePrisma;
+        return (tx ?? this.prisma) as unknown as BundlePrisma;
+    }
+
+    private transaction<T>(work: (db: BundlePrisma) => Promise<T>): Promise<T> {
+        const transaction = this.prisma.$transaction as (
+            callback: (tx: unknown) => Promise<T>,
+        ) => Promise<T>;
+        return transaction.call(this.prisma, (tx) => work(tx as BundlePrisma));
     }
 
     // ─── Stem operations ───
@@ -163,14 +230,14 @@ export class PrismaBundleRepository implements BundleRepository {
             where: { bundleId },
             orderBy: { version: 'asc' },
         });
-        return rows.map((row) => toBundleVersionRow(row, bundle));
+        return rows.map((row) => toBundleVersionRow(row, bundle, this.validityWindows));
     }
 
     async findVersionById(versionId: string): Promise<BundleVersionRow | null> {
         const row = await this.db().bundleVersion.findUnique({ where: { id: versionId } });
         if (!row) return null;
         const bundle = await this.db().bundle.findUnique({ where: { id: row.bundleId } });
-        return toBundleVersionRow(row, bundle);
+        return toBundleVersionRow(row, bundle, this.validityWindows);
     }
 
     async findCurrentDraft(bundleId: string): Promise<BundleVersionRow | null> {
@@ -179,7 +246,7 @@ export class PrismaBundleRepository implements BundleRepository {
         });
         if (!row) return null;
         const bundle = await this.db().bundle.findUnique({ where: { id: bundleId } });
-        return toBundleVersionRow(row, bundle);
+        return toBundleVersionRow(row, bundle, this.validityWindows);
     }
 
     async findLatestLive(
@@ -193,7 +260,25 @@ export class PrismaBundleRepository implements BundleRepository {
         });
         if (!row) return null;
         const bundle = await db.bundle.findUnique({ where: { id: bundleId } });
-        return toBundleVersionRow(row, bundle);
+        return toBundleVersionRow(row, bundle, this.validityWindows);
+    }
+
+    private async findActiveBundleVersionWithValidity(
+        bundleId: string,
+        asOf: Date,
+        tx?: TransactionContext,
+    ): Promise<BundleVersionRow | null> {
+        const db = this.db(tx);
+        const row = await db.bundleVersion.findFirst({
+            where: {
+                bundleId,
+                ...buildActiveVersionWhere(asOf),
+            },
+            orderBy: [{ validFrom: { sort: 'desc', nulls: 'last' } }, { version: 'desc' }],
+        });
+        if (!row) return null;
+        const bundle = await db.bundle.findUnique({ where: { id: bundleId } });
+        return toBundleVersionRow(row, bundle, true);
     }
 
     async createDraft(data: CreateBundleVersionDraftData): Promise<BundleVersionRow> {
@@ -227,10 +312,16 @@ export class PrismaBundleRepository implements BundleRepository {
                 marketed: data.marketed ?? true,
                 changeNote: data.changeNote ?? '',
                 createdByUserId: data.createdByUserId ?? null,
+                ...(this.validityWindows
+                    ? {
+                          validFrom: toNullableDate(data.validFrom),
+                          validUntil: toNullableDate(data.validUntil),
+                      }
+                    : {}),
             },
         });
         const bundle = await db.bundle.findUnique({ where: { id: data.bundleId } });
-        return toBundleVersionRow(created, bundle);
+        return toBundleVersionRow(created, bundle, this.validityWindows);
     }
 
     async updateDraft(
@@ -251,10 +342,16 @@ export class PrismaBundleRepository implements BundleRepository {
                 ...(data.yearlyNet !== undefined ? { yearlyNet: data.yearlyNet } : {}),
                 ...(data.marketed !== undefined ? { marketed: data.marketed } : {}),
                 ...(data.changeNote !== undefined ? { changeNote: data.changeNote } : {}),
+                ...(this.validityWindows && data.validFrom !== undefined
+                    ? { validFrom: toNullableDate(data.validFrom) }
+                    : {}),
+                ...(this.validityWindows && data.validUntil !== undefined
+                    ? { validUntil: toNullableDate(data.validUntil) }
+                    : {}),
             },
         });
         const bundle = await db.bundle.findUnique({ where: { id: updated.bundleId } });
-        return toBundleVersionRow(updated, bundle);
+        return toBundleVersionRow(updated, bundle, this.validityWindows);
     }
 
     async publishDraft(
@@ -268,6 +365,15 @@ export class PrismaBundleRepository implements BundleRepository {
         },
         tx?: TransactionContext,
     ): Promise<BundleVersionRow> {
+        if (this.validityWindows && tx === undefined) {
+            return this.transaction((transaction) =>
+                this.publishDraftWithValidity(transaction, versionId, publishMeta),
+            );
+        }
+        if (this.validityWindows) {
+            return this.publishDraftWithValidity(this.db(tx), versionId, publishMeta);
+        }
+
         const db = this.db(tx);
         const draft = await db.bundleVersion.findUnique({ where: { id: versionId } });
         if (!draft) {
@@ -294,7 +400,52 @@ export class PrismaBundleRepository implements BundleRepository {
             },
         });
         const bundle = await db.bundle.findUnique({ where: { id: published.bundleId } });
-        return toBundleVersionRow(published, bundle);
+        return toBundleVersionRow(published, bundle, false);
+    }
+
+    private async publishDraftWithValidity(
+        db: BundlePrisma,
+        versionId: string,
+        publishMeta: {
+            publishedByUserId: string | null;
+            publishedChanges: VersionChange[];
+            nonRegressive: boolean;
+            validFrom: Date;
+            validUntil: Date | null;
+        },
+    ): Promise<BundleVersionRow> {
+        const draft = await db.bundleVersion.findUnique({ where: { id: versionId } });
+        if (!draft) {
+            throw new Error(`BundleVersion '${versionId}' not found.`);
+        }
+
+        const now = new Date();
+        await db.bundleVersion.updateMany({
+            where: {
+                bundleId: draft.bundleId,
+                publishedAt: { not: null },
+                supersededAt: null,
+                NOT: { id: versionId },
+            },
+            data: {
+                supersededAt: now,
+                validUntil: previousUtcDay(publishMeta.validFrom),
+            },
+        });
+
+        const published = await db.bundleVersion.update({
+            where: { id: versionId },
+            data: {
+                publishedAt: now,
+                publishedByUserId: publishMeta.publishedByUserId,
+                publishedChanges: publishMeta.publishedChanges,
+                nonRegressive: publishMeta.nonRegressive,
+                validFrom: publishMeta.validFrom,
+                validUntil: publishMeta.validUntil,
+            },
+        });
+        const bundle = await db.bundle.findUnique({ where: { id: published.bundleId } });
+        return toBundleVersionRow(published, bundle, true);
     }
 
     async deleteDraft(versionId: string): Promise<void> {
@@ -323,6 +474,16 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function toDecimalString(value: DecimalLike | null): string | null {
     return value == null ? null : value.toString();
+}
+
+function toNullableDate(value: string | null | undefined): Date | null {
+    return value ? new Date(value) : null;
+}
+
+function previousUtcDay(value: Date): Date {
+    const result = new Date(value);
+    result.setUTCDate(result.getUTCDate() - 1);
+    return result;
 }
 
 function toVersionChanges(value: unknown): VersionChange[] | null {
@@ -357,7 +518,11 @@ function toBundleRow(row: BundleDbRow): BundleRow {
     };
 }
 
-function toBundleVersionRow(row: BundleVersionDbRow, bundle: BundleDbRow | null): BundleVersionRow {
+function toBundleVersionRow(
+    row: BundleVersionDbRow,
+    bundle: BundleDbRow | null,
+    validityWindows: boolean,
+): BundleVersionRow {
     return {
         id: row.id,
         bundleId: row.bundleId,
@@ -374,10 +539,10 @@ function toBundleVersionRow(row: BundleVersionDbRow, bundle: BundleDbRow | null)
         marketed: row.marketed,
         publishedAt: row.publishedAt?.toISOString() ?? null,
         supersededAt: row.supersededAt?.toISOString() ?? null,
-        // The canonical `bundle_versions` table has no validFrom/validUntil
-        // columns; time-aware validity is not expressible on this schema.
-        validFrom: null,
-        validUntil: null,
+        validFrom:
+            validityWindows && row.validFrom instanceof Date ? row.validFrom.toISOString() : null,
+        validUntil:
+            validityWindows && row.validUntil instanceof Date ? row.validUntil.toISOString() : null,
         publishedChanges: toVersionChanges(row.publishedChanges),
         changeNote: row.changeNote,
         nonRegressive: row.nonRegressive,

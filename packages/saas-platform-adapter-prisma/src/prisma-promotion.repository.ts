@@ -11,11 +11,7 @@ import type {
     PromotionValue,
     UpdatePromotionData,
 } from '@saasicat/types';
-import {
-    PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
-    type PrismaModelDelegateLike,
-} from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import { toStringArray } from './tx.js';
 
 /** DB columns this repository reads from `promotions`. */
@@ -45,6 +41,13 @@ interface PromotionPrisma {
     promotion: PrismaModelDelegateLike<PromotionDbRow>;
 }
 
+interface PromotionRepositoryClient {
+    promotion: unknown;
+    $executeRaw: unknown;
+}
+
+type ExecuteRaw = (query: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
+
 /**
  * `PromotionRepository` against the canonical `promotions` table. Not
  * versioned: promotions are edited directly.
@@ -57,7 +60,10 @@ interface PromotionPrisma {
  */
 @Injectable()
 export class PrismaPromotionRepository implements PromotionRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: PromotionRepositoryClient,
+    ) {}
 
     private get db(): PromotionPrisma {
         return this.prisma as unknown as PromotionPrisma;
@@ -107,7 +113,10 @@ export class PrismaPromotionRepository implements PromotionRepository {
         // before the field update. A following (possibly empty) Prisma update
         // then returns the fresh row with the cleared value.
         if (data.onlyLocales === null) {
-            await this.prisma.$executeRaw`
+            const executeRaw = (this.prisma.$executeRaw as ExecuteRaw).bind(
+                this.prisma,
+            ) as ExecuteRaw;
+            await executeRaw`
                 UPDATE promotions SET "onlyLocales" = NULL, "updatedAt" = NOW() WHERE id = ${id}`;
         }
         const row = await this.db.promotion.update({

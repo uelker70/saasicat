@@ -15,7 +15,10 @@ const MAX_PAGE_SIZE = 200;
  */
 @Injectable()
 export class PrismaAuditQueryAdapter implements AuditQueryPort {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Pick<PrismaLike, 'auditLog'>,
+    ) {}
 
     async list(filter: AuditQuery): Promise<AuditEntry[]> {
         const page = Math.max(filter.page ?? 1, 1);

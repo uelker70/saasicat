@@ -4,11 +4,7 @@ import type {
     MarketingSettingsRow,
     UpdateMarketingSettingsData,
 } from '@saasicat/types';
-import {
-    PRISMA_CLIENT_TOKEN,
-    type PrismaLike,
-    type PrismaModelDelegateLike,
-} from './prisma-client-token.js';
+import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import { toStringArray } from './tx.js';
 
 /** DB columns this repository reads from `marketing_settings`. */
@@ -23,6 +19,10 @@ interface MarketingSettingsPrisma {
     marketingSettings: PrismaModelDelegateLike<MarketingSettingsDbRow>;
 }
 
+interface MarketingSettingsRepositoryClient {
+    marketingSettings: unknown;
+}
+
 /**
  * `MarketingSettingsRepository` against the canonical `marketing_settings`
  * table (one row per project). A missing row means "full locale pool active",
@@ -30,7 +30,10 @@ interface MarketingSettingsPrisma {
  */
 @Injectable()
 export class PrismaMarketingSettingsRepository implements MarketingSettingsRepository {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: MarketingSettingsRepositoryClient,
+    ) {}
 
     private get db(): MarketingSettingsPrisma {
         return this.prisma as unknown as MarketingSettingsPrisma;

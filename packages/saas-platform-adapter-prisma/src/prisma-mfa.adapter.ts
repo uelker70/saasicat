@@ -19,7 +19,10 @@ import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
  */
 @Injectable()
 export class PrismaMfaAdapter implements MfaPort {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Pick<PrismaLike, 'superAdminMfa'>,
+    ) {}
 
     async getSecret(userId: string): Promise<string | null> {
         const row = await this.prisma.superAdminMfa.findUnique({ where: { userId } });

@@ -7,13 +7,16 @@
 import type {
     AuditPort,
     AuditQueryPort,
+    BundleRepository,
     MfaPort,
     PersistenceCapabilities,
+    PlanRepository,
     PlanVersionRepository,
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
     SubscriptionContractRepository,
     SubscriptionRepository,
+    TenantSubscriptionWritePort,
     TransactionRunner,
 } from '@saasicat/types';
 
@@ -34,6 +37,16 @@ export interface ContractAdapterInstances {
     audit?: AuditPort;
     auditQuery?: AuditQueryPort;
     subscriptionContractRepository?: SubscriptionContractRepository;
+    /**
+     * Enables the atomic plan-binding scenarios. Adapters should expose this
+     * member only for a mode that promises to keep `plan`,
+     * `planVersionId` and pending-version state consistent.
+     */
+    tenantSubscriptionWrite?: TenantSubscriptionWritePort;
+    /** Enables BundleVersion validity-window and auto-succession scenarios. */
+    bundleRepository?: BundleRepository;
+    /** Enables PlanVersion lifecycle, identity and validity-window scenarios. */
+    planRepository?: PlanRepository;
 }
 
 /** Fixture writers — implemented per adapter against its own schema. */
@@ -72,6 +85,8 @@ export interface PersistenceContractHarness {
 export interface PersistenceAdapterContractOptions {
     /** Display name in the test output, e.g. `'adapter-prisma @ postgres16'`. */
     name: string;
+    /** Project identity used by catalog lifecycle scenarios. */
+    projectKey: string;
     /** Builds the harness once for the whole suite. */
     create(): Promise<PersistenceContractHarness>;
 }

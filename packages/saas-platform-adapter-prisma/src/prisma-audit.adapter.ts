@@ -16,7 +16,10 @@ export function buildActorTag(actor: AdminActor): string {
  */
 @Injectable()
 export class PrismaAuditAdapter implements AuditPort {
-    constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
+    constructor(
+        @Inject(PRISMA_CLIENT_TOKEN)
+        private readonly prisma: Pick<PrismaLike, 'auditLog'>,
+    ) {}
 
     async write(input: {
         actor: AdminActor;

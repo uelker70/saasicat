@@ -23,11 +23,14 @@ import { persistenceAdapterContract } from '@saasicat/persistence-testing';
 import {
     PrismaAuditAdapter,
     PrismaAuditQueryAdapter,
+    PrismaBundleRepository,
     PrismaMfaAdapter,
+    PrismaPlanRepository,
     PrismaPlanVersionRepository,
     PrismaPromoCodeRedemptionRepository,
     PrismaPromoCodeRepository,
     PrismaSubscriptionRepository,
+    PrismaTenantSubscriptionWriteAdapter,
     PrismaTransactionRunner,
 } from '../dist/index.js';
 
@@ -110,6 +113,8 @@ const PLATFORM_TABLES = [
     'subscriptions',
     'plan_versions',
     'plans',
+    'bundle_versions',
+    'bundles',
     'audit_logs',
     'super_admin_mfa',
     'super_admin_users',
@@ -132,6 +137,20 @@ function createHarness() {
             mfa: new PrismaMfaAdapter(prisma),
             audit: new PrismaAuditAdapter(prisma),
             auditQuery: new PrismaAuditQueryAdapter(prisma),
+            tenantSubscriptionWrite: new PrismaTenantSubscriptionWriteAdapter(prisma, {
+                tenantSubscription: {
+                    synchronizePlanVersion: true,
+                    atomicOnboardingSelection: true,
+                },
+            }),
+            bundleRepository: new PrismaBundleRepository(prisma, {
+                validityWindows: true,
+            }),
+            planRepository: new PrismaPlanRepository(prisma, {
+                planVersionFields: {
+                    catalog: { validityWindows: true, endsAt: true },
+                },
+            }),
         },
         seed: {
             async createPlanVersion(input) {
@@ -188,6 +207,7 @@ function createHarness() {
 
 persistenceAdapterContract({
     name: 'adapter-prisma @ postgres (canonical fragments schema)',
+    projectKey: 'adapter-prisma-contract',
     create: async () => createHarness(),
 });
 

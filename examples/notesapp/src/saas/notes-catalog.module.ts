@@ -6,7 +6,6 @@ import {
     PrismaMarketingSettingsRepository,
     PrismaPlanRepository,
     PrismaPromotionRepository,
-    type PrismaLike,
 } from '@saasicat/adapter-prisma';
 import { CatalogModule } from '@saasicat/nest/catalog';
 
@@ -32,27 +31,29 @@ import { NOTES_FEATURE_UI_REGISTRY } from './feature-ui-registry';
     imports: [
         CatalogModule.forRoot({
             planRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaPlanRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaPlanRepository(prisma),
                 inject: [PrismaService],
             },
             bundleRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaBundleRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaBundleRepository(prisma),
                 inject: [PrismaService],
             },
             catalogEntryRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaCatalogEntryRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaCatalogEntryRepository(prisma),
                 inject: [PrismaService],
             },
             marketingProjectionRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaMarketingProjectionRepository(prisma),
+                useFactory: (prisma: PrismaService) =>
+                    new PrismaMarketingProjectionRepository(prisma),
                 inject: [PrismaService],
             },
             promotionRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaPromotionRepository(prisma),
+                useFactory: (prisma: PrismaService) => new PrismaPromotionRepository(prisma),
                 inject: [PrismaService],
             },
             marketingSettingsRepository: {
-                useFactory: (prisma: PrismaLike) => new PrismaMarketingSettingsRepository(prisma),
+                useFactory: (prisma: PrismaService) =>
+                    new PrismaMarketingSettingsRepository(prisma),
                 inject: [PrismaService],
             },
             controller: { guards: [DemoAuthGuard] },
