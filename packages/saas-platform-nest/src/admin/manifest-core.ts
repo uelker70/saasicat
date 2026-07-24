@@ -1,6 +1,6 @@
 // PLATFORM_CORE_MANIFEST_CONTRIBUTION — the generic manifest spine that every
 // SuperAdmin consumer app receives: StandardPage definitions for the
-// platform pages (dashboard, tenants, plans, planVersions, audit, users, pilots),
+// platform pages (dashboard, tenants, plans, audit, users, pilots),
 // the generic tenant actions (suspend/reactivate/export/impersonate plus
 // subscriptions.cancel and pilots.grant/revoke/extend) and the audit action
 // labels for exactly these operations.
@@ -28,7 +28,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
         // section is deliberately curated:
         //   Overview: dashboard
         //   Product catalog: discovery → bundles → plans →
-        //                   planVersions → marketingCatalog → promoCodes
+        //                   marketingCatalog → promoCodes
         //                   (promoCodes is appended by the app contributions
         //                   and therefore lands at the end of the section)
         //   Customers: tenants → users → pilots
@@ -44,7 +44,6 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             // Apps with a DB-driven catalog set `bundles.read = true`.
             bundles: { enabled: true, requiredCapability: 'bundles.read' },
             plans: { enabled: true, requiredCapability: 'plans.read' },
-            planVersions: { enabled: true, requiredCapability: 'plans.read' },
             // SPEC_V2 §11.1 M3 — marketing catalog (locale pivot).
             // Apps that market a public catalog set
             // `marketingProjections.read = true`.

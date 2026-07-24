@@ -21,7 +21,7 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
         'dashboard.read': true,
         // Discovery review page (DB-backed catalog entries from NotesCatalogModule).
         'discovery.read': true,
-        // Plans + plan-versions pages/actions.
+        // Plans lifecycle page/actions.
         'plans.read': true,
         'plans.publish': true,
         // Bundles page + editor actions.
@@ -49,7 +49,7 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
 
     navigation: {
         standardPages: {
-            // discovery, plans, planVersions, bundles,
+            // discovery, plans, bundles,
             // marketingCatalog, tenants, users and audit inherit the
             // platform-core `enabled: true` + requiredCapability; the
             // capabilities above wire them into the nav.

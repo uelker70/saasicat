@@ -11,7 +11,6 @@
 //   - nav-builder:          buildRoutes, buildSidebar, resolveExtension
 //   - action-registry:      ActionRegistry, MissingHandlerError, ActionDefNotInManifestError
 //   - batch-column-fetcher: BatchColumnFetcher + BatchColumnDriftError
-//   - plan-versions-catalog: plan-version list/diff helpers
 //   - i18n:                 SaLocale, typed DE/EN catalogs, formatMessage
 //   - version:              ADMIN_UI_VERSION
 
@@ -23,5 +22,4 @@ export * from './manifest-loader.js';
 export * from './nav-builder.js';
 export * from './action-registry.js';
 export * from './batch-column-fetcher.js';
-export * from './plan-versions-catalog.js';
 export * from './i18n/index.js';

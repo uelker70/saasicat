@@ -80,6 +80,10 @@ describe('buildRoutes — StandardPages filter', () => {
         assert.equal(tenants.path, DEFAULT_STANDARD_PAGE_ROUTES.tenants);
     });
 
+    test('does not expose the removed planVersions standard page', () => {
+        assert.equal(Object.hasOwn(DEFAULT_STANDARD_PAGE_ROUTES, 'planVersions'), false);
+    });
+
     test('standardPageRoutes override', () => {
         const routes = buildRoutes(buildManifest(), {
             standardPageRoutes: { tenants: '/admin/clubs' },

@@ -248,7 +248,7 @@ Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 | `AdminLayout`                            | Sidebar, nav guard, MFA prompt                             |
 | `DashboardPage`                          | KPI cards (fed by the manifest)                            |
 | `TenantsPage` / `TenantDetailPage`       | Tenant management + actions                                |
-| `PlansPage` / `PlanVersionsPage`         | Plans, plan editor, version diff                           |
+| `PlansPage`                              | Plan lifecycle, editor, version timeline and diff          |
 | `BundlesPage`                            | Bundle/BundleVersion CRUD                                  |
 | `DiscoveryPage`                          | Capability/feature/quota review with lifecycle transitions |
 | `MarketingCatalogPage`                   | i18n marketing texts + pricing actions                     |
@@ -257,6 +257,13 @@ Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 | `UsersPage`                              | SuperAdmin user management (MFA, password reset, role)     |
 | `PilotsPage`                             | Pilot feature grants (feature flags)                       |
 | `PromoCodesPage` / `PromoCodeDetailPage` | Promo code CRUD + redemption tracking                      |
+
+The former synthetic `PlanVersionsPage` is no longer a standard page. A global
+historical comparison will return as an immutable **Publication Archive** /
+**Catalog History** based on [#30](https://github.com/uelker70/saasicat/issues/30)
+and [#35](https://github.com/uelker70/saasicat/issues/35). The reusable timeline
+and diff components remain available for that work. `MarketingCatalogPage`
+continues to be the separate marketing projection.
 
 ---
 
@@ -564,7 +571,6 @@ export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
     navigation: {
         standardPages: {
             subscriptions: { enabled: false, requiredCapability: 'subscriptions.read' },
-            planVersions: { enabled: false }, // integrated in the Plans cockpit
         },
         projectPages: [
             {
