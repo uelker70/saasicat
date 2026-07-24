@@ -127,7 +127,6 @@
                         "subscriptions": { "$ref": "#/$defs/StandardPageDef" },
                         "promoCodes": { "$ref": "#/$defs/StandardPageDef" },
                         "plans": { "$ref": "#/$defs/StandardPageDef" },
-                        "planVersions": { "$ref": "#/$defs/StandardPageDef" },
                         "audit": { "$ref": "#/$defs/StandardPageDef" },
                         "users": { "$ref": "#/$defs/StandardPageDef" },
                         "pilots": { "$ref": "#/$defs/StandardPageDef" },

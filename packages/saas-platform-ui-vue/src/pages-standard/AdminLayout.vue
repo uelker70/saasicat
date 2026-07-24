@@ -112,7 +112,7 @@ import { ADMIN_UI_VERSION } from '../client/version.js';
 //   - `manifest`          : loaded AdminManifest (or null before auth)
 //   - `staticNavFallback` : sidebar before manifest load (no flicker)
 //   - `localItems`        : additional sidebar items not present in the
-//                           manifest (e.g. an app-specific "Plan-Versionen" page)
+//                           manifest
 //   - `availableExtensions` : set for ProjectPage capability filter
 //   - `standardPageRoutes`: override per StandardPageKey (e.g.
 //                           `dashboard` → '/admin/' instead of '/admin/dashboard')

@@ -3,21 +3,6 @@ import { defineMessages } from '../define.js';
 export const planVersionsMessages = defineMessages(
     {
         compareEnd: 'Vergleich beenden',
-        page: {
-            loadingCatalog: 'Catalog wird geladen…',
-            noAuditLoader: 'Kein Audit-Loader konfiguriert.',
-        },
-        header: {
-            modeList: 'Plan-Liste',
-            modeMatrix: 'Feature-Matrix',
-            modeAudit: 'Aktivität',
-            publishedOn: 'Publiziert {date}',
-            openDrafts: 'offene Drafts',
-            regressionOne: 'Regression',
-            regressionMany: 'Regressionen',
-            startPublishFlow: 'Publish-Flow starten',
-            compareModeHint: 'Vergleichsmodus aktiv — andere Ansichten deaktiviert',
-        },
         status: {
             draft: 'DRAFT',
             active: 'AKTIV',
@@ -30,30 +15,6 @@ export const planVersionsMessages = defineMessages(
             openCount: '{count} offen',
             unknown: 'unbekannt',
             compareHint: 'Rechtsklick auf Snapshot → vergleichen',
-        },
-        list: {
-            kpiPlans: 'Pakete',
-            kpiSelfService: 'Self-Service',
-            kpiOfTotal: 'von {count}',
-            kpiFeaturesTotal: 'Features gesamt',
-            missingPlansLabel: 'Fehlende Pakete:',
-            missingPlansHint: '— keine Live-Version in diesem Snapshot.',
-            createDraftFor: 'Draft für {planId}',
-            colPlan: 'Paket',
-            colPriceNet: 'Preis (netto)',
-            colFeatures: 'Features',
-            draftHintLabel: 'Arbeitsstand:',
-            draftHintBefore: 'Drafts oben in der Liste. Limits, Preise und Features per Klick auf',
-            draftHintEditButton: '„Bearbeiten"',
-            draftHintMiddle: 'ändern (ohne MFA). Erst',
-            draftHintPublishFlow: 'Publish-Flow',
-            draftHintAfter:
-                '(Validate → Diff-Review → MFA → Apply) macht sie für künftige Renewals wirksam.',
-        },
-        matrix: {
-            colFeature: 'Feature',
-            perMonthShort: '/Mo',
-            fallbackGroup: 'Sonstige',
         },
         diff: {
             legend: 'Vergleich',
@@ -78,24 +39,10 @@ export const planVersionsMessages = defineMessages(
             yearlyNet: 'Preis jährlich (netto)',
             unitSize: 'Einheitsgröße',
         },
-        audit: {
-            title: 'Aktivität',
-            eventCount: '{count} Events',
-            loading: 'Audit-Trail wird geladen…',
-            empty: 'Keine Plan-/Add-on-Events im Audit-Log gefunden.',
-            actionPlanPublished: 'Plan publiziert',
-            actionPlanDraftCreated: 'Plan-Draft angelegt',
-            actionPlanDraftUpdated: 'Plan-Draft geändert',
-            actionPlanDraftDeleted: 'Plan-Draft gelöscht',
-            actionCatalogPublished: 'Catalog publiziert',
-            detailRegression: 'Mit mindestens einer Verschlechterung publiziert.',
-            detailFieldsChanged: '{count} Felder geändert.',
-        },
         bulkPublish: {
             changeNoteRequired: 'changeNote ist Pflicht beim Publish.',
         },
         format: {
-            priceIndividual: 'individuell',
             today: 'heute',
             yesterday: 'gestern',
             daysAgo: 'vor {count} Tagen',
@@ -105,42 +52,9 @@ export const planVersionsMessages = defineMessages(
             yearsAgoOne: 'vor {count} Jahr',
             yearsAgoMany: 'vor {count} Jahren',
         },
-        catalog: {
-            draftsLabel: 'Arbeitsstand',
-            draftsTitleEmpty: 'Keine offenen Drafts',
-            draftsTitleOne: '{count} offener Draft bereit für Publish',
-            draftsTitleMany: '{count} offene Drafts bereit für Publish',
-            draftsDescriptionEmpty:
-                'Lege einen Draft an, um Limits, Preise oder Features zu ändern. Drafts sind ohne MFA editierbar und werden erst beim Publish wirksam.',
-            draftsDescription:
-                'Diese Tabelle zeigt, wie der Catalog nach Publish aller Drafts aussehen würde. Bestehende Mandanten bleiben auf der vorherigen Version, bis sie aktiv migriert werden.',
-            activeLabel: 'Aktuell',
-            activeTitle: 'Live-Catalog',
-            activeDescription:
-                'Diese Plan-Versionen sind aktuell für neue Onboardings und für Renewals nach Stichtag aktiv.',
-            publishEvent: 'Publish-Event',
-            publishEventSingle: '{planId} v{version} publiziert',
-            publishEventMultiple: '{count} Versionen publiziert',
-            reconstructedSnapshot: 'Snapshot rekonstruiert aus per-Entity-Versionen.',
-        },
     },
     {
         compareEnd: 'End comparison',
-        page: {
-            loadingCatalog: 'Loading catalog…',
-            noAuditLoader: 'No audit loader configured.',
-        },
-        header: {
-            modeList: 'Plan list',
-            modeMatrix: 'Feature matrix',
-            modeAudit: 'Activity',
-            publishedOn: 'Published {date}',
-            openDrafts: 'open drafts',
-            regressionOne: 'regression',
-            regressionMany: 'regressions',
-            startPublishFlow: 'Start publish flow',
-            compareModeHint: 'Comparison mode active — other views disabled',
-        },
         status: {
             draft: 'DRAFT',
             active: 'ACTIVE',
@@ -153,31 +67,6 @@ export const planVersionsMessages = defineMessages(
             openCount: '{count} open',
             unknown: 'unknown',
             compareHint: 'Right-click a snapshot → compare',
-        },
-        list: {
-            kpiPlans: 'Plans',
-            kpiSelfService: 'Self-service',
-            kpiOfTotal: 'of {count}',
-            kpiFeaturesTotal: 'Features total',
-            missingPlansLabel: 'Missing plans:',
-            missingPlansHint: '— no live version in this snapshot.',
-            createDraftFor: 'Draft for {planId}',
-            colPlan: 'Plan',
-            colPriceNet: 'Price (net)',
-            colFeatures: 'Features',
-            draftHintLabel: 'Working state:',
-            draftHintBefore:
-                'Drafts at the top of the list. Change limits, prices and features by clicking',
-            draftHintEditButton: '"Edit"',
-            draftHintMiddle: '(without MFA). Only the',
-            draftHintPublishFlow: 'publish flow',
-            draftHintAfter:
-                '(validate → diff review → MFA → apply) makes them effective for future renewals.',
-        },
-        matrix: {
-            colFeature: 'Feature',
-            perMonthShort: '/mo',
-            fallbackGroup: 'Other',
         },
         diff: {
             legend: 'Comparison',
@@ -202,24 +91,10 @@ export const planVersionsMessages = defineMessages(
             yearlyNet: 'Price yearly (net)',
             unitSize: 'Unit size',
         },
-        audit: {
-            title: 'Activity',
-            eventCount: '{count} events',
-            loading: 'Loading audit trail…',
-            empty: 'No plan/add-on events found in the audit log.',
-            actionPlanPublished: 'Plan published',
-            actionPlanDraftCreated: 'Plan draft created',
-            actionPlanDraftUpdated: 'Plan draft changed',
-            actionPlanDraftDeleted: 'Plan draft deleted',
-            actionCatalogPublished: 'Catalog published',
-            detailRegression: 'Published with at least one regression.',
-            detailFieldsChanged: '{count} fields changed.',
-        },
         bulkPublish: {
             changeNoteRequired: 'changeNote is required when publishing.',
         },
         format: {
-            priceIndividual: 'custom',
             today: 'today',
             yesterday: 'yesterday',
             daysAgo: '{count} days ago',
@@ -228,24 +103,6 @@ export const planVersionsMessages = defineMessages(
             monthsAgo: '{count} months ago',
             yearsAgoOne: '{count} year ago',
             yearsAgoMany: '{count} years ago',
-        },
-        catalog: {
-            draftsLabel: 'Working state',
-            draftsTitleEmpty: 'No open drafts',
-            draftsTitleOne: '{count} open draft ready to publish',
-            draftsTitleMany: '{count} open drafts ready to publish',
-            draftsDescriptionEmpty:
-                'Create a draft to change limits, prices or features. Drafts are editable without MFA and only take effect when published.',
-            draftsDescription:
-                'This table shows what the catalog would look like after publishing all drafts. Existing tenants stay on the previous version until they are actively migrated.',
-            activeLabel: 'Current',
-            activeTitle: 'Live catalog',
-            activeDescription:
-                'These plan versions are currently active for new onboardings and for renewals after the effective date.',
-            publishEvent: 'Publish event',
-            publishEventSingle: '{planId} v{version} published',
-            publishEventMultiple: '{count} versions published',
-            reconstructedSnapshot: 'Snapshot reconstructed from per-entity versions.',
         },
     },
 );

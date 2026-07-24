@@ -72,9 +72,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { CatalogSnapshot } from '../../client/plan-versions-catalog.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import type { CatalogSnapshot } from './catalog-history.types.js';
 import { formatRelative } from './format.js';
 
 const props = defineProps<{

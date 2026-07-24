@@ -76,7 +76,6 @@ export type StandardPageKey =
     | 'subscriptions'
     | 'promoCodes'
     | 'plans'
-    | 'planVersions'
     | 'audit'
     | 'users'
     | 'pilots'

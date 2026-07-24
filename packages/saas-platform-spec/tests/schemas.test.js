@@ -156,6 +156,34 @@ test('adminManifest accepts minimal valid manifest', () => {
     assert.ok(ok, JSON.stringify(validate.errors, null, 2));
 });
 
+test('adminManifest rejects the removed planVersions standard page', () => {
+    const ajv = makeAjv();
+    const validate = ajv.compile(adminManifestSchema);
+    const ok = validate({
+        schemaVersion: 1,
+        project: { key: 'demoapp', displayName: 'DemoApp' },
+        build: {
+            platformPackageVersion: '0.1.0',
+            appVersion: 'demoapp@2026.05.07',
+            manifestHash: 'sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
+        },
+        planCatalogSnapshot: {
+            source: 'config/plans.yaml',
+            hash: 'sha256-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
+            currency: 'EUR',
+            vatRate: 19,
+            plans: [],
+        },
+        capabilities: { 'plans.read': true },
+        navigation: {
+            standardPages: {
+                planVersions: { enabled: true, requiredCapability: 'plans.read' },
+            },
+        },
+    });
+    assert.equal(ok, false);
+});
+
 test('adminManifest rejects capability with colon notation', () => {
     const ajv = makeAjv();
     const validate = ajv.compile(adminManifestSchema);

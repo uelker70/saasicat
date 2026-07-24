@@ -76,7 +76,6 @@ export interface AdminManifest {
             subscriptions?: StandardPageDef;
             promoCodes?: StandardPageDef;
             plans?: StandardPageDef;
-            planVersions?: StandardPageDef;
             audit?: StandardPageDef;
             users?: StandardPageDef;
             pilots?: StandardPageDef;
