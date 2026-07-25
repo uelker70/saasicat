@@ -1,9 +1,15 @@
 # SaaSiCat — Quickstart
 
-Make a NestJS app SaaS-capable in **10 steps**: tenants, plans, features,
-quotas, automatic backend enforcement and a SuperAdmin UI. Goal: a working
-SuperAdmin on top of an existing CRUD backend in ~30 minutes, with < 100
-lines of app-owned code.
+Take one feature through the complete SaaSiCat loop in **10 steps**:
+
+```text
+Capability → Discovery → Packaging → Contract → Enforcement
+```
+
+The result is a NestJS application whose code-declared features and quotas
+are discovered automatically, packaged for customers and enforced at
+runtime. The quickstart takes about 30 minutes and requires fewer than 100
+lines of app-owned platform code.
 
 > Assumes a **NestJS app with Prisma + PostgreSQL + JWT auth** that already
 > has a `tenantId` concept (e.g. a `Tenant` table + RLS, or `tenantId` as a
@@ -21,8 +27,12 @@ lines of app-owned code.
 - a `User` table with `tenantId`,
 - JWT login.
 
-We turn it into a SaaS app with two plans (Starter / Pro), a quota on notes
-per tenant, and a SuperAdmin UI.
+We declare note creation and export in code, let SaaSiCat discover them,
+package them as Starter and Pro, and enforce the resulting feature and quota
+rules per tenant.
+
+For the reasoning behind each stage, read
+[From Capability to Contract](capability-to-contract.md).
 
 ---
 
@@ -86,7 +96,7 @@ to your `User`/`Tenant` tables need to be enabled manually (commented-out
 unique indexes and the subscription CHECK are part of the canonical schema
 (details: [data model](data-model.md)).
 
-## Step 4 — Write a quota provider
+## Step 4 — Declare a countable product capability
 
 This is where you declare **what is countable and how to count it**. For each
 countable dimension, one class that fulfils `QuotaProvider` and is decorated
@@ -166,15 +176,15 @@ in a single call **and automatically activates the feature guard + quota
 interceptor** as soon as you pass `defaultPlanId` (quickstart path) or
 `adapters.planResolver` (V3 path).
 
-| Field               | What it does                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| `planCatalog`       | App identity (branding, currency, locales) from the YAML.                                  |
-| `controller.guards` | Mandatory guards for `/admin/manifest` + `/admin/discovery` (typically `[JwtAuthGuard]`).  |
-| `persistence`       | The bundle from step 5. Capabilities are validated fail-fast at boot.                      |
-| `adapters`          | Optional field-by-field overrides of the bundle (custom schema, other ORM).                |
-| `defaultPlanId`     | Fallback plan for all tenants when no `planResolver` is set — dev/smoke.                   |
-| `quotaProviders`    | `QuotaProvider` classes from step 4 — `EnforceQuotaInterceptor` uses them for `count()`.   |
-| `tenantManifest`    | Activates `GET /tenant/manifest` (features + quotas + filtered navigation).                |
+| Field               | What it does                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| `planCatalog`       | App identity (branding, currency, locales) from the YAML.                                 |
+| `controller.guards` | Mandatory guards for `/admin/manifest` + `/admin/discovery` (typically `[JwtAuthGuard]`). |
+| `persistence`       | The bundle from step 5. Capabilities are validated fail-fast at boot.                     |
+| `adapters`          | Optional field-by-field overrides of the bundle (custom schema, other ORM).               |
+| `defaultPlanId`     | Fallback plan for all tenants when no `planResolver` is set — dev/smoke.                  |
+| `quotaProviders`    | `QuotaProvider` classes from step 4 — `EnforceQuotaInterceptor` uses them for `count()`.  |
+| `tenantManifest`    | Activates `GET /tenant/manifest` (features + quotas + filtered navigation).               |
 
 `backend/src/app.module.ts`:
 
@@ -239,7 +249,7 @@ export class AppModule {}
 - `TenantManifestService` + controller are registered if `tenantManifest`
   is set.
 
-## Step 7 — Declare capability + feature + quota in code
+## Step 7 — Declare and enforce the feature in code
 
 Four decorators marry your code to the platform:
 
@@ -247,7 +257,7 @@ Four decorators marry your code to the platform:
 | ---------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `@DefinesQuota({ key, feature, ... })`         | Class implementing `QuotaProvider` | "This quota exists, and I can count it." → discovery UI + interceptor source.                                 |
 | `@ImplementsCapability(key, { feature, ... })` | Endpoint method                    | "This endpoint realizes the capability." → discovery UI, can be included in plans.                            |
-| `@RequireFeature(...keys)`                     | Endpoint method                    | The platform `StaticFeatureGuard` checks per request: is at least **one** of the features in the active plan? |  
+| `@RequireFeature(...keys)`                     | Endpoint method                    | The platform `StaticFeatureGuard` checks per request: is at least **one** of the features in the active plan? |
 | `@EnforceQuota(quotaKey)`                      | Endpoint method                    | The platform `EnforceQuotaInterceptor` calls the `QuotaProvider` and compares `count + delta ≤ planLimit`.    |
 
 `backend/src/notes/notes.controller.ts`:
@@ -462,18 +472,18 @@ Add these in this order:
 
 ## Common quickstart failures
 
-| Symptom                                                 | Cause                                                                                                          |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `saas-platform: command not found`                      | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.                              |
-| `prisma-fragments/` directory not found                 | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                                              |
-| `Nest can't resolve dependencies of X (?, ...)`         | The bundle factories inject your `PrismaService` — its `PrismaModule` must be `@Global` (or in `imports`).     |
-| Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.                        |
-| `discovery-snapshot.json` is empty                      | The module holding the decorators (e.g. `NotesModule`) is missing from `AppModule.imports[]`.                  |
-| `@RequireFeature` lets everything through               | Neither `defaultPlanId` nor `adapters.planResolver` is set → no static entitlement active.                     |
-| `@EnforceQuota` never blocks                            | The `QuotaProvider` class is not listed in `quotaProviders: [...]` of `SaasPlatformModule.forRoot()`.          |
-| `@RequireFeature('NOTES')` throws 403                   | The test tenant is not on a plan that includes `NOTES` — with `defaultPlanId` all tenants are equal.           |
-| Discovery tabs stay empty                               | Vite cache holding a stale build. `rm -rf node_modules/.vite && pnpm dev`.                                     |
-| Setup wizard does not appear / `403 SETUP_DISABLED`     | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).                     |
-| `tenantManifest` throws at boot                         | `tenantManifest` is active, but neither `defaultPlanId` nor `adapters.planResolver` is set.                    |
+| Symptom                                                 | Cause                                                                                                      |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `saas-platform: command not found`                      | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.                          |
+| `prisma-fragments/` directory not found                 | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                                          |
+| `Nest can't resolve dependencies of X (?, ...)`         | The bundle factories inject your `PrismaService` — its `PrismaModule` must be `@Global` (or in `imports`). |
+| Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.                    |
+| `discovery-snapshot.json` is empty                      | The module holding the decorators (e.g. `NotesModule`) is missing from `AppModule.imports[]`.              |
+| `@RequireFeature` lets everything through               | Neither `defaultPlanId` nor `adapters.planResolver` is set → no static entitlement active.                 |
+| `@EnforceQuota` never blocks                            | The `QuotaProvider` class is not listed in `quotaProviders: [...]` of `SaasPlatformModule.forRoot()`.      |
+| `@RequireFeature('NOTES')` throws 403                   | The test tenant is not on a plan that includes `NOTES` — with `defaultPlanId` all tenants are equal.       |
+| Discovery tabs stay empty                               | Vite cache holding a stale build. `rm -rf node_modules/.vite && pnpm dev`.                                 |
+| Setup wizard does not appear / `403 SETUP_DISABLED`     | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).                 |
+| `tenantManifest` throws at boot                         | `tenantManifest` is active, but neither `defaultPlanId` nor `adapters.planResolver` is set.                |
 
 For deeper troubleshooting, see the [handbook](handbook.md), §11.
