@@ -36,8 +36,9 @@ or run the [NotesApp reference implementation](examples/notesapp/).
   and promotions for your pricing page.
 - **Runtime feature and quota checks** with optional upgrade offers in denied
   responses.
-- **Billing lifecycle hooks, checkout offers, contracts and promo codes**
-  without coupling the core to one payment provider.
+- **Billing lifecycle hooks, checkout offers, contracts and promo codes** with
+  payment-provider connections behind integration ports today and built-in
+  provider integration planned.
 - **A ready-to-use SuperAdmin UI** for discovery, catalog, plans, contracts,
   tenants and audit.
 - **Operational building blocks** including tenant administration, TOTP MFA,
