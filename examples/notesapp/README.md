@@ -1,10 +1,15 @@
 # notesapp — SaaSiCat reference implementation
 
 A deliberately small, **runnable** multi-tenant NestJS app that follows the
-[quickstart](../../docs/quickstart.md) end to end: two plans in
-`config/saas.yaml`, one quota provider, the four platform decorators, the
-`prismaPersistence()` bundle — and automatic feature/quota enforcement with
-zero platform code inside the handlers.
+[quickstart](../../docs/quickstart.md) through the full product loop:
+
+```text
+Capability → Discovery → Packaging → Contract → Enforcement
+```
+
+It declares note creation and export in code, discovers both at boot,
+packages them as Starter and Pro, and verifies feature and quota enforcement
+with no platform logic inside the handlers.
 
 What it demonstrates:
 
