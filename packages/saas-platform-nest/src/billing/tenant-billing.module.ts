@@ -153,6 +153,8 @@ export interface TenantBillingModuleOptions {
      * resolves factory inject tokens only in the DynamicModule's own scope.
      */
     extraProviders?: Provider[];
+    /** Additional providers this module makes visible to importing modules. */
+    extraExports?: NonNullable<DynamicModule['exports']>;
     /** Register the module globally — default `false`. */
     global?: boolean;
 }
@@ -199,7 +201,10 @@ export class TenantBillingModule {
                     options.contractFreeze.subscriptionContractRepository,
                 ),
                 SubscriptionContractService,
-                { provide: CONTRACT_FREEZE_PORT_TOKEN, useClass: SubscriptionContractFreezeService },
+                {
+                    provide: CONTRACT_FREEZE_PORT_TOKEN,
+                    useClass: SubscriptionContractFreezeService,
+                },
             );
         }
         if (options.tenantIdResolver) {
@@ -243,6 +248,7 @@ export class TenantBillingModule {
                 SUBSCRIPTION_WRITE_PORT_TOKEN,
                 ...(hasPendingPlanQueryPort ? [PendingPlanMaterializationService] : []),
                 ...(hasContractFreeze ? [CONTRACT_FREEZE_PORT_TOKEN] : []),
+                ...(options.extraExports ?? []),
             ],
         };
     }

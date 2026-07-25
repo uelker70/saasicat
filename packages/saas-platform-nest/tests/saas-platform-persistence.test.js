@@ -1,8 +1,18 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import 'reflect-metadata';
+import { Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { SaasPlatformModule, StaticEntitlementService } from '../dist/platform/index.js';
+import {
+    AdminManifestService,
+    QUOTA_PROVIDERS_TOKEN,
+    QuotaProvidersUsageSnapshot,
+    SaaSiCatModule,
+    SaasPlatformModule,
+    StaticEntitlementService,
+    SubscriptionPlanResolver,
+    defineSaaSiCat,
+} from '../dist/platform/index.js';
 
 // forRoot wiring of the `persistence` bundle option (adapter bundles from
 // e.g. @saasicat/adapter-prisma) incl. the capability fail-fast.
@@ -145,7 +155,11 @@ describe('SaasPlatformModule persistence bundle', () => {
                 advisoryLocks: false,
             },
             core: {
-                mfa: { getSecret: async () => null, setSecret: async () => {}, isEnabled: async () => false },
+                mfa: {
+                    getSecret: async () => null,
+                    setSecret: async () => {},
+                    isEnabled: async () => false,
+                },
                 audit: { write: async () => {} },
                 rlsBypass: { runWithBypass: (fn) => fn() },
                 transactionRunner: { run: (fn) => fn({}) },
@@ -185,5 +199,201 @@ describe('SaasPlatformModule persistence bundle', () => {
                 }),
             /subscriptionRepository, planVersionRepository/,
         );
+    });
+
+    test('the high-level standard stack wires catalog and tenant billing from one bundle', () => {
+        const bundle = fakeBundle();
+        bundle.catalog = {
+            planRepository: {},
+            bundleRepository: {},
+            catalogEntryRepository: {},
+            marketingProjectionRepository: {},
+            promotionRepository: {},
+            marketingSettingsRepository: {},
+        };
+        bundle.tenantBilling = {
+            subscriptionUsagePort: {},
+            subscriptionWritePort: {},
+        };
+        bundle.entitlement.subscriptionBundleRepository = {};
+        bundle.entitlement.bundleRepository = bundle.catalog.bundleRepository;
+        bundle.adminResources = { resources: {} };
+        bundle.promo = {
+            promoCodeRepository: {},
+            redemptionRepository: {},
+            validationLogRepository: {},
+            subscriptionLookup: {},
+            revenueAggregator: {},
+        };
+
+        const mod = SaaSiCatModule.forRoot(
+            defineSaaSiCat({
+                planCatalog,
+                controller: { guards: [] },
+                persistence: bundle,
+                catalog: {
+                    featureUiRegistry: {},
+                    autoSyncDiscoveryAtBoot: false,
+                },
+                tenantBilling: { authGuards: [] },
+                subscriptionBundles: true,
+                adminResources: true,
+                promoCodes: true,
+                tenantManifest: true,
+            }),
+        );
+
+        // Base 4 + Entitlement + Catalog + PublicCatalog + TenantBilling +
+        // Bundles + AdminResources + PromoCodes.
+        assert.equal(mod.imports.length, 11);
+        assert.ok(mod.exports.some((entry) => entry.name === 'CatalogModule'));
+        assert.ok(mod.exports.some((entry) => entry.name === 'TenantBillingModule'));
+        assert.ok(
+            mod.providers.some((provider) =>
+                provider.provide?.description?.includes('PlanResolver'),
+            ),
+            'subscription-backed plan resolver is auto-wired',
+        );
+    });
+
+    test('the high-level standard stack compiles through Nest DI', async () => {
+        const emptyRepository = {};
+        class FakeQuotaProvider {
+            constructor() {
+                this.key = 'notesMax';
+            }
+            async count() {
+                return 0;
+            }
+        }
+        const clientToken = Symbol('NON_GLOBAL_CLIENT');
+        class LocalClientModule {}
+        Module({
+            providers: [{ provide: clientToken, useValue: {} }],
+            exports: [clientToken],
+        })(LocalClientModule);
+        const planRepository = {
+            listVersions: async () => [],
+            findVersionById: async () => null,
+            findCurrentDraft: async () => null,
+            findLatestLivePlanVersion: async () => null,
+            createPlanVersionDraft: async () => null,
+            updatePlanVersionDraft: async () => null,
+            publishPlanVersionDraft: async () => null,
+        };
+        const bundle = {
+            capabilities: {
+                transactions: true,
+                pessimisticLocking: true,
+                rowLevelSecurity: false,
+                advisoryLocks: false,
+            },
+            core: {
+                mfa: {
+                    getSecret: async () => null,
+                    setSecret: async () => {},
+                    isEnabled: async () => false,
+                },
+                audit: { write: async () => {} },
+                rlsBypass: { runWithBypass: (fn) => fn() },
+                transactionRunner: { run: (fn) => fn({}) },
+            },
+            entitlement: {
+                subscriptionRepository: {
+                    useFactory: () => ({
+                        findByTenantId: async () => null,
+                        findByTenantIdLocked: async () => null,
+                    }),
+                    inject: [clientToken],
+                },
+                planVersionRepository: { findById: async () => null },
+                subscriptionBundleRepository: emptyRepository,
+                bundleRepository: emptyRepository,
+            },
+            catalog: {
+                planRepository,
+                bundleRepository: emptyRepository,
+                catalogEntryRepository: emptyRepository,
+                marketingProjectionRepository: emptyRepository,
+                promotionRepository: emptyRepository,
+                marketingSettingsRepository: emptyRepository,
+            },
+            tenantBilling: {
+                subscriptionUsagePort: { findForTenant: async () => null },
+                subscriptionWritePort: emptyRepository,
+            },
+            adminResources: {
+                resources: {
+                    listTenants: async () => [],
+                    getTenantDetail: async () => null,
+                    setTenantActive: async () => null,
+                    listUsers: async () => [],
+                    listAudit: async () => [],
+                    listSubscriptions: async () => [],
+                },
+            },
+            promo: {
+                promoCodeRepository: emptyRepository,
+                redemptionRepository: emptyRepository,
+                validationLogRepository: emptyRepository,
+                subscriptionLookup: emptyRepository,
+                revenueAggregator: emptyRepository,
+            },
+        };
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                SaaSiCatModule.forRoot({
+                    planCatalog,
+                    controller: { guards: [] },
+                    imports: [LocalClientModule],
+                    persistence: bundle,
+                    catalog: {
+                        featureUiRegistry: {},
+                        adminControllers: false,
+                        autoSyncDiscoveryAtBoot: false,
+                    },
+                    tenantBilling: { authGuards: [] },
+                    subscriptionBundles: true,
+                    adminResources: true,
+                    promoCodes: true,
+                    quotaProviders: [FakeQuotaProvider],
+                    tenantManifest: true,
+                }),
+            ],
+        }).compile();
+
+        assert.ok(moduleRef.get(StaticEntitlementService));
+        assert.equal(moduleRef.get(QUOTA_PROVIDERS_TOKEN)[0].key, 'notesMax');
+        const manifest = moduleRef.get(AdminManifestService).getManifest();
+        assert.equal(manifest.capabilities['tenants.read'], true);
+        assert.equal(manifest.capabilities['promoCodes.read'], true);
+        assert.equal(manifest.navigation.standardPages?.subscriptions?.enabled, true);
+        await moduleRef.close();
+    });
+});
+
+describe('standard adapters', () => {
+    test('SubscriptionPlanResolver only grants active subscriptions', async () => {
+        const repository = {
+            async findByTenantId(tenantId) {
+                return tenantId === 'active'
+                    ? { plan: 'PRO', status: 'ACTIVE' }
+                    : { plan: 'PRO', status: 'CANCELED' };
+            },
+        };
+        const resolver = new SubscriptionPlanResolver(repository);
+        assert.equal(await resolver.getPlanIdForTenant('active'), 'PRO');
+        assert.equal(await resolver.getPlanIdForTenant('canceled'), null);
+    });
+
+    test('QuotaProvidersUsageSnapshot reuses every quota counter', async () => {
+        const snapshot = new QuotaProvidersUsageSnapshot([
+            { key: 'notesMax', count: async () => 7 },
+            { key: 'storageGb', count: async () => 1.5 },
+        ]);
+        assert.deepEqual(await snapshot.snapshot('tenant-a'), {
+            notesMax: 7,
+            storageGb: 1.5,
+        });
     });
 });

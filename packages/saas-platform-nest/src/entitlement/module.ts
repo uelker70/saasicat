@@ -4,7 +4,13 @@
 // `EntitlementModule.forRoot({...})` or as custom providers directly in the
 // AppModule.
 
-import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import {
+    type DynamicModule,
+    type ForwardReference,
+    Module,
+    type Provider,
+    type Type,
+} from '@nestjs/common';
 import type {
     BundleRepository,
     PlanVersionRepository,
@@ -48,6 +54,8 @@ export interface EntitlementModuleOptions {
     subscriptionBundleRepository?: ProviderSpec<SubscriptionBundleRepository>;
     /** See `subscriptionBundleRepository` — resolves BundleVersion features/quotas. */
     bundleRepository?: ProviderSpec<BundleRepository>;
+    /** Modules required by repository factory `inject` tokens. */
+    imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Register the module globally — default `false`. */
     global?: boolean;
 }
@@ -93,6 +101,7 @@ export class EntitlementModule {
         return {
             module: EntitlementModule,
             global: options.global ?? false,
+            imports: options.imports ?? [],
             providers,
             exports: [EntitlementService, ENTITLEMENT_SERVICE_TOKEN, SUBSCRIPTION_REPOSITORY_TOKEN],
         };

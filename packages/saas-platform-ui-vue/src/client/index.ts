@@ -22,4 +22,5 @@ export * from './manifest-loader.js';
 export * from './nav-builder.js';
 export * from './action-registry.js';
 export * from './batch-column-fetcher.js';
+export * from './admin-resource-client.js';
 export * from './i18n/index.js';

@@ -1,32 +1,52 @@
 # SaaSiCat
 
-**The sassy framework for serious SaaS.**
+**From code capability to enforced customer contract.**
 
-![SaaSiCat — the sassy framework for serious SaaS](docs/brands/hero.png)
+**SaaSiCat** connects what your application can do with what customers can
+buy and use. Declare capabilities in a [NestJS](https://nestjs.com) app,
+discover them automatically, package them into plans and bundles, turn a
+purchase into an immutable contract, and enforce that contract on every
+request.
 
-**SaaSiCat** is an embeddable SaaS platform framework for [NestJS](https://nestjs.com): plans & entitlements, bundles, promo codes, billing lifecycle, audit, MFA, first-run setup and a ready-to-use SuperAdmin UI.
+It runs inside your application. You keep your database, authentication and
+HTTP stack.
 
 > **Status: 0.x — early.**
 > The API is **not yet stable** and may change between minor releases.
 > SaaSiCat was extracted from a production system powering two commercial SaaS products — the code is battle-tested, the public packaging is new.
 
-## What you get
+## The product loop
 
-- **Tenant administration** — list, inspect, suspend/reactivate, impersonate, export.
-- **Plans & plan versions** — plan editor, drafts and publishing; a published plan version is an immutable snapshot.
-- **Bundles** — versioned add-ons that can be sold standalone or included in plans, with a marketing projection.
-- **Discovery loop** — your code declares capabilities, features and quotas with decorators (`@ImplementsCapability`, `@DefinesQuota`); the platform scans them at boot, the SuperAdmin reviews them, and approved entries flow into the marketing catalog and plans.
-- **Runtime entitlement enforcement** — `@RequireFeature(...)` answers with a structured 403 (`FEATURE_NOT_LICENSED`, optional upsell offers), `@EnforceQuota(...)` blocks requests that would exceed a plan limit.
-- **Marketing catalog** — i18n labels, descriptions, highlights and promotions, served through a public `GET /public/catalog` endpoint for your pricing page.
-- **Checkout offers & subscription contracts** — a frozen purchase intent becomes an immutable contract: the single source of truth for billing and entitlement. Catalog edits never touch running contracts.
-- **Billing lifecycle hooks** — materialization, freeze and trial handling as optional platform ports.
-- **Promo codes** — generation, lifecycle, redemption tracking.
-- **Security building blocks** — TOTP MFA for SuperAdmin actions, audit logging of every sensitive operation, an RLS-bypass interceptor for global reads.
-- **First-run setup** — a `SETUP_TOKEN`-gated wizard creates the first SuperAdmin (including MFA enrollment) and disables itself once one exists.
-- **CLI flows** — `<app> admin mfa-setup|whoami`, `<app> audit tail`, `<app> doctor`, `<app> manifest dump|hash|validate|check`, ready to embed in your app's own nest-commander CLI.
-- **SuperAdmin UI** — Vue 3 + Quasar standard pages (dashboard, tenants, plans, discovery, catalog, audit, …) that switch on and off dynamically via the admin manifest.
+| Step               | What happens                                                                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| **1. Capability**  | Your code declares a concrete capability or quota with `@ImplementsCapability(...)` and `@DefinesQuota(...)`.              |
+| **2. Discovery**   | SaaSiCat scans those declarations at boot and presents new entries for review. No second feature list to maintain.         |
+| **3. Packaging**   | Accepted features and quotas become plans, bundles, prices and public catalog entries. Published versions stay fixed.      |
+| **4. Contract**    | Checkout freezes the selected offer into an immutable customer contract. Later catalog edits do not rewrite what was sold. |
+| **5. Enforcement** | `@RequireFeature(...)` and `@EnforceQuota(...)` apply the active contract at runtime with structured, predictable errors.  |
 
-Your app keeps implementing what only it can know: persistence adapters, its own capabilities, quota counters and manifest contributions. Everything else comes from the packages.
+Read the full [capability-to-contract guide](docs/capability-to-contract.md)
+or run the [NotesApp reference implementation](examples/notesapp/).
+
+## What you get around the loop
+
+- **Versioned plans and bundles** with drafts, publishing and immutable sold
+  versions.
+- **A public marketing catalog** with translated labels, highlights, prices
+  and promotions for your pricing page.
+- **Runtime feature and quota checks** with optional upgrade offers in denied
+  responses.
+- **Billing lifecycle hooks, checkout offers, contracts and promo codes** with
+  payment-provider connections behind integration ports today and built-in
+  provider integration planned.
+- **A ready-to-use SuperAdmin UI** for discovery, catalog, plans, contracts,
+  tenants and audit.
+- **Operational building blocks** including tenant administration, TOTP MFA,
+  audit logging, first-run setup and CLI checks.
+
+With the canonical Prisma schema, your application owns only what SaaSiCat
+cannot know: authentication, product capabilities, quota counters, its tenant
+model and custom UI contributions. Custom schemas can still replace any port.
 
 ## Packages
 
@@ -36,7 +56,7 @@ Your app keeps implementing what only it can know: persistence adapters, its own
 | `@saasicat/types`               | TypeScript types generated from the spec schemas.                                                                                                          |
 | `@saasicat/nest`                | The backend core: NestJS modules, services, guards and decorators.                                                                                         |
 | `@saasicat/adapter-prisma`      | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
-| `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter: `drizzlePersistence()` bundle — same ports, same canonical schema, verified by the same contract.            |
+| `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter for the core slices, verified by the shared persistence contract.                                             |
 | `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …).           |
 | `@saasicat/cli`                 | nest-commander command flows to embed in your application CLI.                                                                                             |
 | `@saasicat/ui-vue`              | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables.                                                                                             |
@@ -46,15 +66,47 @@ All packages are released in lockstep and share one version number.
 
 ## Architecture in three lines
 
-SaaSiCat is **embeddable, not hosted**: your application keeps its own database, auth and HTTP stack. The platform defines narrow **ports** (persistence, MFA, audit, RLS bypass, plan resolution) and you plug in **adapters** — for Prisma + PostgreSQL they ship ready-made. Discovery, catalog, entitlement, admin API and admin UI then come entirely from the packages.
+SaaSiCat is **embeddable, not hosted**: your application keeps its own
+database, authentication and HTTP stack. SaaSiCat provides the product loop
+from discovery to enforcement and defines narrow **ports** for persistence,
+MFA, audit, RLS bypass and plan resolution. Prisma provides the complete
+standard bundle; Drizzle currently provides the core persistence slices.
+
+The standard Prisma path is one composition:
+
+```ts
+SaaSiCatModule.forRoot(
+    defineSaaSiCat({
+        planCatalog,
+        controller: { guards: [JwtAuthGuard] },
+        imports: [AuthModule, PrismaModule],
+        persistence: prismaPersistence({
+            client: PrismaService,
+            adminResources: { tenantMetrics: ['users'] },
+        }),
+        entitlement: {},
+        catalog: { featureUiRegistry },
+        tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
+        subscriptionBundles: true,
+        adminResources: true,
+        promoCodes: true,
+        quotaProviders: [UsersQuotaProvider],
+        tenantManifest: true,
+    }),
+);
+```
+
+The low-level modules and individual adapter ports remain available for
+custom schemas or product rules.
 
 ## Reference implementation
 
 [`examples/notesapp`](examples/notesapp/) is a small runnable NestJS app that
-walks the quickstart end to end — plans from `saas.yaml`, `@DefinesQuota` +
-`@RequireFeature`/`@EnforceQuota` enforcement (402/403 verified via curl),
-the `prismaPersistence()` bundle and the admin manifest. Start there if you
-prefer reading code over docs.
+shows the complete loop: code-declared capabilities, discovery output,
+Starter and Pro packaging, tenant entitlements and verified 402/403
+enforcement. Its complete SuperAdmin UI remains enabled, including discovery,
+catalog, plans, bundles, tenants, users, audit, subscriptions and promo-code
+CRUD. Start there if you prefer reading code over docs.
 
 ## Getting started
 
@@ -71,9 +123,13 @@ Scaffold the SuperAdmin frontend in one command:
 pnpm create saasicat-admin admin --project-key=myapp --brand-name=MyApp
 ```
 
-Then follow the **[quickstart](docs/quickstart.md)** — 10 steps from an existing CRUD backend to a working SuperAdmin with plan-based feature gates and quota enforcement, in about 30 minutes and under 100 lines of app-owned code. The [handbook](docs/handbook.md) is the in-depth reference behind it.
+Then follow the **[quickstart](docs/quickstart.md)** — 10 steps from an
+existing CRUD backend to a discovered, packaged and enforced feature in about
+30 minutes and under 100 lines of app-owned code. The
+[handbook](docs/handbook.md) is the in-depth reference behind it.
 
-> **Note:** the Admin UI is currently German; English i18n is on the roadmap. The APIs, error codes and all documentation are English.
+> The Admin UI ships German and English messages; select the locale in
+> `createSuperAdminApp`. APIs, error codes and documentation use English.
 
 ## Requirements
 

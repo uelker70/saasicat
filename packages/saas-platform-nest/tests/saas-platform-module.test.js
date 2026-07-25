@@ -128,7 +128,7 @@ describe('SaasPlatformModule.forRoot', () => {
         assert.ok(dyn.imports, 'forRoot must return a DynamicModule with imports');
     });
 
-    test('without defaultPlanId & without planResolver: no lightweight stack', () => {
+    test('without defaultPlanId & without planResolver: no entitlement stack', () => {
         const dyn = SaasPlatformModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
@@ -145,7 +145,13 @@ describe('SaasPlatformModule.forRoot', () => {
             'StaticEntitlementService must not be exported without a resolver',
         );
         const providers = dyn.providers ?? [];
-        assert.equal(providers.length, 0, 'no lightweight providers without a resolver');
+        const tokens = providers.map((provider) => provider.provide ?? provider);
+        assert.equal(
+            tokens.includes(StaticEntitlementService),
+            false,
+            'no entitlement providers without a resolver',
+        );
+        assert.equal(providers.length, 1, 'only automatic standard-manifest registration remains');
     });
 
     test('with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered', () => {
@@ -165,10 +171,7 @@ describe('SaasPlatformModule.forRoot', () => {
             tokens.includes(StaticEntitlementService),
             'StaticEntitlementService must be a provider',
         );
-        assert.ok(
-            tokens.includes(StaticFeatureGuard),
-            'StaticFeatureGuard must be a provider',
-        );
+        assert.ok(tokens.includes(StaticFeatureGuard), 'StaticFeatureGuard must be a provider');
         assert.ok(
             tokens.includes(EnforceQuotaInterceptor),
             'EnforceQuotaInterceptor must be a provider',
@@ -241,7 +244,11 @@ describe('StaticEntitlementService (via StaticPlanResolver)', () => {
     });
 
     test('snapshot with an unresolved plan = empty set', async () => {
-        const resolver = { async getPlanIdForTenant() { return null; } };
+        const resolver = {
+            async getPlanIdForTenant() {
+                return null;
+            },
+        };
         const svc = new StaticEntitlementService(MINIMAL_CATALOG, resolver);
         const snap = await svc.snapshot('any');
         assert.equal(snap.planId, null);

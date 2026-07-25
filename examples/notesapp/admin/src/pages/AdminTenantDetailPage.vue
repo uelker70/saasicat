@@ -13,7 +13,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import type { QTableColumn } from 'quasar';
 import PlatformTenantDetailPage from '@saasicat/ui-vue/pages/TenantDetailPage.vue';
-import { loadTenantDetail, type TenantDetailData } from '../services/app-loaders';
+import { loadTenantDetail } from '../services/app-loaders';
 import { useManifestStore } from '../stores/manifest';
 
 // Tenant detail (GET /admin/tenants/:slug). The suspend/reactivate card actions
@@ -22,7 +22,7 @@ const route = useRoute();
 const slug = String(route.params.slug);
 const backRoute = '/admin/tenants';
 
-function loadDetail(): Promise<TenantDetailData> {
+function loadDetail() {
     return loadTenantDetail(slug);
 }
 

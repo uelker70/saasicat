@@ -6,7 +6,13 @@
 // guards/interceptor (`SuperAdminGuard`, `MfaGuard`,
 // `AdminBypassRlsInterceptor`) as injectable providers.
 
-import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import {
+    type DynamicModule,
+    type ForwardReference,
+    Module,
+    type Provider,
+    type Type,
+} from '@nestjs/common';
 import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
@@ -20,6 +26,8 @@ export interface AdminModuleOptions {
     mfaPort: ProviderSpec<MfaPort>;
     auditPort: ProviderSpec<AuditPort>;
     rlsBypassPort: ProviderSpec<RlsBypassPort>;
+    /** Modules required by adapter factory `inject` tokens. */
+    imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Register the module globally — default `false`. */
     global?: boolean;
 }
@@ -41,6 +49,7 @@ export class AdminModule {
         return {
             module: AdminModule,
             global: options.global ?? false,
+            imports: options.imports ?? [],
             providers,
             exports: [
                 MFA_PORT_TOKEN,

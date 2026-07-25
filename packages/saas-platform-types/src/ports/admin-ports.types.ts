@@ -104,6 +104,118 @@ export interface AuditQueryPort {
     list(filter: AuditQuery): Promise<AuditEntry[]>;
 }
 
+// -----------------------------------------------------------------------------
+// Standard SuperAdmin resource pages
+// -----------------------------------------------------------------------------
+
+export interface AdminTenantListFilter {
+    status?: string;
+    plan?: string;
+    search?: string;
+}
+
+export interface AdminUserListFilter {
+    q?: string;
+    tenant?: string;
+}
+
+export interface AdminAuditListFilter {
+    actor?: string;
+    action?: string;
+    entity?: string;
+    since?: string;
+    limit?: number;
+}
+
+export interface AdminTenantListRow {
+    id: string;
+    slug: string;
+    name: string;
+    isActive: boolean;
+    deletedAt: string | null;
+    plan: string | null;
+    status: string | null;
+    createdAt: string;
+    /** App-selected counters, exposed as ordinary row fields for the UI. */
+    [metric: string]: string | number | boolean | null;
+}
+
+export interface AdminTenantDetail {
+    id: string;
+    slug: string;
+    name: string;
+    isActive: boolean;
+    subscription: {
+        plan: string;
+        status: string;
+        billingCycle: string;
+        isPilot: boolean;
+        trialEndsAt: string | null;
+        pilotEndsAt: string | null;
+    } | null;
+    users: Array<{
+        id: string;
+        email: string;
+        firstName?: string;
+        lastName?: string;
+        createdAt: string;
+    }>;
+    counts: Record<string, number>;
+}
+
+export interface AdminUserListRow {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    isActive: boolean;
+    tenantSlug: string | null;
+    lastLoginAt: string | null;
+    createdAt: string;
+    /** Apps may add columns without replacing the standard page contract. */
+    [extra: string]: unknown;
+}
+
+export interface AdminSubscriptionListRow {
+    id: string;
+    tenant: { slug: string; name: string };
+    plan: string;
+    status: string;
+    billingCycle: string;
+    periodEndsAt: string | null;
+    monthlyNet: string | null;
+    /** Apps may add columns without replacing the standard page contract. */
+    [extra: string]: unknown;
+}
+
+export interface AdminTenantStateResult {
+    ok: true;
+    id: string;
+    slug: string;
+    isActive: boolean;
+    status: string | null;
+}
+
+/**
+ * One narrow backend boundary for the generic Tenant/User/Audit/Subscription
+ * SuperAdmin pages. The canonical Prisma adapter implements it out of the box;
+ * custom schemas replace only this port, while controllers and DTOs stay in
+ * SaaSiCat.
+ */
+export interface AdminResourcesPort {
+    listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]>;
+    getTenantDetail(slug: string): Promise<AdminTenantDetail | null>;
+    setTenantActive(
+        slug: string,
+        active: boolean,
+        subscriptionStatus: string,
+    ): Promise<AdminTenantStateResult | null>;
+    listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]>;
+    listAudit(filter: AdminAuditListFilter): Promise<AuditEntry[]>;
+    listSubscriptions(): Promise<AdminSubscriptionListRow[]>;
+}
+
 /**
  * Read adapter for the current AdminManifest. The consumer implementation
  * delegates to its `AdminManifestService.getManifest()`. The platform CLI

@@ -10,9 +10,8 @@
 //   - Individual adapters for manual wiring: MFA, audit (write/query/stats),
 //     RLS bypass, transaction runner, subscription/plan-version/promo
 //     repositories, SuperAdmin bootstrap, plan-catalog sinks.
-//   - Catalog plane repositories (plan/bundle/catalog-entry/
-//     marketing/promotion) + subscription-contract, for wiring CatalogModule
-//     and the V3 contract loop without hand-writing adapters.
+//   - Catalog plane, subscription-contract and tenant-billing adapters. They
+//     are included in prismaPersistence() and also exported individually.
 
 export {
     PRISMA_CLIENT_TOKEN,
@@ -41,8 +40,13 @@ export { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 export { PrismaAuditAdapter, buildActorTag } from './prisma-audit.adapter.js';
 export { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
 export { PrismaAuditStatsAdapter } from './prisma-audit-stats.adapter.js';
+export {
+    PrismaAdminResourcesAdapter,
+    type PrismaAdminResourcesOptions,
+} from './prisma-admin-resources.adapter.js';
 export { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
 export { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
+export { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
 export { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
 export { PrismaTenantSubscriptionWriteAdapter } from './prisma-tenant-subscription-write.adapter.js';
 export { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';

@@ -11,6 +11,7 @@ import {
     PrismaPromoCodeRepository,
     PrismaPromoCodeRedemptionRepository,
     PrismaSubscriptionRepository,
+    PrismaSubscriptionUsageAdapter,
     PrismaSuperAdminBootstrapAdapter,
     PrismaTransactionRunner,
     prismaPersistence,
@@ -387,7 +388,10 @@ describe('PrismaAuditQueryAdapter', () => {
         const entries = await a.list({ actorTag: 'cli:*', page: 2, pageSize: 10 });
 
         const args = p.calls.auditLogFindMany[0];
-        assert.deepEqual(args.where.actorTag, { startsWith: 'cli:' });
+        assert.deepEqual(args.where.actorTag, {
+            startsWith: 'cli:',
+            mode: 'insensitive',
+        });
         assert.equal(args.skip, 10);
         assert.equal(args.take, 10);
         assert.equal(entries[0].userEmail, 'ops@example.com');
@@ -482,6 +486,33 @@ describe('PrismaSubscriptionRepository', () => {
     });
 });
 
+describe('PrismaSubscriptionUsageAdapter', () => {
+    test('maps the canonical subscription to the tenant billing display form', async () => {
+        const p = fakePrisma();
+        p.state.subscriptionsByTenant.set(
+            't1',
+            subscriptionRow({
+                trialEndsAt: new Date('2026-08-01T00:00:00Z'),
+                currentPeriodStart: new Date('2026-07-01T00:00:00Z'),
+                currentPeriodEnd: new Date('2026-08-01T00:00:00Z'),
+                packageSnapshot: { planId: 'STARTER' },
+                checkoutOfferId: 'offer-1',
+            }),
+        );
+        p.state.planVersionsById.set('pv-1', planVersionRow());
+
+        const usage = await new PrismaSubscriptionUsageAdapter(p).findForTenant('t1');
+
+        assert.equal(usage.id, 'sub-1');
+        assert.equal(usage.planVersion.planId, 'STARTER');
+        assert.equal(usage.planVersion.version, 1);
+        assert.equal(usage.trialEndsAt.toISOString(), '2026-08-01T00:00:00.000Z');
+        assert.deepEqual(usage.packageSnapshot, { planId: 'STARTER' });
+        assert.equal(usage.checkoutOfferId, 'offer-1');
+        assert.equal(await new PrismaSubscriptionUsageAdapter(p).findForTenant('missing'), null);
+    });
+});
+
 describe('PrismaPlanVersionRepository', () => {
     test('findLatestLive filters live versions and maps the record', async () => {
         const p = fakePrisma();
@@ -567,6 +598,53 @@ describe('PrismaPromoCodeRepository', () => {
         });
         const repo = new PrismaPromoCodeRepository(p);
         assert.equal(await repo.findByCode('gone'), null);
+    });
+
+    test('update persists every field editable in the Admin promo page', async () => {
+        const p = fakePrisma();
+        const repo = new PrismaPromoCodeRepository(p);
+        await repo.create({
+            code: 'SUMMER25',
+            valueType: 'PERCENT',
+            value: 25,
+            durationType: 'ONCE',
+            createdById: 'admin-1',
+        });
+
+        const validUntil = new Date('2026-09-01T00:00:00.000Z');
+        const record = await repo.update('promo-1', {
+            status: 'PAUSED',
+            valueType: 'ABSOLUTE',
+            value: 10,
+            durationType: 'MONTHS',
+            durationValue: 3,
+            validFrom: null,
+            validUntil,
+            maxRedemptions: 100,
+            appliesToPlans: ['PRO'],
+            appliesToBilling: 'YEARLY',
+            firstTimeCustomersOnly: false,
+            minimumPlanAmountGross: null,
+            allowZeroInvoice: true,
+            description: 'Summer campaign',
+            campaignTag: 'SUMMER',
+            revenueDeductionAccount: '4736',
+        });
+
+        assert.equal(record.status, 'PAUSED');
+        assert.equal(record.valueType, 'ABSOLUTE');
+        assert.equal(record.value, '10.00');
+        assert.equal(record.durationType, 'MONTHS');
+        assert.equal(record.durationValue, 3);
+        assert.equal(record.validFrom, null);
+        assert.equal(record.validUntil, validUntil);
+        assert.deepEqual(record.appliesToPlans, ['PRO']);
+        assert.equal(record.appliesToBilling, 'YEARLY');
+        assert.equal(record.firstTimeCustomersOnly, false);
+        assert.equal(record.minimumPlanAmountGross, null);
+        assert.equal(record.allowZeroInvoice, true);
+        assert.equal(record.campaignTag, 'SUMMER');
+        assert.equal(record.revenueDeductionAccount, '4736');
     });
 
     test('expireDueCodes targets ACTIVE/PAUSED with validUntil < now', async () => {
@@ -731,6 +809,11 @@ describe('prismaPersistence()', () => {
             'no provisioning without passwordHasher',
         );
         assert.ok(bundle.entitlement.subscriptionRepository.useFactory);
+        assert.ok(bundle.entitlement.subscriptionBundleRepository.useFactory);
+        assert.ok(bundle.catalog.planRepository.useFactory);
+        assert.ok(bundle.catalog.catalogEntryRepository.useFactory);
+        assert.ok(bundle.tenantBilling.subscriptionUsagePort.useFactory);
+        assert.ok(bundle.tenantBilling.subscriptionWritePort.useFactory);
         assert.ok(bundle.promo.promoCodeRepository.useFactory);
     });
 

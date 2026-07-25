@@ -48,9 +48,25 @@ export class PrismaAuditQueryAdapter implements AuditQueryPort {
     }
 }
 
-function toActorTagFilter(actorTag?: string): string | { startsWith: string } | undefined {
+function toActorTagFilter(actorTag?: string):
+    | string
+    | {
+          startsWith?: string;
+          endsWith?: string;
+          contains?: string;
+          mode?: 'insensitive';
+      }
+    | undefined {
     if (!actorTag) return undefined;
-    if (actorTag.endsWith('*')) return { startsWith: actorTag.slice(0, -1) };
+    if (actorTag.startsWith('*') && actorTag.endsWith('*')) {
+        return { contains: actorTag.slice(1, -1), mode: 'insensitive' };
+    }
+    if (actorTag.startsWith('*')) {
+        return { endsWith: actorTag.slice(1), mode: 'insensitive' };
+    }
+    if (actorTag.endsWith('*')) {
+        return { startsWith: actorTag.slice(0, -1), mode: 'insensitive' };
+    }
     return actorTag;
 }
 

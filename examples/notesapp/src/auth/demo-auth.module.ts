@@ -10,7 +10,7 @@ import { DemoPasswordHasher } from './demo-password.hasher';
  * read `request.user` — global guards run in registration order, and
  * controller-level @UseGuards would come too late.
  *
- * Exported as its own module so both the SaasPlatformModule and the
+ * Exported as its own module so both the SaaSiCatModule and the
  * CatalogModule wiring can list it under `imports` to resolve the
  * DemoAuthGuard they mount as a controller guard.
  */

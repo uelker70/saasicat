@@ -30,3 +30,4 @@ export * from './admin-stats.tokens.js';
 export * from './admin-stats.service.js';
 export * from './admin-stats.controller.js';
 export * from './admin-stats.module.js';
+export * from './admin-resources.module.js';

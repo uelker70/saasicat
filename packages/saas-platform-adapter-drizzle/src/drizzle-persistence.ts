@@ -57,9 +57,10 @@ export interface DrizzlePersistenceOptions {
  * });
  * ```
  *
- * Slices not shipped by this adapter (contracts, bundles, registration,
- * tenant-billing write ports) stay absent — identical to adapter-prisma;
- * both adapters pass the same `@saasicat/persistence-testing` contract.
+ * Slices not shipped by this adapter (catalog editing, contracts, bundles,
+ * tenant-billing write ports) stay absent. Use the individual low-level
+ * modules for those areas until the Drizzle bundle gains matching adapters.
+ * Both adapters still pass the shared core persistence contract.
  */
 export function drizzlePersistence(options: DrizzlePersistenceOptions): SaasicatPersistenceAdapter {
     const { db } = options;

@@ -21,7 +21,13 @@ export class DemoAuthGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest<{
             headers: Record<string, string | string[] | undefined>;
-            user?: { userId: string; tenantId: string; platformRole?: string };
+            user?: {
+                userId: string;
+                tenantId: string;
+                platformRole?: string;
+                email: string;
+                sessionId: string;
+            };
         }>();
         const tenantId = firstHeader(request.headers['x-demo-tenant']);
         if (!tenantId) {
@@ -29,10 +35,16 @@ export class DemoAuthGuard implements CanActivate {
                 'Demo auth: send the x-demo-tenant header (see examples/notesapp/README.md).',
             );
         }
+        const platformRole = firstHeader(request.headers['x-demo-role']);
         request.user = {
             userId: `demo-user-${tenantId}`,
             tenantId,
-            platformRole: firstHeader(request.headers['x-demo-role']),
+            platformRole,
+            email:
+                platformRole === 'SUPER_ADMIN'
+                    ? 'admin@notesapp.example'
+                    : `demo-user-${tenantId}@notesapp.example`,
+            sessionId: 'notesapp-demo',
         };
         return true;
     }

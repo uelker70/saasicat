@@ -1,9 +1,15 @@
 # SaaSiCat — Quickstart
 
-Make a NestJS app SaaS-capable in **10 steps**: tenants, plans, features,
-quotas, automatic backend enforcement and a SuperAdmin UI. Goal: a working
-SuperAdmin on top of an existing CRUD backend in ~30 minutes, with < 100
-lines of app-owned code.
+Take one feature through the complete SaaSiCat loop in **10 steps**:
+
+```text
+Capability → Discovery → Packaging → Contract → Enforcement
+```
+
+The result is a NestJS application whose code-declared features and quotas
+are discovered automatically, packaged for customers and enforced at
+runtime. The quickstart takes about 30 minutes and requires fewer than 100
+lines of app-owned platform code.
 
 > Assumes a **NestJS app with Prisma + PostgreSQL + JWT auth** that already
 > has a `tenantId` concept (e.g. a `Tenant` table + RLS, or `tenantId` as a
@@ -21,8 +27,12 @@ lines of app-owned code.
 - a `User` table with `tenantId`,
 - JWT login.
 
-We turn it into a SaaS app with two plans (Starter / Pro), a quota on notes
-per tenant, and a SuperAdmin UI.
+We declare note creation and export in code, let SaaSiCat discover them,
+package them as Starter and Pro, and enforce the resulting feature and quota
+rules per tenant.
+
+For the reasoning behind each stage, read
+[From Capability to Contract](capability-to-contract.md).
 
 ---
 
@@ -57,27 +67,39 @@ vatRate: 19.0
 
 marketing:
     availableLocales: [en]
+
+plans:
+    - id: STARTER
+      name: Starter
+      monthlyNet: 9
+      yearlyNet: 90
+      features: [NOTES]
+      quotas: { notesMax: 25 }
+    - id: PRO
+      name: Pro
+      monthlyNet: 29
+      yearlyNet: 290
+      features: [NOTES, NOTES_EXPORT]
+      quotas: { notesMax: 1000 }
 ```
 
-> **Why so small?** The YAML only carries the app identity — everything else
-> has exactly one source of truth: **features and quotas** are declared in
-> code (`@ImplementsCapability`, `@DefinesQuota`, steps 4 + 7) and picked up
-> by discovery; **plans** are created in the SuperAdmin UI and live in the
-> DB.
+This first run keeps plans in YAML so the backend can enforce them before the
+catalog has been populated. In a live setup, use `dbCatalog` instead of
+`planCatalog`; plans and bundles then live only in the database. Capabilities
+and quota definitions always come from code.
 
 ## Step 3 — Prisma schema + migration in one command
 
 ```bash
-pnpm exec saas-platform schema migrate --name=add_saas_platform --fragments=04,06,10
+pnpm exec saas-platform schema migrate --name=add_saas_platform --all
 pnpm prisma generate
 ```
 
 `schema migrate` does two things: it idempotently inserts the platform models
 from the selected Prisma fragments into your `schema.prisma`, and it directly
-calls `prisma migrate dev` for the DB migration. For the quickstart scope,
-fragments `04` (AuditLog), `06` (CatalogEntries) and `10` (SuperAdmin +
-MFA) are enough; `--all` additionally loads bundles, subscriptions and promo
-codes.
+calls `prisma migrate dev` for the DB migration. `--all` gives the standard
+module its catalog, subscription, contract, bundle, audit and SuperAdmin
+tables.
 
 Before migrating, briefly review `schema.prisma` to check whether FK pointers
 to your `User`/`Tenant` tables need to be enabled manually (commented-out
@@ -86,7 +108,7 @@ to your `User`/`Tenant` tables need to be enabled manually (commented-out
 unique indexes and the subscription CHECK are part of the canonical schema
 (details: [data model](data-model.md)).
 
-## Step 4 — Write a quota provider
+## Step 4 — Declare a countable product capability
 
 This is where you declare **what is countable and how to count it**. For each
 countable dimension, one class that fulfils `QuotaProvider` and is decorated
@@ -130,9 +152,10 @@ export class NotesQuotaProvider implements QuotaProvider {
 
 One factory call replaces the hand-written adapter module:
 `prismaPersistence({ client })` bundles every shipped Prisma adapter (MFA,
-audit incl. query/stats, RLS bypass, transaction runner, subscription/plan
-version/promo repositories, SuperAdmin bootstrap, plan-catalog sinks) plus
-the declared **capabilities** of the adapter+database combination.
+audit incl. query/stats, RLS bypass, transactions, catalog repositories,
+subscription read/write, contracts, add-on bundles, promo repositories,
+SuperAdmin bootstrap and plan-catalog sinks) plus the declared
+**capabilities** of the adapter+database combination.
 
 ```ts
 import { prismaPersistence } from '@saasicat/adapter-prisma';
@@ -142,18 +165,16 @@ import { Argon2Hasher } from '../auth/argon2.hasher'; // your PasswordHasher
 export const persistence = prismaPersistence({
     client: PrismaService,
     passwordHasher: Argon2Hasher, // enables the SuperAdmin setup wizard
+    // Optional app relation counters shown on tenant pages.
+    adminResources: { tenantMetrics: ['notes', 'users'] },
 });
 ```
 
-> **Why not everything inside the platform?** The platform defines the
-> **ports**; the bundle is just the Prisma implementation of them against the
-> canonical schema. Drizzle users take `drizzlePersistence({ db })` from
-> `@saasicat/adapter-drizzle` instead — same slices, same verified
-> semantics. For TypeORM or a diverging schema you provide your own adapters
-> via the same `adapters`/`persistence` options; the platform ports stay
-> identical, and `@saasicat/persistence-testing` verifies your adapter
-> delivers the same semantics.
->
+The bundle is a convenience over the public ports, not a closed abstraction.
+For a custom schema or another database, provide the same bundle slices or
+wire the individual modules. `@saasicat/persistence-testing` verifies the
+behavior expected from a persistence adapter.
+
 > **RLS bypass:** In your `PrismaService`, check `rls.isBypassActive()` (e.g.
 > in a Prisma middleware) and set `SET LOCAL row_security = off` for the
 > current transaction when it is active — then pass `rlsIntegration: true`.
@@ -161,59 +182,67 @@ export const persistence = prismaPersistence({
 
 ## Step 6 — Wire the AppModule (incl. auto-enforcement)
 
-`SaasPlatformModule` bundles PlanCatalog + Discovery + Admin + AdminManifest
-in a single call **and automatically activates the feature guard + quota
-interceptor** as soon as you pass `defaultPlanId` (quickstart path) or
-`adapters.planResolver` (V3 path).
-
-| Field               | What it does                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| `planCatalog`       | App identity (branding, currency, locales) from the YAML.                                  |
-| `controller.guards` | Mandatory guards for `/admin/manifest` + `/admin/discovery` (typically `[JwtAuthGuard]`).  |
-| `persistence`       | The bundle from step 5. Capabilities are validated fail-fast at boot.                      |
-| `adapters`          | Optional field-by-field overrides of the bundle (custom schema, other ORM).                |
-| `defaultPlanId`     | Fallback plan for all tenants when no `planResolver` is set — dev/smoke.                   |
-| `quotaProviders`    | `QuotaProvider` classes from step 4 — `EnforceQuotaInterceptor` uses them for `count()`.   |
-| `tenantManifest`    | Activates `GET /tenant/manifest` (features + quotas + filtered navigation).                |
+`SaaSiCatModule` is the high-level path. It builds discovery, catalog,
+entitlements, tenant billing, add-on bundles and the admin APIs from one
+configuration. `defineSaaSiCat(...)` is a typed identity helper for editor
+completion.
 
 `backend/src/app.module.ts`:
 
 ```ts
 import { Module } from '@nestjs/common';
 import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';
-import { SaasPlatformModule } from '@saasicat/nest/platform';
+import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
 import { prismaPersistence } from '@saasicat/adapter-prisma';
+import type { FeatureUiRegistry } from '@saasicat/types';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
 import { Argon2Hasher } from './auth/argon2.hasher';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { TenantGuard } from './auth/tenant.guard';
 import { NotesModule } from './notes/notes.module';
 import { NotesQuotaProvider } from './saas-adapters/notes-quota.provider';
 
+const featureUiRegistry: FeatureUiRegistry = {
+    NOTES: { label: 'Notes', icon: 'sticky_note_2' },
+    NOTES_EXPORT: { label: 'Notes export', icon: 'file_download' },
+    notesMax: { label: 'Notes limit', icon: 'tag' },
+};
+
 @Module({
     imports: [
-        PrismaModule, // @Global — PrismaService resolvable for the bundle factories
+        PrismaModule,
         AuthModule,
 
-        SaasPlatformModule.forRoot({
-            planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
-            controller: { guards: [JwtAuthGuard] },
-            imports: [AuthModule],
-            persistence: prismaPersistence({
-                client: PrismaService,
-                passwordHasher: Argon2Hasher,
+        SaaSiCatModule.forRoot(
+            defineSaaSiCat({
+                planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
+                controller: { guards: [JwtAuthGuard] },
+                imports: [AuthModule, PrismaModule],
+                persistence: prismaPersistence({
+                    client: PrismaService,
+                    passwordHasher: Argon2Hasher,
+                }),
+                entitlement: {
+                    resolutionConfig: { defaultTrialEntitlementPlan: 'STARTER' },
+                },
+                catalog: {
+                    featureUiRegistry,
+                    strictModeCheckMode: 'warn-only',
+                },
+                tenantBilling: {
+                    authGuards: [JwtAuthGuard, TenantGuard],
+                },
+                subscriptionBundles: true,
+                // Keep the complete standard SuperAdmin API available.
+                adminResources: true,
+                promoCodes: true,
+                quotaProviders: [NotesQuotaProvider],
+                tenantManifest: true,
             }),
-            // adapters: { ... }  // optional field-by-field overrides
-            // For V3 (real contracts), additionally:
-            //   adapters: { planResolver: { useExisting: MyTenantPlanResolver } }
-            // As long as it is omitted, defaultPlanId applies.
-            defaultPlanId: 'starter',
-            quotaProviders: [NotesQuotaProvider],
-
-            tenantManifest: { guards: [JwtAuthGuard] }, // GET /tenant/manifest
-        }),
+        ),
 
         NotesModule,
     ],
@@ -223,23 +252,32 @@ export class AppModule {}
 
 > **Auth ordering:** register your `JwtAuthGuard` as a **global** guard
 > (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`) in a module imported
-> **before** `SaasPlatformModule.forRoot`. The platform's feature guard and
+> **before** `SaaSiCatModule.forRoot`. The platform's feature guard and
 > quota interceptor are global and read `request.user` — controller-level
 > `@UseGuards` runs after global guards and would be too late for them.
 
 **What happens automatically here:**
 
-- `StaticEntitlementService` is registered — per tenant, it reads features +
-  quotas from the plan catalog (via `planResolver` or `defaultPlanId`).
+- The active plan is resolved from the subscription repository. No
+  app-specific `PlanResolver` class is needed.
 - `StaticFeatureGuard` is registered as `APP_GUARD` — `@RequireFeature(...)`
   now automatically throws 403 when the feature is missing from the plan.
 - `EnforceQuotaInterceptor` is registered as `APP_INTERCEPTOR` —
   `@EnforceQuota(...)` automatically throws `LimitExceededError` as soon as
   `provider.count(tenantId) + delta > planLimit`.
-- `TenantManifestService` + controller are registered if `tenantManifest`
-  is set.
+- The same quota providers feed `GET /billing/usage`; no second usage adapter
+  repeats the counters.
+- Catalog, public catalog, tenant billing, subscription bundles and the tenant
+  manifest are mounted from the persistence bundle.
+- The standard Admin API serves tenant list/detail/actions, users, audit,
+  subscriptions and promo-code CRUD. Enabling it does not hide or trim Admin
+  pages; it removes their repeated app-owned controllers and database queries.
 
-## Step 7 — Declare capability + feature + quota in code
+This is the standard path. The individual `CatalogModule`,
+`TenantBillingModule`, `EntitlementModule` and port options remain public for
+applications that need different schemas or behavior.
+
+## Step 7 — Declare and enforce the feature in code
 
 Four decorators marry your code to the platform:
 
@@ -247,7 +285,7 @@ Four decorators marry your code to the platform:
 | ---------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `@DefinesQuota({ key, feature, ... })`         | Class implementing `QuotaProvider` | "This quota exists, and I can count it." → discovery UI + interceptor source.                                 |
 | `@ImplementsCapability(key, { feature, ... })` | Endpoint method                    | "This endpoint realizes the capability." → discovery UI, can be included in plans.                            |
-| `@RequireFeature(...keys)`                     | Endpoint method                    | The platform `StaticFeatureGuard` checks per request: is at least **one** of the features in the active plan? |  
+| `@RequireFeature(...keys)`                     | Endpoint method                    | The platform `StaticFeatureGuard` checks per request: is at least **one** of the features in the active plan? |
 | `@EnforceQuota(quotaKey)`                      | Endpoint method                    | The platform `EnforceQuotaInterceptor` calls the `QuotaProvider` and compares `count + delta ≤ planLimit`.    |
 
 `backend/src/notes/notes.controller.ts`:
@@ -341,6 +379,19 @@ This produces a runnable Vue 3 + Quasar + Vite project with:
 The only thing left to do is adapt **`src/services/http.ts#adminLogin`** to
 your backend auth.
 
+Standard resource pages can share one small client instead of repeating fetch
+code:
+
+```ts
+import { createAdminResourceClient } from '@saasicat/ui-vue';
+import { platformHttp } from './http';
+
+export const adminResources = createAdminResourceClient({ http: platformHttp });
+```
+
+Pass `adminResources.loadUsers`, `loadAudit`, `loadSubscriptions`,
+`loadPromos` and the tenant/promo actions directly to the supplied pages.
+
 ### Frontend feature gate (tenant UI)
 
 For your app's own tenant UI (not the SuperAdmin), the platform provides
@@ -431,49 +482,44 @@ dashboard. The **Discovery page** shows `notes.create` as "discovered", the
 
 Add these in this order:
 
-1. **V3 contracts** instead of `defaultPlanId`: add fragments `01`
-   (Subscription) + `03` (Plan/PlanVersion) to your schema and activate
-   `entitlement: {}` in `SaasPlatformModule.forRoot()` — the bundle from
-   step 5 already ships `SubscriptionRepository`, `PlanVersionRepository`
-   and `TransactionRunner` (verified against a real PostgreSQL by
-   `@saasicat/persistence-testing`, incl. the transactional
-   `enforceLimit()` row lock).
+1. **Switch the runtime catalog to the database:** replace `planCatalog` with
+   `dbCatalog: { projectKey, currency, vatRate, app, marketing }`. The
+   persistence bundle already supplies the read sink and catalog repositories.
 
-2. **Catalog adapters** (`PlanRepository`, `BundleRepository`,
-   `MarketingProjectionRepository`, `CatalogEntryRepository`) + wire
-   `CatalogModule` — so the SuperAdmin UI can edit plans live.
-   → [handbook](handbook.md), §6.3
-
-3. **Manifest contributions** for your own SuperAdmin KPI cards, tenant
+2. **Manifest contributions** for your own SuperAdmin KPI cards, tenant
    actions and project pages. **Tenant navigation** contributions via
    `TenantManifestService.registerNavItem(...)` in `OnModuleInit`.
    → [handbook](handbook.md), §6.6
 
-4. **Extend the CLI**: `notesapp manifest hash` (CI pinning),
+3. **Extend the CLI**: `notesapp manifest hash` (CI pinning),
    `notesapp audit tail`. Plus `defaultDoctorChecks: true` for the 4
    platform health checks.
    → [handbook](handbook.md), §9
 
-5. **Tests:** `createSaasPlatformTestModule({ planCatalog, defaultPlanId, quotaProviders })`
+4. **Tests:** `createSaasPlatformTestModule({ planCatalog, defaultPlanId, quotaProviders })`
    from `@saasicat/nest/testing` for integration tests without your own
    adapter setup.
+
+5. **Payments:** add a payment-provider adapter when the integration is
+   available. Keep capability packaging, contracts and enforcement independent
+   of provider-specific payment state.
 
 ---
 
 ## Common quickstart failures
 
-| Symptom                                                 | Cause                                                                                                          |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `saas-platform: command not found`                      | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.                              |
-| `prisma-fragments/` directory not found                 | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                                              |
-| `Nest can't resolve dependencies of X (?, ...)`         | The bundle factories inject your `PrismaService` — its `PrismaModule` must be `@Global` (or in `imports`).     |
-| Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.                        |
-| `discovery-snapshot.json` is empty                      | The module holding the decorators (e.g. `NotesModule`) is missing from `AppModule.imports[]`.                  |
-| `@RequireFeature` lets everything through               | Neither `defaultPlanId` nor `adapters.planResolver` is set → no static entitlement active.                     |
-| `@EnforceQuota` never blocks                            | The `QuotaProvider` class is not listed in `quotaProviders: [...]` of `SaasPlatformModule.forRoot()`.          |
-| `@RequireFeature('NOTES')` throws 403                   | The test tenant is not on a plan that includes `NOTES` — with `defaultPlanId` all tenants are equal.           |
-| Discovery tabs stay empty                               | Vite cache holding a stale build. `rm -rf node_modules/.vite && pnpm dev`.                                     |
-| Setup wizard does not appear / `403 SETUP_DISABLED`     | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).                     |
-| `tenantManifest` throws at boot                         | `tenantManifest` is active, but neither `defaultPlanId` nor `adapters.planResolver` is set.                    |
+| Symptom                                                 | Cause                                                                                               |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `saas-platform: command not found`                      | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.                   |
+| `prisma-fragments/` directory not found                 | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                                   |
+| `Nest can't resolve dependencies of X (?, ...)`         | Put the module exporting the injected adapter/client in the top-level `imports` option.             |
+| Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.             |
+| `discovery-snapshot.json` is empty                      | The module holding the decorators (e.g. `NotesModule`) is missing from `AppModule.imports[]`.       |
+| `@RequireFeature` lets everything through               | Enable `tenantBilling`, or provide `defaultPlanId`/`adapters.planResolver` for a lightweight setup. |
+| `@EnforceQuota` never blocks                            | The `QuotaProvider` class is not listed in `quotaProviders: [...]`.                                 |
+| `@RequireFeature('NOTES')` throws 403                   | The tenant has no active/trial subscription, or its plan does not include `NOTES`.                  |
+| Discovery tabs stay empty                               | Vite cache holding a stale build. `rm -rf node_modules/.vite && pnpm dev`.                          |
+| Setup wizard does not appear / `403 SETUP_DISABLED`     | The `SETUP_TOKEN` env variable is not set, or a SUPER_ADMIN already exists (self-disable).          |
+| `tenantManifest` throws at boot                         | Enable `tenantBilling`, or provide `defaultPlanId`/`adapters.planResolver`.                         |
 
 For deeper troubleshooting, see the [handbook](handbook.md), §11.

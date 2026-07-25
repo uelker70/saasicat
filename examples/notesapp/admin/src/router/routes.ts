@@ -14,14 +14,10 @@ import AdminAuditPage from '../pages/AdminAuditPage.vue';
 import AdminSubscriptionsPage from '../pages/AdminSubscriptionsPage.vue';
 import AdminPromoCodesPage from '../pages/AdminPromoCodesPage.vue';
 
-// The notesapp backend serves the full DB-backed catalog plane
-// (NotesCatalogModule) plus the app-owned domain pages (NotesPlatformPagesModule),
-// so the manifest contribution switches these standard pages on: dashboard,
-// discovery, plans, bundles, marketingCatalog,
-// tenants, users, audit, subscriptions and promoCodes. The child paths below
-// mirror the platform's DEFAULT_STANDARD_PAGE_ROUTES so the sidebar links
-// (built from the manifest) resolve. Thin wrappers under `src/pages/` bind each
-// platform page to `platformHttp` + the app-owned loader callbacks.
+// The backend enables SaaSiCat's complete standard Admin API: discovery,
+// catalog, tenants, users, audit, subscriptions and promo codes. NotesApp adds
+// only its dashboard KPIs. These routes keep every standard page visible; the
+// thin wrappers bind the reusable pages to one shared resource client.
 
 export const appRoutes: RouteRecordRaw[] = [
     { path: '/login', component: SuperAdminLoginPage, meta: { public: true } },

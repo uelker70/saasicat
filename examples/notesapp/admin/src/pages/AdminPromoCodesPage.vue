@@ -18,8 +18,8 @@ import PlatformPromoCodesPage from '@saasicat/ui-vue/pages/PromoCodesPage.vue';
 import { createPromo, deletePromo, loadPromos, updatePromo } from '../services/app-loaders';
 
 // Promo codes (GET/POST/PATCH/DELETE /admin/promo-codes). The create/edit/
-// status-toggle/delete flows are the page's built-in dialogs, wired to the
-// app-owned CRUD endpoints. Plan options mirror config/saas.yaml.
+// status-toggle/delete flows are the page's built-in dialogs, wired to
+// SaaSiCat's standard Admin API. Plan options mirror config/saas.yaml.
 const subtitle = 'Rabattcodes für das Onboarding-Checkout.';
 const planOptions = [
     { key: 'STARTER', label: 'Starter' },

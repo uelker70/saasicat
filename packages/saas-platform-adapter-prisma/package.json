@@ -1,7 +1,7 @@
 {
     "name": "@saasicat/adapter-prisma",
     "version": "0.8.0",
-    "description": "Prisma + PostgreSQL persistence adapter for SaaSicat: prismaPersistence() bundle plus the individual adapters (MFA, audit, RLS bypass, transaction runner, subscription/plan-version/promo repositories, SuperAdmin bootstrap, plan-catalog sinks). Targets the canonical schema from @saasicat/spec prisma-fragments; apps with a diverging schema write their own adapters — the platform ports stay identical.",
+    "description": "Prisma + PostgreSQL persistence for SaaSiCat: one standard bundle for core, catalog, entitlement, tenant billing, Admin resources and promo, plus individual adapters for custom compositions.",
     "type": "module",
     "main": "./dist/index.cjs",
     "module": "./dist/index.js",

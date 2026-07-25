@@ -1,23 +1,30 @@
-# SaaS Platform — Handbook
+# SaaSiCat Handbook
 
-Guide on how to make a NestJS or Express application SaaS-capable with the `@saasicat/*`
-packages: tenants, plans, bundles, quotas, features, SuperAdmin UI,
-MFA, audit, promo codes, checkout, subscription contracts.
+This handbook explains how to connect application code to a product catalog,
+customer contracts and runtime access with the `@saasicat/*` packages:
+
+```text
+Capability → Discovery → Packaging → Contract → Enforcement
+```
+
+Tenant administration, the SuperAdmin UI, MFA, audit and billing lifecycle
+tools support that loop. They are included, but they are not the main model
+you need to understand.
 
 > **Audience:** External developers / new teams deploying the platform for the first time.
 > Assumes knowledge of NestJS, Prisma and Vue/Quasar, but **no** prior knowledge
 > of the internal concepts (Capability, Feature, Quota, Bundle, Plan, Contract).
 >
 > **Quick start:** If you want to bolt the platform onto an existing NestJS
-> app, start with the [Quickstart](saas-platform-quickstart.md) —
-> 10 steps, ~60 minutes to a working SuperAdmin. This handbook is
+> app, start with the [Quickstart](quickstart.md) —
+> 10 steps, about 30 minutes to discovered and enforced product rules. This handbook is
 > the reference work you'll need afterwards.
 
 ---
 
 ## Contents
 
-1. [What the Platform Provides](#1-what-the-platform-provides)
+1. [The Capability-to-Contract Loop](#1-the-capability-to-contract-loop)
 2. [Concepts](#2-concepts)
 3. [Architecture](#3-architecture)
 4. [The Five Packages](#4-the-five-packages)
@@ -32,30 +39,35 @@ MFA, audit, promo codes, checkout, subscription contracts.
 
 ---
 
-## 1. What the Platform Provides
+## 1. The Capability-to-Contract Loop
 
-A ready-built SuperAdmin layer for your app:
+SaaSiCat keeps code reality, commercial packaging, sold terms and runtime
+behavior connected:
 
-- **Tenant management** (listing, detail, suspend/reactivate, impersonate, export).
-- **Plans & plan versions** (CRUD incl. plan editor, audit, bundle persistence).
-- **Bundles** (versioned add-ons with marketing projections).
-- **Discovery loop** (code declares capabilities/features/quotas via decorators → the platform
-  scans → SuperAdmin reviews → released entries are translated in the marketing catalog
-  and mapped to plans).
-- **Marketing catalog** (i18n labels, descriptions, highlights, promo actions) including a
-  public REST endpoint (`/public/catalog`) for pricing pages.
-- **Checkout offer + subscription contract** (V3): frozen purchase intents → immutable
-  contracts as the single source for billing and entitlement.
-- **Entitlement** at runtime (`@RequireFeature`, `@EnforceQuota`); missing features
-  respond with a structured 403 (`code: FEATURE_NOT_LICENSED` + upsell `offers`
-  via the optional `UpsellOfferResolver` port).
-- **MFA (TOTP)** for SuperAdmin actions, **AuditService** for every sensitive operation,
-  **RLS bypass interceptor** for global reads.
-- **Promo codes** (generator, lifecycle, redemption tracking).
-- **CLI building blocks** (`<app> admin mfa-setup|whoami`, `<app> audit tail`, `<app> doctor`,
-  `<app> manifest dump|hash|validate|check`).
-- **Vue/Quasar standard pages** that are dynamically toggled active/inactive via the
-  manifest — you just wire them in as routes and pass data through.
+1. **Capability** — application code declares concrete operations and
+   countable quotas through decorators.
+2. **Discovery** — the platform scans those declarations at boot and gives
+   the SuperAdmin a reviewable list of new and changed product inputs.
+3. **Packaging** — accepted features and quotas become versioned plans,
+   bundles, prices and translated public catalog entries.
+4. **Contract** — checkout freezes the selected offer; purchase creates an
+   immutable contract that remains valid even when the catalog changes.
+5. **Enforcement** — `@RequireFeature` and `@EnforceQuota` resolve the active
+   tenant contract and apply it to each request.
+
+The result is one traceable path from an endpoint in code to what a customer
+can buy and use. See
+[From Capability to Contract](capability-to-contract.md) for a focused
+walkthrough.
+
+The packages also provide the operating layer around this path:
+
+- tenant management and SuperAdmin standard pages;
+- plan and bundle editors with draft and publish workflows;
+- a public catalog endpoint for pricing pages;
+- promo-code and billing lifecycle building blocks;
+- TOTP MFA, audit logging, RLS-bypass integration and first-run setup;
+- CLI checks and manifest-driven Vue/Quasar pages.
 
 You implement:
 
@@ -86,8 +98,8 @@ The platform cleanly separates **code reality**, **product definition** and **so
 | **Entitlement-Snapshot**       | Aggregated view of all features and quota limits from a tenant's active contract line items. Computed at runtime by `EntitlementService`.                                                                                             |
 | **Manifest**                   | UI discovery projection of your app (`/api/v1/admin/manifest`): which standard pages are active, which project pages your app adds, which KPI cards, which tenant actions. Spec: `@saasicat/spec/schemas/admin-manifest.schema.json`. |
 
-**Rule of thumb:** Capability is _technical_, Feature is _marketable_, Quota is _countable_,
-Plan is _sellable_, Contract is _sold_.
+**Rule of thumb:** Capability is _implemented_, Feature is _marketable_,
+Quota is _countable_, Plan or Bundle is _sellable_, and Contract is _sold_.
 
 **Sales model (since v1.5.0, #49):** Only **plan versions** and
 **bundles** are sold; a tenant's effective features/quotas are
@@ -377,127 +389,104 @@ const SAAS_CONFIG = loadPlanCatalogFromFile({ path: SAAS_CONFIG_PATH });
 `loadPlanCatalogFromFile` validates the YAML against the schema from
 `saas-platform-spec` — errors throw early at boot.
 
-### 6.3 Platform Adapters Module (Prisma)
+### 6.3 Standard Persistence Bundle (Prisma)
 
-One `@Injectable` class per port that implements the interface from
-`@saasicat/types/ports` (or the specific repository interfaces from the
-`saas-platform-nest` sub-entries). Rows marked **(ships)** come ready-made
-from `@saasicat/adapter-prisma` on the canonical schema — import instead of
-writing them (or take the whole `prismaPersistence()` bundle, quickstart
-step 5); the unmarked rows are still consumer-written today.
+On the canonical schema, do not write one forwarding provider per repository.
+`prismaPersistence()` already supplies the standard slices:
 
-| Adapter                                           | Interface (from)                 | What to do                                                                   |
-| ------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------- |
-| `PrismaPlanCatalogReadSink` **(ships)**           | `PlanCatalogReadSink`            | **Boot read-only** snapshot of plans + versions; set the RLS bypass context! |
-| `PrismaPlanRepository`                            | `PlanRepository`                 | CRUD for `plan` + `catalogPlanVersion` (consumed by the SuperAdmin UI)       |
-| `PrismaBundleRepository`                          | `BundleRepository`               | CRUD for `catalogBundle` + `catalogBundleVersion`                            |
-| `PrismaCatalogEntryRepository`                    | `CatalogEntryRepository`         | Lifecycle transitions + i18n storage for capability/feature/quota            |
-| `PrismaMarketingProjectionRepository`             | `MarketingProjectionRepository`  | i18n marketing texts (label, description, highlights per locale)             |
-| `PrismaMarketingSettingsRepository`               | `MarketingSettingsRepository`    | Active locales                                                               |
-| `PrismaPromotionRepository`                       | `PromotionRepository`            | Time-limited pricing actions                                                 |
-| `PrismaCheckoutOfferRepository`                   | `CheckoutOfferRepository`        | Frozen checkout snapshots                                                    |
-| `PrismaSubscriptionContractRepository`            | `SubscriptionContractRepository` | Append-only immutable contracts                                              |
-| `UsersQuotaProvider`, `StorageGbQuotaProvider`, … | `QuotaProvider` (one per quota)  | `count(tenantId): Promise<number>`; decorate with `@DefinesQuota({...})`     |
-| `PrismaMfaAdapter` **(ships)**                    | `MfaPort`                        | TOTP setup, verify, disable                                                  |
-| `PrismaAuditAdapter` **(ships)**                  | `AuditPort`                      | Write audit entry (`audit_logs`, actorTag format)                            |
-| `AsyncLocalRlsBypassAdapter` **(ships)**          | `RlsBypassPort`                  | Platform: `node:async_hooks`-based; usually reusable 1:1                     |
-
-Bundle everything in a **`@Global()` module** so the DynamicModule factories can resolve the
-adapters via `inject:`:
+- core admin persistence, audit, MFA, RLS bypass and transactions;
+- subscriptions, plan versions, contracts and booked bundles;
+- plan, bundle, discovery-review, marketing and promotion repositories;
+- tenant subscription read/write adapters;
+- promo-code repositories and plan-catalog import/read sinks;
+- the standard Tenant/User/Audit/Subscription resource adapter.
 
 ```ts
-// modules/platform-adapters/platform-adapters.module.ts
-@Global()
-@Module({
-    imports: [PrismaModule],
-    providers: [
-        PrismaPlanCatalogReadSink,
-        PrismaPlanRepository,
-        PrismaBundleRepository,
-        /* … */
-        UsersQuotaProvider,
-        StorageGbQuotaProvider,
-        PrismaMfaAdapter,
-        PrismaAuditAdapter,
-        { provide: 'RLS_BYPASS_PORT', useClass: AsyncLocalRlsBypassAdapter },
-    ],
-    exports: [/* ditto */],
-})
-export class PlatformAdaptersModule {}
+const persistence = prismaPersistence({
+    client: PrismaService,
+    passwordHasher: Argon2Hasher,
+    adminResources: { tenantMetrics: ['users', 'storageItems'] },
+});
 ```
 
-### 6.4 Wiring the AppModule
+The application still owns authentication and product logic. In particular,
+each quota needs one `QuotaProvider` because only the application knows how to
+count users, notes, storage or API calls. That same provider is reused for
+runtime enforcement and the tenant usage response.
 
-> **Order matters.** `PlatformAdaptersModule` must appear in `imports[]` **before** the
-> `DynamicModule.forRoot(...)` calls, otherwise the factories cannot resolve
-> their `inject:` tokens.
+A custom schema or database can implement `SaasicatPersistenceAdapter` with
+the same named slices. The fine-grained ports and individual modules remain
+public; the bundle does not remove the extension points.
+
+### 6.4 Wiring the Standard AppModule
 
 ```ts
-// app.module.ts
+import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
+
 @Module({
     imports: [
         PrismaModule,
         AuthModule,
-        PlatformAdaptersModule,
 
-        PlanCatalogModule.forRoot({
-            projectKey: SAAS_CONFIG.projectKey,
-            app: SAAS_CONFIG.app,
-            currency: SAAS_CONFIG.currency,
-            vatRate: SAAS_CONFIG.vatRate,
-            marketing: SAAS_CONFIG.marketing,
-            imports: [PlatformAdaptersModule],
-            sink: {
-                useFactory: (s: PrismaPlanCatalogReadSink) => s,
-                inject: [PrismaPlanCatalogReadSink],
-            },
-        }),
+        SaaSiCatModule.forRoot(
+            defineSaaSiCat({
+                planCatalog: SAAS_CONFIG,
+                controller: { guards: [JwtAuthGuard, SuperAdminGuard] },
+                imports: [PrismaModule, AuthModule],
+                persistence,
+                entitlement: {
+                    resolutionConfig: { defaultTrialEntitlementPlan: 'STARTER' },
+                },
+                catalog: {
+                    featureUiRegistry: MYAPP_FEATURE_UI_REGISTRY,
+                    strictModeCheckMode: 'blocking',
+                },
+                tenantBilling: {
+                    authGuards: [JwtAuthGuard, TenantGuard],
+                },
+                subscriptionBundles: true,
+                adminResources: true,
+                promoCodes: true,
+                quotaProviders: [UsersQuotaProvider, StorageGbQuotaProvider],
+                tenantManifest: { guards: [JwtAuthGuard, TenantGuard] },
+            }),
+        ),
 
-        DiscoveryModule.forRoot({
-            app: { key: 'myapp', version: '0.0.1' },
-            controller: { guards: [JwtAuthGuard] },
-            imports: [AuthModule],
-            snapshotPath:
-                process.env.MYAPP_DISCOVERY_SNAPSHOT_PATH ?? 'var/discovery-snapshot.json',
-        }),
-
-        CatalogModule.forRoot({
-            bundleRepository: { useExisting: PrismaBundleRepository },
-            catalogEntryRepository: { useExisting: PrismaCatalogEntryRepository },
-            marketingProjectionRepository: { useExisting: PrismaMarketingProjectionRepository },
-            planRepository: { useExisting: PrismaPlanRepository },
-            controller: { guards: [JwtAuthGuard] },
-            imports: [AuthModule],
-            strictModeCheckMode: 'blocking', // Default (#12); 'warn-only' as a transition until 100% discovery coverage
-            publicMarketingCatalog: {
-                guards: [], // public
-                projectKey: 'myapp',
-                currency: 'EUR',
-                vatRate: 19.0,
-            },
-        }),
-
-        CheckoutOfferModule.forRoot({
-            checkoutOfferRepository: { useExisting: PrismaCheckoutOfferRepository },
-            bundleRepository: { useExisting: PrismaBundleRepository },
-            planRepository: { useExisting: PrismaPlanRepository },
-            controller: { guards: [] }, // pre-tenant, public
-        }),
-
-        SubscriptionContractModule.forRoot({
-            contractRepository: { useExisting: PrismaSubscriptionContractRepository },
-            controller: { guards: [JwtAuthGuard] },
-        }),
-
-        EntitlementModule.forRoot({
-            contractRepository: { useExisting: PrismaSubscriptionContractRepository },
-        }),
-
-        AdminModule, // your own module, see 6.5
+        MyAppDomainModule,
+        MyAppAdminContributionModule,
     ],
 })
 export class AppModule {}
 ```
+
+This configuration removes the usual app-owned plan resolver, catalog module,
+billing module, subscription display mapper and duplicate usage snapshot.
+SaaSiCat resolves active plans through the subscription repository and builds
+usage from the registered quota providers.
+
+`adminResources: true` mounts the standard tenant list/detail/actions, user,
+audit and subscription endpoints. `promoCodes: true` mounts the full
+SuperAdmin promo-code CRUD. Both add functionality to the standard API; they
+do not remove pages from the Admin UI. Apps with a different schema replace
+the single `AdminResourcesPort` while keeping the controllers and pages.
+
+For a database-managed runtime catalog, replace `planCatalog` with:
+
+```ts
+dbCatalog: {
+    projectKey: SAAS_CONFIG.projectKey,
+    currency: SAAS_CONFIG.currency,
+    vatRate: SAAS_CONFIG.vatRate,
+    app: SAAS_CONFIG.app,
+    marketing: SAAS_CONFIG.marketing,
+}
+```
+
+Use the low-level `CatalogModule`, `EntitlementModule`,
+`TenantBillingModule`, `SubscriptionBundleModule` and adapter options only
+when the standard behavior does not fit. Payment-provider integration is a
+separate future adapter boundary; it does not change capability discovery,
+contracts or backend enforcement.
 
 ### 6.5 Admin Module
 

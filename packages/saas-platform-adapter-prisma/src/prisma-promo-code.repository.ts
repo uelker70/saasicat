@@ -90,9 +90,24 @@ export class PrismaPromoCodeRepository implements PromoCodeRepository {
             where: { id },
             data: {
                 status: data.status,
+                valueType: data.valueType,
+                value: data.value?.toFixed(2),
+                durationType: data.durationType,
+                durationValue: data.durationValue,
+                validFrom: data.validFrom,
                 description: data.description,
                 validUntil: data.validUntil,
                 maxRedemptions: data.maxRedemptions,
+                appliesToPlans: data.appliesToPlans,
+                appliesToBilling: data.appliesToBilling,
+                firstTimeCustomersOnly: data.firstTimeCustomersOnly,
+                minimumPlanAmountGross:
+                    data.minimumPlanAmountGross === null
+                        ? null
+                        : data.minimumPlanAmountGross?.toFixed(2),
+                allowZeroInvoice: data.allowZeroInvoice,
+                campaignTag: data.campaignTag,
+                revenueDeductionAccount: data.revenueDeductionAccount,
             },
         });
         return toRecord(row);

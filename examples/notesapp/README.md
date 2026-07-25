@@ -1,10 +1,16 @@
 # notesapp — SaaSiCat reference implementation
 
 A deliberately small, **runnable** multi-tenant NestJS app that follows the
-[quickstart](../../docs/quickstart.md) end to end: two plans in
-`config/saas.yaml`, one quota provider, the four platform decorators, the
-`prismaPersistence()` bundle — and automatic feature/quota enforcement with
-zero platform code inside the handlers.
+[quickstart](../../docs/quickstart.md) through the full product loop:
+
+```text
+Capability → Discovery → Packaging → Contract → Enforcement
+```
+
+It declares note creation and export in code, discovers both at boot,
+packages them as Starter and Pro, and verifies feature and quota enforcement
+with no platform logic inside the handlers. The high-level `SaaSiCatModule`
+keeps the integration in one place.
 
 What it demonstrates:
 
@@ -12,16 +18,18 @@ What it demonstrates:
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | App identity + plans (static path)           | [`config/saas.yaml`](config/saas.yaml)                                                                                         |
 | Canonical platform tables next to app tables | [`prisma/schema.prisma`](prisma/schema.prisma) (fragments 04/06/10)                                                            |
-| One-line persistence wiring                  | [`src/app.module.ts`](src/app.module.ts) — `prismaPersistence({ client, passwordHasher })`                                     |
+| Standard platform wiring                     | [`src/app.module.ts`](src/app.module.ts) — one `SaaSiCatModule.forRoot(...)` call                                              |
 | Countable quota declaration                  | [`src/saas/notes-quota.provider.ts`](src/saas/notes-quota.provider.ts) — `@DefinesQuota`                                       |
 | Enforcement decorators                       | [`src/notes/notes.controller.ts`](src/notes/notes.controller.ts) — `@ImplementsCapability`, `@RequireFeature`, `@EnforceQuota` |
+| Full standard Admin backend                  | `adminResources: true` + `promoCodes: true` in [`src/app.module.ts`](src/app.module.ts)                                        |
+| Full SuperAdmin UI                           | [`admin/src/pages`](admin/src/pages) — discovery, catalog, plans, bundles, tenants, users, audit, subscriptions and promos     |
 | 402 quota responses                          | `LimitExceededFilter` as `APP_FILTER` in `app.module.ts`                                                                       |
 | Auth ordering (global guard!)                | [`src/auth/demo-auth.guard.ts`](src/auth/demo-auth.guard.ts) + `DemoAuthModule`                                                |
 | DB-free platform test                        | [`tests/notesapp-smoke.test.js`](tests/notesapp-smoke.test.js)                                                                 |
 
 > **Demo auth:** the app identifies callers from an `x-demo-tenant` header —
 > obviously NOT authentication. Swap `DemoAuthGuard` for your JWT guard; it
-> must stay a **global** guard registered before `SaasPlatformModule`
+> must stay a **global** guard registered before `SaaSiCatModule`
 > (the platform's feature guard and quota interceptor read `request.user`).
 
 ## Run it with Docker (database + backend + SuperAdmin UI)
@@ -100,17 +108,31 @@ jq '[.capabilities[].capabilityKey]' var/discovery-snapshot.json
 # → ["notes.create", "notes.export"]
 ```
 
+## Why `src/saas` is still there
+
+The standard module removed the former catalog module, billing module, plan
+resolver, subscription/usage forwarding ports and the 471-line Admin resource
+service. The remaining 164 lines are NotesApp decisions: its quota counter,
+feature labels and three dashboard KPIs.
+
+No Admin feature was removed to get there. The demo still exposes discovery,
+plans, bundles, the marketing catalog, tenants with detail and
+suspend/reactivate actions, users, audit, subscriptions and promo-code CRUD.
+Their standard backend now comes from SaaSiCat; the small Vue wrappers only add
+NotesApp labels, columns and plan choices.
+
 ## Where to go from here
 
 - **SuperAdmin UI:** already scaffolded in [`admin/`](admin/) via
   `pnpm create saasicat-admin admin --project-key=notesapp` (quickstart step 9).
   Its `services/http.ts` sends this example's demo auth headers instead of a
   bearer token — swap it for your auth backend.
-- **Real plans per tenant (V3 contracts):** add fragments `01`/`03` +
-  `sql/constraints.postgres.sql`, set `entitlement: {}` — the bundle already
-  ships the repositories, verified by `@saasicat/persistence-testing`.
+- **Real payment collection:** keep the current contract and entitlement
+  model. A payment-provider adapter can be added later without moving product
+  capabilities or quota logic into the provider integration.
 - **Drizzle instead of Prisma:** swap the bundle for
-  `drizzlePersistence({ db })` from `@saasicat/adapter-drizzle` — same
-  slices, same verified semantics.
+  `drizzlePersistence({ db })` from `@saasicat/adapter-drizzle` for the core
+  slices. Catalog and tenant-billing adapters are not bundled there yet, so
+  wire those low-level modules explicitly.
 - Inside this monorepo the example uses `workspace:^` versions; in your own
   app install the published `@saasicat/*` packages instead.

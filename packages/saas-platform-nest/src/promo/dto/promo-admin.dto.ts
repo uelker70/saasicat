@@ -2,7 +2,7 @@ import {
     ArrayUnique,
     IsArray,
     IsBoolean,
-    IsEnum,
+    IsIn,
     IsInt,
     IsNotEmpty,
     IsNumber,
@@ -11,28 +11,11 @@ import {
     MaxLength,
     Min,
 } from 'class-validator';
-import {
-    BillingCycle,
-    PromoCodeDurationType,
-    PromoCodeStatus,
-    PromoCodeValueType,
-} from '@prisma/client';
 
-/**
- * Validated request bodies for the app-owned SuperAdmin pages. The DTO types
- * reuse the Prisma enums directly, so the service passes the validated values
- * into `prisma.*` without a cast (the string-literal-union pages
- * `PromoCodesPage`/`TenantsPage` send exactly these member names).
- */
-
-export class SuspendTenantDto {
-    // The confirm dialog collects a reason; MFA is not modeled in this demo, so
-    // the `X-Mfa-Code` header the platform flow sends is accepted and ignored.
-    @IsOptional()
-    @IsString()
-    @MaxLength(500)
-    reason?: string;
-}
+const VALUE_TYPES = ['PERCENT', 'ABSOLUTE'] as const;
+const DURATION_TYPES = ['ONCE', 'MONTHS', 'BILLING_CYCLES'] as const;
+const STATUSES = ['ACTIVE', 'PAUSED'] as const;
+const BILLING_CYCLES = ['MONTHLY', 'YEARLY'] as const;
 
 export class CreatePromoCodeDto {
     @IsString()
@@ -40,15 +23,15 @@ export class CreatePromoCodeDto {
     @MaxLength(64)
     code!: string;
 
-    @IsEnum(PromoCodeValueType)
-    valueType!: PromoCodeValueType;
+    @IsIn(VALUE_TYPES)
+    valueType!: (typeof VALUE_TYPES)[number];
 
     @IsNumber()
     @Min(0)
     value!: number;
 
-    @IsEnum(PromoCodeDurationType)
-    durationType!: PromoCodeDurationType;
+    @IsIn(DURATION_TYPES)
+    durationType!: (typeof DURATION_TYPES)[number];
 
     @IsOptional()
     @IsInt()
@@ -75,8 +58,8 @@ export class CreatePromoCodeDto {
     appliesToPlans?: string[];
 
     @IsOptional()
-    @IsEnum(BillingCycle)
-    appliesToBilling?: BillingCycle | null;
+    @IsIn(BILLING_CYCLES)
+    appliesToBilling?: (typeof BILLING_CYCLES)[number] | null;
 
     @IsOptional()
     @IsBoolean()
@@ -109,12 +92,12 @@ export class CreatePromoCodeDto {
 
 export class UpdatePromoCodeDto {
     @IsOptional()
-    @IsEnum(PromoCodeStatus)
-    status?: PromoCodeStatus;
+    @IsIn(STATUSES)
+    status?: (typeof STATUSES)[number];
 
     @IsOptional()
-    @IsEnum(PromoCodeValueType)
-    valueType?: PromoCodeValueType;
+    @IsIn(VALUE_TYPES)
+    valueType?: (typeof VALUE_TYPES)[number];
 
     @IsOptional()
     @IsNumber()
@@ -122,8 +105,8 @@ export class UpdatePromoCodeDto {
     value?: number;
 
     @IsOptional()
-    @IsEnum(PromoCodeDurationType)
-    durationType?: PromoCodeDurationType;
+    @IsIn(DURATION_TYPES)
+    durationType?: (typeof DURATION_TYPES)[number];
 
     @IsOptional()
     @IsInt()
@@ -150,8 +133,8 @@ export class UpdatePromoCodeDto {
     appliesToPlans?: string[];
 
     @IsOptional()
-    @IsEnum(BillingCycle)
-    appliesToBilling?: BillingCycle | null;
+    @IsIn(BILLING_CYCLES)
+    appliesToBilling?: (typeof BILLING_CYCLES)[number] | null;
 
     @IsOptional()
     @IsBoolean()
@@ -168,8 +151,8 @@ export class UpdatePromoCodeDto {
 
     @IsOptional()
     @IsString()
-    @MaxLength(32)
-    revenueDeductionAccount?: string | null;
+    @MaxLength(500)
+    description?: string | null;
 
     @IsOptional()
     @IsString()
@@ -178,6 +161,6 @@ export class UpdatePromoCodeDto {
 
     @IsOptional()
     @IsString()
-    @MaxLength(500)
-    description?: string | null;
+    @MaxLength(32)
+    revenueDeductionAccount?: string | null;
 }
