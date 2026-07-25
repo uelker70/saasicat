@@ -18,3 +18,5 @@ export * from './tokens.js';
 export * from './controller.js';
 export * from './dto/promo-public.dto.js';
 export * from './module.js';
+export * from './admin-controller.js';
+export * from './dto/promo-admin.dto.js';

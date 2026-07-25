@@ -1,7 +1,7 @@
 import { Module, type OnModuleInit } from '@nestjs/common';
 // From `/platform`, not `/admin`: the CJS bundles do not share code between
 // entries, so only this entry hands out the same class object that
-// SaasPlatformModule registered.
+// SaaSiCatModule registered.
 import { AdminManifestService } from '@saasicat/nest/platform';
 
 import { NOTESAPP_MANIFEST_CONTRIBUTION } from './admin-manifest.contribution';

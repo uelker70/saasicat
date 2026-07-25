@@ -12,12 +12,9 @@
 // within a single adapter — mixing repositories from different adapters in
 // one transaction is undefined behavior.
 
+import type { MfaPort, SuperAdminProvisioningPort, TransactionRunner } from './core-ports.types.js';
 import type {
-    MfaPort,
-    SuperAdminProvisioningPort,
-    TransactionRunner,
-} from './core-ports.types.js';
-import type {
+    AdminResourcesPort,
     AuditPort,
     AuditQueryPort,
     AuditStatsPort,
@@ -28,8 +25,18 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionContractRepository,
     SubscriptionRepository,
+    SubscriptionUsagePort,
+    TenantSubscriptionWritePort,
+    UsageSnapshotPort,
 } from './billing-ports.types.js';
-import type { BundleRepository } from './catalog-ports.types.js';
+import type {
+    BundleRepository,
+    CatalogEntryRepository,
+    MarketingProjectionRepository,
+    MarketingSettingsRepository,
+    PlanRepository,
+    PromotionRepository,
+} from './catalog-ports.types.js';
 import type {
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
@@ -114,6 +121,36 @@ export interface SaasicatPersistenceEntitlement {
 }
 
 /**
+ * Repositories for the editable catalog plane. A complete adapter can expose
+ * this slice once and let the high-level Nest module wire `CatalogModule` and
+ * `PublicCatalogModule` without consumer-owned forwarding modules.
+ */
+export interface SaasicatPersistenceCatalog {
+    planRepository: PersistenceProvider<PlanRepository>;
+    bundleRepository: PersistenceProvider<BundleRepository>;
+    catalogEntryRepository?: PersistenceProvider<CatalogEntryRepository>;
+    marketingProjectionRepository?: PersistenceProvider<MarketingProjectionRepository>;
+    promotionRepository?: PersistenceProvider<PromotionRepository>;
+    marketingSettingsRepository?: PersistenceProvider<MarketingSettingsRepository>;
+}
+
+/**
+ * Standard tenant self-service persistence. `usageSnapshotPort` is optional:
+ * the Nest high-level module derives it from registered `QuotaProvider`s when
+ * the adapter does not provide a more specialized implementation.
+ */
+export interface SaasicatPersistenceTenantBilling {
+    subscriptionUsagePort: PersistenceProvider<SubscriptionUsagePort>;
+    subscriptionWritePort: PersistenceProvider<TenantSubscriptionWritePort>;
+    usageSnapshotPort?: PersistenceProvider<UsageSnapshotPort>;
+}
+
+/** Read/write backing for the standard SuperAdmin resource pages. */
+export interface SaasicatPersistenceAdminResources {
+    resources: PersistenceProvider<AdminResourcesPort>;
+}
+
+/**
  * Repositories for `PromoCodesModule.forRoot`. Field names match the module
  * options so the slice can be spread into the options object. The
  * app-semantic `firstTimeCustomerCheck` is deliberately NOT part of the
@@ -130,13 +167,19 @@ export interface SaasicatPersistencePromo {
 /**
  * Aggregate persistence bundle. Produced by adapter factories such as
  * `prismaPersistence({ client })`; consumed by
- * `SaasPlatformModule.forRoot({ persistence })` and — for slices the mega
- * module does not wire — spread into the per-domain `forRoot` options.
+ * `SaaSiCatModule.forRoot({ persistence })`. Fine-grained fields can still be
+ * passed to per-domain `forRoot` options for custom compositions.
  */
 export interface SaasicatPersistenceAdapter {
     capabilities: PersistenceCapabilities;
     core: SaasicatPersistenceCore;
     entitlement?: SaasicatPersistenceEntitlement;
+    /** Editable plans, bundles, discovery review and marketing data. */
+    catalog?: SaasicatPersistenceCatalog;
+    /** Tenant subscription read/write adapters for the self-service API. */
+    tenantBilling?: SaasicatPersistenceTenantBilling;
+    /** Tenant, user, audit and subscription resources for the SuperAdmin UI. */
+    adminResources?: SaasicatPersistenceAdminResources;
     promo?: SaasicatPersistencePromo;
     /** DB hydration of the plan catalog at boot (`PlanCatalogModule`). */
     planCatalogReadSink?: PersistenceProvider<PlanCatalogReadSink>;

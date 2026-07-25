@@ -1,21 +1,30 @@
-// @saasicat/nest/platform — mega module for the quickstart path.
+// @saasicat/nest/platform — high-level SaaSiCat composition.
 //
-// Bundles the five platform modules (PlanCatalog, Discovery, Admin,
-// AdminManifest, optionally Entitlement) into a single forRoot() call.
-// Reduces AppModule boilerplate and eliminates the ordering trap.
+// `SaaSiCatModule` is the preferred branded alias. `SaasPlatformModule`
+// remains exported for compatibility.
 //
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P1.
 
 export {
     SaasPlatformModule,
+    SaasPlatformModule as SaaSiCatModule,
     type SaasPlatformAdapters,
+    type SaasPlatformAdminResourcesOptions,
+    type SaasPlatformCatalogOptions,
     type SaasPlatformModuleOptions,
+    type SaasPlatformPromoCodesOptions,
+    type SaasPlatformSubscriptionBundlesOptions,
+    type SaasPlatformTenantAuthGuards,
+    type SaasPlatformTenantBillingOptions,
 } from './saas-platform.module.js';
+export { defineSaaSiCat } from './define-saasicat.js';
 export {
     PLAN_RESOLVER_PORT_TOKEN,
     type PlanResolverPort,
     StaticPlanResolver,
 } from './plan-resolver.port.js';
+export { SubscriptionPlanResolver } from './subscription-plan-resolver.js';
+export { QuotaProvidersUsageSnapshot } from './quota-providers-usage-snapshot.js';
 export {
     StaticEntitlementService,
     type StaticEntitlementSnapshot,

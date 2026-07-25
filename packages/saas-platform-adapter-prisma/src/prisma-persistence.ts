@@ -10,18 +10,44 @@ import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js'
 import { PrismaAuditAdapter } from './prisma-audit.adapter.js';
 import { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
 import { PrismaAuditStatsAdapter } from './prisma-audit-stats.adapter.js';
+import {
+    PrismaAdminResourcesAdapter,
+    type PrismaAdminResourcesOptions,
+} from './prisma-admin-resources.adapter.js';
+import { PrismaBundleRepository } from './prisma-bundle.repository.js';
+import { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
+import { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
+import { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
 import { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 import { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.js';
 import { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.js';
+import { PrismaPlanRepository } from './prisma-plan.repository.js';
 import { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';
+import { PrismaPromotionRepository } from './prisma-promotion.repository.js';
 import { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';
 import { PrismaPromoCodeRepository } from './prisma-promo-code.repository.js';
 import { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-validation-log.repository.js';
 import { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.js';
+import { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
+import { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
+import { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
 import { PrismaSuperAdminBootstrapAdapter } from './prisma-super-admin-bootstrap.adapter.js';
+import { PrismaTenantSubscriptionWriteAdapter } from './prisma-tenant-subscription-write.adapter.js';
 import { PrismaTransactionRunner } from './prisma-transaction-runner.js';
 import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.js';
+
+/** Additional delegates present when the canonical catalog fragments are installed. */
+interface CanonicalPersistencePrisma extends PrismaLike {
+    bundle: unknown;
+    bundleVersion: unknown;
+    subscriptionBundle: unknown;
+    capabilityCatalogEntry: unknown;
+    quotaCatalogEntry: unknown;
+    marketingProjection: unknown;
+    promotion: unknown;
+    marketingSettings: unknown;
+}
 
 export interface PrismaPersistenceOptions {
     /**
@@ -50,6 +76,11 @@ export interface PrismaPersistenceOptions {
      * termination columns.
      */
     schema?: PrismaSchemaOptions;
+    /**
+     * Standard SuperAdmin Tenant/User/Audit/Subscription pages. Set `false`
+     * for schemas without conventional `tenant`/`user` delegates.
+     */
+    adminResources?: false | PrismaAdminResourcesOptions;
 }
 
 /**
@@ -63,14 +94,9 @@ export interface PrismaPersistenceOptions {
  * });
  * ```
  *
- * This bundle covers the core/entitlement/promo/plan-catalog slices consumed
- * by `SaasPlatformModule`. The catalog plane (CatalogModule) and the V3
- * contract loop take their repositories directly as `forRoot` options — wire
- * the standalone `PrismaPlanRepository` / `PrismaBundleRepository` /
- * `PrismaCatalogEntryRepository` /
- * `PrismaMarketingProjectionRepository` / `PrismaMarketingSettingsRepository` /
- * `PrismaPromotionRepository` / `PrismaSubscriptionContractRepository` exports
- * there. The registration and tenant-billing write ports remain app-specific.
+ * The bundle covers the complete canonical core, entitlement, catalog,
+ * tenant-billing, promo and plan-catalog persistence. App-specific behavior
+ * such as quota counters and authentication remains in the consumer.
  */
 export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPersistenceAdapter {
     const { client } = options;
@@ -80,7 +106,7 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
             ? { useFactory: (prisma: PrismaLike) => build(prisma), inject: [client] }
             : build(client);
 
-    return {
+    const bundle: SaasicatPersistenceAdapter = {
         capabilities: {
             transactions: true,
             pessimisticLocking: true,
@@ -103,7 +129,50 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
             planVersionRepository: provide(
                 (prisma) => new PrismaPlanVersionRepository(prisma, options.schema),
             ),
+            subscriptionContractRepository: provide(
+                (prisma) => new PrismaSubscriptionContractRepository(prisma),
+            ),
+            subscriptionBundleRepository: provide(
+                (prisma) => new PrismaSubscriptionBundleRepository(canonical(prisma)),
+            ),
+            bundleRepository: provide((prisma) => new PrismaBundleRepository(canonical(prisma))),
         },
+        catalog: {
+            planRepository: provide((prisma) => new PrismaPlanRepository(prisma, options.schema)),
+            bundleRepository: provide((prisma) => new PrismaBundleRepository(canonical(prisma))),
+            catalogEntryRepository: provide(
+                (prisma) => new PrismaCatalogEntryRepository(canonical(prisma)),
+            ),
+            marketingProjectionRepository: provide(
+                (prisma) => new PrismaMarketingProjectionRepository(canonical(prisma)),
+            ),
+            promotionRepository: provide(
+                (prisma) => new PrismaPromotionRepository(canonical(prisma)),
+            ),
+            marketingSettingsRepository: provide(
+                (prisma) => new PrismaMarketingSettingsRepository(canonical(prisma)),
+            ),
+        },
+        tenantBilling: {
+            subscriptionUsagePort: provide(
+                (prisma) => new PrismaSubscriptionUsageAdapter(prisma, options.schema),
+            ),
+            subscriptionWritePort: provide(
+                (prisma) => new PrismaTenantSubscriptionWriteAdapter(prisma, options.schema),
+            ),
+        },
+        adminResources:
+            options.adminResources === false
+                ? undefined
+                : {
+                      resources: provide(
+                          (prisma) =>
+                              new PrismaAdminResourcesAdapter(
+                                  prisma,
+                                  options.adminResources || undefined,
+                              ),
+                      ),
+                  },
         promo: {
             promoCodeRepository: provide((prisma) => new PrismaPromoCodeRepository(prisma)),
             redemptionRepository: provide(
@@ -122,6 +191,11 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
             (prisma) => new PrismaPlanCatalogImportSink(prisma, options.schema),
         ),
     };
+    return bundle;
+}
+
+function canonical(prisma: PrismaLike): CanonicalPersistencePrisma {
+    return prisma as CanonicalPersistencePrisma;
 }
 
 function isInjectionToken(value: unknown): value is PersistenceInjectionToken {

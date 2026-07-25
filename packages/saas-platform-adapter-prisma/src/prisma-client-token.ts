@@ -37,6 +37,17 @@ export interface SubscriptionRowLike {
     planVersionId: string;
     pendingPlanVersionId: string | null;
     startedAt: Date | null;
+    /** Rich tenant-billing fields present in the canonical schema. */
+    trialEndsAt?: Date | null;
+    pilotEndsAt?: Date | null;
+    currentPeriodStart?: Date | null;
+    currentPeriodEnd?: Date | null;
+    pendingBillingCycle?: string | null;
+    pendingPlanVersionEffectiveAt?: Date | null;
+    pendingPlanVersionAccepted?: boolean;
+    pendingPlanVersionAcceptedAt?: Date | null;
+    packageSnapshot?: unknown | null;
+    checkoutOfferId?: string | null;
 }
 
 export interface PlanVersionRowLike {
@@ -308,9 +319,21 @@ export interface PromoCodeDelegateLike {
         where: { id: string };
         data: {
             status?: string;
+            valueType?: string;
+            value?: string;
+            durationType?: string;
+            durationValue?: number | null;
+            validFrom?: Date | null;
             description?: string | null;
             validUntil?: Date | null;
             maxRedemptions?: number | null;
+            appliesToPlans?: string[];
+            appliesToBilling?: string | null;
+            firstTimeCustomersOnly?: boolean;
+            minimumPlanAmountGross?: string | null;
+            allowZeroInvoice?: boolean;
+            campaignTag?: string | null;
+            revenueDeductionAccount?: string | null;
             deletedAt?: Date;
         };
     }): Promise<PromoCodeRowLike>;
@@ -384,7 +407,14 @@ export interface AuditLogDelegateLike {
             entity?: string;
             entityId?: string;
             action?: string;
-            actorTag?: string | { startsWith: string };
+            actorTag?:
+                | string
+                | {
+                      startsWith?: string;
+                      endsWith?: string;
+                      contains?: string;
+                      mode?: 'insensitive';
+                  };
             createdAt?: { gte?: Date; lte?: Date };
         };
         orderBy?: { createdAt?: SortDirection };

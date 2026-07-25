@@ -87,9 +87,21 @@ export interface CreatePromoCodeData {
 /** Input for `PromoCodesService.update()`. */
 export interface UpdatePromoCodeData {
     status?: PromoCodeStatus;
+    valueType?: PromoCodeValueType;
+    value?: number;
+    durationType?: PromoCodeDurationType;
+    durationValue?: number | null;
+    validFrom?: Date | null;
     description?: string | null;
     validUntil?: Date | null;
     maxRedemptions?: number | null;
+    appliesToPlans?: string[];
+    appliesToBilling?: BillingCycle | null;
+    firstTimeCustomersOnly?: boolean;
+    minimumPlanAmountGross?: number | null;
+    allowZeroInvoice?: boolean;
+    campaignTag?: string | null;
+    revenueDeductionAccount?: string | null;
 }
 
 /** Filter for `PromoCodesService.findAll()`. */

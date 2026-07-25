@@ -44,9 +44,9 @@ or run the [NotesApp reference implementation](examples/notesapp/).
 - **Operational building blocks** including tenant administration, TOTP MFA,
   audit logging, first-run setup and CLI checks.
 
-Your application still owns the things only it can know: its capabilities,
-usage counters, authentication, tenant model and any custom persistence or UI
-contributions.
+With the canonical Prisma schema, your application owns only what SaaSiCat
+cannot know: authentication, product capabilities, quota counters, its tenant
+model and custom UI contributions. Custom schemas can still replace any port.
 
 ## Packages
 
@@ -56,7 +56,7 @@ contributions.
 | `@saasicat/types`               | TypeScript types generated from the spec schemas.                                                                                                          |
 | `@saasicat/nest`                | The backend core: NestJS modules, services, guards and decorators.                                                                                         |
 | `@saasicat/adapter-prisma`      | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
-| `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter: `drizzlePersistence()` bundle — same ports, same canonical schema, verified by the same contract.            |
+| `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter for the core slices, verified by the shared persistence contract.                                             |
 | `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …).           |
 | `@saasicat/cli`                 | nest-commander command flows to embed in your application CLI.                                                                                             |
 | `@saasicat/ui-vue`              | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables.                                                                                             |
@@ -69,15 +69,44 @@ All packages are released in lockstep and share one version number.
 SaaSiCat is **embeddable, not hosted**: your application keeps its own
 database, authentication and HTTP stack. SaaSiCat provides the product loop
 from discovery to enforcement and defines narrow **ports** for persistence,
-MFA, audit, RLS bypass and plan resolution. Ready-made Prisma and Drizzle
-adapters implement those ports for PostgreSQL.
+MFA, audit, RLS bypass and plan resolution. Prisma provides the complete
+standard bundle; Drizzle currently provides the core persistence slices.
+
+The standard Prisma path is one composition:
+
+```ts
+SaaSiCatModule.forRoot(
+    defineSaaSiCat({
+        planCatalog,
+        controller: { guards: [JwtAuthGuard] },
+        imports: [AuthModule, PrismaModule],
+        persistence: prismaPersistence({
+            client: PrismaService,
+            adminResources: { tenantMetrics: ['users'] },
+        }),
+        entitlement: {},
+        catalog: { featureUiRegistry },
+        tenantBilling: { authGuards: [JwtAuthGuard, TenantGuard] },
+        subscriptionBundles: true,
+        adminResources: true,
+        promoCodes: true,
+        quotaProviders: [UsersQuotaProvider],
+        tenantManifest: true,
+    }),
+);
+```
+
+The low-level modules and individual adapter ports remain available for
+custom schemas or product rules.
 
 ## Reference implementation
 
 [`examples/notesapp`](examples/notesapp/) is a small runnable NestJS app that
 shows the complete loop: code-declared capabilities, discovery output,
 Starter and Pro packaging, tenant entitlements and verified 402/403
-enforcement. Start there if you prefer reading code over docs.
+enforcement. Its complete SuperAdmin UI remains enabled, including discovery,
+catalog, plans, bundles, tenants, users, audit, subscriptions and promo-code
+CRUD. Start there if you prefer reading code over docs.
 
 ## Getting started
 
@@ -99,7 +128,8 @@ existing CRUD backend to a discovered, packaged and enforced feature in about
 30 minutes and under 100 lines of app-owned code. The
 [handbook](docs/handbook.md) is the in-depth reference behind it.
 
-> **Note:** the Admin UI is currently German; English i18n is on the roadmap. The APIs, error codes and all documentation are English.
+> The Admin UI ships German and English messages; select the locale in
+> `createSuperAdminApp`. APIs, error codes and documentation use English.
 
 ## Requirements
 

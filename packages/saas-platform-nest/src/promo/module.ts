@@ -8,7 +8,14 @@
 // The PlanCatalog token is expected from the PlanCatalogModule (in the consumer
 // usually loaded via `forRoot({ path: 'config/plans.yaml' })`).
 
-import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import {
+    type CanActivate,
+    type DynamicModule,
+    type ForwardReference,
+    Module,
+    type Provider,
+    type Type,
+} from '@nestjs/common';
 import type {
     FirstTimeCustomerCheck,
     PromoCodeRedemptionRepository,
@@ -23,6 +30,7 @@ import { PromoCodeExpirer } from './expirer.js';
 import { PromoCodePublicController } from './controller.js';
 import { PromoCodesService, type PromoServiceConfig } from './service.js';
 import { PromoCodeRateLimitGuard } from './rate-limit.guard.js';
+import { buildPromoCodeAdminController } from './admin-controller.js';
 import {
     PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN,
     PROMO_CODE_REPOSITORY_TOKEN,
@@ -54,6 +62,10 @@ export interface PromoCodesModuleOptions {
      * want to expose a public preview API (e.g. SuperAdmin-only deploy).
      */
     includePublicController?: boolean;
+    /** Mount the standard SuperAdmin CRUD API at `/admin/promo-codes`. */
+    adminController?: false | { guards: Array<Type<CanActivate>> };
+    /** Modules required by adapter factory tokens and admin guards. */
+    imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Register the module globally — default `false`. */
     global?: boolean;
 }
@@ -63,6 +75,10 @@ export class PromoCodesModule {
     static forRoot(options: PromoCodesModuleOptions): DynamicModule {
         const includeCron = options.includeExpirerCron ?? true;
         const includePublic = options.includePublicController ?? true;
+        const controllers: Type[] = includePublic ? [PromoCodePublicController] : [];
+        if (options.adminController) {
+            controllers.push(buildPromoCodeAdminController(options.adminController.guards));
+        }
         const providers: Provider[] = [
             asProvider(PROMO_CODE_REPOSITORY_TOKEN, options.promoCodeRepository),
             asProvider(PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN, options.redemptionRepository),
@@ -82,7 +98,8 @@ export class PromoCodesModule {
         return {
             module: PromoCodesModule,
             global: options.global ?? false,
-            controllers: includePublic ? [PromoCodePublicController] : [],
+            imports: options.imports ?? [],
+            controllers,
             providers,
             exports: [
                 PromoCodesService,
