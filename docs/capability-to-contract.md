@@ -74,17 +74,19 @@ The same product definition drives the catalog, the sold contract and runtime
 access. That removes a common source of drift between pricing pages, billing
 records and application behavior.
 
-## What SaaSiCat does not take over
+## What your application owns today
 
-SaaSiCat is embedded in your application. It does not replace:
+SaaSiCat is embedded in your application. Your application currently owns:
 
 - your tenant isolation or authentication;
 - your business logic;
-- your payment provider;
 - the application-specific code that counts usage.
 
-It supplies the product and entitlement layer between those systems, with
-ready-made NestJS modules, PostgreSQL adapters and a Vue SuperAdmin UI.
+Payment-provider connections currently use integration ports. Built-in
+payment-provider integration is planned.
+
+SaaSiCat supplies the product and entitlement layer between these systems,
+with ready-made NestJS modules, PostgreSQL adapters and a Vue SuperAdmin UI.
 
 ## See the loop running
 
