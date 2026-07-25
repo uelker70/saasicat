@@ -1,23 +1,30 @@
-# SaaS Platform — Handbook
+# SaaSiCat Handbook
 
-Guide on how to make a NestJS or Express application SaaS-capable with the `@saasicat/*`
-packages: tenants, plans, bundles, quotas, features, SuperAdmin UI,
-MFA, audit, promo codes, checkout, subscription contracts.
+This handbook explains how to connect application code to a product catalog,
+customer contracts and runtime access with the `@saasicat/*` packages:
+
+```text
+Capability → Discovery → Packaging → Contract → Enforcement
+```
+
+Tenant administration, the SuperAdmin UI, MFA, audit and billing lifecycle
+tools support that loop. They are included, but they are not the main model
+you need to understand.
 
 > **Audience:** External developers / new teams deploying the platform for the first time.
 > Assumes knowledge of NestJS, Prisma and Vue/Quasar, but **no** prior knowledge
 > of the internal concepts (Capability, Feature, Quota, Bundle, Plan, Contract).
 >
 > **Quick start:** If you want to bolt the platform onto an existing NestJS
-> app, start with the [Quickstart](saas-platform-quickstart.md) —
-> 10 steps, ~60 minutes to a working SuperAdmin. This handbook is
+> app, start with the [Quickstart](quickstart.md) —
+> 10 steps, about 30 minutes to discovered and enforced product rules. This handbook is
 > the reference work you'll need afterwards.
 
 ---
 
 ## Contents
 
-1. [What the Platform Provides](#1-what-the-platform-provides)
+1. [The Capability-to-Contract Loop](#1-the-capability-to-contract-loop)
 2. [Concepts](#2-concepts)
 3. [Architecture](#3-architecture)
 4. [The Five Packages](#4-the-five-packages)
@@ -32,30 +39,35 @@ MFA, audit, promo codes, checkout, subscription contracts.
 
 ---
 
-## 1. What the Platform Provides
+## 1. The Capability-to-Contract Loop
 
-A ready-built SuperAdmin layer for your app:
+SaaSiCat keeps code reality, commercial packaging, sold terms and runtime
+behavior connected:
 
-- **Tenant management** (listing, detail, suspend/reactivate, impersonate, export).
-- **Plans & plan versions** (CRUD incl. plan editor, audit, bundle persistence).
-- **Bundles** (versioned add-ons with marketing projections).
-- **Discovery loop** (code declares capabilities/features/quotas via decorators → the platform
-  scans → SuperAdmin reviews → released entries are translated in the marketing catalog
-  and mapped to plans).
-- **Marketing catalog** (i18n labels, descriptions, highlights, promo actions) including a
-  public REST endpoint (`/public/catalog`) for pricing pages.
-- **Checkout offer + subscription contract** (V3): frozen purchase intents → immutable
-  contracts as the single source for billing and entitlement.
-- **Entitlement** at runtime (`@RequireFeature`, `@EnforceQuota`); missing features
-  respond with a structured 403 (`code: FEATURE_NOT_LICENSED` + upsell `offers`
-  via the optional `UpsellOfferResolver` port).
-- **MFA (TOTP)** for SuperAdmin actions, **AuditService** for every sensitive operation,
-  **RLS bypass interceptor** for global reads.
-- **Promo codes** (generator, lifecycle, redemption tracking).
-- **CLI building blocks** (`<app> admin mfa-setup|whoami`, `<app> audit tail`, `<app> doctor`,
-  `<app> manifest dump|hash|validate|check`).
-- **Vue/Quasar standard pages** that are dynamically toggled active/inactive via the
-  manifest — you just wire them in as routes and pass data through.
+1. **Capability** — application code declares concrete operations and
+   countable quotas through decorators.
+2. **Discovery** — the platform scans those declarations at boot and gives
+   the SuperAdmin a reviewable list of new and changed product inputs.
+3. **Packaging** — accepted features and quotas become versioned plans,
+   bundles, prices and translated public catalog entries.
+4. **Contract** — checkout freezes the selected offer; purchase creates an
+   immutable contract that remains valid even when the catalog changes.
+5. **Enforcement** — `@RequireFeature` and `@EnforceQuota` resolve the active
+   tenant contract and apply it to each request.
+
+The result is one traceable path from an endpoint in code to what a customer
+can buy and use. See
+[From Capability to Contract](capability-to-contract.md) for a focused
+walkthrough.
+
+The packages also provide the operating layer around this path:
+
+- tenant management and SuperAdmin standard pages;
+- plan and bundle editors with draft and publish workflows;
+- a public catalog endpoint for pricing pages;
+- promo-code and billing lifecycle building blocks;
+- TOTP MFA, audit logging, RLS-bypass integration and first-run setup;
+- CLI checks and manifest-driven Vue/Quasar pages.
 
 You implement:
 
@@ -86,8 +98,8 @@ The platform cleanly separates **code reality**, **product definition** and **so
 | **Entitlement-Snapshot**       | Aggregated view of all features and quota limits from a tenant's active contract line items. Computed at runtime by `EntitlementService`.                                                                                             |
 | **Manifest**                   | UI discovery projection of your app (`/api/v1/admin/manifest`): which standard pages are active, which project pages your app adds, which KPI cards, which tenant actions. Spec: `@saasicat/spec/schemas/admin-manifest.schema.json`. |
 
-**Rule of thumb:** Capability is _technical_, Feature is _marketable_, Quota is _countable_,
-Plan is _sellable_, Contract is _sold_.
+**Rule of thumb:** Capability is _implemented_, Feature is _marketable_,
+Quota is _countable_, Plan or Bundle is _sellable_, and Contract is _sold_.
 
 **Sales model (since v1.5.0, #49):** Only **plan versions** and
 **bundles** are sold; a tenant's effective features/quotas are
