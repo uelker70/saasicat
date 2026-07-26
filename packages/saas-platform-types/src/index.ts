@@ -1,5 +1,5 @@
-// @saasicat/types — Barrel-Export aller TS-Interfaces.
-// Pflicht-Begleiter zu @saasicat/spec.
+// @saasicat/types — barrel export of all TS interfaces.
+// Required companion to @saasicat/spec.
 
 export * from './active-plan-version-query.js';
 export * from './admin-manifest.types.js';

@@ -1,6 +1,8 @@
 import { defineConfig } from 'tsup';
 import swc from 'unplugin-swc';
 
+import { CJS_EXTERNAL } from './tsup.shared';
+
 // tsup uses esbuild as its bundler. esbuild does NOT support
 // `emitDecoratorMetadata` — so the `Reflect.metadata` calls for
 // body DTOs are missing, which silently disables the global
@@ -27,23 +29,15 @@ export default defineConfig({
         'src/subscription-contract/index.ts',
         'src/platform/index.ts',
     ],
+    // ESM is code-split by esbuild, so shared modules keep ONE identity across
+    // entries. The CJS output emitted here is a placeholder: esbuild cannot
+    // split CommonJS, so `tsup.cjs.config.ts` builds one shared bundle and
+    // `scripts/build-cjs-stubs.mjs` overwrites these files with re-exports of
+    // it. Types (`.d.ts`/`.d.cts`) come from this pass and stay per-entry.
     format: ['esm', 'cjs'],
     dts: true,
     clean: true,
-    external: [
-        '@saasicat/types',
-        '@saasicat/spec',
-        '@nestjs/common',
-        '@nestjs/core',
-        '@nestjs/schedule',
-        'js-yaml',
-        'ajv',
-        'ajv-formats',
-        'otplib',
-        'rxjs',
-        'class-validator',
-        'class-transformer',
-    ],
+    external: CJS_EXTERNAL,
     plugins: [
         swc.vite({
             jsc: {

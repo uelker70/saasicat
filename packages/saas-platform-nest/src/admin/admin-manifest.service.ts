@@ -10,7 +10,7 @@ import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifes
  * registers the contribution in the constructor — before all app `register()`
  * calls from `onModuleInit`.
  */
-export const PLATFORM_CORE_CONTRIBUTION_TOKEN = Symbol('PLATFORM_CORE_CONTRIBUTION');
+export const PLATFORM_CORE_CONTRIBUTION_TOKEN = Symbol.for('saas-platform/PlatformCoreContribution');
 
 // AdminManifestService — collects ManifestContribution entries from the app
 // modules (via explicit register() calls in their onModuleInit) and serves the

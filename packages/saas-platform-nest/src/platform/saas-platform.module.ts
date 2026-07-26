@@ -211,6 +211,15 @@ export interface SaasPlatformPromoCodesOptions extends Omit<
     firstTimeCustomerCheck?: ProviderSpec<FirstTimeCustomerCheck>;
     /** Override the default controller guards + `SuperAdminGuard` chain. */
     adminGuards?: Array<Type<CanActivate>>;
+    /**
+     * Mount the SuperAdmin promo-code CRUD controller. Default `true`.
+     *
+     * Set `false` when the app serves `/admin/promo-codes` itself — two
+     * controllers on one path abort the boot with a duplicate-route error.
+     * The promo domain service stays available either way, so an app-owned
+     * controller can still delegate its validation to the platform.
+     */
+    adminController?: false;
 }
 
 export interface SaasPlatformModuleOptions {
@@ -263,6 +272,16 @@ export interface SaasPlatformModuleOptions {
      * `MfaGuard`). Optional.
      */
     reloadGuards?: Array<Type<CanActivate>>;
+    /**
+     * Mount the platform's `GET /admin/manifest` + `POST /admin/manifest/reload`
+     * controller. Default `true`.
+     *
+     * Set `false` when the app serves those routes from its own controller —
+     * two controllers on one path abort the boot with a duplicate-route error
+     * (`FST_ERR_DUPLICATED_ROUTE` under Fastify), so this is not something the
+     * app can simply override.
+     */
+    includeManifestController?: boolean;
     /**
      * Modules whose providers must be visible in the DI scope (typically:
      * `AuthModule` with the `JwtAuthGuard`).
@@ -353,6 +372,20 @@ export interface SaasPlatformModuleOptions {
      * `controller.guards`.
      */
     tenantManifest?: true | TenantManifestControllerOptions;
+    /**
+     * Bind `StaticFeatureGuard` as a global `APP_GUARD`. Default `true`.
+     *
+     * Set `false` when the app authenticates in a controller-local guard.
+     * Nest runs every global guard before every controller-local one, so a
+     * global feature guard sees no `request.user` and rejects with 403 before
+     * authentication has run. Apps in that shape bind the guard themselves,
+     * behind their auth guard: `@UseGuards(JwtAuthGuard, FeatureGuard)`.
+     *
+     * Only the guard is affected. `EnforceQuotaInterceptor` stays global
+     * either way — interceptors run after all guards, so it does see the
+     * authenticated request.
+     */
+    globalFeatureGuard?: boolean;
 }
 
 const PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN = Symbol.for(
@@ -669,6 +702,7 @@ export class SaasPlatformModule {
             }),
             AdminManifestModule.forRoot({
                 config: options.adminManifestConfig ?? buildMinimalManifestConfig(),
+                includeManifestController: options.includeManifestController,
                 guards: options.controller.guards,
                 reloadGuards: options.reloadGuards,
                 imports: options.imports,
@@ -765,6 +799,7 @@ export class SaasPlatformModule {
                 adminGuards,
                 imports: promoImports,
                 includePublicController,
+                adminController,
                 ...promoOptions
             } = config;
             imports.push(
@@ -781,9 +816,15 @@ export class SaasPlatformModule {
                         hasExistingCustomerForEmail: async () => false,
                     },
                     includePublicController: includePublicController ?? false,
-                    adminController: {
-                        guards: adminGuards ?? [...options.controller.guards, SuperAdminGuard],
-                    },
+                    adminController:
+                        adminController === false
+                            ? false
+                            : {
+                                  guards: adminGuards ?? [
+                                      ...options.controller.guards,
+                                      SuperAdminGuard,
+                                  ],
+                              },
                     imports: promoImports ?? options.imports,
                 }),
             );
@@ -918,7 +959,9 @@ export class SaasPlatformModule {
                     useFactory: (...providers: QuotaProvider[]) => providers,
                     inject: options.quotaProviders ?? [],
                 },
-                { provide: APP_GUARD, useExisting: StaticFeatureGuard },
+                ...(options.globalFeatureGuard === false
+                    ? []
+                    : [{ provide: APP_GUARD, useExisting: StaticFeatureGuard }]),
                 { provide: APP_INTERCEPTOR, useExisting: EnforceQuotaInterceptor },
             );
             lightweightExports.push(

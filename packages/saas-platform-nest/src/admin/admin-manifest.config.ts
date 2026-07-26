@@ -3,7 +3,7 @@
 
 import type { AdminManifest } from '@saasicat/types';
 
-export const ADMIN_MANIFEST_CONFIG = Symbol('ADMIN_MANIFEST_CONFIG');
+export const ADMIN_MANIFEST_CONFIG = Symbol.for('saas-platform/AdminManifestConfig');
 
 export interface AdminManifestConfig {
     project: AdminManifest['project'];
