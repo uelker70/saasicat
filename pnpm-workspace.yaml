@@ -4,6 +4,11 @@ packages:
   - 'examples/*/admin'
   - 'examples/*/web'
 overrides:
+  # GHSA-mh99-v99m-4gvg: unbounded brace expansion crashes the process. The fix
+  # only landed on the 5.x line, so minimatch@9 — whose 2.x dependency has no
+  # patched release — is lifted to minimatch@10 instead of patched in place.
+  'brace-expansion@^5.0.0': '^5.0.8'
+  'minimatch@^9.0.0': '^10.2.5'
   # GHSA-g7r4-m6w7-qqqr: path traversal in the esbuild dev server. Pulled in
   # transitively by tsup, which still pins ^0.27.0.
   esbuild: '^0.28.1'

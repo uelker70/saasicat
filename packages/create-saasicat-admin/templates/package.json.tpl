@@ -14,7 +14,7 @@
         "@saasicat/ui-vue": "__PLATFORM_VERSION__",
         "axios": "^1.15.0",
         "pinia": "^3.0.0",
-        "quasar": "^2.18.0",
+        "quasar": "^2.22.0",
         "vue": "^3.5.0",
         "vue-router": "^4.5.0"
     },
