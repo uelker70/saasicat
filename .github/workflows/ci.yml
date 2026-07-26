@@ -31,6 +31,12 @@ jobs:
         run: pnpm exec eslint .
       - name: Typecheck
         run: pnpm -r typecheck
+      # The example is the schema consumers copy from, so it must not fall
+      # behind the fragments it demonstrates. Exits 1 on drift.
+      - name: Schema drift (NotesApp example)
+        run: >
+          node packages/saas-platform-cli/bin/saasicat.js schema check
+          --prisma-schema=examples/notesapp/prisma/schema.prisma
 
   persistence-contract:
     runs-on: ubuntu-latest
