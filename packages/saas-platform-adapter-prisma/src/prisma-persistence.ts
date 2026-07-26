@@ -14,7 +14,10 @@ import {
     PrismaAdminResourcesAdapter,
     type PrismaAdminResourcesOptions,
 } from './prisma-admin-resources.adapter.js';
-import { PrismaBundleRepository } from './prisma-bundle.repository.js';
+import {
+    PrismaBundleRepository,
+    type PrismaBundleRepositoryOptions,
+} from './prisma-bundle.repository.js';
 import { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.js';
 import { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
 import { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
@@ -81,6 +84,17 @@ export interface PrismaPersistenceOptions {
      * for schemas without conventional `tenant`/`user` delegates.
      */
     adminResources?: false | PrismaAdminResourcesOptions;
+    /**
+     * Options for the bundle repository the catalog and entitlement slices
+     * share — notably `{ validityWindows: true }` for schemas that carry
+     * `BundleVersion.validFrom`/`validUntil`.
+     *
+     * Without this the bundle builds the repository with its 0.6-compatible
+     * defaults, and the repository's `@Optional() @Inject(...)` options
+     * provider never applies, because the bundle constructs the instance
+     * directly rather than through Nest DI.
+     */
+    bundle?: PrismaBundleRepositoryOptions;
 }
 
 /**
@@ -135,11 +149,15 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
             subscriptionBundleRepository: provide(
                 (prisma) => new PrismaSubscriptionBundleRepository(canonical(prisma)),
             ),
-            bundleRepository: provide((prisma) => new PrismaBundleRepository(canonical(prisma))),
+            bundleRepository: provide(
+                (prisma) => new PrismaBundleRepository(canonical(prisma), options.bundle),
+            ),
         },
         catalog: {
             planRepository: provide((prisma) => new PrismaPlanRepository(prisma, options.schema)),
-            bundleRepository: provide((prisma) => new PrismaBundleRepository(canonical(prisma))),
+            bundleRepository: provide(
+                (prisma) => new PrismaBundleRepository(canonical(prisma), options.bundle),
+            ),
             catalogEntryRepository: provide(
                 (prisma) => new PrismaCatalogEntryRepository(canonical(prisma)),
             ),

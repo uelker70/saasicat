@@ -23,7 +23,7 @@ import type {
 
 import { loadPlanCatalogFromString } from './plan-catalog-loader.js';
 
-export const PLAN_CATALOG_IMPORT_SINK_TOKEN = Symbol('PLAN_CATALOG_IMPORT_SINK');
+export const PLAN_CATALOG_IMPORT_SINK_TOKEN = Symbol.for('saas-platform/PlanCatalogImportSink');
 
 const IMPORT_CHANGE_NOTE = 'Initial import from saas.yaml (SPEC_V2 §11.1 M6 Pack 2c)';
 

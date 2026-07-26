@@ -788,6 +788,38 @@ describe('PrismaPlanCatalogReadSink', () => {
     });
 });
 
+describe('prismaPersistence() bundle options', () => {
+    // The bundle constructs PrismaBundleRepository directly rather than through
+    // Nest DI, so the repository's @Optional() options provider never applies.
+    // Without an explicit passthrough a consumer has no way to reach
+    // validityWindows, and bundle publishes silently drop validFrom.
+    const buildBundleRepo = (persistenceOptions) => {
+        const token = Symbol('PRISMA');
+        const bundle = prismaPersistence({ client: token, ...persistenceOptions });
+        return bundle.catalog.bundleRepository.useFactory(fakePrisma());
+    };
+
+    test('bundle.validityWindows reaches the catalog bundle repository', () => {
+        const repo = buildBundleRepo({ bundle: { validityWindows: true } });
+        assert.equal(repo.validityWindows, true);
+    });
+
+    test('bundle.validityWindows reaches the entitlement bundle repository too', () => {
+        const token = Symbol('PRISMA');
+        const bundle = prismaPersistence({ client: token, bundle: { validityWindows: true } });
+        const repo = bundle.entitlement.bundleRepository.useFactory(fakePrisma());
+        assert.equal(
+            repo.validityWindows,
+            true,
+            'both slices share one schema — they must not disagree',
+        );
+    });
+
+    test('defaults to the 0.6-compatible behavior when omitted', () => {
+        assert.equal(buildBundleRepo({}).validityWindows, false);
+    });
+});
+
 describe('prismaPersistence()', () => {
     test('token client → factory specs injecting the token', async () => {
         const token = Symbol('PRISMA');

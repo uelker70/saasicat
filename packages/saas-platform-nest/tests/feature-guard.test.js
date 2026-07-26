@@ -255,13 +255,18 @@ describe('FeatureGuard — config hooks', () => {
     });
 });
 
-// FEATURE_GUARD_CONFIG_TOKEN is exported as a Symbol — a quick sanity check
-// that the consumer module receives the right token (without this test a typo
-// in the symbol name would only surface at bootstrap).
+// A consumer binds its guard config through this token, so it crosses entry
+// points and must live in the global registry (CONTRIBUTING.md). A plain
+// Symbol() would yield a different token per CJS entry chunk and fail to
+// resolve at bootstrap.
 describe('FEATURE_GUARD_CONFIG_TOKEN', () => {
-    test('is a Symbol with a descriptive name', () => {
+    test('is a Symbol.for token (process-wide registry)', () => {
         assert.equal(typeof FEATURE_GUARD_CONFIG_TOKEN, 'symbol');
-        assert.equal(FEATURE_GUARD_CONFIG_TOKEN.toString(), 'Symbol(FEATURE_GUARD_CONFIG)');
+        assert.equal(
+            FEATURE_GUARD_CONFIG_TOKEN,
+            Symbol.for('saas-platform/FeatureGuardConfig'),
+            'must resolve through the global symbol registry with the shared namespace',
+        );
     });
 });
 

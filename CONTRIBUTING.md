@@ -32,14 +32,17 @@ This is the most important codebase-specific rule. Violating it has caused a
 production outage.
 
 **Why:** `@saasicat/nest` is bundled by tsup/esbuild into **12 separate entry
-points** (`.`, `./promo`, `./billing`, `./admin`, …) in both ESM and CJS. esbuild
-only supports code splitting for ESM, so in the CJS build every shared module is
-**copied into each entry chunk that imports it**. Each copy has its own module
-scope — a token declared as plain `Symbol('X')` yields a *different* symbol in
-every copy. A provider registered through one entry then silently fails to resolve
-when injected via a token imported from another entry. The same double-identity
-appears when a module is loaded once from `dist` and once from `src` (e.g. in
-tests).
+points** (`.`, `./promo`, `./billing`, `./admin`, …) in both ESM and CJS. A module
+that ends up in more than one chunk yields more than one copy, each with its own
+module scope — a token declared as plain `Symbol('X')` is then a *different*
+symbol per copy, and a provider registered through one entry silently fails to
+resolve when injected via a token imported from another.
+
+The build removes the largest source of that split (see **One bundle, many
+entries** below), but not all of it: the ESM and CJS outputs are separate files,
+so an app that reaches the package through both paths still sees two copies, as
+does a test that loads a module once from `dist` and once from `src`. The rule
+below is what makes tokens survive all of those cases.
 
 **The rule:**
 
@@ -61,6 +64,37 @@ Note on the namespace: the registry keys use the historical `'saas-platform/…'
 prefix. These keys are part of the runtime contract between platform and consumer
 apps — **do not rename existing keys**, and use the same prefix for new cross-entry
 tokens unless a coordinated, breaking namespace migration is explicitly planned.
+
+## One bundle, many entries (the CJS build)
+
+`Symbol.for` fixes tokens, but **classes have no such registry** — and Nest
+resolves providers by class reference. Two copies of `MfaService` are two
+different providers, so an app that takes `SetupModule` from `@saasicat/nest`
+while `SaaSiCatModule` (from `@saasicat/nest/platform`) registers the admin
+stack used to fail at boot with `UnknownDependenciesException`.
+
+esbuild only code-splits ESM, so the CJS build is done in three passes:
+
+1. `tsup.config.ts` — ESM (code-split, one identity) plus all `.d.ts`/`.d.cts`.
+   Its CJS output is a placeholder.
+2. `tsup.cjs.config.ts` — **one** CommonJS bundle, `dist/_entries.cjs`, built
+   from the synthetic `src/_all-entries.ts` barrel.
+3. `scripts/build-cjs-stubs.mjs` — overwrites each entry's `.cjs` with a thin
+   re-export of the matching namespace from that bundle.
+
+Every entry therefore hands out the same objects, in CJS as in ESM. Consumers
+do not have to know which entry a class "really" lives in.
+
+**When adding a public entry point**, update all four places together:
+`package.json` `exports`, `tsup.config.ts` `entry`, the namespace list in
+`src/_all-entries.ts`, and `ENTRY_NAMESPACES` in both `tsup.shared.ts` and
+`scripts/build-cjs-stubs.mjs`. The stub script fails the build if the last two
+drift apart, and `tests/cjs-entry-identity.test.js` fails if any export ends up
+with two identities.
+
+Two entries may still export the same NAME for different things on purpose —
+`FEATURE_UI_REGISTRY_TOKEN` means a different registry in `billing` than in
+`catalog`. Those are listed explicitly in that test.
 
 ## Layer boundaries in `@saasicat/ui-vue`
 
