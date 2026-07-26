@@ -23,7 +23,7 @@
         "bin"
     ],
     "bin": {
-        "saas-platform": "./bin/saas-platform.js"
+        "saasicat": "./bin/saasicat.js"
     },
     "scripts": {
         "build": "tsup src/index.ts --format esm,cjs --dts --clean --external @saasicat/types --external @saasicat/nest --external @nestjs/common --external nest-commander --external qrcode-terminal",
