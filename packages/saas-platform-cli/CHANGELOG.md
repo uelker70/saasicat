@@ -1,5 +1,82 @@
 # @saasicat/cli
 
+## 0.11.0
+
+### Minor Changes
+
+- a9d79dd: Rename the CLI binary from `saas-platform` to `saasicat`.
+
+    **Breaking for anyone invoking the binary by name.** `pnpm exec saas-platform …`
+    becomes `pnpm exec saasicat …`. No alias is kept: nothing in this repo or in
+    the known consumers (vereinsfux, autohauspro) calls the binary from a script,
+    CI job or Dockerfile — both use `@saasicat/cli` as a library for its
+    `nest-commander` commands and ship their own binary.
+
+    The old name was the last user-facing place where the package still announced
+    itself as "saas-platform" while shipping as `@saasicat/cli`, which made it
+    easy to confuse this framework with the superseded `saas-platform-*` packages
+    in the yada-services repo. The header comment `schema apply` writes into a
+    consumer's `schema.prisma` now names `saasicat schema apply` too.
+
+    Deliberately unchanged: the DI token namespace (`Symbol.for('saas-platform/…')`,
+    `Symbol.for('saas-platform-cli/…')`). Those strings are identity, not
+    branding — renaming them would break token equality between package versions.
+    CONTRIBUTING.md documents the namespace as historical.
+
+- a9d79dd: Add `saasicat schema check` — reports what a consumer's `schema.prisma`
+  is missing relative to the canonical prisma-fragments, and exits 1 on drift so
+  CI can gate on it.
+
+    `schema apply` only ever adds whole models: it carries no enums, and a model
+    that already exists is skipped rather than updated. After a package upgrade a
+    consumer schema therefore falls behind silently, and the gap only surfaces as a
+    runtime error. Run against the three schemas in this workspace, the new check
+    finds five missing `PlanVersion`/`BundleVersion` fields in the NotesApp example
+    itself, five in autohauspro, and two field mismatches in vereinsfux.
+
+    The check distinguishes two situations that look alike:
+
+    - A field or enum value missing from a declaration the consumer **does** carry
+      fails the check — platform code reads it with the spec's type. Type,
+      optionality and list changes fail for the same reason.
+    - A model or enum the consumer does not carry at all is reported as
+      information. Not adopting a fragment is a decision, not drift.
+
+    Fields a consumer adds on top of a platform model are never reported:
+    extending them is supported, so a drift check has to tolerate it. Replacing a
+    spec `String` with a locally declared enum stays allowed too — the fragments
+    document that substitution explicitly.
+
+    The block parser `schema apply` used moved to `prisma-blocks.ts` and now
+    handles `enum` declarations as well; `extractModelNames`/`extractModelBlocks`
+    keep their signatures.
+
+### Patch Changes
+
+- 8459876: Align `PromoCode.createdById` with the types the platform already publishes, and
+  stop `schema check` from flagging consumers that are stricter than the spec.
+
+    The prisma fragment declared `createdById String` (NOT NULL) while
+    `PromoCodeRecord.createdById` in `@saasicat/types` is `string | null` — the read
+    contract explicitly allows a missing creator, so the column must too. Creation
+    is unaffected: `CreatePromoCodeData.createdById` stays `string`. The fragment
+    and the generated `reference-schema.postgres.sql` now say `String?` / `TEXT`.
+
+    `schema check` treated nullability as a symmetric mismatch, which made this a
+    zero-sum change: relaxing the spec simply moved the warning from vereinsfux to
+    notesapp and autohauspro. Only one direction can actually break — a consumer
+    column that is nullable where the spec is not, because platform code reads it
+    with the spec's non-null type and a NULL row reaches it as `null`. The reverse
+    is a deliberate tightening by the consumer, and if the platform ever wrote NULL
+    there the insert would fail loudly rather than silently. Only the breaking
+    direction is reported now.
+
+- Updated dependencies [8459876]
+- Updated dependencies [9b29bb9]
+    - @saasicat/spec@0.11.0
+    - @saasicat/nest@0.11.0
+    - @saasicat/types@0.11.0
+
 ## 0.10.0
 
 ### Patch Changes

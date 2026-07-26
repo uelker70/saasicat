@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/nest",
-    "version": "0.10.0",
+    "version": "0.11.0",
     "description": "NestJS implementation of SaaSiCat: capability discovery, catalog packaging, contracts, entitlement enforcement, billing and admin APIs.",
     "type": "module",
     "main": "./dist/index.cjs",
