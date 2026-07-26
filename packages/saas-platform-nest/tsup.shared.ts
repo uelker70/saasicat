@@ -17,22 +17,6 @@ export const CJS_EXTERNAL = [
     'class-transformer',
 ];
 
-/**
- * Public entry point → namespace exported by `src/_all-entries.ts`.
- * Consumed by `scripts/build-cjs-stubs.mjs`; keep in sync with the `exports`
- * map in `package.json`.
- */
-export const CJS_ENTRY_NAMESPACES: Record<string, string> = {
-    'index': 'rootNs',
-    'admin/index': 'adminNs',
-    'billing/index': 'billingNs',
-    'catalog/index': 'catalogNs',
-    'checkout-offer/index': 'checkoutOfferNs',
-    'discovery/index': 'discoveryNs',
-    'entitlement/index': 'entitlementNs',
-    'platform/index': 'platformNs',
-    'promo/index': 'promoNs',
-    'registration/index': 'registrationNs',
-    'subscription-contract/index': 'subscriptionContractNs',
-    'testing/index': 'testingNs',
-};
+// The entry list itself is NOT duplicated here — it is derived from
+// `package.json` `exports` in `scripts/entries.mjs`, which the tsup configs,
+// the stub generator and the identity test all read.

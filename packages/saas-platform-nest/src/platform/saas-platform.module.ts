@@ -378,8 +378,16 @@ export interface SaasPlatformModuleOptions {
      * Set `false` when the app authenticates in a controller-local guard.
      * Nest runs every global guard before every controller-local one, so a
      * global feature guard sees no `request.user` and rejects with 403 before
-     * authentication has run. Apps in that shape bind the guard themselves,
-     * behind their auth guard: `@UseGuards(JwtAuthGuard, FeatureGuard)`.
+     * authentication has run.
+     *
+     * REQUIRED when you set this: bind a feature guard yourself, behind your
+     * auth guard, or `@RequireFeature` becomes inert markup and every
+     * annotated route serves unlicensed traffic. Either
+     * `@UseGuards(JwtAuthGuard, StaticFeatureGuard)` — the guard this option
+     * unbinds, exported from this entry — or `@UseGuards(JwtAuthGuard,
+     * FeatureGuard)` from `@saasicat/nest/billing` if you run the V3
+     * entitlement stack. They are different classes; pick the one matching
+     * your entitlement path.
      *
      * Only the guard is affected. `EnforceQuotaInterceptor` stays global
      * either way — interceptors run after all guards, so it does see the
