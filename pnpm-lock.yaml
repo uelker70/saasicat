@@ -5,6 +5,8 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  brace-expansion@^5.0.0: ^5.0.8
+  minimatch@^9.0.0: ^10.2.5
   esbuild: ^0.28.1
 
 importers:
@@ -109,8 +111,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.4(typescript@5.9.3)(vue@3.5.40(typescript@5.9.3))
       quasar:
-        specifier: ^2.18.0
-        version: 2.21.4
+        specifier: ^2.22.0
+        version: 2.23.1
       vue:
         specifier: ^3.5.0
         version: 3.5.40(typescript@5.9.3)
@@ -120,7 +122,7 @@ importers:
     devDependencies:
       '@quasar/vite-plugin':
         specifier: ^1.10.0
-        version: 1.12.0(@vitejs/plugin-vue@6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3)))(quasar@2.21.4)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))
+        version: 1.12.0(@vitejs/plugin-vue@6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3)))(quasar@2.23.1)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))
       '@vitejs/plugin-vue':
         specifier: ^6.0.0
         version: 6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))
@@ -155,8 +157,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.4(typescript@5.9.3)(vue@3.5.40(typescript@5.9.3))
       quasar:
-        specifier: ^2.18.0
-        version: 2.21.4
+        specifier: ^2.22.0
+        version: 2.23.1
       vue:
         specifier: ^3.5.0
         version: 3.5.40(typescript@5.9.3)
@@ -166,7 +168,7 @@ importers:
     devDependencies:
       '@quasar/vite-plugin':
         specifier: ^1.10.0
-        version: 1.12.0(@vitejs/plugin-vue@6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3)))(quasar@2.21.4)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))
+        version: 1.12.0(@vitejs/plugin-vue@6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3)))(quasar@2.23.1)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))
       '@vitejs/plugin-vue':
         specifier: ^6.0.0
         version: 6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))
@@ -411,8 +413,8 @@ importers:
         specifier: ^3.0.0
         version: 3.0.4(typescript@6.0.3)(vue@3.5.40(typescript@6.0.3))
       quasar:
-        specifier: ^2.18.0
-        version: 2.21.4
+        specifier: ^2.22.0
+        version: 2.23.1
       tsup:
         specifier: ^8.0.0
         version: 8.5.1(@swc/core@1.15.43)(jiti@2.7.0)(postcss@8.5.19)(typescript@6.0.3)(yaml@2.9.0)
@@ -1561,9 +1563,6 @@ packages:
   axios@1.18.1:
     resolution: {integrity: sha512-3nTvFlvpn9Zu/RkHUqtc7/+al4UpRW5az71ap5zccp6e8RAYEzhMTecX8Dz1wWDYrPpUoB1HAQEGEAEvUr7S9g==}
 
-  balanced-match@1.0.2:
-    resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
-
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
@@ -1585,12 +1584,9 @@ packages:
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
     engines: {node: '>=18'}
 
-  brace-expansion@2.1.2:
-    resolution: {integrity: sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA==}
-
-  brace-expansion@5.0.7:
-    resolution: {integrity: sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA==}
-    engines: {node: 18 || 20 || >=22}
+  brace-expansion@5.0.8:
+    resolution: {integrity: sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==}
+    engines: {node: 20 || >=22}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -2489,10 +2485,6 @@ packages:
     resolution: {integrity: sha512-MULkVLfKGYDFYejP07QOurDLLQpcjk7Fw+7jXS2R2czRQzR56yHRveU5NDJEOviH+hETZKSkIk5c+T23GjFUMg==}
     engines: {node: 18 || 20 || >=22}
 
-  minimatch@9.0.9:
-    resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
-    engines: {node: '>=16 || 14 >=14.17'}
-
   minimist@1.2.8:
     resolution: {integrity: sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==}
 
@@ -2836,8 +2828,8 @@ packages:
   quansync@0.2.11:
     resolution: {integrity: sha512-AifT7QEbW9Nri4tAwR5M/uzpBuqfZf+zwaEM/QkzEjj7NBuFD2rBuy0K3dE+8wltbezDV7JMA0WfnCPYRSYbXA==}
 
-  quasar@2.21.4:
-    resolution: {integrity: sha512-IMRhIF0hdtGMtwX67/X1eHV7n00KPar3Mr6TTo0BNGDxlMuhA8ind8wuuGPOZJPYWidoZx/UqJUucLz1niTgVQ==}
+  quasar@2.23.1:
+    resolution: {integrity: sha512-jr6z9DDAmilv7NZ0m+hQe1PjqE5X4lj4OEalGgr27fgFVRUUOEUUJAkBYXnH1+uhv5tTwZ/CxTBilFyesBsZqQ==}
     engines: {node: '>= 10.18.1', npm: '>= 6.13.4', yarn: '>= 1.21.1'}
 
   queue-microtask@1.2.3:
@@ -3951,10 +3943,10 @@ snapshots:
 
   '@quasar/extras@1.18.0': {}
 
-  '@quasar/vite-plugin@1.12.0(@vitejs/plugin-vue@6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3)))(quasar@2.21.4)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))':
+  '@quasar/vite-plugin@1.12.0(@vitejs/plugin-vue@6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3)))(quasar@2.23.1)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))':
     dependencies:
       '@vitejs/plugin-vue': 6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@5.9.3))
-      quasar: 2.21.4
+      quasar: 2.23.1
       vite: 7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0)
       vue: 3.5.40(typescript@5.9.3)
 
@@ -4363,7 +4355,7 @@ snapshots:
       '@vue/compiler-vue2': 2.7.16
       '@vue/shared': 3.5.40
       alien-signals: 1.0.13
-      minimatch: 9.0.9
+      minimatch: 10.2.5
       muggle-string: 0.4.1
       path-browserify: 1.0.1
     optionalDependencies:
@@ -4489,8 +4481,6 @@ snapshots:
       - debug
       - supports-color
 
-  balanced-match@1.0.2: {}
-
   balanced-match@4.0.4: {}
 
   base64-js@1.5.1: {}
@@ -4521,11 +4511,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  brace-expansion@2.1.2:
-    dependencies:
-      balanced-match: 1.0.2
-
-  brace-expansion@5.0.7:
+  brace-expansion@5.0.8:
     dependencies:
       balanced-match: 4.0.4
 
@@ -5337,11 +5323,7 @@ snapshots:
 
   minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.7
-
-  minimatch@9.0.9:
-    dependencies:
-      brace-expansion: 2.1.2
+      brace-expansion: 5.0.8
 
   minimist@1.2.8: {}
 
@@ -5661,7 +5643,7 @@ snapshots:
 
   quansync@0.2.11: {}
 
-  quasar@2.21.4: {}
+  quasar@2.23.1: {}
 
   queue-microtask@1.2.3: {}
 
