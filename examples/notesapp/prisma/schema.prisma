@@ -11,8 +11,11 @@
 //   07 (Promotion)
 //   08 (SubscriptionContract + ContractLineItem)
 //   10 (SuperAdmin + MFA)
-// The platform blocks below are verbatim copies — regenerate them with:
-//   pnpm exec saas-platform schema apply --fragments=01,02,03,04,05,06,07,08,10
+// The platform blocks below are hand-maintained copies of the fragments, with
+// the consumer relations to Tenant/User enabled. `schema apply` can seed them
+// into a fresh schema, but it neither carries enums nor updates blocks that
+// already exist — verify with `pnpm exec saasicat schema check` after a package
+// upgrade, which reports every field this schema is missing.
 // PostgreSQL constraints the Prisma DSL cannot express live in
 // prisma/constraints.sql (applied by docker-entrypoint.sh after db push).
 
@@ -891,6 +894,12 @@ model PlanVersion {
     changeNote       String
     nonRegressive    Boolean @default(true)
 
+    // Booking window for new subscriptions. Nullable for backwards-compatible
+    // legacy rows; `endsAt` is an optional precise administrative termination.
+    validFrom  DateTime?
+    validUntil DateTime?
+    endsAt     DateTime?
+
     createdByUserId   String?
     publishedByUserId String?
 
@@ -905,6 +914,7 @@ model PlanVersion {
     @@unique([planId, version])
     @@index([planId, supersededAt])
     @@index([planId, publishedAt])
+    @@index([planId, validFrom])
     @@map("plan_versions")
 }
 
@@ -986,6 +996,11 @@ model BundleVersion {
     changeNote       String  @default("")
     nonRegressive    Boolean @default(true)
 
+    // Booking window for new subscriptions. Both columns are nullable so this
+    // schema change is additive and existing rows remain valid.
+    validFrom  DateTime?
+    validUntil DateTime?
+
     createdByUserId   String?
     publishedByUserId String?
 
@@ -1002,6 +1017,7 @@ model BundleVersion {
     @@unique([bundleId, version])
     @@index([bundleId, supersededAt])
     @@index([bundleId, publishedAt])
+    @@index([bundleId, validFrom])
     @@map("bundle_versions")
 }
 
