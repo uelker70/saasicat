@@ -1,5 +1,12 @@
 # notesapp-admin
 
+## 0.0.7
+
+### Patch Changes
+
+- @saasicat/types@0.11.0
+- @saasicat/ui-vue@0.11.0
+
 ## 0.0.6
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @saasicat/nest
 
+## 0.11.0
+
+### Patch Changes
+
+- Updated dependencies [bded377]
+    - @saasicat/spec@0.11.0
+    - @saasicat/types@0.11.0
+
 ## 0.10.1
 
 ### Patch Changes
