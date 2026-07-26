@@ -91,7 +91,7 @@ and quota definitions always come from code.
 ## Step 3 — Prisma schema + migration in one command
 
 ```bash
-pnpm exec saas-platform schema migrate --name=add_saas_platform --all
+pnpm exec saasicat schema migrate --name=add_saasicat --all
 pnpm prisma generate
 ```
 
@@ -510,7 +510,7 @@ Add these in this order:
 
 | Symptom                                                 | Cause                                                                                               |
 | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `saas-platform: command not found`                      | Use `pnpm exec saas-platform ...` or install globally: `pnpm i -g @saasicat/cli`.                   |
+| `saasicat: command not found`                           | Use `pnpm exec saasicat ...` or install globally: `pnpm i -g @saasicat/cli`.                        |
 | `prisma-fragments/` directory not found                 | `@saasicat/spec` is missing from the backend deps. Repeat step 1.                                   |
 | `Nest can't resolve dependencies of X (?, ...)`         | Put the module exporting the injected adapter/client in the top-level `imports` option.             |
 | Boot hangs with `P2028 "Unable to start a transaction"` | The RLS bypass did not take effect — `PrismaService` does not check `isBypassActive()`.             |
