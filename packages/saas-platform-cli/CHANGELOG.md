@@ -1,5 +1,14 @@
 # @saasicat/cli
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [7145f07]
+    - @saasicat/nest@0.10.0
+    - @saasicat/spec@0.10.0
+    - @saasicat/types@0.10.0
+
 ## 0.9.0
 
 ### Patch Changes
