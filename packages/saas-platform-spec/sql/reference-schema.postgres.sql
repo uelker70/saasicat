@@ -154,7 +154,7 @@ CREATE TABLE "promo_codes" (
     "description" TEXT,
     "campaignTag" TEXT,
     "revenueDeductionAccount" TEXT,
-    "createdById" TEXT NOT NULL,
+    "createdById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),

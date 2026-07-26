@@ -168,7 +168,7 @@ describe('checkSchema', () => {
         assert.equal(report.fieldMismatches[0].reason, 'type');
     });
 
-    test('optionality change is a mismatch', () => {
+    test('a consumer widening a required field to nullable is a mismatch', () => {
         const app = SPEC.replace('plan         String', 'plan         String?');
         const report = checkSchema(SPEC, app);
         assert.equal(report.ok, false);
@@ -181,6 +181,13 @@ describe('checkSchema', () => {
                 actual: 'String?',
             },
         ]);
+    });
+
+    test('a consumer tightening a nullable field to required is allowed', () => {
+        const app = SPEC.replace('trialEndsAt  DateTime?', 'trialEndsAt  DateTime');
+        const report = checkSchema(SPEC, app);
+        assert.equal(report.ok, true);
+        assert.deepEqual(report.fieldMismatches, []);
     });
 
     test('list change is a mismatch', () => {
