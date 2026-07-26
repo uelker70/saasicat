@@ -220,7 +220,7 @@ retroactively break historical invoices or quotas.
 | `@saasicat/ui-vue` | Vue/Quasar components, Pinia stores, composables (`useDiscovery`, `useCatalogEntries`), standard pages (`DiscoveryPage`, `TenantsPage`, `PlansPage`, …). | Frontend                      |
 | `@saasicat/cli`    | `nest-commander` flows (`ManifestCliFlow`, `MfaSetupFlow`, `AuditTailFlow`, `DoctorFlow`) for your app CLI.                                              | Backend (CLI submodule)       |
 
-### 4.1 `saas-platform-nest` — Sub-Entries
+### 4.1 `@saasicat/nest` — Sub-Entries
 
 Always import the sub-entry, never the root:
 
@@ -250,7 +250,7 @@ import {
 import { RegistrationModule } from '@saasicat/nest/registration';
 ```
 
-### 4.2 Standard Pages from `saas-platform-ui-vue`
+### 4.2 Standard Pages from `@saasicat/ui-vue`
 
 Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
 
@@ -325,10 +325,26 @@ The data model has one normative source: the
 `constraints.postgres.sql` — the invariants Prisma cannot express: partial
 unique draft indexes, the subscription CHECK). The
 [Prisma fragments](../packages/saas-platform-spec/prisma-fragments/) are the
-derived Prisma-DSL rendering of that model; `saas-platform schema apply`
+derived Prisma-DSL rendering of that model; `saasicat schema apply`
 splices them into your `schema.prisma` (see [Quickstart §3](quickstart.md)).
 The JSON Schemas in `@saasicat/spec/schemas/` govern **wire formats**, not
 tables.
+
+`schema apply` only ever adds whole models — it does not carry enums and it
+never touches a model you already have. So after a package upgrade your schema
+falls behind silently. `saasicat schema check` reports that gap:
+
+```bash
+pnpm exec saasicat schema check          # exit 1 on drift — gate CI on it
+pnpm exec saasicat schema check --fragments=01,03
+```
+
+It fails on fields and enum values missing from declarations you **do** carry,
+and on type/optionality changes, because platform code reads those with the
+spec's type. A model or enum you do not carry at all is reported as
+information, not as a failure — not adopting a fragment is a decision. Fields
+you added on top of a platform model are never reported: extending them is
+supported.
 
 Ownership stays with the app: the platform ships the canonical tables and
 constraints, while FK relations to your `Tenant`/`User` models and all RLS
@@ -387,7 +403,7 @@ const SAAS_CONFIG = loadPlanCatalogFromFile({ path: SAAS_CONFIG_PATH });
 ```
 
 `loadPlanCatalogFromFile` validates the YAML against the schema from
-`saas-platform-spec` — errors throw early at boot.
+`@saasicat/spec` — errors throw early at boot.
 
 ### 6.3 Standard Persistence Bundle (Prisma)
 
@@ -834,7 +850,7 @@ Only sensible if you don't want NestJS. You then use exclusively:
 - `@saasicat/nest/entitlement` → `aggregateLimits`, `resolveEntitlementPlan`, `LimitExceededError`
 
 and implement the **endpoints**, **guards**, **audit**, **MFA**, **RLS bypass**,
-**discovery scan** yourself against the schemas in `saas-platform-spec/admin-api.openapi.yaml`.
+**discovery scan** yourself against the schemas in `@saasicat/spec/admin-api.openapi.yaml`.
 This is essentially a _reimplementation_ of the platform modules — sensible only
 for a completely different language (e.g. Django/Python).
 
@@ -1192,7 +1208,7 @@ myapp manifest hash                                          # for CI pinning
 myapp manifest check                                         # drift detection
 ```
 
-**Exit codes** are standardized (see `saas-platform-spec/cli-conventions.md`):
+**Exit codes** are standardized (see `@saasicat/spec/cli-conventions.md`):
 `0=ok`, `1=user-error`, `2=identity`, `3=mfa`, `4=connectivity`, `5=permission`,
 `6=conflict`, `7=drift`, `99=internal`.
 

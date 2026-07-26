@@ -75,7 +75,11 @@ model PromoCode {
     // consumer falls back to the system default (configurable in the consumer).
     revenueDeductionAccount String?
 
-    createdById String // SUPER_ADMIN user ID (consumer FK, see header)
+    // SUPER_ADMIN user ID (consumer FK, see header). Nullable to match
+    // `PromoCodeRecord.createdById: string | null` in @saasicat/types — rows
+    // whose creator is gone, or that predate the column, stay readable.
+    // Creation still requires it: `CreatePromoCodeData.createdById` is `string`.
+    createdById String?
     createdAt   DateTime  @default(now())
     updatedAt   DateTime  @updatedAt
     deletedAt   DateTime? // soft delete; never hard-delete for audit reasons

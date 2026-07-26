@@ -98,6 +98,6 @@ describe('applyFragmentBlocks', () => {
         const result = applyFragmentBlocks(schema, FRAGMENT, {
             fragmentLabel: '01-subscription.prisma',
         });
-        assert.match(result.schema, /Eingefügt durch `saas-platform schema apply` aus 01-subscription.prisma/);
+        assert.match(result.schema, /Eingefügt durch `saasicat schema apply` aus 01-subscription.prisma/);
     });
 });
