@@ -156,7 +156,12 @@ function compareFields(
             fieldMismatches.push(mismatch('type'));
         } else if (spec.list !== app.list) {
             fieldMismatches.push(mismatch('list'));
-        } else if (spec.optional !== app.optional) {
+        } else if (!spec.optional && app.optional) {
+            // Only this direction breaks: platform code reads the column with
+            // the spec's non-null type, so a NULL row reaches it as `null` and
+            // fails on first use. The reverse — the consumer being stricter
+            // than the spec — is a deliberate tightening, and if the platform
+            // ever writes NULL there the insert fails loudly instead.
             fieldMismatches.push(mismatch('optionality'));
         }
     }
