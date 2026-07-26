@@ -1,6 +1,7 @@
 import { defineConfig } from 'tsup';
 import swc from 'unplugin-swc';
 
+import { publicEntries } from './scripts/entries.mjs';
 import { CJS_EXTERNAL } from './tsup.shared';
 
 // tsup uses esbuild as its bundler. esbuild does NOT support
@@ -15,20 +16,9 @@ import { CJS_EXTERNAL } from './tsup.shared';
 // to validate `@Body() dto: SomeDto`.
 
 export default defineConfig({
-    entry: [
-        'src/index.ts',
-        'src/promo/index.ts',
-        'src/billing/index.ts',
-        'src/entitlement/index.ts',
-        'src/testing/index.ts',
-        'src/admin/index.ts',
-        'src/registration/index.ts',
-        'src/discovery/index.ts',
-        'src/catalog/index.ts',
-        'src/checkout-offer/index.ts',
-        'src/subscription-contract/index.ts',
-        'src/platform/index.ts',
-    ],
+    // Derived from `package.json` exports — adding an entry there is enough,
+    // and an entry can never exist in one list but not the other.
+    entry: publicEntries().map((e) => e.srcFile),
     // ESM is code-split by esbuild, so shared modules keep ONE identity across
     // entries. The CJS output emitted here is a placeholder: esbuild cannot
     // split CommonJS, so `tsup.cjs.config.ts` builds one shared bundle and

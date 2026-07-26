@@ -2,6 +2,8 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
+import { publicEntries } from '../scripts/entries.mjs';
+
 const require = createRequire(import.meta.url);
 
 // esbuild cannot code-split CommonJS, so building each public entry separately
@@ -17,20 +19,10 @@ const require = createRequire(import.meta.url);
 // every shared export splits in two again and this fails loudly at build time
 // instead of silently at a consumer's boot.
 
-const ENTRIES = [
-    '.',
-    './admin',
-    './billing',
-    './catalog',
-    './checkout-offer',
-    './discovery',
-    './entitlement',
-    './platform',
-    './promo',
-    './registration',
-    './subscription-contract',
-    './testing',
-];
+// Derived from `package.json` exports, not hand-listed: a new entry point
+// must be covered here automatically, otherwise the very check that guards
+// this arrangement would be the thing that misses it.
+const ENTRIES = publicEntries().map((e) => e.exportPath);
 
 const load = (entry) =>
     require(entry === '.' ? '../dist/index.cjs' : `../dist/${entry.slice(2)}/index.cjs`);

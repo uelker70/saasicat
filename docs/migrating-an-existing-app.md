@@ -143,6 +143,24 @@ set `globalFeatureGuard: false`. Otherwise the platform binds `StaticFeatureGuar
 as a global `APP_GUARD`, it runs before your auth guard, sees no `request.user`
 and 403s every `@RequireFeature` route.
 
+> **Then bind a feature guard yourself — this step is not optional.**
+> `globalFeatureGuard: false` removes the only feature-enforcing `APP_GUARD`.
+> Without a replacement, `@RequireFeature` degrades to inert markup and every
+> annotated route serves unlicensed traffic, silently and with no failing test.
+>
+> ```ts
+> // the guard the option unbinds — from @saasicat/nest/platform
+> @UseGuards(JwtAuthGuard, StaticFeatureGuard)
+> ```
+>
+> Apps on the V3 entitlement stack bind `FeatureGuard` from
+> `@saasicat/nest/billing` instead — a *different* class, backed by
+> `ENTITLEMENT_SERVICE_TOKEN` rather than the static plan catalog. Pick the one
+> matching your entitlement path; binding neither is the failure mode above.
+>
+> Verify it: call one `@RequireFeature` route with a tenant whose plan lacks
+> that feature and confirm you get a 403.
+
 The quota interceptor stays global either way — interceptors run *after* all
 guards, so it does see the authenticated request.
 

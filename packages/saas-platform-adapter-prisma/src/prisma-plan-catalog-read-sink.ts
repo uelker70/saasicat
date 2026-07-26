@@ -78,9 +78,13 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
             );
         }
         const db = this.db();
+        // `sortOrder` alone is not a total order — rows sharing a value come
+        // back in whatever order Postgres picks, which differs between reads.
+        // The snapshot feeds the admin-manifest hash, so an unstable order
+        // makes two processes reading identical data disagree on the hash.
         const plans = await db.plan.findMany({
             where: { projectKey, deletedAt: null },
-            orderBy: { sortOrder: 'asc' },
+            orderBy: [{ sortOrder: 'asc' }, { planKey: 'asc' }],
         });
         const planKeysByStoredId = new Map(
             plans.map((plan) => [
@@ -98,10 +102,11 @@ export class PrismaPlanCatalogReadSink implements PlanCatalogReadSink {
                           publishedAt: { not: null },
                           supersededAt: null,
                       },
+                      orderBy: [{ planId: 'asc' }, { version: 'asc' }],
                   });
         const featureEntries = await db.featureCatalogEntry.findMany({
             where: { projectKey, deletedAt: null },
-            orderBy: { sortOrder: 'asc' },
+            orderBy: [{ sortOrder: 'asc' }, { featureKey: 'asc' }],
         });
         return {
             plans: plans.map(toPlanRow),
