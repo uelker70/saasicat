@@ -1,5 +1,12 @@
 # @saasicat/nest
 
+## 0.12.0
+
+### Patch Changes
+
+- @saasicat/spec@0.12.0
+- @saasicat/types@0.12.0
+
 ## 0.11.0
 
 ### Patch Changes
