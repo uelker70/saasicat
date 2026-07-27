@@ -264,3 +264,42 @@ model Subscription {
         assert.equal(report.ok, true);
     });
 });
+
+describe('parser hardening (review findings)', () => {
+    test('a commented-out @@unique or @@map counts as absent, not present', () => {
+        const spec = 'model S {\n  id String @id\n  tenantId String\n\n  @@unique([tenantId])\n  @@map("subscriptions")\n}';
+        const app = 'model S {\n  id String @id\n  tenantId String\n\n  // @@unique([tenantId])\n  // @@map("subscriptions")\n}';
+        const report = checkSchema(spec, app);
+        assert.equal(report.ok, false);
+        assert.deepEqual(
+            report.missingBlockAttributes.map((a) => a.kind).sort(),
+            ['map', 'unique'],
+        );
+    });
+
+    test('a brace inside a string default does not close the model early', () => {
+        const schema =
+            'model A {\n  id String @id\n  template String @default("}")\n  later String\n}\n\nmodel B {\n  id String @id\n}';
+        const parsed = parseSchema(schema);
+        assert.deepEqual([...parsed.models.keys()], ['A', 'B']);
+        assert.deepEqual([...parsed.models.get('A').keys()], ['id', 'template', 'later']);
+    });
+
+    test('a // inside a string literal is not treated as a comment', () => {
+        const parsed = parseSchema('model A {\n  id String @id\n  url String @default("http://x")\n  after String\n}');
+        assert.deepEqual([...parsed.models.get('A').keys()], ['id', 'url', 'after']);
+    });
+
+    test('indexed field arguments are parsed past their parentheses', () => {
+        const schema =
+            'model A {\n  title String\n\n  @@index([title(sort: Desc)])\n  @@index([title(length: 10)])\n  @@map("a")\n}';
+        const attrs = parseSchema(schema).modelAttributes.get('A');
+        assert.equal(attrs.indexes.size, 2);
+        assert.equal(attrs.map, 'a');
+    });
+
+    test('@@map survives the comment strip', () => {
+        const attrs = parseSchema('model A {\n  id String @id\n\n  @@map("subscriptions")\n}').modelAttributes.get('A');
+        assert.equal(attrs.map, 'subscriptions');
+    });
+});

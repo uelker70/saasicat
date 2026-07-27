@@ -15,7 +15,7 @@
 //     consumer adopted the fragment and fell behind. That breaks platform code
 //     at runtime, so it fails the check.
 
-import { blockBodyLines, extractBlocks } from './prisma-blocks.js';
+import { blockBodyLines, extractBlocks, stripLineComment } from './prisma-blocks.js';
 
 export interface FieldSignature {
     name: string;
@@ -131,24 +131,35 @@ export function parseEnumValues(block: string): string[] {
     return values;
 }
 
-/** Matches `@@index([a, b], map: "…")` and captures the field list only. */
+/**
+ * Captures the `[…]` field list of `@@index`/`@@unique`, ignoring anything
+ * after it. Matching up to `]` rather than to the closing paren is what makes
+ * indexed field arguments work: in `@@index([title(sort: Desc)])` the first
+ * `)` belongs to the argument, not to the attribute.
+ */
 function attributeFieldLists(block: string, attribute: string): Set<string> {
-    const pattern = new RegExp(`@@${attribute}\\(([^)]*\\])`, 'g');
-    return new Set(
-        [...block.matchAll(pattern)].map((match) => match[1].replace(/\s+/g, '')),
-    );
+    const pattern = new RegExp(`@@${attribute}\\(\\s*(\\[[^\\]]*\\])`, 'g');
+    return new Set([...block.matchAll(pattern)].map((match) => match[1].replace(/\s+/g, '')));
 }
 
 /**
  * Parses the block-level attributes of a `model`. Comparing these is what
  * catches a missing index or unique constraint — differences the field-level
  * comparison is blind to.
+ *
+ * The block is reduced to its structural content first. A consumer who
+ * comments out `// @@unique([tenantId])` has removed the constraint, and
+ * reading the raw text would count it as present — passing the very check that
+ * exists to catch its absence.
  */
 export function parseBlockAttributes(name: string, block: string): BlockAttributes {
+    // Comments removed, string contents kept — `@@map("subscriptions")` needs
+    // its argument to survive.
+    const active = block.split('\n').map(stripLineComment).join('\n');
     return {
-        indexes: attributeFieldLists(block, 'index'),
-        uniques: attributeFieldLists(block, 'unique'),
-        map: block.match(/@@map\("([^"]+)"\)/)?.[1] ?? name,
+        indexes: attributeFieldLists(active, 'index'),
+        uniques: attributeFieldLists(active, 'unique'),
+        map: active.match(/@@map\("([^"]+)"\)/)?.[1] ?? name,
     };
 }
 
