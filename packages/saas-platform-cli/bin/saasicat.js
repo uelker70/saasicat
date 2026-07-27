@@ -53,6 +53,19 @@ function resolveFragmentsDir() {
 async function selectFragmentFiles(dir, filter) {
     const files = (await readdir(dir)).filter((f) => f.endsWith('.prisma')).sort();
     if (!filter) return files;
+
+    // A selector that matches nothing is a typo, and silently dropping it would
+    // leave part of the requested schema surface unchecked while the command
+    // still exits 0 — the worst outcome for something used as a CI gate.
+    const available = new Set(files.map((f) => f.split('-')[0]));
+    const unknown = filter.filter((prefix) => !available.has(prefix));
+    if (unknown.length > 0) {
+        console.error(
+            `✗ Unbekannte Fragmente: ${unknown.join(', ')}. ` +
+                `Verfügbar: ${[...available].join(', ')}`,
+        );
+        process.exit(1);
+    }
     return files.filter((f) => filter.includes(f.split('-')[0]));
 }
 

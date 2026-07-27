@@ -1,6 +1,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkSchema, parseEnumValues, parseFields, parseSchema } from '../dist/index.js';
+import {
+    blankStringLiterals,
+    checkSchema,
+    parseEnumValues,
+    parseFields,
+    parseSchema,
+} from '../dist/index.js';
 
 const SPEC = `
 enum BillingCycle {
@@ -262,5 +268,72 @@ model Subscription {
         const report = checkSchema(WITH_ATTRS, app);
         assert.deepEqual(report.missingBlockAttributes, []);
         assert.equal(report.ok, true);
+    });
+});
+
+describe('parser hardening (review findings)', () => {
+    test('a commented-out @@unique or @@map counts as absent, not present', () => {
+        const spec = 'model S {\n  id String @id\n  tenantId String\n\n  @@unique([tenantId])\n  @@map("subscriptions")\n}';
+        const app = 'model S {\n  id String @id\n  tenantId String\n\n  // @@unique([tenantId])\n  // @@map("subscriptions")\n}';
+        const report = checkSchema(spec, app);
+        assert.equal(report.ok, false);
+        assert.deepEqual(
+            report.missingBlockAttributes.map((a) => a.kind).sort(),
+            ['map', 'unique'],
+        );
+    });
+
+    test('a brace inside a string default does not close the model early', () => {
+        const schema =
+            'model A {\n  id String @id\n  template String @default("}")\n  later String\n}\n\nmodel B {\n  id String @id\n}';
+        const parsed = parseSchema(schema);
+        assert.deepEqual([...parsed.models.keys()], ['A', 'B']);
+        assert.deepEqual([...parsed.models.get('A').keys()], ['id', 'template', 'later']);
+    });
+
+    test('a // inside a string literal is not treated as a comment', () => {
+        const parsed = parseSchema('model A {\n  id String @id\n  url String @default("http://x")\n  after String\n}');
+        assert.deepEqual([...parsed.models.get('A').keys()], ['id', 'url', 'after']);
+    });
+
+    test('indexed field arguments are parsed past their parentheses', () => {
+        const schema =
+            'model A {\n  title String\n\n  @@index([title(sort: Desc)])\n  @@index([title(length: 10)])\n  @@map("a")\n}';
+        const attrs = parseSchema(schema).modelAttributes.get('A');
+        assert.equal(attrs.indexes.size, 2);
+        assert.equal(attrs.map, 'a');
+    });
+
+    test('@@map survives the comment strip', () => {
+        const attrs = parseSchema('model A {\n  id String @id\n\n  @@map("subscriptions")\n}').modelAttributes.get('A');
+        assert.equal(attrs.map, 'subscriptions');
+    });
+});
+
+describe('blankStringLiterals', () => {
+    test('blanks contents, keeps quotes and length', () => {
+        const line = '  x String @default("}")';
+        const out = blankStringLiterals(line);
+        assert.equal(out.length, line.length);
+        assert.equal(out, '  x String @default(" ")');
+        assert.equal(out.includes('}'), false);
+    });
+
+    test('handles escaped quotes without leaving the string early', () => {
+        const out = blankStringLiterals('a "x\\"}" }');
+        // Only the brace OUTSIDE the string survives.
+        assert.equal((out.match(/\}/g) ?? []).length, 1);
+    });
+
+    test('leaves a line without strings untouched', () => {
+        assert.equal(blankStringLiterals('model A { id String @id }'), 'model A { id String @id }');
+    });
+
+    test('is linear on pathological input', () => {
+        const evil = '"' + '\\"'.repeat(20000);
+        const started = process.hrtime.bigint();
+        blankStringLiterals(evil);
+        const ms = Number(process.hrtime.bigint() - started) / 1e6;
+        assert.ok(ms < 500, `took ${ms}ms — expected linear behaviour`);
     });
 });
