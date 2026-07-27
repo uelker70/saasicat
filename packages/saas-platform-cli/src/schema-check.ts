@@ -25,8 +25,18 @@ export interface FieldSignature {
     list: boolean;
 }
 
+export interface BlockAttributes {
+    /** Field lists of `@@index`, normalised to `[a,b]` — attribute options dropped. */
+    indexes: Set<string>;
+    /** Same for `@@unique`. */
+    uniques: Set<string>;
+    /** `@@map` target, or the model name when unmapped. */
+    map: string;
+}
+
 export interface ParsedSchema {
     models: Map<string, Map<string, FieldSignature>>;
+    modelAttributes: Map<string, BlockAttributes>;
     enums: Map<string, string[]>;
 }
 
@@ -52,6 +62,17 @@ export interface FieldMismatch {
     actual: string;
 }
 
+export type BlockAttributeKind = 'index' | 'unique' | 'map';
+
+export interface MissingBlockAttribute {
+    model: string;
+    kind: BlockAttributeKind;
+    /** Rendered attribute, e.g. `@@index([planId, validFrom])`. */
+    expected: string;
+    /** For `map`: what the consumer maps to instead. */
+    actual?: string;
+}
+
 export interface SchemaCheckReport {
     /** Platform models the consumer does not carry — informational. */
     absentModels: string[];
@@ -60,6 +81,11 @@ export interface SchemaCheckReport {
     missingFields: MissingField[];
     missingEnumValues: MissingEnumValue[];
     fieldMismatches: FieldMismatch[];
+    /**
+     * Block-level attributes the spec declares and the consumer lacks:
+     * `@@index`, `@@unique`, and a diverging `@@map`.
+     */
+    missingBlockAttributes: MissingBlockAttribute[];
     /** Models present in both schemas, i.e. actually compared. */
     checkedModelCount: number;
     /** Enums present in both schemas, i.e. actually compared. */
@@ -105,17 +131,40 @@ export function parseEnumValues(block: string): string[] {
     return values;
 }
 
+/** Matches `@@index([a, b], map: "…")` and captures the field list only. */
+function attributeFieldLists(block: string, attribute: string): Set<string> {
+    const pattern = new RegExp(`@@${attribute}\\(([^)]*\\])`, 'g');
+    return new Set(
+        [...block.matchAll(pattern)].map((match) => match[1].replace(/\s+/g, '')),
+    );
+}
+
+/**
+ * Parses the block-level attributes of a `model`. Comparing these is what
+ * catches a missing index or unique constraint — differences the field-level
+ * comparison is blind to.
+ */
+export function parseBlockAttributes(name: string, block: string): BlockAttributes {
+    return {
+        indexes: attributeFieldLists(block, 'index'),
+        uniques: attributeFieldLists(block, 'unique'),
+        map: block.match(/@@map\("([^"]+)"\)/)?.[1] ?? name,
+    };
+}
+
 /** Parses every `model` and `enum` declaration of a Prisma schema. */
 export function parseSchema(schema: string): ParsedSchema {
     const models = new Map<string, Map<string, FieldSignature>>();
+    const modelAttributes = new Map<string, BlockAttributes>();
     for (const [name, block] of extractBlocks(schema, 'model')) {
         models.set(name, parseFields(block));
+        modelAttributes.set(name, parseBlockAttributes(name, block));
     }
     const enums = new Map<string, string[]>();
     for (const [name, block] of extractBlocks(schema, 'enum')) {
         enums.set(name, parseEnumValues(block));
     }
-    return { models, enums };
+    return { models, modelAttributes, enums };
 }
 
 /**
@@ -167,6 +216,37 @@ function compareFields(
     }
 }
 
+function compareBlockAttributes(
+    model: string,
+    spec: BlockAttributes,
+    app: BlockAttributes,
+    out: MissingBlockAttribute[],
+): void {
+    if (spec.map !== app.map) {
+        out.push({ model, kind: 'map', expected: `@@map("${spec.map}")`, actual: app.map });
+    }
+    for (const fields of spec.uniques) {
+        if (!app.uniques.has(fields)) {
+            out.push({ model, kind: 'unique', expected: `@@unique(${fields})` });
+        }
+    }
+    for (const fields of spec.indexes) {
+        if (!app.indexes.has(fields)) {
+            out.push({ model, kind: 'index', expected: `@@index(${fields})` });
+        }
+    }
+}
+
+/**
+ * A missing index costs query time; a missing `@@unique` or a diverging
+ * `@@map` breaks correctness — the platform relies on the constraint holding,
+ * and on finding the table under its canonical name. Only the latter two fail
+ * the check.
+ */
+export function breaksContract(attribute: MissingBlockAttribute): boolean {
+    return attribute.kind !== 'index';
+}
+
 /**
  * Compares a consumer schema against the canonical fragments. `specSchema` is
  * the concatenation of the fragments the check should cover.
@@ -178,6 +258,7 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
     const absentModels: string[] = [];
     const missingFields: MissingField[] = [];
     const fieldMismatches: FieldMismatch[] = [];
+    const missingBlockAttributes: MissingBlockAttribute[] = [];
 
     for (const [model, specFields] of spec.models) {
         const appFields = app.models.get(model);
@@ -186,6 +267,11 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
             continue;
         }
         compareFields(model, specFields, appFields, app.enums, missingFields, fieldMismatches);
+        const specAttrs = spec.modelAttributes.get(model);
+        const appAttrs = app.modelAttributes.get(model);
+        if (specAttrs && appAttrs) {
+            compareBlockAttributes(model, specAttrs, appAttrs, missingBlockAttributes);
+        }
     }
 
     const absentEnums: string[] = [];
@@ -210,11 +296,13 @@ export function checkSchema(specSchema: string, appSchema: string): SchemaCheckR
         missingFields,
         missingEnumValues,
         fieldMismatches,
+        missingBlockAttributes,
         checkedModelCount: spec.models.size - absentModels.length,
         checkedEnumCount: spec.enums.size - absentEnums.length,
         ok:
             missingFields.length === 0 &&
             missingEnumValues.length === 0 &&
-            fieldMismatches.length === 0,
+            fieldMismatches.length === 0 &&
+            !missingBlockAttributes.some(breaksContract),
     };
 }

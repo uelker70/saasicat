@@ -197,3 +197,70 @@ describe('checkSchema', () => {
         assert.equal(report.fieldMismatches[0].reason, 'list');
     });
 });
+
+describe('block attributes', () => {
+    const WITH_ATTRS = `
+model Subscription {
+    id       String @id
+    tenantId String
+    plan     String
+
+    @@unique([tenantId, plan])
+    @@index([tenantId])
+    @@index([plan, tenantId])
+    @@map("subscriptions")
+}
+`;
+
+    test('identical attributes produce no finding', () => {
+        const report = checkSchema(WITH_ATTRS, WITH_ATTRS);
+        assert.deepEqual(report.missingBlockAttributes, []);
+        assert.equal(report.ok, true);
+    });
+
+    test('a missing index is reported but does not fail the check', () => {
+        const app = WITH_ATTRS.replace('    @@index([plan, tenantId])\n', '');
+        const report = checkSchema(WITH_ATTRS, app);
+        assert.deepEqual(report.missingBlockAttributes, [
+            { model: 'Subscription', kind: 'index', expected: '@@index([plan,tenantId])' },
+        ]);
+        assert.equal(report.ok, true);
+    });
+
+    test('a missing unique constraint fails the check', () => {
+        const app = WITH_ATTRS.replace('    @@unique([tenantId, plan])\n', '');
+        const report = checkSchema(WITH_ATTRS, app);
+        assert.equal(report.missingBlockAttributes[0].kind, 'unique');
+        assert.equal(report.ok, false);
+    });
+
+    test('a diverging @@map fails the check and names both sides', () => {
+        const app = WITH_ATTRS.replace('@@map("subscriptions")', '@@map("abos")');
+        const report = checkSchema(WITH_ATTRS, app);
+        assert.deepEqual(report.missingBlockAttributes, [
+            {
+                model: 'Subscription',
+                kind: 'map',
+                expected: '@@map("subscriptions")',
+                actual: 'abos',
+            },
+        ]);
+        assert.equal(report.ok, false);
+    });
+
+    test('whitespace and attribute options do not create false findings', () => {
+        const app = WITH_ATTRS.replace(
+            '@@index([plan, tenantId])',
+            '@@index([plan,tenantId], map: "custom_idx")',
+        );
+        const report = checkSchema(WITH_ATTRS, app);
+        assert.deepEqual(report.missingBlockAttributes, []);
+    });
+
+    test('extra consumer indexes are not reported', () => {
+        const app = WITH_ATTRS.replace('    @@map', '    @@index([id])\n    @@map');
+        const report = checkSchema(WITH_ATTRS, app);
+        assert.deepEqual(report.missingBlockAttributes, []);
+        assert.equal(report.ok, true);
+    });
+});

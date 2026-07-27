@@ -169,6 +169,26 @@ function printCheckReport(report) {
         console.log('');
     }
 
+    const breaking = report.missingBlockAttributes.filter((a) => a.kind !== 'index');
+    if (breaking.length > 0) {
+        console.log(`✗ Fehlende Constraints (${breaking.length}):`);
+        for (const { model, kind, expected, actual } of breaking) {
+            const suffix = kind === 'map' ? ` — vorhanden: @@map("${actual}")` : '';
+            console.log(`    ${model.padEnd(28)} ${expected}${suffix}`);
+        }
+        console.log('');
+    }
+
+    const missingIndexes = report.missingBlockAttributes.filter((a) => a.kind === 'index');
+    if (missingIndexes.length > 0) {
+        console.log(`→ Fehlende Indizes (${missingIndexes.length}):`);
+        for (const { model, expected } of missingIndexes) {
+            console.log(`    ${model.padEnd(28)} ${expected}`);
+        }
+        console.log('  Kein Fehler — kostet Query-Zeit, bricht aber nichts.');
+        console.log('');
+    }
+
     const absent = [...report.absentModels, ...report.absentEnums];
     if (absent.length > 0) {
         console.log(`→ Nicht übernommen (${absent.length}): ${absent.join(', ')}`);
