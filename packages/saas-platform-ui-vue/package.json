@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/ui-vue",
-    "version": "0.12.0",
+    "version": "0.12.1",
     "description": "Vue 3 components, resource clients and composables for the SuperAdmin UI shell. Provides boot and manifest loaders, navigation, actions and standard pages.",
     "type": "module",
     "main": "./dist/index.cjs",
