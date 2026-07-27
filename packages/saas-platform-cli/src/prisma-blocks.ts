@@ -24,13 +24,44 @@ function declarationPattern(keyword: string): RegExp {
 }
 
 /**
- * Blanks the contents of double-quoted strings, keeping the quotes so column
- * positions stay put. Brace counting must not see `@default("}")` as the end
- * of a model — it would close the block early and every field below it would
- * look missing.
+ * Blanks the contents of double-quoted strings, keeping the quotes and the
+ * line length so column positions stay put. Brace counting must not see
+ * `@default("}")` as the end of a model — it would close the block early and
+ * every field below it would look missing.
+ *
+ * A linear scan rather than `"(?:[^"\\]|\\.)*"`: that pattern backtracks
+ * quadratically on many repeated `\"` (CodeQL `js/polynomial-redos`), and this
+ * runs over every line of a consumer schema.
  */
 export function blankStringLiterals(line: string): string {
-    return line.replace(/"(?:[^"\\]|\\.)*"/g, (match) => `"${' '.repeat(match.length - 2)}"`);
+    let out = '';
+    let inString = false;
+    let escaped = false;
+
+    for (const char of line) {
+        if (!inString) {
+            out += char;
+            if (char === '"') inString = true;
+            continue;
+        }
+        if (escaped) {
+            out += ' ';
+            escaped = false;
+            continue;
+        }
+        if (char === '\\') {
+            out += ' ';
+            escaped = true;
+            continue;
+        }
+        if (char === '"') {
+            out += '"';
+            inString = false;
+            continue;
+        }
+        out += ' ';
+    }
+    return out;
 }
 
 /**

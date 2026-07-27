@@ -1,6 +1,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkSchema, parseEnumValues, parseFields, parseSchema } from '../dist/index.js';
+import {
+    blankStringLiterals,
+    checkSchema,
+    parseEnumValues,
+    parseFields,
+    parseSchema,
+} from '../dist/index.js';
 
 const SPEC = `
 enum BillingCycle {
@@ -301,5 +307,33 @@ describe('parser hardening (review findings)', () => {
     test('@@map survives the comment strip', () => {
         const attrs = parseSchema('model A {\n  id String @id\n\n  @@map("subscriptions")\n}').modelAttributes.get('A');
         assert.equal(attrs.map, 'subscriptions');
+    });
+});
+
+describe('blankStringLiterals', () => {
+    test('blanks contents, keeps quotes and length', () => {
+        const line = '  x String @default("}")';
+        const out = blankStringLiterals(line);
+        assert.equal(out.length, line.length);
+        assert.equal(out, '  x String @default(" ")');
+        assert.equal(out.includes('}'), false);
+    });
+
+    test('handles escaped quotes without leaving the string early', () => {
+        const out = blankStringLiterals('a "x\\"}" }');
+        // Only the brace OUTSIDE the string survives.
+        assert.equal((out.match(/\}/g) ?? []).length, 1);
+    });
+
+    test('leaves a line without strings untouched', () => {
+        assert.equal(blankStringLiterals('model A { id String @id }'), 'model A { id String @id }');
+    });
+
+    test('is linear on pathological input', () => {
+        const evil = '"' + '\\"'.repeat(20000);
+        const started = process.hrtime.bigint();
+        blankStringLiterals(evil);
+        const ms = Number(process.hrtime.bigint() - started) / 1e6;
+        assert.ok(ms < 500, `took ${ms}ms — expected linear behaviour`);
     });
 });
