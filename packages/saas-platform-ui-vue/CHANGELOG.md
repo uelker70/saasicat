@@ -1,5 +1,12 @@
 # @saasicat/ui-vue
 
+## 0.13.0
+
+### Patch Changes
+
+- Updated dependencies [362a1a7]
+    - @saasicat/types@0.13.0
+
 ## 0.12.1
 
 ### Patch Changes
