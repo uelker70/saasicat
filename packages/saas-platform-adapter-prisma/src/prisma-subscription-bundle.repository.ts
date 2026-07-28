@@ -67,8 +67,9 @@ export class PrismaSubscriptionBundleRepository implements SubscriptionBundleRep
     async listActiveBySubscription(
         subscriptionId: string,
         asOf: Date = new Date(),
+        tx?: TransactionContext,
     ): Promise<SubscriptionBundleRecord[]> {
-        const rows = await this.db().subscriptionBundle.findMany({
+        const rows = await this.db(tx).subscriptionBundle.findMany({
             where: {
                 subscriptionId,
                 OR: [{ canceledAt: null }, { canceledEffectiveAt: { gt: asOf } }],

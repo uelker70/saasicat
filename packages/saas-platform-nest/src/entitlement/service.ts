@@ -158,7 +158,7 @@ export class EntitlementService {
         now: Date,
         tx?: TransactionContext,
     ): Promise<EffectiveLimits> {
-        const contractLimits = await this.deriveLimitsFromContract(sub.tenantId, now);
+        const contractLimits = await this.deriveLimitsFromContract(sub.tenantId, now, tx);
         if (contractLimits) return this.withReplacedFeatureAliases(contractLimits);
 
         const effectivePlan = resolveEntitlementPlan(sub, this.resolutionConfig ?? {}, now);
@@ -167,7 +167,7 @@ export class EntitlementService {
                 ? sub.planVersion
                 : await this.findActivePlanVersionOrFallback(effectivePlan, now, tx);
 
-        const subscriptionBundles = await this.loadSubscriptionBundleSnapshots(sub.id, now);
+        const subscriptionBundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
 
         return this.withReplacedFeatureAliases(
             aggregateLimits(
@@ -203,9 +203,10 @@ export class EntitlementService {
     private async deriveLimitsFromContract(
         tenantId: string,
         now: Date,
+        tx?: TransactionContext,
     ): Promise<EffectiveLimits | null> {
         if (!this.subscriptionContracts) return null;
-        const contract = await this.subscriptionContracts.findActiveByTenantId(tenantId, now);
+        const contract = await this.subscriptionContracts.findActiveByTenantId(tenantId, now, tx);
         if (!contract) return null;
         if (contract.entitlementSnapshot) {
             return {
@@ -227,13 +228,18 @@ export class EntitlementService {
     private async loadSubscriptionBundleSnapshots(
         subscriptionId: string,
         now: Date,
+        tx?: TransactionContext,
     ): Promise<SubscriptionBundleSnapshot[]> {
         if (!this.subscriptionBundles || !this.bundles) return [];
-        const active = await this.subscriptionBundles.listActiveBySubscription(subscriptionId, now);
+        const active = await this.subscriptionBundles.listActiveBySubscription(
+            subscriptionId,
+            now,
+            tx,
+        );
         if (active.length === 0) return [];
         return Promise.all(
             active.map(async (booking) => {
-                const bv = await this.bundles!.findVersionById(booking.bundleVersionId);
+                const bv = await this.bundles!.findVersionById(booking.bundleVersionId, tx);
                 if (!bv) {
                     // Hard fail: an active booking points to a BundleVersion
                     // that no longer exists — data inconsistency, should never

@@ -233,10 +233,14 @@ export class PrismaBundleRepository implements BundleRepository {
         return rows.map((row) => toBundleVersionRow(row, bundle, this.validityWindows));
     }
 
-    async findVersionById(versionId: string): Promise<BundleVersionRow | null> {
-        const row = await this.db().bundleVersion.findUnique({ where: { id: versionId } });
+    async findVersionById(
+        versionId: string,
+        tx?: TransactionContext,
+    ): Promise<BundleVersionRow | null> {
+        const db = this.db(tx);
+        const row = await db.bundleVersion.findUnique({ where: { id: versionId } });
         if (!row) return null;
-        const bundle = await this.db().bundle.findUnique({ where: { id: row.bundleId } });
+        const bundle = await db.bundle.findUnique({ where: { id: row.bundleId } });
         return toBundleVersionRow(row, bundle, this.validityWindows);
     }
 
