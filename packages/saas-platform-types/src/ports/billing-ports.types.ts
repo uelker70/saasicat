@@ -126,10 +126,15 @@ export interface SubscriptionBundleRepository {
     /**
      * Active bookings of a subscription (`canceledAt IS NULL OR
      * canceledEffectiveAt > NOW()`). Used by the Entitlement path.
+     *
+     * `tx` is set when the call happens inside `enforceLimit`'s interactive
+     * transaction — adapters should then query on the transaction connection
+     * instead of drawing an extra pool connection (starvation guard, #70).
      */
     listActiveBySubscription(
         subscriptionId: string,
         asOf?: Date,
+        tx?: TransactionContext,
     ): Promise<SubscriptionBundleRecord[]>;
     add(data: CreateSubscriptionBundleData): Promise<SubscriptionBundleRecord>;
     /**
@@ -165,7 +170,16 @@ export interface SubscriptionBundleRepository {
 export interface SubscriptionContractRepository {
     list(filter: SubscriptionContractFilter): Promise<SubscriptionContractRecord[]>;
     findById(contractId: string): Promise<SubscriptionContractRecord | null>;
-    findActiveByTenantId(tenantId: string, asOf?: Date): Promise<SubscriptionContractRecord | null>;
+    /**
+     * `tx` is set when the call happens inside `enforceLimit`'s interactive
+     * transaction — adapters should then query on the transaction connection
+     * instead of drawing an extra pool connection (starvation guard, #70).
+     */
+    findActiveByTenantId(
+        tenantId: string,
+        asOf?: Date,
+        tx?: TransactionContext,
+    ): Promise<SubscriptionContractRecord | null>;
     create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord>;
     terminate(
         contractId: string,

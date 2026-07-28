@@ -244,7 +244,11 @@ export interface BundleRepository {
 
     // ─── Version operations ───
     listVersions(bundleId: string): Promise<BundleVersionRow[]>;
-    findVersionById(versionId: string): Promise<BundleVersionRow | null>;
+    /**
+     * `tx` is set when the entitlement path resolves bundle versions inside
+     * `enforceLimit`'s interactive transaction (starvation guard, #70).
+     */
+    findVersionById(versionId: string, tx?: TransactionContext): Promise<BundleVersionRow | null>;
     findCurrentDraft(bundleId: string): Promise<BundleVersionRow | null>;
     /**
      * Currently published (= live) BundleVersion of a bundle:

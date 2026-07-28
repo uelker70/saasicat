@@ -11,6 +11,7 @@ import type {
     SubscriptionContractRepository,
     SubscriptionContractStatus,
     TerminateSubscriptionContractData,
+    TransactionContext,
 } from '@saasicat/types';
 import {
     PRISMA_CLIENT_TOKEN,
@@ -80,12 +81,12 @@ interface SubscriptionContractPrisma {
 export class PrismaSubscriptionContractRepository implements SubscriptionContractRepository {
     constructor(@Inject(PRISMA_CLIENT_TOKEN) private readonly prisma: PrismaLike) {}
 
-    private get db(): SubscriptionContractPrisma {
-        return this.prisma as unknown as SubscriptionContractPrisma;
+    private db(tx?: TransactionContext): SubscriptionContractPrisma {
+        return (tx ?? this.prisma) as unknown as SubscriptionContractPrisma;
     }
 
     async list(filter: SubscriptionContractFilter): Promise<SubscriptionContractRecord[]> {
-        const rows = await this.db.subscriptionContract.findMany({
+        const rows = await this.db().subscriptionContract.findMany({
             where: {
                 ...(filter.projectKey ? { projectKey: filter.projectKey } : {}),
                 ...(filter.tenantId ? { tenantId: filter.tenantId } : {}),
@@ -104,7 +105,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     }
 
     async findById(contractId: string): Promise<SubscriptionContractRecord | null> {
-        const row = await this.db.subscriptionContract.findUnique({
+        const row = await this.db().subscriptionContract.findUnique({
             where: { id: contractId },
             include: { lineItems: true },
         });
@@ -114,8 +115,9 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     async findActiveByTenantId(
         tenantId: string,
         asOf: Date = new Date(),
+        tx?: TransactionContext,
     ): Promise<SubscriptionContractRecord | null> {
-        const row = await this.db.subscriptionContract.findFirst({
+        const row = await this.db(tx).subscriptionContract.findFirst({
             where: {
                 tenantId,
                 status: { in: ACTIVE_CONTRACT_STATUSES },
@@ -129,7 +131,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
     }
 
     async create(data: CreateSubscriptionContractData): Promise<SubscriptionContractRecord> {
-        const row = await this.db.subscriptionContract.create({
+        const row = await this.db().subscriptionContract.create({
             data: {
                 projectKey: data.projectKey,
                 tenantId: data.tenantId,
@@ -159,7 +161,7 @@ export class PrismaSubscriptionContractRepository implements SubscriptionContrac
         contractId: string,
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord> {
-        const row = await this.db.subscriptionContract.update({
+        const row = await this.db().subscriptionContract.update({
             where: { id: contractId },
             data: { effectiveUntil: data.effectiveUntil, status: data.status },
             include: { lineItems: true },

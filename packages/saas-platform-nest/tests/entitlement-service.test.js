@@ -428,3 +428,78 @@ describe('EntitlementService.enforceLimit — transactional', () => {
         );
     });
 });
+
+describe('EntitlementService.enforceLimit — forwards tx to lookup ports (#70)', () => {
+    test('contract, bundle and bundle-version lookups receive the runner tx', async () => {
+        const subRepo = new FakeSubscriptionRepository();
+        const pvRepo = new FakePlanVersionRepository();
+        const txRunner = new FakeTransactionRunner();
+        pvRepo.set(STANDARD_PV);
+        subRepo.set(buildSub());
+
+        const seen = { contract: [], bundles: [], versions: [] };
+        const contractRepo = {
+            list: async () => [],
+            findById: async () => null,
+            findActiveByTenantId: async (_tenantId, _asOf, tx) => {
+                seen.contract.push(tx);
+                return null;
+            },
+            create: async () => {
+                throw new Error('unused');
+            },
+            terminate: async () => {
+                throw new Error('unused');
+            },
+        };
+        const subscriptionBundles = {
+            listBySubscription: async () => [],
+            findById: async () => null,
+            listActiveBySubscription: async (_subscriptionId, _asOf, tx) => {
+                seen.bundles.push(tx);
+                return [{ bundleVersionId: 'bv-1', canceledEffectiveAt: null }];
+            },
+            add: async () => {
+                throw new Error('unused');
+            },
+            cancel: async () => {
+                throw new Error('unused');
+            },
+            reactivate: async () => {
+                throw new Error('unused');
+            },
+            countActiveByBundleVersionId: async () => 0,
+        };
+        const bundles = {
+            // Nur der im Entitlement-Pfad berührte Teil des BundleRepository-Ports.
+            findVersionById: async (_versionId, tx) => {
+                seen.versions.push(tx);
+                return { bundleKey: 'B1', features: [], quotas: {} };
+            },
+        };
+
+        const svc = new EntitlementService(
+            CATALOG,
+            subRepo,
+            pvRepo,
+            txRunner,
+            null,
+            subscriptionBundles,
+            bundles,
+            contractRepo,
+        );
+
+        const result = await svc.enforceLimit({
+            tenantId: 't1',
+            dimension: 'vehicles',
+            currentUsage: async () => 0,
+            insert: async () => 'created-id',
+            now: NOW,
+        });
+
+        assert.equal(result, 'created-id');
+        assert.deepEqual(seen.contract, [FakeTransactionRunner.TX_SENTINEL]);
+        assert.deepEqual(seen.bundles, [FakeTransactionRunner.TX_SENTINEL]);
+        assert.deepEqual(seen.versions, [FakeTransactionRunner.TX_SENTINEL]);
+    });
+});
