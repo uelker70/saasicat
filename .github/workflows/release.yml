@@ -4,11 +4,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      fix_access:
-        description: "Re-assert public access on the published scoped packages"
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -41,14 +36,13 @@ jobs:
       # publishConfig, which made the public scaffolder point at unreachable
       # dependencies. Writing access=public into .npmrc makes it explicit at the
       # one layer that always wins, regardless of what the toolchain forwards.
-      - name: Configure npm auth and public access
-        run: |
-          {
-            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
-            echo "access=public"
-          } > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #
+      # Auth happens via npm Trusted Publishing (GitHub-OIDC, `id-token: write`
+      # above) — there is no NPM_TOKEN anymore. Every package must list this
+      # repo + workflow as a Trusted Publisher on npmjs.com, otherwise the
+      # publish fails with an auth error.
+      - name: Configure public access
+        run: echo "access=public" > ~/.npmrc
       - name: Create release pull request or publish to npm
         id: changesets
         uses: changesets/action@v1
@@ -57,23 +51,4 @@ jobs:
           publish: pnpm changeset publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: "true"
-      # Belt and braces: a package first published as restricted stays
-      # restricted on later publishes, so re-assert visibility after a release
-      # (and on demand via the fix_access dispatch input).
-      - name: Ensure published packages are public
-        if: steps.changesets.outputs.published == 'true' || inputs.fix_access
-        run: |
-          node -e "
-            const {readdirSync,readFileSync,existsSync}=require('fs');
-            for (const d of readdirSync('packages')) {
-              const f='packages/'+d+'/package.json';
-              if (!existsSync(f)) continue;
-              const p=JSON.parse(readFileSync(f,'utf8'));
-              if (!p.private && p.name.startsWith('@')) console.log(p.name);
-            }
-          " | while read -r pkg; do
-            echo "Setting public access for $pkg"
-            npm access set status=public "$pkg"
-          done
