@@ -11,7 +11,8 @@ something re-froze the contract — and where the optional `contractFreeze` hook
 was not configured, that never happened, silently.
 
 Active bookings are now merged on top of the contract limits (features as a set
-union, quotas additive with `-1` dominance). Bundles the contract already
+union, quotas additive with `-1` dominance, `plannedOnly` features filtered out
+as on the plan path). Bundles the contract already
 accounts for — via `originalBundleVersionIds` or a bundle line item — are
 skipped, so their quotas are not counted twice. The frozen plan part stays
 untouched.

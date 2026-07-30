@@ -145,13 +145,16 @@ export function contractBundleVersionIds(
  * i.e. `originalBundleVersionIds` plus the bundle line items) are skipped, so
  * their quotas are not counted twice.
  *
- * Features are a set union, quotas add up with `-1` (unlimited) dominance —
- * same rules as `aggregateLimits`.
+ * Features are a set union, quotas add up with `-1` (unlimited) dominance, and
+ * `plannedOnly` features stay out — same rules as `aggregateLimits`. The
+ * contract's own features are passed through untouched: what was agreed stays
+ * agreed.
  */
 export function mergeSubscriptionBundlesIntoLimits(
     limits: EffectiveLimits,
     bundles: readonly SubscriptionBundleSnapshot[],
     coveredBundleVersionIds: ReadonlySet<string>,
+    catalog: PlanCatalog,
     now: Date,
 ): EffectiveLimits {
     const additional = filterActiveSubscriptionBundles(bundles, now).filter(
@@ -168,13 +171,15 @@ export function mergeSubscriptionBundlesIntoLimits(
         }
     }
 
+    const bundleFeatures = filterPlannedOnlyFeatures(
+        new Set(collectSubscriptionBundleFeatures(additional)),
+        catalog,
+    );
+
     return {
         plan: limits.plan,
         quotas,
-        features: new Set<FeatureKey>([
-            ...limits.features,
-            ...collectSubscriptionBundleFeatures(additional),
-        ]),
+        features: new Set<FeatureKey>([...limits.features, ...bundleFeatures]),
     };
 }
 

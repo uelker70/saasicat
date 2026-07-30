@@ -175,6 +175,7 @@ export class EntitlementService {
                     contractLimits(contract),
                     bundles,
                     contractBundleVersionIds(contract),
+                    this.catalog,
                     now,
                 ),
             );

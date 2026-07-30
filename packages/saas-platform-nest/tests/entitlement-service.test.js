@@ -590,6 +590,27 @@ describe('EntitlementService — bundles booked after the contract was signed', 
         assert.equal(limits.quotas.storageGb, 35);
     });
 
+    test('does not grant a plannedOnly feature from a later bundle', async () => {
+        // API_ACCESS is flagged plannedOnly in the catalog — the plan path
+        // filters it out, and the contract path must behave the same.
+        const { svc, subRepo, contractRepo } = buildBundleContractHarness(
+            [{ bundleVersionId: 'bv-planned', canceledEffectiveAt: null }],
+            {
+                'bv-planned': {
+                    bundleKey: 'PLANNED',
+                    features: ['API_ACCESS', 'DMS'],
+                    quotas: {},
+                },
+            },
+        );
+        subRepo.set(buildSub());
+        await createSnapshotContract(contractRepo);
+
+        const limits = await svc.computeLimits('t1', NOW);
+
+        assert.deepEqual([...limits.features].sort(), ['CASHBOOK', 'DMS']);
+    });
+
     test('ignores a booking that is already canceled', async () => {
         const { svc, subRepo, contractRepo } = buildBundleContractHarness(
             [
