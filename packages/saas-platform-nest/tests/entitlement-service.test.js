@@ -429,6 +429,187 @@ describe('EntitlementService.enforceLimit — transactional', () => {
     });
 });
 
+describe('EntitlementService — bundles booked after the contract was signed', () => {
+    // A contract freezes what was agreed at signing time. A bundle bought
+    // afterwards must take effect right away — before this it stayed without
+    // consequence, because the snapshot was the only source of truth.
+    function buildBundleContractHarness(bookings, versionsByid) {
+        const subRepo = new FakeSubscriptionRepository();
+        const pvRepo = new FakePlanVersionRepository();
+        const txRunner = new FakeTransactionRunner();
+        const contractRepo = new FakeSubscriptionContractRepository();
+        pvRepo.set(STANDARD_PV);
+        const subscriptionBundles = {
+            listBySubscription: async () => bookings,
+            findById: async () => null,
+            listActiveBySubscription: async () => bookings,
+            add: async () => {
+                throw new Error('unused');
+            },
+            cancel: async () => {
+                throw new Error('unused');
+            },
+            reactivate: async () => {
+                throw new Error('unused');
+            },
+            countActiveByBundleVersionId: async () => 0,
+        };
+        const bundles = {
+            findVersionById: async (versionId) => versionsByid[versionId] ?? null,
+        };
+        const svc = new EntitlementService(
+            CATALOG,
+            subRepo,
+            pvRepo,
+            txRunner,
+            null,
+            subscriptionBundles,
+            bundles,
+            contractRepo,
+        );
+        return { svc, subRepo, contractRepo };
+    }
+
+    const PRICE = {
+        currency: 'EUR',
+        billingCycle: 'monthly',
+        subtotalNet: 49,
+        discountNet: 0,
+        totalNet: 49,
+        vatRate: 0.19,
+        totalGross: 58.31,
+    };
+
+    async function createSnapshotContract(contractRepo, extra = {}) {
+        await contractRepo.create({
+            projectKey: 'demoapp',
+            tenantId: 't1',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            priceSnapshot: PRICE,
+            entitlementSnapshot: {
+                plan: 'STANDARD',
+                quotas: { users: 1, vehicles: 15, storageGb: 5 },
+                features: ['CASHBOOK'],
+            },
+            lineItems: [],
+            ...extra,
+        });
+    }
+
+    test('adds features and quotas of a bundle missing from the contract', async () => {
+        const { svc, subRepo, contractRepo } = buildBundleContractHarness(
+            [{ bundleVersionId: 'bv-export', canceledEffectiveAt: null }],
+            {
+                'bv-export': { bundleKey: 'EXPORT', features: ['DMS'], quotas: { storageGb: 20 } },
+            },
+        );
+        subRepo.set(buildSub());
+        await createSnapshotContract(contractRepo);
+
+        const limits = await svc.computeLimits('t1', NOW);
+
+        assert.deepEqual([...limits.features].sort(), ['CASHBOOK', 'DMS']);
+        assert.equal(limits.quotas.storageGb, 25);
+        // The frozen plan itself stays untouched.
+        assert.equal(limits.plan, 'STANDARD');
+        assert.equal(limits.quotas.vehicles, 15);
+    });
+
+    test('does not count a bundle already frozen into the contract twice', async () => {
+        const { svc, subRepo, contractRepo } = buildBundleContractHarness(
+            [{ bundleVersionId: 'bv-frozen', canceledEffectiveAt: null }],
+            {
+                'bv-frozen': { bundleKey: 'FROZEN', features: ['DMS'], quotas: { storageGb: 20 } },
+            },
+        );
+        subRepo.set(buildSub());
+        await createSnapshotContract(contractRepo, {
+            originalBundleVersionIds: ['bv-frozen'],
+            entitlementSnapshot: {
+                plan: 'STANDARD',
+                quotas: { users: 1, vehicles: 15, storageGb: 25 },
+                features: ['CASHBOOK', 'DMS'],
+            },
+        });
+
+        const limits = await svc.computeLimits('t1', NOW);
+
+        assert.equal(limits.quotas.storageGb, 25);
+        assert.deepEqual([...limits.features].sort(), ['CASHBOOK', 'DMS']);
+    });
+
+    test('skips a bundle already covered by a contract line item', async () => {
+        const { svc, subRepo, contractRepo } = buildBundleContractHarness(
+            [{ bundleVersionId: 'bv-line', canceledEffectiveAt: null }],
+            { 'bv-line': { bundleKey: 'LINE', features: ['DMS'], quotas: { storageGb: 30 } } },
+        );
+        subRepo.set(buildSub());
+        await contractRepo.create({
+            projectKey: 'demoapp',
+            tenantId: 't1',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+            priceSnapshot: PRICE,
+            lineItems: [
+                {
+                    kind: 'plan',
+                    sourceKey: 'STANDARD',
+                    sourceVersionId: null,
+                    titleSnapshot: 'Standard',
+                    descriptionSnapshot: null,
+                    quantity: 1,
+                    unit: null,
+                    priceNet: 49,
+                    priceGross: 58.31,
+                    billingCycle: 'monthly',
+                    minimumTermUntil: null,
+                    featuresSnapshot: ['CASHBOOK'],
+                    quotaEffectsSnapshot: { storageGb: 5 },
+                    metadata: null,
+                },
+                {
+                    kind: 'bundle',
+                    sourceKey: 'LINE',
+                    sourceVersionId: 'bv-line',
+                    titleSnapshot: 'Line',
+                    descriptionSnapshot: null,
+                    quantity: 1,
+                    unit: null,
+                    priceNet: 12,
+                    priceGross: 14.28,
+                    billingCycle: 'monthly',
+                    minimumTermUntil: null,
+                    featuresSnapshot: ['DMS'],
+                    quotaEffectsSnapshot: { storageGb: 30 },
+                    metadata: null,
+                },
+            ],
+        });
+
+        const limits = await svc.computeLimits('t1', NOW);
+
+        assert.equal(limits.quotas.storageGb, 35);
+    });
+
+    test('ignores a booking that is already canceled', async () => {
+        const { svc, subRepo, contractRepo } = buildBundleContractHarness(
+            [
+                {
+                    bundleVersionId: 'bv-gone',
+                    canceledEffectiveAt: new Date('2026-04-01T00:00:00.000Z'),
+                },
+            ],
+            { 'bv-gone': { bundleKey: 'GONE', features: ['DMS'], quotas: { storageGb: 20 } } },
+        );
+        subRepo.set(buildSub());
+        await createSnapshotContract(contractRepo);
+
+        const limits = await svc.computeLimits('t1', NOW);
+
+        assert.deepEqual([...limits.features], ['CASHBOOK']);
+        assert.equal(limits.quotas.storageGb, 5);
+    });
+});
+
 describe('EntitlementService.enforceLimit — forwards tx to lookup ports (#70)', () => {
     test('contract, bundle and bundle-version lookups receive the runner tx', async () => {
         const subRepo = new FakeSubscriptionRepository();

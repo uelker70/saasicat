@@ -12,6 +12,7 @@ import type {
     PlanCatalog,
     PlanVersionRepository,
     SubscriptionBundleRepository,
+    SubscriptionContractRecord,
     SubscriptionContractRepository,
     SubscriptionRecord,
     SubscriptionRepository,
@@ -23,7 +24,12 @@ import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/tokens.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/tokens.js';
-import { aggregateContractLineItemEntitlements, aggregateLimits } from './aggregation.js';
+import {
+    aggregateLimits,
+    contractBundleVersionIds,
+    contractLimits,
+    mergeSubscriptionBundlesIntoLimits,
+} from './aggregation.js';
 import {
     buildReplacedByIndex,
     expandReplacedFeatures,
@@ -158,8 +164,21 @@ export class EntitlementService {
         now: Date,
         tx?: TransactionContext,
     ): Promise<EffectiveLimits> {
-        const contractLimits = await this.deriveLimitsFromContract(sub.tenantId, now, tx);
-        if (contractLimits) return this.withReplacedFeatureAliases(contractLimits);
+        const contract = await this.findActiveContract(sub.tenantId, now, tx);
+        if (contract) {
+            // Bundles booked after the contract was signed take effect
+            // immediately — otherwise the purchase stays without consequence
+            // until something re-freezes the contract.
+            const bundles = await this.loadSubscriptionBundleSnapshots(sub.id, now, tx);
+            return this.withReplacedFeatureAliases(
+                mergeSubscriptionBundlesIntoLimits(
+                    contractLimits(contract),
+                    bundles,
+                    contractBundleVersionIds(contract),
+                    now,
+                ),
+            );
+        }
 
         const effectivePlan = resolveEntitlementPlan(sub, this.resolutionConfig ?? {}, now);
         const planVersion =
@@ -200,22 +219,13 @@ export class EntitlementService {
         };
     }
 
-    private async deriveLimitsFromContract(
+    private async findActiveContract(
         tenantId: string,
         now: Date,
         tx?: TransactionContext,
-    ): Promise<EffectiveLimits | null> {
+    ): Promise<SubscriptionContractRecord | null> {
         if (!this.subscriptionContracts) return null;
-        const contract = await this.subscriptionContracts.findActiveByTenantId(tenantId, now, tx);
-        if (!contract) return null;
-        if (contract.entitlementSnapshot) {
-            return {
-                plan: contract.entitlementSnapshot.plan,
-                quotas: { ...contract.entitlementSnapshot.quotas },
-                features: new Set(contract.entitlementSnapshot.features),
-            };
-        }
-        return aggregateContractLineItemEntitlements(contract.lineItems);
+        return this.subscriptionContracts.findActiveByTenantId(tenantId, now, tx);
     }
 
     /**
@@ -250,6 +260,7 @@ export class EntitlementService {
                 }
                 return {
                     bundleKey: bv.bundleKey,
+                    bundleVersionId: booking.bundleVersionId,
                     features: bv.features,
                     quotas: bv.quotas,
                     canceledEffectiveAt: booking.canceledEffectiveAt,
