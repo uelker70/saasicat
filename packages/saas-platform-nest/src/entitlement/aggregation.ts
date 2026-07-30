@@ -4,7 +4,13 @@
 // map it to the snapshot shape (see `types.ts`) and call
 // `aggregateLimits()` for the effective limits.
 
-import type { ContractLineItemRecord, FeatureKey, PlanCatalog, QuotaKey } from '@saasicat/types';
+import type {
+    ContractLineItemRecord,
+    FeatureKey,
+    PlanCatalog,
+    QuotaKey,
+    SubscriptionContractRecord,
+} from '@saasicat/types';
 import { isFeaturePlannedOnly } from '../billing/plan-helpers.js';
 import type {
     CustomLimitsShape,
@@ -94,6 +100,87 @@ export function aggregateContractLineItemEntitlements(
     }
 
     return { plan, quotas, features };
+}
+
+/**
+ * Limits as frozen in the contract: the entitlement snapshot when present,
+ * otherwise aggregated from the line items.
+ */
+export function contractLimits(
+    contract: Pick<SubscriptionContractRecord, 'entitlementSnapshot' | 'lineItems'>,
+): EffectiveLimits {
+    if (contract.entitlementSnapshot) {
+        return {
+            plan: contract.entitlementSnapshot.plan,
+            quotas: { ...contract.entitlementSnapshot.quotas },
+            features: new Set(contract.entitlementSnapshot.features),
+        };
+    }
+    return aggregateContractLineItemEntitlements(contract.lineItems);
+}
+
+/**
+ * `BundleVersion`s the contract already accounts for — from the freeze
+ * (`originalBundleVersionIds`) and from its bundle line items.
+ */
+export function contractBundleVersionIds(
+    contract: Pick<SubscriptionContractRecord, 'originalBundleVersionIds' | 'lineItems'>,
+): Set<string> {
+    const ids = new Set<string>(contract.originalBundleVersionIds);
+    for (const item of contract.lineItems) {
+        if (item.kind === 'bundle' && item.sourceVersionId) {
+            ids.add(item.sourceVersionId);
+        }
+    }
+    return ids;
+}
+
+/**
+ * Adds bundle bookings on top of limits that came from a contract.
+ *
+ * A contract freezes what was agreed at signing time. Bundles booked *later*
+ * are separate purchases and must take effect immediately — otherwise the
+ * purchase stays without consequence until someone re-freezes the contract.
+ * Bundles that are already part of the contract (`coveredBundleVersionIds`,
+ * i.e. `originalBundleVersionIds` plus the bundle line items) are skipped, so
+ * their quotas are not counted twice.
+ *
+ * Features are a set union, quotas add up with `-1` (unlimited) dominance, and
+ * `plannedOnly` features stay out — same rules as `aggregateLimits`. The
+ * contract's own features are passed through untouched: what was agreed stays
+ * agreed.
+ */
+export function mergeSubscriptionBundlesIntoLimits(
+    limits: EffectiveLimits,
+    bundles: readonly SubscriptionBundleSnapshot[],
+    coveredBundleVersionIds: ReadonlySet<string>,
+    catalog: PlanCatalog,
+    now: Date,
+): EffectiveLimits {
+    const additional = filterActiveSubscriptionBundles(bundles, now).filter(
+        (b) => !coveredBundleVersionIds.has(b.bundleVersionId),
+    );
+    if (additional.length === 0) return limits;
+
+    const quotas: Record<QuotaKey, number> = { ...limits.quotas };
+    for (const [key, value] of Object.entries(aggregateSubscriptionBundleQuotas(additional))) {
+        if (quotas[key] === -1 || value === -1) {
+            quotas[key] = -1;
+        } else {
+            quotas[key] = (quotas[key] ?? 0) + value;
+        }
+    }
+
+    const bundleFeatures = filterPlannedOnlyFeatures(
+        new Set(collectSubscriptionBundleFeatures(additional)),
+        catalog,
+    );
+
+    return {
+        plan: limits.plan,
+        quotas,
+        features: new Set<FeatureKey>([...limits.features, ...bundleFeatures]),
+    };
 }
 
 /**

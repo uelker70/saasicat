@@ -88,6 +88,9 @@ export function buildTenantSubscriptionBundlesController(
     class GeneratedTenantSubscriptionBundlesController {
         private readonly logger = new Logger('TenantSubscriptionBundlesController');
 
+        /** Keeps the "no contractFreeze hook" warning to one line per process. */
+        private static warnedAboutMissingFreeze = false;
+
         constructor(
             @Inject(SubscriptionBundlesService)
             private readonly service: SubscriptionBundlesService,
@@ -220,7 +223,23 @@ export function buildTenantSubscriptionBundlesController(
             tenantId: string,
             sub: SubscriptionUsageRecord,
         ): Promise<void> {
-            if (!this.contractFreeze) return;
+            if (!this.contractFreeze) {
+                // Entitlements stay correct without the hook (the entitlement
+                // service adds active bookings on top of the contract), but the
+                // contract itself is not re-materialized — its line items and
+                // price snapshot then no longer match the booked bundles. Warn
+                // once so a missing hook does not stay invisible.
+                if (!GeneratedTenantSubscriptionBundlesController.warnedAboutMissingFreeze) {
+                    GeneratedTenantSubscriptionBundlesController.warnedAboutMissingFreeze = true;
+                    this.logger.warn(
+                        'Bundle mutation without a configured contractFreeze hook — the ' +
+                            'SubscriptionContract is not re-materialized. Configure ' +
+                            '`contractFreeze` in TenantBillingModule.forRoot() if this app ' +
+                            'uses contracts.',
+                    );
+                }
+                return;
+            }
             try {
                 await this.contractFreeze.freezeOnPlanChange(
                     tenantId,

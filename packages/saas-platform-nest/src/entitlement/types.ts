@@ -32,6 +32,12 @@ export interface PlanVersionSnapshot {
  */
 export interface SubscriptionBundleSnapshot {
     bundleKey: string;
+    /**
+     * Booked `BundleVersion`. Lets the contract path tell bundles that are
+     * already part of a frozen contract from ones booked afterwards, so their
+     * quotas are not counted twice.
+     */
+    bundleVersionId: string;
     features: FeatureKey[];
     quotas: Record<QuotaKey, number>;
     /**
