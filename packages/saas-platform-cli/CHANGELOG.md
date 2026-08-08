@@ -29,8 +29,8 @@
     **Commented-out block attributes counted as present.** A consumer with
     `// @@unique([tenantId])` or `// @@map("subscriptions")` was reported `ok`,
     defeating exactly the correctness gate those attributes exist for. Attribute
-    parsing now strips comments first. This is not hypothetical: vereinsfux turned
-    out never to have applied its canonical partial unique indexes at all.
+    parsing now strips comments first. A production consumer had consequently
+    never applied its canonical partial unique indexes at all.
 
     **A brace inside a string literal closed the model early.** `@default("}")`
     counted as structure, so every field below it looked missing — or spec fields
@@ -59,10 +59,10 @@
   and `@@map`.
 
     Comparing only fields and enum values left a whole class of divergence
-    invisible. vereinsfux was missing eight indexes the spec declares and
-    autohauspro two, while all three consumers reported "no drift". Worse, the same
-    blind spot hid a missing `@@unique`: nothing in the field comparison can tell
-    you that a constraint the platform relies on was never created.
+    invisible. Multiple consumer schemas were missing declared indexes while
+    still reporting "no drift". Worse, the same blind spot hid a missing
+    `@@unique`: nothing in the field comparison can tell you that a constraint
+    the platform relies on was never created.
 
     The two kinds are not treated alike. A missing index costs query time but
     breaks nothing, so it is reported as information and does not fail the run. A
@@ -75,7 +75,7 @@
 
     Note the remaining gap: constraints Prisma's DSL cannot express at all (the
     partial unique indexes in `sql/constraints.postgres.sql`) still live outside
-    any schema comparison. vereinsfux had never applied them.
+    any schema comparison. Consumers must apply them separately.
 
 ### Patch Changes
 
@@ -90,16 +90,15 @@
 - bded377: Rename the CLI binary from `saas-platform` to `saasicat`.
 
     **Breaking for anyone invoking the binary by name.** `pnpm exec saas-platform …`
-    becomes `pnpm exec saasicat …`. No alias is kept: nothing in this repo or in
-    the known consumers (vereinsfux, autohauspro) calls the binary from a script,
-    CI job or Dockerfile — both use `@saasicat/cli` as a library for its
-    `nest-commander` commands and ship their own binary.
+    becomes `pnpm exec saasicat …`. No alias is kept: the audited integrations
+    use `@saasicat/cli` as a library for their `nest-commander` commands and ship
+    their own binary.
 
     The old name was the last user-facing place where the package still announced
     itself as "saas-platform" while shipping as `@saasicat/cli`, which made it
-    easy to confuse this framework with the superseded `saas-platform-*` packages
-    in the yada-services repo. The header comment `schema apply` writes into a
-    consumer's `schema.prisma` now names `saasicat schema apply` too.
+    easy to confuse this framework with superseded `saas-platform-*` packages.
+    The header comment `schema apply` writes into a consumer's `schema.prisma`
+    now names `saasicat schema apply` too.
 
     Deliberately unchanged: the DI token namespace (`Symbol.for('saas-platform/…')`,
     `Symbol.for('saas-platform-cli/…')`). Those strings are identity, not
@@ -113,9 +112,9 @@
     `schema apply` only ever adds whole models: it carries no enums, and a model
     that already exists is skipped rather than updated. After a package upgrade a
     consumer schema therefore falls behind silently, and the gap only surfaces as a
-    runtime error. Run against the three schemas in this workspace, the new check
-    finds five missing `PlanVersion`/`BundleVersion` fields in the NotesApp example
-    itself, five in autohauspro, and two field mismatches in vereinsfux.
+    runtime error. Run against reference and consumer schemas, the new check
+    finds missing `PlanVersion`/`BundleVersion` fields and field mismatches that
+    were previously invisible.
 
     The check distinguishes two situations that look alike:
 
@@ -146,11 +145,11 @@
     and the generated `reference-schema.postgres.sql` now say `String?` / `TEXT`.
 
     `schema check` treated nullability as a symmetric mismatch, which made this a
-    zero-sum change: relaxing the spec simply moved the warning from vereinsfux to
-    notesapp and autohauspro. Only one direction can actually break — a consumer
-    column that is nullable where the spec is not, because platform code reads it
-    with the spec's non-null type and a NULL row reaches it as `null`. The reverse
-    is a deliberate tightening by the consumer, and if the platform ever wrote NULL
+    zero-sum change: relaxing the spec simply moved the warning between consumer
+    schemas. Only one direction can actually break — a consumer column that is
+    nullable where the spec is not, because platform code reads it with the
+    spec's non-null type and a NULL row reaches it as `null`. The reverse is a
+    deliberate tightening by the consumer, and if the platform ever wrote NULL
     there the insert would fail loudly rather than silently. Only the breaking
     direction is reported now.
 

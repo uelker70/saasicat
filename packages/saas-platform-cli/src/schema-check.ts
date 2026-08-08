@@ -2,9 +2,8 @@
 //
 // Compares a consumer's `schema.prisma` against the canonical prisma-fragments
 // and reports what the consumer is MISSING. Fields the consumer added on top of
-// a platform model are never reported: extending platform models is supported
-// (autohauspro carries `Subscription.customVehicles`, vereinsfux adds relations
-// into its own models), so a drift check must tolerate it.
+// a platform model are never reported: consumers may add fields and relations,
+// so a drift check must tolerate supported schema extensions.
 //
 // The check deliberately separates two situations that look alike but mean
 // opposite things:
