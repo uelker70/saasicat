@@ -11,3 +11,7 @@ possible, while application-specific providers, imports and guards remain
 configurable. The high-level module and its typed configuration helper are
 available from both `@saasicat/nest` and `@saasicat/nest/platform`; fine-grained
 modules remain available as escape hatches.
+
+Intentionally unauthenticated controllers now carry a shared public-route
+marker. Global authentication guards can detect it with the exported
+`isSaaSiCatPublicRoute` helper.

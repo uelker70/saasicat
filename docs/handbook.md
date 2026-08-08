@@ -809,6 +809,11 @@ This mounts three public routes under `${apiBase}` (e.g. `/api/v1/admin`):
 | `POST …/setup`             | creates the first SUPER_ADMIN + MFA enrollment → `{ userId, qrDataUrl, secret, generatedPassword? }` |
 | `POST …/setup/confirm-mfa` | verifies the TOTP code (token-protected)                                                             |
 
+When authentication is registered as a global `APP_GUARD`, it must return
+early for `isSaaSiCatPublicRoute(reflector, context)`. SaaSiCat marks these
+setup endpoints itself; the setup token and automatic self-disable remain the
+protection for first-run provisioning.
+
 The **QR code is generated server-side** as a data URL (`qrDataUrl`) — the frontend only renders `<img>`, no QR dependency needed.
 
 **Frontend:** Nothing to do if the app uses the shared `SuperAdminLoginPage` (see §8.4). On mount it calls `setup/status` and, when `needsSetup`, renders the `SuperAdminSetupWizard` instead of the login form. Apps **without** `SetupModule` get `404` → the wizard stays off, normal login.

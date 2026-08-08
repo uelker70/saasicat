@@ -1,5 +1,6 @@
 import { Controller, Get, Inject } from '@nestjs/common';
 import type { PublicBootResponse } from '@saasicat/types';
+import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifest.config.js';
 
 // Public boot endpoint — no auth, returns only minimal branding data
@@ -7,6 +8,7 @@ import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifes
 // (key/displayName/logoUrl/environment) — prevents app topology leak before login.
 
 @Controller('admin')
+@SaaSiCatPublicRoute()
 export class AdminPublicBootController {
     constructor(@Inject(ADMIN_MANIFEST_CONFIG) private readonly config: AdminManifestConfig) {}
 

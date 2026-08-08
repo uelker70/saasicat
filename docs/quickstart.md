@@ -268,6 +268,19 @@ branding and app-specific persistence adapters.
 > **before** `SaaSiCatModule.forRoot`. The platform's feature guard and
 > quota interceptor are global and read `request.user` — controller-level
 > `@UseGuards` runs after global guards and would be too late for them.
+>
+> The global guard must allow SaaSiCat's intentionally public endpoints. Use
+> the exported marker helper before authenticating the request:
+>
+> ```ts
+> import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
+>
+> if (isSaaSiCatPublicRoute(this.reflector, context)) return true;
+> ```
+>
+> Here, `this.reflector` is Nest's injected `Reflector` and `context` is the
+> guard's `ExecutionContext`. SaaSiCat applies the marker to setup, public
+> catalog, public promo and checkout endpoints itself.
 
 **What happens automatically here:**
 

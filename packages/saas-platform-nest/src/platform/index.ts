@@ -23,6 +23,11 @@ export {
 } from './saas-platform.module.js';
 export { defineSaaSiCat } from './define-saasicat.js';
 export {
+    SAASICAT_PUBLIC_ROUTE_KEY,
+    SaaSiCatPublicRoute,
+    isSaaSiCatPublicRoute,
+} from '../core/public-route.js';
+export {
     PLAN_RESOLVER_PORT_TOKEN,
     type PlanResolverPort,
     StaticPlanResolver,

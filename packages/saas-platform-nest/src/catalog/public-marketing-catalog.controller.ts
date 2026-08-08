@@ -14,6 +14,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 
+import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { PublicMarketingCatalogService } from './public-marketing-catalog.service.js';
 
 export function buildPublicMarketingCatalogController(
@@ -23,6 +24,7 @@ export function buildPublicMarketingCatalogController(
     vatRate: number,
 ): Type {
     @Controller('public/marketing-catalog')
+    @SaaSiCatPublicRoute()
     @UseGuards(...guards)
     class GeneratedPublicMarketingCatalogController {
         constructor(
