@@ -1,5 +1,14 @@
 # @saasicat/nest
 
+## 0.15.1
+
+### Patch Changes
+
+- de0fc7c: Require `js-yaml` 4.3.1 or newer to include the fix for quadratic complexity
+  in `!!omap` duplicate-key detection.
+    - @saasicat/spec@0.15.1
+    - @saasicat/types@0.15.1
+
 ## 0.15.0
 
 ### Minor Changes
