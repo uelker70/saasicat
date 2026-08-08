@@ -9,6 +9,7 @@ import {
     SetupService,
     StaticEntitlementService,
     StaticFeatureGuard,
+    SuperAdminGuard,
     SubscriptionContractService,
     EnforceQuotaInterceptor,
     PLAN_RESOLVER_PORT_TOKEN,
@@ -192,6 +193,12 @@ describe('SaasPlatformModule.forRoot', () => {
         assert.ok(moduleNames.includes('CheckoutOfferModule'));
         assert.ok(moduleNames.includes('SubscriptionContractModule'));
         assert.equal(dyn.imports.length, 8, 'four base + four optional platform modules');
+
+        const statsModule = dyn.imports.find(
+            (imported) => imported?.module?.name === 'AdminStatsModule',
+        );
+        const guards = Reflect.getMetadata('__guards__', statsModule.controllers[0]);
+        assert.deepEqual(guards, [FakeJwtGuard, SuperAdminGuard]);
     });
 
     test('setup and subscription contract can derive their adapters from persistence', () => {

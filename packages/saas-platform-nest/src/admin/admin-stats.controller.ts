@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, UseGuards } from '@nestjs/common';
+import { type CanActivate, Controller, Get, Inject, type Type, UseGuards } from '@nestjs/common';
 import { AdminStatsService, type AdminStatsSnapshot } from './admin-stats.service.js';
 import { SuperAdminGuard } from './super-admin.guard.js';
 
@@ -20,4 +20,20 @@ export class AdminStatsController {
     async getDashboardSnapshot(): Promise<AdminStatsSnapshot> {
         return this.stats.getSnapshot();
     }
+}
+
+/** Builds the stats controller with an explicit, ordered authentication chain. */
+export function buildAdminStatsController(guards: Array<Type<CanActivate>>): Type {
+    @Controller('admin/stats')
+    @UseGuards(...guards)
+    class GeneratedAdminStatsController {
+        constructor(@Inject(AdminStatsService) private readonly stats: AdminStatsService) {}
+
+        @Get('dashboard')
+        async getDashboardSnapshot(): Promise<AdminStatsSnapshot> {
+            return this.stats.getSnapshot();
+        }
+    }
+
+    return GeneratedAdminStatsController;
 }

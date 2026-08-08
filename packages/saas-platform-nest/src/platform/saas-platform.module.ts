@@ -156,8 +156,7 @@ export interface SaasPlatformCatalogOptions extends Pick<
 }
 
 export type SaasPlatformTenantAuthGuards =
-    | Array<Type<CanActivate>>
-    | ProviderSpec<ReadonlyArray<CanActivate>>;
+    Array<Type<CanActivate>> | ProviderSpec<ReadonlyArray<CanActivate>>;
 
 export interface SaasPlatformTenantBillingOptions extends Omit<
     TenantBillingModuleOptions,
@@ -189,8 +188,7 @@ export interface SaasPlatformSubscriptionBundlesOptions extends Omit<
 > {
     /** Default mounts the tenant controller and reuses tenant-billing auth. */
     controller?:
-        | false
-        | Omit<SubscriptionBundleControllerOptions, 'authGuards' | 'subscriptionUsagePort'>;
+        false | Omit<SubscriptionBundleControllerOptions, 'authGuards' | 'subscriptionUsagePort'>;
     imports?: PlatformImports;
     extraProviders?: Provider[];
 }
@@ -354,8 +352,7 @@ export interface SaasPlatformModuleOptions {
      * factory.
      */
     adminManifestConfig?:
-        | AdminManifestConfig
-        | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
+        AdminManifestConfig | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
     /** Providers required by `adminManifestConfig` when it uses a factory. */
     adminManifestExtraProviders?: Provider[];
     /**
@@ -1025,6 +1022,10 @@ export class SaasPlatformModule {
             imports.push(
                 AdminStatsModule.forRoot({
                     ...adminStatsConfig,
+                    guards: adminStatsConfig.guards ?? [
+                        ...options.controller.guards,
+                        SuperAdminGuard,
+                    ],
                     auditStatsPort:
                         adminStatsConfig.auditStatsPort ??
                         (persistence?.core.auditStats as AdminStatsModuleOptions['auditStatsPort']),
