@@ -5,13 +5,10 @@
 // validation via class-validator (the consumer's global ValidationPipe).
 
 import { Body, Controller, Get, Post } from '@nestjs/common';
-import type {
-    SetupConfirmMfaResponse,
-    SetupResult,
-    SetupStatusResponse,
-} from '@saasicat/types';
+import type { SetupConfirmMfaResponse, SetupResult, SetupStatusResponse } from '@saasicat/types';
 import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
+import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { SetupService } from './setup.service.js';
 
 class SetupDto {
@@ -43,6 +40,7 @@ class SetupConfirmMfaDto {
 }
 
 @Controller('admin/setup')
+@SaaSiCatPublicRoute()
 export class SetupController {
     constructor(private readonly setup: SetupService) {}
 

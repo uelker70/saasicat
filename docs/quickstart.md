@@ -236,6 +236,8 @@ const featureUiRegistry: FeatureUiRegistry = {
                     authGuards: [JwtAuthGuard, TenantGuard],
                 },
                 subscriptionBundles: true,
+                setup: true,
+                subscriptionContract: true,
                 // Keep the complete standard SuperAdmin API available.
                 adminResources: true,
                 promoCodes: true,
@@ -250,11 +252,35 @@ const featureUiRegistry: FeatureUiRegistry = {
 export class AppModule {}
 ```
 
+For larger applications, keep the app-specific object in
+`saasicat.config.ts` and leave the root module with a single platform line:
+
+```ts
+SaaSiCatModule.forRoot(MY_APP_SAASICAT_CONFIG);
+```
+
+`SaaSiCatModule` owns the composition of the platform modules. The client
+configuration only supplies facts the library cannot know: auth guards,
+branding and app-specific persistence adapters.
+
 > **Auth ordering:** register your `JwtAuthGuard` as a **global** guard
 > (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`) in a module imported
 > **before** `SaaSiCatModule.forRoot`. The platform's feature guard and
 > quota interceptor are global and read `request.user` — controller-level
 > `@UseGuards` runs after global guards and would be too late for them.
+>
+> The global guard must allow SaaSiCat's intentionally public endpoints. Use
+> the exported marker helper before authenticating the request:
+>
+> ```ts
+> import { isSaaSiCatPublicRoute } from '@saasicat/nest/platform';
+>
+> if (isSaaSiCatPublicRoute(this.reflector, context)) return true;
+> ```
+>
+> Here, `this.reflector` is Nest's injected `Reflector` and `context` is the
+> guard's `ExecutionContext`. SaaSiCat applies the marker to setup, public
+> catalog, public promo and checkout endpoints itself.
 
 **What happens automatically here:**
 
@@ -269,6 +295,8 @@ export class AppModule {}
   repeats the counters.
 - Catalog, public catalog, tenant billing, subscription bundles and the tenant
   manifest are mounted from the persistence bundle.
+- Setup and subscription-contract services are mounted from the same central
+  module when enabled; their repositories are derived from persistence.
 - The standard Admin API serves tenant list/detail/actions, users, audit,
   subscriptions and promo-code CRUD. Enabling it does not hide or trim Admin
   pages; it removes their repeated app-owned controllers and database queries.

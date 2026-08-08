@@ -20,6 +20,7 @@ import {
     PUBLIC_CATALOG_MARKETING_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_PROJECT_KEY_TOKEN,
 } from './public-catalog.tokens.js';
+import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { getMarketedPlans } from './plan-helpers.js';
 
 // PublicCatalogController — auth-free readable catalog for marketing,
@@ -78,6 +79,7 @@ interface PublicBundleEntry {
 }
 
 @Controller('billing')
+@SaaSiCatPublicRoute()
 export class PublicCatalogController {
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly planCatalog: PlanCatalog,

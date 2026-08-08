@@ -22,6 +22,7 @@
 //   ./testing      — fake adapters (FakeSubscriptionRepository, …) for tests
 
 export * from './core/di.js';
+export * from './core/public-route.js';
 export * from './promo/index.js';
 export * from './billing/index.js';
 export * from './entitlement/index.js';
@@ -32,3 +33,25 @@ export * from './discovery/index.js';
 export * from './catalog/index.js';
 export * from './checkout-offer/index.js';
 export * from './subscription-contract/index.js';
+
+// High-level composition is also exported from the root entry so existing
+// consumers that already inject root-entry classes can migrate incrementally
+// without crossing CJS bundle identities. New applications may use the
+// narrower `@saasicat/nest/platform` entry instead.
+export {
+    SaasPlatformModule,
+    SaasPlatformModule as SaaSiCatModule,
+    defineSaaSiCat,
+    type SaasPlatformAdapters,
+    type SaasPlatformAdminResourcesOptions,
+    type SaasPlatformAdminStatsOptions,
+    type SaasPlatformCatalogOptions,
+    type SaasPlatformCheckoutOfferOptions,
+    type SaasPlatformModuleOptions,
+    type SaasPlatformPromoCodesOptions,
+    type SaasPlatformSetupOptions,
+    type SaasPlatformSubscriptionBundlesOptions,
+    type SaasPlatformSubscriptionContractOptions,
+    type SaasPlatformTenantAuthGuards,
+    type SaasPlatformTenantBillingOptions,
+} from './platform/index.js';

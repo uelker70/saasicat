@@ -1,9 +1,16 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Module } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import {
+    AdminStatsService,
+    CheckoutOfferService,
     SaasPlatformModule,
+    SetupService,
     StaticEntitlementService,
     StaticFeatureGuard,
+    SuperAdminGuard,
+    SubscriptionContractService,
     EnforceQuotaInterceptor,
     PLAN_RESOLVER_PORT_TOKEN,
     QUOTA_PROVIDERS_TOKEN,
@@ -47,6 +54,29 @@ const MINIMAL_CATALOG = {
     vatRate: 19.0,
     plans: [],
 };
+
+const OPTIONAL_SERVICES_TOKEN = Symbol('optional-services');
+class OptionalServicesConsumerModule {}
+Module({
+    providers: [
+        {
+            provide: OPTIONAL_SERVICES_TOKEN,
+            useFactory: (setup, stats, checkout, contract) => ({
+                setup,
+                stats,
+                checkout,
+                contract,
+            }),
+            inject: [
+                SetupService,
+                AdminStatsService,
+                CheckoutOfferService,
+                SubscriptionContractService,
+            ],
+        },
+    ],
+    exports: [OPTIONAL_SERVICES_TOKEN],
+})(OptionalServicesConsumerModule);
 
 describe('SaasPlatformModule.forRoot', () => {
     test('throws when neither planCatalog nor planCatalogReadSink is set', () => {
@@ -126,6 +156,117 @@ describe('SaasPlatformModule.forRoot', () => {
             },
         });
         assert.ok(dyn.imports, 'forRoot must return a DynamicModule with imports');
+    });
+
+    test('composes setup, admin stats, checkout offer and subscription contract', () => {
+        const dyn = SaasPlatformModule.forRoot({
+            planCatalog: MINIMAL_CATALOG,
+            controller: { guards: [FakeJwtGuard] },
+            adapters: {
+                mfa: new FakeMfaPort(),
+                audit: new FakeAuditPort(),
+                rlsBypass: new FakeRlsBypassPort(),
+            },
+            setup: {
+                provisioningPort: {
+                    hasSuperAdmin: async () => false,
+                    createSuperAdmin: async () => undefined,
+                },
+            },
+            adminStats: {
+                subscriptionStatsPort: { getSubscriptionStats: async () => ({}) },
+                promoCodeStatsPort: { getPromoCodeStats: async () => ({}) },
+                auditStatsPort: { getAuditStats: async () => ({}) },
+            },
+            checkoutOffer: {
+                checkoutOfferRepository: {},
+                controller: { guards: [] },
+            },
+            subscriptionContract: {
+                subscriptionContractRepository: {},
+            },
+        });
+
+        const moduleNames = dyn.imports.map((imported) => imported.module?.name);
+        assert.ok(moduleNames.includes('SetupModule'));
+        assert.ok(moduleNames.includes('AdminStatsModule'));
+        assert.ok(moduleNames.includes('CheckoutOfferModule'));
+        assert.ok(moduleNames.includes('SubscriptionContractModule'));
+        assert.equal(dyn.imports.length, 8, 'four base + four optional platform modules');
+
+        const statsModule = dyn.imports.find(
+            (imported) => imported?.module?.name === 'AdminStatsModule',
+        );
+        const guards = Reflect.getMetadata('__guards__', statsModule.controllers[0]);
+        assert.deepEqual(guards, [FakeJwtGuard, SuperAdminGuard]);
+    });
+
+    test('setup and subscription contract can derive their adapters from persistence', () => {
+        const provisioning = {};
+        const contractRepository = {};
+        const dyn = SaasPlatformModule.forRoot({
+            planCatalog: MINIMAL_CATALOG,
+            controller: { guards: [FakeJwtGuard] },
+            persistence: {
+                capabilities: {
+                    transactions: true,
+                    pessimisticLocking: true,
+                    rowLevelSecurity: false,
+                    advisoryLocks: false,
+                },
+                core: {
+                    mfa: new FakeMfaPort(),
+                    audit: new FakeAuditPort(),
+                    rlsBypass: new FakeRlsBypassPort(),
+                    transactionRunner: { run: async (fn) => fn({}) },
+                    superAdminProvisioning: provisioning,
+                },
+                entitlement: {
+                    subscriptionRepository: {},
+                    planVersionRepository: {},
+                    subscriptionContractRepository: contractRepository,
+                },
+            },
+            setup: true,
+            subscriptionContract: true,
+        });
+
+        const moduleNames = dyn.imports.map((imported) => imported.module?.name);
+        assert.ok(moduleNames.includes('SetupModule'));
+        assert.ok(moduleNames.includes('SubscriptionContractModule'));
+    });
+
+    test('the centrally composed optional services resolve in a real Nest container', async () => {
+        const moduleRef = await Test.createTestingModule({
+            imports: [
+                SaasPlatformModule.forRoot({
+                    planCatalog: MINIMAL_CATALOG,
+                    controller: { guards: [FakeJwtGuard] },
+                    discoverySnapshotPath: null,
+                    adapters: {
+                        mfa: new FakeMfaPort(),
+                        audit: new FakeAuditPort(),
+                        rlsBypass: new FakeRlsBypassPort(),
+                    },
+                    setup: { provisioningPort: {} },
+                    adminStats: {
+                        subscriptionStatsPort: {},
+                        promoCodeStatsPort: {},
+                        auditStatsPort: {},
+                    },
+                    checkoutOffer: { checkoutOfferRepository: {} },
+                    subscriptionContract: { subscriptionContractRepository: {} },
+                }),
+                OptionalServicesConsumerModule,
+            ],
+        }).compile();
+
+        const services = moduleRef.get(OPTIONAL_SERVICES_TOKEN);
+        assert.ok(services.setup);
+        assert.ok(services.stats);
+        assert.ok(services.checkout);
+        assert.ok(services.contract);
+        await moduleRef.close();
     });
 
     test('without defaultPlanId & without planResolver: no entitlement stack', () => {

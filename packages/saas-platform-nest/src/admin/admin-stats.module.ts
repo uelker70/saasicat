@@ -1,17 +1,14 @@
 import {
+    type CanActivate,
     type DynamicModule,
     type ForwardReference,
     Module,
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type {
-    AuditStatsPort,
-    PromoCodeStatsPort,
-    SubscriptionStatsPort,
-} from '@saasicat/types';
+import type { AuditStatsPort, PromoCodeStatsPort, SubscriptionStatsPort } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
-import { AdminStatsController } from './admin-stats.controller.js';
+import { AdminStatsController, buildAdminStatsController } from './admin-stats.controller.js';
 import { AdminStatsService } from './admin-stats.service.js';
 import { SuperAdminGuard } from './super-admin.guard.js';
 import {
@@ -43,6 +40,11 @@ export interface AdminStatsModuleOptions {
     imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     /** Additional providers registered in the DynamicModule itself. */
     extraProviders?: Provider[];
+    /**
+     * Complete ordered guard chain for the dashboard endpoint. When omitted,
+     * the backwards-compatible default is `SuperAdminGuard` only.
+     */
+    guards?: Array<Type<CanActivate>>;
     /** Register the module globally — default `false`. */
     global?: boolean;
 }
@@ -68,7 +70,9 @@ export class AdminStatsModule {
             module: AdminStatsModule,
             global: options.global ?? false,
             imports: options.imports ?? [],
-            controllers: [AdminStatsController],
+            controllers: [
+                options.guards ? buildAdminStatsController(options.guards) : AdminStatsController,
+            ],
             providers,
             exports: [AdminStatsService, SuperAdminGuard],
         };

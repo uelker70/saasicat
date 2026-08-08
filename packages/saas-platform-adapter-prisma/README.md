@@ -133,7 +133,7 @@ outputs still use the semantic key:
 const schema = {
     planBinding: {
         mode: 'normalized-plan-id',
-        projectKey: 'vereinsfux',
+        projectKey: 'my-app',
     },
     planVersionFields: {
         validityWindows: true,
