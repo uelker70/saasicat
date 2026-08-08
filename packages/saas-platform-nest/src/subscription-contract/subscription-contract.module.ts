@@ -1,4 +1,10 @@
-import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import {
+    type DynamicModule,
+    type ForwardReference,
+    Module,
+    type Provider,
+    type Type,
+} from '@nestjs/common';
 import type { SubscriptionContractRepository } from '@saasicat/types';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
@@ -7,6 +13,8 @@ import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './tokens.js';
 
 export interface SubscriptionContractModuleOptions {
     subscriptionContractRepository: ProviderSpec<SubscriptionContractRepository>;
+    /** Modules that provide dependencies used by the repository factory. */
+    imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
     extraProviders?: Provider[];
     global?: boolean;
 }
@@ -17,6 +25,7 @@ export class SubscriptionContractModule {
         return {
             module: SubscriptionContractModule,
             global: options.global ?? false,
+            imports: options.imports ?? [],
             providers: [
                 asProvider(
                     SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,

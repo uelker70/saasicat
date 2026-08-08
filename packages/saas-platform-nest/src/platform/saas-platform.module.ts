@@ -1,7 +1,8 @@
 // SaasPlatformModule — high-level composition module. The base path bundles
 // PlanCatalog, Discovery, Admin and AdminManifest; the standard options add
-// Entitlement, Catalog, PublicCatalog, TenantBilling and SubscriptionBundles
-// without consumer forwarding modules.
+// Entitlement, Catalog, PublicCatalog, TenantBilling, SubscriptionBundles,
+// Setup, AdminStats, CheckoutOffer and SubscriptionContract without consumer
+// forwarding modules.
 //
 // Goal: consumer code describes product-specific choices while a persistence
 // bundle supplies standard repositories. Individual modules remain available
@@ -51,6 +52,7 @@ import {
     AdminResourcesModule,
     type AdminResourcesModuleOptions,
 } from '../admin/admin-resources.module.js';
+import { AdminStatsModule, type AdminStatsModuleOptions } from '../admin/admin-stats.module.js';
 import { AdminManifestModule } from '../admin/admin-manifest.module.js';
 import { type AdminManifestConfig } from '../admin/admin-manifest.config.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';
@@ -70,6 +72,15 @@ import type { DiscoveryAppInfo } from '../discovery/discovery.scanner.js';
 import { EntitlementModule } from '../entitlement/module.js';
 import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution.js';
 import { PromoCodesModule, type PromoCodesModuleOptions } from '../promo/module.js';
+import { SetupModule, type SetupModuleOptions } from '../setup/setup.module.js';
+import {
+    CheckoutOfferModule,
+    type CheckoutOfferModuleOptions,
+} from '../checkout-offer/checkout-offer.module.js';
+import {
+    SubscriptionContractModule,
+    type SubscriptionContractModuleOptions,
+} from '../subscription-contract/subscription-contract.module.js';
 import {
     PLAN_RESOLVER_PORT_TOKEN,
     type PlanResolverPort,
@@ -145,7 +156,8 @@ export interface SaasPlatformCatalogOptions extends Pick<
 }
 
 export type SaasPlatformTenantAuthGuards =
-    Array<Type<CanActivate>> | ProviderSpec<ReadonlyArray<CanActivate>>;
+    | Array<Type<CanActivate>>
+    | ProviderSpec<ReadonlyArray<CanActivate>>;
 
 export interface SaasPlatformTenantBillingOptions extends Omit<
     TenantBillingModuleOptions,
@@ -177,7 +189,8 @@ export interface SaasPlatformSubscriptionBundlesOptions extends Omit<
 > {
     /** Default mounts the tenant controller and reuses tenant-billing auth. */
     controller?:
-        false | Omit<SubscriptionBundleControllerOptions, 'authGuards' | 'subscriptionUsagePort'>;
+        | false
+        | Omit<SubscriptionBundleControllerOptions, 'authGuards' | 'subscriptionUsagePort'>;
     imports?: PlatformImports;
     extraProviders?: Provider[];
 }
@@ -220,6 +233,43 @@ export interface SaasPlatformPromoCodesOptions extends Omit<
      * controller can still delegate its validation to the platform.
      */
     adminController?: false;
+}
+
+/** First-run setup, deriving the provisioning adapter from persistence by default. */
+export interface SaasPlatformSetupOptions extends Omit<
+    SetupModuleOptions,
+    'provisioningPort' | 'global'
+> {
+    provisioningPort?: SetupModuleOptions['provisioningPort'];
+}
+
+/** Admin dashboard statistics; the audit port can come from persistence. */
+export interface SaasPlatformAdminStatsOptions extends Omit<
+    AdminStatsModuleOptions,
+    'auditStatsPort' | 'global'
+> {
+    auditStatsPort?: AdminStatsModuleOptions['auditStatsPort'];
+}
+
+/**
+ * Public checkout-offer flow. Catalog repositories default to the persistence
+ * bundle, while the app still supplies its checkout-offer repository.
+ */
+export interface SaasPlatformCheckoutOfferOptions extends Omit<
+    CheckoutOfferModuleOptions,
+    'bundleRepository' | 'planRepository' | 'catalogEntryRepository' | 'global'
+> {
+    bundleRepository?: CheckoutOfferModuleOptions['bundleRepository'];
+    planRepository?: CheckoutOfferModuleOptions['planRepository'];
+    catalogEntryRepository?: CheckoutOfferModuleOptions['catalogEntryRepository'];
+}
+
+/** Subscription-contract service, deriving its repository from persistence by default. */
+export interface SaasPlatformSubscriptionContractOptions extends Omit<
+    SubscriptionContractModuleOptions,
+    'subscriptionContractRepository' | 'global'
+> {
+    subscriptionContractRepository?: SubscriptionContractModuleOptions['subscriptionContractRepository'];
 }
 
 export interface SaasPlatformModuleOptions {
@@ -304,7 +354,10 @@ export interface SaasPlatformModuleOptions {
      * factory.
      */
     adminManifestConfig?:
-        AdminManifestConfig | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
+        | AdminManifestConfig
+        | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
+    /** Providers required by `adminManifestConfig` when it uses a factory. */
+    adminManifestExtraProviders?: Provider[];
     /**
      * Infer manifest capabilities for platform endpoints mounted by this
      * module. Default `true`; set `false` only when the app owns the complete
@@ -364,6 +417,21 @@ export interface SaasPlatformModuleOptions {
      * without the public preview endpoint; pass an object to enable preview.
      */
     promoCodes?: false | true | SaasPlatformPromoCodesOptions;
+    /**
+     * First-run SuperAdmin setup. `true` uses
+     * `persistence.core.superAdminProvisioning`; an object customizes it or
+     * supplies an app-specific provisioning adapter.
+     */
+    setup?: false | true | SaasPlatformSetupOptions;
+    /** SuperAdmin dashboard statistics with app-specific subscription/promo ports. */
+    adminStats?: false | SaasPlatformAdminStatsOptions;
+    /** Public checkout-offer flow; catalog repositories reuse `persistence.catalog`. */
+    checkoutOffer?: false | SaasPlatformCheckoutOfferOptions;
+    /**
+     * Subscription-contract service. `true` reuses
+     * `persistence.entitlement.subscriptionContractRepository`.
+     */
+    subscriptionContract?: false | true | SaasPlatformSubscriptionContractOptions;
     /**
      * Enable the tenant manifest — the app UI gets a filtered manifest per
      * tenant with features, quotas and visible navigation. Requires that
@@ -514,9 +582,9 @@ function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory' | 'inj
 }
 
 /**
- * Bundles PlanCatalog + Discovery + Admin + AdminManifest (+ optionally
- * Entitlement) into a single `forRoot({...})` call. Reduces AppModule
- * boilerplate and eliminates the ordering trap.
+ * Bundles the complete standard SaaSiCat backend stack into a single
+ * `forRoot({...})` call. Reduces AppModule boilerplate and eliminates the
+ * ordering trap.
  *
  * Quickstart path (Prisma + PostgreSQL on the canonical schema):
  *
@@ -542,6 +610,10 @@ export class SaasPlatformModule {
         const subscriptionBundlesConfig = options.subscriptionBundles || null;
         const adminResourcesConfig = options.adminResources || null;
         const promoCodesConfig = options.promoCodes || null;
+        const setupConfig = options.setup || null;
+        const adminStatsConfig = options.adminStats || null;
+        const checkoutOfferConfig = options.checkoutOffer || null;
+        const subscriptionContractConfig = options.subscriptionContract || null;
         const requiresFullEntitlement = Boolean(
             options.entitlement || tenantBillingConfig || subscriptionBundlesConfig,
         );
@@ -602,6 +674,36 @@ export class SaasPlatformModule {
             );
         }
         if (
+            setupConfig &&
+            !(
+                (setupConfig === true ? undefined : setupConfig.provisioningPort) ??
+                persistence?.core.superAdminProvisioning
+            )
+        ) {
+            throw new Error(
+                'SaasPlatformModule.forRoot: setup is enabled, but no provisioningPort is available ' +
+                    '(set `setup.provisioningPort` or `persistence.core.superAdminProvisioning`).',
+            );
+        }
+        if (adminStatsConfig && !adminStatsConfig.auditStatsPort && !persistence?.core.auditStats) {
+            throw new Error(
+                'SaasPlatformModule.forRoot: adminStats is enabled, but no auditStatsPort is available ' +
+                    '(set `adminStats.auditStatsPort` or `persistence.core.auditStats`).',
+            );
+        }
+        if (subscriptionContractConfig) {
+            const explicitRepository =
+                subscriptionContractConfig === true
+                    ? undefined
+                    : subscriptionContractConfig.subscriptionContractRepository;
+            if (!explicitRepository && !persistence?.entitlement?.subscriptionContractRepository) {
+                throw new Error(
+                    'SaasPlatformModule.forRoot: subscriptionContract is enabled, but no repository is available ' +
+                        '(set `subscriptionContract.subscriptionContractRepository` or use a compatible persistence bundle).',
+                );
+            }
+        }
+        if (
             promoCodesConfig &&
             promoCodesConfig !== true &&
             promoCodesConfig.includePublicController !== false &&
@@ -646,6 +748,7 @@ export class SaasPlatformModule {
                 );
             }
         }
+
         if (requiresFullEntitlement) {
             const missing: string[] = [];
             if (!adapters.subscriptionRepository) missing.push('subscriptionRepository');
@@ -710,6 +813,7 @@ export class SaasPlatformModule {
             }),
             AdminManifestModule.forRoot({
                 config: options.adminManifestConfig ?? buildMinimalManifestConfig(),
+                extraProviders: options.adminManifestExtraProviders,
                 includeManifestController: options.includeManifestController,
                 guards: options.controller.guards,
                 reloadGuards: options.reloadGuards,
@@ -903,6 +1007,63 @@ export class SaasPlatformModule {
             );
         }
 
+        if (setupConfig) {
+            const config = setupConfig === true ? {} : setupConfig;
+            imports.push(
+                SetupModule.forRoot({
+                    ...config,
+                    provisioningPort:
+                        config.provisioningPort ??
+                        (persistence?.core
+                            .superAdminProvisioning as SetupModuleOptions['provisioningPort']),
+                    imports: config.imports ?? options.imports,
+                }),
+            );
+        }
+
+        if (adminStatsConfig) {
+            imports.push(
+                AdminStatsModule.forRoot({
+                    ...adminStatsConfig,
+                    auditStatsPort:
+                        adminStatsConfig.auditStatsPort ??
+                        (persistence?.core.auditStats as AdminStatsModuleOptions['auditStatsPort']),
+                    imports: adminStatsConfig.imports ?? options.imports,
+                }),
+            );
+        }
+
+        if (checkoutOfferConfig) {
+            imports.push(
+                CheckoutOfferModule.forRoot({
+                    ...checkoutOfferConfig,
+                    bundleRepository:
+                        checkoutOfferConfig.bundleRepository ??
+                        persistence?.catalog?.bundleRepository,
+                    planRepository:
+                        checkoutOfferConfig.planRepository ?? persistence?.catalog?.planRepository,
+                    catalogEntryRepository:
+                        checkoutOfferConfig.catalogEntryRepository ??
+                        persistence?.catalog?.catalogEntryRepository,
+                    imports: checkoutOfferConfig.imports ?? options.imports,
+                }),
+            );
+        }
+
+        if (subscriptionContractConfig) {
+            const config = subscriptionContractConfig === true ? {} : subscriptionContractConfig;
+            imports.push(
+                SubscriptionContractModule.forRoot({
+                    ...config,
+                    subscriptionContractRepository:
+                        config.subscriptionContractRepository ??
+                        (persistence?.entitlement
+                            ?.subscriptionContractRepository as SubscriptionContractModuleOptions['subscriptionContractRepository']),
+                    imports: config.imports ?? options.imports,
+                }),
+            );
+        }
+
         // ------------------------------------------------------------------
         // Lightweight static-entitlement stack: auto-wire FeatureGuard +
         // EnforceQuotaInterceptor so that `@RequireFeature` and
@@ -1027,6 +1188,10 @@ export class SaasPlatformModule {
                 ...(subscriptionBundlesConfig ? [SubscriptionBundleModule] : []),
                 ...(adminResourcesConfig ? [AdminResourcesModule] : []),
                 ...(promoCodesConfig ? [PromoCodesModule] : []),
+                ...(setupConfig ? [SetupModule] : []),
+                ...(adminStatsConfig ? [AdminStatsModule] : []),
+                ...(checkoutOfferConfig ? [CheckoutOfferModule] : []),
+                ...(subscriptionContractConfig ? [SubscriptionContractModule] : []),
                 ...lightweightExports,
             ],
             global: true,

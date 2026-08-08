@@ -461,6 +461,8 @@ import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
                     authGuards: [JwtAuthGuard, TenantGuard],
                 },
                 subscriptionBundles: true,
+                setup: true,
+                subscriptionContract: true,
                 adminResources: true,
                 promoCodes: true,
                 quotaProviders: [UsersQuotaProvider, StorageGbQuotaProvider],
@@ -474,6 +476,12 @@ import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
 })
 export class AppModule {}
 ```
+
+Keep this object in an app-owned `saasicat.config.ts` once it grows beyond a
+small quickstart. `AppModule` then contains only
+`SaaSiCatModule.forRoot(MY_APP_SAASICAT_CONFIG)`. The library owns module
+composition; the client file contains only auth, branding and adapter choices
+that are inherently application-specific.
 
 This configuration removes the usual app-owned plan resolver, catalog module,
 billing module, subscription display mapper and duplicate usage snapshot.
@@ -506,42 +514,41 @@ contracts or backend enforcement.
 
 ### 6.5 Admin Module
 
-Your own `AdminModule` bundles `PlatformAdminModule`, `AdminManifestModule`,
-`AdminStatsModule` and registers your manifest contributions in `onModuleInit`:
+`SaaSiCatModule` owns `PlatformAdminModule`, `AdminManifestModule` and the
+optional `AdminStatsModule`. Configure them in `saasicat.config.ts`:
+
+```ts
+export const MY_APP_SAASICAT_CONFIG = defineSaaSiCat({
+    // ...core options...
+    includeManifestController: false, // the app owns the guarded route
+    adminManifestExtraProviders: [AdminManifestConfigFactory],
+    adminManifestConfig: {
+        useFactory: (factory: AdminManifestConfigFactory) => factory.build(),
+        inject: [AdminManifestConfigFactory],
+    },
+    adminStats: {
+        extraProviders: [
+            PrismaSubscriptionStatsPort,
+            PrismaPromoCodeStatsPort,
+            PrismaAuditStatsPort,
+        ],
+        subscriptionStatsPort: { useExisting: PrismaSubscriptionStatsPort },
+        promoCodeStatsPort: { useExisting: PrismaPromoCodeStatsPort },
+        auditStatsPort: { useExisting: PrismaAuditStatsPort },
+    },
+});
+```
+
+The app-owned `AdminModule` now contains only project controllers, services
+and manifest contributions:
 
 ```ts
 // admin/admin.module.ts
 @Global()
 @Module({
-    imports: [
-        PlatformAdminModule.forRoot({
-            mfaPort: { useExisting: PrismaMfaAdapter },
-            auditPort: { useExisting: PrismaAuditAdapter },
-            rlsBypassPort: new AsyncLocalRlsBypassAdapter(),
-        }),
-        AdminManifestModule.forRoot({
-            includeManifestController: false, // we build our own, see 6.7
-            extraProviders: [AdminManifestConfigFactory],
-            config: {
-                useFactory: (f: AdminManifestConfigFactory) => f.build(),
-                inject: [AdminManifestConfigFactory],
-            },
-        }),
-        AdminStatsModule.forRoot({
-            imports: [PrismaModule],
-            extraProviders: [
-                PrismaSubscriptionStatsPort,
-                PrismaPromoCodeStatsPort,
-                PrismaAuditStatsPort,
-            ],
-            subscriptionStatsPort: { useExisting: PrismaSubscriptionStatsPort },
-            promoCodeStatsPort: { useExisting: PrismaPromoCodeStatsPort },
-            auditStatsPort: { useExisting: PrismaAuditStatsPort },
-        }),
-    ],
     controllers: [AdminController, AdminManifestController],
-    providers: [AdminService, AdminManifestConfigFactory],
-    exports: [PlatformAdminModule, AdminManifestModule, AdminService],
+    providers: [AdminService],
+    exports: [AdminService],
 })
 export class AdminModule implements OnModuleInit {
     constructor(private readonly manifest: AdminManifestService) {}
@@ -1160,8 +1167,12 @@ Optional but strongly recommended integration for ops workflows.
 @Module({
     imports: [
         PrismaModule,
-        PlanCatalogModule.forRoot({/* like 6.4 */}),
-        PlatformAdminModule.forRoot({/* like 6.5 */}),
+        PlanCatalogModule.forRoot({
+            /* like 6.4 */
+        }),
+        PlatformAdminModule.forRoot({
+            /* like 6.5 */
+        }),
         CliContextModule.forRoot({
             config: {
                 adminEmailEnvVar: 'MYAPP_ADMIN_EMAIL',

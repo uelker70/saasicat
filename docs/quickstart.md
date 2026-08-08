@@ -236,6 +236,8 @@ const featureUiRegistry: FeatureUiRegistry = {
                     authGuards: [JwtAuthGuard, TenantGuard],
                 },
                 subscriptionBundles: true,
+                setup: true,
+                subscriptionContract: true,
                 // Keep the complete standard SuperAdmin API available.
                 adminResources: true,
                 promoCodes: true,
@@ -249,6 +251,17 @@ const featureUiRegistry: FeatureUiRegistry = {
 })
 export class AppModule {}
 ```
+
+For larger applications, keep the app-specific object in
+`saasicat.config.ts` and leave the root module with a single platform line:
+
+```ts
+SaaSiCatModule.forRoot(MY_APP_SAASICAT_CONFIG);
+```
+
+`SaaSiCatModule` owns the composition of the platform modules. The client
+configuration only supplies facts the library cannot know: auth guards,
+branding and app-specific persistence adapters.
 
 > **Auth ordering:** register your `JwtAuthGuard` as a **global** guard
 > (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`) in a module imported
@@ -269,6 +282,8 @@ export class AppModule {}
   repeats the counters.
 - Catalog, public catalog, tenant billing, subscription bundles and the tenant
   manifest are mounted from the persistence bundle.
+- Setup and subscription-contract services are mounted from the same central
+  module when enabled; their repositories are derived from persistence.
 - The standard Admin API serves tenant list/detail/actions, users, audit,
   subscriptions and promo-code CRUD. Enabling it does not hide or trim Admin
   pages; it removes their repeated app-owned controllers and database queries.

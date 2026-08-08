@@ -6,7 +6,13 @@
 // The consumer provides its `UserManagementPort` adapter (the same one used for
 // the `<app> user` CLI) and optionally an env-var name + issuer.
 
-import { type DynamicModule, Module } from '@nestjs/common';
+import {
+    type DynamicModule,
+    type ForwardReference,
+    Module,
+    type Provider,
+    type Type,
+} from '@nestjs/common';
 import type { SuperAdminProvisioningPort } from '@saasicat/types';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
@@ -28,6 +34,10 @@ export interface SetupModuleOptions {
     setupTokenEnvVar?: string;
     /** Authenticator issuer for MFA enrollment. Default `SuperAdmin`. */
     mfaIssuer?: string;
+    /** Modules that provide dependencies used by `provisioningPort`. */
+    imports?: Array<Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference>;
+    /** Additional providers registered in the DynamicModule itself. */
+    extraProviders?: Provider[];
     /** Register the module globally — default `false`. */
     global?: boolean;
 }
@@ -38,6 +48,7 @@ export class SetupModule {
         return {
             module: SetupModule,
             global: options.global ?? false,
+            imports: options.imports ?? [],
             controllers: [SetupController],
             providers: [
                 asProvider(SETUP_PROVISIONING_PORT_TOKEN, options.provisioningPort),
@@ -49,6 +60,7 @@ export class SetupModule {
                     },
                 },
                 SetupService,
+                ...(options.extraProviders ?? []),
             ],
             exports: [SetupService],
         };

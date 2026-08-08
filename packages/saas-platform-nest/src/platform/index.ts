@@ -9,10 +9,14 @@ export {
     SaasPlatformModule,
     SaasPlatformModule as SaaSiCatModule,
     type SaasPlatformAdapters,
+    type SaasPlatformAdminStatsOptions,
     type SaasPlatformAdminResourcesOptions,
     type SaasPlatformCatalogOptions,
+    type SaasPlatformCheckoutOfferOptions,
     type SaasPlatformModuleOptions,
     type SaasPlatformPromoCodesOptions,
+    type SaasPlatformSetupOptions,
+    type SaasPlatformSubscriptionContractOptions,
     type SaasPlatformSubscriptionBundlesOptions,
     type SaasPlatformTenantAuthGuards,
     type SaasPlatformTenantBillingOptions,
@@ -94,8 +98,9 @@ export { PromoCodeRateLimitGuard } from '../promo/rate-limit.guard.js';
 export { PromoCodesService } from '../promo/service.js';
 
 // ─────────────────────────────────────────────────────────────────────────
-// Modules an app composes ALONGSIDE `SaaSiCatModule`, for the same reason as
-// the classes above: Nest matches modules and providers by class reference.
+// Optional modules composed internally by `SaaSiCatModule` and retained as
+// public escape hatches, for the same reason as the classes above: Nest
+// matches modules and providers by class reference.
 //
 // `SetupModule` from `@saasicat/nest` builds a `SetupService` that injects the
 // ROOT copy of `MfaService`, while `SaaSiCatModule` registers the PLATFORM
@@ -103,8 +108,8 @@ export { PromoCodesService } from '../promo/service.js';
 // SetupModule module". Taking the module from this entry puts both in one
 // chunk, so there is one `MfaService`.
 //
-// Rule for consumers: once you use `SaaSiCatModule`, import every other
-// platform module from `@saasicat/nest/platform` too.
+// Rule for consumers using the `/platform` entry: import every platform class
+// and any explicit escape-hatch module from that entry too.
 // ─────────────────────────────────────────────────────────────────────────
 export { AdminModule, type AdminModuleOptions } from '../admin/module.js';
 export {

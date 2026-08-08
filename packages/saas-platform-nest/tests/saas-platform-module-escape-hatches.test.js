@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import * as platformEntry from '../dist/platform/index.js';
 import { SaasPlatformModule, StaticFeatureGuard } from '../dist/platform/index.js';
+import * as rootEntry from '../dist/index.js';
 
 // The mega-module composes a lot for the app. These tests cover the seams an
 // app needs when its shape does not match the defaults — each one is a real
@@ -92,9 +93,7 @@ describe('globalFeatureGuard', () => {
 
 describe('includeManifestController', () => {
     const manifestModuleOf = (dyn) =>
-        (dyn.imports ?? []).find(
-            (imported) => imported?.module?.name === 'AdminManifestModule',
-        );
+        (dyn.imports ?? []).find((imported) => imported?.module?.name === 'AdminManifestModule');
 
     // AdminPublicBootController is always mounted; only the manifest
     // controller is governed by the flag.
@@ -165,4 +164,24 @@ describe('platform entry class identity', () => {
             );
         });
     }
+});
+
+describe('root entry incremental migration', () => {
+    test('root SaaSiCatModule composes the same root-entry module classes', () => {
+        const dyn = rootEntry.SaaSiCatModule.forRoot({
+            ...baseOptions(),
+            setup: {
+                provisioningPort: {},
+            },
+        });
+        const adminModule = dyn.imports.find(
+            (imported) => imported?.module?.name === 'AdminModule',
+        );
+        const setupModule = dyn.imports.find(
+            (imported) => imported?.module?.name === 'SetupModule',
+        );
+
+        assert.equal(adminModule.module, rootEntry.AdminModule);
+        assert.equal(setupModule.module, rootEntry.SetupModule);
+    });
 });
