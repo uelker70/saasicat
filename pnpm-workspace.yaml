@@ -12,6 +12,14 @@ overrides:
   # GHSA-g7r4-m6w7-qqqr: path traversal in the esbuild dev server. Pulled in
   # transitively by tsup, which still pins ^0.27.0.
   esbuild: '^0.28.1'
+  # Transitive build-tool dependencies with patched releases available.
+  # Keeping the overrides on the existing majors avoids unrelated migrations.
+  # GHSA-fxqj-rqcc-2cmp: inefficient parsing in PostCSS.
+  postcss: '^8.5.23'
+  # GHSA-7p8r-x3mc-p8w7: denial of service in fast-uri URI parsing.
+  fast-uri: '^3.1.5'
+  # GHSA-2v37-7h3g-55p8: predictable Nano ID generation with non-integer size.
+  nanoid: '^3.3.17'
 allowBuilds:
   '@nestjs/core': true
   # Native file watcher pulled in by the admin dev tooling; the JS fallback is
