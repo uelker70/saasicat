@@ -128,8 +128,9 @@ existing CRUD backend to a discovered, packaged and enforced feature in about
 30 minutes and under 100 lines of app-owned code. The
 [handbook](docs/handbook.md) is the in-depth reference behind it.
 
-> The Admin UI ships German and English messages; select the locale in
-> `createSuperAdminApp`. APIs, error codes and documentation use English.
+> The Admin UI ships German and English messages; users switch in the header,
+> and `createSuperAdminApp` sets the default. APIs, error codes and
+> documentation use English.
 
 ## Requirements
 

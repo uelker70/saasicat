@@ -1095,9 +1095,10 @@ objects, so consumers get autocompletion and a compile error when a key is
 missing.
 
 **Switching the language** is built into the shell — apps get it for free. The
-`AdminLayout` header and the login page (including the first-run setup wizard)
-render a `LocaleSwitcher` listing every locale in `SA_LOCALES` by its own name.
-The pick is stored under the `sa:locale` key and survives reloads.
+`AdminLayout` header, the login card and the first-run setup card each render a
+`LocaleSwitcher` listing every locale in `SA_LOCALES` by its own name. The pick
+is stored under the `sa:locale` key and survives reloads; when the browser
+denies storage access, switching still works for the session.
 
 Switching re-renders every catalog text, the sidebar labels and the drawer
 section names; `Intl` formatting (dates, numbers) follows along.
@@ -1118,7 +1119,10 @@ language yet — a stored pick outranks it. Two ways to take control:
 // (a) No persistence: every reload starts at `locale` again.
 createSuperAdminApp({ i18n: { locale: 'en', persist: false } });
 
-// (b) The app owns the value — e.g. bound to a user-profile setting. The
+// (b) No switcher at all — a deployment that ships one language.
+createSuperAdminApp({ i18n: { locale: 'de', switcher: false } });
+
+// (c) The app owns the value — e.g. bound to a user-profile setting. The
 //     platform then neither reads nor writes storage; persisting is on you.
 const uiLocale = ref<SaLocale>(loadUserPreference() ?? 'de');
 const app = createSuperAdminApp({ i18n: { locale: uiLocale } });
@@ -1126,9 +1130,17 @@ uiLocale.value = 'en'; // or: app.i18n.locale.value = 'en'
 ```
 
 The switcher writes to the same context in every variant, so it keeps working
-with an app-supplied `Ref`. To place it in your own chrome as well:
+with an app-supplied `Ref` — as long as that ref is writable. Hand over a
+readonly `computed` and the switcher hides itself rather than presenting a
+control that silently does nothing.
 
-```vue
+Several apps on one origin share the `sa:locale` key. Pass `i18n.storage` with
+a key-prefixing `KvStore` to separate them.
+
+To place the switcher in your own chrome as well — it renders nothing when
+disabled, so it needs no guard around it:
+
+```ts
 import LocaleSwitcher from '@saasicat/ui-vue/components/LocaleSwitcher.vue';
 ```
 

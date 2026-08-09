@@ -28,25 +28,62 @@ export interface KvStore {
     remove(key: string): void;
 }
 
+/** Stand-in for when there is no usable `localStorage`. */
+const NOOP_KV_STORE: KvStore = {
+    get: () => null,
+    set: () => {},
+    remove: () => {},
+};
+
 /**
- * Returns a `KvStore` wrapper around `localStorage` (or `null` under SSR).
- * Tests may pass an in-memory stub.
+ * Returns a `KvStore` wrapper around `localStorage`, or a no-op store when the
+ * environment has none or refuses access. Tests may pass an in-memory stub.
+ *
+ * Every persistence built on this is a convenience — losing it must never take
+ * the app down, so no failure mode is allowed to escape.
  */
 export function defaultKvStore(): KvStore {
-    if (typeof globalThis.localStorage === 'undefined') {
-        // SSR / non-browser → no-op stub.
-        return {
-            get: () => null,
-            set: () => {},
-            remove: () => {},
-        };
-    }
-    const ls = globalThis.localStorage;
+    const ls = resolveLocalStorage();
+    if (!ls) return NOOP_KV_STORE;
     return {
-        get: (k) => ls.getItem(k),
-        set: (k, v) => ls.setItem(k, v),
-        remove: (k) => ls.removeItem(k),
+        get: (k) => {
+            try {
+                return ls.getItem(k);
+            } catch {
+                // See resolveLocalStorage: access can be revoked per call too.
+                return null;
+            }
+        },
+        set: (k, v) => {
+            try {
+                ls.setItem(k, v);
+            } catch {
+                // Full quota or Safari's private mode — the value is simply
+                // not remembered.
+            }
+        },
+        remove: (k) => {
+            try {
+                ls.removeItem(k);
+            } catch {
+                // Nothing to clean up if the store is unreachable.
+            }
+        },
     };
+}
+
+/**
+ * `localStorage` is a throwing getter, not a plain property: a browser that
+ * blocks site data (cookie blocking, a sandboxed iframe) raises `SecurityError`
+ * on read, and `typeof` evaluates the getter rather than guarding it. The
+ * access therefore has to happen inside `try`.
+ */
+function resolveLocalStorage(): Storage | null {
+    try {
+        return globalThis.localStorage ?? null;
+    } catch {
+        return null;
+    }
 }
 
 /**

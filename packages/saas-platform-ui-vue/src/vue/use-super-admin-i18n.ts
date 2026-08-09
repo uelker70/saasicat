@@ -11,6 +11,7 @@
 import {
     computed,
     inject,
+    isReadonly,
     isRef,
     ref,
     watch,
@@ -37,6 +38,12 @@ export interface SuperAdminI18n {
     messages: ComputedRef<SaMessages>;
     /** BCP-47 tag for `Intl`/`toLocaleString` formatting in the active locale. */
     intlLocale: ComputedRef<string>;
+    /**
+     * Whether the shell renders its language switcher. `false` when the app
+     * opted out or when `locale` cannot be written to — a switcher that cannot
+     * change anything is worse than none.
+     */
+    switcherEnabled: boolean;
 }
 
 export interface SuperAdminI18nOptions {
@@ -54,8 +61,17 @@ export interface SuperAdminI18nOptions {
      * and persists it wherever it belongs (user profile, its own store).
      */
     persist?: boolean;
-    /** Storage adapter for `persist`. Defaults to `defaultKvStore()`. */
+    /**
+     * Storage adapter for `persist`. Defaults to `defaultKvStore()`. Pass a
+     * key-prefixing wrapper when several apps share one origin.
+     */
     storage?: KvStore;
+    /**
+     * Renders the language switcher in the shell chrome, default `true`. Set
+     * `false` for a deployment that ships one language. A readonly `locale`
+     * ref disables it on its own — no need to set this as well.
+     */
+    switcher?: boolean;
 }
 
 /** `KvStore` key holding the locale the user picked in the switcher. */
@@ -73,7 +89,17 @@ export function createSuperAdminI18n(options: SuperAdminI18nOptions = {}): Super
         resolveMessages(locale.value, options.overrides?.[locale.value]),
     );
     const intlLocale = computed(() => SA_INTL_LOCALES[locale.value]);
-    return { locale, messages, intlLocale };
+    // A readonly ref (typically a `computed` derived from a profile setting)
+    // silently swallows writes, so the switcher would be a dead control. The
+    // type system permits it — TypeScript ignores `readonly` when checking
+    // assignability — so the guard has to be a runtime one.
+    const writable = !isReadonly(locale);
+    return {
+        locale,
+        messages,
+        intlLocale,
+        switcherEnabled: (options.switcher ?? true) && writable,
+    };
 }
 
 /**
@@ -102,7 +128,10 @@ let fallbackI18n: SuperAdminI18n | null = null;
 export function useSuperAdminI18n(): SuperAdminI18n {
     const injected = inject(SUPER_ADMIN_I18N_KEY, null);
     if (injected) return injected;
-    fallbackI18n ??= createSuperAdminI18n();
+    // Deliberately not persisted: this instance exists for mounts outside a
+    // shell, and a shared singleton that reads and writes real storage would
+    // make test outcomes depend on their order.
+    fallbackI18n ??= createSuperAdminI18n({ persist: false });
     return fallbackI18n;
 }
 
