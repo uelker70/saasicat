@@ -1094,7 +1094,15 @@ The SuperAdmin UI ships complete message catalogs in **German** (reference) and
 objects, so consumers get autocompletion and a compile error when a key is
 missing.
 
-**Choosing the language** — via `createSuperAdminApp()`:
+**Switching the language** is built into the shell — apps get it for free. The
+`AdminLayout` header and the login page (including the first-run setup wizard)
+render a `LocaleSwitcher` listing every locale in `SA_LOCALES` by its own name.
+The pick is stored under the `sa:locale` key and survives reloads.
+
+Switching re-renders every catalog text, the sidebar labels and the drawer
+section names; `Intl` formatting (dates, numbers) follows along.
+
+**Choosing the starting language** — via `createSuperAdminApp()`:
 
 ```ts
 const app = createSuperAdminApp({
@@ -1103,21 +1111,26 @@ const app = createSuperAdminApp({
 });
 ```
 
-Default is `'de'`. To let users switch at runtime, pass a `Ref` and write to it
-(or write to the handle, which exposes the same context):
+Default is `'de'`. This is the _default_ for a user who has not picked a
+language yet — a stored pick outranks it. Two ways to take control:
 
 ```ts
-import { ref } from 'vue';
+// (a) No persistence: every reload starts at `locale` again.
+createSuperAdminApp({ i18n: { locale: 'en', persist: false } });
 
+// (b) The app owns the value — e.g. bound to a user-profile setting. The
+//     platform then neither reads nor writes storage; persisting is on you.
 const uiLocale = ref<SaLocale>(loadUserPreference() ?? 'de');
 const app = createSuperAdminApp({ i18n: { locale: uiLocale } });
-
-// later, e.g. in a header switcher:
 uiLocale.value = 'en'; // or: app.i18n.locale.value = 'en'
 ```
 
-Switching the locale re-renders every catalog text, the sidebar labels and the
-drawer section names; `Intl` formatting (dates, numbers) follows along.
+The switcher writes to the same context in every variant, so it keeps working
+with an app-supplied `Ref`. To place it in your own chrome as well:
+
+```vue
+import LocaleSwitcher from '@saasicat/ui-vue/components/LocaleSwitcher.vue';
+```
 
 **Overriding individual strings** — apps replace single keys without forking a
 page. Everything not listed keeps the platform text:
@@ -1156,7 +1169,8 @@ English default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by
 individual keys.
 
 **Adding a language** is a platform change, not an app change: add the locale to
-`SA_LOCALES`/`SA_INTL_LOCALES` and a third variant per namespace under
+`SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` (the switcher picks it up from
+there) and a third variant per namespace under
 `packages/saas-platform-ui-vue/src/client/i18n/messages/`. The German object is
 the reference structure — the compiler rejects a translation with missing or
 extra keys.

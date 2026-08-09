@@ -14,6 +14,7 @@
                 </q-toolbar-title>
                 <q-space />
                 <slot name="header-actions" />
+                <LocaleSwitcher class="q-mr-sm" />
                 <q-badge class="sa-admin-badge q-mr-sm">{{ msg.header.roleBadge }}</q-badge>
                 <div class="sa-admin-user">
                     <q-avatar size="32px" class="sa-admin-user__avatar">
@@ -97,6 +98,7 @@ import { computed, inject, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import type { AdminManifest, StandardPageKey } from '@saasicat/types';
 import { buildRoutes, buildSidebar, defaultSectionOrder } from '../client/nav-builder.js';
+import LocaleSwitcher from '../components/LocaleSwitcher.vue';
 import { SUPER_ADMIN_BRAND_KEY, SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { ADMIN_UI_VERSION } from '../client/version.js';

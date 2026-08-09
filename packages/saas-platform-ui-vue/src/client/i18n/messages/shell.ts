@@ -10,6 +10,7 @@ export const shellMessages = defineMessages(
             subtitle: 'SuperAdmin · Plattform-Verwaltung',
             roleBadge: 'SUPER ADMIN',
             logout: 'Abmelden',
+            language: 'Sprache',
         },
         drawer: {
             docs: 'Doku öffnen',
@@ -81,6 +82,7 @@ export const shellMessages = defineMessages(
             subtitle: 'SuperAdmin · Platform administration',
             roleBadge: 'SUPER ADMIN',
             logout: 'Sign out',
+            language: 'Language',
         },
         drawer: {
             docs: 'Open documentation',

@@ -57,8 +57,9 @@ const handle = createSuperAdminApp({
     http: platformHttp,
     actions: ADMIN_ACTIONS,
     extensions: {},
-    // UI language: 'de' (default) or 'en'. Pass a Ref to switch at runtime,
-    // `overrides` to replace individual strings (handbook §8.6).
+    // Starting UI language — the shell's header switcher lets the user change
+    // it from there and remembers the pick. `overrides` replaces individual
+    // strings (handbook §8.6).
     i18n: { locale: 'de' },
 });
 

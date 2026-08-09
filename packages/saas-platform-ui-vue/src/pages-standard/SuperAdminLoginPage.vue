@@ -1,4 +1,7 @@
 <template>
+    <!-- Outside the setup/login branch so the first-run wizard carries the
+         switcher as well — both render on the same dark full-page background. -->
+    <LocaleSwitcher class="sa-login-locale" />
     <SuperAdminSetupWizard
         v-if="needsSetup"
         :display-name="brandName"
@@ -98,6 +101,7 @@ import {
 } from '../vue/use-super-admin-context.js';
 import { getJson } from '../client/http-json.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import LocaleSwitcher from '../components/LocaleSwitcher.vue';
 import SuperAdminSetupWizard from './SuperAdminSetupWizard.vue';
 
 interface Props {
@@ -193,6 +197,15 @@ async function handleSubmit(): Promise<void> {
 </script>
 
 <style scoped>
+.sa-login-locale {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1;
+    /* The page paints its own dark background instead of inheriting a chrome
+       color, so the switcher needs the light foreground explicitly. */
+    color: #cbd5e1;
+}
 .sa-login-wrap {
     min-height: 100vh;
     display: flex;
