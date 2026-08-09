@@ -2,7 +2,12 @@
 // grouping and decimal separator follow the active UI locale
 // (de → `12.345,60 €`, en → `€12,345.60`).
 
-import { DEFAULT_SA_LOCALE, SA_INTL_LOCALES, type SaLocale } from './locale.js';
+import {
+    DEFAULT_SA_LOCALE,
+    SA_INTL_LOCALES,
+    type SaBuiltinLocale,
+    type SaLocale,
+} from './locale.js';
 
 const DEFAULT_CURRENCY = 'EUR';
 
@@ -12,7 +17,7 @@ function formatterFor(locale: SaLocale, currency: string, decimals: number): Int
     const key = `${locale}:${currency}:${decimals}`;
     let formatter = formatters.get(key);
     if (!formatter) {
-        formatter = new Intl.NumberFormat(SA_INTL_LOCALES[locale], {
+        formatter = new Intl.NumberFormat(SA_INTL_LOCALES[locale as SaBuiltinLocale] ?? locale, {
             style: 'currency',
             currency,
             minimumFractionDigits: decimals,

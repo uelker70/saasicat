@@ -401,9 +401,9 @@ This produces a runnable Vue 3 + Quasar + Vite project with:
 - an HTTP client with token handling
 - routes for all standard pages (Dashboard, Tenants, Plans, Discovery, …)
 - branding variables in `src/styles/theme.scss`
-- German UI by default — the switcher in the header changes it per user, and
-  `i18n: { locale: 'en' }` in `main.ts` moves the default
-  (see [handbook §8.6](handbook.md#86-ui-language-i18n))
+- German and English ship with the shell; the header switcher changes it per
+  user. Which languages you offer, and whether you add your own, is set in
+  `main.ts` via `i18n` (see [handbook §8.6](handbook.md#86-ui-language-i18n))
 
 The only thing left to do is adapt **`src/services/http.ts#adminLogin`** to
 your backend auth.

@@ -6,11 +6,11 @@
 import type { StandardPageKey } from '@saasicat/types';
 
 import { defineMessages } from '../define.js';
-import type { SaLocale } from '../locale.js';
+import type { SaBuiltinLocale } from '../locale.js';
 
 // Type alias (not interface) so the shape keeps an implicit index signature
 // and stays assignable to `MessageTree`.
-type NavNamespace = {
+export type SaNavMessages = {
     readonly pages: Record<StandardPageKey, string>;
     readonly sections: {
         readonly overview: string;
@@ -20,7 +20,7 @@ type NavNamespace = {
     };
 };
 
-export const navMessages: Record<SaLocale, NavNamespace> = defineMessages(
+export const navMessages: Record<SaBuiltinLocale, SaNavMessages> = defineMessages(
     {
         pages: {
             dashboard: 'Dashboard',

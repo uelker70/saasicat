@@ -113,8 +113,7 @@ export const bundlesMessages = defineMessages(
             bundleKeyHint: 'API-stabil · wird aus dem Label erzeugt',
             errorKeyFormat: 'Nur A-Z, 0-9, Underscore; muss mit Buchstabe beginnen.',
             errorKeyExists: 'Dieser Bundle-Key existiert bereits.',
-            descriptionPlaceholder:
-                'z. B. Kampagnen, WhatsApp und Korrespondenz.',
+            descriptionPlaceholder: 'z. B. Kampagnen, WhatsApp und Korrespondenz.',
             sectionPricing: 'v1 · Pricing & Gültigkeit',
             pricingHint: 'Monats- & Jahrespreis sowie Datum, ab dem das Bundle verkaufbar wird.',
             validFromImmediate: '✓ Bundle ist nach Anlage sofort live und verkaufbar.',

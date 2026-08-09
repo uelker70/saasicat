@@ -11,8 +11,8 @@
 
 import type { AdminManifest, StandardPageDef, StandardPageKey } from '@saasicat/types';
 
-import { DEFAULT_SA_LOCALE, type SaLocale } from './i18n/locale.js';
-import { navMessages } from './i18n/messages/nav.js';
+import { DEFAULT_SA_LOCALE, isSaBuiltinLocale, type SaLocale } from './i18n/locale.js';
+import { navMessages, type SaNavMessages } from './i18n/messages/nav.js';
 
 /**
  * Default routes for the platform standard pages. Consumers may override this
@@ -64,8 +64,17 @@ export interface NavBuilderOptions {
      * UI locale for the default labels and section names, default `'de'`.
      * Pass the same locale to `buildSidebar()`'s `sectionOrder` (via
      * `defaultSectionOrder(locale)`) — section names are compared as strings.
+     *
+     * Only resolves the two catalogs the platform ships. Prefer `nav`, which
+     * carries app overrides and app-supplied languages as well.
      */
     locale?: SaLocale;
+    /**
+     * Resolved `nav` namespace, as `useSuperAdminI18n().messages.value.nav`
+     * hands it out. Wins over `locale`, and is the only way the sidebar sees
+     * `i18n.overrides` or a language the app added itself.
+     */
+    nav?: SaNavMessages;
     /**
      * Optional: overrides the default routes for certain standard pages.
      * Consumers set this if they want an alternative URL structure.
@@ -124,12 +133,30 @@ const PAGE_SECTIONS: Partial<Record<StandardPageKey, SectionKey>> = {
 };
 
 /**
+ * The catalog to draw labels from. `nav` wins because it already carries app
+ * overrides and app-supplied languages; `locale` only ever reaches the two
+ * catalogs the platform ships.
+ */
+function resolveNav(options: NavBuilderOptions): SaNavMessages {
+    return options.nav ?? builtinNav(options.locale);
+}
+
+/** An unknown locale falls back rather than crashing the whole sidebar. */
+function builtinNav(locale: SaLocale | undefined): SaNavMessages {
+    return navMessages[isSaBuiltinLocale(locale) ? locale : DEFAULT_SA_LOCALE];
+}
+
+/**
  * Localized default section names in drawer order (Übersicht → Produktkatalog
  * → Kunden → System). Pass the result to `buildSidebar()` when building routes
- * with a non-default locale.
+ * with a non-default locale, or hand it the resolved `nav` catalog directly —
+ * section names are compared as strings, so both sides must come from the same
+ * source.
  */
-export function defaultSectionOrder(locale: SaLocale = DEFAULT_SA_LOCALE): readonly string[] {
-    const sections = navMessages[locale].sections;
+export function defaultSectionOrder(
+    locale: SaLocale | SaNavMessages = DEFAULT_SA_LOCALE,
+): readonly string[] {
+    const sections = typeof locale === 'string' ? builtinNav(locale).sections : locale.sections;
     return [sections.overview, sections.catalog, sections.customers, sections.system];
 }
 
@@ -149,7 +176,7 @@ export function buildRoutes(
 
     // StandardPages
     const standard = manifest.navigation?.standardPages ?? {};
-    const nav = navMessages[options.locale ?? DEFAULT_SA_LOCALE];
+    const nav = resolveNav(options);
     const defaultNavSections: Partial<Record<StandardPageKey, string>> = Object.fromEntries(
         Object.entries(PAGE_SECTIONS).map(([page, section]) => [page, nav.sections[section]]),
     );

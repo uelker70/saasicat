@@ -1,13 +1,13 @@
 // Formatting helper retained for the reusable catalog-history timeline.
 
 import { formatMessage } from '../../client/i18n/format.js';
-import { DEFAULT_SA_LOCALE, type SaLocale } from '../../client/i18n/locale.js';
+import { DEFAULT_SA_LOCALE, builtinLocaleOf, type SaLocale } from '../../client/i18n/locale.js';
 import { planVersionsMessages } from '../../client/i18n/messages/plan-versions.js';
 
 const EMPTY_VALUE = '—';
 
 function texts(locale: SaLocale) {
-    return planVersionsMessages[locale].format;
+    return planVersionsMessages[builtinLocaleOf(locale)].format;
 }
 
 export function formatRelative(

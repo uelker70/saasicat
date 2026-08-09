@@ -2,10 +2,11 @@
 // provides one instance; pages, components and composables read it via
 // `useSuperAdminI18n()` or the namespace-focused `useSaMessages()`.
 //
-// Design: no vue-i18n dependency. The platform ships complete typed catalogs
-// (`SA_MESSAGES`, German reference + English translation) and consumers switch
-// the locale or override individual strings through the bootstrap option.
-// Without a provider the composables fall back to a shared German instance, so
+// Design: no vue-i18n dependency. The platform ships two complete typed
+// catalogs (German reference + English translation) and nothing beyond that —
+// which of them an app offers, which languages it adds and what wording it
+// prefers is decided through the bootstrap option and resolved in `SaCatalog`.
+// Without a provider the composables fall back to a shared default instance, so
 // isolated mounts and unit tests need no setup.
 
 import {
@@ -21,11 +22,11 @@ import {
 } from 'vue';
 
 import {
-    DEFAULT_SA_LOCALE,
-    SA_INTL_LOCALES,
-    isSaLocale,
-    resolveMessages,
+    createSaCatalog,
+    type SaCatalog,
     type SaLocale,
+    type SaLocaleDefinition,
+    type SaLocaleOption,
     type SaMessages,
     type SaMessagesOverrides,
 } from '../client/i18n/index.js';
@@ -40,20 +41,35 @@ export interface SuperAdminI18n {
     intlLocale: ComputedRef<string>;
     /**
      * Whether the shell renders its language switcher. `false` when the app
-     * opted out or when `locale` cannot be written to — a switcher that cannot
-     * change anything is worse than none.
+     * opted out, when `locale` cannot be written to, or when only one language
+     * is on offer — a switcher that cannot change anything is worse than none.
      */
     switcherEnabled: boolean;
+    /** Locales the switcher offers, in order, with their display names. */
+    availableLocales: readonly SaLocaleOption[];
 }
 
 export interface SuperAdminI18nOptions {
     /**
-     * Starting UI locale, default `'de'` — the shell's switcher lets the user
-     * pick another one, and a stored pick outranks this. Pass a `Ref` when the
-     * app wants to keep control (e.g. a user-profile setting).
+     * Starting UI locale — the shell's switcher lets the user pick another one,
+     * and a stored pick outranks this. Defaults to `'de'` when offered,
+     * otherwise to the first entry of `locales`. Pass a `Ref` when the app wants
+     * to keep control (e.g. a user-profile setting).
      */
     locale?: SaLocale | Ref<SaLocale>;
-    /** Per-locale string overrides layered over the platform catalog. */
+    /**
+     * Languages to offer, in switcher order. Default: German, English and
+     * everything in `additionalLocales`. Narrow it to ship a single language —
+     * the switcher then hides itself.
+     */
+    locales?: readonly SaLocale[];
+    /**
+     * Languages the app adds on top of the two the platform ships, keyed by
+     * locale code. Untranslated keys fall back to `basedOn`, so a partial
+     * catalog is usable from the first key onwards.
+     */
+    additionalLocales?: Readonly<Record<string, SaLocaleDefinition>>;
+    /** Per-locale string overrides layered over whatever catalog applies. */
     overrides?: Partial<Record<SaLocale, SaMessagesOverrides>>;
     /**
      * Remembers the locale picked in the header switcher across reloads,
@@ -62,10 +78,15 @@ export interface SuperAdminI18nOptions {
      */
     persist?: boolean;
     /**
-     * Storage adapter for `persist`. Defaults to `defaultKvStore()`. Pass a
-     * key-prefixing wrapper when several apps share one origin.
+     * Storage adapter for `persist`. Defaults to `defaultKvStore()`.
      */
     storage?: KvStore;
+    /**
+     * Prefix for the persisted key, mirroring `createPlatformLoaders`. Set it
+     * when several apps share one origin and must not inherit each other's
+     * language pick.
+     */
+    storageKeyPrefix?: string;
     /**
      * Renders the language switcher in the shell chrome, default `true`. Set
      * `false` for a deployment that ships one language. A readonly `locale`
@@ -84,11 +105,16 @@ export const SUPER_ADMIN_I18N_KEY: InjectionKey<SuperAdminI18n> = Symbol.for(
 );
 
 export function createSuperAdminI18n(options: SuperAdminI18nOptions = {}): SuperAdminI18n {
-    const locale = isRef(options.locale) ? options.locale : createOwnedLocale(options);
-    const messages = computed(() =>
-        resolveMessages(locale.value, options.overrides?.[locale.value]),
+    const catalog = createSaCatalog(options);
+    const locale = isRef(options.locale) ? options.locale : createOwnedLocale(options, catalog);
+    // An unknown locale would otherwise render an empty shell. Falling back
+    // keeps the UI usable and makes the app's mistake visible as "wrong
+    // language" rather than "blank page".
+    const active = computed(() =>
+        catalog.has(locale.value) ? locale.value : catalog.defaultLocale,
     );
-    const intlLocale = computed(() => SA_INTL_LOCALES[locale.value]);
+    const messages = computed(() => catalog.messagesFor(active.value));
+    const intlLocale = computed(() => catalog.intlLocaleFor(active.value));
     // A readonly ref (typically a `computed` derived from a profile setting)
     // silently swallows writes, so the switcher would be a dead control. The
     // type system permits it — TypeScript ignores `readonly` when checking
@@ -98,7 +124,8 @@ export function createSuperAdminI18n(options: SuperAdminI18nOptions = {}): Super
         locale,
         messages,
         intlLocale,
-        switcherEnabled: (options.switcher ?? true) && writable,
+        switcherEnabled: (options.switcher ?? true) && writable && catalog.locales.length > 1,
+        availableLocales: catalog.locales,
     };
 }
 
@@ -107,14 +134,18 @@ export function createSuperAdminI18n(options: SuperAdminI18nOptions = {}): Super
  * `locale` option, because that option is the app's default while the stored
  * value is the user's explicit pick in the switcher.
  */
-function createOwnedLocale(options: SuperAdminI18nOptions): Ref<SaLocale> {
-    if (options.persist === false) {
-        return ref(options.locale ?? DEFAULT_SA_LOCALE);
-    }
+function createOwnedLocale(options: SuperAdminI18nOptions, catalog: SaCatalog): Ref<SaLocale> {
+    const initial = options.locale ?? catalog.defaultLocale;
+    if (options.persist === false) return ref(initial);
+
     const storage = options.storage ?? defaultKvStore();
-    const stored = storage.get(SA_LOCALE_STORAGE_KEY);
-    const locale = ref(isSaLocale(stored) ? stored : (options.locale ?? DEFAULT_SA_LOCALE));
-    watch(locale, (next) => storage.set(SA_LOCALE_STORAGE_KEY, next));
+    const key = `${options.storageKeyPrefix ?? ''}${SA_LOCALE_STORAGE_KEY}`;
+    const stored = storage.get(key);
+    // The stored value is checked against what this app offers, not against the
+    // built-ins: an app that dropped a language must not be pushed back into it
+    // by a pick from before.
+    const locale = ref(stored && catalog.has(stored) ? stored : initial);
+    watch(locale, (next) => storage.set(key, next));
     return locale;
 }
 
