@@ -39,10 +39,16 @@ What it demonstrates:
 docker compose -f examples/notesapp/docker-compose.yml up --build
 ```
 
-- **SuperAdmin UI** → <http://localhost:8080>, sign in with
+- **SuperAdmin UI** → <http://localhost:9000>, sign in with
   `admin@notesapp.example` / `demo`
+- **Web UI** → <http://localhost:8080> (the tenant-facing app)
 - **API** → <http://localhost:3000/api/v1> (for the curl walkthrough below)
-- **Postgres** → `localhost:5433` (`notesapp` / `notesapp`)
+- **Postgres** → `localhost:5432` (`notesapp` / `notesapp`)
+
+Every one of these ports is a default you can move: copy `.env.example` to
+`.env` and set `ADMIN_HOST_PORT`, `WEB_HOST_PORT`, `BACKEND_HOST_PORT` or
+`DB_HOST_PORT`. Only the host side changes — the containers keep their internal
+ports, so the admin still reaches the API and no other file needs editing.
 
 The backend container applies `prisma db push` and seeds the demo data on every
 start; both are idempotent. Set `SEED_ON_START=false` to keep data you changed

@@ -2,8 +2,12 @@
 #
 #   docker compose -f examples/notesapp/docker-compose.yml up --build
 #
-# Then open http://localhost:8080 and sign in with the seeded demo account
+# Then open http://localhost:9000 and sign in with the seeded demo account
 # (admin@notesapp.example / demo — printed by the seed on startup).
+#
+# Every published port has a `*_HOST_PORT` override in .env (see .env.example);
+# the ports inside the containers are fixed, because nginx.conf and the compose
+# network address the services by name.
 #
 # Both images build from the repo root, because the app and the admin consume
 # the `@saasicat/*` workspace packages from source.
@@ -17,9 +21,11 @@ services:
             POSTGRES_USER: notesapp
             POSTGRES_PASSWORD: notesapp
             POSTGRES_DB: notesapp
-        # Published on 5433 so a Postgres already running on the host keeps 5432.
+
+        # Host port only — inside the compose network the backend always talks
+        # to db:5432. Override `DB_HOST_PORT` in .env when another project
         ports:
-            - '5433:5432'
+            - '${DB_HOST_PORT:-5432}:5432'
         volumes:
             - db-data:/var/lib/postgresql/data
         healthcheck:
@@ -38,10 +44,13 @@ services:
             PORT: '3000'
             # Set to false to keep data you changed through the UI across restarts.
             SEED_ON_START: 'true'
-        # Exposed for the curl walkthrough in the README; the admin UI reaches
-        # the backend over the compose network, not through this port.
+
+        # Host port only, for the curl walkthrough in the README — override
+        # `BACKEND_HOST_PORT` in .env when 3000 is taken. The admin and web
+        # containers reach the backend as `backend:3000` over the compose
+        # network (see their nginx.conf), so the port inside stays 3000.
         ports:
-            - '3000:3000'
+            - '${BACKEND_HOST_PORT:-3000}:3000'
         depends_on:
             db:
                 condition: service_healthy
@@ -50,8 +59,9 @@ services:
         build:
             context: ../..
             dockerfile: examples/notesapp/admin/Dockerfile
+        # Host port only — nginx inside the container always listens on 80.
         ports:
-            - '8080:80'
+            - '${ADMIN_HOST_PORT:-9000}:80'
         depends_on:
             - backend
 
@@ -59,8 +69,9 @@ services:
         build:
             context: ../..
             dockerfile: examples/notesapp/web/Dockerfile
+        # Host port only — nginx inside the container always listens on 80.
         ports:
-            - '8081:80'
+            - '${WEB_HOST_PORT:-8080}:80'
         depends_on:
             - backend
 
