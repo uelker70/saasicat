@@ -71,9 +71,15 @@ test('slugify: leading/trailing hyphens are removed', () => {
 });
 
 test('slugify: empty input returns the fallback', () => {
-    assert.equal(slugify(''), 'verein');
-    assert.equal(slugify('   '), 'verein');
-    assert.equal(slugify('!!!'), 'verein');
+    assert.equal(slugify(''), 'tenant');
+    assert.equal(slugify('   '), 'tenant');
+    assert.equal(slugify('!!!'), 'tenant');
+});
+
+test('slugify: the fallback carries no domain vocabulary', () => {
+    // A car dealership registering under a name that reduces to nothing must
+    // not end up on a slug from someone else's business.
+    assert.equal(slugify('株式会社'), 'tenant');
 });
 
 test('slugify: already-clean stays clean', () => {

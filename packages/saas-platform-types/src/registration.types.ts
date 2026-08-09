@@ -406,7 +406,7 @@ export interface ConfiguratorSourcesLookup {
 /**
  * App-local marketing data for the plan selection area of the configurator.
  * The SuperAdmin stores only PlanId/prices — the "model" presentation
- * (club name, glyph, tagline) is branding and lives in the app.
+ * (display name, glyph, tagline) is branding and lives in the app.
  */
 export interface ConfiguratorPlanMarketing {
     /** PlanId from the SuperAdmin (e.g. `STARTER`). */

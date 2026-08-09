@@ -114,7 +114,7 @@ export const bundlesMessages = defineMessages(
             errorKeyFormat: 'Nur A-Z, 0-9, Underscore; muss mit Buchstabe beginnen.',
             errorKeyExists: 'Dieser Bundle-Key existiert bereits.',
             descriptionPlaceholder:
-                'z. B. Kampagnen, WhatsApp und Korrespondenz für aktive Vereine.',
+                'z. B. Kampagnen, WhatsApp und Korrespondenz.',
             sectionPricing: 'v1 · Pricing & Gültigkeit',
             pricingHint: 'Monats- & Jahrespreis sowie Datum, ab dem das Bundle verkaufbar wird.',
             validFromImmediate: '✓ Bundle ist nach Anlage sofort live und verkaufbar.',
@@ -341,7 +341,7 @@ export const bundlesMessages = defineMessages(
             bundleKeyHint: 'API-stable · derived from the label',
             errorKeyFormat: 'Only A-Z, 0-9, underscore; must start with a letter.',
             errorKeyExists: 'This bundle key already exists.',
-            descriptionPlaceholder: 'e.g. Campaigns, WhatsApp and correspondence for active clubs.',
+            descriptionPlaceholder: 'e.g. Campaigns, WhatsApp and correspondence.',
             sectionPricing: 'v1 · pricing & validity',
             pricingHint:
                 'Monthly & yearly price plus the date from which the bundle becomes sellable.',

@@ -30,10 +30,10 @@ export function verifyOtpCode(expectedHash: string, code: string): boolean {
 }
 
 /**
- * Club/Tenant slug from a plaintext name.
+ * Tenant slug from a plaintext name.
  * Lowercase, ASCII, only a-z0-9 and hyphen.
  * Whitespace and special characters are collapsed to '-'.
- * The result is never empty (fallback `'verein'`).
+ * The result is never empty (fallback `'tenant'`).
  */
 export function slugify(name: string): string {
     const transliterated = name
@@ -45,5 +45,5 @@ export function slugify(name: string): string {
         .normalize('NFKD')
         .replace(/[̀-ͯ]/g, '');
     const slug = transliterated.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    return slug || 'verein';
+    return slug || 'tenant';
 }

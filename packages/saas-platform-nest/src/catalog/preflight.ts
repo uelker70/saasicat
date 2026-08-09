@@ -47,7 +47,7 @@ export interface PreflightFinding {
     kind: 'plan' | 'bundle';
     /** ID of the specific version the violation is attached to. */
     versionId: string;
-    /** Human-readable key for the UI: `STARTER` or `BANKING` or `SPORT_VEREIN`. */
+    /** Human-readable key for the UI: `STARTER` or `BANKING` or `COMMUNICATION`. */
     entityKey: string;
     /** Version number. */
     version: number;
