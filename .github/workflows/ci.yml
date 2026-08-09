@@ -1,98 +1,105 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+    push:
+        branches: [main]
+    pull_request:
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Enable corepack
-        run: corepack enable
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build packages
-        run: pnpm -r build
-      - name: Run unit tests
-        run: pnpm -r --workspace-concurrency=1 test
-      - name: Lint
-        run: pnpm exec eslint .
-      - name: Typecheck
-        run: pnpm -r typecheck
-      # The example is the schema consumers copy from, so it must not fall
-      # behind the fragments it demonstrates. Exits 1 on drift.
-      - name: Schema drift (NotesApp example)
-        run: >
-          node packages/saas-platform-cli/bin/saasicat.js schema check
-          --prisma-schema=examples/notesapp/prisma/schema.prisma
+    build-and-test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+            - name: Enable corepack
+              run: corepack enable
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+            - name: Build packages
+              run: pnpm -r build
+            - name: Run unit tests
+              run: pnpm -r --workspace-concurrency=1 test
+            # SFC templates are invisible to the unit tests, which run against the
+            # built dist/. This covers the decisions components make while rendering.
+            - name: Run component tests
+              run: pnpm --filter @saasicat/ui-vue test:component
+            - name: Lint
+              run: pnpm exec eslint .
+            # Prettier is configured; without this nothing makes a diff obey it.
+            - name: Check formatting
+              run: pnpm run format:check
+            - name: Typecheck
+              run: pnpm -r typecheck
+            # The example is the schema consumers copy from, so it must not fall
+            # behind the fragments it demonstrates. Exits 1 on drift.
+            - name: Schema drift (NotesApp example)
+              run: >
+                  node packages/saas-platform-cli/bin/saasicat.js schema check
+                  --prisma-schema=examples/notesapp/prisma/schema.prisma
 
-  persistence-contract:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: saasicat_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Enable corepack
-        run: corepack enable
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build adapters and their workspace dependencies
-        run: pnpm --filter "@saasicat/adapter-prisma..." --filter "@saasicat/adapter-drizzle..." build
-      - name: Run persistence contract against PostgreSQL (adapter-prisma)
-        env:
-          SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
-        run: pnpm --filter "@saasicat/adapter-prisma" test:integration
-      - name: Run persistence contract against PostgreSQL (adapter-drizzle)
-        env:
-          SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
-        run: pnpm --filter "@saasicat/adapter-drizzle" test:integration
+    persistence-contract:
+        runs-on: ubuntu-latest
+        services:
+            postgres:
+                image: postgres:16
+                env:
+                    POSTGRES_PASSWORD: test
+                    POSTGRES_DB: saasicat_test
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -U postgres"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+            - name: Enable corepack
+              run: corepack enable
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+            - name: Build adapters and their workspace dependencies
+              run: pnpm --filter "@saasicat/adapter-prisma..." --filter "@saasicat/adapter-drizzle..." build
+            - name: Run persistence contract against PostgreSQL (adapter-prisma)
+              env:
+                  SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
+              run: pnpm --filter "@saasicat/adapter-prisma" test:integration
+            - name: Run persistence contract against PostgreSQL (adapter-drizzle)
+              env:
+                  SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
+              run: pnpm --filter "@saasicat/adapter-drizzle" test:integration
 
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - name: Enable corepack
-        run: corepack enable
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build ui-vue and its workspace dependencies
-        run: pnpm --filter "@saasicat/ui-vue..." build
-      - name: Install Playwright browser
-        run: pnpm --filter "@saasicat/ui-vue" exec playwright install --with-deps chromium
-      - name: Run Playwright tests
-        run: pnpm --filter "@saasicat/ui-vue" test:e2e
+    e2e:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+            - name: Enable corepack
+              run: corepack enable
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+            - name: Build ui-vue and its workspace dependencies
+              run: pnpm --filter "@saasicat/ui-vue..." build
+            - name: Install Playwright browser
+              run: pnpm --filter "@saasicat/ui-vue" exec playwright install --with-deps chromium
+            - name: Run Playwright tests
+              run: pnpm --filter "@saasicat/ui-vue" test:e2e

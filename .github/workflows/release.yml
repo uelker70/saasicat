@@ -1,54 +1,54 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+    push:
+        branches: [main]
+    workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+    contents: write
+    pull-requests: write
+    id-token: write
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - name: Enable corepack
-        run: corepack enable
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build packages
-        run: pnpm -r build
-      # Scoped packages default to `restricted` on npm. The 0.2.0 release went
-      # out private despite `access: public` in .changeset/config.json and every
-      # publishConfig, which made the public scaffolder point at unreachable
-      # dependencies. Writing access=public into .npmrc makes it explicit at the
-      # one layer that always wins, regardless of what the toolchain forwards.
-      #
-      # Auth happens via npm Trusted Publishing (GitHub-OIDC, `id-token: write`
-      # above) — there is no NPM_TOKEN anymore. Every package must list this
-      # repo + workflow as a Trusted Publisher on npmjs.com, otherwise the
-      # publish fails with an auth error.
-      - name: Configure public access
-        run: echo "access=public" > ~/.npmrc
-      - name: Create release pull request or publish to npm
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          version: pnpm changeset version
-          publish: pnpm changeset publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+            - name: Enable corepack
+              run: corepack enable
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+            - name: Build packages
+              run: pnpm -r build
+            # Scoped packages default to `restricted` on npm. The 0.2.0 release went
+            # out private despite `access: public` in .changeset/config.json and every
+            # publishConfig, which made the public scaffolder point at unreachable
+            # dependencies. Writing access=public into .npmrc makes it explicit at the
+            # one layer that always wins, regardless of what the toolchain forwards.
+            #
+            # Auth happens via npm Trusted Publishing (GitHub-OIDC, `id-token: write`
+            # above) — there is no NPM_TOKEN anymore. Every package must list this
+            # repo + workflow as a Trusted Publisher on npmjs.com, otherwise the
+            # publish fails with an auth error.
+            - name: Configure public access
+              run: echo "access=public" > ~/.npmrc
+            - name: Create release pull request or publish to npm
+              id: changesets
+              uses: changesets/action@v1
+              with:
+                  version: pnpm changeset version
+                  publish: pnpm changeset publish
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  NPM_CONFIG_PROVENANCE: 'true'
