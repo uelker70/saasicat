@@ -99,7 +99,7 @@ function statusOf(v: BundleVersionRow) {
 }
 
 function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
-    return bundleStatusMeta(statusOf(v), locale.value);
+    return bundleStatusMeta(statusOf(v), msg.value);
 }
 </script>
 

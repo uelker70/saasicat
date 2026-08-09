@@ -1,22 +1,21 @@
 // Formatting helper retained for the reusable catalog-history timeline.
 
 import { formatMessage } from '../../client/i18n/format.js';
-import { DEFAULT_SA_LOCALE, builtinLocaleOf, type SaLocale } from '../../client/i18n/locale.js';
-import { planVersionsMessages } from '../../client/i18n/messages/plan-versions.js';
+import type { SaMessages } from '../../client/i18n/messages.js';
+
+// The resolved slice, not a locale code: only this way do an app-supplied
+// language and `i18n.overrides` reach the relative-date wording.
+type SaPlanVersionsMessages = SaMessages['planVersions'];
 
 const EMPTY_VALUE = '—';
 
-function texts(locale: SaLocale) {
-    return planVersionsMessages[builtinLocaleOf(locale)].format;
-}
-
 export function formatRelative(
     iso: string | undefined,
-    locale: SaLocale = DEFAULT_SA_LOCALE,
+    planVersions: SaPlanVersionsMessages,
     now: Date = new Date(),
 ): string {
     if (!iso) return EMPTY_VALUE;
-    const msg = texts(locale);
+    const msg = planVersions.format;
     const d = new Date(iso);
     const diffMs = now.getTime() - d.getTime();
     const days = Math.floor(diffMs / 86_400_000);

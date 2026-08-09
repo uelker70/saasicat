@@ -9,7 +9,7 @@
             </div>
             <div class="sa-trans-fields">
                 <div v-for="f in fields" :key="f" class="sa-trans-field">
-                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f, uiLocale) }}</label>
+                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f, msg, common) }}</label>
                     <q-input
                         v-if="f !== 'unit'"
                         dense
@@ -47,7 +47,7 @@
             </div>
             <div class="sa-trans-fields">
                 <div v-for="f in fields" :key="f" class="sa-trans-field">
-                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f, uiLocale) }}</label>
+                    <label class="sa-trans-field__cap">{{ i18nFieldLabel(f, msg, common) }}</label>
                     <q-input
                         dense
                         outlined
@@ -71,7 +71,7 @@
 import { computed, reactive } from 'vue';
 import type { CatalogEntryI18nFields } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
-import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import {
     DISCOVERY_DEFAULT_LOCALE,
     i18nFieldLabel,
@@ -107,7 +107,7 @@ const emit = defineEmits<{
 
 const msg = useSaMessages('discovery');
 // Renamed: `locale` is the catalog-entry data locale everywhere else in this file.
-const { locale: uiLocale } = useSuperAdminI18n();
+const common = useSaMessages('common');
 
 const targetLocales = computed(() => props.activeLocales.filter((l) => l !== props.defaultLocale));
 

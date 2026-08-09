@@ -73,7 +73,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { formatMessage } from '../../client/i18n/format.js';
-import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { CatalogSnapshot } from './catalog-history.types.js';
 import { formatRelative } from './format.js';
 
@@ -91,7 +91,6 @@ const emit = defineEmits<{
 }>();
 
 const msg = useSaMessages('planVersions');
-const { locale } = useSuperAdminI18n();
 
 const snapshotCountLabel = computed(() =>
     formatMessage(msg.value.timeline.snapshotCount, { count: props.snapshots.length }),
@@ -109,7 +108,7 @@ function metaText(s: CatalogSnapshot): string {
             ? msg.value.timeline.noOpenDrafts
             : formatMessage(msg.value.timeline.openCount, { count: s.draftCount });
     }
-    if (s.publishedAt) return formatRelative(s.publishedAt, locale.value);
+    if (s.publishedAt) return formatRelative(s.publishedAt, msg.value);
     return msg.value.timeline.unknown;
 }
 </script>

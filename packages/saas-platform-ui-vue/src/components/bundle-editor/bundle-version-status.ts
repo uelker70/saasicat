@@ -6,13 +6,8 @@
 
 import type { BundleVersionRow, PlanVersionRow } from '@saasicat/types';
 
-import {
-    SA_INTL_LOCALES,
-    builtinLocaleOf,
-    type SaBuiltinLocale,
-    type SaLocale,
-} from '../../client/i18n/locale.js';
-import { bundlesMessages } from '../../client/i18n/messages/bundles.js';
+import { SA_INTL_LOCALES, type SaBuiltinLocale, type SaLocale } from '../../client/i18n/locale.js';
+import type { SaMessages } from '../../client/i18n/messages.js';
 
 /** UI lifecycle status of a single BundleVersion. */
 export type BundleVersionUiStatus = 'draft' | 'live' | 'scheduled' | 'superseded';
@@ -67,12 +62,16 @@ const BUNDLE_STATUS_CLASS: Record<BundleAggregateStatus, BundleStatusMeta['cls']
     retired: 'supersed',
 };
 
-/** Label, chip class and tooltip for a status in the given UI locale. */
+/**
+ * Label, chip class and tooltip for a status. Takes the resolved slice rather
+ * than a locale code — that is what lets an app-supplied language and
+ * `i18n.overrides` reach these labels.
+ */
 export function bundleStatusMeta(
     status: BundleAggregateStatus,
-    locale: SaLocale,
+    bundles: SaMessages['bundles'],
 ): BundleStatusMeta {
-    const texts = bundlesMessages[builtinLocaleOf(locale)].status[status];
+    const texts = bundles.status[status];
     return { label: texts.label, cls: BUNDLE_STATUS_CLASS[status], tooltip: texts.tooltip };
 }
 
