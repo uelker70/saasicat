@@ -98,6 +98,7 @@ import {
     useSuperAdminLoginAdapter,
 } from '../vue/use-super-admin-context.js';
 import { getJson } from '../client/http-json.js';
+import { isProductionBoot, resolveLoginBranding } from '../client/login-branding.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import LocaleSwitcher from '../components/LocaleSwitcher.vue';
 import SuperAdminSetupWizard from './SuperAdminSetupWizard.vue';
@@ -128,18 +129,16 @@ const errorMessage = ref<string | null>(null);
 // wizard instead of the login. Apps without a SetupModule return 404 → stays false.
 const needsSetup = ref(false);
 
-const brandName = computed(() => boot.boot.value?.project.displayName ?? brand.name);
-const tagText = computed(() => boot.boot.value?.project.label ?? brand.tag ?? 'SuperAdmin');
-const iconText = computed(() => boot.boot.value?.project.icon ?? brand.logoText);
-const logoUrl = computed(() => boot.boot.value?.project.logoUrl ?? null);
-const bootEnvironment = computed(() => {
-    const env = boot.boot.value?.project.environment;
-    return env && env !== 'production' ? env : null;
-});
+const branding = computed(() => resolveLoginBranding(boot.boot.value, brand));
+const brandName = computed(() => branding.value.name);
+const tagText = computed(() => branding.value.tag);
+const iconText = computed(() => branding.value.icon);
+const logoUrl = computed(() => branding.value.logoUrl);
+const bootEnvironment = computed(() => branding.value.environment);
 
 const devHint = computed(() => {
     if (!adapter.devHint) return null;
-    if (boot.boot.value?.project.environment === 'production') return null;
+    if (isProductionBoot(boot.boot.value)) return null;
     return adapter.devHint;
 });
 

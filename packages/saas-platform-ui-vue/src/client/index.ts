@@ -24,3 +24,4 @@ export * from './action-registry.js';
 export * from './batch-column-fetcher.js';
 export * from './admin-resource-client.js';
 export * from './i18n/index.js';
+export * from './login-branding.js';
