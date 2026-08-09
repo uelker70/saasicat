@@ -1,7 +1,4 @@
 <template>
-    <!-- Outside the setup/login branch so the first-run wizard carries the
-         switcher as well — both render on the same dark full-page background. -->
-    <LocaleSwitcher class="sa-login-locale" />
     <SuperAdminSetupWizard
         v-if="needsSetup"
         :display-name="brandName"
@@ -21,6 +18,7 @@
                     <div class="sa-login-brand__name">{{ brandName }}</div>
                     <div class="sa-login-brand__tag">{{ tagText }}</div>
                 </div>
+                <LocaleSwitcher class="sa-login-locale" />
             </div>
 
             <h1 class="sa-login-title">{{ msg.login.signIn }}</h1>
@@ -198,13 +196,11 @@ async function handleSubmit(): Promise<void> {
 
 <style scoped>
 .sa-login-locale {
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    z-index: 1;
-    /* The page paints its own dark background instead of inheriting a chrome
-       color, so the switcher needs the light foreground explicitly. */
-    color: #cbd5e1;
+    /* In the card's flow rather than floating over it: a fixed overlay lands
+       on top of the centered card on short viewports. */
+    margin-left: auto;
+    align-self: flex-start;
+    color: var(--sa-login-tag-color, #475569);
 }
 .sa-login-wrap {
     min-height: 100vh;

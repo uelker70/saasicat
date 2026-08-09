@@ -92,8 +92,10 @@ createSuperAdminApp({
 });
 ```
 
-Pass a `Ref<SaLocale>` instead of a literal to switch at runtime, and
-`i18n.overrides` to replace individual strings per locale. Components read the
+Users switch languages themselves through the shell's `LocaleSwitcher` (header
+and login page); the pick is remembered. `i18n.switcher: false` removes it for a
+single-language deployment, a `Ref<SaLocale>` hands the value to the app, and
+`i18n.overrides` replaces individual strings per locale. Components read the
 catalog via `useSaMessages('<namespace>')` / `useSuperAdminI18n()`.
 See [handbook §8.6](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md#86-ui-language-i18n).
 

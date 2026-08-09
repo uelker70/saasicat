@@ -4,7 +4,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ref, nextTick } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 
 import {
     DEFAULT_SA_LOCALE,
@@ -127,6 +127,38 @@ describe('createSuperAdminI18n', () => {
         locale.value = 'en';
         await nextTick();
         assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), null);
+    });
+});
+
+describe('switcher availability', () => {
+    test('enabled by default', () => {
+        assert.equal(createSuperAdminI18n({ storage: buildStorage() }).switcherEnabled, true);
+    });
+
+    test('switcher: false turns it off', () => {
+        const i18n = createSuperAdminI18n({ switcher: false, storage: buildStorage() });
+        assert.equal(i18n.switcherEnabled, false);
+    });
+
+    test('a writable Ref keeps it on', () => {
+        const i18n = createSuperAdminI18n({ locale: ref('de'), storage: buildStorage() });
+        assert.equal(i18n.switcherEnabled, true);
+    });
+
+    test('a writable computed keeps it on', () => {
+        const source = ref('de');
+        const writable = computed({ get: () => source.value, set: (v) => (source.value = v) });
+        const i18n = createSuperAdminI18n({ locale: writable, storage: buildStorage() });
+        assert.equal(i18n.switcherEnabled, true);
+    });
+
+    test('a readonly computed turns it off — writes would be swallowed', () => {
+        const source = ref('de');
+        const i18n = createSuperAdminI18n({
+            locale: computed(() => source.value),
+            storage: buildStorage(),
+        });
+        assert.equal(i18n.switcherEnabled, false);
     });
 });
 

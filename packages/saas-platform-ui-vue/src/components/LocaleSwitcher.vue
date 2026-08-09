@@ -1,5 +1,6 @@
 <template>
     <q-btn
+        v-if="switcherEnabled"
         class="sa-locale-switcher"
         flat
         dense
@@ -35,11 +36,14 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 // locale, so every catalog text, the sidebar labels and `Intl` formatting
 // follow on the next render.
 //
-// The button inherits its color from the surrounding chrome (`currentColor`);
-// on the dark header and the login background that is already the light text
-// color, so no variant prop is needed.
+// The button inherits its color from the surrounding chrome (`currentColor`),
+// so it needs no variant prop — each host sets the color it wants.
+//
+// It renders nothing when the app opted out of the switcher or handed over a
+// locale it does not allow writing to; hosts therefore embed it unconditionally
+// and never have to repeat that check.
 
-const { locale } = useSuperAdminI18n();
+const { locale, switcherEnabled } = useSuperAdminI18n();
 const msg = useSaMessages('shell');
 
 function select(next: SaLocale): void {
