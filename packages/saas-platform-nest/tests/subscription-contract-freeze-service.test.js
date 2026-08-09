@@ -25,14 +25,21 @@ const CATALOG = {
     ],
 };
 
-function makeService({ previousContract = null, bundles = { lineItems: [], bundleVersionIds: [] } } = {}) {
+function makeService({
+    previousContract = null,
+    bundles = { lineItems: [], bundleVersionIds: [] },
+} = {}) {
     const calls = { terminated: [], created: [], invalidated: 0 };
     const entitlements = {
         invalidateTenant() {
             calls.invalidated += 1;
         },
         async computeLimits() {
-            return { plan: 'STANDARD', quotas: { users: 8, members: 1000 }, features: new Set(['CORE', 'WHATSAPP']) };
+            return {
+                plan: 'STANDARD',
+                quotas: { users: 8, members: 1000 },
+                features: new Set(['CORE', 'WHATSAPP']),
+            };
         },
     };
     const contracts = {
@@ -55,13 +62,24 @@ function makeService({ previousContract = null, bundles = { lineItems: [], bundl
             return bundles;
         },
     };
-    const service = new SubscriptionContractFreezeService(CATALOG, entitlements, contracts, 'demo', source);
+    const service = new SubscriptionContractFreezeService(
+        CATALOG,
+        entitlements,
+        contracts,
+        'demo',
+        source,
+    );
     return { calls, service };
 }
 
 test('freezes plan as active contract with snapshot + plan line item', async () => {
     const { calls, service } = makeService();
-    await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', new Date('2026-06-09T00:00:00.000Z'));
+    await service.freezeOnPlanChange(
+        't1',
+        'STANDARD',
+        'MONTHLY',
+        new Date('2026-06-09T00:00:00.000Z'),
+    );
 
     assert.equal(calls.created.length, 1);
     const contract = calls.created[0];
@@ -82,7 +100,12 @@ test('freezes plan as active contract with snapshot + plan line item', async () 
 
 test('supersedes the previous active contract before creating the new one', async () => {
     const { calls, service } = makeService({ previousContract: { id: 'old-1' } });
-    await service.freezeOnPlanChange('t1', 'STANDARD', 'YEARLY', new Date('2026-06-09T00:00:00.000Z'));
+    await service.freezeOnPlanChange(
+        't1',
+        'STANDARD',
+        'YEARLY',
+        new Date('2026-06-09T00:00:00.000Z'),
+    );
 
     assert.equal(calls.terminated.length, 1);
     assert.equal(calls.terminated[0].id, 'old-1');
@@ -110,7 +133,12 @@ test('appends consumer bundle line items + version ids', async () => {
     const { calls, service } = makeService({
         bundles: { lineItems: [bundleLine], bundleVersionIds: ['bv-1'] },
     });
-    await service.freezeOnPlanChange('t1', 'STANDARD', 'MONTHLY', new Date('2026-06-09T00:00:00.000Z'));
+    await service.freezeOnPlanChange(
+        't1',
+        'STANDARD',
+        'MONTHLY',
+        new Date('2026-06-09T00:00:00.000Z'),
+    );
 
     const contract = calls.created[0];
     assert.equal(contract.lineItems.length, 2);

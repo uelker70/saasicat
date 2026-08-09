@@ -61,10 +61,7 @@ export class EnforceQuotaInterceptor implements NestInterceptor {
         return from(this.check(context, meta)).pipe(switchMap(() => next.handle()));
     }
 
-    private async check(
-        context: ExecutionContext,
-        meta: EnforceQuotaMetadataShape,
-    ): Promise<void> {
+    private async check(context: ExecutionContext, meta: EnforceQuotaMetadataShape): Promise<void> {
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         const user = request.user;
         if (!user) return; // without a user: no tenant, no limit check (auth guard should 401 first)

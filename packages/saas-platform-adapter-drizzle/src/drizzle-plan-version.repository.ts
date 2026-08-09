@@ -1,7 +1,13 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { PlanVersionRecord, PlanVersionRepository, TransactionContext } from '@saasicat/types';
-import { DRIZZLE_DB_TOKEN, resolveDb, toQuotaMap, toStringArray, type DrizzleClient } from './client.js';
+import {
+    DRIZZLE_DB_TOKEN,
+    resolveDb,
+    toQuotaMap,
+    toStringArray,
+    type DrizzleClient,
+} from './client.js';
 import { planVersions } from './schema.js';
 
 /**

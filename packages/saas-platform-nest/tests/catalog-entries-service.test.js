@@ -342,7 +342,12 @@ describe('CatalogEntriesService', () => {
             const noSnapshotSvc = new CatalogEntriesService(repo, null);
             await assert.rejects(
                 () =>
-                    noSnapshotSvc.reviewFeature(PROJECT, 'A', { discoveryStatus: 'approved' }, null),
+                    noSnapshotSvc.reviewFeature(
+                        PROJECT,
+                        'A',
+                        { discoveryStatus: 'approved' },
+                        null,
+                    ),
                 /Discovery-Snapshot/,
             );
         });
@@ -441,9 +446,7 @@ describe('CatalogEntriesService', () => {
             await svc.reviewFeature(PROJECT, 'TRAINING', { discoveryStatus: 'approved' }, null);
 
             const snap2 = snapshot({
-                caps: [
-                    cap('training.plan', { feature: 'TRAINING', requires: ['RESOURCES'] }),
-                ],
+                caps: [cap('training.plan', { feature: 'TRAINING', requires: ['RESOURCES'] })],
                 features: [
                     {
                         featureKey: 'TRAINING',
@@ -607,7 +610,11 @@ describe('CatalogEntriesService', () => {
             });
             await repo.setFeatureBase(PROJECT, 'MEMBER_MANAGEMENT', { icon: 'custom_icon' });
             const registry = {
-                MEMBER_MANAGEMENT: { label: 'Registry', description: 'Registry', icon: 'registry_icon' },
+                MEMBER_MANAGEMENT: {
+                    label: 'Registry',
+                    description: 'Registry',
+                    icon: 'registry_icon',
+                },
             };
             const svc = new CatalogEntriesService(repo, snap, {}, null, registry);
             await svc.onApplicationBootstrap();
@@ -627,7 +634,11 @@ describe('CatalogEntriesService', () => {
                 discoveryStatus: 'pending',
             });
             const registry = {
-                MEMBER_MANAGEMENT: { label: 'Mitgliederverwaltung', description: 'd', icon: 'groups' },
+                MEMBER_MANAGEMENT: {
+                    label: 'Mitgliederverwaltung',
+                    description: 'd',
+                    icon: 'groups',
+                },
             };
             const svc = new CatalogEntriesService(repo, snap, {}, null, registry);
             await svc.onApplicationBootstrap();

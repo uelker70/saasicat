@@ -1120,9 +1120,9 @@ createSuperAdminApp({
     i18n: {
         additionalLocales: {
             fr: {
-                label: 'Français',          // shown in the switcher
-                intlLocale: 'fr-FR',        // for dates and numbers
-                basedOn: 'en',              // fills whatever you leave out
+                label: 'Français', // shown in the switcher
+                intlLocale: 'fr-FR', // for dates and numbers
+                basedOn: 'en', // fills whatever you leave out
                 messages: { common: { save: 'Enregistrer' } },
             },
         },
@@ -1224,12 +1224,8 @@ Optional but strongly recommended integration for ops workflows.
 @Module({
     imports: [
         PrismaModule,
-        PlanCatalogModule.forRoot({
-            /* like 6.4 */
-        }),
-        PlatformAdminModule.forRoot({
-            /* like 6.5 */
-        }),
+        PlanCatalogModule.forRoot({/* like 6.4 */}),
+        PlatformAdminModule.forRoot({/* like 6.5 */}),
         CliContextModule.forRoot({
             config: {
                 adminEmailEnvVar: 'MYAPP_ADMIN_EMAIL',

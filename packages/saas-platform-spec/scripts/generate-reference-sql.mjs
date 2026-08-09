@@ -27,9 +27,7 @@ export function composeFragments() {
         '}',
         '',
     ].join('\n');
-    const body = fragments
-        .map((file) => readFileSync(join(fragmentsDir, file), 'utf8'))
-        .join('\n');
+    const body = fragments.map((file) => readFileSync(join(fragmentsDir, file), 'utf8')).join('\n');
     return { schema: `${header}\n${body}`, fragments };
 }
 
@@ -74,8 +72,7 @@ export function generateReferenceSql() {
     }
 }
 
-const invokedDirectly =
-    process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+const invokedDirectly = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (invokedDirectly) {
     const sql = generateReferenceSql();
     const target = join(specRoot, 'sql', 'reference-schema.postgres.sql');

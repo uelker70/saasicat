@@ -1,11 +1,7 @@
 // DTOs for the catalog-entries endpoints (discovery review, SPEC_V2 §6.3 + #20).
 
 import { IsIn, IsObject, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
-import type {
-    CatalogEntryI18n,
-    DiscoverySnapshot,
-    DiscoveryStatus,
-} from '@saasicat/types';
+import type { CatalogEntryI18n, DiscoverySnapshot, DiscoveryStatus } from '@saasicat/types';
 
 const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const REVIEW_STATUSES = ['pending', 'approved', 'outdated', 'obsolete'] as const;

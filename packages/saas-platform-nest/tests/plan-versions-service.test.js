@@ -13,7 +13,12 @@ const PROJECT = 'clubapp';
 async function setupWithPlan(planKey = 'STARTER', subscriptions = null) {
     const repo = new FakePlanRepository();
     const stem = new PlansService(repo);
-    const versions = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' }, subscriptions);
+    const versions = new PlanVersionsService(
+        repo,
+        null,
+        { strictModeCheckMode: 'warn-only' },
+        subscriptions,
+    );
     const plan = await stem.createPlan({
         projectKey: PROJECT,
         planKey,

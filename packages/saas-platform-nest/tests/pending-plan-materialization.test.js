@@ -24,7 +24,10 @@ function makeDeps(due) {
             calls.invalidated.push(tenantId);
         },
     };
-    return { calls, service: new PendingPlanMaterializationService(query, subscriptionWrite, entitlements) };
+    return {
+        calls,
+        service: new PendingPlanMaterializationService(query, subscriptionWrite, entitlements),
+    };
 }
 
 test('materializes all due pending plan changes and invalidates each tenant', async () => {

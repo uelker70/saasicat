@@ -58,7 +58,6 @@ export class CreateCheckoutOfferDto {
     @IsString({ each: true })
     bundleVersionIds?: string[];
 
-
     @IsDefined()
     @IsObject()
     priceBreakdown!: CheckoutOfferPriceBreakdown;
@@ -109,7 +108,6 @@ export class UpdateCheckoutOfferDto {
     @IsArray()
     @IsString({ each: true })
     bundleVersionIds?: string[];
-
 
     @IsOptional()
     @IsObject()

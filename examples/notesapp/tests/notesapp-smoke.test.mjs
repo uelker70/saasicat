@@ -9,10 +9,7 @@ import assert from 'node:assert/strict';
 import { Test } from '@nestjs/testing';
 // StaticEntitlementService MUST come from the same entry as the test
 // module factory (bundle identity — see @saasicat/nest/testing docs).
-import {
-    createSaasPlatformTestModule,
-    StaticEntitlementService,
-} from '@saasicat/nest/testing';
+import { createSaasPlatformTestModule, StaticEntitlementService } from '@saasicat/nest/testing';
 import { DefinesQuota } from '@saasicat/nest/discovery';
 
 // In-memory stand-in for NotesQuotaProvider — app tests stub the counting

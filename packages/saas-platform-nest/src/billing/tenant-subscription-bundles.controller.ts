@@ -47,11 +47,7 @@ import {
     type Type,
     UseGuards,
 } from '@nestjs/common';
-import type {
-    BillingCycle,
-    SubscriptionUsagePort,
-    SubscriptionUsageRecord,
-} from '@saasicat/types';
+import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/types';
 
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';

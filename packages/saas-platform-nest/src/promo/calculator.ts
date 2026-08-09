@@ -4,11 +4,7 @@
 // types from @saasicat/types. This makes it equally usable for all
 // consuming apps (including those working purely via the wire format).
 
-import type {
-    BillingCycle,
-    PromoCodeDurationType,
-    PromoCodeValueType,
-} from '@saasicat/types';
+import type { BillingCycle, PromoCodeDurationType, PromoCodeValueType } from '@saasicat/types';
 import { round2 } from './math.js';
 
 /** Structural view of a PromoCode for the calculator functions.

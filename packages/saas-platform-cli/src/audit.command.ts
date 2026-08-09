@@ -69,7 +69,11 @@ export class AuditTailCommand extends CommandRunner {
 }
 
 @Injectable()
-@Command({ name: 'audit', description: 'Audit-Log-Operations (tail)', subCommands: [AuditTailCommand] })
+@Command({
+    name: 'audit',
+    description: 'Audit-Log-Operations (tail)',
+    subCommands: [AuditTailCommand],
+})
 export class AuditCommands extends CommandRunner {
     async run(): Promise<void> {
         process.stderr.write('Bitte Sub-Command angeben: tail.\n');

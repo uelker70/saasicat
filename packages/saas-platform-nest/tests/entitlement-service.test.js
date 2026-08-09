@@ -194,7 +194,6 @@ describe('EntitlementService — deriveLimits + Resolution', () => {
         const limits = await svc.computeLimits('t1', NOW);
         assert.equal(limits.plan, 'PROFESSIONAL');
     });
-
 });
 
 describe('EntitlementService — V3 ContractLineItems', () => {

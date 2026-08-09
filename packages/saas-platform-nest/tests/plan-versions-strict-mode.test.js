@@ -97,7 +97,11 @@ describe('validatePlanDraft (pure)', () => {
 // PlanVersionsService: strict-check integration
 // ─────────────────────────────────────────────────────────────────
 
-async function setupService({ snapshot = null, mode = 'warn-only', marketedOnlyFeatures = [] } = {}) {
+async function setupService({
+    snapshot = null,
+    mode = 'warn-only',
+    marketedOnlyFeatures = [],
+} = {}) {
     const repo = new FakePlanRepository();
     const stem = new PlansService(repo);
     const versions = new PlanVersionsService(repo, snapshot, {
@@ -243,10 +247,20 @@ describe('PlanVersionsService — strict mode integration', () => {
         const repo = new FakePlanRepository();
         const stem = new PlansService(repo);
         // Constructor args: repo, snapshot(=null), config, subscriptions(=null), scanner
-        const versions = new PlanVersionsService(repo, null, { strictModeCheckMode: 'blocking' }, null, {
-            getSnapshot: () => snap,
+        const versions = new PlanVersionsService(
+            repo,
+            null,
+            { strictModeCheckMode: 'blocking' },
+            null,
+            {
+                getSnapshot: () => snap,
+            },
+        );
+        const plan = await stem.createPlan({
+            projectKey: PROJECT,
+            planKey: 'STARTER',
+            label: 'Starter',
         });
-        const plan = await stem.createPlan({ projectKey: PROJECT, planKey: 'STARTER', label: 'Starter' });
         await assert.rejects(
             () =>
                 versions.createPlanDraft({

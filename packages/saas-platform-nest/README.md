@@ -9,9 +9,9 @@ backend, audit, MFA, adapter ports.
 import { computeDiscountGross, buildLabel, round2 } from '@saasicat/nest/promo';
 ```
 
-| Entry                  | Contents                                                                                                                                                                    |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@saasicat/nest/promo` | `computeDiscountGross`, `computeDiscountedGross`, `computeRegularStartsAt`, `addCycles`, `buildLabel`, `round2`, `grossFromNet`, `computeIncludedVat` — all pure functions  |
+| Entry                  | Contents                                                                                                                                                                   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@saasicat/nest/promo` | `computeDiscountGross`, `computeDiscountedGross`, `computeRegularStartsAt`, `addCycles`, `buildLabel`, `round2`, `grossFromNet`, `computeIncludedVat` — all pure functions |
 
 Further entries: `./billing`, `./entitlement`, `./admin`, `./registration`,
 `./discovery`, `./catalog`, `./checkout-offer`, `./subscription-contract`,

@@ -342,7 +342,13 @@ describe('BundlesService — Strict mode check', () => {
         const planRepo = new FakePlanRepository();
         await planRepo.create({ projectKey: PROJECT, planKey: 'STARTER', label: 'Starter' });
         const snapshot = buildSnapshot(['SEPA_DIRECT_DEBIT'], []);
-        service = new BundlesService(repo, snapshot, { strictModeCheckMode: 'warn-only' }, null, planRepo);
+        service = new BundlesService(
+            repo,
+            snapshot,
+            { strictModeCheckMode: 'warn-only' },
+            null,
+            planRepo,
+        );
         const bundle = await service.createBundle({
             projectKey: PROJECT,
             bundleKey: 'BANKING',

@@ -34,7 +34,7 @@ production outage.
 **Why:** `@saasicat/nest` is bundled by tsup/esbuild into **12 separate entry
 points** (`.`, `./promo`, `./billing`, `./admin`, …) in both ESM and CJS. A module
 that ends up in more than one chunk yields more than one copy, each with its own
-module scope — a token declared as plain `Symbol('X')` is then a *different*
+module scope — a token declared as plain `Symbol('X')` is then a _different_
 symbol per copy, and a provider registered through one entry silently fails to
 resolve when injected via a token imported from another.
 
@@ -50,12 +50,12 @@ below is what makes tokens survive all of those cases.
   which includes every token a consumer app injects an adapter into — MUST use the
   global symbol registry with the shared namespace:
 
-  ```ts
-  export const MFA_PORT_TOKEN = Symbol.for('saas-platform/MfaPort');
-  ```
+    ```ts
+    export const MFA_PORT_TOKEN = Symbol.for('saas-platform/MfaPort');
+    ```
 
-  `Symbol.for` resolves through the process-wide registry, so all bundle copies
-  agree on the same symbol.
+    `Symbol.for` resolves through the process-wide registry, so all bundle copies
+    agree on the same symbol.
 
 - Plain `Symbol('X')` is acceptable **only** for tokens created and consumed
   strictly within a single entry point, with no consumer-facing surface.
@@ -124,7 +124,7 @@ is never correct — the drift gate will reject it.
 
 ## Versioning and releases: Changesets (fixed group)
 
-All packages are versioned in **lockstep** via a Changesets *fixed group* — one
+All packages are versioned in **lockstep** via a Changesets _fixed group_ — one
 version number across the whole set, no compatibility matrix.
 
 Every user-facing change needs a changeset:
@@ -141,7 +141,7 @@ the release workflow in CI, not from local machines.
 ## Commits and pull requests
 
 - Short, imperative subject line ("Add OTP lockout to registration"), body only
-  when the *why* isn't obvious.
+  when the _why_ isn't obvious.
 - One logical change per PR. Include the changeset when applicable.
 - A PR is mergeable when `build`, `test`, `lint`, and `typecheck` are green.
 - Reference related issues in the PR description.

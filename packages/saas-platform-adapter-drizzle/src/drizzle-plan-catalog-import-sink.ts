@@ -44,7 +44,10 @@ export class DrizzlePlanCatalogImportSink implements PlanCatalogImportSink {
             .select({ id: planVersions.id })
             .from(planVersions)
             .where(
-                and(eq(planVersions.planId, input.planKey), eq(planVersions.version, input.version)),
+                and(
+                    eq(planVersions.planId, input.planKey),
+                    eq(planVersions.version, input.version),
+                ),
             )
             .limit(1);
         if (existing[0]) return { created: false, skipReason: 'exists' };
