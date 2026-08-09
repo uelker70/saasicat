@@ -14,7 +14,7 @@
         "@saasicat/ui-vue": "workspace:^",
         "axios": "^1.15.0",
         "pinia": "^3.0.0",
-        "quasar": "^2.22.0",
+        "quasar": "^2.24.0",
         "vue": "^3.5.0",
         "vue-router": "^4.5.0"
     },
