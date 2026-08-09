@@ -1,5 +1,12 @@
 # @saasicat/adapter-prisma
 
+## 0.17.0
+
+### Patch Changes
+
+- Updated dependencies [cbd1737]
+    - @saasicat/types@0.17.0
+
 ## 0.16.0
 
 ### Patch Changes

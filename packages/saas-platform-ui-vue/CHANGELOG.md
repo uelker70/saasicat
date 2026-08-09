@@ -1,5 +1,71 @@
 # @saasicat/ui-vue
 
+## 0.17.0
+
+### Minor Changes
+
+- 9ecbbff: Hand the language set to the app. The platform ships German and English and
+  stops there — which of them an app offers, and which languages it adds, is now
+  its own decision instead of a platform release.
+
+    - `i18n.locales` narrows the offered set. A single entry hides the switcher, and
+      the starting locale follows the selection, so an English-only app no longer
+      starts in German. A stored pick for a language the app dropped is ignored.
+    - `i18n.additionalLocales` adds languages the platform does not ship, each with
+      its switcher label, `Intl` tag and a deep-partial catalog. Untranslated keys
+      fall back to `basedOn` (default `'en'`), so a translation is usable from its
+      first key onwards.
+    - `i18n.storageKeyPrefix` separates apps that share one origin, mirroring
+      `createPlatformLoaders`.
+
+    Two defects surfaced on the way. `buildRoutes()` read the built-in catalogs by
+    locale code, so `i18n.overrides` never reached the sidebar and an app-supplied
+    language would have crashed it; it now takes the resolved `nav` catalog, which
+    `AdminLayout` passes. And an active locale the catalog cannot render falls back
+    instead of blanking the shell.
+
+    Breaking: `SaLocale` is now an open string type — the two the platform ships are
+    `SaBuiltinLocale`, and the guard `isSaLocale` is `isSaBuiltinLocale`. Catalog
+    maps (`SA_MESSAGES`, `SA_INTL_LOCALES`, `SA_LOCALE_LABELS`) are keyed by
+    `SaBuiltinLocale`.
+
+    Known gap: a few helper modules still index the built-in catalogs directly
+    (discovery status labels, relative dates, bundle status), so those strings stay
+    in the fallback language for an app-supplied locale. Everything reached through
+    `useSaMessages` translates fully.
+
+### Patch Changes
+
+- 4419016: Stop a partial boot response from taking the login card down. The card read
+  `boot.project.displayName` behind an optional chain that only guarded `boot`, so
+  a payload without `project` threw inside a computed and blanked the page on the
+  next render — which the language switcher made easy to trigger.
+
+    The brand projection now lives in `resolveLoginBranding()` / `isProductionBoot()`
+    in the client layer, guarded and unit-tested, instead of in the SFC where it
+    could not be reached by a test.
+
+- cbd1737: Remove consumer domain vocabulary from the platform.
+
+    `slugify()` fell back to the literal `'verein'` when a tenant name reduced to
+    nothing, and that value reaches the tenant slug during registration — so a car
+    dealership or a notes app could end up on a slug from someone else's business.
+    The fallback is now `'tenant'`, the platform's own term. This changes observable
+    output for degenerate input (empty, whitespace-only, or a name with no ASCII
+    letters).
+
+    Two placeholder texts in the shared catalogs carried club vocabulary as their
+    example — the bundle description ("for active clubs") and the marketing feature
+    label ("Membership management"). Both are now domain-neutral; apps that want
+    their own wording set it via `i18n.overrides`.
+
+    Doc comments that illustrate how an app supplies its _own_ vocabulary are kept
+    deliberately: they document the extension point rather than leak a domain into
+    the platform.
+
+- Updated dependencies [cbd1737]
+    - @saasicat/types@0.17.0
+
 ## 0.16.0
 
 ### Minor Changes
