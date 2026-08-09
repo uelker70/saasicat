@@ -3,7 +3,7 @@
 // namespace files via `defineMessages`.
 
 import { mergeMessages, type PartialMessages } from './define.js';
-import type { SaLocale } from './locale.js';
+import type { SaBuiltinLocale } from './locale.js';
 import { auditMessages } from './messages/audit.js';
 import { bundlesMessages } from './messages/bundles.js';
 import { commonMessages } from './messages/common.js';
@@ -46,7 +46,7 @@ export type SaMessages = {
 /** Shape of app-side string overrides (deep partial of the catalog). */
 export type SaMessagesOverrides = PartialMessages<SaMessages>;
 
-function catalogFor(locale: SaLocale): SaMessages {
+function catalogFor(locale: SaBuiltinLocale): SaMessages {
     return {
         common: commonMessages[locale],
         nav: navMessages[locale],
@@ -69,7 +69,7 @@ function catalogFor(locale: SaLocale): SaMessages {
 }
 
 /** Complete, immutable message catalogs per locale. */
-export const SA_MESSAGES: Record<SaLocale, SaMessages> = {
+export const SA_MESSAGES: Record<SaBuiltinLocale, SaMessages> = {
     de: catalogFor('de'),
     en: catalogFor('en'),
 };
@@ -78,7 +78,10 @@ export const SA_MESSAGES: Record<SaLocale, SaMessages> = {
  * Returns the platform catalog for `locale`, optionally overlaid with
  * app-side overrides.
  */
-export function resolveMessages(locale: SaLocale, overrides?: SaMessagesOverrides): SaMessages {
+export function resolveMessages(
+    locale: SaBuiltinLocale,
+    overrides?: SaMessagesOverrides,
+): SaMessages {
     if (!overrides) return SA_MESSAGES[locale];
     return mergeMessages(SA_MESSAGES[locale], overrides);
 }

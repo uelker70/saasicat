@@ -1,15 +1,27 @@
-// Supported display locales of the SuperAdmin UI. The platform ships a German
-// (reference) and an English catalog; consumers pick the locale per app or per
-// user via `createSuperAdminApp({ i18n })`.
+// Display locales of the SuperAdmin UI.
+//
+// The platform ships two complete catalogs — German (the reference that fixes
+// the key structure) and English — and nothing beyond that. Which of them an
+// app offers, whether it adds languages of its own, and what vocabulary it
+// prefers is the app's call, made through `createSuperAdminApp({ i18n })`.
 
-export type SaLocale = 'de' | 'en';
+/** Locales the platform itself ships a catalog for. */
+export type SaBuiltinLocale = 'de' | 'en';
 
-export const SA_LOCALES: readonly SaLocale[] = ['de', 'en'];
+/**
+ * Any locale the shell can run in: the built-ins plus whatever an app adds via
+ * `i18n.additionalLocales`. The `string & {}` arm keeps autocompletion for the
+ * built-ins while leaving the set open.
+ */
+export type SaLocale = SaBuiltinLocale | (string & {});
 
-export const DEFAULT_SA_LOCALE: SaLocale = 'de';
+/** The locales the platform ships. Apps narrow or extend this, see `i18n`. */
+export const SA_LOCALES: readonly SaBuiltinLocale[] = ['de', 'en'];
 
-/** BCP-47 tags used for `Intl`/`toLocaleString` formatting per UI locale. */
-export const SA_INTL_LOCALES: Record<SaLocale, string> = {
+export const DEFAULT_SA_LOCALE: SaBuiltinLocale = 'de';
+
+/** BCP-47 tags used for `Intl`/`toLocaleString` formatting per built-in locale. */
+export const SA_INTL_LOCALES: Record<SaBuiltinLocale, string> = {
     de: 'de-DE',
     en: 'en-US',
 };
@@ -19,12 +31,29 @@ export const SA_INTL_LOCALES: Record<SaLocale, string> = {
  * language, so the entries stay readable no matter which locale is active and
  * never need translating.
  */
-export const SA_LOCALE_LABELS: Record<SaLocale, string> = {
+export const SA_LOCALE_LABELS: Record<SaBuiltinLocale, string> = {
     de: 'Deutsch',
     en: 'English',
 };
 
-/** Narrows untrusted input (persisted preference, query parameter) to a locale. */
-export function isSaLocale(value: unknown): value is SaLocale {
+/** Narrows untrusted input to a locale the platform ships a catalog for. */
+export function isSaBuiltinLocale(value: unknown): value is SaBuiltinLocale {
     return typeof value === 'string' && (SA_LOCALES as readonly string[]).includes(value);
+}
+
+/**
+ * The built-in catalog a locale reads from. Helper modules that index the raw
+ * catalogs (rather than the resolved one from `useSaMessages`) need this: a
+ * language an app added has no entry there, and indexing it would yield
+ * `undefined` and take the page down.
+ *
+ * Strings resolved this way stay in the fallback language for an app-supplied
+ * locale — migrating those helpers to the resolved catalog is tracked
+ * separately.
+ */
+export function builtinLocaleOf(
+    locale: SaLocale | undefined,
+    fallback: SaBuiltinLocale = DEFAULT_SA_LOCALE,
+): SaBuiltinLocale {
+    return isSaBuiltinLocale(locale) ? locale : fallback;
 }

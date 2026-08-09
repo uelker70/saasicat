@@ -189,7 +189,7 @@ const emit = defineEmits<{
 
 const route = useRoute();
 const msg = useSaMessages('shell');
-const { locale } = useSuperAdminI18n();
+const { messages } = useSuperAdminI18n();
 // Provided by createSuperAdminApp(); null when the layout is mounted
 // stand-alone. Grouped into one object so the names cannot shadow the
 // same-named props inside the template.
@@ -227,13 +227,17 @@ const navSections = computed<NavSection[]>(() => {
         // section, so that the UI has no flicker before manifest load.
         return [{ title: null, items: [...props.staticNavFallback, ...props.localItems] }];
     }
+    // The resolved catalog rather than the bare locale: it carries
+    // `i18n.overrides` and languages the app added itself, neither of which the
+    // builder can look up from a locale code.
+    const nav = messages.value.nav;
     const routes = buildRoutes(m, {
-        locale: locale.value,
+        nav,
         standardPageRoutes: props.standardPageRoutes,
         standardPageNavSection: props.standardPageNavSection,
         availableExtensions: props.availableExtensions,
     });
-    const sections = buildSidebar(routes, props.sectionOrder ?? defaultSectionOrder(locale.value));
+    const sections = buildSidebar(routes, props.sectionOrder ?? defaultSectionOrder(nav));
     const result: NavSection[] = sections.map((s) => ({
         title: s.section,
         items: s.items.map((item) => ({

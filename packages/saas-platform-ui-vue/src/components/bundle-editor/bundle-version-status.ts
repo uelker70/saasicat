@@ -6,7 +6,12 @@
 
 import type { BundleVersionRow, PlanVersionRow } from '@saasicat/types';
 
-import { SA_INTL_LOCALES, type SaLocale } from '../../client/i18n/locale.js';
+import {
+    SA_INTL_LOCALES,
+    builtinLocaleOf,
+    type SaBuiltinLocale,
+    type SaLocale,
+} from '../../client/i18n/locale.js';
 import { bundlesMessages } from '../../client/i18n/messages/bundles.js';
 
 /** UI lifecycle status of a single BundleVersion. */
@@ -67,7 +72,7 @@ export function bundleStatusMeta(
     status: BundleAggregateStatus,
     locale: SaLocale,
 ): BundleStatusMeta {
-    const texts = bundlesMessages[locale].status[status];
+    const texts = bundlesMessages[builtinLocaleOf(locale)].status[status];
     return { label: texts.label, cls: BUNDLE_STATUS_CLASS[status], tooltip: texts.tooltip };
 }
 
@@ -155,10 +160,13 @@ export function formatDate(iso: string | null | undefined, locale: SaLocale): st
     const day = iso.slice(0, 10);
     const [y, m, d] = day.split('-');
     if (!y || !m || !d) return iso;
-    return new Date(`${day}T00:00:00Z`).toLocaleDateString(SA_INTL_LOCALES[locale], {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        timeZone: 'UTC',
-    });
+    return new Date(`${day}T00:00:00Z`).toLocaleDateString(
+        SA_INTL_LOCALES[locale as SaBuiltinLocale] ?? locale,
+        {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            timeZone: 'UTC',
+        },
+    );
 }

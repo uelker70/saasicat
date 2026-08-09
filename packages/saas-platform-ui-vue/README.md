@@ -93,10 +93,11 @@ createSuperAdminApp({
 ```
 
 Users switch languages themselves through the shell's `LocaleSwitcher` (header
-and login page); the pick is remembered. `i18n.switcher: false` removes it for a
-single-language deployment, a `Ref<SaLocale>` hands the value to the app, and
-`i18n.overrides` replaces individual strings per locale. Components read the
-catalog via `useSaMessages('<namespace>')` / `useSuperAdminI18n()`.
+and login page); the pick is remembered. Which languages an app offers is its
+own call: `i18n.locales` narrows the set, `i18n.additionalLocales` adds
+languages the platform does not ship, `i18n.overrides` replaces individual
+strings, and `i18n.switcher: false` drops the control entirely. Components read
+the catalog via `useSaMessages('<namespace>')` / `useSuperAdminI18n()`.
 See [handbook §8.6](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md#86-ui-language-i18n).
 
 ## Build

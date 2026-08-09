@@ -1089,38 +1089,81 @@ onMounted(() => {
 
 ### 8.6 UI Language (i18n)
 
-The SuperAdmin UI ships complete message catalogs in **German** (reference) and
-**English**. There is no `vue-i18n` dependency — the catalogs are plain typed
-objects, so consumers get autocompletion and a compile error when a key is
-missing.
+The platform ships two complete catalogs — **German** (the reference that fixes
+the key structure) and **English** — and deliberately nothing beyond that. Which
+of them your app offers, whether it adds languages of its own, and what wording
+it prefers is your decision, not the platform's. There is no `vue-i18n`
+dependency: the catalogs are plain typed objects, so you get autocompletion and
+a compile error when a key is missing.
 
-**Switching the language** is built into the shell — apps get it for free. The
-`AdminLayout` header, the login card and the first-run setup card each render a
-`LocaleSwitcher` listing every locale in `SA_LOCALES` by its own name. The pick
-is stored under the `sa:locale` key and survives reloads; when the browser
-denies storage access, switching still works for the session.
+**Out of the box** the `AdminLayout` header, the login card and the first-run
+setup card each render a `LocaleSwitcher` offering both languages by their own
+name. The pick is stored under `sa:locale` and survives reloads; when the browser
+denies storage access, switching still works for the session. Switching
+re-renders every catalog text, the sidebar labels and the drawer sections, and
+`Intl` formatting follows along.
 
-Switching re-renders every catalog text, the sidebar labels and the drawer
-section names; `Intl` formatting (dates, numbers) follows along.
-
-**Choosing the starting language** — via `createSuperAdminApp()`:
+**Offer fewer languages.** Narrow the set and the switcher disappears on its own
+— a control with one option is noise:
 
 ```ts
-const app = createSuperAdminApp({
-    // …
-    i18n: { locale: 'en' },
+createSuperAdminApp({ i18n: { locales: ['en'] } });
+```
+
+The starting locale follows: an English-only app starts in English without
+setting `locale`. A stored pick for a language you no longer offer is ignored.
+
+**Add your own language.** No fork, no platform release:
+
+```ts
+createSuperAdminApp({
+    i18n: {
+        additionalLocales: {
+            fr: {
+                label: 'Français',          // shown in the switcher
+                intlLocale: 'fr-FR',        // for dates and numbers
+                basedOn: 'en',              // fills whatever you leave out
+                messages: { common: { save: 'Enregistrer' } },
+            },
+        },
+    },
 });
 ```
 
-Default is `'de'`. This is the _default_ for a user who has not picked a
-language yet — a stored pick outranks it. Two ways to take control:
+`messages` is a deep partial, so a translation is usable from its first key
+onwards — untranslated keys render in `basedOn` (default `'en'`) instead of
+showing blanks. Order the switcher with `locales: ['fr', 'en']`.
+
+> **Known gap.** A few helper modules still read the built-in catalogs directly
+> (discovery status labels, relative dates, bundle status). Those strings stay
+> in the fallback language for an app-supplied locale. Everything reached
+> through `useSaMessages` — every standard page, the shell chrome, the sidebar —
+> translates fully.
+
+**Change individual words** without adding a language. Everything not listed
+keeps the platform text:
+
+```ts
+createSuperAdminApp({
+    i18n: {
+        overrides: {
+            en: { nav: { pages: { tenants: 'Dealerships' } } },
+            de: { nav: { pages: { tenants: 'Autohäuser' } } },
+        },
+    },
+});
+```
+
+**Choosing the starting language** — `'de'` when offered, otherwise the first
+entry of `locales`. This is the default for a user who has not picked yet; a
+stored pick outranks it. Three ways to take control:
 
 ```ts
 // (a) No persistence: every reload starts at `locale` again.
 createSuperAdminApp({ i18n: { locale: 'en', persist: false } });
 
-// (b) No switcher at all — a deployment that ships one language.
-createSuperAdminApp({ i18n: { locale: 'de', switcher: false } });
+// (b) No switcher at all, even with several languages on offer.
+createSuperAdminApp({ i18n: { switcher: false } });
 
 // (c) The app owns the value — e.g. bound to a user-profile setting. The
 //     platform then neither reads nor writes storage; persisting is on you.
@@ -1129,34 +1172,17 @@ const app = createSuperAdminApp({ i18n: { locale: uiLocale } });
 uiLocale.value = 'en'; // or: app.i18n.locale.value = 'en'
 ```
 
-The switcher writes to the same context in every variant, so it keeps working
-with an app-supplied `Ref` — as long as that ref is writable. Hand over a
-readonly `computed` and the switcher hides itself rather than presenting a
-control that silently does nothing.
+Hand over a readonly `computed` and the switcher hides itself rather than
+presenting a control whose writes go nowhere.
 
-Several apps on one origin share the `sa:locale` key. Pass `i18n.storage` with
-a key-prefixing `KvStore` to separate them.
+Several apps on one origin share the `sa:locale` key. Separate them with
+`i18n.storageKeyPrefix: 'admin:'`, mirroring `createPlatformLoaders`.
 
 To place the switcher in your own chrome as well — it renders nothing when
 disabled, so it needs no guard around it:
 
 ```ts
 import LocaleSwitcher from '@saasicat/ui-vue/components/LocaleSwitcher.vue';
-```
-
-**Overriding individual strings** — apps replace single keys without forking a
-page. Everything not listed keeps the platform text:
-
-```ts
-createSuperAdminApp({
-    i18n: {
-        locale: 'en',
-        overrides: {
-            en: { nav: { pages: { tenants: 'Dealerships' } } },
-            de: { nav: { pages: { tenants: 'Autohäuser' } } },
-        },
-    },
-});
 ```
 
 **Reading messages in your own components:**
@@ -1170,22 +1196,22 @@ const { locale, intlLocale } = useSuperAdminI18n();
 
 In the template `{{ msg.list.title }}`, in the script `msg.value.list.title`.
 For placeholders use `formatMessage(msg.value.deleteConfirm, { name })`. Outside
-a shell (isolated mounts, unit tests) the composables fall back to a German
+a shell (isolated mounts, unit tests) the composables fall back to a default
 instance, so no setup is required.
 
 **Tenant-facing pages** (`@saasicat/ui-vue/pages-tenant/*`) are embedded in the
 consumer's own app rather than the SuperAdmin shell and therefore keep their
-prop-based map (`TenantPlanSectionI18n`). They now ship a German **and** an
-English default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by
+prop-based map (`TenantPlanSectionI18n`). They ship a German **and** an English
+default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by
 `defaultTenantPlanSectionI18n(locale)`); the `i18n` prop still overrides
 individual keys.
 
-**Adding a language** is a platform change, not an app change: add the locale to
-`SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` (the switcher picks it up from
-there) and a third variant per namespace under
-`packages/saas-platform-ui-vue/src/client/i18n/messages/`. The German object is
-the reference structure — the compiler rejects a translation with missing or
-extra keys.
+**Adding a language to the platform itself** — as opposed to your app — means
+extending `SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` and adding a variant
+per namespace under `packages/saas-platform-ui-vue/src/client/i18n/messages/`.
+The German object is the reference structure; the compiler rejects a translation
+with missing or extra keys. For a single app, `additionalLocales` is the shorter
+road.
 
 ---
 

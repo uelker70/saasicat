@@ -4,7 +4,7 @@
 // labels/colors/coverage calculations.
 
 import type { CatalogEntryI18n, DiscoveryStatus } from '@saasicat/types';
-import { DEFAULT_SA_LOCALE, type SaLocale } from '../../client/i18n/locale.js';
+import { DEFAULT_SA_LOCALE, builtinLocaleOf, type SaLocale } from '../../client/i18n/locale.js';
 import { commonMessages } from '../../client/i18n/messages/common.js';
 import { discoveryMessages } from '../../client/i18n/messages/discovery.js';
 
@@ -43,19 +43,19 @@ export function localeFull(locale: string): string {
 }
 
 export function i18nFieldLabel(f: I18nField, locale: SaLocale = DEFAULT_SA_LOCALE): string {
-    if (f === 'label') return discoveryMessages[locale].trans.fieldLabel;
-    if (f === 'description') return commonMessages[locale].description;
-    return discoveryMessages[locale].unit;
+    if (f === 'label') return discoveryMessages[builtinLocaleOf(locale)].trans.fieldLabel;
+    if (f === 'description') return commonMessages[builtinLocaleOf(locale)].description;
+    return discoveryMessages[builtinLocaleOf(locale)].unit;
 }
 
 // ─── Approval lifecycle (#20): status display + state machine ────────────────
 
 export function statusLabel(status: DiscoveryStatus, locale: SaLocale = DEFAULT_SA_LOCALE): string {
-    return discoveryMessages[locale].statusLabels[status];
+    return discoveryMessages[builtinLocaleOf(locale)].statusLabels[status];
 }
 
 export function statusHint(status: DiscoveryStatus, locale: SaLocale = DEFAULT_SA_LOCALE): string {
-    return discoveryMessages[locale].statusHints[status];
+    return discoveryMessages[builtinLocaleOf(locale)].statusHints[status];
 }
 
 export interface ReviewAction {
@@ -71,7 +71,7 @@ export function primaryReviewAction(
     status: DiscoveryStatus,
     locale: SaLocale = DEFAULT_SA_LOCALE,
 ): ReviewAction {
-    const actions = discoveryMessages[locale].reviewActions;
+    const actions = discoveryMessages[builtinLocaleOf(locale)].reviewActions;
     switch (status) {
         case 'pending':
             return { label: actions.approve, to: 'approved', emphasized: true };
@@ -89,7 +89,7 @@ export function reviewMenuActions(
     status: DiscoveryStatus,
     locale: SaLocale = DEFAULT_SA_LOCALE,
 ): ReviewAction[] {
-    const actions = discoveryMessages[locale].reviewActions;
+    const actions = discoveryMessages[builtinLocaleOf(locale)].reviewActions;
     const markObsolete: ReviewAction = {
         label: actions.markObsolete,
         to: 'obsolete',

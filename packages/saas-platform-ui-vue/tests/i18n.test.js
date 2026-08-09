@@ -19,7 +19,8 @@ import {
     defaultSectionOrder,
     formatCurrency,
     formatMessage,
-    isSaLocale,
+    createSaCatalog,
+    isSaBuiltinLocale,
     mergeMessages,
     resolveMessages,
 } from '../dist/index.js';
@@ -56,12 +57,12 @@ describe('i18n locales', () => {
         }
     });
 
-    test('isSaLocale accepts known locales and rejects anything else', () => {
+    test('isSaBuiltinLocale accepts shipped locales and rejects anything else', () => {
         for (const locale of SA_LOCALES) {
-            assert.equal(isSaLocale(locale), true);
+            assert.equal(isSaBuiltinLocale(locale), true);
         }
         for (const value of ['fr', '', 'DE', null, undefined, 42, {}]) {
-            assert.equal(isSaLocale(value), false);
+            assert.equal(isSaBuiltinLocale(value), false);
         }
     });
 });
@@ -338,5 +339,135 @@ describe('locale-aware navigation defaults', () => {
             sidebar.map((s) => s.section),
             ['Overview', 'Customers', 'System'],
         );
+    });
+});
+
+describe('createSaCatalog — the app owns the language set', () => {
+    const FRENCH = {
+        label: 'Français',
+        intlLocale: 'fr-FR',
+        basedOn: 'en',
+        messages: { common: { save: 'Enregistrer' } },
+    };
+
+    test('ships German and English by default', () => {
+        assert.deepEqual(
+            createSaCatalog().locales.map((l) => l.code),
+            ['de', 'en'],
+        );
+    });
+
+    test('an app can offer a single language', () => {
+        const catalog = createSaCatalog({ locales: ['en'] });
+        assert.deepEqual(
+            catalog.locales.map((l) => l.code),
+            ['en'],
+        );
+        assert.equal(catalog.defaultLocale, 'en', 'must not start in a language it does not offer');
+    });
+
+    test('the offered order is the order given', () => {
+        assert.deepEqual(
+            createSaCatalog({ locales: ['en', 'de'] }).locales.map((l) => l.code),
+            ['en', 'de'],
+        );
+    });
+
+    test('a locale without a catalog is dropped instead of rendering blank', () => {
+        assert.deepEqual(
+            createSaCatalog({ locales: ['en', 'kl'] }).locales.map((l) => l.code),
+            ['en'],
+        );
+    });
+
+    test('an empty selection falls back to everything available', () => {
+        assert.deepEqual(
+            createSaCatalog({ locales: [] }).locales.map((l) => l.code),
+            ['de', 'en'],
+        );
+    });
+
+    test('an app-supplied language joins the switcher with its own name', () => {
+        const catalog = createSaCatalog({ additionalLocales: { fr: FRENCH } });
+        assert.deepEqual(
+            catalog.locales.map((l) => l.code),
+            ['de', 'en', 'fr'],
+        );
+        assert.equal(catalog.labelFor('fr'), 'Français');
+        assert.equal(catalog.intlLocaleFor('fr'), 'fr-FR');
+    });
+
+    test('a partial translation renders, filling gaps from basedOn', () => {
+        const catalog = createSaCatalog({ additionalLocales: { fr: FRENCH } });
+        const fr = catalog.messagesFor('fr');
+        assert.equal(fr.common.save, 'Enregistrer', 'translated key');
+        assert.equal(fr.common.cancel, SA_MESSAGES.en.common.cancel, 'untranslated falls back');
+    });
+
+    test('basedOn defaults to English rather than the reference locale', () => {
+        const catalog = createSaCatalog({
+            additionalLocales: { fr: { label: 'Français', intlLocale: 'fr-FR', messages: {} } },
+        });
+        assert.equal(catalog.messagesFor('fr').common.save, SA_MESSAGES.en.common.save);
+    });
+
+    test('overrides apply to app-supplied languages too', () => {
+        const catalog = createSaCatalog({
+            additionalLocales: { fr: FRENCH },
+            overrides: { fr: { common: { cancel: 'Annuler' } } },
+        });
+        assert.equal(catalog.messagesFor('fr').common.cancel, 'Annuler');
+    });
+
+    test('has() answers for built-ins and app languages alike', () => {
+        const catalog = createSaCatalog({ additionalLocales: { fr: FRENCH } });
+        assert.equal(catalog.has('de'), true);
+        assert.equal(catalog.has('fr'), true);
+        assert.equal(catalog.has('kl'), false);
+    });
+
+    test('resolution is cached — the same object comes back', () => {
+        const catalog = createSaCatalog({ additionalLocales: { fr: FRENCH } });
+        assert.equal(catalog.messagesFor('fr'), catalog.messagesFor('fr'));
+    });
+});
+
+describe('createSuperAdminI18n — app-owned languages end to end', () => {
+    const FRENCH = { label: 'Français', intlLocale: 'fr-FR', messages: {} };
+
+    test('a single offered language hides the switcher', () => {
+        const i18n = createSuperAdminI18n({ locales: ['en'], storage: buildStorage() });
+        assert.equal(i18n.switcherEnabled, false);
+        assert.equal(i18n.locale.value, 'en');
+    });
+
+    test('an app language can be selected and formats with its own tag', () => {
+        const i18n = createSuperAdminI18n({
+            additionalLocales: { fr: FRENCH },
+            storage: buildStorage(),
+        });
+        i18n.locale.value = 'fr';
+        assert.equal(i18n.intlLocale.value, 'fr-FR');
+        assert.equal(i18n.availableLocales.map((l) => l.code).includes('fr'), true);
+    });
+
+    test('a stored pick the app no longer offers is ignored', () => {
+        const storage = buildStorage({ [SA_LOCALE_STORAGE_KEY]: 'de' });
+        const i18n = createSuperAdminI18n({ locales: ['en'], storage });
+        assert.equal(i18n.locale.value, 'en');
+    });
+
+    test('an unknown active locale renders the default instead of blanking', () => {
+        const i18n = createSuperAdminI18n({ locale: ref('kl'), storage: buildStorage() });
+        assert.equal(i18n.messages.value.common.save, SA_MESSAGES.de.common.save);
+    });
+
+    test('storageKeyPrefix separates apps sharing one origin', async () => {
+        const storage = buildStorage();
+        const i18n = createSuperAdminI18n({ storageKeyPrefix: 'app-a:', storage });
+        i18n.locale.value = 'en';
+        await nextTick();
+        assert.equal(storage.get(`app-a:${SA_LOCALE_STORAGE_KEY}`), 'en');
+        assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), null, 'unprefixed key stays untouched');
     });
 });

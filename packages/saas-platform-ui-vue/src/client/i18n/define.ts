@@ -3,7 +3,7 @@
 // must mirror that structure exactly, enforced at compile time via
 // `TranslationOf`.
 
-import type { SaLocale } from './locale.js';
+import type { SaBuiltinLocale } from './locale.js';
 
 /** Nested string map — the shape of every message namespace. */
 export interface MessageTree {
@@ -27,7 +27,7 @@ export type PartialMessages<T> = {
 export function defineMessages<T extends MessageTree>(
     de: T,
     en: TranslationOf<T>,
-): Record<SaLocale, T> {
+): Record<SaBuiltinLocale, T> {
     // `TranslationOf<T>` and `T` are structurally identical for string-valued
     // trees; the cast only erases the mapped-type wrapper.
     return { de, en: en as T };
