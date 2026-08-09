@@ -1,5 +1,14 @@
 # @saasicat/cli
 
+## 0.17.0
+
+### Patch Changes
+
+- Updated dependencies [cbd1737]
+    - @saasicat/nest@0.17.0
+    - @saasicat/types@0.17.0
+    - @saasicat/spec@0.17.0
+
 ## 0.16.0
 
 ### Patch Changes
