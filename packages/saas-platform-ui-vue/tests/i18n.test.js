@@ -4,19 +4,34 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import { ref, nextTick } from 'vue';
+
 import {
     DEFAULT_SA_LOCALE,
     SA_INTL_LOCALES,
     SA_LOCALES,
+    SA_LOCALE_LABELS,
+    SA_LOCALE_STORAGE_KEY,
     SA_MESSAGES,
     buildRoutes,
     buildSidebar,
+    createSuperAdminI18n,
     defaultSectionOrder,
     formatCurrency,
     formatMessage,
+    isSaLocale,
     mergeMessages,
     resolveMessages,
 } from '../dist/index.js';
+
+function buildStorage(initial = {}) {
+    const map = new Map(Object.entries(initial));
+    return {
+        get: (k) => map.get(k) ?? null,
+        set: (k, v) => map.set(k, v),
+        remove: (k) => map.delete(k),
+    };
+}
 
 function collectLeafPaths(tree, prefix = '') {
     const paths = [];
@@ -33,11 +48,85 @@ describe('i18n locales', () => {
         assert.equal(DEFAULT_SA_LOCALE, 'de');
     });
 
-    test('every locale has a catalog and an Intl tag', () => {
+    test('every locale has a catalog, an Intl tag and a switcher label', () => {
         for (const locale of SA_LOCALES) {
             assert.ok(SA_MESSAGES[locale], `catalog missing for ${locale}`);
             assert.ok(SA_INTL_LOCALES[locale], `Intl tag missing for ${locale}`);
+            assert.ok(SA_LOCALE_LABELS[locale]?.trim(), `switcher label missing for ${locale}`);
         }
+    });
+
+    test('isSaLocale accepts known locales and rejects anything else', () => {
+        for (const locale of SA_LOCALES) {
+            assert.equal(isSaLocale(locale), true);
+        }
+        for (const value of ['fr', '', 'DE', null, undefined, 42, {}]) {
+            assert.equal(isSaLocale(value), false);
+        }
+    });
+});
+
+describe('createSuperAdminI18n', () => {
+    test('defaults to the platform locale', () => {
+        const { locale } = createSuperAdminI18n({ storage: buildStorage() });
+        assert.equal(locale.value, DEFAULT_SA_LOCALE);
+    });
+
+    test('switching the locale swaps the catalog and the Intl tag', () => {
+        const { locale, messages, intlLocale } = createSuperAdminI18n({ storage: buildStorage() });
+        locale.value = 'en';
+        assert.equal(messages.value.shell.header.logout, SA_MESSAGES.en.shell.header.logout);
+        assert.equal(intlLocale.value, SA_INTL_LOCALES.en);
+    });
+
+    test('the picked locale is written to storage', async () => {
+        const storage = buildStorage();
+        const { locale } = createSuperAdminI18n({ storage });
+        locale.value = 'en';
+        await nextTick();
+        assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), 'en');
+    });
+
+    test('a stored pick outranks the app default', () => {
+        const storage = buildStorage({ [SA_LOCALE_STORAGE_KEY]: 'en' });
+        const { locale } = createSuperAdminI18n({ locale: 'de', storage });
+        assert.equal(locale.value, 'en');
+    });
+
+    test('a corrupt stored value falls back to the app default', () => {
+        const storage = buildStorage({ [SA_LOCALE_STORAGE_KEY]: 'klingon' });
+        const { locale } = createSuperAdminI18n({ locale: 'en', storage });
+        assert.equal(locale.value, 'en');
+    });
+
+    test('persist: false does not read the stored pick', () => {
+        const storage = buildStorage({ [SA_LOCALE_STORAGE_KEY]: 'en' });
+        const { locale } = createSuperAdminI18n({ persist: false, storage });
+        assert.equal(locale.value, DEFAULT_SA_LOCALE);
+    });
+
+    test('persist: false does not write the picked locale', async () => {
+        const storage = buildStorage();
+        const { locale } = createSuperAdminI18n({ persist: false, storage });
+        locale.value = 'en';
+        await nextTick();
+        assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), null);
+    });
+
+    test('an app-supplied Ref is used as-is and outranks the stored pick', () => {
+        const storage = buildStorage({ [SA_LOCALE_STORAGE_KEY]: 'en' });
+        const appLocale = ref('de');
+        const { locale } = createSuperAdminI18n({ locale: appLocale, storage });
+        assert.equal(locale, appLocale, 'the app ref must be used as-is');
+        assert.equal(locale.value, 'de');
+    });
+
+    test('an app-supplied Ref is not persisted by the platform', async () => {
+        const storage = buildStorage();
+        const { locale } = createSuperAdminI18n({ locale: ref('de'), storage });
+        locale.value = 'en';
+        await nextTick();
+        assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), null);
     });
 });
 
