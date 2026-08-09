@@ -1,6 +1,6 @@
 <template>
     <q-btn
-        v-if="switcherEnabled"
+        v-if="visible"
         class="sa-locale-switcher"
         flat
         dense
@@ -44,6 +44,13 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 // and never have to repeat that check.
 
 const { locale, switcherEnabled } = useSuperAdminI18n();
+
+// Only an explicit `false` hides the switcher. The injection key is a
+// `Symbol.for`, so a context created by an older copy of this package resolves
+// here just as well — and that one has no `switcherEnabled` at all. Treating
+// the missing field as "off" would make every switcher vanish after such an
+// upgrade, without a warning anywhere. Chrome fails open.
+const visible = switcherEnabled !== false;
 const msg = useSaMessages('shell');
 
 function select(next: SaLocale): void {
