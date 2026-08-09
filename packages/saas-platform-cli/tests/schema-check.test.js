@@ -273,14 +273,16 @@ model Subscription {
 
 describe('parser hardening (review findings)', () => {
     test('a commented-out @@unique or @@map counts as absent, not present', () => {
-        const spec = 'model S {\n  id String @id\n  tenantId String\n\n  @@unique([tenantId])\n  @@map("subscriptions")\n}';
-        const app = 'model S {\n  id String @id\n  tenantId String\n\n  // @@unique([tenantId])\n  // @@map("subscriptions")\n}';
+        const spec =
+            'model S {\n  id String @id\n  tenantId String\n\n  @@unique([tenantId])\n  @@map("subscriptions")\n}';
+        const app =
+            'model S {\n  id String @id\n  tenantId String\n\n  // @@unique([tenantId])\n  // @@map("subscriptions")\n}';
         const report = checkSchema(spec, app);
         assert.equal(report.ok, false);
-        assert.deepEqual(
-            report.missingBlockAttributes.map((a) => a.kind).sort(),
-            ['map', 'unique'],
-        );
+        assert.deepEqual(report.missingBlockAttributes.map((a) => a.kind).sort(), [
+            'map',
+            'unique',
+        ]);
     });
 
     test('a brace inside a string default does not close the model early', () => {
@@ -292,7 +294,9 @@ describe('parser hardening (review findings)', () => {
     });
 
     test('a // inside a string literal is not treated as a comment', () => {
-        const parsed = parseSchema('model A {\n  id String @id\n  url String @default("http://x")\n  after String\n}');
+        const parsed = parseSchema(
+            'model A {\n  id String @id\n  url String @default("http://x")\n  after String\n}',
+        );
         assert.deepEqual([...parsed.models.get('A').keys()], ['id', 'url', 'after']);
     });
 
@@ -305,7 +309,9 @@ describe('parser hardening (review findings)', () => {
     });
 
     test('@@map survives the comment strip', () => {
-        const attrs = parseSchema('model A {\n  id String @id\n\n  @@map("subscriptions")\n}').modelAttributes.get('A');
+        const attrs = parseSchema(
+            'model A {\n  id String @id\n\n  @@map("subscriptions")\n}',
+        ).modelAttributes.get('A');
         assert.equal(attrs.map, 'subscriptions');
     });
 });

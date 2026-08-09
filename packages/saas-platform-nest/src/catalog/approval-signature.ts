@@ -41,9 +41,12 @@ export function featureApprovalSignature(featureKey: string, snapshot: Discovery
  */
 export function quotaApprovalSignature(quota: DiscoveredQuota): string {
     return (
-        [quota.unit, quota.policy === 'hardCap' ? 'hard' : 'soft', quota.declaredAt || '', quota.feature ?? ''].join(
-            '|',
-        ) + keyListSegment('replaces', quota.replaces)
+        [
+            quota.unit,
+            quota.policy === 'hardCap' ? 'hard' : 'soft',
+            quota.declaredAt || '',
+            quota.feature ?? '',
+        ].join('|') + keyListSegment('replaces', quota.replaces)
     );
 }
 

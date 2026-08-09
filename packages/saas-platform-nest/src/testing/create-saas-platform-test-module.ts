@@ -90,8 +90,7 @@ export interface CreateSaasPlatformTestModuleOptions {
 export function createSaasPlatformTestModule(
     options: CreateSaasPlatformTestModuleOptions,
 ): DynamicModule {
-    const defaultPlanId =
-        options.defaultPlanId ?? options.planCatalog.plans?.[0]?.id;
+    const defaultPlanId = options.defaultPlanId ?? options.planCatalog.plans?.[0]?.id;
 
     @Module({
         imports: [

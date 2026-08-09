@@ -610,4 +610,3 @@ describe('PublicMarketingCatalogService — priceTag (#47) + featureLabels (#48)
         assert.deepEqual(cat.bundles[0].featureLabels, {});
     });
 });
-

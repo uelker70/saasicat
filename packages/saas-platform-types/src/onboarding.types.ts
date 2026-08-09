@@ -31,8 +31,7 @@ export interface PromoPreviewRequest {
  * `PreviewResult` (saas-platform-nest/promo).
  */
 export type PromoPreviewResponse =
-    | { valid: false; reason: PromoPreviewInvalidReason }
-    | PromoPreviewValidResponse;
+    { valid: false; reason: PromoPreviewInvalidReason } | PromoPreviewValidResponse;
 
 export type PromoPreviewInvalidReason =
     | 'NOT_FOUND'

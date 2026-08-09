@@ -15,11 +15,7 @@
 // in the AppModule (build-time identity, does not belong in the runtime DB).
 
 import { Inject, Injectable } from '@nestjs/common';
-import type {
-    PlanCatalog,
-    PlanCatalogImportReport,
-    PlanCatalogImportSink,
-} from '@saasicat/types';
+import type { PlanCatalog, PlanCatalogImportReport, PlanCatalogImportSink } from '@saasicat/types';
 
 import { loadPlanCatalogFromString } from './plan-catalog-loader.js';
 

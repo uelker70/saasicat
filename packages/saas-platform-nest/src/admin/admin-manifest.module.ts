@@ -39,8 +39,7 @@ import { AdminPublicBootController } from './admin-public-boot.controller.js';
 import { PLATFORM_CORE_MANIFEST_CONTRIBUTION } from './manifest-core.js';
 
 type ConfigSpec =
-    | AdminManifestConfig
-    | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
+    AdminManifestConfig | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
 
 interface HttpResponseLike {
     header(name: string, value: string): unknown;

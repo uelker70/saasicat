@@ -58,9 +58,9 @@ export class DrizzlePlanCatalogReadSink implements PlanCatalogReadSink {
             livePlanVersions: (liveVersionRows as Array<typeof planVersions.$inferSelect>).map(
                 toPlanVersionRow,
             ),
-            featureEntries: (
-                featureRows as Array<typeof featureCatalogEntries.$inferSelect>
-            ).map(toFeatureCatalogEntryRow),
+            featureEntries: (featureRows as Array<typeof featureCatalogEntries.$inferSelect>).map(
+                toFeatureCatalogEntryRow,
+            ),
         };
     }
 }

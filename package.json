@@ -12,7 +12,8 @@
         "test": "pnpm -r test",
         "typecheck": "pnpm -r typecheck",
         "lint": "eslint .",
-        "format": "prettier --write ."
+        "format": "prettier --write .",
+        "format:check": "prettier --check ."
     },
     "devDependencies": {
         "@changesets/cli": "^2.31.1",

@@ -11,7 +11,9 @@ export const PLAN_REPOSITORY_TOKEN = Symbol.for('saas-platform/PlanRepository');
 export const BUNDLE_REPOSITORY_TOKEN = Symbol.for('saas-platform/BundleRepository');
 
 /** Repository for `marketing_projections`. */
-export const MARKETING_PROJECTION_REPOSITORY_TOKEN = Symbol.for('saas-platform/MarketingProjectionRepository');
+export const MARKETING_PROJECTION_REPOSITORY_TOKEN = Symbol.for(
+    'saas-platform/MarketingProjectionRepository',
+);
 
 /**
  * Repository for `capability_catalog_entries`, `feature_catalog_entries`
@@ -23,7 +25,9 @@ export const CATALOG_ENTRY_REPOSITORY_TOKEN = Symbol.for('saas-platform/CatalogE
 export const PROMOTION_REPOSITORY_TOKEN = Symbol.for('saas-platform/PromotionRepository');
 
 /** Repository for `marketing_settings` (activeLocales, SPEC_V2 §6.5). */
-export const MARKETING_SETTINGS_REPOSITORY_TOKEN = Symbol.for('saas-platform/MarketingSettingsRepository');
+export const MARKETING_SETTINGS_REPOSITORY_TOKEN = Symbol.for(
+    'saas-platform/MarketingSettingsRepository',
+);
 
 /**
  * Service configuration: current app identity, strict mode.

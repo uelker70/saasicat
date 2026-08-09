@@ -65,7 +65,8 @@ export class SetupService {
         }
 
         const generated = !req.password;
-        const password = req.password ?? randomBytes(GENERATED_PASSWORD_BYTES).toString('base64url');
+        const password =
+            req.password ?? randomBytes(GENERATED_PASSWORD_BYTES).toString('base64url');
 
         let user: Awaited<ReturnType<SuperAdminProvisioningPort['createSuperAdmin']>>;
         try {

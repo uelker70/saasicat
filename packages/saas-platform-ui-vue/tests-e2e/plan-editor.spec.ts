@@ -107,9 +107,7 @@ test.describe('usePlanEditor — Browser Smoke', () => {
         expect(result.tiers).toEqual(['CORE', 'ADVANCED', 'PRO', 'BUSINESS', 'ENTERPRISE_ONLY']);
     });
 
-    test('toggleFeature: plannedOnly is ignored, a normal feature reacts', async ({
-        page,
-    }) => {
+    test('toggleFeature: plannedOnly is ignored, a normal feature reacts', async ({ page }) => {
         await page.goto(FIXTURE_URL);
         await page.waitForFunction(() =>
             Boolean((globalThis as { __platform?: unknown }).__platform),
@@ -181,9 +179,7 @@ test.describe('usePlanEditor — Browser Smoke', () => {
         expect(result.message).toContain('plannedOnly');
     });
 
-    test('snapshot returns sorted selection (deterministic for PATCH body)', async ({
-        page,
-    }) => {
+    test('snapshot returns sorted selection (deterministic for PATCH body)', async ({ page }) => {
         await page.goto(FIXTURE_URL);
         await page.waitForFunction(() =>
             Boolean((globalThis as { __platform?: unknown }).__platform),

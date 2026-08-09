@@ -1,10 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-    applyFragmentBlocks,
-    extractModelBlocks,
-    extractModelNames,
-} from '../dist/index.js';
+import { applyFragmentBlocks, extractModelBlocks, extractModelNames } from '../dist/index.js';
 
 // Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
 
@@ -98,6 +94,9 @@ describe('applyFragmentBlocks', () => {
         const result = applyFragmentBlocks(schema, FRAGMENT, {
             fragmentLabel: '01-subscription.prisma',
         });
-        assert.match(result.schema, /Eingefügt durch `saasicat schema apply` aus 01-subscription.prisma/);
+        assert.match(
+            result.schema,
+            /Eingefügt durch `saasicat schema apply` aus 01-subscription.prisma/,
+        );
     });
 });

@@ -81,7 +81,11 @@ export class UserCommands extends CommandRunner {
         meEmail: string,
     ): Promise<void> {
         if (!email) {
-            throw new CliError('MISSING_ARG', 'user create-super-admin <email> erwartet eine E-Mail.', 1);
+            throw new CliError(
+                'MISSING_ARG',
+                'user create-super-admin <email> erwartet eine E-Mail.',
+                1,
+            );
         }
         await this.ctx.requireMfa(meId);
         await this.ctx.ensureProductionConfirmation({ yes: flags.yes });
@@ -120,7 +124,11 @@ export class UserCommands extends CommandRunner {
         meId: string,
     ): Promise<void> {
         if (!slug) {
-            throw new CliError('MISSING_ARG', 'user reassign-admin <tenant-slug> erwartet einen Slug.', 1);
+            throw new CliError(
+                'MISSING_ARG',
+                'user reassign-admin <tenant-slug> erwartet einen Slug.',
+                1,
+            );
         }
         if (!flags.to) throw new CliError('MISSING_FLAG', '--to=<email> ist Pflicht.', 1);
         if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" ist Pflicht.', 1);
@@ -176,7 +184,11 @@ export class UserCommands extends CommandRunner {
         meId: string,
     ): Promise<void> {
         if (!email) {
-            throw new CliError('MISSING_ARG', 'user reset-password <email> erwartet eine E-Mail.', 1);
+            throw new CliError(
+                'MISSING_ARG',
+                'user reset-password <email> erwartet eine E-Mail.',
+                1,
+            );
         }
         if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" ist Pflicht.', 1);
 

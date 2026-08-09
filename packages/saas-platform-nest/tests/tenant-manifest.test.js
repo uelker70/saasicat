@@ -25,7 +25,12 @@ describe('TenantManifestService', () => {
     test('returns a snapshot with filtered NavItems (feature gate)', async () => {
         const ent = new StaticEntitlementService(CATALOG, new StaticPlanResolver('starter'));
         const svc = new TenantManifestService(ent);
-        svc.registerNavItem({ id: 'notes', label: 'Notizen', path: '/notes', requiresFeature: 'NOTES' });
+        svc.registerNavItem({
+            id: 'notes',
+            label: 'Notizen',
+            path: '/notes',
+            requiresFeature: 'NOTES',
+        });
         svc.registerNavItem({
             id: 'export',
             label: 'Export',

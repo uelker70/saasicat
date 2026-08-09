@@ -140,7 +140,9 @@ describe('PlansService — root operations', () => {
 
     test('softDeletePlan: live version → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
-        const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
+        const versionsService = new PlanVersionsService(repo, null, {
+            strictModeCheckMode: 'warn-only',
+        });
         const created = await service.createPlan({
             projectKey: PROJECT,
             planKey: 'WITH_LIVE_SOFT',
@@ -171,7 +173,9 @@ describe('PlansService — root operations', () => {
 
     test('softDeletePlan: superseded version (no live anymore) → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
-        const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
+        const versionsService = new PlanVersionsService(repo, null, {
+            strictModeCheckMode: 'warn-only',
+        });
         const created = await service.createPlan({
             projectKey: PROJECT,
             planKey: 'WITH_SUPERSEDED',
@@ -217,7 +221,9 @@ describe('PlansService — root operations', () => {
 
     test('softDeletePlan: only draft (nothing published) → allowed', async () => {
         const { service, repo } = makeService();
-        const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
+        const versionsService = new PlanVersionsService(repo, null, {
+            strictModeCheckMode: 'warn-only',
+        });
         const created = await service.createPlan({
             projectKey: PROJECT,
             planKey: 'DRAFT_ONLY',
@@ -257,7 +263,9 @@ describe('PlansService — root operations', () => {
     test('hardDeletePlan: with draft → 422 PLAN_HAS_DRAFTS', async () => {
         const { service, repo } = makeService();
 
-        const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
+        const versionsService = new PlanVersionsService(repo, null, {
+            strictModeCheckMode: 'warn-only',
+        });
         const created = await service.createPlan({
             projectKey: 'clubapp',
             planKey: 'WITH_DRAFT',
@@ -284,7 +292,9 @@ describe('PlansService — root operations', () => {
     test('hardDeletePlan: with published version → 422 PLAN_HAS_PUBLISHED_VERSIONS', async () => {
         const { service, repo } = makeService();
 
-        const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
+        const versionsService = new PlanVersionsService(repo, null, {
+            strictModeCheckMode: 'warn-only',
+        });
         const created = await service.createPlan({
             projectKey: 'clubapp',
             planKey: 'WITH_LIVE',
@@ -347,7 +357,9 @@ describe('PlansService — root operations', () => {
 
     test('listPlans onlyPublished: only plans with a live version', async () => {
         const { service, repo } = makeService();
-        const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
+        const versionsService = new PlanVersionsService(repo, null, {
+            strictModeCheckMode: 'warn-only',
+        });
 
         // Plan with a published version.
         const live = await service.createPlan({
@@ -392,7 +404,9 @@ describe('PlansService — root operations', () => {
 
     test('listPlans onlyPublished: superseded version does not count as live', async () => {
         const { service, repo } = makeService();
-        const versionsService = new PlanVersionsService(repo, null, { strictModeCheckMode: 'warn-only' });
+        const versionsService = new PlanVersionsService(repo, null, {
+            strictModeCheckMode: 'warn-only',
+        });
         const plan = await service.createPlan({
             projectKey: PROJECT,
             planKey: 'SUPERSEDED_ONLY',

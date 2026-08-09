@@ -104,8 +104,7 @@ async function cmdSchemaApply(args) {
     const filter = parseFragmentFilter(args.fragments);
     if (!filter && !args.all) {
         console.error(
-            '✗ Entweder --fragments=01,02,03 oder --all übergeben. ' +
-                'Verfügbare Fragmente:',
+            '✗ Entweder --fragments=01,02,03 oder --all übergeben. ' + 'Verfügbare Fragmente:',
         );
         const files = (await readdir(fragmentsDir)).filter((f) => f.endsWith('.prisma')).sort();
         for (const f of files) console.error(`    ${f}`);
@@ -261,7 +260,9 @@ async function cmdSchemaMigrate(args) {
         process.exit(1);
     }
 
-    console.log(`→ Schritt 1/2: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`);
+    console.log(
+        `→ Schritt 1/2: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`,
+    );
     await cmdSchemaApply({
         ...args,
         all: args['fragments'] ? undefined : true,

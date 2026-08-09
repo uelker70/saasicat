@@ -57,9 +57,7 @@ export class PlanCatalogDoctorCheck implements DoctorCheck {
 export class DiscoverySnapshotDoctorCheck implements DoctorCheck {
     readonly id = 'platform.discovery-snapshot';
     readonly label = 'Discovery-Snapshot beim Boot';
-    constructor(
-        @Inject(DISCOVERY_SNAPSHOT_TOKEN) private readonly snapshot: DiscoverySnapshot,
-    ) {}
+    constructor(@Inject(DISCOVERY_SNAPSHOT_TOKEN) private readonly snapshot: DiscoverySnapshot) {}
 
     async run(): Promise<DoctorCheckResult> {
         const caps = this.snapshot?.capabilities ?? [];

@@ -354,10 +354,12 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
     function buildService(requiresByFeature) {
         return new CheckoutOfferService(
             repo,
-            fakeBundleRepo(new Map([
-                [TURNIERE_BV.id, TURNIERE_BV],
-                [RESSOURCEN_BV.id, RESSOURCEN_BV],
-            ])),
+            fakeBundleRepo(
+                new Map([
+                    [TURNIERE_BV.id, TURNIERE_BV],
+                    [RESSOURCEN_BV.id, RESSOURCEN_BV],
+                ]),
+            ),
             fakePlanRepo(),
             fakeCatalogEntryRepo(requiresByFeature),
         );
@@ -381,10 +383,7 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
             () => service.create(offerData([TURNIERE_BV])),
             (err) => {
                 assert.equal(err.status, 422);
-                assert.equal(
-                    err.response?.code,
-                    'CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED',
-                );
+                assert.equal(err.response?.code, 'CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED');
                 assert.deepEqual(err.response?.missingRequires, ['RESOURCE_MANAGEMENT']);
                 return true;
             },
@@ -413,10 +412,7 @@ describe('CheckoutOfferService — requires validation (#35 P6)', () => {
                     lineItems: [PLAN_LINE_ITEM, bundleLineItem(TURNIERE_BV)],
                 }),
             (err) => {
-                assert.equal(
-                    err.response?.code,
-                    'CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED',
-                );
+                assert.equal(err.response?.code, 'CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED');
                 return true;
             },
         );

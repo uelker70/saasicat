@@ -34,7 +34,6 @@ class FakeSink {
         this.featureEntries.set(k, input);
         return { created: true };
     }
-
 }
 
 const SAMPLE_YAML = `

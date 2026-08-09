@@ -18,6 +18,6 @@ example — the bundle description ("for active clubs") and the marketing featur
 label ("Membership management"). Both are now domain-neutral; apps that want
 their own wording set it via `i18n.overrides`.
 
-Doc comments that illustrate how an app supplies its *own* vocabulary are kept
+Doc comments that illustrate how an app supplies its _own_ vocabulary are kept
 deliberately: they document the extension point rather than leak a domain into
 the platform.

@@ -5,11 +5,7 @@
 // the Vue UI package can use them without a NestJS dependency too. Here only
 // the option interfaces that the user passes in the decorator call.
 
-import type {
-    CapabilityKind,
-    DiscoveredQuotaPolicy,
-    DiscoveryCodeStatus,
-} from '@saasicat/types';
+import type { CapabilityKind, DiscoveredQuotaPolicy, DiscoveryCodeStatus } from '@saasicat/types';
 
 // Re-exports for internal use in the scanner.
 export type {

@@ -14,9 +14,7 @@ describe('buildActivePlanVersionWhere', () => {
 
     test('tolerates validFrom IS NULL ("valid since forever") alongside validFrom <= asOf', () => {
         const where = buildActivePlanVersionWhere(ASOF);
-        const validFromClause = where.AND.find((c) =>
-            c.OR.some((o) => 'validFrom' in o),
-        );
+        const validFromClause = where.AND.find((c) => c.OR.some((o) => 'validFrom' in o));
         assert.ok(validFromClause, 'validFrom clause missing');
         assert.deepEqual(validFromClause.OR, [{ validFrom: null }, { validFrom: { lte: ASOF } }]);
     });

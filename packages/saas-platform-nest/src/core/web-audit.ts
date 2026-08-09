@@ -54,10 +54,11 @@ export class WebAuditLogger {
      */
     resolveUserId(req: unknown): string | null {
         return (
-            (this.userIdResolver ??
+            (
+                this.userIdResolver ??
                 ((r: unknown) =>
-                    (r as RequestLike).user?.sub ?? (r as RequestLike).user?.id ?? null))(req) ??
-            null
+                    (r as RequestLike).user?.sub ?? (r as RequestLike).user?.id ?? null)
+            )(req) ?? null
         );
     }
 
@@ -68,11 +69,13 @@ export class WebAuditLogger {
                 req,
             ) ?? 'unknown';
         const context =
-            (this.auditContextResolver ??
+            (
+                this.auditContextResolver ??
                 ((r: unknown) => {
                     const sid = (r as RequestLike).headers?.['x-session-id'];
                     return Array.isArray(sid) ? (sid[0] ?? null) : (sid ?? null);
-                }))(req) ?? DEFAULT_CONTEXT;
+                })
+            )(req) ?? DEFAULT_CONTEXT;
         return { userId, email, source: 'web', context };
     }
 

@@ -41,7 +41,7 @@ describe('exported DI tokens live in the global symbol registry', () => {
                 offenders,
                 [],
                 'these exported tokens are plain Symbol() and break across CJS entry ' +
-                    'chunks — declare them as Symbol.for(\'saas-platform/…\') instead',
+                    "chunks — declare them as Symbol.for('saas-platform/…') instead",
             );
         });
     }
