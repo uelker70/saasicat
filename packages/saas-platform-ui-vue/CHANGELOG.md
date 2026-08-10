@@ -1,5 +1,19 @@
 # @saasicat/ui-vue
 
+## 0.18.1
+
+### Patch Changes
+
+- 2c487b2: PilotEditDialog now uses the same class names as PilotCreateDialog. The styles
+  are scoped, so the rename has no effect on consumers — it only makes visible
+  that both dialogs draw the same building blocks.
+- 2c487b2: The pilot dialogs now share their building blocks through one stylesheet
+  instead of two identical copies. The emitted CSS is unchanged.
+- 2c487b2: The promo-code dialogs now share their form body through one internal
+  component. Create and edit had kept byte-identical copies of it. The public
+  surface of both dialogs — props, emits, class names — is unchanged.
+    - @saasicat/types@0.18.1
+
 ## 0.18.0
 
 ### Minor Changes
