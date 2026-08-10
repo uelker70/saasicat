@@ -118,12 +118,17 @@ export class PlanVersionsService {
     async discardPlanDraft(versionId: string): Promise<void> {
         const existing = await this.repo.findVersionById!(versionId);
         if (!existing) {
-            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND,
+                message: `PlanVersion '${versionId}' not found`,
+                params: { versionId },
+            });
         }
         if (existing.publishedAt !== null) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED,
-                message: `PlanVersion '${versionId}' is already published and cannot be discardederden.`,
+                message: `PlanVersion '${versionId}' is already published and cannot be discarded.`,
+                params: { versionId },
             });
         }
         if (typeof this.repo.deletePlanVersionDraft !== 'function') {
@@ -145,7 +150,11 @@ export class PlanVersionsService {
     async listPlanVersions(planUuid: string): Promise<PlanVersionRow[]> {
         const plan = await this.repo.findById(planUuid);
         if (!plan) {
-            throw new NotFoundException(`Plan '${planUuid}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
+                message: `Plan '${planUuid}' not found`,
+                params: { planId: planUuid },
+            });
         }
         const versions = await this.repo.listVersions!(plan.planKey);
         return this.annotateEditability(versions);
@@ -154,7 +163,11 @@ export class PlanVersionsService {
     async getPlanVersion(versionId: string): Promise<PlanVersionRow> {
         const version = await this.repo.findVersionById!(versionId);
         if (!version) {
-            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND,
+                message: `PlanVersion '${versionId}' not found`,
+                params: { versionId },
+            });
         }
         const [annotated] = await this.annotateEditability([version]);
         return annotated;
@@ -196,15 +209,21 @@ export class PlanVersionsService {
     async createPlanDraft(data: CreatePlanVersionDraftData): Promise<PlanVersionMutationResult> {
         const plan = await this.repo.findById(data.planId);
         if (!plan) {
-            throw new NotFoundException(`Plan '${data.planId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
+                message: `Plan '${data.planId}' not found`,
+                params: { planId: data.planId },
+            });
         }
         const planKey = plan.planKey;
 
         const existingDraft = await this.repo.findCurrentDraft!(planKey);
         if (existingDraft) {
-            throw new UnprocessableEntityException(
-                `Plan '${planKey}' already has a draft version v${existingDraft.version}; publish or discard it first`,
-            );
+            throw new UnprocessableEntityException({
+                code: CATALOG_ERROR_CODES.PLAN_DRAFT_ALREADY_EXISTS,
+                message: `Plan '${planKey}' already has a draft version v${existingDraft.version}; publish or discard it first`,
+                params: { planKey, draftVersion: existingDraft.version },
+            });
         }
 
         // baseVersionId default: latest live (or null for v1)
@@ -234,7 +253,11 @@ export class PlanVersionsService {
     ): Promise<PlanVersionMutationResult> {
         const existing = await this.repo.findVersionById!(versionId);
         if (!existing) {
-            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND,
+                message: `PlanVersion '${versionId}' not found`,
+                params: { versionId },
+            });
         }
 
         // Editability gate: draft (classic) or published-but-future
@@ -250,6 +273,7 @@ export class PlanVersionsService {
                     `PlanVersion '${versionId}' is not editable. ` +
                     'Only drafts and published versions are editable that are latest-in-chain, ' +
                     'bind no subscription yet, and whose validFrom lies in the future.',
+                params: { versionId },
             });
         }
 
@@ -270,12 +294,18 @@ export class PlanVersionsService {
     ): Promise<PlanVersionMutationResult> {
         const draft = await this.repo.findVersionById!(versionId);
         if (!draft) {
-            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND,
+                message: `PlanVersion '${versionId}' not found`,
+                params: { versionId },
+            });
         }
         if (draft.publishedAt !== null) {
-            throw new UnprocessableEntityException(
-                `PlanVersion '${versionId}' is already published`,
-            );
+            throw new UnprocessableEntityException({
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED,
+                message: `PlanVersion '${versionId}' is already published`,
+                params: { versionId },
+            });
         }
 
         const warnings = await this.runStrictCheck({
@@ -320,6 +350,7 @@ export class PlanVersionsService {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_FROM_INVALID,
                 message: `validFrom '${validFromInput}' is not a valid date`,
+                params: { validFrom: validFromInput },
             });
         }
         if (previous?.validFrom) {
@@ -327,7 +358,11 @@ export class PlanVersionsService {
             if (validFrom <= prevFrom) {
                 throw new UnprocessableEntityException({
                     code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS,
-                    message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the predeger-Version (${previous.validFrom}) liegen.`,
+                    message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the previous version (${previous.validFrom}).`,
+                    params: {
+                        validFrom: validFrom.toISOString(),
+                        previousValidFrom: previous.validFrom,
+                    },
                 });
             }
             // SPEC_V2 §4.2.1 rule 3 (extended): gapless succession when
@@ -346,6 +381,7 @@ export class PlanVersionsService {
                             `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
                             `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
                             `Received: ${validFrom.toISOString().slice(0, 10)}.`,
+                        params: { received: validFrom.toISOString().slice(0, 10) },
                         requiredValidFrom: requiredStart.toISOString().slice(0, 10),
                         previousValidUntil: previous.validUntil,
                     });
@@ -362,12 +398,17 @@ export class PlanVersionsService {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_UNTIL_INVALID,
                 message: `validUntil '${validUntilInput}' is not a valid date`,
+                params: { validUntil: validUntilInput },
             });
         }
         if (validUntil && validUntil <= validFrom) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_UNTIL_BEFORE_FROM,
-                message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}) liegen.`,
+                message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}).`,
+                params: {
+                    validUntil: validUntil.toISOString(),
+                    validFrom: validFrom.toISOString(),
+                },
             });
         }
 
@@ -426,18 +467,24 @@ export class PlanVersionsService {
     async terminatePlanVersion(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
         const existing = await this.repo.findVersionById!(versionId);
         if (!existing) {
-            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_FOUND,
+                message: `PlanVersion '${versionId}' not found`,
+                params: { versionId },
+            });
         }
         if (existing.publishedAt === null) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_LIVE,
                 message: `PlanVersion '${versionId}' is not published and cannot be terminated.`,
+                params: { versionId },
             });
         }
         if (existing.supersededAt !== null) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_LIVE,
                 message: `PlanVersion '${versionId}' has already been superseded by a newer version (supersededAt) and cannot be terminated.`,
+                params: { versionId },
             });
         }
         if (Number.isNaN(endsAt.getTime())) {
@@ -450,6 +497,7 @@ export class PlanVersionsService {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_TERMINATE_DATE_NOT_FUTURE,
                 message: `endsAt (${endsAt.toISOString()}) must lie strictly in the future.`,
+                params: { endsAt: endsAt.toISOString() },
             });
         }
         if (typeof this.repo.terminate !== 'function') {

@@ -75,7 +75,7 @@ export class PendingPlanMaterializationService {
 
         if (applied > 0) {
             this.logger.log(
-                `Pending-Plan-Materialisierung: ${applied} geplante(r) Plan-Wechsel angewandt.`,
+                `Pending plan materialisation: applied ${applied} scheduled plan change(s).`,
             );
         }
         return { applied };

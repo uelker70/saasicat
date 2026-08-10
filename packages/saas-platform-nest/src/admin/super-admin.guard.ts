@@ -11,6 +11,7 @@ import {
     ForbiddenException,
     Injectable,
 } from '@nestjs/common';
+import { AUTH_ERROR_CODES } from '@saasicat/types';
 
 interface RequestWithUser {
     user?: { role?: string; platformRole?: string };
@@ -20,10 +21,18 @@ interface RequestWithUser {
 export class SuperAdminGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest<RequestWithUser>();
-        if (!request.user) throw new ForbiddenException('Not authenticated');
+        if (!request.user) {
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.NOT_AUTHENTICATED,
+                message: 'Not authenticated',
+            });
+        }
         const role = request.user.platformRole ?? request.user.role;
         if (role !== 'SUPER_ADMIN') {
-            throw new ForbiddenException('Only the SUPER_ADMIN role is allowed');
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.SUPER_ADMIN_REQUIRED,
+                message: 'Only the SUPER_ADMIN role is allowed',
+            });
         }
         return true;
     }

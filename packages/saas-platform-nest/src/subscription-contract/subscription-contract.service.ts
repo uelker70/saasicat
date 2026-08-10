@@ -46,7 +46,11 @@ export class SubscriptionContractService {
     async getById(contractId: string): Promise<SubscriptionContractRecord> {
         const row = await this.repo.findById(contractId);
         if (!row) {
-            throw new NotFoundException(`SubscriptionContract '${contractId}' not found`);
+            throw new NotFoundException({
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_NOT_FOUND,
+                message: `SubscriptionContract '${contractId}' not found`,
+                params: { contractId },
+            });
         }
         return row;
     }
@@ -64,7 +68,11 @@ export class SubscriptionContractService {
     ): Promise<SubscriptionContractInvoiceSnapshot> {
         const contract = await this.repo.findActiveByTenantId(tenantId, asOf);
         if (!contract) {
-            throw new NotFoundException(`No active subscription contract for tenant ${tenantId}`);
+            throw new NotFoundException({
+                code: CONTRACT_ERROR_CODES.NO_ACTIVE_SUBSCRIPTION_CONTRACT,
+                message: `No active subscription contract for tenant ${tenantId}`,
+                params: { tenantId, asOf: asOf.toISOString() },
+            });
         }
         return subscriptionContractToInvoiceSnapshot(contract);
     }
@@ -108,9 +116,11 @@ export class SubscriptionContractService {
         options: CreateContractFromOfferOptions,
     ): CreateSubscriptionContractData {
         if (offer.status !== 'consumed') {
-            throw new ConflictException(
-                `CheckoutOffer '${offer.id}' must, before contract creationtellung consumed sein`,
-            );
+            throw new ConflictException({
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_NOT_CONSUMED,
+                message: `CheckoutOffer '${offer.id}' must be consumed before the contract is created`,
+                params: { offerId: offer.id, status: offer.status },
+            });
         }
         const lineItems = this.lineItemsFromOffer(offer);
         return {
@@ -144,7 +154,7 @@ export class SubscriptionContractService {
             throw new UnprocessableEntityException({
                 code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_LINE_ITEMS_REQUIRED,
                 message:
-                    'A checkout offer can yield only one contractstehen, wenn LineItems eingefroren sind.',
+                    'A checkout offer can yield only one contract, and only once its line items are frozen.',
             });
         }
         return appendImplicitDiscountLineItem({
@@ -230,14 +240,16 @@ export class SubscriptionContractService {
         data: TerminateSubscriptionContractData,
     ): void {
         if (existing.status === 'terminated' || existing.status === 'superseded') {
-            throw new ConflictException(
-                `SubscriptionContract '${existing.id}' is already geschlossen`,
-            );
+            throw new ConflictException({
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_ALREADY_CLOSED,
+                message: `SubscriptionContract '${existing.id}' is already closed`,
+                params: { contractId: existing.id, status: existing.status },
+            });
         }
         if (data.effectiveUntil <= existing.effectiveFrom) {
             throw new UnprocessableEntityException({
                 code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START,
-                message: 'effectiveUntil must be after the effectiveFrom of the contracts liegen.',
+                message: 'effectiveUntil must be after the effectiveFrom of the contract.',
             });
         }
     }

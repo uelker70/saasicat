@@ -6,6 +6,7 @@
 // exactly one active row; the triple is unique in the DB schema.
 
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { CATALOG_ERROR_CODES } from '@saasicat/types';
 import type {
     CreateMarketingProjectionData,
     MarketingProjectionFilter,
@@ -30,7 +31,11 @@ export class MarketingProjectionsService {
     async getById(id: string): Promise<MarketingProjectionRow> {
         const row = await this.repo.findById(id);
         if (!row) {
-            throw new NotFoundException(`MarketingProjection '${id}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.MARKETING_PROJECTION_NOT_FOUND,
+                message: `MarketingProjection '${id}' not found`,
+                params: { projectionId: id },
+            });
         }
         return row;
     }
@@ -43,9 +48,15 @@ export class MarketingProjectionsService {
             locale,
         );
         if (existing) {
-            throw new ConflictException(
-                `Marketing projection for ${data.targetType}/${data.targetVersionId}/${locale} already exists — use PATCH to edit it`,
-            );
+            throw new ConflictException({
+                code: CATALOG_ERROR_CODES.MARKETING_PROJECTION_ALREADY_EXISTS,
+                message: `Marketing projection for ${data.targetType}/${data.targetVersionId}/${locale} already exists — use PATCH to edit it`,
+                params: {
+                    targetType: data.targetType,
+                    targetVersionId: data.targetVersionId,
+                    locale,
+                },
+            });
         }
         return this.repo.create({ ...data, locale });
     }
@@ -53,7 +64,11 @@ export class MarketingProjectionsService {
     async update(id: string, data: UpdateMarketingProjectionData): Promise<MarketingProjectionRow> {
         const existing = await this.repo.findById(id);
         if (!existing) {
-            throw new NotFoundException(`MarketingProjection '${id}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.MARKETING_PROJECTION_NOT_FOUND,
+                message: `MarketingProjection '${id}' not found`,
+                params: { projectionId: id },
+            });
         }
         return this.repo.update(id, data);
     }
@@ -61,7 +76,11 @@ export class MarketingProjectionsService {
     async delete(id: string): Promise<void> {
         const existing = await this.repo.findById(id);
         if (!existing) {
-            throw new NotFoundException(`MarketingProjection '${id}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.MARKETING_PROJECTION_NOT_FOUND,
+                message: `MarketingProjection '${id}' not found`,
+                params: { projectionId: id },
+            });
         }
         await this.repo.delete(id);
     }

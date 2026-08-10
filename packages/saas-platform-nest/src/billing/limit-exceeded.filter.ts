@@ -18,6 +18,7 @@
 
 import { type ArgumentsHost, Catch, HttpStatus, Logger } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
+import { BILLING_ERROR_CODES } from '@saasicat/types';
 import { isLimitExceededError } from '../entitlement/limit-exceeded-error.js';
 
 interface ResponseLike {
@@ -44,13 +45,16 @@ export class LimitExceededFilter extends BaseExceptionFilter {
         const request = ctx.getRequest<RequestLike>();
 
         this.logger.warn(
-            `Limit ${exception.dimension} exceeded: ${exception.used}/${exception.max} bei ${request.method ?? '?'} ${request.url ?? ''}`,
+            `Limit ${exception.dimension} exceeded: ${exception.used}/${exception.max} on ${request.method ?? '?'} ${request.url ?? ''}`,
         );
 
         response.status(HttpStatus.PAYMENT_REQUIRED).send({
             statusCode: HttpStatus.PAYMENT_REQUIRED,
             error: 'PaymentRequired',
-            reason: 'LIMIT_EXCEEDED',
+            code: BILLING_ERROR_CODES.LIMIT_EXCEEDED,
+            // Deprecated: superseded by `code`, kept until consumers have
+            // migrated. Same value, only under the older field name.
+            reason: BILLING_ERROR_CODES.LIMIT_EXCEEDED,
             dimension: exception.dimension,
             used: exception.used,
             max: exception.max,

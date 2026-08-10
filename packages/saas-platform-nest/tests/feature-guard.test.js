@@ -277,8 +277,8 @@ describe('FEATURE_GUARD_CONFIG_TOKEN', () => {
 });
 
 // Upsell response (#36): with a registered UpsellOfferResolver the 403 becomes
-// machine-readable — code, featureKey(s), offers. Without a resolver the old
-// plain-403 behavior remains (already tested above).
+// machine-readable — code, featureKey(s), offers. Without a resolver the body
+// carries the same code, but neither featureKey(s) nor offers.
 describe('FeatureGuard — upsell response (#36)', () => {
     function buildGuard({ features = [], resolver = null, config = null } = {}) {
         return new FeatureGuard(new Reflector(), buildEntitlementsStub(features), config, resolver);
@@ -381,7 +381,7 @@ describe('FeatureGuard — upsell response (#36)', () => {
         assert.equal(calls, 0);
     });
 
-    test('without a resolver the plain-403 remains (string message, no code field)', async () => {
+    test('without a resolver: same code and message, but no offers', async () => {
         const guard = buildGuard();
         const ctx = buildContext({
             user: { tenantId: 't1', role: 'TENANT_ADMIN' },
@@ -389,7 +389,9 @@ describe('FeatureGuard — upsell response (#36)', () => {
         });
         const body = (await rejectionOf(guard.canActivate(ctx))).getResponse();
         assert.equal(body.message, 'Feature WHATSAPP is not included in the current plan.');
-        assert.equal(body.code, undefined, 'no structured body without a resolver');
+        assert.equal(body.code, 'FEATURE_NOT_LICENSED');
+        assert.deepEqual(body.params, { featureKeys: ['WHATSAPP'] });
+        assert.equal(body.offers, undefined, 'no offers without a resolver');
     });
 });
 

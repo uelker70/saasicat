@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import {
+    AUTH_ERROR_CODES,
     FEATURE_NOT_LICENSED,
     type FeatureNotLicensedBody,
     type UpsellOffer,
@@ -62,7 +63,12 @@ export class FeatureGuard implements CanActivate {
 
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         const user = request.user;
-        if (!user) throw new ForbiddenException('Not authenticated');
+        if (!user) {
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.NOT_AUTHENTICATED,
+                message: 'Not authenticated',
+            });
+        }
 
         // SUPER_ADMIN bypass — platform support may help a tenant even when
         // a feature isn't booked.
@@ -74,7 +80,12 @@ export class FeatureGuard implements CanActivate {
         const tenantId = this.config?.tenantIdResolver
             ? this.config.tenantIdResolver(request)
             : (request.tenantId ?? user.tenantId);
-        if (!tenantId) throw new ForbiddenException('No tenant assigned');
+        if (!tenantId) {
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.NO_TENANT_ASSIGNED,
+                message: 'No tenant assigned',
+            });
+        }
 
         const compute = () => this.entitlements.computeLimits(tenantId);
         const limits = this.config?.tenantContextRunner
@@ -91,20 +102,29 @@ export class FeatureGuard implements CanActivate {
     /**
      * Upsell response (#36): with a registered `UpsellOfferResolver` the 403
      * becomes machine-readable (`FeatureNotLicensedBody`), so consumer UIs can
-     * render a purchase offer. Without a resolver the previous plain 403
-     * remains — no breaking change.
+     * render a purchase offer. Without a resolver the body carries the same
+     * `code` but no offers.
      *
      * Deliberately 403 + `code` field instead of 402 — rationale in
      * `@saasicat/types` upsell.types.ts (402 is reserved / inconsistently
      * supported; SPA interceptors must not treat the 403 as an auth error, the
      * distinction runs through `code`).
+     *
+     * The message must keep starting with the word `Feature` — consumers
+     * classify the response by that prefix.
      */
     private async buildNotLicensedException(
         required: string[],
         tenantId: string,
     ): Promise<ForbiddenException> {
         const message = `Feature ${required.join(' / ')} is not included in the current plan.`;
-        if (!this.upsellResolver) return new ForbiddenException(message);
+        if (!this.upsellResolver) {
+            return new ForbiddenException({
+                code: FEATURE_NOT_LICENSED,
+                message,
+                params: { featureKeys: required },
+            });
+        }
 
         const body: FeatureNotLicensedBody = {
             code: FEATURE_NOT_LICENSED,

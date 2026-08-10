@@ -147,7 +147,7 @@ export class PendingRegistrationService {
         } catch (error) {
             // Audit failure must not abort the auth flow.
             const message = error instanceof Error ? error.message : String(error);
-            this.logger.warn(`Audit-Log fehlgeschlagen (${eventType}): ${message}`);
+            this.logger.warn(`Audit log write failed (${eventType}): ${message}`);
         }
     }
 
@@ -295,7 +295,7 @@ export class PendingRegistrationService {
         });
         if (!claimed) {
             this.logger.warn(
-                `Idempotency: payment event ${input.eventId} already processedet — Duplikat verworfen.`,
+                `Idempotency: payment event ${input.eventId} already processed — duplicate discarded.`,
             );
             await this.record('PAYMENT_DUPLICATE_IGNORED', null, context, {
                 eventId: input.eventId,
@@ -389,7 +389,7 @@ export class PendingRegistrationService {
             // Case A: an active account exists. Do not create a PendingRegistration,
             // do not reveal any information to the outside. Optionally a password
             // reset link could be sent here (phase 2+).
-            this.logger.log(`register/start fuer aktiven Account ignoriert (${email}).`);
+            this.logger.log(`register/start ignored for an active account (${email}).`);
             await this.record('REGISTRATION_NEUTRAL_ACTIVE_USER', null, context);
             return { neutral: true };
         }
@@ -555,7 +555,7 @@ export class PendingRegistrationService {
 
         if (withinWindow && pending.otpSendCount >= OTP_RATE_LIMIT_MAX_SENDS) {
             this.logger.warn(
-                `OTP rate limit reached for ${pending.email} — send is still verworfen.`,
+                `OTP rate limit reached for ${pending.email} — send is being skipped.`,
             );
             return;
         }
@@ -590,7 +590,7 @@ export class PendingRegistrationService {
             // A mail send error must not noticeably abort the flow (otherwise
             // account enumeration via timing/status code). Only log.
             const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`OTP-Mail an ${pending.email} fehlgeschlagen: ${message}`);
+            this.logger.error(`OTP email to ${pending.email} failed: ${message}`);
         }
     }
 
@@ -618,7 +618,7 @@ export class PendingRegistrationService {
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Resume-Mail an ${pending.email} fehlgeschlagen: ${message}`);
+            this.logger.error(`Resume email to ${pending.email} failed: ${message}`);
         }
     }
 

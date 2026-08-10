@@ -68,11 +68,11 @@ export class WhoAmIFlow {
             `Actor-Tag:        ${r.actor}`,
             `User ID:          ${r.userId ?? '— (user not found)'}`,
             `Platform role:    ${r.isSuperAdmin ? 'SUPER_ADMIN ✓' : '— (not a SUPER_ADMIN!)'}`,
-            `MFA konfiguriert: ${r.mfaEnabled ? '✓' : '✗ — run `admin mfa-setup`'}`,
+            `MFA configured:   ${r.mfaEnabled ? '✓' : '✗ — run `admin mfa-setup`'}`,
             `Environment:      ${r.isProduction ? 'PRODUCTION' : 'non-production'}`,
         ];
         if (r.mfaSkipActive) {
-            lines.push('⚠  MFA-Bypass aktiv (SKIP-Env-Var gesetzt, non-prod)');
+            lines.push('⚠  MFA bypass active (SKIP env var set, non-prod)');
         }
         return lines.join('\n');
     }

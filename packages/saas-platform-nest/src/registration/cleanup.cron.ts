@@ -46,7 +46,7 @@ export class RegistrationCleanupCron {
 
         if (totalDeleted > 0) {
             this.logger.log(
-                `PendingRegistration-Cleanup abgeschlossen: ${totalDeleted} geloescht in ${iterations} Batches.`,
+                `Pending registration cleanup finished: ${totalDeleted} deleted in ${iterations} batches.`,
             );
         }
     }

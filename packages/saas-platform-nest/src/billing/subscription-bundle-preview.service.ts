@@ -37,7 +37,12 @@ import type {
     PlanRepository,
     SubscriptionBundleRepository,
 } from '@saasicat/types';
-import { buildFeatureRequiresIndex, collectUnsatisfiedRequires } from '@saasicat/types';
+import {
+    BILLING_ERROR_CODES,
+    CATALOG_ERROR_CODES,
+    buildFeatureRequiresIndex,
+    collectUnsatisfiedRequires,
+} from '@saasicat/types';
 
 import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
@@ -169,7 +174,11 @@ export class SubscriptionBundlePreviewService {
     ): Promise<SubscriptionBundleAddPreviewDto> {
         const bundleVersion = await this.bundles.findVersionById(input.bundleVersionId);
         if (!bundleVersion) {
-            throw new NotFoundException(`BundleVersion '${input.bundleVersionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
+                message: `BundleVersion '${input.bundleVersionId}' not found`,
+                params: { bundleVersionId: input.bundleVersionId },
+            });
         }
 
         const blockers: SubscriptionBundlePreviewIssue[] = [];
@@ -254,13 +263,19 @@ export class SubscriptionBundlePreviewService {
     ): Promise<SubscriptionBundleCancelPreviewDto> {
         const existing = await this.subscriptionBundles.findById(input.subscriptionBundleId);
         if (!existing || existing.subscriptionId !== ctx.subscriptionId) {
-            throw new NotFoundException(
-                `SubscriptionBundle '${input.subscriptionBundleId}' not found`,
-            );
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND,
+                message: `SubscriptionBundle '${input.subscriptionBundleId}' not found`,
+                params: { subscriptionBundleId: input.subscriptionBundleId },
+            });
         }
         const bundleVersion = await this.bundles.findVersionById(existing.bundleVersionId);
         if (!bundleVersion) {
-            throw new NotFoundException(`BundleVersion '${existing.bundleVersionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
+                message: `BundleVersion '${existing.bundleVersionId}' not found`,
+                params: { bundleVersionId: existing.bundleVersionId },
+            });
         }
 
         const blockers: SubscriptionBundlePreviewIssue[] = [];
@@ -337,7 +352,7 @@ export class SubscriptionBundlePreviewService {
             blockers.push({
                 code: 'BUNDLE_NOT_SELF_SERVICE',
                 message:
-                    `Bundle '${bundleVersion.bundleKey}' is only activated via a special contractviert. ` +
+                    `Bundle '${bundleVersion.bundleKey}' is only activated via a special contract. ` +
                     'Please contact the contract manager.',
             });
         }

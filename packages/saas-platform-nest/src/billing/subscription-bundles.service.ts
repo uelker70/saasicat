@@ -116,18 +116,24 @@ export class SubscriptionBundlesService {
     ): Promise<SubscriptionBundleRecord> {
         const bundleVersion = await this.bundles.findVersionById(input.bundleVersionId);
         if (!bundleVersion) {
-            throw new NotFoundException(`BundleVersion '${input.bundleVersionId}' not found`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
+                message: `BundleVersion '${input.bundleVersionId}' not found`,
+                params: { bundleVersionId: input.bundleVersionId },
+            });
         }
         if (bundleVersion.publishedAt === null) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_PUBLISHED,
                 message: `BundleVersion '${input.bundleVersionId}' is not published and cannot be booked.`,
+                params: { bundleVersionId: input.bundleVersionId },
             });
         }
         if (bundleVersion.supersededAt !== null) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_SUPERSEDED,
                 message: `BundleVersion '${input.bundleVersionId}' has been superseded by a newer version.`,
+                params: { bundleVersionId: input.bundleVersionId },
             });
         }
 
@@ -136,8 +142,9 @@ export class SubscriptionBundlesService {
             throw new UnprocessableEntityException({
                 code: BILLING_ERROR_CODES.BUNDLE_NOT_SELF_SERVICE,
                 message:
-                    `Bundle '${bundleVersion.bundleKey}' is only activated via a special contractviert. ` +
+                    `Bundle '${bundleVersion.bundleKey}' is only activated via a special contract. ` +
                     'Please contact the contract manager.',
+                params: { bundleKey: bundleVersion.bundleKey },
             });
         }
 
@@ -149,6 +156,11 @@ export class SubscriptionBundlesService {
                 message:
                     `BundleVersion '${input.bundleVersionId}' is not compatible with plan ` +
                     `'${input.currentPlanKey}'. Allowed: [${planIds.join(', ')}].`,
+                params: {
+                    bundleVersionId: input.bundleVersionId,
+                    planKey: input.currentPlanKey,
+                    allowedPlanKeys: planIds,
+                },
             });
         }
 
@@ -158,6 +170,7 @@ export class SubscriptionBundlesService {
             throw new UnprocessableEntityException({
                 code: BILLING_ERROR_CODES.BUNDLE_ALREADY_SUBSCRIBED,
                 message: `Subscription '${input.subscriptionId}' has already actively booked this bundle.`,
+                params: { subscriptionId: input.subscriptionId },
             });
         }
 
@@ -179,14 +192,17 @@ export class SubscriptionBundlesService {
     ): Promise<SubscriptionBundleRecord> {
         const existing = await this.repo.findById(input.subscriptionBundleId);
         if (!existing) {
-            throw new NotFoundException(
-                `SubscriptionBundle '${input.subscriptionBundleId}' not found`,
-            );
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND,
+                message: `SubscriptionBundle '${input.subscriptionBundleId}' not found`,
+                params: { subscriptionBundleId: input.subscriptionBundleId },
+            });
         }
         if (existing.canceledAt !== null) {
             throw new UnprocessableEntityException({
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELED,
                 message: `SubscriptionBundle '${input.subscriptionBundleId}' is already cancelled.`,
+                params: { subscriptionBundleId: input.subscriptionBundleId },
             });
         }
 
@@ -210,12 +226,17 @@ export class SubscriptionBundlesService {
     async reactivateBundle(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
         const existing = await this.repo.findById(subscriptionBundleId);
         if (!existing) {
-            throw new NotFoundException(`SubscriptionBundle '${subscriptionBundleId}' not found`);
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_FOUND,
+                message: `SubscriptionBundle '${subscriptionBundleId}' not found`,
+                params: { subscriptionBundleId },
+            });
         }
         if (existing.canceledAt === null) {
             throw new UnprocessableEntityException({
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_CANCELED,
                 message: `SubscriptionBundle '${subscriptionBundleId}' is not cancelled.`,
+                params: { subscriptionBundleId },
             });
         }
         if (existing.canceledEffectiveAt !== null && existing.canceledEffectiveAt <= new Date()) {

@@ -28,7 +28,7 @@ export class PromoCodeExpirer {
         const redemptions = await this.redemptionRepo.expireDueRedemptions(now);
         if (codes > 0 || redemptions > 0) {
             this.logger.log(
-                `PromoCodeExpirer: ${codes} Codes, ${redemptions} Redemptions abgelaufen.`,
+                `PromoCodeExpirer: ${codes} Codes, ${redemptions} redemptions expired.`,
             );
         }
     }

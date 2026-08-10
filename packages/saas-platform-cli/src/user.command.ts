@@ -108,7 +108,7 @@ export class UserCommands extends CommandRunner {
             changes: { email: created.email, createdBy: meEmail },
         });
 
-        console.log(`✔ SUPER_ADMIN ${created.email} angelegt (durch ${meEmail}).`);
+        console.log(`✔ SUPER_ADMIN ${created.email} created (by ${meEmail}).`);
         console.log(`  User-ID: ${created.id}`);
         if (generated) {
             console.log(`  Passwort: ${password}`);

@@ -68,7 +68,11 @@ export class CheckoutOfferService {
     async getById(id: string): Promise<CheckoutOfferRow> {
         const row = await this.repo.findById(id);
         if (!row) {
-            throw new NotFoundException(`CheckoutOffer '${id}' not found`);
+            throw new NotFoundException({
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_NOT_FOUND,
+                message: `CheckoutOffer '${id}' not found`,
+                params: { offerId: id },
+            });
         }
         return row;
     }
@@ -230,7 +234,8 @@ export class CheckoutOfferService {
         if (violations.length > 0) {
             throw new UnprocessableEntityException({
                 code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE,
-                message: 'At least one bundle version from the checkout offer is notehr buchbar.',
+                message:
+                    'At least one bundle version from the checkout offer is no longer bookable.',
                 violations,
             });
         }
@@ -362,19 +367,25 @@ export class CheckoutOfferService {
 
     private assertOpen(existing: CheckoutOfferRow, action: 'changed' | 'consumed'): void {
         if (existing.status === 'consumed') {
-            throw new ConflictException(
-                `Checkout offer '${existing.id}' has already been consumed and cannot be ${action}`,
-            );
+            throw new ConflictException({
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_ALREADY_CONSUMED,
+                message: `Checkout offer '${existing.id}' has already been consumed and cannot be ${action}`,
+                params: { offerId: existing.id, action },
+            });
         }
         if (existing.status === 'expired') {
-            throw new ConflictException(
-                `Checkout offer '${existing.id}' has expired and cannot be ${action}`,
-            );
+            throw new ConflictException({
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_EXPIRED,
+                message: `Checkout offer '${existing.id}' has expired and cannot be ${action}`,
+                params: { offerId: existing.id, action },
+            });
         }
         if (this.isExpired(existing)) {
-            throw new ConflictException(
-                `CheckoutOffer '${existing.id}' has expired and cannot be ${action}`,
-            );
+            throw new ConflictException({
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_EXPIRED,
+                message: `CheckoutOffer '${existing.id}' has expired and cannot be ${action}`,
+                params: { offerId: existing.id, action, validUntil: existing.validUntil ?? null },
+            });
         }
     }
 

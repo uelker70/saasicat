@@ -4,6 +4,7 @@ import {
     ForbiddenException,
     Injectable,
 } from '@nestjs/common';
+import { AUTH_ERROR_CODES } from '@saasicat/types';
 
 // TenantAdminGuard — verifies that the logged-in user has the `TENANT_ADMIN`
 // role (or `SUPER_ADMIN`). Used in addition to `ComposedTenantAuthGuard` for
@@ -27,11 +28,17 @@ export class TenantAdminGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         if (!request.user) {
-            throw new ForbiddenException('Not authenticated');
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.NOT_AUTHENTICATED,
+                message: 'Not authenticated',
+            });
         }
         const role = request.user.platformRole ?? request.user.role;
         if (!role || !ADMIN_ROLES.has(role)) {
-            throw new ForbiddenException('This action requires the TENANT_ADMIN role.');
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.TENANT_ADMIN_REQUIRED,
+                message: 'This action requires the TENANT_ADMIN role.',
+            });
         }
         return true;
     }

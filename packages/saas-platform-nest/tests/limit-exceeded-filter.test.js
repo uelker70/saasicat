@@ -47,6 +47,7 @@ describe('LimitExceededFilter', () => {
             body: {
                 statusCode: 402,
                 error: 'PaymentRequired',
+                code: 'LIMIT_EXCEEDED',
                 reason: 'LIMIT_EXCEEDED',
                 dimension: 'members',
                 used: 250,

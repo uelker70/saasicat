@@ -6,6 +6,7 @@ import {
     Injectable,
     Optional,
 } from '@nestjs/common';
+import { AUTH_ERROR_CODES } from '@saasicat/types';
 import { TENANT_AUTH_GUARDS_TOKEN, type AuthGuardList } from './tenant-billing.tokens.js';
 
 // ComposedTenantAuthGuard — bundles a list of consumer-specific guards
@@ -32,9 +33,10 @@ export class ComposedTenantAuthGuard implements CanActivate {
             // No configured guard is a setup error — otherwise tenant-scoped
             // endpoints would have no auth protection. Better to fail loudly
             // than to wave requests through silently.
-            throw new ForbiddenException(
-                'TenantBillingModule.forRoot.authGuards is not configured.',
-            );
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.AUTH_GUARDS_NOT_CONFIGURED,
+                message: 'TenantBillingModule.forRoot.authGuards is not configured.',
+            });
         }
         for (const guard of this.guards) {
             const result = await Promise.resolve(guard.canActivate(context));

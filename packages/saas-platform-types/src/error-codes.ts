@@ -77,6 +77,29 @@ export const CATALOG_ERROR_CODES = {
 
     /** Publish blocked by strict mode. Carries `warnings[]` with own codes. */
     STRICT_MODE_VIOLATIONS: 'STRICT_MODE_VIOLATIONS',
+
+    // ── resources not found (stage 3) ──
+    PLAN_NOT_FOUND: 'PLAN_NOT_FOUND',
+    PLAN_VERSION_NOT_FOUND: 'PLAN_VERSION_NOT_FOUND',
+    BUNDLE_NOT_FOUND: 'BUNDLE_NOT_FOUND',
+    BUNDLE_VERSION_NOT_FOUND: 'BUNDLE_VERSION_NOT_FOUND',
+    FEATURE_NOT_FOUND: 'FEATURE_NOT_FOUND',
+    QUOTA_NOT_FOUND: 'QUOTA_NOT_FOUND',
+    PROMOTION_NOT_FOUND: 'PROMOTION_NOT_FOUND',
+    MARKETING_PROJECTION_NOT_FOUND: 'MARKETING_PROJECTION_NOT_FOUND',
+
+    // ── already exists ──
+    PLAN_ALREADY_EXISTS: 'PLAN_ALREADY_EXISTS',
+    BUNDLE_ALREADY_EXISTS: 'BUNDLE_ALREADY_EXISTS',
+    MARKETING_PROJECTION_ALREADY_EXISTS: 'MARKETING_PROJECTION_ALREADY_EXISTS',
+    /** A draft already exists — publish or discard it before creating another. */
+    PLAN_DRAFT_ALREADY_EXISTS: 'PLAN_DRAFT_ALREADY_EXISTS',
+    BUNDLE_DRAFT_ALREADY_EXISTS: 'BUNDLE_DRAFT_ALREADY_EXISTS',
+
+    // ── discovery ──
+    QUOTA_NOT_IN_DISCOVERY_SNAPSHOT: 'QUOTA_NOT_IN_DISCOVERY_SNAPSHOT',
+    DISCOVERY_STATUS_TRANSITION_INVALID: 'DISCOVERY_STATUS_TRANSITION_INVALID',
+    DISCOVERY_NOT_INITIALIZED: 'DISCOVERY_NOT_INITIALIZED',
 } as const;
 
 export type CatalogErrorCode = (typeof CATALOG_ERROR_CODES)[keyof typeof CATALOG_ERROR_CODES];
@@ -94,6 +117,28 @@ export const BILLING_ERROR_CODES = {
     SUBSCRIPTION_BUNDLE_ALREADY_CANCELED: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED',
     SUBSCRIPTION_BUNDLE_NOT_CANCELED: 'SUBSCRIPTION_BUNDLE_NOT_CANCELED',
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE: 'SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE',
+
+    // ── subscriptions and plan changes (stage 3) ──
+    SUBSCRIPTION_NOT_FOUND: 'SUBSCRIPTION_NOT_FOUND',
+    SUBSCRIPTION_TENANT_MISMATCH: 'SUBSCRIPTION_TENANT_MISMATCH',
+    SUBSCRIPTION_BUNDLE_NOT_FOUND: 'SUBSCRIPTION_BUNDLE_NOT_FOUND',
+    TENANT_NOT_FOUND: 'TENANT_NOT_FOUND',
+    /** No plan version is active as of the requested date. */
+    NO_ACTIVE_PLAN_VERSION: 'NO_ACTIVE_PLAN_VERSION',
+    /** Plan is unknown to the loaded plan catalogue. */
+    PLAN_NOT_IN_CATALOG: 'PLAN_NOT_IN_CATALOG',
+    /** Plan exists but cannot be booked via self-service. */
+    PLAN_NOT_SELF_SERVICE: 'PLAN_NOT_SELF_SERVICE',
+    /** Plan change refused. Carries `blockers[]` with their own codes. */
+    PLAN_CHANGE_BLOCKED: 'PLAN_CHANGE_BLOCKED',
+    NO_PENDING_PLAN_VERSION: 'NO_PENDING_PLAN_VERSION',
+    ONBOARDING_CREATE_FAILED: 'ONBOARDING_CREATE_FAILED',
+    BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS: 'BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS',
+
+    // ── entitlements ──
+    /** Quota exhausted. Carries `dimension`, `used`, `max`. */
+    LIMIT_EXCEEDED: 'LIMIT_EXCEEDED',
+    QUOTA_DIMENSION_UNKNOWN: 'QUOTA_DIMENSION_UNKNOWN',
 } as const;
 
 export type BillingErrorCode = (typeof BILLING_ERROR_CODES)[keyof typeof BILLING_ERROR_CODES];
@@ -112,6 +157,15 @@ export const CONTRACT_ERROR_CODES = {
     SUBSCRIPTION_CONTRACT_INVALID_WINDOW: 'SUBSCRIPTION_CONTRACT_INVALID_WINDOW',
     SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START:
         'SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START',
+
+    // ── stage 3 ──
+    CHECKOUT_OFFER_NOT_FOUND: 'CHECKOUT_OFFER_NOT_FOUND',
+    CHECKOUT_OFFER_EXPIRED: 'CHECKOUT_OFFER_EXPIRED',
+    CHECKOUT_OFFER_ALREADY_CONSUMED: 'CHECKOUT_OFFER_ALREADY_CONSUMED',
+    CHECKOUT_OFFER_NOT_CONSUMED: 'CHECKOUT_OFFER_NOT_CONSUMED',
+    SUBSCRIPTION_CONTRACT_NOT_FOUND: 'SUBSCRIPTION_CONTRACT_NOT_FOUND',
+    NO_ACTIVE_SUBSCRIPTION_CONTRACT: 'NO_ACTIVE_SUBSCRIPTION_CONTRACT',
+    SUBSCRIPTION_CONTRACT_ALREADY_CLOSED: 'SUBSCRIPTION_CONTRACT_ALREADY_CLOSED',
 } as const;
 
 export type ContractErrorCode = (typeof CONTRACT_ERROR_CODES)[keyof typeof CONTRACT_ERROR_CODES];
@@ -138,6 +192,49 @@ export const REGISTRATION_ERROR_CODES = {
 export type RegistrationErrorCode =
     (typeof REGISTRATION_ERROR_CODES)[keyof typeof REGISTRATION_ERROR_CODES];
 
+/** Authentication, role and tenant-context failures raised by the guards. */
+export const AUTH_ERROR_CODES = {
+    /** No authenticated user on the request. */
+    NOT_AUTHENTICATED: 'NOT_AUTHENTICATED',
+    /** Authenticated, but the request carries no tenant. */
+    NO_TENANT_ASSIGNED: 'NO_TENANT_ASSIGNED',
+    /** Neither `tenantId` nor `userId` could be resolved from the request. */
+    TENANT_CONTEXT_MISSING: 'TENANT_CONTEXT_MISSING',
+    TENANT_ADMIN_REQUIRED: 'TENANT_ADMIN_REQUIRED',
+    SUPER_ADMIN_REQUIRED: 'SUPER_ADMIN_REQUIRED',
+    /** TOTP MFA has never been set up for this user. */
+    MFA_NOT_SET_UP: 'MFA_NOT_SET_UP',
+    /** Endpoint is MFA-gated and no `X-Mfa-Code` header was sent. */
+    MFA_REQUIRED: 'MFA_REQUIRED',
+    /** The supplied TOTP code did not verify. */
+    MFA_FAILED: 'MFA_FAILED',
+    /** Module misconfiguration, not an end-user condition. */
+    AUTH_GUARDS_NOT_CONFIGURED: 'AUTH_GUARDS_NOT_CONFIGURED',
+} as const;
+
+export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
+
+/** Promo-code administration and redemption. */
+export const PROMO_ERROR_CODES = {
+    PROMO_CODE_NOT_FOUND: 'PROMO_CODE_NOT_FOUND',
+    PROMO_CODE_ALREADY_EXISTS: 'PROMO_CODE_ALREADY_EXISTS',
+    PROMO_CODE_HAS_REDEMPTIONS: 'PROMO_CODE_HAS_REDEMPTIONS',
+    /** Not redeemable. Carries `reason` (`PromoPreviewInvalidReason`). */
+    PROMO_CODE_NOT_REDEEMABLE: 'PROMO_CODE_NOT_REDEEMABLE',
+    PROMO_CODE_FORMAT_INVALID: 'PROMO_CODE_FORMAT_INVALID',
+    PROMO_PERCENT_OUT_OF_RANGE: 'PROMO_PERCENT_OUT_OF_RANGE',
+    PROMO_AMOUNT_NOT_POSITIVE: 'PROMO_AMOUNT_NOT_POSITIVE',
+    PROMO_ONE_OFF_WITH_DURATION: 'PROMO_ONE_OFF_WITH_DURATION',
+    PROMO_DURATION_INVALID: 'PROMO_DURATION_INVALID',
+    PROMO_VALIDITY_WINDOW_INVALID: 'PROMO_VALIDITY_WINDOW_INVALID',
+    PROMO_PLAN_NOT_DISCOUNTABLE: 'PROMO_PLAN_NOT_DISCOUNTABLE',
+    PROMO_MIN_AMOUNT_NOT_POSITIVE: 'PROMO_MIN_AMOUNT_NOT_POSITIVE',
+    PROMO_WOULD_PRODUCE_ZERO_INVOICE: 'PROMO_WOULD_PRODUCE_ZERO_INVOICE',
+    PROMO_MAX_REDEMPTIONS_LOWERED: 'PROMO_MAX_REDEMPTIONS_LOWERED',
+} as const;
+
+export type PromoErrorCode = (typeof PROMO_ERROR_CODES)[keyof typeof PROMO_ERROR_CODES];
+
 /**
  * Every exception code the platform emits, in one object.
  *
@@ -147,6 +244,8 @@ export type RegistrationErrorCode =
  */
 export const PLATFORM_ERROR_CODES = {
     ...SETUP_ERROR_CODES,
+    ...AUTH_ERROR_CODES,
+    ...PROMO_ERROR_CODES,
     ...CATALOG_ERROR_CODES,
     ...BILLING_ERROR_CODES,
     ...CONTRACT_ERROR_CODES,
@@ -155,7 +254,30 @@ export const PLATFORM_ERROR_CODES = {
 
 export type PlatformErrorCode =
     | SetupErrorCode
+    | AuthErrorCode
+    | PromoErrorCode
     | CatalogErrorCode
     | BillingErrorCode
     | ContractErrorCode
     | RegistrationErrorCode;
+
+/**
+ * Shape of a coded error response.
+ *
+ * Note what NestJS does with this: throwing an exception with a string
+ * argument yields `{ message, error, statusCode }`, whereas throwing it with
+ * an object passes that object through verbatim. Coded errors therefore carry
+ * no `error`/`statusCode` field in the body — the HTTP status is on the
+ * response itself, which is where a client should read it.
+ */
+export interface PlatformErrorBody {
+    /** Stable machine-readable discriminator. Resolve i18n by this. */
+    code: PlatformErrorCode;
+    /** English developer-facing fallback. Do not parse it. */
+    message: string;
+    /**
+     * Named values interpolated into `message`, so a consumer can render a
+     * translated sentence without scraping the ids back out of the text.
+     */
+    params?: Record<string, unknown>;
+}
