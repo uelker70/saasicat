@@ -98,7 +98,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'platform.tenants.export',
-                label: 'DSGVO-Export',
+                label: 'GDPR export',
                 actionKey: 'tenants.export',
                 requiredCapability: 'tenants.export',
                 requiresMfa: true,
@@ -114,7 +114,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'platform.pilots.grant',
-                label: 'Pilot-Status setzen',
+                label: 'Set pilot status',
                 actionKey: 'pilots.grant',
                 requiredCapability: 'pilots.grant',
                 requiresMfa: true,
@@ -122,7 +122,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'platform.pilots.revoke',
-                label: 'Pilot-Status entziehen',
+                label: 'Revoke pilot status',
                 actionKey: 'pilots.revoke',
                 requiredCapability: 'pilots.revoke',
                 requiresMfa: true,
@@ -140,13 +140,13 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
     },
     audit: {
         actions: [
-            { key: 'TENANT_SUSPEND', label: 'Mandant suspendiert', severity: 'high' },
-            { key: 'TENANT_REACTIVATE', label: 'Mandant reaktiviert', severity: 'medium' },
-            { key: 'TENANT_IMPERSONATE', label: 'Impersonation gestartet', severity: 'high' },
+            { key: 'TENANT_SUSPEND', label: 'Tenant suspended', severity: 'high' },
+            { key: 'TENANT_REACTIVATE', label: 'Tenant reactivated', severity: 'medium' },
+            { key: 'TENANT_IMPERSONATE', label: 'Impersonation started', severity: 'high' },
             { key: 'TENANT_EXPORT', label: 'GDPR export triggered', severity: 'medium' },
             { key: 'PILOT_CREATE', label: 'Pilot tenant created', severity: 'medium' },
             { key: 'PILOT_GRANT', label: 'Pilot status set', severity: 'medium' },
-            { key: 'PILOT_REVOKE', label: 'Pilot-Status entzogen', severity: 'medium' },
+            { key: 'PILOT_REVOKE', label: 'Pilot status revoked', severity: 'medium' },
             { key: 'PILOT_EXTEND', label: 'Pilot extended', severity: 'low' },
             { key: 'PLAN_VERSION_PUBLISH', label: 'Plan version approved', severity: 'high' },
             {
@@ -156,7 +156,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
             { key: 'USER_RESET_PASSWORD', label: 'Password reset triggered', severity: 'medium' },
-            { key: 'USER_DEACTIVATE', label: 'User deaktiviert', severity: 'high' },
+            { key: 'USER_DEACTIVATE', label: 'User deactivated', severity: 'high' },
             { key: 'USER_REASSIGN_ADMIN', label: 'Admin role transferred', severity: 'high' },
             {
                 key: 'PLATFORM_EMAIL_PROVIDER_CREATE',
@@ -175,7 +175,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 key: 'PLATFORM_EMAIL_PROVIDER_TEST',
-                label: 'Plattform-Absender Test-Versand',
+                label: 'Platform sender test send',
                 severity: 'low',
             },
             {
@@ -185,7 +185,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 key: 'EMAIL_HISTORY_RESEND',
-                label: 'Plattform-E-Mail erneut versendet',
+                label: 'Platform email resent',
                 severity: 'low',
             },
         ],

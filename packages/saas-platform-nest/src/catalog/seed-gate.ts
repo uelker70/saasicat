@@ -126,7 +126,7 @@ export function formatSeedGateReport(report: SeedGateReport): string {
     const lines: string[] = [];
     lines.push(
         `Seed-Gate (Status: ${report.overall.toUpperCase()})`,
-        `  Plans: ${report.counts.planFindings} · Bundles: ${report.counts.bundleFindings} · Gesamt: ${report.counts.total}`,
+        `  Plans: ${report.counts.planFindings} · Bundles: ${report.counts.bundleFindings} · Total: ${report.counts.total}`,
         '',
     );
     if (report.findings.length === 0) {

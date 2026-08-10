@@ -108,7 +108,7 @@ export function validateBundleDraft(
             if (approved && !approved.features.has(feature)) {
                 warnings.push({
                     code: 'BUNDLE_FEATURE_NOT_APPROVED',
-                    message: `Feature '${feature}' is not approved (status != approved). Only approvedgebene Features sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                    message: `Feature '${feature}' is not approved (status != approved). Only approved features are sellable — approve it in the discovery review (#20).`,
                     field: `features[${index}]`,
                     value: feature,
                 });
@@ -134,7 +134,7 @@ export function validateBundleDraft(
         } else if (approved && !approved.quotas.has(quotaKey)) {
             warnings.push({
                 code: 'QUOTA_NOT_APPROVED',
-                message: `Quota '${quotaKey}' is not approved (status != approved). Only approvedgebene Quotas sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                message: `Quota '${quotaKey}' is not approved (status != approved). Only approved quotas are sellable — approve it in the discovery review (#20).`,
                 field: `quotas.${quotaKey}`,
                 value: quotaKey,
             });
@@ -202,7 +202,7 @@ export function validatePlanDraft(
             if (approved && !approved.features.has(feature)) {
                 warnings.push({
                     code: 'PLAN_FEATURE_NOT_APPROVED',
-                    message: `Feature '${feature}' is not approved (status != approved). Only approvedgebene Features sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                    message: `Feature '${feature}' is not approved (status != approved). Only approved features are sellable — approve it in the discovery review (#20).`,
                     field: `features[${index}]`,
                     value: feature,
                 });
@@ -228,7 +228,7 @@ export function validatePlanDraft(
         } else if (approved && !approved.quotas.has(quotaKey)) {
             warnings.push({
                 code: 'QUOTA_NOT_APPROVED',
-                message: `Quota '${quotaKey}' is not approved (status != approved). Only approvedgebene Quotas sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                message: `Quota '${quotaKey}' is not approved (status != approved). Only approved quotas are sellable — approve it in the discovery review (#20).`,
                 field: `quotas.${quotaKey}`,
                 value: quotaKey,
             });

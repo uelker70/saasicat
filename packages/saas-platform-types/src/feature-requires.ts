@@ -61,7 +61,7 @@ export function collectUnsatisfiedRequires(
  * Bookability state of a bundle relative to the already covered
  * features (plan ∪ already selected/booked bundles):
  * - `covered`     — all bundle features are already covered → would be sold
- *                   twice; the UI shows "bereits enthalten" and it doesn't count.
+ *                   twice; the UI shows "already included" and it doesn't count.
  * - `missing-requires` — at least one `requiresFeatures` is uncovered → grey out.
  * - `bookable`    — selectable.
  */

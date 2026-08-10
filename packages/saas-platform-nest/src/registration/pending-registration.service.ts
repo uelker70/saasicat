@@ -337,7 +337,7 @@ export class PendingRegistrationService {
         });
 
         this.logger.log(
-            `Aktivierung erfolgreich: pending=${pending.id} → user=${result.userId} tenant=${result.tenantId} subscription=${result.subscriptionId}`,
+            `Activation succeeded: pending=${pending.id} → user=${result.userId} tenant=${result.tenantId} subscription=${result.subscriptionId}`,
         );
         return { activated: true, result };
     }
@@ -370,7 +370,7 @@ export class PendingRegistrationService {
         }
         if (expired.length > 0) {
             this.logger.log(
-                `Cleanup: ${expired.length} abgelaufene PendingRegistrations geloescht.`,
+                `Cleanup: ${expired.length} expired PendingRegistrations deleted.`,
             );
         }
         return {
@@ -537,7 +537,7 @@ export class PendingRegistrationService {
         }
         if (pending.status !== 'PENDING_EMAIL_VERIFICATION') {
             // If they are already further along, we still send a new OTP for the sake
-            // of UX (e.g. when the user clicks "Neuen Code senden" and then sends
+            // of UX (e.g. when the user clicks "Send a new code" and then sends
             // twice). Other statuses are not an error, but no OTP is sent.
             return { neutral: true };
         }

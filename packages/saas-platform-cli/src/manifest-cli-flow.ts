@@ -54,7 +54,7 @@ export class ManifestCliFlow {
     validate(): { ok: boolean; reason?: string } {
         const m = this.access.getManifest();
         if (m.schemaVersion !== 1) {
-            return { ok: false, reason: `Unerwartete schemaVersion ${m.schemaVersion}` };
+            return { ok: false, reason: `Unexpected schemaVersion ${m.schemaVersion}` };
         }
         if (!m.project?.key) {
             return { ok: false, reason: 'No `project.key` in the manifest' };
@@ -117,7 +117,7 @@ export class ManifestCliFlow {
     }
 
     formatReport(report: ManifestCheckReport): string {
-        const lines = [`Manifest-Check (Gesamtstatus: ${report.overall.toUpperCase()})`, ''];
+        const lines = [`Manifest check (overall status: ${report.overall.toUpperCase()})`, ''];
         for (const c of report.checks) {
             const icon = c.severity === 'ok' ? '✓' : c.severity === 'warning' ? '⚠' : '✗';
             lines.push(`  ${icon}  ${c.label}: ${c.message}`);

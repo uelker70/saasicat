@@ -55,7 +55,7 @@ function createDiscountLineItem(
         kind: 'discount',
         sourceKey: promoCode?.code ?? firstPromotion?.id ?? 'price-discount',
         sourceVersionId: null,
-        titleSnapshot: promoCode?.label ?? firstPromotion?.label ?? 'Rabatt',
+        titleSnapshot: promoCode?.label ?? firstPromotion?.label ?? 'Discount',
         descriptionSnapshot: promoCode ? `Promo-Code ${promoCode.code}` : null,
         quantity: 1,
         unit: null,

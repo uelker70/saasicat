@@ -43,7 +43,7 @@ export class DiscoveryScanCommand extends CommandRunner {
     async run(_args: string[], flags: ScanFlags): Promise<void> {
         if (!this.scanner) {
             this.fail(
-                'DiscoveryScanner is not registered — import DiscoveryModule.forRoot() in the CLI moduleren.',
+                'DiscoveryScanner is not registered — import DiscoveryModule.forRoot() in the CLI module.',
                 flags,
             );
             return;
@@ -64,7 +64,7 @@ export class DiscoveryScanCommand extends CommandRunner {
                     `${snapshot.quotas.length} Quotas · hash ${snapshot.hash.slice(0, 19)}…\n`,
             );
             if (target) {
-                process.stdout.write(`Snapshot persistiert: ${resolvePath(target)}\n`);
+                process.stdout.write(`Snapshot persisted: ${resolvePath(target)}\n`);
             } else {
                 process.stderr.write(
                     'WARNING: the snapshot was not persisted — neither snapshotPath ' +

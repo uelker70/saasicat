@@ -205,7 +205,7 @@ export class SubscriptionBundlePreviewService {
             warnings.push({
                 code: 'REDUNDANT_FEATURES',
                 message:
-                    `${redundantFeatures.length} Feature${redundantFeatures.length === 1 ? ' ist' : 's sind'} ` +
+                    `${redundantFeatures.length} feature${redundantFeatures.length === 1 ? ' is' : 's are'} ` +
                     'already included in the plan or another booked bundle — ' +
                     'the bundle would be paid for twice.',
             });

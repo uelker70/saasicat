@@ -72,7 +72,7 @@ export class DoctorFlow {
     }
 
     formatReport(report: DoctorReport): string {
-        const lines = [`Doctor-Check (Gesamtstatus: ${report.overall.toUpperCase()})`, ''];
+        const lines = [`Doctor check (overall status: ${report.overall.toUpperCase()})`, ''];
         for (const c of report.checks) {
             const icon = c.severity === 'ok' ? '✓' : c.severity === 'warning' ? '⚠' : '✗';
             lines.push(`  ${icon}  ${c.label}: ${c.message}`);

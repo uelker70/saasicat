@@ -14,7 +14,7 @@ interface AsFlag {
 }
 
 @Injectable()
-@Command({ name: 'doctor', description: 'Health-/Drift-Checks (Exit-Code 4 bei error)' })
+@Command({ name: 'doctor', description: 'Health/drift checks (exit code 4 on error)' })
 export class DoctorCommands extends CommandRunner {
     constructor(
         private readonly ctx: CliContextService,

@@ -119,7 +119,7 @@ function validateConsistency(catalog: PlanCatalog, source: string): void {
     const planIds = new Set<string>();
     for (const plan of catalog.plans ?? []) {
         if (planIds.has(plan.id)) {
-            errors.push(`plans[].id: Doppelte Plan-ID "${plan.id}"`);
+            errors.push(`plans[].id: duplicate plan id "${plan.id}"`);
         }
         planIds.add(plan.id);
 
