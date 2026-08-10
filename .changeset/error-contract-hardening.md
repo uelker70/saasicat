@@ -30,11 +30,11 @@ absent, so a consumer can rely on the declared type. The code is now part of
 
 **Renamed / split codes** — update any consumer that matches these strings:
 
-| before | after |
-|---|---|
-| `PLAN_VERSION_NOT_LIVE` | `PLAN_VERSION_NOT_PUBLISHED` / `PLAN_VERSION_SUPERSEDED` |
-| `SUBSCRIPTION_BUNDLE_ALREADY_CANCELED` | `SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED` |
-| `SUBSCRIPTION_BUNDLE_NOT_CANCELED` | `SUBSCRIPTION_BUNDLE_NOT_CANCELLED` |
+| before                                 | after                                                    |
+| -------------------------------------- | -------------------------------------------------------- |
+| `PLAN_VERSION_NOT_LIVE`                | `PLAN_VERSION_NOT_PUBLISHED` / `PLAN_VERSION_SUPERSEDED` |
+| `SUBSCRIPTION_BUNDLE_ALREADY_CANCELED` | `SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED`                  |
+| `SUBSCRIPTION_BUNDLE_NOT_CANCELED`     | `SUBSCRIPTION_BUNDLE_NOT_CANCELLED`                      |
 
 The split matters: one code covered both "was never published" and "already
 superseded", which a consumer could not tell apart.
