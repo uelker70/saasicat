@@ -17,6 +17,7 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+    CATALOG_ERROR_CODES,
     isVersionEditable,
     type CatalogEntryRepository,
     type CreatePlanVersionDraftData,
@@ -121,13 +122,13 @@ export class PlanVersionsService {
         }
         if (existing.publishedAt !== null) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_ALREADY_PUBLISHED',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_ALREADY_PUBLISHED,
                 message: `PlanVersion '${versionId}' is already published and cannot be discardederden.`,
             });
         }
         if (typeof this.repo.deletePlanVersionDraft !== 'function') {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_DISCARD_NOT_IMPLEMENTED',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_DISCARD_NOT_IMPLEMENTED,
                 message:
                     'Discard is not implemented in the current repository. ' +
                     'Implementiere PlanRepository.deletePlanVersionDraft.',
@@ -244,7 +245,7 @@ export class PlanVersionsService {
         const { editable } = isVersionEditable(annotated);
         if (!editable) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_NOT_EDITABLE',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_EDITABLE,
                 message:
                     `PlanVersion '${versionId}' is not editable. ` +
                     'Only drafts and published versions are editable that are latest-in-chain, ' +
@@ -293,7 +294,7 @@ export class PlanVersionsService {
             const yearly = Number.parseFloat(String(draft.yearlyNet ?? '0'));
             if (monthly <= 0 || yearly <= 0) {
                 throw new UnprocessableEntityException({
-                    code: 'PLAN_VERSION_ZERO_PRICE',
+                    code: CATALOG_ERROR_CODES.PLAN_VERSION_ZERO_PRICE,
                     message:
                         'A plan version cannot be published with a price of 0.00 (guard against ' +
                         'seed placeholder). For deliberately free special contracts, set allowZeroPrice.',
@@ -309,7 +310,7 @@ export class PlanVersionsService {
         const validFromInput = publishMeta.validFrom ?? draft.validFrom;
         if (!validFromInput) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_VALID_FROM_REQUIRED',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_FROM_REQUIRED,
                 message:
                     'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
             });
@@ -317,7 +318,7 @@ export class PlanVersionsService {
         const validFrom = new Date(validFromInput);
         if (Number.isNaN(validFrom.getTime())) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_VALID_FROM_INVALID',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_FROM_INVALID,
                 message: `validFrom '${validFromInput}' is not a valid date`,
             });
         }
@@ -325,7 +326,7 @@ export class PlanVersionsService {
             const prevFrom = new Date(previous.validFrom);
             if (validFrom <= prevFrom) {
                 throw new UnprocessableEntityException({
-                    code: 'PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS',
+                    code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS,
                     message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the predeger-Version (${previous.validFrom}) liegen.`,
                 });
             }
@@ -340,7 +341,7 @@ export class PlanVersionsService {
                 const requiredStart = new Date(prevUntil.getTime() + dayMs);
                 if (validFrom.getTime() !== requiredStart.getTime()) {
                     throw new UnprocessableEntityException({
-                        code: 'PLAN_VERSION_VALID_FROM_NOT_GAPLESS',
+                        code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_FROM_NOT_GAPLESS,
                         message:
                             `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
                             `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
@@ -359,13 +360,13 @@ export class PlanVersionsService {
         const validUntil = validUntilInput ? new Date(validUntilInput) : null;
         if (validUntil && Number.isNaN(validUntil.getTime())) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_VALID_UNTIL_INVALID',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_UNTIL_INVALID,
                 message: `validUntil '${validUntilInput}' is not a valid date`,
             });
         }
         if (validUntil && validUntil <= validFrom) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_VALID_UNTIL_BEFORE_FROM',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_UNTIL_BEFORE_FROM,
                 message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}) liegen.`,
             });
         }
@@ -388,7 +389,7 @@ export class PlanVersionsService {
 
         if (!diff.nonRegressive && !publishMeta.forceRegressive) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_REGRESSION',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_REGRESSION,
                 message:
                     'This plan version is regressive (feature removed / quota lowered / price raised). ' +
                     'Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).',
@@ -429,31 +430,31 @@ export class PlanVersionsService {
         }
         if (existing.publishedAt === null) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_NOT_LIVE',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_LIVE,
                 message: `PlanVersion '${versionId}' is not published and cannot be terminated.`,
             });
         }
         if (existing.supersededAt !== null) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_VERSION_NOT_LIVE',
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_LIVE,
                 message: `PlanVersion '${versionId}' has already been superseded by a newer version (supersededAt) and cannot be terminated.`,
             });
         }
         if (Number.isNaN(endsAt.getTime())) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_TERMINATE_INVALID_DATE',
+                code: CATALOG_ERROR_CODES.PLAN_TERMINATE_INVALID_DATE,
                 message: 'endsAt is not a valid date.',
             });
         }
         if (endsAt.getTime() <= Date.now()) {
             throw new UnprocessableEntityException({
-                code: 'PLAN_TERMINATE_DATE_NOT_FUTURE',
+                code: CATALOG_ERROR_CODES.PLAN_TERMINATE_DATE_NOT_FUTURE,
                 message: `endsAt (${endsAt.toISOString()}) must lie strictly in the future.`,
             });
         }
         if (typeof this.repo.terminate !== 'function') {
             throw new UnprocessableEntityException({
-                code: 'PLAN_TERMINATE_NOT_IMPLEMENTED',
+                code: CATALOG_ERROR_CODES.PLAN_TERMINATE_NOT_IMPLEMENTED,
                 message:
                     'Terminate is not implemented in the current repository. ' +
                     'Implementiere PlanRepository.terminate.',
@@ -482,7 +483,7 @@ export class PlanVersionsService {
         if (blockingStrictModeWarnings(warnings).length === 0) return;
         if (this.mode === 'blocking') {
             throw new UnprocessableEntityException({
-                code: 'STRICT_MODE_VIOLATIONS',
+                code: CATALOG_ERROR_CODES.STRICT_MODE_VIOLATIONS,
                 message: 'The strict-mode check found drift against the discovery snapshot.',
                 warnings,
             });

@@ -5,6 +5,7 @@ import {
     HttpStatus,
     Injectable,
 } from '@nestjs/common';
+import { REGISTRATION_ERROR_CODES } from '@saasicat/types';
 
 /**
  * Configurable in-memory rate limiter (per IP, sliding window).
@@ -60,7 +61,7 @@ export abstract class BaseIpRateLimitGuard implements CanActivate {
         if (this.exceeded(key)) {
             throw new HttpException(
                 {
-                    code: 'RATE_LIMITED',
+                    code: REGISTRATION_ERROR_CODES.RATE_LIMITED,
                     reason: this.options.name,
                     retryAfterSeconds: Math.ceil(this.options.windowMs / 1000),
                 },

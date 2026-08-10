@@ -21,6 +21,7 @@ import type {
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './tokens.js';
+import { CONTRACT_ERROR_CODES } from '@saasicat/types';
 
 export interface CreateContractFromOfferOptions {
     tenantId: string;
@@ -141,7 +142,7 @@ export class SubscriptionContractService {
         const source = offer.lineItems ?? [];
         if (source.length === 0) {
             throw new UnprocessableEntityException({
-                code: 'CHECKOUT_OFFER_LINE_ITEMS_REQUIRED',
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_LINE_ITEMS_REQUIRED,
                 message:
                     'A checkout offer can yield only one contractstehen, wenn LineItems eingefroren sind.',
             });
@@ -182,7 +183,7 @@ export class SubscriptionContractService {
         const date = value instanceof Date ? new Date(value) : new Date(value);
         if (Number.isNaN(date.getTime())) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_CONTRACT_INVALID_DATE',
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_INVALID_DATE,
                 message: `${field} must be a valid date.`,
             });
         }
@@ -205,20 +206,20 @@ export class SubscriptionContractService {
     private assertCreateData(data: CreateSubscriptionContractData): void {
         if (data.lineItems.length === 0) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED',
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED,
                 message: 'A subscription contract requires at least one line item.',
             });
         }
         if (data.effectiveUntil && data.effectiveUntil <= data.effectiveFrom) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_CONTRACT_INVALID_WINDOW',
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_INVALID_WINDOW,
                 message: 'effectiveUntil must be after effectiveFrom.',
             });
         }
         const planLineItems = data.lineItems.filter((item) => item.kind === 'plan');
         if (planLineItems.length !== 1) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED',
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED,
                 message: 'A subscription contract requires exactly one plan base item.',
             });
         }
@@ -235,7 +236,7 @@ export class SubscriptionContractService {
         }
         if (data.effectiveUntil <= existing.effectiveFrom) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START',
+                code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START,
                 message: 'effectiveUntil must be after the effectiveFrom of the contracts liegen.',
             });
         }

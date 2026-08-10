@@ -30,6 +30,7 @@ import type {
 } from '@saasicat/types';
 
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/tokens.js';
+import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/types';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
     type SelfServiceBlockedBundles,
@@ -119,13 +120,13 @@ export class SubscriptionBundlesService {
         }
         if (bundleVersion.publishedAt === null) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_NOT_PUBLISHED',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_PUBLISHED,
                 message: `BundleVersion '${input.bundleVersionId}' is not published and cannot be booked.`,
             });
         }
         if (bundleVersion.supersededAt !== null) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_SUPERSEDED',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_SUPERSEDED,
                 message: `BundleVersion '${input.bundleVersionId}' has been superseded by a newer version.`,
             });
         }
@@ -133,7 +134,7 @@ export class SubscriptionBundlesService {
         // Self-service policy (#37): block sales-only bundles.
         if (this.blockedBundles?.bundleKeys?.includes(bundleVersion.bundleKey)) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_NOT_SELF_SERVICE',
+                code: BILLING_ERROR_CODES.BUNDLE_NOT_SELF_SERVICE,
                 message:
                     `Bundle '${bundleVersion.bundleKey}' is only activated via a special contractviert. ` +
                     'Please contact the contract manager.',
@@ -144,7 +145,7 @@ export class SubscriptionBundlesService {
         const planIds = bundleVersion.compatibility?.planIds ?? [];
         if (planIds.length > 0 && !planIds.includes(input.currentPlanKey)) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_INCOMPATIBLE_WITH_PLAN',
+                code: BILLING_ERROR_CODES.BUNDLE_INCOMPATIBLE_WITH_PLAN,
                 message:
                     `BundleVersion '${input.bundleVersionId}' is not compatible with plan ` +
                     `'${input.currentPlanKey}'. Allowed: [${planIds.join(', ')}].`,
@@ -155,7 +156,7 @@ export class SubscriptionBundlesService {
         const active = await this.repo.listActiveBySubscription(input.subscriptionId);
         if (active.some((b) => b.bundleVersionId === input.bundleVersionId)) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_ALREADY_SUBSCRIBED',
+                code: BILLING_ERROR_CODES.BUNDLE_ALREADY_SUBSCRIBED,
                 message: `Subscription '${input.subscriptionId}' has already actively booked this bundle.`,
             });
         }
@@ -184,7 +185,7 @@ export class SubscriptionBundlesService {
         }
         if (existing.canceledAt !== null) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED',
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELED,
                 message: `SubscriptionBundle '${input.subscriptionBundleId}' is already cancelled.`,
             });
         }
@@ -213,13 +214,13 @@ export class SubscriptionBundlesService {
         }
         if (existing.canceledAt === null) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_BUNDLE_NOT_CANCELED',
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_CANCELED,
                 message: `SubscriptionBundle '${subscriptionBundleId}' is not cancelled.`,
             });
         }
         if (existing.canceledEffectiveAt !== null && existing.canceledEffectiveAt <= new Date()) {
             throw new UnprocessableEntityException({
-                code: 'SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE',
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE,
                 message: 'Cancellation already in effect — book the bundle again.',
             });
         }

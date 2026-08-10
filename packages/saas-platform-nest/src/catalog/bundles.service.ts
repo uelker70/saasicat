@@ -22,14 +22,15 @@ import {
     UnprocessableEntityException,
 } from '@nestjs/common';
 import {
+    CATALOG_ERROR_CODES,
     isVersionEditable,
     type BundleCompatibility,
     type BundleRepository,
     type BundleRow,
     type BundleVersionMutationResult,
     type BundleVersionRow,
-    type CreateBundleData,
     type CatalogEntryRepository,
+    type CreateBundleData,
     type CreateBundleVersionDraftData,
     type DiscoverySnapshot,
     type PlanRepository,
@@ -175,13 +176,13 @@ export class BundlesService {
         }
         if (existing.publishedAt !== null) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_ALREADY_PUBLISHED',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_ALREADY_PUBLISHED,
                 message: `BundleVersion '${versionId}' is already published and cannot be discardederden.`,
             });
         }
         if (typeof this.repo.deleteDraft !== 'function') {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED,
                 message:
                     'Discard is not implemented in the current repository. ' +
                     'Implementiere BundleRepository.deleteDraft.',
@@ -297,7 +298,7 @@ export class BundlesService {
         const { editable } = isVersionEditable(annotated);
         if (!editable) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_NOT_EDITABLE',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_EDITABLE,
                 message:
                     `BundleVersion '${versionId}' is not editable. ` +
                     'Only drafts and published versions are editable that are latest-in-chain, ' +
@@ -362,7 +363,7 @@ export class BundlesService {
                 v !== null && v !== undefined && Number.parseFloat(String(v)) <= 0;
             if (explicitZero(draft.monthlyNet) || explicitZero(draft.yearlyNet)) {
                 throw new UnprocessableEntityException({
-                    code: 'BUNDLE_VERSION_ZERO_PRICE',
+                    code: CATALOG_ERROR_CODES.BUNDLE_VERSION_ZERO_PRICE,
                     message:
                         'A bundle version cannot be published with an explicit price of 0.00 (guard ' +
                         'against seed placeholders). For free bundles leave it null, or set allowZeroPrice setzen.',
@@ -378,7 +379,7 @@ export class BundlesService {
         const validFromInput = publishMeta.validFrom ?? draft.validFrom;
         if (!validFromInput) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_FROM_REQUIRED',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_REQUIRED,
                 message:
                     'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
             });
@@ -386,7 +387,7 @@ export class BundlesService {
         const validFrom = new Date(validFromInput);
         if (Number.isNaN(validFrom.getTime())) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_FROM_INVALID',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_INVALID,
                 message: `validFrom '${validFromInput}' is not a valid date`,
             });
         }
@@ -394,7 +395,7 @@ export class BundlesService {
             const prevFrom = new Date(previous.validFrom);
             if (validFrom <= prevFrom) {
                 throw new UnprocessableEntityException({
-                    code: 'BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS',
+                    code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS,
                     message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the predeger-Version (${previous.validFrom}) liegen.`,
                 });
             }
@@ -407,7 +408,7 @@ export class BundlesService {
                 const requiredStart = new Date(prevUntil.getTime() + dayMs);
                 if (validFrom.getTime() !== requiredStart.getTime()) {
                     throw new UnprocessableEntityException({
-                        code: 'BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS',
+                        code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS,
                         message:
                             `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
                             `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
@@ -426,13 +427,13 @@ export class BundlesService {
         const validUntil = validUntilInput ? new Date(validUntilInput) : null;
         if (validUntil && Number.isNaN(validUntil.getTime())) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_UNTIL_INVALID',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_UNTIL_INVALID,
                 message: `validUntil '${validUntilInput}' is not a valid date`,
             });
         }
         if (validUntil && validUntil <= validFrom) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM,
                 message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}) liegen.`,
             });
         }
@@ -456,7 +457,7 @@ export class BundlesService {
 
         if (!diff.nonRegressive && !publishMeta.forceRegressive) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_REGRESSION',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_REGRESSION,
                 message:
                     'This bundle version is regressive (feature removed / quota lowered / price raised). ' +
                     'Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).',
@@ -510,7 +511,7 @@ export class BundlesService {
         const hasHardBlockingWarning = blocking.some((w) => w.code === 'BUNDLE_PLAN_KEY_UNKNOWN');
         if (this.mode === 'blocking' || hasHardBlockingWarning) {
             throw new UnprocessableEntityException({
-                code: 'STRICT_MODE_VIOLATIONS',
+                code: CATALOG_ERROR_CODES.STRICT_MODE_VIOLATIONS,
                 message: 'The strict-mode check found drift against the discovery snapshot.',
                 warnings,
             });
@@ -537,7 +538,7 @@ export class BundlesService {
         if (!validFromInput) {
             if (existing.publishedAt !== null) {
                 throw new UnprocessableEntityException({
-                    code: 'BUNDLE_VERSION_VALID_FROM_REQUIRED',
+                    code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_REQUIRED,
                     message:
                         'Published bundle versions must keep a validFrom. ' +
                         'Set a new future date, or edit the draft before publishing.',
@@ -554,7 +555,7 @@ export class BundlesService {
 
         if (existing.publishedAt !== null && validFrom.getTime() <= Date.now()) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_FROM_NOT_FUTURE',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_FUTURE,
                 message:
                     `validFrom (${validFrom.toISOString()}) must, for a published-but-future ` +
                     'bundle version, still lie in the future.',
@@ -563,7 +564,7 @@ export class BundlesService {
 
         if (validUntil && validUntil <= validFrom) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM,
                 message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}) liegen.`,
             });
         }
@@ -576,7 +577,7 @@ export class BundlesService {
 
         if (validFrom <= previousValidFrom) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS,
                 message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the predeger-Version (${previous.validFrom}) liegen.`,
             });
         }
@@ -589,7 +590,7 @@ export class BundlesService {
         const requiredStart = new Date(previousValidUntil.getTime() + dayMs);
         if (validFrom.getTime() !== requiredStart.getTime()) {
             throw new UnprocessableEntityException({
-                code: 'BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS',
+                code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS,
                 message:
                     `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
                     `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +

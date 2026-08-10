@@ -25,6 +25,7 @@ import type {
     UpdateCheckoutOfferData,
 } from '@saasicat/types';
 import {
+    CONTRACT_ERROR_CODES,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
     startOfUtcDay,
@@ -141,7 +142,7 @@ export class CheckoutOfferService {
         const missingRequires = collectUnsatisfiedRequires([...selected], requiresIndex);
         if (missingRequires.length > 0) {
             throw new UnprocessableEntityException({
-                code: 'CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED',
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED,
                 message:
                     'The selected plan does not cover all feature dependencies: ' +
                     `[${missingRequires.join(', ')}] are missing from the plan + selected bundles.`,
@@ -228,7 +229,7 @@ export class CheckoutOfferService {
         }
         if (violations.length > 0) {
             throw new UnprocessableEntityException({
-                code: 'CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE',
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE,
                 message: 'At least one bundle version from the checkout offer is notehr buchbar.',
                 violations,
             });
@@ -310,7 +311,7 @@ export class CheckoutOfferService {
         const hasPlan = lineItems.some((item) => item.kind === 'plan');
         if (!hasPlan) {
             throw new UnprocessableEntityException({
-                code: 'CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED',
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED,
                 message: 'A checkout offer requires a frozen plan line item.',
             });
         }
@@ -322,7 +323,7 @@ export class CheckoutOfferService {
         );
         if (missingBundleVersionIds.length > 0) {
             throw new UnprocessableEntityException({
-                code: 'CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED',
+                code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED,
                 message: 'Every selected bundle version requires a frozen bundle line item.',
                 bundleVersionIds: missingBundleVersionIds,
             });
