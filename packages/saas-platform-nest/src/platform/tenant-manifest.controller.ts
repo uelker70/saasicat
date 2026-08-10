@@ -52,7 +52,9 @@ export function buildTenantManifestController(
         async get(@Req() req: RequestWithUser) {
             const tenantId = req.user?.tenantId ?? req.tenantId;
             if (!tenantId) {
-                throw new Error('Kein Mandant im Request — TenantManifest braucht user.tenantId.');
+                throw new Error(
+                    'No tenant on the request — TenantManifest requires user.tenantId.',
+                );
             }
             return this.svc.getManifest(tenantId);
         }

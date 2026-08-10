@@ -123,7 +123,7 @@ test('preview returns DOWNGRADE STANDARD→STARTER with users blocker when usage
     const usersBlocker = dto.blockers.find((b) => b.code === 'USERS_OVER_TARGET');
     assert.ok(usersBlocker);
     assert.ok(
-        usersBlocker.message.includes('Verbrauch reduzieren'),
+        usersBlocker.message.includes('reduce usage'),
         'blocker message asks for usage reduction',
     );
     assert.deepEqual(dto.featuresGained, []);

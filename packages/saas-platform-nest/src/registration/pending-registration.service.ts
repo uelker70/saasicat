@@ -285,7 +285,7 @@ export class PendingRegistrationService {
         });
         if (!claimed) {
             this.logger.warn(
-                `Idempotenz: PaymentEvent ${input.eventId} bereits verarbeitet — Duplikat verworfen.`,
+                `Idempotency: payment event ${input.eventId} already processedet — Duplikat verworfen.`,
             );
             await this.record('PAYMENT_DUPLICATE_IGNORED', null, context, {
                 eventId: input.eventId,
@@ -354,7 +354,7 @@ export class PendingRegistrationService {
                 // already removed the record. Log and continue.
                 const message = error instanceof Error ? error.message : String(error);
                 this.logger.warn(
-                    `Cleanup: PendingRegistration ${pending.id} konnte nicht geloescht werden (${message}).`,
+                    `Cleanup: pending registration ${pending.id} could not be deleted (${message}).`,
                 );
             }
         }
@@ -545,7 +545,7 @@ export class PendingRegistrationService {
 
         if (withinWindow && pending.otpSendCount >= OTP_RATE_LIMIT_MAX_SENDS) {
             this.logger.warn(
-                `OTP-Rate-Limit erreicht fuer ${pending.email} — Send wird still verworfen.`,
+                `OTP rate limit reached for ${pending.email} — send is still verworfen.`,
             );
             return;
         }
@@ -867,7 +867,7 @@ export class PendingRegistrationService {
                 return candidate;
             }
         }
-        throw new Error(`Konnte keinen freien Slug fuer "${tenantName}" finden.`);
+        throw new Error(`Could not find a free slug for "${tenantName}".`);
     }
 }
 

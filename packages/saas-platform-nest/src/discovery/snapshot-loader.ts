@@ -11,10 +11,10 @@ import type { DiscoverySnapshot } from './types.js';
 export class DiscoverySnapshotNotFoundError extends Error {
     constructor(public readonly path: string) {
         super(
-            `Discovery-Snapshot-Datei nicht gefunden: ${path}. ` +
-                `Booten Sie zuerst die App mit DISCOVERY_SNAPSHOT_PATH oder ` +
-                `DiscoveryModule.forRoot({ snapshotPath: '…' }), damit der ` +
-                `Scanner die Datei beim OnApplicationBootstrap-Hook schreibt.`,
+            `Discovery snapshot file not found: ${path}. ` +
+                `Boot the app first with DISCOVERY_SNAPSHOT_PATH or ` +
+                `DiscoveryModule.forRoot({ snapshotPath: '…' }) so that the ` +
+                `scanner writes the file on the OnApplicationBootstrap hook.`,
         );
         this.name = 'DiscoverySnapshotNotFoundError';
     }

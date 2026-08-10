@@ -117,7 +117,7 @@ describe('EntitlementService — computeLimits + Cache', () => {
 
     test('NotFound for unknown tenant', async () => {
         const { svc } = buildHarness();
-        await assert.rejects(() => svc.computeLimits('unknown'), /Keine Subscription/);
+        await assert.rejects(() => svc.computeLimits('unknown'), /No subscription/);
     });
 
     test('invalidateTenant forces a re-read', async () => {
@@ -407,7 +407,7 @@ describe('EntitlementService.enforceLimit — transactional', () => {
                     insert: async () => 'never',
                     now: NOW,
                 }),
-            /Keine Subscription/,
+            /No subscription/,
         );
     });
 

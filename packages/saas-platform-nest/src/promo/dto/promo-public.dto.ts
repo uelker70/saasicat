@@ -10,17 +10,17 @@ const CODE_PATTERN = /^[A-Z0-9_-]{4,32}$/i;
 export class PreviewPromoCodeDto {
     @IsString()
     @Matches(CODE_PATTERN, {
-        message: 'code muss aus A–Z, 0–9, "-" und "_" bestehen (4–32 Zeichen)',
+        message: 'code must consist of A–Z, 0–9, "-" and "_" (4–32 characters)',
     })
     code!: string;
 
     @IsString()
-    @Matches(PLAN_OR_CYCLE_PATTERN, { message: 'plan muss SCREAMING_SNAKE_CASE sein' })
+    @Matches(PLAN_OR_CYCLE_PATTERN, { message: 'plan must be SCREAMING_SNAKE_CASE' })
     plan!: string;
 
     @IsString()
     @Matches(PLAN_OR_CYCLE_PATTERN, {
-        message: 'billingCycle muss SCREAMING_SNAKE_CASE sein (z. B. MONTHLY, YEARLY)',
+        message: 'billingCycle must be SCREAMING_SNAKE_CASE (e.g. MONTHLY, YEARLY)',
     })
     billingCycle!: string;
 

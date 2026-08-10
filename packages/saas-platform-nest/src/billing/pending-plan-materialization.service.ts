@@ -65,7 +65,7 @@ export class PendingPlanMaterializationService {
             } catch (err) {
                 // Non-fatal per tenant — one failure must not abort the run.
                 this.logger.error(
-                    `Pending-Plan-Materialisierung fehlgeschlagen (tenant ${change.tenantId}): ${String(err)}`,
+                    `Pending plan materialisation failed (tenant ${change.tenantId}): ${String(err)}`,
                 );
                 continue;
             }
@@ -92,7 +92,7 @@ export class PendingPlanMaterializationService {
             await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, now);
         } catch (err) {
             this.logger.error(
-                `Contract-Freeze nach Materialisierung fehlgeschlagen (tenant ${tenantId}): ${String(err)}`,
+                `Contract freeze after materialisation failed (tenant ${tenantId}): ${String(err)}`,
             );
         }
     }

@@ -39,7 +39,8 @@ export class PlanCatalogDoctorCheck implements DoctorCheck {
         if (plans.length === 0) {
             return {
                 severity: 'error',
-                message: 'PlanCatalog enthält keine Pläne — Onboarding-Pricing-Page wird leer.',
+                message:
+                    'The plan catalog contains no plans — the onboarding pricing page will be empty.',
             };
         }
         return {
@@ -56,7 +57,7 @@ export class PlanCatalogDoctorCheck implements DoctorCheck {
 @Injectable()
 export class DiscoverySnapshotDoctorCheck implements DoctorCheck {
     readonly id = 'platform.discovery-snapshot';
-    readonly label = 'Discovery-Snapshot beim Boot';
+    readonly label = 'Discovery snapshot on boot';
     constructor(@Inject(DISCOVERY_SNAPSHOT_TOKEN) private readonly snapshot: DiscoverySnapshot) {}
 
     async run(): Promise<DoctorCheckResult> {
@@ -65,7 +66,7 @@ export class DiscoverySnapshotDoctorCheck implements DoctorCheck {
             return {
                 severity: 'warning',
                 message:
-                    'Keine Capabilities entdeckt — Decorator-tragende Module evtl. nicht in AppModule.imports[].',
+                    'No capabilities discovered — decorator-carrying modules may be missing from AppModule.imports[].',
             };
         }
         return {
@@ -106,7 +107,7 @@ export class AdminManifestDoctorCheck implements DoctorCheck {
             const pageCount = Object.keys(m.navigation?.standardPages ?? {}).length;
             return {
                 severity: 'ok',
-                message: `Manifest mit ${pageCount} Standard-Pages, Hash ${m.build?.manifestHash?.slice(0, 12) ?? '???'}…`,
+                message: `Manifest with ${pageCount} standard pages, hash ${m.build?.manifestHash?.slice(0, 12) ?? '???'}…`,
             };
         } catch (err) {
             return {

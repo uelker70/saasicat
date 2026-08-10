@@ -45,7 +45,7 @@ export class SubscriptionContractService {
     async getById(contractId: string): Promise<SubscriptionContractRecord> {
         const row = await this.repo.findById(contractId);
         if (!row) {
-            throw new NotFoundException(`SubscriptionContract '${contractId}' nicht gefunden`);
+            throw new NotFoundException(`SubscriptionContract '${contractId}' not found`);
         }
         return row;
     }
@@ -63,7 +63,7 @@ export class SubscriptionContractService {
     ): Promise<SubscriptionContractInvoiceSnapshot> {
         const contract = await this.repo.findActiveByTenantId(tenantId, asOf);
         if (!contract) {
-            throw new NotFoundException(`Kein aktiver SubscriptionContract für Tenant ${tenantId}`);
+            throw new NotFoundException(`No active subscription contract for tenant ${tenantId}`);
         }
         return subscriptionContractToInvoiceSnapshot(contract);
     }
@@ -108,7 +108,7 @@ export class SubscriptionContractService {
     ): CreateSubscriptionContractData {
         if (offer.status !== 'consumed') {
             throw new ConflictException(
-                `CheckoutOffer '${offer.id}' muss vor Contract-Erstellung consumed sein`,
+                `CheckoutOffer '${offer.id}' must, before contract creationtellung consumed sein`,
             );
         }
         const lineItems = this.lineItemsFromOffer(offer);
@@ -143,7 +143,7 @@ export class SubscriptionContractService {
             throw new UnprocessableEntityException({
                 code: 'CHECKOUT_OFFER_LINE_ITEMS_REQUIRED',
                 message:
-                    'Aus einem CheckoutOffer kann nur ein Contract entstehen, wenn LineItems eingefroren sind.',
+                    'A checkout offer can yield only one contractstehen, wenn LineItems eingefroren sind.',
             });
         }
         return appendImplicitDiscountLineItem({
@@ -183,7 +183,7 @@ export class SubscriptionContractService {
         if (Number.isNaN(date.getTime())) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_CONTRACT_INVALID_DATE',
-                message: `${field} muss ein gültiges Datum sein.`,
+                message: `${field} must be a valid date.`,
             });
         }
         return date;
@@ -206,20 +206,20 @@ export class SubscriptionContractService {
         if (data.lineItems.length === 0) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_CONTRACT_LINE_ITEMS_REQUIRED',
-                message: 'SubscriptionContract benötigt mindestens eine LineItem.',
+                message: 'A subscription contract requires at least one line item.',
             });
         }
         if (data.effectiveUntil && data.effectiveUntil <= data.effectiveFrom) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_CONTRACT_INVALID_WINDOW',
-                message: 'effectiveUntil muss nach effectiveFrom liegen.',
+                message: 'effectiveUntil must be after effectiveFrom.',
             });
         }
         const planLineItems = data.lineItems.filter((item) => item.kind === 'plan');
         if (planLineItems.length !== 1) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_CONTRACT_PLAN_LINE_ITEM_REQUIRED',
-                message: 'SubscriptionContract benötigt genau eine Plan-Grundposition.',
+                message: 'A subscription contract requires exactly one plan base item.',
             });
         }
     }
@@ -230,13 +230,13 @@ export class SubscriptionContractService {
     ): void {
         if (existing.status === 'terminated' || existing.status === 'superseded') {
             throw new ConflictException(
-                `SubscriptionContract '${existing.id}' ist bereits geschlossen`,
+                `SubscriptionContract '${existing.id}' is already geschlossen`,
             );
         }
         if (data.effectiveUntil <= existing.effectiveFrom) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_CONTRACT_TERMINATION_BEFORE_START',
-                message: 'effectiveUntil muss nach effectiveFrom des Contracts liegen.',
+                message: 'effectiveUntil must be after the effectiveFrom of the contracts liegen.',
             });
         }
     }

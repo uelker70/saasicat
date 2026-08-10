@@ -82,13 +82,13 @@ export function buildLabel(
     }
     if (code.durationType === 'MONTHS') {
         const m = code.durationValue ?? 0;
-        return m === 1 ? `${valueStr} im ersten Monat` : `${valueStr} für ${m} Monate`;
+        return m === 1 ? `${valueStr} im ersten Monat` : `${valueStr} for ${m} months`;
     }
     // BILLING_CYCLES (or undefined)
     const n = code.durationValue ?? 0;
     if (n === 1)
         return cycle === 'YEARLY' ? `${valueStr} im ersten Jahr` : `${valueStr} im ersten Monat`;
     return cycle === 'YEARLY'
-        ? `${valueStr} in den ersten ${n} Jahren`
-        : `${valueStr} in den ersten ${n} Monaten`;
+        ? `${valueStr} for the first ${n} years`
+        : `${valueStr} for the first ${n} months`;
 }

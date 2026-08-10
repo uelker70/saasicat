@@ -29,12 +29,12 @@ describe('SuperAdminGuard', () => {
     test('rejects TENANT_ADMIN', () => {
         assert.throws(
             () => guard.canActivate(buildContext({ user: { role: 'TENANT_ADMIN' } })),
-            /Nur SUPER_ADMIN-Rolle erlaubt/,
+            /Only the SUPER_ADMIN role is allowed/,
         );
     });
 
     test('rejects a missing user', () => {
-        assert.throws(() => guard.canActivate(buildContext({})), /Nicht authentifiziert/);
+        assert.throws(() => guard.canActivate(buildContext({})), /Not authenticated/);
     });
 });
 

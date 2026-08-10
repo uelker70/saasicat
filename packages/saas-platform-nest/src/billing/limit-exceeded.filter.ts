@@ -44,7 +44,7 @@ export class LimitExceededFilter extends BaseExceptionFilter {
         const request = ctx.getRequest<RequestLike>();
 
         this.logger.warn(
-            `Limit ${exception.dimension} überschritten: ${exception.used}/${exception.max} bei ${request.method ?? '?'} ${request.url ?? ''}`,
+            `Limit ${exception.dimension} exceeded: ${exception.used}/${exception.max} bei ${request.method ?? '?'} ${request.url ?? ''}`,
         );
 
         response.status(HttpStatus.PAYMENT_REQUIRED).send({

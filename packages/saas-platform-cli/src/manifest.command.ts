@@ -21,7 +21,7 @@ interface AsFlag {
 }
 
 @Injectable()
-@SubCommand({ name: 'dump', description: 'Manifest als JSON ausgeben' })
+@SubCommand({ name: 'dump', description: 'Print the manifest as JSON' })
 export class ManifestDumpCommand extends CommandRunner {
     constructor(
         private readonly ctx: CliContextService,
@@ -128,7 +128,7 @@ export class ManifestCheckCommand extends CommandRunner {
 })
 export class ManifestCommands extends CommandRunner {
     async run(): Promise<void> {
-        process.stderr.write('Bitte Sub-Command angeben: dump, hash, validate, check.\n');
+        process.stderr.write('Specify a sub-command: dump, hash, validate, check.\n');
         process.exit(2);
     }
 }

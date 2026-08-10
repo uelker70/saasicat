@@ -117,7 +117,7 @@ export class BundlesService {
         if (this.mode === 'blocking' && !hasDiscoverySnapshotSource(this.snapshot, this.scanner)) {
             this.logger.error(
                 'BundlesService: strictModeCheckMode=blocking ohne DiscoverySnapshot-Quelle — ' +
-                    'degradiere auf warn-only. DiscoveryModule wiren, damit die Erzwingung greift (#25).',
+                    'degrading to warn-only. Wire DiscoveryModule so that enforcement takes effect (#25).',
             );
             this.mode = 'warn-only';
         }
@@ -135,7 +135,7 @@ export class BundlesService {
         bundleId: string,
     ): Promise<{ bundle: BundleRow; versions: BundleVersionRow[] }> {
         const bundle = await this.repo.findById(bundleId);
-        if (!bundle) throw new NotFoundException(`Bundle '${bundleId}' nicht gefunden`);
+        if (!bundle) throw new NotFoundException(`Bundle '${bundleId}' not found`);
         const versions = await this.annotateEditability(await this.repo.listVersions(bundleId));
         return { bundle, versions };
     }
@@ -144,7 +144,7 @@ export class BundlesService {
         const existing = await this.repo.findByKey(data.projectKey, data.bundleKey);
         if (existing) {
             throw new UnprocessableEntityException(
-                `Bundle '${data.bundleKey}' existiert bereits in Projekt '${data.projectKey}'`,
+                `Bundle '${data.bundleKey}' already exists in project '${data.projectKey}'`,
             );
         }
         return this.repo.create(data);
@@ -152,13 +152,13 @@ export class BundlesService {
 
     async updateBundle(bundleId: string, data: UpdateBundleData): Promise<BundleRow> {
         const existing = await this.repo.findById(bundleId);
-        if (!existing) throw new NotFoundException(`Bundle '${bundleId}' nicht gefunden`);
+        if (!existing) throw new NotFoundException(`Bundle '${bundleId}' not found`);
         return this.repo.update(bundleId, data);
     }
 
     async softDeleteBundle(bundleId: string): Promise<void> {
         const existing = await this.repo.findById(bundleId);
-        if (!existing) throw new NotFoundException(`Bundle '${bundleId}' nicht gefunden`);
+        if (!existing) throw new NotFoundException(`Bundle '${bundleId}' not found`);
         if (existing.deletedAt !== null) return; // idempotent
         await this.repo.softDelete(bundleId);
     }
@@ -171,19 +171,19 @@ export class BundlesService {
     async discardBundleDraft(versionId: string): Promise<void> {
         const existing = await this.repo.findVersionById(versionId);
         if (!existing) {
-            throw new NotFoundException(`BundleVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`BundleVersion '${versionId}' not found`);
         }
         if (existing.publishedAt !== null) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_ALREADY_PUBLISHED',
-                message: `BundleVersion '${versionId}' ist bereits published und kann nicht verworfen werden.`,
+                message: `BundleVersion '${versionId}' is already published and cannot be discardederden.`,
             });
         }
         if (typeof this.repo.deleteDraft !== 'function') {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED',
                 message:
-                    'Discard ist im aktuellen Repository nicht implementiert. ' +
+                    'Discard is not implemented in the current repository. ' +
                     'Implementiere BundleRepository.deleteDraft.',
             });
         }
@@ -201,7 +201,7 @@ export class BundlesService {
     async getBundleVersion(versionId: string): Promise<BundleVersionRow> {
         const version = await this.repo.findVersionById(versionId);
         if (!version) {
-            throw new NotFoundException(`BundleVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`BundleVersion '${versionId}' not found`);
         }
         const [annotated] = await this.annotateEditability([version]);
         return annotated;
@@ -246,13 +246,13 @@ export class BundlesService {
     ): Promise<BundleVersionMutationResult> {
         const bundle = await this.repo.findById(data.bundleId);
         if (!bundle) {
-            throw new NotFoundException(`Bundle '${data.bundleId}' nicht gefunden`);
+            throw new NotFoundException(`Bundle '${data.bundleId}' not found`);
         }
 
         const existingDraft = await this.repo.findCurrentDraft(data.bundleId);
         if (existingDraft) {
             throw new UnprocessableEntityException(
-                `Bundle '${bundle.bundleKey}' hat bereits eine Draft-Version v${existingDraft.version}; bitte erst publishen oder verwerfen`,
+                `Bundle '${bundle.bundleKey}' already has a draft version v${existingDraft.version}; publish or discard it first`,
             );
         }
 
@@ -290,7 +290,7 @@ export class BundlesService {
     ): Promise<BundleVersionMutationResult> {
         const existing = await this.repo.findVersionById(versionId);
         if (!existing) {
-            throw new NotFoundException(`BundleVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`BundleVersion '${versionId}' not found`);
         }
 
         const [annotated] = await this.annotateEditability([existing]);
@@ -299,9 +299,9 @@ export class BundlesService {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_NOT_EDITABLE',
                 message:
-                    `BundleVersion '${versionId}' ist nicht editierbar. ` +
-                    'Editierbar sind nur Drafts und published Versionen, die latest-in-chain ' +
-                    'sind, noch keine Subscription binden und deren validFrom in der Zukunft liegt.',
+                    `BundleVersion '${versionId}' is not editable. ` +
+                    'Only drafts and published versions are editable that are latest-in-chain, ' +
+                    'bind no subscription yet, and whose validFrom lies in the future.',
             });
         }
 
@@ -335,11 +335,11 @@ export class BundlesService {
     ): Promise<BundleVersionMutationResult> {
         const draft = await this.repo.findVersionById(versionId);
         if (!draft) {
-            throw new NotFoundException(`BundleVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`BundleVersion '${versionId}' not found`);
         }
         if (draft.publishedAt !== null) {
             throw new UnprocessableEntityException(
-                `BundleVersion '${versionId}' ist bereits published`,
+                `BundleVersion '${versionId}' is already published`,
             );
         }
 
@@ -364,8 +364,8 @@ export class BundlesService {
                 throw new UnprocessableEntityException({
                     code: 'BUNDLE_VERSION_ZERO_PRICE',
                     message:
-                        'BundleVersion kann nicht mit explizitem Preis 0,00 published werden (Schutz ' +
-                        'gegen Seed-Platzhalter). Preisfreie Bundles: null lassen oder allowZeroPrice setzen.',
+                        'A bundle version cannot be published with an explicit price of 0.00 (guard ' +
+                        'against seed placeholders). For free bundles leave it null, or set allowZeroPrice setzen.',
                     monthlyNet: draft.monthlyNet,
                     yearlyNet: draft.yearlyNet,
                 });
@@ -380,14 +380,14 @@ export class BundlesService {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_FROM_REQUIRED',
                 message:
-                    'Beim Publish muss validFrom gesetzt sein (auf Draft oder Publish-Aufruf). SPEC_V2 §4.2.',
+                    'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
             });
         }
         const validFrom = new Date(validFromInput);
         if (Number.isNaN(validFrom.getTime())) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_FROM_INVALID',
-                message: `validFrom '${validFromInput}' ist kein gültiges Datum`,
+                message: `validFrom '${validFromInput}' is not a valid date`,
             });
         }
         if (previous?.validFrom) {
@@ -395,7 +395,7 @@ export class BundlesService {
             if (validFrom <= prevFrom) {
                 throw new UnprocessableEntityException({
                     code: 'BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS',
-                    message: `validFrom (${validFrom.toISOString()}) muss strikt nach validFrom der Vorgänger-Version (${previous.validFrom}) liegen.`,
+                    message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the predeger-Version (${previous.validFrom}) liegen.`,
                 });
             }
             // Gapless succession analogous to Plan: if the predecessor already
@@ -409,9 +409,9 @@ export class BundlesService {
                     throw new UnprocessableEntityException({
                         code: 'BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS',
                         message:
-                            `Vorgänger hat validUntil=${previous.validUntil.slice(0, 10)} — der Nachfolger muss ` +
-                            `nahtlos am Folgetag (${requiredStart.toISOString().slice(0, 10)}) starten. ` +
-                            `Geliefert: ${validFrom.toISOString().slice(0, 10)}.`,
+                            `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
+                            `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
+                            `Received: ${validFrom.toISOString().slice(0, 10)}.`,
                         requiredValidFrom: requiredStart.toISOString().slice(0, 10),
                         previousValidUntil: previous.validUntil,
                     });
@@ -427,13 +427,13 @@ export class BundlesService {
         if (validUntil && Number.isNaN(validUntil.getTime())) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_UNTIL_INVALID',
-                message: `validUntil '${validUntilInput}' ist kein gültiges Datum`,
+                message: `validUntil '${validUntilInput}' is not a valid date`,
             });
         }
         if (validUntil && validUntil <= validFrom) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM',
-                message: `validUntil (${validUntil.toISOString()}) muss strikt nach validFrom (${validFrom.toISOString()}) liegen.`,
+                message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}) liegen.`,
             });
         }
 
@@ -458,8 +458,8 @@ export class BundlesService {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_REGRESSION',
                 message:
-                    'Diese BundleVersion ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). ' +
-                    'Publishen erfordert explizites `forceRegressive: true` (UI-Bestätigungsmodal mit MFA).',
+                    'This bundle version is regressive (feature removed / quota lowered / price raised). ' +
+                    'Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).',
                 changes: diff.changes,
             });
         }
@@ -511,7 +511,7 @@ export class BundlesService {
         if (this.mode === 'blocking' || hasHardBlockingWarning) {
             throw new UnprocessableEntityException({
                 code: 'STRICT_MODE_VIOLATIONS',
-                message: 'Strict-Mode-Check hat Drift gegen den Discovery-Snapshot gefunden.',
+                message: 'The strict-mode check found drift against the discovery snapshot.',
                 warnings,
             });
         }
@@ -539,8 +539,8 @@ export class BundlesService {
                 throw new UnprocessableEntityException({
                     code: 'BUNDLE_VERSION_VALID_FROM_REQUIRED',
                     message:
-                        'Published BundleVersionen müssen ein validFrom behalten. ' +
-                        'Setze ein neues zukünftiges Datum oder bearbeite die Draft vor dem Publish.',
+                        'Published bundle versions must keep a validFrom. ' +
+                        'Set a new future date, or edit the draft before publishing.',
                 });
             }
             return;
@@ -556,15 +556,15 @@ export class BundlesService {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_FROM_NOT_FUTURE',
                 message:
-                    `validFrom (${validFrom.toISOString()}) muss für eine published-but-future ` +
-                    'BundleVersion weiterhin in der Zukunft liegen.',
+                    `validFrom (${validFrom.toISOString()}) must, for a published-but-future ` +
+                    'bundle version, still lie in the future.',
             });
         }
 
         if (validUntil && validUntil <= validFrom) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_UNTIL_BEFORE_FROM',
-                message: `validUntil (${validUntil.toISOString()}) muss strikt nach validFrom (${validFrom.toISOString()}) liegen.`,
+                message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}) liegen.`,
             });
         }
 
@@ -577,7 +577,7 @@ export class BundlesService {
         if (validFrom <= previousValidFrom) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS',
-                message: `validFrom (${validFrom.toISOString()}) muss strikt nach validFrom der Vorgänger-Version (${previous.validFrom}) liegen.`,
+                message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the predeger-Version (${previous.validFrom}) liegen.`,
             });
         }
 
@@ -591,9 +591,9 @@ export class BundlesService {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_VALID_FROM_NOT_GAPLESS',
                 message:
-                    `Vorgänger hat validUntil=${previous.validUntil.slice(0, 10)} — der Nachfolger muss ` +
-                    `nahtlos am Folgetag (${requiredStart.toISOString().slice(0, 10)}) starten. ` +
-                    `Geliefert: ${validFrom.toISOString().slice(0, 10)}.`,
+                    `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
+                    `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
+                    `Received: ${validFrom.toISOString().slice(0, 10)}.`,
                 requiredValidFrom: requiredStart.toISOString().slice(0, 10),
                 previousValidUntil: previous.validUntil,
             });
@@ -629,7 +629,7 @@ export class BundlesService {
         if (Number.isNaN(date.getTime())) {
             throw new UnprocessableEntityException({
                 code,
-                message: `${field} '${input}' ist kein gültiges Datum`,
+                message: `${field} '${input}' is not a valid date`,
             });
         }
         return date;

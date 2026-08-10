@@ -69,7 +69,7 @@ function allCapabilities(m: AdminManifest): string[] {
 export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
     {
         id: 'manifest.schema-version',
-        label: 'schemaVersion ist 1',
+        label: 'schemaVersion is 1',
         run: (m) =>
             m.schemaVersion === 1
                 ? ok('schemaVersion=1')
@@ -80,15 +80,15 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
         label: 'manifestHash folgt sha256-<base64url>-Pattern',
         run: (m) => {
             const hash = m.build?.manifestHash;
-            if (!hash) return err('manifestHash fehlt');
+            if (!hash) return err('manifestHash is missing');
             return /^sha256-[A-Za-z0-9_-]+$/.test(hash)
                 ? ok(hash)
-                : err(`manifestHash hat falsches Format: ${hash}`);
+                : err(`manifestHash has the wrong format: ${hash}`);
         },
     },
     {
         id: 'manifest.project-page-component-keys',
-        label: 'ProjectPage.componentKey-Format (lowercase-hyphenated ODER namespace.dot)',
+        label: 'ProjectPage.componentKey format (lowercase-hyphenated OR namespace.dot)',
         run: (m) => {
             const bad: string[] = [];
             for (const p of allProjectPages(m)) {
@@ -96,7 +96,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             }
             return bad.length === 0
                 ? ok(`${allProjectPages(m).length} ProjectPage(s) ok`)
-                : err(`${bad.length} componentKey(s) verletzen das Pattern`, bad);
+                : err(`${bad.length} componentKey(s) violate the pattern`, bad);
         },
     },
     {
@@ -109,7 +109,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             }
             return bad.length === 0
                 ? ok('alle actionKeys folgen domain.action')
-                : err(`${bad.length} actionKey(s) verletzen das Pattern`, bad);
+                : err(`${bad.length} actionKey(s) violate the pattern`, bad);
         },
     },
     {
@@ -122,7 +122,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             }
             return bad.length === 0
                 ? ok('alle AuditAction.keys SCREAMING_SNAKE_CASE')
-                : err(`${bad.length} AuditAction.key(s) verletzen das Pattern`, bad);
+                : err(`${bad.length} AuditAction.key(s) violate the pattern`, bad);
         },
     },
     {
@@ -132,7 +132,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             const bad = allCapabilities(m).filter((c) => !CAPABILITY_PATTERN.test(c));
             return bad.length === 0
                 ? ok(`${allCapabilities(m).length} Capabilities ok`)
-                : err(`${bad.length} Capability/-ies verletzen das Pattern`, bad);
+                : err(`${bad.length} Capability/-ies violate the pattern`, bad);
         },
     },
     {
@@ -149,13 +149,13 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             for (const a of allTenantActions(m)) visit(a.requiredCapability, a.id);
             for (const c of allTenantColumns(m)) visit(c.requiredCapability, c.key);
             return bad.length === 0
-                ? ok('alle requiredCapability-Refs aufgelöst')
+                ? ok('every requiredCapability ref resolves')
                 : err(`${bad.length} unbekannte Capability-Ref(s)`, bad);
         },
     },
     {
         id: 'manifest.route-prefix',
-        label: 'ProjectPage.route beginnt mit /admin',
+        label: 'ProjectPage.route starts with /admin',
         run: (m) => {
             const bad: string[] = [];
             for (const p of allProjectPages(m)) {
@@ -168,7 +168,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
     },
     {
         id: 'manifest.kpi-slot-priority',
-        label: 'KpiCard.slotPriority (falls gesetzt) ist endliche Zahl',
+        label: 'KpiCard.slotPriority (if set) is a finite number',
         run: (m) => {
             const bad: string[] = [];
             for (const k of allKpiCards(m)) {
@@ -178,12 +178,12 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             }
             return bad.length === 0
                 ? ok('alle slotPriority-Werte endlich')
-                : err(`${bad.length} KpiCard(s) mit ungültiger slotPriority`, bad);
+                : err(`${bad.length} KpiCard(s) with an invalid slotPriority`, bad);
         },
     },
     {
         id: 'manifest.unique-project-page-ids',
-        label: 'ProjectPage.id ist unique',
+        label: 'ProjectPage.id is unique',
         run: (m) => {
             const seen = new Map<string, number>();
             for (const p of allProjectPages(m)) {
@@ -197,7 +197,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
     },
     {
         id: 'manifest.unique-action-keys',
-        label: 'actionKeys sind je Namespace (TenantAction / AuditAction) eindeutig',
+        label: 'actionKeys are unique per namespace (TenantAction / AuditAction)',
         run: (m) => {
             const dups: string[] = [];
             const tenantSeen = new Map<string, number>();
@@ -221,7 +221,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
     },
     {
         id: 'manifest.tenant-columns-batchable',
-        label: 'TenantColumns haben endpoint-Pfad für Batch-Fetch',
+        label: 'tenant columns carry an endpoint path for batch fetching',
         run: (m) => {
             const bad: string[] = [];
             for (const c of allTenantColumns(m)) {
@@ -231,7 +231,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
                 }
             }
             return bad.length === 0
-                ? ok('alle TenantColumns batch-fähig')
+                ? ok('every tenant column supports batch fetching')
                 : err(`${bad.length} TenantColumn(s) verletzen Batch-Pflicht`, bad);
         },
     },

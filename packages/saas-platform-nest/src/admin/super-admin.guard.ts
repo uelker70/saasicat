@@ -20,10 +20,10 @@ interface RequestWithUser {
 export class SuperAdminGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest<RequestWithUser>();
-        if (!request.user) throw new ForbiddenException('Nicht authentifiziert');
+        if (!request.user) throw new ForbiddenException('Not authenticated');
         const role = request.user.platformRole ?? request.user.role;
         if (role !== 'SUPER_ADMIN') {
-            throw new ForbiddenException('Nur SUPER_ADMIN-Rolle erlaubt');
+            throw new ForbiddenException('Only the SUPER_ADMIN role is allowed');
         }
         return true;
     }

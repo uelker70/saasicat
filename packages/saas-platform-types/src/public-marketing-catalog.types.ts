@@ -13,7 +13,7 @@ import type { PromotionType } from './promotion.types.js';
 /** Active promotion of a plan card — discount already computed. */
 export interface PublicMarketingPromo {
     type: PromotionType;
-    /** Locale-resolved badge (e.g. "Frühjahrs-Aktion"). */
+    /** Locale-resolved badge (e.g. "Spring offer"). */
     badge: string;
     /** Locale-resolved fineprint below the CTA. */
     fineprint: string;

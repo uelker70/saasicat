@@ -69,7 +69,7 @@ export class CliContextService {
         if (!email) {
             throw new CliError(
                 'NO_IDENTITY',
-                `Keine Admin-Identität gesetzt. Bitte $${this.config.adminEmailEnvVar} setzen oder --as <email> übergeben.`,
+                `No admin identity set. Please set $${this.config.adminEmailEnvVar} or pass --as <email>.`,
                 2,
             );
         }
@@ -89,14 +89,14 @@ export class CliContextService {
         if (!user || user.deletedAt || !user.isActive) {
             throw new CliError(
                 'USER_NOT_FOUND',
-                `SUPER_ADMIN-User ${identity.email} nicht gefunden oder inaktiv.`,
+                `SUPER_ADMIN-User ${identity.email} not found or inactive.`,
                 2,
             );
         }
         if (user.platformRole !== 'SUPER_ADMIN') {
             throw new CliError(
                 'NOT_SUPER_ADMIN',
-                `User ${identity.email} hat Rolle ${user.platformRole} — nur SUPER_ADMIN darf das CLI nutzen.`,
+                `User ${identity.email} hat Rolle ${user.platformRole} — only SUPER_ADMIN may do that CLI nutzen.`,
                 2,
             );
         }
@@ -125,7 +125,7 @@ export class CliContextService {
         if (!enabled) {
             throw new CliError(
                 'MFA_NOT_SET_UP',
-                "MFA ist nicht konfiguriert. Bitte zuerst 'admin mfa-setup' ausführen.",
+                "MFA is not configured. Run 'admin mfa-setup' first.",
                 3,
             );
         }
@@ -133,7 +133,7 @@ export class CliContextService {
         const code = await this.prompt('TOTP-Code: ');
         const ok = await this.mfa.verify({ userId, code });
         if (!ok) {
-            throw new CliError('MFA_FAILED', 'TOTP-Code ungültig.', 3);
+            throw new CliError('MFA_FAILED', 'Invalid TOTP code.', 3);
         }
     }
 
@@ -144,7 +144,7 @@ export class CliContextService {
     async ensureProductionConfirmation(opts: { yes?: boolean } = {}): Promise<void> {
         if (!this.config.isProductionEnvironment()) return;
         if (opts.yes) return;
-        const answer = await this.prompt('Tippe production zur Bestätigung: ');
+        const answer = await this.prompt('Type production to confirm: ');
         if (answer.trim().toLowerCase() !== 'production') {
             throw new CliError(
                 'PRODUCTION_CONFIRM_ABORTED',
@@ -189,7 +189,7 @@ export class CliContextService {
 
     table(rows: Record<string, unknown>[]): void {
         if (rows.length === 0) {
-            console.log('— keine Einträge —');
+            console.log('— no entries —');
             return;
         }
         console.table(rows);

@@ -15,7 +15,7 @@ describe('PlanCatalogDoctorCheck', () => {
         const check = new PlanCatalogDoctorCheck({ projectKey: 'app', plans: [] });
         const r = await check.run();
         assert.equal(r.severity, 'error');
-        assert.match(r.message, /keine Pläne/);
+        assert.match(r.message, /no plans/);
     });
 
     test('ok with plans + details contain planIds', async () => {
@@ -83,7 +83,7 @@ describe('AdminManifestDoctorCheck', () => {
         };
         const r = await new AdminManifestDoctorCheck(svc).run();
         assert.equal(r.severity, 'ok');
-        assert.match(r.message, /3 Standard-Pages/);
+        assert.match(r.message, /3 standard pages/);
         assert.match(r.message, /sha256-abcde/);
     });
 

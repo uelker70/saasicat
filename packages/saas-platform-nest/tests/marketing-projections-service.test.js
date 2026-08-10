@@ -86,7 +86,7 @@ describe('MarketingProjectionsService — master data operations', () => {
                     displayLabel: 'Y',
                     description: 'Y',
                 }),
-            /existiert bereits/,
+            /already exists/,
         );
     });
 
@@ -167,7 +167,7 @@ describe('MarketingProjectionsService — master data operations', () => {
     test('getById throws 404 for missing ID', async () => {
         await assert.rejects(
             () => service.getById('99999999-9999-9999-9999-999999999999'),
-            /nicht gefunden/,
+            /not found/,
         );
     });
 });

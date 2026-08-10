@@ -58,8 +58,8 @@ export function applyFragmentBlocks(
         return { added, skipped, schema };
     }
     const header = options.fragmentLabel
-        ? `\n\n// ============================================================\n// Eingefügt durch \`saasicat schema apply\` aus ${options.fragmentLabel}\n// ============================================================\n`
-        : `\n\n// Eingefügt durch \`saasicat schema apply\`\n`;
+        ? `\n\n// ============================================================\n// Inserted by \`saasicat schema apply\` from ${options.fragmentLabel}\n// ============================================================\n`
+        : `\n\n// Inserted by \`saasicat schema apply\`\n`;
     const trimmedSchema = schema.endsWith('\n') ? schema : schema + '\n';
     return {
         added,

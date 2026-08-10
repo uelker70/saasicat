@@ -86,7 +86,7 @@ export class MfaService {
             // user only sees endless "code invalid" without a diagnosable cause.
             const message = error instanceof Error ? error.message : String(error);
             this.logger.warn(
-                `TOTP-Verify für User ${input.userId} unerwartet fehlgeschlagen: ${message}`,
+                `TOTP verification for user ${input.userId} failed unexpectedly: ${message}`,
             );
             return false;
         }

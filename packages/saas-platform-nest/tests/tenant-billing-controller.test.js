@@ -146,7 +146,7 @@ test('getUsage throws NotFoundException when the Subscription is missing', async
         null,
         () => 't404',
     );
-    await assert.rejects(() => ctrl.getUsage({ user: { tenantId: 't404' } }), /Keine Subscription/);
+    await assert.rejects(() => ctrl.getUsage({ user: { tenantId: 't404' } }), /No subscription/);
 });
 
 test('getUsage throws NotFoundException when tenantIdResolver yields no ID', async () => {
@@ -158,7 +158,7 @@ test('getUsage throws NotFoundException when tenantIdResolver yields no ID', asy
         null,
         () => null,
     );
-    await assert.rejects(() => ctrl.getUsage({}), /Tenant-ID nicht im Request/);
+    await assert.rejects(() => ctrl.getUsage({}), /No tenant ID found on the request/);
 });
 
 test('ComposedTenantAuthGuard chains guards in order — all ok = true', async () => {
@@ -188,5 +188,5 @@ test('ComposedTenantAuthGuard short-circuits on the first false', async () => {
 
 test('ComposedTenantAuthGuard throws 403 without configured guards', async () => {
     const guard = new ComposedTenantAuthGuard(null);
-    await assert.rejects(() => guard.canActivate({}), /authGuards ist nicht konfiguriert/);
+    await assert.rejects(() => guard.canActivate({}), /authGuards is not configured/);
 });

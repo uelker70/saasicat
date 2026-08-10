@@ -25,7 +25,7 @@ export class RegisterStartDto {
     @IsOptional()
     @IsString()
     @Matches(/^[a-z0-9-]+$/, {
-        message: 'tenantSlug darf nur Kleinbuchstaben, Ziffern und Bindestriche enthalten.',
+        message: 'tenantSlug may only contain lower-case letters, digits and hyphens.',
     })
     @MaxLength(60)
     tenantSlug?: string;
@@ -57,7 +57,8 @@ export class RegisterStartDto {
 
     /** Terms / privacy / data processing — mandatory acceptance (must be `true`). */
     @Equals(true, {
-        message: 'AGB, Datenschutzerklaerung und Auftragsverarbeitung muessen zugestimmt werden.',
+        message:
+            'The terms of service, privacy policy and data processing agreement must be accepted.',
     })
     termsAccepted!: true;
 

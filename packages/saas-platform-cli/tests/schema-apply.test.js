@@ -96,7 +96,7 @@ describe('applyFragmentBlocks', () => {
         });
         assert.match(
             result.schema,
-            /Eingefügt durch `saasicat schema apply` aus 01-subscription.prisma/,
+            /Inserted by `saasicat schema apply` from 01-subscription.prisma/,
         );
     });
 });

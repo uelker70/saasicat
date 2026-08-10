@@ -64,7 +64,7 @@ export class MfaGuard implements CanActivate {
         if (!enabled) {
             throw new UnauthorizedException({
                 reason: 'MFA_NOT_SET_UP',
-                message: 'Bitte zuerst MFA-Setup über das CLI ausführen.',
+                message: 'Run the MFA setup via the CLI first.',
             });
         }
 
@@ -73,7 +73,7 @@ export class MfaGuard implements CanActivate {
         if (!code) {
             throw new UnauthorizedException({
                 reason: 'MFA_REQUIRED',
-                message: 'TOTP-Code im Header X-Mfa-Code erforderlich.',
+                message: 'TOTP code required in the X-Mfa-Code header.',
             });
         }
 
@@ -81,7 +81,7 @@ export class MfaGuard implements CanActivate {
         if (!valid) {
             throw new UnauthorizedException({
                 reason: 'MFA_FAILED',
-                message: 'TOTP-Code ungültig.',
+                message: 'Invalid TOTP code.',
             });
         }
         return true;

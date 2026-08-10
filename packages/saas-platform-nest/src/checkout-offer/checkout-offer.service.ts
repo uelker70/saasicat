@@ -67,7 +67,7 @@ export class CheckoutOfferService {
     async getById(id: string): Promise<CheckoutOfferRow> {
         const row = await this.repo.findById(id);
         if (!row) {
-            throw new NotFoundException(`CheckoutOffer '${id}' nicht gefunden`);
+            throw new NotFoundException(`CheckoutOffer '${id}' not found`);
         }
         return row;
     }
@@ -87,7 +87,7 @@ export class CheckoutOfferService {
     /** Customization in onboarding — only while the offer is `open`. */
     async update(id: string, data: UpdateCheckoutOfferData): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
-        this.assertOpen(existing, 'ändern');
+        this.assertOpen(existing, 'changed');
         const next = this.normalizeUpdateData(existing, data);
         await this.assertFeatureRequiresSatisfied({
             projectKey: existing.projectKey,
@@ -106,7 +106,7 @@ export class CheckoutOfferService {
      */
     async consume(id: string): Promise<CheckoutOfferRow> {
         const existing = await this.getById(id);
-        this.assertOpen(existing, 'verbrauchen');
+        this.assertOpen(existing, 'consumed');
         await this.assertBundleVersionsStillBookable(existing);
         return this.repo.consume(id);
     }
@@ -143,8 +143,8 @@ export class CheckoutOfferService {
             throw new UnprocessableEntityException({
                 code: 'CHECKOUT_OFFER_FEATURE_DEPENDENCY_UNSATISFIED',
                 message:
-                    'Die Paket-Auswahl deckt nicht alle Feature-Abhängigkeiten: ' +
-                    `[${missingRequires.join(', ')}] fehlen in Plan + gewählten Bundles.`,
+                    'The selected plan does not cover all feature dependencies: ' +
+                    `[${missingRequires.join(', ')}] are missing from the plan + selected bundles.`,
                 missingRequires,
             });
         }
@@ -229,8 +229,7 @@ export class CheckoutOfferService {
         if (violations.length > 0) {
             throw new UnprocessableEntityException({
                 code: 'CHECKOUT_OFFER_BUNDLE_VERSION_NOT_BOOKABLE',
-                message:
-                    'Mindestens eine BundleVersion aus dem CheckoutOffer ist nicht mehr buchbar.',
+                message: 'At least one bundle version from the checkout offer is notehr buchbar.',
                 violations,
             });
         }
@@ -312,7 +311,7 @@ export class CheckoutOfferService {
         if (!hasPlan) {
             throw new UnprocessableEntityException({
                 code: 'CHECKOUT_OFFER_PLAN_LINE_ITEM_REQUIRED',
-                message: 'CheckoutOffer benötigt eine eingefrorene Plan-LineItem.',
+                message: 'A checkout offer requires a frozen plan line item.',
             });
         }
         const missingBundleVersionIds = input.bundleVersionIds.filter(
@@ -324,8 +323,7 @@ export class CheckoutOfferService {
         if (missingBundleVersionIds.length > 0) {
             throw new UnprocessableEntityException({
                 code: 'CHECKOUT_OFFER_BUNDLE_LINE_ITEMS_REQUIRED',
-                message:
-                    'Jede ausgewählte BundleVersion benötigt eine eingefrorene Bundle-LineItem.',
+                message: 'Every selected bundle version requires a frozen bundle line item.',
                 bundleVersionIds: missingBundleVersionIds,
             });
         }
@@ -361,20 +359,20 @@ export class CheckoutOfferService {
         };
     }
 
-    private assertOpen(existing: CheckoutOfferRow, action: 'ändern' | 'verbrauchen'): void {
+    private assertOpen(existing: CheckoutOfferRow, action: 'changed' | 'consumed'): void {
         if (existing.status === 'consumed') {
             throw new ConflictException(
-                `CheckoutOffer '${existing.id}' ist bereits verbraucht und kann nicht ${action} werden`,
+                `Checkout offer '${existing.id}' has already been consumed and cannot be ${action}`,
             );
         }
         if (existing.status === 'expired') {
             throw new ConflictException(
-                `CheckoutOffer '${existing.id}' ist abgelaufen und kann nicht ${action} werden`,
+                `Checkout offer '${existing.id}' has expired and cannot be ${action}`,
             );
         }
         if (this.isExpired(existing)) {
             throw new ConflictException(
-                `CheckoutOffer '${existing.id}' ist abgelaufen und kann nicht ${action} werden`,
+                `CheckoutOffer '${existing.id}' has expired and cannot be ${action}`,
             );
         }
     }

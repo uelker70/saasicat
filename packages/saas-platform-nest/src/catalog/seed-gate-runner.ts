@@ -63,13 +63,13 @@ export function runSeedGateFromFile(options: SeedGateRunOptions): SeedGateReport
         if (err instanceof DiscoverySnapshotNotFoundError) {
             if (mode === 'blocking') {
                 error(
-                    `[seed-gate] FEHLER: Kein Discovery-Snapshot unter ${options.snapshotPath} — ` +
-                        'im blocking-Modus Pflicht (Headless-Scan vor dem Seed ausführen, #23).',
+                    `[seed-gate] ERROR: no discovery snapshot at ${options.snapshotPath} — ` +
+                        'required in blocking mode (run the headless scan before seeding, #23).',
                 );
                 return exit(4);
             }
             warn(
-                `[seed-gate] Kein Discovery-Snapshot unter ${options.snapshotPath} — übersprungen (report-only).`,
+                `[seed-gate] No discovery snapshot at ${options.snapshotPath} — skipped (report-only).`,
             );
             return null;
         }
@@ -85,10 +85,10 @@ export function runSeedGateFromFile(options: SeedGateRunOptions): SeedGateReport
     log(formatSeedGateReport(report));
     if (report.overall === 'error') {
         if (mode === 'blocking') {
-            error('[seed-gate] blocking: Verstöße gefunden — Seed wird abgebrochen (#23).');
+            error('[seed-gate] blocking: violations found — aborting the seed (#23).');
             return exit(seedGateExitCode(report));
         }
-        warn('[seed-gate] report-only: Verstöße gefunden, Seed läuft trotzdem weiter.');
+        warn('[seed-gate] report-only: violations found, seeding continues anyway.');
     }
     return report;
 }

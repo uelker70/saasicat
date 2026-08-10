@@ -129,7 +129,7 @@ export function buildTenantSubscriptionBundlesController(
             const hasCancel = Boolean(dto.subscriptionBundleId);
             if (hasAdd === hasCancel) {
                 throw new BadRequestException(
-                    'Genau eines von bundleVersionId (Add-Preview) oder ' +
+                    'Exactly one of bundleVersionId (add preview) or ' +
                         'subscriptionBundleId (Cancel-Preview) angeben.',
                 );
             }
@@ -188,7 +188,7 @@ export function buildTenantSubscriptionBundlesController(
         private requireSubscriptionPk(sub: SubscriptionUsageRecord): string {
             if (!sub.id) {
                 throw new NotFoundException(
-                    'SubscriptionUsageRecord ohne `id` — Adapter muss die Subscription-PK durchreichen ' +
+                    'SubscriptionUsageRecord without `id` — the adapter must return the Subscription-PK durchreichen ' +
                         '(siehe SubscriptionUsageRecord.id).',
                 );
             }
@@ -198,7 +198,7 @@ export function buildTenantSubscriptionBundlesController(
         private requireTenantId(req: RequestLike): string {
             const tenantId = this.tenantIdResolver(req);
             if (!tenantId) {
-                throw new NotFoundException('Tenant-ID nicht im Request gefunden');
+                throw new NotFoundException('No tenant ID found on the request');
             }
             return tenantId;
         }
@@ -206,7 +206,7 @@ export function buildTenantSubscriptionBundlesController(
         private async requireSubscription(tenantId: string): Promise<SubscriptionUsageRecord> {
             const sub = await this.subscriptionUsage.findForTenant(tenantId);
             if (!sub) {
-                throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
+                throw new NotFoundException(`No subscription for tenant ${tenantId}`);
             }
             return sub;
         }
@@ -245,7 +245,7 @@ export function buildTenantSubscriptionBundlesController(
                 );
             } catch (err) {
                 this.logger.error(
-                    `Contract-Freeze nach Bundle-Mutation fehlgeschlagen (tenant ${tenantId}): ${String(err)}`,
+                    `Contract freeze after bundle mutation failed (tenant ${tenantId}): ${String(err)}`,
                 );
             }
         }

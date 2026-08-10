@@ -173,12 +173,12 @@ export class AdminManifestModule {
         if (includeManifestController) {
             if (options.guards === undefined) {
                 throw new Error(
-                    'AdminManifestModule.forRoot: `guards` ist Pflicht, wenn ' +
-                        '`includeManifestController` aktiv ist (Default `true`). ' +
-                        'Setze `guards: [JwtAuthGuard, SuperAdminGuard]` (oder ' +
-                        'analog) — oder `guards: []`, um den Endpoint absichtlich ' +
+                    'AdminManifestModule.forRoot: `guards` is required when ' +
+                        '`includeManifestController` is enabled (default `true`). ' +
+                        'Set `guards: [JwtAuthGuard, SuperAdminGuard]` (or ' +
+                        'equivalent) — or `guards: []` to deliberately leave the endpoint ' +
                         'auth-frei zu betreiben. Alternative: ' +
-                        '`includeManifestController: false` und einen eigenen ' +
+                        '`includeManifestController: false` plus your own ' +
                         'Wrapping-Controller registrieren.',
                 );
             }

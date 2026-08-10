@@ -208,7 +208,7 @@ describe('SubscriptionContractService', () => {
                     priceSnapshot: PRICE,
                     lineItems: [BUNDLE_LINE],
                 }),
-            /Plan-Grundposition/,
+            /plan base item/,
         );
     });
 
@@ -299,7 +299,7 @@ describe('SubscriptionContractService', () => {
     test('getActiveInvoiceSnapshotForTenant throws without an active contract', async () => {
         await assert.rejects(
             () => service.getActiveInvoiceSnapshotForTenant('tenant-missing', EFFECTIVE_FROM),
-            /Kein aktiver SubscriptionContract/,
+            /No active subscription contract/,
         );
     });
 });

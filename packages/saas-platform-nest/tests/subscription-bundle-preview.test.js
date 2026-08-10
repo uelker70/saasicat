@@ -270,7 +270,7 @@ describe('SubscriptionBundlePreviewService — previewAdd', () => {
     test('unknown bundle version → NotFound', async () => {
         await assert.rejects(
             () => buildService().previewAdd(CTX, { bundleVersionId: 'nope' }, NOW),
-            /nicht gefunden/,
+            /not found/,
         );
     });
 });
@@ -346,7 +346,7 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
         });
         await assert.rejects(
             () => buildService().previewCancel(CTX, { subscriptionBundleId: booking.id }, NOW),
-            /nicht gefunden/,
+            /not found/,
         );
     });
 });

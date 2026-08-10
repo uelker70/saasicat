@@ -43,7 +43,7 @@ export class DiscoveryScanCommand extends CommandRunner {
     async run(_args: string[], flags: ScanFlags): Promise<void> {
         if (!this.scanner) {
             this.fail(
-                'DiscoveryScanner nicht registriert — DiscoveryModule.forRoot() im CLI-Modul importieren.',
+                'DiscoveryScanner is not registered — import DiscoveryModule.forRoot() in the CLI moduleren.',
                 flags,
             );
             return;
@@ -67,9 +67,9 @@ export class DiscoveryScanCommand extends CommandRunner {
                 process.stdout.write(`Snapshot persistiert: ${resolvePath(target)}\n`);
             } else {
                 process.stderr.write(
-                    'WARNUNG: Snapshot wurde nicht persistiert — weder snapshotPath ' +
-                        '(DiscoveryModule.forRoot) konfiguriert noch --out angegeben. ' +
-                        'Das Seed-Gate findet so keinen Snapshot.\n',
+                    'WARNING: the snapshot was not persisted — neither snapshotPath ' +
+                        '(DiscoveryModule.forRoot) configured nor --out given. ' +
+                        'The seed gate will find no snapshot this way.\n',
                 );
             }
         } catch (err) {
@@ -89,7 +89,7 @@ export class DiscoveryScanCommand extends CommandRunner {
 
     @Option({
         flags: '--out <path>',
-        description: 'Snapshot zusätzlich an diesen Pfad schreiben',
+        description: 'Additionally write the snapshot to this path',
     })
     parseOut(v: string): string {
         return v;
@@ -97,7 +97,7 @@ export class DiscoveryScanCommand extends CommandRunner {
 
     @Option({
         flags: '--non-fatal',
-        description: 'Scan-Fehler nur als Warnung melden (Exit 0) — gestufter Rollout',
+        description: 'Report scan errors as a warning only (exit 0) — staged rollout',
     })
     parseNonFatal(): boolean {
         return true;
@@ -112,7 +112,7 @@ export class DiscoveryScanCommand extends CommandRunner {
 })
 export class DiscoveryCommands extends CommandRunner {
     async run(): Promise<void> {
-        process.stderr.write('Bitte Sub-Command angeben: scan.\n');
+        process.stderr.write('Specify a sub-command: scan.\n');
         process.exit(2);
     }
 }

@@ -150,7 +150,7 @@ export function formatPreflightReport(report: PreflightReport): string {
         '',
     );
     if (report.findings.length === 0) {
-        lines.push('  ✓ Keine Strict-Mode-Verstöße gefunden.');
+        lines.push('  ✓ No strict-mode violations found.');
         return lines.join('\n');
     }
     let lastEntity = '';

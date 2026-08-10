@@ -82,7 +82,10 @@ describe('FeatureGuard — feature set matching', () => {
             user: { tenantId: 't1', role: 'TENANT_ADMIN' },
             handlerFeatures: ['WHATSAPP'],
         });
-        await assert.rejects(() => guard.canActivate(ctx), /WHATSAPP nicht im aktuellen Paket/);
+        await assert.rejects(
+            () => guard.canActivate(ctx),
+            /WHATSAPP is not included in the current plan/,
+        );
     });
 
     test('Logical OR: multiple features, one suffices (second matches)', async () => {
@@ -122,7 +125,10 @@ describe('FeatureGuard — feature set matching', () => {
             handlerFeatures: ['DATEV'],
             classFeatures: ['WHATSAPP'],
         });
-        await assert.rejects(() => guard.canActivate(ctx), /DATEV nicht im aktuellen Paket/);
+        await assert.rejects(
+            () => guard.canActivate(ctx),
+            /DATEV is not included in the current plan/,
+        );
     });
 });
 
@@ -147,19 +153,19 @@ describe('FeatureGuard — auth paths', () => {
         assert.equal(await guard.canActivate(ctx), true);
     });
 
-    test('missing user → Forbidden ("Nicht authentifiziert")', async () => {
+    test('missing user → Forbidden ("Not authenticated")', async () => {
         const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub([]));
         const ctx = buildContext({ handlerFeatures: ['WHATSAPP'] });
-        await assert.rejects(() => guard.canActivate(ctx), /Nicht authentifiziert/);
+        await assert.rejects(() => guard.canActivate(ctx), /Not authenticated/);
     });
 
-    test('missing tenantId → Forbidden ("Kein Mandant zugeordnet")', async () => {
+    test('missing tenantId → Forbidden ("No tenant assigned")', async () => {
         const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub([]));
         const ctx = buildContext({
             user: { role: 'TENANT_ADMIN' }, // no tenantId
             handlerFeatures: ['WHATSAPP'],
         });
-        await assert.rejects(() => guard.canActivate(ctx), /Kein Mandant zugeordnet/);
+        await assert.rejects(() => guard.canActivate(ctx), /No tenant assigned/);
     });
 
     test('tenantId from request.tenantId takes precedence over user.tenantId', async () => {
@@ -324,7 +330,7 @@ describe('FeatureGuard — upsell response (#36)', () => {
                     label: 'Turniere',
                 },
             ],
-            message: 'Feature TOURNAMENT_MANAGEMENT nicht im aktuellen Paket enthalten.',
+            message: 'Feature TOURNAMENT_MANAGEMENT is not included in the current plan.',
         });
         assert.deepEqual(seen, [{ featureKeys: ['TOURNAMENT_MANAGEMENT'], tenantId: 't1' }]);
     });
@@ -382,7 +388,7 @@ describe('FeatureGuard — upsell response (#36)', () => {
             handlerFeatures: ['WHATSAPP'],
         });
         const body = (await rejectionOf(guard.canActivate(ctx))).getResponse();
-        assert.equal(body.message, 'Feature WHATSAPP nicht im aktuellen Paket enthalten.');
+        assert.equal(body.message, 'Feature WHATSAPP is not included in the current plan.');
         assert.equal(body.code, undefined, 'no structured body without a resolver');
     });
 });

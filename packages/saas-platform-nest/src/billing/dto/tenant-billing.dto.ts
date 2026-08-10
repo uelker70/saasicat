@@ -9,12 +9,12 @@ const PLAN_OR_CYCLE_PATTERN = /^[A-Z][A-Z0-9_]*$/;
 
 export class PreviewPlanChangeDto {
     @IsString()
-    @Matches(PLAN_OR_CYCLE_PATTERN, { message: 'plan muss SCREAMING_SNAKE_CASE sein' })
+    @Matches(PLAN_OR_CYCLE_PATTERN, { message: 'plan must be SCREAMING_SNAKE_CASE' })
     plan!: string;
 
     @IsString()
     @Matches(PLAN_OR_CYCLE_PATTERN, {
-        message: 'billingCycle muss SCREAMING_SNAKE_CASE sein (z. B. MONTHLY, YEARLY)',
+        message: 'billingCycle must be SCREAMING_SNAKE_CASE (e.g. MONTHLY, YEARLY)',
     })
     billingCycle!: string;
 }

@@ -181,10 +181,10 @@ export class FakeSubscriptionBundleRepository implements SubscriptionBundleRepos
     ): Promise<SubscriptionBundleRecord> {
         const existing = this.byId.get(subscriptionBundleId);
         if (!existing) {
-            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' nicht gefunden`);
+            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' not found`);
         }
         if (existing.canceledAt !== null) {
-            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' ist bereits gekündigt`);
+            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' is already cancelled`);
         }
         const updated: SubscriptionBundleRecord = {
             ...existing,
@@ -199,7 +199,7 @@ export class FakeSubscriptionBundleRepository implements SubscriptionBundleRepos
     async reactivate(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
         const existing = this.byId.get(subscriptionBundleId);
         if (!existing) {
-            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' nicht gefunden`);
+            throw new Error(`SubscriptionBundle '${subscriptionBundleId}' not found`);
         }
         const updated: SubscriptionBundleRecord = {
             ...existing,
@@ -318,7 +318,7 @@ export class FakeSubscriptionContractRepository implements SubscriptionContractR
         data: TerminateSubscriptionContractData,
     ): Promise<SubscriptionContractRecord> {
         const existing = this.byId.get(contractId);
-        if (!existing) throw new Error(`SubscriptionContract '${contractId}' nicht gefunden`);
+        if (!existing) throw new Error(`SubscriptionContract '${contractId}' not found`);
         const updated: SubscriptionContractRecord = {
             ...existing,
             status: data.status,
@@ -502,7 +502,7 @@ export class FakeBundleRepository implements BundleRepository {
 
     async update(bundleId: string, data: UpdateBundleData): Promise<BundleRow> {
         const existing = this.bundles.get(bundleId);
-        if (!existing) throw new Error(`Bundle '${bundleId}' nicht gefunden`);
+        if (!existing) throw new Error(`Bundle '${bundleId}' not found`);
         const updated: BundleRow = {
             ...existing,
             label: data.label ?? existing.label,
@@ -518,7 +518,7 @@ export class FakeBundleRepository implements BundleRepository {
 
     async softDelete(bundleId: string): Promise<void> {
         const existing = this.bundles.get(bundleId);
-        if (!existing) throw new Error(`Bundle '${bundleId}' nicht gefunden`);
+        if (!existing) throw new Error(`Bundle '${bundleId}' not found`);
         this.bundles.set(bundleId, { ...existing, deletedAt: this.nowIso() });
     }
 
@@ -554,7 +554,7 @@ export class FakeBundleRepository implements BundleRepository {
         const draft = await this.findCurrentDraft(data.bundleId);
         if (draft) {
             throw new Error(
-                `Bundle '${data.bundleId}' hat bereits eine Draft-Version v${draft.version}`,
+                `Bundle '${data.bundleId}' already has a draft version v${draft.version}`,
             );
         }
         const all = await this.listVersions(data.bundleId);
@@ -595,7 +595,7 @@ export class FakeBundleRepository implements BundleRepository {
         data: UpdateBundleVersionDraftData,
     ): Promise<BundleVersionRow> {
         const existing = this.versions.get(versionId);
-        if (!existing) throw new Error(`BundleVersion '${versionId}' nicht gefunden`);
+        if (!existing) throw new Error(`BundleVersion '${versionId}' not found`);
         // The service checks editability (draft or published-but-future,
         // SPEC_V2 §11.1 M6 Pack 2c). The adapter only persists.
         const updated: BundleVersionRow = {
@@ -620,7 +620,7 @@ export class FakeBundleRepository implements BundleRepository {
         const existing = this.versions.get(versionId);
         if (!existing) return;
         if (existing.publishedAt !== null) {
-            throw new Error(`BundleVersion '${versionId}' ist bereits published`);
+            throw new Error(`BundleVersion '${versionId}' is already published`);
         }
         this.versions.delete(versionId);
     }
@@ -636,9 +636,9 @@ export class FakeBundleRepository implements BundleRepository {
         },
     ): Promise<BundleVersionRow> {
         const draft = this.versions.get(versionId);
-        if (!draft) throw new Error(`BundleVersion '${versionId}' nicht gefunden`);
+        if (!draft) throw new Error(`BundleVersion '${versionId}' not found`);
         if (draft.publishedAt !== null) {
-            throw new Error(`BundleVersion '${versionId}' ist bereits published`);
+            throw new Error(`BundleVersion '${versionId}' is already published`);
         }
         const now = this.nowIso();
         const validFromIso = publishMeta.validFrom.toISOString();
@@ -738,7 +738,7 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
         const existing = await this.findByTarget(data.targetType, data.targetVersionId, locale);
         if (existing) {
             throw new Error(
-                `MarketingProjection für ${data.targetType}/${data.targetVersionId}/${locale} existiert bereits`,
+                `Marketing projection for ${data.targetType}/${data.targetVersionId}/${locale} already exists`,
             );
         }
         const now = this.nowIso();
@@ -768,7 +768,7 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
 
     async update(id: string, data: UpdateMarketingProjectionData): Promise<MarketingProjectionRow> {
         const existing = this.rows.get(id);
-        if (!existing) throw new Error(`MarketingProjection '${id}' nicht gefunden`);
+        if (!existing) throw new Error(`MarketingProjection '${id}' not found`);
         const updated: MarketingProjectionRow = {
             ...existing,
             displayLabel: data.displayLabel ?? existing.displayLabel,
@@ -789,7 +789,7 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
     }
 
     async delete(id: string): Promise<void> {
-        if (!this.rows.has(id)) throw new Error(`MarketingProjection '${id}' nicht gefunden`);
+        if (!this.rows.has(id)) throw new Error(`MarketingProjection '${id}' not found`);
         this.rows.delete(id);
     }
 }
@@ -884,7 +884,7 @@ export class FakePlanRepository implements PlanRepository {
 
     async update(planId: string, data: UpdatePlanData): Promise<PlanRow> {
         const existing = this.plans.get(planId);
-        if (!existing) throw new Error(`Plan '${planId}' nicht gefunden`);
+        if (!existing) throw new Error(`Plan '${planId}' not found`);
         const updated: PlanRow = {
             ...existing,
             label: data.label ?? existing.label,
@@ -899,7 +899,7 @@ export class FakePlanRepository implements PlanRepository {
 
     async softDelete(planId: string): Promise<void> {
         const existing = this.plans.get(planId);
-        if (!existing) throw new Error(`Plan '${planId}' nicht gefunden`);
+        if (!existing) throw new Error(`Plan '${planId}' not found`);
         const updated: PlanRow = {
             ...existing,
             deletedAt: this.nowIso(),
@@ -1033,7 +1033,7 @@ export class FakePlanRepository implements PlanRepository {
         data: UpdatePlanVersionDraftData,
     ): Promise<PlanVersionRow> {
         const existing = this.versions.get(versionId);
-        if (!existing) throw new Error(`PlanVersion '${versionId}' nicht gefunden`);
+        if (!existing) throw new Error(`PlanVersion '${versionId}' not found`);
         const updated: PlanVersionRow = {
             ...existing,
             features: data.features ?? existing.features,
@@ -1060,7 +1060,7 @@ export class FakePlanRepository implements PlanRepository {
         },
     ): Promise<PlanVersionRow> {
         const draft = this.versions.get(versionId);
-        if (!draft) throw new Error(`PlanVersion '${versionId}' nicht gefunden`);
+        if (!draft) throw new Error(`PlanVersion '${versionId}' not found`);
         const planKey = draft.planId;
         const now = this.nowIso();
         // Predecessor: supersededAt + auto-succession of validUntil
@@ -1101,7 +1101,7 @@ export class FakePlanRepository implements PlanRepository {
         if (!existing) return;
         if (existing.publishedAt !== null) {
             throw new Error(
-                `FakePlanRepository: PlanVersion '${versionId}' ist bereits published — Discard nicht erlaubt`,
+                `FakePlanRepository: plan version '${versionId}' is already published — discard is not allowed`,
             );
         }
         this.versions.delete(versionId);
@@ -1110,7 +1110,7 @@ export class FakePlanRepository implements PlanRepository {
     async terminate(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
         const existing = this.versions.get(versionId);
         if (!existing) {
-            throw new Error(`FakePlanRepository: PlanVersion '${versionId}' nicht gefunden`);
+            throw new Error(`FakePlanRepository: PlanVersion '${versionId}' not found`);
         }
         const updated: PlanVersionRow = {
             ...existing,

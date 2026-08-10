@@ -160,7 +160,7 @@ describe('CheckoutOfferService', () => {
                     priceBreakdown: PRICE,
                     lineItems: [PLAN_LINE_ITEM],
                 }),
-            /Bundle-LineItem/,
+            /bundle line item/,
         );
     });
 
@@ -281,7 +281,7 @@ describe('CheckoutOfferService', () => {
         await service.consume(offer.id);
         await assert.rejects(
             () => service.update(offer.id, { bundles: ['X'] }),
-            /bereits verbraucht/,
+            /already been consumed/,
         );
     });
 
@@ -293,17 +293,17 @@ describe('CheckoutOfferService', () => {
             priceBreakdown: PRICE,
             validUntil: '2020-01-01T00:00:00.000Z',
         });
-        await assert.rejects(() => service.update(offer.id, { locale: 'en' }), /abgelaufen/);
+        await assert.rejects(() => service.update(offer.id, { locale: 'en' }), /has expired/);
     });
 
     test('double consume throws Conflict', async () => {
         const offer = await create();
         await service.consume(offer.id);
-        await assert.rejects(() => service.consume(offer.id), /bereits verbraucht/);
+        await assert.rejects(() => service.consume(offer.id), /already been consumed/);
     });
 
     test('getById throws for an unknown offer', async () => {
-        await assert.rejects(() => service.getById('nope'), /nicht gefunden/);
+        await assert.rejects(() => service.getById('nope'), /not found/);
     });
 });
 

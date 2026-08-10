@@ -54,7 +54,7 @@ export class PlansService {
 
     async getPlan(planId: string): Promise<PlanRow> {
         const plan = await this.repo.findById(planId);
-        if (!plan) throw new NotFoundException(`Plan '${planId}' nicht gefunden`);
+        if (!plan) throw new NotFoundException(`Plan '${planId}' not found`);
         return plan;
     }
 
@@ -62,7 +62,7 @@ export class PlansService {
         const existing = await this.repo.findByKey(data.projectKey, data.planKey);
         if (existing) {
             throw new UnprocessableEntityException(
-                `Plan '${data.planKey}' existiert bereits in Projekt '${data.projectKey}'`,
+                `Plan '${data.planKey}' already exists in project '${data.projectKey}'`,
             );
         }
         return this.repo.create(data);
@@ -70,13 +70,13 @@ export class PlansService {
 
     async updatePlan(planId: string, data: UpdatePlanData): Promise<PlanRow> {
         const existing = await this.repo.findById(planId);
-        if (!existing) throw new NotFoundException(`Plan '${planId}' nicht gefunden`);
+        if (!existing) throw new NotFoundException(`Plan '${planId}' not found`);
         return this.repo.update(planId, data);
     }
 
     async softDeletePlan(planId: string): Promise<void> {
         const existing = await this.repo.findById(planId);
-        if (!existing) throw new NotFoundException(`Plan '${planId}' nicht gefunden`);
+        if (!existing) throw new NotFoundException(`Plan '${planId}' not found`);
         if (existing.deletedAt !== null) return; // idempotent
 
         // Plan protection rule: a plan that was ever published (live OR
@@ -99,7 +99,7 @@ export class PlansService {
      */
     async hardDeletePlan(planId: string): Promise<void> {
         const existing = await this.repo.findById(planId);
-        if (!existing) throw new NotFoundException(`Plan '${planId}' nicht gefunden`);
+        if (!existing) throw new NotFoundException(`Plan '${planId}' not found`);
 
         // Strict protection rule: published versions block any deletion
         // (contract protection P1). Drafts additionally block hard-delete —
@@ -111,7 +111,7 @@ export class PlansService {
             throw new UnprocessableEntityException({
                 code: 'PLAN_HARD_DELETE_NOT_IMPLEMENTED',
                 message:
-                    'Hartes Löschen ist im aktuellen Repository nicht implementiert. ' +
+                    'Hard delete is not implemented in the current repository. ' +
                     'Implementiere PlanRepository.hardDelete.',
             });
         }
@@ -135,10 +135,10 @@ export class PlansService {
         throw new UnprocessableEntityException({
             code: 'PLAN_HAS_PUBLISHED_VERSIONS',
             message:
-                `Plan '${planKey}' kann nicht ${op === 'hard-delete' ? 'gelöscht' : 'archiviert'} werden — ` +
-                `der Plan hat ${published.length} published Version(en) (${live} live, ${superseded} superseded). ` +
-                `Bestand-Subscriptions referenzieren diese Versionen (Vertragsschutz P1), ` +
-                `der Plan-Stamm muss erhalten bleiben.`,
+                `Plan '${planKey}' cannot be ${op === 'hard-delete' ? 'deleted' : 'archived'} — ` +
+                `it has ${published.length} published version(s) (${live} live, ${superseded} superseded). ` +
+                `Existing subscriptions reference those versions (contract protection P1), ` +
+                `so the plan record must be preserved.`,
             publishedCount: published.length,
             liveCount: live,
             supersededCount: superseded,
@@ -153,8 +153,8 @@ export class PlansService {
         throw new UnprocessableEntityException({
             code: 'PLAN_HAS_DRAFTS',
             message:
-                `Plan '${planKey}' hat noch ${drafts.length} offene Draft-Version(en). ` +
-                `Verwerfe sie zuerst (DELETE /admin/catalog/plan-versions/:id) oder publishe sie.`,
+                `Plan '${planKey}' still has ${drafts.length} open draft version(s). ` +
+                `Discard them first (DELETE /admin/catalog/plan-versions/:id) or publish them.`,
             draftCount: drafts.length,
         });
     }

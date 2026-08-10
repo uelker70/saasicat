@@ -33,7 +33,7 @@ export class ComposedTenantAuthGuard implements CanActivate {
             // endpoints would have no auth protection. Better to fail loudly
             // than to wave requests through silently.
             throw new ForbiddenException(
-                'TenantBillingModule.forRoot.authGuards ist nicht konfiguriert.',
+                'TenantBillingModule.forRoot.authGuards is not configured.',
             );
         }
         for (const guard of this.guards) {

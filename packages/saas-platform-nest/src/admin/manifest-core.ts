@@ -106,7 +106,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'platform.subscriptions.cancel',
-                label: 'Subscription kündigen',
+                label: 'Cancel subscription',
                 actionKey: 'subscriptions.cancel',
                 requiredCapability: 'subscriptions.cancel',
                 requiresMfa: true,
@@ -130,7 +130,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'platform.pilots.extend',
-                label: 'Pilot verlängern',
+                label: 'Extend pilot',
                 actionKey: 'pilots.extend',
                 requiredCapability: 'pilots.extend',
                 requiresMfa: true,
@@ -143,21 +143,21 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             { key: 'TENANT_SUSPEND', label: 'Mandant suspendiert', severity: 'high' },
             { key: 'TENANT_REACTIVATE', label: 'Mandant reaktiviert', severity: 'medium' },
             { key: 'TENANT_IMPERSONATE', label: 'Impersonation gestartet', severity: 'high' },
-            { key: 'TENANT_EXPORT', label: 'DSGVO-Export ausgelöst', severity: 'medium' },
+            { key: 'TENANT_EXPORT', label: 'GDPR export triggered', severity: 'medium' },
             { key: 'PILOT_CREATE', label: 'Pilot-Tenant angelegt', severity: 'medium' },
             { key: 'PILOT_GRANT', label: 'Pilot-Status gesetzt', severity: 'medium' },
             { key: 'PILOT_REVOKE', label: 'Pilot-Status entzogen', severity: 'medium' },
-            { key: 'PILOT_EXTEND', label: 'Pilot verlängert', severity: 'low' },
+            { key: 'PILOT_EXTEND', label: 'Pilot extended', severity: 'low' },
             { key: 'PLAN_VERSION_PUBLISH', label: 'Plan-Version freigegeben', severity: 'high' },
             {
                 key: 'PLAN_VERSION_TERMINATE',
                 label: 'Plan-Version terminiert',
                 severity: 'high',
             },
-            { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription gekündigt', severity: 'high' },
-            { key: 'USER_RESET_PASSWORD', label: 'Passwort-Reset ausgelöst', severity: 'medium' },
+            { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
+            { key: 'USER_RESET_PASSWORD', label: 'Password reset triggered', severity: 'medium' },
             { key: 'USER_DEACTIVATE', label: 'User deaktiviert', severity: 'high' },
-            { key: 'USER_REASSIGN_ADMIN', label: 'Admin-Rolle übertragen', severity: 'high' },
+            { key: 'USER_REASSIGN_ADMIN', label: 'Admin role transferred', severity: 'high' },
             {
                 key: 'PLATFORM_EMAIL_PROVIDER_CREATE',
                 label: 'Plattform-Absender angelegt',
@@ -165,12 +165,12 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 key: 'PLATFORM_EMAIL_PROVIDER_UPDATE',
-                label: 'Plattform-Absender geändert',
+                label: 'Platform sender changed',
                 severity: 'medium',
             },
             {
                 key: 'PLATFORM_EMAIL_PROVIDER_DELETE',
-                label: 'Plattform-Absender gelöscht',
+                label: 'Platform sender deleted',
                 severity: 'medium',
             },
             {
@@ -180,7 +180,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 key: 'EMAIL_HISTORY_DELETE',
-                label: 'Plattform-E-Mail aus Verlauf entfernt',
+                label: 'Platform email removed from history',
                 severity: 'medium',
             },
             {

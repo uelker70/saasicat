@@ -65,7 +65,7 @@ export class StaticFeatureGuard implements CanActivate {
 
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         const user = request.user;
-        if (!user) throw new ForbiddenException('Nicht authentifiziert');
+        if (!user) throw new ForbiddenException('Not authenticated');
 
         // SUPER_ADMIN bypass — platform support is allowed even without the feature.
         const role = this.config?.userRoleResolver
@@ -76,13 +76,13 @@ export class StaticFeatureGuard implements CanActivate {
         const tenantId = this.config?.tenantIdResolver
             ? this.config.tenantIdResolver(request)
             : (request.tenantId ?? user.tenantId);
-        if (!tenantId) throw new ForbiddenException('Kein Mandant zugeordnet');
+        if (!tenantId) throw new ForbiddenException('No tenant assigned');
 
         const snap = await this.entitlements.snapshot(tenantId);
         const allowed = required.some((f) => snap.features.includes(f));
         if (!allowed) {
             throw new ForbiddenException(
-                `Feature ${required.join(' / ')} nicht im aktuellen Plan enthalten.`,
+                `Feature ${required.join(' / ')} is not included in the current plan.`,
             );
         }
         return true;

@@ -53,7 +53,7 @@ export class CancelSubscriptionBundleDto {
      */
     @IsOptional()
     @Matches(ISO_DATE_PATTERN, {
-        message: 'canceledAt muss ISO-Datum sein (YYYY-MM-DD)',
+        message: 'canceledAt must be an ISO date (YYYY-MM-DD)',
     })
     canceledAt?: string;
 }

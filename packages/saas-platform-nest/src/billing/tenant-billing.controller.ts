@@ -195,7 +195,7 @@ export class TenantBillingController {
         ]);
 
         if (!sub) {
-            throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
+            throw new NotFoundException(`No subscription for tenant ${tenantId}`);
         }
 
         const usage: Record<string, number> = {};
@@ -253,11 +253,11 @@ export class TenantBillingController {
 
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         if (blockedTargets.includes(dto.plan)) {
-            throw new ForbiddenException(`${dto.plan} wird nicht per Self-Service aktiviert.`);
+            throw new ForbiddenException(`${dto.plan} is not activated via self-service.`);
         }
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
+        if (!sub) throw new NotFoundException(`No subscription for tenant ${tenantId}`);
 
         // Defense-in-depth: server-side pre-check with the same rules
         // as the wizard. Prevents bypass via a direct API call.
@@ -358,11 +358,11 @@ export class TenantBillingController {
         // Self-service block: ENTERPRISE etc. cannot be selected via onboarding
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         if (blockedTargets.includes(dto.plan)) {
-            throw new ForbiddenException(`${dto.plan} wird nicht per Self-Service aktiviert.`);
+            throw new ForbiddenException(`${dto.plan} is not activated via self-service.`);
         }
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
+        if (!sub) throw new NotFoundException(`No subscription for tenant ${tenantId}`);
 
         // Plan-change blockers (defense-in-depth, as in changePlan)
         const blockers = await this.planPreview.assertChangeAllowed(
@@ -454,11 +454,11 @@ export class TenantBillingController {
             if (dto.promoCode) {
                 if (!this.promoCodes) {
                     warnings.push(
-                        'Promo-Code wurde gesendet, aber PromoCodesModule ist nicht geladen — der Code wurde NICHT eingelöst.',
+                        'A promo code was sent, but PromoCodesModule is not loaded — the code was NOT redeemed.',
                     );
                 } else if (!sub.id) {
                     warnings.push(
-                        'Promo-Code wurde gesendet, aber der Adapter liefert keine SubscriptionUsageRecord.id — der Code wurde NICHT eingelöst.',
+                        'A promo code was sent, but the adapter returns no SubscriptionUsageRecord.id — the code was NOT redeemed.',
                     );
                 } else {
                     try {
@@ -471,7 +471,7 @@ export class TenantBillingController {
                         promoRedemption = this.toResponseRedemption(redemption, dto.promoCode);
                     } catch (err) {
                         const message = err instanceof Error ? err.message : 'Unbekannter Fehler';
-                        warnings.push(`Promo-Code konnte nicht eingelöst werden: ${message}`);
+                        warnings.push(`The promo code could not be redeemed: ${message}`);
                     }
                 }
             }
@@ -523,7 +523,7 @@ export class TenantBillingController {
                     bundlesAdded += 1;
                 } catch (err) {
                     warnings.push(
-                        `Bundle '${bundleVersionId}' konnte nicht gebucht werden: ` +
+                        `Bundle '${bundleVersionId}' could not be booked: ` +
                             (err instanceof Error ? err.message : String(err)),
                     );
                 }
@@ -531,7 +531,7 @@ export class TenantBillingController {
         } else if (bundleVersionIds.length > 0 && !this.subscriptionBundles) {
             warnings.push(
                 'Bundle-Buchungen im Onboarding angefordert, aber SubscriptionBundleModule ' +
-                    'ist nicht im Konsumenten registriert. Bundles wurden nicht angelegt.',
+                    'is not registered in the consumer. No bundles were created.',
             );
         }
 
@@ -558,10 +558,10 @@ export class TenantBillingController {
         const userId = this.requireUserId(req);
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
+        if (!sub) throw new NotFoundException(`No subscription for tenant ${tenantId}`);
         if (!sub.pendingPlanVersion) {
             throw new BadRequestException(
-                'Es liegt aktuell keine Pending-Plan-Version zur Bestätigung vor.',
+                'There is no pending plan version awaiting confirmation.',
             );
         }
 
@@ -630,7 +630,7 @@ export class TenantBillingController {
             this.tenantIdResolver ?? ((r: unknown) => (r as RequestLike).user?.tenantId ?? null);
         const tenantId = resolver(req);
         if (!tenantId) {
-            throw new NotFoundException('Tenant-ID nicht im Request gefunden');
+            throw new NotFoundException('No tenant ID found on the request');
         }
         return tenantId;
     }
@@ -641,7 +641,7 @@ export class TenantBillingController {
             ((r: unknown) => (r as RequestLike).user?.sub ?? (r as RequestLike).user?.id ?? null);
         const userId = resolver(req);
         if (!userId) {
-            throw new NotFoundException('User-ID nicht im Request gefunden');
+            throw new NotFoundException('No user ID found on the request');
         }
         return userId;
     }
@@ -695,12 +695,12 @@ export class TenantBillingController {
         const reasons: string[] = [];
         if (!this.promoCodes) {
             reasons.push(
-                `Promo-Code "${promoCode}" wurde gesendet, aber PromoCodesModule ist nicht geladen — der Code wurde NICHT eingelöst.`,
+                `Promo-Code "${promoCode}" was sent, but PromoCodesModule is not loaded — the code was NOT redeemed.`,
             );
         }
         if (!sub.id) {
             reasons.push(
-                `Promo-Code "${promoCode}" wurde gesendet, aber der Adapter liefert keine SubscriptionUsageRecord.id — der Code wurde NICHT eingelöst.`,
+                `Promo-Code "${promoCode}" was sent, but the adapter returns no SubscriptionUsageRecord.id — the code was NOT redeemed.`,
             );
         }
         return reasons;
@@ -723,7 +723,7 @@ export class TenantBillingController {
             await this.contractFreeze.freezeOnPlanChange(tenantId, plan, cycle, new Date());
         } catch (err) {
             this.logger.error(
-                `Contract-Freeze nach Plan-Wechsel fehlgeschlagen (tenant ${tenantId}): ${String(err)}`,
+                `Contract freeze after plan change failed (tenant ${tenantId}): ${String(err)}`,
             );
         }
     }

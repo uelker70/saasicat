@@ -63,12 +63,12 @@ export class WhoAmIFlow {
 
     formatResult(r: WhoAmIResult): string {
         const lines = [
-            `Identität:        ${r.email}`,
+            `Identity:         ${r.email}`,
             `Host:             ${r.host}`,
             `Actor-Tag:        ${r.actor}`,
-            `User-ID:          ${r.userId ?? '— (User nicht gefunden)'}`,
-            `Plattform-Rolle:  ${r.isSuperAdmin ? 'SUPER_ADMIN ✓' : '— (kein SUPER_ADMIN!)'}`,
-            `MFA konfiguriert: ${r.mfaEnabled ? '✓' : '✗ — bitte `admin mfa-setup` ausführen'}`,
+            `User ID:          ${r.userId ?? '— (user not found)'}`,
+            `Platform role:    ${r.isSuperAdmin ? 'SUPER_ADMIN ✓' : '— (not a SUPER_ADMIN!)'}`,
+            `MFA konfiguriert: ${r.mfaEnabled ? '✓' : '✗ — run `admin mfa-setup`'}`,
             `Environment:      ${r.isProduction ? 'PRODUCTION' : 'non-production'}`,
         ];
         if (r.mfaSkipActive) {

@@ -65,7 +65,7 @@ describe('BundlesService — Master operations', () => {
         await service.createBundle({ projectKey: PROJECT, bundleKey: 'BANKING', label: 'X' });
         await assert.rejects(
             () => service.createBundle({ projectKey: PROJECT, bundleKey: 'BANKING', label: 'Y' }),
-            /existiert bereits/,
+            /already exists/,
         );
     });
 
@@ -143,7 +143,7 @@ describe('BundlesService — Version lifecycle', () => {
                     bundleId: bundle.id,
                     features: ['RECEIVABLES'],
                 }),
-            /Draft-Version/,
+            /draft version/,
         );
     });
 
@@ -319,7 +319,7 @@ describe('BundlesService — Strict mode check', () => {
                     bundleId: bundle.id,
                     features: ['SEPA_DIRECT_DEBIT', 'RECEIVABLES'],
                 }),
-            /STRICT_MODE_VIOLATIONS|Strict-Mode/,
+            /STRICT_MODE_VIOLATIONS|strict-mode/,
         );
     });
 

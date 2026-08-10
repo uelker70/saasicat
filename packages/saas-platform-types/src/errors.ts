@@ -17,7 +17,7 @@ export class PlatformUserExistsError extends Error {
         readonly email: string,
         readonly existingRole: PlatformRole,
     ) {
-        super(`User ${email} existiert bereits (Rolle: ${existingRole}).`);
+        super(`User ${email} already exists (role: ${existingRole}).`);
         this.name = 'PlatformUserExistsError';
     }
 }

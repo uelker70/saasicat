@@ -331,7 +331,7 @@ describe('CatalogEntriesService', () => {
             await svc.syncFromSnapshot(snap);
             await assert.rejects(
                 () => svc.reviewFeature(PROJECT, 'A', { discoveryStatus: 'outdated' }, null),
-                /nicht erlaubt/,
+                /is not allowed/,
             );
         });
 
@@ -348,7 +348,7 @@ describe('CatalogEntriesService', () => {
                         { discoveryStatus: 'approved' },
                         null,
                     ),
-                /Discovery-Snapshot/,
+                /discovery snapshot/,
             );
         });
 
@@ -369,7 +369,7 @@ describe('CatalogEntriesService', () => {
         test('reviewFeature throws on an unknown key', async () => {
             await assert.rejects(
                 () => service.reviewFeature(PROJECT, 'nope', { discoveryStatus: 'approved' }, null),
-                /nicht gefunden/,
+                /not found/,
             );
         });
     });

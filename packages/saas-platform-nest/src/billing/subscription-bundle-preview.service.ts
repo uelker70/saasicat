@@ -169,7 +169,7 @@ export class SubscriptionBundlePreviewService {
     ): Promise<SubscriptionBundleAddPreviewDto> {
         const bundleVersion = await this.bundles.findVersionById(input.bundleVersionId);
         if (!bundleVersion) {
-            throw new NotFoundException(`BundleVersion '${input.bundleVersionId}' nicht gefunden`);
+            throw new NotFoundException(`BundleVersion '${input.bundleVersionId}' not found`);
         }
 
         const blockers: SubscriptionBundlePreviewIssue[] = [];
@@ -181,7 +181,7 @@ export class SubscriptionBundlePreviewService {
         if (activeBundleVersions.some((bv) => bv.id === bundleVersion.id)) {
             blockers.push({
                 code: 'BUNDLE_ALREADY_SUBSCRIBED',
-                message: 'Dieses Bundle ist bereits aktiv gebucht.',
+                message: 'This bundle is already actively booked.',
             });
         }
 
@@ -197,8 +197,8 @@ export class SubscriptionBundlePreviewService {
                 code: 'REDUNDANT_FEATURES',
                 message:
                     `${redundantFeatures.length} Feature${redundantFeatures.length === 1 ? ' ist' : 's sind'} ` +
-                    'bereits im Plan oder einem anderen gebuchten Bundle enthalten — ' +
-                    'das Bundle würde dafür doppelt bezahlt.',
+                    'already included in the plan or another booked bundle — ' +
+                    'the bundle would be paid for twice.',
             });
         }
 
@@ -211,8 +211,8 @@ export class SubscriptionBundlePreviewService {
             blockers.push({
                 code: 'BUNDLE_FEATURE_DEPENDENCY_UNSATISFIED',
                 message:
-                    `Das Bundle benötigt [${missingRequires.join(', ')}] — weder im Plan ` +
-                    'noch in den aktiven Bundles enthalten.',
+                    `The bundle requires [${missingRequires.join(', ')}] — present neither in the plan ` +
+                    'nor in the active bundles.',
             });
         }
 
@@ -255,14 +255,12 @@ export class SubscriptionBundlePreviewService {
         const existing = await this.subscriptionBundles.findById(input.subscriptionBundleId);
         if (!existing || existing.subscriptionId !== ctx.subscriptionId) {
             throw new NotFoundException(
-                `SubscriptionBundle '${input.subscriptionBundleId}' nicht gefunden`,
+                `SubscriptionBundle '${input.subscriptionBundleId}' not found`,
             );
         }
         const bundleVersion = await this.bundles.findVersionById(existing.bundleVersionId);
         if (!bundleVersion) {
-            throw new NotFoundException(
-                `BundleVersion '${existing.bundleVersionId}' nicht gefunden`,
-            );
+            throw new NotFoundException(`BundleVersion '${existing.bundleVersionId}' not found`);
         }
 
         const blockers: SubscriptionBundlePreviewIssue[] = [];
@@ -270,7 +268,7 @@ export class SubscriptionBundlePreviewService {
         if (existing.canceledAt !== null) {
             blockers.push({
                 code: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED',
-                message: 'Diese Bundle-Buchung ist bereits gekündigt.',
+                message: 'This bundle booking is already cancelled.',
             });
         }
 
@@ -287,8 +285,8 @@ export class SubscriptionBundlePreviewService {
             warnings.push({
                 code: 'MINIMUM_TERM_BINDS',
                 message:
-                    'Die Mindestlaufzeit bindet über das Periodenende hinaus — die ' +
-                    'Kündigung wirkt erst zum Mindestlaufzeit-Ende.',
+                    'The minimum term extends beyond the end of the period — the ' +
+                    'cancellation only takes effect when the minimum term ends.',
             });
         }
 
@@ -317,13 +315,13 @@ export class SubscriptionBundlePreviewService {
         if (bundleVersion.publishedAt === null) {
             blockers.push({
                 code: 'BUNDLE_VERSION_NOT_PUBLISHED',
-                message: 'Diese BundleVersion ist nicht veröffentlicht und nicht buchbar.',
+                message: 'This bundle version is not published and cannot be booked.',
             });
         }
         if (bundleVersion.supersededAt !== null) {
             blockers.push({
                 code: 'BUNDLE_VERSION_SUPERSEDED',
-                message: 'Diese BundleVersion wurde durch eine Nachfolge-Version abgelöst.',
+                message: 'This bundle version has been superseded by a newer one.',
             });
         }
         const planIds = bundleVersion.compatibility?.planIds ?? [];
@@ -331,16 +329,16 @@ export class SubscriptionBundlePreviewService {
             blockers.push({
                 code: 'BUNDLE_INCOMPATIBLE_WITH_PLAN',
                 message:
-                    `Das Bundle ist nicht mit Plan '${currentPlanKey}' kompatibel. ` +
-                    `Erlaubt: [${planIds.join(', ')}].`,
+                    `The bundle is not compatible with plan '${currentPlanKey}'. ` +
+                    `Allowed: [${planIds.join(', ')}].`,
             });
         }
         if (this.blockedBundles?.bundleKeys?.includes(bundleVersion.bundleKey)) {
             blockers.push({
                 code: 'BUNDLE_NOT_SELF_SERVICE',
                 message:
-                    `Bundle '${bundleVersion.bundleKey}' wird nur per Sondervertrag aktiviert. ` +
-                    'Bitte den Vertragsbetreuer kontaktieren.',
+                    `Bundle '${bundleVersion.bundleKey}' is only activated via a special contractviert. ` +
+                    'Please contact the contract manager.',
             });
         }
     }

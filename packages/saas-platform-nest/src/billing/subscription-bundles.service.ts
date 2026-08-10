@@ -115,18 +115,18 @@ export class SubscriptionBundlesService {
     ): Promise<SubscriptionBundleRecord> {
         const bundleVersion = await this.bundles.findVersionById(input.bundleVersionId);
         if (!bundleVersion) {
-            throw new NotFoundException(`BundleVersion '${input.bundleVersionId}' nicht gefunden`);
+            throw new NotFoundException(`BundleVersion '${input.bundleVersionId}' not found`);
         }
         if (bundleVersion.publishedAt === null) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_NOT_PUBLISHED',
-                message: `BundleVersion '${input.bundleVersionId}' ist nicht published und kann nicht gebucht werden.`,
+                message: `BundleVersion '${input.bundleVersionId}' is not published and cannot be booked.`,
             });
         }
         if (bundleVersion.supersededAt !== null) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_VERSION_SUPERSEDED',
-                message: `BundleVersion '${input.bundleVersionId}' wurde durch eine Nachfolge-Version abgelöst.`,
+                message: `BundleVersion '${input.bundleVersionId}' has been superseded by a newer version.`,
             });
         }
 
@@ -135,8 +135,8 @@ export class SubscriptionBundlesService {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_NOT_SELF_SERVICE',
                 message:
-                    `Bundle '${bundleVersion.bundleKey}' wird nur per Sondervertrag aktiviert. ` +
-                    'Bitte den Vertragsbetreuer kontaktieren.',
+                    `Bundle '${bundleVersion.bundleKey}' is only activated via a special contractviert. ` +
+                    'Please contact the contract manager.',
             });
         }
 
@@ -146,8 +146,8 @@ export class SubscriptionBundlesService {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_INCOMPATIBLE_WITH_PLAN',
                 message:
-                    `BundleVersion '${input.bundleVersionId}' ist nicht mit Plan ` +
-                    `'${input.currentPlanKey}' kompatibel. Erlaubt: [${planIds.join(', ')}].`,
+                    `BundleVersion '${input.bundleVersionId}' is not compatible with plan ` +
+                    `'${input.currentPlanKey}'. Allowed: [${planIds.join(', ')}].`,
             });
         }
 
@@ -156,7 +156,7 @@ export class SubscriptionBundlesService {
         if (active.some((b) => b.bundleVersionId === input.bundleVersionId)) {
             throw new UnprocessableEntityException({
                 code: 'BUNDLE_ALREADY_SUBSCRIBED',
-                message: `Subscription '${input.subscriptionId}' hat dieses Bundle bereits aktiv gebucht.`,
+                message: `Subscription '${input.subscriptionId}' has already actively booked this bundle.`,
             });
         }
 
@@ -179,13 +179,13 @@ export class SubscriptionBundlesService {
         const existing = await this.repo.findById(input.subscriptionBundleId);
         if (!existing) {
             throw new NotFoundException(
-                `SubscriptionBundle '${input.subscriptionBundleId}' nicht gefunden`,
+                `SubscriptionBundle '${input.subscriptionBundleId}' not found`,
             );
         }
         if (existing.canceledAt !== null) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED',
-                message: `SubscriptionBundle '${input.subscriptionBundleId}' ist bereits gekündigt.`,
+                message: `SubscriptionBundle '${input.subscriptionBundleId}' is already cancelled.`,
             });
         }
 
@@ -209,20 +209,18 @@ export class SubscriptionBundlesService {
     async reactivateBundle(subscriptionBundleId: string): Promise<SubscriptionBundleRecord> {
         const existing = await this.repo.findById(subscriptionBundleId);
         if (!existing) {
-            throw new NotFoundException(
-                `SubscriptionBundle '${subscriptionBundleId}' nicht gefunden`,
-            );
+            throw new NotFoundException(`SubscriptionBundle '${subscriptionBundleId}' not found`);
         }
         if (existing.canceledAt === null) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_BUNDLE_NOT_CANCELED',
-                message: `SubscriptionBundle '${subscriptionBundleId}' ist nicht gekündigt.`,
+                message: `SubscriptionBundle '${subscriptionBundleId}' is not cancelled.`,
             });
         }
         if (existing.canceledEffectiveAt !== null && existing.canceledEffectiveAt <= new Date()) {
             throw new UnprocessableEntityException({
                 code: 'SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE',
-                message: 'Kündigung bereits wirksam — bitte das Bundle neu buchen.',
+                message: 'Cancellation already in effect — book the bundle again.',
             });
         }
         return this.repo.reactivate(subscriptionBundleId);

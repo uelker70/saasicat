@@ -86,7 +86,7 @@ export class PlanCatalogImporterService {
 
             if (plan.monthlyNet === null || plan.monthlyNet === undefined) {
                 report.warnings.push(
-                    `Plan '${plan.id}' hat keinen monthlyNet — übersprungen (auf-Anfrage-Plans brauchen manuelle PlanVersion).`,
+                    `Plan '${plan.id}' has no monthlyNet — skipped (on-request plans need a manual plan version).`,
                 );
                 continue;
             }

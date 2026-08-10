@@ -26,7 +26,7 @@ export class CreatePlanVersionDraftDto {
     @IsString({ each: true })
     @Matches(FEATURE_KEY_PATTERN, {
         each: true,
-        message: 'features-Einträge müssen SCREAMING_SNAKE_CASE sein',
+        message: 'features entries must be SCREAMING_SNAKE_CASE',
     })
     features!: string[];
 
@@ -39,7 +39,7 @@ export class CreatePlanVersionDraftDto {
     @IsString({ each: true })
     @Matches(FEATURE_KEY_PATTERN, {
         each: true,
-        message: 'bundles-Einträge müssen SCREAMING_SNAKE_CASE sein',
+        message: 'bundles entries must be SCREAMING_SNAKE_CASE',
     })
     bundles?: string[];
 
@@ -47,12 +47,12 @@ export class CreatePlanVersionDraftDto {
     quotas!: Record<string, number>;
 
     @Matches(DECIMAL_PATTERN, {
-        message: 'monthlyNet muss Decimal mit max. 2 Nachkommastellen sein (z. B. "9.90")',
+        message: 'monthlyNet must be a decimal with at most 2 fraction digits (e.g. "9.90")',
     })
     monthlyNet!: string;
 
     @Matches(DECIMAL_PATTERN, {
-        message: 'yearlyNet muss Decimal mit max. 2 Nachkommastellen sein',
+        message: 'yearlyNet must be a decimal with at most 2 fraction digits',
     })
     yearlyNet!: string;
 
