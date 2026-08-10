@@ -1,0 +1,19 @@
+{
+    "path": ["packages", "examples"],
+    "ignore": [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/coverage/**",
+        "**/.integration-tmp/**",
+        "**/CHANGELOG.md",
+        "**/*.snap"
+    ],
+    "format": ["typescript", "javascript", "vue", "scss", "css", "markup"],
+    "minTokens": 50,
+    "maxLines": 50000,
+    "threshold": 3.5,
+    "reporters": ["console", "json"],
+    "output": "./.jscpd-report",
+    "absolute": false,
+    "gitignore": true
+}
