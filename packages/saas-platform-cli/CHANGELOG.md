@@ -1,5 +1,66 @@
 # @saasicat/cli
 
+## 0.19.0
+
+### Minor Changes
+
+- 0c17a83: Translate all user-facing strings to English
+
+    Exception messages, log output, validation messages and CLI output were partly
+    German. For an open-source package the shipped language has to be English, so
+    consuming apps can localise on their own terms.
+
+    Both feature guards keep `Feature` as the leading word of their 403 message
+    (`Feature X is not included in the current plan.`). Consumers that classify the
+    403 by matching the message text — autohauspro does — keep working. That text
+    match is a fragile contract, and the follow-up is to give every exception a
+    stable `code` so consumers can resolve their own i18n by code instead of by
+    message.
+
+    No API, no behaviour and no error-code change; only message text.
+
+### Patch Changes
+
+- b01eaa0: Give every exception a stable error code
+
+    Consumers had to classify errors by matching the message text — autohauspro
+    still does, with `data.message.includes('Feature')`. While the message is the
+    contract, no message can be reworded safely, and a package that ships English
+    text cannot be localised by its consumers.
+
+    `@saasicat/types` now exports a catalogue of 127 codes grouped by domain, plus
+    `PlatformErrorCode` and `PlatformErrorBody`. Every exception in
+    `@saasicat/nest` carries `{ code, message, params }`: the code is the
+    contract, `message` is an English developer-facing fallback, and `params`
+    holds the values previously only interpolated into the text, so a consumer can
+    render a translated sentence without scraping ids back out of the message.
+
+    Guards that reported through a `reason` field (MFA, promo rate limit,
+    IP rate limit, the limit-exceeded filter) now send `code` **and** `reason`.
+    `reason` is deprecated but retained, so nothing breaks.
+
+    Wire-shape note: NestJS turns a string argument into
+    `{ message, error, statusCode }` but passes an object argument through
+    verbatim. Coded errors therefore carry no `error`/`statusCode` in the body —
+    the HTTP status is on the response itself. No consumer in this workspace reads
+    those fields from the body.
+
+    Two known defects are documented in the catalogue and deliberately left for a
+    separate release, because fixing either changes the wire format:
+    `PLAN_VERSION_NOT_LIVE` covers two distinct causes, and
+    `SUBSCRIPTION_BUNDLE_ALREADY_CANCELED` spells "cancel" with one L beside a
+    sibling that uses two.
+
+    Also repairs 28 strings that the previous translation left half-German
+    ("is notehr buchbar", "not foundefunden") or untranslated.
+
+- Updated dependencies [0c17a83]
+- Updated dependencies [b01eaa0]
+- Updated dependencies [edfbdfe]
+    - @saasicat/nest@0.19.0
+    - @saasicat/types@0.19.0
+    - @saasicat/spec@0.19.0
+
 ## 0.18.1
 
 ### Patch Changes
