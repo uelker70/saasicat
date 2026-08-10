@@ -1,8 +1,7 @@
-// Die beiden Promo-Code-Dialoge sind oeffentliche Bestandteile des Pakets und
-// hatten bislang keinen Test. Diese Faelle halten das Verhalten fest, auf das
-// Konsumenten sich verlassen: Welche Nutzlast der `submit`-Handler bekommt,
-// wann der Speichern-Knopf freigegeben ist, und dass ein Fehler des Handlers im
-// Dialog landet statt den Aufrufer zu erreichen.
+// Both promo-code dialogs are public parts of the package and had no test.
+// These cases pin down what consumers rely on: the payload the `submit`
+// handler receives, when the save button is released, and that a handler error
+// stays inside the dialog instead of reaching the caller.
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, ref } from 'vue';
@@ -13,8 +12,8 @@ import { SA_MESSAGES } from '../src/client/i18n/messages.js';
 import { SUPER_ADMIN_I18N_KEY } from '../src/vue/use-super-admin-i18n.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
 
-// QDialog teleportiert nach `body`; ohne Aufraeumen liest der naechste Fall die
-// Reste des vorigen.
+// QDialog teleports into `body`; without cleanup the next case reads what the
+// previous one left behind.
 const mounted: { unmount: () => void }[] = [];
 afterEach(() => {
     while (mounted.length) mounted.pop()?.unmount();
@@ -38,7 +37,7 @@ function mountDialog(component: typeof PromoCodeCreateDialog, props: Record<stri
 }
 
 describe('PromoCodeCreateDialog', () => {
-    test('reicht die erfassten Werte an submit durch', async () => {
+    test('passes the entered values through to submit', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
         const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
         await wrapper.vm.$nextTick();
@@ -60,7 +59,7 @@ describe('PromoCodeCreateDialog', () => {
         });
     });
 
-    test('sendet nicht, solange der Code die Form verfehlt', async () => {
+    test('does not submit while the code is malformed', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
         const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
         const vm = wrapper.vm as unknown as {
@@ -73,8 +72,8 @@ describe('PromoCodeCreateDialog', () => {
         expect(submit).not.toHaveBeenCalled();
     });
 
-    test('behaelt einen Fehler des Handlers im Dialog', async () => {
-        const submit = vi.fn().mockRejectedValue(new Error('Code bereits vergeben'));
+    test('keeps a handler error inside the dialog', async () => {
+        const submit = vi.fn().mockRejectedValue(new Error('Code already taken'));
         const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
         const vm = wrapper.vm as unknown as {
             form: Record<string, unknown>;
@@ -85,7 +84,7 @@ describe('PromoCodeCreateDialog', () => {
         vm.form.code = 'SOMMER25';
         vm.form.value = 25;
         await expect(vm.onSubmit()).resolves.toBeUndefined();
-        expect(vm.error).toBe('Code bereits vergeben');
+        expect(vm.error).toBe('Code already taken');
     });
 });
 
@@ -117,16 +116,16 @@ describe('PromoCodeEditDialog', () => {
         };
     }
 
-    test('uebernimmt die Werte der Zeile ins Formular', () => {
+    test('adopts the row values into the form', () => {
         const vm = mountEdit(vi.fn());
-        // Der Code ist nicht aenderbar und daher kein Formularfeld.
+        // The code is not editable and therefore not a form field.
         expect(vm.form.code).toBeUndefined();
         expect(vm.form.value).toBe(10);
         expect(vm.form.durationType).toBe('ONCE');
         expect(vm.form.status).toBe('ACTIVE');
     });
 
-    test('sendet nichts, solange sich nichts geaendert hat', async () => {
+    test('sends nothing while nothing has changed', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
         const vm = mountEdit(submit);
 
@@ -134,7 +133,7 @@ describe('PromoCodeEditDialog', () => {
         expect(submit).not.toHaveBeenCalled();
     });
 
-    test('sendet nur die geaenderten Felder, mit der Id der Zeile', async () => {
+    test('sends only the changed fields, with the row id', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
         const vm = mountEdit(submit);
 
@@ -143,31 +142,30 @@ describe('PromoCodeEditDialog', () => {
 
         expect(submit).toHaveBeenCalledTimes(1);
         expect(submit.mock.calls[0][0]).toBe('promo-1');
-        // Nur das Delta: Status und Laufzeit bleiben unberuehrt.
+        // The delta only: status and duration stay untouched.
         expect(submit.mock.calls[0][1]).toEqual({ value: 15 });
     });
 
-    test('behaelt einen Fehler des Handlers im Dialog', async () => {
-        const submit = vi.fn().mockRejectedValue(new Error('Nicht mehr aenderbar'));
+    test('keeps a handler error inside the dialog', async () => {
+        const submit = vi.fn().mockRejectedValue(new Error('No longer editable'));
         const vm = mountEdit(submit);
 
         vm.form.value = 15;
         await expect(vm.onSubmit()).resolves.toBeUndefined();
-        expect(vm.error).toBe('Nicht mehr aenderbar');
+        expect(vm.error).toBe('No longer editable');
     });
 });
 
-// Die Felder liegen seit der Zusammenfuehrung in PromoCodeDialogFields. Diese
-// Faelle sichern die Stelle, an der die Zusammenfuehrung am ehesten bricht: den
-// Code, der nicht mehr per v-model gebunden ist, sondern ueber ein Ereignis
-// zurueck an das Formular des Dialogs laeuft.
-describe('Gemeinsamer Formularrumpf', () => {
+// Since the merge the fields live in PromoCodeDialogFields. These cases guard
+// the spot most likely to break: the code, which is no longer bound by v-model
+// but travels back to the dialog's form through an event.
+describe('Shared form body', () => {
     const plans = [
         { key: 'BASIC', label: 'Basic', color: '#3f6bff' },
         { key: 'PRO', label: 'Pro', color: '#10b981' },
     ];
 
-    test('Anlegen: Eingabe im Code-Feld landet in Grossbuchstaben im Formular', async () => {
+    test('create: typing into the code field lands upper-cased in the form', async () => {
         const wrapper = mountDialog(PromoCodeCreateDialog, {
             modelValue: true,
             submit: vi.fn(),
@@ -181,11 +179,11 @@ describe('Gemeinsamer Formularrumpf', () => {
         await wrapper.vm.$nextTick();
 
         const vm = wrapper.vm as unknown as { form: { code: string } };
-        // Kleinbuchstaben hoch, unerlaubte Zeichen weg.
+        // Lower case lifted, disallowed characters dropped.
         expect(vm.form.code).toBe('SOMMER-25');
     });
 
-    test('Anlegen: der Zufallsknopf fuellt einen gueltigen Code', async () => {
+    test('create: the random button fills a valid code', async () => {
         const wrapper = mountDialog(PromoCodeCreateDialog, {
             modelValue: true,
             submit: vi.fn(),
@@ -201,7 +199,7 @@ describe('Gemeinsamer Formularrumpf', () => {
         expect(vm.form.code).toMatch(/^[A-Z0-9]{8}$/);
     });
 
-    test('Bearbeiten: das Code-Feld zeigt den Code und ist gesperrt', async () => {
+    test('edit: the code field shows the code and is disabled', async () => {
         const wrapper = mountDialog(PromoCodeEditDialog as never, {
             modelValue: true,
             row: {
@@ -224,11 +222,11 @@ describe('Gemeinsamer Formularrumpf', () => {
         const input = document.querySelector<HTMLInputElement>('.pc-input--code');
         expect(input?.value).toBe('WINTER10');
         expect(input?.disabled).toBe(true);
-        // Kein Zufallsknopf im Bearbeiten.
+        // No random button on edit.
         expect(document.querySelectorAll('.pc-btn-mini').length).toBe(0);
     });
 
-    test('Der Status-Umschalter erscheint nur im Bearbeiten', async () => {
+    test('the status switch appears on edit only', async () => {
         const create = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit: vi.fn() });
         await create.vm.$nextTick();
         expect(document.querySelectorAll('.pc-status-opt').length).toBe(0);
@@ -256,7 +254,7 @@ describe('Gemeinsamer Formularrumpf', () => {
         expect(document.querySelectorAll('.pc-status-opt').length).toBe(2);
     });
 
-    test('Die Plan-Auswahl schreibt in das Formular des Dialogs', async () => {
+    test('the plan picker writes into the dialog form', async () => {
         const wrapper = mountDialog(PromoCodeCreateDialog, {
             modelValue: true,
             submit: vi.fn(),

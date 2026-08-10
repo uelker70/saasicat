@@ -481,44 +481,27 @@ async function doSubmit(code: string): Promise<void> {
 }
 </script>
 
+<style src="./pilot-dialog.css" scoped></style>
+
 <style scoped>
 .pl-dlg {
     width: 760px;
     max-width: 96vw;
 }
-.pl-dlg__head {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 18px 22px 14px;
-    border-bottom: 1px solid var(--sa-border, #e2e8f0);
-}
-.pl-dlg__title {
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 17px;
-    color: var(--sa-heading, #0f172a);
-    letter-spacing: -0.015em;
-}
+
 .pl-dlg__sub {
     font-size: 12.5px;
     color: var(--sa-muted, #64748b);
     margin-top: 3px;
     line-height: 1.4;
 }
-.pl-dlg__close {
-    margin-left: auto;
-}
+
 .pl-dlg__body {
     padding: 20px 22px;
     max-height: 72vh;
     overflow-y: auto;
 }
-.pl-dlg__foot {
-    border-top: 1px solid var(--sa-border, #e2e8f0);
-    background: #fbfbfd;
-    padding: 12px 18px;
-}
+
 .pl-foot-hint {
     margin-right: auto;
     display: inline-flex;
@@ -535,53 +518,23 @@ async function doSubmit(code: string): Promise<void> {
 .pl-section {
     margin-bottom: 20px;
 }
-.pl-section:last-of-type {
-    margin-bottom: 4px;
-}
-.pl-section__head {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.pl-section__num {
-    width: 24px;
-    height: 24px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    border-radius: 50%;
-    font: 700 12px var(--sa-font-body, system-ui, sans-serif);
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-}
-.pl-section__title {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: var(--sa-heading, #0f172a);
-    letter-spacing: -0.005em;
-}
-.pl-section__sub {
-    font-size: 11.5px;
-    color: #94a3b8;
-    margin-top: 2px;
-}
 
 .pl-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px 14px;
 }
+
 .pl-field {
     display: flex;
     flex-direction: column;
     gap: 5px;
 }
+
 .pl-field--full {
     grid-column: 1 / -1;
 }
+
 .pl-field label {
     font: 600 11px var(--sa-font-body, system-ui, sans-serif);
     letter-spacing: 0.04em;
@@ -591,6 +544,7 @@ async function doSubmit(code: string): Promise<void> {
     align-items: baseline;
     gap: 6px;
 }
+
 .pl-field__hint {
     font-weight: 500;
     text-transform: none;
@@ -598,34 +552,20 @@ async function doSubmit(code: string): Promise<void> {
     color: #94a3b8;
     font-size: 11px;
 }
+
 .pl-field__error {
     font-size: 11.5px;
     color: #b91c1c;
 }
 
-.pl-input {
-    width: 100%;
-    padding: 9px 12px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    font: 13px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-body, #1e293b);
-    outline: 0;
-    transition:
-        border-color 0.12s,
-        box-shadow 0.12s;
-}
-.pl-input:focus {
-    border-color: var(--sa-primary, #3f6bff);
-    box-shadow: 0 0 0 3px rgba(63, 107, 255, 0.12);
-}
 .pl-input--invalid {
     border-color: #fca5a5;
 }
+
 .pl-input::placeholder {
     color: #cbd5e1;
 }
+
 .pl-textarea {
     resize: vertical;
     min-height: 64px;
@@ -640,6 +580,7 @@ async function doSubmit(code: string): Promise<void> {
     border-radius: 8px;
     overflow: hidden;
 }
+
 .pl-slug-input__prefix {
     padding: 9px 12px;
     background: #f8fafc;
@@ -648,128 +589,14 @@ async function doSubmit(code: string): Promise<void> {
     border-right: 1px solid var(--sa-border, #e2e8f0);
     white-space: nowrap;
 }
+
 .pl-input--flush {
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
 }
+
 .pl-input--flush:focus {
     box-shadow: none !important;
-}
-
-.pl-plan-select {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-.pl-plan-opt {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 11px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    cursor: pointer;
-    text-align: left;
-    font-family: var(--sa-font-body, system-ui, sans-serif);
-    transition:
-        border-color 0.12s,
-        background 0.12s;
-}
-.pl-plan-opt:hover {
-    border-color: #93c5fd;
-    background: #fafbff;
-}
-.pl-plan-opt--active {
-    border-color: var(--sa-primary, #2563eb);
-    background: #eff6ff;
-    box-shadow: 0 0 0 1px var(--sa-primary, #2563eb) inset;
-}
-.pl-plan-opt__dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex: 0 0 auto;
-}
-.pl-plan-opt__text {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-}
-.pl-plan-opt__key {
-    font: 700 11px var(--sa-font-mono, ui-monospace, monospace);
-    letter-spacing: 0.05em;
-    color: var(--sa-heading, #0f172a);
-}
-.pl-plan-opt__label {
-    font-size: 11px;
-    color: var(--sa-muted, #64748b);
-    margin-top: 1px;
-}
-.pl-plan-opt__check {
-    color: #1d4ed8;
-}
-
-.pl-end-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.pl-end-row .pl-input {
-    flex: 1;
-}
-.pl-btn-mini {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 7px 10px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 7px;
-    color: var(--sa-muted-dark, #475569);
-    font: 500 11.5px var(--sa-font-body, system-ui, sans-serif);
-    cursor: pointer;
-    white-space: nowrap;
-}
-.pl-btn-mini:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
-.pl-end-presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 5px;
-}
-.pl-preset-btn {
-    padding: 4px 9px;
-    background: #fff;
-    border: 1px dashed #cbd5e1;
-    border-radius: 999px;
-    font: 600 11px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-muted-dark, #475569);
-    cursor: pointer;
-    transition:
-        background 0.12s,
-        border-color 0.12s,
-        color 0.12s;
-}
-.pl-preset-btn:hover {
-    background: #eff6ff;
-    border-color: #93c5fd;
-    border-style: solid;
-    color: #1d4ed8;
-}
-
-.pl-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: 13px;
-    margin: 12px 0 0;
-    padding: 8px 12px;
-    border-radius: 8px;
 }
 </style>

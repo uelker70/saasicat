@@ -258,20 +258,19 @@ import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PromoCodeDurationType, PromoCodePlanOption, PromoCodeValueType } from './types.js';
 
-// Der gemeinsame Formularrumpf der Promo-Code-Dialoge.
+// The form body shared by both promo-code dialogs.
 //
-// Anlegen und Bearbeiten zeigen dieselben Abschnitte und unterscheiden sich in
-// wenigen, aufzaehlbaren Punkten: Der Code ist nur beim Anlegen erfassbar, der
-// Status nur beim Bearbeiten, zwei Hinweistexte wechseln, und der leere
-// Abrechnungszyklus ist beim Anlegen `undefined` (Feld weglassen), beim
-// Bearbeiten `null` (Feld loeschen). Darum ein `mode` statt Slots: Slot-Inhalt
-// traegt den Scope des Elternteils, die geteilten `.pc-*`-Regeln wuerden ihn
-// nicht erreichen.
+// Create and edit show the same sections and differ in a handful of
+// enumerable points: the code is only editable on create, the status only on
+// edit, two hint texts swap, and an empty billing cycle is `undefined` on
+// create (omit the field) but `null` on edit (clear the field). Hence a `mode`
+// rather than slots: slot content carries the parent's scope, so the shared
+// `.pc-*` rules would never reach it.
 //
-// Diese Komponente ist Interna der beiden Dialoge und nicht Teil der
-// oeffentlichen Oberflaeche.
+// This component is internal to the two dialogs and not part of the public
+// surface.
 
-/** Die Felder, die beide Dialoge gemeinsam haben. `status` nur im Bearbeiten. */
+/** The fields both dialogs share. `status` exists on edit only. */
 export interface PromoCodeSharedForm {
     valueType: PromoCodeValueType;
     value: number;
@@ -295,7 +294,7 @@ const props = withDefaults(
     defineProps<{
         mode: 'create' | 'edit';
         form: PromoCodeSharedForm;
-        /** Im Anlegen bearbeitbar, im Bearbeiten nur angezeigt. */
+        /** Editable on create, display-only on edit. */
         code: string;
         showCampaignTag?: boolean;
         plans?: readonly PromoCodePlanOption[];
@@ -336,7 +335,7 @@ const statusOptions = computed<
     { k: 'PAUSED', label: msg.value.form.statusPaused, icon: 'pause' },
 ]);
 
-/** Der Code laeuft ueber den Aufrufer, damit dessen Formular die Wahrheit bleibt. */
+/** The code round-trips through the caller so its form stays the source of truth. */
 function onCodeInput(event: Event): void {
     const raw = (event.target as HTMLInputElement).value;
     emit('update:code', raw.toUpperCase().replace(/[^A-Z0-9_-]/g, ''));

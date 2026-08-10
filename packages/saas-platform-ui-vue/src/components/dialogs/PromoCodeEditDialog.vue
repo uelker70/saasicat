@@ -334,7 +334,7 @@ async function onSubmit() {
     border-radius: 8px;
 }
 
-/* Der Code ist nach dem Anlegen nicht mehr aenderbar. */
+/* The code cannot be changed after creation. */
 .pc-input:disabled {
     background: #f8fafc;
     color: #64748b;

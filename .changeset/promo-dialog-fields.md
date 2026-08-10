@@ -2,7 +2,6 @@
 '@saasicat/ui-vue': patch
 ---
 
-Der Formularrumpf der Promo-Code-Dialoge liegt jetzt in einer gemeinsamen
-internen Komponente. Anlegen und Bearbeiten hatten ihn zeichengleich kopiert.
-Die oeffentliche Oberflaeche beider Dialoge — Props, Emits, Klassennamen —
-bleibt unveraendert.
+The promo-code dialogs now share their form body through one internal
+component. Create and edit had kept byte-identical copies of it. The public
+surface of both dialogs — props, emits, class names — is unchanged.

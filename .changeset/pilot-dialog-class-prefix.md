@@ -2,6 +2,6 @@
 '@saasicat/ui-vue': patch
 ---
 
-PilotEditDialog nutzt dieselben Klassennamen wie PilotCreateDialog. Die
-Styles sind scoped, die Umbenennung ist damit nach aussen wirkungslos — sie
-macht nur sichtbar, dass beide Dialoge dieselben Bausteine zeichnen.
+PilotEditDialog now uses the same class names as PilotCreateDialog. The styles
+are scoped, so the rename has no effect on consumers — it only makes visible
+that both dialogs draw the same building blocks.

@@ -9,12 +9,11 @@ permissions:
     contents: read
 
 jobs:
-    # Reine Quelltextanalyse — braucht weder Install noch Build und laeuft darum
-    # getrennt und parallel. Die Konfiguration steht in .jscpd.json, damit ein
-    # lokaler Lauf (`pnpm dlx jscpd`) dasselbe misst wie die CI. Entscheidend ist
-    # dort maxLines: mit dem Standardwert 1000 ueberspringt jscpd groessere
-    # Dateien stillschweigend und misst an den Stellen vorbei, an denen sich
-    # Duplikation am ehesten sammelt.
+    # Pure source analysis — needs neither install nor build, so it runs
+    # separately and in parallel. The configuration lives in .jscpd.json so a
+    # local run (`pnpm dlx jscpd`) measures exactly what CI does. maxLines is
+    # the value that matters there: at the default of 1000 jscpd silently skips
+    # larger files and measures past the very places duplication collects in.
     duplication:
         runs-on: ubuntu-latest
         steps:
