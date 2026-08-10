@@ -105,6 +105,7 @@ export class SetupService {
             throw new ForbiddenException({
                 code: SETUP_ERROR_CODES.SETUP_DISABLED,
                 message: `${this.config.setupTokenEnvVar} is not set — setup is disabled.`,
+                params: { envVar: this.config.setupTokenEnvVar },
             });
         }
         if (!token || !timingSafeEqualStr(token, expected)) {

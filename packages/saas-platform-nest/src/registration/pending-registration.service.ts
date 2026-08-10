@@ -369,9 +369,7 @@ export class PendingRegistrationService {
             }
         }
         if (expired.length > 0) {
-            this.logger.log(
-                `Cleanup: ${expired.length} expired PendingRegistrations deleted.`,
-            );
+            this.logger.log(`Cleanup: ${expired.length} expired PendingRegistrations deleted.`);
         }
         return {
             deleted: expired.length,

@@ -37,3 +37,5 @@ export * from './setup.types.js';
 export * from './subscription-contract.types.js';
 export * from './subscription.types.js';
 export * from './version-editability.js';
+export * from './error-messages.js';
+export * from './error-messages-de.js';

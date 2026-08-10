@@ -146,11 +146,7 @@ export class CliContextService {
         if (opts.yes) return;
         const answer = await this.prompt('Type production to confirm: ');
         if (answer.trim().toLowerCase() !== 'production') {
-            throw new CliError(
-                'PRODUCTION_CONFIRM_ABORTED',
-                'Production confirmation aborted.',
-                1,
-            );
+            throw new CliError('PRODUCTION_CONFIRM_ABORTED', 'Production confirmation aborted.', 1);
         }
     }
 
