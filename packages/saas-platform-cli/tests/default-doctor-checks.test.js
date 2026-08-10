@@ -26,7 +26,7 @@ describe('PlanCatalogDoctorCheck', () => {
         });
         const r = await check.run();
         assert.equal(r.severity, 'ok');
-        assert.match(r.message, /2 Plan\(s\), 1 Feature/);
+        assert.match(r.message, /2 plan\(s\), 1 feature/);
         assert.deepEqual(r.details.planIds, ['starter', 'pro']);
     });
 });

@@ -40,7 +40,7 @@ export interface PublicMarketingPlan {
     highlight: boolean;
     /**
      * Formatted pricing tag from the MarketingProjection (#47, e.g.
-     * "€ 9,90 / Monat" or "auf Anfrage"). null/missing = frontends
+     * "€ 9.90 / month" or "on request"). null/missing = frontends
      * format automatically from monthlyNet/yearlyNet.
      */
     priceTag?: string | null;

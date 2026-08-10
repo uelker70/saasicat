@@ -53,7 +53,7 @@ export interface ImplementsCapabilityMetadata extends ImplementsCapabilityOption
  * ```ts
  * @Post()
  * @ImplementsCapability('invoice.create', {
- *   label: 'Rechnung erstellen',
+ *   label: 'Create invoice',
  *   feature: 'INVOICE_MANAGEMENT',
  *   kind: 'endpoint',
  *   owner: 'accounting',
@@ -103,7 +103,7 @@ export const RequiresCapability = (...capabilityKeys: string[]) =>
  * @Injectable()
  * @DefinesQuota({
  *   key: 'invoicesPerMonth',
- *   label: 'Rechnungen pro Monat',
+ *   label: 'Invoices per month',
  *   unit: 'invoices',
  *   policy: 'monthlyReset',
  *   feature: 'INVOICE_MANAGEMENT',

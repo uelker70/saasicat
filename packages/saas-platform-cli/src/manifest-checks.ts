@@ -73,11 +73,11 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
         run: (m) =>
             m.schemaVersion === 1
                 ? ok('schemaVersion=1')
-                : err(`Unerwartete schemaVersion ${m.schemaVersion}`),
+                : err(`Unexpected schemaVersion ${m.schemaVersion}`),
     },
     {
         id: 'manifest.hash-format',
-        label: 'manifestHash folgt sha256-<base64url>-Pattern',
+        label: 'manifestHash follows the sha256-<base64url> pattern',
         run: (m) => {
             const hash = m.build?.manifestHash;
             if (!hash) return err('manifestHash is missing');
@@ -101,33 +101,33 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
     },
     {
         id: 'manifest.tenant-action-keys',
-        label: 'TenantAction.actionKey-Format (domain.action — SPEC §4.2.1)',
+        label: 'TenantAction.actionKey format (domain.action — SPEC §4.2.1)',
         run: (m) => {
             const bad: string[] = [];
             for (const a of allTenantActions(m)) {
                 if (!TENANT_ACTION_KEY_PATTERN.test(a.actionKey)) bad.push(a.actionKey);
             }
             return bad.length === 0
-                ? ok('alle actionKeys folgen domain.action')
+                ? ok('every actionKey follows domain.action')
                 : err(`${bad.length} actionKey(s) violate the pattern`, bad);
         },
     },
     {
         id: 'manifest.audit-action-keys',
-        label: 'AuditAction.key-Format (SCREAMING_SNAKE_CASE)',
+        label: 'AuditAction.key format (SCREAMING_SNAKE_CASE)',
         run: (m) => {
             const bad: string[] = [];
             for (const a of allAuditActions(m)) {
                 if (!ACTION_KEY_PATTERN.test(a.key)) bad.push(a.key);
             }
             return bad.length === 0
-                ? ok('alle AuditAction.keys SCREAMING_SNAKE_CASE')
+                ? ok('every AuditAction.key is SCREAMING_SNAKE_CASE')
                 : err(`${bad.length} AuditAction.key(s) violate the pattern`, bad);
         },
     },
     {
         id: 'manifest.capabilities-pattern',
-        label: 'Capability-Pattern <domain>.<action> (SPEC §4.2.1)',
+        label: 'Capability pattern <domain>.<action> (SPEC §4.2.1)',
         run: (m) => {
             const bad = allCapabilities(m).filter((c) => !CAPABILITY_PATTERN.test(c));
             return bad.length === 0
@@ -150,7 +150,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             for (const c of allTenantColumns(m)) visit(c.requiredCapability, c.key);
             return bad.length === 0
                 ? ok('every requiredCapability ref resolves')
-                : err(`${bad.length} unbekannte Capability-Ref(s)`, bad);
+                : err(`${bad.length} unknown capability ref(s)`, bad);
         },
     },
     {
@@ -162,8 +162,8 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
                 if (!p.route.startsWith(ROUTE_PREFIX)) bad.push(p.route);
             }
             return bad.length === 0
-                ? ok('alle ProjectPage-Routes unter /admin')
-                : err(`${bad.length} Route(s) ohne /admin-Prefix`, bad);
+                ? ok('every ProjectPage route is under /admin')
+                : err(`${bad.length} route(s) without the /admin prefix`, bad);
         },
     },
     {
@@ -177,7 +177,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
                 }
             }
             return bad.length === 0
-                ? ok('alle slotPriority-Werte endlich')
+                ? ok('every slotPriority value is finite')
                 : err(`${bad.length} KpiCard(s) with an invalid slotPriority`, bad);
         },
     },
@@ -191,8 +191,8 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             }
             const dups = [...seen.entries()].filter(([, n]) => n > 1).map(([k]) => k);
             return dups.length === 0
-                ? ok('alle ProjectPage.id eindeutig')
-                : err(`${dups.length} doppelte ProjectPage.id`, dups);
+                ? ok('every ProjectPage.id is unique')
+                : err(`${dups.length} duplicate ProjectPage.id(s)`, dups);
         },
     },
     {
@@ -215,8 +215,8 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
                 if (n > 1) dups.push(`AuditAction:${k}`);
             }
             return dups.length === 0
-                ? ok('alle actionKeys je Namespace eindeutig')
-                : err(`${dups.length} doppelte actionKey(s)`, dups);
+                ? ok('every actionKey is unique per namespace')
+                : err(`${dups.length} duplicate actionKey(s)`, dups);
         },
     },
     {
@@ -227,7 +227,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             for (const c of allTenantColumns(m)) {
                 if (!c.endpoint || c.endpoint.trim().length === 0) bad.push(c.key);
                 else if (c.endpoint.includes('{slug}') || c.endpoint.includes('{tenantId}')) {
-                    bad.push(`${c.key} (per-Tenant statt batch)`);
+                    bad.push(`${c.key} (per-tenant instead of batch)`);
                 }
             }
             return bad.length === 0

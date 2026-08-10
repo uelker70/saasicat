@@ -117,7 +117,7 @@ export class BundlesService {
         // prod outage) — log loudly + degrade to warn-only.
         if (this.mode === 'blocking' && !hasDiscoverySnapshotSource(this.snapshot, this.scanner)) {
             this.logger.error(
-                'BundlesService: strictModeCheckMode=blocking ohne DiscoverySnapshot-Quelle — ' +
+                'BundlesService: strictModeCheckMode=blocking without a DiscoverySnapshot source — ' +
                     'degrading to warn-only. Wire DiscoveryModule so that enforcement takes effect (#25).',
             );
             this.mode = 'warn-only';
@@ -210,7 +210,7 @@ export class BundlesService {
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_DISCARD_NOT_IMPLEMENTED,
                 message:
                     'Discard is not implemented in the current repository. ' +
-                    'Implementiere BundleRepository.deleteDraft.',
+                    'Implement BundleRepository.deleteDraft.',
             });
         }
         await this.repo.deleteDraft(versionId);
@@ -412,7 +412,7 @@ export class BundlesService {
                     code: CATALOG_ERROR_CODES.BUNDLE_VERSION_ZERO_PRICE,
                     message:
                         'A bundle version cannot be published with an explicit price of 0.00 (guard ' +
-                        'against seed placeholders). For free bundles leave it null, or set allowZeroPrice setzen.',
+                        'against seed placeholders). For free bundles leave it null, or set allowZeroPrice.',
                     monthlyNet: draft.monthlyNet,
                     yearlyNet: draft.yearlyNet,
                 });

@@ -78,16 +78,18 @@ export function buildLabel(
             : `${value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 
     if (code.durationType === 'ONCE') {
-        return `${valueStr} einmalig`;
+        return `${valueStr} once`;
     }
     if (code.durationType === 'MONTHS') {
         const m = code.durationValue ?? 0;
-        return m === 1 ? `${valueStr} im ersten Monat` : `${valueStr} for ${m} months`;
+        return m === 1 ? `${valueStr} for the first month` : `${valueStr} for ${m} months`;
     }
     // BILLING_CYCLES (or undefined)
     const n = code.durationValue ?? 0;
     if (n === 1)
-        return cycle === 'YEARLY' ? `${valueStr} im ersten Jahr` : `${valueStr} im ersten Monat`;
+        return cycle === 'YEARLY'
+            ? `${valueStr} for the first year`
+            : `${valueStr} for the first month`;
     return cycle === 'YEARLY'
         ? `${valueStr} for the first ${n} years`
         : `${valueStr} for the first ${n} months`;

@@ -116,7 +116,7 @@ export function assertOptimisticLockHeld(updateCount: number, draftId: string): 
     if (updateCount !== 1) {
         throw new PublishValidationError(
             'OPTIMISTIC_LOCK_CONFLICT',
-            `Draft ${draftId} has meanwhile been published by another adminht.`,
+            `Draft ${draftId} has meanwhile been published by another admin.`,
         );
     }
 }

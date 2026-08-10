@@ -1,8 +1,8 @@
-// PlanCatalogImporterController — REST-Endpoint fuer den One-Shot-Import.
+// PlanCatalogImporterController — REST endpoint for the one-shot import.
 // SPEC_V2 §11.1 M6 Pack 2c.
 //
-// Pfad: `POST /admin/billing/plan-catalog/import`. Body: `{ yamlContent }`.
-// Antwort: `PlanCatalogImportReport` (created/skipped-Counter + warnings).
+// Path: `POST /admin/billing/plan-catalog/import`. Body: `{ yamlContent }`.
+// Response: `PlanCatalogImportReport` (created/skipped counters + warnings).
 
 import {
     Body,

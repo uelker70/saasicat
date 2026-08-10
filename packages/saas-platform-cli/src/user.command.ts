@@ -38,7 +38,7 @@ function generatePassword(): string {
 @Command({
     name: 'user',
     description:
-        'User-Operationen (create-super-admin, reassign-admin, list, reset-password, deactivate)',
+        'User operations (create-super-admin, reassign-admin, list, reset-password, deactivate)',
 })
 export class UserCommands extends CommandRunner {
     constructor(
@@ -111,7 +111,7 @@ export class UserCommands extends CommandRunner {
         console.log(`✔ SUPER_ADMIN ${created.email} created (by ${meEmail}).`);
         console.log(`  User-ID: ${created.id}`);
         if (generated) {
-            console.log(`  Passwort: ${password}`);
+            console.log(`  Password: ${password}`);
             console.log('  → Share it securely. Change it on first login.');
         }
         console.log(`  Next step: admin mfa-setup for ${created.email}.`);
@@ -154,7 +154,7 @@ export class UserCommands extends CommandRunner {
         if (result.created) {
             console.log(`✔ Emergency admin ${result.user.email} created for ${slug}.`);
             if (result.oneTimePassword) {
-                console.log(`  Initial-Passwort: ${result.oneTimePassword}`);
+                console.log(`  Initial password: ${result.oneTimePassword}`);
                 console.log('  → Share it securely. Change it on first login.');
             }
         } else {
@@ -205,7 +205,7 @@ export class UserCommands extends CommandRunner {
 
         if (result.oneTimePassword) {
             console.log(`✔ One-time password set for ${result.user.email}.`);
-            console.log(`  Passwort: ${result.oneTimePassword}`);
+            console.log(`  Password: ${result.oneTimePassword}`);
             console.log('  → Share it securely. Change it on first login.');
         } else {
             console.log(`✔ Password reset triggered for ${result.user.email}.`);
@@ -240,14 +240,14 @@ export class UserCommands extends CommandRunner {
             changes: { reason: flags.reason, emergency: true },
         });
 
-        console.log(`✔ ${user.email} deaktiviert.`);
+        console.log(`✔ ${user.email} deactivated.`);
     }
 
     @Option({ flags: '--as <email>', description: 'CLI identity (otherwise <APP>_ADMIN_EMAIL)' })
     parseAs(val: string): string {
         return val;
     }
-    @Option({ flags: '--to <email>', description: 'Ziel-User (reassign-admin)' })
+    @Option({ flags: '--to <email>', description: 'Target user (reassign-admin)' })
     parseTo(val: string): string {
         return val;
     }
@@ -259,17 +259,17 @@ export class UserCommands extends CommandRunner {
     parseYes(): boolean {
         return true;
     }
-    @Option({ flags: '--first <name>', description: 'Vorname (create-super-admin)' })
+    @Option({ flags: '--first <name>', description: 'First name (create-super-admin)' })
     parseFirst(val: string): string {
         return val;
     }
-    @Option({ flags: '--last <name>', description: 'Nachname (create-super-admin)' })
+    @Option({ flags: '--last <name>', description: 'Last name (create-super-admin)' })
     parseLast(val: string): string {
         return val;
     }
     @Option({
         flags: '--password <pwd>',
-        description: 'Passwort (create-super-admin; ohne Angabe generiert)',
+        description: 'Password (create-super-admin; generated when omitted)',
     })
     parsePassword(val: string): string {
         return val;

@@ -41,7 +41,7 @@ export class ManifestDumpCommand extends CommandRunner {
 }
 
 @Injectable()
-@SubCommand({ name: 'hash', description: 'manifestHash ausgeben (CI-Pinning)' })
+@SubCommand({ name: 'hash', description: 'Print the manifestHash (CI pinning)' })
 export class ManifestHashCommand extends CommandRunner {
     constructor(
         private readonly ctx: CliContextService,
@@ -63,7 +63,7 @@ export class ManifestHashCommand extends CommandRunner {
 @Injectable()
 @SubCommand({
     name: 'validate',
-    description: 'Schnell-Sanity (schemaVersion + project.key + manifestHash)',
+    description: 'Quick sanity check (schemaVersion + project.key + manifestHash)',
 })
 export class ManifestValidateCommand extends CommandRunner {
     constructor(
@@ -92,7 +92,7 @@ export class ManifestValidateCommand extends CommandRunner {
 @Injectable()
 @SubCommand({
     name: 'check',
-    description: 'Alle Manifest-Checks (Exit-Code 7 bei error/Drift)',
+    description: 'All manifest checks (exit code 7 on error/drift)',
 })
 export class ManifestCheckCommand extends CommandRunner {
     constructor(

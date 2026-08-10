@@ -96,7 +96,7 @@ export class CliContextService {
         if (user.platformRole !== 'SUPER_ADMIN') {
             throw new CliError(
                 'NOT_SUPER_ADMIN',
-                `User ${identity.email} hat Rolle ${user.platformRole} — only SUPER_ADMIN may do that CLI nutzen.`,
+                `User ${identity.email} has role ${user.platformRole} — only SUPER_ADMIN may use this CLI.`,
                 2,
             );
         }
@@ -146,11 +146,7 @@ export class CliContextService {
         if (opts.yes) return;
         const answer = await this.prompt('Type production to confirm: ');
         if (answer.trim().toLowerCase() !== 'production') {
-            throw new CliError(
-                'PRODUCTION_CONFIRM_ABORTED',
-                'Production-Confirmation abgebrochen.',
-                1,
-            );
+            throw new CliError('PRODUCTION_CONFIRM_ABORTED', 'Production confirmation aborted.', 1);
         }
     }
 

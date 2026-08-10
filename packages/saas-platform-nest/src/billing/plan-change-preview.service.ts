@@ -67,7 +67,7 @@ export interface PlanChangePreviewDto {
      * Projected new trial end after the change (app trial logic, e.g.
      * carry-over of the remaining time). `null` if no TrialProjectionPort is
      * configured, the subscription is not in a trial, or nothing changes.
-     * The wizard uses this to show "regulär ab Ende der Testphase".
+     * The wizard uses this to show "regular from the end of the trial".
      */
     projectedTrialEndsAt: Date | null;
     proration: ProrationDto | null;

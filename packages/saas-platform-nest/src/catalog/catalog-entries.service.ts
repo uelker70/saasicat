@@ -149,7 +149,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         if (!snapshot) {
             this.logger.warn(
                 'Discovery auto-sync skipped: no snapshot (neither token nor ' +
-                    'DiscoveryScanner injiziert). DiscoveryModule wiren (#25).',
+                    'DiscoveryScanner injected). Wire up DiscoveryModule (#25).',
             );
             return;
         }
@@ -527,8 +527,8 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 if (claimants && claimants.length > 0) {
                     if (claimants.length > 1) {
                         this.logger.warn(
-                            `${type} '${entry.key}' is claimed by several replaces declarationsprucht ` +
-                                `(${claimants.join(', ')}); '${claimants[0]}' gewinnt — replaces im Code bereinigen (#39)`,
+                            `${type} '${entry.key}' is claimed by several replaces declarations ` +
+                                `(${claimants.join(', ')}); '${claimants[0]}' wins — clean up the replaces in the code (#39)`,
                         );
                     }
                     target = claimants[0];

@@ -31,7 +31,7 @@ import { USER_PORT_TOKEN } from './tokens.js';
 @Injectable()
 export class PlanCatalogDoctorCheck implements DoctorCheck {
     readonly id = 'platform.plan-catalog';
-    readonly label = 'Plan-Catalog im DI';
+    readonly label = 'Plan catalog in DI';
     constructor(@Inject(PLAN_CATALOG_TOKEN) private readonly catalog: PlanCatalog) {}
 
     async run(): Promise<DoctorCheckResult> {
@@ -45,7 +45,7 @@ export class PlanCatalogDoctorCheck implements DoctorCheck {
         }
         return {
             severity: 'ok',
-            message: `${plans.length} Plan(s), ${this.catalog.features?.length ?? 0} Feature(s) geladen.`,
+            message: `${plans.length} plan(s), ${this.catalog.features?.length ?? 0} feature(s) loaded.`,
             details: {
                 projectKey: this.catalog.projectKey,
                 planIds: plans.map((p) => p.id),
@@ -79,17 +79,17 @@ export class DiscoverySnapshotDoctorCheck implements DoctorCheck {
 @Injectable()
 export class UserPortDoctorCheck implements DoctorCheck {
     readonly id = 'platform.user-port';
-    readonly label = 'UserPort.findByEmail erreichbar';
+    readonly label = 'UserPort.findByEmail reachable';
     constructor(@Inject(USER_PORT_TOKEN) private readonly users: UserPort) {}
 
     async run(): Promise<DoctorCheckResult> {
         try {
             await this.users.findByEmail('__doctor-check__@invalid.local');
-            return { severity: 'ok', message: 'UserPort antwortet.' };
+            return { severity: 'ok', message: 'UserPort responds.' };
         } catch (err) {
             return {
                 severity: 'error',
-                message: `UserPort wirft: ${err instanceof Error ? err.message : String(err)}`,
+                message: `UserPort throws: ${err instanceof Error ? err.message : String(err)}`,
             };
         }
     }
@@ -98,7 +98,7 @@ export class UserPortDoctorCheck implements DoctorCheck {
 @Injectable()
 export class AdminManifestDoctorCheck implements DoctorCheck {
     readonly id = 'platform.admin-manifest';
-    readonly label = 'AdminManifestService liefert Manifest';
+    readonly label = 'AdminManifestService returns a manifest';
     constructor(private readonly manifest: AdminManifestService) {}
 
     async run(): Promise<DoctorCheckResult> {
@@ -112,7 +112,7 @@ export class AdminManifestDoctorCheck implements DoctorCheck {
         } catch (err) {
             return {
                 severity: 'error',
-                message: `Manifest-Build wirft: ${err instanceof Error ? err.message : String(err)}`,
+                message: `Manifest build throws: ${err instanceof Error ? err.message : String(err)}`,
             };
         }
     }

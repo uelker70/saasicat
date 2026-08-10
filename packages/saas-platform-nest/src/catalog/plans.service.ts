@@ -139,7 +139,7 @@ export class PlansService {
                 code: CATALOG_ERROR_CODES.PLAN_HARD_DELETE_NOT_IMPLEMENTED,
                 message:
                     'Hard delete is not implemented in the current repository. ' +
-                    'Implementiere PlanRepository.hardDelete.',
+                    'Implement PlanRepository.hardDelete.',
             });
         }
         await this.repo.hardDelete(planId);

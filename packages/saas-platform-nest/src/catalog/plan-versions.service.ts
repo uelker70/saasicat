@@ -78,7 +78,7 @@ export class PlanVersionsService {
         // #25: don't crash when blocking without a snapshot source — log loudly + degrade.
         if (this.mode === 'blocking' && !hasDiscoverySnapshotSource(this.snapshot, this.scanner)) {
             this.logger.error(
-                'PlanVersionsService: strictModeCheckMode=blocking ohne DiscoverySnapshot-Quelle — ' +
+                'PlanVersionsService: strictModeCheckMode=blocking without a DiscoverySnapshot source — ' +
                     'degrading to warn-only. Wire DiscoveryModule (#25).',
             );
             this.mode = 'warn-only';
@@ -136,7 +136,7 @@ export class PlanVersionsService {
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_DISCARD_NOT_IMPLEMENTED,
                 message:
                     'Discard is not implemented in the current repository. ' +
-                    'Implementiere PlanRepository.deletePlanVersionDraft.',
+                    'Implement PlanRepository.deletePlanVersionDraft.',
             });
         }
         await this.repo.deletePlanVersionDraft(versionId);
@@ -505,7 +505,7 @@ export class PlanVersionsService {
                 code: CATALOG_ERROR_CODES.PLAN_TERMINATE_NOT_IMPLEMENTED,
                 message:
                     'Terminate is not implemented in the current repository. ' +
-                    'Implementiere PlanRepository.terminate.',
+                    'Implement PlanRepository.terminate.',
             });
         }
         return this.repo.terminate(versionId, endsAt);

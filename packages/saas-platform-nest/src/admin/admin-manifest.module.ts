@@ -177,9 +177,9 @@ export class AdminManifestModule {
                         '`includeManifestController` is enabled (default `true`). ' +
                         'Set `guards: [JwtAuthGuard, SuperAdminGuard]` (or ' +
                         'equivalent) — or `guards: []` to deliberately leave the endpoint ' +
-                        'auth-frei zu betreiben. Alternative: ' +
-                        '`includeManifestController: false` plus your own ' +
-                        'register a wrapping controller.',
+                        'unauthenticated. Alternative: ' +
+                        '`includeManifestController: false` plus registering ' +
+                        'your own wrapping controller.',
                 );
             }
             controllers.push(buildManifestController(options.guards, options.reloadGuards ?? []));

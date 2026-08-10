@@ -118,7 +118,7 @@ test('buildLabel ONCE PERCENT', () => {
         { valueType: 'PERCENT', value: 25, durationType: 'ONCE', durationValue: null },
         'MONTHLY',
     );
-    assert.equal(label, '25 % einmalig');
+    assert.equal(label, '25 % once');
 });
 
 test('buildLabel MONTHS 6 ABSOLUTE', () => {
@@ -129,12 +129,12 @@ test('buildLabel MONTHS 6 ABSOLUTE', () => {
     assert.equal(label, '5,00 € for 6 months');
 });
 
-test('buildLabel BILLING_CYCLES 1 YEARLY → "im ersten Jahr"', () => {
+test('buildLabel BILLING_CYCLES 1 YEARLY → "for the first year"', () => {
     const label = buildLabel(
         { valueType: 'PERCENT', value: 10, durationType: 'BILLING_CYCLES', durationValue: 1 },
         'YEARLY',
     );
-    assert.equal(label, '10 % im ersten Jahr');
+    assert.equal(label, '10 % for the first year');
 });
 
 test('buildLabel MONTHS 1 → singular', () => {
@@ -142,5 +142,5 @@ test('buildLabel MONTHS 1 → singular', () => {
         { valueType: 'PERCENT', value: 25, durationType: 'MONTHS', durationValue: 1 },
         'MONTHLY',
     );
-    assert.equal(label, '25 % im ersten Monat');
+    assert.equal(label, '25 % for the first month');
 });

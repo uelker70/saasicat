@@ -127,7 +127,7 @@ plans:
 `;
     assert.throws(
         () => loadPlanCatalogFromString(yaml, { source: 'duplicate-id' }),
-        /Doppelte Plan-ID "BASIC"/,
+        /duplicate plan id "BASIC"/,
     );
 });
 

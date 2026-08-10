@@ -195,6 +195,7 @@ export class SubscriptionContractService {
             throw new UnprocessableEntityException({
                 code: CONTRACT_ERROR_CODES.SUBSCRIPTION_CONTRACT_INVALID_DATE,
                 message: `${field} must be a valid date.`,
+                params: { field },
             });
         }
         return date;
