@@ -33,3 +33,6 @@ npm-debug.log
 *.swp
 *.swo
 .DS_Store
+
+# jscpd duplication report (see .jscpd.json)
+.jscpd-report/

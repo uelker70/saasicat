@@ -4,18 +4,18 @@
         @update:model-value="emit('update:modelValue', $event)"
         persistent
     >
-        <q-card class="ple-dlg">
-            <q-card-section class="ple-dlg__head">
+        <q-card class="pl-dlg">
+            <q-card-section class="pl-dlg__head">
                 <div>
-                    <div class="ple-dlg__title">{{ msg.editDialog.title }}</div>
-                    <div class="ple-dlg__sub" v-if="row">
+                    <div class="pl-dlg__title">{{ msg.editDialog.title }}</div>
+                    <div class="pl-dlg__sub" v-if="row">
                         <strong>{{ row.tenant.name }}</strong>
-                        <span class="ple-dlg__sep">·</span>
+                        <span class="pl-dlg__sep">·</span>
                         <code>{{ row.tenant.slug }}</code>
                     </div>
                 </div>
                 <q-btn
-                    class="ple-dlg__close"
+                    class="pl-dlg__close"
                     flat
                     dense
                     round
@@ -25,62 +25,62 @@
                 />
             </q-card-section>
 
-            <q-card-section class="ple-dlg__body">
+            <q-card-section class="pl-dlg__body">
                 <!-- Section 1: Plan -->
-                <section class="ple-section">
-                    <header class="ple-section__head">
-                        <span class="ple-section__num">1</span>
+                <section class="pl-section">
+                    <header class="pl-section__head">
+                        <span class="pl-section__num">1</span>
                         <div>
-                            <div class="ple-section__title">{{ msg.form.planLabel }}</div>
-                            <div class="ple-section__sub">{{ msg.editDialog.sectionPlanSub }}</div>
+                            <div class="pl-section__title">{{ msg.form.planLabel }}</div>
+                            <div class="pl-section__sub">{{ msg.editDialog.sectionPlanSub }}</div>
                         </div>
                     </header>
-                    <div class="ple-plan-select">
+                    <div class="pl-plan-select">
                         <button
                             v-for="p in effectivePlanOptions"
                             :key="p.value"
                             type="button"
-                            class="ple-plan-opt"
-                            :class="{ 'ple-plan-opt--active': form.plan === p.value }"
+                            class="pl-plan-opt"
+                            :class="{ 'pl-plan-opt--active': form.plan === p.value }"
                             @click="form.plan = p.value"
                         >
                             <span
-                                class="ple-plan-opt__dot"
+                                class="pl-plan-opt__dot"
                                 :style="{ background: p.color ?? '#94a3b8' }"
                             />
-                            <div class="ple-plan-opt__text">
-                                <span class="ple-plan-opt__key">{{ p.value }}</span>
-                                <span class="ple-plan-opt__label">{{ p.label }}</span>
+                            <div class="pl-plan-opt__text">
+                                <span class="pl-plan-opt__key">{{ p.value }}</span>
+                                <span class="pl-plan-opt__label">{{ p.label }}</span>
                             </div>
                             <q-icon
                                 v-if="form.plan === p.value"
                                 name="check"
                                 size="16px"
-                                class="ple-plan-opt__check"
+                                class="pl-plan-opt__check"
                             />
                         </button>
                     </div>
                 </section>
 
                 <!-- Section 2: End date -->
-                <section class="ple-section">
-                    <header class="ple-section__head">
-                        <span class="ple-section__num">2</span>
+                <section class="pl-section">
+                    <header class="pl-section__head">
+                        <span class="pl-section__num">2</span>
                         <div>
-                            <div class="ple-section__title">
+                            <div class="pl-section__title">
                                 {{ msg.editDialog.sectionEndDate }}
                             </div>
-                            <div class="ple-section__sub">
+                            <div class="pl-section__sub">
                                 {{ msg.editDialog.sectionEndDateSub }}
                             </div>
                         </div>
                     </header>
-                    <div class="ple-end-row">
-                        <input v-model="form.endsAt" class="ple-input" type="date" />
+                    <div class="pl-end-row">
+                        <input v-model="form.endsAt" class="pl-input" type="date" />
                         <button
                             v-if="form.endsAt"
                             type="button"
-                            class="ple-btn-mini"
+                            class="pl-btn-mini"
                             :title="msg.editDialog.clearDateTitle"
                             @click="form.endsAt = ''"
                         >
@@ -88,12 +88,12 @@
                             {{ common.unlimited }}
                         </button>
                     </div>
-                    <div class="ple-end-presets">
+                    <div class="pl-end-presets">
                         <button
                             v-for="p in presetEnds"
                             :key="p.days"
                             type="button"
-                            class="ple-preset-btn"
+                            class="pl-preset-btn"
                             @click="setEndsAtDays(p.days)"
                         >
                             +{{ p.label }}
@@ -102,26 +102,26 @@
                 </section>
 
                 <!-- Section 3: Note -->
-                <section class="ple-section">
-                    <header class="ple-section__head">
-                        <span class="ple-section__num">3</span>
+                <section class="pl-section">
+                    <header class="pl-section__head">
+                        <span class="pl-section__num">3</span>
                         <div>
-                            <div class="ple-section__title">{{ msg.editDialog.sectionNote }}</div>
-                            <div class="ple-section__sub">{{ msg.editDialog.sectionNoteSub }}</div>
+                            <div class="pl-section__title">{{ msg.editDialog.sectionNote }}</div>
+                            <div class="pl-section__sub">{{ msg.editDialog.sectionNoteSub }}</div>
                         </div>
                     </header>
                     <textarea
                         v-model="form.note"
-                        class="ple-input ple-textarea"
+                        class="pl-input pl-textarea"
                         rows="3"
                         :placeholder="notePlaceholder"
                     />
                 </section>
 
-                <p v-if="error" class="ple-error">{{ error }}</p>
+                <p v-if="error" class="pl-error">{{ error }}</p>
             </q-card-section>
 
-            <q-card-actions align="right" class="ple-dlg__foot">
+            <q-card-actions align="right" class="pl-dlg__foot">
                 <q-btn flat :label="common.cancel" v-close-popup :disable="loading" />
                 <q-btn
                     unelevated
@@ -329,35 +329,26 @@ async function doSubmit(code: string): Promise<void> {
 }
 </script>
 
+<style src="./pilot-dialog.css" scoped></style>
+
 <style scoped>
-.ple-dlg {
+.pl-dlg {
     width: 640px;
     max-width: 96vw;
 }
-.ple-dlg__head {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 18px 22px 14px;
-    border-bottom: 1px solid var(--sa-border, #e2e8f0);
-}
-.ple-dlg__title {
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 17px;
-    color: var(--sa-heading, #0f172a);
-    letter-spacing: -0.015em;
-}
-.ple-dlg__sub {
+
+.pl-dlg__sub {
     font-size: 12.5px;
     color: var(--sa-muted, #64748b);
     margin-top: 3px;
 }
-.ple-dlg__sep {
+
+.pl-dlg__sep {
     color: #cbd5e1;
     margin: 0 6px;
 }
-.ple-dlg__sub code {
+
+.pl-dlg__sub code {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
     background: #f1f5f9;
     color: var(--sa-muted-dark, #475569);
@@ -365,190 +356,17 @@ async function doSubmit(code: string): Promise<void> {
     border-radius: 4px;
     font-size: 11.5px;
 }
-.ple-dlg__close {
-    margin-left: auto;
-}
-.ple-dlg__body {
+
+.pl-dlg__body {
     padding: 20px 22px;
 }
-.ple-dlg__foot {
-    border-top: 1px solid var(--sa-border, #e2e8f0);
-    background: #fbfbfd;
-    padding: 12px 18px;
-}
 
-.ple-section {
+.pl-section {
     margin-bottom: 18px;
 }
-.ple-section:last-of-type {
-    margin-bottom: 4px;
-}
-.ple-section__head {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.ple-section__num {
-    width: 24px;
-    height: 24px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    border-radius: 50%;
-    font: 700 12px var(--sa-font-body, system-ui, sans-serif);
-    display: grid;
-    place-items: center;
-    flex: 0 0 auto;
-}
-.ple-section__title {
-    font-size: 13.5px;
-    font-weight: 700;
-    color: var(--sa-heading, #0f172a);
-    letter-spacing: -0.005em;
-}
-.ple-section__sub {
-    font-size: 11.5px;
-    color: #94a3b8;
-    margin-top: 2px;
-}
 
-.ple-input {
-    width: 100%;
-    padding: 9px 12px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    font: 13px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-body, #1e293b);
-    outline: 0;
-    transition:
-        border-color 0.12s,
-        box-shadow 0.12s;
-}
-.ple-input:focus {
-    border-color: var(--sa-primary, #3f6bff);
-    box-shadow: 0 0 0 3px rgba(63, 107, 255, 0.12);
-}
-.ple-textarea {
+.pl-textarea {
     resize: vertical;
     min-height: 64px;
-}
-
-.ple-plan-select {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-.ple-plan-opt {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 11px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    cursor: pointer;
-    text-align: left;
-    font-family: var(--sa-font-body, system-ui, sans-serif);
-    transition:
-        border-color 0.12s,
-        background 0.12s;
-}
-.ple-plan-opt:hover {
-    border-color: #93c5fd;
-    background: #fafbff;
-}
-.ple-plan-opt--active {
-    border-color: var(--sa-primary, #2563eb);
-    background: #eff6ff;
-    box-shadow: 0 0 0 1px var(--sa-primary, #2563eb) inset;
-}
-.ple-plan-opt__dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex: 0 0 auto;
-}
-.ple-plan-opt__text {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-}
-.ple-plan-opt__key {
-    font: 700 11px var(--sa-font-mono, ui-monospace, monospace);
-    letter-spacing: 0.05em;
-    color: var(--sa-heading, #0f172a);
-}
-.ple-plan-opt__label {
-    font-size: 11px;
-    color: var(--sa-muted, #64748b);
-    margin-top: 1px;
-}
-.ple-plan-opt__check {
-    color: #1d4ed8;
-}
-
-.ple-end-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.ple-end-row .ple-input {
-    flex: 1;
-}
-.ple-btn-mini {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 7px 10px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 7px;
-    color: var(--sa-muted-dark, #475569);
-    font: 500 11.5px var(--sa-font-body, system-ui, sans-serif);
-    cursor: pointer;
-    white-space: nowrap;
-}
-.ple-btn-mini:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
-.ple-end-presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 5px;
-}
-.ple-preset-btn {
-    padding: 4px 9px;
-    background: #fff;
-    border: 1px dashed #cbd5e1;
-    border-radius: 999px;
-    font: 600 11px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-muted-dark, #475569);
-    cursor: pointer;
-    transition:
-        background 0.12s,
-        border-color 0.12s,
-        color 0.12s;
-}
-.ple-preset-btn:hover {
-    background: #eff6ff;
-    border-color: #93c5fd;
-    border-style: solid;
-    color: #1d4ed8;
-}
-
-.ple-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: 13px;
-    margin: 12px 0 0;
-    padding: 8px 12px;
-    border-radius: 8px;
 }
 </style>

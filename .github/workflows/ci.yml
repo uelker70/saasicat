@@ -9,6 +9,31 @@ permissions:
     contents: read
 
 jobs:
+    # Pure source analysis — needs neither install nor build, so it runs
+    # separately and in parallel. The configuration lives in .jscpd.json so a
+    # local run (`pnpm dlx jscpd`) measures exactly what CI does. maxLines is
+    # the value that matters there: at the default of 1000 jscpd silently skips
+    # larger files and measures past the very places duplication collects in.
+    duplication:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+            - name: Duplication check
+              run: |
+                  set -euo pipefail
+                  corepack enable
+                  pnpm dlx jscpd@4
+            - name: Upload duplication report
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: jscpd-report
+                  path: .jscpd-report/
+                  if-no-files-found: ignore
+
     build-and-test:
         runs-on: ubuntu-latest
         steps:
