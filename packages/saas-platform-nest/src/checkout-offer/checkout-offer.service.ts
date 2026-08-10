@@ -377,7 +377,7 @@ export class CheckoutOfferService {
             throw new ConflictException({
                 code: CONTRACT_ERROR_CODES.CHECKOUT_OFFER_EXPIRED,
                 message: `Checkout offer '${existing.id}' has expired and cannot be ${action}`,
-                params: { offerId: existing.id, action },
+                params: { offerId: existing.id, action, validUntil: existing.validUntil ?? null },
             });
         }
         if (this.isExpired(existing)) {

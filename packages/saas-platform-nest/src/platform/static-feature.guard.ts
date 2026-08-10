@@ -20,7 +20,11 @@ import {
     Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AUTH_ERROR_CODES, FEATURE_NOT_LICENSED } from '@saasicat/types';
+import {
+    AUTH_ERROR_CODES,
+    FEATURE_NOT_LICENSED,
+    type FeatureNotLicensedBody,
+} from '@saasicat/types';
 import { REQUIRE_FEATURE_KEY } from '../billing/require-feature.decorator.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';
 
@@ -92,14 +96,21 @@ export class StaticFeatureGuard implements CanActivate {
         const snap = await this.entitlements.snapshot(tenantId);
         const allowed = required.some((f) => snap.features.includes(f));
         if (!allowed) {
+            // Same wire body as the heavyweight `FeatureGuard`: the full
+            // `FeatureNotLicensedBody`, with empty `offers` because the static
+            // path knows no `UpsellOfferResolver`.
+            //
             // The message must keep starting with the word `Feature` —
             // consumers that predate the `code` field classify the response by
             // that prefix.
-            throw new ForbiddenException({
+            const body: FeatureNotLicensedBody = {
                 code: FEATURE_NOT_LICENSED,
+                featureKey: required[0],
+                featureKeys: required,
+                offers: [],
                 message: `Feature ${required.join(' / ')} is not included in the current plan.`,
-                params: { featureKeys: required },
-            });
+            };
+            throw new ForbiddenException(body);
         }
         return true;
     }

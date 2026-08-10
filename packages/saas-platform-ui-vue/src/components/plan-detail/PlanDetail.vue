@@ -401,7 +401,9 @@ async function executeTerminate(): Promise<void> {
         const code = e?.body?.code;
         if (code === 'PLAN_TERMINATE_DATE_NOT_FUTURE') {
             terminateError.value = msg.value.terminateDialog.errorDateNotFuture;
-        } else if (code === 'PLAN_VERSION_NOT_LIVE') {
+        } else if (code === 'PLAN_VERSION_NOT_PUBLISHED' || code === 'PLAN_VERSION_SUPERSEDED') {
+            // Split out of the former PLAN_VERSION_NOT_LIVE; both mean the
+            // version cannot be terminated, so they share one message.
             terminateError.value = msg.value.terminateDialog.errorVersionNotLive;
         } else if (code === 'PLAN_TERMINATE_NOT_IMPLEMENTED') {
             terminateError.value = msg.value.terminateDialog.errorNotImplemented;

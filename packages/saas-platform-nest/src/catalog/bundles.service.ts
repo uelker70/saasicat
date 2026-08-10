@@ -195,7 +195,7 @@ export class BundlesService {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
                 message: `BundleVersion '${versionId}' not found`,
-                params: { versionId },
+                params: { bundleVersionId: versionId },
             });
         }
         if (existing.publishedAt !== null) {
@@ -230,7 +230,7 @@ export class BundlesService {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
                 message: `BundleVersion '${versionId}' not found`,
-                params: { versionId },
+                params: { bundleVersionId: versionId },
             });
         }
         const [annotated] = await this.annotateEditability([version]);
@@ -329,7 +329,7 @@ export class BundlesService {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
                 message: `BundleVersion '${versionId}' not found`,
-                params: { versionId },
+                params: { bundleVersionId: versionId },
             });
         }
 
@@ -379,7 +379,7 @@ export class BundlesService {
             throw new NotFoundException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_NOT_FOUND,
                 message: `BundleVersion '${versionId}' not found`,
-                params: { versionId },
+                params: { bundleVersionId: versionId },
             });
         }
         if (draft.publishedAt !== null) {
@@ -698,7 +698,9 @@ export class BundlesService {
             throw new UnprocessableEntityException({
                 code,
                 message: `${field} '${input}' is not a valid date`,
-                params: { field, value: input },
+                // Keyed by the field name so these params match the publish
+                // path, where the same codes carry `validFrom` / `validUntil`.
+                params: { [field]: input },
             });
         }
         return date;

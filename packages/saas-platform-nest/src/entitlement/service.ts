@@ -5,7 +5,13 @@
 // this service orchestrates them with the consumer adapters (Subscription/
 // PlanVersion repositories, TransactionRunner) and an in-memory cache.
 
-import { Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import {
+    Inject,
+    Injectable,
+    InternalServerErrorException,
+    NotFoundException,
+    Optional,
+} from '@nestjs/common';
 import type {
     BundleRepository,
     DiscoverySnapshot,
@@ -25,6 +31,7 @@ import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/tokens.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/tokens.js';
+import { codedError } from '../errors/coded-error.js';
 import {
     aggregateLimits,
     contractBundleVersionIds,
@@ -298,8 +305,14 @@ export class EntitlementService {
             const limits = await this.deriveLimits(sub, now, tx);
             const max = limits.quotas[input.dimension];
             if (max === undefined) {
-                throw new Error(
-                    `Quota-Dimension "${input.dimension}" is not in the plan catalog (${this.catalog.projectKey}).`,
+                // Misconfiguration, not user input: the call site names a
+                // dimension the plan catalog does not declare. Stays a 500 —
+                // a coded body now, but no status change for consumers.
+                throw new InternalServerErrorException(
+                    codedError(BILLING_ERROR_CODES.QUOTA_DIMENSION_UNKNOWN, {
+                        dimension: input.dimension,
+                        projectKey: this.catalog.projectKey,
+                    }),
                 );
             }
 

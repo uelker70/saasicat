@@ -14,7 +14,7 @@ import { FEATURE_NOT_LICENSED } from './upsell.types.js';
 
 import type { PlatformErrorBody, PlatformErrorCode } from './error-codes.js';
 
-export const ERROR_MESSAGES_EN: Record<PlatformErrorCode | typeof FEATURE_NOT_LICENSED, string> = {
+export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     // ── setup ──
     SETUP_DISABLED: '{envVar} is not set — setup is disabled.',
     INVALID_SETUP_TOKEN: 'The setup token is not valid.',
@@ -48,8 +48,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode | typeof FEATURE_NOT_LI
         'A plan version cannot be published with a price of 0.00 (guard against seed placeholder). For deliberately free special contracts, set allowZeroPrice.',
     PLAN_VERSION_DISCARD_NOT_IMPLEMENTED:
         'Discard is not implemented in the current repository. Implement PlanRepository.deletePlanVersionDraft.',
-    PLAN_VERSION_NOT_LIVE:
-        "PlanVersion '{versionId}' has already been superseded by a newer version (supersededAt) and cannot be terminated.",
+    PLAN_VERSION_NOT_PUBLISHED:
+        "PlanVersion '{versionId}' is not published and cannot be terminated.",
+    PLAN_VERSION_SUPERSEDED:
+        "PlanVersion '{versionId}' has already been superseded by a newer version and cannot be terminated.",
     PLAN_VERSION_VALID_FROM_REQUIRED:
         'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
     PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' is not a valid date",
@@ -119,9 +121,9 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode | typeof FEATURE_NOT_LI
         "BundleVersion '{bundleVersionId}' is not compatible with plan '{planKey}'. Allowed: [{allowedPlanKeys}].",
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' is only activated via a special contract. Please contact the contract manager.",
-    SUBSCRIPTION_BUNDLE_ALREADY_CANCELED:
+    SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' is already cancelled.",
-    SUBSCRIPTION_BUNDLE_NOT_CANCELED:
+    SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' is not cancelled.",
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE:
         'Cancellation already in effect — book the bundle again.',
@@ -138,6 +140,8 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode | typeof FEATURE_NOT_LI
     ONBOARDING_CREATE_FAILED: 'The account could not be created. Please try again.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:
         'Exactly one of bundleVersionId (add preview) or subscriptionBundleId (cancel preview) must be given.',
+    SUBSCRIPTION_PK_MISSING:
+        'The adapter returned a subscription usage record without an id. Pass the subscription primary key through (see SubscriptionUsageRecord.id).',
     LIMIT_EXCEEDED: 'The limit for {dimension} has been reached: {used} of {max}.',
     QUOTA_DIMENSION_UNKNOWN: 'Unknown quota dimension "{dimension}".',
     // ── promo ──
@@ -228,7 +232,7 @@ export function formatErrorMessage(template: string, params: ErrorMessageParams 
  * the English `message` the backend sent, and only then the bare code. Because
  * every coded exception carries a message, the last step is unreachable in
  * practice — a consumer that has not translated a new code yet shows English
- * prose, never `PLAN_VERSION_NOT_LIVE`.
+ * prose, never `PLAN_VERSION_SUPERSEDED`.
  *
  * Interpolation reads `params` first and the remaining top-level body fields
  * second, so a template may name either without the value being duplicated on

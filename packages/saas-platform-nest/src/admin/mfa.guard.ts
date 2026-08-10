@@ -23,6 +23,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AUTH_ERROR_CODES } from '@saasicat/types';
+import { codedError } from '../errors/coded-error.js';
 import { MfaService } from './mfa.js';
 
 export const REQUIRE_MFA_KEY = 'saas-platform/require-mfa';
@@ -65,7 +66,7 @@ export class MfaGuard implements CanActivate {
         const user = request.user;
         if (!user) {
             throw new UnauthorizedException({
-                code: AUTH_ERROR_CODES.NOT_AUTHENTICATED,
+                ...codedError(AUTH_ERROR_CODES.NOT_AUTHENTICATED),
                 // `reason` is superseded by `code` and will be removed.
                 reason: 'NOT_AUTHENTICATED',
             });

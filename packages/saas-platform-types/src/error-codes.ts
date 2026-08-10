@@ -1,3 +1,5 @@
+import { FEATURE_NOT_LICENSED } from './upsell.types.js';
+
 // Central error codes shared by backend AND frontend. Single source of
 // truth, so that service response and UI mapping do not silently drift
 // apart. String literals stay stable as the wire format.
@@ -40,15 +42,10 @@ export const CATALOG_ERROR_CODES = {
     PLAN_VERSION_REGRESSION: 'PLAN_VERSION_REGRESSION',
     PLAN_VERSION_ZERO_PRICE: 'PLAN_VERSION_ZERO_PRICE',
     PLAN_VERSION_DISCARD_NOT_IMPLEMENTED: 'PLAN_VERSION_DISCARD_NOT_IMPLEMENTED',
-    /**
-     * Version cannot be terminated.
-     *
-     * Overloaded: raised both for "was never published" and for "already
-     * superseded". A consumer cannot tell the two apart, because the
-     * distinction lives only in `message`. Splitting it is a breaking change
-     * and therefore staged separately.
-     */
-    PLAN_VERSION_NOT_LIVE: 'PLAN_VERSION_NOT_LIVE',
+    /** Version was never published, so it cannot be terminated. */
+    PLAN_VERSION_NOT_PUBLISHED: 'PLAN_VERSION_NOT_PUBLISHED',
+    /** Version was replaced by a successor (`supersededAt` set). */
+    PLAN_VERSION_SUPERSEDED: 'PLAN_VERSION_SUPERSEDED',
     PLAN_VERSION_VALID_FROM_REQUIRED: 'PLAN_VERSION_VALID_FROM_REQUIRED',
     PLAN_VERSION_VALID_FROM_INVALID: 'PLAN_VERSION_VALID_FROM_INVALID',
     PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS: 'PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS',
@@ -106,16 +103,17 @@ export type CatalogErrorCode = (typeof CATALOG_ERROR_CODES)[keyof typeof CATALOG
 
 /** Bundle bookings on a tenant subscription. */
 export const BILLING_ERROR_CODES = {
+    /**
+     * Feature not covered by the plan. Defined in `upsell.types.ts` because the
+     * upsell body type is built around it; re-exported here so an exhaustive
+     * `PlatformErrorCode` switch covers it.
+     */
+    FEATURE_NOT_LICENSED,
     BUNDLE_ALREADY_SUBSCRIBED: 'BUNDLE_ALREADY_SUBSCRIBED',
     BUNDLE_INCOMPATIBLE_WITH_PLAN: 'BUNDLE_INCOMPATIBLE_WITH_PLAN',
     BUNDLE_NOT_SELF_SERVICE: 'BUNDLE_NOT_SELF_SERVICE',
-    /**
-     * Spelled with one L, unlike `SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE`
-     * below. Inconsistent, but the string is the wire format — correcting it
-     * is a breaking change and therefore staged separately.
-     */
-    SUBSCRIPTION_BUNDLE_ALREADY_CANCELED: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED',
-    SUBSCRIPTION_BUNDLE_NOT_CANCELED: 'SUBSCRIPTION_BUNDLE_NOT_CANCELED',
+    SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED',
+    SUBSCRIPTION_BUNDLE_NOT_CANCELLED: 'SUBSCRIPTION_BUNDLE_NOT_CANCELLED',
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE: 'SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE',
 
     // ── subscriptions and plan changes (stage 3) ──
@@ -134,6 +132,11 @@ export const BILLING_ERROR_CODES = {
     NO_PENDING_PLAN_VERSION: 'NO_PENDING_PLAN_VERSION',
     ONBOARDING_CREATE_FAILED: 'ONBOARDING_CREATE_FAILED',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS: 'BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS',
+    /**
+     * The adapter returned a `SubscriptionUsageRecord` without `id`. A wiring
+     * error in the consumer, not a missing subscription — hence its own code.
+     */
+    SUBSCRIPTION_PK_MISSING: 'SUBSCRIPTION_PK_MISSING',
 
     // ── entitlements ──
     /** Quota exhausted. Carries `dimension`, `used`, `max`. */

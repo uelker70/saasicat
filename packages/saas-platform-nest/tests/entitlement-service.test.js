@@ -423,7 +423,15 @@ describe('EntitlementService.enforceLimit — transactional', () => {
                     insert: async () => 'never',
                     now: NOW,
                 }),
-            /Quota-Dimension "blubb"/,
+            (error) => {
+                // Misconfiguration → coded 500 (the status is unchanged, only
+                // the body is now machine-readable).
+                assert.equal(error.getStatus(), 500);
+                assert.equal(error.getResponse().code, 'QUOTA_DIMENSION_UNKNOWN');
+                assert.equal(error.getResponse().message, 'Unknown quota dimension "blubb".');
+                assert.equal(error.getResponse().params.dimension, 'blubb');
+                return true;
+            },
         );
     });
 });

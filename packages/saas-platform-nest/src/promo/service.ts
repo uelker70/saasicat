@@ -255,7 +255,7 @@ export class PromoCodesService {
             throw new NotFoundException({
                 code: PROMO_ERROR_CODES.PROMO_CODE_NOT_FOUND,
                 message: 'Code not found',
-                params: { promoCodeId: id },
+                params: { promoCodeId: id, promoCode: null },
             });
         }
 
@@ -300,7 +300,7 @@ export class PromoCodesService {
             throw new NotFoundException({
                 code: PROMO_ERROR_CODES.PROMO_CODE_NOT_FOUND,
                 message: 'Code not found',
-                params: { promoCodeId: id },
+                params: { promoCodeId: id, promoCode: null },
             });
         }
         return code;
@@ -447,8 +447,9 @@ export class PromoCodesService {
         if (!promo || promo.deletedAt) {
             throw new BadRequestException({
                 code: PROMO_ERROR_CODES.PROMO_CODE_NOT_FOUND,
+                // The lookup runs on the code string, so there is no id to report.
                 message: 'Code not found',
-                params: { promoCode: code },
+                params: { promoCodeId: null, promoCode: code },
             });
         }
 
@@ -457,7 +458,7 @@ export class PromoCodesService {
             throw new NotFoundException({
                 code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
                 message: 'Subscription not found',
-                params: { subscriptionId: input.subscriptionId },
+                params: { tenantId: input.tenantId },
             });
         }
         if (sub.tenantId !== input.tenantId) {

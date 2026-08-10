@@ -475,14 +475,14 @@ export class PlanVersionsService {
         }
         if (existing.publishedAt === null) {
             throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_LIVE,
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_PUBLISHED,
                 message: `PlanVersion '${versionId}' is not published and cannot be terminated.`,
                 params: { versionId },
             });
         }
         if (existing.supersededAt !== null) {
             throw new UnprocessableEntityException({
-                code: CATALOG_ERROR_CODES.PLAN_VERSION_NOT_LIVE,
+                code: CATALOG_ERROR_CODES.PLAN_VERSION_SUPERSEDED,
                 message: `PlanVersion '${versionId}' has already been superseded by a newer version (supersededAt) and cannot be terminated.`,
                 params: { versionId },
             });

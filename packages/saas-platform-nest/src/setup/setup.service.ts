@@ -32,6 +32,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import QRCode from 'qrcode';
 
 import { MfaService } from '../admin/mfa.js';
+import { codedError } from '../errors/coded-error.js';
 import { type SetupConfig, SETUP_CONFIG_TOKEN, SETUP_PROVISIONING_PORT_TOKEN } from './tokens.js';
 
 const GENERATED_PASSWORD_BYTES = 12;
@@ -61,7 +62,7 @@ export class SetupService {
 
         const email = req.email.trim().toLowerCase();
         if (!email.includes('@')) {
-            throw new BadRequestException({ code: SETUP_ERROR_CODES.INVALID_EMAIL });
+            throw new BadRequestException(codedError(SETUP_ERROR_CODES.INVALID_EMAIL));
         }
 
         const generated = !req.password;
@@ -109,13 +110,13 @@ export class SetupService {
             });
         }
         if (!token || !timingSafeEqualStr(token, expected)) {
-            throw new UnauthorizedException({ code: SETUP_ERROR_CODES.INVALID_SETUP_TOKEN });
+            throw new UnauthorizedException(codedError(SETUP_ERROR_CODES.INVALID_SETUP_TOKEN));
         }
     }
 
     private async assertNoSuperAdmin(): Promise<void> {
         if ((await this.users.countSuperAdmins()) > 0) {
-            throw new ConflictException({ code: SETUP_ERROR_CODES.SETUP_ALREADY_DONE });
+            throw new ConflictException(codedError(SETUP_ERROR_CODES.SETUP_ALREADY_DONE));
         }
     }
 }

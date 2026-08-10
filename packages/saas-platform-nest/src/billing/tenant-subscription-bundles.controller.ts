@@ -50,6 +50,7 @@ import {
 import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/types';
 import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/types';
 
+import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
 import {
@@ -191,8 +192,7 @@ export function buildTenantSubscriptionBundlesController(
         private requireSubscriptionPk(sub: SubscriptionUsageRecord): string {
             if (!sub.id) {
                 throw new NotFoundException(
-                    'SubscriptionUsageRecord without `id` — the adapter must return the subscription primary key ' +
-                        '(see SubscriptionUsageRecord.id).',
+                    codedError(BILLING_ERROR_CODES.SUBSCRIPTION_PK_MISSING),
                 );
             }
             return sub.id;

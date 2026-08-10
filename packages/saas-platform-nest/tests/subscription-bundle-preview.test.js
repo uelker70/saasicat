@@ -333,7 +333,7 @@ describe('SubscriptionBundlePreviewService — previewCancel', () => {
             { subscriptionBundleId: booking.id },
             NOW,
         );
-        assert.ok(dto.blockers.some((b) => b.code === 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED'));
+        assert.ok(dto.blockers.some((b) => b.code === 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED'));
     });
 
     test('foreign subscription → NotFound (no cross-tenant leak)', async () => {

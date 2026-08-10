@@ -200,7 +200,7 @@ export class SubscriptionBundlesService {
         }
         if (existing.canceledAt !== null) {
             throw new UnprocessableEntityException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELED,
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED,
                 message: `SubscriptionBundle '${input.subscriptionBundleId}' is already cancelled.`,
                 params: { subscriptionBundleId: input.subscriptionBundleId },
             });
@@ -234,7 +234,7 @@ export class SubscriptionBundlesService {
         }
         if (existing.canceledAt === null) {
             throw new UnprocessableEntityException({
-                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_CANCELED,
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_NOT_CANCELLED,
                 message: `SubscriptionBundle '${subscriptionBundleId}' is not cancelled.`,
                 params: { subscriptionBundleId },
             });

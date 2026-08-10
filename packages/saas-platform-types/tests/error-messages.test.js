@@ -13,7 +13,7 @@ import {
 // The shipped texts are what a consumer shows before translating anything, and
 // for the 21 codes thrown as a bare `{ code }` they are the only readable text
 // that exists. A code added without a text would therefore surface as
-// `PLAN_VERSION_NOT_LIVE` in someone's UI — that is what these guard against.
+// `PLAN_VERSION_SUPERSEDED` in someone's UI — that is what these guard against.
 
 const SHIPPED_LOCALES = { en: ERROR_MESSAGES_EN, de: ERROR_MESSAGES_DE };
 
