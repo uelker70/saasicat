@@ -156,3 +156,120 @@ describe('PromoCodeEditDialog', () => {
         expect(vm.error).toBe('Nicht mehr aenderbar');
     });
 });
+
+// Die Felder liegen seit der Zusammenfuehrung in PromoCodeDialogFields. Diese
+// Faelle sichern die Stelle, an der die Zusammenfuehrung am ehesten bricht: den
+// Code, der nicht mehr per v-model gebunden ist, sondern ueber ein Ereignis
+// zurueck an das Formular des Dialogs laeuft.
+describe('Gemeinsamer Formularrumpf', () => {
+    const plans = [
+        { key: 'BASIC', label: 'Basic', color: '#3f6bff' },
+        { key: 'PRO', label: 'Pro', color: '#10b981' },
+    ];
+
+    test('Anlegen: Eingabe im Code-Feld landet in Grossbuchstaben im Formular', async () => {
+        const wrapper = mountDialog(PromoCodeCreateDialog, {
+            modelValue: true,
+            submit: vi.fn(),
+        });
+        await wrapper.vm.$nextTick();
+
+        const input = document.querySelector<HTMLInputElement>('.pc-input--code');
+        expect(input).not.toBeNull();
+        input!.value = 'sommer-25!';
+        input!.dispatchEvent(new Event('input'));
+        await wrapper.vm.$nextTick();
+
+        const vm = wrapper.vm as unknown as { form: { code: string } };
+        // Kleinbuchstaben hoch, unerlaubte Zeichen weg.
+        expect(vm.form.code).toBe('SOMMER-25');
+    });
+
+    test('Anlegen: der Zufallsknopf fuellt einen gueltigen Code', async () => {
+        const wrapper = mountDialog(PromoCodeCreateDialog, {
+            modelValue: true,
+            submit: vi.fn(),
+        });
+        await wrapper.vm.$nextTick();
+
+        const buttons = [...document.querySelectorAll<HTMLButtonElement>('.pc-btn-mini')];
+        expect(buttons.length).toBe(1);
+        buttons[0].click();
+        await wrapper.vm.$nextTick();
+
+        const vm = wrapper.vm as unknown as { form: { code: string } };
+        expect(vm.form.code).toMatch(/^[A-Z0-9]{8}$/);
+    });
+
+    test('Bearbeiten: das Code-Feld zeigt den Code und ist gesperrt', async () => {
+        const wrapper = mountDialog(PromoCodeEditDialog as never, {
+            modelValue: true,
+            row: {
+                id: 'promo-1',
+                code: 'WINTER10',
+                status: 'ACTIVE',
+                valueType: 'PERCENT',
+                value: 10,
+                durationType: 'ONCE',
+                durationValue: null,
+                maxRedemptions: null,
+                redemptionsCount: 0,
+                validFrom: null,
+                validUntil: null,
+            },
+            submit: vi.fn(),
+        });
+        await wrapper.vm.$nextTick();
+
+        const input = document.querySelector<HTMLInputElement>('.pc-input--code');
+        expect(input?.value).toBe('WINTER10');
+        expect(input?.disabled).toBe(true);
+        // Kein Zufallsknopf im Bearbeiten.
+        expect(document.querySelectorAll('.pc-btn-mini').length).toBe(0);
+    });
+
+    test('Der Status-Umschalter erscheint nur im Bearbeiten', async () => {
+        const create = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit: vi.fn() });
+        await create.vm.$nextTick();
+        expect(document.querySelectorAll('.pc-status-opt').length).toBe(0);
+        create.unmount();
+        document.body.innerHTML = '';
+
+        const edit = mountDialog(PromoCodeEditDialog as never, {
+            modelValue: true,
+            row: {
+                id: 'promo-1',
+                code: 'WINTER10',
+                status: 'ACTIVE',
+                valueType: 'PERCENT',
+                value: 10,
+                durationType: 'ONCE',
+                durationValue: null,
+                maxRedemptions: null,
+                redemptionsCount: 0,
+                validFrom: null,
+                validUntil: null,
+            },
+            submit: vi.fn(),
+        });
+        await edit.vm.$nextTick();
+        expect(document.querySelectorAll('.pc-status-opt').length).toBe(2);
+    });
+
+    test('Die Plan-Auswahl schreibt in das Formular des Dialogs', async () => {
+        const wrapper = mountDialog(PromoCodeCreateDialog, {
+            modelValue: true,
+            submit: vi.fn(),
+            plans,
+        });
+        await wrapper.vm.$nextTick();
+
+        const chips = [...document.querySelectorAll<HTMLButtonElement>('.pc-plan-opt')];
+        expect(chips.length).toBe(2);
+        chips[0].click();
+        await wrapper.vm.$nextTick();
+
+        const vm = wrapper.vm as unknown as { form: { appliesToPlans: string[] } };
+        expect(vm.form.appliesToPlans).toEqual(['BASIC']);
+    });
+});
