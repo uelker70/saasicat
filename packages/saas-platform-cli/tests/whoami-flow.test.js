@@ -124,8 +124,8 @@ describe('WhoAmIFlow.formatResult', () => {
                 mfaSkipActive: false,
             });
             assert.match(out, /SUPER_ADMIN ✓/);
-            assert.match(out, /MFA konfiguriert: ✓/);
-            assert.doesNotMatch(out, /MFA-Bypass aktiv/);
+            assert.match(out, /MFA configured: {3}✓/);
+            assert.doesNotMatch(out, /MFA bypass active/);
         } finally {
             cleanup();
         }
@@ -144,7 +144,7 @@ describe('WhoAmIFlow.formatResult', () => {
                 isProduction: false,
                 mfaSkipActive: true,
             });
-            assert.match(out, /MFA-Bypass aktiv/);
+            assert.match(out, /MFA bypass active/);
         } finally {
             cleanup();
         }

@@ -128,7 +128,7 @@ function validateConsistency(catalog: PlanCatalog, source: string): void {
             for (const fk of plan.features) {
                 if (!declaredFeatureKeys.has(fk)) {
                     errors.push(
-                        `plans[id=${plan.id}].features: Unknown featureKey "${fk}" — not in catalog.features deklariert`,
+                        `plans[id=${plan.id}].features: Unknown featureKey "${fk}" — not declared in catalog.features`,
                     );
                 }
             }
@@ -137,7 +137,7 @@ function validateConsistency(catalog: PlanCatalog, source: string): void {
 
     if (errors.length > 0) {
         const err = new Error(
-            `Plan-Catalog-Konsistenz-Fehler in ${source}:\n  ${errors.join('\n  ')}`,
+            `Plan catalog consistency error in ${source}:\n  ${errors.join('\n  ')}`,
         );
         err.name = 'PlanCatalogConsistencyError';
         throw err;

@@ -137,7 +137,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
     },
     {
         id: 'manifest.required-capabilities-known',
-        label: 'requiredCapability-Referenzen existieren in capabilities-Map',
+        label: 'requiredCapability references resolve against the capabilities map',
         run: (m) => {
             const known = new Set(allCapabilities(m));
             const bad: string[] = [];
@@ -232,7 +232,7 @@ export const DEFAULT_MANIFEST_CHECKS: ManifestCheck[] = [
             }
             return bad.length === 0
                 ? ok('every tenant column supports batch fetching')
-                : err(`${bad.length} TenantColumn(s) verletzen Batch-Pflicht`, bad);
+                : err(`${bad.length} TenantColumn(s) violate the batch requirement`, bad);
         },
     },
 ];

@@ -74,7 +74,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
         actions: [
             {
                 id: 'platform.tenants.suspend',
-                label: 'Mandant suspendieren',
+                label: 'Suspend tenant',
                 actionKey: 'tenants.suspend',
                 requiredCapability: 'tenants.suspend',
                 requiresMfa: true,
@@ -82,7 +82,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'platform.tenants.reactivate',
-                label: 'Mandant reaktivieren',
+                label: 'Reactivate tenant',
                 actionKey: 'tenants.reactivate',
                 requiredCapability: 'tenants.reactivate',
                 requiresMfa: true,
@@ -144,14 +144,14 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             { key: 'TENANT_REACTIVATE', label: 'Mandant reaktiviert', severity: 'medium' },
             { key: 'TENANT_IMPERSONATE', label: 'Impersonation gestartet', severity: 'high' },
             { key: 'TENANT_EXPORT', label: 'GDPR export triggered', severity: 'medium' },
-            { key: 'PILOT_CREATE', label: 'Pilot-Tenant angelegt', severity: 'medium' },
-            { key: 'PILOT_GRANT', label: 'Pilot-Status gesetzt', severity: 'medium' },
+            { key: 'PILOT_CREATE', label: 'Pilot tenant created', severity: 'medium' },
+            { key: 'PILOT_GRANT', label: 'Pilot status set', severity: 'medium' },
             { key: 'PILOT_REVOKE', label: 'Pilot-Status entzogen', severity: 'medium' },
             { key: 'PILOT_EXTEND', label: 'Pilot extended', severity: 'low' },
-            { key: 'PLAN_VERSION_PUBLISH', label: 'Plan-Version freigegeben', severity: 'high' },
+            { key: 'PLAN_VERSION_PUBLISH', label: 'Plan version approved', severity: 'high' },
             {
                 key: 'PLAN_VERSION_TERMINATE',
-                label: 'Plan-Version terminiert',
+                label: 'Plan version terminated',
                 severity: 'high',
             },
             { key: 'SUBSCRIPTION_CANCEL', label: 'Subscription cancelled', severity: 'high' },
@@ -160,7 +160,7 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
             { key: 'USER_REASSIGN_ADMIN', label: 'Admin role transferred', severity: 'high' },
             {
                 key: 'PLATFORM_EMAIL_PROVIDER_CREATE',
-                label: 'Plattform-Absender angelegt',
+                label: 'Platform sender created',
                 severity: 'medium',
             },
             {

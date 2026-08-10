@@ -179,7 +179,7 @@ export class AdminManifestModule {
                         'equivalent) — or `guards: []` to deliberately leave the endpoint ' +
                         'auth-frei zu betreiben. Alternative: ' +
                         '`includeManifestController: false` plus your own ' +
-                        'Wrapping-Controller registrieren.',
+                        'register a wrapping controller.',
                 );
             }
             controllers.push(buildManifestController(options.guards, options.reloadGuards ?? []));

@@ -20,6 +20,7 @@ import {
     Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AUTH_ERROR_CODES, FEATURE_NOT_LICENSED } from '@saasicat/types';
 import { REQUIRE_FEATURE_KEY } from '../billing/require-feature.decorator.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';
 
@@ -65,7 +66,12 @@ export class StaticFeatureGuard implements CanActivate {
 
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         const user = request.user;
-        if (!user) throw new ForbiddenException('Not authenticated');
+        if (!user) {
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.NOT_AUTHENTICATED,
+                message: 'Not authenticated',
+            });
+        }
 
         // SUPER_ADMIN bypass — platform support is allowed even without the feature.
         const role = this.config?.userRoleResolver
@@ -76,14 +82,24 @@ export class StaticFeatureGuard implements CanActivate {
         const tenantId = this.config?.tenantIdResolver
             ? this.config.tenantIdResolver(request)
             : (request.tenantId ?? user.tenantId);
-        if (!tenantId) throw new ForbiddenException('No tenant assigned');
+        if (!tenantId) {
+            throw new ForbiddenException({
+                code: AUTH_ERROR_CODES.NO_TENANT_ASSIGNED,
+                message: 'No tenant assigned',
+            });
+        }
 
         const snap = await this.entitlements.snapshot(tenantId);
         const allowed = required.some((f) => snap.features.includes(f));
         if (!allowed) {
-            throw new ForbiddenException(
-                `Feature ${required.join(' / ')} is not included in the current plan.`,
-            );
+            // The message must keep starting with the word `Feature` —
+            // consumers that predate the `code` field classify the response by
+            // that prefix.
+            throw new ForbiddenException({
+                code: FEATURE_NOT_LICENSED,
+                message: `Feature ${required.join(' / ')} is not included in the current plan.`,
+                params: { featureKeys: required },
+            });
         }
         return true;
     }

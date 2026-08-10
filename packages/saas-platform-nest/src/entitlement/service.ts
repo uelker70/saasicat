@@ -19,6 +19,7 @@ import type {
     TransactionContext,
     TransactionRunner,
 } from '@saasicat/types';
+import { BILLING_ERROR_CODES } from '@saasicat/types';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/tokens.js';
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
@@ -133,7 +134,11 @@ export class EntitlementService {
 
         const sub = await this.subscriptions.findByTenantId(tenantId);
         if (!sub) {
-            throw new NotFoundException(`No subscription for tenant ${tenantId}`);
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                message: `No subscription for tenant ${tenantId}`,
+                params: { tenantId },
+            });
         }
         const limits = await this.deriveLimits(sub, now);
         this.writeCache(tenantId, limits, now.getTime());
@@ -256,7 +261,7 @@ export class EntitlementService {
                     // that no longer exists — data inconsistency, should never
                     // happen (BundleVersion is a Restrict FK).
                     throw new Error(
-                        `BundleVersion '${booking.bundleVersionId}' from an active subscription bundle not foundefunden`,
+                        `BundleVersion '${booking.bundleVersionId}' from an active subscription bundle not found`,
                     );
                 }
                 return {
@@ -283,7 +288,11 @@ export class EntitlementService {
         return this.tx.run(async (tx) => {
             const sub = await this.subscriptions.findByTenantIdLocked(input.tenantId, tx);
             if (!sub) {
-                throw new NotFoundException(`No subscription for tenant ${input.tenantId}`);
+                throw new NotFoundException({
+                    code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                    message: `No subscription for tenant ${input.tenantId}`,
+                    params: { tenantId: input.tenantId },
+                });
             }
 
             const limits = await this.deriveLimits(sub, now, tx);
@@ -323,10 +332,14 @@ export class EntitlementService {
             ? await this.planVersions.findActive(planId, asOf, tx)
             : await this.planVersions.findLatestLive(planId, tx);
         if (!v) {
-            throw new NotFoundException(
-                `No plan version for ${planId} active as of ${asOf.toISOString().slice(0, 10)} — ` +
+            const asOfDate = asOf.toISOString().slice(0, 10);
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.NO_ACTIVE_PLAN_VERSION,
+                message:
+                    `No plan version for ${planId} active as of ${asOfDate} — ` +
                     `neither the validFrom window is satisfied nor is a latest-live version available.`,
-            );
+                params: { planId, asOf: asOfDate },
+            });
         }
         return v;
     }

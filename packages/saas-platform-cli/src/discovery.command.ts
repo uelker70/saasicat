@@ -26,7 +26,7 @@ interface ScanFlags {
 @Injectable()
 @SubCommand({
     name: 'scan',
-    description: 'Discovery-Snapshot headless erzeugen + persistieren (Seed-Gate, #23)',
+    description: 'Produce and persist a discovery snapshot headlessly (seed gate, #23)',
 })
 export class DiscoveryScanCommand extends CommandRunner {
     constructor(
@@ -83,7 +83,7 @@ export class DiscoveryScanCommand extends CommandRunner {
             process.stderr.write(`[discovery scan] WARN (non-fatal): ${message}\n`);
             return;
         }
-        process.stderr.write(`[discovery scan] FEHLER: ${message}\n`);
+        process.stderr.write(`[discovery scan] ERROR: ${message}\n`);
         process.exit(4);
     }
 

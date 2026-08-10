@@ -7,6 +7,10 @@
 // production` disables the guard for CI smoke tests. Consumers cannot add
 // their own bypass switch beyond the environment variable — the guard is
 // intentionally strict.
+//
+// Response bodies carry both `code` (the catalogue contract, see
+// `AUTH_ERROR_CODES`) and the older `reason` field. New consumers switch to
+// `code`; `reason` stays until the existing ones have migrated.
 
 import {
     type CanActivate,
@@ -18,6 +22,7 @@ import {
     UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AUTH_ERROR_CODES } from '@saasicat/types';
 import { MfaService } from './mfa.js';
 
 export const REQUIRE_MFA_KEY = 'saas-platform/require-mfa';
@@ -58,11 +63,19 @@ export class MfaGuard implements CanActivate {
 
         const request = context.switchToHttp().getRequest<RequestWithMfa>();
         const user = request.user;
-        if (!user) throw new UnauthorizedException({ reason: 'NOT_AUTHENTICATED' });
+        if (!user) {
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.NOT_AUTHENTICATED,
+                // `reason` is superseded by `code` and will be removed.
+                reason: 'NOT_AUTHENTICATED',
+            });
+        }
 
         const enabled = await this.mfaService.isEnabled(user.id);
         if (!enabled) {
             throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.MFA_NOT_SET_UP,
+                // `reason` is superseded by `code` and will be removed.
                 reason: 'MFA_NOT_SET_UP',
                 message: 'Run the MFA setup via the CLI first.',
             });
@@ -72,6 +85,8 @@ export class MfaGuard implements CanActivate {
         const code = Array.isArray(headerVal) ? headerVal[0] : headerVal;
         if (!code) {
             throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.MFA_REQUIRED,
+                // `reason` is superseded by `code` and will be removed.
                 reason: 'MFA_REQUIRED',
                 message: 'TOTP code required in the X-Mfa-Code header.',
             });
@@ -80,6 +95,8 @@ export class MfaGuard implements CanActivate {
         const valid = await this.mfaService.verify({ userId: user.id, code: String(code) });
         if (!valid) {
             throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.MFA_FAILED,
+                // `reason` is superseded by `code` and will be removed.
                 reason: 'MFA_FAILED',
                 message: 'Invalid TOTP code.',
             });

@@ -5,6 +5,7 @@ import type {
     SubscriptionUsagePort,
     UsageSnapshotPort,
 } from '@saasicat/types';
+import { BILLING_ERROR_CODES } from '@saasicat/types';
 import { EntitlementService } from '../entitlement/index.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
@@ -125,14 +126,20 @@ export class PlanChangePreviewService {
     ): Promise<PlanChangePreviewDto> {
         const sub = await this.subscriptions.findForTenant(tenantId);
         if (!sub) {
-            throw new NotFoundException(`No subscription for tenant ${tenantId}`);
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                message: `No subscription for tenant ${tenantId}`,
+                params: { tenantId },
+            });
         }
 
         const targetPlanDef = findPlan(this.catalog, targetPlan);
         if (!targetPlanDef) {
-            throw new NotFoundException(
-                `Plan "${targetPlan}" is not in the catalog (${this.catalog.projectKey})`,
-            );
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.PLAN_NOT_IN_CATALOG,
+                message: `Plan "${targetPlan}" is not in the catalog (${this.catalog.projectKey})`,
+                params: { planKey: targetPlan, projectKey: this.catalog.projectKey },
+            });
         }
 
         const ctx: PlanChangeContext = {
@@ -221,7 +228,7 @@ export class PlanChangePreviewService {
         if (blockedTargets.includes(targetPlan)) {
             blockers.push({
                 code: `${targetPlan}_NOT_SELF_SERVICE`,
-                message: `${targetSnap.name} is only activated via a special contract. Please contact the contractbetreuer kontaktieren.`,
+                message: `${targetSnap.name} is only activated via a special contract. Please contact the contract manager.`,
             });
         }
         if (blockedSources.includes(sub.plan)) {

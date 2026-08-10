@@ -30,6 +30,7 @@ import type {
     AdminUserListRow,
     AuditEntry,
 } from '@saasicat/types';
+import { BILLING_ERROR_CODES } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 
@@ -66,7 +67,13 @@ export class AdminResourcesService {
 
     async getTenantDetail(slug: string): Promise<AdminTenantDetail> {
         const tenant = await this.resources.getTenantDetail(slug);
-        if (!tenant) throw new NotFoundException(`Tenant ${slug} not found`);
+        if (!tenant) {
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.TENANT_NOT_FOUND,
+                message: `Tenant ${slug} not found`,
+                params: { slug },
+            });
+        }
         return tenant;
     }
 
@@ -108,7 +115,13 @@ export class AdminResourcesService {
         audit: { action: string; reason: string },
     ): Promise<AdminTenantStateResult> {
         const result = await this.resources.setTenantActive(slug, active, subscriptionStatus);
-        if (!result) throw new NotFoundException(`Tenant ${slug} not found`);
+        if (!result) {
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.TENANT_NOT_FOUND,
+                message: `Tenant ${slug} not found`,
+                params: { slug },
+            });
+        }
         await this.audit.log({
             actor,
             entity: 'Tenant',

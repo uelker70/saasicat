@@ -54,7 +54,7 @@ export async function runHeadlessDiscoveryScan(
             await app.close();
         }
     } catch (err) {
-        console.error('[discovery-scan] FEHLER:', err instanceof Error ? err.message : err);
+        console.error('[discovery-scan] ERROR:', err instanceof Error ? err.message : err);
         return exit(4);
     }
 }

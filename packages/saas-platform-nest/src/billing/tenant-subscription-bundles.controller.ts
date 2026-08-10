@@ -48,6 +48,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/types';
+import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/types';
 
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { CONTRACT_FREEZE_PORT_TOKEN, type ContractFreezePort } from './contract-freeze.tokens.js';
@@ -128,10 +129,12 @@ export function buildTenantSubscriptionBundlesController(
             const hasAdd = Boolean(dto.bundleVersionId);
             const hasCancel = Boolean(dto.subscriptionBundleId);
             if (hasAdd === hasCancel) {
-                throw new BadRequestException(
-                    'Exactly one of bundleVersionId (add preview) or ' +
-                        'subscriptionBundleId (Cancel-Preview) angeben.',
-                );
+                throw new BadRequestException({
+                    code: BILLING_ERROR_CODES.BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS,
+                    message:
+                        'Exactly one of bundleVersionId (add preview) or ' +
+                        'subscriptionBundleId (cancel preview) must be given.',
+                });
             }
             const sub = await this.requireSubscription(this.requireTenantId(req));
             const ctx: SubscriptionBundlePreviewContext = {
@@ -188,8 +191,8 @@ export function buildTenantSubscriptionBundlesController(
         private requireSubscriptionPk(sub: SubscriptionUsageRecord): string {
             if (!sub.id) {
                 throw new NotFoundException(
-                    'SubscriptionUsageRecord without `id` — the adapter must return the Subscription-PK durchreichen ' +
-                        '(siehe SubscriptionUsageRecord.id).',
+                    'SubscriptionUsageRecord without `id` — the adapter must return the subscription primary key ' +
+                        '(see SubscriptionUsageRecord.id).',
                 );
             }
             return sub.id;
@@ -198,7 +201,10 @@ export function buildTenantSubscriptionBundlesController(
         private requireTenantId(req: RequestLike): string {
             const tenantId = this.tenantIdResolver(req);
             if (!tenantId) {
-                throw new NotFoundException('No tenant ID found on the request');
+                throw new NotFoundException({
+                    code: AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING,
+                    message: 'No tenant ID found on the request',
+                });
             }
             return tenantId;
         }
@@ -206,7 +212,11 @@ export function buildTenantSubscriptionBundlesController(
         private async requireSubscription(tenantId: string): Promise<SubscriptionUsageRecord> {
             const sub = await this.subscriptionUsage.findForTenant(tenantId);
             if (!sub) {
-                throw new NotFoundException(`No subscription for tenant ${tenantId}`);
+                throw new NotFoundException({
+                    code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                    message: `No subscription for tenant ${tenantId}`,
+                    params: { tenantId },
+                });
             }
             return sub;
         }

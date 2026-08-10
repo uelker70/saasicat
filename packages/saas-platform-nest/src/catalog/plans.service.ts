@@ -22,6 +22,7 @@ import type {
 
 import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/tokens.js';
 import { PLAN_REPOSITORY_TOKEN } from './tokens.js';
+import { CATALOG_ERROR_CODES } from '@saasicat/types';
 
 @Injectable()
 export class PlansService {
@@ -54,29 +55,49 @@ export class PlansService {
 
     async getPlan(planId: string): Promise<PlanRow> {
         const plan = await this.repo.findById(planId);
-        if (!plan) throw new NotFoundException(`Plan '${planId}' not found`);
+        if (!plan) {
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
+                message: `Plan '${planId}' not found`,
+                params: { planId },
+            });
+        }
         return plan;
     }
 
     async createPlan(data: CreatePlanData): Promise<PlanRow> {
         const existing = await this.repo.findByKey(data.projectKey, data.planKey);
         if (existing) {
-            throw new UnprocessableEntityException(
-                `Plan '${data.planKey}' already exists in project '${data.projectKey}'`,
-            );
+            throw new UnprocessableEntityException({
+                code: CATALOG_ERROR_CODES.PLAN_ALREADY_EXISTS,
+                message: `Plan '${data.planKey}' already exists in project '${data.projectKey}'`,
+                params: { planKey: data.planKey, projectKey: data.projectKey },
+            });
         }
         return this.repo.create(data);
     }
 
     async updatePlan(planId: string, data: UpdatePlanData): Promise<PlanRow> {
         const existing = await this.repo.findById(planId);
-        if (!existing) throw new NotFoundException(`Plan '${planId}' not found`);
+        if (!existing) {
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
+                message: `Plan '${planId}' not found`,
+                params: { planId },
+            });
+        }
         return this.repo.update(planId, data);
     }
 
     async softDeletePlan(planId: string): Promise<void> {
         const existing = await this.repo.findById(planId);
-        if (!existing) throw new NotFoundException(`Plan '${planId}' not found`);
+        if (!existing) {
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
+                message: `Plan '${planId}' not found`,
+                params: { planId },
+            });
+        }
         if (existing.deletedAt !== null) return; // idempotent
 
         // Plan protection rule: a plan that was ever published (live OR
@@ -99,7 +120,13 @@ export class PlansService {
      */
     async hardDeletePlan(planId: string): Promise<void> {
         const existing = await this.repo.findById(planId);
-        if (!existing) throw new NotFoundException(`Plan '${planId}' not found`);
+        if (!existing) {
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.PLAN_NOT_FOUND,
+                message: `Plan '${planId}' not found`,
+                params: { planId },
+            });
+        }
 
         // Strict protection rule: published versions block any deletion
         // (contract protection P1). Drafts additionally block hard-delete —
@@ -109,7 +136,7 @@ export class PlansService {
 
         if (typeof this.repo.hardDelete !== 'function') {
             throw new UnprocessableEntityException({
-                code: 'PLAN_HARD_DELETE_NOT_IMPLEMENTED',
+                code: CATALOG_ERROR_CODES.PLAN_HARD_DELETE_NOT_IMPLEMENTED,
                 message:
                     'Hard delete is not implemented in the current repository. ' +
                     'Implementiere PlanRepository.hardDelete.',
@@ -133,12 +160,13 @@ export class PlansService {
         const live = published.filter((v) => v.supersededAt === null).length;
         const superseded = published.length - live;
         throw new UnprocessableEntityException({
-            code: 'PLAN_HAS_PUBLISHED_VERSIONS',
+            code: CATALOG_ERROR_CODES.PLAN_HAS_PUBLISHED_VERSIONS,
             message:
                 `Plan '${planKey}' cannot be ${op === 'hard-delete' ? 'deleted' : 'archived'} — ` +
                 `it has ${published.length} published version(s) (${live} live, ${superseded} superseded). ` +
                 `Existing subscriptions reference those versions (contract protection P1), ` +
                 `so the plan record must be preserved.`,
+            params: { planKey, operation: op },
             publishedCount: published.length,
             liveCount: live,
             supersededCount: superseded,
@@ -151,10 +179,11 @@ export class PlansService {
         const drafts = versions.filter((v) => v.publishedAt === null);
         if (drafts.length === 0) return;
         throw new UnprocessableEntityException({
-            code: 'PLAN_HAS_DRAFTS',
+            code: CATALOG_ERROR_CODES.PLAN_HAS_DRAFTS,
             message:
                 `Plan '${planKey}' still has ${drafts.length} open draft version(s). ` +
                 `Discard them first (DELETE /admin/catalog/plan-versions/:id) or publish them.`,
+            params: { planKey },
             draftCount: drafts.length,
         });
     }

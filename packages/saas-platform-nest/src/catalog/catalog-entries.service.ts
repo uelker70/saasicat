@@ -21,6 +21,7 @@ import {
     UnprocessableEntityException,
     type OnApplicationBootstrap,
 } from '@nestjs/common';
+import { CATALOG_ERROR_CODES } from '@saasicat/types';
 import type {
     CapabilityCatalogEntryRow,
     CapabilityCodeStatus,
@@ -207,9 +208,11 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     ): Promise<FeatureCatalogEntryRow> {
         const existing = await this.repo.findFeature(projectKey, featureKey);
         if (!existing) {
-            throw new NotFoundException(
-                `Feature '${featureKey}' not found in project '${projectKey}'`,
-            );
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.FEATURE_NOT_FOUND,
+                message: `Feature '${featureKey}' not found in project '${projectKey}'`,
+                params: { featureKey, projectKey },
+            });
         }
         return this.repo.setFeatureReview(
             projectKey,
@@ -229,7 +232,11 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     ): Promise<QuotaCatalogEntryRow> {
         const existing = await this.repo.findQuota(projectKey, quotaKey);
         if (!existing) {
-            throw new NotFoundException(`Quota '${quotaKey}' not found in project '${projectKey}'`);
+            throw new NotFoundException({
+                code: CATALOG_ERROR_CODES.QUOTA_NOT_FOUND,
+                message: `Quota '${quotaKey}' not found in project '${projectKey}'`,
+                params: { quotaKey, projectKey },
+            });
         }
         return this.repo.setQuotaReview(
             projectKey,
@@ -237,9 +244,11 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
             this.resolveReviewUpdate(existing, data.discoveryStatus, reviewedBy, (snapshot) => {
                 const discovered = snapshot.quotas.find((q) => q.quotaKey === quotaKey);
                 if (!discovered) {
-                    throw new UnprocessableEntityException(
-                        `Quota '${quotaKey}' is not in the discovery snapshot — a quota that is not declared in code cannot be approved`,
-                    );
+                    throw new UnprocessableEntityException({
+                        code: CATALOG_ERROR_CODES.QUOTA_NOT_IN_DISCOVERY_SNAPSHOT,
+                        message: `Quota '${quotaKey}' is not in the discovery snapshot — a quota that is not declared in code cannot be approved`,
+                        params: { quotaKey },
+                    });
                 }
                 return quotaApprovalSignature(discovered);
             }),
@@ -256,16 +265,20 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         signatureOf: (snapshot: DiscoverySnapshot) => string,
     ): SetCatalogEntryReviewData {
         if (!REVIEW_TRANSITIONS[existing.discoveryStatus].includes(target)) {
-            throw new UnprocessableEntityException(
-                `Transition '${existing.discoveryStatus}' → '${target}' is not allowed`,
-            );
+            throw new UnprocessableEntityException({
+                code: CATALOG_ERROR_CODES.DISCOVERY_STATUS_TRANSITION_INVALID,
+                message: `Transition '${existing.discoveryStatus}' → '${target}' is not allowed`,
+                params: { from: existing.discoveryStatus, to: target },
+            });
         }
         if (target === 'approved') {
             const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
             if (!snapshot) {
-                throw new UnprocessableEntityException(
-                    'Approval requires a discovery snapshot — discovery is not initialised (#25)',
-                );
+                throw new UnprocessableEntityException({
+                    code: CATALOG_ERROR_CODES.DISCOVERY_NOT_INITIALIZED,
+                    message:
+                        'Approval requires a discovery snapshot — discovery is not initialised (#25)',
+                });
             }
             return {
                 discoveryStatus: 'approved',

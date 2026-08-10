@@ -5,6 +5,7 @@ import {
     HttpStatus,
     Injectable,
 } from '@nestjs/common';
+import { REGISTRATION_ERROR_CODES } from '@saasicat/types';
 
 // Lightweight in-memory rate limiter for /onboarding/promo-code/preview.
 // No external dependencies — deliberately kept simple. For scaling
@@ -28,6 +29,18 @@ interface RequestLike {
     user?: { id?: string };
 }
 
+function rateLimited(): HttpException {
+    return new HttpException(
+        {
+            valid: false,
+            // Superseded by `code` — kept until all consumers read `code`.
+            reason: 'RATE_LIMITED',
+            code: REGISTRATION_ERROR_CODES.RATE_LIMITED,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+    );
+}
+
 @Injectable()
 export class PromoCodeRateLimitGuard implements CanActivate {
     private ipBuckets = new Map<string, Bucket>();
@@ -39,19 +52,13 @@ export class PromoCodeRateLimitGuard implements CanActivate {
         const sessionKey = req.user?.id ?? null;
 
         if (this.exceeded(this.ipBuckets, ipKey, IP_WINDOW_MS, IP_LIMIT)) {
-            throw new HttpException(
-                { valid: false, reason: 'RATE_LIMITED' },
-                HttpStatus.TOO_MANY_REQUESTS,
-            );
+            throw rateLimited();
         }
         if (
             sessionKey &&
             this.exceeded(this.sessionBuckets, sessionKey, SESSION_WINDOW_MS, SESSION_LIMIT)
         ) {
-            throw new HttpException(
-                { valid: false, reason: 'RATE_LIMITED' },
-                HttpStatus.TOO_MANY_REQUESTS,
-            );
+            throw rateLimited();
         }
         return true;
     }

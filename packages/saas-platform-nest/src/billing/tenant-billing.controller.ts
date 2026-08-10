@@ -21,6 +21,7 @@ import type {
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
 } from '@saasicat/types';
+import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/types';
 import { EntitlementService, toEffectiveLimitsSnapshot } from '../entitlement/index.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
@@ -195,7 +196,11 @@ export class TenantBillingController {
         ]);
 
         if (!sub) {
-            throw new NotFoundException(`No subscription for tenant ${tenantId}`);
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                message: `No subscription for tenant ${tenantId}`,
+                params: { tenantId },
+            });
         }
 
         const usage: Record<string, number> = {};
@@ -253,11 +258,21 @@ export class TenantBillingController {
 
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         if (blockedTargets.includes(dto.plan)) {
-            throw new ForbiddenException(`${dto.plan} is not activated via self-service.`);
+            throw new ForbiddenException({
+                code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,
+                message: `${dto.plan} is not activated via self-service.`,
+                params: { planKey: dto.plan },
+            });
         }
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) throw new NotFoundException(`No subscription for tenant ${tenantId}`);
+        if (!sub) {
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                message: `No subscription for tenant ${tenantId}`,
+                params: { tenantId },
+            });
+        }
 
         // Defense-in-depth: server-side pre-check with the same rules
         // as the wizard. Prevents bypass via a direct API call.
@@ -267,7 +282,11 @@ export class TenantBillingController {
             dto.billingCycle,
         );
         if (blockers.length > 0) {
-            throw new BadRequestException({ message: 'Plan-Wechsel blockiert.', blockers });
+            throw new BadRequestException({
+                code: BILLING_ERROR_CODES.PLAN_CHANGE_BLOCKED,
+                message: 'Plan change is blocked.',
+                blockers,
+            });
         }
 
         if (dto.effectiveImmediately) {
@@ -358,11 +377,21 @@ export class TenantBillingController {
         // Self-service block: ENTERPRISE etc. cannot be selected via onboarding
         const blockedTargets = this.blockedPlans?.asTarget ?? [];
         if (blockedTargets.includes(dto.plan)) {
-            throw new ForbiddenException(`${dto.plan} is not activated via self-service.`);
+            throw new ForbiddenException({
+                code: BILLING_ERROR_CODES.PLAN_NOT_SELF_SERVICE,
+                message: `${dto.plan} is not activated via self-service.`,
+                params: { planKey: dto.plan },
+            });
         }
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) throw new NotFoundException(`No subscription for tenant ${tenantId}`);
+        if (!sub) {
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                message: `No subscription for tenant ${tenantId}`,
+                params: { tenantId },
+            });
+        }
 
         // Plan-change blockers (defense-in-depth, as in changePlan)
         const blockers = await this.planPreview.assertChangeAllowed(
@@ -372,7 +401,8 @@ export class TenantBillingController {
         );
         if (blockers.length > 0) {
             throw new BadRequestException({
-                message: 'Plan-Wechsel im Onboarding blockiert.',
+                code: BILLING_ERROR_CODES.PLAN_CHANGE_BLOCKED,
+                message: 'Plan change during onboarding is blocked.',
                 blockers,
             });
         }
@@ -432,11 +462,13 @@ export class TenantBillingController {
                 // The tenant sees a hard error message, because the
                 // subscription was in fact not modified — no
                 // half-baked best-effort result.
+                const reason = err instanceof Error ? err.message : null;
                 throw new BadRequestException({
-                    message:
-                        err instanceof Error
-                            ? `Onboarding-Anlage fehlgeschlagen: ${err.message}`
-                            : 'Onboarding-Anlage fehlgeschlagen',
+                    code: BILLING_ERROR_CODES.ONBOARDING_CREATE_FAILED,
+                    message: reason
+                        ? `Onboarding creation failed: ${reason}`
+                        : 'Onboarding creation failed',
+                    params: { reason },
                 });
             }
         } else {
@@ -470,7 +502,7 @@ export class TenantBillingController {
                         });
                         promoRedemption = this.toResponseRedemption(redemption, dto.promoCode);
                     } catch (err) {
-                        const message = err instanceof Error ? err.message : 'Unbekannter Fehler';
+                        const message = err instanceof Error ? err.message : 'Unknown error';
                         warnings.push(`The promo code could not be redeemed: ${message}`);
                     }
                 }
@@ -530,7 +562,7 @@ export class TenantBillingController {
             }
         } else if (bundleVersionIds.length > 0 && !this.subscriptionBundles) {
             warnings.push(
-                'Bundle-Buchungen im Onboarding angefordert, aber SubscriptionBundleModule ' +
+                'Bundle bookings were requested during onboarding, but SubscriptionBundleModule ' +
                     'is not registered in the consumer. No bundles were created.',
             );
         }
@@ -558,11 +590,18 @@ export class TenantBillingController {
         const userId = this.requireUserId(req);
 
         const sub = await this.subscriptionUsage.findForTenant(tenantId);
-        if (!sub) throw new NotFoundException(`No subscription for tenant ${tenantId}`);
+        if (!sub) {
+            throw new NotFoundException({
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_NOT_FOUND,
+                message: `No subscription for tenant ${tenantId}`,
+                params: { tenantId },
+            });
+        }
         if (!sub.pendingPlanVersion) {
-            throw new BadRequestException(
-                'There is no pending plan version awaiting confirmation.',
-            );
+            throw new BadRequestException({
+                code: BILLING_ERROR_CODES.NO_PENDING_PLAN_VERSION,
+                message: 'There is no pending plan version awaiting confirmation.',
+            });
         }
 
         const result = await this.subscriptionWrite.acceptPendingPlanVersion(
@@ -630,7 +669,10 @@ export class TenantBillingController {
             this.tenantIdResolver ?? ((r: unknown) => (r as RequestLike).user?.tenantId ?? null);
         const tenantId = resolver(req);
         if (!tenantId) {
-            throw new NotFoundException('No tenant ID found on the request');
+            throw new NotFoundException({
+                code: AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING,
+                message: 'No tenant ID found on the request',
+            });
         }
         return tenantId;
     }
@@ -641,7 +683,10 @@ export class TenantBillingController {
             ((r: unknown) => (r as RequestLike).user?.sub ?? (r as RequestLike).user?.id ?? null);
         const userId = resolver(req);
         if (!userId) {
-            throw new NotFoundException('No user ID found on the request');
+            throw new NotFoundException({
+                code: AUTH_ERROR_CODES.TENANT_CONTEXT_MISSING,
+                message: 'No user ID found on the request',
+            });
         }
         return userId;
     }

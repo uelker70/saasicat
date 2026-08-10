@@ -273,7 +273,7 @@ test('onboarding throws BadRequestException when plan-change blockers are active
                 { user: { tenantId: 't1', sub: 'u1' } },
                 { plan: 'STARTER', billingCycle: 'MONTHLY' },
             ),
-        /Plan-Wechsel im Onboarding blockiert/,
+        /Plan change during onboarding is blocked/,
     );
 });
 
@@ -477,7 +477,7 @@ test('atomic path: adapter error throws BadRequestException (no half-state)', as
                 { user: { tenantId: 't1', sub: 'u1' } },
                 { plan: 'SPORT', billingCycle: 'YEARLY' },
             ),
-        /Onboarding-Anlage fehlgeschlagen/,
+        /Onboarding creation failed/,
     );
 });
 

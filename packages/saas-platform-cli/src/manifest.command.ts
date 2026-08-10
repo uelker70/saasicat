@@ -77,7 +77,7 @@ export class ManifestValidateCommand extends CommandRunner {
         await this.ctx.ensureSuperAdmin(identity);
         const result = this.flow.validate();
         if (result.ok) {
-            process.stdout.write('Manifest validiert ✓\n');
+            process.stdout.write('Manifest is valid ✓\n');
             return;
         }
         process.stderr.write(`Manifest invalid: ${result.reason}\n`);
@@ -118,7 +118,7 @@ export class ManifestCheckCommand extends CommandRunner {
 @Injectable()
 @Command({
     name: 'manifest',
-    description: 'Manifest-Operations (dump, hash, validate, check)',
+    description: 'Manifest operations (dump, hash, validate, check)',
     subCommands: [
         ManifestDumpCommand,
         ManifestHashCommand,
