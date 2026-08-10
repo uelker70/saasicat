@@ -41,7 +41,7 @@ export class ManifestCliFlow {
     hash(): string {
         const m = this.access.getManifest();
         const h = m.build?.manifestHash;
-        if (!h) throw new Error('manifestHash fehlt im Manifest — Boot-Zeit-Bug?');
+        if (!h) throw new Error('manifestHash is missing from the manifest — a boot-time bug?');
         return h;
     }
 
@@ -57,10 +57,10 @@ export class ManifestCliFlow {
             return { ok: false, reason: `Unerwartete schemaVersion ${m.schemaVersion}` };
         }
         if (!m.project?.key) {
-            return { ok: false, reason: 'Kein `project.key` im Manifest' };
+            return { ok: false, reason: 'No `project.key` in the manifest' };
         }
         if (!m.build?.manifestHash) {
-            return { ok: false, reason: 'manifestHash fehlt' };
+            return { ok: false, reason: 'manifestHash is missing' };
         }
         return { ok: true };
     }
@@ -103,7 +103,7 @@ export class ManifestCliFlow {
                     id: check.id,
                     label: check.label,
                     severity: 'error',
-                    message: `Check warf eine Exception: ${message}`,
+                    message: `The check threw an exception: ${message}`,
                 });
                 overall = 'error';
             }

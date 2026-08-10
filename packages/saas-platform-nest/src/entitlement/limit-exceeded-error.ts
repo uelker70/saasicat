@@ -15,7 +15,7 @@ export class LimitExceededError extends Error {
         public readonly max: number,
         public readonly used: number,
     ) {
-        super(`Limit für ${dimension} erreicht: ${used}/${max}.`);
+        super(`Limit for ${dimension} reached: ${used}/${max}.`);
         this.name = 'LimitExceededError';
     }
 }

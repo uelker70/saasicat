@@ -21,7 +21,7 @@ interface MfaSetupFlags extends AsFlag {
 }
 
 @Injectable()
-@SubCommand({ name: 'whoami', description: 'Aktive CLI-Identität + MFA-/Production-Status' })
+@SubCommand({ name: 'whoami', description: 'Active CLI identity plus MFA and production status' })
 export class AdminWhoamiCommand extends CommandRunner {
     constructor(private readonly flow: WhoAmIFlow) {
         super();
@@ -37,7 +37,7 @@ export class AdminWhoamiCommand extends CommandRunner {
 }
 
 @Injectable()
-@SubCommand({ name: 'mfa-setup', description: 'TOTP-MFA für den eigenen SuperAdmin einrichten' })
+@SubCommand({ name: 'mfa-setup', description: 'Set up TOTP MFA for your own super-admin account' })
 export class AdminMfaSetupCommand extends CommandRunner {
     constructor(
         @Inject(CLI_CONTEXT_CONFIG_TOKEN) private readonly config: CliContextConfig,
@@ -65,7 +65,7 @@ export class AdminMfaSetupCommand extends CommandRunner {
     parseAs(v: string): string {
         return v;
     }
-    @Option({ flags: '--force', description: 'bestehendes Secret ohne Rückfrage überschreiben' })
+    @Option({ flags: '--force', description: 'overwrite an existing secret without asking' })
     parseForce(): boolean {
         return true;
     }
@@ -79,7 +79,7 @@ export class AdminMfaSetupCommand extends CommandRunner {
 })
 export class AdminCommands extends CommandRunner {
     async run(): Promise<void> {
-        process.stderr.write('Bitte Sub-Command angeben: whoami, mfa-setup.\n');
+        process.stderr.write('Specify a sub-command: whoami, mfa-setup.\n');
         process.exit(2);
     }
 }

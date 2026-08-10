@@ -107,7 +107,7 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
             this.logger.log(`Discovery snapshot persisted to ${path}`);
         } catch (err) {
             this.logger.warn(
-                `Discovery snapshot konnte nicht nach ${path} geschrieben werden: ${(err as Error).message}`,
+                `The discovery snapshot could not be written to ${path}: ${(err as Error).message}`,
             );
         }
     }
@@ -226,8 +226,8 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
             // Capability declared multiple times — we keep the first declaration
             // and log the conflict. The strict-mode check (M5+) will block this.
             this.logger.warn(
-                `Capability '${meta.capabilityKey}' wird an mehreren Stellen deklariert ` +
-                    `(${existing.declaredAt} und ${declaredAt}); erste Deklaration gewinnt`,
+                `Capability '${meta.capabilityKey}' is declared in several places ` +
+                    `(${existing.declaredAt} and ${declaredAt}); the first declaration wins`,
             );
             return;
         }
@@ -255,8 +255,8 @@ export class DiscoveryScanner implements OnApplicationBootstrap {
         const existing = target.get(opts.key);
         if (existing) {
             this.logger.warn(
-                `Quota '${opts.key}' wird an mehreren Stellen definiert ` +
-                    `(${existing.declaredAt} und ${declaredAt}); erste Definition gewinnt`,
+                `Quota '${opts.key}' is defined in several places ` +
+                    `(${existing.declaredAt} and ${declaredAt}); the first definition wins`,
             );
             return;
         }

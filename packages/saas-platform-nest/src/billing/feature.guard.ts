@@ -62,7 +62,7 @@ export class FeatureGuard implements CanActivate {
 
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         const user = request.user;
-        if (!user) throw new ForbiddenException('Nicht authentifiziert');
+        if (!user) throw new ForbiddenException('Not authenticated');
 
         // SUPER_ADMIN bypass — platform support may help a tenant even when
         // a feature isn't booked.
@@ -74,7 +74,7 @@ export class FeatureGuard implements CanActivate {
         const tenantId = this.config?.tenantIdResolver
             ? this.config.tenantIdResolver(request)
             : (request.tenantId ?? user.tenantId);
-        if (!tenantId) throw new ForbiddenException('Kein Mandant zugeordnet');
+        if (!tenantId) throw new ForbiddenException('No tenant assigned');
 
         const compute = () => this.entitlements.computeLimits(tenantId);
         const limits = this.config?.tenantContextRunner
@@ -103,7 +103,7 @@ export class FeatureGuard implements CanActivate {
         required: string[],
         tenantId: string,
     ): Promise<ForbiddenException> {
-        const message = `Feature ${required.join(' / ')} nicht im aktuellen Paket enthalten.`;
+        const message = `Feature ${required.join(' / ')} is not included in the current plan.`;
         if (!this.upsellResolver) return new ForbiddenException(message);
 
         const body: FeatureNotLicensedBody = {
@@ -128,7 +128,7 @@ export class FeatureGuard implements CanActivate {
             );
         } catch (error) {
             this.logger.warn(
-                `UpsellOfferResolver fehlgeschlagen für [${required.join(', ')}]: ${String(error)}`,
+                `UpsellOfferResolver failed for [${required.join(', ')}]: ${String(error)}`,
             );
             return [];
         }

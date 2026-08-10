@@ -76,7 +76,7 @@ test('findPlan returns undefined for an unknown ID', () => {
 test('getPlanOrThrow throws a typed error for an unknown ID', () => {
     assert.throws(
         () => getPlanOrThrow(DEMOAPP_LIKE_CATALOG, 'NIRVANA'),
-        /Plan "NIRVANA" nicht im Catalog \(demoapp\)/,
+        /Plan "NIRVANA" not found in the catalog \(demoapp\)/,
     );
 });
 

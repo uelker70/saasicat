@@ -43,7 +43,7 @@ export function assertChangeNote(changeNote: string | null | undefined): string 
     if (trimmed.length === 0) {
         throw new PublishValidationError(
             'CHANGE_NOTE_REQUIRED',
-            'changeNote ist Pflicht beim Veröffentlichen einer Version.',
+            'changeNote is required when publishing a version.',
         );
     }
     return trimmed;
@@ -67,18 +67,18 @@ export function assertDraftPublishable(
     draftId: string,
 ): asserts draft is PublishablePlanVersion {
     if (!draft) {
-        throw new PublishValidationError('NOT_FOUND', `PlanVersion ${draftId} nicht gefunden`);
+        throw new PublishValidationError('NOT_FOUND', `PlanVersion ${draftId} not found`);
     }
     if (draft.publishedAt !== null) {
         throw new PublishValidationError(
             'ALREADY_PUBLISHED',
-            `PlanVersion ${draftId} ist bereits veröffentlicht.`,
+            `PlanVersion ${draftId} has already been published.`,
         );
     }
     if (!draft.baseVersionId) {
         throw new PublishValidationError(
             'NO_BASE_VERSION',
-            `Draft ${draftId} hat keine baseVersion — wahrscheinlich manuell angelegtes v1, das nur per Migration veröffentlicht werden darf.`,
+            `Draft ${draftId} has no baseVersion — probably a manually created v1 that may only be published via a migration.`,
         );
     }
 }
@@ -95,14 +95,14 @@ export function assertBaseVersionFresh(
     if (!base) {
         throw new PublishValidationError(
             'BASE_NOT_FOUND',
-            `baseVersion ${baseId} nicht mehr vorhanden.`,
+            `baseVersion ${baseId} no longer exists.`,
         );
     }
     if (base.supersededAt !== null) {
         throw new PublishValidationError(
             'BASE_SUPERSEDED',
-            `Draft basiert auf einer abgelösten Version (${planContext}). ` +
-                `Bitte den Draft gegen die aktuelle Live-Version rebasen oder neu anlegen.`,
+            `The draft is based on a superseded version (${planContext}). ` +
+                `Rebase the draft onto the current live version, or create a new one.`,
         );
     }
 }
@@ -116,7 +116,7 @@ export function assertOptimisticLockHeld(updateCount: number, draftId: string): 
     if (updateCount !== 1) {
         throw new PublishValidationError(
             'OPTIMISTIC_LOCK_CONFLICT',
-            `Draft ${draftId} wurde zwischenzeitlich von einem anderen Admin veröffentlicht.`,
+            `Draft ${draftId} has meanwhile been published by another adminht.`,
         );
     }
 }

@@ -131,7 +131,7 @@ export function formatSeedGateReport(report: SeedGateReport): string {
     );
     if (report.findings.length === 0) {
         lines.push(
-            '  ✓ Alle geseedeten Plan-/Bundle-Features sind discovered (und, sofern geprüft, approved).',
+            '  ✓ Every seeded plan/bundle feature is discovered (and approved where checked).',
         );
         return lines.join('\n');
     }

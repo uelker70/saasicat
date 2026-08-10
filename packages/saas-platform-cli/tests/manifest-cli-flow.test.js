@@ -99,7 +99,7 @@ describe('ManifestCliFlow.dump / hash / validate', () => {
             build: { platformPackageVersion: '0.1.0', appVersion: '1.0.0', manifestHash: '' },
         });
         const flow = buildFlow(m);
-        assert.throws(() => flow.hash(), /manifestHash fehlt/);
+        assert.throws(() => flow.hash(), /manifestHash is missing/);
     });
 
     test('validate ok for a clean manifest', () => {

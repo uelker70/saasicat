@@ -21,7 +21,7 @@ interface TailFlags {
 @Injectable()
 @SubCommand({
     name: 'tail',
-    description: 'Letzte Audit-Log-Einträge (--actor/--action/--entity/--since/--limit)',
+    description: 'Most recent audit-log entries (--actor/--action/--entity/--since/--limit)',
 })
 export class AuditTailCommand extends CommandRunner {
     constructor(
@@ -76,7 +76,7 @@ export class AuditTailCommand extends CommandRunner {
 })
 export class AuditCommands extends CommandRunner {
     async run(): Promise<void> {
-        process.stderr.write('Bitte Sub-Command angeben: tail.\n');
+        process.stderr.write('Specify a sub-command: tail.\n');
         process.exit(2);
     }
 }

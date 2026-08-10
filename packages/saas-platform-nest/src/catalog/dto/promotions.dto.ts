@@ -28,7 +28,7 @@ const TARGET_TYPES = ['PLAN', 'BUNDLE', 'OFFER'] as const;
 
 export class ListPromotionsQueryDto {
     @IsString()
-    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey muss kebab-case sein' })
+    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey must be kebab-case' })
     projectKey!: string;
 }
 
@@ -66,11 +66,11 @@ export class CreatePromotionDto {
     billingCycle?: PromotionBillingCycle;
 
     @IsString()
-    @Matches(ISO_DATE_PATTERN, { message: 'validFrom muss ISO-Datum sein' })
+    @Matches(ISO_DATE_PATTERN, { message: 'validFrom must be an ISO date' })
     validFrom!: string;
 
     @IsString()
-    @Matches(ISO_DATE_PATTERN, { message: 'validTo muss ISO-Datum sein' })
+    @Matches(ISO_DATE_PATTERN, { message: 'validTo must be an ISO date' })
     validTo!: string;
 
     @IsOptional()

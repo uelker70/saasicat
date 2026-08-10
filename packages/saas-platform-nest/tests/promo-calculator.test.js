@@ -126,7 +126,7 @@ test('buildLabel MONTHS 6 ABSOLUTE', () => {
         { valueType: 'ABSOLUTE', value: 5, durationType: 'MONTHS', durationValue: 6 },
         'MONTHLY',
     );
-    assert.equal(label, '5,00 € für 6 Monate');
+    assert.equal(label, '5,00 € for 6 months');
 });
 
 test('buildLabel BILLING_CYCLES 1 YEARLY → "im ersten Jahr"', () => {

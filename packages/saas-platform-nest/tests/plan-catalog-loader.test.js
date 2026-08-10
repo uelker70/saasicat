@@ -107,7 +107,7 @@ plans:
 `;
     assert.throws(
         () => loadPlanCatalogFromString(yaml, { source: 'unknown-feature' }),
-        /Unbekannter featureKey "F2"/,
+        /Unknown featureKey "F2"/,
     );
 });
 

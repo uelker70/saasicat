@@ -113,7 +113,7 @@ describe('MfaSetupFlow.formatSetupResult', () => {
             userId: 'u1',
             userEmail: 'taci@example.com',
         });
-        assert.match(formatted, /MFA-Setup für taci@example\.com/);
+        assert.match(formatted, /MFA setup for taci@example\.com/);
         assert.match(formatted, /Secret \(Base32\): {2}BASE32/);
         assert.match(formatted, /otpauth-URI: {6}otpauth:\/\/totp\/foo/);
         assert.match(formatted, /Authenticator/);

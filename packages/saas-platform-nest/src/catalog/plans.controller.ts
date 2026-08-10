@@ -131,8 +131,8 @@ export function buildPlansController(guards: Array<Type<CanActivate>>): Type {
         private assertVersionsService(): void {
             if (!this.versionsService) {
                 throw new Error(
-                    'PlanVersionsService nicht registriert — App hat den ' +
-                        'Plan-Lifecycle-Editor nicht aktiviert.',
+                    'PlanVersionsService is not registered — the app has not enabled the ' +
+                        'plan lifecycle editor.',
                 );
             }
         }

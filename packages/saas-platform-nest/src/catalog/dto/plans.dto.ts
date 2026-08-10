@@ -18,14 +18,14 @@ const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 export class CreatePlanDto {
     @IsString()
     @Matches(PROJECT_KEY_PATTERN, {
-        message: 'projectKey muss kebab-case sein (z. B. "my-app")',
+        message: 'projectKey must be kebab-case (e.g. "my-app")',
     })
     @MaxLength(64)
     projectKey!: string;
 
     @IsString()
     @Matches(KEY_PATTERN, {
-        message: 'planKey muss SCREAMING_SNAKE_CASE sein (z. B. "STARTER")',
+        message: 'planKey must be SCREAMING_SNAKE_CASE (e.g. "STARTER")',
     })
     @MaxLength(64)
     planKey!: string;

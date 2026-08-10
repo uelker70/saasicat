@@ -135,70 +135,68 @@ export class PromoCodesService {
         const code = input.code.trim().toUpperCase();
         if (!CODE_PATTERN.test(code)) {
             throw new BadRequestException(
-                'Code darf nur Großbuchstaben, Ziffern, „-" und „_" enthalten (4–32 Zeichen).',
+                'The code may only contain upper-case letters, digits, "-" and "_" (4–32 characters).',
             );
         }
         if (input.valueType === 'PERCENT') {
             if (!(input.value > 0 && input.value <= 100)) {
-                throw new BadRequestException('Prozentsatz muss zwischen 0 und 100 liegen.');
+                throw new BadRequestException('The percentage must be between 0 and 100.');
             }
         } else if (!(input.value > 0)) {
-            throw new BadRequestException('Betrag muss positiv sein.');
+            throw new BadRequestException('The amount must be positive.');
         }
 
         if (input.durationType === 'ONCE') {
             if (input.durationValue != null) {
-                throw new BadRequestException(
-                    'Bei einmaligem Rabatt darf keine Laufzeit gesetzt sein.',
-                );
+                throw new BadRequestException('A one-off discount must not set a duration.');
             }
         } else {
             const v = input.durationValue;
             if (v == null || v < 1 || v > 24) {
                 throw new BadRequestException(
-                    'Laufzeit ungültig (max. 24 Monate bzw. Abrechnungsperioden).',
+                    'Invalid duration (at most 24 months or billing periods).',
                 );
             }
         }
 
         if (input.validFrom && input.validUntil && input.validFrom >= input.validUntil) {
-            throw new BadRequestException('Gültigkeits-Fenster ungültig.');
+            throw new BadRequestException('Invalid validity window.');
         }
 
         const plans = input.appliesToPlans ?? [];
         const blocked = this.config.nonRedeemablePlans ?? [];
         for (const p of plans) {
             if (blocked.includes(p)) {
-                throw new BadRequestException(`${p}-Plan kann nicht rabattiert werden.`);
+                throw new BadRequestException(`${p}-Plan cannot be discounted.`);
             }
         }
 
         if (input.minimumPlanAmountGross != null && input.minimumPlanAmountGross <= 0) {
-            throw new BadRequestException('Mindest-Plan-Brutto muss positiv sein.');
+            throw new BadRequestException('The minimum plan gross amount must be positive.');
         }
 
         if (input.valueType === 'ABSOLUTE' && !input.allowZeroInvoice) {
             const lowestApplicableGross = this.lowestApplicablePlanGross(plans);
             if (lowestApplicableGross != null && input.value >= lowestApplicableGross) {
                 throw new BadRequestException(
-                    'Bei Absolutbeträgen muss der Rabatt unter dem niedrigsten anwendbaren Plan-Preis liegen oder allowZeroInvoice aktiviert sein.',
+                    'For absolute amounts the discount must stay below the lowest applicable plan price, or allowZeroInvoice must be enabled.',
                 );
             }
         }
 
         const exists = await this.promoRepo.findByCode(code);
-        if (exists) throw new BadRequestException('Code existiert bereits.');
+        if (exists) throw new BadRequestException('The code already exists.');
 
         return this.promoRepo.create({ ...input, code });
     }
 
     async update(id: string, input: UpdatePromoCodeData): Promise<PromoCodeRecord> {
         const existing = await this.promoRepo.findById(id);
-        if (!existing) throw new NotFoundException('Code nicht gefunden');
+        if (!existing) throw new NotFoundException('Code not found');
 
         if (input.maxRedemptions != null && existing.maxRedemptions != null) {
             if (input.maxRedemptions < existing.maxRedemptions) {
-                throw new BadRequestException('maxRedemptions kann nicht gesenkt werden.');
+                throw new BadRequestException('maxRedemptions cannot be lowered.');
             }
         }
 
@@ -209,7 +207,7 @@ export class PromoCodesService {
         const redemptions = await this.redemptionRepo.countByPromoCode(id);
         if (redemptions > 0) {
             throw new BadRequestException(
-                'Code hat bereits Einlösungen — Soft-Delete nicht möglich. Stattdessen pausieren.',
+                'The code already has redemptions — it cannot be soft-deleted. Pause it instead.',
             );
         }
         await this.promoRepo.softDelete(id);
@@ -223,7 +221,7 @@ export class PromoCodesService {
     async findOne(id: string): Promise<PromoCodeRecord> {
         await this.lazyExpire();
         const code = await this.promoRepo.findById(id);
-        if (!code || code.deletedAt) throw new NotFoundException('Code nicht gefunden');
+        if (!code || code.deletedAt) throw new NotFoundException('Code not found');
         return code;
     }
 
@@ -366,13 +364,13 @@ export class PromoCodesService {
 
         const promo = await this.promoRepo.findByCode(code, tx);
         if (!promo || promo.deletedAt) {
-            throw new BadRequestException('Code nicht gefunden');
+            throw new BadRequestException('Code not found');
         }
 
         const sub = await this.subscriptionLookup.findById(input.subscriptionId, tx);
-        if (!sub) throw new NotFoundException('Subscription nicht gefunden');
+        if (!sub) throw new NotFoundException('Subscription not found');
         if (sub.tenantId !== input.tenantId) {
-            throw new BadRequestException('Subscription gehört nicht zum Tenant');
+            throw new BadRequestException('Subscription does not belong to the tenant');
         }
 
         const reason = this.checkEligibility(promo, {
@@ -380,18 +378,18 @@ export class PromoCodesService {
             planId: sub.plan,
             billingCycle: sub.billingCycle,
         });
-        if (reason) throw new BadRequestException(`Code nicht einlösbar: ${reason}`);
+        if (reason) throw new BadRequestException(`Code cannot be redeemed: ${reason}`);
 
         const firstTimeReason = await this.checkFirstTimeCustomer(promo, input.email, {
             requireEmail: true,
         });
         if (firstTimeReason) {
-            throw new BadRequestException(`Code nicht einlösbar: ${firstTimeReason}`);
+            throw new BadRequestException(`Code cannot be redeemed: ${firstTimeReason}`);
         }
 
         const claimed = await this.promoRepo.claimSlot(promo.id, tx);
         if (!claimed) {
-            throw new BadRequestException('Code nicht einlösbar: EXHAUSTED');
+            throw new BadRequestException('Code cannot be redeemed: EXHAUSTED');
         }
 
         await this.promoRepo.markExhaustedIfFull(promo.id, tx);

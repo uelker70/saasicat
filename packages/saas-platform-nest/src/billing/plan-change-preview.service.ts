@@ -125,13 +125,13 @@ export class PlanChangePreviewService {
     ): Promise<PlanChangePreviewDto> {
         const sub = await this.subscriptions.findForTenant(tenantId);
         if (!sub) {
-            throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
+            throw new NotFoundException(`No subscription for tenant ${tenantId}`);
         }
 
         const targetPlanDef = findPlan(this.catalog, targetPlan);
         if (!targetPlanDef) {
             throw new NotFoundException(
-                `Plan "${targetPlan}" nicht im Catalog (${this.catalog.projectKey})`,
+                `Plan "${targetPlan}" is not in the catalog (${this.catalog.projectKey})`,
             );
         }
 
@@ -221,13 +221,13 @@ export class PlanChangePreviewService {
         if (blockedTargets.includes(targetPlan)) {
             blockers.push({
                 code: `${targetPlan}_NOT_SELF_SERVICE`,
-                message: `${targetSnap.name} wird nur per Sondervertrag aktiviert. Bitte den Vertragsbetreuer kontaktieren.`,
+                message: `${targetSnap.name} is only activated via a special contract. Please contact the contractbetreuer kontaktieren.`,
             });
         }
         if (blockedSources.includes(sub.plan)) {
             blockers.push({
                 code: `${sub.plan}_LOCKED`,
-                message: `Aktiver ${currentSnap.name}-Sondervertrag — bitte den Vertragsbetreuer für Plan-Wechsel kontaktieren.`,
+                message: `Active ${currentSnap.name} special contract — please contact the contract manager to change plans.`,
             });
         }
 
@@ -237,22 +237,21 @@ export class PlanChangePreviewService {
             const usedDisplay = isFloatQuota(key) ? row.used.toFixed(1) : row.used.toString();
             blockers.push({
                 code: `${key.toUpperCase()}_OVER_TARGET`,
-                message: `Aktueller Verbrauch ${usedDisplay} überschreitet das Ziel-Limit ${row.targetMax} (${key}) im ${targetSnap.name}-Paket. Bitte Verbrauch reduzieren.`,
+                message: `Current usage ${usedDisplay} exceeds the target limit ${row.targetMax} (${key}) in the ${targetSnap.name} plan. Please reduce usage first.`,
             });
         }
 
         if (featuresLost.length > 0) {
             warnings.push({
                 code: 'FEATURES_LOST',
-                message: `Mit dem Wechsel verlierst du Zugriff auf ${featuresLost.length} Feature${featuresLost.length === 1 ? '' : 's'}. Bestehende Daten bleiben erhalten und werden nicht gelöscht — du kannst sie wieder freischalten, wenn du erneut upgradest.`,
+                message: `Switching means losing access to ${featuresLost.length} feature${featuresLost.length === 1 ? '' : 's'}. Existing data is retained and never deleted — upgrading again unlocks it.`,
             });
         }
 
         if (changeType === 'NOOP') {
             warnings.push({
                 code: 'NO_CHANGE',
-                message:
-                    'Ziel-Paket und Abrechnungszyklus stimmen mit dem aktuellen Stand überein.',
+                message: 'Target plan and billing cycle already match the current state.',
             });
         }
 

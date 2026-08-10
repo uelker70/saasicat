@@ -147,7 +147,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
         if (!snapshot) {
             this.logger.warn(
-                'Discovery-Auto-Sync übersprungen: kein Snapshot (weder Token noch ' +
+                'Discovery auto-sync skipped: no snapshot (neither token nor ' +
                     'DiscoveryScanner injiziert). DiscoveryModule wiren (#25).',
             );
             return;
@@ -162,8 +162,8 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
             );
         } catch (err) {
             this.logger.error(
-                `Discovery-Auto-Sync beim Boot fehlgeschlagen (${snapshot.app.key}) — ` +
-                    'Katalog ggf. veraltet; manuell via POST /admin/catalog/discovery/sync nachziehen',
+                `Discovery auto-sync on boot failed (${snapshot.app.key}) — ` +
+                    'the catalog may be stale; re-sync manually via POST /admin/catalog/discovery/sync',
                 err instanceof Error ? err.stack : String(err),
             );
         }
@@ -208,7 +208,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         const existing = await this.repo.findFeature(projectKey, featureKey);
         if (!existing) {
             throw new NotFoundException(
-                `Feature '${featureKey}' in Projekt '${projectKey}' nicht gefunden`,
+                `Feature '${featureKey}' not found in project '${projectKey}'`,
             );
         }
         return this.repo.setFeatureReview(
@@ -229,9 +229,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     ): Promise<QuotaCatalogEntryRow> {
         const existing = await this.repo.findQuota(projectKey, quotaKey);
         if (!existing) {
-            throw new NotFoundException(
-                `Quota '${quotaKey}' in Projekt '${projectKey}' nicht gefunden`,
-            );
+            throw new NotFoundException(`Quota '${quotaKey}' not found in project '${projectKey}'`);
         }
         return this.repo.setQuotaReview(
             projectKey,
@@ -240,7 +238,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 const discovered = snapshot.quotas.find((q) => q.quotaKey === quotaKey);
                 if (!discovered) {
                     throw new UnprocessableEntityException(
-                        `Quota '${quotaKey}' ist nicht im Discovery-Snapshot — eine nicht im Code deklarierte Quota kann nicht freigegeben werden`,
+                        `Quota '${quotaKey}' is not in the discovery snapshot — a quota that is not declared in code cannot be approved`,
                     );
                 }
                 return quotaApprovalSignature(discovered);
@@ -259,14 +257,14 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
     ): SetCatalogEntryReviewData {
         if (!REVIEW_TRANSITIONS[existing.discoveryStatus].includes(target)) {
             throw new UnprocessableEntityException(
-                `Übergang '${existing.discoveryStatus}' → '${target}' ist nicht erlaubt`,
+                `Transition '${existing.discoveryStatus}' → '${target}' is not allowed`,
             );
         }
         if (target === 'approved') {
             const snapshot = resolveDiscoverySnapshot(this.snapshot, this.scanner);
             if (!snapshot) {
                 throw new UnprocessableEntityException(
-                    'Freigabe braucht einen Discovery-Snapshot — Discovery ist nicht initialisiert (#25)',
+                    'Approval requires a discovery snapshot — discovery is not initialised (#25)',
                 );
             }
             return {
@@ -516,7 +514,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 if (claimants && claimants.length > 0) {
                     if (claimants.length > 1) {
                         this.logger.warn(
-                            `${type} '${entry.key}' wird von mehreren replaces-Deklarationen beansprucht ` +
+                            `${type} '${entry.key}' is claimed by several replaces declarationsprucht ` +
                                 `(${claimants.join(', ')}); '${claimants[0]}' gewinnt — replaces im Code bereinigen (#39)`,
                         );
                     }
@@ -533,8 +531,8 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
                 : this.repo.setQuotaSuccessor?.bind(this.repo);
         if (!setSuccessor) {
             this.logger.warn(
-                `CatalogEntryRepository implementiert set${type === 'feature' ? 'Feature' : 'Quota'}Successor ` +
-                    `nicht — ${changes.length} Nachfolger-Pointer (#39) werden nicht persistiert`,
+                `CatalogEntryRepository does not implement set${type === 'feature' ? 'Feature' : 'Quota'}Successor ` +
+                    ` — ${changes.length} successor pointers (#39) are not persisted`,
             );
             return 0;
         }

@@ -133,7 +133,7 @@ export class EntitlementService {
 
         const sub = await this.subscriptions.findByTenantId(tenantId);
         if (!sub) {
-            throw new NotFoundException(`Keine Subscription für Tenant ${tenantId}`);
+            throw new NotFoundException(`No subscription for tenant ${tenantId}`);
         }
         const limits = await this.deriveLimits(sub, now);
         this.writeCache(tenantId, limits, now.getTime());
@@ -256,7 +256,7 @@ export class EntitlementService {
                     // that no longer exists — data inconsistency, should never
                     // happen (BundleVersion is a Restrict FK).
                     throw new Error(
-                        `BundleVersion '${booking.bundleVersionId}' aus aktiver SubscriptionBundle nicht gefunden`,
+                        `BundleVersion '${booking.bundleVersionId}' from an active subscription bundle not foundefunden`,
                     );
                 }
                 return {
@@ -283,14 +283,14 @@ export class EntitlementService {
         return this.tx.run(async (tx) => {
             const sub = await this.subscriptions.findByTenantIdLocked(input.tenantId, tx);
             if (!sub) {
-                throw new NotFoundException(`Keine Subscription für Tenant ${input.tenantId}`);
+                throw new NotFoundException(`No subscription for tenant ${input.tenantId}`);
             }
 
             const limits = await this.deriveLimits(sub, now, tx);
             const max = limits.quotas[input.dimension];
             if (max === undefined) {
                 throw new Error(
-                    `Quota-Dimension "${input.dimension}" nicht im PlanCatalog (${this.catalog.projectKey}).`,
+                    `Quota-Dimension "${input.dimension}" is not in the plan catalog (${this.catalog.projectKey}).`,
                 );
             }
 
@@ -324,8 +324,8 @@ export class EntitlementService {
             : await this.planVersions.findLatestLive(planId, tx);
         if (!v) {
             throw new NotFoundException(
-                `Keine zu ${asOf.toISOString().slice(0, 10)} aktive PlanVersion für ${planId} — ` +
-                    `weder validFrom-window erfüllt noch latest-live verfügbar.`,
+                `No plan version for ${planId} active as of ${asOf.toISOString().slice(0, 10)} — ` +
+                    `neither the validFrom window is satisfied nor is a latest-live version available.`,
             );
         }
         return v;

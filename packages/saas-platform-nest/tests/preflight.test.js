@@ -149,7 +149,7 @@ describe('formatPreflightReport', () => {
             findings: [],
         });
         assert.match(out, /Status: OK/);
-        assert.match(out, /Keine Strict-Mode-Verst/);
+        assert.match(out, /No strict-mode violations/);
     });
 
     test('error report lists findings with codes', () => {

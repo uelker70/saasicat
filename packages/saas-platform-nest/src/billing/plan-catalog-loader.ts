@@ -28,9 +28,9 @@ export class PlanCatalogValidationError extends Error {
         public readonly errors: AjvErrorLike[],
     ) {
         const messages = errors
-            .map((e) => `${e.instancePath || '/'}: ${e.message ?? 'unbekannt'}`)
+            .map((e) => `${e.instancePath || '/'}: ${e.message ?? 'unknown'}`)
             .join('\n  ');
-        super(`Plan-Catalog-Validierung fehlgeschlagen für ${source}:\n  ${messages}`);
+        super(`Plan catalog validation failed for ${source}:\n  ${messages}`);
         this.name = 'PlanCatalogValidationError';
     }
 }
@@ -72,7 +72,7 @@ export function loadPlanCatalogFromString(
 ): PlanCatalog {
     const parsed = yaml.load(yamlContent);
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error(`YAML-Inhalt von ${opts.source} ist kein Objekt`);
+        throw new Error(`The YAML content of ${opts.source} is not an object`);
     }
 
     const ajv = new Ajv2020({ strict: false, allErrors: true });
@@ -128,7 +128,7 @@ function validateConsistency(catalog: PlanCatalog, source: string): void {
             for (const fk of plan.features) {
                 if (!declaredFeatureKeys.has(fk)) {
                     errors.push(
-                        `plans[id=${plan.id}].features: Unbekannter featureKey "${fk}" — nicht in catalog.features deklariert`,
+                        `plans[id=${plan.id}].features: Unknown featureKey "${fk}" — not in catalog.features deklariert`,
                     );
                 }
             }

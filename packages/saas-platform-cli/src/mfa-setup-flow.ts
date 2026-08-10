@@ -57,12 +57,12 @@ export class MfaSetupFlow {
         const alreadyEnabled = await this.mfa.isEnabled(user.id);
         if (alreadyEnabled && !options.force) {
             const answer = await this.ctx.prompt(
-                'MFA ist bereits konfiguriert. Tippe `yes`, um das Secret zu überschreiben: ',
+                'MFA is already configured. Type `yes` to overwrite the secret: ',
             );
             if (answer.trim().toLowerCase() !== 'yes') {
                 throw new CliError(
                     'MFA_SETUP_ABORTED',
-                    'Re-Setup nicht bestätigt — bestehendes Secret bleibt aktiv.',
+                    'Re-setup not confirmed — the existing secret stays active.',
                     1,
                 );
             }
@@ -94,15 +94,15 @@ export class MfaSetupFlow {
      */
     formatSetupResult(result: MfaSetupResult): string {
         return [
-            `MFA-Setup für ${result.userEmail} abgeschlossen.`,
+            `MFA setup for ${result.userEmail} completed.`,
             '',
             `Secret (Base32):  ${result.secret}`,
             `otpauth-URI:      ${result.otpauthUri}`,
             '',
-            'Bitte den otpauth-URI in den Authenticator (Google Authenticator,',
-            '1Password, …) importieren oder als QR-Code in einem QR-Generator',
-            'rendern. Danach mit dem ersten TOTP-Code testen, dass der Login',
-            'funktioniert — sonst kommst du nicht mehr ans CLI.',
+            'Import the otpauth URI into your authenticator (Google Authenticator,',
+            '1Password, …), or render it as a QR code in a QR generator',
+            '. Then verify with the first TOTP code that login',
+            'works — otherwise you will lock yourself out of the CLI.',
         ].join('\n');
     }
 }

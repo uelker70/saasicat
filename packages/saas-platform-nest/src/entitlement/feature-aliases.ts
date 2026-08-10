@@ -79,8 +79,8 @@ function assertNoReplacesCycle(index: ReadonlyMap<string, readonly string[]>): v
             const cycleStart = path.indexOf(key);
             const cycle = [...path.slice(cycleStart), key].join(' → ');
             throw new Error(
-                `replaces-Zyklus in den Discovery-Metadaten: ${cycle}. ` +
-                    'Feature-Ersetzungen müssen azyklisch sein — replaces-Deklarationen im Code korrigieren (#39).',
+                `replaces cycle in the discovery metadata: ${cycle}. ` +
+                    'Feature replacements must be acyclic — fix the replaces declarations in code (#39).',
             );
         }
         state.set(key, IN_PROGRESS);

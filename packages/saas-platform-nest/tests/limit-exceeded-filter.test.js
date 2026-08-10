@@ -51,7 +51,7 @@ describe('LimitExceededFilter', () => {
                 dimension: 'members',
                 used: 250,
                 max: 250,
-                message: 'Limit für members erreicht: 250/250.',
+                message: 'Limit for members reached: 250/250.',
             },
         });
     });

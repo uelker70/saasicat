@@ -30,7 +30,7 @@ export class MarketingProjectionsService {
     async getById(id: string): Promise<MarketingProjectionRow> {
         const row = await this.repo.findById(id);
         if (!row) {
-            throw new NotFoundException(`MarketingProjection '${id}' nicht gefunden`);
+            throw new NotFoundException(`MarketingProjection '${id}' not found`);
         }
         return row;
     }
@@ -44,7 +44,7 @@ export class MarketingProjectionsService {
         );
         if (existing) {
             throw new ConflictException(
-                `MarketingProjection für ${data.targetType}/${data.targetVersionId}/${locale} existiert bereits — nutze PATCH zum Editieren`,
+                `Marketing projection for ${data.targetType}/${data.targetVersionId}/${locale} already exists — use PATCH to edit it`,
             );
         }
         return this.repo.create({ ...data, locale });
@@ -53,7 +53,7 @@ export class MarketingProjectionsService {
     async update(id: string, data: UpdateMarketingProjectionData): Promise<MarketingProjectionRow> {
         const existing = await this.repo.findById(id);
         if (!existing) {
-            throw new NotFoundException(`MarketingProjection '${id}' nicht gefunden`);
+            throw new NotFoundException(`MarketingProjection '${id}' not found`);
         }
         return this.repo.update(id, data);
     }
@@ -61,7 +61,7 @@ export class MarketingProjectionsService {
     async delete(id: string): Promise<void> {
         const existing = await this.repo.findById(id);
         if (!existing) {
-            throw new NotFoundException(`MarketingProjection '${id}' nicht gefunden`);
+            throw new NotFoundException(`MarketingProjection '${id}' not found`);
         }
         await this.repo.delete(id);
     }

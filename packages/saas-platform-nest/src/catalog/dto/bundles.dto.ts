@@ -30,14 +30,14 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}(T.*)?$/;
 export class CreateBundleDto {
     @IsString()
     @Matches(PROJECT_KEY_PATTERN, {
-        message: 'projectKey muss kebab-case sein (z. B. "my-app")',
+        message: 'projectKey must be kebab-case (e.g. "my-app")',
     })
     @MaxLength(64)
     projectKey!: string;
 
     @IsString()
     @Matches(KEY_PATTERN, {
-        message: 'bundleKey muss SCREAMING_SNAKE_CASE sein (z. B. "BANKING")',
+        message: 'bundleKey must be SCREAMING_SNAKE_CASE (e.g. "BANKING")',
     })
     @MaxLength(64)
     bundleKey!: string;
@@ -103,7 +103,7 @@ export class CreateBundleVersionDraftDto {
     @IsString({ each: true })
     @Matches(FEATURE_KEY_PATTERN, {
         each: true,
-        message: 'features-Einträge müssen SCREAMING_SNAKE_CASE sein',
+        message: 'features entries must be SCREAMING_SNAKE_CASE',
     })
     features!: string[];
 
@@ -127,7 +127,7 @@ export class CreateBundleVersionDraftDto {
     @ValidateIf((_o, value) => value !== null)
     @IsNumberString({ no_symbols: false })
     @Matches(DECIMAL_PATTERN, {
-        message: 'monthlyNet muss Decimal mit max. 2 Nachkommastellen sein (z. B. "9.90")',
+        message: 'monthlyNet must be a decimal with at most 2 fraction digits (e.g. "9.90")',
     })
     monthlyNet?: string | null;
 
@@ -135,7 +135,7 @@ export class CreateBundleVersionDraftDto {
     @ValidateIf((_o, value) => value !== null)
     @IsNumberString({ no_symbols: false })
     @Matches(DECIMAL_PATTERN, {
-        message: 'yearlyNet muss Decimal mit max. 2 Nachkommastellen sein',
+        message: 'yearlyNet must be a decimal with at most 2 fraction digits',
     })
     yearlyNet?: string | null;
 
@@ -155,14 +155,14 @@ export class CreateBundleVersionDraftDto {
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @Matches(ISO_DATE_PATTERN, {
-        message: 'validFrom muss ISO-Datum sein (YYYY-MM-DD)',
+        message: 'validFrom must be an ISO date (YYYY-MM-DD)',
     })
     validFrom?: string | null;
 
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @Matches(ISO_DATE_PATTERN, {
-        message: 'validUntil muss ISO-Datum sein (YYYY-MM-DD)',
+        message: 'validUntil must be an ISO date (YYYY-MM-DD)',
     })
     validUntil?: string | null;
 }
@@ -212,14 +212,14 @@ export class UpdateBundleVersionDraftDto {
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @Matches(ISO_DATE_PATTERN, {
-        message: 'validFrom muss ISO-Datum sein (YYYY-MM-DD)',
+        message: 'validFrom must be an ISO date (YYYY-MM-DD)',
     })
     validFrom?: string | null;
 
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @Matches(ISO_DATE_PATTERN, {
-        message: 'validUntil muss ISO-Datum sein (YYYY-MM-DD)',
+        message: 'validUntil must be an ISO date (YYYY-MM-DD)',
     })
     validUntil?: string | null;
 }
@@ -246,14 +246,14 @@ export class PublishBundleVersionDto {
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @Matches(ISO_DATE_PATTERN, {
-        message: 'validFrom muss ISO-Datum sein (YYYY-MM-DD)',
+        message: 'validFrom must be an ISO date (YYYY-MM-DD)',
     })
     validFrom?: string | null;
 
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @Matches(ISO_DATE_PATTERN, {
-        message: 'validUntil muss ISO-Datum sein (YYYY-MM-DD)',
+        message: 'validUntil must be an ISO date (YYYY-MM-DD)',
     })
     validUntil?: string | null;
 }

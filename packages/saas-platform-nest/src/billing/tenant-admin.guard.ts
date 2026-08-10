@@ -27,11 +27,11 @@ export class TenantAdminGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest<RequestWithUser>();
         if (!request.user) {
-            throw new ForbiddenException('Nicht authentifiziert');
+            throw new ForbiddenException('Not authenticated');
         }
         const role = request.user.platformRole ?? request.user.role;
         if (!role || !ADMIN_ROLES.has(role)) {
-            throw new ForbiddenException('Diese Aktion erfordert die TENANT_ADMIN-Rolle.');
+            throw new ForbiddenException('This action requires the TENANT_ADMIN role.');
         }
         return true;
     }

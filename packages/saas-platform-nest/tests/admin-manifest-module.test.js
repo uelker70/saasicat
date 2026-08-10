@@ -41,7 +41,7 @@ describe('AdminManifestModule.forRoot — guard configuration', () => {
                     config: MINIMAL_CONFIG,
                     // includeManifestController defaults to true, guards is missing
                 }),
-            /guards.*Pflicht/,
+            /guards.*required/,
         );
     });
 
@@ -89,7 +89,7 @@ describe('AdminManifestModule.forRoot — guard configuration', () => {
                     config: MINIMAL_CONFIG,
                     reloadGuards: [FakeJwtGuard], // reloadGuards alone is not enough
                 }),
-            /guards.*Pflicht/,
+            /guards.*required/,
         );
     });
 });

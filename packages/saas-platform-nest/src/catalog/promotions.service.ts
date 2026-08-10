@@ -27,7 +27,7 @@ export class PromotionsService {
     async getById(id: string): Promise<PromotionRow> {
         const row = await this.repo.findById(id);
         if (!row) {
-            throw new NotFoundException(`Promotion '${id}' nicht gefunden`);
+            throw new NotFoundException(`Promotion '${id}' not found`);
         }
         return row;
     }
@@ -39,7 +39,7 @@ export class PromotionsService {
     async update(id: string, data: UpdatePromotionData): Promise<PromotionRow> {
         const existing = await this.repo.findById(id);
         if (!existing) {
-            throw new NotFoundException(`Promotion '${id}' nicht gefunden`);
+            throw new NotFoundException(`Promotion '${id}' not found`);
         }
         return this.repo.update(id, data);
     }
@@ -47,7 +47,7 @@ export class PromotionsService {
     async delete(id: string): Promise<void> {
         const existing = await this.repo.findById(id);
         if (!existing) {
-            throw new NotFoundException(`Promotion '${id}' nicht gefunden`);
+            throw new NotFoundException(`Promotion '${id}' not found`);
         }
         await this.repo.delete(id);
     }

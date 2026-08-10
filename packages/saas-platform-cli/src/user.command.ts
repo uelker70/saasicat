@@ -67,7 +67,7 @@ export class UserCommands extends CommandRunner {
             default:
                 throw new CliError(
                     'UNKNOWN_SUBCOMMAND',
-                    `Unbekannter Subbefehl: user ${sub ?? '(leer)'}. Verfügbar: create-super-admin <email>, reassign-admin <slug>, list <slug>, reset-password <email>, deactivate <email>.`,
+                    `Unknown sub-command: user ${sub ?? '(empty)'}. Available: create-super-admin <email>, reassign-admin <slug>, list <slug>, reset-password <email>, deactivate <email>.`,
                     1,
                 );
         }
@@ -83,7 +83,7 @@ export class UserCommands extends CommandRunner {
         if (!email) {
             throw new CliError(
                 'MISSING_ARG',
-                'user create-super-admin <email> erwartet eine E-Mail.',
+                'user create-super-admin <email> expects an email address.',
                 1,
             );
         }
@@ -112,9 +112,9 @@ export class UserCommands extends CommandRunner {
         console.log(`  User-ID: ${created.id}`);
         if (generated) {
             console.log(`  Passwort: ${password}`);
-            console.log('  → Sicher übermitteln. Beim ersten Login ändern.');
+            console.log('  → Share it securely. Change it on first login.');
         }
-        console.log(`  Nächster Schritt: admin mfa-setup für ${created.email}.`);
+        console.log(`  Next step: admin mfa-setup for ${created.email}.`);
     }
 
     private async reassignAdmin(
@@ -126,12 +126,12 @@ export class UserCommands extends CommandRunner {
         if (!slug) {
             throw new CliError(
                 'MISSING_ARG',
-                'user reassign-admin <tenant-slug> erwartet einen Slug.',
+                'user reassign-admin <tenant-slug> expects a slug.',
                 1,
             );
         }
-        if (!flags.to) throw new CliError('MISSING_FLAG', '--to=<email> ist Pflicht.', 1);
-        if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" ist Pflicht.', 1);
+        if (!flags.to) throw new CliError('MISSING_FLAG', '--to=<email> is required.', 1);
+        if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" is required.', 1);
         await this.ctx.requireMfa(meId);
 
         const result = await this.users.reassignTenantAdmin(slug, flags.to.toLowerCase());
@@ -152,19 +152,19 @@ export class UserCommands extends CommandRunner {
         });
 
         if (result.created) {
-            console.log(`✔ Notfall-Admin ${result.user.email} für ${slug} angelegt.`);
+            console.log(`✔ Emergency admin ${result.user.email} created for ${slug}.`);
             if (result.oneTimePassword) {
                 console.log(`  Initial-Passwort: ${result.oneTimePassword}`);
-                console.log('  → Sicher übermitteln. Beim ersten Login ändern.');
+                console.log('  → Share it securely. Change it on first login.');
             }
         } else {
-            console.log(`✔ ${result.user.email} ist jetzt TENANT_ADMIN von ${slug}.`);
+            console.log(`✔ ${result.user.email} is now TENANT_ADMIN of ${slug}.`);
         }
     }
 
     private async list(slug: string | undefined): Promise<void> {
         if (!slug) {
-            throw new CliError('MISSING_ARG', 'user list <tenant-slug> erwartet einen Slug.', 1);
+            throw new CliError('MISSING_ARG', 'user list <tenant-slug> expects a slug.', 1);
         }
         const rows = await this.users.listTenantUsers(slug);
         this.ctx.table(
@@ -186,11 +186,11 @@ export class UserCommands extends CommandRunner {
         if (!email) {
             throw new CliError(
                 'MISSING_ARG',
-                'user reset-password <email> erwartet eine E-Mail.',
+                'user reset-password <email> expects an email address.',
                 1,
             );
         }
-        if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" ist Pflicht.', 1);
+        if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" is required.', 1);
 
         const result = await this.users.triggerPasswordReset(email.toLowerCase());
 
@@ -204,11 +204,11 @@ export class UserCommands extends CommandRunner {
         });
 
         if (result.oneTimePassword) {
-            console.log(`✔ Einmal-Passwort für ${result.user.email} gesetzt.`);
+            console.log(`✔ One-time password set for ${result.user.email}.`);
             console.log(`  Passwort: ${result.oneTimePassword}`);
-            console.log('  → Sicher übermitteln. Beim ersten Login ändern.');
+            console.log('  → Share it securely. Change it on first login.');
         } else {
-            console.log(`✔ Passwort-Reset für ${result.user.email} ausgelöst.`);
+            console.log(`✔ Password reset triggered for ${result.user.email}.`);
         }
     }
 
@@ -219,9 +219,13 @@ export class UserCommands extends CommandRunner {
         meId: string,
     ): Promise<void> {
         if (!email) {
-            throw new CliError('MISSING_ARG', 'user deactivate <email> erwartet eine E-Mail.', 1);
+            throw new CliError(
+                'MISSING_ARG',
+                'user deactivate <email> expects an email address.',
+                1,
+            );
         }
-        if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" ist Pflicht.', 1);
+        if (!flags.reason) throw new CliError('MISSING_FLAG', '--reason="…" is required.', 1);
         await this.ctx.requireMfa(meId);
         await this.ctx.ensureProductionConfirmation({ yes: flags.yes });
 
@@ -239,7 +243,7 @@ export class UserCommands extends CommandRunner {
         console.log(`✔ ${user.email} deaktiviert.`);
     }
 
-    @Option({ flags: '--as <email>', description: 'CLI-Identität (sonst <APP>_ADMIN_EMAIL)' })
+    @Option({ flags: '--as <email>', description: 'CLI identity (otherwise <APP>_ADMIN_EMAIL)' })
     parseAs(val: string): string {
         return val;
     }
@@ -247,11 +251,11 @@ export class UserCommands extends CommandRunner {
     parseTo(val: string): string {
         return val;
     }
-    @Option({ flags: '--reason <text>', description: 'Begründung (Audit)' })
+    @Option({ flags: '--reason <text>', description: 'Reason (audit)' })
     parseReason(val: string): string {
         return val;
     }
-    @Option({ flags: '-y, --yes', description: 'Production-Confirmation überspringen' })
+    @Option({ flags: '-y, --yes', description: 'Skip the production confirmation' })
     parseYes(): boolean {
         return true;
     }

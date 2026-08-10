@@ -30,7 +30,7 @@ export function findPlan(catalog: PlanCatalog, planId: PlanId): PlanDef | undefi
 export function getPlanOrThrow(catalog: PlanCatalog, planId: PlanId): PlanDef {
     const plan = findPlan(catalog, planId);
     if (!plan) {
-        throw new Error(`Plan "${planId}" nicht im Catalog (${catalog.projectKey}) gefunden`);
+        throw new Error(`Plan "${planId}" not found in the catalog (${catalog.projectKey})`);
     }
     return plan;
 }

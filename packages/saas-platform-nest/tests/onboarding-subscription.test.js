@@ -78,7 +78,7 @@ function buildPromoStub({ shouldFail = false } = {}) {
         redeemCalls: [],
         async redeem(input) {
             this.redeemCalls.push(input);
-            if (shouldFail) throw new Error('Code nicht einlösbar: EXPIRED');
+            if (shouldFail) throw new Error('Code cannot be redeemed: EXPIRED');
             return {
                 id: 'red-1',
                 promoCodeId: 'p1',
@@ -202,7 +202,7 @@ test('onboarding without PromoCodesService reports promoCode as a warning, persi
     assert.equal(write.changePlanCalls.length, 1);
     assert.equal(result.promoRedemption, null);
     assert.equal(result.warnings.length, 1);
-    assert.match(result.warnings[0], /PromoCodesModule ist nicht geladen/);
+    assert.match(result.warnings[0], /PromoCodesModule is not loaded/);
 });
 
 test('onboarding without SubscriptionUsageRecord.id reports promoCode as a warning', async () => {
@@ -258,7 +258,7 @@ test('onboarding throws ForbiddenException for blocked self-service plans', asyn
                 { user: { tenantId: 't1', sub: 'u1' } },
                 { plan: 'ENTERPRISE', billingCycle: 'YEARLY' },
             ),
-        /ENTERPRISE wird nicht per Self-Service/,
+        /ENTERPRISE is not activated via self-service/,
     );
 });
 
@@ -288,7 +288,7 @@ test('onboarding throws NotFoundException without a subscription', async () => {
                 { user: { tenantId: 't404', sub: 'u1' } },
                 { plan: 'SPORT', billingCycle: 'YEARLY' },
             ),
-        /Keine Subscription/,
+        /No subscription/,
     );
 });
 
@@ -644,5 +644,5 @@ test('onboarding: bundleVersionIds without a registered module → warning, no c
         },
     );
     assert.equal(result.bundlesAdded, 0);
-    assert.match(result.warnings[0], /SubscriptionBundleModule ist nicht/);
+    assert.match(result.warnings[0], /SubscriptionBundleModule is not/);
 });

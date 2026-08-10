@@ -78,7 +78,7 @@ export class PlanVersionsService {
         if (this.mode === 'blocking' && !hasDiscoverySnapshotSource(this.snapshot, this.scanner)) {
             this.logger.error(
                 'PlanVersionsService: strictModeCheckMode=blocking ohne DiscoverySnapshot-Quelle — ' +
-                    'degradiere auf warn-only. DiscoveryModule wiren (#25).',
+                    'degrading to warn-only. Wire DiscoveryModule (#25).',
             );
             this.mode = 'warn-only';
         }
@@ -98,8 +98,8 @@ export class PlanVersionsService {
         for (const key of required) {
             if (typeof this.repo[key] !== 'function') {
                 throw new Error(
-                    `PlanVersionsService: PlanRepository.${String(key)} fehlt — ` +
-                        'das Repository implementiert die Lifecycle-Methoden nicht.',
+                    `PlanVersionsService: PlanRepository.${String(key)} is missing — ` +
+                        'the repository does not implement the lifecycle methods.',
                 );
             }
         }
@@ -117,19 +117,19 @@ export class PlanVersionsService {
     async discardPlanDraft(versionId: string): Promise<void> {
         const existing = await this.repo.findVersionById!(versionId);
         if (!existing) {
-            throw new NotFoundException(`PlanVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
         }
         if (existing.publishedAt !== null) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_ALREADY_PUBLISHED',
-                message: `PlanVersion '${versionId}' ist bereits published und kann nicht verworfen werden.`,
+                message: `PlanVersion '${versionId}' is already published and cannot be discardederden.`,
             });
         }
         if (typeof this.repo.deletePlanVersionDraft !== 'function') {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_DISCARD_NOT_IMPLEMENTED',
                 message:
-                    'Discard ist im aktuellen Repository nicht implementiert. ' +
+                    'Discard is not implemented in the current repository. ' +
                     'Implementiere PlanRepository.deletePlanVersionDraft.',
             });
         }
@@ -144,7 +144,7 @@ export class PlanVersionsService {
     async listPlanVersions(planUuid: string): Promise<PlanVersionRow[]> {
         const plan = await this.repo.findById(planUuid);
         if (!plan) {
-            throw new NotFoundException(`Plan '${planUuid}' nicht gefunden`);
+            throw new NotFoundException(`Plan '${planUuid}' not found`);
         }
         const versions = await this.repo.listVersions!(plan.planKey);
         return this.annotateEditability(versions);
@@ -153,7 +153,7 @@ export class PlanVersionsService {
     async getPlanVersion(versionId: string): Promise<PlanVersionRow> {
         const version = await this.repo.findVersionById!(versionId);
         if (!version) {
-            throw new NotFoundException(`PlanVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
         }
         const [annotated] = await this.annotateEditability([version]);
         return annotated;
@@ -195,14 +195,14 @@ export class PlanVersionsService {
     async createPlanDraft(data: CreatePlanVersionDraftData): Promise<PlanVersionMutationResult> {
         const plan = await this.repo.findById(data.planId);
         if (!plan) {
-            throw new NotFoundException(`Plan '${data.planId}' nicht gefunden`);
+            throw new NotFoundException(`Plan '${data.planId}' not found`);
         }
         const planKey = plan.planKey;
 
         const existingDraft = await this.repo.findCurrentDraft!(planKey);
         if (existingDraft) {
             throw new UnprocessableEntityException(
-                `Plan '${planKey}' hat bereits eine Draft-Version v${existingDraft.version}; bitte erst publishen oder verwerfen`,
+                `Plan '${planKey}' already has a draft version v${existingDraft.version}; publish or discard it first`,
             );
         }
 
@@ -233,7 +233,7 @@ export class PlanVersionsService {
     ): Promise<PlanVersionMutationResult> {
         const existing = await this.repo.findVersionById!(versionId);
         if (!existing) {
-            throw new NotFoundException(`PlanVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
         }
 
         // Editability gate: draft (classic) or published-but-future
@@ -246,9 +246,9 @@ export class PlanVersionsService {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_NOT_EDITABLE',
                 message:
-                    `PlanVersion '${versionId}' ist nicht editierbar. ` +
-                    'Editierbar sind nur Drafts und published Versionen, die latest-in-chain ' +
-                    'sind, noch keine Subscription binden und deren validFrom in der Zukunft liegt.',
+                    `PlanVersion '${versionId}' is not editable. ` +
+                    'Only drafts and published versions are editable that are latest-in-chain, ' +
+                    'bind no subscription yet, and whose validFrom lies in the future.',
             });
         }
 
@@ -269,11 +269,11 @@ export class PlanVersionsService {
     ): Promise<PlanVersionMutationResult> {
         const draft = await this.repo.findVersionById!(versionId);
         if (!draft) {
-            throw new NotFoundException(`PlanVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
         }
         if (draft.publishedAt !== null) {
             throw new UnprocessableEntityException(
-                `PlanVersion '${versionId}' ist bereits published`,
+                `PlanVersion '${versionId}' is already published`,
             );
         }
 
@@ -295,8 +295,8 @@ export class PlanVersionsService {
                 throw new UnprocessableEntityException({
                     code: 'PLAN_VERSION_ZERO_PRICE',
                     message:
-                        'PlanVersion kann nicht mit Preis 0,00 published werden (Schutz gegen ' +
-                        'Seed-Platzhalter). Für bewusst kostenlose Sonderverträge: allowZeroPrice setzen.',
+                        'A plan version cannot be published with a price of 0.00 (guard against ' +
+                        'seed placeholder). For deliberately free special contracts, set allowZeroPrice.',
                     monthlyNet: String(draft.monthlyNet),
                     yearlyNet: String(draft.yearlyNet),
                 });
@@ -311,14 +311,14 @@ export class PlanVersionsService {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_VALID_FROM_REQUIRED',
                 message:
-                    'Beim Publish muss validFrom gesetzt sein (auf Draft oder Publish-Aufruf). SPEC_V2 §4.2.',
+                    'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
             });
         }
         const validFrom = new Date(validFromInput);
         if (Number.isNaN(validFrom.getTime())) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_VALID_FROM_INVALID',
-                message: `validFrom '${validFromInput}' ist kein gültiges Datum`,
+                message: `validFrom '${validFromInput}' is not a valid date`,
             });
         }
         if (previous?.validFrom) {
@@ -326,7 +326,7 @@ export class PlanVersionsService {
             if (validFrom <= prevFrom) {
                 throw new UnprocessableEntityException({
                     code: 'PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS',
-                    message: `validFrom (${validFrom.toISOString()}) muss strikt nach validFrom der Vorgänger-Version (${previous.validFrom}) liegen.`,
+                    message: `validFrom (${validFrom.toISOString()}) must be strictly after the validFrom of the predeger-Version (${previous.validFrom}) liegen.`,
                 });
             }
             // SPEC_V2 §4.2.1 rule 3 (extended): gapless succession when
@@ -342,9 +342,9 @@ export class PlanVersionsService {
                     throw new UnprocessableEntityException({
                         code: 'PLAN_VERSION_VALID_FROM_NOT_GAPLESS',
                         message:
-                            `Vorgänger hat validUntil=${previous.validUntil.slice(0, 10)} — der Nachfolger muss ` +
-                            `nahtlos am Folgetag (${requiredStart.toISOString().slice(0, 10)}) starten. ` +
-                            `Geliefert: ${validFrom.toISOString().slice(0, 10)}.`,
+                            `The predecessor has validUntil=${previous.validUntil.slice(0, 10)} — the successor must ` +
+                            `start seamlessly on the next day (${requiredStart.toISOString().slice(0, 10)}). ` +
+                            `Received: ${validFrom.toISOString().slice(0, 10)}.`,
                         requiredValidFrom: requiredStart.toISOString().slice(0, 10),
                         previousValidUntil: previous.validUntil,
                     });
@@ -360,13 +360,13 @@ export class PlanVersionsService {
         if (validUntil && Number.isNaN(validUntil.getTime())) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_VALID_UNTIL_INVALID',
-                message: `validUntil '${validUntilInput}' ist kein gültiges Datum`,
+                message: `validUntil '${validUntilInput}' is not a valid date`,
             });
         }
         if (validUntil && validUntil <= validFrom) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_VALID_UNTIL_BEFORE_FROM',
-                message: `validUntil (${validUntil.toISOString()}) muss strikt nach validFrom (${validFrom.toISOString()}) liegen.`,
+                message: `validUntil (${validUntil.toISOString()}) must be strictly after validFrom (${validFrom.toISOString()}) liegen.`,
             });
         }
 
@@ -390,8 +390,8 @@ export class PlanVersionsService {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_REGRESSION',
                 message:
-                    'Diese PlanVersion ist regressiv (Feature entfernt / Quota gesenkt / Preis erhöht). ' +
-                    'Publishen erfordert explizites `forceRegressive: true` (UI-Bestätigungsmodal mit MFA).',
+                    'This plan version is regressive (feature removed / quota lowered / price raised). ' +
+                    'Publishing requires an explicit `forceRegressive: true` (UI confirmation dialog with MFA).',
                 changes: diff.changes,
             });
         }
@@ -425,37 +425,37 @@ export class PlanVersionsService {
     async terminatePlanVersion(versionId: string, endsAt: Date): Promise<PlanVersionRow> {
         const existing = await this.repo.findVersionById!(versionId);
         if (!existing) {
-            throw new NotFoundException(`PlanVersion '${versionId}' nicht gefunden`);
+            throw new NotFoundException(`PlanVersion '${versionId}' not found`);
         }
         if (existing.publishedAt === null) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_NOT_LIVE',
-                message: `PlanVersion '${versionId}' ist nicht published und kann nicht terminiert werden.`,
+                message: `PlanVersion '${versionId}' is not published and cannot be terminated.`,
             });
         }
         if (existing.supersededAt !== null) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_VERSION_NOT_LIVE',
-                message: `PlanVersion '${versionId}' wurde bereits von einer Nachfolge-Version abgelöst (supersededAt) und kann nicht terminiert werden.`,
+                message: `PlanVersion '${versionId}' has already been superseded by a newer version (supersededAt) and cannot be terminated.`,
             });
         }
         if (Number.isNaN(endsAt.getTime())) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_TERMINATE_INVALID_DATE',
-                message: 'endsAt ist kein gültiges Datum.',
+                message: 'endsAt is not a valid date.',
             });
         }
         if (endsAt.getTime() <= Date.now()) {
             throw new UnprocessableEntityException({
                 code: 'PLAN_TERMINATE_DATE_NOT_FUTURE',
-                message: `endsAt (${endsAt.toISOString()}) muss strikt in der Zukunft liegen.`,
+                message: `endsAt (${endsAt.toISOString()}) must lie strictly in the future.`,
             });
         }
         if (typeof this.repo.terminate !== 'function') {
             throw new UnprocessableEntityException({
                 code: 'PLAN_TERMINATE_NOT_IMPLEMENTED',
                 message:
-                    'Terminate ist im aktuellen Repository nicht implementiert. ' +
+                    'Terminate is not implemented in the current repository. ' +
                     'Implementiere PlanRepository.terminate.',
             });
         }
@@ -483,7 +483,7 @@ export class PlanVersionsService {
         if (this.mode === 'blocking') {
             throw new UnprocessableEntityException({
                 code: 'STRICT_MODE_VIOLATIONS',
-                message: 'Strict-Mode-Check hat Drift gegen den Discovery-Snapshot gefunden.',
+                message: 'The strict-mode check found drift against the discovery snapshot.',
                 warnings,
             });
         }

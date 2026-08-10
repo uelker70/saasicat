@@ -48,7 +48,7 @@ function dependencyWarnings(
             if (selected.has(required)) continue;
             warnings.push({
                 code,
-                message: `Feature '${feature}' setzt '${required}' voraus, das in dieser Auswahl fehlt. Beim Tenant muss die Abhängigkeit anderweitig gedeckt sein (z. B. durch den Plan) — sonst funktioniert das Feature nicht.`,
+                message: `Feature '${feature}' requires '${required}', which is missing from this selection. The tenant must cover that dependency some other way (for example through the plan) — otherwise the feature will not work.`,
                 field: `features[${index}]`,
                 value: required,
             });
@@ -108,7 +108,7 @@ export function validateBundleDraft(
             if (approved && !approved.features.has(feature)) {
                 warnings.push({
                     code: 'BUNDLE_FEATURE_NOT_APPROVED',
-                    message: `Feature '${feature}' ist nicht freigegeben (Status != approved). Nur freigegebene Features sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                    message: `Feature '${feature}' is not approved (status != approved). Only approvedgebene Features sind verkaufbar — im Discovery-Review freigeben (#20).`,
                     field: `features[${index}]`,
                     value: feature,
                 });
@@ -117,7 +117,7 @@ export function validateBundleDraft(
         }
         warnings.push({
             code: 'BUNDLE_FEATURE_UNKNOWN',
-            message: `Feature '${feature}' wurde im Discovery-Snapshot nicht gefunden. Entweder fehlt im Code eine @ImplementsCapability(..., { feature: '${feature}' })-Annotation, oder das Feature ist veraltet.`,
+            message: `Feature '${feature}' was not found in the discovery snapshot. Either the code is missing an @ImplementsCapability(..., { feature: '${feature}' }) annotation, or the feature is obsolete.`,
             field: `features[${index}]`,
             value: feature,
         });
@@ -127,14 +127,14 @@ export function validateBundleDraft(
         if (!knownQuotas.has(quotaKey)) {
             warnings.push({
                 code: 'QUOTA_MISSING',
-                message: `Quota '${quotaKey}' wurde im Discovery-Snapshot nicht gefunden. Im Code muss eine Klasse mit @DefinesQuota({ key: '${quotaKey}', ... }) annotiert sein.`,
+                message: `Quota '${quotaKey}' was not found in the discovery snapshot. In code, a class must be annotated with @DefinesQuota({ key: '${quotaKey}', ... }).`,
                 field: `quotas.${quotaKey}`,
                 value: quotaKey,
             });
         } else if (approved && !approved.quotas.has(quotaKey)) {
             warnings.push({
                 code: 'QUOTA_NOT_APPROVED',
-                message: `Quota '${quotaKey}' ist nicht freigegeben (Status != approved). Nur freigegebene Quotas sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                message: `Quota '${quotaKey}' is not approved (status != approved). Only approvedgebene Quotas sind verkaufbar — im Discovery-Review freigeben (#20).`,
                 field: `quotas.${quotaKey}`,
                 value: quotaKey,
             });
@@ -147,7 +147,7 @@ export function validateBundleDraft(
             if (knownPlanKeys.has(planKey)) return;
             warnings.push({
                 code: 'BUNDLE_PLAN_KEY_UNKNOWN',
-                message: `Plan '${planKey}' aus compatibility.planIds existiert im Project nicht. Entweder den planKey korrigieren oder den Plan-Stamm zuerst anlegen.`,
+                message: `Plan '${planKey}' from compatibility.planIds does not exist in the project. Either fix the planKey, or create the plan record first.`,
                 field: `compatibility.planIds[${index}]`,
                 value: planKey,
             });
@@ -202,7 +202,7 @@ export function validatePlanDraft(
             if (approved && !approved.features.has(feature)) {
                 warnings.push({
                     code: 'PLAN_FEATURE_NOT_APPROVED',
-                    message: `Feature '${feature}' ist nicht freigegeben (Status != approved). Nur freigegebene Features sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                    message: `Feature '${feature}' is not approved (status != approved). Only approvedgebene Features sind verkaufbar — im Discovery-Review freigeben (#20).`,
                     field: `features[${index}]`,
                     value: feature,
                 });
@@ -211,7 +211,7 @@ export function validatePlanDraft(
         }
         warnings.push({
             code: 'PLAN_FEATURE_UNKNOWN',
-            message: `Feature '${feature}' wurde im Discovery-Snapshot nicht gefunden. Entweder fehlt im Code eine @ImplementsCapability(..., { feature: '${feature}' })-Annotation, oder das Feature ist veraltet.`,
+            message: `Feature '${feature}' was not found in the discovery snapshot. Either the code is missing an @ImplementsCapability(..., { feature: '${feature}' }) annotation, or the feature is obsolete.`,
             field: `features[${index}]`,
             value: feature,
         });
@@ -221,14 +221,14 @@ export function validatePlanDraft(
         if (!knownQuotas.has(quotaKey)) {
             warnings.push({
                 code: 'QUOTA_MISSING',
-                message: `Quota '${quotaKey}' wurde im Discovery-Snapshot nicht gefunden. Im Code muss eine Klasse mit @DefinesQuota({ key: '${quotaKey}', ... }) annotiert sein.`,
+                message: `Quota '${quotaKey}' was not found in the discovery snapshot. In code, a class must be annotated with @DefinesQuota({ key: '${quotaKey}', ... }).`,
                 field: `quotas.${quotaKey}`,
                 value: quotaKey,
             });
         } else if (approved && !approved.quotas.has(quotaKey)) {
             warnings.push({
                 code: 'QUOTA_NOT_APPROVED',
-                message: `Quota '${quotaKey}' ist nicht freigegeben (Status != approved). Nur freigegebene Quotas sind verkaufbar — im Discovery-Review freigeben (#20).`,
+                message: `Quota '${quotaKey}' is not approved (status != approved). Only approvedgebene Quotas sind verkaufbar — im Discovery-Review freigeben (#20).`,
                 field: `quotas.${quotaKey}`,
                 value: quotaKey,
             });

@@ -5,6 +5,6 @@ export class VerifyRegistrationOtpDto {
     email!: string;
 
     @IsString()
-    @Matches(/^\d{6}$/, { message: 'OTP muss 6 Ziffern sein.' })
+    @Matches(/^\d{6}$/, { message: 'The OTP must be 6 digits.' })
     otp!: string;
 }

@@ -54,7 +54,7 @@ describe('runSeedGateFromFile', () => {
             warn: sink,
         });
         assert.equal(report, null);
-        assert.match(lines[0], /übersprungen/);
+        assert.match(lines[0], /skipped/);
     });
 
     test('blocking without snapshot → exit 4', () => {

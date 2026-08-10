@@ -23,7 +23,7 @@ const CYCLES = ['monthly', 'yearly'] as const;
 
 export class CreateCheckoutOfferDto {
     @IsString()
-    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey muss kebab-case sein' })
+    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey must be kebab-case' })
     @MaxLength(64)
     projectKey!: string;
 

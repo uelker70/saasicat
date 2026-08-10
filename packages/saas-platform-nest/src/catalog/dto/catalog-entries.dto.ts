@@ -9,7 +9,7 @@ const CODE_STATUSES = ['active', 'experimental', 'deprecated', 'retired'] as con
 
 export class ListCatalogEntriesQueryDto {
     @IsString()
-    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey muss kebab-case sein' })
+    @Matches(PROJECT_KEY_PATTERN, { message: 'projectKey must be kebab-case' })
     projectKey!: string;
 
     /** Filter for features/quotas (approval lifecycle). */
@@ -32,7 +32,7 @@ export class ListCatalogEntriesQueryDto {
 export class ReviewCatalogEntryDto {
     @IsString()
     @IsIn(REVIEW_STATUSES as unknown as string[], {
-        message: 'discoveryStatus muss pending|approved|outdated|obsolete sein',
+        message: 'discoveryStatus must be pending|approved|outdated|obsolete',
     })
     discoveryStatus!: DiscoveryStatus;
 }

@@ -40,7 +40,7 @@ export class MarketingTopFeatureDto {
 export class CreateMarketingProjectionDto {
     @IsString()
     @Matches(PROJECT_KEY_PATTERN, {
-        message: 'projectKey muss kebab-case sein',
+        message: 'projectKey must be kebab-case',
     })
     @MaxLength(64)
     projectKey!: string;
@@ -55,7 +55,7 @@ export class CreateMarketingProjectionDto {
     @IsOptional()
     @IsString()
     @Matches(LOCALE_PATTERN, {
-        message: 'locale muss ISO-639-1 sein (z. B. "de", "en", "de-AT")',
+        message: 'locale must be ISO-639-1 (e.g. "de", "en", "de-AT")',
     })
     locale?: string;
 
