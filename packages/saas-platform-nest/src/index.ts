@@ -55,3 +55,4 @@ export {
     type SaasPlatformTenantAuthGuards,
     type SaasPlatformTenantBillingOptions,
 } from './platform/index.js';
+export * from './errors/coded-error.js';

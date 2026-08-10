@@ -53,6 +53,7 @@ import {
     PENDING_ONBOARDING_TTL_DAYS,
     REGISTRATION_STEP_BY_STATUS,
 } from '@saasicat/types';
+import { codedError } from '../errors/coded-error.js';
 import { generateOtpCode, hashOtpCode, slugify, verifyOtpCode } from './helpers.js';
 import { computeBreakdown } from './pricing.js';
 import {
@@ -162,14 +163,14 @@ export class PendingRegistrationService {
     ): Promise<SelectPlanResult> {
         const pending = await this.repo.findById(input.pendingRegistrationId);
         if (!pending) {
-            throw new NotFoundException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND,
-            });
+            throw new NotFoundException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND),
+            );
         }
         if (pending.expiresAt.getTime() < Date.now()) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED),
+            );
         }
         // A plan can only be selected after email verification and before
         // activation has completed. Switching plans in status PLAN_SELECTED /
@@ -179,9 +180,9 @@ export class PendingRegistrationService {
             pending.status !== 'PLAN_SELECTED' &&
             pending.status !== 'CHECKOUT_STARTED'
         ) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.INVALID_REGISTRATION_STATE,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.INVALID_REGISTRATION_STATE),
+            );
         }
 
         const plan = await this.planCatalog.findPublicSignupPlan(input.planId);
@@ -189,7 +190,7 @@ export class PendingRegistrationService {
             // The plan does not exist in the catalog OR is not eligible for public
             // signup (e.g. ENTERPRISE). Both cases return the same response so that
             // plan existence does not leak via differing error codes.
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.PLAN_NOT_AVAILABLE });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.PLAN_NOT_AVAILABLE));
         }
 
         const now = new Date();
@@ -217,26 +218,26 @@ export class PendingRegistrationService {
     ): Promise<StartCheckoutResult> {
         const pending = await this.repo.findById(input.pendingRegistrationId);
         if (!pending) {
-            throw new NotFoundException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND,
-            });
+            throw new NotFoundException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND),
+            );
         }
         if (pending.expiresAt.getTime() < Date.now()) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED),
+            );
         }
         if (pending.status !== 'PLAN_SELECTED' && pending.status !== 'CHECKOUT_STARTED') {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.PLAN_NOT_SELECTED });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.PLAN_NOT_SELECTED));
         }
         if (!pending.selectedPlanId) {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.PLAN_NOT_SELECTED });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.PLAN_NOT_SELECTED));
         }
         // Security re-check: the plan could have been removed from the catalog
         // between step 3 and step 4 (e.g. a maintenance window).
         const plan = await this.planCatalog.findPublicSignupPlan(pending.selectedPlanId);
         if (!plan) {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.PLAN_NOT_AVAILABLE });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.PLAN_NOT_AVAILABLE));
         }
 
         const session = await this.paymentProvider.createCheckoutSession({
@@ -461,7 +462,7 @@ export class PendingRegistrationService {
         const pending = await this.repo.findByEmail(email);
         if (!pending) {
             await this.record('OTP_VERIFY_FAILED', null, context, { reason: 'unknown_email' });
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.OTP_INVALID });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.OTP_INVALID));
         }
 
         if (pending.status !== 'PENDING_EMAIL_VERIFICATION') {
@@ -476,11 +477,11 @@ export class PendingRegistrationService {
 
         if (!pending.otpHash || !pending.otpExpiresAt) {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'no_otp_set' });
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.OTP_INVALID });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.OTP_INVALID));
         }
         if (pending.otpExpiresAt.getTime() < Date.now()) {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'expired' });
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.OTP_EXPIRED });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.OTP_EXPIRED));
         }
         // Brute-force lockout as claim-then-check: first atomically claim an
         // attempt slot, THEN compare — this hard-caps the number of hash
@@ -490,7 +491,7 @@ export class PendingRegistrationService {
         const maxAttempts = resolveOtpVerifyMaxAttempts();
         if (pending.otpAttemptCount >= maxAttempts) {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'locked' });
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.OTP_LOCKED });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.OTP_LOCKED));
         }
         // `newCount > limit` means: the counter was already at the limit BEFORE
         // this attempt — a concurrent request has already used up the budget;
@@ -498,11 +499,11 @@ export class PendingRegistrationService {
         const attemptCount = await this.repo.incrementOtpAttemptCount(pending.id);
         if (attemptCount > maxAttempts) {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'locked' });
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.OTP_LOCKED });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.OTP_LOCKED));
         }
         if (!verifyOtpCode(pending.otpHash, code)) {
             await this.record('OTP_VERIFY_FAILED', pending.id, context, { reason: 'wrong_code' });
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.OTP_INVALID });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.OTP_INVALID));
         }
 
         const now = new Date();
@@ -634,22 +635,28 @@ export class PendingRegistrationService {
         context?: RegistrationAuditContext,
     ): Promise<ResumeRegistrationResult> {
         if (!this.resumeTokenSigner) {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.RESUME_NOT_CONFIGURED });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.RESUME_NOT_CONFIGURED),
+            );
         }
         let decoded: { pendingRegistrationId: string };
         try {
             decoded = await this.resumeTokenSigner.verify(input.token);
         } catch {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.RESUME_TOKEN_INVALID });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.RESUME_TOKEN_INVALID),
+            );
         }
         const pending = await this.repo.findById(decoded.pendingRegistrationId);
         if (!pending) {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.RESUME_TOKEN_INVALID });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.RESUME_TOKEN_INVALID),
+            );
         }
         if (pending.expiresAt.getTime() < Date.now()) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED),
+            );
         }
         await this.record('REGISTRATION_NEUTRAL_REPLAY', pending.id, context, {
             via: 'resume_token',
@@ -678,9 +685,9 @@ export class PendingRegistrationService {
     /** Returns the (app-specific) configurator catalog. */
     async getConfiguratorCatalog(): Promise<ConfiguratorCatalog> {
         if (!this.configuratorLookup) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.CONFIGURATOR_NOT_CONFIGURED,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.CONFIGURATOR_NOT_CONFIGURED),
+            );
         }
         return this.configuratorLookup.getCatalog();
     }
@@ -701,35 +708,35 @@ export class PendingRegistrationService {
         context?: RegistrationAuditContext,
     ): Promise<SaveRegistrationConfigResult> {
         if (!this.configuratorLookup) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.CONFIGURATOR_NOT_CONFIGURED,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.CONFIGURATOR_NOT_CONFIGURED),
+            );
         }
         const pending = await this.repo.findById(input.pendingRegistrationId);
         if (!pending) {
-            throw new NotFoundException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND,
-            });
+            throw new NotFoundException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND),
+            );
         }
         if (pending.expiresAt.getTime() < Date.now()) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_EXPIRED),
+            );
         }
         if (
             pending.status !== 'EMAIL_VERIFIED' &&
             pending.status !== 'PLAN_SELECTED' &&
             pending.status !== 'CHECKOUT_STARTED'
         ) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.INVALID_REGISTRATION_STATE,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.INVALID_REGISTRATION_STATE),
+            );
         }
 
         const catalog = await this.configuratorLookup.getCatalog();
         const model = catalog.models.find((m) => m.id === input.selection.modelId);
         if (!model) {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.MODEL_NOT_AVAILABLE });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.MODEL_NOT_AVAILABLE));
         }
 
         // Promo code optional: when present, run it against the preview adapter.
@@ -811,24 +818,24 @@ export class PendingRegistrationService {
         code: string | null,
     ): Promise<ConfiguratorPriceBreakdown> {
         if (!this.configuratorLookup) {
-            throw new BadRequestException({
-                code: REGISTRATION_ERROR_CODES.CONFIGURATOR_NOT_CONFIGURED,
-            });
+            throw new BadRequestException(
+                codedError(REGISTRATION_ERROR_CODES.CONFIGURATOR_NOT_CONFIGURED),
+            );
         }
         const pending = await this.repo.findById(pendingRegistrationId);
         if (!pending) {
-            throw new NotFoundException({
-                code: REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND,
-            });
+            throw new NotFoundException(
+                codedError(REGISTRATION_ERROR_CODES.PENDING_REGISTRATION_NOT_FOUND),
+            );
         }
         const config = pending.configJson;
         if (!config) {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.CONFIG_NOT_SAVED });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.CONFIG_NOT_SAVED));
         }
         const catalog = await this.configuratorLookup.getCatalog();
         const model = catalog.models.find((m) => m.id === config.modelId);
         if (!model) {
-            throw new BadRequestException({ code: REGISTRATION_ERROR_CODES.MODEL_NOT_AVAILABLE });
+            throw new BadRequestException(codedError(REGISTRATION_ERROR_CODES.MODEL_NOT_AVAILABLE));
         }
 
         let promoEval: { discountAmount: number; percent: number; label: string } | undefined;

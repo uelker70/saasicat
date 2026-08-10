@@ -198,7 +198,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
         assert.equal(canceled.canceledEffectiveAt?.toISOString(), '2027-01-01T00:00:00.000Z');
     });
 
-    test('second cancellation → 422 SUBSCRIPTION_BUNDLE_ALREADY_CANCELED', async () => {
+    test('second cancellation → 422 SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED', async () => {
         const bv = await createPublishedBundle({ key: 'B1', planIds: [STARTER] });
         const row = await service.addBundleToSubscription({
             subscriptionId: SUB_A,
@@ -218,7 +218,7 @@ describe('SubscriptionBundlesService — cancelBundleFromSubscription', () => {
                 }),
             (err) => {
                 assert.equal(err.status, 422);
-                assert.equal(err.response?.code, 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED');
+                assert.equal(err.response?.code, 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED');
                 return true;
             },
         );

@@ -1,11 +1,11 @@
 // Smoke tests for PromoCodePublicController.
 // Direct instantiation without NestJS bootstrap, using a minimal PromoCodesService
-// stub implementation. RateLimitGuard is not exercised in these tests
-// (has its own guard test).
+// stub implementation. The guard in front of the route is covered separately
+// at the bottom of this file (wire contract of its 429).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PromoCodePublicController } from '../dist/promo/index.js';
+import { PromoCodePublicController, PromoCodeRateLimitGuard } from '../dist/promo/index.js';
 
 function buildPromoStub({ previewResult } = {}) {
     return {
@@ -100,4 +100,53 @@ test('preview works without an authenticated user (sessionId undefined)', async 
     );
     const [call] = promo.previewCalls;
     assert.equal(call.sessionId, undefined);
+});
+
+// RATE_LIMITED promises `retryAfterSeconds`; a client renders it directly.
+// The value must belong to the limiter that tripped — IP window one minute,
+// session window one hour.
+function buildGuardContext(req) {
+    return { switchToHttp: () => ({ getRequest: () => req }) };
+}
+
+function rejectionOf(fn) {
+    try {
+        fn();
+    } catch (error) {
+        return error;
+    }
+    assert.fail('the guard must throw');
+}
+
+test('rate limit 429 carries retryAfterSeconds of the IP window', () => {
+    const guard = new PromoCodeRateLimitGuard();
+    const req = { headers: {}, ip: '198.51.100.7' };
+    for (let i = 0; i < 20; i++) {
+        assert.equal(guard.canActivate(buildGuardContext(req)), true);
+    }
+    const error = rejectionOf(() => guard.canActivate(buildGuardContext(req)));
+    assert.equal(error.getStatus(), 429);
+    assert.deepEqual(error.getResponse(), {
+        code: 'RATE_LIMITED',
+        message: 'Too many attempts. Please try again in 60 seconds.',
+        params: { retryAfterSeconds: 60 },
+        retryAfterSeconds: 60,
+        valid: false,
+        reason: 'RATE_LIMITED',
+    });
+});
+
+test('rate limit 429 carries retryAfterSeconds of the session window', () => {
+    const guard = new PromoCodeRateLimitGuard();
+    // One request per IP, so only the session bucket can overflow.
+    for (let i = 0; i < 50; i++) {
+        const req = { headers: {}, ip: `203.0.113.${i}`, user: { id: 'onb-1' } };
+        assert.equal(guard.canActivate(buildGuardContext(req)), true);
+    }
+    const error = rejectionOf(() =>
+        guard.canActivate(
+            buildGuardContext({ headers: {}, ip: '203.0.113.99', user: { id: 'onb-1' } }),
+        ),
+    );
+    assert.equal(error.getResponse().retryAfterSeconds, 3600);
 });

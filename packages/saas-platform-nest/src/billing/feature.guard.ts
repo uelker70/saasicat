@@ -100,10 +100,11 @@ export class FeatureGuard implements CanActivate {
     }
 
     /**
-     * Upsell response (#36): with a registered `UpsellOfferResolver` the 403
-     * becomes machine-readable (`FeatureNotLicensedBody`), so consumer UIs can
-     * render a purchase offer. Without a resolver the body carries the same
-     * `code` but no offers.
+     * Upsell response (#36): the 403 body is always the full
+     * `FeatureNotLicensedBody`, so a consumer that matches on `code` can read
+     * `featureKey`/`offers` unconditionally. Without a registered
+     * `UpsellOfferResolver` there is simply nothing to offer — `offers` is
+     * empty, the same degradation a failing resolver produces.
      *
      * Deliberately 403 + `code` field instead of 402 — rationale in
      * `@saasicat/types` upsell.types.ts (402 is reserved / inconsistently
@@ -117,21 +118,12 @@ export class FeatureGuard implements CanActivate {
         required: string[],
         tenantId: string,
     ): Promise<ForbiddenException> {
-        const message = `Feature ${required.join(' / ')} is not included in the current plan.`;
-        if (!this.upsellResolver) {
-            return new ForbiddenException({
-                code: FEATURE_NOT_LICENSED,
-                message,
-                params: { featureKeys: required },
-            });
-        }
-
         const body: FeatureNotLicensedBody = {
             code: FEATURE_NOT_LICENSED,
             featureKey: required[0],
             featureKeys: required,
-            offers: await this.resolveOffersSafe(required, tenantId),
-            message,
+            offers: this.upsellResolver ? await this.resolveOffersSafe(required, tenantId) : [],
+            message: `Feature ${required.join(' / ')} is not included in the current plan.`,
         };
         return new ForbiddenException(body);
     }

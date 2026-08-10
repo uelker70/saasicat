@@ -36,9 +36,12 @@ export interface UpsellOffer {
 }
 
 /**
- * 403 body of the FeatureGuard on a missing entitlement with a registered
- * `UpsellOfferResolver`. Without a resolver the previous plain 403 remains
- * (only `message`) — no breaking change for existing consumers.
+ * 403 body of the FeatureGuard on a missing entitlement — emitted in this
+ * complete shape by every guard, `FeatureGuard` and `StaticFeatureGuard`
+ * alike. Without a registered `UpsellOfferResolver` (or when the resolver
+ * fails) `offers` is an empty array, never absent, so a consumer that matched
+ * on `code === 'FEATURE_NOT_LICENSED'` may read `offers`/`featureKey` without
+ * a presence check.
  */
 export interface FeatureNotLicensedBody {
     code: typeof FEATURE_NOT_LICENSED;

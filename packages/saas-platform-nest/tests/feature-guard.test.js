@@ -7,6 +7,7 @@ import {
     REQUIRE_FEATURE_KEY,
     UPSELL_OFFER_RESOLVER_TOKEN,
 } from '../dist/billing/index.js';
+import { StaticFeatureGuard } from '../dist/platform/index.js';
 
 // FeatureGuard: checks @RequireFeature(...) against the EntitlementSet provided
 // by a stub `EntitlementService.computeLimits(tenantId)`. The tests cover the
@@ -276,9 +277,9 @@ describe('FEATURE_GUARD_CONFIG_TOKEN', () => {
     });
 });
 
-// Upsell response (#36): with a registered UpsellOfferResolver the 403 becomes
-// machine-readable — code, featureKey(s), offers. Without a resolver the body
-// carries the same code, but neither featureKey(s) nor offers.
+// Upsell response (#36): the 403 is always machine-readable — code,
+// featureKey(s), offers. Without a resolver the shape stays identical, only
+// `offers` is empty.
 describe('FeatureGuard — upsell response (#36)', () => {
     function buildGuard({ features = [], resolver = null, config = null } = {}) {
         return new FeatureGuard(new Reflector(), buildEntitlementsStub(features), config, resolver);
@@ -381,17 +382,60 @@ describe('FeatureGuard — upsell response (#36)', () => {
         assert.equal(calls, 0);
     });
 
-    test('without a resolver: same code and message, but no offers', async () => {
+    test('without a resolver: full body with empty offers', async () => {
+        // A consumer that matches on `code` must be able to read `offers` and
+        // `featureKey` without knowing whether a resolver is registered.
         const guard = buildGuard();
         const ctx = buildContext({
             user: { tenantId: 't1', role: 'TENANT_ADMIN' },
             handlerFeatures: ['WHATSAPP'],
         });
         const body = (await rejectionOf(guard.canActivate(ctx))).getResponse();
-        assert.equal(body.message, 'Feature WHATSAPP is not included in the current plan.');
-        assert.equal(body.code, 'FEATURE_NOT_LICENSED');
-        assert.deepEqual(body.params, { featureKeys: ['WHATSAPP'] });
-        assert.equal(body.offers, undefined, 'no offers without a resolver');
+        assert.deepEqual(body, {
+            code: 'FEATURE_NOT_LICENSED',
+            featureKey: 'WHATSAPP',
+            featureKeys: ['WHATSAPP'],
+            offers: [],
+            message: 'Feature WHATSAPP is not included in the current plan.',
+        });
+    });
+});
+
+// The static quickstart guard answers on the same contract — it has no
+// resolver at all, so its body is the one the FeatureGuard emits without one.
+describe('StaticFeatureGuard — FEATURE_NOT_LICENSED body', () => {
+    function buildStaticContext(features) {
+        const handler = function handlerStub() {};
+        Reflect.defineMetadata(REQUIRE_FEATURE_KEY, features, handler);
+        return {
+            switchToHttp: () => ({
+                getRequest: () => ({ user: { tenantId: 't1', role: 'TENANT_ADMIN' } }),
+            }),
+            getHandler: () => handler,
+            getClass: () => function ClassStub() {},
+        };
+    }
+
+    test('emits the full FeatureNotLicensedBody with empty offers', async () => {
+        const guard = new StaticFeatureGuard(new Reflector(), {
+            async snapshot() {
+                return { features: ['CORE_IDENTITY'], quotas: {} };
+            },
+        });
+        let body;
+        try {
+            await guard.canActivate(buildStaticContext(['DATEV', 'ACCOUNTING']));
+            assert.fail('canActivate must throw');
+        } catch (error) {
+            body = error.getResponse();
+        }
+        assert.deepEqual(body, {
+            code: 'FEATURE_NOT_LICENSED',
+            featureKey: 'DATEV',
+            featureKeys: ['DATEV', 'ACCOUNTING'],
+            offers: [],
+            message: 'Feature DATEV / ACCOUNTING is not included in the current plan.',
+        });
     });
 });
 

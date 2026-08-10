@@ -553,7 +553,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    test('terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_LIVE', async () => {
+    test('terminatePlanVersion: draft (publishedAt=null) → 422 PLAN_VERSION_NOT_PUBLISHED', async () => {
         const { versions, plan } = await setupWithPlan();
         const draft = await versions.createPlanDraft({
             planId: plan.id,
@@ -567,13 +567,13 @@ describe('PlanVersionsService — Lifecycle', () => {
             () => versions.terminatePlanVersion(draft.planVersion.id, future),
             (err) => {
                 assert.equal(err.status, 422);
-                assert.equal(err.response.code, 'PLAN_VERSION_NOT_LIVE');
+                assert.equal(err.response.code, 'PLAN_VERSION_NOT_PUBLISHED');
                 return true;
             },
         );
     });
 
-    test('terminatePlanVersion: superseded version → 422 PLAN_VERSION_NOT_LIVE', async () => {
+    test('terminatePlanVersion: superseded version → 422 PLAN_VERSION_SUPERSEDED', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({
             planId: plan.id,
@@ -603,7 +603,7 @@ describe('PlanVersionsService — Lifecycle', () => {
             () => versions.terminatePlanVersion(v1.planVersion.id, future),
             (err) => {
                 assert.equal(err.status, 422);
-                assert.equal(err.response.code, 'PLAN_VERSION_NOT_LIVE');
+                assert.equal(err.response.code, 'PLAN_VERSION_SUPERSEDED');
                 return true;
             },
         );

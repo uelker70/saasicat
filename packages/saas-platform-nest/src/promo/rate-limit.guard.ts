@@ -6,6 +6,7 @@ import {
     Injectable,
 } from '@nestjs/common';
 import { REGISTRATION_ERROR_CODES } from '@saasicat/types';
+import { codedError } from '../errors/coded-error.js';
 
 // Lightweight in-memory rate limiter for /onboarding/promo-code/preview.
 // No external dependencies — deliberately kept simple. For scaling
@@ -29,13 +30,19 @@ interface RequestLike {
     user?: { id?: string };
 }
 
-function rateLimited(): HttpException {
+// `retryAfterSeconds` is part of the documented `RATE_LIMITED` contract, so it
+// is derived from the window of the limiter that actually tripped — the IP
+// window is a minute, the session window an hour.
+function rateLimited(windowMs: number): HttpException {
     return new HttpException(
         {
+            ...codedError(REGISTRATION_ERROR_CODES.RATE_LIMITED, {
+                retryAfterSeconds: Math.ceil(windowMs / 1000),
+            }),
+            retryAfterSeconds: Math.ceil(windowMs / 1000),
             valid: false,
             // Superseded by `code` — kept until all consumers read `code`.
             reason: 'RATE_LIMITED',
-            code: REGISTRATION_ERROR_CODES.RATE_LIMITED,
         },
         HttpStatus.TOO_MANY_REQUESTS,
     );
@@ -52,13 +59,13 @@ export class PromoCodeRateLimitGuard implements CanActivate {
         const sessionKey = req.user?.id ?? null;
 
         if (this.exceeded(this.ipBuckets, ipKey, IP_WINDOW_MS, IP_LIMIT)) {
-            throw rateLimited();
+            throw rateLimited(IP_WINDOW_MS);
         }
         if (
             sessionKey &&
             this.exceeded(this.sessionBuckets, sessionKey, SESSION_WINDOW_MS, SESSION_LIMIT)
         ) {
-            throw rateLimited();
+            throw rateLimited(SESSION_WINDOW_MS);
         }
         return true;
     }

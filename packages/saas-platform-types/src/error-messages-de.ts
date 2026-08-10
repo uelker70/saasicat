@@ -15,7 +15,7 @@ import { FEATURE_NOT_LICENSED } from './upsell.types.js';
 
 import type { PlatformErrorCode } from './error-codes.js';
 
-export const ERROR_MESSAGES_DE: Record<PlatformErrorCode | typeof FEATURE_NOT_LICENSED, string> = {
+export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     // ── setup ──
     SETUP_DISABLED: '{envVar} ist nicht gesetzt — das Setup ist deaktiviert.',
     INVALID_SETUP_TOKEN: 'Das Setup-Token ist ungültig.',
@@ -49,8 +49,10 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode | typeof FEATURE_NOT_LI
         'Eine Planversion lässt sich nicht mit einem Preis von 0,00 veröffentlichen (Schutz vor Seed-Platzhaltern). Für bewusst kostenlose Sonderverträge setze allowZeroPrice.',
     PLAN_VERSION_DISCARD_NOT_IMPLEMENTED:
         'Das Verwerfen ist im aktuellen Repository nicht implementiert. Implementiere PlanRepository.deletePlanVersionDraft.',
-    PLAN_VERSION_NOT_LIVE:
-        "PlanVersion '{versionId}' wurde bereits durch eine neuere Version abgelöst (supersededAt) und lässt sich nicht mehr beenden.",
+    PLAN_VERSION_NOT_PUBLISHED:
+        "Die PlanVersion '{versionId}' ist nicht veröffentlicht und kann nicht beendet werden.",
+    PLAN_VERSION_SUPERSEDED:
+        "Die PlanVersion '{versionId}' wurde bereits von einer Nachfolgeversion abgelöst und kann nicht beendet werden.",
     PLAN_VERSION_VALID_FROM_REQUIRED:
         'validFrom muss beim Veröffentlichen gesetzt sein (am Entwurf oder im Publish-Aufruf). SPEC_V2 §4.2.',
     PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' ist kein gültiges Datum",
@@ -121,9 +123,9 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode | typeof FEATURE_NOT_LI
         "BundleVersion '{bundleVersionId}' passt nicht zum Plan '{planKey}'. Erlaubt: [{allowedPlanKeys}].",
     BUNDLE_NOT_SELF_SERVICE:
         "Bundle '{bundleKey}' wird nur über einen Sondervertrag freigeschaltet. Bitte wende dich an die Vertragsverwaltung.",
-    SUBSCRIPTION_BUNDLE_ALREADY_CANCELED:
+    SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' ist bereits gekündigt.",
-    SUBSCRIPTION_BUNDLE_NOT_CANCELED:
+    SUBSCRIPTION_BUNDLE_NOT_CANCELLED:
         "SubscriptionBundle '{subscriptionBundleId}' ist nicht gekündigt.",
     SUBSCRIPTION_BUNDLE_CANCELLATION_EFFECTIVE:
         'Die Kündigung ist bereits wirksam — buche das Bundle einfach neu.',
@@ -141,6 +143,8 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode | typeof FEATURE_NOT_LI
         'Das Konto konnte nicht angelegt werden. Bitte versuche es noch einmal.',
     BUNDLE_PREVIEW_ARGUMENT_AMBIGUOUS:
         'Genau eines von bundleVersionId (Vorschau fürs Buchen) oder subscriptionBundleId (Vorschau fürs Kündigen) muss angegeben sein.',
+    SUBSCRIPTION_PK_MISSING:
+        'Der Adapter hat einen SubscriptionUsageRecord ohne id geliefert. Bitte den Primärschlüssel der Subscription durchreichen (siehe SubscriptionUsageRecord.id).',
     LIMIT_EXCEEDED: 'Das Limit für {dimension} ist erreicht: {used} von {max}.',
     QUOTA_DIMENSION_UNKNOWN: 'Unbekannte Quota-Dimension "{dimension}".',
     // ── promo ──

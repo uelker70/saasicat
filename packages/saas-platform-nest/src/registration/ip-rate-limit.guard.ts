@@ -6,6 +6,7 @@ import {
     Injectable,
 } from '@nestjs/common';
 import { REGISTRATION_ERROR_CODES } from '@saasicat/types';
+import { codedError } from '../errors/coded-error.js';
 
 /**
  * Configurable in-memory rate limiter (per IP, sliding window).
@@ -61,9 +62,14 @@ export abstract class BaseIpRateLimitGuard implements CanActivate {
         if (this.exceeded(key)) {
             throw new HttpException(
                 {
-                    code: REGISTRATION_ERROR_CODES.RATE_LIMITED,
-                    reason: this.options.name,
+                    ...codedError(REGISTRATION_ERROR_CODES.RATE_LIMITED, {
+                        retryAfterSeconds: Math.ceil(this.options.windowMs / 1000),
+                    }),
                     retryAfterSeconds: Math.ceil(this.options.windowMs / 1000),
+                    // Superseded by `code`. Note this carries the limiter name,
+                    // not the code — the two emitters of RATE_LIMITED disagree
+                    // on what `reason` means, which is why it is going away.
+                    reason: this.options.name,
                 },
                 HttpStatus.TOO_MANY_REQUESTS,
             );

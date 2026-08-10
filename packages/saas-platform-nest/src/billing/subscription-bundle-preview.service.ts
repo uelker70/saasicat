@@ -282,7 +282,7 @@ export class SubscriptionBundlePreviewService {
         const warnings: SubscriptionBundlePreviewIssue[] = [];
         if (existing.canceledAt !== null) {
             blockers.push({
-                code: 'SUBSCRIPTION_BUNDLE_ALREADY_CANCELED',
+                code: BILLING_ERROR_CODES.SUBSCRIPTION_BUNDLE_ALREADY_CANCELLED,
                 message: 'This bundle booking is already cancelled.',
             });
         }
