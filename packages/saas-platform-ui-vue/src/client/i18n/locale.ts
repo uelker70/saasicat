@@ -40,20 +40,3 @@ export const SA_LOCALE_LABELS: Record<SaBuiltinLocale, string> = {
 export function isSaBuiltinLocale(value: unknown): value is SaBuiltinLocale {
     return typeof value === 'string' && (SA_LOCALES as readonly string[]).includes(value);
 }
-
-/**
- * The built-in catalog a locale reads from. Helper modules that index the raw
- * catalogs (rather than the resolved one from `useSaMessages`) need this: a
- * language an app added has no entry there, and indexing it would yield
- * `undefined` and take the page down.
- *
- * Strings resolved this way stay in the fallback language for an app-supplied
- * locale — migrating those helpers to the resolved catalog is tracked
- * separately.
- */
-export function builtinLocaleOf(
-    locale: SaLocale | undefined,
-    fallback: SaBuiltinLocale = DEFAULT_SA_LOCALE,
-): SaBuiltinLocale {
-    return isSaBuiltinLocale(locale) ? locale : fallback;
-}

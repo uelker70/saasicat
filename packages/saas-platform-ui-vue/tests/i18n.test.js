@@ -471,3 +471,48 @@ describe('createSuperAdminI18n — app-owned languages end to end', () => {
         assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), null, 'unprefixed key stays untouched');
     });
 });
+
+describe('helper modules reach app-supplied languages', () => {
+    // These helpers used to index the built-in catalogs by locale code, so an
+    // app-supplied language fell back and `i18n.overrides` never applied. They
+    // take the resolved slice now — this pins that it stays that way.
+    const FRENCH = {
+        label: 'Français',
+        intlLocale: 'fr-FR',
+        basedOn: 'en',
+        messages: {
+            discovery: { statusLabels: { pending: 'En attente' } },
+            planVersions: { format: { today: "aujourd'hui" } },
+            bundles: { status: { live: { label: 'En ligne' } } },
+        },
+    };
+
+    const catalog = createSaCatalog({ additionalLocales: { fr: FRENCH } });
+    const fr = catalog.messagesFor('fr');
+
+    test('discovery status labels follow an app language', () => {
+        assert.equal(fr.discovery.statusLabels.pending, 'En attente');
+    });
+
+    test('relative-date wording follows an app language', () => {
+        assert.equal(fr.planVersions.format.today, "aujourd'hui");
+    });
+
+    test('bundle status labels follow an app language', () => {
+        assert.equal(fr.bundles.status.live.label, 'En ligne');
+    });
+
+    test('untranslated keys in those namespaces fall back, not blank', () => {
+        assert.equal(
+            fr.discovery.statusLabels.approved,
+            SA_MESSAGES.en.discovery.statusLabels.approved,
+        );
+    });
+
+    test('overrides reach the same namespaces', () => {
+        const withOverride = createSaCatalog({
+            overrides: { de: { discovery: { statusLabels: { pending: 'Offen' } } } },
+        });
+        assert.equal(withOverride.messagesFor('de').discovery.statusLabels.pending, 'Offen');
+    });
+});

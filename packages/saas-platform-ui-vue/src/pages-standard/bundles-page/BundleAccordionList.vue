@@ -50,7 +50,7 @@ import {
     type BundleAggregateStatus,
 } from '../../components/bundle-editor/bundle-version-status.js';
 import { formatMessage } from '../../client/i18n/format.js';
-import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 const props = defineProps<{
     filteredBundles: BundleRow[];
@@ -69,10 +69,9 @@ const emit = defineEmits<{
 }>();
 
 const msg = useSaMessages('bundles');
-const { locale } = useSuperAdminI18n();
 
 function statusMetaOf(bundle: BundleRow) {
-    return bundleStatusMeta(props.aggregateStatusOf(bundle), locale.value);
+    return bundleStatusMeta(props.aggregateStatusOf(bundle), msg.value);
 }
 
 function statusClass(bundle: BundleRow): string {

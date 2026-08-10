@@ -195,7 +195,7 @@ const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStat
     () => [
         { label: msg.value.statusFilterAll, value: 'all' },
         ...(['pending', 'approved', 'outdated', 'obsolete'] as const).map((status) => ({
-            label: statusLabel(status, locale.value),
+            label: statusLabel(status, msg.value),
             value: status,
         })),
     ],

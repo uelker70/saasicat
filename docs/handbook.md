@@ -1134,12 +1134,6 @@ createSuperAdminApp({
 onwards — untranslated keys render in `basedOn` (default `'en'`) instead of
 showing blanks. Order the switcher with `locales: ['fr', 'en']`.
 
-> **Known gap.** A few helper modules still read the built-in catalogs directly
-> (discovery status labels, relative dates, bundle status). Those strings stay
-> in the fallback language for an app-supplied locale. Everything reached
-> through `useSaMessages` — every standard page, the shell chrome, the sidebar —
-> translates fully.
-
 **Change individual words** without adding a language. Everything not listed
 keeps the platform text:
 

@@ -4,9 +4,14 @@
 // labels/colors/coverage calculations.
 
 import type { CatalogEntryI18n, DiscoveryStatus } from '@saasicat/types';
-import { DEFAULT_SA_LOCALE, builtinLocaleOf, type SaLocale } from '../../client/i18n/locale.js';
-import { commonMessages } from '../../client/i18n/messages/common.js';
-import { discoveryMessages } from '../../client/i18n/messages/discovery.js';
+import type { SaMessages } from '../../client/i18n/messages.js';
+
+// The resolved slices these helpers render from. Taking the catalog rather
+// than a locale code is what lets an app-supplied language and `i18n.overrides`
+// reach them — a raw `discoveryMessages[locale]` lookup only ever sees the two
+// catalogs the platform ships.
+type SaDiscoveryMessages = SaMessages['discovery'];
+type SaCommonMessages = SaMessages['common'];
 
 /** Translatable fields of a catalog entry. */
 export type I18nField = 'label' | 'description' | 'unit';
@@ -42,20 +47,24 @@ export function localeFull(locale: string): string {
     return LOCALE_NAMES[locale]?.full ?? locale;
 }
 
-export function i18nFieldLabel(f: I18nField, locale: SaLocale = DEFAULT_SA_LOCALE): string {
-    if (f === 'label') return discoveryMessages[builtinLocaleOf(locale)].trans.fieldLabel;
-    if (f === 'description') return commonMessages[builtinLocaleOf(locale)].description;
-    return discoveryMessages[builtinLocaleOf(locale)].unit;
+export function i18nFieldLabel(
+    f: I18nField,
+    discovery: SaDiscoveryMessages,
+    common: SaCommonMessages,
+): string {
+    if (f === 'label') return discovery.trans.fieldLabel;
+    if (f === 'description') return common.description;
+    return discovery.unit;
 }
 
 // ─── Approval lifecycle (#20): status display + state machine ────────────────
 
-export function statusLabel(status: DiscoveryStatus, locale: SaLocale = DEFAULT_SA_LOCALE): string {
-    return discoveryMessages[builtinLocaleOf(locale)].statusLabels[status];
+export function statusLabel(status: DiscoveryStatus, discovery: SaDiscoveryMessages): string {
+    return discovery.statusLabels[status];
 }
 
-export function statusHint(status: DiscoveryStatus, locale: SaLocale = DEFAULT_SA_LOCALE): string {
-    return discoveryMessages[builtinLocaleOf(locale)].statusHints[status];
+export function statusHint(status: DiscoveryStatus, discovery: SaDiscoveryMessages): string {
+    return discovery.statusHints[status];
 }
 
 export interface ReviewAction {
@@ -69,9 +78,9 @@ export interface ReviewAction {
 /** Primary action per status (design sim `StatusControl`, #20). */
 export function primaryReviewAction(
     status: DiscoveryStatus,
-    locale: SaLocale = DEFAULT_SA_LOCALE,
+    discovery: SaDiscoveryMessages,
 ): ReviewAction {
-    const actions = discoveryMessages[builtinLocaleOf(locale)].reviewActions;
+    const actions = discovery.reviewActions;
     switch (status) {
         case 'pending':
             return { label: actions.approve, to: 'approved', emphasized: true };
@@ -87,9 +96,9 @@ export function primaryReviewAction(
 /** Kebab menu actions per status (design sim `StatusControl`, #20). */
 export function reviewMenuActions(
     status: DiscoveryStatus,
-    locale: SaLocale = DEFAULT_SA_LOCALE,
+    discovery: SaDiscoveryMessages,
 ): ReviewAction[] {
-    const actions = discoveryMessages[builtinLocaleOf(locale)].reviewActions;
+    const actions = discovery.reviewActions;
     const markObsolete: ReviewAction = {
         label: actions.markObsolete,
         to: 'obsolete',
