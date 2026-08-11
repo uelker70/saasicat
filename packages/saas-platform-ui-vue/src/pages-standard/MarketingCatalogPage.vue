@@ -822,25 +822,10 @@ async function onLocaleChange(loc: string): Promise<void> {
 
 <style>
 .sa-marketing {
-    --sa-marketing-bg: #f6f7f9;
-    --sa-marketing-surface: #ffffff;
-    --sa-marketing-surface-2: #f8fafc;
-    --sa-marketing-border: #e5e7eb;
-    --sa-marketing-border-strong: #d1d5db;
-    --sa-marketing-text: #0f172a;
-    --sa-marketing-text-2: #475569;
-    --sa-marketing-text-3: #94a3b8;
-    --sa-marketing-primary: #2563eb;
-    --sa-marketing-primary-700: #1d4ed8;
-    --sa-marketing-primary-50: #eff6ff;
-    --sa-marketing-font-sans:
-        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --sa-marketing-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
     padding: 22px 26px;
-    background: var(--sa-marketing-bg);
-    color: var(--sa-marketing-text);
-    font-family: var(--sa-marketing-font-sans);
+    background: var(--sa-bg-app);
+    color: var(--sa-heading);
+    font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
 }
@@ -857,8 +842,8 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-locale-switch {
     display: inline-flex;
     gap: 2px;
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 3px;
 }
@@ -867,13 +852,13 @@ async function onLocaleChange(loc: string): Promise<void> {
     border: 0;
     background: transparent;
     border-radius: 6px;
-    font: 500 12px var(--sa-marketing-font-mono);
-    color: var(--sa-marketing-text-2);
+    font: 500 12px var(--sa-font-mono);
+    color: var(--sa-muted-dark);
     cursor: pointer;
 }
 .sa-marketing-locale-btn.active {
-    background: var(--sa-marketing-primary-50);
-    color: var(--sa-marketing-primary-700);
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
     font-weight: 600;
 }
 .sa-marketing-locale-mgr {
@@ -884,35 +869,35 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-locale-mgr-label {
     font-size: 11px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
 }
 .sa-marketing-locale-pill {
     display: inline-flex;
     align-items: center;
-    border: 1px solid var(--sa-marketing-border);
+    border: 1px solid var(--sa-border);
     border-radius: 7px;
     overflow: hidden;
 }
 .sa-marketing-locale-pill.active {
-    border-color: var(--sa-marketing-primary-700);
-    background: var(--sa-marketing-primary-50);
+    border-color: var(--sa-primary-strong);
+    background: var(--sa-primary-50);
 }
 .sa-marketing-locale-pill-btn {
     border: 0;
     background: transparent;
     padding: 4px 8px;
-    font: 600 11px var(--sa-marketing-font-mono);
-    color: var(--sa-marketing-text-2);
+    font: 600 11px var(--sa-font-mono);
+    color: var(--sa-muted-dark);
     cursor: pointer;
 }
 .sa-marketing-locale-pill.active .sa-marketing-locale-pill-btn {
-    color: var(--sa-marketing-primary-700);
+    color: var(--sa-primary-strong);
 }
 .sa-marketing-locale-x {
     border: 0;
     background: transparent;
     padding: 4px 7px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     cursor: pointer;
     font-size: 13px;
 }
@@ -923,12 +908,12 @@ async function onLocaleChange(loc: string): Promise<void> {
     position: relative;
 }
 .sa-marketing-locale-add {
-    border: 1px dashed var(--sa-marketing-border);
+    border: 1px dashed var(--sa-border);
     background: transparent;
     border-radius: 7px;
     padding: 4px 9px;
     font-size: 11px;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
     cursor: pointer;
 }
 .sa-marketing-locale-add:disabled {
@@ -940,8 +925,8 @@ async function onLocaleChange(loc: string): Promise<void> {
     top: 100%;
     right: 0;
     margin-top: 4px;
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
     padding: 4px;
@@ -957,11 +942,11 @@ async function onLocaleChange(loc: string): Promise<void> {
     padding: 6px 10px;
     text-align: left;
     border-radius: 6px;
-    font: 600 11px var(--sa-marketing-font-mono);
+    font: 600 11px var(--sa-font-mono);
     cursor: pointer;
 }
 .sa-marketing-locale-picker-row:hover {
-    background: var(--sa-marketing-primary-50);
+    background: var(--sa-primary-50);
 }
 
 .sa-marketing-banner {
@@ -979,7 +964,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     border: 1px solid #fca5a5;
 }
 .sa-marketing-banner--info {
-    background: var(--sa-marketing-primary-50);
+    background: var(--sa-primary-50);
     color: #1e40af;
     border: 1px solid #bfdbfe;
 }
@@ -995,7 +980,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-loading {
     padding: 40px;
     text-align: center;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     font-size: 13px;
 }
 
@@ -1008,16 +993,16 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-tabbar {
     display: inline-flex;
     gap: 2px;
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 3px;
 }
 .sa-marketing-tab {
     padding: 6px 14px;
     border-radius: 6px;
-    font: 500 13px var(--sa-marketing-font-sans);
-    color: var(--sa-marketing-text-2);
+    font: 500 13px var(--sa-font-body);
+    color: var(--sa-muted-dark);
     background: transparent;
     border: 0;
     cursor: pointer;
@@ -1026,11 +1011,11 @@ async function onLocaleChange(loc: string): Promise<void> {
         color 0.12s;
 }
 .sa-marketing-tab:hover {
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
 }
 .sa-marketing-tab.active {
-    background: var(--sa-marketing-primary-50);
-    color: var(--sa-marketing-primary-700);
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
     font-weight: 600;
 }
 .sa-marketing-tab-count {
@@ -1046,13 +1031,13 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-meta {
     margin-left: auto;
     font-size: 12px;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
     display: flex;
     align-items: center;
     gap: 8px;
 }
 .sa-marketing-meta code {
-    font: 500 11px var(--sa-marketing-font-mono);
+    font: 500 11px var(--sa-font-mono);
     background: #f1f5f9;
     color: #475569;
     padding: 2px 7px;
@@ -1061,15 +1046,15 @@ async function onLocaleChange(loc: string): Promise<void> {
 
 /* ── Public catalog preview ── */
 .sa-marketing-window {
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 12px;
     overflow: hidden;
 }
 .sa-marketing-chrome {
     height: 36px;
     background: #f1f5f9;
-    border-bottom: 1px solid var(--sa-marketing-border);
+    border-bottom: 1px solid var(--sa-border);
     display: flex;
     align-items: center;
     padding: 0 14px;
@@ -1083,11 +1068,11 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-chrome-url {
     margin-left: 18px;
     flex: 1;
-    background: var(--sa-marketing-surface);
+    background: var(--sa-bg-surface);
     border: 1px solid #e2e8f0;
     border-radius: 6px;
     padding: 4px 10px;
-    font: 500 11.5px var(--sa-marketing-font-mono);
+    font: 500 11.5px var(--sa-font-mono);
     color: #475569;
     max-width: 380px;
 }
@@ -1096,23 +1081,23 @@ async function onLocaleChange(loc: string): Promise<void> {
     padding: 36px 32px 28px;
 }
 .sa-marketing-eyebrow {
-    font: 700 11px var(--sa-marketing-font-sans);
+    font: 700 11px var(--sa-font-body);
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--sa-marketing-primary);
+    color: var(--sa-primary);
     text-align: center;
 }
 .sa-marketing-hero {
     font-size: 32px;
     font-weight: 700;
     letter-spacing: -0.025em;
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
     text-align: center;
     margin: 10px 0 6px;
 }
 .sa-marketing-sub {
     font-size: 14px;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
     text-align: center;
     max-width: 540px;
     margin: 0 auto 26px;
@@ -1123,8 +1108,8 @@ async function onLocaleChange(loc: string): Promise<void> {
     gap: 16px;
 }
 .sa-marketing-card {
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 12px;
     padding: 22px 20px 20px;
     display: flex;
@@ -1148,9 +1133,9 @@ async function onLocaleChange(loc: string): Promise<void> {
     top: -10px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--sa-marketing-primary);
+    background: var(--sa-primary);
     color: #fff;
-    font: 700 10.5px var(--sa-marketing-font-sans);
+    font: 700 10.5px var(--sa-font-body);
     letter-spacing: 0.1em;
     text-transform: uppercase;
     padding: 4px 12px;
@@ -1158,21 +1143,21 @@ async function onLocaleChange(loc: string): Promise<void> {
     white-space: nowrap;
 }
 .sa-marketing-card-key {
-    font: 700 10.5px var(--sa-marketing-font-mono);
+    font: 700 10.5px var(--sa-font-mono);
     letter-spacing: 0.08em;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     text-transform: uppercase;
 }
 .sa-marketing-card-name {
     font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
     margin: 2px 0 4px;
 }
 .sa-marketing-card-desc {
     font-size: 12.5px;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
     line-height: 1.4;
     min-height: 36px;
 }
@@ -1186,15 +1171,15 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 32px;
     font-weight: 700;
     letter-spacing: -0.03em;
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
 }
 .sa-marketing-card-price-unit {
     font-size: 13px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
 }
 .sa-marketing-card-price-y {
     font-size: 11.5px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     margin-bottom: 12px;
 }
 .sa-marketing-card-cta {
@@ -1202,10 +1187,10 @@ async function onLocaleChange(loc: string): Promise<void> {
     margin-top: 14px;
     padding: 9px 12px;
     border-radius: 8px;
-    border: 1px solid var(--sa-marketing-border);
-    background: var(--sa-marketing-surface);
-    color: var(--sa-marketing-text);
-    font: 600 13px var(--sa-marketing-font-sans);
+    border: 1px solid var(--sa-border);
+    background: var(--sa-bg-surface);
+    color: var(--sa-heading);
+    font: 600 13px var(--sa-font-body);
     cursor: pointer;
     transition:
         background 0.12s,
@@ -1215,16 +1200,16 @@ async function onLocaleChange(loc: string): Promise<void> {
     background: #f8fafc;
 }
 .sa-marketing-card.featured .sa-marketing-card-cta {
-    background: var(--sa-marketing-primary);
-    border-color: var(--sa-marketing-primary);
+    background: var(--sa-primary);
+    border-color: var(--sa-primary);
     color: #fff;
 }
 .sa-marketing-card.featured .sa-marketing-card-cta:hover {
-    background: var(--sa-marketing-primary-700);
+    background: var(--sa-primary-strong);
 }
 .sa-marketing-card-trialnote {
     font-size: 11px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     text-align: center;
     margin-top: 6px;
 }
@@ -1248,14 +1233,14 @@ async function onLocaleChange(loc: string): Promise<void> {
     margin-top: 2px;
 }
 .sa-marketing-card-price-strike s {
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     font-size: 14px;
 }
 .sa-marketing-price-regular {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
 }
 .sa-marketing-card-fineprint {
     font-size: 10px;
@@ -1268,7 +1253,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     font-weight: 700;
 }
 .sa-marketing-card-features {
@@ -1293,19 +1278,19 @@ async function onLocaleChange(loc: string): Promise<void> {
     margin-top: 1px;
 }
 .sa-marketing-card-features b {
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
     font-weight: 700;
 }
 .sa-marketing-card-features-empty {
     margin-top: 8px;
     font-size: 12px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
 }
 
 /* ── Marketing administration ── */
 .sa-marketing-admin {
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
 }
 .sa-marketing-admin-head {
@@ -1319,11 +1304,11 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 14px;
     font-weight: 700;
     letter-spacing: -0.01em;
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
 }
 .sa-marketing-admin-sub {
     font-size: 11.5px;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
 }
 .sa-marketing-admin-grid {
     display: grid;
@@ -1339,9 +1324,9 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
     font-weight: 700;
-    border-bottom: 1px solid var(--sa-marketing-border);
+    border-bottom: 1px solid var(--sa-border);
 }
 .sa-marketing-admin-row {
     display: contents;
@@ -1352,7 +1337,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     display: flex;
     align-items: center;
     font-size: 12.5px;
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
 }
 .sa-marketing-admin-row--disabled > div {
     background: #fcfcfd;
@@ -1372,36 +1357,36 @@ async function onLocaleChange(loc: string): Promise<void> {
     border-radius: 8px;
     display: grid;
     place-items: center;
-    font: 700 10px var(--sa-marketing-font-mono);
+    font: 700 10px var(--sa-font-mono);
     border: 1px solid;
 }
 .sa-marketing-plan-label {
     font-size: 13px;
     font-weight: 700;
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
 }
 .sa-marketing-plan-key {
-    font: 500 11px var(--sa-marketing-font-mono);
-    color: var(--sa-marketing-text-3);
+    font: 500 11px var(--sa-font-mono);
+    color: var(--sa-muted-light);
 }
 
 .sa-marketing-field {
     width: 100%;
     padding: 5px 8px;
-    font: 400 12px var(--sa-marketing-font-sans);
-    color: var(--sa-marketing-text);
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border-strong);
+    font: 400 12px var(--sa-font-body);
+    color: var(--sa-heading);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border-strong);
     border-radius: 6px;
 }
 .sa-marketing-field:focus {
     outline: none;
-    border-color: var(--sa-marketing-primary);
-    box-shadow: 0 0 0 3px var(--sa-marketing-primary-50);
+    border-color: var(--sa-primary);
+    box-shadow: 0 0 0 3px var(--sa-primary-50);
 }
 .sa-marketing-field:disabled {
     background: #f1f5f9;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     cursor: not-allowed;
 }
 .sa-marketing-field--area {
@@ -1440,7 +1425,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 .sa-marketing-toggle input:checked + span {
-    background: var(--sa-marketing-primary);
+    background: var(--sa-primary);
 }
 .sa-marketing-toggle input:checked + span::before {
     transform: translateX(16px);
@@ -1466,8 +1451,8 @@ async function onLocaleChange(loc: string): Promise<void> {
     border-color: #cbd5e1;
 }
 .sa-marketing-chip--featured {
-    background: var(--sa-marketing-primary-50);
-    color: var(--sa-marketing-primary-700);
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
     border-color: #bfdbfe;
 }
 .sa-marketing-chip--live {
@@ -1492,7 +1477,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     border: 1px solid transparent;
     border-radius: 6px;
     cursor: pointer;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     transition:
         background 0.12s,
         color 0.12s,
@@ -1500,7 +1485,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-expand-btn:hover {
     background: #f1f5f9;
-    color: var(--sa-marketing-primary);
+    color: var(--sa-primary);
     border-color: #e2e8f0;
 }
 .sa-marketing-chev {
@@ -1536,12 +1521,12 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
     font-weight: 700;
 }
 .sa-marketing-expand-hint {
     font-size: 11px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
 }
 .sa-marketing-field-head {
     display: flex;
@@ -1551,10 +1536,10 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-source-hint {
     font-size: 11px;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
 }
 .sa-marketing-source-hint em {
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
     font-style: normal;
 }
 .sa-marketing-locked-value {
@@ -1562,16 +1547,16 @@ async function onLocaleChange(loc: string): Promise<void> {
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 6px;
     font-size: 13px;
-    color: var(--sa-marketing-text-1);
+    color: var(--sa-heading);
 }
 .sa-marketing-locked-hint {
     font-size: 10px;
     text-transform: uppercase;
-    color: var(--sa-marketing-text-3);
+    color: var(--sa-muted-light);
     background: rgba(148, 163, 184, 0.15);
     padding: 1px 6px;
     border-radius: 4px;
@@ -1581,14 +1566,14 @@ async function onLocaleChange(loc: string): Promise<void> {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 8px 12px;
 }
 .sa-marketing-trial-label {
     font-size: 13px;
-    color: var(--sa-marketing-text);
+    color: var(--sa-heading);
 }
 .sa-marketing-trial-days {
     margin-left: auto;
@@ -1598,7 +1583,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-trial-unit {
     font-size: 12px;
-    color: var(--sa-marketing-text-2);
+    color: var(--sa-muted-dark);
 }
 
 .sa-marketing-tf-head {
@@ -1617,8 +1602,8 @@ async function onLocaleChange(loc: string): Promise<void> {
     align-items: center;
 }
 .sa-marketing-tf-num {
-    font: 600 11px var(--sa-marketing-font-mono);
-    color: var(--sa-marketing-text-3);
+    font: 600 11px var(--sa-font-mono);
+    color: var(--sa-muted-light);
     text-align: center;
 }
 .sa-marketing-tf-actions {
@@ -1630,12 +1615,12 @@ async function onLocaleChange(loc: string): Promise<void> {
     height: 24px;
     display: grid;
     place-items: center;
-    background: var(--sa-marketing-surface);
-    border: 1px solid var(--sa-marketing-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 5px;
     cursor: pointer;
-    font: 600 10px var(--sa-marketing-font-sans);
-    color: var(--sa-marketing-text-2);
+    font: 600 10px var(--sa-font-body);
+    color: var(--sa-muted-dark);
     padding: 0;
     transition:
         background 0.12s,
@@ -1660,8 +1645,8 @@ async function onLocaleChange(loc: string): Promise<void> {
     padding: 14px;
     text-align: center;
     font-size: 12px;
-    color: var(--sa-marketing-text-3);
-    background: var(--sa-marketing-surface);
+    color: var(--sa-muted-light);
+    background: var(--sa-bg-surface);
     border: 1px dashed #cbd5e1;
     border-radius: 8px;
 }
@@ -1683,7 +1668,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     gap: 5px;
     padding: 3px 9px;
     border-radius: 999px;
-    background: var(--sa-marketing-surface);
+    background: var(--sa-bg-surface);
     border: 1px dashed #cbd5e1;
     font-size: 11.5px;
     color: #475569;
@@ -1695,14 +1680,14 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-tf-chip em {
     font-style: normal;
-    color: var(--sa-marketing-text-3);
-    font: 500 11px var(--sa-marketing-font-mono);
+    color: var(--sa-muted-light);
+    font: 500 11px var(--sa-font-mono);
 }
 .sa-marketing-tf-chip:hover:not(:disabled) {
-    background: var(--sa-marketing-primary-50);
+    background: var(--sa-primary-50);
     border-color: #93c5fd;
     border-style: solid;
-    color: var(--sa-marketing-primary-700);
+    color: var(--sa-primary-strong);
 }
 .sa-marketing-tf-chip:disabled {
     opacity: 0.5;

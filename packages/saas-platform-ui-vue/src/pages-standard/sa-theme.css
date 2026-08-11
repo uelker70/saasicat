@@ -33,6 +33,10 @@
     --sa-border-soft: #f1f5f9;
     --sa-bg-surface-2: #f8fafc;
     --sa-border-strong: #d1d5db;
+    --sa-muted-light: #94a3b8;
+    --sa-primary-50: #eff6ff;
+    --sa-positive-bg: #ecfdf5;
+    --sa-warning-bg: #fffbeb;
     --sa-primary-strong: #1d4ed8;
 
     /* Corner radii, largest to smallest, so the nesting reads as hierarchy:

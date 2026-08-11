@@ -649,28 +649,10 @@ function formatQuota(v: number | undefined): string {
 
 <style scoped>
 .pm {
-    --pm-bg: #f6f7f9;
-    --pm-surface: #ffffff;
-    --pm-surface-2: #f8fafc;
-    --pm-border: #e5e7eb;
-    --pm-border-strong: #d1d5db;
-    --pm-text: #0f172a;
-    --pm-text-2: #475569;
-    --pm-text-3: #94a3b8;
-    --pm-primary: #2563eb;
-    --pm-live: #10b981;
-    --pm-live-bg: #ecfdf5;
-    --pm-draft: #f59e0b;
-    --pm-draft-bg: #fffbeb;
-    --pm-supersed: #94a3b8;
-    --pm-supersed-bg: #f1f5f9;
-    --pm-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --pm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
     padding: 22px 26px;
-    background: var(--pm-bg);
-    color: var(--pm-text);
-    font-family: var(--pm-font-sans);
+    background: var(--sa-bg-app);
+    color: var(--sa-heading);
+    font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
 }
@@ -679,8 +661,8 @@ function formatQuota(v: number | undefined): string {
 }
 
 .pm-card {
-    background: var(--pm-surface);
-    border: 1px solid var(--pm-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
 }
 .pm-wrap {
@@ -695,7 +677,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-head th {
     background: #fbfbfd;
-    border-bottom: 1px solid var(--pm-border);
+    border-bottom: 1px solid var(--sa-border);
 }
 .pm-rowhead-cell {
     text-align: left;
@@ -708,7 +690,7 @@ function formatQuota(v: number | undefined): string {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     font-weight: 700;
 }
 
@@ -719,7 +701,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-plan-card {
     background: #fff;
-    border: 1px solid var(--pm-border);
+    border: 1px solid var(--sa-border);
     border-top: 3px solid;
     border-radius: 10px;
     padding: 14px 14px 12px;
@@ -732,15 +714,15 @@ function formatQuota(v: number | undefined): string {
     align-items: flex-start;
 }
 .pm-plan-key {
-    font: 700 11px var(--pm-font-mono);
+    font: 700 11px var(--sa-font-mono);
     letter-spacing: 0.08em;
-    color: var(--pm-text-2);
+    color: var(--sa-muted-dark);
 }
 .pm-plan-label {
     font-size: 17px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--pm-text);
+    color: var(--sa-heading);
 }
 .pm-plan-desc {
     font-size: 11.5px;
@@ -751,13 +733,13 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-plan-divider {
     height: 1px;
-    background: var(--pm-border);
+    background: var(--sa-border);
     margin: 10px 0;
 }
 .pm-kebab {
     background: none;
     border: 0;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     cursor: pointer;
     font-size: 16px;
     padding: 0;
@@ -787,13 +769,13 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-price-yearly {
     font-size: 10px;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     margin-left: 4px;
 }
 .pm-price-free {
     font-size: 14px;
     font-weight: 600;
-    color: var(--pm-text);
+    color: var(--sa-heading);
 }
 .pm-plan-meta {
     display: flex;
@@ -842,17 +824,17 @@ function formatQuota(v: number | undefined): string {
     height: 30px;
     border-radius: 50%;
     background: #eff6ff;
-    color: var(--pm-primary);
+    color: var(--sa-primary);
     margin: 0 auto 6px;
 }
 .pm-add-title {
     font-size: 12px;
     font-weight: 600;
-    color: var(--pm-primary);
+    color: var(--sa-primary);
 }
 .pm-add-sub {
     font-size: 10.5px;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     margin-top: 3px;
 }
 
@@ -865,27 +847,27 @@ function formatQuota(v: number | undefined): string {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: var(--pm-surface-2);
-    color: var(--pm-text-2);
-    border: 1px solid var(--pm-border);
+    background: var(--sa-bg-surface-2);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
 }
 .pm-chip--tiny {
     padding: 1px 6px;
     font-size: 10px;
 }
 .pm-chip--live {
-    background: var(--pm-live-bg);
+    background: var(--sa-positive-bg);
     color: #047857;
     border-color: #a7f3d0;
 }
 .pm-chip--draft {
-    background: var(--pm-draft-bg);
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
 .pm-chip--supersed {
-    background: var(--pm-supersed-bg);
-    color: var(--pm-text-2);
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     border-color: #cbd5e1;
 }
 .pm-chip--dot::before {
@@ -898,9 +880,9 @@ function formatQuota(v: number | undefined): string {
 
 /* Group rows */
 .pm-group td {
-    background: var(--pm-surface-2);
-    border-top: 1px solid var(--pm-border);
-    border-bottom: 1px solid var(--pm-border);
+    background: var(--sa-bg-surface-2);
+    border-top: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-border);
 }
 .pm-group-inner {
     display: flex;
@@ -911,7 +893,7 @@ function formatQuota(v: number | undefined): string {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--pm-text-2);
+    color: var(--sa-muted-dark);
 }
 .pm-group-dot {
     width: 7px;
@@ -929,7 +911,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-group-count {
     background: #e2e8f0;
-    color: var(--pm-text-2);
+    color: var(--sa-muted-dark);
     padding: 1px 7px;
     border-radius: 999px;
     font-size: 10px;
@@ -954,11 +936,11 @@ function formatQuota(v: number | undefined): string {
 .pm-rh-label {
     font-size: 13px;
     font-weight: 500;
-    color: var(--pm-text);
+    color: var(--sa-heading);
 }
 .pm-rh-key {
-    font: 500 10px var(--pm-font-mono);
-    color: var(--pm-text-3);
+    font: 500 10px var(--sa-font-mono);
+    color: var(--sa-muted-light);
 }
 .pm-cell {
     text-align: center;
@@ -976,7 +958,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-cell--base {
     text-align: center;
-    background: var(--pm-surface-2);
+    background: var(--sa-bg-surface-2);
 }
 .pm-base-badge {
     display: inline-flex;
@@ -1003,12 +985,12 @@ function formatQuota(v: number | undefined): string {
     font-weight: 500;
 }
 .pm-num {
-    font: 600 14px var(--pm-font-sans);
-    color: var(--pm-text);
+    font: 600 14px var(--sa-font-body);
+    color: var(--sa-heading);
 }
 .pm-unit {
     font-size: 10.5px;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     margin-left: 3px;
 }
 .pm-quota {
@@ -1023,7 +1005,7 @@ function formatQuota(v: number | undefined): string {
     gap: 18px;
     margin-top: 14px;
     font-size: 12px;
-    color: var(--pm-text-2);
+    color: var(--sa-muted-dark);
     align-items: center;
 }
 .pm-legend-item {
@@ -1052,6 +1034,6 @@ function formatQuota(v: number | undefined): string {
 .pm-legend-loading {
     margin-left: auto;
     font-style: italic;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
 }
 </style>
