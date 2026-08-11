@@ -32,6 +32,11 @@ jobs:
               with:
                   name: jscpd-report
                   path: .jscpd-report/
+                  # Without this the step uploads nothing: `.jscpd-report/`
+                  # starts with a dot, and upload-artifact has excluded hidden
+                  # files by default since v4.4. Paired with
+                  # `if-no-files-found: ignore`, that failed silently.
+                  include-hidden-files: true
                   if-no-files-found: ignore
 
     build-and-test:
