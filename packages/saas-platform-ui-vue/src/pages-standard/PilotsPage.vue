@@ -1,13 +1,10 @@
 <template>
-    <div class="sa-pilots">
-        <header class="sa-page-head">
-            <div>
-                <h1 class="sa-page-head__title">{{ msg.title }}</h1>
-                <p class="sa-page-head__sub">
-                    {{ formatMessage(msg.subtitleCount, { count: rows.length }) }}
-                </p>
-            </div>
-            <div class="sa-page-head__actions">
+    <AdminPage class="sa-pilots">
+        <AdminHero
+            :title="msg.title"
+            :subtitle="formatMessage(msg.subtitleCount, { count: rows.length })"
+        >
+            <template #actions>
                 <slot name="head-actions">
                     <q-btn
                         v-if="enableCreate"
@@ -18,8 +15,8 @@
                         @click="showCreate = true"
                     />
                 </slot>
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
         <div class="sa-stats">
             <button
@@ -98,22 +95,25 @@
 
         <MfaPromptDialog
             v-if="needsMfaDialog"
-            :model-value="showMfa"
-            :description="mfaDescription"
-            :error="mfaError"
+            :model-value="mfa.show.value"
+            :description="mfa.description.value"
+            :error="mfa.error.value"
             :setup-hint="mfaSetupHint"
-            @update:model-value="onMfaDialogVisibility"
-            @confirm="onMfaConfirm"
+            @update:model-value="mfa.onVisibility"
+            @confirm="mfa.onConfirm"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import PilotCreateDialog from '../components/dialogs/PilotCreateDialog.vue';
 import PilotEditDialog from '../components/dialogs/PilotEditDialog.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
@@ -219,38 +219,11 @@ const showEdit = ref(false);
 const editRow = ref<PilotRow | null>(null);
 const bakedPlanOptions = ref<PilotPlanOption[]>([]);
 
-// MFA dialog state for per-flow MFA (extend/revoke). Promise-resolver pattern
-// analogous to use-platform-tenant-actions.ts: `onExtendClick`/`onRevokeClick`
-// calls `runWithMfa(...)`, which opens the dialog and waits for `onMfaConfirm`
-// (or cancellation via `update:modelValue=false`).
-const showMfa = ref(false);
-const mfaError = ref('');
-const mfaDescription = ref('');
-let pendingMfaResolve: ((code: string | null) => void) | null = null;
+// Per-flow MFA for extend/revoke: `runWithMfa` awaits `mfa.prompt`, which
+// resolves with the code or with null when the user closes the dialog.
+const mfa = useMfaPrompt();
 const needsMfaDialog = computed(() => props.requireMfaForExtend || props.requireMfaForRevoke);
 
-function promptMfa(description: string): Promise<string | null> {
-    return new Promise((resolve) => {
-        mfaDescription.value = description;
-        mfaError.value = '';
-        showMfa.value = true;
-        pendingMfaResolve = (code) => {
-            pendingMfaResolve = null;
-            resolve(code);
-        };
-    });
-}
-
-function onMfaConfirm(code: string): void {
-    pendingMfaResolve?.(code);
-}
-
-function onMfaDialogVisibility(open: boolean): void {
-    showMfa.value = open;
-    if (!open && pendingMfaResolve) {
-        pendingMfaResolve(null);
-    }
-}
 // Consumers can set `createPlanOptions` instead of `loadPlanOptions`
 // (e.g. apps with a hard-coded plan list).
 const effectiveCreatePlanOptions = computed<readonly (string | PilotPlanOption)[]>(() => {
@@ -498,21 +471,21 @@ async function runAction(
     // MFA loop: as long as the server returns 401, keep the dialog open and
     // wait again for a code. Cancelling (resolver === null) ends it.
     while (true) {
-        const code = await promptMfa(actionLabel);
+        const code = await mfa.prompt(actionLabel);
         if (code === null) return;
         try {
             await invoke(code);
-            showMfa.value = false;
+            mfa.show.value = false;
             notify('positive', successMessage);
             await reload();
             return;
         } catch (err) {
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 401) {
-                mfaError.value = msg.value.mfa.invalidOrNotSetUp;
+                mfa.error.value = msg.value.mfa.invalidOrNotSetUp;
                 continue;
             }
-            showMfa.value = false;
+            mfa.show.value = false;
             notify('negative', errMsg(err));
             return;
         }
@@ -575,11 +548,6 @@ function formatDate(iso: string | null | undefined): string | null {
 </script>
 
 <style scoped>
-.sa-pilots {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-    padding: 20px 28px 28px;
-}
 .sa-pilots__card {
     background: #fff;
     border: 1px solid var(--sa-border, #e2e8f0);

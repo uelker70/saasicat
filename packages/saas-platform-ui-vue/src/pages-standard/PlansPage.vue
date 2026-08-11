@@ -1,5 +1,23 @@
 <template>
-    <q-page class="sa-plans">
+    <AdminPage class="sa-plans">
+        <AdminHero :title="msg.list.title">
+            <template v-if="mode === 'list'" #actions>
+                <q-btn
+                    flat
+                    icon="grid_view"
+                    :label="msg.list.matrixView"
+                    @click="mode = 'matrix'"
+                />
+                <q-btn
+                    unelevated
+                    color="primary"
+                    icon="add"
+                    :label="msg.list.newPlan"
+                    @click="openCreate"
+                />
+            </template>
+        </AdminHero>
+
         <q-banner v-if="error" class="bg-negative text-white q-ma-md" rounded>
             <template #avatar>
                 <q-icon name="error" />
@@ -10,12 +28,7 @@
             </template>
         </q-banner>
 
-        <div v-if="loading && plans.length === 0" class="sa-plans__loading">
-            <q-spinner size="32px" />
-            <span>{{ msg.page.loading }}</span>
-        </div>
-
-        <template v-else>
+        <AdminBody :loading="loading && plans.length === 0" :loading-text="msg.page.loading">
             <!-- Default: list view (plan simulation) + Bundle overview -->
             <template v-if="mode === 'list'">
                 <PlanList
@@ -25,13 +38,11 @@
                     :plan-accents="props.planAccents"
                     :highlight-plan-key="highlightPlanKey"
                     @open-plan="onOpenPlan"
-                    @create-plan="openCreate"
                     @clone-plan="onClonePlan"
                     @new-version="onNewVersionFromList"
                     @edit-draft="onEditDraftFromList"
                     @discard-draft="onDiscardDraftFromList"
                     @archive-plan="onArchivePlanFromList"
-                    @show-matrix="mode = 'matrix'"
                 />
                 <PlanBundleOverview
                     :bundles="availableBundles"
@@ -113,7 +124,7 @@
                 @save-and-exit="onReviewSaveExit"
                 @publish="onReviewPublish"
             />
-        </template>
+        </AdminBody>
 
         <PlansPageToast :message="toastMessage" />
 
@@ -157,11 +168,14 @@
             :format-change-value="formatChangeValue"
             @execute="executePublish"
         />
-    </q-page>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import type {
     FeatureCatalogEntryRow,
     PlanRow,
@@ -1238,17 +1252,6 @@ onMounted(async () => {
 
 <style scoped>
 .sa-plans {
-    min-height: calc(100vh - 56px);
-    background: #f6f7f9;
     position: relative;
-}
-.sa-plans__loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 48px;
-    color: #64748b;
-    font-size: 14px;
 }
 </style>

@@ -1,14 +1,14 @@
 <template>
-    <div class="mc-admin">
-        <div class="mc-admin-head">
+    <div class="sa-marketing-admin">
+        <div class="sa-marketing-admin-head">
             <div style="flex: 1">
-                <div class="mc-admin-title">{{ msg.tabs.admin }}</div>
-                <div class="mc-admin-sub">{{ msg.admin.subtitle }}</div>
+                <div class="sa-marketing-admin-title">{{ msg.tabs.admin }}</div>
+                <div class="sa-marketing-admin-sub">{{ msg.admin.subtitle }}</div>
             </div>
         </div>
 
-        <div class="mc-admin-grid">
-            <div class="mc-admin-thead">
+        <div class="sa-marketing-admin-grid">
+            <div class="sa-marketing-admin-thead">
                 <div>{{ msg.admin.colPlan }}</div>
                 <div>{{ msg.admin.colVisible }}</div>
                 <div>{{ msg.admin.colBadge }}</div>
@@ -18,11 +18,14 @@
             </div>
 
             <template v-for="row in adminRows" :key="row.plan.id">
-                <div class="mc-admin-row" :class="{ 'mc-admin-row--disabled': !row.liveVersion }">
+                <div
+                    class="sa-marketing-admin-row"
+                    :class="{ 'sa-marketing-admin-row--disabled': !row.liveVersion }"
+                >
                     <div>
-                        <div class="mc-plan-cell">
+                        <div class="sa-marketing-plan-cell">
                             <div
-                                class="mc-plan-mark"
+                                class="sa-marketing-plan-mark"
                                 :style="{
                                     background: row.accent + '15',
                                     color: row.accent,
@@ -32,15 +35,15 @@
                                 {{ row.plan.planKey.slice(0, 3) }}
                             </div>
                             <div>
-                                <div class="mc-plan-label">
+                                <div class="sa-marketing-plan-label">
                                     {{ row.m.displayLabel || row.plan.label }}
                                 </div>
-                                <div class="mc-plan-key">{{ row.plan.planKey }}</div>
+                                <div class="sa-marketing-plan-key">{{ row.plan.planKey }}</div>
                             </div>
                         </div>
                         <div
                             v-if="row.publishedVersions.length > 1"
-                            class="mc-version-tabs"
+                            class="sa-marketing-version-tabs"
                             role="tablist"
                             :aria-label="
                                 formatMessage(msg.admin.versionTabsLabel, { plan: row.plan.label })
@@ -51,8 +54,11 @@
                                 :key="v.id"
                                 type="button"
                                 role="tab"
-                                class="mc-version-tab"
-                                :class="{ 'mc-version-tab--active': row.liveVersion?.id === v.id }"
+                                class="sa-marketing-version-tab"
+                                :class="{
+                                    'sa-marketing-version-tab--active':
+                                        row.liveVersion?.id === v.id,
+                                }"
                                 :title="formatVersionTitle(v)"
                                 @click="$emit('select-version', row.plan, v.id)"
                             >
@@ -61,7 +67,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="mc-toggle" :class="{ disabled: !row.liveVersion }">
+                        <label class="sa-marketing-toggle" :class="{ disabled: !row.liveVersion }">
                             <input
                                 type="checkbox"
                                 :checked="row.m.visible"
@@ -73,7 +79,7 @@
                     </div>
                     <div>
                         <input
-                            class="mc-field"
+                            class="sa-marketing-field"
                             style="max-width: 120px"
                             placeholder="—"
                             :value="row.m.badge"
@@ -86,7 +92,7 @@
                             type="number"
                             min="0"
                             max="9999"
-                            class="mc-field"
+                            class="sa-marketing-field"
                             style="max-width: 72px"
                             :value="row.m.priority"
                             :disabled="!row.liveVersion || busy"
@@ -94,7 +100,7 @@
                         />
                     </div>
                     <div>
-                        <label class="mc-toggle" :class="{ disabled: !row.liveVersion }">
+                        <label class="sa-marketing-toggle" :class="{ disabled: !row.liveVersion }">
                             <input
                                 type="checkbox"
                                 :checked="row.m.highlight"
@@ -104,21 +110,32 @@
                             <span />
                         </label>
                     </div>
-                    <div class="mc-admin-row-end">
-                        <span v-if="!row.liveVersion" class="mc-chip mc-chip--muted">
+                    <div class="sa-marketing-admin-row-end">
+                        <span
+                            v-if="!row.liveVersion"
+                            class="sa-marketing-chip sa-marketing-chip--muted"
+                        >
                             {{ msg.admin.noLiveVersion }}
                         </span>
-                        <span v-else-if="!row.m.visible" class="mc-chip mc-chip--muted">
+                        <span
+                            v-else-if="!row.m.visible"
+                            class="sa-marketing-chip sa-marketing-chip--muted"
+                        >
                             {{ msg.admin.hidden }}
                         </span>
-                        <span v-else-if="row.m.highlight" class="mc-chip mc-chip--featured">
+                        <span
+                            v-else-if="row.m.highlight"
+                            class="sa-marketing-chip sa-marketing-chip--featured"
+                        >
                             {{ msg.admin.featured }}
                         </span>
-                        <span v-else class="mc-chip mc-chip--live">{{ msg.admin.live }}</span>
+                        <span v-else class="sa-marketing-chip sa-marketing-chip--live">{{
+                            msg.admin.live
+                        }}</span>
                         <button
                             v-if="row.liveVersion"
                             type="button"
-                            class="mc-expand-btn"
+                            class="sa-marketing-expand-btn"
                             :title="
                                 expandedKey === row.plan.planKey
                                     ? common.close
@@ -127,7 +144,7 @@
                             @click="$emit('toggle-expand', row)"
                         >
                             <span
-                                class="mc-chev"
+                                class="sa-marketing-chev"
                                 :class="{ open: expandedKey === row.plan.planKey }"
                             >
                                 <svg
@@ -145,17 +162,17 @@
                     </div>
                 </div>
 
-                <div v-if="expandedKey === row.plan.planKey" class="mc-admin-expand">
-                    <div class="mc-expand-grid">
-                        <div class="mc-expand-col">
-                            <div class="mc-expand-sec">
-                                <div class="mc-field-head">
-                                    <label class="mc-expand-label">
+                <div v-if="expandedKey === row.plan.planKey" class="sa-marketing-admin-expand">
+                    <div class="sa-marketing-expand-grid">
+                        <div class="sa-marketing-expand-col">
+                            <div class="sa-marketing-expand-sec">
+                                <div class="sa-marketing-field-head">
+                                    <label class="sa-marketing-expand-label">
                                         {{ msg.admin.planNameLabel }}
                                     </label>
                                     <span
                                         v-if="activeLocale !== defaultLocale"
-                                        class="mc-source-hint"
+                                        class="sa-marketing-source-hint"
                                     >
                                         {{ defaultLocale.toUpperCase() }}:
                                         <em>
@@ -167,15 +184,18 @@
                                         </em>
                                     </span>
                                 </div>
-                                <div v-if="activeLocale === defaultLocale" class="mc-locked-value">
+                                <div
+                                    v-if="activeLocale === defaultLocale"
+                                    class="sa-marketing-locked-value"
+                                >
                                     <span>{{ row.plan.label }}</span>
-                                    <span class="mc-locked-hint">
+                                    <span class="sa-marketing-locked-hint">
                                         {{ msg.admin.planNameLocked }}
                                     </span>
                                 </div>
                                 <input
                                     v-else
-                                    class="mc-field"
+                                    class="sa-marketing-field"
                                     :placeholder="row.plan.label"
                                     :value="row.m.displayLabel"
                                     :disabled="busy"
@@ -183,7 +203,7 @@
                                 />
                                 <div
                                     v-if="activeLocale !== defaultLocale && !row.m.displayLabel"
-                                    class="mc-expand-hint"
+                                    class="sa-marketing-expand-hint"
                                 >
                                     {{
                                         formatMessage(msg.admin.planNameFallbackHint, {
@@ -193,10 +213,12 @@
                                 </div>
                             </div>
 
-                            <div class="mc-expand-sec">
-                                <label class="mc-expand-label">{{ msg.admin.teaserLabel }}</label>
+                            <div class="sa-marketing-expand-sec">
+                                <label class="sa-marketing-expand-label">{{
+                                    msg.admin.teaserLabel
+                                }}</label>
                                 <textarea
-                                    class="mc-field mc-field--area"
+                                    class="sa-marketing-field sa-marketing-field--area"
                                     rows="2"
                                     :placeholder="msg.admin.teaserPlaceholder"
                                     :value="row.m.description"
@@ -205,13 +227,17 @@
                                         $emit('patch', row, { description: textValue($event) })
                                     "
                                 />
-                                <div class="mc-expand-hint">{{ msg.admin.teaserHint }}</div>
+                                <div class="sa-marketing-expand-hint">
+                                    {{ msg.admin.teaserHint }}
+                                </div>
                             </div>
 
-                            <div class="mc-expand-sec">
-                                <label class="mc-expand-label">{{ msg.admin.trialLabel }}</label>
-                                <div class="mc-trial-row">
-                                    <label class="mc-toggle">
+                            <div class="sa-marketing-expand-sec">
+                                <label class="sa-marketing-expand-label">{{
+                                    msg.admin.trialLabel
+                                }}</label>
+                                <div class="sa-marketing-trial-row">
+                                    <label class="sa-marketing-toggle">
                                         <input
                                             type="checkbox"
                                             :checked="row.m.trialEnabled"
@@ -224,19 +250,19 @@
                                         />
                                         <span />
                                     </label>
-                                    <span class="mc-trial-label">
+                                    <span class="sa-marketing-trial-label">
                                         {{
                                             row.m.trialEnabled
                                                 ? msg.admin.trialOn
                                                 : msg.admin.trialOff
                                         }}
                                     </span>
-                                    <span class="mc-trial-days">
+                                    <span class="sa-marketing-trial-days">
                                         <input
                                             type="number"
                                             min="1"
                                             max="365"
-                                            class="mc-field"
+                                            class="sa-marketing-field"
                                             style="max-width: 72px"
                                             :value="row.m.trialDays"
                                             :disabled="!row.m.trialEnabled || busy"
@@ -246,20 +272,20 @@
                                                 })
                                             "
                                         />
-                                        <span class="mc-trial-unit">
+                                        <span class="sa-marketing-trial-unit">
                                             {{ msg.admin.trialDaysUnit }}
                                         </span>
                                     </span>
                                 </div>
-                                <div class="mc-expand-hint">{{ trialCtaHint(row) }}</div>
+                                <div class="sa-marketing-expand-hint">{{ trialCtaHint(row) }}</div>
                             </div>
 
-                            <div class="mc-expand-sec">
-                                <label class="mc-expand-label">
+                            <div class="sa-marketing-expand-sec">
+                                <label class="sa-marketing-expand-label">
                                     {{ msg.admin.ctaOverrideLabel }}
                                 </label>
                                 <input
-                                    class="mc-field"
+                                    class="sa-marketing-field"
                                     :placeholder="autoCtaText(row)"
                                     :value="row.m.ctaLabel ?? ''"
                                     :disabled="busy"
@@ -269,17 +295,22 @@
                                         })
                                     "
                                 />
-                                <div class="mc-expand-hint">{{ msg.admin.ctaOverrideHint }}</div>
+                                <div class="sa-marketing-expand-hint">
+                                    {{ msg.admin.ctaOverrideHint }}
+                                </div>
                             </div>
                         </div>
 
-                        <div class="mc-expand-col">
-                            <div class="mc-expand-sec">
-                                <div class="mc-tf-head">
-                                    <label class="mc-expand-label" style="margin: 0">
+                        <div class="sa-marketing-expand-col">
+                            <div class="sa-marketing-expand-sec">
+                                <div class="sa-marketing-tf-head">
+                                    <label class="sa-marketing-expand-label" style="margin: 0">
                                         {{ msg.topFeatures }}
                                     </label>
-                                    <span class="mc-expand-hint" style="margin-left: auto">
+                                    <span
+                                        class="sa-marketing-expand-hint"
+                                        style="margin-left: auto"
+                                    >
                                         {{
                                             formatMessage(msg.admin.topFeatureCount, {
                                                 count: editFeatures.length,
@@ -288,11 +319,15 @@
                                     </span>
                                 </div>
 
-                                <div class="mc-tf-list">
-                                    <div v-for="(f, i) in editFeatures" :key="i" class="mc-tf-row">
-                                        <span class="mc-tf-num">{{ i + 1 }}</span>
+                                <div class="sa-marketing-tf-list">
+                                    <div
+                                        v-for="(f, i) in editFeatures"
+                                        :key="i"
+                                        class="sa-marketing-tf-row"
+                                    >
+                                        <span class="sa-marketing-tf-num">{{ i + 1 }}</span>
                                         <input
-                                            class="mc-field mc-tf-label"
+                                            class="sa-marketing-field sa-marketing-tf-label"
                                             :placeholder="
                                                 f.key
                                                     ? resolveComponentLabel(f.key)
@@ -306,7 +341,7 @@
                                             @change="$emit('persist-features', row)"
                                         />
                                         <input
-                                            class="mc-field mc-tf-strong"
+                                            class="sa-marketing-field sa-marketing-tf-strong"
                                             :placeholder="msg.admin.featureStrongPlaceholder"
                                             :value="f.strong"
                                             :disabled="busy"
@@ -315,10 +350,10 @@
                                             "
                                             @change="$emit('persist-features', row)"
                                         />
-                                        <div class="mc-tf-actions">
+                                        <div class="sa-marketing-tf-actions">
                                             <button
                                                 type="button"
-                                                class="mc-iconbtn"
+                                                class="sa-marketing-iconbtn"
                                                 :title="msg.admin.moveUp"
                                                 :disabled="i === 0 || busy"
                                                 @click="$emit('move-feature', row, i, -1)"
@@ -327,7 +362,7 @@
                                             </button>
                                             <button
                                                 type="button"
-                                                class="mc-iconbtn"
+                                                class="sa-marketing-iconbtn"
                                                 :title="msg.admin.moveDown"
                                                 :disabled="i === editFeatures.length - 1 || busy"
                                                 @click="$emit('move-feature', row, i, 1)"
@@ -336,7 +371,7 @@
                                             </button>
                                             <button
                                                 type="button"
-                                                class="mc-iconbtn mc-iconbtn--danger"
+                                                class="sa-marketing-iconbtn sa-marketing-iconbtn--danger"
                                                 :title="common.remove"
                                                 :disabled="busy"
                                                 @click="$emit('remove-feature', row, i)"
@@ -354,15 +389,18 @@
                                             </button>
                                         </div>
                                     </div>
-                                    <div v-if="editFeatures.length === 0" class="mc-tf-empty">
+                                    <div
+                                        v-if="editFeatures.length === 0"
+                                        class="sa-marketing-tf-empty"
+                                    >
                                         {{ msg.admin.topFeaturesEmpty }}
                                     </div>
                                 </div>
 
-                                <div class="mc-tf-add">
+                                <div class="sa-marketing-tf-add">
                                     <button
                                         type="button"
-                                        class="mc-btn mc-btn--sm"
+                                        class="sa-marketing-btn sa-marketing-btn--sm"
                                         :disabled="busy"
                                         @click="$emit('add-feature', row)"
                                     >
@@ -380,16 +418,16 @@
                                     </button>
                                     <div
                                         v-if="suggestionsFor(row).length > 0"
-                                        class="mc-tf-suggestions"
+                                        class="sa-marketing-tf-suggestions"
                                     >
-                                        <span class="mc-expand-hint">
+                                        <span class="sa-marketing-expand-hint">
                                             {{ msg.admin.suggestionsLabel }}
                                         </span>
                                         <button
                                             v-for="(s, i) in suggestionsFor(row)"
                                             :key="i"
                                             type="button"
-                                            class="mc-tf-chip"
+                                            class="sa-marketing-tf-chip"
                                             :disabled="busy"
                                             :title="
                                                 formatMessage(msg.admin.addSuggestionTitle, {

@@ -1,12 +1,10 @@
 <template>
-    <div class="sa-emh">
-        <header class="sa-emh__head">
-            <div>
-                <h1 class="sa-emh__title">{{ resolvedTitle }}</h1>
-                <p class="sa-emh__sub">{{ msg.history.subtitle }}</p>
-            </div>
-            <q-btn flat icon="refresh" :label="common.reload" @click="applyFilter" />
-        </header>
+    <AdminPage class="sa-emh">
+        <AdminHero :title="resolvedTitle" :subtitle="msg.history.subtitle">
+            <template #actions>
+                <q-btn flat icon="refresh" :label="common.reload" @click="applyFilter" />
+            </template>
+        </AdminHero>
 
         <div class="sa-emh__body">
             <div class="sa-emh__filter">
@@ -206,18 +204,21 @@
 
         <MfaPromptDialog
             v-if="requireMfaForWrite"
-            :model-value="showMfa"
-            :description="mfaDescription"
-            :error="mfaError"
+            :model-value="mfa.show.value"
+            :description="mfa.description.value"
+            :error="mfa.error.value"
             :setup-hint="mfaSetupHint"
-            @update:model-value="onMfaDialogVisibility"
-            @confirm="onMfaConfirm"
+            @update:model-value="mfa.onVisibility"
+            @confirm="mfa.onConfirm"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
+import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
@@ -317,10 +318,7 @@ const confirmDeleteOpen = ref(false);
 const pendingDeleteId = ref<string | null>(null);
 
 // MFA loop analogous to PlatformEmailPage (promise-resolver pattern).
-const showMfa = ref(false);
-const mfaError = ref('');
-const mfaDescription = ref('');
-let pendingMfaResolve: ((code: string | null) => void) | null = null;
+const mfa = useMfaPrompt();
 
 // Sequence guard: with rapidly changing filters a stale (out-of-order)
 // response must not overwrite the newest.
@@ -428,45 +426,22 @@ async function runWrite<T>(
         }
     }
     for (;;) {
-        const code = await promptMfa(label);
+        const code = await mfa.prompt(label);
         if (code === null) return { ok: false };
         try {
             const result = await invoke(code);
-            showMfa.value = false;
+            mfa.show.value = false;
             return { ok: true, result };
         } catch (err) {
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 401) {
-                mfaError.value = shell.value.mfa.invalidCode;
+                mfa.error.value = shell.value.mfa.invalidCode;
                 continue;
             }
-            showMfa.value = false;
+            mfa.show.value = false;
             notify('negative', errMsg(err));
             return { ok: false };
         }
-    }
-}
-
-function promptMfa(description: string): Promise<string | null> {
-    return new Promise((resolve) => {
-        mfaDescription.value = description;
-        mfaError.value = '';
-        showMfa.value = true;
-        pendingMfaResolve = (code) => {
-            pendingMfaResolve = null;
-            resolve(code);
-        };
-    });
-}
-
-function onMfaConfirm(code: string): void {
-    pendingMfaResolve?.(code);
-}
-
-function onMfaDialogVisibility(open: boolean): void {
-    showMfa.value = open;
-    if (!open && pendingMfaResolve) {
-        pendingMfaResolve(null);
     }
 }
 
@@ -521,32 +496,6 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <style scoped>
-.sa-emh {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-}
-.sa-emh__head {
-    padding: 20px 28px 8px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-}
-.sa-emh__title {
-    margin: 0;
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 22px;
-    color: var(--sa-heading, #0f172a);
-}
-.sa-emh__sub {
-    margin: 4px 0 0;
-    color: var(--sa-muted-dark, #475569);
-    font-size: 13.5px;
-}
-.sa-emh__body {
-    padding: 12px 28px 28px;
-}
 .sa-emh__filter {
     display: flex;
     gap: 10px;

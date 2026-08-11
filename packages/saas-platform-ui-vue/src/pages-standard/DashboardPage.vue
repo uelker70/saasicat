@@ -1,11 +1,7 @@
 <template>
-    <div class="sa-dashboard">
-        <header class="sa-page-head sa-dashboard__head">
-            <div>
-                <h1 class="sa-page-head__title">{{ msg.title }}</h1>
-                <p v-if="subtitle" class="sa-page-head__sub">{{ subtitle }}</p>
-            </div>
-            <div class="sa-page-head__actions">
+    <AdminPage class="sa-dashboard">
+        <AdminHero :title="msg.title" :subtitle="subtitle">
+            <template #actions>
                 <q-btn
                     flat
                     dense
@@ -14,8 +10,8 @@
                     :aria-label="common.reload"
                     @click="reload"
                 />
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
         <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
             <strong>{{ common.error }}:</strong> {{ error.message }}
@@ -47,15 +43,15 @@
         </div>
 
         <div v-if="distributions && distributions.length > 0" class="sa-dashboard__rows">
-            <section
+            <AdminSection
                 v-for="dist in distributions"
                 :key="dist.id"
-                class="sa-dashboard__card sa-dashboard__row-card"
+                :title="dist.label"
+                class="sa-card sa-dashboard__row-card"
             >
-                <header class="sa-dashboard__row-head">
-                    <h2>{{ dist.label }}</h2>
-                    <span v-if="dist.total" class="sa-dashboard__count">{{ dist.total }}</span>
-                </header>
+                <template v-if="dist.total" #actions>
+                    <span class="sa-dashboard__count">{{ dist.total }}</span>
+                </template>
                 <ul class="sa-dashboard__bar-list">
                     <li
                         v-for="entry in dist.entries"
@@ -75,16 +71,14 @@
                         <span class="sa-dashboard__bar-count">{{ entry.value }}</span>
                     </li>
                 </ul>
-            </section>
+            </AdminSection>
         </div>
 
-        <section
+        <AdminSection
             v-if="resolvedShortcuts.length > 0"
-            class="sa-dashboard__card sa-dashboard__shortcuts"
+            :title="msg.shortcutsTitle"
+            class="sa-card sa-dashboard__shortcuts"
         >
-            <header class="sa-dashboard__row-head">
-                <h2>{{ msg.shortcutsTitle }}</h2>
-            </header>
             <div class="sa-dashboard__shortcut-grid">
                 <a
                     v-for="s in resolvedShortcuts"
@@ -99,10 +93,10 @@
                     </div>
                 </a>
             </div>
-        </section>
+        </AdminSection>
 
         <slot name="after-kpis" />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
@@ -114,6 +108,9 @@ import { formatMessage } from '../client/i18n/format.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminHttp } from '../vue/use-super-admin-context.js';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 
 // Platform standard page: Dashboard.
 //
@@ -403,16 +400,7 @@ function barWidth(value: number, max?: number): number {
 </script>
 
 <style scoped>
-.sa-dashboard {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-    padding: 20px 28px 28px;
-}
 /* Header look comes from the global .sa-page-head — only a margin tweak here. */
-.sa-dashboard__head {
-    margin-bottom: 4px;
-}
-
 .sa-dashboard__strip {
     display: grid;
     /* Responsive: 4 cards while there is space, then automatically 3 → 2 → 1. */
@@ -494,25 +482,6 @@ function barWidth(value: number, max?: number): number {
     }
 }
 
-.sa-dashboard__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    padding: 16px 18px;
-}
-.sa-dashboard__row-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-.sa-dashboard__row-head h2 {
-    margin: 0;
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--sa-heading, #0f172a);
-}
 .sa-dashboard__count {
     background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
     color: var(--sa-primary, #3f6bff);

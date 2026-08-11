@@ -1,74 +1,66 @@
 <template>
-    <div class="mc-page-head">
-        <div>
-            <h2 class="mc-h-title">{{ msg.header.title }}</h2>
-            <p class="mc-h-sub">{{ msg.header.subtitle }}</p>
-        </div>
-        <div class="mc-head-actions">
-            <div class="mc-locale-mgr">
-                <span class="mc-locale-mgr-label">{{ msg.header.localesLabel }}</span>
-                <span
-                    v-for="loc in activeLocaleSet"
-                    :key="loc"
-                    class="mc-locale-pill"
-                    :class="{ active: loc === activeLocale }"
+    <div class="sa-marketing-head-actions">
+        <div class="sa-marketing-locale-mgr">
+            <span class="sa-marketing-locale-mgr-label">{{ msg.header.localesLabel }}</span>
+            <span
+                v-for="loc in activeLocaleSet"
+                :key="loc"
+                class="sa-marketing-locale-pill"
+                :class="{ active: loc === activeLocale }"
+            >
+                <button
+                    type="button"
+                    class="sa-marketing-locale-pill-btn"
+                    @click="$emit('localeChange', loc)"
                 >
+                    {{ loc.toUpperCase() }}
+                    <span v-if="loc === defaultLocale" :title="msg.header.defaultLocale">★</span>
+                </button>
+                <button
+                    v-if="loc !== defaultLocale"
+                    type="button"
+                    class="sa-marketing-locale-x"
+                    :title="msg.header.deactivateLocale"
+                    @click="$emit('removeLocale', loc)"
+                >
+                    ×
+                </button>
+            </span>
+            <div class="sa-marketing-locale-add-wrap">
+                <button
+                    type="button"
+                    class="sa-marketing-locale-add"
+                    :disabled="addableLocales.length === 0"
+                    @click="$emit('update:localePickerOpen', !localePickerOpen)"
+                >
+                    {{ msg.header.addLocale }}
+                </button>
+                <div v-if="localePickerOpen" class="sa-marketing-locale-picker">
                     <button
+                        v-for="l in addableLocales"
+                        :key="l"
                         type="button"
-                        class="mc-locale-pill-btn"
-                        @click="$emit('localeChange', loc)"
+                        class="sa-marketing-locale-picker-row"
+                        @click="$emit('addLocale', l)"
                     >
-                        {{ loc.toUpperCase() }}
-                        <span v-if="loc === defaultLocale" :title="msg.header.defaultLocale"
-                            >★</span
-                        >
+                        {{ l.toUpperCase() }}
                     </button>
-                    <button
-                        v-if="loc !== defaultLocale"
-                        type="button"
-                        class="mc-locale-x"
-                        :title="msg.header.deactivateLocale"
-                        @click="$emit('removeLocale', loc)"
-                    >
-                        ×
-                    </button>
-                </span>
-                <div class="mc-locale-add-wrap">
-                    <button
-                        type="button"
-                        class="mc-locale-add"
-                        :disabled="addableLocales.length === 0"
-                        @click="$emit('update:localePickerOpen', !localePickerOpen)"
-                    >
-                        {{ msg.header.addLocale }}
-                    </button>
-                    <div v-if="localePickerOpen" class="mc-locale-picker">
-                        <button
-                            v-for="l in addableLocales"
-                            :key="l"
-                            type="button"
-                            class="mc-locale-picker-row"
-                            @click="$emit('addLocale', l)"
-                        >
-                            {{ l.toUpperCase() }}
-                        </button>
-                    </div>
                 </div>
             </div>
-            <button class="mc-btn" type="button" :disabled="busy" @click="$emit('reload')">
-                <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6" />
-                </svg>
-                <span>{{ msg.header.refresh }}</span>
-            </button>
         </div>
+        <button class="sa-marketing-btn" type="button" :disabled="busy" @click="$emit('reload')">
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+            >
+                <path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6" />
+            </svg>
+            <span>{{ msg.header.refresh }}</span>
+        </button>
     </div>
 </template>
 

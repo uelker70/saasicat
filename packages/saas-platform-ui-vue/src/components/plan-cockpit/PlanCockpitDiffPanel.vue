@@ -1,13 +1,11 @@
 <template>
-    <section class="pc-card">
-        <div class="pc-card-head">
-            <div class="pc-card-head-text">
-                <div class="pc-card-title">{{ panelTitle }}</div>
-                <div class="pc-card-sub">
-                    {{ diffPair ? msg.diff.subOnPublish : msg.diff.noComparison }}
-                </div>
-            </div>
-            <div v-if="diffPair" class="pc-pillrow">
+    <AdminSection
+        :title="panelTitle"
+        :subtitle="diffPair ? msg.diff.subOnPublish : msg.diff.noComparison"
+        class="pc-card"
+    >
+        <template v-if="diffPair" #actions>
+            <div class="pc-pillrow">
                 <span class="pc-pill" style="background: #ecfdf5; color: #047857">
                     +{{ diff.addedFeatures.length }} F
                 </span>
@@ -23,7 +21,7 @@
                     Q
                 </span>
             </div>
-        </div>
+        </template>
         <div class="pc-diff-body">
             <div
                 v-for="d in diffRows"
@@ -72,11 +70,12 @@
                 {{ msg.diff.noChangesDetected }}
             </div>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AdminSection from '../admin-page/AdminSection.vue';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { DiffRow, DiffSummary, PlanVersionPair } from './types';

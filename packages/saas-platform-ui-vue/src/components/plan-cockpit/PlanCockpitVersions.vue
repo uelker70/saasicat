@@ -1,13 +1,10 @@
 <template>
-    <section class="pc-card pc-card--left">
-        <div class="pc-card-head">
-            <div class="pc-card-head-text">
-                <div class="pc-card-title">{{ msg.versions.title }}</div>
-                <div class="pc-card-sub">
-                    {{ msg.versions.subtitle }}
-                    <code class="pc-mono">supersededAt</code>
-                </div>
-            </div>
+    <AdminSection :title="msg.versions.title" class="pc-card pc-card--left">
+        <template #subtitle>
+            {{ msg.versions.subtitle }}
+            <code class="pc-mono">supersededAt</code>
+        </template>
+        <template #actions>
             <button
                 class="pc-btn pc-btn--sm pc-btn--primary"
                 type="button"
@@ -26,7 +23,7 @@
                 </svg>
                 <span>{{ newDraftButtonLabel }}</span>
             </button>
-        </div>
+        </template>
 
         <div v-if="versions.length > 0" class="pc-vtimeline">
             <div class="pc-vtl-track">
@@ -166,11 +163,12 @@
                 </button>
             </div>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AdminSection from '../admin-page/AdminSection.vue';
 import { isVersionEditable, type PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';

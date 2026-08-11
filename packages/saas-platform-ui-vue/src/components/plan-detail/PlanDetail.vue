@@ -694,6 +694,17 @@ async function executeTerminate(): Promise<void> {
     padding: 14px 16px 12px;
     border-bottom: 1px solid #f1f5f9;
 }
+.pd-panel .sa-section__head {
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 0;
+}
+.pd-panel .sa-section__sub {
+    font-size: 11.5px;
+    margin-top: 2px;
+}
 .pd-panel-title {
     font-size: 15px;
     font-weight: 700;

@@ -1,10 +1,6 @@
 <template>
-    <section class="pd-panel">
-        <div class="pd-panel-head">
-            <div style="min-width: 0">
-                <h3 class="pd-panel-title">{{ panelTitle }}</h3>
-                <div class="pd-panel-sub">{{ panelSubtitle }}</div>
-            </div>
+    <AdminSection :title="panelTitle" :subtitle="panelSubtitle" class="pd-panel">
+        <template #actions>
             <div class="pd-panel-head-right pd-diff-chips">
                 <template v-if="predecessor">
                     <span class="pd-diff-chip add">+{{ diff.featuresAdded.length }} F</span>
@@ -16,7 +12,7 @@
                     <span class="pd-diff-chip mod">{{ quotaCount(selectedVersion) }} Q</span>
                 </template>
             </div>
-        </div>
+        </template>
 
         <div v-if="predecessor" class="pd-diff-list">
             <div v-for="d in diffRows" :key="d.id" :class="['pd-diff-row', d.kind]">
@@ -123,11 +119,12 @@
                 </div>
             </template>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AdminSection from '../admin-page/AdminSection.vue';
 import type { PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

@@ -1,12 +1,10 @@
 <template>
-    <div class="sa-subscriptions">
-        <header class="sa-subscriptions__head">
-            <div>
-                <h1 class="sa-subscriptions__title">{{ msg.subscriptions.title }}</h1>
-                <p v-if="subtitle" class="sa-subscriptions__sub">{{ subtitle }}</p>
-            </div>
-            <slot name="head-actions" />
-        </header>
+    <AdminPage class="sa-subscriptions">
+        <AdminHero :title="msg.subscriptions.title" :subtitle="subtitle">
+            <template #actions>
+                <slot name="head-actions" />
+            </template>
+        </AdminHero>
 
         <div class="sa-subscriptions__body">
             <div class="sa-subscriptions__card">
@@ -21,11 +19,13 @@
                 />
             </div>
         </div>
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard page: subscriptions (minimal). Apps pass
@@ -129,32 +129,6 @@ function formatDate(iso: string | null | undefined): string | null {
 </script>
 
 <style scoped>
-.sa-subscriptions {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-}
-.sa-subscriptions__head {
-    padding: 20px 28px 8px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-}
-.sa-subscriptions__title {
-    margin: 0;
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 22px;
-    color: var(--sa-heading, #0f172a);
-}
-.sa-subscriptions__sub {
-    margin: 4px 0 0;
-    color: var(--sa-muted-dark, #475569);
-    font-size: 13.5px;
-}
-.sa-subscriptions__body {
-    padding: 12px 28px 28px;
-}
 .sa-subscriptions__card {
     background: #fff;
     border: 1px solid var(--sa-border, #e2e8f0);

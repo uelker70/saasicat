@@ -1,11 +1,7 @@
 <template>
-    <div class="sa-promo-codes">
-        <header class="sa-page-head">
-            <div>
-                <h1 class="sa-page-head__title">{{ msg.title }}</h1>
-                <p v-if="subtitle" class="sa-page-head__sub">{{ subtitle }}</p>
-            </div>
-            <div class="sa-page-head__actions">
+    <AdminPage class="sa-promo-codes">
+        <AdminHero :title="msg.title" :subtitle="subtitle">
+            <template #actions>
                 <slot name="head-actions">
                     <q-btn
                         v-if="enableCreate"
@@ -16,8 +12,8 @@
                         @click="showCreate = true"
                     />
                 </slot>
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
         <div class="sa-stats">
             <button
@@ -108,7 +104,7 @@
             :submit="submitEdit"
             @updated="onUpdated"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script lang="ts">
@@ -137,6 +133,8 @@ export function computePlanColors(
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
@@ -562,11 +560,6 @@ function formatDate(iso: string | Date | null | undefined): string | null {
 </script>
 
 <style scoped>
-.sa-promo-codes {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-    padding: 20px 28px 28px;
-}
 .sa-promo-codes__filter {
     display: flex;
     gap: 10px;

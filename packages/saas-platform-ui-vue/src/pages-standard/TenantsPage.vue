@@ -1,11 +1,6 @@
 <template>
-    <div class="sa-tenants">
-        <header class="sa-tenants__head">
-            <div>
-                <h1 class="sa-tenants__title">{{ msg.list.title }}</h1>
-                <p v-if="subtitle" class="sa-tenants__sub">{{ subtitle }}</p>
-            </div>
-        </header>
+    <AdminPage class="sa-tenants">
+        <AdminHero :title="msg.list.title" :subtitle="subtitle" />
 
         <div class="sa-tenants__filter">
             <div class="sa-tenants__search">
@@ -162,11 +157,13 @@
                 @cancel="manifestFlow.onConfirmCancel"
             />
         </template>
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { AdminManifest, TenantActionDef, TenantDto, TenantListFilter } from '@saasicat/types';
 import type { HttpClient } from '../client/types.js';
 import { formatMessage } from '../client/i18n/format.js';
@@ -518,30 +515,8 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 </script>
 
 <style scoped>
-.sa-tenants {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-}
-.sa-tenants__head {
-    padding: 20px 28px 8px;
-}
-.sa-tenants__title {
-    margin: 0;
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 22px;
-    color: var(--sa-heading, #0f172a);
-    letter-spacing: -0.01em;
-}
-.sa-tenants__sub {
-    margin: 4px 0 0;
-    color: var(--sa-muted-dark, #475569);
-    font-size: 13.5px;
-    line-height: 1.5;
-}
-
 .sa-tenants__filter {
-    padding: 12px 28px;
+    padding: 0 0 12px;
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
@@ -587,7 +562,7 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 }
 
 .sa-tenants__card {
-    margin: 0 28px 28px;
+    margin: 0 0 16px;
     background: #fff;
     border: 1px solid var(--sa-border, #e2e8f0);
     border-radius: 12px;
@@ -737,7 +712,7 @@ td {
 }
 
 .sa-tenants__foot {
-    padding: 0 28px 28px;
+    padding: 0;
     text-align: right;
     font-size: 12px;
     color: var(--sa-muted, #64748b);

@@ -4,7 +4,7 @@
             <div class="sa-setup-head">
                 <div class="sa-setup-badge">{{ iconText }}</div>
                 <div>
-                    <div class="sa-setup-title">{{ msg.setup.title }}</div>
+                    <h1 class="sa-setup-title">{{ msg.setup.title }}</h1>
                     <div class="sa-setup-sub">{{ subtitleText }}</div>
                 </div>
                 <LocaleSwitcher class="sa-setup-locale" />
@@ -309,6 +309,7 @@ async function submitConfirm(): Promise<void> {
     text-transform: uppercase;
 }
 .sa-setup-title {
+    margin: 0;
     font-weight: 800;
     font-size: 18px;
     color: #0f172a;

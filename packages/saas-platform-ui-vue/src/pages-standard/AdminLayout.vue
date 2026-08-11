@@ -86,9 +86,11 @@
         </q-drawer>
 
         <q-page-container>
-            <div :class="['sa-admin-content', { 'sa-admin-content--fullbleed': isFullbleed }]">
+            <!-- The document's only <main>. Pages must not add one of their
+                 own, and must not use QPage, which renders <main> itself. -->
+            <main :class="['sa-admin-content', { 'sa-admin-content--fullbleed': isFullbleed }]">
                 <router-view />
-            </div>
+            </main>
         </q-page-container>
     </q-layout>
 </template>

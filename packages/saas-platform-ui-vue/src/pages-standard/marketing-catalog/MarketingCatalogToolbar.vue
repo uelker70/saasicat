@@ -1,9 +1,9 @@
 <template>
-    <div class="mc-toolbar">
-        <div class="mc-tabbar">
+    <div class="sa-marketing-toolbar">
+        <div class="sa-marketing-tabbar">
             <button
                 type="button"
-                class="mc-tab"
+                class="sa-marketing-tab"
                 :class="{ active: tab === 'preview' }"
                 @click="$emit('update:tab', 'preview')"
             >
@@ -11,7 +11,7 @@
             </button>
             <button
                 type="button"
-                class="mc-tab"
+                class="sa-marketing-tab"
                 :class="{ active: tab === 'admin' }"
                 @click="$emit('update:tab', 'admin')"
             >
@@ -19,17 +19,17 @@
             </button>
             <button
                 type="button"
-                class="mc-tab"
+                class="sa-marketing-tab"
                 :class="{ active: tab === 'promos' }"
                 @click="$emit('update:tab', 'promos')"
             >
                 {{ msg.tabs.promos }}
-                <span v-if="activePromoCount > 0" class="mc-tab-count">
+                <span v-if="activePromoCount > 0" class="sa-marketing-tab-count">
                     {{ activePromoCount }}
                 </span>
             </button>
         </div>
-        <div class="mc-meta">
+        <div class="sa-marketing-meta">
             <span>catalogVersion</span>
             <code>{{ catalogVersion }}</code>
             <span>·</span>

@@ -1,7 +1,7 @@
 <template>
-    <div class="sa-promo-detail">
-        <header class="sa-page-head">
-            <div>
+    <AdminPage class="sa-promo-detail">
+        <AdminHero :title="data?.promo.code ?? labels.promoCode">
+            <template #before-title>
                 <q-btn
                     flat
                     dense
@@ -10,19 +10,18 @@
                     :to="backRoute"
                     class="sa-promo-detail__back"
                 />
-                <h1 class="sa-page-head__title">{{ data?.promo.code ?? labels.promoCode }}</h1>
-                <p class="sa-page-head__sub">
-                    <template v-if="data">
-                        {{ data.promo.valueType }} · {{ data.promo.value }} ·
-                        <q-badge
-                            :color="resolveStatusColor(String(data.promo.status))"
-                            :label="String(data.promo.status)"
-                        />
-                    </template>
-                    <template v-else>—</template>
-                </p>
-            </div>
-            <div class="sa-promo-detail__head-actions">
+            </template>
+            <template #subtitle>
+                <template v-if="data">
+                    {{ data.promo.valueType }} · {{ data.promo.value }} ·
+                    <q-badge
+                        :color="resolveStatusColor(String(data.promo.status))"
+                        :label="String(data.promo.status)"
+                    />
+                </template>
+                <template v-else>—</template>
+            </template>
+            <template #actions>
                 <q-btn
                     v-if="editSubmit && data"
                     color="primary"
@@ -32,36 +31,34 @@
                     @click="openEdit"
                 />
                 <slot name="header-actions" />
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
-        <div class="sa-promo-detail__body">
-            <div v-if="loading" class="sa-promo-detail__state">
-                <q-spinner size="32px" /> {{ msg.detail.loading }}
-            </div>
-            <div v-else-if="!data" class="sa-promo-detail__state">{{ labels.empty }}</div>
-
-            <template v-else>
-                <div class="sa-card sa-promo-detail__section">
-                    <div class="sa-promo-detail__section-head">{{ labels.config }}</div>
+        <AdminBody
+            :loading="loading"
+            :empty="!data"
+            :loading-text="msg.detail.loading"
+            :empty-text="labels.empty"
+        >
+            <template v-if="data">
+                <AdminSection :title="labels.config" class="sa-card sa-promo-detail__section">
                     <slot name="config" :promo="data.promo">
                         <pre class="sa-promo-detail__kv">{{ resolveFormatPromo(data.promo) }}</pre>
                     </slot>
-                </div>
+                </AdminSection>
 
-                <div class="sa-card sa-promo-detail__section">
-                    <div class="sa-promo-detail__section-head">{{ labels.stats }}</div>
+                <AdminSection :title="labels.stats" class="sa-card sa-promo-detail__section">
                     <slot name="stats" :stats="data.stats">
                         <pre class="sa-promo-detail__kv">{{
                             JSON.stringify(data.stats, null, 2)
                         }}</pre>
                     </slot>
-                </div>
+                </AdminSection>
 
-                <div class="sa-card sa-promo-detail__section">
-                    <div class="sa-promo-detail__section-head">
-                        {{ labels.redemptions }} ({{ data.redemptions.length }})
-                    </div>
+                <AdminSection
+                    :title="`${labels.redemptions} (${data.redemptions.length})`"
+                    class="sa-card sa-promo-detail__section"
+                >
                     <slot name="redemptions" :redemptions="data.redemptions">
                         <q-table
                             flat
@@ -72,11 +69,11 @@
                             hide-pagination
                         />
                     </slot>
-                </div>
+                </AdminSection>
 
                 <slot name="extra-sections" :data="data" />
             </template>
-        </div>
+        </AdminBody>
 
         <PromoCodeEditDialog
             v-if="editSubmit"
@@ -86,11 +83,15 @@
             :submit="editSubmit"
             @updated="onEditUpdated"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { RouteLocationRaw } from 'vue-router';
 import type { QTableColumn } from 'quasar';
 import PromoCodeEditDialog, {
@@ -283,10 +284,6 @@ const defaultColumns = computed<QTableColumn[]>(() => [
 </script>
 
 <style scoped>
-.sa-promo-detail {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app);
-}
 .sa-promo-detail__back {
     margin-bottom: 6px;
 }
@@ -297,7 +294,6 @@ const defaultColumns = computed<QTableColumn[]>(() => [
     margin-left: auto;
 }
 .sa-promo-detail__body {
-    padding: 12px 28px 28px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -323,12 +319,5 @@ const defaultColumns = computed<QTableColumn[]>(() => [
     margin: 0;
     overflow-x: auto;
     font-family: var(--sa-font-mono);
-}
-.sa-promo-detail__state {
-    padding: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--sa-muted);
 }
 </style>

@@ -1,75 +1,90 @@
 <template>
-    <div class="mc-window">
-        <div class="mc-chrome">
-            <span class="mc-chrome-dot" style="background: #ef4444" />
-            <span class="mc-chrome-dot" style="background: #f59e0b" />
-            <span class="mc-chrome-dot" style="background: #10b981" />
-            <div class="mc-chrome-url">{{ previewUrl }}</div>
+    <div class="sa-marketing-window">
+        <div class="sa-marketing-chrome">
+            <span class="sa-marketing-chrome-dot" style="background: #ef4444" />
+            <span class="sa-marketing-chrome-dot" style="background: #f59e0b" />
+            <span class="sa-marketing-chrome-dot" style="background: #10b981" />
+            <div class="sa-marketing-chrome-url">{{ previewUrl }}</div>
         </div>
-        <div class="mc-canvas">
-            <div class="mc-eyebrow">{{ msg.preview.eyebrow }}</div>
-            <h1 class="mc-hero">{{ msg.preview.hero }}</h1>
-            <p class="mc-sub">{{ msg.preview.sub }}</p>
+        <div class="sa-marketing-canvas">
+            <div class="sa-marketing-eyebrow">{{ msg.preview.eyebrow }}</div>
+            <!-- Not a heading element: this is a picture of the public landing
+                 page inside a browser mock-up, and assistive technology cannot
+                 tell a mock-up from the document it is embedded in — a real
+                 <h1> here would be a second page heading. -->
+            <div class="sa-marketing-hero">{{ msg.preview.hero }}</div>
+            <p class="sa-marketing-sub">{{ msg.preview.sub }}</p>
 
-            <div v-if="visibleRows.length === 0" class="mc-banner mc-banner--info">
+            <div
+                v-if="visibleRows.length === 0"
+                class="sa-marketing-banner sa-marketing-banner--info"
+            >
                 {{ msg.preview.emptyBefore }} <strong>{{ msg.tabs.admin }}</strong
                 >{{ msg.preview.emptyAfter }}
             </div>
 
-            <div v-else class="mc-grid">
+            <div v-else class="sa-marketing-grid">
                 <div
                     v-for="row in visibleRows"
                     :key="row.plan.id"
-                    class="mc-card"
+                    class="sa-marketing-card"
                     :class="{ featured: row.m.highlight, 'has-promo': !!promoOf(row) }"
                 >
                     <div
                         v-if="promoOf(row)"
-                        class="mc-promo-ribbon"
+                        class="sa-marketing-promo-ribbon"
                         :style="{ background: promoColorOf(row) }"
                     >
                         {{ promoBadgeOf(row) }}
                     </div>
-                    <span v-else-if="row.m.badge" class="mc-card-badge">{{ row.m.badge }}</span>
-                    <div class="mc-card-key">{{ row.plan.planKey }}</div>
-                    <div class="mc-card-name">
+                    <span v-else-if="row.m.badge" class="sa-marketing-card-badge">{{
+                        row.m.badge
+                    }}</span>
+                    <div class="sa-marketing-card-key">{{ row.plan.planKey }}</div>
+                    <div class="sa-marketing-card-name">
                         {{ row.m.displayLabel || row.plan.label }}
                     </div>
-                    <div class="mc-card-desc">
+                    <div class="sa-marketing-card-desc">
                         {{ row.m.description || row.plan.description || '—' }}
                     </div>
 
-                    <div class="mc-card-price">
+                    <div class="sa-marketing-card-price">
                         <template v-if="row.m.priceTag">
-                            <span class="mc-card-price-big" style="font-size: 22px">
+                            <span class="sa-marketing-card-price-big" style="font-size: 22px">
                                 {{ row.m.priceTag }}
                             </span>
                         </template>
                         <template v-else-if="!row.liveVersion">
-                            <span class="mc-card-price-big" style="font-size: 22px">
+                            <span class="sa-marketing-card-price-big" style="font-size: 22px">
                                 {{ msg.preview.priceOnRequest }}
                             </span>
                         </template>
                         <template v-else-if="promoResultOf(row)">
-                            <span class="mc-card-price-big">
+                            <span class="sa-marketing-card-price-big">
                                 {{ formatEuro(promoResultOf(row)?.discounted ?? 0) }}
                             </span>
-                            <span class="mc-card-price-unit">{{ msg.preview.perMonth }}</span>
+                            <span class="sa-marketing-card-price-unit">{{
+                                msg.preview.perMonth
+                            }}</span>
                         </template>
                         <template v-else>
-                            <span class="mc-card-price-big">
+                            <span class="sa-marketing-card-price-big">
                                 {{ formatEuro(monthlyOf(row)) }}
                             </span>
-                            <span class="mc-card-price-unit">{{ msg.preview.perMonth }}</span>
+                            <span class="sa-marketing-card-price-unit">{{
+                                msg.preview.perMonth
+                            }}</span>
                         </template>
                     </div>
-                    <div v-if="promoResultOf(row)" class="mc-card-price-strike">
+                    <div v-if="promoResultOf(row)" class="sa-marketing-card-price-strike">
                         <s>{{ formatEuro(promoResultOf(row)?.original ?? 0) }}</s>
-                        <span class="mc-price-regular">{{ msg.preview.regularPrice }}</span>
+                        <span class="sa-marketing-price-regular">{{
+                            msg.preview.regularPrice
+                        }}</span>
                     </div>
                     <div
                         v-else-if="row.liveVersion && yearlyOf(row) > 0 && !row.m.priceTag"
-                        class="mc-card-price-y"
+                        class="sa-marketing-card-price-y"
                     >
                         {{
                             formatMessage(msg.preview.orYearly, {
@@ -78,18 +93,21 @@
                         }}
                     </div>
 
-                    <button type="button" class="mc-card-cta">{{ ctaText(row) }}</button>
-                    <div v-if="showTrialNote(row) && !promoOf(row)" class="mc-card-trialnote">
+                    <button type="button" class="sa-marketing-card-cta">{{ ctaText(row) }}</button>
+                    <div
+                        v-if="showTrialNote(row) && !promoOf(row)"
+                        class="sa-marketing-card-trialnote"
+                    >
                         {{ formatMessage(msg.preview.trialNote, { days: row.m.trialDays }) }}
                     </div>
-                    <div v-if="promoFineprintOf(row)" class="mc-card-fineprint">
+                    <div v-if="promoFineprintOf(row)" class="sa-marketing-card-fineprint">
                         {{ promoFineprintOf(row) }}
                     </div>
 
-                    <div class="mc-card-includes">{{ msg.topFeatures }}</div>
-                    <ul v-if="row.m.topFeatures.length > 0" class="mc-card-features">
+                    <div class="sa-marketing-card-includes">{{ msg.topFeatures }}</div>
+                    <ul v-if="row.m.topFeatures.length > 0" class="sa-marketing-card-features">
                         <li v-for="(f, i) in row.m.topFeatures" :key="i">
-                            <span class="mc-tick">
+                            <span class="sa-marketing-tick">
                                 <svg
                                     width="14"
                                     height="14"
@@ -107,7 +125,7 @@
                             </span>
                         </li>
                     </ul>
-                    <div v-else class="mc-card-features-empty">
+                    <div v-else class="sa-marketing-card-features-empty">
                         {{ msg.preview.noTopFeatures }}
                     </div>
                 </div>

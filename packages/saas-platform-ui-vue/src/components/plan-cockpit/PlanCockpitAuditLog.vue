@@ -1,11 +1,10 @@
 <template>
-    <section v-if="auditRows.length > 0 || loadingAudit" class="pc-card pc-audit-card">
-        <div class="pc-card-head pc-card-head--audit">
-            <div class="pc-card-head-text">
-                <div class="pc-card-title">{{ msg.auditLog.title }}</div>
-                <div class="pc-card-sub">{{ msg.auditLog.subtitle }}</div>
-            </div>
-        </div>
+    <AdminSection
+        v-if="auditRows.length > 0 || loadingAudit"
+        :title="msg.auditLog.title"
+        :subtitle="msg.auditLog.subtitle"
+        class="pc-card pc-audit-card pc-card--audit-head"
+    >
         <div class="pc-audit">
             <div v-if="loadingAudit" class="pc-empty pc-empty--inline">
                 {{ msg.auditLog.loading }}
@@ -18,11 +17,12 @@
                 <span class="pc-audit-what">{{ auditLabel(a) }}</span>
             </div>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { formatMessage } from '../../client/i18n/format.js';
+import AdminSection from '../admin-page/AdminSection.vue';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import type { AuditRow } from './types';
 
