@@ -2,7 +2,9 @@
     <header class="sa-page-head">
         <div>
             <slot name="before-title" />
-            <component :is="`h${level}`" class="sa-page-head__title">{{ title }}</component>
+            <component :is="`h${level}`" class="sa-page-head__title">
+                <slot name="title">{{ title }}</slot>
+            </component>
             <p v-if="subtitle || $slots.subtitle" class="sa-page-head__sub">
                 <slot name="subtitle">{{ subtitle }}</slot>
             </p>
@@ -25,6 +27,11 @@
 // pages whose subtitle carries markup (a status badge, a <code> slug).
 // `before-title` holds the back link on detail pages, which sits above the
 // heading rather than beside it.
+//
+// The `title` slot fills the heading with markup rather than text — a rename
+// affordance, say. The hero still owns the element and its level; the page only
+// says what goes inside it. `title` stays required either way, so the heading
+// has an accessible name even while the slot renders a control.
 //
 // `level` is what lets the same title block appear twice on a page: `1` at the
 // top, `2` for a titled group inside AdminBody. The markup is identical, so a

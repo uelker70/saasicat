@@ -253,13 +253,13 @@
 
 /* The filter row (see AdminFilters). Declared once so no page writes its own
  * flex rule — which is how five pages ended up with five filter bars. */
-.sa-filters .sa-section__body {
+.sa-filters .sa-filters__body {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     align-items: center;
 }
-.sa-filters .sa-section__body > * {
+.sa-filters .sa-filters__body > * {
     flex: 1;
     min-width: 200px;
 }

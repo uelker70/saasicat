@@ -1,6 +1,10 @@
 <template>
     <AdminPage class="sa-plans">
-        <AdminHero :title="heroTitle" :subtitle="msg.page.subtitle">
+        <AdminHero :title="heroTitle" :subtitle="heroSubtitle">
+            <template v-if="mode === 'cockpit' && selectedPlan" #title>
+                <PlanTitleEdit :plan="selectedPlan" :editable="detailDraftVersion !== null" />
+            </template>
+
             <template v-if="mode === 'list'" #actions>
                 <button class="sa-btn" type="button" @click="mode = 'matrix'">
                     <q-icon name="grid_view" size="16px" />
@@ -19,6 +23,44 @@
                 <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
                     <q-icon name="add" size="16px" />
                     <span>{{ msg.matrix.createPlan }}</span>
+                </button>
+            </template>
+            <template v-else-if="mode === 'cockpit' && selectedPlan" #actions>
+                <button class="sa-btn" type="button" @click="onBackToList">
+                    <q-icon name="arrow_back" size="16px" />
+                    <span>{{ common.back }}</span>
+                </button>
+                <button
+                    v-if="detailIsDeletable"
+                    class="sa-btn sa-btn--danger"
+                    type="button"
+                    :title="planDetailMsg.header.deletePlanTitle"
+                    @click="onArchivePlanFromList(selectedPlan, false)"
+                >
+                    <q-icon name="delete_outline" size="16px" />
+                    <span>{{ planDetailMsg.header.deletePlan }}</span>
+                </button>
+                <button class="sa-btn" type="button" @click="onClonePlan(selectedPlan)">
+                    <q-icon name="content_copy" size="16px" />
+                    <span>{{ planDetailMsg.header.clonePlan }}</span>
+                </button>
+                <button
+                    v-if="!detailDraftVersion"
+                    class="sa-btn sa-btn--primary"
+                    type="button"
+                    @click="openCreateDraft"
+                >
+                    <q-icon name="add" size="16px" />
+                    <span>{{ planDetailMsg.header.newDraftVersion }}</span>
+                </button>
+                <button
+                    v-else
+                    class="sa-btn sa-btn--primary"
+                    type="button"
+                    @click="openPublish(detailDraftVersion)"
+                >
+                    <q-icon name="bolt" size="16px" />
+                    <span>{{ publishDraftLabel }}</span>
                 </button>
             </template>
         </AdminHero>
@@ -103,12 +145,9 @@
                 :audit-rows="auditRows"
                 :loading-audit="loadingAudit"
                 :submit-terminate="onSubmitTerminate"
-                @back="onBackToList"
                 @create-draft="openCreateDraft"
                 @edit-draft="openEditDraft"
                 @publish="openPublish"
-                @clone-plan="onClonePlan(selectedPlan)"
-                @delete-plan="onArchivePlanFromList(selectedPlan, false)"
                 @update-plan="onUpdatePlanFromDetail"
             />
 
@@ -226,6 +265,7 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import PlanVersionEditor from '../components/plan-version-editor/PlanVersionEditor.vue';
 import PlanMatrix from '../components/plan-matrix/PlanMatrix.vue';
 import PlanDetail from '../components/plan-detail/PlanDetail.vue';
+import PlanTitleEdit from '../components/plan-detail/PlanTitleEdit.vue';
 import PlanList from '../components/plan-list/PlanList.vue';
 import PlanCreateDialog, {
     type PlanCreateSubmit,
@@ -292,12 +332,11 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('plans');
+// The plan detail's own strings: its header moved into this page's hero.
+const planDetailMsg = useSaMessages('planDetail');
 
-// Eine Seite, ein Kopf: die Matrix ist eine andere Ansicht derselben Seite,
-// kein eigener Bereich — sie tauscht deshalb den Hero-Titel statt einen
-// zweiten Kopf darunter zu rendern.
-// Dieselbe Ableitung, die PlanList für seine Zeilen nutzt — die Zahlen über
-// der Liste und die Liste selbst dürfen nicht auseinanderlaufen.
+// The same derivation PlanList uses for its rows, so the counts above the list
+// and the list itself cannot drift apart.
 const planCounts = computed(() =>
     countPlans(
         resolvePlans({
@@ -308,8 +347,37 @@ const planCounts = computed(() =>
     ),
 );
 
-const heroTitle = computed(() =>
-    mode.value === 'matrix' ? msg.value.matrix.title : msg.value.list.title,
+// One page, one heading. Every view here — the list, the matrix, a single plan
+// — is a mode of the same page, so each swaps the hero's title and actions
+// instead of rendering a second header underneath it. The plan detail used to
+// do the latter, which put a competing <h1> on the page.
+const heroTitle = computed(() => {
+    if (mode.value === 'cockpit' && selectedPlan.value) return selectedPlan.value.label;
+    return mode.value === 'matrix' ? msg.value.matrix.title : msg.value.list.title;
+});
+
+const heroSubtitle = computed(() => {
+    if (mode.value !== 'cockpit' || !selectedPlan.value) return msg.value.page.subtitle;
+    return selectedPlan.value.description || planDetailMsg.value.header.noDescription;
+});
+
+const detailDraftVersion = computed(
+    () => versions.value.find((v) => v.publishedAt === null) ?? null,
+);
+
+// Deleting a plan is only offered while nothing depends on it: no tenants, no
+// published version, no open draft.
+const detailIsDeletable = computed(
+    () =>
+        detailDraftVersion.value === null &&
+        versions.value.every((v) => v.publishedAt === null) &&
+        Object.values(impactByVersion.value).every((n) => n === 0),
+);
+
+const publishDraftLabel = computed(() =>
+    formatMessage(planDetailMsg.value.header.publishDraft, {
+        version: detailDraftVersion.value?.version ?? '',
+    }),
 );
 const common = useSaMessages('common');
 
@@ -845,7 +913,7 @@ const editorPredecessor = computed<{
     const editingId = draftEditing.value?.editingId ?? null;
     const candidates = editingId ? published.filter((v) => v.id !== editingId) : published;
     if (candidates.length === 0) return null;
-    const latest = candidates.reduce((a, b) => (a.version > b.version ? a : b));
+    const latest = candidates.reduce((a: any, b: any) => (a.version > b.version ? a : b));
     return {
         version: latest.version,
         features: [...latest.features],

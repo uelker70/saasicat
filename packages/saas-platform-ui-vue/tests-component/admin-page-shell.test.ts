@@ -25,16 +25,18 @@ import { mountWithQuasar } from './support/mount-with-quasar.js';
 // Vite rewrites `import.meta.url` to an http:// URL in the transformed module,
 // so the package root has to come from the runner's cwd, which vitest sets to
 // the `root` in vitest.config.ts.
-const PAGES_DIR = resolve(process.cwd(), 'src/pages-standard');
+const SRC_DIR = resolve(process.cwd(), 'src');
+const PAGES_DIR = resolve(SRC_DIR, 'pages-standard');
 
-// These three render outside AdminLayout — they are the login, the first-run
-// setup and the manifest error screen, not admin content pages. They own their
-// own frame and are deliberately out of the shell's scope.
+// These render outside AdminLayout — the login, the first-run setup, the
+// manifest error screen and the tenant onboarding configurator. Each owns its
+// frame and its own single <h1>, and is deliberately out of the shell's scope.
 const NON_CONTENT_PAGES = new Set([
     'AdminLayout.vue',
     'AdminManifestErrorPage.vue',
     'SuperAdminLoginPage.vue',
     'SuperAdminSetupWizard.vue',
+    'OnboardingConfigurator.vue',
 ]);
 
 function contentPageFiles(): string[] {
@@ -49,6 +51,22 @@ function contentPageFiles(): string[] {
         }
     };
     walk(PAGES_DIR);
+    return found.sort();
+}
+
+/** Every `.vue` under src that lives inside the admin shell. */
+function allVueFiles(): string[] {
+    const found: string[] = [];
+    const walk = (dir: string): void => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const full = join(dir, entry.name);
+            if (entry.isDirectory()) walk(full);
+            else if (entry.name.endsWith('.vue') && !NON_CONTENT_PAGES.has(entry.name)) {
+                found.push(full);
+            }
+        }
+    };
+    walk(SRC_DIR);
     return found.sort();
 }
 
@@ -178,12 +196,18 @@ describe('page shell contract', () => {
         expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
     });
 
-    test('the only <h1> in the content pages is the one AdminHero renders', () => {
-        const offenders = contentPageFiles().filter((file) =>
-            /<h1[\s>]/.test(templateOf(readFileSync(file, 'utf8'))),
-        );
+    test('AdminHero renders the only <h1> in the package', () => {
+        // Components too, not just pages: the plan detail kept its heading in a
+        // `PlanDetailHeader` child, so the page itself was clean while the
+        // rendered page carried two competing <h1>s. Checking pages alone is
+        // what let that survive — a header pushed one directory down is the
+        // most likely place for the next one.
+        const HERO = resolve(SRC_DIR, 'components/admin-page/AdminHero.vue');
+        const offenders = allVueFiles()
+            .filter((file) => file !== HERO)
+            .filter((file) => /<h1[\s>]/.test(templateOf(readFileSync(file, 'utf8'))));
 
-        expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
     test('no page declares its own statistic tile styling', () => {

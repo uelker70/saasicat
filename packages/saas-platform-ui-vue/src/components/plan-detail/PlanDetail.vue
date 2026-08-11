@@ -1,18 +1,5 @@
 <template>
     <div class="pd">
-        <PlanDetailHeader
-            :plan="plan"
-            :draft-version="draftVersion"
-            :tenant-total="tenantTotal"
-            :published-count="publishedCount"
-            @back="$emit('back')"
-            @delete-plan="$emit('deletePlan')"
-            @clone-plan="$emit('clonePlan')"
-            @create-draft="$emit('createDraft')"
-            @publish="$emit('publish', $event)"
-            @update-plan="$emit('updatePlan', $event)"
-        />
-
         <PlanDetailKpis
             :live-version="liveVersion"
             :draft-version="draftVersion"
@@ -81,7 +68,6 @@ import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanAuditLog from './PlanAuditLog.vue';
-import PlanDetailHeader from './PlanDetailHeader.vue';
 import PlanDetailKpis from './PlanDetailKpis.vue';
 import PlanTerminateDialog from './PlanTerminateDialog.vue';
 import PlanVersionDiffPanel from './PlanVersionDiffPanel.vue';
@@ -131,13 +117,9 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    (e: 'back'): void;
     (e: 'createDraft'): void;
     (e: 'editDraft', version: PlanVersionRow): void;
     (e: 'publish', version: PlanVersionRow): void;
-    (e: 'clonePlan'): void;
-    (e: 'deletePlan'): void;
-    (e: 'updatePlan', patch: { label: string }): void;
     (e: 'terminate', versionId: string, endsAt: string): void;
 }>();
 
@@ -477,15 +459,6 @@ async function executeTerminate(): Promise<void> {
     font-size: 12px;
     gap: 5px;
 }
-.btn.danger {
-    border-color: #fecaca;
-    color: #b91c1c;
-    background: #fff;
-}
-.btn.danger:hover {
-    background: #fef2f2;
-    border-color: #fca5a5;
-}
 .chip {
     display: inline-flex;
     align-items: center;
@@ -522,102 +495,6 @@ async function executeTerminate(): Promise<void> {
 }
 
 /* header */
-.pd-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 18px;
-    margin-bottom: 18px;
-}
-.pd-header-left {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    min-width: 0;
-    flex: 1;
-}
-.pd-header-titles {
-    min-width: 0;
-}
-.pd-back-arrow {
-    display: inline-flex;
-    transform: rotate(180deg);
-}
-.pd-tier-chip {
-    font: 700 10.5px var(--sa-font-mono);
-    letter-spacing: 0.08em;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
-    padding: 4px 10px;
-    border-radius: 6px;
-    margin-top: 8px;
-}
-.pd-title {
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    margin: 0;
-    color: var(--sa-heading);
-}
-.pd-desc {
-    margin-top: 4px;
-    font-size: 13px;
-    color: var(--sa-muted-dark);
-}
-.pd-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-.pd-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.pd-title-edit-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--sa-muted-light);
-    cursor: pointer;
-    transition:
-        background 0.12s,
-        color 0.12s,
-        border-color 0.12s;
-}
-.pd-title-edit-btn:hover {
-    background: var(--sa-border-soft);
-    color: var(--sa-primary);
-    border-color: var(--sa-border);
-}
-.pd-title-input {
-    font: inherit;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    color: var(--sa-heading);
-    border: 0;
-    background: var(--sa-warning-bg);
-    outline: 2px solid #fcd34d;
-    padding: 2px 8px;
-    border-radius: 6px;
-    min-width: 220px;
-}
-.pd-title-hint {
-    font-size: 11px;
-    color: #92400e;
-    font-weight: 500;
-    background: var(--sa-warning-bg);
-    border: 1px solid #fde68a;
-    padding: 2px 8px;
-    border-radius: 999px;
-    margin-left: 4px;
-}
 
 /* KPI cards */
 
