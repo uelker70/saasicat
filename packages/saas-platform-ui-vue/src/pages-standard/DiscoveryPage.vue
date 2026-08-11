@@ -216,7 +216,8 @@ const featuresTabLabel = computed(() =>
 const quotasTabLabel = computed(() =>
     formatMessage(msg.value.tabQuotas, { count: props.quotas.length }),
 );
-const featureQuery = ref('');
+// `clearable` emits null, not '' — see Quasar's use-field clearValue().
+const featureQuery = ref<string | null>('');
 const statusFilter = ref<DiscoveryStatus | 'all'>('all');
 const expandedFeature = ref<string | null>(null);
 const expandedQuota = ref<string | null>(null);
@@ -307,7 +308,7 @@ const obsoleteCount = computed(
 );
 
 const filteredFeatures = computed(() => {
-    const q = featureQuery.value.trim().toLowerCase();
+    const q = (featureQuery.value ?? '').trim().toLowerCase();
     return props.features.filter((f) => {
         if (statusFilter.value !== 'all' && f.discoveryStatus !== statusFilter.value) {
             return false;

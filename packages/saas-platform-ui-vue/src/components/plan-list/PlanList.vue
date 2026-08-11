@@ -1,40 +1,17 @@
 <template>
     <div class="sa-plan-list">
-
-        <AdminSection class="q-mb-md">
-            <q-input
-                v-model="search"
-                dense
-                outlined
-                clearable
-                :placeholder="msg.list.searchPlaceholder"
-                class="sa-plan-list-search"
-                >
-                <template #prepend><q-icon name="search" /></template>
-            </q-input>
-        </AdminSection>
-
         <!-- List wrapper -->
         <div class="sa-plan-list-wrap">
             <div class="sa-plan-list-toolbar">
-                <div class="sa-plan-list-search">
-                    <span class="sa-plan-list-search-ico" aria-hidden="true">
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <circle cx="11" cy="11" r="7" />
-                            <path d="M21 21l-4.35-4.35" />
-                        </svg>
-                    </span>
-                    <input v-model="search" :placeholder="msg.list.searchPlaceholder" />
-                    <span class="sa-plan-list-kbd">⌘ K</span>
-                </div>
-                <div class="sa-plan-list-toolbar-spacer" />
+                <q-input
+                    v-model="search"
+                    dense
+                    outlined
+                    clearable
+                    :placeholder="msg.list.searchPlaceholder"
+                >
+                    <template #prepend><q-icon name="search" /></template>
+                </q-input>
                 <div class="sa-plan-list-sortinfo">{{ msg.list.sortedBy }}</div>
             </div>
 
@@ -479,7 +456,8 @@ const msg = useSaMessages('plans');
 const { locale, intlLocale } = useSuperAdminI18n();
 const common = useSaMessages('common');
 
-const search = ref('');
+// `clearable` emits null, not '' — see Quasar's use-field clearValue().
+const search = ref<string | null>('');
 
 const DEFAULT_ACCENTS: Record<string, string> = {
     STARTER: '#64748b',
@@ -514,7 +492,7 @@ const filteredPlans = computed(() => {
     // (SPEC_V2 §4.2.1: only currently-valid + future ones stay visible
     // in the admin listing).
     const base = resolvedPlans.value.filter((p) => !p.allExpired);
-    const q = search.value.trim().toLocaleLowerCase(intlLocale.value);
+    const q = (search.value ?? '').trim().toLocaleLowerCase(intlLocale.value);
     if (!q) return base;
     return base.filter(
         (p) =>
@@ -524,7 +502,7 @@ const filteredPlans = computed(() => {
 });
 
 const emptyNoMatch = computed(() =>
-    formatMessage(msg.value.list.emptyNoMatch, { query: search.value }),
+    formatMessage(msg.value.list.emptyNoMatch, { query: search.value ?? '' }),
 );
 
 function validFromLabel(validFrom: string | null | undefined): string {
@@ -577,7 +555,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 
 <style scoped>
 .sa-plan-list {
-    padding: 22px 26px;
+    /* padding: 22px 26px; */
     background: var(--sa-bg-app);
     color: var(--sa-heading);
     font-family: var(--sa-font-body);
@@ -601,40 +579,13 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     display: flex;
     align-items: center;
     gap: 10px;
-    /* padding: 12px 16px; */
+    padding: 12px 16px;
     border-bottom: 1px solid var(--sa-border);
-    background: #fbfbfd;
+    background: var(--sa-bg-surface-2);
 }
-.sa-plan-list-search {
+/* The search takes the row; the sort hint keeps its content width. */
+.sa-plan-list-toolbar > .q-field {
     flex: 1;
-    max-width: 360px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
-    border-radius: 7px;
-    padding: 7px 10px;
-}
-.sa-plan-list-search-ico {
-    color: var(--sa-muted-light);
-    display: inline-flex;
-}
-.sa-plan-list-search input {
-    flex: 1;
-    border: 0;
-    outline: 0;
-    font: 13px var(--sa-font-body);
-    background: transparent;
-    color: var(--sa-heading);
-}
-.sa-plan-list-kbd {
-    font: 600 10.5px var(--sa-font-mono);
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
-    padding: 2px 6px;
-    border-radius: 4px;
-    border: 1px solid var(--sa-border);
 }
 .sa-plan-list-toolbar-spacer {
     flex: 1;

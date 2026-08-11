@@ -245,6 +245,11 @@
 .sa-page .q-field--outlined .q-field__control:after {
     border-radius: var(--sa-radius-field);
 }
+/* Quasar's outlined control is transparent, which reads as a hole wherever it
+ * sits on a section surface rather than on the page canvas. */
+.sa-page .q-field--outlined .q-field__control {
+    background: var(--sa-bg-surface);
+}
 
 /* The filter row (see AdminFilters). Declared once so no page writes its own
  * flex rule — which is how five pages ended up with five filter bars. */
