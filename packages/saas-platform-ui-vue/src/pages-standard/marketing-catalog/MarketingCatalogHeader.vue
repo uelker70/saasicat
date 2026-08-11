@@ -48,18 +48,14 @@
                 </div>
             </div>
         </div>
-        <button class="sa-btn" type="button" :disabled="busy" @click="$emit('reload')">
-            <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6" />
-            </svg>
-            <span>{{ msg.header.refresh }}</span>
+        <button
+            class="sa-btn sa-btn--icon"
+            type="button"
+            :disabled="busy"
+            :aria-label="msg.header.refresh"
+            @click="$emit('reload')"
+        >
+            <q-icon name="refresh" size="16px" />
         </button>
     </div>
 </template>

@@ -5,9 +5,13 @@
             :subtitle="formatMessage(msg.subtitle, { count: rows.length })"
         >
             <template #actions>
-                <button class="sa-btn sa-btn--primary" type="button" @click="reload">
+                <button
+                    class="sa-btn sa-btn--icon"
+                    type="button"
+                    :aria-label="common.reload"
+                    @click="reload"
+                >
                     <q-icon name="refresh" size="16px" />
-                    <span>{{ msg.filterButton }}</span>
                 </button>
             </template>
         </AdminHero>
@@ -20,6 +24,8 @@
                     dense
                     :label="msg.filters.actor"
                     clearable
+                    debounce="250"
+                    @update:model-value="reload"
                 />
                 <q-input
                     v-model="filter.action"
@@ -27,6 +33,8 @@
                     dense
                     :label="msg.filters.action"
                     clearable
+                    debounce="250"
+                    @update:model-value="reload"
                 />
                 <q-input
                     v-model="filter.entity"
@@ -34,6 +42,8 @@
                     dense
                     :label="msg.filters.entity"
                     clearable
+                    debounce="250"
+                    @update:model-value="reload"
                 />
                 <q-input
                     v-model="filter.since"
@@ -42,6 +52,7 @@
                     type="date"
                     :label="msg.filters.since"
                     clearable
+                    @update:model-value="reload"
                 />
             </div>
 

@@ -225,6 +225,13 @@
     background: var(--sa-positive-soft);
 }
 
+/* Quasar cards round at 4px, which reads sharper than every surface around
+ * them. One rule so a card inside the admin agrees with the sections and tiles
+ * it sits between, without each page saying so. */
+.sa-page .q-card {
+    border-radius: var(--sa-radius-card);
+}
+
 /* Form fields. Quasar's outlined input rounds at 4px, which reads sharper than
  * everything around it; the admin surface settles on 8px, the radius the
  * hand-built search boxes already used. Declared on the field control so it

@@ -1,9 +1,8 @@
 <template>
-    <section class="sa-bundles">
-        <div class="sa-bundles__head">
-            <h2 class="sa-bundles__title">{{ msg.bundleOverview.title }}</h2>
+    <AdminSection :title="msg.bundleOverview.title" class="sa-bundles">
+        <template #actions>
             <span class="sa-bundles__count">{{ bundles.length }}</span>
-        </div>
+        </template>
 
         <div v-if="bundles.length === 0" class="sa-bundles__empty">
             {{ msg.bundleOverview.empty }}
@@ -44,11 +43,12 @@
                 </q-card-section>
             </q-card>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import type { PlanRow } from '@saasicat/types';
+import AdminSection from '../../components/admin-page/AdminSection.vue';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 interface BundleEntry {
@@ -83,21 +83,6 @@ function compatLabel(bundle: BundleEntry): string {
 </script>
 
 <style scoped>
-.sa-bundles {
-    padding: 8px 16px 32px;
-}
-.sa-bundles__head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 8px 0 12px;
-}
-.sa-bundles__title {
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0;
-    color: #0f172a;
-}
 .sa-bundles__count {
     font-size: 12px;
     color: #64748b;

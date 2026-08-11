@@ -14,16 +14,20 @@
         >
             <template #prepend><q-icon name="translate" size="18px" /></template>
         </q-select>
-        <q-btn
-            unelevated
-            color="primary"
-            icon="add"
-            :label="msg.header.newBundle"
-            @click="emit('create')"
-        />
-        <q-btn flat icon="refresh" :loading="loading" @click="emit('refresh')">
-            <q-tooltip>{{ msg.header.reload }}</q-tooltip>
-        </q-btn>
+        <button class="sa-btn sa-btn--primary" type="button" @click="emit('create')">
+            <q-icon name="add" size="16px" />
+            <span>{{ msg.header.newBundle }}</span>
+        </button>
+        <button
+            class="sa-btn sa-btn--icon"
+            type="button"
+            :disabled="loading"
+            :aria-label="msg.header.reload"
+            @click="emit('refresh')"
+        >
+            <q-spinner v-if="loading" size="16px" />
+            <q-icon v-else name="refresh" size="16px" />
+        </button>
     </div>
 </template>
 
