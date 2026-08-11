@@ -451,7 +451,7 @@
     border-radius: var(--sa-radius-section);
 }
 .sa-section__body {
-    padding: 24px 20px;
+    padding: 20px;
 }
 
 /* The head is the hero's block one level down: same typography, same 22px

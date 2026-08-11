@@ -36,19 +36,21 @@
         <AdminBody :loading="loading && plans.length === 0" :loading-text="msg.page.loading">
             <!-- Default: list view (plan simulation) + Bundle overview -->
             <template v-if="mode === 'list'">
-                <PlanList
-                    :plans="plans"
-                    :versions-by-plan-id="versionsByPlanId"
-                    :tenant-counts-by-plan-key="tenantCountsByPlanKey"
-                    :plan-accents="props.planAccents"
-                    :highlight-plan-key="highlightPlanKey"
-                    @open-plan="onOpenPlan"
-                    @clone-plan="onClonePlan"
-                    @new-version="onNewVersionFromList"
-                    @edit-draft="onEditDraftFromList"
-                    @discard-draft="onDiscardDraftFromList"
-                    @archive-plan="onArchivePlanFromList"
-                />
+                <AdminSection>
+                    <PlanList
+                        :plans="plans"
+                        :versions-by-plan-id="versionsByPlanId"
+                        :tenant-counts-by-plan-key="tenantCountsByPlanKey"
+                        :plan-accents="props.planAccents"
+                        :highlight-plan-key="highlightPlanKey"
+                        @open-plan="onOpenPlan"
+                        @clone-plan="onClonePlan"
+                        @new-version="onNewVersionFromList"
+                        @edit-draft="onEditDraftFromList"
+                        @discard-draft="onDiscardDraftFromList"
+                        @archive-plan="onArchivePlanFromList"
+                    />
+                </AdminSection>
                 <PlanBundleOverview
                     :bundles="availableBundles"
                     :plans="plans"
@@ -57,20 +59,21 @@
             </template>
 
             <!-- V1 matrix: component comparison -->
-            <PlanMatrix
-                v-else-if="mode === 'matrix'"
-                :plans="plans"
-                :versions-by-plan-id="versionsByPlanId"
-                :available-quotas="availableQuotas"
-                :available-bundles="availableBundles"
-                :feature-registry="featureRegistry"
-                :tenant-counts-by-plan-key="tenantCountsByPlanKey"
-                :plan-accents="props.planAccents"
-                :loading="bulkVersionsLoading"
-                @open-plan="onOpenPlan"
-                @create-plan="openCreate"
-                @clone-plan="onClonePlan"
-            />
+            <AdminSection v-else-if="mode === 'matrix'">
+                <PlanMatrix
+                    :plans="plans"
+                    :versions-by-plan-id="versionsByPlanId"
+                    :available-quotas="availableQuotas"
+                    :available-bundles="availableBundles"
+                    :feature-registry="featureRegistry"
+                    :tenant-counts-by-plan-key="tenantCountsByPlanKey"
+                    :plan-accents="props.planAccents"
+                    :loading="bulkVersionsLoading"
+                    @open-plan="onOpenPlan"
+                    @create-plan="openCreate"
+                    @clone-plan="onClonePlan"
+                />
+            </AdminSection>
 
             <!-- Plan detail: drill-in for a single Plan (plan simulation) -->
             <PlanDetail
@@ -179,6 +182,7 @@
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import type {
     FeatureCatalogEntryRow,

@@ -18,125 +18,134 @@
             </template>
         </AdminHero>
 
-        <DiscoveryMetaBanner
-            :app-label="appLabel"
-            :app-key="appKey"
-            :app-version="appVersion"
-            :scan-label="scanLabel"
-        />
+        <AdminBody>
+            <DiscoveryMetaBanner
+                :app-label="appLabel"
+                :app-key="appKey"
+                :app-version="appVersion"
+                :scan-label="scanLabel"
+            />
 
-        <q-banner v-if="error" class="sa-discovery__error" rounded>
-            <template #avatar><q-icon name="warning" color="negative" /></template>
-            {{ common.error }}: {{ error.message }}
-        </q-banner>
+            <q-banner v-if="error" class="sa-discovery__error" rounded>
+                <template #avatar><q-icon name="warning" color="negative" /></template>
+                {{ common.error }}: {{ error.message }}
+            </q-banner>
 
-        <DiscoveryKpis
-            :features-count="features.length"
-            :capabilities-count="capabilities.length"
-            :approved-count="approvedCount"
-            :pending-count="pendingCount"
-            :outdated-count="outdatedCount"
-            :obsolete-count="obsoleteCount"
-            :orphan-count="orphanCaps.length"
-        />
+            <DiscoveryKpis
+                :features-count="features.length"
+                :capabilities-count="capabilities.length"
+                :approved-count="approvedCount"
+                :pending-count="pendingCount"
+                :outdated-count="outdatedCount"
+                :obsolete-count="obsoleteCount"
+                :orphan-count="orphanCaps.length"
+            />
 
-        <q-tabs v-model="activeTab" align="left" dense class="sa-discovery__tabs">
-            <q-tab name="features" :label="featuresTabLabel" />
-            <q-tab name="quotas" :label="quotasTabLabel" />
-        </q-tabs>
+            <q-tabs v-model="activeTab" align="left" dense class="sa-discovery__tabs">
+                <q-tab name="features" :label="featuresTabLabel" />
+                <q-tab name="quotas" :label="quotasTabLabel" />
+            </q-tabs>
 
-        <q-tab-panels v-model="activeTab" animated class="sa-discovery__panels">
-            <q-tab-panel name="features" class="sa-discovery__panel">
-                <div class="sa-discovery__toolbar">
-                    <q-input
-                        v-model="featureQuery"
-                        dense
-                        outlined
-                        clearable
-                        :placeholder="msg.searchPlaceholder"
-                        class="sa-discovery__search"
-                    >
-                        <template #prepend><q-icon name="search" /></template>
-                    </q-input>
-                    <q-select
-                        v-model="statusFilter"
-                        dense
-                        outlined
-                        emit-value
-                        map-options
-                        :options="statusFilterOptions"
-                        class="sa-discovery__filter"
-                    />
-                </div>
+            <AdminSection class="sa-discovery__panels">
+                <q-tab-panels v-model="activeTab" animated>
+                    <q-tab-panel name="features" class="sa-discovery__panel">
+                        <AdminFilters>
+                            <q-input
+                                v-model="featureQuery"
+                                dense
+                                outlined
+                                clearable
+                                :placeholder="msg.searchPlaceholder"
+                                class="sa-discovery__search"
+                            >
+                                <template #prepend><q-icon name="search" /></template>
+                            </q-input>
+                            <q-select
+                                v-model="statusFilter"
+                                dense
+                                outlined
+                                emit-value
+                                map-options
+                                :options="statusFilterOptions"
+                                class="sa-discovery__filter"
+                            />
+                        </AdminFilters>
 
-                <AdminSection
-                    v-for="group in featureGroups"
-                    :key="group.label"
-                    :title="group.label"
-                    class="sa-discovery__group"
-                >
-                    <template #actions>
-                        <span class="sa-discovery__group-count">{{ group.features.length }}</span>
-                    </template>
-                    <div class="sa-discovery__cardlist">
-                        <DiscoveryFeatureCard
-                            v-for="f in group.features"
-                            :key="f.featureKey"
-                            :feature="f"
-                            :capabilities="capsByFeature.get(f.featureKey) ?? []"
-                            :owners="ownersByFeature.get(f.featureKey) ?? []"
-                            :declared-at-by-key="declaredAtByKey"
-                            :active-locales="activeLocales"
-                            :expanded="expandedFeature === f.featureKey"
-                            @toggle="toggleFeature(f.featureKey)"
-                            @review="onFeatureReview"
-                            @feature-base="onFeatureBase"
-                            @feature-locale="onFeatureLocale"
-                        />
-                    </div>
-                </AdminSection>
-                <div v-if="filteredFeatures.length === 0" class="sa-discovery__empty-row">
-                    {{ msg.noFeaturesMatchFilters }}
-                </div>
+                        <AdminSection
+                            v-for="group in featureGroups"
+                            :key="group.label"
+                            :title="group.label"
+                            class="sa-discovery__group"
+                        >
+                            <template #actions>
+                                <span class="sa-discovery__group-count">{{
+                                    group.features.length
+                                }}</span>
+                            </template>
+                            <div class="sa-discovery__cardlist">
+                                <DiscoveryFeatureCard
+                                    v-for="f in group.features"
+                                    :key="f.featureKey"
+                                    :feature="f"
+                                    :capabilities="capsByFeature.get(f.featureKey) ?? []"
+                                    :owners="ownersByFeature.get(f.featureKey) ?? []"
+                                    :declared-at-by-key="declaredAtByKey"
+                                    :active-locales="activeLocales"
+                                    :expanded="expandedFeature === f.featureKey"
+                                    @toggle="toggleFeature(f.featureKey)"
+                                    @review="onFeatureReview"
+                                    @feature-base="onFeatureBase"
+                                    @feature-locale="onFeatureLocale"
+                                />
+                            </div>
+                        </AdminSection>
+                        <div v-if="filteredFeatures.length === 0" class="sa-discovery__empty-row">
+                            {{ msg.noFeaturesMatchFilters }}
+                        </div>
 
-                <AdminSection
-                    v-if="orphanCaps.length"
-                    :title="msg.orphansTitle"
-                    class="sa-discovery__group sa-discovery__group--orphan"
-                >
-                    <template #actions>
-                        <span class="sa-discovery__group-count">{{ orphanCaps.length }}</span>
-                    </template>
-                    <p class="sa-discovery__orphan-hint">
-                        {{ msg.orphanHint.before }} <code>feature:</code>{{ msg.orphanHint.middle }}
-                        <code>@ImplementsCapability</code>{{ msg.orphanHint.after }}
-                    </p>
-                    <DiscoveryCapList
-                        :capabilities="orphanCaps"
-                        :declared-at-by-key="declaredAtByKey"
-                    />
-                </AdminSection>
-            </q-tab-panel>
+                        <AdminSection
+                            v-if="orphanCaps.length"
+                            :title="msg.orphansTitle"
+                            class="sa-discovery__group sa-discovery__group--orphan"
+                        >
+                            <template #actions>
+                                <span class="sa-discovery__group-count">{{
+                                    orphanCaps.length
+                                }}</span>
+                            </template>
+                            <p class="sa-discovery__orphan-hint">
+                                {{ msg.orphanHint.before }} <code>feature:</code
+                                >{{ msg.orphanHint.middle }} <code>@ImplementsCapability</code
+                                >{{ msg.orphanHint.after }}
+                            </p>
+                            <DiscoveryCapList
+                                :capabilities="orphanCaps"
+                                :declared-at-by-key="declaredAtByKey"
+                            />
+                        </AdminSection>
+                    </q-tab-panel>
 
-            <q-tab-panel name="quotas" class="sa-discovery__panel">
-                <div class="sa-discovery__cardlist">
-                    <DiscoveryQuotaCard
-                        v-for="q in quotas"
-                        :key="q.quotaKey"
-                        :quota="q"
-                        :active-locales="activeLocales"
-                        :expanded="expandedQuota === q.quotaKey"
-                        @toggle="toggleQuota(q.quotaKey)"
-                        @review="onQuotaReview"
-                        @quota-base="onQuotaBase"
-                        @quota-locale="onQuotaLocale"
-                    />
-                    <div v-if="quotas.length === 0" class="sa-discovery__empty-row">
-                        {{ msg.noQuotasDeclared }}
-                    </div>
-                </div>
-            </q-tab-panel>
-        </q-tab-panels>
+                    <q-tab-panel name="quotas" class="sa-discovery__panel">
+                        <div class="sa-discovery__cardlist">
+                            <DiscoveryQuotaCard
+                                v-for="q in quotas"
+                                :key="q.quotaKey"
+                                :quota="q"
+                                :active-locales="activeLocales"
+                                :expanded="expandedQuota === q.quotaKey"
+                                @toggle="toggleQuota(q.quotaKey)"
+                                @review="onQuotaReview"
+                                @quota-base="onQuotaBase"
+                                @quota-locale="onQuotaLocale"
+                            />
+                            <div v-if="quotas.length === 0" class="sa-discovery__empty-row">
+                                {{ msg.noQuotasDeclared }}
+                            </div>
+                        </div>
+                    </q-tab-panel>
+                </q-tab-panels>
+            </AdminSection>
+        </AdminBody>
     </AdminPage>
 </template>
 
@@ -155,6 +164,8 @@ import type {
 } from '@saasicat/types';
 import DiscoveryCapList from './discovery-page/DiscoveryCapList.vue';
 import DiscoveryFeatureCard from './discovery-page/DiscoveryFeatureCard.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
@@ -500,15 +511,6 @@ onMounted(() => {
 }
 .sa-discovery__tabs {
     border-bottom: 1px solid var(--sa-border);
-}
-.sa-discovery__panel {
-    padding: 14px 0;
-}
-.sa-discovery__toolbar {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 14px;
-    align-items: center;
 }
 .sa-discovery__search {
     flex: 1;
