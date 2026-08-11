@@ -41,3 +41,11 @@ scattered literals; `--sa-radius-tile` is the single declaration requirement
 every tile resolves to. `--sa-bg-surface-2` names the `#f8fafc` inset grey.
 
 The plans page finally has a hero subtitle.
+
+**`components/plan-cockpit/` is deleted** — eight files, 1745 lines. It is an
+earlier implementation of the plan drill-in that `plan-detail/` superseded:
+`PlansPage` renders `PlanDetail` for `mode === 'cockpit'`, and nothing anywhere
+imports `PlanCockpit`. Like `KpiCard.vue` it was reachable through the
+`./components/*` subpath, so it belongs in this note. The two `planDetail`
+message keys only it consumed (`kpis.noDraft`, `kpis.createNewDraft`) go with
+it.

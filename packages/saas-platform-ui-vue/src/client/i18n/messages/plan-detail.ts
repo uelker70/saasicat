@@ -26,10 +26,8 @@ export const planDetailMessages = defineMessages(
             versionsSummary: '{published} live/superseded',
             versionsSummaryWithDrafts: '{published} live/superseded · {drafts} Draft',
             openDraft: 'Offener Draft',
-            noDraft: 'Kein Draft',
             readyToEdit: 'Bereit zum Bearbeiten',
             noOpenDraft: 'Keine Draft-Version offen',
-            createNewDraft: 'Neue Draft anlegen',
         },
         versions: {
             title: 'Versionen',
@@ -157,10 +155,8 @@ export const planDetailMessages = defineMessages(
             versionsSummary: '{published} live/superseded',
             versionsSummaryWithDrafts: '{published} live/superseded · {drafts} draft',
             openDraft: 'Open draft',
-            noDraft: 'No draft',
             readyToEdit: 'Ready to edit',
             noOpenDraft: 'No draft version open',
-            createNewDraft: 'Create a new draft',
         },
         versions: {
             title: 'Versions',
