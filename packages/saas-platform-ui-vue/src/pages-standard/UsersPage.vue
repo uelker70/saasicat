@@ -2,82 +2,84 @@
     <AdminPage class="sa-users">
         <AdminHero :title="resolvedTitle" :subtitle="subtitle" />
 
-        <AdminStatistics layout="strip" :label="resolvedTitle">
-            <AdminKpi
-                v-for="tile in statTiles"
-                :key="tile.id"
-                :label="tile.label"
-                :value="tile.count"
-                :tone="tile.tone"
-                :selected="statusFilter === tile.id"
-                :action="() => (statusFilter = tile.id)"
-            />
-        </AdminStatistics>
+        <AdminBody>
+            <AdminStatistics layout="strip" :label="resolvedTitle">
+                <AdminKpi
+                    v-for="tile in statTiles"
+                    :key="tile.id"
+                    :label="tile.label"
+                    :value="tile.count"
+                    :tone="tile.tone"
+                    :selected="statusFilter === tile.id"
+                    :action="() => (statusFilter = tile.id)"
+                />
+            </AdminStatistics>
 
-        <div class="sa-users__filter">
-            <q-input
-                v-model="filter.q"
-                outlined
-                dense
-                :label="msg.filterQuery"
-                clearable
-                debounce="250"
-                @update:model-value="reload"
-            />
-            <q-input
-                v-model="filter.tenant"
-                outlined
-                dense
-                :label="msg.filterTenant"
-                clearable
-                debounce="250"
-                @update:model-value="reload"
-            />
-            <slot name="filters-extra" />
-        </div>
+            <AdminSection :title="common.filters" class="sa-users__filter">
+                <q-input
+                    v-model="filter.q"
+                    outlined
+                    dense
+                    :label="msg.filterQuery"
+                    clearable
+                    debounce="250"
+                    @update:model-value="reload"
+                />
+                <q-input
+                    v-model="filter.tenant"
+                    outlined
+                    dense
+                    :label="msg.filterTenant"
+                    clearable
+                    debounce="250"
+                    @update:model-value="reload"
+                />
+                <slot name="filters-extra" />
+            </AdminSection>
 
-        <div class="sa-users__card">
-            <q-table
-                flat
-                :rows="filteredRows"
-                :columns="effectiveColumns"
-                row-key="id"
-                :pagination="{ rowsPerPage: 0 }"
-                :loading="loading"
-                hide-pagination
-            >
-                <template #body-cell-status="{ row }">
-                    <q-td>
-                        <q-badge
-                            :color="row.isActive ? 'positive' : 'grey'"
-                            :label="row.isActive ? msg.statusActive : msg.statusDeactivated"
-                        />
-                        <q-badge
-                            v-if="row.invitationStatus === 'PENDING'"
-                            color="amber-7"
-                            :label="msg.badgePending"
-                            class="q-ml-xs"
-                        />
-                    </q-td>
-                </template>
-                <template #body-cell-actions="{ row }">
-                    <q-td>
-                        <slot name="row-actions" :row="row">
-                            <q-btn
-                                v-for="action in visibleActions(row)"
-                                :key="action.id"
-                                flat
-                                dense
-                                :icon="action.icon"
-                                :title="action.label"
-                                :color="action.color ?? 'grey-7'"
-                                @click="action.handler(row)"
+            <AdminSection :title="common.results" class="sa-users__card">
+                <q-table
+                    flat
+                    :rows="filteredRows"
+                    :columns="effectiveColumns"
+                    row-key="id"
+                    :pagination="{ rowsPerPage: 0 }"
+                    :loading="loading"
+                    hide-pagination
+                >
+                    <template #body-cell-status="{ row }">
+                        <q-td>
+                            <q-badge
+                                :color="row.isActive ? 'positive' : 'grey'"
+                                :label="row.isActive ? msg.statusActive : msg.statusDeactivated"
                             />
-                        </slot>
-                    </q-td>
-                </template>
-            </q-table>
-        </div>
+                            <q-badge
+                                v-if="row.invitationStatus === 'PENDING'"
+                                color="amber-7"
+                                :label="msg.badgePending"
+                                class="q-ml-xs"
+                            />
+                        </q-td>
+                    </template>
+                    <template #body-cell-actions="{ row }">
+                        <q-td>
+                            <slot name="row-actions" :row="row">
+                                <q-btn
+                                    v-for="action in visibleActions(row)"
+                                    :key="action.id"
+                                    flat
+                                    dense
+                                    :icon="action.icon"
+                                    :title="action.label"
+                                    :color="action.color ?? 'grey-7'"
+                                    @click="action.handler(row)"
+                                />
+                            </slot>
+                        </q-td>
+                    </template>
+                </q-table>
+            </AdminSection>
+        </AdminBody>
 
         <MfaPromptDialog
             v-if="needsMfaDialog"
@@ -96,9 +98,11 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
@@ -457,21 +461,14 @@ function onDeactivateClick(row: UserRow): void {
 </script>
 
 <style scoped>
-.sa-users__filter {
+.sa-users__filter .sa-section__body {
     display: flex;
     gap: 10px;
-    margin-bottom: 12px;
     align-items: center;
     flex-wrap: wrap;
 }
-.sa-users__filter > * {
+.sa-users__filter .sa-section__body > * {
     flex: 1;
     min-width: 200px;
-}
-.sa-users__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
 }
 </style>

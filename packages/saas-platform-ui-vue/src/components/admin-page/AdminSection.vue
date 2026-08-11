@@ -11,7 +11,9 @@
                 <slot name="actions" />
             </div>
         </header>
-        <slot />
+        <div class="sa-section__body">
+            <slot />
+        </div>
     </section>
 </template>
 
@@ -27,8 +29,8 @@ import { useId } from 'vue';
 // is what makes it navigable, and doing that by hand needs a unique id per
 // instance, which is exactly the step a hand-written section forgets.
 //
-// The section is structural, not a surface. A block that should read as a card
-// adds `.sa-card`, which falls through to the root element.
+// The content sits in its own wrapper so a page can lay it out — a filter row
+// as flex, a grid of cards — without the head being dragged into that layout.
 defineProps<{
     title: string;
     subtitle?: string;

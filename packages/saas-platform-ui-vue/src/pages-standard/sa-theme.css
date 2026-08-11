@@ -433,7 +433,7 @@
     background: var(--sa-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: var(--sa-radius-section);
-    padding: 14px 16px 16px;
+    padding: 14px 22px 16px;
 }
 
 /* The head reads like a smaller echo of the hero: same tinted, rounded box,
