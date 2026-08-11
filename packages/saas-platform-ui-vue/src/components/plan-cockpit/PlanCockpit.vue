@@ -546,10 +546,9 @@ const diffRows = computed<DiffRow[]>(() => {
     flex-direction: column;
     gap: 14px;
 }
+/* Surface, border and radius come from `.sa-section` — the panel IS one.
+ * Only `overflow` stays, so content is clipped at the rounded edge. */
 .pc-card {
-    background: #fff;
-    border: 1px solid var(--pc-border);
-    border-radius: 10px;
     overflow: hidden;
 }
 .pc-card-head {
@@ -562,21 +561,6 @@ const diffRows = computed<DiffRow[]>(() => {
 .pc-card-head--audit {
     border-bottom: 0;
     padding-bottom: 8px;
-}
-.pc-card .sa-section__head {
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--pc-border);
-    margin-bottom: 0;
-}
-.pc-card--audit-head .sa-section__head {
-    border-bottom: 0;
-}
-.pc-card .sa-section__title {
-    letter-spacing: -0.01em;
-}
-.pc-card .sa-section__sub {
-    font-size: 11.5px;
-    margin-top: 2px;
 }
 .pc-card-head-text {
     flex: 1;
