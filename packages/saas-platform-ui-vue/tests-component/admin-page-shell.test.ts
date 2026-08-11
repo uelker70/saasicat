@@ -52,6 +52,19 @@ function contentPageFiles(): string[] {
     return found.sort();
 }
 
+function stripComments(markup: string): string {
+    // Applied until it stops changing: a single pass over `<!--<!-- -->-->`
+    // leaves a `<!--` behind, and the leftover would carry whatever the inner
+    // comment said back into the checks below.
+    let current = markup;
+    let previous: string;
+    do {
+        previous = current;
+        current = current.replace(/<!--[\s\S]*?-->/g, '');
+    } while (current !== previous);
+    return current;
+}
+
 function templateOf(source: string): string {
     // Only the template matters here; a `<style>` block legitimately mentions
     // the class names this test forbids in markup, and a comment may well spell
@@ -59,7 +72,7 @@ function templateOf(source: string): string {
     const start = source.indexOf('<template>');
     const end = source.lastIndexOf('</template>');
     if (start === -1 || end === -1) return '';
-    return source.slice(start, end).replace(/<!--[\s\S]*?-->/g, '');
+    return stripComments(source.slice(start, end));
 }
 
 describe('AdminHero', () => {
