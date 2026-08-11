@@ -15,7 +15,7 @@
         </div>
         <div class="pve-bar-right">
             <button
-                class="pve-btn"
+                class="sa-btn"
                 type="button"
                 :disabled="!hasPredecessor"
                 :title="hasPredecessor ? undefined : msg.header.noPredecessorHint"
@@ -36,7 +36,7 @@
                 </span>
                 <span>{{ msg.header.diffButton }}</span>
             </button>
-            <button class="pve-btn" type="button" @click="$emit('cancel')">
+            <button class="sa-btn" type="button" @click="$emit('cancel')">
                 <span class="pve-ico" style="transform: rotate(180deg)" aria-hidden="true">
                     <svg
                         width="14"
@@ -52,7 +52,7 @@
                 <span>{{ common.back }}</span>
             </button>
             <button
-                class="pve-btn pve-btn--primary"
+                class="sa-btn sa-btn--primary"
                 type="button"
                 :disabled="!canSave"
                 @click="$emit('save')"

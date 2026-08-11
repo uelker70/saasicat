@@ -48,7 +48,7 @@
                 </div>
             </div>
         </div>
-        <button class="sa-marketing-btn" type="button" :disabled="busy" @click="$emit('reload')">
+        <button class="sa-btn" type="button" :disabled="busy" @click="$emit('reload')">
             <svg
                 width="14"
                 height="14"

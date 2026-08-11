@@ -8,17 +8,14 @@
             <div class="pve-preview-toggle">
                 <button
                     type="button"
-                    :class="[
-                        'pve-btn pve-btn--sm',
-                        { 'pve-btn--ghost': previewMode !== 'desktop' },
-                    ]"
+                    :class="['sa-btn sa-btn--sm', { 'sa-btn--ghost': previewMode !== 'desktop' }]"
                     @click="$emit('update:previewMode', 'desktop')"
                 >
                     {{ msg.catalogPreview.desktop }}
                 </button>
                 <button
                     type="button"
-                    :class="['pve-btn pve-btn--sm', { 'pve-btn--ghost': previewMode !== 'mobile' }]"
+                    :class="['sa-btn sa-btn--sm', { 'sa-btn--ghost': previewMode !== 'mobile' }]"
                     @click="$emit('update:previewMode', 'mobile')"
                 >
                     {{ msg.catalogPreview.mobile }}
