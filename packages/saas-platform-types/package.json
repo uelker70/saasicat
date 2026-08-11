@@ -1,6 +1,6 @@
 {
     "name": "@saasicat/types",
-    "version": "0.20.0",
+    "version": "0.21.0",
     "description": "TypeScript contracts for SaaSiCat capabilities, catalogs, subscriptions, entitlements, admin manifests and persistence adapters.",
     "type": "module",
     "main": "./dist/index.cjs",

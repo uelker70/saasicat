@@ -1,5 +1,11 @@
 # @saasicat/adapter-drizzle
 
+## 0.21.0
+
+### Patch Changes
+
+- @saasicat/types@0.21.0
+
 ## 0.20.0
 
 ### Patch Changes
