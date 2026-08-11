@@ -12,91 +12,93 @@
             @save="emitSave"
         />
 
-        <!-- Save error banner (e.g. "Plan hat bereits eine Draft-Version") -->
-        <div v-if="saveError" class="pve-error" role="alert">
-            <span class="pve-error-ico" aria-hidden="true">
-                <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path
-                        d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                    />
-                    <path d="M12 9v4M12 17h.01" />
-                </svg>
-            </span>
-            <span>{{ saveError }}</span>
-        </div>
+        <AdminBody>
+            <!-- Save error banner (e.g. "Plan hat bereits eine Draft-Version") -->
+            <div v-if="saveError" class="pve-error" role="alert">
+                <span class="pve-error-ico" aria-hidden="true">
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path
+                            d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                        />
+                        <path d="M12 9v4M12 17h.01" />
+                    </svg>
+                </span>
+                <span>{{ saveError }}</span>
+            </div>
 
-        <!-- 3-Col Body -->
-        <div class="pve-body">
-            <PlanComponentPool
-                v-model:search-term="searchTerm"
-                v-model:active-tab="activeTab"
-                :pool-tabs="poolTabs"
-                :filtered-feature-groups="filteredFeatureGroups"
-                :filtered-quotas="filteredQuotas"
-                :filtered-bundles="filteredBundles"
-                :feature-label="featureLabel"
-                :feature-group-label="featureGroupLabel"
-                :is-feature-on="isFeatureOn"
-                :is-quota-on="isQuotaOn"
-                :is-bundle-fully-on="isBundleFullyOn"
-                :is-bundle-partially-on="isBundlePartiallyOn"
-                @toggle-feature="toggleFeature"
-                @pool-quota-click="onPoolQuotaClick"
-                @toggle-bundle="toggleBundle"
-                @drag-start="onDragStart"
-                @drag-end="onDragEnd"
-            />
+            <!-- 3-Col Body -->
+            <div class="pve-body">
+                <PlanComponentPool
+                    v-model:search-term="searchTerm"
+                    v-model:active-tab="activeTab"
+                    :pool-tabs="poolTabs"
+                    :filtered-feature-groups="filteredFeatureGroups"
+                    :filtered-quotas="filteredQuotas"
+                    :filtered-bundles="filteredBundles"
+                    :feature-label="featureLabel"
+                    :feature-group-label="featureGroupLabel"
+                    :is-feature-on="isFeatureOn"
+                    :is-quota-on="isQuotaOn"
+                    :is-bundle-fully-on="isBundleFullyOn"
+                    :is-bundle-partially-on="isBundlePartiallyOn"
+                    @toggle-feature="toggleFeature"
+                    @pool-quota-click="onPoolQuotaClick"
+                    @toggle-bundle="toggleBundle"
+                    @drag-start="onDragStart"
+                    @drag-end="onDragEnd"
+                />
 
-            <PlanVersionBasket
-                :form="form"
-                :drag-over="dragOver"
-                :change-count="changeCount"
-                :min-valid-from="minValidFrom"
-                :valid-from-error="validFromError"
-                :selected-quota-list="selectedQuotaList"
-                :sorted-selected-features="sortedSelectedFeatures"
-                :active-bundles="activeBundles"
-                :feature-label="featureLabel"
-                @update:valid-from="onValidFromInput($event)"
-                @update:valid-until="form.validUntil = $event"
-                @update:monthly-net="form.monthlyNet = $event"
-                @update:yearly-net="form.yearlyNet = $event"
-                @update:marketed="form.marketed = $event"
-                @update:change-note="form.changeNote = $event"
-                @set-quota-value="setQuotaValue"
-                @toggle-quota="toggleQuota"
-                @toggle-feature="toggleFeature"
-                @toggle-bundle="toggleBundle"
-                @drag-over="onDragOver"
-                @drag-leave="onDragLeave"
-                @drop="onDrop"
-            />
+                <PlanVersionBasket
+                    :form="form"
+                    :drag-over="dragOver"
+                    :change-count="changeCount"
+                    :min-valid-from="minValidFrom"
+                    :valid-from-error="validFromError"
+                    :selected-quota-list="selectedQuotaList"
+                    :sorted-selected-features="sortedSelectedFeatures"
+                    :active-bundles="activeBundles"
+                    :feature-label="featureLabel"
+                    @update:valid-from="onValidFromInput($event)"
+                    @update:valid-until="form.validUntil = $event"
+                    @update:monthly-net="form.monthlyNet = $event"
+                    @update:yearly-net="form.yearlyNet = $event"
+                    @update:marketed="form.marketed = $event"
+                    @update:change-note="form.changeNote = $event"
+                    @set-quota-value="setQuotaValue"
+                    @toggle-quota="toggleQuota"
+                    @toggle-feature="toggleFeature"
+                    @toggle-bundle="toggleBundle"
+                    @drag-over="onDragOver"
+                    @drag-leave="onDragLeave"
+                    @drop="onDrop"
+                />
 
-            <PlanCatalogPreview
-                v-model:preview-mode="previewMode"
-                :catalog-url="catalogUrl"
-                :plan-key="planKey"
-                :version="form.version"
-                :change-note="form.changeNote"
-                :quotas="form.quotas"
-                :plan-display-name="planDisplayName"
-                :formatted-monthly="formattedMonthly"
-                :formatted-yearly="formattedYearly"
-                :yearly-savings-label="yearlySavingsLabel"
-                :selected-quota-list="selectedQuotaList"
-                :sorted-selected-features="sortedSelectedFeatures"
-                :checklist="checklist"
-                :checklist-ok-count="checklistOkCount"
-                :feature-label="featureLabel"
-            />
-        </div>
+                <PlanCatalogPreview
+                    v-model:preview-mode="previewMode"
+                    :catalog-url="catalogUrl"
+                    :plan-key="planKey"
+                    :version="form.version"
+                    :change-note="form.changeNote"
+                    :quotas="form.quotas"
+                    :plan-display-name="planDisplayName"
+                    :formatted-monthly="formattedMonthly"
+                    :formatted-yearly="formattedYearly"
+                    :yearly-savings-label="yearlySavingsLabel"
+                    :selected-quota-list="selectedQuotaList"
+                    :sorted-selected-features="sortedSelectedFeatures"
+                    :checklist="checklist"
+                    :checklist-ok-count="checklistOkCount"
+                    :feature-label="featureLabel"
+                />
+            </div>
+        </AdminBody>
 
         <PlanVersionDiffDialog
             v-model="showDiff"
@@ -116,6 +118,7 @@ import PlanComponentPool from './PlanComponentPool.vue';
 import PlanCatalogPreview from './PlanCatalogPreview.vue';
 import PlanVersionBasket from './PlanVersionBasket.vue';
 import PlanVersionDiffDialog from './PlanVersionDiffDialog.vue';
+import AdminBody from '../admin-page/AdminBody.vue';
 import PlanVersionEditorHeader from './PlanVersionEditorHeader.vue';
 import type {
     BundleEntry,
@@ -736,14 +739,10 @@ function emitSave(): void {
 .pve {
     display: flex;
     flex-direction: column;
-    background: var(--sa-bg-app);
-    color: var(--sa-heading);
-    font-family: var(--sa-font-body);
     box-sizing: border-box;
-    /* Fullscreen screen instead of a modal: fills the content area of the
-       hosting AdminLayout page (topbar 56px subtracted). */
+    /* A full view rather than a modal: the columns stretch to the content area
+       AdminPage already sizes. */
     height: 100%;
-    min-height: calc(100vh - 56px);
 }
 .pve :deep(*) {
     box-sizing: border-box;
@@ -833,6 +832,12 @@ function emitSave(): void {
 }
 
 /* ── Body Grid ──────────────────────────────────────────────────── */
+.pve > .sa-page-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
 .pve-body {
     flex: 1 1 auto;
     min-height: 0;

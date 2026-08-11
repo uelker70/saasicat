@@ -75,7 +75,11 @@
             </template>
         </q-banner>
 
-        <AdminBody :loading="loading && plans.length === 0" :loading-text="msg.page.loading">
+        <AdminBody
+            v-if="!viewOwnsHero"
+            :loading="loading && plans.length === 0"
+            :loading-text="msg.page.loading"
+        >
             <!-- Default: list view (plan simulation) + Bundle overview -->
             <template v-if="mode === 'list'">
                 <AdminSection>
@@ -150,43 +154,43 @@
                 @publish="openPublish"
                 @update-plan="onUpdatePlanFromDetail"
             />
-
-            <!-- V2 split-view editor as a full-screen view (plan simulation) -->
-            <PlanVersionEditor
-                v-else-if="mode === 'editor' && draftEditing && selectedPlan"
-                :plan-key="selectedPlan.planKey"
-                :editing-id="draftEditing.editingId"
-                :initial-form="draftEditing.initialForm"
-                :saving="draftSaving"
-                :available-features="availableFeatures"
-                :available-quotas="availableQuotas"
-                :available-bundles="availableBundles"
-                :feature-registry="featureRegistry"
-                :plan-display-name="selectedPlan.label"
-                :save-error="draftSaveError"
-                :predecessor-version="editorPredecessor"
-                @save="onEditorNext"
-                @cancel="onCancelEditor"
-            />
-
-            <!-- V3 Review & Publish — wizard step 3 (plan simulation) -->
-            <PlanReview
-                v-else-if="mode === 'review' && reviewDraft && selectedPlan"
-                :plan="selectedPlan"
-                :version="reviewDraft"
-                :predecessor="reviewPredecessor"
-                :available-quotas="availableQuotas"
-                :available-bundles="availableBundles"
-                :feature-registry="featureRegistry"
-                :tenant-impact-count="tenantCountsByPlanKey[selectedPlan.planKey] ?? 0"
-                :saving="draftSaving"
-                :publishing="publishing"
-                :publish-error="reviewError"
-                @back="onReviewBack"
-                @save-and-exit="onReviewSaveExit"
-                @publish="onReviewPublish"
-            />
         </AdminBody>
+
+        <!-- V2 split-view editor as a full-screen view (plan simulation) -->
+        <PlanVersionEditor
+            v-if="mode === 'editor' && draftEditing && selectedPlan"
+            :plan-key="selectedPlan.planKey"
+            :editing-id="draftEditing.editingId"
+            :initial-form="draftEditing.initialForm"
+            :saving="draftSaving"
+            :available-features="availableFeatures"
+            :available-quotas="availableQuotas"
+            :available-bundles="availableBundles"
+            :feature-registry="featureRegistry"
+            :plan-display-name="selectedPlan.label"
+            :save-error="draftSaveError"
+            :predecessor-version="editorPredecessor"
+            @save="onEditorNext"
+            @cancel="onCancelEditor"
+        />
+
+        <!-- V3 Review & Publish — wizard step 3 (plan simulation) -->
+        <PlanReview
+            v-else-if="mode === 'review' && reviewDraft && selectedPlan"
+            :plan="selectedPlan"
+            :version="reviewDraft"
+            :predecessor="reviewPredecessor"
+            :available-quotas="availableQuotas"
+            :available-bundles="availableBundles"
+            :feature-registry="featureRegistry"
+            :tenant-impact-count="tenantCountsByPlanKey[selectedPlan.planKey] ?? 0"
+            :saving="draftSaving"
+            :publishing="publishing"
+            :publish-error="reviewError"
+            @back="onReviewBack"
+            @save-and-exit="onReviewSaveExit"
+            @publish="onReviewPublish"
+        />
 
         <PlansPageToast :message="toastMessage" />
 

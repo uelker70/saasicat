@@ -80,11 +80,18 @@
     background: var(--sa-bg-app);
 }
 
-/* Page frame — min-height and the page padding, in one place instead of once
- * per page (see AdminPage). No surface of its own. */
+/* Page frame — min-height, the page padding and the admin type, in one place
+ * instead of once per page (see AdminPage). No surface of its own.
+ *
+ * The font and text colour belong here because the hosting app's stylesheet
+ * loads after this one: without a rule on the page itself, admin pages would
+ * inherit whatever the consumer sets. Two full-page views used to pin both on
+ * their own root, which is exactly the divergence this prevents. */
 .sa-page {
     min-height: calc(100vh - 56px);
     padding: 20px 28px 28px;
+    font-family: var(--sa-font-body);
+    color: var(--sa-body);
 }
 
 /* The hero reads as a banner rather than as the first paragraph of the page:

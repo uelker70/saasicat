@@ -1,12 +1,14 @@
 <template>
     <div class="pd">
-        <PlanDetailKpis
-            :live-version="liveVersion"
-            :draft-version="draftVersion"
-            :tenant-total="tenantTotal"
-            :version-count="versions.length"
-            :published-count="publishedCount"
-        />
+        <AdminSection class="q-mb-md">
+            <PlanDetailKpis
+                :live-version="liveVersion"
+                :draft-version="draftVersion"
+                :tenant-total="tenantTotal"
+                :version-count="versions.length"
+                :published-count="publishedCount"
+            />
+        </AdminSection>
 
         <div class="pd-body">
             <PlanVersionsPanel
@@ -68,6 +70,7 @@ import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanAuditLog from './PlanAuditLog.vue';
+import AdminSection from '../admin-page/AdminSection.vue';
 import PlanDetailKpis from './PlanDetailKpis.vue';
 import PlanTerminateDialog from './PlanTerminateDialog.vue';
 import PlanVersionDiffPanel from './PlanVersionDiffPanel.vue';

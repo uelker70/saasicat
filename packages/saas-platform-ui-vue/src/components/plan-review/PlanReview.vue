@@ -37,199 +37,203 @@
             </template>
         </AdminHero>
 
-        <div v-if="publishError" class="pr-banner">{{ publishError }}</div>
+        <AdminBody>
+            <div v-if="publishError" class="pr-banner">{{ publishError }}</div>
 
-        <div class="pr-grid">
-            <!-- Left column -->
-            <div class="pr-col">
-                <div class="pr-card">
-                    <h3 class="pr-card-title">{{ msg.review.cardMasterData }}</h3>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ msg.review.labelPlanKey }}</div>
-                        <div class="pr-val pr-mono">{{ plan.planKey }}</div>
+            <div class="pr-grid">
+                <!-- Left column -->
+                <div class="pr-col">
+                    <div class="pr-card">
+                        <h3 class="pr-card-title">{{ msg.review.cardMasterData }}</h3>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ msg.review.labelPlanKey }}</div>
+                            <div class="pr-val pr-mono">{{ plan.planKey }}</div>
+                        </div>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ msg.review.labelDisplayName }}</div>
+                            <div class="pr-val">{{ plan.label }}</div>
+                        </div>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ common.description }}</div>
+                            <div class="pr-val">
+                                <template v-if="plan.description">{{ plan.description }}</template>
+                                <i v-else class="pr-missing">{{ msg.review.missing }}</i>
+                            </div>
+                        </div>
                     </div>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ msg.review.labelDisplayName }}</div>
-                        <div class="pr-val">{{ plan.label }}</div>
+
+                    <div class="pr-card">
+                        <h3 class="pr-card-title">{{ pricingCardTitle }}</h3>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ msg.review.labelValidFrom }}</div>
+                            <div class="pr-val">
+                                <template v-if="version.validFrom">{{
+                                    version.validFrom.slice(0, 10)
+                                }}</template>
+                                <i v-else class="pr-missing">{{
+                                    msg.review.missingRequiredOnPublish
+                                }}</i>
+                            </div>
+                        </div>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ msg.review.labelValidUntil }}</div>
+                            <div class="pr-val">
+                                <template v-if="version.validUntil">{{
+                                    version.validUntil.slice(0, 10)
+                                }}</template>
+                                <span v-else class="pr-inf">{{ msg.review.unlimited }}</span>
+                            </div>
+                        </div>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ msg.review.labelMonthlyPrice }}</div>
+                            <div class="pr-val">
+                                <template v-if="hasMonthly">{{
+                                    formatMoney(version.monthlyNet)
+                                }}</template>
+                                <i v-else class="pr-missing">{{ msg.review.missing }}</i>
+                            </div>
+                        </div>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ msg.review.labelYearlyPrice }}</div>
+                            <div class="pr-val">{{ formatMoney(version.yearlyNet) }}</div>
+                        </div>
+                        <div class="pr-row">
+                            <div class="pr-label">{{ msg.review.labelPublicCatalog }}</div>
+                            <div class="pr-val">
+                                <span v-if="version.marketed" class="pr-chip pr-chip--live">{{
+                                    msg.review.visibleInCatalog
+                                }}</span>
+                                <span v-else class="pr-chip pr-chip--muted">{{
+                                    msg.review.hiddenFromCatalog
+                                }}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ common.description }}</div>
-                        <div class="pr-val">
-                            <template v-if="plan.description">{{ plan.description }}</template>
-                            <i v-else class="pr-missing">{{ msg.review.missing }}</i>
+
+                    <div class="pr-card">
+                        <h3 class="pr-card-title">{{ componentsCardTitle }}</h3>
+                        <div class="pr-components">
+                            <div class="pr-comp-col">
+                                <div class="pr-comp-head pr-comp-head--quota">
+                                    {{ quotaSectionTitle }}
+                                </div>
+                                <div v-for="q in quotaList" :key="q.key" class="pr-comp-item">
+                                    <span>{{ q.label }}</span>
+                                    <b>{{ q.value }}{{ q.unit ? ' ' + q.unit : '' }}</b>
+                                </div>
+                                <div v-if="quotaList.length === 0" class="pr-comp-empty">
+                                    {{ msg.review.componentEmpty }}
+                                </div>
+                            </div>
+                            <div class="pr-comp-col">
+                                <div class="pr-comp-head pr-comp-head--feature">
+                                    {{ featureSectionTitle }}
+                                </div>
+                                <div v-for="f in featureList" :key="f.key" class="pr-comp-item">
+                                    <span>{{ f.label }}</span>
+                                </div>
+                                <div v-if="featureList.length === 0" class="pr-comp-empty">
+                                    {{ msg.review.componentEmpty }}
+                                </div>
+                            </div>
+                            <div class="pr-comp-col">
+                                <div class="pr-comp-head pr-comp-head--bundle">
+                                    {{ bundleSectionTitle }}
+                                </div>
+                                <div v-for="b in bundleList" :key="b.key" class="pr-comp-item">
+                                    <span>{{ b.label }}</span>
+                                </div>
+                                <div v-if="bundleList.length === 0" class="pr-comp-empty">
+                                    {{ msg.review.componentEmpty }}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="pr-card">
-                    <h3 class="pr-card-title">{{ pricingCardTitle }}</h3>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ msg.review.labelValidFrom }}</div>
-                        <div class="pr-val">
-                            <template v-if="version.validFrom">{{
-                                version.validFrom.slice(0, 10)
-                            }}</template>
-                            <i v-else class="pr-missing">{{
-                                msg.review.missingRequiredOnPublish
-                            }}</i>
+                <!-- Right column -->
+                <div class="pr-col">
+                    <div class="pr-card">
+                        <h3 class="pr-card-title">
+                            {{ msg.review.cardChangeNote }} <span class="pr-req">*</span>
+                        </h3>
+                        <p class="pr-card-hint">{{ msg.review.changeNoteHint }}</p>
+                        <div v-if="version.changeNote" class="pr-note">
+                            {{ version.changeNote }}
+                        </div>
+                        <div v-else class="pr-note pr-note--missing">
+                            {{ msg.review.changeNoteMissing }}
                         </div>
                     </div>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ msg.review.labelValidUntil }}</div>
-                        <div class="pr-val">
-                            <template v-if="version.validUntil">{{
-                                version.validUntil.slice(0, 10)
-                            }}</template>
-                            <span v-else class="pr-inf">{{ msg.review.unlimited }}</span>
-                        </div>
-                    </div>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ msg.review.labelMonthlyPrice }}</div>
-                        <div class="pr-val">
-                            <template v-if="hasMonthly">{{
-                                formatMoney(version.monthlyNet)
-                            }}</template>
-                            <i v-else class="pr-missing">{{ msg.review.missing }}</i>
-                        </div>
-                    </div>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ msg.review.labelYearlyPrice }}</div>
-                        <div class="pr-val">{{ formatMoney(version.yearlyNet) }}</div>
-                    </div>
-                    <div class="pr-row">
-                        <div class="pr-label">{{ msg.review.labelPublicCatalog }}</div>
-                        <div class="pr-val">
-                            <span v-if="version.marketed" class="pr-chip pr-chip--live">{{
-                                msg.review.visibleInCatalog
-                            }}</span>
-                            <span v-else class="pr-chip pr-chip--muted">{{
-                                msg.review.hiddenFromCatalog
-                            }}</span>
-                        </div>
-                    </div>
-                </div>
 
-                <div class="pr-card">
-                    <h3 class="pr-card-title">{{ componentsCardTitle }}</h3>
-                    <div class="pr-components">
-                        <div class="pr-comp-col">
-                            <div class="pr-comp-head pr-comp-head--quota">
-                                {{ quotaSectionTitle }}
-                            </div>
-                            <div v-for="q in quotaList" :key="q.key" class="pr-comp-item">
-                                <span>{{ q.label }}</span>
-                                <b>{{ q.value }}{{ q.unit ? ' ' + q.unit : '' }}</b>
-                            </div>
-                            <div v-if="quotaList.length === 0" class="pr-comp-empty">
-                                {{ msg.review.componentEmpty }}
+                    <div class="pr-card">
+                        <h3 class="pr-card-title">{{ msg.review.cardChecklist }}</h3>
+                        <div class="pr-checks">
+                            <div
+                                v-for="c in checks"
+                                :key="c.id"
+                                class="pr-check"
+                                :class="c.ok ? 'pr-check--ok' : 'pr-check--warn'"
+                            >
+                                <span class="pr-check-mark">
+                                    <svg
+                                        v-if="c.ok"
+                                        width="11"
+                                        height="11"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="3.5"
+                                    >
+                                        <path d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <svg
+                                        v-else
+                                        width="11"
+                                        height="11"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                    >
+                                        <path
+                                            d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"
+                                        />
+                                    </svg>
+                                </span>
+                                <span>{{ c.label }}</span>
                             </div>
                         </div>
-                        <div class="pr-comp-col">
-                            <div class="pr-comp-head pr-comp-head--feature">
-                                {{ featureSectionTitle }}
-                            </div>
-                            <div v-for="f in featureList" :key="f.key" class="pr-comp-item">
-                                <span>{{ f.label }}</span>
-                            </div>
-                            <div v-if="featureList.length === 0" class="pr-comp-empty">
-                                {{ msg.review.componentEmpty }}
-                            </div>
-                        </div>
-                        <div class="pr-comp-col">
-                            <div class="pr-comp-head pr-comp-head--bundle">
-                                {{ bundleSectionTitle }}
-                            </div>
-                            <div v-for="b in bundleList" :key="b.key" class="pr-comp-item">
-                                <span>{{ b.label }}</span>
-                            </div>
-                            <div v-if="bundleList.length === 0" class="pr-comp-empty">
-                                {{ msg.review.componentEmpty }}
-                            </div>
+                    </div>
+
+                    <div v-if="predecessor" class="pr-card pr-card--regress">
+                        <h3 class="pr-card-title">{{ msg.review.cardRegression }}</h3>
+                        <p class="pr-card-hint">{{ msg.review.regressionHint }}</p>
+                        <label class="pr-toggle">
+                            <input v-model="forceRegressive" type="checkbox" />
+                            <span>{{ msg.review.forceRegressive }}</span>
+                        </label>
+                    </div>
+
+                    <div class="pr-card">
+                        <h3 class="pr-card-title">{{ msg.review.cardZeroPrice }}</h3>
+                        <p class="pr-card-hint">{{ msg.review.zeroPriceHint }}</p>
+                        <label class="pr-toggle">
+                            <input v-model="allowZeroPrice" type="checkbox" />
+                            <span>{{ msg.review.allowZeroPrice }}</span>
+                        </label>
+                    </div>
+
+                    <div class="pr-card pr-card--impact">
+                        <h3 class="pr-card-title">{{ msg.review.cardTenantImpact }}</h3>
+                        <div class="pr-impact">
+                            <div class="pr-impact-num">{{ tenantImpactCount }}</div>
+                            <div class="pr-impact-text">{{ impactText }}</div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Right column -->
-            <div class="pr-col">
-                <div class="pr-card">
-                    <h3 class="pr-card-title">
-                        {{ msg.review.cardChangeNote }} <span class="pr-req">*</span>
-                    </h3>
-                    <p class="pr-card-hint">{{ msg.review.changeNoteHint }}</p>
-                    <div v-if="version.changeNote" class="pr-note">{{ version.changeNote }}</div>
-                    <div v-else class="pr-note pr-note--missing">
-                        {{ msg.review.changeNoteMissing }}
-                    </div>
-                </div>
-
-                <div class="pr-card">
-                    <h3 class="pr-card-title">{{ msg.review.cardChecklist }}</h3>
-                    <div class="pr-checks">
-                        <div
-                            v-for="c in checks"
-                            :key="c.id"
-                            class="pr-check"
-                            :class="c.ok ? 'pr-check--ok' : 'pr-check--warn'"
-                        >
-                            <span class="pr-check-mark">
-                                <svg
-                                    v-if="c.ok"
-                                    width="11"
-                                    height="11"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="3.5"
-                                >
-                                    <path d="M5 13l4 4L19 7" />
-                                </svg>
-                                <svg
-                                    v-else
-                                    width="11"
-                                    height="11"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2.5"
-                                >
-                                    <path
-                                        d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"
-                                    />
-                                </svg>
-                            </span>
-                            <span>{{ c.label }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="predecessor" class="pr-card pr-card--regress">
-                    <h3 class="pr-card-title">{{ msg.review.cardRegression }}</h3>
-                    <p class="pr-card-hint">{{ msg.review.regressionHint }}</p>
-                    <label class="pr-toggle">
-                        <input v-model="forceRegressive" type="checkbox" />
-                        <span>{{ msg.review.forceRegressive }}</span>
-                    </label>
-                </div>
-
-                <div class="pr-card">
-                    <h3 class="pr-card-title">{{ msg.review.cardZeroPrice }}</h3>
-                    <p class="pr-card-hint">{{ msg.review.zeroPriceHint }}</p>
-                    <label class="pr-toggle">
-                        <input v-model="allowZeroPrice" type="checkbox" />
-                        <span>{{ msg.review.allowZeroPrice }}</span>
-                    </label>
-                </div>
-
-                <div class="pr-card pr-card--impact">
-                    <h3 class="pr-card-title">{{ msg.review.cardTenantImpact }}</h3>
-                    <div class="pr-impact">
-                        <div class="pr-impact-num">{{ tenantImpactCount }}</div>
-                        <div class="pr-impact-text">{{ impactText }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </AdminBody>
     </div>
 </template>
 
@@ -241,6 +245,7 @@ import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 // This view replaces the page hero while it is open: its actions hang on the
 // publish checklist and the force flags below, which live here.
+import AdminBody from '../admin-page/AdminBody.vue';
 import AdminHero from '../admin-page/AdminHero.vue';
 
 // PlanReview — step 3 of the plan wizard (SPEC_V2 §6, plan simulation
@@ -447,12 +452,8 @@ function onPublish(): void {
 
 <style scoped>
 .pr {
-    padding: 22px 26px;
-    background: var(--sa-bg-app);
     min-height: 100%;
     box-sizing: border-box;
-    font-family: var(--sa-font-body);
-    color: var(--sa-body);
 }
 .pr * {
     box-sizing: border-box;

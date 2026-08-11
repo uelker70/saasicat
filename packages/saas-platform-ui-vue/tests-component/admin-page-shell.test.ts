@@ -210,6 +210,22 @@ describe('page shell contract', () => {
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
+    test('no view renders its hero inside the page body', () => {
+        // AdminBody insets its content by 20px, so a hero nested inside it
+        // lands 20px further in than every other page's — which is how the
+        // plan editor and the review ended up visibly misaligned with the
+        // rest of the admin. The hero is a sibling of the body, never a child.
+        const offenders = allVueFiles().filter((file) => {
+            const template = templateOf(readFileSync(file, 'utf8'));
+            const open = template.indexOf('<AdminBody');
+            if (open === -1) return false;
+            const close = template.lastIndexOf('</AdminBody>');
+            return template.slice(open, close).includes('<AdminHero');
+        });
+
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
+    });
+
     test('no page declares its own statistic tile styling', () => {
         // Seven near-copies of the same tile preceded AdminKpi, two of them
         // byte identical, three living in unscoped page-level <style> blocks
