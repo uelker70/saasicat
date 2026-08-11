@@ -587,9 +587,6 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-toolbar > .q-field {
     flex: 1;
 }
-.sa-plan-list-toolbar-spacer {
-    flex: 1;
-}
 .sa-plan-list-sortinfo {
     margin-left: auto;
     font-size: 11.5px;
