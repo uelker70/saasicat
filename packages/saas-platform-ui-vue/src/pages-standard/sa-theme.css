@@ -63,12 +63,14 @@
  * content below it. Tint and border come from the primary token, so an app
  * that overrides `--sa-primary` re-tints the hero with it. */
 .sa-page-head {
+    /* Top-aligned, so the controls sit level with the title rather than
+     * drifting down with the subtitle's height. */
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 20px;
     margin-bottom: 20px;
     flex-wrap: wrap;
-    padding: 18px 24px 20px;
+    padding: 13px 22px 15px;
     border: 1px solid var(--sa-primary-border);
     border-radius: 16px;
     background: linear-gradient(135deg, var(--sa-primary-soft) 0%, var(--sa-primary-softer) 100%);
@@ -79,11 +81,13 @@
     font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.02em;
+    line-height: 1.25;
     color: var(--sa-heading);
 }
 .sa-page-head__sub {
-    margin: 3px 0 0;
+    margin: 1px 0 0;
     font-size: 12.5px;
+    line-height: 1.35;
     color: var(--sa-muted);
 }
 .sa-page-head__actions {
