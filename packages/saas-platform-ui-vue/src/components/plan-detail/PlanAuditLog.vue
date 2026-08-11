@@ -1,11 +1,9 @@
 <template>
-    <section class="pd-panel pd-audit">
-        <div class="pd-panel-head">
-            <div style="min-width: 0">
-                <h3 class="pd-panel-title">{{ msg.auditLog.title }}</h3>
-                <div class="pd-panel-sub">{{ msg.auditLog.subtitle }}</div>
-            </div>
-        </div>
+    <AdminSection
+        :title="msg.auditLog.title"
+        :subtitle="msg.auditLog.subtitle"
+        class="pd-panel pd-audit"
+    >
         <div class="pd-audit-body">
             <div v-if="loadingAudit" class="pd-diff-empty">{{ msg.auditLog.loading }}</div>
             <div v-for="a in auditRows" :key="a.id" class="pd-audit-row">
@@ -16,11 +14,12 @@
                 <span class="pd-audit-what">{{ a.action }}</span>
             </div>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { formatMessage } from '../../client/i18n/format.js';
+import AdminSection from '../admin-page/AdminSection.vue';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import type { AuditRow } from './types.js';
 

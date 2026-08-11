@@ -95,18 +95,19 @@
 
         <MfaPromptDialog
             v-if="needsMfaDialog"
-            :model-value="showMfa"
-            :description="mfaDescription"
-            :error="mfaError"
+            :model-value="mfa.show.value"
+            :description="mfa.description.value"
+            :error="mfa.error.value"
             :setup-hint="mfaSetupHint"
-            @update:model-value="onMfaDialogVisibility"
-            @confirm="onMfaConfirm"
+            @update:model-value="mfa.onVisibility"
+            @confirm="mfa.onConfirm"
         />
     </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import AdminHero from '../components/admin-page/AdminHero.vue';
@@ -189,39 +190,12 @@ const rows = ref<UserRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ q: '', tenant: '' });
 
-// MFA dialog state for per-flow MFA (reset/deactivate). Promise-resolver
-// pattern analogous to PilotsPage: the action handler calls `promptMfa` and
-// waits for `onMfaConfirm` (or cancellation via `update:modelValue=false`).
-const showMfa = ref(false);
-const mfaError = ref('');
-const mfaDescription = ref('');
-let pendingMfaResolve: ((code: string | null) => void) | null = null;
+// Per-flow MFA for reset/deactivate: the action handler awaits `mfa.prompt`,
+// which resolves with the code or with null when the user closes the dialog.
+const mfa = useMfaPrompt();
 const needsMfaDialog = computed(
     () => props.requireMfaForResetPassword || props.requireMfaForDeactivate,
 );
-
-function promptMfa(description: string): Promise<string | null> {
-    return new Promise((resolve) => {
-        mfaDescription.value = description;
-        mfaError.value = '';
-        showMfa.value = true;
-        pendingMfaResolve = (code) => {
-            pendingMfaResolve = null;
-            resolve(code);
-        };
-    });
-}
-
-function onMfaConfirm(code: string): void {
-    pendingMfaResolve?.(code);
-}
-
-function onMfaDialogVisibility(open: boolean): void {
-    showMfa.value = open;
-    if (!open && pendingMfaResolve) {
-        pendingMfaResolve(null);
-    }
-}
 
 // Stat-pill filter (analogous to plan simulation users.jsx):
 //   all | active | blocked | never-logged-in | super-admin.
@@ -405,20 +379,20 @@ async function runAction<R>(
         return;
     }
     while (true) {
-        const code = await promptMfa(actionLabel);
+        const code = await mfa.prompt(actionLabel);
         if (code === null) return;
         try {
             const result = await invoke(code);
-            showMfa.value = false;
+            mfa.show.value = false;
             onSuccess(result);
             return;
         } catch (err) {
             const status = (err as { response?: { status?: number } })?.response?.status;
             if (status === 401) {
-                mfaError.value = shell.value.mfa.invalidCode;
+                mfa.error.value = shell.value.mfa.invalidCode;
                 continue;
             }
-            showMfa.value = false;
+            mfa.show.value = false;
             notify('negative', errMsg(err));
             return;
         }

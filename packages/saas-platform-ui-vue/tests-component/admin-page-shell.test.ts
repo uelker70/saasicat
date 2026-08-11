@@ -168,4 +168,19 @@ describe('page shell contract', () => {
 
         expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
     });
+
+    test('no page block titles itself with a heading-shaped <div>', () => {
+        // The failure this catches is the one the repo already shipped: a
+        // block that looks like a section, reads like a section and is
+        // announced as nothing, because its title is a styled <div>. Sighted
+        // users cannot tell the difference, so it survives review.
+        const HEADING_SHAPED =
+            /<div[^>]*class="[^"]*\b[\w-]*(?:section-head|card-title|panel-title|__section-head)\b/;
+
+        const offenders = contentPageFiles().filter((file) =>
+            HEADING_SHAPED.test(templateOf(readFileSync(file, 'utf8'))),
+        );
+
+        expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+    });
 });

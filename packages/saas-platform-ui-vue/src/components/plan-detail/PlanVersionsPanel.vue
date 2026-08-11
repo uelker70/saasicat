@@ -1,13 +1,10 @@
 <template>
-    <section class="pd-panel">
-        <div class="pd-panel-head">
-            <div style="min-width: 0">
-                <h3 class="pd-panel-title">{{ msg.versions.title }}</h3>
-                <div class="pd-panel-sub">
-                    {{ msg.versions.subtitle }}
-                    <code class="pd-code">supersededAt</code>
-                </div>
-            </div>
+    <AdminSection :title="msg.versions.title" class="pd-panel">
+        <template #subtitle>
+            {{ msg.versions.subtitle }}
+            <code class="pd-code">supersededAt</code>
+        </template>
+        <template #actions>
             <div class="pd-panel-head-right">
                 <button
                     v-if="!draftVersion"
@@ -28,7 +25,7 @@
                     <span>{{ newDraftButtonLabel }}</span>
                 </button>
             </div>
-        </div>
+        </template>
 
         <div v-if="chronological.length > 0" class="pd-timeline">
             <div class="pd-timeline-hint">
@@ -227,11 +224,12 @@
                 </div>
             </div>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AdminSection from '../admin-page/AdminSection.vue';
 import type { PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

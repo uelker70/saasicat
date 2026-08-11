@@ -597,6 +597,21 @@ const diffRows = computed<DiffRow[]>(() => {
     border-bottom: 0;
     padding-bottom: 8px;
 }
+.pc-card .sa-section__head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--pc-border);
+    margin-bottom: 0;
+}
+.pc-card--audit-head .sa-section__head {
+    border-bottom: 0;
+}
+.pc-card .sa-section__title {
+    letter-spacing: -0.01em;
+}
+.pc-card .sa-section__sub {
+    font-size: 11.5px;
+    margin-top: 2px;
+}
 .pc-card-head-text {
     flex: 1;
     min-width: 0;

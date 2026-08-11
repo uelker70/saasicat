@@ -28,12 +28,7 @@
             </template>
         </q-banner>
 
-        <div v-if="loading && plans.length === 0" class="sa-plans__loading">
-            <q-spinner size="32px" />
-            <span>{{ msg.page.loading }}</span>
-        </div>
-
-        <template v-else>
+        <AdminBody :loading="loading && plans.length === 0" :loading-text="msg.page.loading">
             <!-- Default: list view (plan simulation) + Bundle overview -->
             <template v-if="mode === 'list'">
                 <PlanList
@@ -129,7 +124,7 @@
                 @save-and-exit="onReviewSaveExit"
                 @publish="onReviewPublish"
             />
-        </template>
+        </AdminBody>
 
         <PlansPageToast :message="toastMessage" />
 
@@ -178,6 +173,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import type {
@@ -1257,14 +1253,5 @@ onMounted(async () => {
 <style scoped>
 .sa-plans {
     position: relative;
-}
-.sa-plans__loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 48px;
-    color: #64748b;
-    font-size: 14px;
 }
 </style>

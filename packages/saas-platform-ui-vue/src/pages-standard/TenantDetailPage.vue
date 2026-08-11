@@ -19,97 +19,69 @@
             </template>
         </AdminHero>
 
-        <div class="sa-tenant-detail__body">
-            <div v-if="loading" class="sa-tenant-detail__state">
-                <q-spinner size="32px" /> {{ common.loading }}
-            </div>
-
-            <template v-else-if="data">
+        <AdminBody :loading="loading" :empty="!data">
+            <template v-if="data">
                 <!-- Master data -->
-                <div class="sa-card q-mb-md">
-                    <header class="sa-tenant-detail__card-head">
-                        <div>
-                            <h2 class="sa-card__title">{{ labels.masterData }}</h2>
-                            <p v-if="stammdatenSub" class="sa-tenant-detail__card-sub">
-                                {{ stammdatenSub }}
-                            </p>
-                        </div>
-                        <div class="sa-tenant-detail__card-actions">
-                            <!-- Manifest-driven default actions (Suspend/Reactivate) -->
-                            <q-btn
-                                v-for="action in manifestActions"
-                                :key="action.def.id"
-                                outline
-                                :color="toneColor(action.def.actionKey)"
-                                :icon="iconForActionKey(action.def.actionKey)"
-                                :label="action.def.label"
-                                @click="action.onClick"
-                            />
-                            <slot name="card-actions" :data="data" :reload="load" />
-                        </div>
-                    </header>
+                <AdminSection
+                    :title="labels.masterData"
+                    :subtitle="stammdatenSub"
+                    class="sa-card q-mb-md"
+                >
+                    <template #actions>
+                        <!-- Manifest-driven default actions (Suspend/Reactivate) -->
+                        <q-btn
+                            v-for="action in manifestActions"
+                            :key="action.def.id"
+                            outline
+                            :color="toneColor(action.def.actionKey)"
+                            :icon="iconForActionKey(action.def.actionKey)"
+                            :label="action.def.label"
+                            @click="action.onClick"
+                        />
+                        <slot name="card-actions" :data="data" :reload="load" />
+                    </template>
                     <slot name="stammdaten" :data="data">
-                        <div class="sa-tenant-detail__grid">
-                            <KvBlock :label="labels.plan" :value="data.subscription?.plan ?? '—'" />
-                            <KvBlock
-                                :label="labels.status"
-                                :value="data.subscription?.status ?? '—'"
-                            />
-                            <KvBlock
-                                :label="labels.pilot"
-                                :value="data.subscription?.isPilot ? common.yes : common.no"
-                            />
-                            <KvBlock
-                                :label="labels.trialEnd"
-                                :value="formatDate(data.subscription?.trialEndsAt)"
-                            />
-                            <KvBlock
-                                :label="labels.pilotEnd"
-                                :value="formatDate(data.subscription?.pilotEndsAt)"
-                            />
-                            <KvBlock v-if="data.vatId" :label="labels.vatId" :value="data.vatId" />
+                        <TenantMasterData
+                            :data="data"
+                            :labels="labels"
+                            :format-date="formatDate"
+                            :yes="common.yes"
+                            :no="common.no"
+                        >
                             <slot name="extra-stammdaten" :data="data" />
-                        </div>
+                        </TenantMasterData>
                     </slot>
-                </div>
+                </AdminSection>
 
                 <!-- Usage -->
-                <div v-if="verbrauchFields.length > 0" class="sa-card q-mb-md">
-                    <h3 class="sa-card__title">{{ labels.usage }}</h3>
-                    <div class="sa-tenant-detail__grid">
-                        <KvBlock
-                            v-for="(field, i) in verbrauchFields"
-                            :key="field.label + i"
-                            :label="field.label"
-                            :value="resolveVerbrauch(field)"
-                        />
-                    </div>
-                </div>
+                <AdminSection
+                    v-if="verbrauchFields.length > 0"
+                    :title="labels.usage"
+                    class="sa-card q-mb-md"
+                >
+                    <TenantUsage :data="data" :fields="verbrauchFields" />
+                </AdminSection>
 
                 <!-- Users -->
-                <div v-if="showUsers && data.users" class="sa-card q-mb-md">
-                    <h3 class="sa-card__title">{{ labels.users }}</h3>
-                    <q-table
-                        flat
-                        :rows="data.users"
-                        :columns="userColumns ?? defaultUserColumns"
-                        row-key="id"
-                        :pagination="{ rowsPerPage: 0 }"
-                        hide-pagination
-                    />
-                </div>
+                <AdminSection
+                    v-if="showUsers && data.users"
+                    :title="labels.users"
+                    class="sa-card q-mb-md"
+                >
+                    <TenantUsers :users="data.users" :columns="userColumns ?? defaultUserColumns" />
+                </AdminSection>
 
                 <slot name="extra-cards" :data="data" :reload="load" />
             </template>
-        </div>
+        </AdminBody>
 
         <!-- Manifest-driven action flow dialogs -->
         <MfaPromptDialog
-            v-model="mfaState.show"
-            :description="mfaState.description"
-            :error="mfaState.error"
-            @update:model-value="onMfaDialogVisibility"
-            @confirm="onMfaConfirm"
+            :model-value="mfa.show.value"
+            :description="mfa.description.value"
+            :error="mfa.error.value"
+            @update:model-value="mfa.onVisibility"
+            @confirm="mfa.onConfirm"
         />
         <TenantActionConfirmDialog
             v-model="confirmState.show"
@@ -124,44 +96,26 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, toRef } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { RouteLocationRaw } from 'vue-router';
+import type { TenantDetailData, VerbrauchField } from './tenant-detail/types.js';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
 import { formatMessage } from '../client/i18n/format.js';
-import KvBlock from '../components/KvBlock.vue';
+import TenantMasterData from './tenant-detail/TenantMasterData.vue';
+import TenantUsage from './tenant-detail/TenantUsage.vue';
+import TenantUsers from './tenant-detail/TenantUsers.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../components/TenantActionConfirmDialog.vue';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
-export interface TenantDetailData {
-    id: string;
-    slug: string;
-    name: string;
-    isActive: boolean;
-    vatId?: string | null;
-    subscription?: {
-        plan?: string | null;
-        status?: string | null;
-        isPilot?: boolean | null;
-        trialEndsAt?: string | null;
-        pilotEndsAt?: string | null;
-    } | null;
-    users?: Array<Record<string, unknown> & { id: string }>;
-    /** Freely selectable usage numbers — the page renders them via `verbrauchFields`. */
-    counts?: Record<string, number | string>;
-}
-
-export interface VerbrauchField {
-    label: string;
-    /** Lookup key in `data.counts`. */
-    key?: string;
-    /** Alternative: custom getter. Takes precedence over `key`. */
-    getter?: (data: TenantDetailData) => string | number;
-}
+export type { TenantDetailData, VerbrauchField } from './tenant-detail/types.js';
 
 const props = withDefaults(
     defineProps<{
@@ -239,51 +193,18 @@ function formatDate(value: string | null | undefined): string {
     return props.formatDate ? props.formatDate(value) : defaultFormatDate(value);
 }
 
-function resolveVerbrauch(field: VerbrauchField): string {
-    if (!data.value) return '—';
-    if (field.getter) return String(field.getter(data.value));
-    if (field.key) {
-        const v = data.value.counts?.[field.key];
-        return v === undefined || v === null ? '0' : String(v);
-    }
-    return '—';
-}
-
 // ── Manifest-driven Action Flow (Suspend/Reactivate, Default) ──────────
 const manifestRef = toRef(() => props.manifest);
 
-const mfaState = ref<{ show: boolean; description: string; error: string }>({
-    show: false,
-    description: '',
-    error: '',
-});
-let pendingMfaResolve: ((code: string | null) => void) | null = null;
+const mfa = useMfaPrompt();
 
 function showMfaDialog(def: TenantActionDef, ctx: { row: TenantDto }): Promise<string | null> {
-    return new Promise((resolve) => {
-        mfaState.value = {
-            show: true,
-            description: formatMessage(msg.value.actions.mfaDescription, {
-                action: def.label,
-                tenant: ctx.row.name,
-            }),
-            error: '',
-        };
-        pendingMfaResolve = (code) => {
-            pendingMfaResolve = null;
-            resolve(code);
-        };
-    });
-}
-
-function onMfaConfirm(code: string): void {
-    pendingMfaResolve?.(code);
-    mfaState.value.show = false;
-}
-
-function onMfaDialogVisibility(open: boolean): void {
-    mfaState.value.show = open;
-    if (!open && pendingMfaResolve) pendingMfaResolve(null);
+    return mfa.prompt(
+        formatMessage(msg.value.actions.mfaDescription, {
+            action: def.label,
+            tenant: ctx.row.name,
+        }),
+    );
 }
 
 const confirmState = ref<{
@@ -416,18 +337,6 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
-}
-.sa-tenant-detail__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-}
-.sa-tenant-detail__state {
-    padding: 32px 0;
-    color: var(--sa-muted);
-    display: flex;
-    align-items: center;
-    gap: 12px;
 }
 .sa-tenant-detail__empty {
     color: var(--sa-muted);

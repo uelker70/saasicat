@@ -1,11 +1,10 @@
 <template>
-    <section v-if="tenantImpact" class="pc-card">
-        <div class="pc-card-head">
-            <div class="pc-card-head-text">
-                <div class="pc-card-title">{{ msg.kpis.tenantImpact }}</div>
-                <div class="pc-card-sub">{{ msg.impact.subtitle }}</div>
-            </div>
-        </div>
+    <AdminSection
+        v-if="tenantImpact"
+        :title="msg.kpis.tenantImpact"
+        :subtitle="msg.impact.subtitle"
+        class="pc-card"
+    >
         <div class="pc-impact-strip">
             <div class="pc-impact-num">{{ tenantImpactTotal }}</div>
             <div class="pc-impact-bars">
@@ -56,11 +55,12 @@
                 }}</span>
             </div>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AdminSection from '../admin-page/AdminSection.vue';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { ImpactTenant, TenantImpact } from './types';

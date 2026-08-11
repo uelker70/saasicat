@@ -193,13 +193,28 @@
 /* Section — a labelled block within a page (see AdminSection). Purely
  * structural: it carries the rhythm between blocks and the heading scale, not
  * a surface. A section that should read as a card adds `.sa-card` alongside. */
-/* Rhythm only for sections sitting directly on the page. Deliberately a
+/* Page body — everything below the hero (see AdminBody), including the
+ * loading and empty states the pages used to spell out one by one. */
+.sa-page-body__state {
+    padding: 32px 0;
+    color: var(--sa-muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.sa-page-body__state--empty {
+    font-size: 13px;
+}
+
+/* Rhythm only for sections sitting directly in the page flow. Deliberately a
  * child selector: sections placed inside a grid or flex container get their
  * spacing from that container, and a blanket margin would fight it. */
-.sa-page > .sa-section {
+.sa-page > .sa-section,
+.sa-page-body > .sa-section {
     margin-bottom: 16px;
 }
-.sa-page > .sa-section:last-child {
+.sa-page > .sa-section:last-child,
+.sa-page-body > .sa-section:last-child {
     margin-bottom: 0;
 }
 .sa-section__head {
@@ -226,6 +241,13 @@
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+/* Key-value grid — the layout `KvBlock` is meant to sit in. */
+.sa-kv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
 }
 
 /* Generic card (cards in dashboard/detail sections). */
