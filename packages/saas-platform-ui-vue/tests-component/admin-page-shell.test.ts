@@ -182,6 +182,32 @@ describe('page shell contract', () => {
         expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
     });
 
+    test('no page declares its own statistic tile styling', () => {
+        // Seven near-copies of the same tile preceded AdminKpi, two of them
+        // byte identical, three living in unscoped page-level <style> blocks
+        // that leaked their classes app-wide. The tile look is one rule in
+        // sa-theme.css now, and this keeps a page from starting an eighth.
+        // Two things make a tile, and both are required before this complains:
+        // a name that claims to be one, and a surface. A right-aligned
+        // label/value pair in a diff header is not an eighth tile, and neither
+        // is a `__status` badge that merely contains the letters "stat".
+        const RULE = /\.([\w-]+)[^{]*\{([^}]*)\}/g;
+        const NAMES_A_TILE = /(?:^|[-_])(?:kpi|kpis|stat|stats)(?:$|[-_])/;
+
+        const offenders = contentPageFiles().filter((file) => {
+            const source = readFileSync(file, 'utf8');
+            const styleStart = source.indexOf('<style');
+            if (styleStart === -1) return false;
+
+            for (const [, className, body] of source.slice(styleStart).matchAll(RULE)) {
+                if (NAMES_A_TILE.test(className!) && body!.includes('border-radius')) return true;
+            }
+            return false;
+        });
+
+        expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+    });
+
     test('no page block titles itself with a heading-shaped <div>', () => {
         // The failure this catches is the one the repo already shipped: a
         // block that looks like a section, reads like a section and is

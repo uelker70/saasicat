@@ -1,42 +1,40 @@
 <template>
-    <div class="pc-kpis">
-        <div class="pc-kpi">
-            <div class="pc-kpi-label">{{ msg.kpis.activeVersion }}</div>
-            <div class="pc-kpi-val">
+    <AdminStatistics :columns="4">
+        <AdminKpi :label="msg.kpis.activeVersion" :sub="activeVersionSub">
+            <template #value>
                 <template v-if="liveVersion">
                     v{{ liveVersion.version }}
                     <span class="pc-chip pc-chip--live pc-chip--dot pc-chip--mid">live</span>
                 </template>
                 <template v-else>—</template>
-            </div>
-            <div class="pc-kpi-sub">{{ activeVersionSub }}</div>
-        </div>
-        <div class="pc-kpi">
-            <div class="pc-kpi-label">{{ msg.kpis.tenantImpact }}</div>
-            <div class="pc-kpi-val">{{ tenantImpactTotal }}</div>
-            <div class="pc-kpi-sub">{{ msg.kpis.tenantsOnPlan }}</div>
-        </div>
-        <div class="pc-kpi">
-            <div class="pc-kpi-label">{{ msg.kpis.versions }}</div>
-            <div class="pc-kpi-val">{{ versionsCount }}</div>
-            <div class="pc-kpi-sub">{{ versionsSummary }}</div>
-        </div>
-        <div :class="['pc-kpi', draftVersion ? 'pc-kpi--draft' : '']">
-            <div class="pc-kpi-label" :style="draftVersion ? 'color:#b45309' : ''">
-                {{ draftVersion ? msg.kpis.openDraft : msg.kpis.noDraft }}
-            </div>
-            <div class="pc-kpi-val">
-                {{ draftVersion ? `v${draftVersion.version}` : '—' }}
-            </div>
-            <div class="pc-kpi-sub" :style="draftVersion ? 'color:#b45309' : ''">
-                {{ draftVersion ? msg.kpis.readyToEdit : msg.kpis.createNewDraft }}
-            </div>
-        </div>
-    </div>
+            </template>
+        </AdminKpi>
+
+        <AdminKpi
+            :label="msg.kpis.tenantImpact"
+            :value="tenantImpactTotal"
+            :sub="msg.kpis.tenantsOnPlan"
+        />
+
+        <AdminKpi :label="msg.kpis.versions" :value="versionsCount" :sub="versionsSummary" />
+
+        <!-- Der Draft-Zustand war zuvor per inline `color:#b45309` gesetzt und
+             damit gegen jedes Theming immun; jetzt trägt ihn der Ton. -->
+        <AdminKpi
+            :label="draftVersion ? msg.kpis.openDraft : msg.kpis.noDraft"
+            :value="draftVersion ? `v${draftVersion.version}` : null"
+            :sub="draftVersion ? msg.kpis.readyToEdit : msg.kpis.createNewDraft"
+            :tone="draftVersion ? 'warn' : 'neutral'"
+            emphasis="surface"
+        />
+    </AdminStatistics>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import AdminKpi from '../admin-page/AdminKpi.vue';
+import AdminStatistics from '../admin-page/AdminStatistics.vue';
 import type { PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

@@ -15,22 +15,18 @@
             </template>
         </AdminHero>
 
-        <div class="sa-stats">
-            <button
+        <AdminStatistics layout="strip" :label="msg.title">
+            <AdminKpi
                 v-for="tile in statTiles"
                 :key="tile.id"
-                class="sa-stat"
-                :class="[
-                    tile.tone ? `sa-stat--${tile.tone}` : null,
-                    statusFilter === tile.id ? 'sa-stat--active' : null,
-                ]"
-                @click="onStatusTileClick(tile.id)"
-            >
-                <span class="sa-stat__num">{{ tile.count }}</span>
-                <span class="sa-stat__label">{{ tile.label }}</span>
-                <span v-if="tile.hint" class="sa-stat__hint">{{ tile.hint }}</span>
-            </button>
-        </div>
+                :label="tile.label"
+                :value="tile.count"
+                :sub="tile.hint"
+                :tone="tile.tone"
+                :selected="statusFilter === tile.id"
+                :action="() => onStatusTileClick(tile.id)"
+            />
+        </AdminStatistics>
 
         <div class="sa-promo-codes__filter">
             <q-input
@@ -134,7 +130,9 @@ export function computePlanColors(
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
 import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';

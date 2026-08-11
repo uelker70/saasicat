@@ -41,13 +41,13 @@
             :empty-text="labels.empty"
         >
             <template v-if="data">
-                <AdminSection :title="labels.config" class="sa-card sa-promo-detail__section">
+                <AdminSection :title="labels.config">
                     <slot name="config" :promo="data.promo">
                         <pre class="sa-promo-detail__kv">{{ resolveFormatPromo(data.promo) }}</pre>
                     </slot>
                 </AdminSection>
 
-                <AdminSection :title="labels.stats" class="sa-card sa-promo-detail__section">
+                <AdminSection :title="labels.stats">
                     <slot name="stats" :stats="data.stats">
                         <pre class="sa-promo-detail__kv">{{
                             JSON.stringify(data.stats, null, 2)
@@ -55,10 +55,7 @@
                     </slot>
                 </AdminSection>
 
-                <AdminSection
-                    :title="`${labels.redemptions} (${data.redemptions.length})`"
-                    class="sa-card sa-promo-detail__section"
-                >
+                <AdminSection :title="`${labels.redemptions} (${data.redemptions.length})`">
                     <slot name="redemptions" :redemptions="data.redemptions">
                         <q-table
                             flat
@@ -297,18 +294,6 @@ const defaultColumns = computed<QTableColumn[]>(() => [
     display: flex;
     flex-direction: column;
     gap: 14px;
-}
-.sa-promo-detail__section {
-    padding: 16px 18px;
-}
-.sa-promo-detail__section-head {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--sa-muted);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-    font-family: var(--sa-font-head);
 }
 .sa-promo-detail__kv {
     background: #fafbfc;

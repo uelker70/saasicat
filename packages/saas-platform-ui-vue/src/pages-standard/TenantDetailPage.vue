@@ -22,11 +22,7 @@
         <AdminBody :loading="loading" :empty="!data">
             <template v-if="data">
                 <!-- Master data -->
-                <AdminSection
-                    :title="labels.masterData"
-                    :subtitle="stammdatenSub"
-                    class="sa-card q-mb-md"
-                >
+                <AdminSection :title="labels.masterData" :subtitle="stammdatenSub" class="q-mb-md">
                     <template #actions>
                         <!-- Manifest-driven default actions (Suspend/Reactivate) -->
                         <q-btn
@@ -57,17 +53,13 @@
                 <AdminSection
                     v-if="verbrauchFields.length > 0"
                     :title="labels.usage"
-                    class="sa-card q-mb-md"
+                    class="q-mb-md"
                 >
                     <TenantUsage :data="data" :fields="verbrauchFields" />
                 </AdminSection>
 
                 <!-- Users -->
-                <AdminSection
-                    v-if="showUsers && data.users"
-                    :title="labels.users"
-                    class="sa-card q-mb-md"
-                >
+                <AdminSection v-if="showUsers && data.users" :title="labels.users" class="q-mb-md">
                     <TenantUsers :users="data.users" :columns="userColumns ?? defaultUserColumns" />
                 </AdminSection>
 

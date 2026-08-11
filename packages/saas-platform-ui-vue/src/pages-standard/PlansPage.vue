@@ -1,6 +1,6 @@
 <template>
     <AdminPage class="sa-plans">
-        <AdminHero :title="msg.list.title">
+        <AdminHero :title="msg.list.title" :subtitle="msg.page.subtitle">
             <template v-if="mode === 'list'" #actions>
                 <q-btn
                     flat

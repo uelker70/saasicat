@@ -496,46 +496,6 @@ onMounted(() => {
 .sa-discovery__error {
     border-left: 4px solid #dc2626;
 }
-.sa-discovery__kpis {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-}
-.sa-discovery__kpi {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    padding: 12px 14px;
-    border-radius: 10px;
-}
-.sa-discovery__kpi.good {
-    border-color: #a7f3d0;
-}
-.sa-discovery__kpi.good .sa-discovery__kpi-label,
-.sa-discovery__kpi.good .sa-discovery__kpi-value {
-    color: #047857;
-}
-.sa-discovery__kpi.warn {
-    border-color: #fde68a;
-    background: #fffbeb;
-}
-.sa-discovery__kpi.bad {
-    border-color: #fecaca;
-    background: #fef2f2;
-}
-.sa-discovery__kpi-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #64748b;
-}
-.sa-discovery__kpi-value {
-    font-size: 26px;
-    font-weight: 700;
-}
-.sa-discovery__kpi-sub {
-    font-size: 11px;
-    color: #94a3b8;
-}
 .sa-discovery__tabs {
     border-bottom: 1px solid #e2e8f0;
 }

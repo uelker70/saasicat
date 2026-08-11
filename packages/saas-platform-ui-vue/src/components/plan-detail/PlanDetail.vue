@@ -629,50 +629,6 @@ async function executeTerminate(): Promise<void> {
 }
 
 /* KPI cards */
-.pd-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-}
-.pd-kpi {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px 12px;
-    min-height: 102px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.pd-kpi-label {
-    font-size: 10.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #64748b;
-}
-.pd-kpi-big {
-    font: 700 26px/1 var(--font-sans);
-    letter-spacing: -0.025em;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.pd-kpi-sub {
-    font-size: 11.5px;
-    color: #64748b;
-    margin-top: auto;
-}
-.pd-kpi.draft {
-    background: linear-gradient(180deg, #fffbeb 0%, #fffef7 100%);
-    border-color: #fde68a;
-}
-.pd-kpi.draft .pd-kpi-label,
-.pd-kpi.draft .pd-kpi-sub {
-    color: #92400e;
-}
 
 /* body */
 .pd-body {
@@ -1198,9 +1154,6 @@ async function executeTerminate(): Promise<void> {
 @media (max-width: 1180px) {
     .pd-body {
         grid-template-columns: 1fr;
-    }
-    .pd-kpis {
-        grid-template-columns: repeat(2, 1fr);
     }
 }
 </style>

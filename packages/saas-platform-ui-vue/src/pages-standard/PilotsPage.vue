@@ -18,22 +18,18 @@
             </template>
         </AdminHero>
 
-        <div class="sa-stats">
-            <button
+        <AdminStatistics layout="strip" :label="msg.title">
+            <AdminKpi
                 v-for="tile in statTiles"
                 :key="tile.id"
-                class="sa-stat"
-                :class="[
-                    tile.tone ? `sa-stat--${tile.tone}` : null,
-                    filter === tile.id ? 'sa-stat--active' : null,
-                ]"
-                @click="filter = tile.id"
-            >
-                <span class="sa-stat__num">{{ tile.count }}</span>
-                <span class="sa-stat__label">{{ tile.label }}</span>
-                <span v-if="tile.hint" class="sa-stat__hint">{{ tile.hint }}</span>
-            </button>
-        </div>
+                :label="tile.label"
+                :value="tile.count"
+                :sub="tile.hint"
+                :tone="tile.tone"
+                :selected="filter === tile.id"
+                :action="() => (filter = tile.id)"
+            />
+        </AdminStatistics>
 
         <q-banner v-if="reviewSoon.length" class="bg-amber-2 text-grey-9 q-mb-md" rounded>
             <template #avatar><q-icon name="event" color="amber-9" /></template>
@@ -113,7 +109,9 @@ import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
 import PilotCreateDialog from '../components/dialogs/PilotCreateDialog.vue';
 import PilotEditDialog from '../components/dialogs/PilotEditDialog.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';

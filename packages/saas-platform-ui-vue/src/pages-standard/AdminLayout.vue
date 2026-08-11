@@ -1,5 +1,5 @@
 <template>
-    <q-layout view="lHh Lpr lFf">
+    <q-layout view="lHh Lpr lFf" class="sa-admin-layout">
         <div v-if="isProduction" class="sa-admin-banner sa-admin-banner--prod">
             <q-icon name="warning" size="14px" />
             <strong>PRODUCTION</strong> — {{ msg.header.productionWarning }}

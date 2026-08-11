@@ -534,40 +534,6 @@ const diffRows = computed<DiffRow[]>(() => {
 }
 
 /* KPI strip */
-.pc-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 18px;
-}
-.pc-kpi {
-    background: #fff;
-    border: 1px solid var(--pc-border);
-    border-radius: 10px;
-    padding: 14px 16px;
-}
-.pc-kpi--draft {
-    background: linear-gradient(180deg, var(--pc-draft-bg) 0%, #fff 100%);
-    border-color: #fde68a;
-}
-.pc-kpi-label {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #64748b;
-    font-weight: 600;
-}
-.pc-kpi-val {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin-top: 4px;
-}
-.pc-kpi-sub {
-    font-size: 11.5px;
-    color: var(--pc-text-3);
-    margin-top: 2px;
-}
 
 /* Grid */
 .pc-grid {
@@ -1011,9 +977,6 @@ const diffRows = computed<DiffRow[]>(() => {
 @media (max-width: 1100px) {
     .pc-grid {
         grid-template-columns: 1fr;
-    }
-    .pc-kpis {
-        grid-template-columns: repeat(2, 1fr);
     }
     .pc-vrow {
         grid-template-columns: 88px 1fr 1fr 52px minmax(80px, 1.2fr);

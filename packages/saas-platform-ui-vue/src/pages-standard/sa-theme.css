@@ -31,6 +31,18 @@
     --sa-muted-dark: #475569;
     --sa-border: #e2e8f0;
     --sa-border-soft: #f1f5f9;
+    --sa-bg-surface-2: #f8fafc;
+
+    /* Corner radii, largest to smallest, so the nesting reads as hierarchy:
+     * a section is a bigger block than the cards inside it, a card bigger
+     * than a tile. `--sa-radius-tile` is the single declaration every
+     * statistic tile in the admin surface resolves to. */
+    --sa-radius-hero: 16px;
+    --sa-radius-section: 14px;
+    --sa-radius-card: 12px;
+    --sa-radius-head: 10px;
+    --sa-radius-tile: 10px;
+
     --sa-font-head: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
     --sa-font-body: 'Inter', system-ui, sans-serif;
     --sa-font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -50,11 +62,20 @@
  * platform.
  * ───────────────────────────────────────────────────────────── */
 
-/* Page frame — canvas, min-height and the page padding, in one place
- * instead of once per page (see AdminPage). */
+/* The app canvas. It sits on the layout rather than on the page so that the
+ * gutters beside `max-width: 1600px` are painted too — and so a page can be a
+ * transparent frame while sections carry the surfaces. Declared here rather
+ * than on `body`: both known consumer apps load their own stylesheet after
+ * this one, and a `body` rule would lose to them. */
+.sa-admin-layout,
+.sa-admin-content {
+    background: var(--sa-bg-app);
+}
+
+/* Page frame — min-height and the page padding, in one place instead of once
+ * per page (see AdminPage). No surface of its own. */
 .sa-page {
     min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
     padding: 20px 28px 28px;
 }
 
@@ -72,7 +93,7 @@
     flex-wrap: wrap;
     padding: 13px 22px 15px;
     border: 1px solid var(--sa-primary-border);
-    border-radius: 16px;
+    border-radius: var(--sa-radius-hero);
     background: linear-gradient(135deg, var(--sa-primary-soft) 0%, var(--sa-primary-softer) 100%);
 }
 .sa-page-head__title {
@@ -97,105 +118,159 @@
     align-items: center;
 }
 
-/* Stat pill strip — clickable filter tiles (see pl-stat in the sim). */
+/* Statistics — one tile look for the whole admin surface (see AdminStatistics
+ * and AdminKpi). Seven near-copies preceded this; two of them were byte
+ * identical. Every radius here resolves to `--sa-radius-tile`, which is the
+ * single place a tile's corner is decided.
+ *
+ * Two arrangements, because the tiles serve two jobs: `grid` for informational
+ * rows that should share a baseline, `strip` for the clickable filter pills
+ * that wrap along a toolbar. */
 .sa-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 0 0 16px;
+}
+.sa-stats--strip {
     display: flex;
-    gap: 8px;
-    margin: 4px 0 16px;
     flex-wrap: wrap;
     align-items: stretch;
+    gap: 8px;
+    margin: 4px 0 16px;
 }
-.sa-stat {
-    display: inline-flex;
+
+.sa-kpi {
+    display: flex;
     flex-direction: column;
     align-items: flex-start;
+    gap: 2px;
     background: var(--sa-bg-surface);
     border: 1px solid var(--sa-border);
-    border-radius: 10px;
+    border-radius: var(--sa-radius-tile);
     padding: 10px 14px 9px;
-    cursor: pointer;
-    min-width: 112px;
-    transition:
-        border-color 0.12s,
-        background 0.12s,
-        box-shadow 0.12s;
     font: inherit;
     color: inherit;
     text-align: left;
 }
-.sa-stat:hover {
-    background: #fafbfd;
+.sa-stats--strip .sa-kpi {
+    min-width: 112px;
+}
+/* Subs line up across a row rather than floating under uneven values. */
+.sa-stats .sa-kpi__sub {
+    margin-top: auto;
+}
+
+.sa-kpi__label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--sa-muted);
+    order: 2;
+}
+.sa-kpi__value {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    color: var(--sa-heading);
+    order: 1;
+}
+.sa-kpi__sub {
+    font: 500 10px var(--sa-font-mono);
+    letter-spacing: 0.04em;
+    color: var(--sa-muted);
+    padding-top: 1px;
+    order: 3;
+}
+.sa-kpi__icon {
+    color: var(--sa-muted);
+    order: 0;
+}
+
+/* Interactive tiles — rendered as <button> by AdminKpi when it has an action. */
+.sa-kpi--action {
+    cursor: pointer;
+    transition:
+        border-color 0.12s,
+        background 0.12s,
+        box-shadow 0.12s;
+}
+.sa-kpi--action:hover {
+    background: var(--sa-bg-surface-2);
     border-color: #cbd5e1;
 }
-.sa-stat--active {
+.sa-kpi--selected {
     border-color: var(--sa-heading);
     box-shadow:
         0 0 0 1px var(--sa-heading) inset,
         0 2px 6px rgba(15, 23, 42, 0.06);
 }
-.sa-stat__num {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--sa-heading);
-    line-height: 1.05;
-}
-.sa-stat__label {
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--sa-muted);
-    margin-top: 2px;
-}
-.sa-stat__hint {
-    font: 500 10px var(--sa-font-mono);
-    letter-spacing: 0.04em;
-    color: #94a3b8;
-    margin-top: 1px;
-}
-/* Color variants — analogous to active-state/warn-state/danger-state in the sim. */
-.sa-stat--positive .sa-stat__num {
+
+/* Tone. By default only the value takes the colour; `--surface` tints the
+ * whole tile, which is what the discovery and draft tiles need to read as a
+ * state rather than as a number. */
+.sa-kpi--positive .sa-kpi__value {
     color: var(--sa-positive);
 }
-.sa-stat--positive.sa-stat--active {
+.sa-kpi--warn .sa-kpi__value {
+    color: var(--sa-warning);
+}
+.sa-kpi--danger .sa-kpi__value {
+    color: var(--sa-negative);
+}
+.sa-kpi--info .sa-kpi__value {
+    color: #1d4ed8;
+}
+.sa-kpi--muted .sa-kpi__value {
+    color: var(--sa-muted-dark);
+}
+.sa-kpi--purple .sa-kpi__value {
+    color: #6b21a8;
+}
+
+.sa-kpi--surface.sa-kpi--positive {
+    border-color: #a7f3d0;
+    background: var(--sa-positive-soft);
+}
+.sa-kpi--surface.sa-kpi--warn {
+    border-color: var(--sa-amber-border);
+    background: var(--sa-warning-soft);
+}
+.sa-kpi--surface.sa-kpi--danger {
+    border-color: #fecaca;
+    background: var(--sa-negative-soft);
+}
+.sa-kpi--surface.sa-kpi--positive .sa-kpi__label,
+.sa-kpi--surface.sa-kpi--warn .sa-kpi__label,
+.sa-kpi--surface.sa-kpi--danger .sa-kpi__label {
+    color: inherit;
+}
+
+.sa-kpi--selected.sa-kpi--positive {
     border-color: var(--sa-positive-light);
     box-shadow:
         0 0 0 1px var(--sa-positive-light) inset,
         0 2px 6px rgba(16, 185, 129, 0.1);
 }
-.sa-stat--warn .sa-stat__num {
-    color: var(--sa-warning);
-}
-.sa-stat--warn.sa-stat--active {
+.sa-kpi--selected.sa-kpi--warn {
     border-color: var(--sa-amber);
     box-shadow:
         0 0 0 1px var(--sa-amber) inset,
         0 2px 6px rgba(245, 158, 11, 0.1);
 }
-.sa-stat--danger .sa-stat__num {
-    color: var(--sa-negative);
-}
-.sa-stat--danger.sa-stat--active {
+.sa-kpi--selected.sa-kpi--danger {
     border-color: var(--sa-negative);
     box-shadow:
         0 0 0 1px var(--sa-negative) inset,
         0 2px 6px rgba(239, 68, 68, 0.1);
 }
-.sa-stat--info .sa-stat__num {
-    color: #1d4ed8;
-}
-.sa-stat--info.sa-stat--active {
+.sa-kpi--selected.sa-kpi--info {
     border-color: #3b82f6;
     box-shadow:
         0 0 0 1px #3b82f6 inset,
         0 2px 6px rgba(59, 130, 246, 0.1);
 }
-.sa-stat--muted .sa-stat__num {
-    color: var(--sa-muted-dark);
-}
-.sa-stat--purple .sa-stat__num {
-    color: #6b21a8;
-}
-.sa-stat--purple.sa-stat--active {
+.sa-kpi--selected.sa-kpi--purple {
     border-color: #a855f7;
     box-shadow:
         0 0 0 1px #a855f7 inset,
@@ -226,14 +301,28 @@
 .sa-page-body > .sa-section:last-child {
     margin-bottom: 0;
 }
-/* Section — a labelled block within a page (see AdminSection). Purely
- * structural: it carries the heading scale and the rhythm between blocks, not
- * a surface. A section that should read as a card adds `.sa-card` alongside. */
+/* Section — a labelled block within a page (see AdminSection). It carries the
+ * surface now: the page frame is transparent, so what a reader sees as "a
+ * block of this page" is exactly one section. A section that needs an inner
+ * card still adds `.sa-card`; a section IS one, so the two do not stack. */
+.sa-section {
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
+    border-radius: var(--sa-radius-section);
+    padding: 14px 16px 16px;
+}
+
+/* The head reads like a smaller echo of the hero: same tinted, rounded box,
+ * one step lighter, so the eye reads page → section without being told. */
 .sa-section__head {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
+    padding: 9px 14px 10px;
+    border: 1px solid var(--sa-primary-border);
+    border-radius: var(--sa-radius-head);
+    background: var(--sa-primary-softer);
 }
 .sa-section__title {
     margin: 0;
@@ -266,7 +355,7 @@
 .sa-card {
     background: var(--sa-bg-surface);
     border: 1px solid var(--sa-border);
-    border-radius: 12px;
+    border-radius: var(--sa-radius-card);
     padding: 16px 18px;
 }
 .sa-card__title {

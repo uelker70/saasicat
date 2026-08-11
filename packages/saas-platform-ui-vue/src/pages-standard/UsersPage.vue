@@ -12,21 +12,17 @@
             </template>
         </AdminHero>
 
-        <div class="sa-stats">
-            <button
+        <AdminStatistics layout="strip" :label="resolvedTitle">
+            <AdminKpi
                 v-for="tile in statTiles"
                 :key="tile.id"
-                class="sa-stat"
-                :class="[
-                    tile.tone ? `sa-stat--${tile.tone}` : null,
-                    statusFilter === tile.id ? 'sa-stat--active' : null,
-                ]"
-                @click="statusFilter = tile.id"
-            >
-                <span class="sa-stat__num">{{ tile.count }}</span>
-                <span class="sa-stat__label">{{ tile.label }}</span>
-            </button>
-        </div>
+                :label="tile.label"
+                :value="tile.count"
+                :tone="tile.tone"
+                :selected="statusFilter === tile.id"
+                :action="() => (statusFilter = tile.id)"
+            />
+        </AdminStatistics>
 
         <div class="sa-users__filter">
             <q-input
@@ -111,7 +107,9 @@ import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';

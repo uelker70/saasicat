@@ -5,6 +5,8 @@ export const plansMessages = defineMessages(
         // PlansPage — shell of the plan area: loading state, toasts and the
         // error texts of the draft/publish/archive/discard actions.
         page: {
+            subtitle:
+                'Pläne bündeln Features & Quotas zu einem Angebot. Jede Änderung wird als neue Version veröffentlicht — Live-Versionen bleiben unangetastet.',
             loading: 'Pläne werden geladen…',
             toastPlanCreated: 'Plan {planKey} angelegt — jetzt die erste Version zusammenstellen.',
             toastDraftSaved: 'Draft v{version} von {planKey} gespeichert.',
@@ -260,6 +262,8 @@ export const plansMessages = defineMessages(
     },
     {
         page: {
+            subtitle:
+                'Plans bundle features & quotas into an offering. Every change ships as a new version — live versions stay untouched.',
             loading: 'Loading plans…',
             toastPlanCreated: 'Plan {planKey} created — now assemble the first version.',
             toastDraftSaved: 'Draft v{version} of {planKey} saved.',

@@ -659,32 +659,6 @@ const classifyDiff = computed(() => props.classifyDiff);
 .sa-bundles__empty {
     border-left: 4px solid #31ccec;
 }
-.sa-bundles__kpis {
-    display: grid;
-    /* Responsive: as many KPIs as fit (up to 4), then 3 → 2 → 1. */
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-}
-.sa-bundles__kpi {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 14px;
-}
-.sa-bundles__kpi-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #64748b;
-}
-.sa-bundles__kpi-value {
-    font-size: 26px;
-    font-weight: 700;
-}
-.sa-bundles__kpi-sub {
-    font-size: 11px;
-    color: #94a3b8;
-}
 .sa-bundles__filter-row {
     display: flex;
     align-items: center;
