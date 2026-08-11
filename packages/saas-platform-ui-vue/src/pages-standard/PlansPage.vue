@@ -1,6 +1,6 @@
 <template>
     <AdminPage class="sa-plans">
-        <AdminHero :title="heroTitle" :subtitle="heroSubtitle">
+        <AdminHero v-if="!viewOwnsHero" :title="heroTitle" :subtitle="heroSubtitle">
             <template v-if="mode === 'cockpit' && selectedPlan" #title>
                 <PlanTitleEdit :plan="selectedPlan" :editable="detailDraftVersion !== null" />
             </template>
@@ -346,6 +346,11 @@ const planCounts = computed(() =>
         }),
     ),
 );
+
+// The editor and the review render the hero themselves: their actions hang on
+// state that lives in those views — the publish checklist, the force flags, the
+// draft's validity — so the page steps aside rather than lifting all of it up.
+const viewOwnsHero = computed(() => mode.value === 'editor' || mode.value === 'review');
 
 // One page, one heading. Every view here — the list, the matrix, a single plan
 // — is a mode of the same page, so each swaps the hero's title and actions

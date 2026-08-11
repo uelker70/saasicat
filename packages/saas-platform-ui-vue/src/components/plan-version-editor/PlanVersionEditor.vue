@@ -750,15 +750,6 @@ function emitSave(): void {
 }
 
 /* ── Editor bar ─────────────────────────────────────────────────── */
-.pve-bar {
-    background: #fff;
-    border-bottom: 1px solid var(--sa-border);
-    padding: 12px 22px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex: 0 0 auto;
-}
 
 /* ── Save error banner ──────────────────────────────────────────── */
 .pve-error {
@@ -777,38 +768,15 @@ function emitSave(): void {
     display: inline-flex;
     flex: 0 0 auto;
 }
-.pve-bar-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-}
-.pve-bar-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-}
-.pve-titlechip {
-    display: flex;
+/* The kicker above the heading: "Plan" plus the plan key. */
+.pve-kicker {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-.pve-titlechip-kicker {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.1em;
     color: var(--sa-muted-light);
-}
-.pve-title {
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: -0.02em;
-}
-.pve-bar-note {
-    font-size: 11.5px;
-    color: var(--sa-muted);
 }
 .pve-mono {
     font: 500 11px var(--sa-font-mono);
@@ -818,12 +786,6 @@ function emitSave(): void {
 }
 
 /* ── Buttons & Chips ───────────────────────────────────────────── */
-.pve-ico {
-    display: inline-flex;
-}
-.pve-ico--rot180 {
-    transform: rotate(180deg);
-}
 
 .pve-chip {
     display: inline-flex;

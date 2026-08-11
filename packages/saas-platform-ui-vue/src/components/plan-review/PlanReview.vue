@@ -1,34 +1,19 @@
 <template>
     <div class="pr">
-        <!-- Header -->
-        <div class="pr-head">
-            <div class="pr-head-text">
-                <h2 class="pr-title">{{ msg.review.title }}</h2>
-                <p class="pr-sub">
-                    {{ msg.review.subtitleLead }}
-                    <code class="pr-mono">{{ plan.planKey }}@v{{ version.version }}</code>
-                    {{ msg.review.subtitleTail }}
-                </p>
-            </div>
-            <div class="pr-head-actions">
+        <AdminHero :title="msg.review.title">
+            <template #subtitle>
+                {{ msg.review.subtitleLead }}
+                <code class="pr-mono">{{ plan.planKey }}@v{{ version.version }}</code>
+                {{ msg.review.subtitleTail }}
+            </template>
+            <template #actions>
                 <button
                     class="sa-btn"
                     type="button"
                     :disabled="publishing || saving"
                     @click="$emit('back')"
                 >
-                    <span class="pr-ico pr-ico--back" aria-hidden="true">
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path d="M5 12h14M13 5l7 7-7 7" />
-                        </svg>
-                    </span>
+                    <q-icon name="arrow_back" size="16px" />
                     <span>{{ common.back }}</span>
                 </button>
                 <button
@@ -37,7 +22,7 @@
                     :disabled="publishing || saving"
                     @click="$emit('saveAndExit')"
                 >
-                    {{ saving ? msg.review.saving : msg.review.saveAsDraft }}
+                    <span>{{ saving ? msg.review.saving : msg.review.saveAsDraft }}</span>
                 </button>
                 <button
                     class="sa-btn sa-btn--primary"
@@ -46,20 +31,11 @@
                     :title="canPublish ? undefined : msg.review.publishBlocked"
                     @click="onPublish"
                 >
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                    </svg>
+                    <q-icon name="bolt" size="16px" />
                     <span>{{ publishing ? msg.review.publishing : publishLabel }}</span>
                 </button>
-            </div>
-        </div>
+            </template>
+        </AdminHero>
 
         <div v-if="publishError" class="pr-banner">{{ publishError }}</div>
 
@@ -263,6 +239,9 @@ import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+// This view replaces the page hero while it is open: its actions hang on the
+// publish checklist and the force flags below, which live here.
+import AdminHero from '../admin-page/AdminHero.vue';
 
 // PlanReview — step 3 of the plan wizard (SPEC_V2 §6, plan simulation
 // "Review & Publish"). Shows the saved draft read-only, checks the
@@ -481,37 +460,6 @@ function onPublish(): void {
 .pr-mono {
     font-family: var(--sa-font-mono);
     font-weight: 600;
-}
-
-.pr-head {
-    display: flex;
-    align-items: flex-end;
-    gap: 20px;
-    margin-bottom: 16px;
-}
-.pr-head-text {
-    flex: 1;
-    min-width: 0;
-}
-.pr-title {
-    font: 700 22px/1.2 var(--sa-font-head);
-    letter-spacing: -0.02em;
-    color: var(--sa-heading);
-    margin: 0;
-}
-.pr-sub {
-    font-size: 12.5px;
-    color: var(--sa-muted);
-    margin: 4px 0 0;
-}
-.pr-head-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.pr-ico--back {
-    display: inline-flex;
-    transform: rotate(180deg);
 }
 
 .pr-banner {
