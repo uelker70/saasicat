@@ -45,6 +45,7 @@
     --sa-radius-head: 10px;
     --sa-radius-tile: 10px;
     --sa-radius-control: 7px;
+    --sa-radius-field: 8px;
 
     --sa-font-head: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
     --sa-font-body: 'Inter', system-ui, sans-serif;
@@ -222,6 +223,16 @@
 }
 .sa-btn--positive:hover:not(:disabled) {
     background: var(--sa-positive-soft);
+}
+
+/* Form fields. Quasar's outlined input rounds at 4px, which reads sharper than
+ * everything around it; the admin surface settles on 8px, the radius the
+ * hand-built search boxes already used. Declared on the field control so it
+ * covers inputs, selects and date pickers alike. */
+.sa-page .q-field--outlined .q-field__control,
+.sa-page .q-field--outlined .q-field__control:before,
+.sa-page .q-field--outlined .q-field__control:after {
+    border-radius: var(--sa-radius-field);
 }
 
 /* Statistics — one tile look for the whole admin surface (see AdminStatistics

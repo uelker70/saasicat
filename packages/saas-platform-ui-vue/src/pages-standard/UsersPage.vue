@@ -1,13 +1,6 @@
 <template>
     <AdminPage class="sa-users">
-        <AdminHero :title="resolvedTitle" :subtitle="subtitle">
-            <template #actions>
-                <button class="sa-btn sa-btn--primary" type="button" @click="reload">
-                    <q-icon name="search" size="16px" />
-                    <span>{{ common.search }}</span>
-                </button>
-            </template>
-        </AdminHero>
+        <AdminHero :title="resolvedTitle" :subtitle="subtitle" />
 
         <AdminStatistics layout="strip" :label="resolvedTitle">
             <AdminKpi
@@ -28,8 +21,8 @@
                 dense
                 :label="msg.filterQuery"
                 clearable
-                @keyup.enter="reload"
-                @clear="reload"
+                debounce="250"
+                @update:model-value="reload"
             />
             <q-input
                 v-model="filter.tenant"
@@ -37,8 +30,8 @@
                 dense
                 :label="msg.filterTenant"
                 clearable
-                @keyup.enter="reload"
-                @clear="reload"
+                debounce="250"
+                @update:model-value="reload"
             />
             <slot name="filters-extra" />
         </div>
