@@ -1,10 +1,10 @@
 <template>
-    <AdminSection :title="msg.bundleOverview.title" class="sa-bundles">
+    <AdminSection :title="msg.bundleOverview.title">
         <template #actions>
             <span class="sa-bundles__count">{{ bundles.length }}</span>
         </template>
 
-        <div v-if="bundles.length === 0" class="sa-bundles__empty">
+        <div v-if="bundles.length === 0" class="sa-bundle-overview__empty">
             {{ msg.bundleOverview.empty }}
         </div>
 
@@ -90,7 +90,7 @@ function compatLabel(bundle: BundleEntry): string {
     border-radius: 999px;
     padding: 1px 8px;
 }
-.sa-bundles__empty {
+.sa-bundle-overview__empty {
     color: #64748b;
     font-size: 14px;
     padding: 8px 0;

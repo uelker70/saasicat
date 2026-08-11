@@ -52,6 +52,10 @@ function contentPageFiles(): string[] {
     return found.sort();
 }
 
+function dirName(file: string): string {
+    return file.split('/').slice(-2, -1)[0] ?? '';
+}
+
 function stripComments(markup: string): string {
     // Applied until it stops changing: a single pass over `<!--<!-- -->-->`
     // leaves a `<!--` behind, and the leftover would carry whatever the inner
@@ -206,6 +210,67 @@ describe('page shell contract', () => {
         });
 
         expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+    });
+
+    test('an unscoped page style reaches only its own sub-components', () => {
+        // This is the defect the shell work started from: `.sa-bundles__head`
+        // was declared in BundlesPage's unscoped <style> and silently restyled
+        // `plans-page/PlanBundleOverview`, which happened to reuse the name.
+        // It has recurred twice since, because nothing checked for it.
+        //
+        // A page styling the children in its OWN folder is the intended
+        // arrangement — a scoped style cannot reach them. Reaching anywhere
+        // else is a leak, and it only shows up once the other page has been
+        // visited, which is why it survives review.
+        const OWN_CHILDREN: Record<string, string> = {
+            BundlesPage: 'bundles-page',
+            DiscoveryPage: 'discovery-page',
+            MarketingCatalogPage: 'marketing-catalog',
+            PlanDetail: 'plan-detail',
+            PlanVersionEditor: 'plan-version-editor',
+        };
+
+        const files = contentPageFiles();
+        const markupClasses = (file: string): Set<string> => {
+            const template = templateOf(readFileSync(file, 'utf8'));
+            const found = new Set<string>();
+            for (const [, group] of template.matchAll(/class="([^"]*)"/g)) {
+                for (const cls of group!.split(/\s+/)) {
+                    if (cls && !cls.includes('$')) found.add(cls);
+                }
+            }
+            return found;
+        };
+        const unscopedClasses = (file: string): Set<string> => {
+            const source = readFileSync(file, 'utf8');
+            const found = new Set<string>();
+            for (const [, body] of source.matchAll(
+                /<style(?![^>]*scoped)[^>]*>([\s\S]*?)<\/style>/g,
+            )) {
+                for (const [, cls] of body!.matchAll(/\.([\w-]+)/g)) found.add(cls!);
+            }
+            return found;
+        };
+
+        const leaks: string[] = [];
+        for (const source of files) {
+            const declared = unscopedClasses(source);
+            if (declared.size === 0) continue;
+            const stem = source.split('/').pop()!.replace('.vue', '');
+            const allowed = new Set([dirName(source), OWN_CHILDREN[stem]]);
+
+            for (const other of files) {
+                if (other === source || allowed.has(dirName(other))) continue;
+                const shared = [...markupClasses(other)].filter((c) => declared.has(c));
+                if (shared.length > 0) {
+                    leaks.push(
+                        `${relative(PAGES_DIR, source)} → ${relative(PAGES_DIR, other)}: ${shared.sort().join(', ')}`,
+                    );
+                }
+            }
+        }
+
+        expect(leaks).toEqual([]);
     });
 
     test('no page block titles itself with a heading-shaped <div>', () => {
