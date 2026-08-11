@@ -3,14 +3,15 @@
         <AdminHero :title="msg.title" :subtitle="subtitle">
             <template #actions>
                 <slot name="head-actions">
-                    <q-btn
+                    <button
+                        class="sa-btn sa-btn--primary"
+                        type="button"
                         v-if="enableCreate"
-                        unelevated
-                        color="primary"
-                        icon="add"
-                        :label="resolvedCreateLabel"
                         @click="showCreate = true"
-                    />
+                    >
+                        <q-icon name="add" size="16px" />
+                        <span>{{ resolvedCreateLabel }}</span>
+                    </button>
                 </slot>
             </template>
         </AdminHero>

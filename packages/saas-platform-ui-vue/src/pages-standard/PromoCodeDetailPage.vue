@@ -22,14 +22,15 @@
                 <template v-else>—</template>
             </template>
             <template #actions>
-                <q-btn
+                <button
+                    class="sa-btn sa-btn--primary"
+                    type="button"
                     v-if="editSubmit && data"
-                    color="primary"
-                    unelevated
-                    icon="edit"
-                    :label="labels.edit"
                     @click="openEdit"
-                />
+                >
+                    <q-icon name="edit" size="16px" />
+                    <span>{{ labels.edit }}</span>
+                </button>
                 <slot name="header-actions" />
             </template>
         </AdminHero>

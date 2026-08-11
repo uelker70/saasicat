@@ -5,14 +5,16 @@
                 {{ msg.subtitleLead }} <b>{{ msg.subtitleEmphasis }}</b> {{ msg.subtitleTail }}
             </template>
             <template #actions>
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="bolt"
-                    :label="msg.runDiscovery"
-                    :loading="loading"
+                <button
+                    class="sa-btn sa-btn--primary"
+                    type="button"
+                    :disabled="loading"
                     @click="onRunDiscovery"
-                />
+                >
+                    <q-spinner v-if="loading" size="16px" />
+                    <q-icon v-else name="bolt" size="16px" />
+                    <span>{{ msg.runDiscovery }}</span>
+                </button>
             </template>
         </AdminHero>
 

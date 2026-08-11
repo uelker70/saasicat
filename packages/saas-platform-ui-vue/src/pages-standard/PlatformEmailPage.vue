@@ -2,15 +2,23 @@
     <AdminPage class="sa-pemail">
         <AdminHero :title="resolvedTitle" :subtitle="msg.provider.subtitle">
             <template #actions>
-                <q-btn
+                <button
+                    class="sa-btn sa-btn--primary"
+                    type="button"
                     v-if="rows.length === 0"
-                    unelevated
-                    color="primary"
-                    icon="add"
-                    :label="msg.sender"
                     @click="openCreate"
-                />
-                <q-btn flat icon="refresh" :label="common.reload" @click="reload" />
+                >
+                    <q-icon name="add" size="16px" />
+                    <span>{{ msg.sender }}</span>
+                </button>
+                <button
+                    class="sa-btn sa-btn--icon"
+                    type="button"
+                    :aria-label="common.reload"
+                    @click="reload"
+                >
+                    <q-icon name="refresh" size="16px" />
+                </button>
             </template>
         </AdminHero>
 

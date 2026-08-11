@@ -2,7 +2,14 @@
     <AdminPage class="sa-emh">
         <AdminHero :title="resolvedTitle" :subtitle="msg.history.subtitle">
             <template #actions>
-                <q-btn flat icon="refresh" :label="common.reload" @click="applyFilter" />
+                <button
+                    class="sa-btn sa-btn--icon"
+                    type="button"
+                    :aria-label="common.reload"
+                    @click="applyFilter"
+                >
+                    <q-icon name="refresh" size="16px" />
+                </button>
             </template>
         </AdminHero>
 

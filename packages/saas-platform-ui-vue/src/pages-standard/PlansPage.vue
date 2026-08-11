@@ -2,34 +2,24 @@
     <AdminPage class="sa-plans">
         <AdminHero :title="heroTitle" :subtitle="msg.page.subtitle">
             <template v-if="mode === 'list'" #actions>
-                <q-btn
-                    flat
-                    icon="grid_view"
-                    :label="msg.list.matrixView"
-                    @click="mode = 'matrix'"
-                />
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="add"
-                    :label="msg.list.newPlan"
-                    @click="openCreate"
-                />
+                <button class="sa-btn" type="button" @click="mode = 'matrix'">
+                    <q-icon name="grid_view" size="16px" />
+                    <span>{{ msg.list.matrixView }}</span>
+                </button>
+                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
+                    <q-icon name="add" size="16px" />
+                    <span>{{ msg.list.newPlan }}</span>
+                </button>
             </template>
             <template v-else-if="mode === 'matrix'" #actions>
-                <q-btn
-                    flat
-                    icon="storefront"
-                    :label="msg.matrix.catalogPreview"
-                    @click="mode = 'list'"
-                />
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="add"
-                    :label="msg.matrix.createPlan"
-                    @click="openCreate"
-                />
+                <button class="sa-btn" type="button" @click="mode = 'list'">
+                    <q-icon name="storefront" size="16px" />
+                    <span>{{ msg.matrix.catalogPreview }}</span>
+                </button>
+                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
+                    <q-icon name="add" size="16px" />
+                    <span>{{ msg.matrix.createPlan }}</span>
+                </button>
             </template>
         </AdminHero>
 

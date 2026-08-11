@@ -211,6 +211,19 @@
     flex: 1;
 }
 
+/* Icon-only — the reload control, which carries no label and therefore needs
+ * an `aria-label` at the call site. */
+.sa-btn--icon {
+    padding: 8px;
+    gap: 0;
+}
+.sa-btn--positive {
+    color: var(--sa-positive);
+}
+.sa-btn--positive:hover:not(:disabled) {
+    background: var(--sa-positive-soft);
+}
+
 /* Statistics — one tile look for the whole admin surface (see AdminStatistics
  * and AdminKpi). Seven near-copies preceded this; two of them were byte
  * identical. Every radius here resolves to `--sa-radius-tile`, which is the

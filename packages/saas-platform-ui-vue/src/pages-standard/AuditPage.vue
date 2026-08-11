@@ -5,13 +5,10 @@
             :subtitle="formatMessage(msg.subtitle, { count: rows.length })"
         >
             <template #actions>
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="refresh"
-                    :label="msg.filterButton"
-                    @click="reload"
-                />
+                <button class="sa-btn sa-btn--primary" type="button" @click="reload">
+                    <q-icon name="refresh" size="16px" />
+                    <span>{{ msg.filterButton }}</span>
+                </button>
             </template>
         </AdminHero>
 

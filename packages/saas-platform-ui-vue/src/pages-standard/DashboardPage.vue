@@ -2,14 +2,16 @@
     <AdminPage class="sa-dashboard">
         <AdminHero :title="msg.title" :subtitle="subtitle">
             <template #actions>
-                <q-btn
-                    flat
-                    dense
-                    icon="refresh"
-                    :loading="loading"
+                <button
+                    class="sa-btn sa-btn--icon"
+                    type="button"
+                    :disabled="loading"
                     :aria-label="common.reload"
                     @click="reload"
-                />
+                >
+                    <q-spinner v-if="loading" size="16px" />
+                    <q-icon v-else name="refresh" size="16px" />
+                </button>
             </template>
         </AdminHero>
 

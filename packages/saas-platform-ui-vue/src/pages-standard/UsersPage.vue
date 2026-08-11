@@ -2,13 +2,10 @@
     <AdminPage class="sa-users">
         <AdminHero :title="resolvedTitle" :subtitle="subtitle">
             <template #actions>
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="search"
-                    :label="common.search"
-                    @click="reload"
-                />
+                <button class="sa-btn sa-btn--primary" type="button" @click="reload">
+                    <q-icon name="search" size="16px" />
+                    <span>{{ common.search }}</span>
+                </button>
             </template>
         </AdminHero>
 
