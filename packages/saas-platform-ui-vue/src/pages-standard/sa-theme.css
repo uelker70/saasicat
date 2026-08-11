@@ -242,6 +242,19 @@
     border-radius: var(--sa-radius-field);
 }
 
+/* The filter row (see AdminFilters). Declared once so no page writes its own
+ * flex rule — which is how five pages ended up with five filter bars. */
+.sa-filters .sa-section__body {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.sa-filters .sa-section__body > * {
+    flex: 1;
+    min-width: 200px;
+}
+
 /* Statistics — one tile look for the whole admin surface (see AdminStatistics
  * and AdminKpi). Seven near-copies preceded this; two of them were byte
  * identical. Every radius here resolves to `--sa-radius-tile`, which is the
@@ -256,13 +269,6 @@
     gap: 10px;
     margin: 0 0 16px;
 }
-.sa-stats--strip {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: stretch;
-    gap: 8px;
-    margin: 4px 0 16px;
-}
 
 .sa-kpi {
     display: flex;
@@ -276,9 +282,6 @@
     font: inherit;
     color: inherit;
     text-align: left;
-}
-.sa-stats--strip .sa-kpi {
-    min-width: 112px;
 }
 /* Subs line up across a row rather than floating under uneven values. */
 .sa-stats .sa-kpi__sub {

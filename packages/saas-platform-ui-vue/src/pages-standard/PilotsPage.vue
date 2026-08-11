@@ -20,7 +20,7 @@
         </AdminHero>
 
         <AdminBody>
-            <AdminStatistics layout="strip" :label="msg.title">
+            <AdminStatistics :label="msg.title">
                 <AdminKpi
                     v-for="tile in statTiles"
                     :key="tile.id"

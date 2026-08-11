@@ -2,139 +2,153 @@
     <AdminPage class="sa-tenants">
         <AdminHero :title="msg.list.title" :subtitle="subtitle" />
 
-        <div class="sa-tenants__filter">
-            <div class="sa-tenants__search">
-                <q-icon name="search" size="15px" />
-                <input
+        <AdminBody>
+            <AdminFilters>
+                <q-input
                     v-model="searchInput"
-                    :placeholder="msg.list.searchPlaceholder"
-                    @input="reloadDebounced"
+                    outlined
+                    dense
+                    clearable
+                    :label="msg.list.searchPlaceholder"
+                    debounce="250"
+                    @update:model-value="applyFilter"
+                >
+                    <template #prepend><q-icon name="search" size="18px" /></template>
+                </q-input>
+                <q-select
+                    v-model="statusFilter"
+                    outlined
+                    dense
+                    clearable
+                    emit-value
+                    map-options
+                    :options="statusSelectOptions"
+                    :label="msg.list.allStatuses"
+                    @update:model-value="applyFilter"
                 />
-                <button v-if="searchInput" class="sa-tenants__clear" @click="onClearSearch">
-                    <q-icon name="close" size="13px" />
-                </button>
-            </div>
-            <select v-model="statusFilter" class="sa-tenants__select" @change="applyFilter">
-                <option :value="null">{{ msg.list.allStatuses }}</option>
-                <option v-for="opt in resolvedStatusOptions" :key="opt.value" :value="opt.value">
-                    {{ opt.label }}
-                </option>
-            </select>
-            <select
-                v-if="planOptions && planOptions.length > 0"
-                v-model="planFilter"
-                class="sa-tenants__select"
-                @change="applyFilter"
-            >
-                <option :value="null">{{ resolvedPlanFilterLabel }}</option>
-                <option v-for="p in planOptions" :key="p" :value="p">{{ p }}</option>
-            </select>
-            <slot name="filters-extra" />
-        </div>
+                <q-select
+                    v-if="planOptions && planOptions.length > 0"
+                    v-model="planFilter"
+                    outlined
+                    dense
+                    clearable
+                    :options="planOptions"
+                    :label="resolvedPlanFilterLabel"
+                    @update:model-value="applyFilter"
+                />
+                <slot name="filters-extra" />
+            </AdminFilters>
 
-        <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
-            <strong>{{ common.error }}:</strong> {{ error.message }}
-        </q-banner>
+            <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
+                <strong>{{ common.error }}:</strong> {{ error.message }}
+            </q-banner>
 
-        <div class="sa-tenants__card">
-            <div class="sa-tenants__wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>{{ msg.tenant }}</th>
-                            <th v-if="showPlanColumn">{{ resolvedPlanColumnLabel }}</th>
-                            <th>{{ common.status }}</th>
-                            <th v-if="usageFields.length > 0" class="num">
-                                {{ msg.list.columnUsage }}
-                            </th>
-                            <th class="num">{{ msg.list.columnCreatedAt }}</th>
-                            <th v-if="hasActions" class="num"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in items" :key="row.id">
-                            <td>
-                                <div class="sa-tenants__tenant">
-                                    <div class="sa-tenants__avatar" :style="avatarStyle(row)">
-                                        {{ tenantInitials(row.name) }}
+            <AdminSection class="sa-tenants__card">
+                <div class="sa-tenants__wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>{{ msg.tenant }}</th>
+                                <th v-if="showPlanColumn">{{ resolvedPlanColumnLabel }}</th>
+                                <th>{{ common.status }}</th>
+                                <th v-if="usageFields.length > 0" class="num">
+                                    {{ msg.list.columnUsage }}
+                                </th>
+                                <th class="num">{{ msg.list.columnCreatedAt }}</th>
+                                <th v-if="hasActions" class="num"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in items" :key="row.id">
+                                <td>
+                                    <div class="sa-tenants__tenant">
+                                        <div class="sa-tenants__avatar" :style="avatarStyle(row)">
+                                            {{ tenantInitials(row.name) }}
+                                        </div>
+                                        <div>
+                                            <div class="sa-tenants__name">{{ row.name }}</div>
+                                            <div class="sa-tenants__slug">{{ row.slug }}</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div class="sa-tenants__name">{{ row.name }}</div>
-                                        <div class="sa-tenants__slug">{{ row.slug }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td v-if="showPlanColumn">
-                                <span class="sa-tenants__plan">
-                                    <span
-                                        class="sa-tenants__plan-dot"
-                                        :style="{ background: planAccentFor(row) }"
-                                    />
-                                    {{ planLabel(row) }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="sa-tenants__pills">
-                                    <slot name="status-pills" :row="row">
-                                        <StatusPill
-                                            v-for="(p, i) in resolvedPills(row)"
-                                            :key="i"
-                                            :label="p.label"
-                                            :icon="p.icon"
-                                            :tone="p.tone"
+                                </td>
+                                <td v-if="showPlanColumn">
+                                    <span class="sa-tenants__plan">
+                                        <span
+                                            class="sa-tenants__plan-dot"
+                                            :style="{ background: planAccentFor(row) }"
                                         />
-                                    </slot>
-                                </div>
-                            </td>
-                            <td v-if="usageFields.length > 0" class="num">
-                                <div
-                                    v-for="(uf, i) in usageFields"
-                                    :key="i"
-                                    class="sa-tenants__usage"
-                                >
-                                    <q-icon :name="uf.icon" size="11px" />
-                                    {{ usageValue(row, uf) }}
-                                </div>
-                            </td>
-                            <td class="num sa-tenants__mono">
-                                {{ formatCreatedAt(row) }}
-                            </td>
-                            <td v-if="hasActions" class="num sa-tenants__actions">
-                                <slot name="row-actions" :row="row" :actions="visibleActions(row)">
-                                    <component
-                                        :is="action.to ? 'a' : 'button'"
-                                        v-for="action in visibleActions(row)"
-                                        :key="action.id"
-                                        :href="action.to ? action.to(row) : undefined"
-                                        class="sa-tenants__icon-btn"
-                                        :class="
-                                            action.tone
-                                                ? `sa-tenants__icon-btn--${action.tone}`
-                                                : ''
-                                        "
-                                        :title="action.label"
-                                        @click="action.handler ? action.handler(row) : undefined"
+                                        {{ planLabel(row) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="sa-tenants__pills">
+                                        <slot name="status-pills" :row="row">
+                                            <StatusPill
+                                                v-for="(p, i) in resolvedPills(row)"
+                                                :key="i"
+                                                :label="p.label"
+                                                :icon="p.icon"
+                                                :tone="p.tone"
+                                            />
+                                        </slot>
+                                    </div>
+                                </td>
+                                <td v-if="usageFields.length > 0" class="num">
+                                    <div
+                                        v-for="(uf, i) in usageFields"
+                                        :key="i"
+                                        class="sa-tenants__usage"
                                     >
-                                        <q-icon :name="action.icon" size="15px" />
-                                    </component>
-                                </slot>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div v-if="items.length === 0 && !loading" class="sa-tenants__empty">
-                    <q-icon name="search_off" size="32px" />
-                    <div>{{ msg.list.empty }}</div>
+                                        <q-icon :name="uf.icon" size="11px" />
+                                        {{ usageValue(row, uf) }}
+                                    </div>
+                                </td>
+                                <td class="num sa-tenants__mono">
+                                    {{ formatCreatedAt(row) }}
+                                </td>
+                                <td v-if="hasActions" class="num sa-tenants__actions">
+                                    <slot
+                                        name="row-actions"
+                                        :row="row"
+                                        :actions="visibleActions(row)"
+                                    >
+                                        <component
+                                            :is="action.to ? 'a' : 'button'"
+                                            v-for="action in visibleActions(row)"
+                                            :key="action.id"
+                                            :href="action.to ? action.to(row) : undefined"
+                                            class="sa-tenants__icon-btn"
+                                            :class="
+                                                action.tone
+                                                    ? `sa-tenants__icon-btn--${action.tone}`
+                                                    : ''
+                                            "
+                                            :title="action.label"
+                                            @click="
+                                                action.handler ? action.handler(row) : undefined
+                                            "
+                                        >
+                                            <q-icon :name="action.icon" size="15px" />
+                                        </component>
+                                    </slot>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div v-if="items.length === 0 && !loading" class="sa-tenants__empty">
+                        <q-icon name="search_off" size="32px" />
+                        <div>{{ msg.list.empty }}</div>
+                    </div>
+                    <div v-if="loading" class="sa-tenants__loading">
+                        <q-spinner size="20px" /> {{ common.loading }}
+                    </div>
                 </div>
-                <div v-if="loading" class="sa-tenants__loading">
-                    <q-spinner size="20px" /> {{ common.loading }}
-                </div>
-            </div>
-        </div>
+            </AdminSection>
 
-        <footer class="sa-tenants__foot">
-            {{ paginationLabel }}
-        </footer>
+            <footer class="sa-tenants__foot">
+                {{ paginationLabel }}
+            </footer>
+        </AdminBody>
 
         <!-- Manifest-Driven Action Flow: only mounted when the `manifest` prop
              is set AND `manifestActionsEnabled` is true (default when manifest
@@ -162,7 +176,10 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { AdminManifest, TenantActionDef, TenantDto, TenantListFilter } from '@saasicat/types';
 import type { HttpClient } from '../client/types.js';
@@ -333,6 +350,9 @@ const msg = useSaMessages('tenants');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
 
+const statusSelectOptions = computed(() =>
+    resolvedStatusOptions.value.map((o) => ({ label: o.label, value: o.value })),
+);
 const resolvedStatusOptions = computed<ReadonlyArray<{ value: string; label: string }>>(
     () =>
         props.statusOptions ?? [
@@ -515,60 +535,6 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 </script>
 
 <style scoped>
-.sa-tenants__filter {
-    padding: 0 0 12px;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.sa-tenants__search {
-    flex: 1;
-    min-width: 240px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    padding: 6px 10px;
-}
-.sa-tenants__search :deep(.q-icon) {
-    color: var(--sa-muted, #64748b);
-}
-.sa-tenants__search input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 13px;
-    font-family: inherit;
-    color: var(--sa-body, #1e293b);
-    min-width: 0;
-}
-.sa-tenants__clear {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 2px;
-}
-.sa-tenants__select {
-    padding: 7px 10px;
-    font-size: 12.5px;
-    font-family: inherit;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
-}
-
-.sa-tenants__card {
-    margin: 0 0 16px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
 .sa-tenants__wrap {
     overflow-x: auto;
 }

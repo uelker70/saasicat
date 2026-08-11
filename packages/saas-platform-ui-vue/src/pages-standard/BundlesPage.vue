@@ -13,115 +13,121 @@
             </template>
         </AdminHero>
 
-        <q-banner v-if="error" class="sa-bundles__error" rounded>
-            <template #avatar><q-icon name="warning" color="negative" /></template>
-            {{ loadErrorText }}
-        </q-banner>
+        <AdminBody>
+            <q-banner v-if="error" class="sa-bundles__error" rounded>
+                <template #avatar><q-icon name="warning" color="negative" /></template>
+                {{ loadErrorText }}
+            </q-banner>
 
-        <BundlesKpis
-            :bundles-total="bundles.length"
-            :live-count="liveCount"
-            :scheduled-bundles-count="scheduledBundlesCount"
-            :total-scheduled-versions="totalScheduledVersions"
-            :total-draft-versions="totalDraftVersions"
-            :draft-bundles-count="draftBundlesCount"
-            :translated-count="translatedCount"
-            :locales-count="locales.length"
-        />
+            <BundlesKpis
+                :bundles-total="bundles.length"
+                :live-count="liveCount"
+                :scheduled-bundles-count="scheduledBundlesCount"
+                :total-scheduled-versions="totalScheduledVersions"
+                :total-draft-versions="totalDraftVersions"
+                :draft-bundles-count="draftBundlesCount"
+                :translated-count="translatedCount"
+                :locales-count="locales.length"
+            />
 
-        <BundlesFilterBar
-            v-model:query="query"
-            v-model:status-filter="statusFilter"
-            :status-filter-options="statusFilterOptions"
-        />
-
-        <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
-        <BundleCreatePanel
-            v-if="createOpen"
-            :project-key="projectKey"
-            :available-features="snapshot?.features ?? []"
-            :available-quotas="snapshot?.quotas ?? []"
-            :plans="plans"
-            :live-plan-versions="livePlanVersions"
-            :feature-registry="featureRegistryResolved"
-            :quota-registry="quotaRegistryResolved"
-            :existing-bundle-keys="existingBundleKeys"
-            :create="create"
-            :create-draft="createDraft"
-            @cancel="createOpen = false"
-            @created="onWizardCreated"
-        />
-
-        <q-banner
-            v-if="bundles.length === 0 && !loading && !error"
-            class="sa-bundles__empty"
-            rounded
-        >
-            <template #avatar><q-icon name="info" color="info" /></template>
-            {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
-            {{ msg.page.emptyAfter }}
-        </q-banner>
-
-        <BundleAccordionList
-            :filtered-bundles="filteredBundles"
-            :bundles-total="bundles.length"
-            :open-key="openKey"
-            :aggregate-status-of="aggregateStatusOf"
-            :i18n-locale-count="i18nLocaleCount"
-            @toggle="toggle"
-        >
-            <template #detail="{ bundle }">
-                <BundleDetailPanel
-                    :bundle="bundle"
-                    v-model:edit-form="editForm"
-                    :i18n-draft="i18nDraft"
-                    :translatable-locales="translatableLocales"
-                    :edit-submitting="editSubmitting"
-                    :detail-versions="detailVersions"
-                    :selected-version-id="selectedVersionIdByBundle[bundle.id] ?? null"
-                    :selected-version="selectedVersion"
-                    :available-features="snapshot?.features ?? []"
-                    :available-quotas="snapshot?.quotas ?? []"
-                    :plans="plans"
-                    :live-plan-versions="livePlanVersions"
-                    :feature-registry="featureRegistryResolved"
-                    :quota-registry="quotaRegistryResolved"
-                    :inline-editor-saving="inlineEditorSaving"
-                    :inline-editor-error="inlineEditorError"
-                    @set-i18n="setI18n"
-                    @submit-edit="submitEdit"
-                    @select-version="onSelectVersion"
-                    @add-version="onAddVersion"
-                    @inline-save="onInlineSave"
-                    @discard-version="onDiscardVersion"
-                    @publish-version="openPublish"
-                    @delete-bundle="confirmDelete"
+            <AdminSection class="sa-bundles__filter">
+                <BundlesFilterBar
+                    v-model:query="query"
+                    v-model:status-filter="statusFilter"
+                    :status-filter-options="statusFilterOptions"
                 />
-            </template>
-        </BundleAccordionList>
+            </AdminSection>
 
-        <!-- Strict mode warnings after the last mutation -->
-        <q-banner
-            v-if="lastWarnings.length > 0"
-            class="sa-bundles__warnings-banner"
-            inline-actions
-            rounded
-        >
-            <template #avatar><q-icon name="warning" color="warning" /></template>
-            <strong>{{ strictWarningsText }}</strong>
-            <ul class="sa-bundles__warnings-list">
-                <li v-for="(w, i) in lastWarnings" :key="i">
-                    <code>{{ w.code }}</code>
-                    <template v-if="w.value">
-                        · <code>{{ w.value }}</code></template
-                    >
-                    — {{ w.message }}
-                </li>
-            </ul>
-            <template #action>
-                <q-btn flat dense :label="common.close" @click="lastWarnings = []" />
-            </template>
-        </q-banner>
+            <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
+            <BundleCreatePanel
+                v-if="createOpen"
+                :project-key="projectKey"
+                :available-features="snapshot?.features ?? []"
+                :available-quotas="snapshot?.quotas ?? []"
+                :plans="plans"
+                :live-plan-versions="livePlanVersions"
+                :feature-registry="featureRegistryResolved"
+                :quota-registry="quotaRegistryResolved"
+                :existing-bundle-keys="existingBundleKeys"
+                :create="create"
+                :create-draft="createDraft"
+                @cancel="createOpen = false"
+                @created="onWizardCreated"
+            />
+
+            <q-banner
+                v-if="bundles.length === 0 && !loading && !error"
+                class="sa-bundles__empty"
+                rounded
+            >
+                <template #avatar><q-icon name="info" color="info" /></template>
+                {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
+                {{ msg.page.emptyAfter }}
+            </q-banner>
+
+            <AdminSection class="sa-bundles__list">
+                <BundleAccordionList
+                    :filtered-bundles="filteredBundles"
+                    :bundles-total="bundles.length"
+                    :open-key="openKey"
+                    :aggregate-status-of="aggregateStatusOf"
+                    :i18n-locale-count="i18nLocaleCount"
+                    @toggle="toggle"
+                >
+                    <template #detail="{ bundle }">
+                        <BundleDetailPanel
+                            :bundle="bundle"
+                            v-model:edit-form="editForm"
+                            :i18n-draft="i18nDraft"
+                            :translatable-locales="translatableLocales"
+                            :edit-submitting="editSubmitting"
+                            :detail-versions="detailVersions"
+                            :selected-version-id="selectedVersionIdByBundle[bundle.id] ?? null"
+                            :selected-version="selectedVersion"
+                            :available-features="snapshot?.features ?? []"
+                            :available-quotas="snapshot?.quotas ?? []"
+                            :plans="plans"
+                            :live-plan-versions="livePlanVersions"
+                            :feature-registry="featureRegistryResolved"
+                            :quota-registry="quotaRegistryResolved"
+                            :inline-editor-saving="inlineEditorSaving"
+                            :inline-editor-error="inlineEditorError"
+                            @set-i18n="setI18n"
+                            @submit-edit="submitEdit"
+                            @select-version="onSelectVersion"
+                            @add-version="onAddVersion"
+                            @inline-save="onInlineSave"
+                            @discard-version="onDiscardVersion"
+                            @publish-version="openPublish"
+                            @delete-bundle="confirmDelete"
+                        />
+                    </template>
+                </BundleAccordionList>
+            </AdminSection>
+
+            <!-- Strict mode warnings after the last mutation -->
+            <q-banner
+                v-if="lastWarnings.length > 0"
+                class="sa-bundles__warnings-banner"
+                inline-actions
+                rounded
+            >
+                <template #avatar><q-icon name="warning" color="warning" /></template>
+                <strong>{{ strictWarningsText }}</strong>
+                <ul class="sa-bundles__warnings-list">
+                    <li v-for="(w, i) in lastWarnings" :key="i">
+                        <code>{{ w.code }}</code>
+                        <template v-if="w.value">
+                            · <code>{{ w.value }}</code></template
+                        >
+                        — {{ w.message }}
+                    </li>
+                </ul>
+                <template #action>
+                    <q-btn flat dense :label="common.close" @click="lastWarnings = []" />
+                </template>
+            </q-banner>
+        </AdminBody>
 
         <!-- Publish confirmation modal -->
         <BundleVersionPublishDialog
@@ -178,7 +184,9 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import BundleAccordionList from './bundles-page/BundleAccordionList.vue';
 import BundleDetailPanel from './bundles-page/BundleDetailPanel.vue';
 import BundlesFilterBar from './bundles-page/BundlesFilterBar.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import BundlesToolbar from './bundles-page/BundlesToolbar.vue';
 import BundlesKpis from './bundles-page/BundlesKpis.vue';

@@ -17,7 +17,7 @@
         </AdminHero>
 
         <AdminBody>
-            <AdminSection class="sa-audit__filter">
+            <AdminFilters>
                 <q-input
                     v-model="filter.actor"
                     outlined
@@ -54,7 +54,7 @@
                     clearable
                     @update:model-value="reload"
                 />
-            </AdminSection>
+            </AdminFilters>
 
             <AdminSection class="sa-audit__card">
                 <q-table
@@ -102,6 +102,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
@@ -217,15 +218,6 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <style scoped>
-.sa-audit__filter .sa-section__body {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.sa-audit__filter .sa-section__body > * {
-    flex: 1;
-    min-width: 180px;
-}
 .sa-audit__kv {
     background: #f8fafc;
     border: 1px solid var(--sa-border, #e2e8f0);

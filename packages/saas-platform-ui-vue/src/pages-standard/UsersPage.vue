@@ -3,7 +3,7 @@
         <AdminHero :title="resolvedTitle" :subtitle="subtitle" />
 
         <AdminBody>
-            <AdminStatistics layout="strip" :label="resolvedTitle">
+            <AdminStatistics :label="resolvedTitle">
                 <AdminKpi
                     v-for="tile in statTiles"
                     :key="tile.id"
@@ -15,7 +15,7 @@
                 />
             </AdminStatistics>
 
-            <AdminSection :title="common.filters" class="sa-users__filter">
+            <AdminFilters>
                 <q-input
                     v-model="filter.q"
                     outlined
@@ -35,7 +35,7 @@
                     @update:model-value="reload"
                 />
                 <slot name="filters-extra" />
-            </AdminSection>
+            </AdminFilters>
 
             <AdminSection :title="common.results" class="sa-users__card">
                 <q-table
@@ -99,6 +99,7 @@ import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
@@ -460,15 +461,4 @@ function onDeactivateClick(row: UserRow): void {
 }
 </script>
 
-<style scoped>
-.sa-users__filter .sa-section__body {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-.sa-users__filter .sa-section__body > * {
-    flex: 1;
-    min-width: 200px;
-}
-</style>
+<style scoped></style>

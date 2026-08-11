@@ -17,7 +17,7 @@
         </AdminHero>
 
         <AdminBody>
-            <AdminStatistics layout="strip" :label="msg.title">
+            <AdminStatistics :label="msg.title">
                 <AdminKpi
                     v-for="tile in statTiles"
                     :key="tile.id"
@@ -30,7 +30,7 @@
                 />
             </AdminStatistics>
 
-            <AdminSection class="sa-promo-codes__filter">
+            <AdminFilters>
                 <q-input
                     v-model="filter.search"
                     outlined
@@ -50,7 +50,7 @@
                     :options="statusOptions"
                     @update:model-value="reload"
                 />
-            </AdminSection>
+            </AdminFilters>
 
             <AdminSection class="sa-promo-codes__card">
                 <q-table
@@ -133,6 +133,7 @@ export function computePlanColors(
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminKpi from '../components/admin-page/AdminKpi.vue';
@@ -562,14 +563,4 @@ function formatDate(iso: string | Date | null | undefined): string | null {
 }
 </script>
 
-<style scoped>
-.sa-promo-codes__filter .sa-section__body {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.sa-promo-codes__filter .sa-section__body > * {
-    flex: 1;
-    min-width: 200px;
-}
-</style>
+<style scoped></style>
