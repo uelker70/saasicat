@@ -16,74 +16,76 @@
             </template>
         </AdminHero>
 
-        <AdminStatistics layout="strip" :label="msg.title">
-            <AdminKpi
-                v-for="tile in statTiles"
-                :key="tile.id"
-                :label="tile.label"
-                :value="tile.count"
-                :sub="tile.hint"
-                :tone="tile.tone"
-                :selected="statusFilter === tile.id"
-                :action="() => onStatusTileClick(tile.id)"
-            />
-        </AdminStatistics>
+        <AdminBody>
+            <AdminStatistics layout="strip" :label="msg.title">
+                <AdminKpi
+                    v-for="tile in statTiles"
+                    :key="tile.id"
+                    :label="tile.label"
+                    :value="tile.count"
+                    :sub="tile.hint"
+                    :tone="tile.tone"
+                    :selected="statusFilter === tile.id"
+                    :action="() => onStatusTileClick(tile.id)"
+                />
+            </AdminStatistics>
 
-        <div class="sa-promo-codes__filter">
-            <q-input
-                v-model="filter.search"
-                outlined
-                dense
-                :label="msg.list.searchLabel"
-                clearable
-                @update:model-value="reload"
-            />
-            <q-select
-                v-model="filter.status"
-                outlined
-                dense
-                emit-value
-                map-options
-                clearable
-                :label="common.status"
-                :options="statusOptions"
-                @update:model-value="reload"
-            />
-        </div>
+            <AdminSection class="sa-promo-codes__filter">
+                <q-input
+                    v-model="filter.search"
+                    outlined
+                    dense
+                    :label="msg.list.searchLabel"
+                    clearable
+                    @update:model-value="reload"
+                />
+                <q-select
+                    v-model="filter.status"
+                    outlined
+                    dense
+                    emit-value
+                    map-options
+                    clearable
+                    :label="common.status"
+                    :options="statusOptions"
+                    @update:model-value="reload"
+                />
+            </AdminSection>
 
-        <div class="sa-promo-codes__card">
-            <q-table
-                flat
-                :rows="filteredRows"
-                :columns="effectiveColumns"
-                row-key="id"
-                :pagination="{ rowsPerPage: 0 }"
-                :loading="loading"
-                hide-pagination
-            >
-                <template #body-cell-status="{ row }">
-                    <q-td>
-                        <q-badge :color="statusColor(row.status)" :label="row.status" />
-                    </q-td>
-                </template>
-                <template #body-cell-actions="{ row }">
-                    <q-td>
-                        <slot name="row-actions" :row="row" :reload="reload">
-                            <q-btn
-                                v-for="action in visibleActions(row)"
-                                :key="action.id"
-                                flat
-                                dense
-                                :icon="action.icon"
-                                :title="action.label"
-                                :color="action.color ?? 'grey-7'"
-                                @click="action.handler(row)"
-                            />
-                        </slot>
-                    </q-td>
-                </template>
-            </q-table>
-        </div>
+            <AdminSection class="sa-promo-codes__card">
+                <q-table
+                    flat
+                    :rows="filteredRows"
+                    :columns="effectiveColumns"
+                    row-key="id"
+                    :pagination="{ rowsPerPage: 0 }"
+                    :loading="loading"
+                    hide-pagination
+                >
+                    <template #body-cell-status="{ row }">
+                        <q-td>
+                            <q-badge :color="statusColor(row.status)" :label="row.status" />
+                        </q-td>
+                    </template>
+                    <template #body-cell-actions="{ row }">
+                        <q-td>
+                            <slot name="row-actions" :row="row" :reload="reload">
+                                <q-btn
+                                    v-for="action in visibleActions(row)"
+                                    :key="action.id"
+                                    flat
+                                    dense
+                                    :icon="action.icon"
+                                    :title="action.label"
+                                    :color="action.color ?? 'grey-7'"
+                                    @click="action.handler(row)"
+                                />
+                            </slot>
+                        </q-td>
+                    </template>
+                </q-table>
+            </AdminSection>
+        </AdminBody>
 
         <PromoCodeCreateDialog
             v-if="enableCreate && submitCreate"
@@ -130,7 +132,9 @@ export function computePlanColors(
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
@@ -559,20 +563,13 @@ function formatDate(iso: string | Date | null | undefined): string | null {
 </script>
 
 <style scoped>
-.sa-promo-codes__filter {
+.sa-promo-codes__filter .sa-section__body {
     display: flex;
     gap: 10px;
-    margin-bottom: 12px;
     flex-wrap: wrap;
 }
-.sa-promo-codes__filter > * {
+.sa-promo-codes__filter .sa-section__body > * {
     flex: 1;
     min-width: 200px;
-}
-.sa-promo-codes__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
 }
 </style>

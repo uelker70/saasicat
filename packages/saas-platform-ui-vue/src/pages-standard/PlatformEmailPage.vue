@@ -22,56 +22,60 @@
             </template>
         </AdminHero>
 
-        <div class="sa-pemail__card">
-            <q-table
-                flat
-                :rows="rows"
-                :columns="columns"
-                row-key="id"
-                :loading="loading"
-                :pagination="{ rowsPerPage: 0 }"
-                hide-pagination
-            >
-                <template #body-cell-active="{ row }">
-                    <q-td>
-                        <q-badge
-                            :color="row.active ? 'positive' : 'grey'"
-                            :label="
-                                row.active ? msg.provider.statusActive : msg.provider.statusInactive
-                            "
-                        />
-                    </q-td>
-                </template>
-                <template #body-cell-actions="{ row }">
-                    <q-td>
-                        <q-btn
-                            flat
-                            dense
-                            icon="send"
-                            color="primary"
-                            :title="msg.provider.sendTestMail"
-                            @click="openTest(row)"
-                        />
-                        <q-btn
-                            flat
-                            dense
-                            icon="edit"
-                            color="grey-7"
-                            :title="common.edit"
-                            @click="openEdit(row)"
-                        />
-                        <q-btn
-                            flat
-                            dense
-                            icon="delete"
-                            color="negative"
-                            :title="common.delete"
-                            @click="onDelete(row)"
-                        />
-                    </q-td>
-                </template>
-            </q-table>
-        </div>
+        <AdminBody>
+            <AdminSection class="sa-pemail__card">
+                <q-table
+                    flat
+                    :rows="rows"
+                    :columns="columns"
+                    row-key="id"
+                    :loading="loading"
+                    :pagination="{ rowsPerPage: 0 }"
+                    hide-pagination
+                >
+                    <template #body-cell-active="{ row }">
+                        <q-td>
+                            <q-badge
+                                :color="row.active ? 'positive' : 'grey'"
+                                :label="
+                                    row.active
+                                        ? msg.provider.statusActive
+                                        : msg.provider.statusInactive
+                                "
+                            />
+                        </q-td>
+                    </template>
+                    <template #body-cell-actions="{ row }">
+                        <q-td>
+                            <q-btn
+                                flat
+                                dense
+                                icon="send"
+                                color="primary"
+                                :title="msg.provider.sendTestMail"
+                                @click="openTest(row)"
+                            />
+                            <q-btn
+                                flat
+                                dense
+                                icon="edit"
+                                color="grey-7"
+                                :title="common.edit"
+                                @click="openEdit(row)"
+                            />
+                            <q-btn
+                                flat
+                                dense
+                                icon="delete"
+                                color="negative"
+                                :title="common.delete"
+                                @click="onDelete(row)"
+                            />
+                        </q-td>
+                    </template>
+                </q-table>
+            </AdminSection>
+        </AdminBody>
 
         <q-dialog v-model="showForm">
             <q-card class="sa-pemail__dialog">
@@ -203,7 +207,9 @@
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
@@ -465,12 +471,6 @@ async function onTest(): Promise<void> {
 </script>
 
 <style scoped>
-.sa-pemail__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-}
 .sa-pemail__dialog {
     min-width: 420px;
 }

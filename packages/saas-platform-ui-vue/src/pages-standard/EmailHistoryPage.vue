@@ -13,97 +13,99 @@
             </template>
         </AdminHero>
 
-        <div class="sa-emh__body">
-            <div class="sa-emh__filter">
-                <q-input
-                    v-model="filter.search"
-                    outlined
-                    dense
-                    clearable
-                    :label="msg.history.searchLabel"
-                    debounce="350"
-                    @keyup.enter="applyFilter"
-                    @update:model-value="applyFilter"
-                >
-                    <template #prepend><q-icon name="search" /></template>
-                </q-input>
-                <q-select
-                    v-model="filter.status"
-                    outlined
-                    dense
-                    clearable
-                    emit-value
-                    map-options
-                    :label="common.status"
-                    :options="statusOptions"
-                    @update:model-value="applyFilter"
-                />
-                <q-input
-                    v-model="filter.from"
-                    outlined
-                    dense
-                    clearable
-                    type="date"
-                    :label="common.from"
-                    @update:model-value="applyFilter"
-                />
-                <q-input
-                    v-model="filter.to"
-                    outlined
-                    dense
-                    clearable
-                    type="date"
-                    :label="common.to"
-                    @update:model-value="applyFilter"
-                />
-            </div>
+        <AdminBody>
+            <AdminSection class="sa-emh__body">
+                <div class="sa-emh__filter">
+                    <q-input
+                        v-model="filter.search"
+                        outlined
+                        dense
+                        clearable
+                        :label="msg.history.searchLabel"
+                        debounce="350"
+                        @keyup.enter="applyFilter"
+                        @update:model-value="applyFilter"
+                    >
+                        <template #prepend><q-icon name="search" /></template>
+                    </q-input>
+                    <q-select
+                        v-model="filter.status"
+                        outlined
+                        dense
+                        clearable
+                        emit-value
+                        map-options
+                        :label="common.status"
+                        :options="statusOptions"
+                        @update:model-value="applyFilter"
+                    />
+                    <q-input
+                        v-model="filter.from"
+                        outlined
+                        dense
+                        clearable
+                        type="date"
+                        :label="common.from"
+                        @update:model-value="applyFilter"
+                    />
+                    <q-input
+                        v-model="filter.to"
+                        outlined
+                        dense
+                        clearable
+                        type="date"
+                        :label="common.to"
+                        @update:model-value="applyFilter"
+                    />
+                </div>
 
-            <div class="sa-emh__card">
-                <q-table
-                    v-model:pagination="pagination"
-                    flat
-                    :rows="rows"
-                    :columns="columns"
-                    row-key="id"
-                    :loading="loading"
-                    :rows-number="pagination.rowsNumber"
-                    @request="onRequest"
-                    @row-click="(_evt, row) => openDetail(row)"
-                >
-                    <template #body-cell-status="{ row }">
-                        <q-td>
-                            <q-badge
-                                :color="statusColor(row.status)"
-                                :label="statusLabel(row.status)"
-                            />
-                        </q-td>
-                    </template>
-                    <template #body-cell-actions="{ row }">
-                        <q-td class="text-right">
-                            <q-btn
-                                flat
-                                dense
-                                icon="send"
-                                color="primary"
-                                :title="msg.history.resend"
-                                @click.stop="onResend(row.id)"
-                            />
-                            <q-btn
-                                flat
-                                dense
-                                icon="delete"
-                                color="negative"
-                                :title="msg.history.removeFromHistory"
-                                @click.stop="askDelete(row.id)"
-                            />
-                        </q-td>
-                    </template>
-                    <template #no-data>
-                        <div class="sa-emh__empty">{{ msg.history.empty }}</div>
-                    </template>
-                </q-table>
-            </div>
-        </div>
+                <div class="sa-emh__card">
+                    <q-table
+                        v-model:pagination="pagination"
+                        flat
+                        :rows="rows"
+                        :columns="columns"
+                        row-key="id"
+                        :loading="loading"
+                        :rows-number="pagination.rowsNumber"
+                        @request="onRequest"
+                        @row-click="(_evt, row) => openDetail(row)"
+                    >
+                        <template #body-cell-status="{ row }">
+                            <q-td>
+                                <q-badge
+                                    :color="statusColor(row.status)"
+                                    :label="statusLabel(row.status)"
+                                />
+                            </q-td>
+                        </template>
+                        <template #body-cell-actions="{ row }">
+                            <q-td class="text-right">
+                                <q-btn
+                                    flat
+                                    dense
+                                    icon="send"
+                                    color="primary"
+                                    :title="msg.history.resend"
+                                    @click.stop="onResend(row.id)"
+                                />
+                                <q-btn
+                                    flat
+                                    dense
+                                    icon="delete"
+                                    color="negative"
+                                    :title="msg.history.removeFromHistory"
+                                    @click.stop="askDelete(row.id)"
+                                />
+                            </q-td>
+                        </template>
+                        <template #no-data>
+                            <div class="sa-emh__empty">{{ msg.history.empty }}</div>
+                        </template>
+                    </q-table>
+                </div>
+            </AdminSection>
+        </AdminBody>
 
         <q-dialog v-model="detailOpen">
             <q-card class="sa-emh__detail">
@@ -224,7 +226,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';

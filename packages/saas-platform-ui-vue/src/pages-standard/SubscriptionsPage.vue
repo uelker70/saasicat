@@ -6,25 +6,29 @@
             </template>
         </AdminHero>
 
-        <div class="sa-subscriptions__body">
-            <div class="sa-subscriptions__card">
-                <q-table
-                    flat
-                    :rows="rows"
-                    :columns="effectiveColumns"
-                    row-key="id"
-                    :pagination="{ rowsPerPage: 0 }"
-                    :loading="loading"
-                    hide-pagination
-                />
-            </div>
-        </div>
+        <AdminBody>
+            <AdminSection class="sa-subscriptions__body">
+                <div class="sa-subscriptions__card">
+                    <q-table
+                        flat
+                        :rows="rows"
+                        :columns="effectiveColumns"
+                        row-key="id"
+                        :pagination="{ rowsPerPage: 0 }"
+                        :loading="loading"
+                        hide-pagination
+                    />
+                </div>
+            </AdminSection>
+        </AdminBody>
     </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 

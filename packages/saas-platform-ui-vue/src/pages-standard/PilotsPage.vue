@@ -19,52 +19,54 @@
             </template>
         </AdminHero>
 
-        <AdminStatistics layout="strip" :label="msg.title">
-            <AdminKpi
-                v-for="tile in statTiles"
-                :key="tile.id"
-                :label="tile.label"
-                :value="tile.count"
-                :sub="tile.hint"
-                :tone="tile.tone"
-                :selected="filter === tile.id"
-                :action="() => (filter = tile.id)"
-            />
-        </AdminStatistics>
+        <AdminBody>
+            <AdminStatistics layout="strip" :label="msg.title">
+                <AdminKpi
+                    v-for="tile in statTiles"
+                    :key="tile.id"
+                    :label="tile.label"
+                    :value="tile.count"
+                    :sub="tile.hint"
+                    :tone="tile.tone"
+                    :selected="filter === tile.id"
+                    :action="() => (filter = tile.id)"
+                />
+            </AdminStatistics>
 
-        <q-banner v-if="reviewSoon.length" class="bg-amber-2 text-grey-9 q-mb-md" rounded>
-            <template #avatar><q-icon name="event" color="amber-9" /></template>
-            {{ formatMessage(msg.list.reviewSoonBanner, { count: reviewSoon.length }) }}
-        </q-banner>
+            <q-banner v-if="reviewSoon.length" class="bg-amber-2 text-grey-9 q-mb-md" rounded>
+                <template #avatar><q-icon name="event" color="amber-9" /></template>
+                {{ formatMessage(msg.list.reviewSoonBanner, { count: reviewSoon.length }) }}
+            </q-banner>
 
-        <div class="sa-pilots__card">
-            <q-table
-                flat
-                :rows="filteredRows"
-                :columns="effectiveColumns"
-                row-key="id"
-                :pagination="{ rowsPerPage: 0 }"
-                :loading="loading"
-                hide-pagination
-            >
-                <template #body-cell-actions="{ row }">
-                    <q-td>
-                        <slot name="row-actions" :row="row">
-                            <q-btn
-                                v-for="action in visibleActions(row)"
-                                :key="action.id"
-                                flat
-                                dense
-                                :icon="action.icon"
-                                :title="action.label"
-                                :color="action.color ?? 'grey-7'"
-                                @click="action.handler(row)"
-                            />
-                        </slot>
-                    </q-td>
-                </template>
-            </q-table>
-        </div>
+            <AdminSection class="sa-pilots__card">
+                <q-table
+                    flat
+                    :rows="filteredRows"
+                    :columns="effectiveColumns"
+                    row-key="id"
+                    :pagination="{ rowsPerPage: 0 }"
+                    :loading="loading"
+                    hide-pagination
+                >
+                    <template #body-cell-actions="{ row }">
+                        <q-td>
+                            <slot name="row-actions" :row="row">
+                                <q-btn
+                                    v-for="action in visibleActions(row)"
+                                    :key="action.id"
+                                    flat
+                                    dense
+                                    :icon="action.icon"
+                                    :title="action.label"
+                                    :color="action.color ?? 'grey-7'"
+                                    @click="action.handler(row)"
+                                />
+                            </slot>
+                        </q-td>
+                    </template>
+                </q-table>
+            </AdminSection>
+        </AdminBody>
 
         <PilotCreateDialog
             v-if="enableCreate && submitCreate"
@@ -109,7 +111,9 @@ import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
@@ -546,11 +550,4 @@ function formatDate(iso: string | null | undefined): string | null {
 }
 </script>
 
-<style scoped>
-.sa-pilots__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-}
-</style>
+<style scoped></style>

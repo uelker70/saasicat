@@ -16,8 +16,8 @@
             </template>
         </AdminHero>
 
-        <div class="sa-audit__body">
-            <div class="sa-audit__filter">
+        <AdminBody>
+            <AdminSection class="sa-audit__filter">
                 <q-input
                     v-model="filter.actor"
                     outlined
@@ -54,9 +54,9 @@
                     clearable
                     @update:model-value="reload"
                 />
-            </div>
+            </AdminSection>
 
-            <div class="sa-audit__card">
+            <AdminSection class="sa-audit__card">
                 <q-table
                     flat
                     :rows="rows"
@@ -74,8 +74,8 @@
                         </q-td>
                     </template>
                 </q-table>
-            </div>
-        </div>
+            </AdminSection>
+        </AdminBody>
 
         <q-dialog v-model="detailOpen">
             <q-card style="min-width: 480px; max-width: 96vw">
@@ -101,7 +101,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
@@ -215,22 +217,14 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <style scoped>
-.sa-audit__filter {
+.sa-audit__filter .sa-section__body {
     display: flex;
     gap: 10px;
-    margin-bottom: 12px;
     flex-wrap: wrap;
 }
-.sa-audit__filter > * {
+.sa-audit__filter .sa-section__body > * {
     flex: 1;
     min-width: 180px;
-}
-.sa-audit__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-    padding: 8px 0;
 }
 .sa-audit__kv {
     background: #f8fafc;
