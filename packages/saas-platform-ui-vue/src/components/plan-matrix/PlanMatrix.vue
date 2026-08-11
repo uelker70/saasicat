@@ -1,41 +1,5 @@
 <template>
     <div class="pm">
-        <!-- Page header -->
-        <div class="pm-page-head">
-            <div>
-                <h2 class="pm-h-title">{{ msg.matrix.title }}</h2>
-            </div>
-            <div class="pm-head-actions">
-                <button class="pm-btn" type="button" @click="$emit('viewCatalog')">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    <span>{{ msg.matrix.catalogPreview }}</span>
-                </button>
-                <button class="pm-btn pm-btn--primary" type="button" @click="$emit('createPlan')">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                    >
-                        <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span>{{ msg.matrix.createPlan }}</span>
-                </button>
-            </div>
-        </div>
-
         <AdminStatistics :columns="4">
             <AdminKpi :label="msg.matrix.statPlans" :value="plans.length" />
             <AdminKpi :label="msg.matrix.statFeatures" :value="orderedFeatureKeys.length" />
@@ -156,7 +120,7 @@
 
                                 <div class="pm-plan-actions">
                                     <button
-                                        class="pm-btn pm-btn--sm pm-btn--flex"
+                                        class="sa-btn sa-btn--sm sa-btn--flex"
                                         type="button"
                                         @click="$emit('openPlan', p.plan)"
                                     >
@@ -175,7 +139,7 @@
                                         <span>{{ common.open }}</span>
                                     </button>
                                     <button
-                                        class="pm-btn pm-btn--sm pm-btn--ghost"
+                                        class="sa-btn sa-btn--sm sa-btn--ghost"
                                         type="button"
                                         @click="$emit('clonePlan', p.plan)"
                                         :aria-label="msg.matrix.clonePlan"
@@ -472,9 +436,8 @@ const props = withDefaults(
 
 defineEmits<{
     (e: 'openPlan', plan: PlanRow): void;
-    (e: 'createPlan'): void;
     (e: 'clonePlan', plan: PlanRow): void;
-    (e: 'viewCatalog'): void;
+    (e: 'createPlan'): void;
 }>();
 
 interface ResolvedPlan {
@@ -713,71 +676,6 @@ function formatQuota(v: number | undefined): string {
 }
 .pm * {
     box-sizing: border-box;
-}
-
-.pm-page-head {
-    display: flex;
-    align-items: flex-end;
-    gap: 20px;
-    margin-bottom: 18px;
-}
-.pm-h-title {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin: 0;
-}
-.pm-h-sub {
-    font-size: 12.5px;
-    color: var(--pm-text-2);
-    margin: 3px 0 0;
-}
-.pm-head-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 8px;
-}
-
-.pm-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--pm-font-sans);
-    cursor: pointer;
-    border: 1px solid var(--pm-border-strong);
-    background: #fff;
-    color: var(--pm-text);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.pm-btn:hover {
-    background: var(--pm-surface-2);
-}
-.pm-btn--primary {
-    background: var(--pm-primary);
-    border-color: var(--pm-primary);
-    color: #fff;
-}
-.pm-btn--primary:hover {
-    background: #1d4ed8;
-}
-.pm-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.pm-btn--ghost:hover {
-    background: rgba(15, 23, 42, 0.05);
-}
-.pm-btn--sm {
-    padding: 5px 9px;
-    font-size: 12px;
-    gap: 5px;
-}
-.pm-btn--flex {
-    flex: 1;
 }
 
 .pm-card {

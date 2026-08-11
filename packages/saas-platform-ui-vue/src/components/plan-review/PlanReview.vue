@@ -12,7 +12,7 @@
             </div>
             <div class="pr-head-actions">
                 <button
-                    class="pr-btn"
+                    class="sa-btn"
                     type="button"
                     :disabled="publishing || saving"
                     @click="$emit('back')"
@@ -32,7 +32,7 @@
                     <span>{{ common.back }}</span>
                 </button>
                 <button
-                    class="pr-btn"
+                    class="sa-btn"
                     type="button"
                     :disabled="publishing || saving"
                     @click="$emit('saveAndExit')"
@@ -40,7 +40,7 @@
                     {{ saving ? msg.review.saving : msg.review.saveAsDraft }}
                 </button>
                 <button
-                    class="pr-btn pr-btn--primary"
+                    class="sa-btn sa-btn--primary"
                     type="button"
                     :disabled="!canPublish || publishing || saving"
                     :title="canPublish ? undefined : msg.review.publishBlocked"
@@ -509,36 +509,6 @@ function onPublish(): void {
     gap: 8px;
 }
 
-.pr-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--sa-font-body);
-    cursor: pointer;
-    border: 1px solid var(--sa-border);
-    background: var(--sa-bg-surface);
-    color: var(--sa-heading);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.pr-btn:hover:not(:disabled) {
-    background: var(--sa-border-soft);
-}
-.pr-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.pr-btn--primary {
-    background: var(--sa-primary);
-    border-color: var(--sa-primary);
-    color: #fff;
-}
-.pr-btn--primary:hover:not(:disabled) {
-    filter: brightness(0.94);
-}
 .pr-ico--back {
     display: inline-flex;
     transform: rotate(180deg);

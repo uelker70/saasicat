@@ -183,7 +183,7 @@
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <button
                                 v-if="hasAnyPublished(p)"
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 disabled
                                 :title="msg.list.actionDeleteBlocked"
@@ -203,7 +203,7 @@
                             </button>
                             <button
                                 v-else
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost sa-plan-list-btn--danger"
+                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
                                 type="button"
                                 :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
@@ -222,7 +222,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionClonePlan"
                                 @click="$emit('clonePlan', p.plan)"
@@ -240,7 +240,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionNewVersion"
                                 :disabled="!!p.draft"
@@ -260,7 +260,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm"
+                                class="sa-btn sa-btn--sm"
                                 type="button"
                                 :title="msg.list.actionOpenPlan"
                                 @click="$emit('openPlan', p.plan)"
@@ -368,7 +368,7 @@
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <button
                                 v-if="sub.publishedAt === null"
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost sa-plan-list-btn--danger"
+                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
                                 type="button"
                                 :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
@@ -388,7 +388,7 @@
                             </button>
                             <button
                                 v-if="sub.publishedAt === null"
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
@@ -407,7 +407,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm"
+                                class="sa-btn sa-btn--sm"
                                 type="button"
                                 :title="msg.list.actionOpenInCockpit"
                                 @click="$emit('openPlan', p.plan)"
@@ -695,55 +695,6 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 }
 
 /* Buttons */
-.sa-plan-list-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--sa-plan-list-font-sans);
-    cursor: pointer;
-    border: 1px solid var(--sa-plan-list-border-strong);
-    background: #fff;
-    color: var(--sa-plan-list-text);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.sa-plan-list-btn:hover:not(:disabled) {
-    background: var(--sa-plan-list-surface-2);
-}
-.sa-plan-list-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-}
-.sa-plan-list-btn--primary {
-    background: var(--sa-plan-list-primary);
-    border-color: var(--sa-plan-list-primary);
-    color: #fff;
-}
-.sa-plan-list-btn--primary:hover {
-    background: var(--sa-plan-list-primary-700);
-}
-.sa-plan-list-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.sa-plan-list-btn--ghost:hover:not(:disabled) {
-    background: rgba(15, 23, 42, 0.05);
-}
-.sa-plan-list-btn--danger {
-    color: #ef4444;
-}
-.sa-plan-list-btn--danger:hover:not(:disabled) {
-    background: #fef2f2;
-    color: #b91c1c;
-}
-.sa-plan-list-btn--sm {
-    padding: 5px 8px;
-    font-size: 12px;
-    gap: 5px;
-}
 
 /* List wrap */
 .sa-plan-list-wrap {

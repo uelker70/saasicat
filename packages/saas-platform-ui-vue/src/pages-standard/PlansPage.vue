@@ -1,6 +1,6 @@
 <template>
     <AdminPage class="sa-plans">
-        <AdminHero :title="msg.list.title" :subtitle="msg.page.subtitle">
+        <AdminHero :title="heroTitle" :subtitle="msg.page.subtitle">
             <template v-if="mode === 'list'" #actions>
                 <q-btn
                     flat
@@ -13,6 +13,21 @@
                     color="primary"
                     icon="add"
                     :label="msg.list.newPlan"
+                    @click="openCreate"
+                />
+            </template>
+            <template v-else-if="mode === 'matrix'" #actions>
+                <q-btn
+                    flat
+                    icon="storefront"
+                    :label="msg.matrix.catalogPreview"
+                    @click="mode = 'list'"
+                />
+                <q-btn
+                    unelevated
+                    color="primary"
+                    icon="add"
+                    :label="msg.matrix.createPlan"
                     @click="openCreate"
                 />
             </template>
@@ -65,7 +80,6 @@
                 @open-plan="onOpenPlan"
                 @create-plan="openCreate"
                 @clone-plan="onClonePlan"
-                @view-catalog="mode = 'list'"
             />
 
             <!-- Plan detail: drill-in for a single Plan (plan simulation) -->
@@ -265,6 +279,13 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('plans');
+
+// Eine Seite, ein Kopf: die Matrix ist eine andere Ansicht derselben Seite,
+// kein eigener Bereich — sie tauscht deshalb den Hero-Titel statt einen
+// zweiten Kopf darunter zu rendern.
+const heroTitle = computed(() =>
+    mode.value === 'matrix' ? msg.value.matrix.title : msg.value.list.title,
+);
 const common = useSaMessages('common');
 
 const composable: UsePlansResult = usePlans({

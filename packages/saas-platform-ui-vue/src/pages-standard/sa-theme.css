@@ -32,6 +32,8 @@
     --sa-border: #e2e8f0;
     --sa-border-soft: #f1f5f9;
     --sa-bg-surface-2: #f8fafc;
+    --sa-border-strong: #d1d5db;
+    --sa-primary-strong: #1d4ed8;
 
     /* Corner radii, largest to smallest, so the nesting reads as hierarchy:
      * a section is a bigger block than the cards inside it, a card bigger
@@ -42,6 +44,7 @@
     --sa-radius-card: 12px;
     --sa-radius-head: 10px;
     --sa-radius-tile: 10px;
+    --sa-radius-control: 7px;
 
     --sa-font-head: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
     --sa-font-body: 'Inter', system-ui, sans-serif;
@@ -116,6 +119,96 @@
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+/* One button look across the admin surface, with two ways in.
+ *
+ * `.sa-btn` is for the hand-built buttons — eight files declared the same
+ * bordered pill independently, differing only in which local token they named.
+ *
+ * The Quasar selectors are the second way: any `q-btn` placed in a hero's or a
+ * section's action area adopts the same shape. That is what reaches the buttons
+ * a consumer app puts into those slots — a component could only style what the
+ * platform itself renders, and autohauspro's `#card-actions` button would have
+ * stayed behind in the Quasar look while everything around it changed.
+ *
+ * Colour is left to Quasar on its own buttons: `color="primary"` stays a filled
+ * primary, `flat` becomes the bordered surface below. Only shape and typography
+ * are unified, because those are what read as "a different design". */
+.sa-btn,
+.sa-page-head__actions .q-btn,
+.sa-section__actions .q-btn {
+    padding: 8px 14px;
+    min-height: 0;
+    border-radius: var(--sa-radius-control);
+    font-family: var(--sa-font-body);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.sa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    color: var(--sa-body);
+    transition:
+        background 0.12s,
+        border-color 0.12s;
+}
+
+/* The default is a bordered surface, not a bare label. */
+.sa-btn,
+.sa-page-head__actions .q-btn--flat,
+.sa-section__actions .q-btn--flat {
+    border: 1px solid var(--sa-border-strong);
+    background: var(--sa-bg-surface);
+}
+.sa-btn:hover:not(:disabled),
+.sa-page-head__actions .q-btn--flat:hover,
+.sa-section__actions .q-btn--flat:hover {
+    background: var(--sa-bg-surface-2);
+}
+
+.sa-btn--primary {
+    background: var(--sa-primary);
+    border-color: var(--sa-primary);
+    color: #fff;
+}
+.sa-btn--primary:hover:not(:disabled) {
+    background: var(--sa-primary-strong);
+    border-color: var(--sa-primary-strong);
+}
+
+.sa-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Size and intent modifiers, carried over from the families that merged. */
+.sa-btn--sm {
+    padding: 5px 8px;
+    font-size: 12px;
+    gap: 5px;
+}
+.sa-btn--ghost {
+    border-color: transparent;
+    background: transparent;
+}
+.sa-btn--ghost:hover:not(:disabled) {
+    background: rgba(15, 23, 42, 0.05);
+}
+.sa-btn--danger {
+    color: var(--sa-negative);
+}
+.sa-btn--danger:hover:not(:disabled) {
+    background: var(--sa-negative-soft);
+}
+.sa-btn--flex {
+    flex: 1;
 }
 
 /* Statistics — one tile look for the whole admin surface (see AdminStatistics

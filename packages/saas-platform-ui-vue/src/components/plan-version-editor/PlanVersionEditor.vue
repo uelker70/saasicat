@@ -835,48 +835,6 @@ function emitSave(): void {
 }
 
 /* ── Buttons & Chips ───────────────────────────────────────────── */
-.pve-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--pve-font-sans);
-    cursor: pointer;
-    border: 1px solid var(--pve-border-strong);
-    background: #fff;
-    color: var(--pve-text);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.pve-btn:hover {
-    background: var(--pve-surface-2);
-}
-.pve-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.pve-btn--primary {
-    background: var(--pve-primary);
-    border-color: var(--pve-primary);
-    color: #fff;
-}
-.pve-btn--primary:hover {
-    background: var(--pve-primary-700);
-}
-.pve-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.pve-btn--ghost:hover {
-    background: rgba(15, 23, 42, 0.05);
-}
-.pve-btn--sm {
-    padding: 5px 9px;
-    font-size: 12px;
-    gap: 5px;
-}
 .pve-ico {
     display: inline-flex;
 }

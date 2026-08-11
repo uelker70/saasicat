@@ -17,7 +17,7 @@
                     {{ counts.expired }} {{ msg.promotionsTab.statusExpired }}
                 </span>
             </div>
-            <button class="mc-promo-add" type="button" :disabled="busy" @click="onAdd">
+            <button class="sa-btn sa-btn--primary" type="button" :disabled="busy" @click="onAdd">
                 {{ msg.promotionsTab.add }}
             </button>
         </div>
@@ -611,20 +611,6 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-stat.expired {
     background: #f1f5f9;
     color: #94a3b8;
-}
-.mc-promo-add {
-    border: 0;
-    background: #3f6bff;
-    color: #fff;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 8px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-.mc-promo-add:disabled {
-    opacity: 0.5;
-    cursor: default;
 }
 .mc-promo-timeline {
     background: #fff;

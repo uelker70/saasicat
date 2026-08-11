@@ -964,34 +964,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     background: var(--sa-marketing-primary-50);
 }
 
-.sa-marketing-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--sa-marketing-font-sans);
-    cursor: pointer;
-    border: 1px solid var(--sa-marketing-border-strong);
-    background: var(--sa-marketing-surface);
-    color: var(--sa-marketing-text);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.sa-marketing-btn:hover:not(:disabled) {
-    background: #f8fafc;
-}
-.sa-marketing-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-.sa-marketing-btn--sm {
-    padding: 5px 9px;
-    font-size: 12px;
-    gap: 5px;
-}
-
 .sa-marketing-banner {
     border-radius: 8px;
     padding: 10px 14px;
