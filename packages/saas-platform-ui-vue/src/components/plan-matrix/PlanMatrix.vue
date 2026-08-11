@@ -4,7 +4,6 @@
         <div class="pm-page-head">
             <div>
                 <h2 class="pm-h-title">{{ msg.matrix.title }}</h2>
-                <p class="pm-h-sub">{{ summary }}</p>
             </div>
             <div class="pm-head-actions">
                 <button class="pm-btn" type="button" @click="$emit('viewCatalog')">
@@ -36,6 +35,13 @@
                 </button>
             </div>
         </div>
+
+        <AdminStatistics :columns="4">
+            <AdminKpi :label="msg.matrix.statPlans" :value="plans.length" />
+            <AdminKpi :label="msg.matrix.statFeatures" :value="orderedFeatureKeys.length" />
+            <AdminKpi :label="msg.matrix.statQuotas" :value="orderedQuotaKeys.length" />
+            <AdminKpi :label="msg.matrix.statBundles" :value="orderedBundleKeys.length" />
+        </AdminStatistics>
 
         <!-- Matrix -->
         <div class="pm-card pm-wrap">
@@ -403,6 +409,8 @@
 </template>
 
 <script setup lang="ts">
+import AdminKpi from '../admin-page/AdminKpi.vue';
+import AdminStatistics from '../admin-page/AdminStatistics.vue';
 import { computed } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
@@ -631,15 +639,6 @@ const orderedFeatureKeys = computed<string[]>(() => {
 });
 
 const orderedBundleKeys = computed<string[]>(() => props.availableBundles.map((b) => b.bundleKey));
-
-const summary = computed(() =>
-    formatMessage(msg.value.matrix.summary, {
-        plans: props.plans.length,
-        features: orderedFeatureKeys.value.length,
-        quotas: orderedQuotaKeys.value.length,
-        bundles: orderedBundleKeys.value.length,
-    }),
-);
 
 function quotaLabel(key: string): string {
     return props.availableQuotas.find((q) => q.quotaKey === key)?.label || key;

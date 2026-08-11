@@ -1,6 +1,15 @@
 <template>
     <div class="sa-plan-list">
-        <p class="sa-plan-list-summary">{{ summary }}</p>
+        <AdminStatistics :columns="4">
+            <AdminKpi :label="msg.list.statPlans" :value="resolvedPlans.length" />
+            <AdminKpi :label="msg.list.statLive" :value="liveCount" tone="positive" />
+            <AdminKpi
+                :label="msg.list.statDrafts"
+                :value="draftCount"
+                :tone="draftCount > 0 ? 'warn' : 'neutral'"
+            />
+            <AdminKpi :label="msg.list.statTenants" :value="totalTenants" />
+        </AdminStatistics>
 
         <!-- List wrapper -->
         <div class="sa-plan-list-wrap">
@@ -423,6 +432,8 @@
 </template>
 
 <script setup lang="ts">
+import AdminKpi from '../admin-page/AdminKpi.vue';
+import AdminStatistics from '../admin-page/AdminStatistics.vue';
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
@@ -602,15 +613,6 @@ const liveCount = computed(() => resolvedPlans.value.filter((p) => p.currentLive
 const draftCount = computed(() => resolvedPlans.value.filter((p) => p.draft !== null).length);
 const totalTenants = computed(() => resolvedPlans.value.reduce((sum, p) => sum + p.tenantCount, 0));
 
-const summary = computed(() =>
-    formatMessage(msg.value.list.summary, {
-        plans: resolvedPlans.value.length,
-        live: liveCount.value,
-        drafts: draftCount.value,
-        tenants: totalTenants.value,
-    }),
-);
-
 const emptyNoMatch = computed(() =>
     formatMessage(msg.value.list.emptyNoMatch, { query: search.value }),
 );
@@ -690,12 +692,6 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 }
 .sa-plan-list * {
     box-sizing: border-box;
-}
-
-.sa-plan-list-summary {
-    font-size: 12.5px;
-    color: var(--sa-plan-list-text-2);
-    margin: 0 0 18px;
 }
 
 /* Buttons */

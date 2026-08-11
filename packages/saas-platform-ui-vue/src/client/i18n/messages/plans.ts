@@ -70,8 +70,10 @@ export const plansMessages = defineMessages(
         // PlanList — default plan overview with one row per plan.
         list: {
             title: 'Alle Pläne',
-            summary:
-                '{plans} Pläne · {live} live · {drafts} offene Drafts · {tenants} Mandanten zugeordnet',
+            statPlans: 'Pläne',
+            statLive: 'Live',
+            statDrafts: 'Offene Drafts',
+            statTenants: 'Mandanten',
             matrixView: 'Matrix-Ansicht',
             newPlan: 'Neuer Plan',
             searchPlaceholder: 'Plan suchen…',
@@ -110,8 +112,10 @@ export const plansMessages = defineMessages(
         // PlanMatrix — all plans side by side, components as rows.
         matrix: {
             title: 'Pläne · Matrix-Vergleich',
-            summary:
-                'Alle Pläne nebeneinander · {plans} Pläne · {features} Features · {quotas} Quotas · {bundles} Bundles',
+            statPlans: 'Pläne',
+            statFeatures: 'Features',
+            statQuotas: 'Quotas',
+            statBundles: 'Bundles',
             catalogPreview: 'Catalog-Vorschau',
             createPlan: 'Plan anlegen',
             createPlanSub: 'oder Klon erstellen',
@@ -323,8 +327,10 @@ export const plansMessages = defineMessages(
         },
         list: {
             title: 'All plans',
-            summary:
-                '{plans} plans · {live} live · {drafts} open drafts · {tenants} tenants assigned',
+            statPlans: 'Plans',
+            statLive: 'Live',
+            statDrafts: 'Open drafts',
+            statTenants: 'Tenants',
             matrixView: 'Matrix view',
             newPlan: 'New plan',
             searchPlaceholder: 'Search plan…',
@@ -362,8 +368,10 @@ export const plansMessages = defineMessages(
         },
         matrix: {
             title: 'Plans · matrix comparison',
-            summary:
-                'All plans side by side · {plans} plans · {features} features · {quotas} quotas · {bundles} bundles',
+            statPlans: 'Plans',
+            statFeatures: 'Features',
+            statQuotas: 'Quotas',
+            statBundles: 'Bundles',
             catalogPreview: 'Catalog preview',
             createPlan: 'Create plan',
             createPlanSub: 'or create a clone',
