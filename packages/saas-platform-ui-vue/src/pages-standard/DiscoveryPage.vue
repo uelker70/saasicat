@@ -562,22 +562,6 @@ onMounted(() => {
 .sa-discovery__group {
     margin-bottom: 16px;
 }
-.sa-discovery__group-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-.sa-discovery__group-title {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #475569;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
 .sa-discovery__group--orphan .sa-section__title {
     color: #b45309;
 }

@@ -1,6 +1,6 @@
 <template>
     <AdminPage class="sa-dashboard">
-        <AdminHero :title="msg.title" :subtitle="subtitle" class="sa-dashboard__head">
+        <AdminHero :title="msg.title" :subtitle="subtitle">
             <template #actions>
                 <q-btn
                     flat
@@ -401,10 +401,6 @@ function barWidth(value: number, max?: number): number {
 
 <style scoped>
 /* Header look comes from the global .sa-page-head — only a margin tweak here. */
-.sa-dashboard__head {
-    margin-bottom: 4px;
-}
-
 .sa-dashboard__strip {
     display: grid;
     /* Responsive: 4 cards while there is space, then automatically 3 → 2 → 1. */

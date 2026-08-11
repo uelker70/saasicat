@@ -58,12 +58,20 @@
     padding: 20px 28px 28px;
 }
 
+/* The hero reads as a banner rather than as the first paragraph of the page:
+ * a tinted, bordered block that separates "which page am I on" from the
+ * content below it. Tint and border come from the primary token, so an app
+ * that overrides `--sa-primary` re-tints the hero with it. */
 .sa-page-head {
     display: flex;
     align-items: flex-end;
     gap: 20px;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
+    padding: 18px 24px 20px;
+    border: 1px solid var(--sa-primary-border);
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--sa-primary-soft) 0%, var(--sa-primary-softer) 100%);
 }
 .sa-page-head__title {
     margin: 0;
@@ -190,9 +198,6 @@
         0 2px 6px rgba(168, 85, 247, 0.1);
 }
 
-/* Section — a labelled block within a page (see AdminSection). Purely
- * structural: it carries the rhythm between blocks and the heading scale, not
- * a surface. A section that should read as a card adds `.sa-card` alongside. */
 /* Page body — everything below the hero (see AdminBody), including the
  * loading and empty states the pages used to spell out one by one. */
 .sa-page-body__state {
@@ -217,6 +222,9 @@
 .sa-page-body > .sa-section:last-child {
     margin-bottom: 0;
 }
+/* Section — a labelled block within a page (see AdminSection). Purely
+ * structural: it carries the heading scale and the rhythm between blocks, not
+ * a surface. A section that should read as a card adds `.sa-card` alongside. */
 .sa-section__head {
     display: flex;
     align-items: center;
