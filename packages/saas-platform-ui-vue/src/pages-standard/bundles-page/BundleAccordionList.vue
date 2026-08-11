@@ -104,12 +104,12 @@ function translationCount(bundle: BundleRow): string {
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
 }
 .sa-bundle-chip--info {
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
 }
 .sa-bundle-chip--live {
     background: #dcfce7;
@@ -120,8 +120,8 @@ function translationCount(bundle: BundleRow): string {
     color: #92400e;
 }
 .sa-bundle-chip--supersed {
-    background: #e2e8f0;
-    color: #64748b;
+    background: var(--sa-border);
+    color: var(--sa-muted);
 }
 .sa-bundle-chip--scheduled {
     background: #fef3c7;

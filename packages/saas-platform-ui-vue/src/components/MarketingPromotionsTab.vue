@@ -586,7 +586,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-subtitle {
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .mc-promo-stats {
     display: flex;
@@ -597,8 +597,8 @@ async function onRemove(p: PromotionRow): Promise<void> {
     font-weight: 600;
     padding: 3px 9px;
     border-radius: 999px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
 }
 .mc-promo-stat.active {
     background: #dcfce7;
@@ -606,40 +606,40 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-stat.scheduled {
     background: #dbeafe;
-    color: #1d4ed8;
+    color: var(--sa-primary-strong);
 }
 .mc-promo-stat.expired {
-    background: #f1f5f9;
-    color: #94a3b8;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-light);
 }
 .mc-promo-timeline {
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
     padding: 12px 14px;
 }
 .mc-promo-timeline-head {
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-bottom: 6px;
 }
 .mc-promo-timeline-chart {
     position: relative;
-    border-left: 1px solid #e2e8f0;
+    border-left: 1px solid var(--sa-border);
 }
 .mc-promo-tick {
     position: absolute;
     top: 0;
     bottom: 0;
     width: 1px;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
 }
 .mc-promo-tick-label {
     position: absolute;
     bottom: 0;
     left: 3px;
     font-size: 9px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     white-space: nowrap;
 }
 .mc-promo-today {
@@ -680,7 +680,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-empty {
     padding: 28px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 13px;
     border: 1px dashed #cbd5e1;
     border-radius: 10px;
@@ -695,7 +695,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     align-items: center;
     gap: 12px;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 10px 12px;
     cursor: pointer;
@@ -729,30 +729,30 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-typechip {
     font-size: 10px;
     font-weight: 700;
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
     padding: 1px 6px;
     border-radius: 4px;
 }
 .mc-promo-planchip {
     font-size: 10px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     padding: 1px 6px;
     border-radius: 4px;
 }
 .mc-promo-muted {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .mc-promo-row-when {
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
     text-align: right;
 }
 .mc-promo-cycle {
     display: block;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .mc-promo-status {
     font-size: 10px;
@@ -767,17 +767,17 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-status.scheduled {
     background: #dbeafe;
-    color: #1d4ed8;
+    color: var(--sa-primary-strong);
 }
 .mc-promo-status.expired {
-    background: #f1f5f9;
-    color: #94a3b8;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-light);
 }
 .mc-promo-editor {
     border: 1px solid #3f6bff;
     border-top: 0;
     border-radius: 0 0 8px 8px;
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
     padding: 14px;
 }
 .mc-promo-editor-grid {
@@ -795,7 +795,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     margin-top: 6px;
 }
 .mc-promo-input {
@@ -827,8 +827,8 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-typeopt.active {
     border-color: #3f6bff;
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
     font-weight: 600;
 }
 .mc-promo-planlist {
@@ -848,10 +848,10 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-planopt.active {
     border-color: #3f6bff;
-    background: #eff6ff;
+    background: var(--sa-primary-50);
 }
 .mc-promo-planopt code {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 10px;
 }
 .mc-promo-i18n-block {
@@ -859,14 +859,14 @@ async function onRemove(p: PromotionRow): Promise<void> {
     flex-direction: column;
     gap: 4px;
     padding: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     background: #fff;
 }
 .mc-promo-i18n-code {
     font-size: 10px;
     font-weight: 700;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     padding: 2px 7px;
     border-radius: 5px;
     align-self: flex-start;
@@ -883,7 +883,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     cursor: pointer;
 }
 .mc-promo-colorbtn.active {
-    border-color: #0f172a;
+    border-color: var(--sa-heading);
 }
 .mc-promo-delete {
     margin-top: 12px;

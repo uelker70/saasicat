@@ -464,8 +464,8 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #0f172a;
-    color: #e2e8f0;
+    background: var(--sa-heading);
+    color: var(--sa-border);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -480,7 +480,7 @@ onMounted(() => {
 }
 .sa-discovery__banner-meta {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-discovery__banner-time {
     text-align: right;
@@ -489,7 +489,7 @@ onMounted(() => {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-discovery__banner-time-val {
     font-size: 13px;
@@ -499,7 +499,7 @@ onMounted(() => {
     border-left: 4px solid #dc2626;
 }
 .sa-discovery__tabs {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--sa-border);
 }
 .sa-discovery__panel {
     padding: 14px 0;
@@ -530,8 +530,8 @@ onMounted(() => {
 .sa-discovery__group-count {
     font-size: 10px;
     font-weight: 700;
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
     padding: 1px 7px;
     border-radius: 8px;
 }
@@ -542,20 +542,20 @@ onMounted(() => {
 }
 .sa-discovery__orphan-hint code {
     font-size: 10px;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     padding: 1px 4px;
     border-radius: 4px;
 }
 .sa-discovery__empty-row {
     padding: 36px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 13px;
     border: 1px dashed #cbd5e1;
     border-radius: 12px;
 }
 .sa-muted {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-right: 3px;
 }
 /* Status badge (review lifecycle) — shared by feature and quota card. */
@@ -565,8 +565,8 @@ onMounted(() => {
     text-transform: uppercase;
     padding: 3px 8px;
     border-radius: 6px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     flex-shrink: 0;
 }
 .sa-review--pending {
@@ -582,16 +582,16 @@ onMounted(() => {
     color: #b91c1c;
 }
 .sa-review--obsolete {
-    background: #e2e8f0;
-    color: #64748b;
+    background: var(--sa-border);
+    color: var(--sa-muted);
 }
 .sa-chip {
     font-size: 10px;
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
 }
 /* i18n coverage pill — shared by feature and quota card. */
 .sa-cov-pill {
@@ -602,18 +602,18 @@ onMounted(() => {
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    color: #475569;
+    border: 1px solid var(--sa-border);
+    background: var(--sa-bg-surface-2);
+    color: var(--sa-muted-dark);
 }
 .sa-cov-pill.complete {
     border-color: #a7f3d0;
-    background: #ecfdf5;
+    background: var(--sa-positive-bg);
     color: #047857;
 }
 .sa-cov-pill.warn {
     border-color: #fde68a;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     color: #b45309;
 }
 .sa-cov-pill.low {

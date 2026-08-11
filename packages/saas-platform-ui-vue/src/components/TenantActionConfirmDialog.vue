@@ -236,16 +236,16 @@ function onCancel(): void {
 }
 .tenant-action-confirm__lead {
     margin: 0 0 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     line-height: 1.5;
 }
 .tenant-action-confirm__hint {
     margin: 0 0 8px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     font-size: 13px;
 }
 .tenant-action-confirm__hint code {
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     padding: 1px 6px;
     border-radius: 4px;
     font-family: ui-monospace, SFMono-Regular, monospace;

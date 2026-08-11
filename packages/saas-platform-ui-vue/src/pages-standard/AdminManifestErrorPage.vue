@@ -59,7 +59,7 @@ defineProps<{
 .sa-manifest-error__lead,
 .sa-manifest-error__detail {
     margin: 0 0 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     line-height: 1.6;
 }
 .sa-manifest-error__detail {

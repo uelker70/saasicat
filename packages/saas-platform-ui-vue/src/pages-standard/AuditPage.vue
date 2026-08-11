@@ -219,8 +219,8 @@ function formatTs(iso: string | null | undefined): string {
 
 <style scoped>
 .sa-audit__kv {
-    background: #f8fafc;
-    border: 1px solid var(--sa-border, #e2e8f0);
+    background: var(--sa-bg-surface-2);
+    border: 1px solid var(--sa-border, var(--sa-border));
     border-radius: 8px;
     padding: 12px;
     font-size: 12px;

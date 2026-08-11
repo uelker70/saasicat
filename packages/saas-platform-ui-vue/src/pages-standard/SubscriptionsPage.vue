@@ -135,7 +135,7 @@ function formatDate(iso: string | null | undefined): string | null {
 <style scoped>
 .sa-subscriptions__card {
     background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
+    border: 1px solid var(--sa-border, var(--sa-border));
     border-radius: 12px;
     overflow: hidden;
 }

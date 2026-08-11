@@ -798,7 +798,7 @@ function emitSave(): void {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.1em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pve-title {
     font-size: 18px;
@@ -808,7 +808,7 @@ function emitSave(): void {
 }
 .pve-bar-note {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pve-mono {
     font: 500 11px var(--sa-font-mono);
@@ -856,18 +856,18 @@ function emitSave(): void {
     background: currentColor;
 }
 .pve-chip--changes {
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
 
 .pve-kbd {
     font: 600 10.5px var(--sa-font-mono);
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
 }
 
 /* ── Body Grid ──────────────────────────────────────────────────── */
@@ -912,7 +912,7 @@ function emitSave(): void {
 }
 .pve-col-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 2px;
 }
 
@@ -936,10 +936,10 @@ function emitSave(): void {
     outline: 0;
     background: transparent;
     font: 13px var(--sa-font-body);
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-search-ico {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     display: inline-flex;
 }
 .pve-tabs {
@@ -953,22 +953,22 @@ function emitSave(): void {
     padding: 5px 10px;
     border-radius: 6px;
     font: 500 12.5px var(--sa-font-body);
-    color: #475569;
+    color: var(--sa-muted-dark);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 .pve-tab--active {
-    background: #0f172a;
+    background: var(--sa-heading);
     color: #fff;
 }
 .pve-tab-count {
     font-size: 10.5px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .pve-tab--active .pve-tab-count {
     background: rgba(255, 255, 255, 0.15);
@@ -984,7 +984,7 @@ function emitSave(): void {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 700;
     padding: 12px 4px 6px;
 }
@@ -1016,7 +1016,7 @@ function emitSave(): void {
 }
 .pve-pool-card--partial {
     border-color: #fde68a;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
 }
 .pve-pool-grip {
     color: #cbd5e1;
@@ -1035,7 +1035,7 @@ function emitSave(): void {
 .pve-pool-card-label {
     font-size: 13px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-pool-card-check {
     display: inline-grid;
@@ -1053,12 +1053,12 @@ function emitSave(): void {
     align-items: center;
     flex-wrap: wrap;
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-top: 2px;
 }
 .pve-pool-card-key {
     font: 500 10px var(--sa-font-mono);
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pve-pool-card-dot {
     color: #cbd5e1;
@@ -1067,7 +1067,7 @@ function emitSave(): void {
 .pve-empty {
     padding: 24px 4px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 12.5px;
     font-style: italic;
 }
@@ -1099,7 +1099,7 @@ function emitSave(): void {
 }
 .pve-bs-label {
     font-size: 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     font-weight: 500;
     min-width: 88px;
 }
@@ -1113,7 +1113,7 @@ function emitSave(): void {
     border-radius: 6px;
     padding: 6px 10px;
     font: 13px var(--sa-font-body);
-    color: #0f172a;
+    color: var(--sa-heading);
     outline: none;
 }
 .pve-bs-input:focus {
@@ -1166,7 +1166,7 @@ function emitSave(): void {
     background: var(--sa-bg-surface-2);
     padding: 6px 10px;
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
     display: grid;
     place-items: center;
     border-right: 1px solid var(--sa-border);
@@ -1215,7 +1215,7 @@ function emitSave(): void {
 
 .pve-basket-group {
     padding: 14px 22px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
 }
 .pve-basket-group:last-child {
     border-bottom: 0;
@@ -1250,7 +1250,7 @@ function emitSave(): void {
 .pve-bg-count {
     margin-left: 6px;
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 
 .pve-dz {
@@ -1266,7 +1266,7 @@ function emitSave(): void {
 }
 .pve-dz-empty {
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     text-align: center;
     padding: 4px 0;
 }
@@ -1309,11 +1309,11 @@ function emitSave(): void {
 .pve-sel-label {
     font-size: 13px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-sel-sub {
     font: 500 10.5px var(--sa-font-mono);
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pve-sel-val-edit {
     display: flex;
@@ -1330,7 +1330,7 @@ function emitSave(): void {
     outline: 0;
     background: transparent;
     font: 600 13px var(--sa-font-body);
-    color: #0f172a;
+    color: var(--sa-heading);
     text-align: right;
     -moz-appearance: textfield;
 }
@@ -1341,12 +1341,12 @@ function emitSave(): void {
 }
 .pve-sel-val-unit {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pve-sel-x {
     background: transparent;
     border: 0;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -1384,7 +1384,7 @@ function emitSave(): void {
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     border-bottom: 1px solid var(--sa-border);
 }
 .pve-prev-dot {
@@ -1399,7 +1399,7 @@ function emitSave(): void {
     padding: 3px 10px;
     margin-left: 10px;
     font: 500 11px var(--sa-font-mono);
-    color: #64748b;
+    color: var(--sa-muted);
     border: 1px solid var(--sa-border);
 }
 .pve-prev-body {
@@ -1409,7 +1409,7 @@ function emitSave(): void {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #64748b;
+    color: var(--sa-muted);
     font-weight: 700;
 }
 .pve-prev-title {
@@ -1417,11 +1417,11 @@ function emitSave(): void {
     font-weight: 700;
     letter-spacing: -0.03em;
     margin-top: 6px;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-prev-desc {
     font-size: 12.5px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     margin-top: 6px;
     line-height: 1.5;
 }
@@ -1435,11 +1435,11 @@ function emitSave(): void {
     font-size: 38px;
     font-weight: 700;
     letter-spacing: -0.03em;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-prev-price-unit {
     font-size: 13px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pve-prev-price-yearly {
     font-size: 11.5px;
@@ -1452,7 +1452,7 @@ function emitSave(): void {
     width: 100%;
     margin-top: 14px;
     padding: 10px;
-    background: #0f172a;
+    background: var(--sa-heading);
     color: #fff;
     border: 0;
     border-radius: 7px;
@@ -1462,11 +1462,11 @@ function emitSave(): void {
 .pve-prev-sep {
     margin-top: 18px;
     padding-top: 14px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 700;
 }
 .pve-prev-list {
@@ -1482,7 +1482,7 @@ function emitSave(): void {
     align-items: center;
     gap: 8px;
     font-size: 12.5px;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-prev-list li b {
     font-weight: 600;
@@ -1498,15 +1498,15 @@ function emitSave(): void {
     flex: 0 0 auto;
 }
 .pve-prev-empty {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-style: italic;
 }
 .pve-prev-foot {
     margin-top: 16px;
     padding-top: 14px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     line-height: 1.5;
 }
 
@@ -1534,7 +1534,7 @@ function emitSave(): void {
 .pve-prev-validate-count {
     margin-left: auto;
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pve-vchk {
     display: flex;
@@ -1544,7 +1544,7 @@ function emitSave(): void {
     padding: 3px 0;
 }
 .pve-vchk--ok {
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .pve-vchk--ok span:first-child {
     color: var(--sa-positive-light);
@@ -1603,7 +1603,7 @@ function emitSave(): void {
 }
 .pve-diff-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 3px;
 }
 .pve-diff-close {

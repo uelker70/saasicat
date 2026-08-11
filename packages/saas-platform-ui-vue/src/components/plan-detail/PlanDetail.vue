@@ -462,7 +462,7 @@ async function executeTerminate(): Promise<void> {
         border-color 0.12s;
 }
 .btn:hover {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .btn.primary {
     background: var(--sa-primary);
@@ -470,7 +470,7 @@ async function executeTerminate(): Promise<void> {
     color: #fff;
 }
 .btn.primary:hover {
-    background: #1d4ed8;
+    background: var(--sa-primary-strong);
 }
 .btn.btn--sm {
     padding: 5px 9px;
@@ -494,23 +494,23 @@ async function executeTerminate(): Promise<void> {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
     color: var(--sa-muted-dark);
     border: 1px solid var(--sa-border);
 }
 .chip.live {
-    background: #ecfdf5;
+    background: var(--sa-positive-bg);
     color: #047857;
     border-color: #a7f3d0;
 }
 .chip.draft {
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
 .chip.supersed {
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     border-color: #cbd5e1;
 }
 .chip.dot::before {
@@ -545,9 +545,9 @@ async function executeTerminate(): Promise<void> {
 .pd-tier-chip {
     font: 700 10.5px var(--sa-font-mono);
     letter-spacing: 0.08em;
-    background: #f1f5f9;
-    color: #475569;
-    border: 1px solid #e2e8f0;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
     padding: 4px 10px;
     border-radius: 6px;
     margin-top: 8px;
@@ -583,7 +583,7 @@ async function executeTerminate(): Promise<void> {
     border-radius: 6px;
     background: transparent;
     border: 1px solid transparent;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     cursor: pointer;
     transition:
         background 0.12s,
@@ -591,9 +591,9 @@ async function executeTerminate(): Promise<void> {
         border-color 0.12s;
 }
 .pd-title-edit-btn:hover {
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     color: var(--sa-primary);
-    border-color: #e2e8f0;
+    border-color: var(--sa-border);
 }
 .pd-title-input {
     font: inherit;
@@ -602,7 +602,7 @@ async function executeTerminate(): Promise<void> {
     letter-spacing: -0.025em;
     color: var(--sa-heading);
     border: 0;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     outline: 2px solid #fcd34d;
     padding: 2px 8px;
     border-radius: 6px;
@@ -612,7 +612,7 @@ async function executeTerminate(): Promise<void> {
     font-size: 11px;
     color: #92400e;
     font-weight: 500;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     border: 1px solid #fde68a;
     padding: 2px 8px;
     border-radius: 999px;
@@ -638,7 +638,7 @@ async function executeTerminate(): Promise<void> {
     align-items: flex-start;
     gap: 12px;
     padding: 14px 16px 12px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
 }
 .pd-panel-title {
     font-size: 15px;
@@ -649,7 +649,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-panel-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 3px;
 }
 .pd-panel-head-right {
@@ -668,7 +668,7 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-bottom: 8px;
     font-weight: 500;
 }
@@ -682,8 +682,8 @@ async function executeTerminate(): Promise<void> {
     height: 24px;
     border-radius: 6px;
     overflow: hidden;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background: var(--sa-border-soft);
+    border: 1px solid var(--sa-border);
 }
 .pd-timeline-seg {
     display: flex;
@@ -712,8 +712,8 @@ async function executeTerminate(): Promise<void> {
     transform: translateY(0);
 }
 .pd-timeline-seg.superseded {
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .pd-timeline-seg.live {
     background: #10b981;
@@ -734,7 +734,7 @@ async function executeTerminate(): Promise<void> {
     font-weight: 700;
 }
 .pd-timeline-seg.is-selected.superseded {
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pd-timeline-seg.is-selected.live {
     outline-color: #047857;
@@ -749,7 +749,7 @@ async function executeTerminate(): Promise<void> {
     justify-content: space-between;
     margin-top: 6px;
     font: 500 10.5px var(--sa-font-mono);
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 
 /* versions table */
@@ -765,7 +765,7 @@ async function executeTerminate(): Promise<void> {
         64px minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1fr)
         minmax(96px, auto);
     align-items: stretch;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     margin-top: 12px;
 }
 .pd-versions-head {
@@ -777,7 +777,7 @@ async function executeTerminate(): Promise<void> {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #64748b;
+    color: var(--sa-muted);
     font-weight: 700;
     border-bottom: 1px solid var(--sa-border);
 }
@@ -787,7 +787,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-vrow > div {
     padding: 13px 12px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
     display: flex;
     align-items: center;
     font-size: 12.5px;
@@ -803,7 +803,7 @@ async function executeTerminate(): Promise<void> {
     background: #fff8e7;
 }
 .pd-vrow.is-selected > div {
-    background: #eff6ff !important;
+    background: var(--sa-primary-50) !important;
     box-shadow: inset 0 -1px 0 0 #bfdbfe;
 }
 .pd-vrow.is-selected.is-draft > div {
@@ -844,21 +844,21 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-validity-sub {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-validity-date {
     font: 500 12.5px var(--sa-font-mono);
 }
 .pd-arrow-inf {
     font: 600 13px var(--sa-font-mono);
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-pricing-m {
     font: 600 13px var(--sa-font-body);
 }
 .pd-pricing-y {
     font: 500 10.5px var(--sa-font-body);
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-top: 2px;
 }
 .pd-impact-num {
@@ -866,10 +866,10 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-impact-sub {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-change-note {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-style: italic;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -887,7 +887,7 @@ async function executeTerminate(): Promise<void> {
     padding: 3px 8px;
     border-radius: 999px;
     font: 600 10.5px var(--sa-font-mono);
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     color: #b45309;
     border: 1px solid #fde68a;
     white-space: nowrap;
@@ -904,7 +904,7 @@ async function executeTerminate(): Promise<void> {
     border-radius: 6px;
 }
 .pd-diff-chip.add {
-    background: #ecfdf5;
+    background: var(--sa-positive-bg);
     color: #047857;
     border: 1px solid #a7f3d0;
 }
@@ -914,9 +914,9 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid #fecaca;
 }
 .pd-diff-chip.mod {
-    background: #f1f5f9;
-    color: #475569;
-    border: 1px solid #e2e8f0;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
 }
 .pd-diff-list {
     padding: 12px;
@@ -935,7 +935,7 @@ async function executeTerminate(): Promise<void> {
     overflow: hidden;
 }
 .pd-diff-row.add {
-    background: linear-gradient(90deg, #ecfdf5 0%, #fff 60%);
+    background: linear-gradient(90deg, var(--sa-positive-bg) 0%, #fff 60%);
     border-color: #a7f3d0;
 }
 .pd-diff-row.rm {
@@ -943,8 +943,8 @@ async function executeTerminate(): Promise<void> {
     border-color: #fecaca;
 }
 .pd-diff-row.mod {
-    background: linear-gradient(90deg, #f8fafc 0%, #fff 60%);
-    border-color: #e2e8f0;
+    background: linear-gradient(90deg, var(--sa-bg-surface-2) 0%, #fff 60%);
+    border-color: var(--sa-border);
 }
 .pd-diff-icon {
     width: 32px;
@@ -962,7 +962,7 @@ async function executeTerminate(): Promise<void> {
     background: #ef4444;
 }
 .pd-diff-row.mod .pd-diff-icon {
-    background: #64748b;
+    background: var(--sa-muted);
 }
 .pd-diff-body {
     flex: 1;
@@ -976,7 +976,7 @@ async function executeTerminate(): Promise<void> {
     font: 700 10px var(--sa-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pd-diff-label {
     font-size: 13.5px;
@@ -985,7 +985,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-diff-key {
     font: 500 11px var(--sa-font-mono);
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-diff-vals {
     display: flex;
@@ -995,7 +995,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-diff-strike {
     text-decoration: line-through;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-diff-arrow {
     color: #cbd5e1;
@@ -1024,12 +1024,12 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-diff-tag.mod {
     background: #fff;
-    color: #475569;
+    color: var(--sa-muted-dark);
     border-color: #cbd5e1;
 }
 .pd-diff-row.plain {
     background: #fff;
-    border-color: #e2e8f0;
+    border-color: var(--sa-border);
     padding: 11px 12px 11px 0;
 }
 .pd-diff-section {
@@ -1041,7 +1041,7 @@ async function executeTerminate(): Promise<void> {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 700;
 }
 .pd-diff-section:first-child {
@@ -1050,17 +1050,17 @@ async function executeTerminate(): Promise<void> {
 .pd-diff-section hr {
     flex: 1;
     border: 0;
-    border-top: 1px dashed #e2e8f0;
+    border-top: 1px dashed var(--sa-border);
 }
 .pd-diff-empty {
     padding: 28px 18px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 13px;
 }
 .pd-diff-empty b {
     display: block;
-    color: #475569;
+    color: var(--sa-muted-dark);
     font-size: 14px;
     margin-bottom: 4px;
 }
@@ -1077,7 +1077,7 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 14px;
     padding: 9px 0;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
 }
 .pd-audit-row:first-child {
     border-top: 0;
@@ -1095,7 +1095,7 @@ async function executeTerminate(): Promise<void> {
     background: #10b981;
 }
 .pd-audit-change {
-    background: #2563eb;
+    background: var(--sa-primary);
 }
 .pd-audit-publish {
     background: #8b5cf6;
@@ -1105,7 +1105,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-audit-when {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     min-width: 130px;
 }
 .pd-audit-avatar {

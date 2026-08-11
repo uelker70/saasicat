@@ -400,7 +400,7 @@ function formatDate(date: Date | string | null | undefined): string {
         BlinkMacSystemFont,
         system-ui,
         sans-serif;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .msb-head {
     display: flex;
@@ -416,7 +416,7 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-sub {
     margin: 4px 0 0;
-    color: #64748b;
+    color: var(--sa-muted);
     font-size: 13px;
     max-width: 580px;
     line-height: 1.5;
@@ -424,7 +424,7 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-loading {
     padding: 32px;
     text-align: center;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .msb-empty {
     padding: 32px 24px;
@@ -432,12 +432,12 @@ function formatDate(date: Date | string | null | undefined): string {
     background: #fff;
     border: 1px dashed #cbd5e1;
     border-radius: 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .msb-empty-link {
     background: transparent;
     border: 0;
-    color: #2563eb;
+    color: var(--sa-primary);
     cursor: pointer;
     font: inherit;
     text-decoration: underline;
@@ -457,13 +457,13 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-card {
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 12px;
     padding: 14px 18px;
 }
 .msb-card--canceled-pending {
     border-color: #fde68a;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
 }
 .msb-card--canceled {
     opacity: 0.65;
@@ -490,7 +490,7 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-card-meta {
     margin-top: 4px;
     font-size: 12.5px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .msb-chip {
     font-size: 10.5px;
@@ -509,13 +509,13 @@ function formatDate(date: Date | string | null | undefined): string {
     color: #92400e;
 }
 .msb-chip--canceled {
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .msb-cancel-info {
     margin-top: 10px;
     padding: 8px 12px;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     border: 1px solid #fde68a;
     border-radius: 6px;
     color: #92400e;
@@ -533,22 +533,22 @@ function formatDate(date: Date | string | null | undefined): string {
     cursor: pointer;
     font-family: inherit;
     font-size: 13px;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .msb-btn:hover:not(:disabled) {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .msb-btn:disabled {
     cursor: not-allowed;
     opacity: 0.55;
 }
 .msb-btn--primary {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--sa-primary);
+    border-color: var(--sa-primary);
     color: #fff;
 }
 .msb-btn--primary:hover:not(:disabled) {
-    background: #1d4ed8;
+    background: var(--sa-primary-strong);
 }
 .msb-btn--ghost {
     background: transparent;
@@ -580,7 +580,7 @@ function formatDate(date: Date | string | null | undefined): string {
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px 10px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--sa-border);
 }
 .msb-modal-title {
     font-size: 16px;
@@ -590,13 +590,13 @@ function formatDate(date: Date | string | null | undefined): string {
     background: transparent;
     border: 0;
     cursor: pointer;
-    color: #64748b;
+    color: var(--sa-muted);
     padding: 4px;
     border-radius: 4px;
 }
 .msb-modal-x:hover {
-    background: #f1f5f9;
-    color: #0f172a;
+    background: var(--sa-border-soft);
+    color: var(--sa-heading);
 }
 .msb-modal-body {
     padding: 16px 20px;
@@ -606,8 +606,8 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-modal-foot {
     padding: 12px 20px;
-    border-top: 1px solid #e2e8f0;
-    background: #f8fafc;
+    border-top: 1px solid var(--sa-border);
+    background: var(--sa-bg-surface-2);
     border-radius: 0 0 12px 12px;
     display: flex;
     justify-content: flex-end;
@@ -621,11 +621,11 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-field-label {
     font-size: 12px;
     font-weight: 600;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .msb-field-hint {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .msb-input {
     padding: 7px 10px;
@@ -633,7 +633,7 @@ function formatDate(date: Date | string | null | undefined): string {
     border-radius: 6px;
     font-family: inherit;
     font-size: 13px;
-    color: #0f172a;
+    color: var(--sa-heading);
     background: #fff;
 }
 </style>

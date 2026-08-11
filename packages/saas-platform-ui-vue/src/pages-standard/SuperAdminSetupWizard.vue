@@ -274,7 +274,7 @@ async function submitConfirm(): Promise<void> {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(180deg, var(--sa-heading) 0%, #1e293b 100%);
 }
 .sa-setup-card {
     width: 460px;
@@ -293,7 +293,7 @@ async function submitConfirm(): Promise<void> {
 .sa-setup-locale {
     margin-left: auto;
     align-self: flex-start;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .sa-setup-badge {
     width: 44px;
@@ -302,7 +302,7 @@ async function submitConfirm(): Promise<void> {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #475569, #1e293b);
+    background: linear-gradient(135deg, var(--sa-muted-dark), #1e293b);
     color: #fff;
     font-weight: 800;
     font-size: 18px;
@@ -312,21 +312,21 @@ async function submitConfirm(): Promise<void> {
     margin: 0;
     font-weight: 800;
     font-size: 18px;
-    color: #0f172a;
+    color: var(--sa-heading);
     line-height: 1.1;
 }
 .sa-setup-sub {
     font-size: 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .sa-setup-hint {
     font-size: 13px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     line-height: 1.5;
     margin: 0 0 16px;
 }
 .sa-setup-hint code {
-    background: #e2e8f0;
+    background: var(--sa-border);
     padding: 1px 5px;
     border-radius: 4px;
 }
@@ -354,17 +354,17 @@ async function submitConfirm(): Promise<void> {
     margin-bottom: 12px;
 }
 .sa-setup-qr img {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 8px;
     background: #fff;
 }
 .sa-setup-qr__hint {
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .sa-setup-secret {
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 10px;
@@ -373,27 +373,27 @@ async function submitConfirm(): Promise<void> {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-bottom: 4px;
 }
 .sa-setup-secret__value {
     font-size: 15px;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--sa-heading);
     word-break: break-all;
     letter-spacing: 0.04em;
 }
 .sa-setup-uri {
     margin: 4px 0 4px;
     font-size: 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .sa-setup-uri__value {
     display: block;
     margin-top: 6px;
     word-break: break-all;
     color: #334155;
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
     padding: 6px 8px;
     border-radius: 6px;
 }
@@ -402,7 +402,7 @@ async function submitConfirm(): Promise<void> {
     width: 100%;
     background: none;
     border: none;
-    color: #64748b;
+    color: var(--sa-muted);
     font-size: 12px;
     cursor: pointer;
     text-decoration: underline;

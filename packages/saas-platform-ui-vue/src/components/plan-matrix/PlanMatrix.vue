@@ -726,7 +726,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-plan-desc {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 4px;
     line-height: 1.4;
     min-height: 32px;
@@ -765,7 +765,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-price-unit {
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pm-price-yearly {
     font-size: 10px;
@@ -783,7 +783,7 @@ function formatQuota(v: number | undefined): string {
     flex-wrap: wrap;
     align-items: center;
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 8px;
 }
 .pm-plan-actions {
@@ -791,7 +791,7 @@ function formatQuota(v: number | undefined): string {
     gap: 6px;
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
 }
 
 .pm-add-col {
@@ -823,7 +823,7 @@ function formatQuota(v: number | undefined): string {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #eff6ff;
+    background: var(--sa-primary-50);
     color: var(--sa-primary);
     margin: 0 auto 6px;
 }
@@ -910,7 +910,7 @@ function formatQuota(v: number | undefined): string {
     background: #f59e0b;
 }
 .pm-group-count {
-    background: #e2e8f0;
+    background: var(--sa-border);
     color: var(--sa-muted-dark);
     padding: 1px 7px;
     border-radius: 999px;
@@ -919,7 +919,7 @@ function formatQuota(v: number | undefined): string {
 
 /* Data rows */
 .pm-row td {
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
     height: 44px;
 }
 .pm-row:hover td {

@@ -269,7 +269,7 @@ function coverage(locale: string): number {
 
 <style scoped>
 .sa-fc {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
     background: #fff;
     overflow: hidden;
@@ -286,7 +286,7 @@ function coverage(locale: string): number {
     cursor: pointer;
 }
 .sa-fc__icon {
-    color: #475569;
+    color: var(--sa-muted-dark);
     flex-shrink: 0;
 }
 .sa-fc__main {
@@ -302,8 +302,8 @@ function coverage(locale: string): number {
 .sa-fc__key {
     font-size: 11px;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     padding: 2px 6px;
     border-radius: 5px;
     white-space: nowrap;
@@ -311,7 +311,7 @@ function coverage(locale: string): number {
 .sa-fc__label {
     font-size: 13px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .sa-fc__flag {
     font-size: 10px;
@@ -337,7 +337,7 @@ function coverage(locale: string): number {
 }
 .sa-fc__sub {
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 1px;
 }
 .sa-fc__dot {
@@ -356,16 +356,16 @@ function coverage(locale: string): number {
     flex-shrink: 0;
 }
 .sa-fc__chev {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     transition: transform 0.15s;
 }
 .sa-fc__chev.open {
     transform: rotate(90deg);
 }
 .sa-fc__body {
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     padding: 12px;
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .sa-fc__banner {
     display: flex;
@@ -377,18 +377,18 @@ function coverage(locale: string): number {
     margin-bottom: 10px;
 }
 .sa-fc__banner.warn {
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     border: 1px solid #fde68a;
     color: #92400e;
 }
 .sa-fc__banner.mute {
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    color: #475569;
+    background: var(--sa-border-soft);
+    border: 1px solid var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .sa-fc__subtabs {
     margin-bottom: 12px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--sa-border);
 }
 .sa-fc__split {
     display: grid;
@@ -400,7 +400,7 @@ function coverage(locale: string): number {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-bottom: 8px;
 }
 .sa-fc__split-count {
@@ -424,6 +424,6 @@ function coverage(locale: string): number {
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 </style>

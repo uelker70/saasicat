@@ -552,14 +552,14 @@ th {
     font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
     text-transform: uppercase;
     text-align: left;
 }
 td {
     padding: 11px 14px;
     vertical-align: middle;
-    border-top: 1px solid var(--sa-border-soft, #f1f5f9);
+    border-top: 1px solid var(--sa-border-soft, var(--sa-border-soft));
 }
 .num {
     text-align: right;
@@ -589,11 +589,11 @@ td {
 .sa-tenants__name {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading, #0f172a);
+    color: var(--sa-heading, var(--sa-heading));
 }
 .sa-tenants__slug {
     font-size: 11px;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
     font-family: var(--sa-font-mono, ui-monospace, monospace);
 }
 
@@ -619,11 +619,11 @@ td {
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: var(--sa-muted-dark, #475569);
+    color: var(--sa-muted-dark, var(--sa-muted-dark));
     margin-left: 8px;
 }
 .sa-tenants__usage :deep(.q-icon) {
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
 }
 
 .sa-tenants__actions {
@@ -640,10 +640,10 @@ td {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
 }
 .sa-tenants__icon-btn:hover {
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
 }
 .sa-tenants__icon-btn :deep(.q-icon) {
     color: inherit;
@@ -667,20 +667,20 @@ td {
 .sa-tenants__empty {
     padding: 40px 16px;
     text-align: center;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
 }
 .sa-tenants__loading {
     padding: 24px;
     display: flex;
     align-items: center;
     gap: 12px;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
 }
 
 .sa-tenants__foot {
     padding: 0;
     text-align: right;
     font-size: 12px;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
 }
 </style>

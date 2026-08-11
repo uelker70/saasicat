@@ -171,13 +171,13 @@ function copyFromDefault(locale: string): void {
     gap: 12px;
 }
 .sa-trans-lang {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
     background: #fff;
     padding: 10px 12px;
 }
 .sa-trans-lang--source {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
     border-color: #cbd5e1;
 }
 .sa-trans-lang__head {
@@ -189,7 +189,7 @@ function copyFromDefault(locale: string): void {
 .sa-trans-lang__code {
     font-size: 10px;
     font-weight: 700;
-    background: #0f172a;
+    background: var(--sa-heading);
     color: #fff;
     padding: 2px 6px;
     border-radius: 5px;
@@ -205,13 +205,13 @@ function copyFromDefault(locale: string): void {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #475569;
-    background: #e2e8f0;
+    color: var(--sa-muted-dark);
+    background: var(--sa-border);
     padding: 2px 6px;
     border-radius: 5px;
 }
 .sa-trans-lang__copy {
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .sa-trans-fields {
     display: flex;
@@ -228,12 +228,12 @@ function copyFromDefault(locale: string): void {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-trans-locked {
     font-size: 13px;
     color: #334155;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     border: 1px dashed #cbd5e1;
     border-radius: 6px;
     padding: 6px 10px;
@@ -243,7 +243,7 @@ function copyFromDefault(locale: string): void {
 }
 .sa-trans-locked__hint {
     font-size: 10px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     text-transform: uppercase;
 }
 .sa-trans__empty {
@@ -251,7 +251,7 @@ function copyFromDefault(locale: string): void {
     padding: 16px;
     text-align: center;
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     border: 1px dashed #cbd5e1;
     border-radius: 10px;
 }

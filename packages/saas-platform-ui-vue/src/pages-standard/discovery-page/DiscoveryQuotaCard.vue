@@ -154,7 +154,7 @@ function coverage(locale: string): number {
 
 <style scoped>
 .sa-qc {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
     background: #fff;
     overflow: hidden;
@@ -192,7 +192,7 @@ function coverage(locale: string): number {
 .sa-qc__label {
     font-weight: 600;
     font-size: 13px;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .sa-qc__key {
     font-size: 11px;
@@ -213,7 +213,7 @@ function coverage(locale: string): number {
 }
 .sa-qc__sub {
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 2px;
 }
 .sa-qc__missing {
@@ -231,16 +231,16 @@ function coverage(locale: string): number {
     flex-shrink: 0;
 }
 .sa-qc__chev {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     transition: transform 0.15s;
 }
 .sa-qc__chev.open {
     transform: rotate(90deg);
 }
 .sa-qc__body {
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     padding: 12px;
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .sa-qc__banner {
     display: flex;
@@ -250,7 +250,7 @@ function coverage(locale: string): number {
     border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 10px;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     border: 1px solid #fde68a;
     color: #92400e;
 }

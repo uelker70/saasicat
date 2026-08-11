@@ -323,8 +323,8 @@ function formatValue(v: unknown): string {
 }
 .bvpd__validity {
     padding: 12px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--sa-bg-surface-2);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
 }
 .bvpd__validity-grid {
@@ -337,7 +337,7 @@ function formatValue(v: unknown): string {
     gap: 6px;
     font-size: 12px;
     font-weight: 700;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .bvpd__input {
     min-height: 36px;
@@ -345,7 +345,7 @@ function formatValue(v: unknown): string {
     border-radius: 6px;
     padding: 0 10px;
     font: inherit;
-    color: #0f172a;
+    color: var(--sa-heading);
     background: #fff;
 }
 .bvpd__error {

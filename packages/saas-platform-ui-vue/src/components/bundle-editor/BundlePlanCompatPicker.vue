@@ -183,7 +183,7 @@ function onToggle(planKey: string): void {
 }
 .bv-compat-hint {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     line-height: 1.5;
 }
 .bv-compat-grid {
@@ -197,22 +197,22 @@ function onToggle(planKey: string): void {
     gap: 6px;
     padding: 10px 12px;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     cursor: pointer;
     text-align: left;
     font-family: inherit;
-    color: #0f172a;
+    color: var(--sa-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .bv-compat-card:hover:not(:disabled) {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .bv-compat-card.on {
-    border-color: #2563eb;
-    background: #eff6ff;
+    border-color: var(--sa-primary);
+    background: var(--sa-primary-50);
 }
 .bv-compat-card.warn {
     border-color: #fca5a5;
@@ -256,10 +256,10 @@ function onToggle(planKey: string): void {
         500 11px 'JetBrains Mono',
         ui-monospace,
         monospace;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .bv-compat-check {
-    color: #2563eb;
+    color: var(--sa-primary);
     display: inline-flex;
 }
 .bv-compat-overlap {
@@ -298,7 +298,7 @@ function onToggle(planKey: string): void {
 }
 .bv-compat-empty {
     padding: 12px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-style: italic;
     font-size: 12.5px;
     text-align: center;

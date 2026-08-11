@@ -311,7 +311,7 @@ function onCancel(): void {
 }
 .pcd-sub {
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 3px;
 }
 .pcd-close {
@@ -365,11 +365,11 @@ function onCancel(): void {
 }
 .pcd-kbd {
     font: 600 10.5px var(--sa-font-mono);
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     letter-spacing: 0.04em;
 }
 .pcd-input {
@@ -431,7 +431,7 @@ function onCancel(): void {
     font-family: inherit;
 }
 .pcd-choice:hover {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .pcd-choice--selected {
     border-color: var(--sa-primary);
@@ -445,7 +445,7 @@ function onCancel(): void {
 }
 .pcd-choice-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 
 .pcd-foot {
@@ -472,7 +472,7 @@ function onCancel(): void {
         border-color 0.12s;
 }
 .pcd-btn:hover:not(:disabled) {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .pcd-btn:disabled {
     cursor: not-allowed;

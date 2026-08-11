@@ -15,13 +15,13 @@ defineProps<{ label: string; value: string }>();
 
 <style scoped>
 .kv {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--sa-bg-surface-2);
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
     padding: 10px 12px;
 }
 .kv__label {
-    color: #64748b;
+    color: var(--sa-muted);
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -30,7 +30,7 @@ defineProps<{ label: string; value: string }>();
 .kv__value {
     font-size: 14px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sa-heading);
     margin-top: 4px;
 }
 </style>

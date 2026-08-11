@@ -525,7 +525,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #475569;
+    color: var(--sa-muted-dark);
     padding-top: 2px;
 }
 .bve-section-label--top {
@@ -534,7 +534,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 .bve-section-count {
     font-size: 10.5px;
     font-weight: 600;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     text-transform: none;
     letter-spacing: 0;
 }
@@ -556,12 +556,12 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
 }
 .bve-field-label {
     font-size: 11px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     font-weight: 600;
 }
 .bve-field-hint {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .bve-input-grp {
     display: inline-flex;
@@ -579,9 +579,9 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     align-items: center;
     padding: 0 8px;
     font-size: 11.5px;
-    color: #64748b;
-    background: #f8fafc;
-    border-left: 1px solid #e2e8f0;
+    color: var(--sa-muted);
+    background: var(--sa-bg-surface-2);
+    border-left: 1px solid var(--sa-border);
     border-radius: 0 6px 6px 0;
 }
 .bve-input {
@@ -590,16 +590,16 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     border-radius: 6px;
     font-size: 13px;
     font-family: inherit;
-    color: #0f172a;
+    color: var(--sa-heading);
     background: #fff;
 }
 .bve-input--readonly {
-    color: #94a3b8;
-    background: #f8fafc;
+    color: var(--sa-muted-light);
+    background: var(--sa-bg-surface-2);
 }
 .bve-savings {
     font-size: 11.5px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -622,7 +622,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     font-size: 13px;
 }
 .bve-toggle-label {
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .bve-textarea {
     padding: 8px 10px;
@@ -630,7 +630,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     border-radius: 6px;
     font-size: 13px;
     font-family: inherit;
-    color: #0f172a;
+    color: var(--sa-heading);
     background: #fff;
     resize: vertical;
 }
@@ -647,22 +647,22 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     cursor: pointer;
     font-size: 12.5px;
     font-family: inherit;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .bve-btn:hover:not(:disabled) {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .bve-btn:disabled {
     cursor: not-allowed;
     opacity: 0.5;
 }
 .bve-btn--primary {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--sa-primary);
+    border-color: var(--sa-primary);
     color: #fff;
 }
 .bve-btn--primary:hover:not(:disabled) {
-    background: #1d4ed8;
+    background: var(--sa-primary-strong);
 }
 .bve-error {
     padding: 8px 12px;
