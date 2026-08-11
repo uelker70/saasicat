@@ -19,53 +19,55 @@
                 {{ loadErrorText }}
             </q-banner>
 
-            <BundlesKpis
-                :bundles-total="bundles.length"
-                :live-count="liveCount"
-                :scheduled-bundles-count="scheduledBundlesCount"
-                :total-scheduled-versions="totalScheduledVersions"
-                :total-draft-versions="totalDraftVersions"
-                :draft-bundles-count="draftBundlesCount"
-                :translated-count="translatedCount"
-                :locales-count="locales.length"
-            />
+            <AdminSection>
+                <BundlesKpis
+                    :bundles-total="bundles.length"
+                    :live-count="liveCount"
+                    :scheduled-bundles-count="scheduledBundlesCount"
+                    :total-scheduled-versions="totalScheduledVersions"
+                    :total-draft-versions="totalDraftVersions"
+                    :draft-bundles-count="draftBundlesCount"
+                    :translated-count="translatedCount"
+                    :locales-count="locales.length"
+                />
+            </AdminSection>
 
             <AdminSection class="sa-bundles__filter">
                 <BundlesFilterBar
+                    class="q-mb-md"
                     v-model:query="query"
                     v-model:status-filter="statusFilter"
                     :status-filter-options="statusFilterOptions"
                 />
-            </AdminSection>
 
-            <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
-            <BundleCreatePanel
-                v-if="createOpen"
-                :project-key="projectKey"
-                :available-features="snapshot?.features ?? []"
-                :available-quotas="snapshot?.quotas ?? []"
-                :plans="plans"
-                :live-plan-versions="livePlanVersions"
-                :feature-registry="featureRegistryResolved"
-                :quota-registry="quotaRegistryResolved"
-                :existing-bundle-keys="existingBundleKeys"
-                :create="create"
-                :create-draft="createDraft"
-                @cancel="createOpen = false"
-                @created="onWizardCreated"
-            />
+                <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
+                <BundleCreatePanel
+                    class="q-mb-sm"
+                    v-if="createOpen"
+                    :project-key="projectKey"
+                    :available-features="snapshot?.features ?? []"
+                    :available-quotas="snapshot?.quotas ?? []"
+                    :plans="plans"
+                    :live-plan-versions="livePlanVersions"
+                    :feature-registry="featureRegistryResolved"
+                    :quota-registry="quotaRegistryResolved"
+                    :existing-bundle-keys="existingBundleKeys"
+                    :create="create"
+                    :create-draft="createDraft"
+                    @cancel="createOpen = false"
+                    @created="onWizardCreated"
+                />
 
-            <q-banner
-                v-if="bundles.length === 0 && !loading && !error"
-                class="sa-bundles__empty"
-                rounded
-            >
-                <template #avatar><q-icon name="info" color="info" /></template>
-                {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
-                {{ msg.page.emptyAfter }}
-            </q-banner>
+                <q-banner
+                    v-if="bundles.length === 0 && !loading && !error"
+                    class="sa-bundles__empty"
+                    rounded
+                >
+                    <template #avatar><q-icon name="info" color="info" /></template>
+                    {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
+                    {{ msg.page.emptyAfter }}
+                </q-banner>
 
-            <AdminSection class="sa-bundles__list">
                 <BundleAccordionList
                     :filtered-bundles="filteredBundles"
                     :bundles-total="bundles.length"

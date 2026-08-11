@@ -271,7 +271,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
-    margin: 0 0 16px;
+    /* margin: 0 0 16px; */
 }
 
 .sa-kpi {

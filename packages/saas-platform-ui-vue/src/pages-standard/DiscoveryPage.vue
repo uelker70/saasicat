@@ -25,31 +25,31 @@
                 :app-version="appVersion"
                 :scan-label="scanLabel"
             />
-
             <q-banner v-if="error" class="sa-discovery__error" rounded>
                 <template #avatar><q-icon name="warning" color="negative" /></template>
                 {{ common.error }}: {{ error.message }}
             </q-banner>
 
-            <DiscoveryKpis
-                :features-count="features.length"
-                :capabilities-count="capabilities.length"
-                :approved-count="approvedCount"
-                :pending-count="pendingCount"
-                :outdated-count="outdatedCount"
-                :obsolete-count="obsoleteCount"
-                :orphan-count="orphanCaps.length"
-            />
-
-            <q-tabs v-model="activeTab" align="left" dense class="sa-discovery__tabs">
-                <q-tab name="features" :label="featuresTabLabel" />
-                <q-tab name="quotas" :label="quotasTabLabel" />
-            </q-tabs>
+            <AdminSection class="q-mt-lg">
+                <DiscoveryKpis
+                    :features-count="features.length"
+                    :capabilities-count="capabilities.length"
+                    :approved-count="approvedCount"
+                    :pending-count="pendingCount"
+                    :outdated-count="outdatedCount"
+                    :obsolete-count="obsoleteCount"
+                    :orphan-count="orphanCaps.length"
+                />
+            </AdminSection>
 
             <AdminSection class="sa-discovery__panels">
+                <q-tabs v-model="activeTab" align="left" dense class="sa-discovery__tabs">
+                    <q-tab name="features" :label="featuresTabLabel" />
+                    <q-tab name="quotas" :label="quotasTabLabel" />
+                </q-tabs>
                 <q-tab-panels v-model="activeTab" animated>
                     <q-tab-panel name="features" class="sa-discovery__panel">
-                        <AdminFilters>
+                        <AdminFilters class="q-mb-md">
                             <q-input
                                 v-model="featureQuery"
                                 dense
@@ -99,6 +99,7 @@
                                 />
                             </div>
                         </AdminSection>
+
                         <div v-if="filteredFeatures.length === 0" class="sa-discovery__empty-row">
                             {{ msg.noFeaturesMatchFilters }}
                         </div>

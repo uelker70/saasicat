@@ -35,81 +35,95 @@
             </template>
         </AdminHero>
 
-        <div v-if="pageError" class="sa-marketing-banner sa-marketing-banner--error" role="alert">
-            <strong>{{ common.error }}:</strong> {{ pageError }}
-            <button class="sa-marketing-banner-x" type="button" @click="pageError = null">×</button>
-        </div>
+        <AdminBody>
+            <AdminSection>
+                <div
+                    v-if="pageError"
+                    class="sa-marketing-banner sa-marketing-banner--error"
+                    role="alert"
+                >
+                    <strong>{{ common.error }}:</strong> {{ pageError }}
+                    <button class="sa-marketing-banner-x" type="button" @click="pageError = null">
+                        ×
+                    </button>
+                </div>
 
-        <MarketingCatalogToolbar
-            v-model:tab="tab"
-            :active-promo-count="activePromoCount"
-            :catalog-version="catalogVersion"
-            :active-locale="activeLocale"
-        />
+                <MarketingCatalogToolbar
+                    v-model:tab="tab"
+                    :active-promo-count="activePromoCount"
+                    :catalog-version="catalogVersion"
+                    :active-locale="activeLocale"
+                />
+            </AdminSection>
+            <AdminSection>
+                <div v-if="loading" class="sa-marketing-loading">{{ msg.page.loading }}</div>
 
-        <div v-if="loading" class="sa-marketing-loading">{{ msg.page.loading }}</div>
+                <!-- ─── Tab: Promotions ─── -->
+                <MarketingPromotionsTab
+                    v-else-if="tab === 'promos'"
+                    :promotions="promotions"
+                    :plans="promoPlanOptions"
+                    :active-locales="activeLocaleSet"
+                    :busy="busy"
+                    :project-key="projectKey"
+                    :create="promotionsApi.create"
+                    :update="promotionsApi.update"
+                    :remove="promotionsApi.remove"
+                />
 
-        <!-- ─── Tab: Promotions ─── -->
-        <MarketingPromotionsTab
-            v-else-if="tab === 'promos'"
-            :promotions="promotions"
-            :plans="promoPlanOptions"
-            :active-locales="activeLocaleSet"
-            :busy="busy"
-            :project-key="projectKey"
-            :create="promotionsApi.create"
-            :update="promotionsApi.update"
-            :remove="promotionsApi.remove"
-        />
+                <div
+                    v-else-if="rows.length === 0"
+                    class="sa-marketing-banner sa-marketing-banner--info"
+                >
+                    {{ msg.page.emptyPlansBefore }} <strong>{{ msg.page.emptyPlansLink }}</strong>
+                    {{ msg.page.emptyPlansAfter }}
+                </div>
 
-        <div v-else-if="rows.length === 0" class="sa-marketing-banner sa-marketing-banner--info">
-            {{ msg.page.emptyPlansBefore }} <strong>{{ msg.page.emptyPlansLink }}</strong>
-            {{ msg.page.emptyPlansAfter }}
-        </div>
+                <MarketingCatalogPreview
+                    v-else-if="tab === 'preview'"
+                    :visible-rows="visibleRows"
+                    :preview-url="previewUrl"
+                    :monthly-of="monthlyOf"
+                    :yearly-of="yearlyOf"
+                    :format-euro="formatEuro"
+                    :promo-of="promoOf"
+                    :promo-result-of="promoResultOf"
+                    :promo-badge-of="promoBadgeOf"
+                    :promo-fineprint-of="promoFineprintOf"
+                    :promo-color-of="promoColorOf"
+                    :cta-text="ctaText"
+                    :show-trial-note="showTrialNote"
+                    :top-feature-label="topFeatureLabel"
+                />
 
-        <MarketingCatalogPreview
-            v-else-if="tab === 'preview'"
-            :visible-rows="visibleRows"
-            :preview-url="previewUrl"
-            :monthly-of="monthlyOf"
-            :yearly-of="yearlyOf"
-            :format-euro="formatEuro"
-            :promo-of="promoOf"
-            :promo-result-of="promoResultOf"
-            :promo-badge-of="promoBadgeOf"
-            :promo-fineprint-of="promoFineprintOf"
-            :promo-color-of="promoColorOf"
-            :cta-text="ctaText"
-            :show-trial-note="showTrialNote"
-            :top-feature-label="topFeatureLabel"
-        />
-
-        <MarketingCatalogAdmin
-            v-else
-            :admin-rows="adminRows"
-            :busy="busy"
-            :expanded-key="expandedKey"
-            :active-locale="activeLocale"
-            :default-locale="defaultLocale"
-            :edit-features="editFeatures"
-            :format-version-title="formatVersionTitle"
-            :format-version-tab="formatVersionTab"
-            :auto-cta-text="autoCtaText"
-            :cta-value="ctaValue"
-            :resolve-component-label="resolveComponentLabel"
-            :suggestions-for="suggestionsFor"
-            @select-version="selectVersion"
-            @patch="patch"
-            @patch-display-label="patchDisplayLabel"
-            @toggle-expand="toggleExpand"
-            @update-feature-label="updateFeatureLabel"
-            @update-feature-strong="updateFeatureStrong"
-            @persist-features="persistFeatures"
-            @move-feature="moveFeature"
-            @remove-feature="removeFeature"
-            @add-feature="addFeature"
-            @add-suggestion="addSuggestion"
-        />
+                <MarketingCatalogAdmin
+                    v-else
+                    :admin-rows="adminRows"
+                    :busy="busy"
+                    :expanded-key="expandedKey"
+                    :active-locale="activeLocale"
+                    :default-locale="defaultLocale"
+                    :edit-features="editFeatures"
+                    :format-version-title="formatVersionTitle"
+                    :format-version-tab="formatVersionTab"
+                    :auto-cta-text="autoCtaText"
+                    :cta-value="ctaValue"
+                    :resolve-component-label="resolveComponentLabel"
+                    :suggestions-for="suggestionsFor"
+                    @select-version="selectVersion"
+                    @patch="patch"
+                    @patch-display-label="patchDisplayLabel"
+                    @toggle-expand="toggleExpand"
+                    @update-feature-label="updateFeatureLabel"
+                    @update-feature-strong="updateFeatureStrong"
+                    @persist-features="persistFeatures"
+                    @move-feature="moveFeature"
+                    @remove-feature="removeFeature"
+                    @add-feature="addFeature"
+                    @add-suggestion="addSuggestion"
+                />
+            </AdminSection>
+        </AdminBody>
     </AdminPage>
 </template>
 
@@ -117,6 +131,8 @@
 import { computed, onMounted, ref } from 'vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import {
     applyPromo,
     pickActivePromo,
@@ -659,7 +675,7 @@ function ctaValue(raw: string): string | null {
 function suggestionsFor(row: MarketingRow): FeatureSuggestion[] {
     if (!row.liveVersion) return [];
     const usedKeys = new Set(editFeatures.value.map((f) => f.key).filter((k): k is string => !!k));
-    const fromFeatures: FeatureSuggestion[] = row.liveVersion.features.map((key) => ({
+    const fromFeatures: FeatureSuggestion[] = row.liveVersion.features.map((key: any) => ({
         key,
         label: resolveComponentLabel(key),
         strong: '',
@@ -988,7 +1004,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     display: flex;
     gap: 12px;
     align-items: center;
-    margin: 4px 0 16px;
+    margin: 0px;
 }
 .sa-marketing-tabbar {
     display: inline-flex;

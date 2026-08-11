@@ -37,6 +37,22 @@
             <!-- Default: list view (plan simulation) + Bundle overview -->
             <template v-if="mode === 'list'">
                 <AdminSection>
+                    <AdminStatistics :columns="4">
+                        <AdminKpi :label="msg.list.statPlans" :value="planCounts.plans" />
+                        <AdminKpi
+                            :label="msg.list.statLive"
+                            :value="planCounts.live"
+                            tone="positive"
+                        />
+                        <AdminKpi
+                            :label="msg.list.statDrafts"
+                            :value="planCounts.drafts"
+                            :tone="planCounts.drafts > 0 ? 'warn' : 'neutral'"
+                        />
+                        <AdminKpi :label="msg.list.statTenants" :value="planCounts.tenants" />
+                    </AdminStatistics>
+                </AdminSection>
+                <AdminSection>
                     <PlanList
                         :plans="plans"
                         :versions-by-plan-id="versionsByPlanId"
@@ -181,9 +197,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
+import { countPlans, resolvePlans } from '../client/resolve-plans.js';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import type {
     FeatureCatalogEntryRow,
     PlanRow,
@@ -277,6 +296,18 @@ const msg = useSaMessages('plans');
 // Eine Seite, ein Kopf: die Matrix ist eine andere Ansicht derselben Seite,
 // kein eigener Bereich — sie tauscht deshalb den Hero-Titel statt einen
 // zweiten Kopf darunter zu rendern.
+// Dieselbe Ableitung, die PlanList für seine Zeilen nutzt — die Zahlen über
+// der Liste und die Liste selbst dürfen nicht auseinanderlaufen.
+const planCounts = computed(() =>
+    countPlans(
+        resolvePlans({
+            plans: plans.value,
+            versionsByPlanId: versionsByPlanId.value,
+            tenantCountsByPlanKey: tenantCountsByPlanKey.value,
+        }),
+    ),
+);
+
 const heroTitle = computed(() =>
     mode.value === 'matrix' ? msg.value.matrix.title : msg.value.list.title,
 );

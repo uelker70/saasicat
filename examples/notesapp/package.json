@@ -6,6 +6,7 @@
     "scripts": {
         "prebuild": "prisma generate",
         "build": "tsc -p tsconfig.json",
+        "dev:admin": "docker compose -f docker-compose.yml up -d db backend && docker compose -f docker-compose.yml stop admin && pnpm --filter notesapp-admin dev",
         "pretypecheck": "prisma generate",
         "typecheck": "tsc --noEmit",
         "pretest": "pnpm run build",

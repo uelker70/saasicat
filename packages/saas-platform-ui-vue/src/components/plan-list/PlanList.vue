@@ -1,15 +1,18 @@
 <template>
     <div class="sa-plan-list">
-        <AdminStatistics :columns="4">
-            <AdminKpi :label="msg.list.statPlans" :value="resolvedPlans.length" />
-            <AdminKpi :label="msg.list.statLive" :value="liveCount" tone="positive" />
-            <AdminKpi
-                :label="msg.list.statDrafts"
-                :value="draftCount"
-                :tone="draftCount > 0 ? 'warn' : 'neutral'"
-            />
-            <AdminKpi :label="msg.list.statTenants" :value="totalTenants" />
-        </AdminStatistics>
+
+        <AdminSection class="q-mb-md">
+            <q-input
+                v-model="search"
+                dense
+                outlined
+                clearable
+                :placeholder="msg.list.searchPlaceholder"
+                class="sa-plan-list-search"
+                >
+                <template #prepend><q-icon name="search" /></template>
+            </q-input>
+        </AdminSection>
 
         <!-- List wrapper -->
         <div class="sa-plan-list-wrap">
@@ -434,11 +437,13 @@
 <script setup lang="ts">
 import AdminKpi from '../admin-page/AdminKpi.vue';
 import AdminStatistics from '../admin-page/AdminStatistics.vue';
+import { resolvePlans, type ResolvedPlan } from '../../client/resolve-plans.js';
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import AdminSection from '../admin-page/AdminSection.vue';
 
 // PlanList — list view of all plans (default view in PlansPage,
 // corresponds to the ListScreen from the plan simulation). One row per
@@ -476,26 +481,6 @@ const common = useSaMessages('common');
 
 const search = ref('');
 
-interface ResolvedPlan {
-    plan: PlanRow;
-    planKey: string;
-    label: string;
-    description: string | null;
-    /** Version currently active for new bookings (validFrom ≤ today < validUntil or validUntil null). */
-    currentLive: PlanVersionRow | null;
-    /** Version shown on the parent row (currentLive preferred). */
-    primary: PlanVersionRow | null;
-    /** Drafts + future-published versions (sorted: future ASC by validFrom, drafts at the end). */
-    subRows: PlanVersionRow[];
-    /** True if the plan has any versions at all (for hide logic). */
-    hasAnyVersion: boolean;
-    /** True if all versions are expired (validUntil < today, no draft / no future). */
-    allExpired: boolean;
-    /** First open draft (for the header KPI "offene Drafts"). */
-    draft: PlanVersionRow | null;
-    tenantCount: number;
-}
-
 const DEFAULT_ACCENTS: Record<string, string> = {
     STARTER: '#64748b',
     STANDARD: '#2563eb',
@@ -516,84 +501,13 @@ function planAccent(planKey: string): string {
     return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length] ?? FALLBACK_ACCENTS[0]!;
 }
 
-function todayIsoDate(): string {
-    return new Date().toISOString().slice(0, 10);
-}
-
-function isCurrentlyValid(v: PlanVersionRow, today: string): boolean {
-    if (v.publishedAt === null) return false;
-    if (v.validFrom && v.validFrom.slice(0, 10) > today) return false;
-    if (v.validUntil && v.validUntil.slice(0, 10) < today) return false;
-    return true;
-}
-
-function isFutureScheduled(v: PlanVersionRow, today: string): boolean {
-    if (v.publishedAt === null) return false;
-    if (!v.validFrom) return false;
-    return v.validFrom.slice(0, 10) > today;
-}
-
-function isExpired(v: PlanVersionRow, today: string): boolean {
-    if (v.publishedAt === null) return false;
-    if (!v.validUntil) return false;
-    return v.validUntil.slice(0, 10) < today;
-}
-
-const resolvedPlans = computed<ResolvedPlan[]>(() => {
-    const today = todayIsoDate();
-    return [...props.plans]
-        .sort((a, b) => a.sortOrder - b.sortOrder || a.planKey.localeCompare(b.planKey))
-        .map<ResolvedPlan>((plan) => {
-            const versions = props.versionsByPlanId[plan.id] ?? [];
-            const drafts = versions.filter((v) => v.publishedAt === null);
-            const published = versions.filter((v) => v.publishedAt !== null);
-            const currentLive = published.find((v) => isCurrentlyValid(v, today)) ?? null;
-            const futureScheduled = published
-                .filter((v) => isFutureScheduled(v, today))
-                .sort((a, b) => (a.validFrom ?? '').localeCompare(b.validFrom ?? ''));
-
-            // Parent = currentLive preferred; otherwise the next upcoming
-            // future version; otherwise null (drafts only → root row without a version).
-            const primary = currentLive ?? futureScheduled[0] ?? null;
-
-            // Sub-rows = all visible versions except the parent
-            const subSet = new Set<string>();
-            if (primary) subSet.add(primary.id);
-            const subRows: PlanVersionRow[] = [];
-            for (const v of futureScheduled) {
-                if (!subSet.has(v.id)) {
-                    subRows.push(v);
-                    subSet.add(v.id);
-                }
-            }
-            for (const d of drafts) {
-                if (!subSet.has(d.id)) {
-                    subRows.push(d);
-                    subSet.add(d.id);
-                }
-            }
-
-            const allExpired =
-                versions.length > 0 &&
-                drafts.length === 0 &&
-                published.every((v) => isExpired(v, today)) &&
-                futureScheduled.length === 0;
-
-            return {
-                plan,
-                planKey: plan.planKey,
-                label: plan.label,
-                description: plan.description ?? null,
-                currentLive,
-                primary,
-                subRows,
-                hasAnyVersion: versions.length > 0,
-                allExpired,
-                draft: drafts[0] ?? null,
-                tenantCount: props.tenantCountsByPlanKey[plan.planKey] ?? 0,
-            };
-        });
-});
+const resolvedPlans = computed(() =>
+    resolvePlans({
+        plans: props.plans,
+        versionsByPlanId: props.versionsByPlanId,
+        tenantCountsByPlanKey: props.tenantCountsByPlanKey,
+    }),
+);
 
 const filteredPlans = computed(() => {
     // Plans with only expired versions are hidden entirely
@@ -608,10 +522,6 @@ const filteredPlans = computed(() => {
             p.label.toLocaleLowerCase(intlLocale.value).includes(q),
     );
 });
-
-const liveCount = computed(() => resolvedPlans.value.filter((p) => p.currentLive !== null).length);
-const draftCount = computed(() => resolvedPlans.value.filter((p) => p.draft !== null).length);
-const totalTenants = computed(() => resolvedPlans.value.reduce((sum, p) => sum + p.tenantCount, 0));
 
 const emptyNoMatch = computed(() =>
     formatMessage(msg.value.list.emptyNoMatch, { query: search.value }),
@@ -646,7 +556,7 @@ function tenantBarWidth(count: number): string {
     return `${Math.min(100, count / 1.5)}%`;
 }
 
-function onNewVersion(row: ResolvedPlan): void {
+function onNewVersion(row: ResolvedPlan<PlanRow, PlanVersionRow>): void {
     if (row.draft) return; // already an open draft → no new one
     const basis = row.currentLive;
     if (!basis) {
@@ -657,7 +567,7 @@ function onNewVersion(row: ResolvedPlan): void {
     emit('newVersion', row.plan, basis);
 }
 
-function hasAnyPublished(row: ResolvedPlan): boolean {
+function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     // Superseded or expired counts too — the plan root stays in the DB
     // forever for contract-protection P1 reasons.
     const versions = props.versionsByPlanId[row.plan.id] ?? [];
@@ -691,7 +601,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    /* padding: 12px 16px; */
     border-bottom: 1px solid var(--sa-border);
     background: #fbfbfd;
 }
