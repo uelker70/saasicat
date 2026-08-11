@@ -1,7 +1,7 @@
 <template>
-    <div class="sa-tenant-detail">
-        <header class="sa-page-head">
-            <div>
+    <AdminPage class="sa-tenant-detail">
+        <AdminHero :title="data?.name ?? labels.title">
+            <template #before-title>
                 <q-btn
                     flat
                     dense
@@ -10,13 +10,14 @@
                     :to="backRoute"
                     class="sa-tenant-detail__back"
                 />
-                <h1 class="sa-page-head__title">{{ data?.name ?? labels.title }}</h1>
-                <p v-if="data" class="sa-page-head__sub">
-                    {{ labels.slug }}: <code>{{ data.slug }}</code>
-                </p>
-            </div>
-            <slot name="header-actions" :data="data" :reload="load" />
-        </header>
+            </template>
+            <template v-if="data" #subtitle>
+                {{ labels.slug }}: <code>{{ data.slug }}</code>
+            </template>
+            <template #actions>
+                <slot name="header-actions" :data="data" :reload="load" />
+            </template>
+        </AdminHero>
 
         <div class="sa-tenant-detail__body">
             <div v-if="loading" class="sa-tenant-detail__state">
@@ -118,11 +119,13 @@
             @submit="onConfirmSubmit"
             @cancel="onConfirmCancel"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, toRef } from 'vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { RouteLocationRaw } from 'vue-router';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -392,15 +395,8 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
 </script>
 
 <style scoped>
-.sa-tenant-detail {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app);
-}
 .sa-tenant-detail__back {
     margin-bottom: 6px;
-}
-.sa-tenant-detail__body {
-    padding: 12px 28px 28px;
 }
 .sa-tenant-detail__card-head {
     display: flex;

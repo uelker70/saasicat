@@ -1,6 +1,20 @@
 <template>
-    <div class="sa-discovery">
-        <DiscoveryHeader :loading="loading" @run-discovery="onRunDiscovery" />
+    <AdminPage class="sa-discovery">
+        <AdminHero :title="msg.title">
+            <template #subtitle>
+                {{ msg.subtitleLead }} <b>{{ msg.subtitleEmphasis }}</b> {{ msg.subtitleTail }}
+            </template>
+            <template #actions>
+                <q-btn
+                    unelevated
+                    color="primary"
+                    icon="bolt"
+                    :label="msg.runDiscovery"
+                    :loading="loading"
+                    @click="onRunDiscovery"
+                />
+            </template>
+        </AdminHero>
 
         <DiscoveryMetaBanner
             :app-label="appLabel"
@@ -117,7 +131,7 @@
                 </div>
             </q-tab-panel>
         </q-tab-panels>
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
@@ -135,7 +149,8 @@ import type {
 } from '@saasicat/types';
 import DiscoveryCapList from './discovery-page/DiscoveryCapList.vue';
 import DiscoveryFeatureCard from './discovery-page/DiscoveryFeatureCard.vue';
-import DiscoveryHeader from './discovery-page/DiscoveryHeader.vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import DiscoveryKpis from './discovery-page/DiscoveryKpis.vue';
 import DiscoveryMetaBanner from './discovery-page/DiscoveryMetaBanner.vue';
 import DiscoveryQuotaCard from './discovery-page/DiscoveryQuotaCard.vue';
@@ -437,23 +452,6 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 14px;
-}
-.sa-discovery__head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 16px;
-}
-.sa-discovery__title {
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0;
-}
-.sa-discovery__sub {
-    margin: 4px 0 0;
-    color: #64748b;
-    font-size: 12px;
-    max-width: 640px;
 }
 .sa-discovery__banner {
     display: flex;

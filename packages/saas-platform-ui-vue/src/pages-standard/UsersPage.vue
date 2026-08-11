@@ -1,11 +1,7 @@
 <template>
-    <div class="sa-users">
-        <header class="sa-page-head">
-            <div>
-                <h1 class="sa-page-head__title">{{ resolvedTitle }}</h1>
-                <p v-if="subtitle" class="sa-page-head__sub">{{ subtitle }}</p>
-            </div>
-            <div class="sa-page-head__actions">
+    <AdminPage class="sa-users">
+        <AdminHero :title="resolvedTitle" :subtitle="subtitle">
+            <template #actions>
                 <q-btn
                     unelevated
                     color="primary"
@@ -13,8 +9,8 @@
                     :label="common.search"
                     @click="reload"
                 />
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
         <div class="sa-stats">
             <button
@@ -106,13 +102,15 @@
             @update:model-value="onMfaDialogVisibility"
             @confirm="onMfaConfirm"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
@@ -497,11 +495,6 @@ function onDeactivateClick(row: UserRow): void {
 </script>
 
 <style scoped>
-.sa-users {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-    padding: 20px 28px 28px;
-}
 .sa-users__filter {
     display: flex;
     gap: 10px;

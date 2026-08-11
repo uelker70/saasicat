@@ -1,13 +1,10 @@
 <template>
-    <div class="sa-pilots">
-        <header class="sa-page-head">
-            <div>
-                <h1 class="sa-page-head__title">{{ msg.title }}</h1>
-                <p class="sa-page-head__sub">
-                    {{ formatMessage(msg.subtitleCount, { count: rows.length }) }}
-                </p>
-            </div>
-            <div class="sa-page-head__actions">
+    <AdminPage class="sa-pilots">
+        <AdminHero
+            :title="msg.title"
+            :subtitle="formatMessage(msg.subtitleCount, { count: rows.length })"
+        >
+            <template #actions>
                 <slot name="head-actions">
                     <q-btn
                         v-if="enableCreate"
@@ -18,8 +15,8 @@
                         @click="showCreate = true"
                     />
                 </slot>
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
         <div class="sa-stats">
             <button
@@ -105,7 +102,7 @@
             @update:model-value="onMfaDialogVisibility"
             @confirm="onMfaConfirm"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
@@ -114,6 +111,8 @@ import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import PilotCreateDialog from '../components/dialogs/PilotCreateDialog.vue';
 import PilotEditDialog from '../components/dialogs/PilotEditDialog.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
@@ -575,11 +574,6 @@ function formatDate(iso: string | null | undefined): string | null {
 </script>
 
 <style scoped>
-.sa-pilots {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-    padding: 20px 28px 28px;
-}
 .sa-pilots__card {
     background: #fff;
     border: 1px solid var(--sa-border, #e2e8f0);

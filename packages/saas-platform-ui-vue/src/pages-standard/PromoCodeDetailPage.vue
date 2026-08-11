@@ -1,7 +1,7 @@
 <template>
-    <div class="sa-promo-detail">
-        <header class="sa-page-head">
-            <div>
+    <AdminPage class="sa-promo-detail">
+        <AdminHero :title="data?.promo.code ?? labels.promoCode">
+            <template #before-title>
                 <q-btn
                     flat
                     dense
@@ -10,19 +10,18 @@
                     :to="backRoute"
                     class="sa-promo-detail__back"
                 />
-                <h1 class="sa-page-head__title">{{ data?.promo.code ?? labels.promoCode }}</h1>
-                <p class="sa-page-head__sub">
-                    <template v-if="data">
-                        {{ data.promo.valueType }} · {{ data.promo.value }} ·
-                        <q-badge
-                            :color="resolveStatusColor(String(data.promo.status))"
-                            :label="String(data.promo.status)"
-                        />
-                    </template>
-                    <template v-else>—</template>
-                </p>
-            </div>
-            <div class="sa-promo-detail__head-actions">
+            </template>
+            <template #subtitle>
+                <template v-if="data">
+                    {{ data.promo.valueType }} · {{ data.promo.value }} ·
+                    <q-badge
+                        :color="resolveStatusColor(String(data.promo.status))"
+                        :label="String(data.promo.status)"
+                    />
+                </template>
+                <template v-else>—</template>
+            </template>
+            <template #actions>
                 <q-btn
                     v-if="editSubmit && data"
                     color="primary"
@@ -32,8 +31,8 @@
                     @click="openEdit"
                 />
                 <slot name="header-actions" />
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
         <div class="sa-promo-detail__body">
             <div v-if="loading" class="sa-promo-detail__state">
@@ -86,11 +85,13 @@
             :submit="editSubmit"
             @updated="onEditUpdated"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { RouteLocationRaw } from 'vue-router';
 import type { QTableColumn } from 'quasar';
 import PromoCodeEditDialog, {
@@ -283,10 +284,6 @@ const defaultColumns = computed<QTableColumn[]>(() => [
 </script>
 
 <style scoped>
-.sa-promo-detail {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app);
-}
 .sa-promo-detail__back {
     margin-bottom: 6px;
 }
@@ -297,7 +294,6 @@ const defaultColumns = computed<QTableColumn[]>(() => [
     margin-left: auto;
 }
 .sa-promo-detail__body {
-    padding: 12px 28px 28px;
     display: flex;
     flex-direction: column;
     gap: 14px;

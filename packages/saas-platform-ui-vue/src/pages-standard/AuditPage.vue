@@ -1,20 +1,19 @@
 <template>
-    <div class="sa-audit">
-        <header class="sa-audit__head">
-            <div>
-                <h1 class="sa-audit__title">{{ msg.title }}</h1>
-                <p class="sa-audit__sub">
-                    {{ formatMessage(msg.subtitle, { count: rows.length }) }}
-                </p>
-            </div>
-            <q-btn
-                unelevated
-                color="primary"
-                icon="refresh"
-                :label="msg.filterButton"
-                @click="reload"
-            />
-        </header>
+    <AdminPage class="sa-audit">
+        <AdminHero
+            :title="msg.title"
+            :subtitle="formatMessage(msg.subtitle, { count: rows.length })"
+        >
+            <template #actions>
+                <q-btn
+                    unelevated
+                    color="primary"
+                    icon="refresh"
+                    :label="msg.filterButton"
+                    @click="reload"
+                />
+            </template>
+        </AdminHero>
 
         <div class="sa-audit__body">
             <div class="sa-audit__filter">
@@ -89,11 +88,13 @@
                 </q-card-actions>
             </q-card>
         </q-dialog>
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
@@ -206,32 +207,6 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <style scoped>
-.sa-audit {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-}
-.sa-audit__head {
-    padding: 20px 28px 8px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-}
-.sa-audit__title {
-    margin: 0;
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 22px;
-    color: var(--sa-heading, #0f172a);
-}
-.sa-audit__sub {
-    margin: 4px 0 0;
-    color: var(--sa-muted-dark, #475569);
-    font-size: 13.5px;
-}
-.sa-audit__body {
-    padding: 12px 28px 28px;
-}
 .sa-audit__filter {
     display: flex;
     gap: 10px;

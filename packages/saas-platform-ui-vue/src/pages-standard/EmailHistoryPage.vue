@@ -1,12 +1,10 @@
 <template>
-    <div class="sa-emh">
-        <header class="sa-emh__head">
-            <div>
-                <h1 class="sa-emh__title">{{ resolvedTitle }}</h1>
-                <p class="sa-emh__sub">{{ msg.history.subtitle }}</p>
-            </div>
-            <q-btn flat icon="refresh" :label="common.reload" @click="applyFilter" />
-        </header>
+    <AdminPage class="sa-emh">
+        <AdminHero :title="resolvedTitle" :subtitle="msg.history.subtitle">
+            <template #actions>
+                <q-btn flat icon="refresh" :label="common.reload" @click="applyFilter" />
+            </template>
+        </AdminHero>
 
         <div class="sa-emh__body">
             <div class="sa-emh__filter">
@@ -213,11 +211,13 @@
             @update:model-value="onMfaDialogVisibility"
             @confirm="onMfaConfirm"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
@@ -521,32 +521,6 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <style scoped>
-.sa-emh {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-}
-.sa-emh__head {
-    padding: 20px 28px 8px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-}
-.sa-emh__title {
-    margin: 0;
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 22px;
-    color: var(--sa-heading, #0f172a);
-}
-.sa-emh__sub {
-    margin: 4px 0 0;
-    color: var(--sa-muted-dark, #475569);
-    font-size: 13.5px;
-}
-.sa-emh__body {
-    padding: 12px 28px 28px;
-}
 .sa-emh__filter {
     display: flex;
     gap: 10px;

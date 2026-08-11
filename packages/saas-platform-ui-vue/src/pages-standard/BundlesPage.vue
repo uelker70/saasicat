@@ -1,13 +1,17 @@
 <template>
-    <div class="sa-bundles">
-        <BundlesHeader
-            :loading="loading"
-            :display-locale="displayLocale"
-            :locales="locales"
-            @create="openCreatePanel"
-            @refresh="load"
-            @update:display-locale="(value) => (displayLocale = value)"
-        />
+    <AdminPage class="sa-bundles">
+        <AdminHero :title="msg.header.title" :subtitle="msg.header.subtitle">
+            <template #actions>
+                <BundlesToolbar
+                    :loading="loading"
+                    :display-locale="displayLocale"
+                    :locales="locales"
+                    @create="openCreatePanel"
+                    @refresh="load"
+                    @update:display-locale="(value) => (displayLocale = value)"
+                />
+            </template>
+        </AdminHero>
 
         <q-banner v-if="error" class="sa-bundles__error" rounded>
             <template #avatar><q-icon name="warning" color="negative" /></template>
@@ -131,7 +135,7 @@
             :submit="onPublishSubmit"
             @submitted="onPublishSubmitted"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
@@ -174,7 +178,9 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import BundleAccordionList from './bundles-page/BundleAccordionList.vue';
 import BundleDetailPanel from './bundles-page/BundleDetailPanel.vue';
 import BundlesFilterBar from './bundles-page/BundlesFilterBar.vue';
-import BundlesHeader from './bundles-page/BundlesHeader.vue';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
+import BundlesToolbar from './bundles-page/BundlesToolbar.vue';
 import BundlesKpis from './bundles-page/BundlesKpis.vue';
 import type {
     BundleEditForm,
@@ -643,32 +649,9 @@ const classifyDiff = computed(() => props.classifyDiff);
 
 <style>
 .sa-bundles {
-    padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 14px;
-}
-.sa-bundles__head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 16px;
-}
-.sa-bundles__title {
-    font-size: 20px;
-    font-weight: 700;
-    margin: 0;
-}
-.sa-bundles__sub {
-    margin: 4px 0 0;
-    color: #64748b;
-    font-size: 12px;
-    max-width: 560px;
-}
-.sa-bundles__head-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
 }
 .sa-bundles__error {
     border-left: 4px solid #dc2626;

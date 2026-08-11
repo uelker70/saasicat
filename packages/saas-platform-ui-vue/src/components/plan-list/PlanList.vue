@@ -1,49 +1,12 @@
 <template>
-    <div class="pl">
-        <!-- Page header -->
-        <div class="pl-page-head">
-            <div>
-                <h2 class="pl-h-title">{{ msg.list.title }}</h2>
-                <p class="pl-h-sub">{{ summary }}</p>
-            </div>
-            <div class="pl-head-actions">
-                <button class="pl-btn" type="button" @click="$emit('showMatrix')">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <rect x="3" y="3" width="7" height="7" rx="1" />
-                        <rect x="14" y="3" width="7" height="7" rx="1" />
-                        <rect x="3" y="14" width="7" height="7" rx="1" />
-                        <rect x="14" y="14" width="7" height="7" rx="1" />
-                    </svg>
-                    <span>{{ msg.list.matrixView }}</span>
-                </button>
-                <button class="pl-btn pl-btn--primary" type="button" @click="$emit('createPlan')">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                    >
-                        <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span>{{ msg.list.newPlan }}</span>
-                </button>
-            </div>
-        </div>
+    <div class="sa-plan-list">
+        <p class="sa-plan-list-summary">{{ summary }}</p>
 
         <!-- List wrapper -->
-        <div class="pl-wrap">
-            <div class="pl-toolbar">
-                <div class="pl-search">
-                    <span class="pl-search-ico" aria-hidden="true">
+        <div class="sa-plan-list-wrap">
+            <div class="sa-plan-list-toolbar">
+                <div class="sa-plan-list-search">
+                    <span class="sa-plan-list-search-ico" aria-hidden="true">
                         <svg
                             width="14"
                             height="14"
@@ -57,14 +20,14 @@
                         </svg>
                     </span>
                     <input v-model="search" :placeholder="msg.list.searchPlaceholder" />
-                    <span class="pl-kbd">⌘ K</span>
+                    <span class="sa-plan-list-kbd">⌘ K</span>
                 </div>
-                <div class="pl-toolbar-spacer" />
-                <div class="pl-sortinfo">{{ msg.list.sortedBy }}</div>
+                <div class="sa-plan-list-toolbar-spacer" />
+                <div class="sa-plan-list-sortinfo">{{ msg.list.sortedBy }}</div>
             </div>
 
-            <div class="pl-list">
-                <div class="pl-list-head">
+            <div class="sa-plan-list-list">
+                <div class="sa-plan-list-list-head">
                     <div>{{ msg.list.columnPlan }}</div>
                     <div>{{ common.status }}</div>
                     <div>{{ msg.list.columnVersion }}</div>
@@ -73,7 +36,7 @@
                     <div />
                 </div>
 
-                <div v-if="filteredPlans.length === 0" class="pl-empty">
+                <div v-if="filteredPlans.length === 0" class="sa-plan-list-empty">
                     <template v-if="resolvedPlans.length === 0">
                         {{ msg.list.emptyNoPlans }}
                     </template>
@@ -83,13 +46,16 @@
                 <template v-for="p in filteredPlans" :key="p.plan.id">
                     <!-- Parent row: currently live version (or first future / nothing) -->
                     <div
-                        :class="['pl-row', { 'pl-row--new': highlightPlanKey === p.planKey }]"
+                        :class="[
+                            'sa-plan-list-row',
+                            { 'sa-plan-list-row--new': highlightPlanKey === p.planKey },
+                        ]"
                         @click="$emit('openPlan', p.plan)"
                     >
-                        <div class="pl-cell pl-cell--name">
-                            <div class="pl-plan-name">
+                        <div class="sa-plan-list-cell sa-plan-list-cell--name">
+                            <div class="sa-plan-list-plan-name">
                                 <div
-                                    class="pl-plan-mark"
+                                    class="sa-plan-list-plan-mark"
                                     :style="{
                                         background: planAccent(p.planKey) + '15',
                                         color: planAccent(p.planKey),
@@ -98,49 +64,60 @@
                                 >
                                     {{ p.planKey.slice(0, 3) }}
                                 </div>
-                                <div class="pl-plan-titles">
-                                    <div class="pl-plan-title">
+                                <div class="sa-plan-list-plan-titles">
+                                    <div class="sa-plan-list-plan-title">
                                         {{ p.label }}
                                         <span
                                             v-if="highlightPlanKey === p.planKey"
-                                            class="pl-chip pl-chip--new"
+                                            class="sa-plan-list-chip sa-plan-list-chip--new"
                                             >{{ msg.list.badgeNew }}</span
                                         >
                                     </div>
-                                    <div class="pl-plan-desc">{{ p.description || '—' }}</div>
+                                    <div class="sa-plan-list-plan-desc">
+                                        {{ p.description || '—' }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="pl-cell pl-cell--status">
+                        <div class="sa-plan-list-cell sa-plan-list-cell--status">
                             <template v-if="p.currentLive">
-                                <span class="pl-chip pl-chip--live pl-chip--dot">{{
-                                    msg.list.chipLive
-                                }}</span>
+                                <span
+                                    class="sa-plan-list-chip sa-plan-list-chip--live sa-plan-list-chip--dot"
+                                    >{{ msg.list.chipLive }}</span
+                                >
                                 <span
                                     v-if="!p.currentLive.marketed"
-                                    class="pl-chip pl-chip--supersed pl-chip--tiny"
+                                    class="sa-plan-list-chip sa-plan-list-chip--supersed sa-plan-list-chip--tiny"
                                     >{{ msg.list.chipPrivate }}</span
                                 >
                             </template>
                             <template v-else-if="p.primary && p.primary.publishedAt">
-                                <span class="pl-chip pl-chip--scheduled pl-chip--dot">
+                                <span
+                                    class="sa-plan-list-chip sa-plan-list-chip--scheduled sa-plan-list-chip--dot"
+                                >
                                     {{ validFromLabel(p.primary.validFrom) }}
                                 </span>
                             </template>
                             <template v-else>
-                                <span class="pl-chip pl-chip--supersed pl-chip--dot">{{
-                                    msg.list.chipNoLive
-                                }}</span>
+                                <span
+                                    class="sa-plan-list-chip sa-plan-list-chip--supersed sa-plan-list-chip--dot"
+                                    >{{ msg.list.chipNoLive }}</span
+                                >
                             </template>
                         </div>
 
-                        <div class="pl-cell">
-                            <div v-if="p.primary" class="pl-version-num">
+                        <div class="sa-plan-list-cell">
+                            <div v-if="p.primary" class="sa-plan-list-version-num">
                                 v{{ p.primary.version }}
                             </div>
-                            <div v-else class="pl-version-num pl-version-num--muted">—</div>
-                            <div v-if="p.primary?.validFrom" class="pl-version-sub">
+                            <div
+                                v-else
+                                class="sa-plan-list-version-num sa-plan-list-version-num--muted"
+                            >
+                                —
+                            </div>
+                            <div v-if="p.primary?.validFrom" class="sa-plan-list-version-sub">
                                 {{
                                     validityRange(
                                         p.currentLive ? msg.list.since : msg.list.from,
@@ -151,9 +128,9 @@
                             </div>
                         </div>
 
-                        <div class="pl-cell">
+                        <div class="sa-plan-list-cell">
                             <template v-if="!p.primary">
-                                <span class="pl-price-text">—</span>
+                                <span class="sa-plan-list-price-text">—</span>
                             </template>
                             <template
                                 v-else-if="
@@ -161,29 +138,31 @@
                                     Number(p.primary.yearlyNet) === 0
                                 "
                             >
-                                <span class="pl-price-text">{{ msg.list.priceFree }}</span>
+                                <span class="sa-plan-list-price-text">{{
+                                    msg.list.priceFree
+                                }}</span>
                             </template>
                             <template v-else>
                                 <div>
-                                    <span class="pl-price-big">{{
+                                    <span class="sa-plan-list-price-big">{{
                                         formatMoney(p.primary.monthlyNet)
                                     }}</span>
-                                    <span class="pl-price-unit">{{
+                                    <span class="sa-plan-list-price-unit">{{
                                         ' ' + msg.list.perMonthShort
                                     }}</span>
                                 </div>
-                                <div class="pl-price-sub">
+                                <div class="sa-plan-list-price-sub">
                                     {{ formatMoney(p.primary.yearlyNet) }}
                                     {{ msg.list.perYearShort }}
                                 </div>
                             </template>
                         </div>
 
-                        <div class="pl-cell pl-cell--tenants">
-                            <span class="pl-tenant-num">{{ p.tenantCount }}</span>
-                            <div class="pl-tenant-bar">
+                        <div class="sa-plan-list-cell sa-plan-list-cell--tenants">
+                            <span class="sa-plan-list-tenant-num">{{ p.tenantCount }}</span>
+                            <div class="sa-plan-list-tenant-bar">
                                 <div
-                                    class="pl-tenant-bar-fill"
+                                    class="sa-plan-list-tenant-bar-fill"
                                     :style="{
                                         width: tenantBarWidth(p.tenantCount),
                                         background: planAccent(p.planKey),
@@ -192,10 +171,10 @@
                             </div>
                         </div>
 
-                        <div class="pl-cell pl-cell--actions" @click.stop>
+                        <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <button
                                 v-if="hasAnyPublished(p)"
-                                class="pl-btn pl-btn--sm pl-btn--ghost"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
                                 type="button"
                                 disabled
                                 :title="msg.list.actionDeleteBlocked"
@@ -215,7 +194,7 @@
                             </button>
                             <button
                                 v-else
-                                class="pl-btn pl-btn--sm pl-btn--ghost pl-btn--danger"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost sa-plan-list-btn--danger"
                                 type="button"
                                 :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
@@ -234,7 +213,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="pl-btn pl-btn--sm pl-btn--ghost"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionClonePlan"
                                 @click="$emit('clonePlan', p.plan)"
@@ -252,7 +231,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="pl-btn pl-btn--sm pl-btn--ghost"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionNewVersion"
                                 :disabled="!!p.draft"
@@ -272,7 +251,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="pl-btn pl-btn--sm"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm"
                                 type="button"
                                 :title="msg.list.actionOpenPlan"
                                 @click="$emit('openPlan', p.plan)"
@@ -295,86 +274,92 @@
                     <div
                         v-for="sub in p.subRows"
                         :key="`${p.plan.id}-${sub.id}`"
-                        class="pl-row pl-row--sub"
+                        class="sa-plan-list-row sa-plan-list-row--sub"
                         @click.stop="$emit('openPlan', p.plan)"
                     >
-                        <div class="pl-cell pl-cell--name pl-cell--sub-name">
-                            <div class="pl-sub-tree" aria-hidden="true">
-                                <span class="pl-sub-tree-elbow" />
+                        <div
+                            class="sa-plan-list-cell sa-plan-list-cell--name sa-plan-list-cell--sub-name"
+                        >
+                            <div class="sa-plan-list-sub-tree" aria-hidden="true">
+                                <span class="sa-plan-list-sub-tree-elbow" />
                             </div>
-                            <div class="pl-sub-titles">
-                                <div class="pl-sub-title">
+                            <div class="sa-plan-list-sub-titles">
+                                <div class="sa-plan-list-sub-title">
                                     v{{ sub.version }}
                                     <template v-if="sub.publishedAt === null">
                                         <span
-                                            class="pl-chip pl-chip--draft pl-chip--dot pl-chip--tiny"
+                                            class="sa-plan-list-chip sa-plan-list-chip--draft sa-plan-list-chip--dot sa-plan-list-chip--tiny"
                                             >{{ msg.list.chipDraft }}</span
                                         >
                                     </template>
                                     <template v-else>
                                         <span
-                                            class="pl-chip pl-chip--scheduled pl-chip--dot pl-chip--tiny"
+                                            class="sa-plan-list-chip sa-plan-list-chip--scheduled sa-plan-list-chip--dot sa-plan-list-chip--tiny"
                                             >{{ msg.list.chipScheduled }}</span
                                         >
                                     </template>
                                 </div>
-                                <div class="pl-sub-desc">
+                                <div class="sa-plan-list-sub-desc">
                                     {{ sub.changeNote || msg.list.noChangeNote }}
                                 </div>
                             </div>
                         </div>
 
-                        <div class="pl-cell pl-cell--status">
+                        <div class="sa-plan-list-cell sa-plan-list-cell--status">
                             <span
                                 v-if="sub.publishedAt === null"
-                                class="pl-chip pl-chip--draft pl-chip--dot pl-chip--tiny"
+                                class="sa-plan-list-chip sa-plan-list-chip--draft sa-plan-list-chip--dot sa-plan-list-chip--tiny"
                                 >{{ msg.list.chipDraft }}</span
                             >
                             <span
                                 v-else
-                                class="pl-chip pl-chip--scheduled pl-chip--dot pl-chip--tiny"
+                                class="sa-plan-list-chip sa-plan-list-chip--scheduled sa-plan-list-chip--dot sa-plan-list-chip--tiny"
                                 >{{ validFromLabel(sub.validFrom) }}</span
                             >
                         </div>
 
-                        <div class="pl-cell">
-                            <div class="pl-version-num pl-version-num--sub">v{{ sub.version }}</div>
-                            <div v-if="sub.validFrom" class="pl-version-sub">
+                        <div class="sa-plan-list-cell">
+                            <div class="sa-plan-list-version-num sa-plan-list-version-num--sub">
+                                v{{ sub.version }}
+                            </div>
+                            <div v-if="sub.validFrom" class="sa-plan-list-version-sub">
                                 {{ validityRange(msg.list.from, sub.validFrom, sub.validUntil) }}
                             </div>
                         </div>
 
-                        <div class="pl-cell">
+                        <div class="sa-plan-list-cell">
                             <template
                                 v-if="Number(sub.monthlyNet) === 0 && Number(sub.yearlyNet) === 0"
                             >
-                                <span class="pl-price-text">{{ msg.list.priceFree }}</span>
+                                <span class="sa-plan-list-price-text">{{
+                                    msg.list.priceFree
+                                }}</span>
                             </template>
                             <template v-else>
                                 <div>
-                                    <span class="pl-price-big">{{
+                                    <span class="sa-plan-list-price-big">{{
                                         formatMoney(sub.monthlyNet)
                                     }}</span>
-                                    <span class="pl-price-unit">{{
+                                    <span class="sa-plan-list-price-unit">{{
                                         ' ' + msg.list.perMonthShort
                                     }}</span>
                                 </div>
-                                <div class="pl-price-sub">
+                                <div class="sa-plan-list-price-sub">
                                     {{ formatMoney(sub.yearlyNet) }} {{ msg.list.perYearShort }}
                                 </div>
                             </template>
                         </div>
 
-                        <div class="pl-cell pl-cell--sub-impact">
-                            <span class="pl-version-sub">{{
+                        <div class="sa-plan-list-cell sa-plan-list-cell--sub-impact">
+                            <span class="sa-plan-list-version-sub">{{
                                 tenantCountLabel(p.tenantCount)
                             }}</span>
                         </div>
 
-                        <div class="pl-cell pl-cell--actions" @click.stop>
+                        <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <button
                                 v-if="sub.publishedAt === null"
-                                class="pl-btn pl-btn--sm pl-btn--ghost pl-btn--danger"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost sa-plan-list-btn--danger"
                                 type="button"
                                 :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
@@ -394,7 +379,7 @@
                             </button>
                             <button
                                 v-if="sub.publishedAt === null"
-                                class="pl-btn pl-btn--sm pl-btn--ghost"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
@@ -413,7 +398,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="pl-btn pl-btn--sm"
+                                class="sa-plan-list-btn sa-plan-list-btn--sm"
                                 type="button"
                                 :title="msg.list.actionOpenInCockpit"
                                 @click="$emit('openPlan', p.plan)"
@@ -467,13 +452,11 @@ const props = withDefaults(
 
 const emit = defineEmits<{
     (e: 'openPlan', plan: PlanRow): void;
-    (e: 'createPlan'): void;
     (e: 'clonePlan', plan: PlanRow): void;
     (e: 'newVersion', plan: PlanRow, basis: PlanVersionRow): void;
     (e: 'editDraft', plan: PlanRow, draft: PlanVersionRow): void;
     (e: 'discardDraft', plan: PlanRow, draft: PlanVersionRow): void;
     (e: 'archivePlan', plan: PlanRow, hasLive: boolean): void;
-    (e: 'showMatrix'): void;
 }>();
 
 const msg = useSaMessages('plans');
@@ -681,230 +664,214 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 </script>
 
 <style scoped>
-.pl {
-    --pl-bg: #f6f7f9;
-    --pl-surface: #ffffff;
-    --pl-surface-2: #f8fafc;
-    --pl-border: #e5e7eb;
-    --pl-border-strong: #d1d5db;
-    --pl-text: #0f172a;
-    --pl-text-2: #475569;
-    --pl-text-3: #94a3b8;
-    --pl-primary: #2563eb;
-    --pl-primary-700: #1d4ed8;
-    --pl-live-bg: #ecfdf5;
-    --pl-draft-bg: #fffbeb;
-    --pl-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --pl-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+.sa-plan-list {
+    --sa-plan-list-bg: #f6f7f9;
+    --sa-plan-list-surface: #ffffff;
+    --sa-plan-list-surface-2: #f8fafc;
+    --sa-plan-list-border: #e5e7eb;
+    --sa-plan-list-border-strong: #d1d5db;
+    --sa-plan-list-text: #0f172a;
+    --sa-plan-list-text-2: #475569;
+    --sa-plan-list-text-3: #94a3b8;
+    --sa-plan-list-primary: #2563eb;
+    --sa-plan-list-primary-700: #1d4ed8;
+    --sa-plan-list-live-bg: #ecfdf5;
+    --sa-plan-list-draft-bg: #fffbeb;
+    --sa-plan-list-font-sans:
+        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    --sa-plan-list-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
     padding: 22px 26px;
-    background: var(--pl-bg);
-    color: var(--pl-text);
-    font-family: var(--pl-font-sans);
+    background: var(--sa-plan-list-bg);
+    color: var(--sa-plan-list-text);
+    font-family: var(--sa-plan-list-font-sans);
     min-height: 100%;
     box-sizing: border-box;
 }
-.pl * {
+.sa-plan-list * {
     box-sizing: border-box;
 }
 
-.pl-page-head {
-    display: flex;
-    align-items: flex-end;
-    gap: 20px;
-    margin-bottom: 18px;
-}
-.pl-h-title {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin: 0;
-}
-.pl-h-sub {
+.sa-plan-list-summary {
     font-size: 12.5px;
-    color: var(--pl-text-2);
-    margin: 3px 0 0;
-}
-.pl-head-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 8px;
+    color: var(--sa-plan-list-text-2);
+    margin: 0 0 18px;
 }
 
 /* Buttons */
-.pl-btn {
+.sa-plan-list-btn {
     display: inline-flex;
     align-items: center;
     gap: 7px;
     padding: 8px 14px;
     border-radius: 7px;
-    font: 500 13px var(--pl-font-sans);
+    font: 500 13px var(--sa-plan-list-font-sans);
     cursor: pointer;
-    border: 1px solid var(--pl-border-strong);
+    border: 1px solid var(--sa-plan-list-border-strong);
     background: #fff;
-    color: var(--pl-text);
+    color: var(--sa-plan-list-text);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
-.pl-btn:hover:not(:disabled) {
-    background: var(--pl-surface-2);
+.sa-plan-list-btn:hover:not(:disabled) {
+    background: var(--sa-plan-list-surface-2);
 }
-.pl-btn:disabled {
+.sa-plan-list-btn:disabled {
     cursor: not-allowed;
     opacity: 0.4;
 }
-.pl-btn--primary {
-    background: var(--pl-primary);
-    border-color: var(--pl-primary);
+.sa-plan-list-btn--primary {
+    background: var(--sa-plan-list-primary);
+    border-color: var(--sa-plan-list-primary);
     color: #fff;
 }
-.pl-btn--primary:hover {
-    background: var(--pl-primary-700);
+.sa-plan-list-btn--primary:hover {
+    background: var(--sa-plan-list-primary-700);
 }
-.pl-btn--ghost {
+.sa-plan-list-btn--ghost {
     border-color: transparent;
     background: transparent;
 }
-.pl-btn--ghost:hover:not(:disabled) {
+.sa-plan-list-btn--ghost:hover:not(:disabled) {
     background: rgba(15, 23, 42, 0.05);
 }
-.pl-btn--danger {
+.sa-plan-list-btn--danger {
     color: #ef4444;
 }
-.pl-btn--danger:hover:not(:disabled) {
+.sa-plan-list-btn--danger:hover:not(:disabled) {
     background: #fef2f2;
     color: #b91c1c;
 }
-.pl-btn--sm {
+.sa-plan-list-btn--sm {
     padding: 5px 8px;
     font-size: 12px;
     gap: 5px;
 }
 
 /* List wrap */
-.pl-wrap {
-    background: var(--pl-surface);
-    border: 1px solid var(--pl-border);
+.sa-plan-list-wrap {
+    background: var(--sa-plan-list-surface);
+    border: 1px solid var(--sa-plan-list-border);
     border-radius: 10px;
     overflow: hidden;
 }
-.pl-toolbar {
+.sa-plan-list-toolbar {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--pl-border);
+    border-bottom: 1px solid var(--sa-plan-list-border);
     background: #fbfbfd;
 }
-.pl-search {
+.sa-plan-list-search {
     flex: 1;
     max-width: 360px;
     display: flex;
     align-items: center;
     gap: 8px;
     background: #fff;
-    border: 1px solid var(--pl-border);
+    border: 1px solid var(--sa-plan-list-border);
     border-radius: 7px;
     padding: 7px 10px;
 }
-.pl-search-ico {
-    color: var(--pl-text-3);
+.sa-plan-list-search-ico {
+    color: var(--sa-plan-list-text-3);
     display: inline-flex;
 }
-.pl-search input {
+.sa-plan-list-search input {
     flex: 1;
     border: 0;
     outline: 0;
-    font: 13px var(--pl-font-sans);
+    font: 13px var(--sa-plan-list-font-sans);
     background: transparent;
-    color: var(--pl-text);
+    color: var(--sa-plan-list-text);
 }
-.pl-kbd {
-    font: 600 10.5px var(--pl-font-mono);
+.sa-plan-list-kbd {
+    font: 600 10.5px var(--sa-plan-list-font-mono);
     background: #f1f5f9;
-    color: var(--pl-text-2);
+    color: var(--sa-plan-list-text-2);
     padding: 2px 6px;
     border-radius: 4px;
     border: 1px solid #e2e8f0;
 }
-.pl-toolbar-spacer {
+.sa-plan-list-toolbar-spacer {
     flex: 1;
 }
-.pl-sortinfo {
+.sa-plan-list-sortinfo {
     margin-left: auto;
     font-size: 11.5px;
-    color: var(--pl-text-3);
+    color: var(--sa-plan-list-text-3);
 }
 
 /* List grid */
-.pl-list {
+.sa-plan-list-list {
     display: grid;
     grid-template-columns: 1.6fr 0.9fr 0.7fr 0.9fr 1.4fr 160px;
     align-items: center;
 }
-.pl-list-head {
+.sa-plan-list-list-head {
     display: contents;
 }
-.pl-list-head > div {
+.sa-plan-list-list-head > div {
     background: #fbfbfd;
     padding: 10px 16px;
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--pl-text-2);
+    color: var(--sa-plan-list-text-2);
     font-weight: 700;
-    border-bottom: 1px solid var(--pl-border);
+    border-bottom: 1px solid var(--sa-plan-list-border);
 }
-.pl-empty {
+.sa-plan-list-empty {
     grid-column: 1 / -1;
     padding: 32px 24px;
     text-align: center;
-    color: var(--pl-text-3);
+    color: var(--sa-plan-list-text-3);
     font-style: italic;
     font-size: 13px;
 }
-.pl-row {
+.sa-plan-list-row {
     display: contents;
     cursor: pointer;
 }
-.pl-row > .pl-cell {
+.sa-plan-list-row > .sa-plan-list-cell {
     padding: 14px 16px;
     border-bottom: 1px solid #f1f5f9;
     transition: background 0.12s;
 }
-.pl-row:hover > .pl-cell {
+.sa-plan-list-row:hover > .sa-plan-list-cell {
     background: #fcfcfd;
 }
-.pl-row--new > .pl-cell {
-    background: var(--pl-live-bg) !important;
-    animation: pl-flashNew 2.4s ease-out;
+.sa-plan-list-row--new > .sa-plan-list-cell {
+    background: var(--sa-plan-list-live-bg) !important;
+    animation: sa-plan-list-flashNew 2.4s ease-out;
 }
-@keyframes pl-flashNew {
+@keyframes sa-plan-list-flashNew {
     0% {
         background: #d1fae5 !important;
     }
     100% {
-        background: var(--pl-live-bg) !important;
+        background: var(--sa-plan-list-live-bg) !important;
     }
 }
 
 /* Sub-rows (drafts + future-scheduled versions, indented under the parent) */
-.pl-row--sub > .pl-cell {
+.sa-plan-list-row--sub > .sa-plan-list-cell {
     background: #fafbfd;
     padding-top: 10px;
     padding-bottom: 10px;
 }
-.pl-row--sub:hover > .pl-cell {
+.sa-plan-list-row--sub:hover > .sa-plan-list-cell {
     background: #f1f5f9;
 }
-.pl-cell--sub-name {
+.sa-plan-list-cell--sub-name {
     display: flex;
     align-items: center;
     gap: 12px;
     padding-left: 32px !important;
 }
-.pl-sub-tree {
+.sa-plan-list-sub-tree {
     display: inline-flex;
     align-items: center;
     width: 28px;
@@ -912,7 +879,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     flex: 0 0 auto;
     position: relative;
 }
-.pl-sub-tree-elbow {
+.sa-plan-list-sub-tree-elbow {
     position: absolute;
     top: 0;
     bottom: 50%;
@@ -922,18 +889,18 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     border-bottom: 1.5px solid #cbd5e1;
     border-bottom-left-radius: 6px;
 }
-.pl-sub-titles {
+.sa-plan-list-sub-titles {
     min-width: 0;
 }
-.pl-sub-title {
+.sa-plan-list-sub-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--pl-text-2);
+    color: var(--sa-plan-list-text-2);
     display: flex;
     align-items: center;
     gap: 8px;
 }
-.pl-sub-desc {
+.sa-plan-list-sub-desc {
     font-size: 11.5px;
     color: #64748b;
     margin-top: 2px;
@@ -941,45 +908,45 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.pl-version-num--sub {
+.sa-plan-list-version-num--sub {
     font-size: 13px;
     font-weight: 600;
-    color: var(--pl-text-2);
+    color: var(--sa-plan-list-text-2);
 }
-.pl-cell--sub-impact {
-    color: var(--pl-text-3);
+.sa-plan-list-cell--sub-impact {
+    color: var(--sa-plan-list-text-3);
 }
 
-.pl-plan-name {
+.sa-plan-list-plan-name {
     display: flex;
     align-items: center;
     gap: 12px;
 }
-.pl-plan-mark {
+.sa-plan-list-plan-mark {
     width: 36px;
     height: 36px;
     border-radius: 8px;
     display: grid;
     place-items: center;
-    font: 700 11px var(--pl-font-mono);
+    font: 700 11px var(--sa-plan-list-font-mono);
     letter-spacing: 0.04em;
     flex: 0 0 auto;
     border: 1px solid;
 }
-.pl-plan-titles {
+.sa-plan-list-plan-titles {
     min-width: 0;
 }
-.pl-plan-title {
+.sa-plan-list-plan-title {
     font-size: 14.5px;
     font-weight: 700;
-    color: var(--pl-text);
+    color: var(--sa-plan-list-text);
     letter-spacing: -0.01em;
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
 }
-.pl-plan-desc {
+.sa-plan-list-plan-desc {
     font-size: 11.5px;
     color: #64748b;
     margin-top: 2px;
@@ -988,7 +955,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     white-space: nowrap;
 }
 
-.pl-cell--status {
+.sa-plan-list-cell--status {
     display: flex;
     flex-direction: column;
     gap: 3px;
@@ -996,7 +963,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 }
 
 /* Chips */
-.pl-chip {
+.sa-plan-list-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -1004,41 +971,41 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: var(--pl-surface-2);
-    color: var(--pl-text-2);
-    border: 1px solid var(--pl-border);
+    background: var(--sa-plan-list-surface-2);
+    color: var(--sa-plan-list-text-2);
+    border: 1px solid var(--sa-plan-list-border);
 }
-.pl-chip--tiny {
+.sa-plan-list-chip--tiny {
     padding: 1px 6px;
     font-size: 10px;
 }
-.pl-chip--new {
+.sa-plan-list-chip--new {
     background: #dbeafe;
     color: #1e40af;
     border-color: #bfdbfe;
     font-size: 10px;
 }
-.pl-chip--live {
-    background: var(--pl-live-bg);
+.sa-plan-list-chip--live {
+    background: var(--sa-plan-list-live-bg);
     color: #047857;
     border-color: #a7f3d0;
 }
-.pl-chip--draft {
-    background: var(--pl-draft-bg);
+.sa-plan-list-chip--draft {
+    background: var(--sa-plan-list-draft-bg);
     color: #b45309;
     border-color: #fde68a;
 }
-.pl-chip--supersed {
+.sa-plan-list-chip--supersed {
     background: #f1f5f9;
-    color: var(--pl-text-2);
+    color: var(--sa-plan-list-text-2);
     border-color: #cbd5e1;
 }
-.pl-chip--scheduled {
+.sa-plan-list-chip--scheduled {
     background: #eef2ff;
     color: #4338ca;
     border-color: #c7d2fe;
 }
-.pl-chip--dot::before {
+.sa-plan-list-chip--dot::before {
     content: '';
     width: 6px;
     height: 6px;
@@ -1046,62 +1013,62 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     background: currentColor;
 }
 
-.pl-version-num {
+.sa-plan-list-version-num {
     font-size: 13px;
     font-weight: 700;
-    color: var(--pl-text);
+    color: var(--sa-plan-list-text);
 }
-.pl-version-num--muted {
+.sa-plan-list-version-num--muted {
     color: #cbd5e1;
 }
-.pl-version-sub {
+.sa-plan-list-version-sub {
     font-size: 10.5px;
-    color: var(--pl-text-3);
+    color: var(--sa-plan-list-text-3);
     margin-top: 2px;
 }
 
-.pl-price-big {
+.sa-plan-list-price-big {
     font-size: 14px;
     font-weight: 700;
-    color: var(--pl-text);
+    color: var(--sa-plan-list-text);
 }
-.pl-price-unit {
+.sa-plan-list-price-unit {
     font-size: 11px;
-    color: var(--pl-text-3);
+    color: var(--sa-plan-list-text-3);
 }
-.pl-price-sub {
+.sa-plan-list-price-sub {
     font-size: 10.5px;
-    color: var(--pl-text-3);
+    color: var(--sa-plan-list-text-3);
     margin-top: 2px;
 }
-.pl-price-text {
+.sa-plan-list-price-text {
     font-size: 13px;
     font-weight: 600;
-    color: var(--pl-text);
+    color: var(--sa-plan-list-text);
 }
 
-.pl-cell--tenants {
+.sa-plan-list-cell--tenants {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-.pl-tenant-num {
+.sa-plan-list-tenant-num {
     font-size: 16px;
     font-weight: 700;
-    color: var(--pl-text);
+    color: var(--sa-plan-list-text);
 }
-.pl-tenant-bar {
+.sa-plan-list-tenant-bar {
     flex: 1;
     height: 6px;
     background: #f1f5f9;
     border-radius: 999px;
     overflow: hidden;
 }
-.pl-tenant-bar-fill {
+.sa-plan-list-tenant-bar-fill {
     height: 100%;
 }
 
-.pl-cell--actions {
+.sa-plan-list-cell--actions {
     display: flex;
     gap: 4px;
     justify-content: flex-end;

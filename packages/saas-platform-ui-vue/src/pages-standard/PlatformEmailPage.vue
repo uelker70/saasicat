@@ -1,11 +1,7 @@
 <template>
-    <div class="sa-pemail">
-        <header class="sa-page-head">
-            <div>
-                <h1 class="sa-page-head__title">{{ resolvedTitle }}</h1>
-                <p class="sa-page-head__sub">{{ msg.provider.subtitle }}</p>
-            </div>
-            <div class="sa-page-head__actions">
+    <AdminPage class="sa-pemail">
+        <AdminHero :title="resolvedTitle" :subtitle="msg.provider.subtitle">
+            <template #actions>
                 <q-btn
                     v-if="rows.length === 0"
                     unelevated
@@ -15,8 +11,8 @@
                     @click="openCreate"
                 />
                 <q-btn flat icon="refresh" :label="common.reload" @click="reload" />
-            </div>
-        </header>
+            </template>
+        </AdminHero>
 
         <div class="sa-pemail__card">
             <q-table
@@ -192,12 +188,14 @@
             @update:model-value="onMfaDialogVisibility"
             @confirm="onMfaConfirm"
         />
-    </div>
+    </AdminPage>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { useQuasar } from 'quasar';
+import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
@@ -484,11 +482,6 @@ async function onTest(): Promise<void> {
 </script>
 
 <style scoped>
-.sa-pemail {
-    min-height: calc(100vh - 56px);
-    background: var(--sa-bg-app, #f1f5f9);
-    padding: 20px 28px 28px;
-}
 .sa-pemail__card {
     background: #fff;
     border: 1px solid var(--sa-border, #e2e8f0);

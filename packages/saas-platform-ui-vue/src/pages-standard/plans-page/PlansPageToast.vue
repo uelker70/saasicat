@@ -1,5 +1,5 @@
 <template>
-    <transition name="pl-toast">
+    <transition name="sa-plans-toast">
         <div v-if="message" class="sa-plans__toast">
             <span class="sa-plans__toast-tick" aria-hidden="true">
                 <svg
@@ -55,14 +55,14 @@ defineProps<{
     place-items: center;
     flex: 0 0 auto;
 }
-.pl-toast-enter-active,
-.pl-toast-leave-active {
+.sa-plans-toast-enter-active,
+.sa-plans-toast-leave-active {
     transition:
         opacity 0.22s ease,
         transform 0.22s ease;
 }
-.pl-toast-enter-from,
-.pl-toast-leave-to {
+.sa-plans-toast-enter-from,
+.sa-plans-toast-leave-to {
     opacity: 0;
     transform: translate(-50%, 12px);
 }
