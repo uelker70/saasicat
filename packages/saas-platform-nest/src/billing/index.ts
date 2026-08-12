@@ -17,6 +17,7 @@ export * from './billing-period.js';
 export * from './version-diff.js';
 export * from './version-publish.js';
 export * from './version-renewal.js';
+export * from './feature-guard-marker.js';
 export * from './require-feature.decorator.js';
 export * from './feature-guard.tokens.js';
 export * from './feature.guard.js';

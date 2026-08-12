@@ -19,20 +19,21 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner } from '@nestjs/core';
 
+import { isPlatformFeatureGuard } from '../billing/feature-guard-marker.js';
 import { REQUIRE_FEATURE_KEY } from '../billing/require-feature.decorator.js';
 
 /** Nest stores `@UseGuards(...)` under this key, on the class and the handler. */
 const GUARDS_METADATA = '__guards__';
 
 /**
- * Class names that count as a feature guard.
+ * Nest puts this on every method that `@Get`/`@Post`/… turned into a route.
  *
- * By NAME rather than by identity: `@saasicat/nest` ships as a dozen CJS
- * entry points, and a class imported through two of them is two classes as far
- * as `===` is concerned — the same trap that made every cross-entry DI token a
- * `Symbol.for`. A name comparison cannot be broken that way.
+ * Needed because a controller's class also holds helper methods, and a
+ * class-level `@RequireFeature` is inherited by all of them. Judging helpers by
+ * their guards would report them as open routes while every real endpoint is
+ * covered — the false positive this check exists to remove.
  */
-const FEATURE_GUARD_NAMES = new Set(['FeatureGuard', 'StaticFeatureGuard']);
+const METHOD_METADATA = 'method';
 
 interface UncoveredRoute {
     controller: string;
@@ -88,12 +89,14 @@ export class FeatureGuardCoverageCheck implements OnApplicationBootstrap {
             const ctor = instance.constructor as (new (...args: unknown[]) => unknown) | undefined;
             if (!ctor) continue;
 
-            const classGuards = readGuardNames(ctor);
+            const classGuards = readGuards(ctor);
             const prototype = Object.getPrototypeOf(instance) as object;
 
             for (const method of this.metadataScanner.getAllMethodNames(prototype)) {
                 const handler = (instance as Record<string, unknown>)[method];
                 if (typeof handler !== 'function') continue;
+                // Route handlers only — see METHOD_METADATA above.
+                if (Reflect.getMetadata(METHOD_METADATA, handler) === undefined) continue;
 
                 // Handler first, then class — the same order the guard itself
                 // uses when it reads the requirement.
@@ -103,8 +106,8 @@ export class FeatureGuardCoverageCheck implements OnApplicationBootstrap {
                     /* not annotated */ null;
                 if (!features || features.length === 0) continue;
 
-                const guards = [...classGuards, ...readGuardNames(handler as object)];
-                if (guards.some((name) => FEATURE_GUARD_NAMES.has(name))) continue;
+                const guards = [...classGuards, ...readGuards(handler as object)];
+                if (guards.some(isPlatformFeatureGuard)) continue;
 
                 uncovered.push({ controller: ctor.name, handler: method, features });
             }
@@ -120,15 +123,19 @@ function readFeatures(target: object): string[] | null {
     return Array.isArray(value) ? (value as string[]) : null;
 }
 
-/** Names of the guards bound to `target` via `@UseGuards(...)`. */
-function readGuardNames(target: object): string[] {
+/**
+ * Guards bound to `target` via `@UseGuards(...)`.
+ *
+ * `@UseGuards` takes classes or instances. An instance carries the marker on
+ * its constructor, so both forms are returned and the caller checks each.
+ */
+function readGuards(target: object): unknown[] {
     const value: unknown = Reflect.getMetadata(GUARDS_METADATA, target);
     if (!Array.isArray(value)) return [];
 
-    return value.map((guard) => {
-        // `@UseGuards` takes classes or instances; both are worth naming.
-        if (typeof guard === 'function') return guard.name;
-        const proto = (guard as { constructor?: { name?: string } })?.constructor;
-        return proto?.name ?? '';
-    });
+    return value.flatMap((guard) =>
+        typeof guard === 'function'
+            ? [guard]
+            : [guard, (guard as { constructor?: unknown } | null)?.constructor],
+    );
 }
