@@ -13,6 +13,9 @@ dist
 
 # Test / coverage
 coverage
+# Written by scripts/coverage-ratchet.mjs on every run; uploaded as a CI
+# artefact, never committed. `coverage` above does not match it.
+coverage-report.json
 test-results
 playwright-report
 .integration-tmp
