@@ -37,7 +37,7 @@ export default defineConfig({
             // (4000 by default, see examples/notesapp/.env) — not on the
             // container-internal 3000.
             '/api': {
-                target: `http://localhost:${process.env.BACKEND_HOST_PORT ?? '4000'}`,
+                target: `http://localhost:${process.env.BACKEND_HOST_PORT ?? '3000'}`,
                 changeOrigin: true,
             },
         },

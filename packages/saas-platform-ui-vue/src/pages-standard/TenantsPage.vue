@@ -130,15 +130,6 @@
                     </template>
                 </AdminTable>
             </AdminSection>
-
-            <AdminPaginator
-                storage-key="tenants"
-                :page="page"
-                :rows-per-page="pageSize"
-                :total="total"
-                @update:page="goToPage"
-                @update:rows-per-page="setPageSize"
-            />
         </AdminBody>
 
         <!-- Manifest-Driven Action Flow: only mounted when the `manifest` prop

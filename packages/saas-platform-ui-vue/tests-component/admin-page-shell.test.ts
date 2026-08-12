@@ -323,6 +323,19 @@ describe('page shell contract', () => {
         expect(offenders).toEqual([]);
     });
 
+    test('the actions column is filled through row-actions, not body-cell-actions', () => {
+        // AdminTable synthesizes the actions column only for `row-actions`. A
+        // leftover `#body-cell-actions` renders nothing at all, because there
+        // is no column of that name any more — the email history lost its
+        // resend and delete buttons exactly this way.
+        const offenders = allVueFiles().filter((file) => {
+            const template = templateOf(readFileSync(file, 'utf8'));
+            return template.includes('<AdminTable') && template.includes('#body-cell-actions');
+        });
+
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
+    });
+
     test('no page declares its own statistic tile styling', () => {
         // Seven near-copies of the same tile preceded AdminKpi, two of them
         // byte identical, three living in unscoped page-level <style> blocks

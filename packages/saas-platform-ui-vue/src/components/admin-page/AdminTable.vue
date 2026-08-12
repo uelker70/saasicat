@@ -2,6 +2,7 @@
     <div class="sa-table">
         <q-table
             v-model:pagination="pagination"
+            v-bind="$attrs"
             flat
             hide-pagination
             :rows="rows"
@@ -42,6 +43,13 @@
         </div>
     </div>
 </template>
+
+<script lang="ts">
+// Attributes and listeners belong on the table, not on the wrapper: a page
+// that binds `@row-click` means the rows, and silently dropping it took the
+// email history's detail view with it.
+export default { inheritAttrs: false };
+</script>
 
 <script setup lang="ts">
 import { computed, ref, useSlots, watch } from 'vue';

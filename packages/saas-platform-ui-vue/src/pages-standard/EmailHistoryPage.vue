@@ -62,6 +62,7 @@
                         :rows-per-page="pagination.rowsPerPage"
                         :total="pagination.rowsNumber"
                         storage-key="email-history"
+                        @row-click="(_evt: Event, row: EmailHistoryRow) => openDetail(row)"
                         @update:page="onPageChange"
                         @update:rows-per-page="onRowsPerPageChange"
                     >
@@ -73,25 +74,23 @@
                                 />
                             </q-td>
                         </template>
-                        <template #body-cell-actions="{ row }">
-                            <q-td class="text-right">
-                                <q-btn
-                                    flat
-                                    dense
-                                    icon="send"
-                                    color="primary"
-                                    :title="msg.history.resend"
-                                    @click.stop="onResend(row.id)"
-                                />
-                                <q-btn
-                                    flat
-                                    dense
-                                    icon="delete"
-                                    color="negative"
-                                    :title="msg.history.removeFromHistory"
-                                    @click.stop="askDelete(row.id)"
-                                />
-                            </q-td>
+                        <template #row-actions="{ row }">
+                            <q-btn
+                                flat
+                                dense
+                                icon="send"
+                                color="primary"
+                                :title="msg.history.resend"
+                                @click.stop="onResend(row.id)"
+                            />
+                            <q-btn
+                                flat
+                                dense
+                                icon="delete"
+                                color="negative"
+                                :title="msg.history.removeFromHistory"
+                                @click.stop="askDelete(row.id)"
+                            />
                         </template>
                         <template #no-data>
                             <div class="sa-emh__empty">{{ msg.history.empty }}</div>
