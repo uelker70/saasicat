@@ -1,5 +1,11 @@
 # @saasicat/ui-vue
 
+## 0.22.2
+
+### Patch Changes
+
+- @saasicat/types@0.22.2
+
 ## 0.22.1
 
 ### Patch Changes
