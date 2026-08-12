@@ -86,6 +86,8 @@ import {
     StaticPlanResolver,
 } from './plan-resolver.port.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';
+import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
+
 import { FeatureGuardCoverageCheck } from './feature-guard-coverage.check.js';
 import { StaticFeatureGuard } from './static-feature.guard.js';
 import { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from './enforce-quota.interceptor.js';
@@ -1160,6 +1162,12 @@ export class SaasPlatformModule {
                 // point could only repeat the option back, and did, to
                 // applications that had nothing open at all.
                 lightweightProviders.push(FeatureGuardCoverageCheck);
+                // It walks the controllers, so it needs Nest's own discovery
+                // primitives. Importing them here rather than relying on the
+                // app: this branch is reachable with the platform's
+                // DiscoveryModule switched off, and a check that cannot be
+                // constructed takes the whole boot down with it.
+                imports.push(NestDiscoveryModule);
             }
         } else {
             // Reaching here means `@RequireFeature`/`@EnforceQuota` are inert:
