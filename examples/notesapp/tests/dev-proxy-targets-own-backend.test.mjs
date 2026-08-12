@@ -3,85 +3,99 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// The admin dev server must proxy `/api` to THIS app's backend.
+// The admin dev server must reach THIS app's backend.
 //
-// It once did not. `vite.config.ts` fell back to port 3000 when
-// `BACKEND_HOST_PORT` was absent from the shell — while its own comment said
-// the default was 4000 and `.env` said `BACKEND_HOST_PORT=4000`. On a machine
-// that also runs the other consumer stacks, port 3000 is a *different
-// product's* API.
+// `pnpm dev` in admin/ does not load the parent `.env` — that file belongs to
+// docker compose. So the dev server used `vite.config.ts`'s built-in fallback
+// while the compose stack published somewhere else entirely. On a machine where
+// another project already occupies the default port, the admin proxies to a
+// FOREIGN backend, and the login that "worked" (this example authenticates
+// locally and calls no backend) is followed by a 401 carrying an error code
+// from an application nobody is looking at.
 //
-// The result was a login that appeared to work (this example authenticates
-// locally, no backend call) followed by `401 {"code":"NO_BEARER_TOKEN"}` from a
-// guard belonging to an application nobody was looking at. Hours of debugging
-// the wrong codebase — from one stale fallback.
+// What this test locks in: the config reads the same file compose reads, and
+// every fallback it falls back TO matches what compose itself defaults to.
 //
-// The rule this locks in: every port the dev server uses comes from `.env`,
-// and no fallback in the config may contradict it.
+// It deliberately reads `docker-compose.yml`, not `.env`. `.env` is gitignored —
+// each developer's is different and CI has none at all. A test built on it
+// passes locally and crashes in CI with ENOENT, which is how the first version
+// of this file behaved.
 
 const NOTESAPP_ROOT = new URL('..', import.meta.url);
 
-function readEnvPorts() {
-    const raw = readFileSync(fileURLToPath(new URL('.env', NOTESAPP_ROOT)), 'utf8');
-    const ports = {};
-    for (const line of raw.split('\n')) {
-        const match = /^\s*([A-Z_]+)\s*=\s*([^\s#]+)/.exec(line);
-        if (match) ports[match[1]] = match[2];
-    }
-    return ports;
-}
-
+const compose = readFileSync(fileURLToPath(new URL('docker-compose.yml', NOTESAPP_ROOT)), 'utf8');
 const viteConfig = readFileSync(
     fileURLToPath(new URL('admin/vite.config.ts', NOTESAPP_ROOT)),
     'utf8',
 );
 
-test('.env declares the ports the dev server needs', () => {
-    const env = readEnvPorts();
-    assert.ok(env.BACKEND_HOST_PORT, '.env must declare BACKEND_HOST_PORT');
-    assert.ok(env.ADMIN_HOST_PORT, '.env must declare ADMIN_HOST_PORT');
+/** Reads `${NAME:-1234}` out of the compose file — the repo's own default. */
+function composeDefault(variable) {
+    const match = new RegExp(String.raw`\$\{${variable}:-(\d+)\}`).exec(compose);
+    return match ? match[1] : null;
+}
+
+/** Reads the fallback out of `X ?? '1234'` / `X ?? 1234` in the vite config. */
+function configFallback(variable) {
+    const match = new RegExp(String.raw`${variable}\s*\?\?\s*'?(\d+)'?`).exec(viteConfig);
+    return match ? match[1] : null;
+}
+
+const PORTS = ['BACKEND_HOST_PORT', 'ADMIN_HOST_PORT'];
+
+test('docker-compose declares a default for every port the dev server needs', () => {
+    // Guards the two assertions below against a silent vacuous pass: if the
+    // compose file stops declaring these, there is nothing left to compare to.
+    for (const variable of PORTS) {
+        assert.ok(
+            composeDefault(variable),
+            `docker-compose.yml declares no \${${variable}:-…} default`,
+        );
+    }
 });
 
-test('the vite config reads the ports from .env, not from the shell', () => {
-    // `process.env` is empty when `pnpm dev` runs in admin/ — the parent `.env`
-    // is a docker-compose file, and nothing loads it into the shell.
+test('the vite config reads the ports from the file, not from the shell', () => {
     assert.match(
         viteConfig,
         /loadEnv\(/,
-        'vite.config.ts must load examples/notesapp/.env instead of trusting process.env',
+        'vite.config.ts must load examples/notesapp/.env — process.env is empty when ' +
+            '`pnpm dev` runs in admin/, so relying on it means silently using the fallback',
     );
     assert.doesNotMatch(
         viteConfig,
         /process\.env\.(BACKEND|ADMIN)_HOST_PORT/,
-        'reading the port straight from process.env silently falls back when it is unset',
+        'reading the port straight from process.env is the bug this file exists for',
     );
 });
 
-test('no fallback port in the config contradicts .env', () => {
-    const env = readEnvPorts();
+for (const variable of PORTS) {
+    test(`${variable}: the config fallback equals the compose default`, () => {
+        const expected = composeDefault(variable);
+        const actual = configFallback(variable);
 
-    const backendFallback = /BACKEND_HOST_PORT\s*\?\?\s*'(\d+)'/.exec(viteConfig);
-    assert.ok(backendFallback, 'expected an explicit backend port fallback');
-    assert.equal(
-        backendFallback[1],
-        env.BACKEND_HOST_PORT,
-        `the backend fallback (${backendFallback?.[1]}) must equal BACKEND_HOST_PORT ` +
-            `in .env (${env.BACKEND_HOST_PORT}) — a divergent one points the admin at ` +
-            `whatever else happens to listen on that port`,
-    );
+        assert.ok(actual, `vite.config.ts declares no explicit fallback for ${variable}`);
+        assert.equal(
+            actual,
+            expected,
+            `vite.config.ts falls back to ${actual} while docker-compose.yml defaults to ` +
+                `${expected}. Two numbers for one port is exactly the split that made the ` +
+                `admin talk to a foreign backend — a machine-specific port belongs in .env.`,
+        );
+    });
+}
 
-    const adminFallback = /ADMIN_HOST_PORT\s*\?\?\s*(\d+)/.exec(viteConfig);
-    assert.ok(adminFallback, 'expected an explicit admin port fallback');
-    assert.equal(adminFallback[1], env.ADMIN_HOST_PORT, 'admin fallback must equal .env');
-});
-
-test('the backend port is not the default a sibling stack would occupy', () => {
-    const env = readEnvPorts();
-    // 3000 is the container-internal port every NestJS app in this workspace
-    // uses, so it is the one most likely to be published by another stack.
-    assert.notEqual(
-        env.BACKEND_HOST_PORT,
-        '3000',
-        'publishing the API on 3000 collides with the other consumer stacks on a dev machine',
-    );
+test('.env.example documents the same defaults it tells people to override', () => {
+    // The template is what a new contributor reads before they have a .env.
+    // If it names other numbers than compose, the first thing they learn is wrong.
+    const example = readFileSync(fileURLToPath(new URL('.env.example', NOTESAPP_ROOT)), 'utf8');
+    for (const variable of PORTS) {
+        const documented = new RegExp(String.raw`#?\s*${variable}\s*=\s*(\d+)`).exec(example);
+        assert.ok(documented, `.env.example does not mention ${variable}`);
+        assert.equal(
+            documented[1],
+            composeDefault(variable),
+            `.env.example shows ${variable}=${documented[1]}, docker-compose defaults to ` +
+                `${composeDefault(variable)}`,
+        );
+    }
 });

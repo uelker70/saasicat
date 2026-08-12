@@ -6,18 +6,22 @@ import { quasar } from '@quasar/vite-plugin';
 // Ports come from `examples/notesapp/.env` — the same file docker compose reads,
 // so the dev server and the container stack cannot disagree about them.
 //
-// They are read from the FILE, not from `process.env`. `pnpm dev` in this
-// directory does not load the parent `.env`, and a hardcoded fallback is how
-// this bites: the fallback used to be 3000, which on a machine running the
-// other consumer stacks is somebody else's API. The admin then talked to a
-// foreign backend and got `401 {"code":"NO_BEARER_TOKEN"}` — an error message
-// that describes a real problem in an app you are not looking at.
+// Read from the FILE, not from `process.env`: `pnpm dev` in this directory does
+// not load the parent `.env`, so without this the dev server silently used the
+// built-in fallback while the compose stack published somewhere else. On a
+// machine where another project already occupies the default, the admin then
+// proxies to a FOREIGN backend — which answers `401` with an error code from an
+// application you are not looking at.
+//
+// The fallbacks mirror `docker-compose.yml`'s own defaults on purpose. A
+// divergent number here would reintroduce exactly the split this fixes, just
+// one level up; machine-specific ports belong in `.env`, not in the config.
 const env = loadEnv('development', fileURLToPath(new URL('..', import.meta.url)), '');
 
-/** Host port the notesapp API is published on. Must match `.env`. */
-const BACKEND_HOST_PORT = env.BACKEND_HOST_PORT ?? '4000';
-/** Host port the admin is served on, container or dev server. Must match `.env`. */
-const ADMIN_HOST_PORT = Number(env.ADMIN_HOST_PORT ?? 9900);
+/** Mirrors `${BACKEND_HOST_PORT:-3000}` in docker-compose.yml. */
+const BACKEND_HOST_PORT = env.BACKEND_HOST_PORT ?? '3000';
+/** Mirrors `${ADMIN_HOST_PORT:-9000}` in docker-compose.yml. */
+const ADMIN_HOST_PORT = Number(env.ADMIN_HOST_PORT ?? 9000);
 
 export default defineConfig({
     // Served at the origin root rather than under /admin/: the admin is the
