@@ -320,6 +320,11 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             adminEndpoint: adminBase,
             projectKey: 'fixture',
             http,
+            // Without it the page falls back to a `['de']` pool, filters the
+            // settings response down to German, and renders the English
+            // projections as the German catalog — with the second locale's
+            // controls missing entirely.
+            availableLocales: ['en', 'de'],
         }),
     },
     {
@@ -334,6 +339,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             adminEndpoint: adminBase,
             projectKey: 'fixture',
             http,
+            availableLocales: ['en', 'de'],
         }),
         // Ordered: the tab mounts the admin view, the expand button mounts
         // its editors. Stopping after the tab left every editor guarded by
