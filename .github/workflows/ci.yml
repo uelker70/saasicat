@@ -80,6 +80,16 @@ jobs:
             # the suites improve, and never up by accident.
             - name: Coverage ratchet
               run: pnpm run coverage
+            # Uploaded even when the step above fails — that is precisely when
+            # someone needs the numbers to see WHICH package dropped and by how
+            # much, without re-running the suite locally.
+            - name: Upload coverage report
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: coverage-report
+                  path: coverage-report.json
+                  if-no-files-found: warn
             # The example is the schema consumers copy from, so it must not fall
             # behind the fragments it demonstrates. Exits 1 on drift.
             - name: Schema drift (NotesApp example)

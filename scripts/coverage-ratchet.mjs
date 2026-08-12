@@ -18,6 +18,9 @@
 // describes the bundled output. That is a real limitation — bundling merges
 // modules, so per-file attribution is coarse — but the trend it reports is
 // honest, and the trend is what a ratchet needs.
+//
+// It only reports the package's own files; see COVERAGE_INCLUDE for why that is
+// not a detail.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -26,6 +29,8 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE = join(REPO_ROOT, 'coverage-baseline.json');
+/** Last measurement, for the CI artefact. Not committed. */
+const REPORT = join(REPO_ROOT, 'coverage-report.json');
 
 /** Packages whose `test` script is a plain `node --test` run. */
 const PACKAGES = [
@@ -65,15 +70,16 @@ const COVERAGE_INCLUDE = [
 /**
  * Tolerance in percentage points.
  *
- * The measurement is deterministic — verified bit-identical across repeated
- * full sweeps — PROVIDED every package's `dist/` is current. That proviso is
- * the whole story: coverage is measured on the built output, so recording a
- * baseline against one build and checking against another moves the numbers
- * without a single test changing. An earlier ±0.6pp "flake" was exactly that,
- * and was misread as test-order dependence.
+ * Small on purpose. With `COVERAGE_INCLUDE` above the measurement is
+ * deterministic and machine-independent, so the tolerance only has to absorb a
+ * future Node counting slightly differently — not an environment difference.
  *
- * So the tolerance is small on purpose. It absorbs a future Node counting
- * differently, not a build mismatch — that one is caught below instead.
+ * It took two wrong explanations to get here. A ±0.6pp gap between this machine
+ * and CI was first blamed on test-order dependence, then on a stale build.
+ * Neither was true: the report contained corepack's `pnpm.mjs`, and how much of
+ * it got loaded differed per environment. Both explanations were plausible, and
+ * both would have been "fixed" by widening this number until the gate stopped
+ * saying anything.
  */
 const SLACK = 0.5;
 
@@ -184,6 +190,10 @@ for (const pkg of PACKAGES) {
     current[pkg] = value;
     process.stderr.write(`${value.line.toFixed(2)}% lines\n`);
 }
+
+// The measured numbers, always — CI uploads this so a drop can be diagnosed
+// without re-running the whole suite locally.
+writeFileSync(REPORT, `${JSON.stringify(current, null, 4)}\n`);
 
 if (update) {
     writeFileSync(BASELINE, `${JSON.stringify(current, null, 4)}\n`);
