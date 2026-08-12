@@ -216,7 +216,7 @@ const expandedQuota = ref<string | null>(null);
 
 const msg = useSaMessages('discovery');
 const common = useSaMessages('common');
-const { locale, intlLocale } = useSuperAdminI18n();
+const { intlLocale } = useSuperAdminI18n();
 
 const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStatus | 'all' }>>(
     () => [

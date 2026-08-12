@@ -62,7 +62,7 @@
         "marketing": {
             "type": "object",
             "additionalProperties": false,
-            "description": "App-wide marketing configuration. SPEC_V2 §6.5.",
+            "description": "App-wide marketing configuration..",
             "required": ["availableLocales"],
             "properties": {
                 "availableLocales": {

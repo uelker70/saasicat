@@ -32,7 +32,7 @@ export interface ImplementsCapabilityOptions {
     /**
      * Aggregation wrapper: the feature key this capability belongs to.
      * Bundles are planned exclusively in the SuperAdmin UI and are
-     * **deliberately not** part of the code decorator (SPEC_V2 §3.1).
+     * **deliberately not** part of the code decorator.
      */
     feature?: string;
     /**

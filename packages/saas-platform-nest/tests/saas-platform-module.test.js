@@ -18,7 +18,6 @@ import {
 } from '../dist/platform/index.js';
 
 // Platform safety tests for the quickstart mega-module.
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P1.
 
 class FakeJwtGuard {
     canActivate() {

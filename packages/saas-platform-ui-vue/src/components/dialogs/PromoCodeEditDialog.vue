@@ -1,14 +1,14 @@
 <template>
     <q-dialog
         :model-value="modelValue"
-        @update:model-value="emit('update:modelValue', $event)"
         persistent
+        @update:model-value="emit('update:modelValue', $event)"
     >
         <q-card class="pc-dlg">
             <q-card-section class="pc-dlg__head">
                 <div>
                     <div class="pc-dlg__title">{{ msg.editDialog.title }}</div>
-                    <div class="pc-dlg__sub" v-if="row">
+                    <div v-if="row" class="pc-dlg__sub">
                         {{ msg.form.codeLabel }} <strong>{{ row.code }}</strong> ·
                         {{
                             formatMessage(msg.editDialog.redemptionsSoFar, {
@@ -18,22 +18,22 @@
                     </div>
                 </div>
                 <q-btn
+                    v-close-popup
                     class="pc-dlg__close"
                     flat
                     dense
                     round
                     icon="close"
-                    v-close-popup
                     :disable="loading"
                 />
             </q-card-section>
 
             <q-card-section class="pc-dlg__body">
                 <PromoCodeDialogFields
+                    v-model:advanced-open="advancedOpen"
                     mode="edit"
                     :form="form"
                     :code="row?.code ?? ''"
-                    v-model:advanced-open="advancedOpen"
                     :show-campaign-tag="showCampaignTag"
                     :plans="plans"
                 />
@@ -42,7 +42,7 @@
             </q-card-section>
 
             <q-card-actions align="right" class="pc-dlg__foot">
-                <q-btn flat :label="common.cancel" v-close-popup :disable="loading" />
+                <q-btn v-close-popup flat :label="common.cancel" :disable="loading" />
                 <q-btn
                     unelevated
                     color="primary"

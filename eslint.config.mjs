@@ -1,12 +1,62 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import pluginVue from 'eslint-plugin-vue';
+import vueParser from 'vue-eslint-parser';
 import globals from 'globals';
 
 export default tseslint.config(
     eslint.configs.recommended,
     ...tseslint.configs.recommended,
+    ...pluginVue.configs['flat/recommended'],
+    // `eslint-config-prettier` must stay LAST of the shared configs: it switches
+    // off the formatting rules the others enable, including `vue/html-indent` and
+    // friends. Prettier owns formatting in this repo.
     eslintConfigPrettier,
+    {
+        // Single-file components carry TypeScript in `<script setup lang="ts">`.
+        // `vue-eslint-parser` handles the SFC envelope and delegates the script
+        // block to the TS parser.
+        files: ['**/*.vue'],
+        languageOptions: {
+            parser: vueParser,
+            parserOptions: {
+                parser: tseslint.parser,
+                extraFileExtensions: ['.vue'],
+                ecmaVersion: 'latest',
+                sourceType: 'module',
+            },
+            globals: {
+                ...globals.browser,
+            },
+        },
+        rules: {
+            // Type-based `defineProps<{ foo?: string }>()` already states what an
+            // absent prop means: `undefined`. Demanding a runtime default would
+            // push every optional prop through `withDefaults`, which changes
+            // behaviour instead of documenting it — `AdminHero`'s optional
+            // `subtitle` renders nothing, and that is the contract.
+            'vue/require-default-prop': 'off',
+        },
+    },
+    {
+        // Library code runs in the consumer's browser. `warn`/`error` are the
+        // channel through which the platform reports integration mistakes
+        // (orphaned manifest actions, a failed manifest load); `log`/`info`/
+        // `debug` are debugging leftovers and must not ship.
+        files: ['packages/saas-platform-ui-vue/src/**/*.{ts,vue}'],
+        rules: {
+            'no-console': ['error', { allow: ['warn', 'error'] }],
+        },
+    },
+    {
+        // Test files mount throwaway stub components beside the component under
+        // test — that is what makes them isolated.
+        files: ['**/tests/**', '**/tests-*/**'],
+        rules: {
+            'vue/one-component-per-file': 'off',
+        },
+    },
     {
         ignores: [
             '**/dist/**',
@@ -46,8 +96,9 @@ export default tseslint.config(
     //
     // The rules encode the runtime guarantees of the package entries:
     // `@saasicat/ui-vue/client` never loads a framework, `@saasicat/ui-vue`
-    // (main) never loads Quasar. SFC directories are the Quasar layer and
-    // stay unrestricted (they are not parsed here anyway — no Vue parser).
+    // (main) never loads Quasar. SFC directories are the Quasar layer itself,
+    // so they may import downwards without restriction — but they are parsed
+    // and linted like every other file (see the `**/*.vue` block above).
     // ------------------------------------------------------------------
     {
         files: ['packages/saas-platform-ui-vue/src/client/*.ts'],

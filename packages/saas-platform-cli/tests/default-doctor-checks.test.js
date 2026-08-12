@@ -8,8 +8,6 @@ import {
     UserPortDoctorCheck,
 } from '../dist/index.js';
 
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P12.
-
 describe('PlanCatalogDoctorCheck', () => {
     test('error when no plans', async () => {
         const check = new PlanCatalogDoctorCheck({ projectKey: 'app', plans: [] });

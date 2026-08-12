@@ -32,6 +32,7 @@ import {
     SUPER_ADMIN_EXTENSIONS_KEY,
     SUPER_ADMIN_HTTP_KEY,
     SUPER_ADMIN_LOGIN_ADAPTER_KEY,
+    SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY,
     SUPER_ADMIN_MANIFEST_KEY,
     buildNavigationGuard,
     type ActionsMap,
@@ -172,6 +173,9 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     app.provide(SUPER_ADMIN_NOTIFY_KEY, options.notify ?? quasarNotify);
     if (options.manifestGuard?.getManifest) {
         app.provide(SUPER_ADMIN_MANIFEST_KEY, options.manifestGuard.getManifest);
+    }
+    if (options.manifestGuard?.clearCache) {
+        app.provide(SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY, options.manifestGuard.clearCache);
     }
     if (options.loginAdapter) {
         app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, options.loginAdapter);

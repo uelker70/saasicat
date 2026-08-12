@@ -1,4 +1,4 @@
-// PromotionsService — CRUD for `promotions` (SPEC_V2 §9a).
+// PromotionsService — CRUD for `promotions`.
 //
 // Like MarketingProjections but **without versioning** — promotions are changed
 // directly because they only control the public catalog display.

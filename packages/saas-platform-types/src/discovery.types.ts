@@ -4,7 +4,7 @@
 // Describes the **code state** at boot time: which capabilities,
 // features, and quotas has the running backend annotated? Bundles are
 // deliberately NOT aggregated from code — they are planned exclusively
-// by the SuperAdmin in the UI (DB table `bundles`, see SPEC_V2
+// by the SuperAdmin in the UI (DB table `bundles`
 // §3 + §11.1 M3).
 //
 // Built by the DiscoveryScanner in saas-platform-nest and consumed by
@@ -99,7 +99,7 @@ export interface DiscoveredQuota {
 /**
  * Complete discovery snapshot — built at boot time, delivered as JSON by
  * the AdminController, checked against the DB catalog by the strict-mode
- * check (SPEC_V2 §8).
+ * check.
  */
 export interface DiscoverySnapshot {
     schemaVersion: 1;

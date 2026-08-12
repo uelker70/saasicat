@@ -1,4 +1,4 @@
-// MarketingSettingsService — project-wide marketing config (SPEC_V2 §6.5).
+// MarketingSettingsService — project-wide marketing config.
 // Currently: `activeLocales` — the subset of the `availableLocales` pool
 // activated in the marketing catalog.
 

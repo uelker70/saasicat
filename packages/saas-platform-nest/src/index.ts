@@ -14,9 +14,8 @@
 //                    for the multi-step registration flow.
 //   ./discovery    — @ImplementsCapability/@RequiresCapability/@DefinesQuota/
 //                    @EnforceQuota decorators, DiscoveryScanner, DiscoveryModule
-//                    (see SPEC_V2.md §3)
 //   ./catalog      — BundlesService + Controller + Module for Bundle/BundleVersion
-//                    CRUD in SuperAdmin (SPEC_V2.md §11.1 M3)
+//                    CRUD in SuperAdmin
 //   ./checkout-offer — CheckoutOfferModule/Service for package snapshots
 //   ./subscription-contract — immutable SubscriptionContract service for V3
 //   ./testing      — fake adapters (FakeSubscriptionRepository, …) for tests

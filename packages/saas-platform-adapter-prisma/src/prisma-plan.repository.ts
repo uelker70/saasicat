@@ -80,7 +80,7 @@ interface PlanRepositoryClient {
 
 /**
  * `PlanRepository` against the canonical `plans` + `plan_versions` tables
- * (SPEC_V2 §11.1 M6). Plan stem CRUD (Pack 1) and PlanVersion lifecycle
+ *. Plan stem CRUD (Pack 1) and PlanVersion lifecycle
  * (Pack 2a) live in one adapter. Ports always use the semantic **planKey**;
  * storage defaults to the 0.6 soft binding
  * `PlanVersion.planId === Plan.planKey`. The opt-in normalized binding resolves

@@ -240,7 +240,7 @@ export class PublishBundleVersionDto {
 
     /**
      * Required on publish if the draft carries no `validFrom`
-     * (SPEC_V2 §4.2 + §11.1 M6 Pack 2c, analogous to PublishPlanVersionDto).
+     * (analogous to PublishPlanVersionDto).
      * Service strictly checks > `validFrom` of the predecessor version.
      */
     @IsOptional()

@@ -62,7 +62,7 @@ export interface BundleRow {
     description: string | null;
     icon: string | null;
     sortOrder: number;
-    /** Locale translations of `label`/`description` (SPEC_V2 §6.4). */
+    /** Locale translations of `label`/`description`. */
     i18n: CatalogEntryI18n;
     createdAt: string;
     updatedAt: string;
@@ -140,7 +140,7 @@ export interface CreateBundleVersionDraftData {
     monthlyNet?: string | null;
     yearlyNet?: string | null;
     marketed?: boolean;
-    /** Required at publish (see contract protection P3 in SPEC_V2 §7). */
+    /** Required at publish (see contract protection P3 in). */
     changeNote?: string;
     /**
      * From when this version should be active for *new* bookings. Required
@@ -159,7 +159,7 @@ export interface CreateBundleVersionDraftData {
 
 /**
  * Fields of a draft BundleVersion that may still be changed.
- * With SPEC_V2 §11.1 M6 Pack 2c also for published-but-future versions
+ * With also for published-but-future versions
  * (latest-in-chain, 0 subs, validFrom > now) — see
  * `isVersionEditable`.
  */
@@ -185,7 +185,7 @@ export interface UpdateBundleVersionDraftData {
 /**
  * Input for `publishBundleVersion()`. `nonRegressive` and
  * `publishedChanges` are computed by the service from the diff against the
- * predecessor version (see SPEC_V2 §7); the caller supplies only confirmation
+ * predecessor version; the caller supplies only confirmation
  * + user tag + validity dates.
  *
  * `validFrom` is **required** at publish (analogous to `PublishPlanVersionData`).
@@ -198,7 +198,7 @@ export interface PublishBundleVersionData {
     /**
      * If true and the diff classifies the version as regressive,
      * it is published anyway — relevant for bulk-publish MFA confirmation
-     * (see SPEC_V2 §7 editor-UI obligations).
+     * ( editor-UI obligations).
      */
     forceRegressive?: boolean;
     /**
@@ -226,7 +226,7 @@ export interface PublishBundleVersionData {
 // =============================================================================
 
 /**
- * Code of a strict-mode violation. SPEC_V2 §8.2 lists the eight rules
+ * Code of a strict-mode violation. lists the eight rules
  * that are checked; each rule has its own code so the UI can show
  * focused help texts.
  */

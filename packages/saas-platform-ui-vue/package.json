@@ -43,9 +43,14 @@
         "./components/*": "./src/components/*",
         "./sa-theme.css": "./src/pages-standard/sa-theme.css",
         "./testing-e2e/*": {
-            "types": "./dist/testing-e2e/*.d.ts",
-            "import": "./dist/testing-e2e/*.js",
-            "require": "./dist/testing-e2e/*.cjs"
+            "import": {
+                "types": "./dist/testing-e2e/*.d.ts",
+                "default": "./dist/testing-e2e/*.js"
+            },
+            "require": {
+                "types": "./dist/testing-e2e/*.d.cts",
+                "default": "./dist/testing-e2e/*.cjs"
+            }
         }
     },
     "files": [
@@ -53,12 +58,14 @@
         "src"
     ],
     "scripts": {
-        "build": "tsup",
+        "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsup",
         "typecheck": "vue-tsc --noEmit -p tsconfig.json",
         "pretest": "pnpm run build",
         "test": "node --test tests/**/*.test.js",
         "test:component": "vitest run --config vitest.config.ts",
-        "test:e2e": "playwright test"
+        "test:e2e": "playwright test",
+        "test:visual": "playwright test --project=visual",
+        "test:visual:update": "playwright test --project=visual --update-snapshots"
     },
     "dependencies": {
         "@saasicat/types": "workspace:^"
@@ -82,14 +89,17 @@
     },
     "devDependencies": {
         "@playwright/test": "^1.59.1",
+        "@quasar/vite-plugin": "^1.12.0",
         "@types/node": "^25.6.0",
         "@vitejs/plugin-vue": "^6.0.8",
         "@vue/test-utils": "^2.4.11",
         "jsdom": "^30.0.1",
         "pinia": "^3.0.0",
         "quasar": "^2.24.0",
+        "sass": "^1.101.3",
         "tsup": "^8.0.0",
         "typescript": "^6.0.0",
+        "vite": "^7.3.6",
         "vitest": "^4.1.10",
         "vue": "^3.5.0",
         "vue-router": "^5.0.0",

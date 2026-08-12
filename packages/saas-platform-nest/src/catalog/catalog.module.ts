@@ -79,23 +79,23 @@ export interface CatalogModuleOptions {
     marketingProjectionRepository?: ProviderSpec<MarketingProjectionRepository>;
     /**
      * Adapter for `capability_/feature_/quota_catalog_entries` persistence
-     * (discovery review, SPEC_V2 §6.3). Optional — if omitted,
+     * (discovery review). Optional — if omitted,
      * CatalogEntriesService + controller are not registered.
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
     /**
-     * Adapter for `promotions` persistence (SPEC_V2 §9a). Optional — if
+     * Adapter for `promotions` persistence. Optional — if
      * omitted, PromotionsService + controller are not registered.
      */
     promotionRepository?: ProviderSpec<PromotionRepository>;
     /**
-     * Adapter for `marketing_settings` persistence (SPEC_V2 §6.5 —
+     * Adapter for `marketing_settings` persistence (
      * `activeLocales`). Optional.
      */
     marketingSettingsRepository?: ProviderSpec<MarketingSettingsRepository>;
     /**
      * Auth-free pricing-page endpoint `GET /public/marketing-catalog`
-     * (SPEC_V2 §9). Registered only when plan-, marketingProjection-
+     *. Registered only when plan-, marketingProjection-
      * and promotionRepository are set. `guards` is usually `[]`.
      */
     publicMarketingCatalog?: {
@@ -105,7 +105,7 @@ export interface CatalogModuleOptions {
         vatRate: number;
     };
     /**
-     * SPEC_V2 §11.1 M6 (Pack 1) — adapter for `plans` master-record persistence.
+     * — adapter for `plans` master-record persistence.
      * Optional; if omitted, PlansService + controller are not
      * registered (apps without a need for the plan editor stay unchanged).
      */
@@ -140,7 +140,7 @@ export interface CatalogModuleOptions {
      * per feature — the same one passed to `PublicCatalogModule.forRoot`). The
      * discovery auto-sync seeds EMPTY `FeatureCatalogEntry` fields
      * (label/description/icon) from it at boot; SuperAdmin edits stay untouched. This
-     * makes `FeatureCatalogEntry` the SSOT for UI metadata (SPEC_V2 §6.3 / #12).
+     * makes `FeatureCatalogEntry` the SSOT for UI metadata.
      */
     featureUiRegistry?: FeatureUiRegistry;
     /**

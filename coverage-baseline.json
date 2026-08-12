@@ -1,0 +1,47 @@
+{
+    "saas-platform-spec": {
+        "line": 32.16,
+        "branch": 68.54,
+        "funcs": 28.18
+    },
+    "saas-platform-types": {
+        "line": 80.41,
+        "branch": 88.79,
+        "funcs": 57.45
+    },
+    "saas-platform-nest": {
+        "line": 65.07,
+        "branch": 69.1,
+        "funcs": 66.54
+    },
+    "saas-platform-adapter-prisma": {
+        "line": 64.95,
+        "branch": 66.46,
+        "funcs": 70.61
+    },
+    "saas-platform-adapter-drizzle": {
+        "line": 61.85,
+        "branch": 63.36,
+        "funcs": 59.73
+    },
+    "saas-platform-persistence-testing": {
+        "line": 74.3,
+        "branch": 53.06,
+        "funcs": 89.29
+    },
+    "saas-platform-cli": {
+        "line": 48.62,
+        "branch": 52.73,
+        "funcs": 41.39
+    },
+    "saas-platform-ui-vue": {
+        "line": 77.38,
+        "branch": 87.34,
+        "funcs": 70.87
+    },
+    "create-saasicat-admin": {
+        "line": 84.54,
+        "branch": 75,
+        "funcs": 81.82
+    }
+}

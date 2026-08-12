@@ -7,8 +7,7 @@ import { CJS_EXTERNAL } from './tsup.shared';
 // tsup uses esbuild as its bundler. esbuild does NOT support
 // `emitDecoratorMetadata` — so the `Reflect.metadata` calls for
 // body DTOs are missing, which silently disables the global
-// `ValidationPipe` in consumer apps (see SPEC_V2 §11.1 M3 bug
-// finding 2026-05-14).
+// `ValidationPipe` in consumer apps (found 2026-05-14).
 //
 // Solution: run all `.ts` files through SWC first. SWC supports
 // `emitDecoratorMetadata` natively and emits the

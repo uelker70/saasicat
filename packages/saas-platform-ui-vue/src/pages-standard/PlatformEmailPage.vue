@@ -3,9 +3,9 @@
         <AdminHero :title="resolvedTitle" :subtitle="msg.provider.subtitle">
             <template #actions>
                 <button
+                    v-if="rows.length === 0"
                     class="sa-btn sa-btn--primary"
                     type="button"
-                    v-if="rows.length === 0"
                     @click="openCreate"
                 >
                     <q-icon name="add" size="16px" />

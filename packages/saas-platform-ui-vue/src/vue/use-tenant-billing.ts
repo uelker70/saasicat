@@ -56,7 +56,7 @@ export interface UsageSnapshotShape {
     };
     usage: Record<string, number>;
     /**
-     * P11.4 (METAMODELL §17a): Read-only package snapshot from the
+     * P11.4: Read-only package snapshot from the
      * original CheckoutOffer. `null` for subscriptions without a
      * CheckoutOffer origin. The JSON structure matches the Offer
      * schema; the UI can read `bundleVersionIds`, `currency`,

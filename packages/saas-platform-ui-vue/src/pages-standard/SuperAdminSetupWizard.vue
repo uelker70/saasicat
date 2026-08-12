@@ -15,7 +15,7 @@
             </q-banner>
 
             <!-- Step 1: create SuperAdmin -->
-            <q-form v-if="step === 'form'" @submit.prevent="submitCreate" class="sa-setup-form">
+            <q-form v-if="step === 'form'" class="sa-setup-form" @submit.prevent="submitCreate">
                 <p class="sa-setup-hint">
                     {{ msg.setup.tokenHintBefore }}
                     <code>SETUP_TOKEN</code>
@@ -104,7 +104,7 @@
                     <code class="sa-setup-uri__value">{{ result.otpauthUri }}</code>
                 </details>
 
-                <q-form @submit.prevent="submitConfirm" class="sa-setup-form q-mt-md">
+                <q-form class="sa-setup-form q-mt-md" @submit.prevent="submitConfirm">
                     <q-input
                         v-model="mfaCode"
                         :label="msg.setup.codeLabel"
@@ -216,9 +216,12 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
         return await httpPostJson<T>(http, `${endpoints.apiBase}${path}`, body);
     } catch (err) {
         if (err instanceof HttpJsonError) {
+            // The message is translated for the user; `cause` keeps the status
+            // and the machine-readable code reachable for anything upstream.
             throw new Error(
                 (err.code && errorByCode.value[err.code]) ||
                     formatMessage(msg.value.setup.errorHttp, { status: err.status }),
+                { cause: err },
             );
         }
         throw err;

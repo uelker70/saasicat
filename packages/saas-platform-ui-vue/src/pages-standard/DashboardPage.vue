@@ -330,17 +330,22 @@ function defaultFormat(card: KpiCardDef, body: unknown): KpiFormatted {
     };
 }
 
-async function callHttp(url: string): Promise<{ status: number; json: () => Promise<unknown> }> {
+// Every KPI request goes through an `HttpClient`. `useSuperAdminHttp()` always
+// resolves — to the client the app registered, or to `defaultHttpClient()` —
+// so there is no path on which a card could reach the network without the
+// app's auth. A bare `fetch()` here used to silently drop it.
+//
+// The token rides along as a header regardless of which client transports it,
+// the same way `useApiList` and the other standard pages do it. The two are
+// orthogonal, and a page that mounted with the documented `getAuthToken` but
+// no `http` of its own would otherwise send every KPI request unauthenticated
+// and render an error in all of its cards.
+function callHttp(url: string): Promise<{ status: number; json: () => Promise<unknown> }> {
     const http = props.http ?? shellHttp;
-    if (http) return http(url, { method: 'GET' });
     const headers: Record<string, string> = {};
     const token = props.getAuthToken?.();
     if (token) headers.Authorization = `Bearer ${token}`;
-    const resp = await fetch(url, { method: 'GET', headers });
-    return {
-        status: resp.status,
-        json: () => resp.json(),
-    };
+    return http(url, { method: 'GET', headers });
 }
 
 function extractValue(body: Record<string, unknown>): string | number | null {

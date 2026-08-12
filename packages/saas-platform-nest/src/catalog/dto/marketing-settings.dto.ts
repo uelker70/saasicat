@@ -1,4 +1,4 @@
-// DTOs for the MarketingSettings controller (SPEC_V2 §6.5).
+// DTOs for the MarketingSettings controller.
 
 import { ArrayUnique, IsArray, IsString, Matches } from 'class-validator';
 

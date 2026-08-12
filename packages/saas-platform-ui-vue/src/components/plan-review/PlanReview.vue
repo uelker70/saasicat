@@ -248,7 +248,7 @@ import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n
 import AdminBody from '../admin-page/AdminBody.vue';
 import AdminHero from '../admin-page/AdminHero.vue';
 
-// PlanReview — step 3 of the plan wizard (SPEC_V2 §6, plan simulation
+// PlanReview — step 3 of the plan wizard (plan simulation
 // "Review & Publish"). Shows the saved draft read-only, checks the
 // publish checklist and triggers publish. The draft was already persisted
 // in the editor (step 2); review mutates nothing except publish.
@@ -385,7 +385,7 @@ const hasMonthly = computed(() => {
 });
 
 // "Gültig ab" must lie strictly after the "Gültig ab" of the predecessor
-// version (SPEC_V2 §4.2.1) — otherwise the publish endpoint rejects.
+// version — otherwise the publish endpoint rejects.
 const validFromAfterPredecessor = computed(() => {
     const prev = props.predecessor;
     if (!prev?.validFrom || !props.version.validFrom) return true;

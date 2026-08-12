@@ -4,7 +4,6 @@
 // Reads all `*.tpl` files from `../templates/`, replaces `__KEY__` tokens, writes
 // into `<dir>/`. Tokens come from argv flags + defaults.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P6.
 
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve, relative } from 'node:path';

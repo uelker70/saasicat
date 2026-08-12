@@ -54,7 +54,7 @@ export const ERROR_MESSAGES_DE: Record<PlatformErrorCode, string> = {
     PLAN_VERSION_SUPERSEDED:
         "Die PlanVersion '{versionId}' wurde bereits von einer Nachfolgeversion abgelöst und kann nicht beendet werden.",
     PLAN_VERSION_VALID_FROM_REQUIRED:
-        'validFrom muss beim Veröffentlichen gesetzt sein (am Entwurf oder im Publish-Aufruf). SPEC_V2 §4.2.',
+        'validFrom muss beim Veröffentlichen gesetzt sein (am Entwurf oder im Publish-Aufruf)..',
     PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' ist kein gültiges Datum",
     PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS:
         'validFrom ({validFrom}) muss strikt nach dem validFrom der Vorgängerversion ({previousValidFrom}) liegen.',

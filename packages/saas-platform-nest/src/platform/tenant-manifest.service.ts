@@ -1,7 +1,6 @@
 // TenantManifestService — the app registers NavItems, the service renders a
 // filtered manifest per Tenant.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
 import { Injectable } from '@nestjs/common';
 import { StaticEntitlementService } from './static-entitlement.service.js';

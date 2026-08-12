@@ -2,8 +2,6 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyFragmentBlocks, extractModelBlocks, extractModelNames } from '../dist/index.js';
 
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
-
 describe('extractModelNames', () => {
     test('finds top-level models', () => {
         const schema = `

@@ -7,7 +7,7 @@
 // NotFound) throw HttpException.
 //
 // In warn-only mode (`STRICT_CATALOG_CHECK_MODE = 'warn-only'`, see
-// SPEC_V2 §8.1) strict-mode violations pass through as a `warnings` list;
+//) strict-mode violations pass through as a `warnings` list;
 // in blocking mode the service instead throws HTTP 422 with the same
 // warning list as the body. Default: blocking (#12). Exception: broken
 // `compatibility.planIds` always block once a PlanRepository is registered
@@ -364,7 +364,7 @@ export class BundlesService {
      * Publishes a draft version atomically. Steps:
      * 1. Strict check on the draft definition (warn-only or blocking)
      * 2. Enforce validFrom requirement + ordering against the predecessor
-     *    (SPEC_V2 §4.2 + §11.1 M6 Pack 2c, analogous to PlanVersion)
+     *    (analogous to PlanVersion)
      * 3. Compute the diff against the predecessor version (latest live) →
      *    `publishedChanges` + `nonRegressive` via `classifyBundleVersionDiff`
      * 4. Call Repository.publishDraft with the diff result + validity dates
@@ -421,13 +421,13 @@ export class BundlesService {
 
         const previous = await this.repo.findLatestLive(draft.bundleId);
 
-        // ─── validFrom (required on publish, SPEC_V2 §4.2) ───
+        // ─── validFrom (required on publish) ───
         const validFromInput = publishMeta.validFrom ?? draft.validFrom;
         if (!validFromInput) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.BUNDLE_VERSION_VALID_FROM_REQUIRED,
                 message:
-                    'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
+                    'validFrom must be set when publishing (on the draft or the publish call)..',
             });
         }
         const validFrom = new Date(validFromInput);

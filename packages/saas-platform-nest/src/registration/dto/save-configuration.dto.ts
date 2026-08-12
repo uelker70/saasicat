@@ -31,7 +31,7 @@ export class SaveRegistrationConfigSelectionDto {
     appliedPromoCode?: string | null;
 
     /**
-     * METAMODELL §17a — Bundle consistency. ID of the `CheckoutOffer` that was
+     * — Bundle consistency. ID of the `CheckoutOffer` that was
      * created on the pricing page (`<app>/register?offer=<id>`). Passed
      * through unchanged in `configJson`; the ActivationOrchestrator freezes it
      * as `packageSnapshot` when the subscription is created and sets the offer

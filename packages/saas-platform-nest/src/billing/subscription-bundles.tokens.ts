@@ -1,4 +1,4 @@
-// DI tokens for the SubscriptionBundlesService (SPEC_V2 §11.1 M6 Pack 2e,
+// DI tokens for the SubscriptionBundlesService (
 // P11.7.3). Consumers register their Prisma adapter via this
 // token in `SubscriptionBundleModule.forRoot({...})`.
 

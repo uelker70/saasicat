@@ -10,7 +10,13 @@ import { createSuperAdminApp } from '@saasicat/ui-vue/quasar';
 import type { ActionsMap } from '@saasicat/ui-vue';
 import App from './App.vue';
 import { appRoutes } from './router/routes';
-import { platformHttp, DEMO_CREDENTIALS, adminLogin, isAuthenticated } from './services/http';
+import {
+    platformHttp,
+    DEMO_CREDENTIALS,
+    adminLogin,
+    adminLogout,
+    isAuthenticated,
+} from './services/http';
 import { reactivateTenant, suspendTenant } from './services/app-loaders';
 import { ADMIN_ENDPOINTS } from './services/platform-loaders';
 import { useManifestStore } from './stores/manifest';
@@ -40,7 +46,10 @@ const handle = createSuperAdminApp({
     brand: { logoText: 'NA', name: 'NotesApp' },
     endpoints: ADMIN_ENDPOINTS,
     appRoutes,
-    loginAdapter: { login: adminLogin, devHint: DEMO_CREDENTIALS },
+    // `logout` is not optional in practice: the platform's sign-out only
+    // navigates without it, and `isAuthenticated` below would wave the
+    // operator straight back in.
+    loginAdapter: { login: adminLogin, logout: adminLogout, devHint: DEMO_CREDENTIALS },
     authGuard: {
         isAuthenticated,
         onUnauthenticated: () => '/login',
@@ -51,6 +60,10 @@ const handle = createSuperAdminApp({
         ensureLoaded: () => useManifestStore().ensureLoaded(),
         getManifest: () => useManifestStore().manifest,
         errorRoute: '/admin-error',
+        // Without this the error page's retry cannot recover from a stale
+        // ETag: the loader would revalidate against the same cached entry
+        // and land straight back on the error page.
+        clearCache: () => useManifestStore().clearCache(),
     },
     // Platform pages issue their own requests (KPI cards, tenant tables) —
     // without this they would fall back to a bare fetch() and lose the app's auth.

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { FakeSubscriptionBundleRepository } from '../dist/testing/index.js';
 
 // FakeSubscriptionBundleRepository — in-memory adapter for the
-// `subscription_bundles` junction (SPEC_V2 §11.1 M6 Pack 2e). The tests
+// `subscription_bundles` junction. The tests
 // cover the repo API: add → listBy → cancel → countActive. The
 // business layer (minimum-term default, plan-compat check on
 // add) belongs in a service and is tested separately once it

@@ -163,7 +163,7 @@ export function validateBundleDraft(
 
 /**
  * Validates a PlanVersion draft definition against the discovery snapshot
- * (SPEC_V2 §8.2 Pack 3a). Returns a (possibly empty) list of
+ *. Returns a (possibly empty) list of
  * warnings.
  *
  * Checked:

@@ -34,16 +34,16 @@
 
             <AdminSection class="sa-bundles__filter">
                 <BundlesFilterBar
-                    class="q-mb-md"
                     v-model:query="query"
                     v-model:status-filter="statusFilter"
+                    class="q-mb-md"
                     :status-filter-options="statusFilterOptions"
                 />
 
                 <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
                 <BundleCreatePanel
-                    class="q-mb-sm"
                     v-if="createOpen"
+                    class="q-mb-sm"
                     :project-key="projectKey"
                     :available-features="snapshot?.features ?? []"
                     :available-quotas="snapshot?.quotas ?? []"
@@ -78,8 +78,8 @@
                 >
                     <template #detail="{ bundle }">
                         <BundleDetailPanel
-                            :bundle="bundle"
                             v-model:edit-form="editForm"
+                            :bundle="bundle"
                             :i18n-draft="i18nDraft"
                             :translatable-locales="translatableLocales"
                             :edit-submitting="editSubmitting"
@@ -198,7 +198,7 @@ import type {
     BundlesStatusFilterOption,
 } from './bundles-page/types.js';
 
-// Platform standard page: Bundles (SPEC_V2 §6.4, §11.1 M6 Pack 2c +
+// Platform standard page: Bundles (§11.1 M6 Pack 2c +
 // Pack 2d inline editor after plan simulation). Dumb component —
 // the consumer wrapper supplies the composable results + plan-root
 // list + live PlanVersion index as props.

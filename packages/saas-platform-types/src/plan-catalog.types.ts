@@ -31,7 +31,7 @@ export interface PlanDef {
     features: FeatureKey[];
 }
 
-/** App-wide marketing configuration (SPEC_V2 §6.5). */
+/** App-wide marketing configuration. */
 export interface PlanCatalogMarketing {
     /**
      * Allowed language pool that the app may market. First = default
@@ -70,7 +70,7 @@ export interface PlanCatalog {
     currency: string;
     /** VAT rate in percent. */
     vatRate: number;
-    /** App-wide marketing configuration (SPEC_V2 §6.5). Optional. */
+    /** App-wide marketing configuration. Optional. */
     marketing?: PlanCatalogMarketing;
     features?: FeatureDef[];
     /**

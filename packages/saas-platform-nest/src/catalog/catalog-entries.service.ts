@@ -1,5 +1,5 @@
 // CatalogEntriesService — discovery review workflow, feature-/quota-centric
-// (#20, SPEC_V2 §6.3).
+// (#20).
 //
 // Three entities: CapabilityCatalogEntry (read-only code fact),
 // FeatureCatalogEntry and QuotaCatalogEntry (approval lifecycle

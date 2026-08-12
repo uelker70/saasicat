@@ -26,7 +26,7 @@ export interface AdminManifest {
         environment?: 'production' | 'staging' | 'development';
         /**
          * Allowed locale pool from the app config (`saas.yaml`
-         * `marketing.availableLocales`). First = default. SPEC_V2 §6.5.
+         * `marketing.availableLocales`). First = default..
          */
         availableLocales?: string[];
         /** Default locale; equals `availableLocales[0]`. */

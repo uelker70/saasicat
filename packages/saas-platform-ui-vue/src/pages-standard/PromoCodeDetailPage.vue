@@ -23,9 +23,9 @@
             </template>
             <template #actions>
                 <button
+                    v-if="editSubmit && data"
                     class="sa-btn sa-btn--primary"
                     type="button"
-                    v-if="editSubmit && data"
                     @click="openEdit"
                 >
                     <q-icon name="edit" size="16px" />

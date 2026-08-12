@@ -9,7 +9,6 @@
 // resolve to the same identity — analogous to the inject keys in
 // create-super-admin-app.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P8.
 
 import { inject, type App, type InjectionKey } from 'vue';
 import type { UseEntitlementResult } from './use-entitlement.js';

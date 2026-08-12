@@ -1,4 +1,4 @@
-// PlansService — CRUD for `plans` (SPEC_V2 §11.1 M6, Pack 1).
+// PlansService — CRUD for `plans`.
 //
 // Pack 1 only covers plan master operations. The PlanVersion lifecycle
 // (Draft → Publish → Supersede) follows with Pack 2 (importer cutover) —

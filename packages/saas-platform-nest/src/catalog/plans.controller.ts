@@ -1,5 +1,4 @@
 // PlansController + PlanVersionsController — REST endpoints for `plans`
-// (SPEC_V2 §11.1 M6).
 //
 // Pack 1: plan master CRUD under `/admin/catalog/plans`.
 // Pack 2a: PlanVersion lifecycle under

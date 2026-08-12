@@ -24,7 +24,7 @@
             <h1 class="sa-login-title">{{ msg.login.signIn }}</h1>
             <p v-if="subtitle" class="sa-login-subtitle">{{ subtitle }}</p>
 
-            <q-form @submit.prevent="handleSubmit" class="sa-login-form">
+            <q-form class="sa-login-form" @submit.prevent="handleSubmit">
                 <q-input
                     v-model="form.email"
                     :label="msg.emailLabel"
@@ -111,7 +111,7 @@ interface Props {
     subtitle?: string;
 }
 
-const props = defineProps<Props>();
+defineProps<Props>();
 
 const router = useRouter();
 const msg = useSaMessages('shell');

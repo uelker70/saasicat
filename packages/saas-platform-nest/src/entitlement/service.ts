@@ -332,7 +332,7 @@ export class EntitlementService {
 
     /**
      * Plan fallback for TRIAL/PENDING_SALES: returns the PlanVersion active
-     * as of `asOf` (SPEC_V2 §4.2). If the repo does not implement
+     * as of `asOf`. If the repo does not implement
      * `findActive`, we fall back to `findLatestLive` (backward compat for
      * adapters without `validFrom` columns).
      */

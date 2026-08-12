@@ -1,4 +1,4 @@
-// Lifecycle DTOs for PlanVersion (SPEC_V2 §11.1 M6 Pack 2a).
+// Lifecycle DTOs for PlanVersion.
 // `PlanVersionRow` itself lives in `plan-version-row.types.ts` —
 // only the mutation inputs + service result live here.
 //
@@ -32,7 +32,7 @@ export interface CreatePlanVersionDraftData {
     monthlyNet: string;
     yearlyNet: string;
     marketed?: boolean;
-    /** Required on publish (contract protection P3, SPEC_V2 §7). */
+    /** Required on publish (contract protection P3). */
     changeNote?: string;
     /** Optional in the draft (required on publish). ISO date string. */
     validFrom?: string | null;
@@ -60,10 +60,10 @@ export interface UpdatePlanVersionDraftData {
 
 /**
  * Input for `publishPlanVersion()`. The service computes `nonRegressive` and
- * `publishedChanges` from the diff to the predecessor version (see SPEC_V2
+ * `publishedChanges` from the diff to the predecessor version (
  * §7); the caller only provides confirmation + user tag.
  *
- * `validFrom` is **required** on publish (SPEC_V2 §4.2). If the draft
+ * `validFrom` is **required** on publish. If the draft
  * already has a `validFrom`, it is optional here. Auto-succession sets
  * `validUntil` of the predecessor version.
  */
@@ -72,7 +72,6 @@ export interface PublishPlanVersionData {
     /**
      * If true and the diff classifies the version as regressive,
      * it is published anyway (bulk-publish MFA confirmation,
-     * SPEC_V2 §7).
      */
     forceRegressive?: boolean;
     /**

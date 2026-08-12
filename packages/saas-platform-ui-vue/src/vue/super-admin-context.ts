@@ -80,6 +80,17 @@ export interface SuperAdminLoginAdapter {
      */
     login(email: string, password: string): Promise<SuperAdminLoginResult>;
     /**
+     * Undoes what `login` established — token, session storage, app store.
+     *
+     * Whoever knows how to start a session is the only one who knows how to
+     * end it, so it belongs next to `login` rather than in a second seam. The
+     * platform's own sign-out affordances call it; without it they can only
+     * navigate to `/login`, and an app whose `isAuthenticated()` reads a
+     * surviving token lets the operator straight back in — a sign-out button
+     * that does not sign out.
+     */
+    logout?(): void | Promise<void>;
+    /**
      * Target route after a successful login. Default: `/admin/dashboard`
      * (platform convention for the standard pages — apps with a different
      * default mount override this here).
@@ -119,6 +130,20 @@ export interface SuperAdminManifestGuardOptions {
      * manifest guard again and produces a redirect loop.
      */
     errorRoute?: string;
+    /**
+     * Discards the cached manifest, so the next `ensureLoaded()` fetches a
+     * fresh body instead of revalidating.
+     *
+     * Needed because the loader keeps an ETag in storage. Its own documented
+     * failure — "server returned 304 but the cache body is missing" — survives
+     * a full page reload: the next request sends the same `If-None-Match`,
+     * gets another 304, and lands back on the error page. Retry is a dead end
+     * for that case unless something clears the ETag first.
+     *
+     * `ManifestLoader.clearCache()` and the manifest store's reset both fit;
+     * pass whichever the app uses.
+     */
+    clearCache?: () => void | Promise<void>;
 }
 
 /**
@@ -170,6 +195,14 @@ export const SUPER_ADMIN_ACTIONS_KEY: InjectionKey<ActionsMap> = Symbol.for(
 export const SUPER_ADMIN_MANIFEST_KEY: InjectionKey<() => AdminManifest | null> = Symbol.for(
     '@saasicat/ui-vue/SUPER_ADMIN_MANIFEST',
 );
+/**
+ * Vue inject key for `manifestGuard.clearCache`.
+ *
+ * The fail-closed error page is route-mounted and gets no props, so the only
+ * way it can reach the app's cache is through the shell.
+ */
+export const SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY: InjectionKey<() => void | Promise<void>> =
+    Symbol.for('@saasicat/ui-vue/SUPER_ADMIN_MANIFEST_CLEAR_CACHE');
 /** Vue inject key for `useSuperAdminLoginAdapter()`. */
 export const SUPER_ADMIN_LOGIN_ADAPTER_KEY: InjectionKey<SuperAdminLoginAdapter> = Symbol.for(
     '@saasicat/ui-vue/SUPER_ADMIN_LOGIN_ADAPTER',
@@ -190,14 +223,52 @@ export type InstallPlugin = (app: App) => void;
  * behavior (auth redirect, manifest fail-closed path). Consumers should call
  * `createSuperAdminApp()`, not this helper directly.
  */
+/**
+ * Recognises "your session is gone" among manifest-load failures.
+ *
+ * Structural rather than `instanceof`: the manifest loader lives in the
+ * framework-free client layer, and a consumer store may wrap or re-throw the
+ * error (or use its own loader entirely). What all of them carry is a numeric
+ * `status`.
+ */
+function isUnauthorizedError(err: unknown): boolean {
+    const status = (err as { status?: unknown } | null)?.status;
+    return status === 401 || status === 403;
+}
+
 export function buildNavigationGuard(
     options: SuperAdminGuardOptions,
 ): NavigationGuardWithThis<undefined> | null {
     const { authGuard, manifestGuard } = options;
     if (!authGuard && !manifestGuard) return null;
 
+    // Set when a manifest 401/403 already sent the user to `onUnauthenticated()`.
+    // Cleared as soon as any navigation gets through, so a later expiry is
+    // handled again — see the loop note below.
+    let redirectedForUnauthorized = false;
+    // ...and whether they actually got there.
+    //
+    // This is the question the budget is really asking: has the operator had a
+    // chance to log in since we sent them away? Concurrent navigations have
+    // not, so they belong to the same episode and follow the first one to
+    // login rather than spending a second attempt.
+    //
+    // Deliberately NOT an identity comparison on the rejection or on the
+    // promise `ensureLoaded()` returned. Both were tried and both are
+    // implementation artefacts a valid consumer can change: a store may cache
+    // one `Error` and rethrow it, and `async () => { await store.ensure(); }`
+    // wraps one shared request in a fresh promise per call. The contract
+    // promises `Promise<void>`, nothing more. A navigation to a public route,
+    // by contrast, is something this guard observes directly.
+    let reachedLoginAfterRedirect = false;
+
     return async (to: RouteLocationNormalized) => {
-        if (to.meta?.public === true) return true;
+        if (to.meta?.public === true) {
+            // `onUnauthenticated()` sends them to the login route, which is
+            // public — so this is the guard seeing the redirect land.
+            if (redirectedForUnauthorized) reachedLoginAfterRedirect = true;
+            return true;
+        }
 
         if (authGuard) {
             if (!authGuard.isAuthenticated()) return authGuard.onUnauthenticated();
@@ -209,7 +280,41 @@ export function buildNavigationGuard(
         if (manifestGuard) {
             try {
                 await manifestGuard.ensureLoaded();
+                redirectedForUnauthorized = false;
+                reachedLoginAfterRedirect = false;
             } catch (err) {
+                // A 401/403 is usually an expired or missing session, not a
+                // broken manifest. Sending it to the fail-closed error page
+                // tells the operator "the manifest could not be loaded" and
+                // leaves them on a dead end, when the truth is "log in again".
+                //
+                // This happens whenever `isAuthenticated()` only checks that a
+                // token exists (the common implementation) while the token has
+                // expired: auth passes, the manifest request does not.
+                //
+                // Exactly ONCE, though. `onUnauthenticated()` commonly clears
+                // the session (`authStore.logout(); return '/login'`), so if
+                // the manifest keeps rejecting for a reason the login cannot
+                // fix — the account lacks the admin role, the endpoint is
+                // misconfigured, the backend is down — retrying it produces
+                // an unbreakable loop: log in → /admin → 401 → logged out →
+                // /login. The second time we fail closed to the error page
+                // instead, which at least says something and keeps the session.
+                //
+                // "Once" means once per LOGIN OPPORTUNITY, not once per guard
+                // call.
+                // Two protected navigations can overlap, and `ensureLoaded()`
+                // hands both of them the same in-flight promise — so both land
+                // here before either navigation completes. Counting that as
+                // two attempts would send the second, newer navigation to the
+                // error page over an ordinary expired session.
+                if (authGuard && isUnauthorizedError(err)) {
+                    if (!redirectedForUnauthorized || !reachedLoginAfterRedirect) {
+                        redirectedForUnauthorized = true;
+                        return authGuard.onUnauthenticated();
+                    }
+                }
+
                 if (manifestGuard.errorRoute && to.path !== manifestGuard.errorRoute) {
                     return manifestGuard.errorRoute;
                 }

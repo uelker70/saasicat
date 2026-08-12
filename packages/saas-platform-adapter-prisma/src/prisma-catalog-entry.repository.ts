@@ -111,7 +111,7 @@ interface CatalogEntryRepositoryClient {
 
 /**
  * `CatalogEntryRepository` against the canonical `capability_catalog_entries`,
- * `feature_catalog_entries` and `quota_catalog_entries` tables (SPEC_V2 §6.3 —
+ * `feature_catalog_entries` and `quota_catalog_entries` tables (
  * discovery review workflow).
  *
  * `upsert*` writes only the code-derived fields + the service-resolved status

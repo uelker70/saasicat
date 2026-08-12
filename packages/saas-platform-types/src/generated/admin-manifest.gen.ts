@@ -26,7 +26,7 @@ export interface AdminManifest {
         logoUrl?: string;
         environment?: 'production' | 'staging' | 'development';
         /**
-         * Locales allowed by the app catalog (saas.yaml marketing.availableLocales). First = default. SPEC_V2 §6.5.
+         * Locales allowed by the app catalog (saas.yaml marketing.availableLocales). First = default..
          *
          * @minItems 1
          */

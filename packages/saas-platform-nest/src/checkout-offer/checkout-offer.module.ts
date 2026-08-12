@@ -1,4 +1,4 @@
-// CheckoutOfferModule — DI wrapper around the CheckoutOfferService (METAMODELL §17a).
+// CheckoutOfferModule — DI wrapper around the CheckoutOfferService.
 //
 // ```ts
 // CheckoutOfferModule.forRoot({

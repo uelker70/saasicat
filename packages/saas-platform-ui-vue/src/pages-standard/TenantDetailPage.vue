@@ -1,20 +1,32 @@
 <template>
     <AdminPage class="sa-tenant-detail">
         <AdminHero :title="data?.name ?? labels.title">
-            <template #before-title>
-                <q-btn
-                    flat
-                    dense
-                    icon="arrow_back"
-                    :label="labels.back"
-                    :to="backRoute"
-                    class="sa-tenant-detail__back"
-                />
-            </template>
             <template v-if="data" #subtitle>
                 {{ labels.slug }}: <code>{{ data.slug }}</code>
             </template>
+            <!--
+                Back first, then the tenant-level actions, then whatever the app
+                adds — the same order every other hero uses. Both are plain
+                `.sa-btn` buttons: a hero is where a page's own actions live, and
+                a detail page's "suspend" is exactly that. It used to sit on the
+                master-data section instead, which read as an action on that one
+                card rather than on the tenant.
+            -->
             <template #actions>
+                <button class="sa-btn" type="button" @click="goBack">
+                    <q-icon name="arrow_back" size="16px" />
+                    <span>{{ labels.back }}</span>
+                </button>
+                <button
+                    v-for="action in manifestActions"
+                    :key="action.def.id"
+                    :class="['sa-btn', toneClass(action.def.actionKey)]"
+                    type="button"
+                    @click="action.onClick"
+                >
+                    <q-icon :name="iconForActionKey(action.def.actionKey)" size="16px" />
+                    <span>{{ action.def.label }}</span>
+                </button>
                 <slot name="header-actions" :data="data" :reload="load" />
             </template>
         </AdminHero>
@@ -24,24 +36,13 @@
                 <!-- Master data -->
                 <AdminSection :title="labels.masterData" :subtitle="stammdatenSub" class="q-mb-md">
                     <template #actions>
-                        <!-- Manifest-driven default actions (Suspend/Reactivate) -->
-                        <button
-                            v-for="action in manifestActions"
-                            :key="action.def.id"
-                            :class="['sa-btn', toneClass(action.def.actionKey)]"
-                            type="button"
-                            @click="action.onClick"
-                        >
-                            <q-icon :name="iconForActionKey(action.def.actionKey)" size="16px" />
-                            <span>{{ action.def.label }}</span>
-                        </button>
                         <slot name="card-actions" :data="data" :reload="load" />
                     </template>
                     <slot name="stammdaten" :data="data">
                         <TenantMasterData
                             :data="data"
                             :labels="labels"
-                            :format-date="formatDate"
+                            :format-date="formatDateResolved"
                             :yes="common.yes"
                             :no="common.no"
                         >
@@ -94,7 +95,7 @@ import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
-import type { RouteLocationRaw } from 'vue-router';
+import { useRouter, type RouteLocationRaw } from 'vue-router';
 import type { TenantDetailData, VerbrauchField } from './tenant-detail/types.js';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -182,7 +183,7 @@ function defaultFormatDate(value: string | null | undefined): string {
     return String(value).slice(0, 10);
 }
 
-function formatDate(value: string | null | undefined): string {
+function formatDateResolved(value: string | null | undefined): string {
     return props.formatDate ? props.formatDate(value) : defaultFormatDate(value);
 }
 
@@ -265,6 +266,19 @@ const manifestActions = computed(() => {
         .map((a) => ({ def: a.def, onClick: () => void a.invoke(row) }));
 });
 
+const router = useRouter();
+
+/**
+ * The hero back button navigates rather than rendering a link.
+ *
+ * `backRoute` is a `RouteLocationRaw`, not an href, so there is no anchor to
+ * build without duplicating the router's resolution — and every other hero in
+ * the package uses a button for the same step.
+ */
+function goBack(): void {
+    void router.push(props.backRoute);
+}
+
 function iconForActionKey(actionKey: string): string {
     if (actionKey.endsWith('.suspend')) return 'block';
     if (actionKey.endsWith('.reactivate')) return 'play_arrow';
@@ -309,9 +323,6 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
 </script>
 
 <style scoped>
-.sa-tenant-detail__back {
-    margin-bottom: 6px;
-}
 .sa-tenant-detail__card-head {
     display: flex;
     justify-content: space-between;

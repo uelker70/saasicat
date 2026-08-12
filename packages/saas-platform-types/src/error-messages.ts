@@ -53,7 +53,7 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     PLAN_VERSION_SUPERSEDED:
         "PlanVersion '{versionId}' has already been superseded by a newer version and cannot be terminated.",
     PLAN_VERSION_VALID_FROM_REQUIRED:
-        'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
+        'validFrom must be set when publishing (on the draft or the publish call)..',
     PLAN_VERSION_VALID_FROM_INVALID: "validFrom '{validFrom}' is not a valid date",
     PLAN_VERSION_VALID_FROM_NOT_AFTER_PREVIOUS:
         'validFrom ({validFrom}) must be strictly after the validFrom of the previous version ({previousValidFrom}).',

@@ -1,4 +1,4 @@
-// Promotion — time-controlled, catalog-side price promotion (SPEC_V2 §9a).
+// Promotion — time-controlled, catalog-side price promotion.
 //
 // Separate from `PromoCode` (redeemable checkout voucher): a promotion
 // overrides the pricing-page price automatically. `requiresCoupon = true`

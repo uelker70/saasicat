@@ -1,7 +1,7 @@
 // PlanCatalogModule — NestJS module that provides the `PlanCatalog` as a
 // DI provider (consumers inject `PLAN_CATALOG_TOKEN`).
 //
-// SPEC_V2 §11.1 M6 Pack 2c (hard replace): the catalog is reconstructed
+// (hard replace): the catalog is reconstructed
 // from the DB (instead of from YAML). Apps pass through a
 // `PlanCatalogReadSink` + their static app-identity settings
 // (`projectKey`, `currency`, `vatRate`).
@@ -44,7 +44,7 @@ export interface PlanCatalogModuleOptions {
     currency: string;
     vatRate: number;
     /**
-     * App-wide marketing configuration (SPEC_V2 §6.5) — including the
+     * App-wide marketing configuration — including the
      * `availableLocales` pool. Flows into `PLAN_CATALOG_TOKEN.marketing`
      * and from there into the admin manifest (`project.availableLocales`).
      */

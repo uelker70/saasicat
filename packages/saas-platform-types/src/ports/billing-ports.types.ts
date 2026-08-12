@@ -112,7 +112,7 @@ export interface SubscriptionRepository {
 }
 
 /**
- * Adapter for the `subscription_bundles` junction (SPEC_V2 §11.1 M6 Pack 2e).
+ * Adapter for the `subscription_bundles` junction.
  * Consumers implement it against their Prisma table. Writing
  * via `add` / `cancel` is always a side effect of the subscription-service
  * methods — the repository is dumb persistence, no domain
@@ -245,7 +245,7 @@ export interface SubscriptionUsageRecord {
     pendingPlanVersionAccepted: boolean;
     pendingPlanVersionAcceptedAt: Date | null;
     /**
-     * P11.4 (METAMODELL §17a): frozen package snapshot from the
+     * P11.4: frozen package snapshot from the
      * `CheckoutOffer` that was activated during onboarding. Read-only —
      * serves only for display in the tenant self-service UI, so that the
      * tenant knows *which* advertised package was concretely booked.

@@ -5,6 +5,15 @@ import { defineConfig } from 'tsup';
 //   dist/index.*        — main entry: client re-exports + Vue layer, Quasar-free
 //   dist/client/index.* — framework-free core only
 //   dist/quasar/index.* — createSuperAdminApp + Quasar notify port
+//
+// NOTE: no `clean: true` on any entry. tsup runs the two configs below
+// concurrently, so a `clean` belonging to one of them deletes whatever the
+// other has already written. That is not hypothetical: it silently removed
+// `dist/testing-e2e/*.d.ts` after the declaration build had emitted them,
+// which left `package.json#exports` pointing its `types` condition at files
+// that did not exist. Cleaning happens once, before tsup, in the `build`
+// script — via `node -e fs.rmSync` rather than `rm -rf`, which does not exist
+// on a Windows `cmd.exe` and would fail the build before tsup ever starts.
 export default defineConfig([
     {
         entry: {
@@ -14,7 +23,6 @@ export default defineConfig([
         },
         format: ['esm', 'cjs'],
         dts: true,
-        clean: true,
         external: ['@saasicat/types', 'vue', 'vue-router', 'pinia', 'quasar'],
     },
     {

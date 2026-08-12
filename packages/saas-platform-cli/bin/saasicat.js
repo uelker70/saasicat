@@ -10,8 +10,6 @@
 //   schema check [--prisma-schema=PATH] [--fragments=01,02,03]
 //       Reports what your schema is missing relative to the canonical
 //       fragments. Read-only; exits 1 on drift so CI can gate on it.
-//
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
 
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -43,8 +41,8 @@ function resolveFragmentsDir() {
     const candidate = join(root, 'prisma-fragments');
     if (!existsSync(candidate)) {
         throw new Error(
-            `prisma-fragments/-Verzeichnis nicht gefunden unter ${candidate}. ` +
-                'Stelle sicher, dass @saasicat/spec installiert ist.',
+            `prisma-fragments/ directory not found at ${candidate}. ` +
+                'Make sure @saasicat/spec is installed.',
         );
     }
     return candidate;
@@ -61,8 +59,8 @@ async function selectFragmentFiles(dir, filter) {
     const unknown = filter.filter((prefix) => !available.has(prefix));
     if (unknown.length > 0) {
         console.error(
-            `✗ Unbekannte Fragmente: ${unknown.join(', ')}. ` +
-                `Verfügbar: ${[...available].join(', ')}`,
+            `✗ Unknown fragments: ${unknown.join(', ')}. ` +
+                `Available: ${[...available].join(', ')}`,
         );
         process.exit(1);
     }
@@ -91,7 +89,7 @@ function parseFragmentFilter(raw) {
 async function readSchemaOrExit(args) {
     const schemaPath = resolve(args['prisma-schema'] ?? 'prisma/schema.prisma');
     if (!existsSync(schemaPath)) {
-        console.error(`✗ schema.prisma nicht gefunden: ${schemaPath}`);
+        console.error(`✗ schema.prisma not found: ${schemaPath}`);
         process.exit(1);
     }
     return { schemaPath, schema: await readFile(schemaPath, 'utf8') };
@@ -103,9 +101,7 @@ async function cmdSchemaApply(args) {
     const fragmentsDir = resolveFragmentsDir();
     const filter = parseFragmentFilter(args.fragments);
     if (!filter && !args.all) {
-        console.error(
-            '✗ Entweder --fragments=01,02,03 oder --all übergeben. ' + 'Verfügbare Fragmente:',
-        );
+        console.error('✗ Pass either --fragments=01,02,03 or --all. Available fragments:');
         const files = (await readdir(fragmentsDir)).filter((f) => f.endsWith('.prisma')).sort();
         for (const f of files) console.error(`    ${f}`);
         process.exit(1);
@@ -113,7 +109,7 @@ async function cmdSchemaApply(args) {
 
     const { files, blocks } = await loadFragments(fragmentsDir, filter);
     if (blocks.size === 0) {
-        console.error('✗ Keine Models in den gewählten Fragmenten gefunden.');
+        console.error('✗ No models found in the selected fragments.');
         process.exit(1);
     }
 
@@ -122,14 +118,14 @@ async function cmdSchemaApply(args) {
     });
 
     if (result.added.length === 0) {
-        console.log(`→ Nichts zu tun. Bereits vorhandene Models: ${result.skipped.join(', ')}`);
+        console.log(`→ Nothing to do. Models already present: ${result.skipped.join(', ')}`);
         return;
     }
 
     if (args['dry-run']) {
-        console.log(`(--dry-run) Würde anfügen: ${result.added.join(', ')}`);
+        console.log(`(--dry-run) Would append: ${result.added.join(', ')}`);
         if (result.skipped.length) {
-            console.log(`(--dry-run) Übersprungen (vorhanden): ${result.skipped.join(', ')}`);
+            console.log(`(--dry-run) Skipped (already present): ${result.skipped.join(', ')}`);
         }
         console.log('');
         console.log(result.schema.slice(schema.length));
@@ -137,25 +133,25 @@ async function cmdSchemaApply(args) {
     }
 
     await writeFile(schemaPath, result.schema, 'utf8');
-    console.log(`✓ ${result.added.length} Model(s) angefügt: ${result.added.join(', ')}`);
+    console.log(`✓ Appended ${result.added.length} model(s): ${result.added.join(', ')}`);
     if (result.skipped.length) {
-        console.log(`→ Übersprungen (vorhanden): ${result.skipped.join(', ')}`);
+        console.log(`→ Skipped (already present): ${result.skipped.join(', ')}`);
     }
     console.log('');
-    console.log('Nächste Schritte:');
-    console.log('  1. schema.prisma reviewen (insbesondere FK-Pointer zu User/Tenant)');
-    console.log('  2. pnpm prisma migrate dev --name add_saas_platform');
+    console.log('Next steps:');
+    console.log('  1. Review schema.prisma — especially the FK pointers to User/Tenant');
+    console.log('  2. pnpm prisma migrate dev --name add_saasicat');
 }
 
 const MISMATCH_LABELS = {
-    type: 'Typ',
-    optionality: 'Optionalität',
-    list: 'Liste',
+    type: 'type',
+    optionality: 'optionality',
+    list: 'list',
 };
 
 function printCheckReport(report) {
     if (report.missingFields.length > 0) {
-        console.log(`✗ Fehlende Felder (${report.missingFields.length}):`);
+        console.log(`✗ Missing fields (${report.missingFields.length}):`);
         for (const { model, field, type } of report.missingFields) {
             console.log(`    ${`${model}.${field}`.padEnd(44)} ${type}`);
         }
@@ -163,7 +159,7 @@ function printCheckReport(report) {
     }
 
     if (report.missingEnumValues.length > 0) {
-        console.log(`✗ Fehlende Enum-Werte (${report.missingEnumValues.length}):`);
+        console.log(`✗ Missing enum values (${report.missingEnumValues.length}):`);
         for (const entry of report.missingEnumValues) {
             console.log(`    ${entry.enum}.${entry.value}`);
         }
@@ -171,11 +167,11 @@ function printCheckReport(report) {
     }
 
     if (report.fieldMismatches.length > 0) {
-        console.log(`✗ Abweichende Felder (${report.fieldMismatches.length}):`);
+        console.log(`✗ Diverging fields (${report.fieldMismatches.length}):`);
         for (const { model, field, reason, expected, actual } of report.fieldMismatches) {
             const location = `${model}.${field}`.padEnd(44);
             console.log(
-                `    ${location} [${MISMATCH_LABELS[reason]}] erwartet ${expected}, vorhanden ${actual}`,
+                `    ${location} [${MISMATCH_LABELS[reason]}] expected ${expected}, found ${actual}`,
             );
         }
         console.log('');
@@ -183,9 +179,9 @@ function printCheckReport(report) {
 
     const breaking = report.missingBlockAttributes.filter((a) => a.kind !== 'index');
     if (breaking.length > 0) {
-        console.log(`✗ Fehlende Constraints (${breaking.length}):`);
+        console.log(`✗ Missing constraints (${breaking.length}):`);
         for (const { model, kind, expected, actual } of breaking) {
-            const suffix = kind === 'map' ? ` — vorhanden: @@map("${actual}")` : '';
+            const suffix = kind === 'map' ? ` — found: @@map("${actual}")` : '';
             console.log(`    ${model.padEnd(28)} ${expected}${suffix}`);
         }
         console.log('');
@@ -193,18 +189,18 @@ function printCheckReport(report) {
 
     const missingIndexes = report.missingBlockAttributes.filter((a) => a.kind === 'index');
     if (missingIndexes.length > 0) {
-        console.log(`→ Fehlende Indizes (${missingIndexes.length}):`);
+        console.log(`→ Missing indexes (${missingIndexes.length}):`);
         for (const { model, expected } of missingIndexes) {
             console.log(`    ${model.padEnd(28)} ${expected}`);
         }
-        console.log('  Kein Fehler — kostet Query-Zeit, bricht aber nichts.');
+        console.log('  Not an error — costs query time, but breaks nothing.');
         console.log('');
     }
 
     const absent = [...report.absentModels, ...report.absentEnums];
     if (absent.length > 0) {
-        console.log(`→ Nicht übernommen (${absent.length}): ${absent.join(', ')}`);
-        console.log('  Kein Fehler — diese Fragmente nutzt die App nicht.');
+        console.log(`→ Not adopted (${absent.length}): ${absent.join(', ')}`);
+        console.log('  Not an error — the app does not use these fragments.');
         console.log('');
     }
 }
@@ -216,7 +212,7 @@ async function cmdSchemaCheck(args) {
     const files = await selectFragmentFiles(fragmentsDir, filter);
 
     if (files.length === 0) {
-        console.error('✗ Keine Fragmente ausgewählt.');
+        console.error('✗ No fragments selected.');
         process.exit(1);
     }
 
@@ -225,7 +221,7 @@ async function cmdSchemaCheck(args) {
         fragments.push(await readFile(join(fragmentsDir, file), 'utf8'));
     }
 
-    console.log(`→ Prüfe ${schemaPath} gegen ${files.length} Fragment(e) aus @saasicat/spec`);
+    console.log(`→ Checking ${schemaPath} against ${files.length} fragment(s) from @saasicat/spec`);
     console.log('');
 
     const report = checkSchema(fragments.join('\n'), schema);
@@ -233,13 +229,13 @@ async function cmdSchemaCheck(args) {
 
     const checked = `${report.checkedModelCount} Model(s), ${report.checkedEnumCount} Enum(s)`;
     if (report.ok) {
-        console.log(`✓ Kein Drift. ${checked} geprüft.`);
+        console.log(`✓ No drift. Checked ${checked}.`);
         return;
     }
 
-    console.log(`✗ Drift gefunden (${checked} geprüft).`);
-    console.log('  Fehlende Felder und Enum-Werte ergänzen, dann migrieren.');
-    console.log('  Abweichende Felder prüfen: Plattform-Code liest sie mit dem Spec-Typ.');
+    console.log(`✗ Drift found (checked ${checked}).`);
+    console.log('  Add the missing fields and enum values, then migrate.');
+    console.log('  Review diverging fields: platform code reads them with the spec type.');
     process.exit(1);
 }
 
@@ -256,22 +252,24 @@ function runChild(cmd, args, opts = {}) {
 
 async function cmdSchemaMigrate(args) {
     if (!args.name) {
-        console.error('✗ --name=<migration_name> ist Pflicht.');
+        console.error('✗ --name=<migration_name> is required.');
         process.exit(1);
     }
 
     console.log(
-        `→ Schritt 1/2: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`,
+        `→ Step 1/2: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`,
     );
     await cmdSchemaApply({
         ...args,
         all: args['fragments'] ? undefined : true,
     });
 
-    console.log(`→ Schritt 2/2: pnpm prisma migrate dev --name ${args.name}`);
+    console.log(
+        `→ Step 2/2: ${args['package-manager'] ?? 'pnpm'} prisma migrate dev --name ${args.name}`,
+    );
     const pmRunner = args['package-manager'] ?? 'pnpm';
     await runChild(pmRunner, ['prisma', 'migrate', 'dev', '--name', args.name]);
-    console.log('✓ schema migrate erfolgreich.');
+    console.log('✓ schema migrate succeeded.');
 }
 
 async function main() {
@@ -289,18 +287,20 @@ async function main() {
         console.log('Usage: saasicat <command> [...args]');
         console.log('');
         console.log('Commands:');
-        console.log('  schema apply --all                       alle Plattform-Models einfügen');
-        console.log('  schema apply --fragments=01,02           nur diese Fragmente einfügen');
-        console.log('  schema apply --dry-run                   nur Diff ausgeben');
-        console.log('  schema check                             Drift gegen @saasicat/spec melden');
-        console.log('  schema check --fragments=01,02           nur diese Fragmente prüfen');
+        console.log('  schema apply --all                       insert all platform models');
+        console.log('  schema apply --fragments=01,02           insert only these fragments');
+        console.log('  schema apply --dry-run                   print the diff only');
+        console.log(
+            '  schema check                             report drift against @saasicat/spec',
+        );
+        console.log('  schema check --fragments=01,02           check only these fragments');
         console.log('  schema migrate --name=<name>             apply --all + prisma migrate dev');
         console.log('');
         console.log('Optional --prisma-schema=PATH (default prisma/schema.prisma).');
         console.log('Optional --package-manager=pnpm|npm|yarn (default pnpm).');
         return;
     }
-    console.error(`Unbekannter Befehl: ${cmd} ${sub ?? ''}`);
+    console.error(`Unknown command: ${cmd} ${sub ?? ''}`);
     process.exit(1);
 }
 

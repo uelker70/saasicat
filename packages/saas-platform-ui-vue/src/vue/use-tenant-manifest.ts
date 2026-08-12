@@ -5,7 +5,6 @@
 // backend renders per Tenant. This lets the app UI build the navigation
 // declaratively from the Manifest instead of filtering it itself.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
 import { ref, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';

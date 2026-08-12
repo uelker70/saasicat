@@ -7,9 +7,9 @@
             <template #actions>
                 <slot name="head-actions">
                     <button
+                        v-if="enableCreate"
                         class="sa-btn sa-btn--primary"
                         type="button"
-                        v-if="enableCreate"
                         @click="showCreate = true"
                     >
                         <q-icon name="add" size="16px" />

@@ -325,7 +325,7 @@ import {
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
-// Promotions tab of the Marketing Catalog (SPEC_V2 §9a). Standalone child
+// Promotions tab of the Marketing Catalog. Standalone child
 // component — the MarketingCatalogPage wires `usePromotions` and passes the
 // list + CRUD callbacks through.
 

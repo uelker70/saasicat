@@ -140,7 +140,6 @@ function statusOf(v: PlanVersionRow): PlanVersionStatus {
  * Editability decision per version — identical to the backend rule
  * (`isVersionEditable`). The UI uses the result both for the visibility
  * of the edit button and for the badge on published-but-future versions
- * (SPEC_V2 §11.1 M6 Pack 2c).
  */
 function editabilityOf(v: PlanVersionRow): PlanVersionEditability {
     return isVersionEditable(v);

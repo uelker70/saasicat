@@ -7,7 +7,6 @@
 // consumer relations — use `saasicat schema check` to find out what a
 // schema is missing after a package upgrade.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P5.
 
 import { extractBlockNames, extractBlocks } from './prisma-blocks.js';
 

@@ -132,7 +132,7 @@ plans:
 });
 
 test('cross-field: plannedOnly:true allows plan reference (roadmap marker)', () => {
-    // Semantics (SPEC_V2 §8.2): plannedOnly = "listed in the catalog, not (yet)
+    // Semantics: plannedOnly = "listed in the catalog, not (yet)
     // implemented in code". Plans may carry the feature as a roadmap marker —
     // activation protection lives in getActiveFeatureKeys.
     const yaml = `

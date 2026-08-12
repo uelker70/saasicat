@@ -1,4 +1,4 @@
-// DTOs for the catalog-entries endpoints (discovery review, SPEC_V2 §6.3 + #20).
+// DTOs for the catalog-entries endpoints (discovery review).
 
 import { IsIn, IsObject, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import type { CatalogEntryI18n, DiscoverySnapshot, DiscoveryStatus } from '@saasicat/types';

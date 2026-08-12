@@ -77,7 +77,7 @@ export function classifyPlanDiff(oldV: PlanVersionFields, newV: PlanVersionField
 }
 
 /**
- * Classification of a BundleVersion diff for SPEC_V2 §7 contract protection.
+ * Classification of a BundleVersion diff for contract protection.
  *
  * Quota comparison: `-1` (unlimited) is always better than any positive
  * number. Otherwise higher = better. Missing keys are treated as 0.

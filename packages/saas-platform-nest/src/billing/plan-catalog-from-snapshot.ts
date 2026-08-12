@@ -1,5 +1,5 @@
 // buildPlanCatalogFromSnapshot — pure function (DI-free) that assembles a
-// `PlanCatalog` snapshot from DB reads (SPEC_V2 §11.1 M6 Pack 2c).
+// `PlanCatalog` snapshot from DB reads.
 //
 // Inputs:
 //  - App-global settings (projectKey, currency, vatRate) —
@@ -27,7 +27,7 @@ export interface PlanCatalogBuildSettings {
     app?: PlanCatalog['app'];
     currency: string;
     vatRate: number;
-    /** App-wide marketing configuration (SPEC_V2 §6.5). Optional. */
+    /** App-wide marketing configuration. Optional. */
     marketing?: PlanCatalog['marketing'];
 }
 

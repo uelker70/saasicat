@@ -26,7 +26,6 @@ import { getMarketedPlans } from './plan-helpers.js';
 // PublicCatalogController — auth-free readable catalog for marketing,
 // onboarding and tenant self-service UIs.
 //
-// SPEC_V2 §11.1 M6 Pack 2c:
 //   - GET /billing/plans?locale=de: marketing merge optional (if a
 //     MarketingProjection repo + projectKey are configured)
 //   - GET /billing/bundles?locale=de: NEW (M6 Pack 2c)
@@ -54,7 +53,7 @@ interface PlanResponseEntry {
     popular: boolean;
     quotas: Record<string, number>;
     features: string[];
-    /** SPEC_V2 §11.1 M6 — optional, present if a MarketingProjection exists. */
+    /** — optional, present if a MarketingProjection exists. */
     marketing?: MarketingFields;
 }
 
@@ -103,7 +102,7 @@ export class PublicCatalogController {
         @Query('lang') lang?: string,
         @Query('locale') localeParam = 'de',
     ): Promise<PlanResponseEntry[]> {
-        // SPEC_V2 §9 — `?lang=XX` is the documented query param,
+        // — `?lang=XX` is the documented query param,
         // `?locale=XX` remains accepted as an alias.
         const locale = lang || localeParam;
         const plans = getMarketedPlans(this.planCatalog).map((plan) => ({
@@ -159,7 +158,7 @@ export class PublicCatalogController {
     }
 
     /**
-     * SPEC_V2 §11.1 M6 Pack 2c — public catalog endpoint for bundles
+     * — public catalog endpoint for bundles
      * (stem list with live versions). If a `MarketingProjection` with
      * `targetType=BUNDLE` + matching locale exists, it is merged in.
      */

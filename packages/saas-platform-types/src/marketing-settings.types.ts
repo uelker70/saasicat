@@ -1,5 +1,5 @@
 // MarketingSettings — project-wide, runtime-editable marketing config
-// (SPEC_V2 §6.5). Currently exactly one field: `activeLocales` — the subset
+//. Currently exactly one field: `activeLocales` — the subset
 // of the `availableLocales` pool that is activated in the marketing catalog
 // (the pool itself comes from the app-config `saas.yaml`).
 //

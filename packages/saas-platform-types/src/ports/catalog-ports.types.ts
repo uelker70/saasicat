@@ -40,7 +40,7 @@ import type {
 import type { VersionChange } from '../subscription.types.js';
 
 // =============================================================================
-// Bundle / BundleVersion — persistence adapter (SPEC_V2 §5 + §11.1 M3)
+// Bundle / BundleVersion — persistence adapter
 // =============================================================================
 
 /** Filter for `PlanRepository.list()`. */
@@ -59,7 +59,7 @@ export interface PlanListFilter {
 
 /**
  * Adapter for `Plan` stem + `PlanVersion` lifecycle persistence
- * (SPEC_V2 §11.1 M6). Consumers implement this against the Prisma
+ *. Consumers implement this against the Prisma
  * tables `plans` + `plan_versions`.
  *
  * Pack 1 (CRUD stem) and Pack 2a (lifecycle) live in one interface,
@@ -129,7 +129,7 @@ export interface PlanRepository {
     ): Promise<PlanVersionRow | null>;
 
     /**
-     * PlanVersion of a plan active at `asOf` (SPEC_V2 §4.2 extended):
+     * PlanVersion of a plan active at `asOf` ( extended):
      *   `publishedAt IS NOT NULL`
      *   `(validFrom IS NULL OR validFrom <= asOf)`
      *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`  — day-inclusive
@@ -168,7 +168,7 @@ export interface PlanRepository {
         data: UpdatePlanVersionDraftData,
     ): Promise<PlanVersionRow>;
     /**
-     * Publishes a draft version atomically (SPEC_V2 §4.2 + §11.1 M6 Pack 2a):
+     * Publishes a draft version atomically:
      * 1. Sets `publishedAt = NOW()`, `publishedChanges`, `nonRegressive`,
      *    `publishedByUserId`, `validFrom` on the draft.
      * 2. Sets `supersededAt = NOW()` on the previously live version AND
@@ -288,7 +288,7 @@ export interface BundleRepository {
     updateDraft(versionId: string, data: UpdateBundleVersionDraftData): Promise<BundleVersionRow>;
 
     /**
-     * Publishes a draft version atomically (SPEC_V2 §4.2 + §11.1 M6
+     * Publishes a draft version atomically (
      * Pack 2c, analogous to `PlanRepository.publishPlanVersionDraft`):
      * 1. Sets `publishedAt = NOW()`, `publishedChanges`, `nonRegressive`,
      *    `publishedByUserId`, `validFrom` on the draft.
@@ -332,7 +332,7 @@ export interface BundleRepository {
 }
 
 // =============================================================================
-// MarketingProjection — persistence adapter (SPEC_V2 §11.1 M3)
+// MarketingProjection — persistence adapter
 // =============================================================================
 
 /**
@@ -364,7 +364,7 @@ export interface MarketingProjectionRepository {
 }
 
 // =============================================================================
-// CatalogEntry — persistence adapter (SPEC_V2 §6.3 — discovery review)
+// CatalogEntry — persistence adapter (discovery review)
 // =============================================================================
 
 /** Upsert input for a capability from the discovery sync. */
@@ -516,7 +516,7 @@ export interface CatalogEntryRepository {
 }
 
 // =============================================================================
-// Promotion — persistence adapter (SPEC_V2 §9a — time-scheduled price promotions)
+// Promotion — persistence adapter (time-scheduled price promotions)
 // =============================================================================
 
 /**
@@ -534,7 +534,7 @@ export interface PromotionRepository {
 }
 
 // =============================================================================
-// MarketingSettings — persistence adapter (SPEC_V2 §6.5 — activeLocales)
+// MarketingSettings — persistence adapter (activeLocales)
 // =============================================================================
 
 /**

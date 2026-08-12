@@ -50,7 +50,7 @@
                     :columns="tenantColumns"
                     :loading="loading"
                     :page="page"
-                    :rows-per-page="pageSize"
+                    :rows-per-page="rowsPerPage"
                     :total="total"
                     :empty-text="msg.list.empty"
                     storage-key="tenants"
@@ -357,7 +357,10 @@ const list = useTenants<TenantRow>({
     http: props.http,
     getAuthToken: props.getAuthToken,
 });
-const { items, page, pageSize, total, loading, error, goToPage, setPageSize } = list;
+// Aliased: the `pageSize` prop is the INITIAL size, `list.pageSize` is the
+// current one. Sharing one name makes the template ambiguous about which of
+// the two it reads.
+const { items, page, pageSize: rowsPerPage, total, loading, error, goToPage, setPageSize } = list;
 
 setPageSize(props.pageSize);
 
@@ -390,17 +393,6 @@ const tenantColumns = computed<QTableColumn[]>(() => {
     });
     return cols;
 });
-
-let searchTimer: ReturnType<typeof setTimeout> | null = null;
-function reloadDebounced(): void {
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(applyFilter, 250);
-}
-
-function onClearSearch(): void {
-    searchInput.value = '';
-    applyFilter();
-}
 
 function applyFilter(): void {
     // The status value is passed through unchanged. Apps configure the values
@@ -456,7 +448,6 @@ if (manifestFlow && typeof window !== 'undefined') {
         manifestFlow.realOrphans,
         (orphans) => {
             if (orphans.length > 0) {
-                // eslint-disable-next-line no-console
                 console.warn(
                     '[PlatformTenantsPage] Manifest actions without a handler in createSuperAdminApp({ actions }):',
                     orphans,
@@ -478,7 +469,6 @@ const combinedActions = computed<TenantRowAction[]>(() => {
     const filteredCustom = custom.filter((a) => {
         if (a.actionKey && manifestKeys.has(a.actionKey)) {
             if (typeof window !== 'undefined') {
-                // eslint-disable-next-line no-console
                 console.warn(
                     `[PlatformTenantsPage] Custom action "${a.id}" (actionKey="${a.actionKey}") ` +
                         `collides with a manifest action — the manifest wins.`,

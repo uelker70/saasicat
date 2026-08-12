@@ -1,5 +1,4 @@
 // PlanCatalogImporterModule — DI wrapper around the importer service.
-// SPEC_V2 §11.1 M6 Pack 2c.
 //
 // Consumers pass their app-specific `PlanCatalogImportSink` through and
 // get the service plus optionally an admin endpoint

@@ -57,6 +57,12 @@ jobs:
               run: pnpm -r build
             - name: Run unit tests
               run: pnpm -r --workspace-concurrency=1 test
+            # Checks that span the whole workspace rather than one package —
+            # they need every dist/ present, so they cannot live in a package
+            # suite without breaking `pnpm --filter <pkg> test` on a clean
+            # checkout.
+            - name: Run repo-wide checks
+              run: pnpm run test:repo
             # SFC templates are invisible to the unit tests, which run against the
             # built dist/. This covers the decisions components make while rendering.
             - name: Run component tests
@@ -68,6 +74,12 @@ jobs:
               run: pnpm run format:check
             - name: Typecheck
               run: pnpm -r typecheck
+            # A ratchet, not a target: it fails only when coverage DROPS below
+            # what is recorded in coverage-baseline.json. An invented threshold
+            # would be either ignored or routed around; this one moves down as
+            # the suites improve, and never up by accident.
+            - name: Coverage ratchet
+              run: pnpm run coverage
             # The example is the schema consumers copy from, so it must not fall
             # behind the fragments it demonstrates. Exits 1 on drift.
             - name: Schema drift (NotesApp example)

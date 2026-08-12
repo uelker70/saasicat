@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { PlanVersionsService, PlansService } from '../dist/catalog/index.js';
 import { FakePlanRepository, FakeSubscriptionRepository } from '../dist/testing/index.js';
 
-// PlanVersionsService — PlanVersion lifecycle (SPEC_V2 §11.1 M6 Pack 2a).
+// PlanVersionsService — PlanVersion lifecycle.
 // Strict mode check is inactive in Pack 2a (`warnings` is always empty);
 // comes with Pack 2c.
 
@@ -443,7 +443,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    // ── SPEC_V2 §4.2.1 rule 3 — gapless succession ──
+    // ── — gapless succession ──
     test('publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({

@@ -1,5 +1,5 @@
 // PlanCatalogImportSink — narrow adapter port for the one-shot import
-// `saas.yaml → DB` (SPEC_V2 §11.1 M6 Pack 2c).
+// `saas.yaml → DB`.
 //
 // Instead of defining separate repositories (Plan, PlanVersion,
 // FeatureCatalogEntry), we use **one** sink port with upsert methods here.
@@ -72,7 +72,7 @@ export interface PlanCatalogImportReport {
 }
 
 // =============================================================================
-// PlanCatalogReadSink — read counterpart to the importer (SPEC_V2 §11.1 M6 Pack 2c).
+// PlanCatalogReadSink — read counterpart to the importer.
 // Called by DB-PlanCatalogModule.forRoot at boot to assemble the
 // PlanCatalog from the DB.
 // =============================================================================

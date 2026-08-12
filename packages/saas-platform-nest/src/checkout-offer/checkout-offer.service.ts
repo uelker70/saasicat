@@ -1,5 +1,4 @@
 // CheckoutOfferService — package snapshot website → onboarding → billing
-// (METAMODELL §17a).
 //
 // `create` is called by the pricing page, `getById`/`update` by
 // onboarding (customization), `consume` on subscription completion

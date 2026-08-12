@@ -1,4 +1,4 @@
-// PlanRow — wire format for the plan stem table (SPEC_V2 §11.1 M6).
+// PlanRow — wire format for the plan stem table.
 //
 // Plan is the business identity of a tariff (STARTER, STANDARD,
 // PROFESSIONAL). The purchasable fields (pricing, features, quotas) live on

@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 
 // DTOs for PlanVersionsController — class-validator validation at the
-// HTTP boundary. SPEC_V2 §11.1 M6 Pack 2a + §4.2 (validFrom/validUntil).
+// HTTP boundary. (validFrom/validUntil).
 //
 // Structurally analogous to CreateBundleVersionDraftDto, but without
 // `compatibility` / `pricingOverrides` (a plan is not
@@ -70,7 +70,7 @@ export class CreatePlanVersionDraftDto {
     @IsUUID()
     baseVersionId?: string | null;
 
-    /** Optional in the draft (required at publish). ISO date string. SPEC_V2 §4.2. */
+    /** Optional in the draft (required at publish). ISO date string.. */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)
     @IsISO8601()
@@ -154,7 +154,7 @@ export class PublishPlanVersionDto {
 
     /**
      * Required at publish (on the DTO or draft). The service strictly checks
-     * `validFrom > predecessor.validFrom`. SPEC_V2 §4.2.
+     * `validFrom > predecessor.validFrom`..
      */
     @IsOptional()
     @ValidateIf((_o, value) => value !== null)

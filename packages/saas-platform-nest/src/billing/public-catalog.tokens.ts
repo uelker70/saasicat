@@ -1,4 +1,4 @@
-// DI tokens for PublicCatalogModule (SPEC_V2 §11.1 M6 Pack 2c).
+// DI tokens for PublicCatalogModule.
 // Optionally injectable repositories for bundles and marketing projections
 // — apps without these tables leave them out,
 // the corresponding endpoints then return empty lists.

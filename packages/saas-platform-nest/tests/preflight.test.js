@@ -1,4 +1,4 @@
-// Pack 3b — Preflight pure-function tests (SPEC_V2 §8.3 + §10).
+// Pack 3b — Preflight pure-function tests.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
