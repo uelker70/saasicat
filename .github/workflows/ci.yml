@@ -68,6 +68,12 @@ jobs:
               run: pnpm run format:check
             - name: Typecheck
               run: pnpm -r typecheck
+            # A ratchet, not a target: it fails only when coverage DROPS below
+            # what is recorded in coverage-baseline.json. An invented threshold
+            # would be either ignored or routed around; this one moves down as
+            # the suites improve, and never up by accident.
+            - name: Coverage ratchet
+              run: pnpm run coverage
             # The example is the schema consumers copy from, so it must not fall
             # behind the fragments it demonstrates. Exits 1 on drift.
             - name: Schema drift (NotesApp example)
