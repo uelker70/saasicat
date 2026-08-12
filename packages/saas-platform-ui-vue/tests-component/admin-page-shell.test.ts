@@ -238,16 +238,15 @@ describe('page shell contract', () => {
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
-    test('a table fed a paged slice does not page it again', () => {
-        // Removing `:pagination` from a QTable does not turn its paging off —
-        // it falls back to Quasar's own default. With `hide-pagination` that
-        // silently trimmed every list to a handful of rows, so choosing a page
-        // size in AdminPaginator changed a number with no visible effect.
-        const offenders = allVueFiles().filter((file) => {
-            const template = templateOf(readFileSync(file, 'utf8'));
-            if (!template.includes(':rows="pagedRows"')) return false;
-            return !/:pagination="\{ rowsPerPage: ALL_ROWS \}"/.test(template);
-        });
+    test('no view reaches for q-table instead of AdminTable', () => {
+        // Nine pages used QTable directly and agreed on nothing: header look,
+        // where actions sat, whether there was a pager. AdminTable also keeps
+        // sorting and paging together — a page that sliced its own rows would
+        // have its table sort the slice rather than the list.
+        const TABLE = resolve(SRC_DIR, 'components/admin-page/AdminTable.vue');
+        const offenders = allVueFiles()
+            .filter((file) => file !== TABLE)
+            .filter((file) => /<q-table[\s>]/.test(templateOf(readFileSync(file, 'utf8'))));
 
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });

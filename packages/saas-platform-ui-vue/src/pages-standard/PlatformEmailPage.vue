@@ -17,14 +17,11 @@
 
         <AdminBody>
             <AdminSection class="sa-pemail__card">
-                <q-table
-                    flat
-                    :rows="pagedRows"
-                    :pagination="{ rowsPerPage: ALL_ROWS }"
+                <AdminTable
+                    :rows="rows"
                     :columns="columns"
-                    row-key="id"
                     :loading="loading"
-                    hide-pagination
+                    storage-key="platform-email"
                 >
                     <template #body-cell-active="{ row }">
                         <q-td>
@@ -38,42 +35,33 @@
                             />
                         </q-td>
                     </template>
-                    <template #body-cell-actions="{ row }">
-                        <q-td>
-                            <q-btn
-                                flat
-                                dense
-                                icon="send"
-                                color="primary"
-                                :title="msg.provider.sendTestMail"
-                                @click="openTest(row)"
-                            />
-                            <q-btn
-                                flat
-                                dense
-                                icon="edit"
-                                color="grey-7"
-                                :title="common.edit"
-                                @click="openEdit(row)"
-                            />
-                            <q-btn
-                                flat
-                                dense
-                                icon="delete"
-                                color="negative"
-                                :title="common.delete"
-                                @click="onDelete(row)"
-                            />
-                        </q-td>
+                    <template #row-actions="{ row }">
+                        <q-btn
+                            flat
+                            dense
+                            icon="send"
+                            color="primary"
+                            :title="msg.provider.sendTestMail"
+                            @click="openTest(row)"
+                        />
+                        <q-btn
+                            flat
+                            dense
+                            icon="edit"
+                            color="grey-7"
+                            :title="common.edit"
+                            @click="openEdit(row)"
+                        />
+                        <q-btn
+                            flat
+                            dense
+                            icon="delete"
+                            color="negative"
+                            :title="common.delete"
+                            @click="onDelete(row)"
+                        />
                     </template>
-                </q-table>
-
-                <AdminPaginator
-                    storage-key="platform-email"
-                    v-model:page="page"
-                    v-model:rows-per-page="rowsPerPage"
-                    :total="total"
-                />
+                </AdminTable>
             </AdminSection>
         </AdminBody>
 
@@ -204,8 +192,7 @@
 </template>
 
 <script setup lang="ts">
-import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
@@ -281,7 +268,6 @@ const columns = computed(() => [
         align: 'left' as const,
     },
     { name: 'active', label: common.value.status, field: 'active', align: 'left' as const },
-    { name: 'actions', label: '', field: 'id' as never, align: 'right' as 'left' },
 ]);
 
 const showForm = ref(false);
@@ -471,8 +457,6 @@ async function onTest(): Promise<void> {
         testing.value = false;
     }
 }
-
-const { page, rowsPerPage, total, pagedRows } = usePagination(rows);
 </script>
 
 <style scoped>

@@ -53,44 +53,32 @@
                     />
                 </AdminFilters>
 
-                <q-table
-                    flat
-                    :rows="pagedRows"
-                    :pagination="{ rowsPerPage: ALL_ROWS }"
+                <AdminTable
+                    :rows="filteredRows"
                     :columns="effectiveColumns"
-                    row-key="id"
                     :loading="loading"
-                    hide-pagination
+                    storage-key="promo-codes"
                 >
                     <template #body-cell-status="{ row }">
                         <q-td>
                             <q-badge :color="statusColor(row.status)" :label="row.status" />
                         </q-td>
                     </template>
-                    <template #body-cell-actions="{ row }">
-                        <q-td>
-                            <slot name="row-actions" :row="row" :reload="reload">
-                                <q-btn
-                                    v-for="action in visibleActions(row)"
-                                    :key="action.id"
-                                    flat
-                                    dense
-                                    :icon="action.icon"
-                                    :title="action.label"
-                                    :color="action.color ?? 'grey-7'"
-                                    @click="action.handler(row)"
-                                />
-                            </slot>
-                        </q-td>
+                    <template #row-actions="{ row }">
+                        <slot name="row-actions" :row="row" :reload="reload">
+                            <q-btn
+                                v-for="action in visibleActions(row)"
+                                :key="action.id"
+                                flat
+                                dense
+                                :icon="action.icon"
+                                :title="action.label"
+                                :color="action.color ?? 'grey-7'"
+                                @click="action.handler(row)"
+                            />
+                        </slot>
                     </template>
-                </q-table>
-
-                <AdminPaginator
-                    storage-key="promo-codes"
-                    v-model:page="page"
-                    v-model:rows-per-page="rowsPerPage"
-                    :total="total"
-                />
+                </AdminTable>
             </AdminSection>
         </AdminBody>
 
@@ -118,8 +106,7 @@
 // `<script setup>` (the whole setup section is wrapped in setup()).
 // Pure helpers + constants therefore live here in the regular `<script>` block.
 
-import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import type { PromoCodePlanOption } from '../components/dialogs/types.js';
 
 const PLAN_COLOR_PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#64748b'];
@@ -407,14 +394,6 @@ const mergedActions = computed<readonly PromoRowAction[]>(() => [
 
 const effectiveColumns = computed(() => {
     const cols = [...baseColumns.value];
-    if (mergedActions.value.length > 0) {
-        cols.push({
-            name: 'actions',
-            label: '',
-            field: 'id' as never,
-            align: 'right' as 'left',
-        });
-    }
     return cols;
 });
 
@@ -569,8 +548,6 @@ function formatDate(iso: string | Date | null | undefined): string | null {
         return String(iso);
     }
 }
-
-const { page, rowsPerPage, total, pagedRows } = usePagination(filteredRows);
 </script>
 
 <style scoped></style>

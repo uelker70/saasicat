@@ -39,39 +39,27 @@
             </q-banner>
 
             <AdminSection class="sa-pilots__card">
-                <q-table
-                    flat
-                    :rows="pagedRows"
-                    :pagination="{ rowsPerPage: ALL_ROWS }"
+                <AdminTable
+                    :rows="filteredRows"
                     :columns="effectiveColumns"
-                    row-key="id"
                     :loading="loading"
-                    hide-pagination
-                >
-                    <template #body-cell-actions="{ row }">
-                        <q-td>
-                            <slot name="row-actions" :row="row">
-                                <q-btn
-                                    v-for="action in visibleActions(row)"
-                                    :key="action.id"
-                                    flat
-                                    dense
-                                    :icon="action.icon"
-                                    :title="action.label"
-                                    :color="action.color ?? 'grey-7'"
-                                    @click="action.handler(row)"
-                                />
-                            </slot>
-                        </q-td>
-                    </template>
-                </q-table>
-
-                <AdminPaginator
                     storage-key="pilots"
-                    v-model:page="page"
-                    v-model:rows-per-page="rowsPerPage"
-                    :total="total"
-                />
+                >
+                    <template #row-actions="{ row }">
+                        <slot name="row-actions" :row="row">
+                            <q-btn
+                                v-for="action in visibleActions(row)"
+                                :key="action.id"
+                                flat
+                                dense
+                                :icon="action.icon"
+                                :title="action.label"
+                                :color="action.color ?? 'grey-7'"
+                                @click="action.handler(row)"
+                            />
+                        </slot>
+                    </template>
+                </AdminTable>
             </AdminSection>
         </AdminBody>
 
@@ -112,8 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
@@ -373,14 +360,6 @@ const mergedActions = computed<readonly PilotRowAction[]>(() => [
 
 const effectiveColumns = computed(() => {
     const cols = [...baseColumns.value];
-    if (mergedActions.value.length > 0) {
-        cols.push({
-            name: 'actions',
-            label: '',
-            field: ((r: PilotRow) => r.id) as never,
-            align: 'right' as 'left',
-        });
-    }
     return cols;
 });
 
@@ -557,8 +536,6 @@ function formatDate(iso: string | null | undefined): string | null {
         return String(iso);
     }
 }
-
-const { page, rowsPerPage, total, pagedRows } = usePagination(filteredRows);
 </script>
 
 <style scoped></style>

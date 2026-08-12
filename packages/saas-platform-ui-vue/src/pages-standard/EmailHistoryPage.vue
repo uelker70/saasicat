@@ -53,17 +53,17 @@
                 </div>
 
                 <div class="sa-emh__card">
-                    <q-table
-                        v-model:pagination="pagination"
-                        flat
+                    <AdminTable
+                        server-side
                         :rows="rows"
                         :columns="columns"
-                        row-key="id"
                         :loading="loading"
-                        :rows-number="pagination.rowsNumber"
-                        hide-pagination
-                        @request="onRequest"
-                        @row-click="(_evt, row) => openDetail(row)"
+                        :page="pagination.page"
+                        :rows-per-page="pagination.rowsPerPage"
+                        :total="pagination.rowsNumber"
+                        storage-key="email-history"
+                        @update:page="onPageChange"
+                        @update:rows-per-page="onRowsPerPageChange"
                     >
                         <template #body-cell-status="{ row }">
                             <q-td>
@@ -96,16 +96,7 @@
                         <template #no-data>
                             <div class="sa-emh__empty">{{ msg.history.empty }}</div>
                         </template>
-                    </q-table>
-
-                    <AdminPaginator
-                        storage-key="email-history"
-                        :page="pagination.page"
-                        :rows-per-page="pagination.rowsPerPage"
-                        :total="pagination.rowsNumber"
-                        @update:page="onPageChange"
-                        @update:rows-per-page="onRowsPerPageChange"
-                    />
+                    </AdminTable>
                 </div>
             </AdminSection>
         </AdminBody>
@@ -227,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
@@ -323,7 +314,6 @@ const columns = computed(() => [
         field: (r: EmailHistoryRow) => formatTs(r.sentAt),
         align: 'left' as const,
     },
-    { name: 'actions', label: '', field: 'id' as never, align: 'right' as const },
 ]);
 
 const detailOpen = ref(false);
@@ -367,14 +357,6 @@ async function reload(): Promise<void> {
 
 void reload();
 defineExpose({ reload });
-
-async function onRequest(req: {
-    pagination: { page: number; rowsPerPage: number };
-}): Promise<void> {
-    pagination.value.page = req.pagination.page;
-    pagination.value.rowsPerPage = req.pagination.rowsPerPage;
-    await reload();
-}
 
 // The pager owns page and size; both need a fetch, and a size change starts
 // over at page 1 — the row it would land on otherwise is arbitrary.

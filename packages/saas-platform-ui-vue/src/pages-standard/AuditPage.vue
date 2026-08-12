@@ -50,15 +50,7 @@
                     />
                 </AdminFilters>
 
-                <q-table
-                    flat
-                    :rows="pagedRows"
-                    :pagination="{ rowsPerPage: ALL_ROWS }"
-                    :columns="columns"
-                    row-key="id"
-                    :loading="loading"
-                    hide-pagination
-                >
+                <AdminTable :rows="rows" :columns="columns" :loading="loading" storage-key="audit">
                     <template #body-cell-changes="{ row }">
                         <q-td>
                             <q-btn flat dense icon="code" color="primary" @click="openDetail(row)">
@@ -66,14 +58,7 @@
                             </q-btn>
                         </q-td>
                     </template>
-                </q-table>
-
-                <AdminPaginator
-                    storage-key="audit"
-                    v-model:page="page"
-                    v-model:rows-per-page="rowsPerPage"
-                    :total="total"
-                />
+                </AdminTable>
             </AdminSection>
         </AdminBody>
 
@@ -100,8 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
@@ -218,8 +202,6 @@ function formatTs(iso: string | null | undefined): string {
         return String(iso);
     }
 }
-
-const { page, rowsPerPage, total, pagedRows } = usePagination(rows);
 </script>
 
 <style scoped>

@@ -49,6 +49,7 @@
     --sa-radius-head: 10px;
     --sa-radius-tile: 10px;
     --sa-radius-control: 7px;
+    --sa-section-pad: 20px;
     --sa-radius-field: 8px;
 
     --sa-font-head: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
@@ -517,7 +518,7 @@
     border-radius: var(--sa-radius-section);
 }
 .sa-section__body {
-    padding: 20px;
+    padding: var(--sa-section-pad);
 }
 
 /* The head is the hero's block one level down: same typography, same 22px
@@ -637,4 +638,52 @@
     font: inherit;
     font-weight: 600;
     text-align: center;
+}
+
+/* Lists (see AdminTable). The package shipped no table rules at all until
+ * this, which is why nine pages each looked slightly different. */
+.sa-page .q-table thead th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sa-muted);
+    background: var(--sa-bg-surface-2);
+    border-bottom: 1px solid var(--sa-border);
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+.sa-page .q-table tbody td {
+    font-size: 13px;
+    color: var(--sa-body);
+    border-bottom: 1px solid var(--sa-border-soft);
+    padding: 10px 14px;
+}
+.sa-page .q-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+.sa-page .q-table tbody tr:hover td {
+    background: var(--sa-bg-surface-2);
+}
+/* Sorted column: the header carries the state, not just the arrow. */
+.sa-page .q-table thead th.sortable:hover,
+.sa-page .q-table thead th[aria-sort]:not([aria-sort='none']) {
+    color: var(--sa-heading);
+}
+.sa-page .q-table thead th[aria-sort]:not([aria-sort='none']) {
+    background: var(--sa-primary-50);
+}
+.sa-table__actions {
+    white-space: nowrap;
+}
+.sa-table__empty {
+    color: var(--sa-muted);
+}
+
+/* The pager sits below the list, separated by a line that runs the full width
+ * of the surface — hence the pull-out by the section's own padding token. */
+.sa-table__foot {
+    margin: 0 calc(-1 * var(--sa-section-pad)) calc(-1 * var(--sa-section-pad));
+    padding: 0 var(--sa-section-pad) 10px;
+    border-top: 1px solid var(--sa-border);
 }

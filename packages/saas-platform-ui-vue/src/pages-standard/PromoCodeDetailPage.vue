@@ -58,20 +58,10 @@
 
                 <AdminSection :title="`${labels.redemptions} (${data.redemptions.length})`">
                     <slot name="redemptions" :redemptions="data.redemptions">
-                        <q-table
-                            flat
-                            :rows="pagedRows"
-                            :pagination="{ rowsPerPage: ALL_ROWS }"
+                        <AdminTable
+                            :rows="redemptionRows"
                             :columns="redemptionsColumns ?? defaultColumns"
-                            row-key="id"
-                            hide-pagination
-                        />
-
-                        <AdminPaginator
                             storage-key="promo-code-redemptions"
-                            v-model:page="page"
-                            v-model:rows-per-page="rowsPerPage"
-                            :total="total"
                         />
                     </slot>
                 </AdminSection>
@@ -92,8 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, ref } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
@@ -290,7 +279,6 @@ const defaultColumns = computed<QTableColumn[]>(() => [
 ]);
 
 const redemptionRows = computed(() => data.value?.redemptions ?? []);
-const { page, rowsPerPage, total, pagedRows } = usePagination(redemptionRows);
 </script>
 
 <style scoped>

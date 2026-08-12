@@ -40,14 +40,11 @@
                     <slot name="filters-extra" />
                 </AdminFilters>
 
-                <q-table
-                    flat
-                    :rows="pagedRows"
-                    :pagination="{ rowsPerPage: ALL_ROWS }"
+                <AdminTable
+                    :rows="filteredRows"
                     :columns="effectiveColumns"
-                    row-key="id"
                     :loading="loading"
-                    hide-pagination
+                    storage-key="users"
                 >
                     <template #body-cell-status="{ row }">
                         <q-td>
@@ -63,30 +60,21 @@
                             />
                         </q-td>
                     </template>
-                    <template #body-cell-actions="{ row }">
-                        <q-td>
-                            <slot name="row-actions" :row="row">
-                                <q-btn
-                                    v-for="action in visibleActions(row)"
-                                    :key="action.id"
-                                    flat
-                                    dense
-                                    :icon="action.icon"
-                                    :title="action.label"
-                                    :color="action.color ?? 'grey-7'"
-                                    @click="action.handler(row)"
-                                />
-                            </slot>
-                        </q-td>
+                    <template #row-actions="{ row }">
+                        <slot name="row-actions" :row="row">
+                            <q-btn
+                                v-for="action in visibleActions(row)"
+                                :key="action.id"
+                                flat
+                                dense
+                                :icon="action.icon"
+                                :title="action.label"
+                                :color="action.color ?? 'grey-7'"
+                                @click="action.handler(row)"
+                            />
+                        </slot>
                     </template>
-                </q-table>
-
-                <AdminPaginator
-                    storage-key="users"
-                    v-model:page="page"
-                    v-model:rows-per-page="rowsPerPage"
-                    :total="total"
-                />
+                </AdminTable>
             </AdminSection>
         </AdminBody>
 
@@ -103,8 +91,7 @@
 </template>
 
 <script setup lang="ts">
-import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
@@ -322,14 +309,6 @@ const mergedActions = computed<readonly UserRowAction[]>(() => [
 
 const effectiveColumns = computed(() => {
     const cols = [...baseColumns.value];
-    if (mergedActions.value.length > 0) {
-        cols.push({
-            name: 'actions',
-            label: '',
-            field: 'id' as never,
-            align: 'right' as 'left',
-        });
-    }
     return cols;
 });
 
@@ -470,8 +449,6 @@ function onDeactivateClick(row: UserRow): void {
         );
     });
 }
-
-const { page, rowsPerPage, total, pagedRows } = usePagination(filteredRows);
 </script>
 
 <style scoped></style>
