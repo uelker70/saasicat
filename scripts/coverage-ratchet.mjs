@@ -168,6 +168,11 @@ function measure(pkg) {
 const update = process.argv.includes('--update');
 const current = {};
 
+// What went wrong, if anything did. Named and described, because a report that
+// only says `complete: false` cannot tell anyone WHICH package failed — and
+// naming it is the entire reason CI uploads this artefact.
+let failure = null;
+
 // `finally`, so a package that fails to measure still leaves the numbers
 // gathered before it. CI uploads this report with `if: always()` precisely to
 // diagnose a failed coverage step — and a throw here used to abort before the
@@ -175,17 +180,26 @@ const current = {};
 try {
     for (const pkg of PACKAGES) {
         process.stderr.write(`measuring ${pkg} … `);
-        const value = measure(pkg);
+        let value;
+        try {
+            value = measure(pkg);
+        } catch (err) {
+            failure = { package: pkg, message: err instanceof Error ? err.message : String(err) };
+            throw err;
+        }
         if (!value) {
             // Skipping is fine for a check — the comparison below reports the
             // missing package. Skipping during `--update` is not: the new baseline
             // would simply be written without it, dropping that package's ratchet
             // for good and quietly lowering the bar.
             if (update) {
-                throw new Error(
-                    `No coverage report for ${pkg} — refusing to write a baseline that leaves it out. ` +
+                failure = {
+                    package: pkg,
+                    message:
+                        `No coverage report — refusing to write a baseline that leaves it out. ` +
                         `Either test discovery found no files, or Node's summary format changed.`,
-                );
+                };
+                throw new Error(`${pkg}: ${failure.message}`);
             }
             process.stderr.write('no coverage report — skipped\n');
             continue;
@@ -196,7 +210,15 @@ try {
 } finally {
     writeFileSync(
         REPORT,
-        `${JSON.stringify({ measured: current, complete: Object.keys(current).length === PACKAGES.length }, null, 4)}\n`,
+        `${JSON.stringify(
+            {
+                measured: current,
+                complete: Object.keys(current).length === PACKAGES.length,
+                failure,
+            },
+            null,
+            4,
+        )}\n`,
     );
 }
 
