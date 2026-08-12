@@ -107,7 +107,7 @@ test.describe('design-token visual baselines', () => {
     test('the roster still covers every page it claims to', () => {
         // A shrinking roster is the quiet way this suite stops protecting
         // anything: remove a case, and its page is simply no longer watched.
-        expect(VISUAL_CASES.length).toBeGreaterThanOrEqual(9);
+        expect(VISUAL_CASES.length).toBeGreaterThanOrEqual(18);
         expect(new Set(VISUAL_CASES.map((c) => c.id)).size).toBe(VISUAL_CASES.length);
     });
 

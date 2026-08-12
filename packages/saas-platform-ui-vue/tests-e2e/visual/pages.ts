@@ -114,6 +114,179 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'setup-wizard',
         load: () => import('../../src/pages-standard/SuperAdminSetupWizard.vue'),
     },
+    {
+        id: 'users',
+        load: () => import('../../src/pages-standard/UsersPage.vue'),
+        props: () => ({
+            loadUsers: async () => [
+                {
+                    id: 'u-1',
+                    email: 'admin@fixture.test',
+                    firstName: 'Ada',
+                    lastName: 'Lovelace',
+                    platformRole: 'SUPER_ADMIN',
+                    isActive: true,
+                    createdAt: '2025-02-01T09:00:00.000Z',
+                },
+            ],
+        }),
+    },
+    {
+        id: 'promo-codes',
+        load: () => import('../../src/pages-standard/PromoCodesPage.vue'),
+        props: () => ({
+            loadPromos: async () => [
+                {
+                    id: 'p-1',
+                    code: 'WELCOME20',
+                    valueType: 'PERCENT',
+                    value: 20,
+                    status: 'ACTIVE',
+                    maxRedemptions: 100,
+                    redemptionCount: 12,
+                    validFrom: '2026-01-01',
+                    validUntil: '2026-12-31',
+                },
+            ],
+        }),
+    },
+    {
+        id: 'pilots',
+        load: () => import('../../src/pages-standard/PilotsPage.vue'),
+        props: () => ({
+            loadPilots: async () => [
+                {
+                    id: 'pil-1',
+                    tenant: { id: 't-0001', slug: 'northwind', name: 'Northwind Ltd' },
+                    plan: 'PRO',
+                    pilotEndsAt: '2026-03-01T00:00:00.000Z',
+                    pilotNote: 'Evaluation until Q1',
+                    grantedBy: 'admin@fixture.test',
+                    grantedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ],
+        }),
+    },
+    {
+        id: 'tenant-detail',
+        load: () => import('../../src/pages-standard/TenantDetailPage.vue'),
+        props: () => ({
+            backRoute: '/admin/tenants',
+            manifest: null,
+            loadDetail: async () => ({
+                id: 't-0001',
+                name: 'Northwind Ltd',
+                slug: 'northwind',
+                isActive: true,
+                plan: 'PRO',
+                createdAt: '2025-03-04T09:00:00.000Z',
+                users: [],
+            }),
+        }),
+    },
+    {
+        id: 'promo-code-detail',
+        load: () => import('../../src/pages-standard/PromoCodeDetailPage.vue'),
+        props: () => ({
+            backRoute: '/admin/promo-codes',
+            loadDetail: async () => ({
+                promo: {
+                    id: 'p-1',
+                    code: 'WELCOME20',
+                    valueType: 'PERCENT',
+                    value: 20,
+                    status: 'ACTIVE',
+                    maxRedemptions: 100,
+                    redemptionCount: 12,
+                    validFrom: '2026-01-01',
+                    validUntil: '2026-12-31',
+                },
+                redemptions: [],
+            }),
+        }),
+    },
+    {
+        id: 'email-history',
+        load: () => import('../../src/pages-standard/EmailHistoryPage.vue'),
+        props: () => ({
+            loadEmails: async () => ({
+                rows: [
+                    {
+                        id: 'e-1',
+                        fromEmail: 'noreply@fixture.test',
+                        toEmail: 'admin@fixture.test',
+                        subject: 'Welcome',
+                        status: 'SENT',
+                        sentAt: '2026-01-14T10:00:00.000Z',
+                        createdAt: '2026-01-14T09:59:00.000Z',
+                    },
+                ],
+                total: 1,
+            }),
+            loadEmailDetail: async () => ({
+                id: 'e-1',
+                fromEmail: 'noreply@fixture.test',
+                toEmail: 'admin@fixture.test',
+                subject: 'Welcome',
+                status: 'SENT',
+                sentAt: '2026-01-14T10:00:00.000Z',
+                createdAt: '2026-01-14T09:59:00.000Z',
+                bodyHtml: '<p>Hello</p>',
+            }),
+            deleteEmail: async () => ({}),
+            resendEmail: async () => ({ success: true }),
+        }),
+    },
+    {
+        id: 'platform-email',
+        load: () => import('../../src/pages-standard/PlatformEmailPage.vue'),
+        props: () => ({
+            loadProviders: async () => [
+                {
+                    id: 'prov-1',
+                    name: 'Fixture SMTP',
+                    kind: 'SMTP',
+                    isDefault: true,
+                    isActive: true,
+                },
+            ],
+            createProvider: async () => {},
+            updateProvider: async () => {},
+            deleteProvider: async () => {},
+            testProvider: async () => {},
+        }),
+    },
+    {
+        id: 'marketing-catalog',
+        load: () => import('../../src/pages-standard/MarketingCatalogPage.vue'),
+        props: ({ http, adminBase }) => ({
+            adminEndpoint: adminBase,
+            projectKey: 'fixture',
+            http,
+        }),
+    },
+    {
+        // 14 required props, ten of them functions — the page AP3 replaces.
+        // Kept under baseline precisely because it is about to change the most.
+        id: 'bundles',
+        load: () => import('../../src/pages-standard/BundlesPage.vue'),
+        props: () => ({
+            projectKey: 'fixture',
+            bundles: [],
+            loading: false,
+            error: null,
+            snapshot: null,
+            load: async () => {},
+            create: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
+            update: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
+            softDelete: async () => {},
+            loadVersions: async () => [],
+            createDraft: async () => ({ version: {}, warnings: [] }),
+            updateDraft: async () => ({ version: {}, warnings: [] }),
+            publish: async () => ({ version: {}, warnings: [] }),
+            classifyDiff: () => ({ kind: 'NON_REGRESSIVE', changes: [] }),
+        }),
+    },
 ];
 
 export const VISUAL_CASE_IDS = VISUAL_CASES.map((c) => c.id);
