@@ -35,6 +35,7 @@
                 :rows-per-page="pagerRowsPerPage"
                 :total="serverSide ? total : rows.length"
                 :storage-key="storageKey"
+                :page-sizes="offeredPageSizes"
                 @update:page="onPageChange"
                 @update:rows-per-page="onRowsPerPageChange"
             />
@@ -46,7 +47,12 @@
 import { computed, ref, useSlots, watch } from 'vue';
 import type { QTableColumn } from 'quasar';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
-import { ALL_ROWS, DEFAULT_ROWS_PER_PAGE } from '../../vue/use-pagination.js';
+import {
+    ALL_ROWS,
+    DEFAULT_ROWS_PER_PAGE,
+    PAGE_SIZE_OPTIONS,
+    SERVER_PAGE_SIZE_OPTIONS,
+} from '../../vue/use-pagination.js';
 import AdminPaginator from './AdminPaginator.vue';
 
 // Every list in the admin. Nine pages used to reach for `q-table` directly and
@@ -125,6 +131,10 @@ const pagination = ref({
 /** What the pager shows: the server's size, or the one QTable slices by. */
 const pagerRowsPerPage = computed(() =>
     props.serverSide ? (props.rowsPerPage ?? DEFAULT_ROWS_PER_PAGE) : pagination.value.rowsPerPage,
+);
+
+const offeredPageSizes = computed(() =>
+    props.serverSide ? [...SERVER_PAGE_SIZE_OPTIONS] : [...PAGE_SIZE_OPTIONS],
 );
 
 const pagerPage = computed(() => (props.serverSide ? (props.page ?? 1) : pagination.value.page));

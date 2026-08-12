@@ -4,7 +4,6 @@
 // (`useTenants`, `useAuditEntries`, …), which are based on `useApiList`.
 // Direct use is also allowed for custom endpoints.
 
-import { ALL_ROWS } from './use-pagination.js';
 import { ref, watch, type Ref } from 'vue';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
@@ -61,9 +60,7 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
     function buildUrl(): string {
         const params = new URLSearchParams();
         params.set('page', String(page.value));
-        // 0 means "no limit" (Quasar's convention, and AdminPaginator's "all"):
-        // sending it as a size would read as "one page of zero rows".
-        if (pageSize.value !== ALL_ROWS) params.set('pageSize', String(pageSize.value));
+        params.set('pageSize', String(pageSize.value));
         const f = options.filter?.value ?? ({} as TFilter);
         for (const [k, v] of Object.entries(f)) {
             if (v === undefined || v === null || v === '') continue;
@@ -118,8 +115,8 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
     }
 
     async function setPageSize(size: number) {
-        const floored = Math.floor(size);
-        pageSize.value = floored <= ALL_ROWS ? ALL_ROWS : Math.max(1, floored);
+        // The admin API's pageSize is 1..200; there is no "all" to pass on.
+        pageSize.value = Math.min(200, Math.max(1, Math.floor(size)));
         page.value = 1;
         await load();
     }

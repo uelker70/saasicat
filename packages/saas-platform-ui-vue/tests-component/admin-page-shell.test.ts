@@ -70,6 +70,17 @@ function allVueFiles(): string[] {
     return found.sort();
 }
 
+/** Event names from a `defineEmits<{ (e: 'x'): void }>()` block. */
+function declaredEmits(source: string): string[] {
+    const block = /defineEmits<\{([\s\S]*?)\}>\(\)/.exec(source);
+    if (!block) return [];
+    return [...block[1]!.matchAll(/\(e: '([\w:]+)'/g)].map((m) => m[1]!);
+}
+
+function kebab(name: string): string {
+    return name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+}
+
 function dirName(file: string): string {
     return file.split('/').slice(-2, -1)[0] ?? '';
 }
@@ -263,6 +274,53 @@ describe('page shell contract', () => {
             });
 
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
+    });
+
+    test('a component whose only job is to emit is never used without a listener', () => {
+        // The plan rename broke exactly this way: PlanTitleEdit's `updatePlan`
+        // listener stayed behind on the component the editor was lifted out
+        // of, so renaming a plan silently did nothing. Nothing else could see
+        // it — an unhandled emit is neither a type error nor a runtime one.
+        //
+        // Limited to single-emit components on purpose: ignoring one of five
+        // optional events is ordinary, ignoring the only one is a mistake.
+        // One legitimate case: the promo code field is `disabled` while
+        // editing — a code is stable once created — so its `update:code`
+        // cannot fire there and the edit dialog binds it one way on purpose.
+        const DELIBERATELY_IGNORED = new Set(['PromoCodeEditDialog.vue: PromoCodeDialogFields']);
+        const offenders: string[] = [];
+
+        for (const file of allVueFiles()) {
+            const emits = declaredEmits(readFileSync(file, 'utf8'));
+            if (emits.length !== 1) continue;
+
+            const component = file.split('/').pop()!.replace('.vue', '');
+            const listener = `@${kebab(emits[0]!)}=`;
+
+            for (const other of allVueFiles()) {
+                const template = templateOf(readFileSync(other, 'utf8'));
+                const usage = new RegExp(`<${component}\\b[^>]*>`, 'g');
+                for (const [tag] of template.matchAll(usage)) {
+                    const arg = emits[0]!.startsWith('update:')
+                        ? emits[0]!.slice('update:'.length)
+                        : '';
+                    const heard =
+                        tag.includes(listener) ||
+                        tag.includes(`@${emits[0]!}=`) ||
+                        (arg !== '' && tag.includes(`v-model:${kebab(arg)}`)) ||
+                        (arg === 'modelValue' && /\bv-model[=\s]/.test(tag)) ||
+                        (arg === '' && tag.includes('v-model'));
+                    const pair = `${other.split('/').pop()}: ${component}`;
+                    if (!heard && !DELIBERATELY_IGNORED.has(pair)) {
+                        offenders.push(
+                            `${relative(SRC_DIR, other)}: <${component}> ignores ${emits[0]}`,
+                        );
+                    }
+                }
+            }
+        }
+
+        expect(offenders).toEqual([]);
     });
 
     test('no page declares its own statistic tile styling', () => {

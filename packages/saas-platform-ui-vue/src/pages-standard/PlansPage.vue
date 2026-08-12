@@ -2,7 +2,11 @@
     <AdminPage class="sa-plans">
         <AdminHero v-if="!viewOwnsHero" :title="heroTitle" :subtitle="heroSubtitle">
             <template v-if="mode === 'cockpit' && selectedPlan" #title>
-                <PlanTitleEdit :plan="selectedPlan" :editable="detailDraftVersion !== null" />
+                <PlanTitleEdit
+                    :plan="selectedPlan"
+                    :editable="detailDraftVersion !== null"
+                    @update-plan="onUpdatePlanFromDetail"
+                />
             </template>
 
             <template v-if="mode === 'list'" #actions>
@@ -152,7 +156,6 @@
                 @create-draft="openCreateDraft"
                 @edit-draft="openEditDraft"
                 @publish="openPublish"
-                @update-plan="onUpdatePlanFromDetail"
             />
         </AdminBody>
 

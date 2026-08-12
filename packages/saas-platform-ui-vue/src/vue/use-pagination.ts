@@ -13,8 +13,15 @@ export const ALL_ROWS = 0;
 /** Starting page size for every list; AdminPaginator restores a stored one. */
 export const DEFAULT_ROWS_PER_PAGE = 10;
 
-/** The sizes every pager offers, in order. */
+/** The sizes a locally paged list offers, in order. */
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, ALL_ROWS] as const;
+
+/**
+ * The same without "all". A server-paged list cannot honour it: the admin API
+ * caps `pageSize` at 200 and falls back to 50 when it is omitted, so the
+ * option would claim to show everything while showing the first fifty.
+ */
+export const SERVER_PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 export interface UsePaginationResult<T> {
     page: Ref<number>;
