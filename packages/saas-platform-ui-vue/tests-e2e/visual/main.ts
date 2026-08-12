@@ -1,7 +1,16 @@
 import 'quasar/src/css/index.sass';
 import '../../src/pages-standard/sa-theme.css';
 
-import { createApp, defineComponent, h, ref, shallowRef, type Component } from 'vue';
+import {
+    createApp,
+    defineComponent,
+    h,
+    nextTick,
+    ref,
+    shallowRef,
+    watch,
+    type Component,
+} from 'vue';
 import { Quasar, Notify, Dialog, Loading } from 'quasar';
 import { createPinia } from 'pinia';
 import { createRouter, createWebHistory } from 'vue-router';
@@ -64,6 +73,23 @@ const ADMIN_BASE = '/api/admin';
 const caseId = new URL(window.location.href).searchParams.get('page') ?? VISUAL_CASES[0].id;
 const visualCase = VISUAL_CASES.find((c) => c.id === caseId);
 
+/**
+ * Tells Playwright the page is on screen.
+ *
+ * Called only once the dynamic import has resolved and the page has rendered.
+ * Marking readiness unconditionally after two frames was a lie the harness
+ * happened to survive: a cold Vite run can take longer than that, and a marker
+ * meaning "the app booted" rather than "the page is on screen" would let a
+ * `--update` record the loading placeholder.
+ */
+function markReady(): void {
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.body.setAttribute('data-visual-ready', 'true');
+        });
+    });
+}
+
 const Host = defineComponent({
     setup() {
         const page = shallowRef<Component | null>(null);
@@ -81,6 +107,10 @@ const Host = defineComponent({
                     failure.value = String(err?.message ?? err);
                 });
         }
+
+        // Either outcome is a finished render; the error page is a legitimate
+        // thing for the spec to look at and reject.
+        watch([page, failure], () => void nextTick(markReady), { flush: 'post' });
 
         return () => {
             if (failure.value) {
@@ -123,11 +153,3 @@ app.provide(SUPER_ADMIN_MANIFEST_KEY, () => FIXTURE_MANIFEST);
 app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, { login: async () => ({ ok: true as const }) });
 
 app.mount('#app');
-
-// Playwright waits for this instead of a timeout: a fixed sleep is either
-// flaky or slow, and usually both.
-requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-        document.body.setAttribute('data-visual-ready', 'true');
-    });
-});

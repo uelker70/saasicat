@@ -246,19 +246,29 @@ export function buildNavigationGuard(
     // Cleared as soon as any navigation gets through, so a later expiry is
     // handled again — see the loop note below.
     let redirectedForUnauthorized = false;
-    // The load attempt that redirect belonged to, so concurrent waiters on one
-    // in-flight manifest request are not mistaken for a second attempt.
+    // ...and whether they actually got there.
     //
-    // The PROMISE, not the error: `ensureLoaded()` hands every concurrent
-    // caller the same in-flight promise and creates a fresh one per attempt,
-    // which is exactly the distinction needed. An error object cannot carry it
-    // — a store that caches and rethrows one `Error` across requests would make
-    // every later 401 look like a concurrent waiter, and the login loop this
-    // budget exists to break would be back.
-    let handledLoad: Promise<void> | null = null;
+    // This is the question the budget is really asking: has the operator had a
+    // chance to log in since we sent them away? Concurrent navigations have
+    // not, so they belong to the same episode and follow the first one to
+    // login rather than spending a second attempt.
+    //
+    // Deliberately NOT an identity comparison on the rejection or on the
+    // promise `ensureLoaded()` returned. Both were tried and both are
+    // implementation artefacts a valid consumer can change: a store may cache
+    // one `Error` and rethrow it, and `async () => { await store.ensure(); }`
+    // wraps one shared request in a fresh promise per call. The contract
+    // promises `Promise<void>`, nothing more. A navigation to a public route,
+    // by contrast, is something this guard observes directly.
+    let reachedLoginAfterRedirect = false;
 
     return async (to: RouteLocationNormalized) => {
-        if (to.meta?.public === true) return true;
+        if (to.meta?.public === true) {
+            // `onUnauthenticated()` sends them to the login route, which is
+            // public — so this is the guard seeing the redirect land.
+            if (redirectedForUnauthorized) reachedLoginAfterRedirect = true;
+            return true;
+        }
 
         if (authGuard) {
             if (!authGuard.isAuthenticated()) return authGuard.onUnauthenticated();
@@ -268,12 +278,10 @@ export function buildNavigationGuard(
         }
 
         if (manifestGuard) {
-            let load: Promise<void> | null = null;
             try {
-                load = manifestGuard.ensureLoaded();
-                await load;
+                await manifestGuard.ensureLoaded();
                 redirectedForUnauthorized = false;
-                handledLoad = null;
+                reachedLoginAfterRedirect = false;
             } catch (err) {
                 // A 401/403 is usually an expired or missing session, not a
                 // broken manifest. Sending it to the fail-closed error page
@@ -293,18 +301,16 @@ export function buildNavigationGuard(
                 // /login. The second time we fail closed to the error page
                 // instead, which at least says something and keeps the session.
                 //
-                // "Once" means once per LOAD, not once per guard call.
+                // "Once" means once per LOGIN OPPORTUNITY, not once per guard
+                // call.
                 // Two protected navigations can overlap, and `ensureLoaded()`
                 // hands both of them the same in-flight promise — so both land
-                // here off the same promise. Counting that as two attempts
-                // would send the second, newer navigation to the error page
-                // over an ordinary expired session. Comparing the promise keeps
-                // concurrent waiters on one destination, while a later attempt
-                // is a new promise and does fail closed.
+                // here before either navigation completes. Counting that as
+                // two attempts would send the second, newer navigation to the
+                // error page over an ordinary expired session.
                 if (authGuard && isUnauthorizedError(err)) {
-                    if (!redirectedForUnauthorized || load === handledLoad) {
+                    if (!redirectedForUnauthorized || !reachedLoginAfterRedirect) {
                         redirectedForUnauthorized = true;
-                        handledLoad = load;
                         return authGuard.onUnauthenticated();
                     }
                 }

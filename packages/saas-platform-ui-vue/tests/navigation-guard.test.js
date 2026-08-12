@@ -188,6 +188,8 @@ describe('buildNavigationGuard — expired session vs broken manifest', () => {
     });
 });
 
+const LOGIN_VISIT = { path: '/login', meta: { public: true } };
+
 describe('buildNavigationGuard — no login loop on a persistent manifest 401', () => {
     // Reported from a running app, and caused by the redirect above.
     //
@@ -227,7 +229,12 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
     test('first 401 offers a re-login, the second stops the circle', async () => {
         const { guard, logouts } = guardWithPersistent401();
 
+        // The login visit is not decoration: reaching the public login route is
+        // how the guard knows the operator had a chance to log in. In a real
+        // app the router performs exactly this navigation after
+        // `onUnauthenticated()`; calling the guard directly has to supply it.
         assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.equal(await guard(LOGIN_VISIT), true);
         assert.equal(await guard(makeRoute('/admin')), '/admin-error');
         assert.equal(await guard(makeRoute('/admin')), '/admin-error');
 
@@ -276,10 +283,12 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
                 onUnauthenticated: () => '/login',
             },
             manifestGuard: {
-                ensureLoaded: () => {
-                    // Mirrors createManifestStore(): one shared promise.
+                ensureLoaded: async () => {
+                    // A perfectly valid adapter shape — it shares one backend
+                    // request but hands each caller a FRESH outer promise, so
+                    // nothing about the promise identifies the attempt.
                     inflight ??= Promise.reject(rejection);
-                    return inflight;
+                    await inflight;
                 },
                 errorRoute: '/admin-error',
             },
@@ -292,6 +301,32 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
 
         assert.equal(first, '/login');
         assert.equal(second, '/login', 'the second waiter must not fail closed on the same 401');
+    });
+
+    test('the second attempt fails closed once the operator has seen login', async () => {
+        // The budget is spent per login OPPORTUNITY. Reaching the public login
+        // route is the guard's own evidence that the operator had one — no
+        // consumer implementation detail is involved.
+        const guard = buildNavigationGuard({
+            authGuard: {
+                isAuthenticated: () => true,
+                onUnauthenticated: () => '/login',
+            },
+            manifestGuard: {
+                ensureLoaded: async () => {
+                    throw Object.assign(new Error('HTTP 401'), { status: 401 });
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+
+        assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.equal(await guard({ path: '/login', meta: { public: true } }), true);
+        assert.equal(
+            await guard(makeRoute('/admin')),
+            '/admin-error',
+            'logging in did not help, so the second attempt must fail closed',
+        );
     });
 
     test('a cached error instance does not resurrect the login loop', async () => {
@@ -314,6 +349,7 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
         });
 
         assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.equal(await guard({ path: '/login', meta: { public: true } }), true);
         assert.equal(
             await guard(makeRoute('/admin')),
             '/admin-error',
@@ -322,8 +358,8 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
     });
 
     test('a later, different rejection still fails closed', async () => {
-        // The one-shot budget has to survive: a fresh failure after the login
-        // attempt is a new error object and must reach the error page.
+        // The one-shot budget has to survive: a fresh failure after the operator
+        // has been to login must reach the error page.
         const guard = buildNavigationGuard({
             authGuard: {
                 isAuthenticated: () => true,
@@ -338,6 +374,7 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
         });
 
         assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.equal(await guard(LOGIN_VISIT), true);
         assert.equal(await guard(makeRoute('/admin')), '/admin-error');
     });
 });
