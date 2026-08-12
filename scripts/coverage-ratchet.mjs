@@ -173,6 +173,11 @@ const current = {};
 // naming it is the entire reason CI uploads this artefact.
 let failure = null;
 
+// Packages that produced no measurement without the run aborting. A list,
+// because several can skip in one run — and a different concept from
+// `failure`: this run kept going, it just measured less than it claims to.
+const skipped = [];
+
 // `finally`, so a package that fails to measure still leaves the numbers
 // gathered before it. CI uploads this report with `if: always()` precisely to
 // diagnose a failed coverage step — and a throw here used to abort before the
@@ -201,6 +206,12 @@ try {
                 };
                 throw new Error(`${pkg}: ${failure.message}`);
             }
+            skipped.push({
+                package: pkg,
+                reason:
+                    `No coverage summary — either test discovery found no files, ` +
+                    `or Node's summary format changed.`,
+            });
             process.stderr.write('no coverage report — skipped\n');
             continue;
         }
@@ -215,6 +226,7 @@ try {
                 measured: current,
                 complete: Object.keys(current).length === PACKAGES.length,
                 failure,
+                skipped,
             },
             null,
             4,
