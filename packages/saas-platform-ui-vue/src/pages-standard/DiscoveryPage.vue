@@ -5,16 +5,7 @@
                 {{ msg.subtitleLead }} <b>{{ msg.subtitleEmphasis }}</b> {{ msg.subtitleTail }}
             </template>
             <template #actions>
-                <button
-                    class="sa-btn sa-btn--primary"
-                    type="button"
-                    :disabled="loading"
-                    @click="onRunDiscovery"
-                >
-                    <q-spinner v-if="loading" size="16px" />
-                    <q-icon v-else name="bolt" size="16px" />
-                    <span>{{ msg.runDiscovery }}</span>
-                </button>
+                <AdminRefreshBtn :loading="loading" @refresh="onRunDiscovery" />
             </template>
         </AdminHero>
 
@@ -163,6 +154,7 @@ import type {
     ReviewCatalogEntryData,
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import DiscoveryCapList from './discovery-page/DiscoveryCapList.vue';
 import DiscoveryFeatureCard from './discovery-page/DiscoveryFeatureCard.vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';

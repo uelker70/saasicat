@@ -40,7 +40,6 @@ export const bundlesMessages = defineMessages(
                 'Produktgruppen aus Features & Quotas — verwendet in Plänen. Bundles werden im SuperAdmin kuratiert.',
             displayLocale: 'Anzeige-Sprache',
             newBundle: 'Neues Bundle',
-            reload: 'Liste neu laden',
         },
         filter: {
             all: 'Alle Status',
@@ -271,7 +270,6 @@ export const bundlesMessages = defineMessages(
                 'Product groups made of features & quotas — used in plans. Bundles are curated in the SuperAdmin.',
             displayLocale: 'Display language',
             newBundle: 'New bundle',
-            reload: 'Reload list',
         },
         filter: {
             all: 'All statuses',

@@ -2,16 +2,7 @@
     <AdminPage class="sa-dashboard">
         <AdminHero :title="msg.title" :subtitle="subtitle">
             <template #actions>
-                <button
-                    class="sa-btn sa-btn--icon"
-                    type="button"
-                    :disabled="loading"
-                    :aria-label="common.reload"
-                    @click="reload"
-                >
-                    <q-spinner v-if="loading" size="16px" />
-                    <q-icon v-else name="refresh" size="16px" />
-                </button>
+                <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
 
@@ -105,6 +96,7 @@ import { formatMessage } from '../client/i18n/format.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminHttp } from '../vue/use-super-admin-context.js';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';

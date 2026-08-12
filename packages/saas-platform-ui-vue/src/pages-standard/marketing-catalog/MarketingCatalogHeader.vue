@@ -48,20 +48,13 @@
                 </div>
             </div>
         </div>
-        <button
-            class="sa-btn sa-btn--icon"
-            type="button"
-            :disabled="busy"
-            :aria-label="msg.header.refresh"
-            @click="$emit('reload')"
-        >
-            <q-icon name="refresh" size="16px" />
-        </button>
+        <AdminRefreshBtn :loading="busy" @refresh="$emit('reload')" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import AdminRefreshBtn from '../../components/admin-page/AdminRefreshBtn.vue';
 
 defineProps<{
     activeLocaleSet: string[];

@@ -1,5 +1,5 @@
 <template>
-    <div class="pd">
+    <div>
         <AdminSection class="q-mb-md">
             <PlanDetailKpis
                 :live-version="liveVersion"

@@ -18,16 +18,7 @@
             <q-icon name="add" size="16px" />
             <span>{{ msg.header.newBundle }}</span>
         </button>
-        <button
-            class="sa-btn sa-btn--icon"
-            type="button"
-            :disabled="loading"
-            :aria-label="msg.header.reload"
-            @click="emit('refresh')"
-        >
-            <q-spinner v-if="loading" size="16px" />
-            <q-icon v-else name="refresh" size="16px" />
-        </button>
+        <AdminRefreshBtn :loading="loading" @refresh="emit('refresh')" />
     </div>
 </template>
 
@@ -35,6 +26,7 @@
 import { computed } from 'vue';
 
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import AdminRefreshBtn from '../../components/admin-page/AdminRefreshBtn.vue';
 
 // The language selector controls which locale feature/quota labels are resolved
 // on the create form and in the detail view (fallback locale → DE → key). The default is the

@@ -11,14 +11,7 @@
                     <q-icon name="add" size="16px" />
                     <span>{{ msg.sender }}</span>
                 </button>
-                <button
-                    class="sa-btn sa-btn--icon"
-                    type="button"
-                    :aria-label="common.reload"
-                    @click="reload"
-                >
-                    <q-icon name="refresh" size="16px" />
-                </button>
+                <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
 
@@ -207,6 +200,7 @@
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';

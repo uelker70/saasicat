@@ -2,14 +2,7 @@
     <AdminPage class="sa-emh">
         <AdminHero :title="resolvedTitle" :subtitle="msg.history.subtitle">
             <template #actions>
-                <button
-                    class="sa-btn sa-btn--icon"
-                    type="button"
-                    :aria-label="common.reload"
-                    @click="applyFilter"
-                >
-                    <q-icon name="refresh" size="16px" />
-                </button>
+                <AdminRefreshBtn :loading="loading" @refresh="applyFilter" />
             </template>
         </AdminHero>
 
@@ -226,6 +219,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';

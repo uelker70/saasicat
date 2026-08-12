@@ -226,6 +226,18 @@ describe('page shell contract', () => {
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
+    test('no view hand-writes the reload button instead of using AdminRefreshBtn', () => {
+        // Seven pages wrote this button by hand: three showed no progress, one
+        // disabled itself without a spinner, and one shipped an icon-only
+        // button with no accessible name at all.
+        const BTN = resolve(SRC_DIR, 'components/admin-page/AdminRefreshBtn.vue');
+        const offenders = allVueFiles()
+            .filter((file) => file !== BTN)
+            .filter((file) => /name="refresh"/.test(templateOf(readFileSync(file, 'utf8'))));
+
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
+    });
+
     test('no page declares its own statistic tile styling', () => {
         // Seven near-copies of the same tile preceded AdminKpi, two of them
         // byte identical, three living in unscoped page-level <style> blocks
