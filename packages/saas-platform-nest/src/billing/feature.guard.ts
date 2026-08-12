@@ -25,6 +25,7 @@ import {
 import { EntitlementService } from '../entitlement/service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { FEATURE_GUARD_CONFIG_TOKEN, type FeatureGuardConfig } from './feature-guard.tokens.js';
+import { FEATURE_GUARD_MARKER } from './feature-guard-marker.js';
 import { REQUIRE_FEATURE_KEY } from './require-feature.decorator.js';
 import { UPSELL_OFFER_RESOLVER_TOKEN } from './upsell.tokens.js';
 
@@ -41,6 +42,9 @@ interface RequestWithUser {
 
 @Injectable()
 export class FeatureGuard implements CanActivate {
+    /** Lets `FeatureGuardCoverageCheck` recognise this guard across CJS entries. */
+    static readonly [FEATURE_GUARD_MARKER] = true;
+
     private readonly logger = new Logger(FeatureGuard.name);
 
     constructor(
