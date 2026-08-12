@@ -12,7 +12,7 @@
 // markup they replace.
 
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 
 import { describe, expect, test } from 'vitest';
 import { defineComponent, h } from 'vue';
@@ -81,8 +81,17 @@ function kebab(name: string): string {
     return name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 }
 
+/**
+ * Name of the directory a file sits in.
+ *
+ * `basename(dirname(…))`, never a split on '/': these paths come from `join()`,
+ * which uses backslashes on Windows. A split would return an empty string
+ * there, every directory-based rule below would stop matching, and the suite
+ * would pass without checking anything — a guardrail that silently switches
+ * itself off on one platform is worse than none.
+ */
 function dirName(file: string): string {
-    return file.split('/').slice(-2, -1)[0] ?? '';
+    return basename(dirname(file));
 }
 
 function stripComments(markup: string): string {
@@ -294,7 +303,7 @@ describe('page shell contract', () => {
             const emits = declaredEmits(readFileSync(file, 'utf8'));
             if (emits.length !== 1) continue;
 
-            const component = file.split('/').pop()!.replace('.vue', '');
+            const component = basename(file, '.vue');
             const listener = `@${kebab(emits[0]!)}=`;
 
             for (const other of allVueFiles()) {
@@ -310,7 +319,7 @@ describe('page shell contract', () => {
                         (arg !== '' && tag.includes(`v-model:${kebab(arg)}`)) ||
                         (arg === 'modelValue' && /\bv-model[=\s]/.test(tag)) ||
                         (arg === '' && tag.includes('v-model'));
-                    const pair = `${other.split('/').pop()}: ${component}`;
+                    const pair = `${basename(other)}: ${component}`;
                     if (!heard && !DELIBERATELY_IGNORED.has(pair)) {
                         offenders.push(
                             `${relative(SRC_DIR, other)}: <${component}> ignores ${emits[0]}`,
@@ -406,7 +415,7 @@ describe('page shell contract', () => {
         for (const source of files) {
             const declared = unscopedClasses(source);
             if (declared.size === 0) continue;
-            const stem = source.split('/').pop()!.replace('.vue', '');
+            const stem = basename(source, '.vue');
             const allowed = new Set([dirName(source), OWN_CHILDREN[stem]]);
 
             for (const other of files) {

@@ -16,7 +16,7 @@
 //   node scripts/token-audit.mjs --top=20     n most frequent values per category
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, dirname, resolve } from 'node:path';
+import { basename, join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -80,7 +80,11 @@ export function audit() {
 
     for (const file of files) {
         const rel = relative(REPO_ROOT, file);
-        const name = file.split('/').pop();
+        // `basename`, not a split on '/': join() yields backslashes on Windows,
+        // where the split would leave `name` as the whole path. `sa-theme.css`
+        // would then miss the exclusion list and the palette's own literals
+        // would be counted as violations — dozens of them, failing the budget.
+        const name = basename(file);
         const content = readFileSync(file, 'utf8');
         const isTokenDefinition = TOKEN_DEFINITION_FILES.has(name);
         reach.files += 1;

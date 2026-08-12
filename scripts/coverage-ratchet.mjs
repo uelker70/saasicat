@@ -126,6 +126,16 @@ for (const pkg of PACKAGES) {
     process.stderr.write(`measuring ${pkg} … `);
     const value = measure(pkg);
     if (!value) {
+        // Skipping is fine for a check — the comparison below reports the
+        // missing package. Skipping during `--update` is not: the new baseline
+        // would simply be written without it, dropping that package's ratchet
+        // for good and quietly lowering the bar.
+        if (update) {
+            throw new Error(
+                `No coverage report for ${pkg} — refusing to write a baseline that leaves it out. ` +
+                    `Either test discovery found no files, or Node's summary format changed.`,
+            );
+        }
         process.stderr.write('no coverage report — skipped\n');
         continue;
     }
