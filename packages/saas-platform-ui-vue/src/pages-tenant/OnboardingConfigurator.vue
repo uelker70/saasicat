@@ -305,11 +305,11 @@ defineExpose({ draft });
     font-size: 11px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--q-primary, #0f766e);
-    background: rgba(15, 118, 110, 0.08);
+    color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
     padding: 6px 11px;
     border-radius: 999px;
-    border: 1px solid rgba(15, 118, 110, 0.2);
+    border: 1px solid var(--sa-color-accent-border);
 }
 .sp-onb__header h1 {
     margin: 12px 0 8px;
@@ -319,7 +319,7 @@ defineExpose({ draft });
 }
 .sp-onb__header p {
     margin: 0;
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--sa-color-fg-secondary);
     max-width: 640px;
 }
 .sp-onb__layout {
@@ -339,16 +339,16 @@ defineExpose({ draft });
     gap: 20px;
 }
 .sp-onb__section {
-    background: #fff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 22px;
     padding: 26px 28px 24px;
-    box-shadow: 0 24px 80px rgba(31, 41, 51, 0.05);
+    box-shadow: 0 24px 80px var(--sa-shadow-tint-1);
 }
 .sp-onb__sec-head {
     padding-bottom: 14px;
     margin-bottom: 18px;
-    border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+    border-bottom: 1px dashed var(--sa-color-border);
 }
 .sp-onb__sec-head h2 {
     margin: 6px 0 0;
@@ -357,7 +357,7 @@ defineExpose({ draft });
 }
 .sp-onb__sec-head p {
     margin: 4px 0 0;
-    color: rgba(0, 0, 0, 0.55);
+    color: var(--sa-color-fg-muted);
     font-size: 13px;
     max-width: 520px;
 }
@@ -369,19 +369,19 @@ defineExpose({ draft });
     font-size: 11px;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--q-primary, #0f766e);
+    color: var(--sa-color-accent);
     font-weight: 700;
 }
 .sp-onb__sec-num::before {
     content: '';
     width: 28px;
     height: 1px;
-    background: var(--q-primary, #0f766e);
+    background: var(--sa-color-accent);
 }
 .sp-onb__loading {
     padding: 40px;
     text-align: center;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--sa-color-fg-subtle);
 }
 .sp-onb__actions {
     display: flex;
@@ -392,20 +392,20 @@ defineExpose({ draft });
 }
 .sp-onb__back-btn {
     background: none;
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 10px;
     padding: 10px 16px;
     font-family: inherit;
     font-size: 13px;
     cursor: pointer;
-    color: rgba(0, 0, 0, 0.7);
+    color: var(--sa-color-fg-body);
 }
 .sp-onb__back-btn:hover {
-    border-color: rgba(0, 0, 0, 0.4);
+    border-color: var(--sa-color-border-strong);
 }
 .sp-onb__error {
-    color: #b91c1c;
-    background: rgba(220, 38, 38, 0.08);
+    color: var(--sa-color-negative-fg);
+    background: var(--sa-color-negative-surface);
     padding: 10px 14px;
     border-radius: 8px;
     font-size: 13px;

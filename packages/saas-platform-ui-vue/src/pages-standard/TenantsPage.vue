@@ -623,18 +623,18 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
     color: inherit;
 }
 .sa-tenants__icon-btn--negative {
-    color: var(--sa-negative, #dc2626);
+    color: var(--sa-color-negative);
 }
 .sa-tenants__icon-btn--positive {
-    color: var(--sa-positive, #047857);
+    color: var(--sa-color-positive-fg);
 }
 .sa-tenants__icon-btn--primary {
-    color: var(--sa-primary, #3f6bff);
+    color: var(--sa-color-accent);
 }
 .sa-tenants__icon-btn--warning {
-    color: var(--sa-warning, #d97706);
+    color: var(--sa-color-warning-fg);
 }
 .sa-tenants__icon-btn--accent {
-    color: var(--sa-accent, #7c3aed);
+    color: var(--sa-color-feature);
 }
 </style>

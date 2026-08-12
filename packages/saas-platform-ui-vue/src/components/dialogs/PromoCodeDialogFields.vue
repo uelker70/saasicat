@@ -411,7 +411,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     border: 1px solid var(--sa-border);
     border-radius: 10px;
     padding: 14px 16px;
-    background: #fafbfc;
+    background: var(--sa-color-bg-surface-raised);
 }
 
 .pc-section__title {
@@ -484,17 +484,17 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 .pc-input {
     width: 100%;
     border: 1px solid var(--sa-border);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 8px 10px;
     font: 13.5px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-body, #1e293b);
+    color: var(--sa-color-fg-body);
     outline: 0;
 }
 
 .pc-input:focus {
-    border-color: var(--sa-primary, #3f6bff);
-    box-shadow: 0 0 0 3px rgba(63, 107, 255, 0.12);
+    border-color: var(--sa-color-accent);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 
 .pc-input--code {
@@ -516,7 +516,7 @@ textarea.pc-input {
 
 .pc-btn-mini {
     border: 1px solid var(--sa-border);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
     font: 500 12px var(--sa-font-body, system-ui, sans-serif);
@@ -536,7 +536,7 @@ textarea.pc-input {
 
 .pc-type-opt {
     border: 1px solid var(--sa-border);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 8px;
     padding: 8px 10px;
     text-align: left;
@@ -547,12 +547,12 @@ textarea.pc-input {
 }
 
 .pc-type-opt:hover {
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 
 .pc-type-opt--active {
-    border-color: var(--sa-primary, #3f6bff);
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
 }
 
 .pc-type-opt__label {
@@ -576,7 +576,7 @@ textarea.pc-input {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 999px;
     padding: 5px 12px 5px 8px;
@@ -589,13 +589,13 @@ textarea.pc-input {
 }
 
 .pc-plan-opt:hover {
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 
 .pc-plan-opt--on {
-    border-color: var(--sa-primary, #3f6bff);
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    color: var(--sa-primary, #3f6bff);
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
+    color: var(--sa-color-accent);
 }
 
 .pc-plan-opt__mark {
@@ -612,7 +612,7 @@ textarea.pc-input {
 .pc-dur-opt {
     flex: 1;
     border: 1px solid var(--sa-border);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
     font: 500 12px var(--sa-font-body, system-ui, sans-serif);
@@ -621,9 +621,9 @@ textarea.pc-input {
 }
 
 .pc-dur-opt--active {
-    border-color: var(--sa-primary, #3f6bff);
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    color: var(--sa-primary, #3f6bff);
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
+    color: var(--sa-color-accent);
 }
 
 .pc-check {
@@ -631,13 +631,13 @@ textarea.pc-input {
     align-items: center;
     gap: 8px;
     font: 13px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-body, #1e293b);
+    color: var(--sa-color-fg-body);
     cursor: pointer;
 }
 
 .pc-preview {
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.06));
-    border: 1px solid var(--sa-primary-border, rgba(63, 107, 255, 0.18));
+    background: var(--sa-color-accent-surface-soft);
+    border: 1px solid var(--sa-color-accent-border);
     border-radius: 10px;
     padding: 12px 14px;
 }
@@ -645,7 +645,7 @@ textarea.pc-input {
 .pc-preview__eyebrow {
     font-size: 11px;
     font-weight: 700;
-    color: var(--sa-primary, #3f6bff);
+    color: var(--sa-color-accent);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-bottom: 6px;
@@ -659,7 +659,7 @@ textarea.pc-input {
 }
 
 .pc-preview__code {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 6px;
     padding: 3px 8px;
@@ -670,7 +670,7 @@ textarea.pc-input {
 
 .pc-preview__disc {
     font: 700 13px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-positive, #047857);
+    color: var(--sa-color-positive-fg);
 }
 
 .pc-preview__meta {

@@ -347,7 +347,7 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
     font-size: 13px;
 }
 code {
-    background: rgba(15, 23, 42, 0.06);
+    background: var(--sa-color-bg-sunken);
     padding: 1px 6px;
     border-radius: 4px;
     font-size: 12px;

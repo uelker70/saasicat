@@ -490,12 +490,12 @@ async function submit(): Promise<void> {
 
 <style scoped>
 .bcp {
-    background: #fff;
-    border: 1px solid #cbd5e1;
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 12px;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 8px 24px var(--sa-shadow-tint-2);
 }
 .bcp-head {
     display: flex;
@@ -553,7 +553,7 @@ async function submit(): Promise<void> {
     height: 24px;
     border-radius: 999px;
     background: var(--sa-primary);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     font:
         700 12px 'JetBrains Mono',
         ui-monospace,
@@ -596,12 +596,12 @@ async function submit(): Promise<void> {
 }
 .bcp-input {
     padding: 7px 10px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     font-family: inherit;
     font-size: 13px;
     color: var(--sa-heading);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
 }
 .bcp-input--mono {
     font:
@@ -616,7 +616,7 @@ async function submit(): Promise<void> {
 .bcp-input-grp {
     display: inline-flex;
     align-items: stretch;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
 }
 .bcp-input-grp .bcp-input {
@@ -635,14 +635,14 @@ async function submit(): Promise<void> {
 }
 .bcp-error-inline {
     font-size: 11.5px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 .bcp-error {
     padding: 10px 12px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
     border-radius: 6px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-size: 12.5px;
 }
 .bcp-foot {
@@ -663,13 +663,13 @@ async function submit(): Promise<void> {
     color: var(--sa-muted-dark);
 }
 .bcp-foot-hint--warn {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-weight: 600;
 }
 .bcp-btn {
     padding: 7px 14px;
-    background: #fff;
-    border: 1px solid #cbd5e1;
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     cursor: pointer;
     font-size: 12.5px;
@@ -686,7 +686,7 @@ async function submit(): Promise<void> {
 .bcp-btn--primary {
     background: var(--sa-primary);
     border-color: var(--sa-primary);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
 }
 .bcp-btn--primary:hover:not(:disabled) {
     background: var(--sa-primary-strong);

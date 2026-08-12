@@ -127,6 +127,8 @@
     --sa-color-quota: var(--sa-sky-500);
     --sa-color-quota-surface: var(--sa-sky-50);
     --sa-color-quota-border: var(--sa-sky-200);
+    --sa-color-bundle: var(--sa-amber-500);
+    --sa-color-bundle-surface: var(--sa-amber-100);
 
     /* ── Inverse chrome — the dark header, drawer and login backdrop.
      *
@@ -137,8 +139,18 @@
      * ──────────────────────────────────────────────────────────────────── */
     --sa-color-inverse-bg: var(--sa-neutral-950);
     --sa-color-inverse-surface: var(--sa-neutral-800);
+    --sa-color-inverse-surface-soft: var(--sa-neutral-600);
     --sa-color-inverse-fg: var(--sa-white);
     --sa-color-inverse-fg-muted: var(--sa-neutral-300);
+    --sa-color-inverse-accent: var(--sa-amber-400);
+    --sa-color-inverse-accent-strong: var(--sa-amber-600);
+    --sa-color-inverse-accent-surface: color-mix(in srgb, var(--sa-amber-500) 15%, transparent);
+    --sa-color-inverse-accent-surface-strong: color-mix(
+        in srgb,
+        var(--sa-amber-500) 22%,
+        transparent
+    );
+    --sa-color-inverse-accent-fg: var(--sa-neutral-900);
     --sa-color-inverse-fg-subtle: color-mix(in srgb, var(--sa-white) 55%, transparent);
     --sa-color-inverse-border: color-mix(in srgb, var(--sa-white) 8%, transparent);
     --sa-color-inverse-border-strong: color-mix(in srgb, var(--sa-white) 16%, transparent);

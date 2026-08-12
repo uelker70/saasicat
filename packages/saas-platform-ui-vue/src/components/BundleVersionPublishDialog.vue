@@ -301,7 +301,7 @@ function formatValue(v: unknown): string {
 }
 .bvpd__label {
     font-size: 12px;
-    color: var(--q-grey-7, #757575);
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 6px;
@@ -313,13 +313,13 @@ function formatValue(v: unknown): string {
     padding: 32px;
 }
 .bvpd__warnings {
-    border-left: 4px solid var(--q-warning, #f2c037);
+    border-left: 4px solid var(--sa-color-warning-strong);
 }
 .bvpd__neutral {
-    border-left: 4px solid var(--q-grey-7, #757575);
+    border-left: 4px solid var(--sa-color-border-strong);
 }
 .bvpd__regression {
-    border-left: 4px solid var(--q-negative, #c10015);
+    border-left: 4px solid var(--sa-color-negative);
 }
 .bvpd__validity {
     padding: 12px;
@@ -341,16 +341,16 @@ function formatValue(v: unknown): string {
 }
 .bvpd__input {
     min-height: 36px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     padding: 0 10px;
     font: inherit;
     color: var(--sa-heading);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
 }
 .bvpd__error {
     margin: 8px 0 0;
-    color: var(--q-negative, #c10015);
+    color: var(--sa-color-negative);
     font-size: 12px;
     font-weight: 700;
 }
@@ -360,11 +360,11 @@ function formatValue(v: unknown): string {
     font-size: 13px;
 }
 .bvpd__old {
-    color: var(--q-negative, #c10015);
+    color: var(--sa-color-negative);
     text-decoration: line-through;
 }
 .bvpd__new {
-    color: var(--q-positive, #21ba45);
+    color: var(--sa-color-positive);
     font-weight: 600;
 }
 </style>

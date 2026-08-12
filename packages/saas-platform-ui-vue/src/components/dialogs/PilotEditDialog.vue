@@ -344,7 +344,7 @@ async function doSubmit(code: string): Promise<void> {
 }
 
 .pl-dlg__sep {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     margin: 0 6px;
 }
 

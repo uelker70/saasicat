@@ -418,7 +418,7 @@ async function executeTerminate(): Promise<void> {
     font: 500 13px var(--sa-font-body);
     cursor: pointer;
     border: 1px solid var(--sa-border-strong);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     color: var(--sa-heading);
     transition:
         background 0.12s,
@@ -430,7 +430,7 @@ async function executeTerminate(): Promise<void> {
 .btn.primary {
     background: var(--sa-primary);
     border-color: var(--sa-primary);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
 }
 .btn.primary:hover {
     background: var(--sa-primary-strong);
@@ -454,18 +454,18 @@ async function executeTerminate(): Promise<void> {
 }
 .chip.live {
     background: var(--sa-positive-bg);
-    color: #047857;
-    border-color: #a7f3d0;
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .chip.draft {
     background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 .chip.supersed {
     background: var(--sa-border-soft);
     color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .chip.dot::before {
     content: '';
@@ -531,7 +531,7 @@ async function executeTerminate(): Promise<void> {
     font-weight: 500;
 }
 .pd-timeline-hint svg {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     width: 12px;
     height: 12px;
 }
@@ -548,8 +548,8 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     justify-content: center;
     font: 600 11px var(--sa-font-body);
-    color: rgba(15, 23, 42, 0.65);
-    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    color: var(--sa-color-fg-secondary);
+    border-right: 1px solid var(--sa-color-border-soft);
     white-space: nowrap;
     padding: 0 8px;
     min-width: 0;
@@ -574,13 +574,17 @@ async function executeTerminate(): Promise<void> {
     color: var(--sa-muted-dark);
 }
 .pd-timeline-seg.live {
-    background: #10b981;
-    color: #fff;
+    background: var(--sa-color-positive-strong);
+    color: var(--sa-color-fg-on-accent);
     font-weight: 700;
 }
 .pd-timeline-seg.draft {
-    background: repeating-linear-gradient(135deg, #fde68a 0 8px, #fcd34d 8px 16px);
-    color: #78350f;
+    background: repeating-linear-gradient(
+        135deg,
+        var(--sa-color-warning-border) 0 8px,
+        var(--sa-color-warning-strong) 8px 16px
+    );
+    color: var(--sa-color-warning-fg);
     font-weight: 700;
 }
 .pd-timeline-seg.is-selected {
@@ -588,19 +592,19 @@ async function executeTerminate(): Promise<void> {
     z-index: 1;
     outline: 2px solid var(--sa-primary);
     outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
     font-weight: 700;
 }
 .pd-timeline-seg.is-selected.superseded {
     color: var(--sa-heading);
 }
 .pd-timeline-seg.is-selected.live {
-    outline-color: #047857;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+    outline-color: var(--sa-color-positive);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-4);
 }
 .pd-timeline-seg.is-selected.draft {
-    outline-color: #b45309;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+    outline-color: var(--sa-color-warning-fg);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-4);
 }
 .pd-timeline-ticks {
     display: flex;
@@ -630,7 +634,7 @@ async function executeTerminate(): Promise<void> {
     display: contents;
 }
 .pd-versions-head > div {
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
     padding: 9px 12px;
     font-size: 10px;
     text-transform: uppercase;
@@ -652,34 +656,34 @@ async function executeTerminate(): Promise<void> {
     color: var(--sa-heading);
 }
 .pd-vrow:hover > div {
-    background: #fafbfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .pd-vrow.is-draft > div {
-    background: #fffdf5;
+    background: var(--sa-color-warning-surface);
 }
 .pd-vrow.is-draft:hover > div {
-    background: #fff8e7;
+    background: var(--sa-color-warning-surface);
 }
 .pd-vrow.is-selected > div {
     background: var(--sa-primary-50) !important;
-    box-shadow: inset 0 -1px 0 0 #bfdbfe;
+    box-shadow: inset 0 -1px 0 0 var(--sa-color-info-border);
 }
 .pd-vrow.is-selected.is-draft > div {
-    background: #fff4d6 !important;
-    box-shadow: inset 0 -1px 0 0 #fcd34d;
+    background: var(--sa-color-warning-surface-strong) !important;
+    box-shadow: inset 0 -1px 0 0 var(--sa-color-warning-border);
 }
 .pd-vrow.is-selected > div:first-child {
     box-shadow:
         inset 3px 0 0 0 var(--sa-primary),
-        inset 0 -1px 0 0 #bfdbfe;
+        inset 0 -1px 0 0 var(--sa-color-info-border);
 }
 .pd-vrow.is-draft > div:first-child {
-    box-shadow: inset 3px 0 0 0 #f59e0b;
+    box-shadow: inset 3px 0 0 0 var(--sa-color-warning-strong);
 }
 .pd-vrow.is-selected.is-draft > div:first-child {
     box-shadow:
-        inset 3px 0 0 0 #f59e0b,
-        inset 0 -1px 0 0 #fcd34d;
+        inset 3px 0 0 0 var(--sa-color-warning-strong),
+        inset 0 -1px 0 0 var(--sa-color-warning-border);
 }
 .pd-vcol {
     display: flex;
@@ -746,8 +750,8 @@ async function executeTerminate(): Promise<void> {
     border-radius: 999px;
     font: 600 10.5px var(--sa-font-mono);
     background: var(--sa-warning-bg);
-    color: #b45309;
-    border: 1px solid #fde68a;
+    color: var(--sa-color-warning-fg);
+    border: 1px solid var(--sa-color-warning-border);
     white-space: nowrap;
 }
 
@@ -763,13 +767,13 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-diff-chip.add {
     background: var(--sa-positive-bg);
-    color: #047857;
-    border: 1px solid #a7f3d0;
+    color: var(--sa-color-positive-fg);
+    border: 1px solid var(--sa-color-positive-border);
 }
 .pd-diff-chip.rm {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
+    border: 1px solid var(--sa-color-negative-border);
 }
 .pd-diff-chip.mod {
     background: var(--sa-border-soft);
@@ -786,22 +790,26 @@ async function executeTerminate(): Promise<void> {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 11px 12px 11px 0;
     overflow: hidden;
 }
 .pd-diff-row.add {
-    background: linear-gradient(90deg, var(--sa-positive-bg) 0%, #fff 60%);
-    border-color: #a7f3d0;
+    background: linear-gradient(90deg, var(--sa-positive-bg) 0%, var(--sa-color-bg-surface) 60%);
+    border-color: var(--sa-color-positive-border);
 }
 .pd-diff-row.rm {
-    background: linear-gradient(90deg, #fef2f2 0%, #fff 60%);
-    border-color: #fecaca;
+    background: linear-gradient(
+        90deg,
+        var(--sa-color-negative-surface) 0%,
+        var(--sa-color-bg-surface) 60%
+    );
+    border-color: var(--sa-color-negative-border);
 }
 .pd-diff-row.mod {
-    background: linear-gradient(90deg, var(--sa-bg-surface-2) 0%, #fff 60%);
+    background: linear-gradient(90deg, var(--sa-bg-surface-2) 0%, var(--sa-color-bg-surface) 60%);
     border-color: var(--sa-border);
 }
 .pd-diff-icon {
@@ -810,14 +818,14 @@ async function executeTerminate(): Promise<void> {
     display: grid;
     place-items: center;
     flex: 0 0 32px;
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     font: 700 16px var(--sa-font-body);
 }
 .pd-diff-row.add .pd-diff-icon {
-    background: #10b981;
+    background: var(--sa-color-positive-strong);
 }
 .pd-diff-row.rm .pd-diff-icon {
-    background: #ef4444;
+    background: var(--sa-color-negative-strong);
 }
 .pd-diff-row.mod .pd-diff-icon {
     background: var(--sa-muted);
@@ -856,10 +864,10 @@ async function executeTerminate(): Promise<void> {
     color: var(--sa-muted-light);
 }
 .pd-diff-arrow {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 .pd-diff-new {
-    color: #047857;
+    color: var(--sa-color-positive-fg);
     font-weight: 600;
 }
 .pd-diff-tag {
@@ -871,22 +879,22 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid;
 }
 .pd-diff-tag.add {
-    background: #fff;
-    color: #047857;
-    border-color: #a7f3d0;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .pd-diff-tag.rm {
-    background: #fff;
-    color: #b91c1c;
-    border-color: #fecaca;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-negative-fg);
+    border-color: var(--sa-color-negative-border);
 }
 .pd-diff-tag.mod {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .pd-diff-row.plain {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-color: var(--sa-border);
     padding: 11px 12px 11px 0;
 }
@@ -947,19 +955,19 @@ async function executeTerminate(): Promise<void> {
     flex: 0 0 auto;
 }
 .pd-audit-draft {
-    background: #f59e0b;
+    background: var(--sa-color-warning-strong);
 }
 .pd-audit-add {
-    background: #10b981;
+    background: var(--sa-color-positive-strong);
 }
 .pd-audit-change {
     background: var(--sa-primary);
 }
 .pd-audit-publish {
-    background: #8b5cf6;
+    background: var(--sa-color-feature);
 }
 .pd-audit-remove {
-    background: #ef4444;
+    background: var(--sa-color-negative-strong);
 }
 .pd-audit-when {
     font-size: 11.5px;
@@ -971,7 +979,7 @@ async function executeTerminate(): Promise<void> {
     height: 24px;
     border-radius: 50%;
     background: var(--sa-heading);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     display: grid;
     place-items: center;
     font: 700 11px var(--sa-font-body);

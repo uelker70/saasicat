@@ -208,15 +208,19 @@ async function handleSubmit(): Promise<void> {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(180deg, var(--sa-heading) 0%, #1e293b 100%);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-inverse-bg) 0%,
+        var(--sa-color-inverse-surface) 100%
+    );
 }
 .sa-login-card {
     width: 420px;
     max-width: 92vw;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 18px;
     padding: 32px;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 24px 48px var(--sa-shadow-tint-4);
 }
 .sa-login-brand {
     display: flex;
@@ -234,8 +238,15 @@ async function handleSubmit(): Promise<void> {
     overflow: hidden;
 }
 .sa-login-logo--text {
-    background: var(--sa-login-logo-bg, linear-gradient(135deg, var(--sa-muted-dark), #1e293b));
-    color: var(--sa-login-logo-color, #fff);
+    background: var(
+        --sa-login-logo-bg,
+        linear-gradient(
+            135deg,
+            var(--sa-color-inverse-surface-soft),
+            var(--sa-color-inverse-surface)
+        )
+    );
+    color: var(--sa-login-logo-color, var(--sa-color-fg-on-accent));
     font-weight: 800;
     font-size: 18px;
     text-transform: uppercase;
@@ -279,9 +290,9 @@ async function handleSubmit(): Promise<void> {
     width: 100%;
 }
 .sa-login-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
     font-size: 13px;
     margin-top: 4px;
     padding: 8px 12px;
@@ -302,7 +313,7 @@ async function handleSubmit(): Promise<void> {
 }
 .sa-login-env {
     margin-top: 18px;
-    color: #cbd5e1;
+    color: var(--sa-color-inverse-fg-muted);
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.08em;

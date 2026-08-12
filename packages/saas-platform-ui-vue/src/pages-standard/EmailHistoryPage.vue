@@ -517,7 +517,7 @@ function formatTs(iso: string | null | undefined): string {
     min-width: 180px;
 }
 .sa-emh__card {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 12px;
     overflow: hidden;
@@ -546,7 +546,7 @@ function formatTs(iso: string | null | undefined): string {
     max-height: 60vh;
     border: 1px solid var(--sa-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
 }
 .sa-emh__text,
 .sa-emh__smtp {

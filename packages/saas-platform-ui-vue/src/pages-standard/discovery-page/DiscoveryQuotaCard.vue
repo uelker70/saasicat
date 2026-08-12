@@ -156,15 +156,15 @@ function coverage(locale: string): number {
 .sa-qc {
     border: 1px solid var(--sa-border);
     border-radius: 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     overflow: hidden;
 }
 .sa-qc.warn {
-    border-color: #fecaca;
+    border-color: var(--sa-color-negative-border);
 }
 .sa-qc.expanded {
-    border-color: #c7d2fe;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    border-color: var(--sa-color-scheduled-border);
+    box-shadow: 0 1px 3px var(--sa-shadow-tint-2);
 }
 .sa-qc__head {
     display: flex;
@@ -174,7 +174,7 @@ function coverage(locale: string): number {
     cursor: pointer;
 }
 .sa-qc.warn .sa-qc__head {
-    background: #fef2f2;
+    background: var(--sa-color-negative-surface);
 }
 .sa-qc__icon {
     flex-shrink: 0;
@@ -204,12 +204,12 @@ function coverage(locale: string): number {
     border-radius: 5px;
 }
 .sa-qc__flag--succ {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-qc__flag--repl {
-    background: #dbeafe;
-    color: #1e40af;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
 }
 .sa-qc__sub {
     font-size: 11px;
@@ -217,12 +217,12 @@ function coverage(locale: string): number {
     margin-top: 2px;
 }
 .sa-qc__missing {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-weight: 700;
 }
 .sa-qc__warning {
     font-size: 11px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     margin-top: 4px;
 }
 .sa-qc__coverage {
@@ -251,7 +251,7 @@ function coverage(locale: string): number {
     padding: 8px 12px;
     margin-bottom: 10px;
     background: var(--sa-warning-bg);
-    border: 1px solid #fde68a;
-    color: #92400e;
+    border: 1px solid var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
 }
 </style>

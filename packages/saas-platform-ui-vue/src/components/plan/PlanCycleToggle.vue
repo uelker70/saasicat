@@ -61,21 +61,14 @@ const labels = computed(() => ({
 <style scoped>
 .sp-cycle {
     display: inline-flex;
-    /* CSS-Vars: dark-mode-overrides unten via :global(.body--dark) */
-    --sp-cycle-bg: rgba(15, 118, 110, 0.06);
-    --sp-cycle-btn-fg: rgba(0, 0, 0, 0.55);
-    --sp-cycle-btn-active-bg: #fff;
-    --sp-cycle-btn-active-fg: var(--q-primary, #0f766e);
+    --sp-cycle-bg: var(--sa-color-accent-surface-soft);
+    --sp-cycle-btn-fg: var(--sa-color-fg-muted);
+    --sp-cycle-btn-active-bg: var(--sa-color-bg-surface);
+    --sp-cycle-btn-active-fg: var(--sa-color-accent);
     background: var(--sp-cycle-bg);
     border-radius: 12px;
     padding: 3px;
     gap: 2px;
-}
-:global(.body--dark) .sp-cycle {
-    --sp-cycle-bg: rgba(255, 255, 255, 0.08);
-    --sp-cycle-btn-fg: rgba(255, 255, 255, 0.7);
-    --sp-cycle-btn-active-bg: rgba(255, 255, 255, 0.92);
-    --sp-cycle-btn-active-fg: var(--q-primary, #0f766e);
 }
 .sp-cycle__btn {
     padding: 8px 14px;
@@ -96,11 +89,11 @@ const labels = computed(() => ({
 .sp-cycle__btn--active {
     background: var(--sp-cycle-btn-active-bg);
     color: var(--sp-cycle-btn-active-fg);
-    box-shadow: 0 2px 8px rgba(15, 118, 110, 0.12);
+    box-shadow: 0 2px 8px var(--sa-shadow-tint-3);
 }
 .sp-cycle__pill {
-    background: rgba(22, 163, 74, 0.16);
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     font-size: 10px;
     padding: 2px 7px;
     border-radius: 999px;

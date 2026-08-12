@@ -114,7 +114,7 @@ function formatValue(value: unknown): string {
     padding: 12px;
     background: var(--sa-bg-surface-2);
     border-radius: 8px;
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
 }
 .sa-diff-preview__list {
     display: flex;
@@ -132,14 +132,14 @@ function formatValue(value: unknown): string {
     align-items: center;
 }
 .sa-diff-preview__row--improvement {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #166534;
+    background: var(--sa-color-positive-surface);
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
 }
 .sa-diff-preview__row--regression {
-    background: #fef2f2;
-    border-color: #fecaca;
-    color: #991b1b;
+    background: var(--sa-color-negative-surface);
+    border-color: var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
 }
 .sa-diff-preview__row--neutral {
     background: var(--sa-bg-surface-2);

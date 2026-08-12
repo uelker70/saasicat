@@ -680,7 +680,7 @@ function formatQuota(v: number | undefined): string {
     font-size: 13px;
 }
 .pm-head th {
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
     border-bottom: 1px solid var(--sa-border);
 }
 .pm-rowhead-cell {
@@ -704,7 +704,7 @@ function formatQuota(v: number | undefined): string {
     min-width: 200px;
 }
 .pm-plan-card {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-top: 3px solid;
     border-radius: 10px;
@@ -804,10 +804,10 @@ function formatQuota(v: number | undefined): string {
     vertical-align: top;
 }
 .pm-add {
-    border: 1.5px dashed #c7d2fe;
+    border: 1.5px dashed var(--sa-color-scheduled-border);
     border-radius: 10px;
     padding: 16px 10px;
-    background: #f5f7ff;
+    background: var(--sa-color-accent-surface);
     text-align: center;
     cursor: pointer;
     min-height: 180px;
@@ -818,8 +818,8 @@ function formatQuota(v: number | undefined): string {
     font-family: inherit;
 }
 .pm-add:hover {
-    background: #eef2ff;
-    border-color: #818cf8;
+    background: var(--sa-color-scheduled-surface);
+    border-color: var(--sa-color-scheduled-strong);
 }
 .pm-add-icon {
     display: grid;
@@ -861,18 +861,18 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-chip--live {
     background: var(--sa-positive-bg);
-    color: #047857;
-    border-color: #a7f3d0;
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .pm-chip--draft {
     background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 .pm-chip--supersed {
     background: var(--sa-border-soft);
     color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .pm-chip--dot::before {
     content: '';
@@ -905,13 +905,13 @@ function formatQuota(v: number | undefined): string {
     border-radius: 50%;
 }
 .pm-group-dot--quota {
-    background: #0ea5e9;
+    background: var(--sa-color-quota);
 }
 .pm-group-dot--feature {
-    background: #8b5cf6;
+    background: var(--sa-color-feature);
 }
 .pm-group-dot--bundle {
-    background: #f59e0b;
+    background: var(--sa-color-bundle);
 }
 .pm-group-count {
     background: var(--sa-border);
@@ -927,7 +927,7 @@ function formatQuota(v: number | undefined): string {
     height: 44px;
 }
 .pm-row:hover td {
-    background: #fcfcfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .pm-rowhead {
     padding: 8px 16px;
@@ -957,7 +957,7 @@ function formatQuota(v: number | undefined): string {
     background-image: repeating-linear-gradient(
         135deg,
         transparent 0 6px,
-        rgba(217, 119, 6, 0.05) 6px 7px
+        var(--sa-color-warning-surface) 6px 7px
     );
 }
 .pm-cell--base {
@@ -973,9 +973,9 @@ function formatQuota(v: number | undefined): string {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.02em;
-    background: #eef2ff;
-    color: #4338ca;
-    border: 1px solid #c7d2fe;
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
+    border: 1px solid var(--sa-color-scheduled-border);
 }
 .pm-check {
     display: inline-grid;
@@ -985,7 +985,7 @@ function formatQuota(v: number | undefined): string {
     border-radius: 6px;
 }
 .pm-dash {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     font-weight: 500;
 }
 .pm-num {
@@ -1021,15 +1021,15 @@ function formatQuota(v: number | undefined): string {
     width: 14px;
     height: 14px;
     border-radius: 4px;
-    background: #dcfce7;
-    color: #16a34a;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive);
     display: grid;
     place-items: center;
 }
 .pm-legend-dash {
     width: 14px;
     height: 14px;
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     display: grid;
     place-items: center;
     font-size: 14px;

@@ -601,11 +601,11 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-muted-dark);
 }
 .mc-promo-stat.active {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .mc-promo-stat.scheduled {
-    background: #dbeafe;
+    background: var(--sa-color-info-surface-strong);
     color: var(--sa-primary-strong);
 }
 .mc-promo-stat.expired {
@@ -613,7 +613,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-muted-light);
 }
 .mc-promo-timeline {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 10px;
     padding: 12px 14px;
@@ -647,14 +647,14 @@ async function onRemove(p: PromotionRow): Promise<void> {
     top: 0;
     bottom: 18px;
     width: 0;
-    border-left: 2px dashed #ef4444;
+    border-left: 2px dashed var(--sa-color-negative-strong);
 }
 .mc-promo-today span {
     position: absolute;
     top: -2px;
     left: 3px;
     font-size: 9px;
-    color: #ef4444;
+    color: var(--sa-color-negative-strong);
     font-weight: 700;
 }
 .mc-promo-bar {
@@ -672,7 +672,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-bar-label {
     font-size: 10px;
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     font-weight: 600;
     padding: 0 6px;
     white-space: nowrap;
@@ -682,7 +682,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     text-align: center;
     color: var(--sa-muted-light);
     font-size: 13px;
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
     border-radius: 10px;
 }
 .mc-promo-list {
@@ -694,14 +694,14 @@ async function onRemove(p: PromotionRow): Promise<void> {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 10px 12px;
     cursor: pointer;
 }
 .mc-promo-row.expanded {
-    border-color: #3f6bff;
+    border-color: var(--sa-color-accent);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
 }
@@ -762,11 +762,11 @@ async function onRemove(p: PromotionRow): Promise<void> {
     border-radius: 6px;
 }
 .mc-promo-status.active {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .mc-promo-status.scheduled {
-    background: #dbeafe;
+    background: var(--sa-color-info-surface-strong);
     color: var(--sa-primary-strong);
 }
 .mc-promo-status.expired {
@@ -774,7 +774,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-muted-light);
 }
 .mc-promo-editor {
-    border: 1px solid #3f6bff;
+    border: 1px solid var(--sa-color-accent);
     border-top: 0;
     border-radius: 0 0 8px 8px;
     background: var(--sa-bg-surface-2);
@@ -799,7 +799,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     margin-top: 6px;
 }
 .mc-promo-input {
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     padding: 6px 8px;
     font-size: 13px;
@@ -818,15 +818,15 @@ async function onRemove(p: PromotionRow): Promise<void> {
     gap: 6px;
 }
 .mc-promo-typeopt {
-    border: 1px solid #cbd5e1;
-    background: #fff;
+    border: 1px solid var(--sa-color-border-strong);
+    background: var(--sa-color-bg-surface);
     border-radius: 6px;
     padding: 5px 10px;
     font-size: 12px;
     cursor: pointer;
 }
 .mc-promo-typeopt.active {
-    border-color: #3f6bff;
+    border-color: var(--sa-color-accent);
     background: var(--sa-primary-50);
     color: var(--sa-primary-strong);
     font-weight: 600;
@@ -839,15 +839,15 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-planopt {
     display: flex;
     justify-content: space-between;
-    border: 1px solid #cbd5e1;
-    background: #fff;
+    border: 1px solid var(--sa-color-border-strong);
+    background: var(--sa-color-bg-surface);
     border-radius: 6px;
     padding: 6px 10px;
     font-size: 12px;
     cursor: pointer;
 }
 .mc-promo-planopt.active {
-    border-color: #3f6bff;
+    border-color: var(--sa-color-accent);
     background: var(--sa-primary-50);
 }
 .mc-promo-planopt code {
@@ -861,7 +861,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     padding: 8px;
     border: 1px solid var(--sa-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
 }
 .mc-promo-i18n-code {
     font-size: 10px;
@@ -888,9 +888,9 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-delete {
     margin-top: 12px;
     align-self: flex-start;
-    border: 1px solid #fecaca;
-    background: #fef2f2;
-    color: #b91c1c;
+    border: 1px solid var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
     font-weight: 600;
     font-size: 12px;
     padding: 6px 12px;

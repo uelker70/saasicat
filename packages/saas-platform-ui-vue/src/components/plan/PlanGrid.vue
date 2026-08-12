@@ -92,28 +92,19 @@ function planPrice(plan: CatalogPlan): number | null {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 12px;
 }
-/* CSS vars for light + dark mode. Quasar's `body--dark` triggers the dark set. */
+/* This component's knobs, all of them reading a role. The dark set that used to
+ * sit below is gone: the roles carry the theme now, so nine values were being
+ * maintained twice to say what `--sa-color-*` already says once. */
 .sp-models {
-    --sp-card-bg: #fff;
-    --sp-card-border: rgba(0, 0, 0, 0.1);
-    --sp-card-border-soft: rgba(0, 0, 0, 0.08);
-    --sp-card-current-bg: rgba(0, 0, 0, 0.02);
-    --sp-card-selected-grad: rgba(15, 118, 110, 0.04);
-    --sp-text-strong: rgba(0, 0, 0, 0.85);
-    --sp-text-muted: rgba(0, 0, 0, 0.55);
-    --sp-flag-current-bg: rgba(0, 0, 0, 0.6);
-    --sp-flag-current-fg: #fff;
-}
-:global(.body--dark) .sp-models {
-    --sp-card-bg: rgba(255, 255, 255, 0.06);
-    --sp-card-border: rgba(255, 255, 255, 0.2);
-    --sp-card-border-soft: rgba(255, 255, 255, 0.12);
-    --sp-card-current-bg: rgba(255, 255, 255, 0.1);
-    --sp-card-selected-grad: rgba(15, 118, 110, 0.25);
-    --sp-text-strong: rgba(255, 255, 255, 0.92);
-    --sp-text-muted: rgba(255, 255, 255, 0.65);
-    --sp-flag-current-bg: rgba(255, 255, 255, 0.85);
-    --sp-flag-current-fg: var(--sa-heading);
+    --sp-card-bg: var(--sa-color-bg-surface);
+    --sp-card-border: var(--sa-color-border);
+    --sp-card-border-soft: var(--sa-color-border-soft);
+    --sp-card-current-bg: var(--sa-color-bg-sunken);
+    --sp-card-selected-grad: var(--sa-color-accent-surface-soft);
+    --sp-text-strong: var(--sa-color-fg-heading);
+    --sp-text-muted: var(--sa-color-fg-muted);
+    --sp-flag-current-bg: var(--sa-color-fg-secondary);
+    --sp-flag-current-fg: var(--sa-color-fg-on-accent);
 }
 .sp-model {
     position: relative;
@@ -132,12 +123,12 @@ function planPrice(plan: CatalogPlan): number | null {
 }
 .sp-model:hover {
     transform: translateY(-3px);
-    border-color: rgba(15, 118, 110, 0.55);
+    border-color: var(--sa-color-accent);
 }
 .sp-model--selected {
-    border-color: var(--q-primary, #0f766e);
+    border-color: var(--sa-color-accent);
     background: linear-gradient(180deg, var(--sp-card-selected-grad), var(--sp-card-bg) 70%);
-    box-shadow: 0 14px 30px rgba(15, 118, 110, 0.16);
+    box-shadow: 0 14px 30px var(--sa-shadow-tint-3);
 }
 .sp-model--current {
     background: var(--sp-card-current-bg);
@@ -146,8 +137,8 @@ function planPrice(plan: CatalogPlan): number | null {
     position: absolute;
     top: -10px;
     right: 14px;
-    background: var(--q-primary, #0f766e);
-    color: #fff;
+    background: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
     font-size: 10px;
     font-weight: 700;
     padding: 4px 10px;

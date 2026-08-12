@@ -196,7 +196,7 @@ function onToggle(planKey: string): void {
     flex-direction: column;
     gap: 6px;
     padding: 10px 12px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 8px;
     cursor: pointer;
@@ -215,8 +215,8 @@ function onToggle(planKey: string): void {
     background: var(--sa-primary-50);
 }
 .bv-compat-card.warn {
-    border-color: #fca5a5;
-    background: #fef2f2;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
 }
 .bv-compat-card:disabled {
     cursor: not-allowed;
@@ -232,9 +232,9 @@ function onToggle(planKey: string): void {
     height: 26px;
     display: grid;
     place-items: center;
-    background: #e0e7ff;
-    color: #4338ca;
-    border: 1px solid #c7d2fe;
+    background: var(--sa-color-scheduled-surface-strong);
+    color: var(--sa-color-scheduled-fg);
+    border: 1px solid var(--sa-color-scheduled-border);
     border-radius: 6px;
     font:
         700 9px 'JetBrains Mono',
@@ -264,13 +264,13 @@ function onToggle(planKey: string): void {
 }
 .bv-compat-overlap {
     padding: 6px 8px;
-    background: #fff;
-    border: 1px dashed #fecaca;
+    background: var(--sa-color-bg-surface);
+    border: 1px dashed var(--sa-color-negative-border);
     border-radius: 6px;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 .bv-compat-overlap-head {
     font-size: 11px;
@@ -286,15 +286,15 @@ function onToggle(planKey: string): void {
     font-size: 11.5px;
 }
 .bv-compat-overlap-kind {
-    color: #7f1d1d;
+    color: var(--sa-color-negative-fg);
     font-weight: 600;
 }
 .bv-compat-overlap-chip {
     padding: 1px 6px;
-    border: 1px solid #fecaca;
+    border: 1px solid var(--sa-color-negative-border);
     border-radius: 4px;
-    background: #fff;
-    color: #b91c1c;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-negative-fg);
 }
 .bv-compat-empty {
     padding: 12px;
@@ -308,10 +308,10 @@ function onToggle(planKey: string): void {
     align-items: flex-start;
     gap: 8px;
     padding: 10px 12px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
     border-radius: 8px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-size: 12.5px;
     line-height: 1.5;
 }

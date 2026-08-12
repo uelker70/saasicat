@@ -510,7 +510,7 @@ async function doSubmit(code: string): Promise<void> {
     font-size: 12px;
     color: var(--sa-muted-dark);
     background: var(--sa-primary-50);
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--sa-color-info-border);
     border-radius: 999px;
     padding: 4px 12px;
 }
@@ -555,15 +555,15 @@ async function doSubmit(code: string): Promise<void> {
 
 .pl-field__error {
     font-size: 11.5px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 
 .pl-input--invalid {
-    border-color: #fca5a5;
+    border-color: var(--sa-color-negative-border);
 }
 
 .pl-input::placeholder {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 
 .pl-textarea {
@@ -575,7 +575,7 @@ async function doSubmit(code: string): Promise<void> {
 .pl-slug-input {
     display: flex;
     align-items: stretch;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 8px;
     overflow: hidden;

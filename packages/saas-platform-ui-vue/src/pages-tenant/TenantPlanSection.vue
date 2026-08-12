@@ -616,24 +616,16 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 
 <style>
 .sp-plan-section {
-    --sp-text-secondary: rgba(0, 0, 0, 0.6);
-    --sp-text-muted: rgba(0, 0, 0, 0.55);
-    --sp-text-disabled: rgba(0, 0, 0, 0.5);
-    --sp-text-strong: rgba(0, 0, 0, 0.7);
-    --sp-border: rgba(0, 0, 0, 0.08);
-    --sp-summary-bg: rgba(25, 118, 210, 0.06);
+    --sp-text-secondary: var(--sa-color-fg-secondary);
+    --sp-text-muted: var(--sa-color-fg-muted);
+    --sp-text-disabled: var(--sa-color-fg-subtle);
+    --sp-text-strong: var(--sa-color-fg-body);
+    --sp-border: var(--sa-color-border);
+    --sp-summary-bg: var(--sa-color-info-surface);
 
     display: flex;
     flex-direction: column;
     gap: 16px;
-}
-body.body--dark .sp-plan-section {
-    --sp-text-secondary: rgba(255, 255, 255, 0.72);
-    --sp-text-muted: rgba(255, 255, 255, 0.62);
-    --sp-text-disabled: rgba(255, 255, 255, 0.5);
-    --sp-text-strong: rgba(255, 255, 255, 0.85);
-    --sp-border: rgba(255, 255, 255, 0.16);
-    --sp-summary-bg: rgba(25, 118, 210, 0.18);
 }
 .sp-plan-section__loading,
 .sp-plan-section__empty {
@@ -644,8 +636,8 @@ body.body--dark .sp-plan-section {
     color: var(--sp-text-secondary);
 }
 .sp-plan-section__error {
-    color: var(--q-negative, #c10015);
-    background: rgba(193, 0, 21, 0.08);
+    color: var(--sa-color-negative);
+    background: var(--sa-color-negative-surface);
     padding: 12px 16px;
     border-radius: 4px;
 }

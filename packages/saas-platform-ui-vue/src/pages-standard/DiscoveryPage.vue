@@ -501,7 +501,7 @@ onMounted(() => {
     font-weight: 600;
 }
 .sa-discovery__error {
-    border-left: 4px solid #dc2626;
+    border-left: 4px solid var(--sa-color-negative);
 }
 .sa-discovery__tabs {
     border-bottom: 1px solid var(--sa-border);
@@ -521,7 +521,7 @@ onMounted(() => {
     margin-bottom: 16px;
 }
 .sa-discovery__group--orphan .sa-section__title {
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
 }
 .sa-discovery__group-count {
     font-size: 10px;
@@ -534,7 +534,7 @@ onMounted(() => {
 .sa-discovery__orphan-hint {
     margin: 0 0 8px;
     font-size: 11px;
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
 }
 .sa-discovery__orphan-hint code {
     font-size: 10px;
@@ -547,7 +547,7 @@ onMounted(() => {
     text-align: center;
     color: var(--sa-muted-light);
     font-size: 13px;
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
     border-radius: 12px;
 }
 .sa-muted {
@@ -566,16 +566,16 @@ onMounted(() => {
     flex-shrink: 0;
 }
 .sa-review--pending {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-review--approved {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .sa-review--outdated {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
 }
 .sa-review--obsolete {
     background: var(--sa-border);
@@ -603,18 +603,18 @@ onMounted(() => {
     color: var(--sa-muted-dark);
 }
 .sa-cov-pill.complete {
-    border-color: #a7f3d0;
+    border-color: var(--sa-color-positive-border);
     background: var(--sa-positive-bg);
-    color: #047857;
+    color: var(--sa-color-positive-fg);
 }
 .sa-cov-pill.warn {
-    border-color: #fde68a;
+    border-color: var(--sa-color-warning-border);
     background: var(--sa-warning-bg);
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
 }
 .sa-cov-pill.low {
-    border-color: #fecaca;
-    background: #fef2f2;
-    color: #b91c1c;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
 }
 </style>

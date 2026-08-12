@@ -63,7 +63,7 @@ const changeCountLabel = computed(() => {
 
 <style scoped>
 .sa-pv-diff-card {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 10px;
     margin-bottom: 12px;
@@ -81,13 +81,13 @@ const changeCountLabel = computed(() => {
     width: 28px;
     height: 28px;
     border-radius: 7px;
-    background: var(--sa-positive-soft, rgba(4, 120, 87, 0.1));
+    background: var(--sa-color-positive-surface);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .sa-pv-diff-card__noop-icon :deep(.q-icon) {
-    color: var(--sa-positive, #047857);
+    color: var(--sa-color-positive-fg);
 }
 
 .sa-pv-diff-card__head {
@@ -96,7 +96,7 @@ const changeCountLabel = computed(() => {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: #fafbfc;
+    background: var(--sa-color-bg-surface-raised);
 }
 .sa-pv-diff-card__accent {
     width: 28px;
@@ -130,8 +130,8 @@ const changeCountLabel = computed(() => {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.06em;
-    background: var(--sa-warning-soft, rgba(245, 158, 11, 0.1));
-    color: var(--sa-warning, #b45309);
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
     padding: 2px 8px;
     border-radius: 4px;
     margin-left: auto;

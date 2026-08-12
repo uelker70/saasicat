@@ -152,23 +152,23 @@ const supersededTail = computed(() =>
 }
 .bv-status-live {
     background: var(--sa-positive-bg);
-    border-color: #a7f3d0;
-    color: #065f46;
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
 }
 .bv-status-scheduled {
     background: var(--sa-warning-bg);
-    border-color: #fde68a;
-    color: #92400e;
+    border-color: var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
 }
 .bv-status-superseded {
     background: var(--sa-border-soft);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
     color: var(--sa-muted-dark);
 }
 .bv-status-draft {
     background: var(--sa-primary-50);
-    border-color: #bfdbfe;
-    color: #1e40af;
+    border-color: var(--sa-color-info-border);
+    color: var(--sa-color-info-fg);
 }
 .bv-status-icon {
     flex: 0 0 auto;
@@ -179,11 +179,11 @@ const supersededTail = computed(() =>
     min-width: 0;
 }
 .bv-status-warn {
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
     font-weight: 500;
 }
 .bv-status-ok {
-    color: #047857;
+    color: var(--sa-color-positive-fg);
     font-weight: 500;
 }
 .bv-status-discard {
@@ -191,16 +191,16 @@ const supersededTail = computed(() =>
     align-items: center;
     gap: 5px;
     padding: 6px 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 6px;
     cursor: pointer;
     font-size: 12px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-family: inherit;
 }
 .bv-status-discard:hover {
-    background: #fef2f2;
-    border-color: #fecaca;
+    background: var(--sa-color-negative-surface);
+    border-color: var(--sa-color-negative-border);
 }
 </style>

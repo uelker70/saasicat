@@ -271,12 +271,12 @@ function coverage(locale: string): number {
 .sa-fc {
     border: 1px solid var(--sa-border);
     border-radius: 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     overflow: hidden;
 }
 .sa-fc.expanded {
-    border-color: #c7d2fe;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    border-color: var(--sa-color-scheduled-border);
+    box-shadow: 0 1px 3px var(--sa-shadow-tint-2);
 }
 .sa-fc__head {
     display: flex;
@@ -320,20 +320,20 @@ function coverage(locale: string): number {
     border-radius: 5px;
 }
 .sa-fc__flag--new {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-fc__flag--dep {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
 }
 .sa-fc__flag--succ {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-fc__flag--repl {
-    background: #dbeafe;
-    color: #1e40af;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
 }
 .sa-fc__sub {
     font-size: 11px;
@@ -342,13 +342,13 @@ function coverage(locale: string): number {
 }
 .sa-fc__dot {
     margin: 0 4px;
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 .sa-fc__tier {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    color: #4f46e5;
+    color: var(--sa-color-scheduled);
 }
 .sa-fc__coverage {
     display: flex;
@@ -378,8 +378,8 @@ function coverage(locale: string): number {
 }
 .sa-fc__banner.warn {
     background: var(--sa-warning-bg);
-    border: 1px solid #fde68a;
-    color: #92400e;
+    border: 1px solid var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
 }
 .sa-fc__banner.mute {
     background: var(--sa-border-soft);
@@ -407,7 +407,7 @@ function coverage(locale: string): number {
     font-weight: 600;
     text-transform: none;
     letter-spacing: 0;
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     margin-left: 6px;
 }
 .sa-fc__fields {

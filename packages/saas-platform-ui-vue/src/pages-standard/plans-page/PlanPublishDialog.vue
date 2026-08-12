@@ -101,7 +101,7 @@ defineEmits<{
     margin: 0;
     padding-left: 18px;
     font-size: 13px;
-    color: #334155;
+    color: var(--sa-color-fg-body);
 }
 .sa-publish-regression li {
     margin: 4px 0;
@@ -111,7 +111,7 @@ defineEmits<{
     text-decoration: line-through;
 }
 .sa-publish-regression__new {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-weight: 600;
 }
 </style>

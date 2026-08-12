@@ -50,8 +50,19 @@ function sourceFiles() {
     return walk(UI_SRC).filter((file) => !file.startsWith(PALETTE_DIR));
 }
 
+/**
+ * The reviewed mapping, as a lookup function.
+ *
+ * A file-scoped entry wins over the general pair. Eleven pairs need that: the
+ * dark chrome paints white as its own foreground rather than as "on accent",
+ * and an amber dot means `bundle` beside a violet `feature` one — the same
+ * value with two meanings, which no per-value rule can resolve. Averaging them
+ * would have been the quiet wrong answer.
+ */
 function loadMap() {
-    return JSON.parse(readFileSync(MAP_PATH, 'utf8'));
+    const raw = JSON.parse(readFileSync(MAP_PATH, 'utf8'));
+    return (site, relativePath) =>
+        raw.byFile?.[relativePath]?.[siteKey(site)] ?? raw.byPair[siteKey(site)];
 }
 
 /**
@@ -60,13 +71,13 @@ function loadMap() {
  * Patches are applied back to front so that every recorded offset still points
  * at the same byte when its turn comes.
  */
-function migrate(content, sites, map) {
+function migrate(content, sites, lookup, relativePath) {
     const applied = [];
     const skipped = [];
     let next = content;
 
     for (const site of [...sites].reverse()) {
-        const token = map[siteKey(site)];
+        const token = lookup(site, relativePath);
         if (!token) {
             skipped.push(site);
             continue;
@@ -78,21 +89,25 @@ function migrate(content, sites, map) {
 }
 
 function report({ withContext }) {
-    const map = loadMap();
+    const lookup = loadMap();
     const pairs = new Map();
 
     for (const file of sourceFiles()) {
         const content = readFileSync(file, 'utf8');
+        const name = relative(UI_SRC, file);
         for (const site of colourSites(file, content)) {
-            const key = siteKey(site);
+            // Grouped by pair AND by whether this particular site resolves, so
+            // that a pair covered for one file and open for another shows up as
+            // open — otherwise a `byFile` entry would hide the general gap.
+            const key = lookup(site, name) ? siteKey(site) : `${siteKey(site)} !`;
             if (!pairs.has(key)) pairs.set(key, []);
-            pairs.get(key).push({ ...site, file: relative(UI_SRC, file) });
+            pairs.get(key).push({ ...site, file: name });
         }
     }
 
     const sorted = [...pairs.entries()].sort((a, b) => b[1].length - a[1].length);
-    const unmapped = sorted.filter(([key]) => !map[key]);
-    const mapped = sorted.filter(([key]) => map[key]);
+    const unmapped = sorted.filter(([key]) => key.endsWith(' !'));
+    const mapped = sorted.filter(([key]) => !key.endsWith(' !'));
 
     console.log(
         `\n${sorted.reduce((n, [, hits]) => n + hits.length, 0)} colour literals in ${
@@ -113,7 +128,7 @@ function report({ withContext }) {
 const count = (entries) => entries.reduce((n, [, hits]) => n + hits.length, 0);
 
 function apply(files) {
-    const map = loadMap();
+    const lookup = loadMap();
     let changedFiles = 0;
     let changedSites = 0;
 
@@ -122,7 +137,7 @@ function apply(files) {
         const sites = colourSites(file, content);
         if (sites.length === 0) continue;
 
-        const { next, applied, skipped } = migrate(content, sites, map);
+        const { next, applied, skipped } = migrate(content, sites, lookup, relative(UI_SRC, file));
         const name = relative(REPO_ROOT, file);
 
         if (skipped.length > 0) {

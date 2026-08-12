@@ -173,12 +173,12 @@ function copyFromDefault(locale: string): void {
 .sa-trans-lang {
     border: 1px solid var(--sa-border);
     border-radius: 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     padding: 10px 12px;
 }
 .sa-trans-lang--source {
     background: var(--sa-bg-surface-2);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .sa-trans-lang__head {
     display: flex;
@@ -190,14 +190,14 @@ function copyFromDefault(locale: string): void {
     font-size: 10px;
     font-weight: 700;
     background: var(--sa-heading);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     padding: 2px 6px;
     border-radius: 5px;
 }
 .sa-trans-lang__name {
     font-size: 12px;
     font-weight: 600;
-    color: #334155;
+    color: var(--sa-color-fg-body);
     flex: 1;
 }
 .sa-trans-lang__badge {
@@ -232,9 +232,9 @@ function copyFromDefault(locale: string): void {
 }
 .sa-trans-locked {
     font-size: 13px;
-    color: #334155;
+    color: var(--sa-color-fg-body);
     background: var(--sa-border-soft);
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
     border-radius: 6px;
     padding: 6px 10px;
     display: flex;
@@ -252,7 +252,7 @@ function copyFromDefault(locale: string): void {
     text-align: center;
     font-size: 12px;
     color: var(--sa-muted-light);
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
     border-radius: 10px;
 }
 </style>

@@ -76,17 +76,17 @@ const formattedMax = computed(() => {
     font-size: 13px;
 }
 .sp-usage-bar__label {
-    color: var(--q-secondary, #555);
+    color: var(--sa-color-fg-secondary);
     font-weight: 500;
 }
 .sp-usage-bar__values {
     font-variant-numeric: tabular-nums;
-    color: var(--q-secondary, #555);
+    color: var(--sa-color-fg-secondary);
 }
 .sp-usage-bar__track {
     width: 100%;
     height: 8px;
-    background: rgba(0, 0, 0, 0.08);
+    background: var(--sa-color-bg-sunken);
     border-radius: 4px;
     overflow: hidden;
 }
@@ -96,12 +96,12 @@ const formattedMax = computed(() => {
     border-radius: 4px;
 }
 .sp-usage-bar--ok .sp-usage-bar__fill {
-    background: var(--q-positive, #21ba45);
+    background: var(--sa-color-positive);
 }
 .sp-usage-bar--warn .sp-usage-bar__fill {
-    background: var(--q-warning, #f2c037);
+    background: var(--sa-color-warning-strong);
 }
 .sp-usage-bar--full .sp-usage-bar__fill {
-    background: var(--q-negative, #c10015);
+    background: var(--sa-color-negative);
 }
 </style>

@@ -90,14 +90,14 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     display: flex;
     gap: 10px;
     align-items: flex-start;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 8px 10px;
 }
 .sa-caps-row.dep {
-    border-color: #fecaca;
-    background: #fef2f2;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
 }
 .sa-caps-row__kind {
     font-size: 9px;
@@ -130,16 +130,16 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     border-radius: 4px;
 }
 .sa-caps-row__flag--new {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-caps-row__flag--exp {
-    background: #ede9fe;
-    color: #6d28d9;
+    background: var(--sa-color-feature-surface);
+    color: var(--sa-color-feature-fg);
 }
 .sa-caps-row__flag--dep {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
 }
 .sa-caps-row__flag--gone {
     background: var(--sa-border);
@@ -164,9 +164,9 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
     background: var(--sa-warning-bg);
-    border: 1px dashed #fde68a;
+    border: 1px dashed var(--sa-color-warning-border);
     border-radius: 8px;
     padding: 10px 12px;
 }

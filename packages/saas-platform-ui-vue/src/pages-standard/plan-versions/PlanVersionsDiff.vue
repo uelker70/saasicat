@@ -195,7 +195,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     padding: 20px 28px;
 }
 .sa-pv-diff__overview {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 12px;
     padding: 16px 20px;
@@ -208,7 +208,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     width: 44px;
     height: 44px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: linear-gradient(135deg, var(--sa-color-warning-strong), var(--sa-color-warning));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -253,10 +253,10 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     font-size: 22px;
 }
 .sa-pv-diff__stat-value--warn {
-    color: var(--sa-warning, #b45309);
+    color: var(--sa-color-warning-fg);
 }
 .sa-pv-diff__stat-value--bad {
-    color: var(--sa-negative, #dc2626);
+    color: var(--sa-color-negative);
 }
 
 .sa-pv-diff__section {

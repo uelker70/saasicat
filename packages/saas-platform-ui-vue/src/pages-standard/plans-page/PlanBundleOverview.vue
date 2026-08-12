@@ -125,8 +125,8 @@ function compatLabel(bundle: BundleEntry): string {
     gap: 4px;
 }
 .sa-bundle__chip {
-    background: #eef2ff;
-    color: #3730a3;
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
 }
 .sa-bundle__muted {
     color: var(--sa-muted-light);
@@ -136,6 +136,6 @@ function compatLabel(bundle: BundleEntry): string {
 }
 .sa-bundle__plans {
     font-size: 13px;
-    color: #334155;
+    color: var(--sa-color-fg-body);
 }
 </style>

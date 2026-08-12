@@ -429,8 +429,8 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-empty {
     padding: 32px 24px;
     text-align: center;
-    background: #fff;
-    border: 1px dashed #cbd5e1;
+    background: var(--sa-color-bg-surface);
+    border: 1px dashed var(--sa-color-border-strong);
     border-radius: 12px;
     color: var(--sa-muted-dark);
 }
@@ -444,10 +444,10 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-error {
     padding: 10px 14px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
     border-radius: 8px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-size: 13px;
 }
 .msb-list {
@@ -456,13 +456,13 @@ function formatDate(date: Date | string | null | undefined): string {
     gap: 10px;
 }
 .msb-card {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 12px;
     padding: 14px 18px;
 }
 .msb-card--canceled-pending {
-    border-color: #fde68a;
+    border-color: var(--sa-color-warning-border);
     background: var(--sa-warning-bg);
 }
 .msb-card--canceled {
@@ -501,12 +501,12 @@ function formatDate(date: Date | string | null | undefined): string {
     border-radius: 999px;
 }
 .msb-chip--active {
-    background: #d1fae5;
-    color: #065f46;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .msb-chip--canceled-pending {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .msb-chip--canceled {
     background: var(--sa-border);
@@ -516,9 +516,9 @@ function formatDate(date: Date | string | null | undefined): string {
     margin-top: 10px;
     padding: 8px 12px;
     background: var(--sa-warning-bg);
-    border: 1px solid #fde68a;
+    border: 1px solid var(--sa-color-warning-border);
     border-radius: 6px;
-    color: #92400e;
+    color: var(--sa-color-warning-fg);
     font-size: 12.5px;
 }
 
@@ -527,8 +527,8 @@ function formatDate(date: Date | string | null | undefined): string {
     align-items: center;
     gap: 6px;
     padding: 7px 14px;
-    background: #fff;
-    border: 1px solid #cbd5e1;
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 7px;
     cursor: pointer;
     font-family: inherit;
@@ -545,33 +545,33 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-btn--primary {
     background: var(--sa-primary);
     border-color: var(--sa-primary);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
 }
 .msb-btn--primary:hover:not(:disabled) {
     background: var(--sa-primary-strong);
 }
 .msb-btn--ghost {
     background: transparent;
-    border-color: #fca5a5;
-    color: #b91c1c;
+    border-color: var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
 }
 .msb-btn--ghost:hover:not(:disabled) {
-    background: #fef2f2;
+    background: var(--sa-color-negative-surface);
 }
 
 .msb-modal-bg {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.55);
+    background: var(--sa-color-bg-overlay);
     display: grid;
     place-items: center;
     z-index: 1000;
 }
 .msb-modal {
     width: min(520px, 96vw);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+    box-shadow: 0 20px 60px var(--sa-shadow-tint-4);
     display: flex;
     flex-direction: column;
 }
@@ -629,11 +629,11 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-input {
     padding: 7px 10px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     font-family: inherit;
     font-size: 13px;
     color: var(--sa-heading);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
 }
 </style>

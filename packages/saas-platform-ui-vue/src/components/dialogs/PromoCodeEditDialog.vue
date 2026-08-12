@@ -325,9 +325,9 @@ async function onSubmit() {
 }
 
 .pc-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
     font-size: 13px;
     margin: 8px 0 0;
     padding: 8px 12px;

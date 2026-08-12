@@ -1200,6 +1200,18 @@ default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by
 `defaultTenantPlanSectionI18n(locale)`); the `i18n` prop still overrides
 individual keys.
 
+That app needs one import that the SuperAdmin shell already has:
+
+```ts
+import '@saasicat/ui-vue/theme.css';
+```
+
+The tenant pages read the same colour roles as the admin — which is what lets
+one `$primary` brand both — and without the stylesheet those roles resolve to
+nothing. The file is safe to load next to your own design: it declares custom
+properties and `.sa-*` classes, and every rule is scoped under `.sa-page`, so it
+reaches no element of yours. See `examples/notesapp/web/src/main.ts`.
+
 **Adding a language to the platform itself** — as opposed to your app — means
 extending `SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` and adding a variant
 per namespace under `packages/saas-platform-ui-vue/src/client/i18n/messages/`.

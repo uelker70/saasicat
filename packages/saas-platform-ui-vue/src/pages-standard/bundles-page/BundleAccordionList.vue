@@ -112,19 +112,19 @@ function translationCount(bundle: BundleRow): string {
     color: var(--sa-primary-strong);
 }
 .sa-bundle-chip--live {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .sa-bundle-chip--draft {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-bundle-chip--supersed {
     background: var(--sa-border);
     color: var(--sa-muted);
 }
 .sa-bundle-chip--scheduled {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 </style>

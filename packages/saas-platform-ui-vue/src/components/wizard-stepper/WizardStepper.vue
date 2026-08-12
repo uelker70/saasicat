@@ -69,7 +69,7 @@ defineProps<{
 }
 .wz-step--current {
     background: var(--sa-heading);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
 }
 .wz-step--done {
     color: var(--sa-positive);
@@ -86,8 +86,8 @@ defineProps<{
     flex: 0 0 auto;
 }
 .wz-step--current .wz-step-num {
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
+    background: var(--sa-color-inverse-border-strong);
+    color: var(--sa-color-fg-on-accent);
 }
 .wz-step--done .wz-step-num {
     background: var(--sa-positive-soft);

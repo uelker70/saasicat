@@ -552,7 +552,7 @@ function onPublish(): void {
 .pr-chip--live {
     background: var(--sa-positive-soft);
     color: var(--sa-positive);
-    border-color: rgba(4, 120, 87, 0.3);
+    border-color: var(--sa-color-positive-border);
 }
 .pr-chip--muted {
     background: var(--sa-border-soft);
@@ -573,10 +573,10 @@ function onPublish(): void {
     margin-bottom: 6px;
 }
 .pr-comp-head--quota {
-    color: #0ea5e9;
+    color: var(--sa-color-quota);
 }
 .pr-comp-head--feature {
-    color: #8b5cf6;
+    color: var(--sa-color-feature);
 }
 .pr-comp-head--bundle {
     color: var(--sa-amber);

@@ -109,7 +109,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     flex-direction: column;
     gap: 8px;
     padding: 14px 16px;
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
     border: 1px solid var(--bv-border, var(--sa-border));
     border-radius: 10px;
 }
@@ -134,7 +134,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     row-gap: 2px;
     align-items: center;
     padding: 8px 12px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 8px;
     cursor: pointer;
@@ -151,7 +151,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 }
 .bv-vtab-current {
     border-color: var(--sa-primary);
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 2px var(--sa-shadow-tint-3);
 }
 .bv-vtab-name {
     font:
@@ -170,20 +170,20 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     justify-self: end;
 }
 .bv-vtab-status.live {
-    background: #d1fae5;
-    color: #065f46;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .bv-vtab-status.scheduled {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .bv-vtab-status.superseded {
     background: var(--sa-border);
     color: var(--sa-muted-dark);
 }
 .bv-vtab-status.draft {
-    background: #dbeafe;
-    color: #1e40af;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
 }
 .bv-vtab-dates {
     grid-column: 1 / -1;
@@ -202,15 +202,15 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background: #fff;
-    border: 1px dashed #cbd5e1;
+    background: var(--sa-color-bg-surface);
+    border: 1px dashed var(--sa-color-border-strong);
     color: var(--sa-primary);
     font-size: 12.5px;
     font-weight: 600;
 }
 .bv-vtab-new:hover:not(:disabled) {
     background: var(--sa-primary-50);
-    border-color: #93c5fd;
+    border-color: var(--sa-color-info-border);
 }
 .bv-vtab-new:disabled {
     opacity: 0.45;

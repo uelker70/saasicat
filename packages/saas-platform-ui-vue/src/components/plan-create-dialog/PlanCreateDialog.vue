@@ -284,7 +284,7 @@ function onCancel(): void {
     width: 640px;
     max-width: 92vw;
     border-radius: 14px;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+    box-shadow: 0 24px 60px var(--sa-shadow-tint-4);
     overflow: hidden;
     font-family: var(--sa-font-body);
     color: var(--sa-heading);
@@ -326,7 +326,7 @@ function onCancel(): void {
     place-items: center;
 }
 .pcd-close:hover {
-    background: rgba(15, 23, 42, 0.05);
+    background: var(--sa-color-bg-sunken);
     color: var(--sa-heading);
 }
 
@@ -357,7 +357,7 @@ function onCancel(): void {
 .pcd-field-label {
     font-size: 12px;
     font-weight: 600;
-    color: #334155;
+    color: var(--sa-color-fg-body);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -375,7 +375,7 @@ function onCancel(): void {
 .pcd-input {
     width: 100%;
     padding: 9px 12px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 7px;
     font: 13.5px var(--sa-font-body);
@@ -392,13 +392,13 @@ function onCancel(): void {
 }
 .pcd-input:focus {
     border-color: var(--sa-primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 .pcd-input--error {
     border-color: var(--sa-negative);
 }
 .pcd-input--error:focus {
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 .pcd-hint {
     font-size: 11px;
@@ -419,7 +419,7 @@ function onCancel(): void {
     border-radius: 9px;
     padding: 12px 14px;
     cursor: pointer;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     text-align: left;
     transition:
         border-color 0.12s,
@@ -435,8 +435,8 @@ function onCancel(): void {
 }
 .pcd-choice--selected {
     border-color: var(--sa-primary);
-    background: #f0f6ff;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    background: var(--sa-color-accent-surface);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-2);
 }
 .pcd-choice-title {
     font-size: 13px;
@@ -450,7 +450,7 @@ function onCancel(): void {
 
 .pcd-foot {
     padding: 14px 22px;
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
     border-top: 1px solid var(--sa-border);
     display: flex;
     justify-content: flex-end;
@@ -465,7 +465,7 @@ function onCancel(): void {
     font: 500 13px var(--sa-font-body);
     cursor: pointer;
     border: 1px solid var(--sa-border-strong);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     color: var(--sa-heading);
     transition:
         background 0.12s,
@@ -483,12 +483,12 @@ function onCancel(): void {
     background: transparent;
 }
 .pcd-btn--ghost:hover {
-    background: rgba(15, 23, 42, 0.05);
+    background: var(--sa-color-bg-sunken);
 }
 .pcd-btn--primary {
     background: var(--sa-primary);
     border-color: var(--sa-primary);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
 }
 .pcd-btn--primary:hover:not(:disabled) {
     background: var(--sa-primary-strong);

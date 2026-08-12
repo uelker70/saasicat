@@ -915,7 +915,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 13px;
 }
 .sa-marketing-locale-x:hover {
-    color: #dc2626;
+    color: var(--sa-color-negative);
 }
 .sa-marketing-locale-add-wrap {
     position: relative;
@@ -941,7 +941,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     background: var(--sa-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 24px var(--sa-shadow-tint-3);
     padding: 4px;
     display: flex;
     flex-direction: column;
@@ -972,14 +972,14 @@ async function onLocaleChange(loc: string): Promise<void> {
     gap: 8px;
 }
 .sa-marketing-banner--error {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #fca5a5;
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
+    border: 1px solid var(--sa-color-negative-border);
 }
 .sa-marketing-banner--info {
     background: var(--sa-primary-50);
-    color: #1e40af;
-    border: 1px solid #bfdbfe;
+    color: var(--sa-color-info-fg);
+    border: 1px solid var(--sa-color-info-border);
 }
 .sa-marketing-banner-x {
     margin-left: auto;
@@ -1034,8 +1034,8 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-tab-count {
     display: inline-block;
     margin-left: 5px;
-    background: #10b981;
-    color: #fff;
+    background: var(--sa-color-positive-strong);
+    color: var(--sa-color-fg-on-accent);
     font-size: 10px;
     font-weight: 700;
     padding: 1px 6px;
@@ -1090,7 +1090,11 @@ async function onLocaleChange(loc: string): Promise<void> {
     max-width: 380px;
 }
 .sa-marketing-canvas {
-    background: linear-gradient(180deg, #fbfbfd 0%, #fff 100%);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-bg-surface-raised) 0%,
+        var(--sa-color-bg-surface) 100%
+    );
     padding: 36px 32px 28px;
 }
 .sa-marketing-eyebrow {
@@ -1135,11 +1139,11 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    box-shadow: 0 8px 24px var(--sa-shadow-tint-1);
 }
 .sa-marketing-card.featured {
-    border-color: #bfdbfe;
-    box-shadow: 0 10px 32px rgba(37, 99, 235, 0.1);
+    border-color: var(--sa-color-info-border);
+    box-shadow: 0 10px 32px var(--sa-shadow-tint-2);
 }
 .sa-marketing-card-badge {
     position: absolute;
@@ -1147,7 +1151,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     left: 50%;
     transform: translateX(-50%);
     background: var(--sa-primary);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     font: 700 10.5px var(--sa-font-body);
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -1215,7 +1219,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-card.featured .sa-marketing-card-cta {
     background: var(--sa-primary);
     border-color: var(--sa-primary);
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
 }
 .sa-marketing-card.featured .sa-marketing-card-cta:hover {
     background: var(--sa-primary-strong);
@@ -1227,13 +1231,13 @@ async function onLocaleChange(loc: string): Promise<void> {
     margin-top: 6px;
 }
 .sa-marketing-card.has-promo {
-    border-color: #10b981;
+    border-color: var(--sa-color-positive-strong);
 }
 .sa-marketing-promo-ribbon {
     position: absolute;
     top: 12px;
     right: -2px;
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     font-size: 11px;
     font-weight: 700;
     padding: 3px 12px 3px 10px;
@@ -1257,7 +1261,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-card-fineprint {
     font-size: 10px;
-    color: #059669;
+    color: var(--sa-color-positive);
     text-align: center;
     margin-top: 6px;
 }
@@ -1277,7 +1281,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     flex-direction: column;
     gap: 7px;
     font-size: 12.5px;
-    color: #334155;
+    color: var(--sa-color-fg-body);
 }
 .sa-marketing-card-features li {
     display: flex;
@@ -1286,7 +1290,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     line-height: 1.35;
 }
 .sa-marketing-card-features .sa-marketing-tick {
-    color: #10b981;
+    color: var(--sa-color-positive-strong);
     flex: 0 0 14px;
     margin-top: 1px;
 }
@@ -1332,7 +1336,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     display: contents;
 }
 .sa-marketing-admin-thead > div {
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
     padding: 10px 14px;
     font-size: 10.5px;
     text-transform: uppercase;
@@ -1353,7 +1357,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     color: var(--sa-heading);
 }
 .sa-marketing-admin-row--disabled > div {
-    background: #fcfcfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .sa-marketing-admin-row-end {
     justify-content: flex-end;
@@ -1420,7 +1424,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-toggle span {
     position: absolute;
     inset: 0;
-    background: #cbd5e1;
+    background: var(--sa-color-border-strong);
     border-radius: 999px;
     transition: background 0.15s;
     cursor: pointer;
@@ -1430,12 +1434,12 @@ async function onLocaleChange(loc: string): Promise<void> {
     position: absolute;
     width: 16px;
     height: 16px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 50%;
     left: 2px;
     top: 2px;
     transition: transform 0.15s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 2px var(--sa-shadow-tint-4);
 }
 .sa-marketing-toggle input:checked + span {
     background: var(--sa-primary);
@@ -1461,17 +1465,17 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-chip--muted {
     background: var(--sa-border-soft);
     color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .sa-marketing-chip--featured {
     background: var(--sa-primary-50);
     color: var(--sa-primary-strong);
-    border-color: #bfdbfe;
+    border-color: var(--sa-color-info-border);
 }
 .sa-marketing-chip--live {
     background: var(--sa-positive-bg);
-    color: #047857;
-    border-color: #a7f3d0;
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .sa-marketing-chip--live::before {
     content: '';
@@ -1511,7 +1515,11 @@ async function onLocaleChange(loc: string): Promise<void> {
 
 .sa-marketing-admin-expand {
     grid-column: 1 / -1;
-    background: linear-gradient(180deg, #fbfbfd 0%, #fff 100%);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-bg-surface-raised) 0%,
+        var(--sa-color-bg-surface) 100%
+    );
     border-bottom: 1px solid var(--sa-border-soft);
     padding: 18px 20px 22px;
 }
@@ -1570,7 +1578,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 10px;
     text-transform: uppercase;
     color: var(--sa-muted-light);
-    background: rgba(148, 163, 184, 0.15);
+    background: var(--sa-color-bg-sunken);
     padding: 1px 6px;
     border-radius: 4px;
     margin-left: auto;
@@ -1641,18 +1649,18 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-iconbtn:hover:not(:disabled) {
     background: var(--sa-border-soft);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .sa-marketing-iconbtn:disabled {
     opacity: 0.35;
     cursor: not-allowed;
 }
 .sa-marketing-iconbtn--danger {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 .sa-marketing-iconbtn--danger:hover:not(:disabled) {
-    background: #fef2f2;
-    border-color: #fca5a5;
+    background: var(--sa-color-negative-surface);
+    border-color: var(--sa-color-negative-border);
 }
 .sa-marketing-tf-empty {
     padding: 14px;
@@ -1660,7 +1668,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     font-size: 12px;
     color: var(--sa-muted-light);
     background: var(--sa-bg-surface);
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
     border-radius: 8px;
 }
 .sa-marketing-tf-add {
@@ -1682,7 +1690,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     padding: 3px 9px;
     border-radius: 999px;
     background: var(--sa-bg-surface);
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
     font-size: 11.5px;
     color: var(--sa-muted-dark);
     cursor: pointer;
@@ -1698,7 +1706,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-tf-chip:hover:not(:disabled) {
     background: var(--sa-primary-50);
-    border-color: #93c5fd;
+    border-color: var(--sa-color-info-border);
     border-style: solid;
     color: var(--sa-primary-strong);
 }
@@ -1724,7 +1732,7 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-version-tab {
     border: 1px solid var(--sa-border);
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 6px;
     padding: 2px 8px;
     font: 600 10.5px var(--sa-font-mono, ui-monospace, monospace);
@@ -1737,7 +1745,7 @@ async function onLocaleChange(loc: string): Promise<void> {
         color 0.1s;
 }
 .sa-marketing-version-tab:hover {
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
     background: var(--sa-bg-surface-2);
     color: var(--sa-muted-dark);
 }

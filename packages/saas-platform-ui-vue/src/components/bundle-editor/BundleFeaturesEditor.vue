@@ -167,7 +167,7 @@ function onToggle(featureKey: string): void {
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: 999px;
     cursor: pointer;
@@ -181,17 +181,17 @@ function onToggle(featureKey: string): void {
 }
 .bd-feature-pill:hover:not(:disabled) {
     background: var(--sa-bg-surface-2);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .bd-feature-pill.on {
-    background: #dbeafe;
-    border-color: #93c5fd;
-    color: #1e40af;
+    background: var(--sa-color-info-surface-strong);
+    border-color: var(--sa-color-info-border);
+    color: var(--sa-color-info-fg);
 }
 .bd-feature-pill.overlap {
-    border-color: #fecaca;
-    background: #fef2f2;
-    color: #b91c1c;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
 }
 .bd-feature-pill:disabled {
     cursor: not-allowed;
@@ -211,7 +211,7 @@ function onToggle(featureKey: string): void {
     color: var(--sa-primary);
 }
 .bd-feature-pill.overlap .bd-feature-key {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 .bd-features-empty {
     padding: 12px;

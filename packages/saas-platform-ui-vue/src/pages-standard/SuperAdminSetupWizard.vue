@@ -277,15 +277,19 @@ async function submitConfirm(): Promise<void> {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(180deg, var(--sa-heading) 0%, #1e293b 100%);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-inverse-bg) 0%,
+        var(--sa-color-inverse-surface) 100%
+    );
 }
 .sa-setup-card {
     width: 460px;
     max-width: 92vw;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 18px;
     padding: 32px;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 24px 48px var(--sa-shadow-tint-4);
 }
 .sa-setup-head {
     display: flex;
@@ -305,8 +309,12 @@ async function submitConfirm(): Promise<void> {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--sa-muted-dark), #1e293b);
-    color: #fff;
+    background: linear-gradient(
+        135deg,
+        var(--sa-color-inverse-surface-soft),
+        var(--sa-color-inverse-surface)
+    );
+    color: var(--sa-color-fg-on-accent);
     font-weight: 800;
     font-size: 18px;
     text-transform: uppercase;
@@ -341,9 +349,9 @@ async function submitConfirm(): Promise<void> {
     width: 100%;
 }
 .sa-setup-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
     font-size: 13px;
     margin-bottom: 16px;
     padding: 8px 12px;
@@ -360,7 +368,7 @@ async function submitConfirm(): Promise<void> {
     border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 8px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
 }
 .sa-setup-qr__hint {
     font-size: 12px;
@@ -395,7 +403,7 @@ async function submitConfirm(): Promise<void> {
     display: block;
     margin-top: 6px;
     word-break: break-all;
-    color: #334155;
+    color: var(--sa-color-fg-body);
     background: var(--sa-bg-surface-2);
     padding: 6px 8px;
     border-radius: 6px;

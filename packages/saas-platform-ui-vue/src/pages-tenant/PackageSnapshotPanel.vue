@@ -157,16 +157,10 @@ const rawJson = computed(() => {
 
 <style scoped>
 .sp-package-snapshot {
-    --sp-text-muted: rgba(0, 0, 0, 0.55);
-    --sp-text-strong: rgba(0, 0, 0, 0.85);
-    --sp-border: rgba(0, 0, 0, 0.08);
-    --sp-pre-bg: rgba(0, 0, 0, 0.04);
-}
-body.body--dark .sp-package-snapshot {
-    --sp-text-muted: rgba(255, 255, 255, 0.62);
-    --sp-text-strong: rgba(255, 255, 255, 0.85);
-    --sp-border: rgba(255, 255, 255, 0.16);
-    --sp-pre-bg: rgba(255, 255, 255, 0.06);
+    --sp-text-muted: var(--sa-color-fg-muted);
+    --sp-text-strong: var(--sa-color-fg-heading);
+    --sp-border: var(--sa-color-border);
+    --sp-pre-bg: var(--sa-color-bg-sunken);
 }
 .sp-package-snapshot__head {
     display: flex;

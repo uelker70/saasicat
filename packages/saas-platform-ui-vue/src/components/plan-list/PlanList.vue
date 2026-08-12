@@ -596,7 +596,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     display: contents;
 }
 .sa-plan-list-list-head > div {
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
     padding: 10px 16px;
     font-size: 10.5px;
     text-transform: uppercase;
@@ -623,7 +623,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     transition: background 0.12s;
 }
 .sa-plan-list-row:hover > .sa-plan-list-cell {
-    background: #fcfcfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .sa-plan-list-row--new > .sa-plan-list-cell {
     background: var(--sa-positive-bg) !important;
@@ -631,7 +631,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 }
 @keyframes sa-plan-list-flashNew {
     0% {
-        background: #d1fae5 !important;
+        background: var(--sa-color-positive-surface-strong) !important;
     }
     100% {
         background: var(--sa-positive-bg) !important;
@@ -640,7 +640,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 
 /* Sub-rows (drafts + future-scheduled versions, indented under the parent) */
 .sa-plan-list-row--sub > .sa-plan-list-cell {
-    background: #fafbfd;
+    background: var(--sa-color-bg-surface-raised);
     padding-top: 10px;
     padding-bottom: 10px;
 }
@@ -667,8 +667,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     bottom: 50%;
     left: 12px;
     width: 14px;
-    border-left: 1.5px solid #cbd5e1;
-    border-bottom: 1.5px solid #cbd5e1;
+    border-left: 1.5px solid var(--sa-color-border-strong);
+    border-bottom: 1.5px solid var(--sa-color-border-strong);
     border-bottom-left-radius: 6px;
 }
 .sa-plan-list-sub-titles {
@@ -762,30 +762,30 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     font-size: 10px;
 }
 .sa-plan-list-chip--new {
-    background: #dbeafe;
-    color: #1e40af;
-    border-color: #bfdbfe;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
+    border-color: var(--sa-color-info-border);
     font-size: 10px;
 }
 .sa-plan-list-chip--live {
     background: var(--sa-positive-bg);
-    color: #047857;
-    border-color: #a7f3d0;
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .sa-plan-list-chip--draft {
     background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 .sa-plan-list-chip--supersed {
     background: var(--sa-border-soft);
     color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 .sa-plan-list-chip--scheduled {
-    background: #eef2ff;
-    color: #4338ca;
-    border-color: #c7d2fe;
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
+    border-color: var(--sa-color-scheduled-border);
 }
 .sa-plan-list-chip--dot::before {
     content: '';
@@ -801,7 +801,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     color: var(--sa-heading);
 }
 .sa-plan-list-version-num--muted {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 .sa-plan-list-version-sub {
     font-size: 10.5px;

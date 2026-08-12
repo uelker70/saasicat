@@ -126,18 +126,18 @@ const emit = defineEmits<{
 
 <style scoped>
 .sp-summary {
-    background: #fff;
-    border: 1.5px solid rgba(0, 0, 0, 0.85);
+    background: var(--sa-color-bg-surface);
+    border: 1.5px solid var(--sa-color-inverse-bg);
     border-radius: 22px;
     overflow: hidden;
-    box-shadow: 0 24px 80px rgba(31, 41, 51, 0.1);
+    box-shadow: 0 24px 80px var(--sa-shadow-tint-2);
     position: sticky;
     top: 24px;
 }
 .sp-summary__head {
     padding: 16px 20px 14px;
-    background: rgba(0, 0, 0, 0.85);
-    color: #fff;
+    background: var(--sa-color-bg-overlay);
+    color: var(--sa-color-fg-on-accent);
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -152,7 +152,7 @@ const emit = defineEmits<{
     font-size: 10px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    background: rgba(255, 255, 255, 0.16);
+    background: var(--sa-color-inverse-border-strong);
     padding: 4px 9px;
     border-radius: 999px;
 }
@@ -169,10 +169,10 @@ const emit = defineEmits<{
     font-size: 10px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
     padding-bottom: 6px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid var(--sa-color-border);
     margin-bottom: 6px;
 }
 .sp-summary__line {
@@ -192,7 +192,7 @@ const emit = defineEmits<{
     font-size: 9.5px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .sp-summary__price {
@@ -204,25 +204,25 @@ const emit = defineEmits<{
     padding: 20px 8px;
     text-align: center;
     font-size: 12px;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--sa-color-fg-subtle);
     line-height: 1.5;
     font-style: italic;
 }
 .sp-summary__foot {
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-top: 1px solid var(--sa-color-border);
     padding: 16px 20px 18px;
-    background: rgba(15, 118, 110, 0.04);
+    background: var(--sa-color-accent-surface-soft);
 }
 .sp-summary__row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     font-size: 12px;
-    color: rgba(0, 0, 0, 0.55);
+    color: var(--sa-color-fg-muted);
     margin-bottom: 4px;
 }
 .sp-summary__row--discount {
-    color: #166534;
+    color: var(--sa-color-positive-fg);
 }
 .sp-summary__total {
     display: flex;
@@ -240,22 +240,22 @@ const emit = defineEmits<{
     font-size: 10px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--sa-color-fg-subtle);
     font-weight: 500;
     margin-top: 2px;
 }
 .sp-summary__total-r {
     font-size: 32px;
     font-weight: 800;
-    color: var(--q-primary, #0f766e);
+    color: var(--sa-color-accent);
     letter-spacing: -0.02em;
     line-height: 1;
 }
 .sp-summary__savings {
     margin-top: 10px;
     padding: 8px 10px;
-    background: rgba(22, 163, 74, 0.12);
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     border-radius: 8px;
     font-size: 12px;
     font-weight: 600;
@@ -265,8 +265,8 @@ const emit = defineEmits<{
     width: 100%;
     margin-top: 14px;
     padding: 14px 18px;
-    background: var(--q-primary, #0f766e);
-    color: #fff;
+    background: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
     border: none;
     border-radius: 14px;
     font-family: inherit;
@@ -286,7 +286,7 @@ const emit = defineEmits<{
 .sp-summary__disclaimer {
     margin-top: 12px;
     font-size: 11px;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--sa-color-fg-subtle);
     line-height: 1.5;
     text-align: center;
 }

@@ -133,13 +133,13 @@ function logout(): void | Promise<void> {
     line-height: 1.6;
 }
 .sa-manifest-error__detail {
-    background: #fef2f2;
-    border-left: 3px solid #dc2626;
+    background: var(--sa-color-negative-surface);
+    border-left: 3px solid var(--sa-color-negative);
     padding: 8px 12px;
     border-radius: 4px;
     font-family: ui-monospace, SFMono-Regular, monospace;
     font-size: 13px;
-    color: #991b1b;
+    color: var(--sa-color-negative-fg);
 }
 .sa-manifest-error__actions {
     display: flex;

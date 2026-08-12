@@ -119,7 +119,7 @@ const features = computed<FeatureRow[]>(() => {
 }
 .sp-feature-matrix__desc {
     font-size: 12px;
-    color: var(--sp-text-muted, rgba(0, 0, 0, 0.55));
+    color: var(--sp-text-muted, var(--sa-color-fg-muted));
     margin-top: 2px;
 }
 </style>
