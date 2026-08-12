@@ -58,6 +58,47 @@ export default tseslint.config(
         },
     },
     {
+        // Every request leaves through the `HttpClient` a consumer registers via
+        // `createSuperAdminApp({ http })`. A bare `fetch()` goes around that
+        // seam and drops the app's Authorization header — the failure is
+        // silent: the call 401s, one card renders an em dash, nothing logs.
+        //
+        // Three such call sites existed. One was unreachable code that looked
+        // like a safeguard; two were live. `defaultHttpClient()` is the single
+        // sanctioned implementation, so the exemption is one file wide.
+        //
+        // Structurally this closes when the resource registry REQUIRES an
+        // `http` — until then, this rule is what prevents a relapse.
+        files: ['packages/saas-platform-ui-vue/src/**/*.{ts,vue}'],
+        ignores: ['packages/saas-platform-ui-vue/src/client/types.ts'],
+        rules: {
+            'no-restricted-globals': [
+                'error',
+                {
+                    name: 'fetch',
+                    message:
+                        'Use the injected HttpClient (useSuperAdminHttp() in a component, or the ' +
+                        '`http` option of a composable). A bare fetch() bypasses the consumer’s ' +
+                        'auth. The only sanctioned implementation is defaultHttpClient() in ' +
+                        'src/client/types.ts.',
+                },
+            ],
+            'no-restricted-properties': [
+                'error',
+                {
+                    object: 'window',
+                    property: 'fetch',
+                    message: 'Use the injected HttpClient — see no-restricted-globals above.',
+                },
+                {
+                    object: 'globalThis',
+                    property: 'fetch',
+                    message: 'Use the injected HttpClient — see no-restricted-globals above.',
+                },
+            ],
+        },
+    },
+    {
         ignores: [
             '**/dist/**',
             '**/node_modules/**',
