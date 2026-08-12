@@ -47,7 +47,7 @@ const props = defineProps<{
     /** Default: fresh boot into `retryPath`, which re-runs the manifest guard. */
     onRetry?: () => Promise<void> | void;
     /** Default: navigate to the login route `createAdminRoutes` registers. */
-    onLogout?: () => void;
+    onLogout?: () => void | Promise<void>;
     /** Login path for the default `onLogout`. */
     loginPath?: string;
     /** Guarded route the default `onRetry` boots into. */
@@ -102,10 +102,7 @@ async function bootIntoGuardedRoute(): Promise<void> {
 }
 
 function logout(): void | Promise<void> {
-    if (props.onLogout) {
-        props.onLogout();
-        return;
-    }
+    if (props.onLogout) return props.onLogout();
     return signOut();
 }
 </script>

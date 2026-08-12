@@ -13,15 +13,11 @@
 
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { createRouter, createMemoryHistory } from 'vue-router';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import AdminLayout from '../src/pages-standard/AdminLayout.vue';
 import AdminManifestErrorPage from '../src/pages-standard/AdminManifestErrorPage.vue';
 import { SUPER_ADMIN_LOGIN_ADAPTER_KEY } from '../src/vue/super-admin-context.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
-
-const SRC_DIR = resolve(process.cwd(), 'src');
 
 function makeRouter() {
     return createRouter({
@@ -169,22 +165,33 @@ describe('AdminLayout sign-out', () => {
 
 describe('handlers hand their promise back to Vue', () => {
     /**
-     * A discarded promise becomes an unhandled rejection instead of reaching
-     * the app's error handler — and this is the page that renders when things
-     * are already going wrong, so a consumer's failing `onRetry` would vanish
-     * exactly where it matters most.
+     * A handler that drops its promise turns a consumer's failure into an
+     * unhandled rejection instead of routing it to the app's error handler.
+     * This page renders when things are already going wrong, so an `onRetry`
+     * that keeps failing would vanish exactly where it matters most.
+     *
+     * Behavioural, not source-scanning. The first version of this test looked
+     * for a literal `void` and passed while `logout` still dropped its promise
+     * via `props.onLogout(); return;` — it was checking a spelling, not an
+     * outcome.
      */
     test.each([
-        ['AdminManifestErrorPage.vue', 'retry'],
-        ['AdminManifestErrorPage.vue', 'logout'],
-        ['AdminLayout.vue', 'onLogoutClick'],
-    ])('%s: %s returns rather than voids', (file, fn) => {
-        const source = readFileSync(resolve(SRC_DIR, 'pages-standard', file), 'utf8');
-        const body = new RegExp(`function ${fn}\\(\\)[^{]*\\{([\\s\\S]*?)\\n\\}`).exec(source);
+        ['retry', 0, 'onRetry'],
+        ['sign-out', 1, 'onLogout'],
+    ])('a rejecting %s prop reaches Vue’s error handler', async (_label, buttonIndex, propName) => {
+        const boom = new Error('the retry failed too');
+        const errorHandler = vi.fn();
 
-        expect(body, `${fn} not found in ${file}`).not.toBeNull();
-        expect(body?.[1], `${fn} discards a promise instead of returning it`).not.toMatch(
-            /\bvoid\s+\w/,
-        );
+        const wrapper = mountWithQuasar(AdminManifestErrorPage, {
+            props: { [propName]: () => Promise.reject(boom) },
+            global: { provide: contextWith(), plugins: [makeRouter()] },
+        });
+        wrapper.vm.$.appContext.config.errorHandler = errorHandler;
+
+        await wrapper.findAll('button')[buttonIndex].trigger('click');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(errorHandler.mock.calls.map((args) => args[0])).toContain(boom);
+        wrapper.unmount();
     });
 });
