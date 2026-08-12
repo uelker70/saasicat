@@ -25,17 +25,47 @@ export default defineConfig({
         baseURL: 'http://localhost:5174',
         headless: true,
     },
-    webServer: {
-        command: 'node tests-e2e/serve.mjs',
-        url: 'http://localhost:5174/',
-        reuseExistingServer: !process.env.CI,
-        stdout: 'pipe',
-        stderr: 'pipe',
-    },
+    webServer: [
+        {
+            command: 'node tests-e2e/serve.mjs',
+            url: 'http://localhost:5174/',
+            reuseExistingServer: !process.env.CI,
+            stdout: 'pipe',
+            stderr: 'pipe',
+        },
+        {
+            // The visual baselines need the SFCs compiled and the real
+            // stylesheet cascade, which the static server above cannot give
+            // them — so they get their own Vite app (tests-e2e/visual/).
+            command: 'pnpm exec vite --config tests-e2e/visual/vite.config.ts',
+            url: 'http://localhost:5175/',
+            reuseExistingServer: !process.env.CI,
+            timeout: 120_000,
+            stdout: 'pipe',
+            stderr: 'pipe',
+        },
+    ],
     projects: [
         {
             name: 'chromium',
+            testIgnore: /visual-baseline\.spec\.ts$/,
             use: { browserName: 'chromium' },
+        },
+        {
+            // Separate project: the visual baselines talk to the Vite fixture on
+            // 5175, and they pin the viewport because a resized window would
+            // move every breakpoint-dependent computed value at once.
+            name: 'visual',
+            testMatch: /visual-baseline\.spec\.ts$/,
+            use: {
+                browserName: 'chromium',
+                baseURL: 'http://localhost:5175',
+                viewport: { width: 1440, height: 900 },
+                deviceScaleFactor: 1,
+                colorScheme: 'light',
+                locale: 'en-GB',
+                timezoneId: 'UTC',
+            },
         },
     ],
 });
