@@ -1,5 +1,10 @@
 import type { Component } from 'vue';
 
+import type { PlatformEmailProvider } from '../../src/pages-standard/platform-email.types.js';
+import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
+import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
+import { FIXTURE_BUNDLES } from './fixture-data.js';
+
 // The roster the baselines cover, and what each page needs to render its real
 // chrome instead of an empty frame or an error banner.
 //
@@ -118,15 +123,17 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'users',
         load: () => import('../../src/pages-standard/UsersPage.vue'),
         props: () => ({
-            loadUsers: async () => [
+            loadUsers: async (): Promise<UserRow[]> => [
                 {
                     id: 'u-1',
                     email: 'admin@fixture.test',
                     firstName: 'Ada',
                     lastName: 'Lovelace',
-                    platformRole: 'SUPER_ADMIN',
+                    // `role`, not `platformRole` — the page reads it for both
+                    // the Role column and its `isSuperAdmin()` check.
+                    role: 'SUPER_ADMIN',
                     isActive: true,
-                    createdAt: '2025-02-01T09:00:00.000Z',
+                    lastLoginAt: '2026-07-30T08:15:00.000Z',
                 },
             ],
         }),
@@ -135,7 +142,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'promo-codes',
         load: () => import('../../src/pages-standard/PromoCodesPage.vue'),
         props: () => ({
-            loadPromos: async () => [
+            loadPromos: async (): Promise<PromoRow[]> => [
                 {
                     id: 'p-1',
                     code: 'WELCOME20',
@@ -143,7 +150,10 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                     value: 20,
                     status: 'ACTIVE',
                     maxRedemptions: 100,
-                    redemptionCount: 12,
+                    // `redemptionsCount` — the table formats this field
+                    // directly, so the singular spelling rendered "undefined / 100".
+                    redemptionsCount: 12,
+                    campaignTag: 'launch-2026',
                     validFrom: '2026-01-01',
                     validUntil: '2026-12-31',
                 },
@@ -241,13 +251,24 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'platform-email',
         load: () => import('../../src/pages-standard/PlatformEmailPage.vue'),
         props: () => ({
-            loadProviders: async () => [
+            // Typed against the page's own contract on purpose. The first
+            // version of this fixture set `isActive` (the tenant spelling)
+            // where the page reads `active`, and left out every SMTP field —
+            // so the baseline captured empty host/encryption columns and an
+            // "inactive" pill, and would have accepted a page that renders
+            // nothing at all.
+            loadProviders: async (): Promise<PlatformEmailProvider[]> => [
                 {
                     id: 'prov-1',
                     name: 'Fixture SMTP',
-                    kind: 'SMTP',
+                    smtpHost: 'smtp.fixture.test',
+                    smtpPort: 587,
+                    smtpUser: 'noreply@fixture.test',
+                    encryption: 'STARTTLS',
+                    fromEmail: 'noreply@fixture.test',
+                    fromName: 'Fixture',
                     isDefault: true,
-                    isActive: true,
+                    active: true,
                 },
             ],
             createProvider: async () => {},
@@ -272,7 +293,10 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../src/pages-standard/BundlesPage.vue'),
         props: () => ({
             projectKey: 'fixture',
-            bundles: [],
+            // Not `[]`. An empty list snapshots `sa-bundles__empty` and nothing
+            // else, so a regression in the rows — the surfaces this page is
+            // under baseline for — would leave the image untouched.
+            bundles: FIXTURE_BUNDLES,
             loading: false,
             error: null,
             snapshot: null,

@@ -7,8 +7,10 @@
 //
 // Every id, date and number is fixed. Nothing here may derive from the clock.
 
-export const FIXTURE_MANIFEST = {
-    schemaVersion: 1 as const,
+import type { AdminManifest, BundleRow, PlanRow } from '@saasicat/types';
+
+export const FIXTURE_MANIFEST: AdminManifest = {
+    schemaVersion: 1,
     project: {
         key: 'fixture',
         displayName: 'Fixture App',
@@ -102,6 +104,45 @@ const BOOT = {
 };
 
 /**
+ * One bundle and one plan, shared by the routing table and by the pages that
+ * take their data as props.
+ *
+ * They exist because several pages render only an empty-state placeholder
+ * without them — a baseline of "no data" cannot detect a regression in the
+ * rows, cards and version controls that make up the page.
+ */
+export const FIXTURE_BUNDLES: BundleRow[] = [
+    {
+        id: 'b-1',
+        projectKey: 'fixture',
+        bundleKey: 'STARTER_PACK',
+        label: 'Starter Pack',
+        description: 'Everything a small team needs to get going.',
+        icon: 'inventory_2',
+        sortOrder: 1,
+        i18n: {},
+        createdAt: '2026-01-05T09:00:00.000Z',
+        updatedAt: '2026-02-10T09:00:00.000Z',
+        deletedAt: null,
+    },
+];
+
+export const FIXTURE_PLANS: PlanRow[] = [
+    {
+        id: 'pl-1',
+        projectKey: 'fixture',
+        planKey: 'PRO',
+        label: 'Pro',
+        description: 'For growing teams.',
+        icon: 'workspace_premium',
+        sortOrder: 2,
+        createdAt: '2026-01-05T09:00:00.000Z',
+        updatedAt: '2026-02-10T09:00:00.000Z',
+        deletedAt: null,
+    },
+];
+
+/**
  * Longest-prefix routing table. Order matters: `/catalog/plans/…` must win over
  * `/catalog/plans`.
  */
@@ -116,8 +157,8 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/catalog/plans/tenant-counts', {}],
     ['/api/admin/catalog/features', []],
     ['/api/admin/catalog/quotas', []],
-    ['/api/admin/catalog/plans', []],
-    ['/api/admin/catalog/bundles', []],
+    ['/api/admin/catalog/plans', FIXTURE_PLANS],
+    ['/api/admin/catalog/bundles', FIXTURE_BUNDLES],
     ['/api/admin/catalog/entries', []],
     ['/api/admin/promo-codes', EMPTY_LIST],
     ['/api/admin/setup/status', { needsSetup: false }],
