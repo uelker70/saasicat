@@ -10,14 +10,29 @@
 // and afterwards only ever fails when coverage DROPS. Every PR that improves it
 // lowers the bar it has to clear next time.
 //
-//   node scripts/coverage-ratchet.mjs            check against the baseline
-//   node scripts/coverage-ratchet.mjs --update   record the current values
+//   pnpm run coverage           check against the baseline
+//   pnpm run coverage:update    record the current values
+//
+// Always through the scripts, never `node scripts/coverage-ratchet.mjs`
+// directly: they build first, and that build is a precondition of the
+// measurement (see below).
 //
 // Note on what is measured: the suites import from each package's `dist/`, not
 // from `src/` (see CONTRIBUTING.md, "Build before test"). Coverage therefore
 // describes the bundled output. That is a real limitation — bundling merges
 // modules, so per-file attribution is coarse — but the trend it reports is
 // honest, and the trend is what a ratchet needs.
+//
+// It only reports the package's own files; see COVERAGE_INCLUDE for why that is
+// not a detail.
+//
+// PRECONDITION: a current build. The suites import from `dist/`, so measuring a
+// stale one describes a program nobody is running — silently, and in either
+// direction. That used to be a staleness heuristic here, and three review
+// rounds found three more build inputs it did not know about: a deleted source
+// file, `tsup.config.ts`, and the helpers that config imports. Enumerating the
+// inputs of an arbitrary build script is not winnable, so the `coverage` and
+// `coverage:update` npm scripts build first and this file simply measures.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -26,6 +41,8 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BASELINE = join(REPO_ROOT, 'coverage-baseline.json');
+/** Last measurement, for the CI artefact. Not committed. */
+const REPORT = join(REPO_ROOT, 'coverage-report.json');
 
 /** Packages whose `test` script is a plain `node --test` run. */
 const PACKAGES = [
@@ -41,18 +58,42 @@ const PACKAGES = [
 ];
 
 /**
+ * What counts as this package's own code.
+ *
+ * Without this the report is dominated by files that are not ours. Coverage
+ * instrumentation is inherited by child processes, and a suite that shells out
+ * to `pnpm` pulls corepack's ~4,500-line `pnpm.mjs` into the numbers — which is
+ * exactly what happened: `@saasicat/spec` was recorded at 32.16% lines, and
+ * that figure was pnpm's, not the package's. Filtered, the same suites measure
+ * 94.90%.
+ *
+ * The lesson is not "add a filter": an unfiltered coverage number says nothing
+ * about the code you think it describes, and it lands differently on every
+ * machine depending on what happened to get loaded.
+ */
+const COVERAGE_INCLUDE = [
+    'dist/**', // what the suites import (see CONTRIBUTING, "Build before test")
+    'bin/**', // CLI entry points
+    'scripts/**', // codegen and generator helpers
+    'index.js', // @saasicat/spec ships hand-written entries at its root
+    'index.cjs',
+];
+
+/**
  * Tolerance in percentage points.
  *
- * Not cosmetic: `@saasicat/spec` measures ~0.6pp differently when its suites run
- * as part of a full sweep than when they run alone (`reference-sql-drift` and
- * `docs-version-pins` both read generated artefacts, so which branches they take
- * depends on what ran before them). That is test-order dependence and deserves
- * its own fix — until then, a ratchet that flaps is a ratchet somebody switches
- * off, so the tolerance covers the observed spread with room to spare.
+ * Small on purpose. With `COVERAGE_INCLUDE` above the measurement is
+ * deterministic and machine-independent, so the tolerance only has to absorb a
+ * future Node counting slightly differently — not an environment difference.
  *
- * It is deliberately far smaller than any drop a deleted test suite would cause.
+ * It took two wrong explanations to get here. A ±0.6pp gap between this machine
+ * and CI was first blamed on test-order dependence, then on a stale build.
+ * Neither was true: the report contained corepack's `pnpm.mjs`, and how much of
+ * it got loaded differed per environment. Both explanations were plausible, and
+ * both would have been "fixed" by widening this number until the gate stopped
+ * saying anything.
  */
-const SLACK = 1.5;
+const SLACK = 0.5;
 
 const SUMMARY = /^ℹ all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/m;
 
@@ -89,7 +130,12 @@ function measure(pkg) {
 
     const result = spawnSync(
         process.execPath,
-        ['--test', '--experimental-test-coverage', ...files],
+        [
+            '--test',
+            '--experimental-test-coverage',
+            ...COVERAGE_INCLUDE.map((glob) => `--test-coverage-include=${glob}`),
+            ...files,
+        ],
         { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     );
     const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
@@ -122,25 +168,70 @@ function measure(pkg) {
 const update = process.argv.includes('--update');
 const current = {};
 
-for (const pkg of PACKAGES) {
-    process.stderr.write(`measuring ${pkg} … `);
-    const value = measure(pkg);
-    if (!value) {
-        // Skipping is fine for a check — the comparison below reports the
-        // missing package. Skipping during `--update` is not: the new baseline
-        // would simply be written without it, dropping that package's ratchet
-        // for good and quietly lowering the bar.
-        if (update) {
-            throw new Error(
-                `No coverage report for ${pkg} — refusing to write a baseline that leaves it out. ` +
-                    `Either test discovery found no files, or Node's summary format changed.`,
-            );
+// What went wrong, if anything did. Named and described, because a report that
+// only says `complete: false` cannot tell anyone WHICH package failed — and
+// naming it is the entire reason CI uploads this artefact.
+let failure = null;
+
+// Packages that produced no measurement without the run aborting. A list,
+// because several can skip in one run — and a different concept from
+// `failure`: this run kept going, it just measured less than it claims to.
+const skipped = [];
+
+// `finally`, so a package that fails to measure still leaves the numbers
+// gathered before it. CI uploads this report with `if: always()` precisely to
+// diagnose a failed coverage step — and a throw here used to abort before the
+// write, so the one run that needed the artefact was the one without it.
+try {
+    for (const pkg of PACKAGES) {
+        process.stderr.write(`measuring ${pkg} … `);
+        let value;
+        try {
+            value = measure(pkg);
+        } catch (err) {
+            failure = { package: pkg, message: err instanceof Error ? err.message : String(err) };
+            throw err;
         }
-        process.stderr.write('no coverage report — skipped\n');
-        continue;
+        if (!value) {
+            // Skipping is fine for a check — the comparison below reports the
+            // missing package. Skipping during `--update` is not: the new baseline
+            // would simply be written without it, dropping that package's ratchet
+            // for good and quietly lowering the bar.
+            if (update) {
+                failure = {
+                    package: pkg,
+                    message:
+                        `No coverage report — refusing to write a baseline that leaves it out. ` +
+                        `Either test discovery found no files, or Node's summary format changed.`,
+                };
+                throw new Error(`${pkg}: ${failure.message}`);
+            }
+            skipped.push({
+                package: pkg,
+                reason:
+                    `No coverage summary — either test discovery found no files, ` +
+                    `or Node's summary format changed.`,
+            });
+            process.stderr.write('no coverage report — skipped\n');
+            continue;
+        }
+        current[pkg] = value;
+        process.stderr.write(`${value.line.toFixed(2)}% lines\n`);
     }
-    current[pkg] = value;
-    process.stderr.write(`${value.line.toFixed(2)}% lines\n`);
+} finally {
+    writeFileSync(
+        REPORT,
+        `${JSON.stringify(
+            {
+                measured: current,
+                complete: Object.keys(current).length === PACKAGES.length,
+                failure,
+                skipped,
+            },
+            null,
+            4,
+        )}\n`,
+    );
 }
 
 if (update) {
@@ -150,7 +241,7 @@ if (update) {
 }
 
 if (!existsSync(BASELINE)) {
-    console.error('No coverage-baseline.json. Run: node scripts/coverage-ratchet.mjs --update');
+    console.error('No coverage-baseline.json. Run: pnpm run coverage:update');
     process.exit(1);
 }
 
@@ -177,7 +268,7 @@ if (regressions.length > 0) {
     for (const line of regressions) console.error(`  ✗ ${line}`);
     console.error(
         '\nAdd tests for what you changed, or — if the drop is intended (deleted code,\n' +
-            'moved package) — re-record with: node scripts/coverage-ratchet.mjs --update\n',
+            'moved package) — re-record with: pnpm run coverage:update\n',
     );
     process.exit(1);
 }

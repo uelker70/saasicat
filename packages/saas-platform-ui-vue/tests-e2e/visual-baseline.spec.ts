@@ -1,6 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { VISUAL_CASES } from './visual/pages.js';
+
+declare global {
+    interface Window {
+        __saasicatUnmatchedRequests?: string[];
+    }
+}
 
 // Visual baselines for the design-token migration.
 //
@@ -84,7 +90,18 @@ const COLLECT = ({ properties }: { properties: readonly string[] }) => {
     };
 
     const root = document.getElementById('visual-root') ?? document.body;
-    for (const el of [root, ...root.querySelectorAll('*')]) {
+
+    // The page, plus any dialog Quasar teleported out of it. QDialog renders
+    // into a portal appended to <body>, so a detail dialog opened by
+    // `revealBy` sits outside `#visual-root` entirely — collecting only the
+    // root would record the click and none of its result.
+    const roots: Element[] = [
+        root,
+        ...[...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d)),
+    ];
+    const collected = roots.flatMap((r) => [r, ...r.querySelectorAll('*')]);
+
+    for (const el of collected) {
         // Skip what the browser cannot lay out — invisible nodes have no
         // meaningful computed geometry and would only add churn.
         const style = window.getComputedStyle(el);
@@ -103,11 +120,44 @@ const COLLECT = ({ properties }: { properties: readonly string[] }) => {
     return lines.join('\n');
 };
 
+/**
+ * Collects once the page has stopped moving.
+ *
+ * Opening something animates it, and a snapshot taken mid-flight records an
+ * opacity or a colour that is different on every run — a baseline that fails
+ * against itself, which is the fastest way to teach everyone to ignore this
+ * suite. Waiting for Vue's transition classes covered only half of it: the
+ * marketing tabs move via a plain CSS `transition`, which adds no class at all.
+ *
+ * So the condition is the honest one — two identical readings in a row — and it
+ * needs no knowledge of what is animating or how.
+ */
+async function settledStyles(page: Page): Promise<string> {
+    let previous = '';
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+        const current = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
+        if (current === previous) return current;
+        previous = current;
+        await page.waitForTimeout(50);
+    }
+    throw new Error('the page never stopped changing — nothing settled within two seconds');
+}
+
+/** Element count across the page and any teleported dialog. */
+const COUNT_ELEMENTS = () => {
+    const root = document.getElementById('visual-root') ?? document.body;
+    const dialogs = [...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d));
+    return (
+        root.querySelectorAll('*').length +
+        dialogs.reduce((n, d) => n + 1 + d.querySelectorAll('*').length, 0)
+    );
+};
+
 test.describe('design-token visual baselines', () => {
     test('the roster still covers every page it claims to', () => {
         // A shrinking roster is the quiet way this suite stops protecting
         // anything: remove a case, and its page is simply no longer watched.
-        expect(VISUAL_CASES.length).toBeGreaterThanOrEqual(9);
+        expect(VISUAL_CASES.length).toBeGreaterThanOrEqual(19);
         expect(new Set(VISUAL_CASES.map((c) => c.id)).size).toBe(VISUAL_CASES.length);
     });
 
@@ -124,7 +174,37 @@ test.describe('design-token visual baselines', () => {
             await expect(page.locator('#visual-error')).toHaveCount(0);
             await expect(page.locator('#visual-root')).toHaveCount(1);
 
-            const styles = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
+            // Surfaces that only exist once something is opened. `click()`
+            // already waits for the element, so a selector that stops matching
+            // fails the case instead of quietly baselining the closed state.
+            const before = await page.evaluate(COUNT_ELEMENTS);
+            for (const selector of visualCase.revealBy ?? []) {
+                await page.locator(selector).first().click();
+            }
+            if (visualCase.revealBy?.length) {
+                // A click that opens nothing is the quiet failure this whole
+                // field exists to prevent: the case looks like it covers the
+                // opened state and covers the closed one. It happened — the
+                // email detail is a QDialog, and clicking its row changed
+                // nothing the collector could see.
+                await expect
+                    .poll(() => page.evaluate(COUNT_ELEMENTS), {
+                        message: `${visualCase.id}: revealBy clicked, but nothing new rendered`,
+                    })
+                    .toBeGreaterThan(before);
+            }
+
+            // A request the fixture cannot answer gets an empty array, which
+            // renders as an empty card — indistinguishable from a deliberate
+            // empty state, and exactly how two baselines came to record
+            // nothing at all. Naming the endpoint beats debugging a snapshot.
+            const unmatched = await page.evaluate(() => window.__saasicatUnmatchedRequests ?? []);
+            expect(
+                unmatched,
+                `${visualCase.id} requested endpoints the fixture does not define`,
+            ).toEqual([]);
+
+            const styles = await settledStyles(page);
 
             expect(styles.length, `${visualCase.id} rendered nothing to measure`).toBeGreaterThan(
                 200,

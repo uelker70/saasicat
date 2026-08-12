@@ -25,7 +25,7 @@ import {
     Quasar,
     ClosePopup,
 } from 'quasar';
-import { mount, type MountingOptions } from '@vue/test-utils';
+import { mount, type ComponentMountingOptions } from '@vue/test-utils';
 import type { Component } from 'vue';
 
 const QUASAR_COMPONENTS = {
@@ -46,9 +46,9 @@ const QUASAR_COMPONENTS = {
     QTable,
 };
 
-export function mountWithQuasar<T extends Component>(
-    component: T,
-    options: MountingOptions<Record<string, unknown>> = {},
+export function mountWithQuasar(
+    component: Component,
+    options: ComponentMountingOptions<Component> = {},
 ) {
     const { global: globalOptions = {}, ...rest } = options;
     return mount(component, {
@@ -59,5 +59,5 @@ export function mountWithQuasar<T extends Component>(
             components: { ...QUASAR_COMPONENTS, ...(globalOptions.components ?? {}) },
             directives: { ClosePopup, ...(globalOptions.directives ?? {}) },
         },
-    } as MountingOptions<Record<string, unknown>>);
+    });
 }

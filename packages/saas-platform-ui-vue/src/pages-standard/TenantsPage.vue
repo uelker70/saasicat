@@ -530,32 +530,17 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 </script>
 
 <style scoped>
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    min-width: 800px;
-}
-thead tr {
-    background: #fafbfc;
-}
-th {
-    padding: 10px 14px;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
-    text-transform: uppercase;
-    text-align: left;
-}
-td {
-    padding: 11px 14px;
-    vertical-align: middle;
-    border-top: 1px solid var(--sa-border-soft, var(--sa-border-soft));
-}
-.num {
-    text-align: right;
-}
+/* No table rules here on purpose — and not because they would be inert.
+   Content passed into a child component's slot keeps THIS component's scope
+   id, so the `table`, `thead`, `th`, `td` and `.num` rules that used to sit
+   here did reach `AdminTable`'s cells. That was the bug: they drew a second
+   border on top of the one AdminTable already draws, and the tenant list was
+   the only list in the package with doubled row separators. Removing them
+   took `border-top-width` from 1px back to 0px.
+
+   The rule to carry forward: styling a table here means overriding AdminTable
+   for one page. If a table needs to look different, that belongs in
+   AdminTable, behind a prop. */
 .sa-tenants__mono {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
     font-size: 12px;

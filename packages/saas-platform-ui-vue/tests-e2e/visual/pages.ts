@@ -1,5 +1,13 @@
 import type { Component } from 'vue';
 
+import type { PlatformEmailProvider } from '../../src/pages-standard/platform-email.types.js';
+import type { BundleVersionRow } from '@saasicat/types';
+import type { PromoDetailData } from '../../src/pages-standard/PromoCodeDetailPage.vue';
+import type { TenantDetailData } from '../../src/pages-standard/tenant-detail/types.js';
+import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
+import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
+import { FIXTURE_BUNDLES, FIXTURE_BUNDLE_VERSIONS } from './fixture-data.js';
+
 // The roster the baselines cover, and what each page needs to render its real
 // chrome instead of an empty frame or an error banner.
 //
@@ -27,6 +35,16 @@ export interface VisualCase {
      * and the baseline covers the happy path rather than an error state.
      */
     props?: (ctx: CaseContext) => Record<string, unknown>;
+    /**
+     * CSS selectors to click before the styles are collected, in order.
+     *
+     * Some surfaces only exist once something is opened — a bundle's version
+     * controls and inline editor sit behind its row. Without a click the
+     * baseline covers the collapsed card and nothing else, so a regression in
+     * exactly the surfaces the case was added for leaves the snapshot
+     * untouched.
+     */
+    revealBy?: readonly string[];
 }
 
 export const VISUAL_CASES: readonly VisualCase[] = [
@@ -113,6 +131,247 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     {
         id: 'setup-wizard',
         load: () => import('../../src/pages-standard/SuperAdminSetupWizard.vue'),
+    },
+    {
+        id: 'users',
+        load: () => import('../../src/pages-standard/UsersPage.vue'),
+        props: () => ({
+            loadUsers: async (): Promise<UserRow[]> => [
+                {
+                    id: 'u-1',
+                    email: 'admin@fixture.test',
+                    firstName: 'Ada',
+                    lastName: 'Lovelace',
+                    // `role`, not `platformRole` — the page reads it for both
+                    // the Role column and its `isSuperAdmin()` check.
+                    role: 'SUPER_ADMIN',
+                    isActive: true,
+                    lastLoginAt: '2026-07-30T08:15:00.000Z',
+                },
+            ],
+        }),
+    },
+    {
+        id: 'promo-codes',
+        load: () => import('../../src/pages-standard/PromoCodesPage.vue'),
+        props: () => ({
+            loadPromos: async (): Promise<PromoRow[]> => [
+                {
+                    id: 'p-1',
+                    code: 'WELCOME20',
+                    valueType: 'PERCENT',
+                    value: 20,
+                    status: 'ACTIVE',
+                    maxRedemptions: 100,
+                    // `redemptionsCount` — the table formats this field
+                    // directly, so the singular spelling rendered "undefined / 100".
+                    redemptionsCount: 12,
+                    campaignTag: 'launch-2026',
+                    validFrom: '2026-01-01',
+                    validUntil: '2026-12-31',
+                },
+            ],
+        }),
+    },
+    {
+        id: 'pilots',
+        load: () => import('../../src/pages-standard/PilotsPage.vue'),
+        props: () => ({
+            loadPilots: async () => [
+                {
+                    id: 'pil-1',
+                    tenant: { id: 't-0001', slug: 'northwind', name: 'Northwind Ltd' },
+                    plan: 'PRO',
+                    pilotEndsAt: '2026-03-01T00:00:00.000Z',
+                    pilotNote: 'Evaluation until Q1',
+                    grantedBy: 'admin@fixture.test',
+                    grantedAt: '2026-01-01T00:00:00.000Z',
+                },
+            ],
+        }),
+    },
+    {
+        id: 'tenant-detail',
+        load: () => import('../../src/pages-standard/TenantDetailPage.vue'),
+        props: () => ({
+            backRoute: '/admin/tenants',
+            manifest: null,
+            loadDetail: async (): Promise<TenantDetailData> => ({
+                id: 't-0001',
+                name: 'Northwind Ltd',
+                slug: 'northwind',
+                isActive: true,
+                vatId: 'DE123456789',
+                // Nested, not top-level: TenantMasterData reads
+                // `data.subscription?.plan` and friends, so a flat `plan`
+                // rendered an em dash in every one of those fields.
+                subscription: {
+                    plan: 'PRO',
+                    status: 'ACTIVE',
+                    isPilot: false,
+                    trialEndsAt: null,
+                    pilotEndsAt: null,
+                },
+                users: [],
+            }),
+        }),
+    },
+    {
+        id: 'promo-code-detail',
+        load: () => import('../../src/pages-standard/PromoCodeDetailPage.vue'),
+        props: () => ({
+            backRoute: '/admin/promo-codes',
+            loadDetail: async (): Promise<PromoDetailData> => ({
+                promo: {
+                    id: 'p-1',
+                    code: 'WELCOME20',
+                    valueType: 'PERCENT',
+                    value: 20,
+                    status: 'ACTIVE',
+                    maxRedemptions: 100,
+                    redemptionsCount: 12,
+                    validFrom: '2026-01-01',
+                    validUntil: '2026-12-31',
+                },
+                // Required. The page serialises this block, so leaving it out
+                // baselined an empty one — an invalid response recorded as if
+                // it were the design.
+                stats: {
+                    redemptions: 12,
+                    remaining: 88,
+                    discountedNetTotal: '240.00',
+                    firstRedeemedAt: '2026-01-08T10:00:00.000Z',
+                    lastRedeemedAt: '2026-02-19T16:30:00.000Z',
+                },
+                redemptions: [],
+            }),
+        }),
+    },
+    {
+        id: 'email-history',
+        load: () => import('../../src/pages-standard/EmailHistoryPage.vue'),
+        props: () => ({
+            loadEmails: async () => ({
+                rows: [
+                    {
+                        id: 'e-1',
+                        fromEmail: 'noreply@fixture.test',
+                        toEmail: 'admin@fixture.test',
+                        subject: 'Welcome',
+                        status: 'SENT',
+                        sentAt: '2026-01-14T10:00:00.000Z',
+                        createdAt: '2026-01-14T09:59:00.000Z',
+                    },
+                ],
+                total: 1,
+            }),
+            loadEmailDetail: async () => ({
+                id: 'e-1',
+                fromEmail: 'noreply@fixture.test',
+                toEmail: 'admin@fixture.test',
+                subject: 'Welcome',
+                status: 'SENT',
+                sentAt: '2026-01-14T10:00:00.000Z',
+                createdAt: '2026-01-14T09:59:00.000Z',
+                bodyHtml: '<p>Hello</p>',
+            }),
+            deleteEmail: async () => ({}),
+            resendEmail: async () => ({ success: true }),
+        }),
+        // Opens the detail dialog — `@row-click` on the table. Without it
+        // `loadEmailDetail` never runs and the dialog, its preview frame and
+        // its actions stay out of the snapshot.
+        revealBy: ['tbody tr'],
+    },
+    {
+        id: 'platform-email',
+        load: () => import('../../src/pages-standard/PlatformEmailPage.vue'),
+        props: () => ({
+            // Typed against the page's own contract on purpose. The first
+            // version of this fixture set `isActive` (the tenant spelling)
+            // where the page reads `active`, and left out every SMTP field —
+            // so the baseline captured empty host/encryption columns and an
+            // "inactive" pill, and would have accepted a page that renders
+            // nothing at all.
+            loadProviders: async (): Promise<PlatformEmailProvider[]> => [
+                {
+                    id: 'prov-1',
+                    name: 'Fixture SMTP',
+                    smtpHost: 'smtp.fixture.test',
+                    smtpPort: 587,
+                    smtpUser: 'noreply@fixture.test',
+                    encryption: 'STARTTLS',
+                    fromEmail: 'noreply@fixture.test',
+                    fromName: 'Fixture',
+                    isDefault: true,
+                    active: true,
+                },
+            ],
+            createProvider: async () => {},
+            updateProvider: async () => {},
+            deleteProvider: async () => {},
+            testProvider: async () => {},
+        }),
+    },
+    {
+        id: 'marketing-catalog',
+        load: () => import('../../src/pages-standard/MarketingCatalogPage.vue'),
+        props: ({ http, adminBase }) => ({
+            adminEndpoint: adminBase,
+            projectKey: 'fixture',
+            http,
+            // Without it the page falls back to a `['de']` pool, filters the
+            // settings response down to German, and renders the English
+            // projections as the German catalog — with the second locale's
+            // controls missing entirely.
+            availableLocales: ['en', 'de'],
+        }),
+    },
+    {
+        // The same page on its other tab. Two cases rather than one with a
+        // click, because the preview is what the page opens on and both halves
+        // carry styles worth protecting — `MarketingCatalogAdmin` is only
+        // mounted once the tab is selected, so a single case can cover one or
+        // the other, never both.
+        id: 'marketing-catalog-admin',
+        load: () => import('../../src/pages-standard/MarketingCatalogPage.vue'),
+        props: ({ http, adminBase }) => ({
+            adminEndpoint: adminBase,
+            projectKey: 'fixture',
+            http,
+            availableLocales: ['en', 'de'],
+        }),
+        // Ordered: the tab mounts the admin view, the expand button mounts
+        // its editors. Stopping after the tab left every editor guarded by
+        // `expandedKey` unrendered — the surfaces this case exists for.
+        revealBy: ['.sa-marketing-tab:nth-of-type(2)', '.sa-marketing-expand-btn'],
+    },
+    {
+        // 14 required props, ten of them functions — the page AP3 replaces.
+        // Kept under baseline precisely because it is about to change the most.
+        id: 'bundles',
+        load: () => import('../../src/pages-standard/BundlesPage.vue'),
+        props: () => ({
+            projectKey: 'fixture',
+            // Not `[]`. An empty list snapshots `sa-bundles__empty` and nothing
+            // else, so a regression in the rows — the surfaces this page is
+            // under baseline for — would leave the image untouched.
+            bundles: FIXTURE_BUNDLES,
+            loading: false,
+            error: null,
+            snapshot: null,
+            load: async () => {},
+            create: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
+            update: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
+            softDelete: async () => {},
+            loadVersions: async (): Promise<BundleVersionRow[]> => FIXTURE_BUNDLE_VERSIONS,
+            createDraft: async () => ({ version: {}, warnings: [] }),
+            updateDraft: async () => ({ version: {}, warnings: [] }),
+            publish: async () => ({ version: {}, warnings: [] }),
+            classifyDiff: () => ({ kind: 'NON_REGRESSIVE', changes: [] }),
+        }),
+        // Opens the bundle so its version controls and inline editor render.
+        revealBy: ['.sa-bd-card__head'],
     },
 ];
 
