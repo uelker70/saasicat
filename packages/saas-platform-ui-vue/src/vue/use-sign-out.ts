@@ -16,7 +16,10 @@
 import { inject } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { SUPER_ADMIN_LOGIN_ADAPTER_KEY } from './super-admin-context.js';
+import {
+    SUPER_ADMIN_LOGIN_ADAPTER_KEY,
+    SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY,
+} from './super-admin-context.js';
 
 /** Where `createAdminRoutes()` registers the login page. */
 export const DEFAULT_LOGIN_PATH = '/login';
@@ -35,6 +38,7 @@ export interface UseSignOutOptions {
 export function useSignOut(options: UseSignOutOptions = {}): () => Promise<void> {
     const router = useRouter();
     const adapter = inject(SUPER_ADMIN_LOGIN_ADAPTER_KEY, undefined);
+    const clearManifestCache = inject(SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY, undefined);
 
     return async function signOut(): Promise<void> {
         if (adapter?.logout) {
@@ -61,6 +65,24 @@ export function useSignOut(options: UseSignOutOptions = {}): () => Promise<void>
                     'intact, so the next navigation to /admin will pass the guard again. Add ' +
                     '`logout()` to the `loginAdapter` you pass to createSuperAdminApp().',
             );
+        }
+
+        // Unconditionally, and after the adapter either way: the manifest store
+        // stays `loaded` across a sign-out, so without this the next
+        // `ensureLoaded()` returns instantly and hands the *next* operator the
+        // previous session's manifest — their navigation, their capabilities,
+        // their project. Only a full page reload would have cleared it, and
+        // signing out does not force one.
+        if (clearManifestCache) {
+            try {
+                await clearManifestCache();
+            } catch (err) {
+                console.error(
+                    '[SaaSiCat] Sign-out could not discard the cached manifest. The next login in ' +
+                        'this tab may see the previous session’s navigation until the page reloads.',
+                    err,
+                );
+            }
         }
 
         await router.replace(options.loginPath ?? DEFAULT_LOGIN_PATH);

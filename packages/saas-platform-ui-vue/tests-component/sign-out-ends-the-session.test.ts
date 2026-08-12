@@ -16,7 +16,10 @@ import { createRouter, createMemoryHistory } from 'vue-router';
 
 import AdminLayout from '../src/pages-standard/AdminLayout.vue';
 import AdminManifestErrorPage from '../src/pages-standard/AdminManifestErrorPage.vue';
-import { SUPER_ADMIN_LOGIN_ADAPTER_KEY } from '../src/vue/super-admin-context.js';
+import {
+    SUPER_ADMIN_LOGIN_ADAPTER_KEY,
+    SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY,
+} from '../src/vue/super-admin-context.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
 
 function makeRouter() {
@@ -32,7 +35,7 @@ function makeRouter() {
 }
 
 /** What `createSuperAdminApp({ loginAdapter })` provides app-wide. */
-function contextWith(logout?: () => void) {
+function contextWith(logout?: () => void | Promise<void>) {
     return {
         [SUPER_ADMIN_LOGIN_ADAPTER_KEY as symbol]: {
             login: async () => undefined,
@@ -159,6 +162,42 @@ describe('AdminLayout sign-out', () => {
 
         expect(onLogoutOnce).toHaveBeenCalledTimes(1);
         expect(adapterLogout).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+});
+
+describe('sign-out and the cached manifest', () => {
+    /**
+     * The manifest store stays `loaded` across a sign-out, so its next
+     * `ensureLoaded()` returns instantly. Without discarding it, the operator
+     * who logs in next in the same tab gets the previous session's manifest —
+     * their navigation, their capabilities, their project — until something
+     * forces a full page reload, which signing out does not.
+     */
+    test('discards the manifest, and does so even when logout rejects', async () => {
+        const clearCache = vi.fn();
+        const failingLogout = vi.fn(() => Promise.reject(new Error('revocation failed')));
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        const wrapper = mountWithQuasar(AdminManifestErrorPage, {
+            global: {
+                provide: {
+                    ...contextWith(failingLogout),
+                    [SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY as symbol]: clearCache,
+                },
+                plugins: [makeRouter()],
+            },
+        });
+
+        await clickSignOut(wrapper);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(failingLogout).toHaveBeenCalledTimes(1);
+        expect(
+            clearCache,
+            'a failed revocation must not leave the next operator with this manifest',
+        ).toHaveBeenCalledTimes(1);
+
         wrapper.unmount();
     });
 });
