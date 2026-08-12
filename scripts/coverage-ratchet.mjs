@@ -43,16 +43,17 @@ const PACKAGES = [
 /**
  * Tolerance in percentage points.
  *
- * Not cosmetic: `@saasicat/spec` measures ~0.6pp differently when its suites run
- * as part of a full sweep than when they run alone (`reference-sql-drift` and
- * `docs-version-pins` both read generated artefacts, so which branches they take
- * depends on what ran before them). That is test-order dependence and deserves
- * its own fix — until then, a ratchet that flaps is a ratchet somebody switches
- * off, so the tolerance covers the observed spread with room to spare.
+ * The measurement is deterministic — verified bit-identical across repeated
+ * full sweeps — PROVIDED every package's `dist/` is current. That proviso is
+ * the whole story: coverage is measured on the built output, so recording a
+ * baseline against one build and checking against another moves the numbers
+ * without a single test changing. An earlier ±0.6pp "flake" was exactly that,
+ * and was misread as test-order dependence.
  *
- * It is deliberately far smaller than any drop a deleted test suite would cause.
+ * So the tolerance is small on purpose. It absorbs a future Node counting
+ * differently, not a build mismatch — that one is caught below instead.
  */
-const SLACK = 1.5;
+const SLACK = 0.5;
 
 const SUMMARY = /^ℹ all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/m;
 
@@ -86,6 +87,20 @@ function measure(pkg) {
     const cwd = join(REPO_ROOT, 'packages', pkg);
     const files = testFiles(cwd);
     if (files.length === 0) return null;
+
+    // The suites import from `dist/`, and so does the coverage report. Against a
+    // stale or missing build the numbers describe a different program than the
+    // one in the working tree — silently, and in either direction.
+    //
+    // Only packages that HAVE a build step are checked: @saasicat/spec ships
+    // hand-written entry files at its package root and never produces a dist/.
+    const manifest = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
+    if (manifest.scripts?.build && !existsSync(join(cwd, 'dist'))) {
+        throw new Error(
+            `${pkg} has no dist/ — run \`pnpm -r build\` first. Coverage is measured on the ` +
+                `built output, so a missing or stale build produces numbers for a different program.`,
+        );
+    }
 
     const result = spawnSync(
         process.execPath,

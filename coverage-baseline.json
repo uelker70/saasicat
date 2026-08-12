@@ -11,7 +11,7 @@
     },
     "saas-platform-nest": {
         "line": 65.07,
-        "branch": 69.1,
+        "branch": 69.08,
         "funcs": 66.54
     },
     "saas-platform-adapter-prisma": {
@@ -35,9 +35,9 @@
         "funcs": 41.39
     },
     "saas-platform-ui-vue": {
-        "line": 77.38,
-        "branch": 87.34,
-        "funcs": 70.87
+        "line": 77.23,
+        "branch": 87.8,
+        "funcs": 71.84
     },
     "create-saasicat-admin": {
         "line": 84.54,
