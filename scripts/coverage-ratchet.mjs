@@ -41,6 +41,28 @@ const PACKAGES = [
 ];
 
 /**
+ * What counts as this package's own code.
+ *
+ * Without this the report is dominated by files that are not ours. Coverage
+ * instrumentation is inherited by child processes, and a suite that shells out
+ * to `pnpm` pulls corepack's ~4,500-line `pnpm.mjs` into the numbers — which is
+ * exactly what happened: `@saasicat/spec` was recorded at 32.16% lines, and
+ * that figure was pnpm's, not the package's. Filtered, the same suites measure
+ * 94.90%.
+ *
+ * The lesson is not "add a filter": an unfiltered coverage number says nothing
+ * about the code you think it describes, and it lands differently on every
+ * machine depending on what happened to get loaded.
+ */
+const COVERAGE_INCLUDE = [
+    'dist/**', // what the suites import (see CONTRIBUTING, "Build before test")
+    'bin/**', // CLI entry points
+    'scripts/**', // codegen and generator helpers
+    'index.js', // @saasicat/spec ships hand-written entries at its root
+    'index.cjs',
+];
+
+/**
  * Tolerance in percentage points.
  *
  * The measurement is deterministic — verified bit-identical across repeated
@@ -104,7 +126,12 @@ function measure(pkg) {
 
     const result = spawnSync(
         process.execPath,
-        ['--test', '--experimental-test-coverage', ...files],
+        [
+            '--test',
+            '--experimental-test-coverage',
+            ...COVERAGE_INCLUDE.map((glob) => `--test-coverage-include=${glob}`),
+            ...files,
+        ],
         { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     );
     const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
