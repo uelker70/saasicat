@@ -1,5 +1,124 @@
 # @saasicat/ui-vue
 
+## 0.22.0
+
+### Minor Changes
+
+- 9dc78b3: Give statistics one tile and sections one surface
+
+    Seven tile implementations existed across the admin pages. Two of them —
+    `sa-discovery__kpi` and `sa-bundles__kpi` — were byte identical. Three lived in
+    unscoped page-level `<style>` blocks, which is the construction that produced
+    the `sa-bundles__head` leak. There was no test on any of them.
+
+    `AdminStatistics` and `AdminKpi` replace all seven:
+
+    ```vue
+    <AdminStatistics :columns="4">
+      <AdminKpi label="Live" :value="liveCount" sub="published" tone="positive" />
+    </AdminStatistics>
+    ```
+
+    `action` decides interactivity: with one the tile is a `<button>` carrying
+    `aria-pressed`, without one a `<div>`. The three filter strips never announced
+    their selected state before. `emphasis` keeps the one difference that was
+    real — filter pills colour the number, discovery and draft tiles tint the whole
+    tile, because there the colour is the statement. Two tiles set that tint with
+    inline `style` and were immune to theming; they use the tone now.
+
+    **Surfaces moved one level down.** `.sa-page` was the only thing painting the
+    canvas, so a page could not be transparent. The canvas now sits on the layout —
+    covering the gutters beside `max-width: 1600px` too — and sections carry the
+    surface, rounded, with a head that echoes the hero one shade lighter. Eight
+    sections that also carried `.sa-card` painted twice; the card is gone from them,
+    since a section is one.
+
+    **Breaking for CSS overrides.** `.sa-stat*` is gone (use `AdminKpi`), and
+    `components/KpiCard.vue` is deleted — it had no importer in this repo or in
+    either known consumer. An app that restyled `.sa-stat__num` should move to
+    `.sa-kpi__value`.
+
+    Five radius tokens (`--sa-radius-hero|section|card|head|tile`) replace the
+    scattered literals; `--sa-radius-tile` is the single declaration requirement
+    every tile resolves to. `--sa-bg-surface-2` names the `#f8fafc` inset grey.
+
+    The plans page finally has a hero subtitle.
+
+    **`components/plan-cockpit/` is deleted** — eight files, 1745 lines. It is an
+    earlier implementation of the plan drill-in that `plan-detail/` superseded:
+    `PlansPage` renders `PlanDetail` for `mode === 'cockpit'`, and nothing anywhere
+    imports `PlanCockpit`. Like `KpiCard.vue` it was reachable through the
+    `./components/*` subpath, so it belongs in this note. The two `planDetail`
+    message keys only it consumed (`kpis.noDraft`, `kpis.createNewDraft`) go with
+    it.
+
+- 9599214: Fix four defects that only showed up in a running admin
+
+    **A route-mounted page cannot require props.** `AdminManifestErrorPage`
+    declared `onRetry` and `onLogout` as required, but `createAdminRoutes()`
+    mounts it as a plain route record and Vue Router passes nothing to such a
+    component. The props were unsatisfiable by construction, and this is the
+    fail-closed screen — it renders precisely when the app is already in
+    trouble, and both of its buttons called `undefined`. They are now optional
+    with defaults that work standalone.
+
+    **An expired session is not a broken manifest.** A 401/403 from the
+    manifest load sent the operator to the error page — "the manifest could not
+    be loaded" — when the truth was "log in again". This is the normal path
+    after a token expires, because `isAuthenticated()` in practice only checks
+    that a token exists. The guard now separates the two, and offers the
+    re-login exactly once: a consumer's `onUnauthenticated` typically clears the
+    session, so a manifest that keeps rejecting for a reason logging in cannot
+    fix would otherwise produce an unbreakable login loop.
+
+    **Signing out did not sign anyone out.** Both platform affordances are
+    reached through components every consumer mounts as bare route records:
+    `AdminLayout` at `/admin` and `AdminManifestErrorPage` at `/admin-error`.
+    A route record attaches no props and no listeners, so the layout's
+    `emit('logout')` reached nobody at all, and the error page's fallback only
+    called `router.replace('/login')`. Since `isAuthenticated()` reads a token
+    out of storage, the session survived and the next navigation to `/admin`
+    walked straight back in — the operator saw a login form and was still
+    signed in. `SuperAdminLoginAdapter` gained an optional `logout()`, and both
+    components now end the session through it before navigating; apps that pass
+    `@logout` or `onLogout` keep full control, and an app that supplies neither
+    gets a console warning rather than silence.
+
+    **The fail-closed page was a dead end.** Its retry reloaded `/admin-error`
+    in place — a route that is `meta.public` by necessity, so the navigation
+    guard returns before it ever reaches `ensureLoaded()`. The manifest was
+    never fetched again and the operator stayed stuck even after the backend
+    recovered. Retry now boots into a guarded route (`retryPath`, default
+    `/admin`).
+
+    **Requests bypassing the HttpClient seam.** Three call sites used a bare
+    `fetch()`, dropping the Authorization header the app registered via
+    `createSuperAdminApp({ http })`. One of them was unreachable code that
+    looked like a safeguard; two were live.
+
+    **The dashboard dropped the auth token it was given.** `DashboardPage`
+    declared `getAuthToken` and documented it as the token provider for the
+    default client — and never read it. Removing the page's bare `fetch()` had
+    taken the Authorization header with it, so an app mounting the page the
+    documented way sent every KPI request unauthenticated and rendered an error
+    in all of its cards. The token now travels as a header the way `useApiList`
+    and the other standard pages do it.
+
+    **`@RequireFeature` failing silently.** `SaaSiCatModule` documented a boot
+    warning for the case where no plan resolver is configured — and never
+    emitted one. Annotated routes then served everyone, quotas read as
+    unlimited, and nothing said so. Two warnings now, each naming what is inert
+    and how to fix it.
+
+    Also: the primary `saasicat` CLI now speaks English (it was entirely German,
+    against the README's own promise), and `@saasicat/ui-vue` emits the
+    declaration files its `./testing-e2e/*` export has always promised — a
+    concurrent `clean` in the build deleted them after writing.
+
+### Patch Changes
+
+- @saasicat/types@0.22.0
+
 ## 0.21.0
 
 ### Minor Changes
