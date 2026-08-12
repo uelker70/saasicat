@@ -7,7 +7,12 @@
 // with the component under test.
 
 import {
+    QBanner,
     QBtn,
+    QCard,
+    QCardActions,
+    QCardSection,
+    QForm,
     QIcon,
     QInput,
     QItem,
@@ -15,6 +20,7 @@ import {
     QList,
     QMenu,
     QSelect,
+    QSpinner,
     QTable,
     Quasar,
     ClosePopup,
@@ -23,7 +29,12 @@ import { mount, type MountingOptions } from '@vue/test-utils';
 import type { Component } from 'vue';
 
 const QUASAR_COMPONENTS = {
+    QBanner,
     QBtn,
+    QCard,
+    QCardActions,
+    QCardSection,
+    QForm,
     QIcon,
     QInput,
     QItem,
@@ -31,6 +42,7 @@ const QUASAR_COMPONENTS = {
     QList,
     QMenu,
     QSelect,
+    QSpinner,
     QTable,
 };
 

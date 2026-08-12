@@ -11,8 +11,8 @@
                     <strong>{{ msg.manifestError.detailLabel }}</strong> {{ errorMessage }}
                 </p>
                 <div class="sa-manifest-error__actions">
-                    <q-btn unelevated color="primary" :label="common.reload" @click="onRetry" />
-                    <q-btn flat :label="msg.header.logout" @click="onLogout" />
+                    <q-btn unelevated color="primary" :label="common.reload" @click="retry" />
+                    <q-btn flat :label="msg.header.logout" @click="logout" />
                 </div>
             </q-card-section>
         </q-card>
@@ -20,21 +20,52 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 
 // Platform standard error page for `manifestGuard.errorRoute`.
-// Consumers pass `onRetry`/`onLogout` in as callbacks and decide
-// themselves what happens (e.g. manifestStore.clearCache() + ensureLoaded,
-// authStore.logout, router.replace).
+//
+// This page is mounted BY THE ROUTER (`createAdminRoutes({ adminErrorPage })`),
+// and a route record passes no props. Every prop here must therefore be
+// optional with a default that works standalone — a required prop would be
+// unsatisfiable by construction, and its two buttons would call `undefined`
+// at the exact moment the app is already in trouble.
+//
+// Apps that want app-specific behaviour (clear the manifest cache, call
+// authStore.logout, route somewhere else) mount the page themselves with
+// `props:` on the route record and override the callbacks.
 
 const msg = useSaMessages('shell');
 const common = useSaMessages('common');
+const router = useRouter();
 
-defineProps<{
+const props = defineProps<{
     errorMessage?: string | null;
-    onRetry: () => Promise<void> | void;
-    onLogout: () => void;
+    /** Default: full reload — re-runs boot and the manifest guard from scratch. */
+    onRetry?: () => Promise<void> | void;
+    /** Default: navigate to the login route `createAdminRoutes` registers. */
+    onLogout?: () => void;
+    /** Login path for the default `onLogout`. */
+    loginPath?: string;
 }>();
+
+function retry(): void {
+    if (props.onRetry) {
+        void props.onRetry();
+        return;
+    }
+    // A full reload rather than a router navigation: the failure may sit in a
+    // cached manifest body or a stale store, and only a fresh boot clears both.
+    window.location.reload();
+}
+
+function logout(): void {
+    if (props.onLogout) {
+        props.onLogout();
+        return;
+    }
+    void router.replace(props.loginPath ?? '/login');
+}
 </script>
 
 <style scoped>
