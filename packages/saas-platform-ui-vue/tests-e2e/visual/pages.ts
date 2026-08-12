@@ -2,6 +2,7 @@ import type { Component } from 'vue';
 
 import type { PlatformEmailProvider } from '../../src/pages-standard/platform-email.types.js';
 import type { BundleVersionRow } from '@saasicat/types';
+import type { PromoDetailData } from '../../src/pages-standard/PromoCodeDetailPage.vue';
 import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
 import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
 import { FIXTURE_BUNDLES, FIXTURE_BUNDLE_VERSIONS } from './fixture-data.js';
@@ -210,7 +211,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         load: () => import('../../src/pages-standard/PromoCodeDetailPage.vue'),
         props: () => ({
             backRoute: '/admin/promo-codes',
-            loadDetail: async () => ({
+            loadDetail: async (): Promise<PromoDetailData> => ({
                 promo: {
                     id: 'p-1',
                     code: 'WELCOME20',
@@ -218,9 +219,19 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                     value: 20,
                     status: 'ACTIVE',
                     maxRedemptions: 100,
-                    redemptionCount: 12,
+                    redemptionsCount: 12,
                     validFrom: '2026-01-01',
                     validUntil: '2026-12-31',
+                },
+                // Required. The page serialises this block, so leaving it out
+                // baselined an empty one — an invalid response recorded as if
+                // it were the design.
+                stats: {
+                    redemptions: 12,
+                    remaining: 88,
+                    discountedNetTotal: '240.00',
+                    firstRedeemedAt: '2026-01-08T10:00:00.000Z',
+                    lastRedeemedAt: '2026-02-19T16:30:00.000Z',
                 },
                 redemptions: [],
             }),
