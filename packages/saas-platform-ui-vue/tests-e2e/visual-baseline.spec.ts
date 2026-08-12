@@ -2,6 +2,12 @@ import { expect, test } from '@playwright/test';
 
 import { VISUAL_CASES } from './visual/pages.js';
 
+declare global {
+    interface Window {
+        __saasicatUnmatchedRequests?: string[];
+    }
+}
+
 // Visual baselines for the design-token migration.
 //
 // AP2 §2.5 replaces 644 literal colours, 80 pixel values and 23 font sizes with
@@ -130,6 +136,16 @@ test.describe('design-token visual baselines', () => {
             for (const selector of visualCase.revealBy ?? []) {
                 await page.locator(selector).first().click();
             }
+
+            // A request the fixture cannot answer gets an empty array, which
+            // renders as an empty card — indistinguishable from a deliberate
+            // empty state, and exactly how two baselines came to record
+            // nothing at all. Naming the endpoint beats debugging a snapshot.
+            const unmatched = await page.evaluate(() => window.__saasicatUnmatchedRequests ?? []);
+            expect(
+                unmatched,
+                `${visualCase.id} requested endpoints the fixture does not define`,
+            ).toEqual([]);
 
             const styles = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
 

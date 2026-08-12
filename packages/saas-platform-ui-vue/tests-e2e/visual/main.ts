@@ -26,7 +26,7 @@ import {
 } from '../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
 import { SUPER_ADMIN_I18N_KEY, createSuperAdminI18n } from '../../src/vue/use-super-admin-i18n.js';
-import { FIXTURE_MANIFEST, respondTo } from './fixture-data.js';
+import { FIXTURE_MANIFEST, respondTo, unmatchedRequests } from './fixture-data.js';
 import { VISUAL_CASES } from './pages.js';
 
 // Fixture bootstrap for the visual baselines.
@@ -153,3 +153,14 @@ app.provide(SUPER_ADMIN_MANIFEST_KEY, () => FIXTURE_MANIFEST);
 app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, { login: async () => ({ ok: true as const }) });
 
 app.mount('#app');
+// Endpoints the fixture was asked for and does not have. The spec reads this
+// and fails the case: an unanswered request renders an empty card that looks
+// exactly like a deliberate empty state, and that is how two baselines came to
+// record nothing at all.
+declare global {
+    interface Window {
+        __saasicatUnmatchedRequests?: string[];
+    }
+}
+window.__saasicatUnmatchedRequests = unmatchedRequests;
+
