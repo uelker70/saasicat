@@ -7,7 +7,7 @@
 // NotFound) throw HttpException.
 //
 // In warn-only mode (`STRICT_CATALOG_CHECK_MODE = 'warn-only'`, see
-//.1) strict-mode violations pass through as a `warnings` list;
+//) strict-mode violations pass through as a `warnings` list;
 // in blocking mode the service instead throws HTTP 422 with the same
 // warning list as the body. Default: blocking (#12). Exception: broken
 // `compatibility.planIds` always block once a PlanRepository is registered
@@ -421,7 +421,7 @@ export class BundlesService {
 
         const previous = await this.repo.findLatestLive(draft.bundleId);
 
-        // ─── validFrom (required on publish,) ───
+        // ─── validFrom (required on publish) ───
         const validFromInput = publishMeta.validFrom ?? draft.validFrom;
         if (!validFromInput) {
             throw new UnprocessableEntityException({

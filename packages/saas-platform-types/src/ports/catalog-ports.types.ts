@@ -129,7 +129,7 @@ export interface PlanRepository {
     ): Promise<PlanVersionRow | null>;
 
     /**
-     * PlanVersion of a plan active at `asOf` (.2 extended):
+     * PlanVersion of a plan active at `asOf` ( extended):
      *   `publishedAt IS NOT NULL`
      *   `(validFrom IS NULL OR validFrom <= asOf)`
      *   `(validUntil IS NULL OR validUntil >= startOfUtcDay(asOf))`  — day-inclusive
@@ -288,7 +288,7 @@ export interface BundleRepository {
     updateDraft(versionId: string, data: UpdateBundleVersionDraftData): Promise<BundleVersionRow>;
 
     /**
-     * Publishes a draft version atomically (.1 M6
+     * Publishes a draft version atomically (
      * Pack 2c, analogous to `PlanRepository.publishPlanVersionDraft`):
      * 1. Sets `publishedAt = NOW()`, `publishedChanges`, `nonRegressive`,
      *    `publishedByUserId`, `validFrom` on the draft.

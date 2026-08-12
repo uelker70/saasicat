@@ -12,7 +12,7 @@ import {
 } from 'class-validator';
 
 // DTOs for PlanVersionsController — class-validator validation at the
-// HTTP boundary..2 (validFrom/validUntil).
+// HTTP boundary. (validFrom/validUntil).
 //
 // Structurally analogous to CreateBundleVersionDraftDto, but without
 // `compatibility` / `pricingOverrides` (a plan is not

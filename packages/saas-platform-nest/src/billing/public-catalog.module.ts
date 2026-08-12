@@ -23,14 +23,14 @@ import {
 
 // PublicCatalogModule — auth-free catalog endpoints under `/billing/*`.
 //
-//.1 M6 Pack 2c — `/billing/bundles` plus marketing merge in `/billing/plans`
+// — `/billing/bundles` plus marketing merge in `/billing/plans`
 // (provided the optional repos are configured).
 
 export interface PublicCatalogModuleOptions {
     /** Required: consumer-specific FeatureUiRegistry. */
     featureUiRegistry: FeatureUiRegistry;
     /**
-     *.1 M6 Pack 2c — app identity (e.g. "clubapp"). Used
+     * — app identity (e.g. "clubapp"). Used
      * for marketing lookups + bundle filters.
      * Optional; if omitted, the new endpoints return empty lists.
      */

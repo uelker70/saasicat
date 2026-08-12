@@ -443,7 +443,7 @@ describe('PlanVersionsService — Lifecycle', () => {
         );
     });
 
-    // ──.1 rule 3 — gapless succession ──
+    // ── — gapless succession ──
     test('publishPlanVersion: gapless when predecessor has validUntil — successor must start the next day', async () => {
         const { versions, plan } = await setupWithPlan();
         const v1 = await versions.createPlanDraft({

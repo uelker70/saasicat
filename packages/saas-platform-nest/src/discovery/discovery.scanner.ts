@@ -8,7 +8,7 @@
 //      → DiscoveredCapability + cross-reference to DiscoveredQuota
 //   4. Aggregate: capabilities with the same `feature` → DiscoveredFeature.
 //      Bundles are NOT aggregated — they come exclusively from the
-//      SuperAdmin UI (DB table `bundles`,).
+//      SuperAdmin UI (DB table `bundles`).
 //   5. Canonical SHA256 hash over sorted snapshot data (ETag-stable)
 
 import { createHash } from 'node:crypto';

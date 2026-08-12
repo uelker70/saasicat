@@ -100,7 +100,7 @@ export function loadPlanCatalogFromString(
  *
  * Quota keys are deliberately NOT checked here — the source of truth is
  * the code (`@DefinesQuota`); the reconciliation runs at runtime via the
- * discovery snapshot (strict mode check,).
+ * discovery snapshot (strict mode check).
  *
  * **`plannedOnly: true` is NOT a block** for plan references. The flag
  * marks "listed in the catalog, not (yet) implemented in code" — plans

@@ -79,7 +79,7 @@ export interface CatalogModuleOptions {
     marketingProjectionRepository?: ProviderSpec<MarketingProjectionRepository>;
     /**
      * Adapter for `capability_/feature_/quota_catalog_entries` persistence
-     * (discovery review,). Optional — if omitted,
+     * (discovery review). Optional — if omitted,
      * CatalogEntriesService + controller are not registered.
      */
     catalogEntryRepository?: ProviderSpec<CatalogEntryRepository>;
@@ -105,7 +105,7 @@ export interface CatalogModuleOptions {
         vatRate: number;
     };
     /**
-     *.1 M6 (Pack 1) — adapter for `plans` master-record persistence.
+     * — adapter for `plans` master-record persistence.
      * Optional; if omitted, PlansService + controller are not
      * registered (apps without a need for the plan editor stay unchanged).
      */

@@ -103,7 +103,7 @@ export interface CapabilityCatalogEntryRow {
     removalPlannedAt: string | null;
     reason: string | null;
 
-    /** Locale translations (discovery translation tab,). */
+    /** Locale translations (discovery translation tab). */
     i18n: CatalogEntryI18n;
 
     sortOrder: number;
@@ -178,7 +178,7 @@ export interface FeatureCatalogEntryRow {
     /** true = base/always included (not bookable per plan). */
     core: boolean;
 
-    /** Locale translations (discovery translation tab,). */
+    /** Locale translations (discovery translation tab). */
     i18n: CatalogEntryI18n;
 
     sortOrder: number;

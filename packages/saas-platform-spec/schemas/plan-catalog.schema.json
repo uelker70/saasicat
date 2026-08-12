@@ -62,7 +62,7 @@
         "marketing": {
             "type": "object",
             "additionalProperties": false,
-            "description": "App-wide marketing configuration.",
+            "description": "App-wide marketing configuration..",
             "required": ["availableLocales"],
             "properties": {
                 "availableLocales": {

@@ -597,7 +597,7 @@ export class FakeBundleRepository implements BundleRepository {
         const existing = this.versions.get(versionId);
         if (!existing) throw new Error(`BundleVersion '${versionId}' not found`);
         // The service checks editability (draft or published-but-future,
-        //.1 M6 Pack 2c). The adapter only persists.
+        //). The adapter only persists.
         const updated: BundleVersionRow = {
             ...existing,
             features: data.features ?? existing.features,

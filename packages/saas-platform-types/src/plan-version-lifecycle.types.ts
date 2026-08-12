@@ -32,7 +32,7 @@ export interface CreatePlanVersionDraftData {
     monthlyNet: string;
     yearlyNet: string;
     marketed?: boolean;
-    /** Required on publish (contract protection P3,). */
+    /** Required on publish (contract protection P3). */
     changeNote?: string;
     /** Optional in the draft (required on publish). ISO date string. */
     validFrom?: string | null;

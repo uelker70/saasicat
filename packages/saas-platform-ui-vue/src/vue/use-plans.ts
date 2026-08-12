@@ -1,5 +1,5 @@
 // usePlans + usePlanVersions — Vue 3 composables for the SuperAdmin
-// plan management..1 M6:
+// plan management.:
 //   Pack 1 → usePlans (root CRUD)
 //   Pack 2a → usePlanVersions (draft/publish lifecycle)
 

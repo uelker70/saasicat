@@ -191,7 +191,7 @@ describe('computeSnapshotHash', () => {
 // ─────────────────────────────────────────────────────────────────
 // Scanner: aggregation capabilities → features
 // (Bundles are NOT aggregated — they come exclusively from the
-// SuperAdmin UI;.)
+// SuperAdmin UI.)
 // ─────────────────────────────────────────────────────────────────
 
 describe('DiscoveryScanner — capability/feature aggregation', () => {

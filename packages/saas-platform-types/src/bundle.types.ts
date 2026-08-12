@@ -159,7 +159,7 @@ export interface CreateBundleVersionDraftData {
 
 /**
  * Fields of a draft BundleVersion that may still be changed.
- * With.1 M6 Pack 2c also for published-but-future versions
+ * With also for published-but-future versions
  * (latest-in-chain, 0 subs, validFrom > now) — see
  * `isVersionEditable`.
  */
@@ -226,7 +226,7 @@ export interface PublishBundleVersionData {
 // =============================================================================
 
 /**
- * Code of a strict-mode violation..2 lists the eight rules
+ * Code of a strict-mode violation. lists the eight rules
  * that are checked; each rule has its own code so the UI can show
  * focused help texts.
  */

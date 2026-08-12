@@ -91,7 +91,7 @@ export class PublicMarketingCatalogService {
         const empty = { features: [], quotas: [] };
         // `findActivePlanVersion` is time-aware (validFrom/validUntil);
         // falls back to `findLatestLivePlanVersion` for adapters not yet
-        // raised to.2 (validity period).
+        // raised to (validity period).
         const findActive = this.planRepo.findActivePlanVersion?.bind(this.planRepo);
         const findLatest = this.planRepo.findLatestLivePlanVersion?.bind(this.planRepo);
         if (!findActive && !findLatest) {

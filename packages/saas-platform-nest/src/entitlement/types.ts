@@ -21,7 +21,7 @@ export interface PlanVersionSnapshot {
 
 /**
  * Snapshot of an active SubscriptionBundle booking (P11.7.3 +
- *.1 M6 Pack 2e). Resolved by the EntitlementService from the
+ *). Resolved by the EntitlementService from the
  * `subscription_bundles` junction + BundleRepository.findVersionById and
  * passed to `aggregateLimits`.
  *

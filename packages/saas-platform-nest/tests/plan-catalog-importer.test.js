@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { PlanCatalogImporterService } from '../dist/billing/index.js';
 
-//.1 M6 Pack 2c — plan importer tests.
+// — plan importer tests.
 //
 // FakeSink with an in-memory map; idempotency via primary-key match.
 

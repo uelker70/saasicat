@@ -1,7 +1,7 @@
 // PlanCatalogModule — NestJS module that provides the `PlanCatalog` as a
 // DI provider (consumers inject `PLAN_CATALOG_TOKEN`).
 //
-//.1 M6 Pack 2c (hard replace): the catalog is reconstructed
+// (hard replace): the catalog is reconstructed
 // from the DB (instead of from YAML). Apps pass through a
 // `PlanCatalogReadSink` + their static app-identity settings
 // (`projectKey`, `currency`, `vatRate`).

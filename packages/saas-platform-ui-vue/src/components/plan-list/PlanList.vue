@@ -486,8 +486,7 @@ const resolvedPlans = computed(() =>
 
 const filteredPlans = computed(() => {
     // Plans with only expired versions are hidden entirely
-    // (.1: only currently-valid + future ones stay visible
-    // in the admin listing).
+    // — only currently-valid and future ones stay visible in the admin listing.
     const base = resolvedPlans.value.filter((p) => !p.allExpired);
     const q = (search.value ?? '').trim().toLocaleLowerCase(intlLocale.value);
     if (!q) return base;

@@ -26,7 +26,6 @@ import { getMarketedPlans } from './plan-helpers.js';
 // PublicCatalogController — auth-free readable catalog for marketing,
 // onboarding and tenant self-service UIs.
 //
-//.1 M6 Pack 2c:
 //   - GET /billing/plans?locale=de: marketing merge optional (if a
 //     MarketingProjection repo + projectKey are configured)
 //   - GET /billing/bundles?locale=de: NEW (M6 Pack 2c)
@@ -54,7 +53,7 @@ interface PlanResponseEntry {
     popular: boolean;
     quotas: Record<string, number>;
     features: string[];
-    /**.1 M6 — optional, present if a MarketingProjection exists. */
+    /** — optional, present if a MarketingProjection exists. */
     marketing?: MarketingFields;
 }
 
@@ -159,7 +158,7 @@ export class PublicCatalogController {
     }
 
     /**
-     *.1 M6 Pack 2c — public catalog endpoint for bundles
+     * — public catalog endpoint for bundles
      * (stem list with live versions). If a `MarketingProjection` with
      * `targetType=BUNDLE` + matching locale exists, it is merged in.
      */

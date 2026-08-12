@@ -5,7 +5,7 @@
 // UI components consume this helper, so that the backend gate
 // and the frontend button-disabling stay congruent.
 //
-// Background: up to.1 M6 Pack 2c the rule was "publishedAt !== null →
+// Background: up to the rule was "publishedAt !== null →
 // immutable" (contract protection P1/P4). But that hard rule also prevents
 // later corrections to versions that are published but
 // not yet active and not yet sold — the typical case when

@@ -17,14 +17,14 @@ export const MARKETING_PROJECTION_REPOSITORY_TOKEN = Symbol.for(
 
 /**
  * Repository for `capability_catalog_entries`, `feature_catalog_entries`
- * and `quota_catalog_entries` (Discovery review,).
+ * and `quota_catalog_entries` (Discovery review).
  */
 export const CATALOG_ENTRY_REPOSITORY_TOKEN = Symbol.for('saas-platform/CatalogEntryRepository');
 
-/** Repository for `promotions` (time-scheduled price campaigns,). */
+/** Repository for `promotions` (time-scheduled price campaigns). */
 export const PROMOTION_REPOSITORY_TOKEN = Symbol.for('saas-platform/PromotionRepository');
 
-/** Repository for `marketing_settings` (activeLocales,). */
+/** Repository for `marketing_settings` (activeLocales). */
 export const MARKETING_SETTINGS_REPOSITORY_TOKEN = Symbol.for(
     'saas-platform/MarketingSettingsRepository',
 );

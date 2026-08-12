@@ -91,7 +91,7 @@ export const discoveryMessages = defineMessages(
             usageProvider: 'UsageProvider',
             usageProviderMissing: 'fehlt',
             noUsageProviderWarning:
-                'Eine harte Quota ohne UsageProvider ist nicht deploy-fähig (Preflight,).',
+                'Eine harte Quota ohne UsageProvider ist nicht deploy-fähig (Preflight).',
             outdatedBanner:
                 'Die code-abgeleiteten Quota-Fakten (Einheit/Enforcement/Provider) haben sich seit der letzten Freigabe geändert — bitte prüfen und',
         },
@@ -202,7 +202,7 @@ export const discoveryMessages = defineMessages(
             usageProvider: 'UsageProvider',
             usageProviderMissing: 'missing',
             noUsageProviderWarning:
-                'A hard quota without a UsageProvider is not deployable (preflight,).',
+                'A hard quota without a UsageProvider is not deployable (preflight).',
             outdatedBanner:
                 'The code-derived quota facts (unit/enforcement/provider) have changed since the last approval — please review and',
         },

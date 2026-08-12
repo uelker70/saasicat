@@ -25,7 +25,7 @@ import type {
  * point in time. Active = `canceledEffectiveAt === null` or
  * `canceledEffectiveAt > now`.
  *
- * Spec:.
+ * Spec:
  */
 export function filterActiveSubscriptionBundles(
     bundles: readonly SubscriptionBundleSnapshot[],

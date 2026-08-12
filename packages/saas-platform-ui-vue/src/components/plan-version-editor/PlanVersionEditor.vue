@@ -722,7 +722,7 @@ function emitSave(): void {
         features: [...form.features],
         // Persisted bundle selection = all fully active bundles. Derived from
         // the features so that `bundles` is always consistent with `features`
-        // (.1 / PlanVersionRow.bundles).
+        // (see PlanVersionRow.bundles).
         bundles: activeBundles.value.map((b) => b.bundleKey),
         quotas: { ...form.quotas },
         monthlyNet: form.monthlyNet,

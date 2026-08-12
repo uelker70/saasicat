@@ -193,8 +193,8 @@ const tab = ref<MarketingCatalogTab>('preview');
 const expandedKey = ref<string | null>(null);
 const activeLocale = ref<string>(availableLocales.value[0]);
 
-// LocaleManager — `availableLocales` is the allowed pool (app config,
-//.5), `activeLocaleSet` the runtime-activated subset.
+// LocaleManager — `availableLocales` is the allowed pool (app config),
+// `activeLocaleSet` the runtime-activated subset.
 // Persisted via `/admin/catalog/marketing-settings` (MarketingSettings).
 const defaultLocale = computed(() => availableLocales.value[0]);
 const activeLocaleSet = ref<string[]>([...availableLocales.value]);
