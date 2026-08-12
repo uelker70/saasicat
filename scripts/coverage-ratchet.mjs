@@ -86,6 +86,32 @@ const SLACK = 0.5;
 const SUMMARY = /^ℹ all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/m;
 
 /**
+ * Newest modification time anywhere below `dir`, or 0 when it does not exist.
+ *
+ * Used to tell a current build from a stale one. Checking only that `dist/`
+ * exists answers the wrong question: a build from before the last edit exists
+ * just as much as a fresh one, and the numbers it produces describe a program
+ * nobody is running.
+ */
+function newestMtime(dir) {
+    let newest = 0;
+    const walk = (d) => {
+        for (const entry of readdirSync(d)) {
+            const full = join(d, entry);
+            const stat = statSync(full);
+            if (stat.isDirectory()) walk(full);
+            else newest = Math.max(newest, stat.mtimeMs);
+        }
+    };
+    try {
+        walk(dir);
+    } catch {
+        return 0;
+    }
+    return newest;
+}
+
+/**
  * Collects test files without a shell.
  *
  * `spawn(..., { shell: true })` with arguments concatenates them into a command
@@ -123,11 +149,21 @@ function measure(pkg) {
     // Only packages that HAVE a build step are checked: @saasicat/spec ships
     // hand-written entry files at its package root and never produces a dist/.
     const manifest = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
-    if (manifest.scripts?.build && !existsSync(join(cwd, 'dist'))) {
-        throw new Error(
-            `${pkg} has no dist/ — run \`pnpm -r build\` first. Coverage is measured on the ` +
-                `built output, so a missing or stale build produces numbers for a different program.`,
-        );
+    if (manifest.scripts?.build) {
+        const dist = join(cwd, 'dist');
+        if (!existsSync(dist)) {
+            throw new Error(
+                `${pkg} has no dist/ — run \`pnpm -r build\` first. Coverage is measured on the ` +
+                    `built output, so a missing build produces numbers for a different program.`,
+            );
+        }
+        if (newestMtime(join(cwd, 'src')) > newestMtime(dist)) {
+            throw new Error(
+                `${pkg}'s dist/ is older than its src/ — run \`pnpm -r build\` first. Measuring a ` +
+                    `stale build hides a regression just as easily as it invents one, and ` +
+                    `\`--update\` would write the thresholds down for the wrong program.`,
+            );
+        }
     }
 
     const result = spawnSync(
