@@ -8,8 +8,6 @@
 // bundle supplies standard repositories. Individual modules remain available
 // as the escape hatch.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P1.
-//
 // Whoever needs more control (multiple manifest controllers, differing guards
 // per endpoint, custom catalog adapters etc.) keeps using the individual modules
 // directly — this mega-module is a convenience, not a requirement.
@@ -19,6 +17,7 @@ import {
     type DynamicModule,
     type FactoryProvider,
     type ForwardReference,
+    Logger,
     Module,
     type Provider,
     type Type,
@@ -460,6 +459,16 @@ export interface SaasPlatformModuleOptions {
      */
     globalFeatureGuard?: boolean;
 }
+
+/**
+ * Boot-time diagnostics for configurations that leave enforcement inert.
+ *
+ * These conditions do not break anything visibly — they make `@RequireFeature`
+ * and `@EnforceQuota` stop blocking, so annotated routes serve everyone and
+ * every quota reads as unlimited. Without a log line the first signal is a
+ * customer using a feature they never bought.
+ */
+const PLATFORM_LOGGER = new Logger('SaaSiCat');
 
 const PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN = Symbol.for(
     'saas-platform-nest/PlatformSubscriptionRepository',
@@ -1140,6 +1149,28 @@ export class SaasPlatformModule {
                 StaticFeatureGuard,
                 EnforceQuotaInterceptor,
                 QUOTA_PROVIDERS_TOKEN,
+            );
+
+            if (options.globalFeatureGuard === false) {
+                PLATFORM_LOGGER.warn(
+                    'globalFeatureGuard is off — the platform did NOT bind StaticFeatureGuard ' +
+                        'as an APP_GUARD. @RequireFeature only blocks on routes where you bound a ' +
+                        'feature guard yourself, behind your auth guard: ' +
+                        '@UseGuards(JwtAuthGuard, StaticFeatureGuard), or FeatureGuard from ' +
+                        '@saasicat/nest/billing on the V3 entitlement path. Any annotated route ' +
+                        'without one serves unlicensed traffic.',
+                );
+            }
+        } else {
+            // Reaching here means `@RequireFeature`/`@EnforceQuota` are inert:
+            // no plan resolver, no fallback plan, so the static entitlement
+            // stack is never registered. Silence used to be the failure mode —
+            // annotated routes served everyone and nothing said so.
+            PLATFORM_LOGGER.warn(
+                'No plan resolver configured — @RequireFeature and @EnforceQuota are INERT. ' +
+                    'The platform registered neither StaticFeatureGuard nor EnforceQuotaInterceptor, ' +
+                    'so every annotated route serves unlicensed traffic and every quota is unlimited. ' +
+                    'Set one of: adapters.planResolver, defaultPlanId, or tenantBilling.',
             );
         }
 
