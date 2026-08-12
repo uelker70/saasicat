@@ -5,7 +5,6 @@
 //   - POST /billing/onboarding/initial-subscription  (TenantBillingController,
 //     one-time onboarding step: plan + bundles + optional promo)
 //
-// Spec reference: handoff/superadmin/OPEN_ISSUES.md §Onboarding-Konfigurator
 // (Phase 1).
 
 import type { BillingCycle } from './promo-code.types.js';

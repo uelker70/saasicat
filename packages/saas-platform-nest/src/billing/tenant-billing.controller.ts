@@ -97,7 +97,7 @@ interface UsageResponse {
     limits: ReturnType<typeof toEffectiveLimitsSnapshot>;
     usage: Record<string, number>;
     /**
-     * P11.4 (METAMODELL §17a): Frozen package snapshot from the
+     * P11.4: Frozen package snapshot from the
      * `CheckoutOffer` that was activated during onboarding. Read-only
      * for the tenant self-service UI. `null` for subscriptions without
      * a CheckoutOffer origin.

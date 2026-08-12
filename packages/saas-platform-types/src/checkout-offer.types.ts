@@ -1,5 +1,5 @@
 // CheckoutOffer — immutable package snapshot from the website through to the
-// subscription (METAMODELL §17a).
+// subscription.
 //
 // On a package click on the pricing page a CheckoutOffer is created; its
 // `id` travels as `?offer=<id>` into onboarding. There the tenant may

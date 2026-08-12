@@ -35,16 +35,16 @@ export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
         //   System: audit
         standardPages: {
             dashboard: { enabled: true, requiredCapability: 'dashboard.read' },
-            // SPEC_V2 §3.3 — discovery snapshot of the running backend.
+            //.3 — discovery snapshot of the running backend.
             // Apps must set `discovery.read` in their manifest capabilities
             // to `true` so that the NavBuilder wires the page into the
             // sidebar; otherwise it is filtered out automatically.
             discovery: { enabled: true, requiredCapability: 'discovery.read' },
-            // SPEC_V2 §11.1 M3 — Bundle editor in SuperAdmin.
+            //.1 M3 — Bundle editor in SuperAdmin.
             // Apps with a DB-driven catalog set `bundles.read = true`.
             bundles: { enabled: true, requiredCapability: 'bundles.read' },
             plans: { enabled: true, requiredCapability: 'plans.read' },
-            // SPEC_V2 §11.1 M3 — marketing catalog (locale pivot).
+            //.1 M3 — marketing catalog (locale pivot).
             // Apps that market a public catalog set
             // `marketingProjections.read = true`.
             marketingCatalog: {

@@ -3,7 +3,6 @@
 // `SaaSiCatModule` is the preferred branded alias. `SaasPlatformModule`
 // remains exported for compatibility.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P1.
 
 export {
     SaasPlatformModule,

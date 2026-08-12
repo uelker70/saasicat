@@ -15,7 +15,6 @@
 //   4. **`platform.admin-manifest`** — `AdminManifestService.getManifest()`
 //      returns without an exception.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P12.
 
 import { Inject, Injectable, type Type } from '@nestjs/common';
 import {

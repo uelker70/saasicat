@@ -6,7 +6,6 @@
 // `SaasPlatformModule.forRoot({ tenantManifest: { controller: {...} } })`
 // the default is `controller: { guards: [JwtAuthGuard] }`.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
 import {
     type CanActivate,

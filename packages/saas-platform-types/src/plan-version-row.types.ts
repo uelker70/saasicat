@@ -43,7 +43,7 @@ export interface PlanVersionRow extends VersionedEntityBase {
     monthlyNet: string;
     yearlyNet: string;
     marketed: boolean;
-    // validFrom / validUntil are part of VersionedEntityBase (SPEC_V2 §4.2).
+    // validFrom / validUntil are part of VersionedEntityBase.
 
     /**
      * End date explicitly set by the SuperAdmin for a live PlanVersion.

@@ -1,4 +1,4 @@
-// PromotionsController — REST endpoints for `promotions` (SPEC_V2 §9a).
+// PromotionsController — REST endpoints for `promotions`.
 // Path: `/admin/catalog/promotions`. Built at boot time like BundlesController
 // so that the consumer determines the guards.
 

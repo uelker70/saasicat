@@ -1,5 +1,4 @@
 // Preflight — platform-side pure function for `yada app preflight`
-// (SPEC_V2 §8.3 + §10).
 //
 // Compares the **entire DB catalog** (all live plans, bundles,
 // bundles) against the discovery snapshot of the running backend.

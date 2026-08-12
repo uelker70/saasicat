@@ -1,4 +1,4 @@
-// DTOs for `PromotionsController` (SPEC_V2 §9a).
+// DTOs for `PromotionsController`.
 
 import {
     IsArray,

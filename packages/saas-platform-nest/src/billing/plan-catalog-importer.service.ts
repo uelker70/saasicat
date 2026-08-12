@@ -1,5 +1,4 @@
 // PlanCatalogImporterService — one-shot import `saas.yaml → DB`
-// (SPEC_V2 §11.1 M6 Pack 2c).
 //
 // Reads a `saas.yaml` (as a string or via a loader file), validates it
 // against the platform schema and calls the app-specific
@@ -21,7 +20,7 @@ import { loadPlanCatalogFromString } from './plan-catalog-loader.js';
 
 export const PLAN_CATALOG_IMPORT_SINK_TOKEN = Symbol.for('saas-platform/PlanCatalogImportSink');
 
-const IMPORT_CHANGE_NOTE = 'Initial import from saas.yaml (SPEC_V2 §11.1 M6 Pack 2c)';
+const IMPORT_CHANGE_NOTE = 'Initial import from saas.yaml';
 
 @Injectable()
 export class PlanCatalogImporterService {

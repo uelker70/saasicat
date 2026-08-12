@@ -88,7 +88,7 @@ export const marketingMessages = defineMessages(
         promotionsTab: {
             title: 'Aktionen & Rabatte',
             subtitle:
-                'Zeitlich begrenzte Preis-Aktionen — überschreiben den regulären Preis auf der Pricing-Page (SPEC_V2 §9a).',
+                'Zeitlich begrenzte Preis-Aktionen — überschreiben den regulären Preis auf der Pricing-Page.',
             add: '+ Aktion anlegen',
             timelineHead: 'Aktions-Timeline · gestrichelt = heute',
             today: 'heute',
@@ -219,7 +219,7 @@ export const marketingMessages = defineMessages(
         promotionsTab: {
             title: 'Promotions & discounts',
             subtitle:
-                'Time-limited price promotions — they override the regular price on the pricing page (SPEC_V2 §9a).',
+                'Time-limited price promotions — they override the regular price on the pricing page.',
             add: '+ Create promotion',
             timelineHead: 'Promotion timeline · dashed = today',
             today: 'today',

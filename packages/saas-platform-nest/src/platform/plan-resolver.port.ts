@@ -7,7 +7,6 @@
 // (with SubscriptionContract) the full `EntitlementService` takes over the
 // resolution — the `PlanResolverPort` is then obsolete.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P7+P9.
 
 export const PLAN_RESOLVER_PORT_TOKEN = Symbol.for('saas-platform-nest/PlanResolverPort');
 

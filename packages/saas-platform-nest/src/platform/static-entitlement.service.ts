@@ -8,7 +8,6 @@
 //     (a standalone service in the billing/entitlement sub-entry that
 //      handles the full contract/bundle aggregation).
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P7+P9.
 
 import { Inject, Injectable } from '@nestjs/common';
 import type { PlanCatalog, PlanDef } from '@saasicat/types';

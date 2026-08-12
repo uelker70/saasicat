@@ -7,8 +7,6 @@ import {
     StubRlsBypassPort,
 } from '../dist/testing/index.js';
 
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P13.
-
 describe('createSaasPlatformTestModule', () => {
     test('returns a DynamicModule with a test host', () => {
         const dyn = createSaasPlatformTestModule({

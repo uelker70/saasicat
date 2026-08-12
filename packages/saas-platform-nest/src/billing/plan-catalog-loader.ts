@@ -100,12 +100,12 @@ export function loadPlanCatalogFromString(
  *
  * Quota keys are deliberately NOT checked here — the source of truth is
  * the code (`@DefinesQuota`); the reconciliation runs at runtime via the
- * discovery snapshot (strict mode check, SPEC_V2 §8).
+ * discovery snapshot (strict mode check,).
  *
  * **`plannedOnly: true` is NOT a block** for plan references. The flag
  * marks "listed in the catalog, not (yet) implemented in code" — plans
  * may carry the feature as a roadmap marker. Activation protection lives in
- * `getActiveFeatureKeys` (filter from entitlements). SPEC_V2 §8.2.
+ * `getActiveFeatureKeys` (filter from entitlements)..
  *
  * The loader collects all violations and throws them bundled — so an
  * editor sees all errors at once and does not need twelve round-trips.

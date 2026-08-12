@@ -6,7 +6,7 @@ import type {
 } from '../checkout-offer.types.js';
 
 // =============================================================================
-// CheckoutOffer — persistence adapter (METAMODELL §17a — bundle snapshot)
+// CheckoutOffer — persistence adapter (bundle snapshot)
 // =============================================================================
 
 /**

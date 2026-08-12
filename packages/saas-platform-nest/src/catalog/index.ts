@@ -1,5 +1,5 @@
 // @saasicat/nest/catalog — Bundle/Marketing editor
-// for SuperAdmin (SPEC_V2 §11.1 M3).
+// for SuperAdmin.
 //
 // Included in M3.1:
 //   - BundlesService (CRUD for Bundle + BundleVersion with strict-mode check)

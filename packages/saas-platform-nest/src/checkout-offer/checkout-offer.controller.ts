@@ -1,5 +1,5 @@
 // CheckoutOfferController — REST endpoints for the package snapshot
-// (METAMODELL §17a). Path: `/public/checkout-offer`.
+//. Path: `/public/checkout-offer`.
 //
 // The endpoints are **auth-free** — the offer is created before the tenant
 // is provisioned (the website visitor is not logged in yet). The consumer

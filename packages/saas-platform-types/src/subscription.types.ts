@@ -78,7 +78,7 @@ export interface VersionedEntityBase {
     /** Computed on publish. */
     nonRegressive: boolean;
     /**
-     * From when this version is active for *new* bookings (SPEC_V2 §4.2).
+     * From when this version is active for *new* bookings.
      * null = draft (no date yet). Required on publish; must lie strictly after
      * the `validFrom` of the predecessor version.
      */
@@ -120,7 +120,7 @@ export interface VersionedEntityBase {
 
 /**
  * SubscriptionBundle — wire format of the `subscription_bundles` junction
- * (SPEC_V2 §11.1 M6 Pack 2e). Models a **standalone** bundle booking of a
+ *. Models a **standalone** bundle booking of a
  * subscription, analogous to the plan booking; bundles are maintained with
  * their own minimum term + their own cancellation (user requirement from
  * P11.7.3).

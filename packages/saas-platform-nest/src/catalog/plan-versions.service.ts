@@ -1,4 +1,4 @@
-// PlanVersionsService — PlanVersion lifecycle (SPEC_V2 §11.1 M6 Pack 2a + 3a).
+// PlanVersionsService — PlanVersion lifecycle (.1 M6 Pack 2a + 3a).
 //
 // Structurally analogous to BundlesService' version operations:
 // listVersions/getVersion/createDraft/updateDraft/publish, with
@@ -336,13 +336,13 @@ export class PlanVersionsService {
 
         const previous = await this.repo.findLatestLivePlanVersion!(draft.planId);
 
-        // ─── validFrom (required at publish, SPEC_V2 §4.2) ───
+        // ─── validFrom (required at publish,) ───
         const validFromInput = publishMeta.validFrom ?? draft.validFrom;
         if (!validFromInput) {
             throw new UnprocessableEntityException({
                 code: CATALOG_ERROR_CODES.PLAN_VERSION_VALID_FROM_REQUIRED,
                 message:
-                    'validFrom must be set when publishing (on the draft or the publish call). SPEC_V2 §4.2.',
+                    'validFrom must be set when publishing (on the draft or the publish call)..',
             });
         }
         const validFrom = new Date(validFromInput);
@@ -365,7 +365,7 @@ export class PlanVersionsService {
                     },
                 });
             }
-            // SPEC_V2 §4.2.1 rule 3 (extended): gapless succession when
+            //.1 rule 3 (extended): gapless succession when
             // the predecessor already carries a `validUntil`. Then the
             // successor must connect seamlessly on the following day — otherwise
             // there is either a gap (no valid version) or an

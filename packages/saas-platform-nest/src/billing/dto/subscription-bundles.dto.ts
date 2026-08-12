@@ -1,4 +1,4 @@
-// DTOs for `TenantSubscriptionBundlesController` (SPEC_V2 §11.1 M6 Pack 2e,
+// DTOs for `TenantSubscriptionBundlesController` (
 // P11.7.3). class-validator validation at the HTTP boundary.
 
 import { IsInt, IsOptional, IsUUID, Matches, Max, Min } from 'class-validator';

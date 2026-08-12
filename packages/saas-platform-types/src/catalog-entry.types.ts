@@ -103,7 +103,7 @@ export interface CapabilityCatalogEntryRow {
     removalPlannedAt: string | null;
     reason: string | null;
 
-    /** Locale translations (discovery translation tab, SPEC_V2 §6.3). */
+    /** Locale translations (discovery translation tab,). */
     i18n: CatalogEntryI18n;
 
     sortOrder: number;
@@ -170,7 +170,7 @@ export interface FeatureCatalogEntryRow {
 
     /**
      * `true` = the feature is planned in the SuperAdmin plan but not yet
-     * implemented in the code. The blocking strict-mode check (SPEC_V2 §8.1)
+     * implemented in the code. The blocking strict-mode check
      * rejects plan publish with `plannedOnly` features.
      */
     plannedOnly: boolean;
@@ -178,7 +178,7 @@ export interface FeatureCatalogEntryRow {
     /** true = base/always included (not bookable per plan). */
     core: boolean;
 
-    /** Locale translations (discovery translation tab, SPEC_V2 §6.3). */
+    /** Locale translations (discovery translation tab,). */
     i18n: CatalogEntryI18n;
 
     sortOrder: number;
@@ -194,7 +194,7 @@ export interface FeatureCatalogEntryRow {
 /**
  * SuperAdmin projection of a code-declared quota (`@DefinesQuota`).
  * Carries the review status as well as deploy relevance: a hard quota
- * without `usageProvider` is not deployable (SPEC_V2 §6.3, Preflight).
+ * without `usageProvider` is not deployable (Preflight).
  */
 export interface QuotaCatalogEntryRow {
     id: string;

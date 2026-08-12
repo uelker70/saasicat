@@ -19,7 +19,6 @@
 // { path: '/x',   component: XPage,   meta: { requiresFeature: ['DMS', 'STORAGE_PRO'] } }
 // ```
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P8.
 
 import type { NavigationGuardWithThis, RouteLocationNormalized } from 'vue-router';
 import type { UseEntitlementResult } from './use-entitlement.js';

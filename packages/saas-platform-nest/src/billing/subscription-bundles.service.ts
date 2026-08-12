@@ -1,5 +1,5 @@
 // SubscriptionBundlesService — domain layer over the
-// `subscription_bundles` junction (SPEC_V2 §11.1 M6 Pack 2e, P11.7.3).
+// `subscription_bundles` junction.
 //
 // Responsibilities:
 //   1. `addBundleToSubscription`: checks bundle existence + publication

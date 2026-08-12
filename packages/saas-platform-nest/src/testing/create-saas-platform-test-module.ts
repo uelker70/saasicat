@@ -23,7 +23,6 @@
 // const ent = moduleRef.get(StaticEntitlementService);
 // ```
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P13.
 
 import { Module, type DynamicModule, type Type } from '@nestjs/common';
 import type { PlanCatalog, QuotaProvider } from '@saasicat/types';

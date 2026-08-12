@@ -7,8 +7,6 @@ import {
     provideEntitlement,
 } from '../dist/index.js';
 
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P8.
-
 function fakeEntitlement({ features = [], loading = false, snapshot = {} } = {}) {
     return {
         entitlement: ref(snapshot),

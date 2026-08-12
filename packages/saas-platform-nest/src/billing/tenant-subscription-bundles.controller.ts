@@ -1,5 +1,5 @@
 // TenantSubscriptionBundlesController — tenant self-service endpoints for
-// the `subscription_bundles` junction (SPEC_V2 §11.1 M6 Pack 2e, P11.7.3).
+// the `subscription_bundles` junction.
 //
 // Routes under `/billing/subscription-bundles`:
 //   - `GET    /` → list of own bundle bookings (all, including canceled)

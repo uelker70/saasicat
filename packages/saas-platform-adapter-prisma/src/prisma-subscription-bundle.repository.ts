@@ -32,7 +32,7 @@ interface SubscriptionBundleClient {
 
 /**
  * `SubscriptionBundleRepository` against the canonical `subscription_bundles`
- * junction (SPEC_V2 §11.1 M6 Pack 2e). Dumb persistence: domain constraints
+ * junction. Dumb persistence: domain constraints
  * (plan compatibility, minimum-term default, cancellation-window computation)
  * live in the platform's `SubscriptionBundlesService`; `add`/`cancel` here only
  * write what they are handed. "Active" is `canceledAt IS NULL OR

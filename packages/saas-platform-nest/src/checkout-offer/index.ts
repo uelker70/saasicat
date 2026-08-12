@@ -1,5 +1,5 @@
 // @saasicat/nest/checkout-offer — package snapshot across website →
-// onboarding → billing (METAMODELL §17a).
+// onboarding → billing.
 
 export { CheckoutOfferService } from './checkout-offer.service.js';
 export { buildCheckoutOfferController } from './checkout-offer.controller.js';

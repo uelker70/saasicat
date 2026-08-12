@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { PlansService, PlanVersionsService } from '../dist/catalog/index.js';
 import { FakePlanRepository } from '../dist/testing/index.js';
 
-// PlansService — plan-root CRUD (SPEC_V2 §11.1 M6 Pack 1).
+// PlansService — plan-root CRUD.
 // PlanVersion lifecycle is explicitly not part of this package (follows in Pack 2).
 
 const PROJECT = 'clubapp';

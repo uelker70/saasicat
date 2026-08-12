@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { promoStatus, pickActivePromo, applyPromo } from '../dist/index.js';
 
-// Promotion pure functions (SPEC_V2 §9a) — shared between the public catalog
+// Promotion pure functions — shared between the public catalog
 // backend and the UI preview.
 
 const TODAY = new Date('2026-05-17T12:00:00Z');

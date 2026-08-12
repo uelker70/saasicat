@@ -1,5 +1,5 @@
 // MarketingSettingsController — `/admin/catalog/marketing-settings`
-// (SPEC_V2 §6.5). Built at boot time, like BundlesController.
+//. Built at boot time, like BundlesController.
 
 import {
     Body,

@@ -106,7 +106,7 @@ export interface PrismaBundleRepositoryOptions {
 
 /**
  * `BundleRepository` against the canonical `bundles` + `bundle_versions`
- * tables (SPEC_V2 §5 + §11.1 M3). Versioning mirrors `PlanVersion`: at most one
+ * tables. Versioning mirrors `PlanVersion`: at most one
  * draft (`publishedAt IS NULL`) per bundle, monotonically incrementing
  * `version`, `supersededAt` marking the previous live version on publish.
  *

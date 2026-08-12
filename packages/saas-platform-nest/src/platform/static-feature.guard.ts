@@ -9,7 +9,6 @@
 // heavyweight `FeatureGuard` from billing/feature.guard.ts, so that switching
 // from static → V3 preserves the behavior.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P7+P9.
 
 import {
     CanActivate,

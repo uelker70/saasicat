@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { CheckoutOfferService } from '../dist/checkout-offer/index.js';
 
 // CheckoutOfferService — package snapshot website → onboarding → billing
-// (METAMODELL §17a). Test against an in-memory fake.
+//. Test against an in-memory fake.
 
 const PRICE = {
     currency: 'EUR',

@@ -10,7 +10,6 @@
 // `EntitlementService.enforceLimit(...)` remains the preferable path as an
 // imperative API.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P7.
 
 import {
     type CallHandler,

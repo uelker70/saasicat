@@ -48,7 +48,7 @@
                     "items": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
                     "minItems": 1,
                     "uniqueItems": true,
-                    "description": "Locales allowed by the app catalog (saas.yaml marketing.availableLocales). First = default. SPEC_V2 §6.5."
+                    "description": "Locales allowed by the app catalog (saas.yaml marketing.availableLocales). First = default."
                 },
                 "defaultLocale": {
                     "type": "string",

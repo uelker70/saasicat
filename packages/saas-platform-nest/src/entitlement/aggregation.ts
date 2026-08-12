@@ -25,7 +25,7 @@ import type {
  * point in time. Active = `canceledEffectiveAt === null` or
  * `canceledEffectiveAt > now`.
  *
- * Spec: SPEC_V2 §11.1 M6 Pack 2e + P11.7.3.
+ * Spec:.
  */
 export function filterActiveSubscriptionBundles(
     bundles: readonly SubscriptionBundleSnapshot[],

@@ -4,7 +4,7 @@
 // Consumers inject their adapter implementations via these tokens
 // into `CatalogModule.forRoot({...})`.
 
-/** Repository for `plans` (SPEC_V2 §11.1 M6 — Plan master CRUD). */
+/** Repository for `plans` (Plan master CRUD). */
 export const PLAN_REPOSITORY_TOKEN = Symbol.for('saas-platform/PlanRepository');
 
 /** Repository for `bundles` + `bundle_versions`. */
@@ -17,14 +17,14 @@ export const MARKETING_PROJECTION_REPOSITORY_TOKEN = Symbol.for(
 
 /**
  * Repository for `capability_catalog_entries`, `feature_catalog_entries`
- * and `quota_catalog_entries` (Discovery review, SPEC_V2 §6.3).
+ * and `quota_catalog_entries` (Discovery review,).
  */
 export const CATALOG_ENTRY_REPOSITORY_TOKEN = Symbol.for('saas-platform/CatalogEntryRepository');
 
-/** Repository for `promotions` (time-scheduled price campaigns, SPEC_V2 §9a). */
+/** Repository for `promotions` (time-scheduled price campaigns,). */
 export const PROMOTION_REPOSITORY_TOKEN = Symbol.for('saas-platform/PromotionRepository');
 
-/** Repository for `marketing_settings` (activeLocales, SPEC_V2 §6.5). */
+/** Repository for `marketing_settings` (activeLocales,). */
 export const MARKETING_SETTINGS_REPOSITORY_TOKEN = Symbol.for(
     'saas-platform/MarketingSettingsRepository',
 );

@@ -33,7 +33,7 @@ export function buildPublicMarketingCatalogController(
         ) {}
 
         /**
-         * `?lang=de|tr|en` — alias `locale` accepted (SPEC_V2 §9).
+         * `?lang=de|tr|en` — alias `locale` accepted.
          * `?asOf=YYYY-MM-DD` — preview of a future or past catalog variant.
          *   Default = today. Returns the PlanVersion whose `validFrom`/`validUntil`
          *   span `asOf` inclusively by day (the validUntil day still counts,

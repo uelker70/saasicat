@@ -8,8 +8,6 @@ import {
     buildTenantManifestController,
 } from '../dist/platform/index.js';
 
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
-
 const CATALOG = {
     schemaVersion: 1,
     projectKey: 'app',

@@ -1,7 +1,7 @@
 // Active-PlanVersion WHERE builder — pure function, NestJS-/Prisma-free.
 //
 // Single source of truth for the time window of the PlanVersion active at
-// `asOf` (SPEC_V2 §4.2). Consumed by the Prisma adapters of all consumer
+// `asOf`. Consumed by the Prisma adapters of all consumer
 // apps (Plan and PlanVersion repository), which spread the result next to
 // their `planId` filter in `findFirst({ where })`.
 //

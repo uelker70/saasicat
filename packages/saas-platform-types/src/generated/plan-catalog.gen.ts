@@ -48,7 +48,7 @@ export interface PlanCatalog {
      */
     vatRate: number;
     /**
-     * App-wide marketing configuration. SPEC_V2 §6.5.
+     * App-wide marketing configuration.
      */
     marketing?: {
         /**

@@ -327,7 +327,7 @@ export interface RegistrationConfigSelection {
     billingCycle: 'MONTHLY' | 'YEARLY';
     appliedPromoCode: string | null;
     /**
-     * P11.4 (METAMODELL §17a): preselected CheckoutOffer from the website
+     * P11.4: preselected CheckoutOffer from the website
      * (`?offer=<id>` parameter). Moves into `PendingRegistration.configJson`,
      * is read by the `ActivationOrchestrator` to consume the offer during
      * onboarding activation (`status=consumed`) and freeze it into

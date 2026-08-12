@@ -1,4 +1,4 @@
-// DTOs for the CheckoutOffer controller (METAMODELL §17a).
+// DTOs for the CheckoutOffer controller.
 
 import {
     IsArray,

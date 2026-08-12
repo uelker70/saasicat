@@ -3,7 +3,6 @@
 // menu items/routes declaratively from the backend — analogous to the
 // AdminManifest, but for the tenant user UI.
 //
-// Spec: handoff/superadmin/QUICKSTART_SIMPLIFICATIONS.md §P14.
 
 export interface TenantNavItem {
     /** Unique slug, e.g. "notes", "billing", "settings". */

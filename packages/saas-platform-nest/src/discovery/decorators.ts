@@ -45,7 +45,7 @@ export interface ImplementsCapabilityMetadata extends ImplementsCapabilityOption
  * - `status` controls visibility/lifecycle (default `active`).
  * - `kind` declares the implementation kind (default `endpoint`).
  *
- * **Bundles are deliberately NOT declared in the decorator** (SPEC_V2 §3.1).
+ * **Bundles are deliberately NOT declared in the decorator**.
  * They are created exclusively in the SuperAdmin UI (DB table `bundles`),
  * by the admin grouping features there.
  *

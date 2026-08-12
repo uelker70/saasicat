@@ -597,7 +597,7 @@ export class FakeBundleRepository implements BundleRepository {
         const existing = this.versions.get(versionId);
         if (!existing) throw new Error(`BundleVersion '${versionId}' not found`);
         // The service checks editability (draft or published-but-future,
-        // SPEC_V2 §11.1 M6 Pack 2c). The adapter only persists.
+        //.1 M6 Pack 2c). The adapter only persists.
         const updated: BundleVersionRow = {
             ...existing,
             features: data.features ?? existing.features,
@@ -795,7 +795,7 @@ export class FakeMarketingProjectionRepository implements MarketingProjectionRep
 }
 
 // =============================================================================
-// FakePlanRepository — in-memory `Plan` master (SPEC_V2 §11.1 M6, Pack 1).
+// FakePlanRepository — in-memory `Plan` master.
 // =============================================================================
 
 export class FakePlanRepository implements PlanRepository {
@@ -919,7 +919,7 @@ export class FakePlanRepository implements PlanRepository {
         }
     }
 
-    // ─── Lifecycle (SPEC_V2 §11.1 M6 Pack 2a) ───
+    // ─── Lifecycle ───
     // Binding Plan ↔ PlanVersion: PlanVersion.planId === Plan.planKey
     // (soft string reference). Lifecycle methods take planKey
     // as input — the service resolves the plan UUID beforehand.
