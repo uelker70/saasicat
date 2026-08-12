@@ -124,6 +124,13 @@ test.describe('design-token visual baselines', () => {
             await expect(page.locator('#visual-error')).toHaveCount(0);
             await expect(page.locator('#visual-root')).toHaveCount(1);
 
+            // Surfaces that only exist once something is opened. `click()`
+            // already waits for the element, so a selector that stops matching
+            // fails the case instead of quietly baselining the closed state.
+            for (const selector of visualCase.revealBy ?? []) {
+                await page.locator(selector).first().click();
+            }
+
             const styles = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
 
             expect(styles.length, `${visualCase.id} rendered nothing to measure`).toBeGreaterThan(

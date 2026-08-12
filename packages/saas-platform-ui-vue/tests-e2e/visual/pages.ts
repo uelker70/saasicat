@@ -1,9 +1,10 @@
 import type { Component } from 'vue';
 
 import type { PlatformEmailProvider } from '../../src/pages-standard/platform-email.types.js';
+import type { BundleVersionRow } from '@saasicat/types';
 import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
 import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
-import { FIXTURE_BUNDLES } from './fixture-data.js';
+import { FIXTURE_BUNDLES, FIXTURE_BUNDLE_VERSIONS } from './fixture-data.js';
 
 // The roster the baselines cover, and what each page needs to render its real
 // chrome instead of an empty frame or an error banner.
@@ -32,6 +33,16 @@ export interface VisualCase {
      * and the baseline covers the happy path rather than an error state.
      */
     props?: (ctx: CaseContext) => Record<string, unknown>;
+    /**
+     * CSS selectors to click before the styles are collected, in order.
+     *
+     * Some surfaces only exist once something is opened — a bundle's version
+     * controls and inline editor sit behind its row. Without a click the
+     * baseline covers the collapsed card and nothing else, so a regression in
+     * exactly the surfaces the case was added for leaves the snapshot
+     * untouched.
+     */
+    revealBy?: readonly string[];
 }
 
 export const VISUAL_CASES: readonly VisualCase[] = [
@@ -304,12 +315,14 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             create: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
             update: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
             softDelete: async () => {},
-            loadVersions: async () => [],
+            loadVersions: async (): Promise<BundleVersionRow[]> => FIXTURE_BUNDLE_VERSIONS,
             createDraft: async () => ({ version: {}, warnings: [] }),
             updateDraft: async () => ({ version: {}, warnings: [] }),
             publish: async () => ({ version: {}, warnings: [] }),
             classifyDiff: () => ({ kind: 'NON_REGRESSIVE', changes: [] }),
         }),
+        // Opens the bundle so its version controls and inline editor render.
+        revealBy: ['.sa-bd-card__head'],
     },
 ];
 

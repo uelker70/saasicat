@@ -7,7 +7,13 @@
 //
 // Every id, date and number is fixed. Nothing here may derive from the clock.
 
-import type { AdminManifest, BundleRow, PlanRow } from '@saasicat/types';
+import type {
+    AdminManifest,
+    BundleRow,
+    BundleVersionRow,
+    PlanRow,
+    PlanVersionRow,
+} from '@saasicat/types';
 
 export const FIXTURE_MANIFEST: AdminManifest = {
     schemaVersion: 1,
@@ -143,6 +149,72 @@ export const FIXTURE_PLANS: PlanRow[] = [
 ];
 
 /**
+ * The live version behind `FIXTURE_PLANS[0]`.
+ *
+ * Required because the routing table matches on longest prefix: without an
+ * entry of its own, `/catalog/plans/pl-1/versions` falls through to the plans
+ * collection and the page consumes a `PlanRow` as a `PlanVersionRow`. That
+ * used to be harmless only because the collection was empty.
+ */
+export const FIXTURE_PLAN_VERSIONS: PlanVersionRow[] = [
+    {
+        id: 'plv-1',
+        planId: 'pl-1',
+        version: 3,
+        baseVersionId: 'plv-0',
+        features: ['notes.export', 'notes.share'],
+        bundles: ['STARTER_PACK'],
+        quotas: { notes: 500, storageGb: 5 },
+        monthlyNet: '49.00',
+        yearlyNet: '490.00',
+        marketed: true,
+        publishedAt: '2026-02-10T09:00:00.000Z',
+        supersededAt: null,
+        publishedChanges: null,
+        changeNote: 'Raised the note quota.',
+        nonRegressive: true,
+        validFrom: '2026-03-01T00:00:00.000Z',
+        validUntil: null,
+        createdByUserId: 'u-1',
+        publishedByUserId: 'u-1',
+        createdAt: '2026-01-05T09:00:00.000Z',
+        updatedAt: '2026-02-10T09:00:00.000Z',
+        isLatestInChain: true,
+    },
+];
+
+/** Same story for the bundle: its version controls only render with one. */
+export const FIXTURE_BUNDLE_VERSIONS: BundleVersionRow[] = [
+    {
+        id: 'bv-1',
+        bundleId: 'b-1',
+        bundleKey: 'STARTER_PACK',
+        label: 'Starter Pack',
+        version: 2,
+        baseVersionId: 'bv-0',
+        features: ['notes.export'],
+        quotas: { notes: 100 },
+        compatibility: {},
+        pricingOverrides: [],
+        marketed: true,
+        monthlyNet: '9.00',
+        yearlyNet: '90.00',
+        publishedAt: '2026-02-10T09:00:00.000Z',
+        supersededAt: null,
+        publishedChanges: null,
+        changeNote: 'Added export.',
+        nonRegressive: true,
+        validFrom: '2026-03-01T00:00:00.000Z',
+        validUntil: null,
+        createdByUserId: 'u-1',
+        publishedByUserId: 'u-1',
+        createdAt: '2026-01-05T09:00:00.000Z',
+        updatedAt: '2026-02-10T09:00:00.000Z',
+        isLatestInChain: true,
+    },
+];
+
+/**
  * Longest-prefix routing table. Order matters: `/catalog/plans/…` must win over
  * `/catalog/plans`.
  */
@@ -155,6 +227,8 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/subscriptions', EMPTY_LIST],
     ['/api/admin/discovery', DISCOVERY],
     ['/api/admin/catalog/plans/tenant-counts', {}],
+    ['/api/admin/catalog/plans/pl-1/versions', FIXTURE_PLAN_VERSIONS],
+    ['/api/admin/catalog/bundles/b-1/versions', FIXTURE_BUNDLE_VERSIONS],
     ['/api/admin/catalog/features', []],
     ['/api/admin/catalog/quotas', []],
     ['/api/admin/catalog/plans', FIXTURE_PLANS],
