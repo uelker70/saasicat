@@ -36,3 +36,6 @@ npm-debug.log
 
 # jscpd duplication report (see .jscpd.json)
 .jscpd-report/
+
+# Internal planning notes — not part of the published project
+handoff/
