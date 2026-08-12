@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 // A reference a reader cannot follow is worse than no reference: it implies a
 // rule exists somewhere and hides where. This test keeps them out.
 
-const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /** Documents that only ever existed in the private planning repo. */
 const FORBIDDEN = [

@@ -263,4 +263,54 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
         assert.equal(await guard(makeRoute('/admin')), '/login');
         assert.deepEqual(logouts, ['logout', 'logout']);
     });
+    test('concurrent navigations on one rejection share the login redirect', async () => {
+        // Two protected navigations can overlap, and `ensureLoaded()` hands
+        // both the SAME in-flight promise — so both reject with the identical
+        // error. Counting that as two attempts spent the one-shot re-login on
+        // a single expiry and sent the newer navigation to the error page.
+        const rejection = Object.assign(new Error('HTTP 401'), { status: 401 });
+        let inflight = null;
+        const guard = buildNavigationGuard({
+            authGuard: {
+                isAuthenticated: () => true,
+                onUnauthenticated: () => '/login',
+            },
+            manifestGuard: {
+                ensureLoaded: () => {
+                    // Mirrors createManifestStore(): one shared promise.
+                    inflight ??= Promise.reject(rejection);
+                    return inflight;
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+
+        const [first, second] = await Promise.all([
+            guard(makeRoute('/admin')),
+            guard(makeRoute('/admin/tenants')),
+        ]);
+
+        assert.equal(first, '/login');
+        assert.equal(second, '/login', 'the second waiter must not fail closed on the same 401');
+    });
+
+    test('a later, different rejection still fails closed', async () => {
+        // The one-shot budget has to survive: a fresh failure after the login
+        // attempt is a new error object and must reach the error page.
+        const guard = buildNavigationGuard({
+            authGuard: {
+                isAuthenticated: () => true,
+                onUnauthenticated: () => '/login',
+            },
+            manifestGuard: {
+                ensureLoaded: () => {
+                    return Promise.reject(Object.assign(new Error('HTTP 401'), { status: 401 }));
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+
+        assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.equal(await guard(makeRoute('/admin')), '/admin-error');
+    });
 });

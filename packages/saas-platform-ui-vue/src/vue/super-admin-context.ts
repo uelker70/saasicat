@@ -246,6 +246,9 @@ export function buildNavigationGuard(
     // Cleared as soon as any navigation gets through, so a later expiry is
     // handled again — see the loop note below.
     let redirectedForUnauthorized = false;
+    // The rejection that redirect belonged to, so concurrent waiters on the
+    // same in-flight manifest request are not mistaken for a second attempt.
+    let handledRejection: unknown = null;
 
     return async (to: RouteLocationNormalized) => {
         if (to.meta?.public === true) return true;
@@ -261,6 +264,7 @@ export function buildNavigationGuard(
             try {
                 await manifestGuard.ensureLoaded();
                 redirectedForUnauthorized = false;
+                handledRejection = null;
             } catch (err) {
                 // A 401/403 is usually an expired or missing session, not a
                 // broken manifest. Sending it to the fail-closed error page
@@ -279,9 +283,22 @@ export function buildNavigationGuard(
                 // an unbreakable loop: log in → /admin → 401 → logged out →
                 // /login. The second time we fail closed to the error page
                 // instead, which at least says something and keeps the session.
-                if (authGuard && isUnauthorizedError(err) && !redirectedForUnauthorized) {
-                    redirectedForUnauthorized = true;
-                    return authGuard.onUnauthenticated();
+                //
+                // "Once" means once per REJECTION, not once per guard call.
+                // Two protected navigations can overlap, and `ensureLoaded()`
+                // hands both of them the same in-flight promise — so both land
+                // here with the identical error object. Counting that as two
+                // attempts would send the second, newer navigation to the
+                // error page over an ordinary expired session. Comparing the
+                // error identity keeps concurrent waiters on one destination,
+                // while a genuinely new failure after the login attempt is a
+                // different object and does fail closed.
+                if (authGuard && isUnauthorizedError(err)) {
+                    if (!redirectedForUnauthorized || err === handledRejection) {
+                        redirectedForUnauthorized = true;
+                        handledRejection = err;
+                        return authGuard.onUnauthenticated();
+                    }
                 }
 
                 if (manifestGuard.errorRoute && to.path !== manifestGuard.errorRoute) {

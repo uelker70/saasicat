@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 // repo and only breaks for someone who installed the package. This test looks
 // from the outside.
 
-const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PACKAGES_DIR = join(REPO_ROOT, 'packages');
 
 function packagesWithExports() {
