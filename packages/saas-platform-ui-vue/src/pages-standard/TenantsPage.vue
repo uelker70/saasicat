@@ -530,32 +530,10 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 </script>
 
 <style scoped>
-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    min-width: 800px;
-}
-thead tr {
-    background: #fafbfc;
-}
-th {
-    padding: 10px 14px;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
-    text-transform: uppercase;
-    text-align: left;
-}
-td {
-    padding: 11px 14px;
-    vertical-align: middle;
-    border-top: 1px solid var(--sa-border-soft, var(--sa-border-soft));
-}
-.num {
-    text-align: right;
-}
+/* No table rules here on purpose: the list is an `AdminTable`, and a scoped
+   style cannot reach a child component's DOM without `:deep()`. The `table`,
+   `thead`, `th`, `td` and `.num` rules that used to sit here were left over
+   from before that migration and had not applied to anything since. */
 .sa-tenants__mono {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
     font-size: 12px;
