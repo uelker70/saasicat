@@ -118,6 +118,27 @@ function newestMtime(dir) {
 }
 
 /**
+ * Newest timestamp among everything the build reads.
+ *
+ * Not just `src/`: the bundler config and the build script itself decide what
+ * ends up in `dist/`, so editing `tsup.config.ts` or a `build` script produces
+ * a different program from unchanged sources — and a src-only comparison would
+ * call the old bundle current.
+ *
+ * `tsconfig.json` counts too: it drives the declarations that ship.
+ */
+function newestBuildInput(cwd) {
+    const files = ['package.json', 'tsup.config.ts', 'tsup.cjs.config.ts', 'tsconfig.json'];
+    return Math.max(
+        newestMtime(join(cwd, 'src')),
+        ...files.map((f) => {
+            const full = join(cwd, f);
+            return existsSync(full) ? statSync(full).mtimeMs : 0;
+        }),
+    );
+}
+
+/**
  * Collects test files without a shell.
  *
  * `spawn(..., { shell: true })` with arguments concatenates them into a command
@@ -163,9 +184,10 @@ function measure(pkg) {
                     `built output, so a missing build produces numbers for a different program.`,
             );
         }
-        if (newestMtime(join(cwd, 'src')) > newestMtime(dist)) {
+        if (newestBuildInput(cwd) > newestMtime(dist)) {
             throw new Error(
-                `${pkg}'s dist/ is older than its src/ — run \`pnpm -r build\` first. Measuring a ` +
+                `${pkg}'s dist/ is older than its sources or its build config — run \`pnpm -r build\` ` +
+                    `first. Measuring a ` +
                     `stale build hides a regression just as easily as it invents one, and ` +
                     `\`--update\` would write the thresholds down for the wrong program.`,
             );
