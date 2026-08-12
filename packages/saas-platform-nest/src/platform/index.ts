@@ -43,6 +43,7 @@ export {
     type StaticFeatureGuardConfig,
 } from './static-feature.guard.js';
 export { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from './enforce-quota.interceptor.js';
+export { FeatureGuardCoverageCheck } from './feature-guard-coverage.check.js';
 // ─────────────────────────────────────────────────────────────────────────
 // Re-exported from THIS entry on purpose.
 //
