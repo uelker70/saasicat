@@ -412,15 +412,12 @@
 </template>
 
 <script setup lang="ts">
-import AdminKpi from '../admin-page/AdminKpi.vue';
-import AdminStatistics from '../admin-page/AdminStatistics.vue';
 import { resolvePlans, type ResolvedPlan } from '../../client/resolve-plans.js';
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
-import AdminSection from '../admin-page/AdminSection.vue';
 
 // PlanList — list view of all plans (default view in PlansPage,
 // corresponds to the ListScreen from the plan simulation). One row per
@@ -489,7 +486,7 @@ const resolvedPlans = computed(() =>
 
 const filteredPlans = computed(() => {
     // Plans with only expired versions are hidden entirely
-    // (SPEC_V2 §4.2.1: only currently-valid + future ones stay visible
+    // (.1: only currently-valid + future ones stay visible
     // in the admin listing).
     const base = resolvedPlans.value.filter((p) => !p.allExpired);
     const q = (search.value ?? '').trim().toLocaleLowerCase(intlLocale.value);

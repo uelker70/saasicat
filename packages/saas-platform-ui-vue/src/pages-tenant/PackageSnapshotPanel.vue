@@ -108,7 +108,7 @@ import { computed, ref } from 'vue';
 import type { PackageSnapshotShape } from '../vue/use-tenant-billing.js';
 import type { TenantPlanSectionI18n } from './default-i18n.js';
 
-// PackageSnapshotPanel — P11.4 (METAMODELL §17a):
+// PackageSnapshotPanel — P11.4:
 // Read-only display of `Subscription.packageSnapshot`. Shows the
 // tenant the frozen website offer (offer snapshot) — plan,
 // bundles, prices, capture timestamp. No actions, no diff against

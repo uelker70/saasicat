@@ -64,8 +64,8 @@
                     :usage="usage"
                     :i18n="effectiveI18n"
                     :catalog-quota-keys="catalogQuotaKeys"
-                    :quota-label="quotaLabel"
-                    :is-fractional-quota="isFractionalQuota"
+                    :quota-label="quotaLabelResolved"
+                    :is-fractional-quota="isFractionalQuotaResolved"
                     :usage-bar-formatter="usageBarFormatter"
                 />
 
@@ -179,11 +179,11 @@
                 :catalog-quota-keys="catalogQuotaKeys"
                 :format-currency="formatCurrency"
                 :format-date="formatDate"
-                :format-quota-label="formatQuotaLabel"
+                :format-quota-label="formatQuotaLabelResolved"
                 :format-quota-value="formatQuotaValue"
-                :quota-label="quotaLabel"
+                :quota-label="quotaLabelResolved"
                 :feature-label="featureLabelResolved"
-                :is-fractional-quota="isFractionalQuota"
+                :is-fractional-quota="isFractionalQuotaResolved"
                 :preview-plan-change="previewPlanChange"
                 :change-plan="changePlan"
                 :i18n="wizardI18n"
@@ -478,30 +478,22 @@ const wizardI18n = computed(() => ({
 }));
 
 // Helper hooks with defaults
-function quotaLabel(key: string): string {
+function quotaLabelResolved(key: string): string {
     return props.quotaLabel?.(key) ?? key;
 }
 
-function featureLabel(key: string): string {
+function featureLabelFromProps(key: string): string {
     return props.featureLabel?.(key) ?? key;
 }
 
-function isFractionalQuota(key: string): boolean {
+function isFractionalQuotaResolved(key: string): boolean {
     return props.isFractionalQuota?.(key) ?? key.toLowerCase().includes('storage');
 }
 
-function formatDate(input: string | Date): string {
-    return props.formatDate(input);
-}
-
-function formatCurrency(n: number): string {
-    return props.formatCurrency(n);
-}
-
-function formatQuotaLabel(key: string, value: number): string {
+function formatQuotaLabelResolved(key: string, value: number): string {
     if (props.formatQuotaLabel) return props.formatQuotaLabel(key, value);
-    if (value === -1) return `${quotaLabel(key)}: ∞`;
-    return `${value} ${quotaLabel(key)}`;
+    if (value === -1) return `${quotaLabelResolved(key)}: ∞`;
+    return `${value} ${quotaLabelResolved(key)}`;
 }
 
 function usageBarFormatter(key: string): ((value: number) => string) | undefined {
@@ -596,7 +588,7 @@ async function onConfirmBundlePreview() {
 // Feature label with registry translation (#18): the registry label takes
 // precedence, then the consumer hook, and finally the raw key.
 function featureLabelResolved(key: string): string {
-    return catalog.featureRegistry.value?.[key]?.label ?? featureLabel(key);
+    return catalog.featureRegistry.value?.[key]?.label ?? featureLabelFromProps(key);
 }
 
 // Mutation handlers

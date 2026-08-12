@@ -1,5 +1,5 @@
 <!--
-  MarketingCatalogPage — marketing catalog for SuperAdmin (SPEC_V2 §11.1 M3).
+  MarketingCatalogPage — marketing catalog for SuperAdmin.
 
   Public marketing projection per plan: filtered view for website,
   pricing page and checkout. Two tabs:
@@ -194,7 +194,7 @@ const expandedKey = ref<string | null>(null);
 const activeLocale = ref<string>(availableLocales.value[0]);
 
 // LocaleManager — `availableLocales` is the allowed pool (app config,
-// SPEC_V2 §6.5), `activeLocaleSet` the runtime-activated subset.
+//.5), `activeLocaleSet` the runtime-activated subset.
 // Persisted via `/admin/catalog/marketing-settings` (MarketingSettings).
 const defaultLocale = computed(() => availableLocales.value[0]);
 const activeLocaleSet = ref<string[]>([...availableLocales.value]);
@@ -284,7 +284,7 @@ const promotionsApi = usePromotions({
 });
 
 // Catalog entries (features + quotas with i18n) — provides the translated
-// labels for the top-features editor (SPEC_V2 §6.3 + §6.5).
+// labels for the top-features editor.
 const catalogEntriesApi = useCatalogEntries({
     adminEndpoint: props.adminEndpoint,
     projectKey: props.projectKey,
@@ -423,7 +423,7 @@ function publishedVersionsOf(plan: PlanRow): PlanVersionRow[] {
 }
 
 /**
- * Version active as of `asOf` (SPEC_V2 §4.2): `validFrom <= asOf` and
+ * Version active as of `asOf`: `validFrom <= asOf` and
  * (`validUntil == null OR validUntil > asOf`). Default is the version
  * active today. Fallback when no `validFrom` data is maintained:
  * highest version.
@@ -619,7 +619,7 @@ function formatEuro(value: number): string {
     return formatCurrency(Math.round(value * 100) / 100, locale.value);
 }
 
-// ─── Promo application in the preview (SPEC_V2 §9a) ───
+// ─── Promo application in the preview ───
 const promoToday = new Date();
 function promoOf(row: MarketingRow): PromotionRow | null {
     return pickActivePromo(
@@ -675,7 +675,7 @@ function ctaValue(raw: string): string | null {
 function suggestionsFor(row: MarketingRow): FeatureSuggestion[] {
     if (!row.liveVersion) return [];
     const usedKeys = new Set(editFeatures.value.map((f) => f.key).filter((k): k is string => !!k));
-    const fromFeatures: FeatureSuggestion[] = row.liveVersion.features.map((key: any) => ({
+    const fromFeatures: FeatureSuggestion[] = row.liveVersion.features.map((key) => ({
         key,
         label: resolveComponentLabel(key),
         strong: '',

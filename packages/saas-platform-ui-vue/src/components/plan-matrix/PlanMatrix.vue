@@ -35,7 +35,7 @@
                                         ⋯
                                     </button>
                                 </div>
-                                <div class="pm-plan-desc">{{ p.description || ' ' }}</div>
+                                <div class="pm-plan-desc">{{ p.description || NBSP }}</div>
                                 <div class="pm-plan-divider" />
 
                                 <div class="pm-status-row">
@@ -141,8 +141,8 @@
                                     <button
                                         class="sa-btn sa-btn--sm sa-btn--ghost"
                                         type="button"
-                                        @click="$emit('clonePlan', p.plan)"
                                         :aria-label="msg.matrix.clonePlan"
+                                        @click="$emit('clonePlan', p.plan)"
                                     >
                                         <svg
                                             width="12"
@@ -376,6 +376,13 @@
 import AdminKpi from '../admin-page/AdminKpi.vue';
 import AdminStatistics from '../admin-page/AdminStatistics.vue';
 import { computed } from 'vue';
+
+/**
+ * Placeholder for an empty plan description. A non-breaking space keeps the
+ * row height stable across the matrix columns; written as an escape because a
+ * literal U+00A0 is invisible in a diff.
+ */
+const NBSP = '\u00A0';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';

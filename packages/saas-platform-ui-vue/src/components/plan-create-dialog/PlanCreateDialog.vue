@@ -1,9 +1,9 @@
 <template>
     <q-dialog
         :model-value="modelValue"
-        @update:model-value="$emit('update:modelValue', $event)"
         persistent
         :no-shake="true"
+        @update:model-value="$emit('update:modelValue', $event)"
     >
         <div class="pcd-modal" role="dialog" aria-labelledby="pcd-title">
             <div class="pcd-head">
@@ -51,9 +51,9 @@
                     <div class="pcd-field">
                         <div class="pcd-field-label">{{ msg.createDialog.labelDisplayName }}</div>
                         <input
+                            v-model="form.label"
                             class="pcd-input"
                             :placeholder="msg.createDialog.placeholderDisplayName"
-                            v-model="form.label"
                         />
                         <div class="pcd-hint">{{ msg.createDialog.hintDisplayName }}</div>
                     </div>
@@ -62,10 +62,10 @@
                 <div class="pcd-field">
                     <div class="pcd-field-label">{{ common.description }}</div>
                     <textarea
+                        v-model="form.description"
                         class="pcd-input pcd-input--textarea"
                         rows="2"
                         :placeholder="msg.createDialog.placeholderDescription"
-                        v-model="form.description"
                     />
                 </div>
 

@@ -144,6 +144,11 @@
                         <path d="M12 9v4M12 17h.01" />
                     </svg>
                 </span>
+                <!-- Checklist labels come from the i18n catalog, where one
+                     entry (`checklistTenantImpact`) emphasises the affected
+                     tenant count with a bold span. Both interpolated values are
+                     numbers the platform computed, never request data. -->
+                <!-- eslint-disable-next-line vue/no-v-html -->
                 <span v-html="item.label" />
             </div>
         </div>

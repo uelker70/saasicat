@@ -130,7 +130,7 @@
                     "
                     :loading="submitting"
                     :disable="!canSubmit"
-                    @click="submit"
+                    @click="onSubmit"
                 />
             </q-card-actions>
         </q-card>
@@ -246,7 +246,7 @@ function close(): void {
     open.value = false;
 }
 
-async function submit(): Promise<void> {
+async function onSubmit(): Promise<void> {
     if (!canSubmit.value) return;
     submitting.value = true;
     try {

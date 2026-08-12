@@ -41,7 +41,7 @@
                         <TenantMasterData
                             :data="data"
                             :labels="labels"
-                            :format-date="formatDate"
+                            :format-date="formatDateResolved"
                             :yes="common.yes"
                             :no="common.no"
                         >
@@ -182,7 +182,7 @@ function defaultFormatDate(value: string | null | undefined): string {
     return String(value).slice(0, 10);
 }
 
-function formatDate(value: string | null | undefined): string {
+function formatDateResolved(value: string | null | undefined): string {
     return props.formatDate ? props.formatDate(value) : defaultFormatDate(value);
 }
 

@@ -100,11 +100,7 @@ import PlanGrid from '../components/plan/PlanGrid.vue';
 import PublicBundleGrid from '../components/plan/PublicBundleGrid.vue';
 import PromoCodeInput from '../components/plan/PromoCodeInput.vue';
 import PriceSummary from '../components/plan/PriceSummary.vue';
-import {
-    useSubscriptionDraft,
-    type PromoState,
-    type SubscriptionDraft,
-} from '../vue/use-subscription-draft.js';
+import { useSubscriptionDraft, type SubscriptionDraft } from '../vue/use-subscription-draft.js';
 import type { CatalogPlan } from '../vue/use-tenant-billing-catalog.js';
 import type { BillingCycleStr } from '../vue/use-tenant-billing.js';
 import type {

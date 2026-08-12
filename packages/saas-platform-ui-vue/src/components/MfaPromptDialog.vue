@@ -1,8 +1,8 @@
 <template>
     <q-dialog
         :model-value="modelValue"
-        @update:model-value="emit('update:modelValue', $event)"
         persistent
+        @update:model-value="emit('update:modelValue', $event)"
     >
         <q-card class="mfa-card">
             <q-card-section class="header">
@@ -23,15 +23,21 @@
                     :error-message="error"
                 />
                 <slot name="hint">
+                    <!-- `setupHint` is markup the hosting app authored in its
+                         own source (typically a link to its MFA setup docs). It
+                         never carries request data, and an app that wants full
+                         control over the node uses the `hint` slot instead. -->
+                    <!-- eslint-disable vue/no-v-html -->
                     <div
                         v-if="setupHint"
                         class="text-caption text-grey-7 q-mt-xs"
                         v-html="setupHint"
                     />
+                    <!-- eslint-enable vue/no-v-html -->
                 </slot>
             </q-card-section>
             <q-card-actions align="right">
-                <q-btn flat :label="common.cancel" v-close-popup />
+                <q-btn v-close-popup flat :label="common.cancel" />
                 <q-btn
                     unelevated
                     color="amber-9"

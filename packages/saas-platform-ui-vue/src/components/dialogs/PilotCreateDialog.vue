@@ -1,8 +1,8 @@
 <template>
     <q-dialog
         :model-value="modelValue"
-        @update:model-value="emit('update:modelValue', $event)"
         persistent
+        @update:model-value="emit('update:modelValue', $event)"
     >
         <q-card class="pl-dlg">
             <q-card-section class="pl-dlg__head">
@@ -11,12 +11,12 @@
                     <div class="pl-dlg__sub">{{ subtitle ?? msg.createDialog.subtitle }}</div>
                 </div>
                 <q-btn
+                    v-close-popup
                     class="pl-dlg__close"
                     flat
                     dense
                     round
                     icon="close"
-                    v-close-popup
                     :disable="loading"
                 />
             </q-card-section>
@@ -237,7 +237,7 @@
                     <q-icon name="send" size="14px" />
                     {{ msg.createDialog.invitationHint }} <strong>{{ form.admin.email }}</strong>
                 </span>
-                <q-btn flat :label="common.cancel" v-close-popup :disable="loading" />
+                <q-btn v-close-popup flat :label="common.cancel" :disable="loading" />
                 <q-btn
                     unelevated
                     color="primary"

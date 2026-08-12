@@ -1,8 +1,8 @@
 <template>
     <q-dialog
         :model-value="modelValue"
-        @update:model-value="emit('update:modelValue', $event)"
         persistent
+        @update:model-value="emit('update:modelValue', $event)"
     >
         <q-card class="pc-dlg">
             <q-card-section class="pc-dlg__head">
@@ -11,22 +11,22 @@
                     <div class="pc-dlg__sub">{{ subtitle ?? msg.createDialog.subtitle }}</div>
                 </div>
                 <q-btn
+                    v-close-popup
                     class="pc-dlg__close"
                     flat
                     dense
                     round
                     icon="close"
-                    v-close-popup
                     :disable="loading"
                 />
             </q-card-section>
 
             <q-card-section class="pc-dlg__body">
                 <PromoCodeDialogFields
-                    mode="create"
-                    :form="form"
                     v-model:code="form.code"
                     v-model:advanced-open="advancedOpen"
+                    mode="create"
+                    :form="form"
                     :show-campaign-tag="showCampaignTag"
                     :plans="plans"
                 />
@@ -35,7 +35,7 @@
             </q-card-section>
 
             <q-card-actions align="right" class="pc-dlg__foot">
-                <q-btn flat :label="common.cancel" v-close-popup :disable="loading" />
+                <q-btn v-close-popup flat :label="common.cancel" :disable="loading" />
                 <q-btn
                     unelevated
                     color="primary"

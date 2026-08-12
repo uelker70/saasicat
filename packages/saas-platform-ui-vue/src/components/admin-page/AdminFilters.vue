@@ -7,7 +7,6 @@
 </template>
 
 <script setup lang="ts">
-import { useSlots } from 'vue';
-
-const slots = useSlots();
+// Layout-only: the filter row is a flex container around whatever the page
+// puts in it. No script state — the inputs are the page's, not ours.
 </script>

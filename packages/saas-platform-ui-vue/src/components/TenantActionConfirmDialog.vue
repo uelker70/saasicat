@@ -1,8 +1,8 @@
 <template>
     <q-dialog
         :model-value="modelValue"
-        @update:model-value="emit('update:modelValue', $event)"
         persistent
+        @update:model-value="emit('update:modelValue', $event)"
     >
         <q-card class="tenant-action-confirm">
             <q-card-section class="header">

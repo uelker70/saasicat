@@ -1,4 +1,15 @@
 <template>
+    <!-- This block writes into the `form` prop, which both dialogs create as a
+         `reactive()` object and hand down; the type is named
+         `PromoCodeSharedForm` for exactly that reason. A deliberate shared-state
+         contract, not an oversight.
+
+         It is still the wrong shape: the field block cannot be reused with a
+         one-way owner, and the two dialogs around it are 115 lines of clone.
+         Both are replaced by `AdminFormDialog` + `AdminFieldGrid`, which own the
+         submit lifecycle instead of sharing a mutable object. Until then the
+         rule stays sharp everywhere else rather than being weakened repo-wide. -->
+    <!-- eslint-disable vue/no-mutating-props -->
     <!-- Section: Code & Discount -->
     <div class="pc-section">
         <div class="pc-section__title">{{ msg.form.sectionCodeDiscount }}</div>
@@ -353,11 +364,14 @@ function isPlanSelected(key: string): boolean {
 }
 
 function togglePlan(key: string): void {
+    // Same shared-`form` contract as the template above (see the comment there).
+    /* eslint-disable vue/no-mutating-props */
     if (props.form.appliesToPlans.includes(key)) {
         props.form.appliesToPlans = props.form.appliesToPlans.filter((k) => k !== key);
     } else {
         props.form.appliesToPlans = [...props.form.appliesToPlans, key];
     }
+    /* eslint-enable vue/no-mutating-props */
 }
 
 function planChipStyle(p: PromoCodePlanOption): Record<string, string> {

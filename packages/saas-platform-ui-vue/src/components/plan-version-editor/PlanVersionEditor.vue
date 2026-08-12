@@ -456,7 +456,7 @@ const yearlySavingsLabel = computed(() => {
 // ── Validation ──────────────────────────────────────────────────────
 
 // "Gültig ab" must be strictly after the "Gültig ab" of the predecessor
-// version — otherwise the version timeline is wrong (SPEC_V2 §4.2.1).
+// version — otherwise the version timeline is wrong.
 // ISO date strings (YYYY-MM-DD) are lexicographically comparable.
 const validFromError = computed<string | null>(() => {
     const prev = props.predecessorVersion;
@@ -722,7 +722,7 @@ function emitSave(): void {
         features: [...form.features],
         // Persisted bundle selection = all fully active bundles. Derived from
         // the features so that `bundles` is always consistent with `features`
-        // (SPEC_V2 §6.1 / PlanVersionRow.bundles).
+        // (.1 / PlanVersionRow.bundles).
         bundles: activeBundles.value.map((b) => b.bundleKey),
         quotas: { ...form.quotas },
         monthlyNet: form.monthlyNet,
