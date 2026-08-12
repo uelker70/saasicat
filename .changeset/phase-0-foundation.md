@@ -23,6 +23,26 @@ re-login exactly once: a consumer's `onUnauthenticated` typically clears the
 session, so a manifest that keeps rejecting for a reason logging in cannot
 fix would otherwise produce an unbreakable login loop.
 
+**Signing out did not sign anyone out.** Both platform affordances are
+reached through components every consumer mounts as bare route records:
+`AdminLayout` at `/admin` and `AdminManifestErrorPage` at `/admin-error`.
+A route record attaches no props and no listeners, so the layout's
+`emit('logout')` reached nobody at all, and the error page's fallback only
+called `router.replace('/login')`. Since `isAuthenticated()` reads a token
+out of storage, the session survived and the next navigation to `/admin`
+walked straight back in — the operator saw a login form and was still
+signed in. `SuperAdminLoginAdapter` gained an optional `logout()`, and both
+components now end the session through it before navigating; apps that pass
+`@logout` or `onLogout` keep full control, and an app that supplies neither
+gets a console warning rather than silence.
+
+**The fail-closed page was a dead end.** Its retry reloaded `/admin-error`
+in place — a route that is `meta.public` by necessity, so the navigation
+guard returns before it ever reaches `ensureLoaded()`. The manifest was
+never fetched again and the operator stayed stuck even after the backend
+recovered. Retry now boots into a guarded route (`retryPath`, default
+`/admin`).
+
 **Requests bypassing the HttpClient seam.** Three call sites used a bare
 `fetch()`, dropping the Authorization header the app registered via
 `createSuperAdminApp({ http })`. One of them was unreachable code that

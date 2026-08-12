@@ -153,6 +153,61 @@ describe('pages mounted by createAdminRoutes()', () => {
     });
 });
 
+describe('AdminManifestErrorPage retry', () => {
+    /**
+     * The retry has to leave this route to have any effect.
+     *
+     * `/admin-error` is `meta.public` — it must be, or the manifest guard would
+     * redirect to itself. But that also means the guard returns early for it and
+     * never calls `ensureLoaded()`. A reload in place therefore re-renders the
+     * same error forever, including after the backend has come back: the button
+     * looks like a way out and is a dead end.
+     */
+    test('boots into a guarded route rather than reloading the public error route', async () => {
+        const assign = vi.fn();
+        vi.spyOn(window, 'location', 'get').mockReturnValue({
+            ...window.location,
+            assign,
+            reload: () => {
+                throw new Error('reload() cannot re-run the manifest guard from a public route');
+            },
+        } as unknown as Location);
+
+        const router = makeRouter();
+        const wrapper = mountWithQuasar(AdminManifestErrorPage, {
+            global: { provide: SHELL_CONTEXT, plugins: [router] },
+        });
+
+        await wrapper.findAll('button')[0].trigger('click');
+
+        expect(assign).toHaveBeenCalledTimes(1);
+        const target = String(assign.mock.calls[0][0]);
+
+        expect(target, 'retry must not land back on the fail-closed page').not.toContain(
+            '/admin-error',
+        );
+        expect(publicPathsOfAdminRoutes(), 'retry target must run through the guard').not.toContain(
+            target,
+        );
+
+        wrapper.unmount();
+    });
+
+    /**
+     * Reads the `meta.public` route paths out of `create-admin-routes.ts`.
+     *
+     * Source-based on purpose: the point is that the retry target and the
+     * public-route list cannot drift apart silently. Comparing against a
+     * hardcoded list here would just move the drift into this file.
+     */
+    function publicPathsOfAdminRoutes(): string[] {
+        const factory = readFileSync(resolve(SRC_DIR, 'vue', 'create-admin-routes.ts'), 'utf8');
+        return [...factory.matchAll(/path:\s*'([^']+)'[\s\S]{0,220}?meta:\s*\{\s*public:\s*true/g)]
+            .map((match) => match[1])
+            .filter((path) => path.startsWith('/'));
+    }
+});
+
 describe('AdminManifestErrorPage without callbacks', () => {
     test('its buttons are wired to handlers, never to a possibly-undefined prop', () => {
         // The original defect was `@click="onRetry"` with `onRetry` a required

@@ -80,6 +80,17 @@ export interface SuperAdminLoginAdapter {
      */
     login(email: string, password: string): Promise<SuperAdminLoginResult>;
     /**
+     * Undoes what `login` established — token, session storage, app store.
+     *
+     * Whoever knows how to start a session is the only one who knows how to
+     * end it, so it belongs next to `login` rather than in a second seam. The
+     * platform's own sign-out affordances call it; without it they can only
+     * navigate to `/login`, and an app whose `isAuthenticated()` reads a
+     * surviving token lets the operator straight back in — a sign-out button
+     * that does not sign out.
+     */
+    logout?(): void | Promise<void>;
+    /**
      * Target route after a successful login. Default: `/admin/dashboard`
      * (platform convention for the standard pages — apps with a different
      * default mount override this here).

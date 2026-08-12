@@ -66,6 +66,17 @@ export function isAuthenticated(): boolean {
 }
 
 /**
+ * Ends the session `adminLogin` started.
+ *
+ * `isAuthenticated()` above reads exactly this key, so leaving it in place
+ * would make every sign-out a no-op: the next navigation to `/admin` passes
+ * the guard again.
+ */
+export function adminLogout(): void {
+    localStorage.removeItem(SESSION_KEY);
+}
+
+/**
  * Token provider for the platform loaders. The demo backend reads headers
  * rather than a bearer token, so there is nothing to hand out.
  */

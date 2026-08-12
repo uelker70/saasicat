@@ -12,7 +12,8 @@ import { defineConfig } from 'tsup';
 // `dist/testing-e2e/*.d.ts` after the declaration build had emitted them,
 // which left `package.json#exports` pointing its `types` condition at files
 // that did not exist. Cleaning happens once, before tsup, in the `build`
-// script.
+// script — via `node -e fs.rmSync` rather than `rm -rf`, which does not exist
+// on a Windows `cmd.exe` and would fail the build before tsup ever starts.
 export default defineConfig([
     {
         entry: {

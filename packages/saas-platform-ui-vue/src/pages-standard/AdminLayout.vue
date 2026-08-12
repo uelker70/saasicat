@@ -24,7 +24,7 @@
                         <div class="text-body2 text-weight-semibold">{{ userName }}</div>
                         <div class="text-caption sa-admin-user__email">{{ userEmail }}</div>
                     </div>
-                    <q-btn flat round dense icon="logout" size="sm" @click="emit('logout')">
+                    <q-btn flat round dense icon="logout" size="sm" @click="onLogoutClick">
                         <q-tooltip>{{ msg.header.logout }}</q-tooltip>
                     </q-btn>
                 </div>
@@ -96,13 +96,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, getCurrentInstance } from 'vue';
 import { useRoute } from 'vue-router';
 import type { AdminManifest, StandardPageKey } from '@saasicat/types';
 import { buildRoutes, buildSidebar, defaultSectionOrder } from '../client/nav-builder.js';
 import LocaleSwitcher from '../components/LocaleSwitcher.vue';
 import { SUPER_ADMIN_BRAND_KEY, SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
+import { useSignOut } from '../vue/use-sign-out.js';
 import { ADMIN_UI_VERSION } from '../client/version.js';
 
 // SuperAdmin layout — universal platform shell for all consumer apps.
@@ -188,6 +189,25 @@ const props = withDefaults(
 const emit = defineEmits<{
     (e: 'logout'): void;
 }>();
+
+const signOut = useSignOut();
+const instance = getCurrentInstance();
+
+/**
+ * Signs out, and only emits instead when the app is actually listening.
+ *
+ * The layout is mounted as a plain route record in every consumer we have
+ * (`{ path: '/admin', component: AdminLayout }`), and a route record attaches
+ * no listeners — so `emit('logout')` alone made the header's sign-out button
+ * do nothing at all. Apps that pass `@logout` keep full control.
+ */
+function onLogoutClick(): void {
+    if (instance?.vnode.props?.onLogout) {
+        emit('logout');
+        return;
+    }
+    void signOut();
+}
 
 const route = useRoute();
 const msg = useSaMessages('shell');

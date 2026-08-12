@@ -58,7 +58,7 @@
         "src"
     ],
     "scripts": {
-        "build": "rm -rf dist && tsup",
+        "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsup",
         "typecheck": "vue-tsc --noEmit -p tsconfig.json",
         "pretest": "pnpm run build",
         "test": "node --test tests/**/*.test.js",

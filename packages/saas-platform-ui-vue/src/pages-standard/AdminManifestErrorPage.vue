@@ -22,6 +22,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import { useSignOut } from '../vue/use-sign-out.js';
 
 // Platform standard error page for `manifestGuard.errorRoute`.
 //
@@ -41,22 +42,37 @@ const router = useRouter();
 
 const props = defineProps<{
     errorMessage?: string | null;
-    /** Default: full reload — re-runs boot and the manifest guard from scratch. */
+    /** Default: fresh boot into `retryPath`, which re-runs the manifest guard. */
     onRetry?: () => Promise<void> | void;
     /** Default: navigate to the login route `createAdminRoutes` registers. */
     onLogout?: () => void;
     /** Login path for the default `onLogout`. */
     loginPath?: string;
+    /** Guarded route the default `onRetry` boots into. */
+    retryPath?: string;
 }>();
+
+const signOut = useSignOut({ loginPath: props.loginPath });
 
 function retry(): void {
     if (props.onRetry) {
         void props.onRetry();
         return;
     }
-    // A full reload rather than a router navigation: the failure may sit in a
-    // cached manifest body or a stale store, and only a fresh boot clears both.
-    window.location.reload();
+    // A full document load rather than a router navigation: the failure may sit
+    // in a cached manifest body or a stale store, and only a fresh boot clears
+    // both.
+    //
+    // It must target a GUARDED route. Reloading in place does nothing here:
+    // `createAdminRoutes` registers `/admin-error` as `meta.public` (it has to,
+    // or the guard would redirect to itself forever), and the guard returns
+    // before it ever reaches `ensureLoaded()` on a public route. So a reload
+    // re-renders the same error even after the backend has recovered, and the
+    // operator's only way out is to edit the address bar.
+    //
+    // `router.resolve` rather than a bare path so an app served under a base
+    // href lands inside its own app and not at the domain root.
+    window.location.assign(router.resolve(props.retryPath ?? '/admin').href);
 }
 
 function logout(): void {
@@ -64,7 +80,7 @@ function logout(): void {
         props.onLogout();
         return;
     }
-    void router.replace(props.loginPath ?? '/login');
+    void signOut();
 }
 </script>
 
