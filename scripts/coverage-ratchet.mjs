@@ -93,6 +93,23 @@ function measure(pkg) {
         { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     );
     const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+
+    // A failing run still prints a coverage summary, and the numbers it prints
+    // describe whatever happened to execute before things went wrong. Parsing
+    // that would let a broken suite report "no coverage regression" whenever
+    // the damage stays inside SLACK — and `--update` would write the broken
+    // measurement down as the new baseline, quietly lowering the bar.
+    if (result.error) {
+        throw new Error(`Coverage run for ${pkg} could not start: ${result.error.message}`);
+    }
+    if (result.status !== 0) {
+        const reason = result.signal ? `killed by ${result.signal}` : `exit code ${result.status}`;
+        throw new Error(
+            `Coverage run for ${pkg} failed (${reason}) — its numbers describe a partial run, so ` +
+                `they are not a measurement.\n${output.slice(-4000)}`,
+        );
+    }
+
     const match = SUMMARY.exec(output);
     if (!match) return null;
     return {

@@ -38,7 +38,21 @@ export function useSignOut(options: UseSignOutOptions = {}): () => Promise<void>
 
     return async function signOut(): Promise<void> {
         if (adapter?.logout) {
-            await adapter.logout();
+            try {
+                await adapter.logout();
+            } catch (err) {
+                // Navigate anyway. A rejected `logout()` — a server-side
+                // revocation that failed, say — must not strand the operator on
+                // the protected page they just asked to leave, and both callers
+                // discard this promise, so an escaping rejection would be
+                // invisible. Leaving is also the safer half: the adapter may
+                // well have cleared the local token before the request failed.
+                console.error(
+                    '[SaaSiCat] Sign-out failed while ending the session — navigating to the login page anyway. ' +
+                        'The session may still be valid on the server.',
+                    err,
+                );
+            }
         } else {
             // Loud rather than silent: the button looks like it worked either
             // way, so the only place this can surface is the console.
