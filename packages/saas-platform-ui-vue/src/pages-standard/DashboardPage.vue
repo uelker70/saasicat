@@ -330,17 +330,13 @@ function defaultFormat(card: KpiCardDef, body: unknown): KpiFormatted {
     };
 }
 
-async function callHttp(url: string): Promise<{ status: number; json: () => Promise<unknown> }> {
+// Every KPI request goes through an `HttpClient`. `useSuperAdminHttp()` always
+// resolves — to the client the app registered, or to `defaultHttpClient()` —
+// so there is no path on which a card could reach the network without the
+// app's auth. A bare `fetch()` here used to silently drop it.
+function callHttp(url: string): Promise<{ status: number; json: () => Promise<unknown> }> {
     const http = props.http ?? shellHttp;
-    if (http) return http(url, { method: 'GET' });
-    const headers: Record<string, string> = {};
-    const token = props.getAuthToken?.();
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const resp = await fetch(url, { method: 'GET', headers });
-    return {
-        status: resp.status,
-        json: () => resp.json(),
-    };
+    return http(url, { method: 'GET' });
 }
 
 function extractValue(body: Record<string, unknown>): string | number | null {

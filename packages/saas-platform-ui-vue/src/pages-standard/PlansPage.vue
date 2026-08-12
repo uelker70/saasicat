@@ -269,6 +269,7 @@ import type { HttpClient } from '../client/types.js';
 import type { SaMessages } from '../client/i18n/index.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
+import { useSuperAdminHttp } from '../vue/use-super-admin-context.js';
 import PlanVersionEditor from '../components/plan-version-editor/PlanVersionEditor.vue';
 import PlanMatrix from '../components/plan-matrix/PlanMatrix.vue';
 import PlanDetail from '../components/plan-detail/PlanDetail.vue';
@@ -341,6 +342,12 @@ const props = defineProps<{
 const msg = useSaMessages('plans');
 // The plan detail's own strings: its header moved into this page's hero.
 const planDetailMsg = useSaMessages('planDetail');
+
+// Fallback for the requests this page issues directly. It resolves to the
+// client the app registered via `createSuperAdminApp({ http })`, or to
+// `defaultHttpClient()` — never to a bare `fetch()`, which would drop the
+// app's Authorization header on exactly these calls.
+const shellHttp = useSuperAdminHttp();
 
 // The same derivation PlanList uses for its rows, so the counts above the list
 // and the list itself cannot drift apart.
@@ -455,22 +462,6 @@ const tenantCountsByPlanKey = computed<Record<string, number>>(
     () => props.tenantCountsByPlanKey ?? loadedTenantCounts.value,
 );
 
-function planAccent(planKey: string): string {
-    return props.planAccents?.[planKey] ?? defaultAccent(planKey);
-}
-const DEFAULT_ACCENTS: Record<string, string> = {
-    STARTER: '#64748b',
-    STANDARD: '#2563eb',
-    PRO: '#7c3aed',
-    PROFESSIONAL: '#7c3aed',
-    BUSINESS: '#0ea5e9',
-    ENTERPRISE: '#0f766e',
-    BASIC: '#475569',
-};
-function defaultAccent(planKey: string): string {
-    return DEFAULT_ACCENTS[planKey] ?? '#2563eb';
-}
-
 // ─── Plan master creation (V1 plan simulation step 1) ───
 const createDialogOpen = ref(false);
 const creatingPlan = ref(false);
@@ -558,7 +549,7 @@ async function reloadAllVersions(): Promise<void> {
     if (plans.value.length === 0) return;
     bulkVersionsLoading.value = true;
     try {
-        const http = props.http ?? ((url: string, init?: RequestInit) => fetch(url, init));
+        const http = props.http ?? shellHttp;
         const token = props.getAuthToken?.();
         const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         const results = await Promise.all(
@@ -707,7 +698,6 @@ async function onUpdatePlanFromDetail(patch: { label: string }): Promise<void> {
         const updated = await update(selectedPlan.value.id, patch);
         selectedPlan.value = updated;
     } catch (err: unknown) {
-        // eslint-disable-next-line no-console
         console.error('[PlansPage] Plan rename failed', err);
     }
 }
@@ -730,7 +720,7 @@ const featureRegistry = computed<Record<string, { label?: string; group?: string
 }));
 
 async function loadEditorSources(): Promise<void> {
-    const http = props.http ?? ((url: string, init?: RequestInit) => fetch(url, init));
+    const http = props.http ?? shellHttp;
     const token = props.getAuthToken?.();
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     try {
@@ -937,7 +927,7 @@ const editorPredecessor = computed<{
     const editingId = draftEditing.value?.editingId ?? null;
     const candidates = editingId ? published.filter((v) => v.id !== editingId) : published;
     if (candidates.length === 0) return null;
-    const latest = candidates.reduce((a: any, b: any) => (a.version > b.version ? a : b));
+    const latest = candidates.reduce((a, b) => (a.version > b.version ? a : b));
     return {
         version: latest.version,
         features: [...latest.features],
@@ -1078,7 +1068,6 @@ async function onReviewSaveExit(): Promise<void> {
         draftEditing.value = null;
         mode.value = selectedPlan.value ? 'cockpit' : 'list';
     } catch (err: unknown) {
-        // eslint-disable-next-line no-console
         console.error('[PlansPage] Saving the draft failed', err);
         reviewError.value = describeDraftSaveError(err);
     } finally {
@@ -1115,7 +1104,6 @@ async function onReviewPublish(payload: {
         draftEditing.value = null;
         mode.value = 'cockpit';
     } catch (err: unknown) {
-        // eslint-disable-next-line no-console
         console.error('[PlansPage] Publishing failed', err);
         reviewError.value = describePublishError(err);
     } finally {
@@ -1149,7 +1137,6 @@ async function executeArchive(): Promise<void> {
         archiveOpen.value = false;
         flashToast(formatMessage(msg.value.page.toastPlanDeleted, { planKey: plan.planKey }));
     } catch (err: unknown) {
-        // eslint-disable-next-line no-console
         console.error('[PlansPage] Archive/purge failed', err);
         const status = (err as { status?: number })?.status;
         const body = (err as { body?: { code?: string; message?: string } })?.body;
@@ -1216,7 +1203,7 @@ async function executeDiscard(): Promise<void> {
     } catch (err: unknown) {
         // Full error object to the console — in the diagnostic case you can see
         // e.g. CORS preflight errors or the real network stack there.
-        // eslint-disable-next-line no-console
+
         console.error('[PlansPage] Discard failed', err);
 
         const status = (err as { status?: number })?.status;
