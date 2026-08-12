@@ -323,6 +323,21 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         }),
     },
     {
+        // The same page on its other tab. Two cases rather than one with a
+        // click, because the preview is what the page opens on and both halves
+        // carry styles worth protecting — `MarketingCatalogAdmin` is only
+        // mounted once the tab is selected, so a single case can cover one or
+        // the other, never both.
+        id: 'marketing-catalog-admin',
+        load: () => import('../../src/pages-standard/MarketingCatalogPage.vue'),
+        props: ({ http, adminBase }) => ({
+            adminEndpoint: adminBase,
+            projectKey: 'fixture',
+            http,
+        }),
+        revealBy: ['.sa-marketing-tab:nth-of-type(2)'],
+    },
+    {
         // 14 required props, ten of them functions — the page AP3 replaces.
         // Kept under baseline precisely because it is about to change the most.
         id: 'bundles',

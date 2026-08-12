@@ -164,30 +164,37 @@ function measure(pkg) {
 const update = process.argv.includes('--update');
 const current = {};
 
-for (const pkg of PACKAGES) {
-    process.stderr.write(`measuring ${pkg} … `);
-    const value = measure(pkg);
-    if (!value) {
-        // Skipping is fine for a check — the comparison below reports the
-        // missing package. Skipping during `--update` is not: the new baseline
-        // would simply be written without it, dropping that package's ratchet
-        // for good and quietly lowering the bar.
-        if (update) {
-            throw new Error(
-                `No coverage report for ${pkg} — refusing to write a baseline that leaves it out. ` +
-                    `Either test discovery found no files, or Node's summary format changed.`,
-            );
+// `finally`, so a package that fails to measure still leaves the numbers
+// gathered before it. CI uploads this report with `if: always()` precisely to
+// diagnose a failed coverage step — and a throw here used to abort before the
+// write, so the one run that needed the artefact was the one without it.
+try {
+    for (const pkg of PACKAGES) {
+        process.stderr.write(`measuring ${pkg} … `);
+        const value = measure(pkg);
+        if (!value) {
+            // Skipping is fine for a check — the comparison below reports the
+            // missing package. Skipping during `--update` is not: the new baseline
+            // would simply be written without it, dropping that package's ratchet
+            // for good and quietly lowering the bar.
+            if (update) {
+                throw new Error(
+                    `No coverage report for ${pkg} — refusing to write a baseline that leaves it out. ` +
+                        `Either test discovery found no files, or Node's summary format changed.`,
+                );
+            }
+            process.stderr.write('no coverage report — skipped\n');
+            continue;
         }
-        process.stderr.write('no coverage report — skipped\n');
-        continue;
+        current[pkg] = value;
+        process.stderr.write(`${value.line.toFixed(2)}% lines\n`);
     }
-    current[pkg] = value;
-    process.stderr.write(`${value.line.toFixed(2)}% lines\n`);
+} finally {
+    writeFileSync(
+        REPORT,
+        `${JSON.stringify({ measured: current, complete: Object.keys(current).length === PACKAGES.length }, null, 4)}\n`,
+    );
 }
-
-// The measured numbers, always — CI uploads this so a drop can be diagnosed
-// without re-running the whole suite locally.
-writeFileSync(REPORT, `${JSON.stringify(current, null, 4)}\n`);
 
 if (update) {
     writeFileSync(BASELINE, `${JSON.stringify(current, null, 4)}\n`);

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { VISUAL_CASES } from './visual/pages.js';
 
@@ -121,15 +121,27 @@ const COLLECT = ({ properties }: { properties: readonly string[] }) => {
 };
 
 /**
- * True while any Vue/Quasar transition is still running.
+ * Collects once the page has stopped moving.
  *
- * A dialog opened by `revealBy` fades and scales in, and its computed opacity
- * is a different number on every run until it settles. Snapshotting mid-flight
- * produces a baseline that fails against itself — the fastest way to teach
- * everyone to ignore this suite.
+ * Opening something animates it, and a snapshot taken mid-flight records an
+ * opacity or a colour that is different on every run — a baseline that fails
+ * against itself, which is the fastest way to teach everyone to ignore this
+ * suite. Waiting for Vue's transition classes covered only half of it: the
+ * marketing tabs move via a plain CSS `transition`, which adds no class at all.
+ *
+ * So the condition is the honest one — two identical readings in a row — and it
+ * needs no knowledge of what is animating or how.
  */
-const IS_ANIMATING = () =>
-    document.querySelectorAll('[class*="-enter-active"], [class*="-leave-active"]').length > 0;
+async function settledStyles(page: Page): Promise<string> {
+    let previous = '';
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+        const current = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
+        if (current === previous) return current;
+        previous = current;
+        await page.waitForTimeout(50);
+    }
+    throw new Error('the page never stopped changing — nothing settled within two seconds');
+}
 
 /** Element count across the page and any teleported dialog. */
 const COUNT_ELEMENTS = () => {
@@ -145,7 +157,7 @@ test.describe('design-token visual baselines', () => {
     test('the roster still covers every page it claims to', () => {
         // A shrinking roster is the quiet way this suite stops protecting
         // anything: remove a case, and its page is simply no longer watched.
-        expect(VISUAL_CASES.length).toBeGreaterThanOrEqual(18);
+        expect(VISUAL_CASES.length).toBeGreaterThanOrEqual(19);
         expect(new Set(VISUAL_CASES.map((c) => c.id)).size).toBe(VISUAL_CASES.length);
     });
 
@@ -180,11 +192,6 @@ test.describe('design-token visual baselines', () => {
                         message: `${visualCase.id}: revealBy clicked, but nothing new rendered`,
                     })
                     .toBeGreaterThan(before);
-                await expect
-                    .poll(() => page.evaluate(IS_ANIMATING), {
-                        message: `${visualCase.id}: something is still animating`,
-                    })
-                    .toBe(false);
             }
 
             // A request the fixture cannot answer gets an empty array, which
@@ -197,7 +204,7 @@ test.describe('design-token visual baselines', () => {
                 `${visualCase.id} requested endpoints the fixture does not define`,
             ).toEqual([]);
 
-            const styles = await page.evaluate(COLLECT, { properties: TRACKED_PROPERTIES });
+            const styles = await settledStyles(page);
 
             expect(styles.length, `${visualCase.id} rendered nothing to measure`).toBeGreaterThan(
                 200,
