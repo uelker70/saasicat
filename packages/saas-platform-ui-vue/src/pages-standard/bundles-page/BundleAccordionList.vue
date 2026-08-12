@@ -104,12 +104,12 @@ function translationCount(bundle: BundleRow): string {
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-bundle-chip--info {
-    background: var(--sa-primary-50);
-    color: var(--sa-primary-strong);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent-strong);
 }
 .sa-bundle-chip--live {
     background: var(--sa-color-positive-surface-strong);
@@ -120,8 +120,8 @@ function translationCount(bundle: BundleRow): string {
     color: var(--sa-color-warning-fg);
 }
 .sa-bundle-chip--supersed {
-    background: var(--sa-border);
-    color: var(--sa-muted);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-muted);
 }
 .sa-bundle-chip--scheduled {
     background: var(--sa-color-warning-surface-strong);

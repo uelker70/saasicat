@@ -444,10 +444,10 @@ function barWidth(value: number, max?: number): number {
 }
 .sa-dashboard__bar-name {
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-dashboard__bar-track {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     height: 8px;
     border-radius: 999px;
     overflow: hidden;
@@ -461,7 +461,7 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__bar-count {
     font-variant-numeric: tabular-nums;
     text-align: right;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 
 .sa-dashboard__shortcuts {
@@ -477,7 +477,7 @@ function barWidth(value: number, max?: number): number {
     gap: 12px;
     align-items: flex-start;
     padding: 12px 14px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     text-decoration: none;
     color: inherit;
@@ -494,19 +494,19 @@ function barWidth(value: number, max?: number): number {
 }
 .sa-dashboard__shortcut-title {
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-head, system-ui, sans-serif);
 }
 .sa-dashboard__shortcut-sub {
     font-size: 12px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
 
 .sa-dashboard__loading,
 .sa-dashboard__empty {
     padding: 32px 28px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     display: flex;
     align-items: center;
     gap: 12px;

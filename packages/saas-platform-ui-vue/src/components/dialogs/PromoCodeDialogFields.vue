@@ -408,7 +408,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 
 <style scoped>
 .pc-section {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     padding: 14px 16px;
     background: var(--sa-color-bg-surface-raised);
@@ -418,7 +418,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
     font-size: 13px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     margin-bottom: 12px;
     letter-spacing: -0.005em;
 }
@@ -428,7 +428,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     background: transparent;
     cursor: pointer;
     font: 600 12.5px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -471,19 +471,19 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 .pc-field__label {
     font-size: 11.5px;
     font-weight: 600;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
 .pc-field__hint {
     font-size: 11.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 
 .pc-input {
     width: 100%;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 8px 10px;
@@ -515,17 +515,17 @@ textarea.pc-input {
 }
 
 .pc-btn-mini {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
     font: 500 12px var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 
 .pc-btn-mini:hover {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
 }
 
 .pc-type-grid {
@@ -535,7 +535,7 @@ textarea.pc-input {
 }
 
 .pc-type-opt {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
     border-radius: 8px;
     padding: 8px 10px;
@@ -557,12 +557,12 @@ textarea.pc-input {
 
 .pc-type-opt__label {
     font: 600 12.5px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 
 .pc-type-opt__sub {
     font: 11.5px var(--sa-font-mono, ui-monospace, monospace);
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 1px;
 }
 
@@ -577,12 +577,12 @@ textarea.pc-input {
     align-items: center;
     gap: 8px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 999px;
     padding: 5px 12px 5px 8px;
     font: 600 12px var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     transition:
         border-color 0.1s,
         background 0.1s;
@@ -611,13 +611,13 @@ textarea.pc-input {
 
 .pc-dur-opt {
     flex: 1;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
     font: 500 12px var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 
 .pc-dur-opt--active {
@@ -660,12 +660,12 @@ textarea.pc-input {
 
 .pc-preview__code {
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 3px 8px;
     font: 600 13px var(--sa-font-mono, ui-monospace, monospace);
     letter-spacing: 0.04em;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 
 .pc-preview__disc {
@@ -675,6 +675,6 @@ textarea.pc-input {
 
 .pc-preview__meta {
     font-size: 12px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 </style>

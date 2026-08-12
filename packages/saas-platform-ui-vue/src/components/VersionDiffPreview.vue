@@ -109,10 +109,10 @@ function formatValue(value: unknown): string {
 
 <style scoped>
 .sa-diff-preview__empty {
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-style: italic;
     padding: 12px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     border-radius: 8px;
     border: 1px dashed var(--sa-color-border-strong);
 }
@@ -142,9 +142,9 @@ function formatValue(value: unknown): string {
     color: var(--sa-color-negative-fg);
 }
 .sa-diff-preview__row--neutral {
-    background: var(--sa-bg-surface-2);
-    border-color: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-bg-sunken);
+    border-color: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-diff-preview__direction {
     display: flex;
@@ -156,7 +156,7 @@ function formatValue(value: unknown): string {
     letter-spacing: 0.04em;
 }
 .sa-diff-preview__field {
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     font-weight: 500;
 }
 .sa-diff-preview__values {
@@ -165,7 +165,7 @@ function formatValue(value: unknown): string {
     gap: 8px;
 }
 .sa-diff-preview__values .old {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     text-decoration: line-through;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 12px;

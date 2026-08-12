@@ -503,18 +503,18 @@ async function submit(): Promise<void> {
     justify-content: space-between;
     gap: 16px;
     padding: 18px 22px 12px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .bcp-title {
     font-size: 18px;
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     letter-spacing: -0.01em;
 }
 .bcp-sub {
     margin-top: 4px;
     font-size: 12.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     max-width: 580px;
     line-height: 1.5;
 }
@@ -522,13 +522,13 @@ async function submit(): Promise<void> {
     background: transparent;
     border: 0;
     cursor: pointer;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     padding: 4px;
     border-radius: 4px;
 }
 .bcp-close:hover {
-    background: var(--sa-border-soft);
-    color: var(--sa-heading);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-heading);
 }
 .bcp-body {
     padding: 16px 22px;
@@ -552,7 +552,7 @@ async function submit(): Promise<void> {
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    background: var(--sa-primary);
+    background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     font:
         700 12px 'JetBrains Mono',
@@ -563,11 +563,11 @@ async function submit(): Promise<void> {
 .bcp-section-title {
     font-size: 14px;
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .bcp-section-sub {
     font-size: 12px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
     line-height: 1.4;
 }
@@ -587,11 +587,11 @@ async function submit(): Promise<void> {
 .bcp-field-label {
     font-size: 11.5px;
     font-weight: 600;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .bcp-field-hint {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 500;
 }
 .bcp-input {
@@ -600,7 +600,7 @@ async function submit(): Promise<void> {
     border-radius: 6px;
     font-family: inherit;
     font-size: 13px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     background: var(--sa-color-bg-surface);
 }
 .bcp-input--mono {
@@ -628,9 +628,9 @@ async function submit(): Promise<void> {
     align-items: center;
     padding: 0 10px;
     font-size: 11.5px;
-    color: var(--sa-muted);
-    background: var(--sa-bg-surface-2);
-    border-left: 1px solid var(--sa-border);
+    color: var(--sa-color-fg-muted);
+    background: var(--sa-color-bg-sunken);
+    border-left: 1px solid var(--sa-color-border);
     border-radius: 0 6px 6px 0;
 }
 .bcp-error-inline {
@@ -650,8 +650,8 @@ async function submit(): Promise<void> {
     align-items: center;
     gap: 10px;
     padding: 12px 22px;
-    border-top: 1px solid var(--sa-border);
-    background: var(--sa-bg-surface-2);
+    border-top: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-sunken);
     border-radius: 0 0 12px 12px;
 }
 .bcp-foot-hint {
@@ -660,7 +660,7 @@ async function submit(): Promise<void> {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .bcp-foot-hint--warn {
     color: var(--sa-color-negative-fg);
@@ -674,21 +674,21 @@ async function submit(): Promise<void> {
     cursor: pointer;
     font-size: 12.5px;
     font-family: inherit;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .bcp-btn:hover:not(:disabled) {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .bcp-btn:disabled {
     cursor: not-allowed;
     opacity: 0.5;
 }
 .bcp-btn--primary {
-    background: var(--sa-primary);
-    border-color: var(--sa-primary);
+    background: var(--sa-color-accent);
+    border-color: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
 }
 .bcp-btn--primary:hover:not(:disabled) {
-    background: var(--sa-primary-strong);
+    background: var(--sa-color-accent-strong);
 }
 </style>

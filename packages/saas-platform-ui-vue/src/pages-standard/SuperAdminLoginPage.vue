@@ -199,7 +199,7 @@ async function handleSubmit(): Promise<void> {
        on top of the centered card on short viewports. */
     margin-left: auto;
     align-self: flex-start;
-    color: var(--sa-login-tag-color, var(--sa-muted-dark));
+    color: var(--sa-login-tag-color, var(--sa-color-fg-secondary));
 }
 .sa-login-wrap {
     min-height: 100vh;
@@ -259,12 +259,12 @@ async function handleSubmit(): Promise<void> {
 .sa-login-brand__name {
     font-weight: 800;
     font-size: 16px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     line-height: 1.1;
 }
 .sa-login-brand__tag {
     font-size: 12px;
-    color: var(--sa-login-tag-color, var(--sa-muted-dark));
+    color: var(--sa-login-tag-color, var(--sa-color-fg-secondary));
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
@@ -272,12 +272,12 @@ async function handleSubmit(): Promise<void> {
 .sa-login-title {
     font-size: 22px;
     font-weight: 800;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     margin: 0 0 6px;
 }
 .sa-login-subtitle {
     font-size: 13px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     margin: 0 0 20px;
     line-height: 1.5;
 }
@@ -301,13 +301,13 @@ async function handleSubmit(): Promise<void> {
 .sa-login-hint {
     margin-top: 18px;
     padding: 10px 12px;
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border-radius: 8px;
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-login-hint code {
-    background: var(--sa-border);
+    background: var(--sa-color-border);
     padding: 1px 5px;
     border-radius: 4px;
 }

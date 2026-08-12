@@ -518,7 +518,7 @@ function formatTs(iso: string | null | undefined): string {
 }
 .sa-emh__card {
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 12px;
     overflow: hidden;
     padding: 8px 0;
@@ -526,7 +526,7 @@ function formatTs(iso: string | null | undefined): string {
 .sa-emh__empty {
     width: 100%;
     text-align: center;
-    color: var(--sa-muted-dark, var(--sa-muted));
+    color: var(--sa-color-fg-secondary, var(--sa-color-fg-muted));
     padding: 24px 0;
 }
 .sa-emh__detail {
@@ -544,14 +544,14 @@ function formatTs(iso: string | null | undefined): string {
     width: 100%;
     min-height: 320px;
     max-height: 60vh;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     background: var(--sa-color-bg-surface);
 }
 .sa-emh__text,
 .sa-emh__smtp {
-    background: var(--sa-bg-surface-2);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 12px;
     font-size: 12px;

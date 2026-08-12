@@ -69,10 +69,14 @@ const TRACKED_PROPERTIES = [
 const COLLECT = ({ properties }: { properties: readonly string[] }) => {
     const lines: string[] = [];
 
+    // Paths are relative to the collected root, not to <body>. Anything above
+    // it belongs to the harness, and describing it made every baseline churn
+    // the day the fixture wrapped the page in the layout class a real app has.
+    // A baseline should move when the PAGE moves.
     const pathOf = (el: Element): string => {
         const parts: string[] = [];
         let node: Element | null = el;
-        while (node && node !== document.body) {
+        while (node && node !== document.body && node.id !== 'visual-root') {
             const parent: Element | null = node.parentElement;
             const tag = node.tagName.toLowerCase();
             if (parent) {

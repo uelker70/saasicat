@@ -129,7 +129,7 @@ function logout(): void | Promise<void> {
 .sa-manifest-error__lead,
 .sa-manifest-error__detail {
     margin: 0 0 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     line-height: 1.6;
 }
 .sa-manifest-error__detail {

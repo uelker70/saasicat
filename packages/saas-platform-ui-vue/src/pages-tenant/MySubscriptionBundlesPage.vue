@@ -400,7 +400,7 @@ function formatDate(date: Date | string | null | undefined): string {
         BlinkMacSystemFont,
         system-ui,
         sans-serif;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .msb-head {
     display: flex;
@@ -416,7 +416,7 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-sub {
     margin: 4px 0 0;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-size: 13px;
     max-width: 580px;
     line-height: 1.5;
@@ -424,7 +424,7 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-loading {
     padding: 32px;
     text-align: center;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .msb-empty {
     padding: 32px 24px;
@@ -432,12 +432,12 @@ function formatDate(date: Date | string | null | undefined): string {
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .msb-empty-link {
     background: transparent;
     border: 0;
-    color: var(--sa-primary);
+    color: var(--sa-color-accent);
     cursor: pointer;
     font: inherit;
     text-decoration: underline;
@@ -457,13 +457,13 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-card {
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 12px;
     padding: 14px 18px;
 }
 .msb-card--canceled-pending {
     border-color: var(--sa-color-warning-border);
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
 }
 .msb-card--canceled {
     opacity: 0.65;
@@ -490,7 +490,7 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-card-meta {
     margin-top: 4px;
     font-size: 12.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .msb-chip {
     font-size: 10.5px;
@@ -509,13 +509,13 @@ function formatDate(date: Date | string | null | undefined): string {
     color: var(--sa-color-warning-fg);
 }
 .msb-chip--canceled {
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .msb-cancel-info {
     margin-top: 10px;
     padding: 8px 12px;
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     border: 1px solid var(--sa-color-warning-border);
     border-radius: 6px;
     color: var(--sa-color-warning-fg);
@@ -533,22 +533,22 @@ function formatDate(date: Date | string | null | undefined): string {
     cursor: pointer;
     font-family: inherit;
     font-size: 13px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .msb-btn:hover:not(:disabled) {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .msb-btn:disabled {
     cursor: not-allowed;
     opacity: 0.55;
 }
 .msb-btn--primary {
-    background: var(--sa-primary);
-    border-color: var(--sa-primary);
+    background: var(--sa-color-accent);
+    border-color: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
 }
 .msb-btn--primary:hover:not(:disabled) {
-    background: var(--sa-primary-strong);
+    background: var(--sa-color-accent-strong);
 }
 .msb-btn--ghost {
     background: transparent;
@@ -580,7 +580,7 @@ function formatDate(date: Date | string | null | undefined): string {
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px 10px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .msb-modal-title {
     font-size: 16px;
@@ -590,13 +590,13 @@ function formatDate(date: Date | string | null | undefined): string {
     background: transparent;
     border: 0;
     cursor: pointer;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     padding: 4px;
     border-radius: 4px;
 }
 .msb-modal-x:hover {
-    background: var(--sa-border-soft);
-    color: var(--sa-heading);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-heading);
 }
 .msb-modal-body {
     padding: 16px 20px;
@@ -606,8 +606,8 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-modal-foot {
     padding: 12px 20px;
-    border-top: 1px solid var(--sa-border);
-    background: var(--sa-bg-surface-2);
+    border-top: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-sunken);
     border-radius: 0 0 12px 12px;
     display: flex;
     justify-content: flex-end;
@@ -621,11 +621,11 @@ function formatDate(date: Date | string | null | undefined): string {
 .msb-field-label {
     font-size: 12px;
     font-weight: 600;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .msb-field-hint {
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .msb-input {
     padding: 7px 10px;
@@ -633,7 +633,7 @@ function formatDate(date: Date | string | null | undefined): string {
     border-radius: 6px;
     font-family: inherit;
     font-size: 13px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     background: var(--sa-color-bg-surface);
 }
 </style>

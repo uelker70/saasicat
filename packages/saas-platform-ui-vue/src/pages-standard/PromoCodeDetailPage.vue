@@ -298,7 +298,7 @@ const redemptionRows = computed(() => data.value?.redemptions ?? []);
 }
 .sa-promo-detail__kv {
     background: var(--sa-color-bg-surface-raised);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 12px;
     font-size: 12px;

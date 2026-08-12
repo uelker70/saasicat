@@ -91,7 +91,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     gap: 10px;
     align-items: flex-start;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 8px 10px;
 }
@@ -142,8 +142,8 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     color: var(--sa-color-negative-fg);
 }
 .sa-caps-row__flag--gone {
-    background: var(--sa-border);
-    color: var(--sa-muted);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-muted);
 }
 .sa-caps-row.gone {
     opacity: 0.6;
@@ -153,7 +153,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     gap: 12px;
     flex-wrap: wrap;
     font-size: 11px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     margin-top: 1px;
 }
 .sa-caps-row__meta code {
@@ -165,7 +165,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     gap: 6px;
     font-size: 11px;
     color: var(--sa-color-warning-fg);
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     border: 1px dashed var(--sa-color-warning-border);
     border-radius: 8px;
     padding: 10px 12px;

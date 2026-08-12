@@ -151,22 +151,22 @@ const supersededTail = computed(() =>
     line-height: 1.4;
 }
 .bv-status-live {
-    background: var(--sa-positive-bg);
+    background: var(--sa-color-positive-surface);
     border-color: var(--sa-color-positive-border);
     color: var(--sa-color-positive-fg);
 }
 .bv-status-scheduled {
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     border-color: var(--sa-color-warning-border);
     color: var(--sa-color-warning-fg);
 }
 .bv-status-superseded {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border-color: var(--sa-color-border-strong);
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .bv-status-draft {
-    background: var(--sa-primary-50);
+    background: var(--sa-color-accent-surface-strong);
     border-color: var(--sa-color-info-border);
     color: var(--sa-color-info-fg);
 }
@@ -192,7 +192,7 @@ const supersededTail = computed(() =>
     gap: 5px;
     padding: 6px 10px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     cursor: pointer;
     font-size: 12px;

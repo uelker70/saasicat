@@ -48,15 +48,19 @@ export default defineConfig({
     projects: [
         {
             name: 'chromium',
-            testIgnore: /visual-baseline\.spec\.ts$/,
+            testIgnore: /(visual-baseline|theme-contrast)\.spec\.ts$/,
             use: { browserName: 'chromium' },
         },
         {
             // Separate project: the visual baselines talk to the Vite fixture on
             // 5175, and they pin the viewport because a resized window would
             // move every breakpoint-dependent computed value at once.
+            //
+            // `theme-contrast` runs here too because it needs the same real
+            // cascade — and `colorScheme: 'light'` matters to it twice over:
+            // it is the starting state it compares the dark theme against.
             name: 'visual',
-            testMatch: /visual-baseline\.spec\.ts$/,
+            testMatch: /(visual-baseline|theme-contrast)\.spec\.ts$/,
             use: {
                 browserName: 'chromium',
                 baseURL: 'http://localhost:5175',

@@ -183,7 +183,7 @@ function onToggle(planKey: string): void {
 }
 .bv-compat-hint {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     line-height: 1.5;
 }
 .bv-compat-grid {
@@ -197,22 +197,22 @@ function onToggle(planKey: string): void {
     gap: 6px;
     padding: 10px 12px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     cursor: pointer;
     text-align: left;
     font-family: inherit;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .bv-compat-card:hover:not(:disabled) {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .bv-compat-card.on {
-    border-color: var(--sa-primary);
-    background: var(--sa-primary-50);
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface-strong);
 }
 .bv-compat-card.warn {
     border-color: var(--sa-color-negative-border);
@@ -256,10 +256,10 @@ function onToggle(planKey: string): void {
         500 11px 'JetBrains Mono',
         ui-monospace,
         monospace;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .bv-compat-check {
-    color: var(--sa-primary);
+    color: var(--sa-color-accent);
     display: inline-flex;
 }
 .bv-compat-overlap {
@@ -298,7 +298,7 @@ function onToggle(planKey: string): void {
 }
 .bv-compat-empty {
     padding: 12px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: 12.5px;
     text-align: center;

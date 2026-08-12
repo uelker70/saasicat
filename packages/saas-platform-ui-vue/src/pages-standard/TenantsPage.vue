@@ -566,11 +566,11 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 .sa-tenants__name {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-tenants__slug {
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-family: var(--sa-font-mono, ui-monospace, monospace);
 }
 
@@ -596,11 +596,11 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     margin-left: 8px;
 }
 .sa-tenants__usage :deep(.q-icon) {
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 
 .sa-tenants__icon-btn {
@@ -614,10 +614,10 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .sa-tenants__icon-btn:hover {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
 }
 .sa-tenants__icon-btn :deep(.q-icon) {
     color: inherit;

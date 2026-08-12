@@ -417,23 +417,23 @@ async function executeTerminate(): Promise<void> {
     border-radius: 7px;
     font: 500 13px var(--sa-font-body);
     cursor: pointer;
-    border: 1px solid var(--sa-border-strong);
+    border: 1px solid var(--sa-color-border-strong);
     background: var(--sa-color-bg-surface);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .btn:hover {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .btn.primary {
-    background: var(--sa-primary);
-    border-color: var(--sa-primary);
+    background: var(--sa-color-accent);
+    border-color: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
 }
 .btn.primary:hover {
-    background: var(--sa-primary-strong);
+    background: var(--sa-color-accent-strong);
 }
 .btn.btn--sm {
     padding: 5px 9px;
@@ -448,23 +448,23 @@ async function executeTerminate(): Promise<void> {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .chip.live {
-    background: var(--sa-positive-bg);
+    background: var(--sa-color-positive-surface);
     color: var(--sa-color-positive-fg);
     border-color: var(--sa-color-positive-border);
 }
 .chip.draft {
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border-color: var(--sa-color-warning-border);
 }
 .chip.supersed {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     border-color: var(--sa-color-border-strong);
 }
 .chip.dot::before {
@@ -496,18 +496,18 @@ async function executeTerminate(): Promise<void> {
     align-items: flex-start;
     gap: 12px;
     padding: 14px 16px 12px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .pd-panel-title {
     font-size: 15px;
     font-weight: 700;
     margin: 0;
     letter-spacing: -0.01em;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pd-panel-sub {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
 .pd-panel-head-right {
@@ -526,7 +526,7 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-bottom: 8px;
     font-weight: 500;
 }
@@ -540,8 +540,8 @@ async function executeTerminate(): Promise<void> {
     height: 24px;
     border-radius: 6px;
     overflow: hidden;
-    background: var(--sa-border-soft);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-border-soft);
+    border: 1px solid var(--sa-color-border);
 }
 .pd-timeline-seg {
     display: flex;
@@ -570,8 +570,8 @@ async function executeTerminate(): Promise<void> {
     transform: translateY(0);
 }
 .pd-timeline-seg.superseded {
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .pd-timeline-seg.live {
     background: var(--sa-color-positive-strong);
@@ -590,13 +590,13 @@ async function executeTerminate(): Promise<void> {
 .pd-timeline-seg.is-selected {
     position: relative;
     z-index: 1;
-    outline: 2px solid var(--sa-primary);
+    outline: 2px solid var(--sa-color-accent);
     outline-offset: -2px;
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
     font-weight: 700;
 }
 .pd-timeline-seg.is-selected.superseded {
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pd-timeline-seg.is-selected.live {
     outline-color: var(--sa-color-positive);
@@ -611,7 +611,7 @@ async function executeTerminate(): Promise<void> {
     justify-content: space-between;
     margin-top: 6px;
     font: 500 10.5px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 
 /* versions table */
@@ -627,7 +627,7 @@ async function executeTerminate(): Promise<void> {
         64px minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1fr)
         minmax(96px, auto);
     align-items: stretch;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
     margin-top: 12px;
 }
 .pd-versions-head {
@@ -639,9 +639,9 @@ async function executeTerminate(): Promise<void> {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-weight: 700;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pd-vrow {
     display: contents;
@@ -649,11 +649,11 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-vrow > div {
     padding: 13px 12px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
     display: flex;
     align-items: center;
     font-size: 12.5px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pd-vrow:hover > div {
     background: var(--sa-color-bg-surface-raised);
@@ -665,7 +665,7 @@ async function executeTerminate(): Promise<void> {
     background: var(--sa-color-warning-surface);
 }
 .pd-vrow.is-selected > div {
-    background: var(--sa-primary-50) !important;
+    background: var(--sa-color-accent-surface-strong) !important;
     box-shadow: inset 0 -1px 0 0 var(--sa-color-info-border);
 }
 .pd-vrow.is-selected.is-draft > div {
@@ -674,7 +674,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-vrow.is-selected > div:first-child {
     box-shadow:
-        inset 3px 0 0 0 var(--sa-primary),
+        inset 3px 0 0 0 var(--sa-color-accent),
         inset 0 -1px 0 0 var(--sa-color-info-border);
 }
 .pd-vrow.is-draft > div:first-child {
@@ -706,21 +706,21 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-validity-sub {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-validity-date {
     font: 500 12.5px var(--sa-font-mono);
 }
 .pd-arrow-inf {
     font: 600 13px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-pricing-m {
     font: 600 13px var(--sa-font-body);
 }
 .pd-pricing-y {
     font: 500 10.5px var(--sa-font-body);
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .pd-impact-num {
@@ -728,10 +728,10 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-impact-sub {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-change-note {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -749,7 +749,7 @@ async function executeTerminate(): Promise<void> {
     padding: 3px 8px;
     border-radius: 999px;
     font: 600 10.5px var(--sa-font-mono);
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border: 1px solid var(--sa-color-warning-border);
     white-space: nowrap;
@@ -766,7 +766,7 @@ async function executeTerminate(): Promise<void> {
     border-radius: 6px;
 }
 .pd-diff-chip.add {
-    background: var(--sa-positive-bg);
+    background: var(--sa-color-positive-surface);
     color: var(--sa-color-positive-fg);
     border: 1px solid var(--sa-color-positive-border);
 }
@@ -776,9 +776,9 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid var(--sa-color-negative-border);
 }
 .pd-diff-chip.mod {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .pd-diff-list {
     padding: 12px;
@@ -791,13 +791,17 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 10px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 11px 12px 11px 0;
     overflow: hidden;
 }
 .pd-diff-row.add {
-    background: linear-gradient(90deg, var(--sa-positive-bg) 0%, var(--sa-color-bg-surface) 60%);
+    background: linear-gradient(
+        90deg,
+        var(--sa-color-positive-surface) 0%,
+        var(--sa-color-bg-surface) 60%
+    );
     border-color: var(--sa-color-positive-border);
 }
 .pd-diff-row.rm {
@@ -809,8 +813,12 @@ async function executeTerminate(): Promise<void> {
     border-color: var(--sa-color-negative-border);
 }
 .pd-diff-row.mod {
-    background: linear-gradient(90deg, var(--sa-bg-surface-2) 0%, var(--sa-color-bg-surface) 60%);
-    border-color: var(--sa-border);
+    background: linear-gradient(
+        90deg,
+        var(--sa-color-bg-sunken) 0%,
+        var(--sa-color-bg-surface) 60%
+    );
+    border-color: var(--sa-color-border);
 }
 .pd-diff-icon {
     width: 32px;
@@ -828,7 +836,7 @@ async function executeTerminate(): Promise<void> {
     background: var(--sa-color-negative-strong);
 }
 .pd-diff-row.mod .pd-diff-icon {
-    background: var(--sa-muted);
+    background: var(--sa-color-fg-muted);
 }
 .pd-diff-body {
     flex: 1;
@@ -842,16 +850,16 @@ async function executeTerminate(): Promise<void> {
     font: 700 10px var(--sa-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .pd-diff-label {
     font-size: 13.5px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pd-diff-key {
     font: 500 11px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-diff-vals {
     display: flex;
@@ -861,7 +869,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-diff-strike {
     text-decoration: line-through;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-diff-arrow {
     color: var(--sa-color-fg-disabled);
@@ -890,12 +898,12 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-diff-tag.mod {
     background: var(--sa-color-bg-surface);
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     border-color: var(--sa-color-border-strong);
 }
 .pd-diff-row.plain {
     background: var(--sa-color-bg-surface);
-    border-color: var(--sa-border);
+    border-color: var(--sa-color-border);
     padding: 11px 12px 11px 0;
 }
 .pd-diff-section {
@@ -907,7 +915,7 @@ async function executeTerminate(): Promise<void> {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 .pd-diff-section:first-child {
@@ -916,17 +924,17 @@ async function executeTerminate(): Promise<void> {
 .pd-diff-section hr {
     flex: 1;
     border: 0;
-    border-top: 1px dashed var(--sa-border);
+    border-top: 1px dashed var(--sa-color-border);
 }
 .pd-diff-empty {
     padding: 28px 18px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-size: 13px;
 }
 .pd-diff-empty b {
     display: block;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     font-size: 14px;
     margin-bottom: 4px;
 }
@@ -943,7 +951,7 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 14px;
     padding: 9px 0;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
 }
 .pd-audit-row:first-child {
     border-top: 0;
@@ -961,7 +969,7 @@ async function executeTerminate(): Promise<void> {
     background: var(--sa-color-positive-strong);
 }
 .pd-audit-change {
-    background: var(--sa-primary);
+    background: var(--sa-color-accent);
 }
 .pd-audit-publish {
     background: var(--sa-color-feature);
@@ -971,14 +979,14 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-audit-when {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     min-width: 130px;
 }
 .pd-audit-avatar {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: var(--sa-heading);
+    background: var(--sa-color-fg-heading);
     color: var(--sa-color-fg-on-accent);
     display: grid;
     place-items: center;
@@ -987,12 +995,12 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-audit-who {
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     min-width: 64px;
 }
 .pd-audit-what {
     font-size: 13px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     flex: 1;
 }
 

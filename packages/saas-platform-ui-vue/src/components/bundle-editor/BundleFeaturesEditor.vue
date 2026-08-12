@@ -155,7 +155,7 @@ function onToggle(featureKey: string): void {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .bd-features-row {
     display: flex;
@@ -168,19 +168,19 @@ function onToggle(featureKey: string): void {
     gap: 6px;
     padding: 6px 10px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 999px;
     cursor: pointer;
     font-family: inherit;
     font-size: 12px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     transition:
         background 0.12s,
         border-color 0.12s,
         color 0.12s;
 }
 .bd-feature-pill:hover:not(:disabled) {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     border-color: var(--sa-color-border-strong);
 }
 .bd-feature-pill.on {
@@ -204,18 +204,18 @@ function onToggle(featureKey: string): void {
         600 10px 'JetBrains Mono',
         ui-monospace,
         monospace;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-left: 4px;
 }
 .bd-feature-pill.on .bd-feature-key {
-    color: var(--sa-primary);
+    color: var(--sa-color-accent);
 }
 .bd-feature-pill.overlap .bd-feature-key {
     color: var(--sa-color-negative-fg);
 }
 .bd-features-empty {
     padding: 12px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: 12.5px;
 }

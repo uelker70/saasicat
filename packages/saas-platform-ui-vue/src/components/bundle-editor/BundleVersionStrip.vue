@@ -110,7 +110,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     gap: 8px;
     padding: 14px 16px;
     background: var(--sa-color-bg-surface-raised);
-    border: 1px solid var(--bv-border, var(--sa-border));
+    border: 1px solid var(--bv-border, var(--sa-color-border));
     border-radius: 10px;
 }
 .bv-vstrip-label {
@@ -118,7 +118,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .bv-vstrip-tabs {
     display: flex;
@@ -135,11 +135,11 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     align-items: center;
     padding: 8px 12px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     cursor: pointer;
     font-family: inherit;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     text-align: left;
     transition:
         border-color 0.12s,
@@ -147,10 +147,10 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
         background 0.12s;
 }
 .bv-vtab:hover {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .bv-vtab-current {
-    border-color: var(--sa-primary);
+    border-color: var(--sa-color-accent);
     box-shadow: 0 0 0 2px var(--sa-shadow-tint-3);
 }
 .bv-vtab-name {
@@ -178,8 +178,8 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     color: var(--sa-color-warning-fg);
 }
 .bv-vtab-status.superseded {
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .bv-vtab-status.draft {
     background: var(--sa-color-info-surface-strong);
@@ -188,12 +188,12 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 .bv-vtab-dates {
     grid-column: 1 / -1;
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .bv-vtab-price {
     grid-column: 1 / -1;
     font-size: 11.5px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     font-weight: 600;
 }
 
@@ -204,12 +204,12 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     padding: 8px 12px;
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
-    color: var(--sa-primary);
+    color: var(--sa-color-accent);
     font-size: 12.5px;
     font-weight: 600;
 }
 .bv-vtab-new:hover:not(:disabled) {
-    background: var(--sa-primary-50);
+    background: var(--sa-color-accent-surface-strong);
     border-color: var(--sa-color-info-border);
 }
 .bv-vtab-new:disabled {

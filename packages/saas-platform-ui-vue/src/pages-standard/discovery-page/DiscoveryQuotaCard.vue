@@ -154,7 +154,7 @@ function coverage(locale: string): number {
 
 <style scoped>
 .sa-qc {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     background: var(--sa-color-bg-surface);
     overflow: hidden;
@@ -192,7 +192,7 @@ function coverage(locale: string): number {
 .sa-qc__label {
     font-weight: 600;
     font-size: 13px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-qc__key {
     font-size: 11px;
@@ -213,7 +213,7 @@ function coverage(locale: string): number {
 }
 .sa-qc__sub {
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
 .sa-qc__missing {
@@ -231,16 +231,16 @@ function coverage(locale: string): number {
     flex-shrink: 0;
 }
 .sa-qc__chev {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     transition: transform 0.15s;
 }
 .sa-qc__chev.open {
     transform: rotate(90deg);
 }
 .sa-qc__body {
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
     padding: 12px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .sa-qc__banner {
     display: flex;
@@ -250,7 +250,7 @@ function coverage(locale: string): number {
     border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 10px;
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     border: 1px solid var(--sa-color-warning-border);
     color: var(--sa-color-warning-fg);
 }

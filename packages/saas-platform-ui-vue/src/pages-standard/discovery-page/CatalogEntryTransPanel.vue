@@ -171,13 +171,13 @@ function copyFromDefault(locale: string): void {
     gap: 12px;
 }
 .sa-trans-lang {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     background: var(--sa-color-bg-surface);
     padding: 10px 12px;
 }
 .sa-trans-lang--source {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     border-color: var(--sa-color-border-strong);
 }
 .sa-trans-lang__head {
@@ -189,7 +189,7 @@ function copyFromDefault(locale: string): void {
 .sa-trans-lang__code {
     font-size: 10px;
     font-weight: 700;
-    background: var(--sa-heading);
+    background: var(--sa-color-fg-heading);
     color: var(--sa-color-fg-on-accent);
     padding: 2px 6px;
     border-radius: 5px;
@@ -205,13 +205,13 @@ function copyFromDefault(locale: string): void {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--sa-muted-dark);
-    background: var(--sa-border);
+    color: var(--sa-color-fg-secondary);
+    background: var(--sa-color-border);
     padding: 2px 6px;
     border-radius: 5px;
 }
 .sa-trans-lang__copy {
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-trans-fields {
     display: flex;
@@ -228,12 +228,12 @@ function copyFromDefault(locale: string): void {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-trans-locked {
     font-size: 13px;
     color: var(--sa-color-fg-body);
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 6px;
     padding: 6px 10px;
@@ -243,7 +243,7 @@ function copyFromDefault(locale: string): void {
 }
 .sa-trans-locked__hint {
     font-size: 10px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     text-transform: uppercase;
 }
 .sa-trans__empty {
@@ -251,7 +251,7 @@ function copyFromDefault(locale: string): void {
     padding: 16px;
     text-align: center;
     font-size: 12px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 10px;
 }

@@ -27,6 +27,12 @@
     --sa-neutral-200: #e2e8f0;
     --sa-neutral-300: #cbd5e1;
     --sa-neutral-400: #94a3b8;
+    /* Between 400 and 500, and it exists for a measured reason: `fg-subtle` at
+     * slate-400 reads 2.56:1 on a white card and 2.34:1 on the page canvas —
+     * under the 3:1 floor, i.e. captions and price units that are decoration
+     * rather than information. Slate-500 is the next rung and too dark to stay
+     * quiet. This one clears 3:1 on both. */
+    --sa-neutral-450: #7c8aa0;
     --sa-neutral-500: #64748b;
     --sa-neutral-600: #475569;
     --sa-neutral-700: #334155;

@@ -360,7 +360,7 @@ const currentPageTitle = computed(() => {
 .sa-admin-drawer :deep(.q-drawer__content),
 .sa-admin-drawer__stack {
     background: var(--sa-admin-drawer-bg, var(--sa-color-inverse-bg));
-    color: var(--sa-admin-drawer-fg, var(--sa-border-soft));
+    color: var(--sa-admin-drawer-fg, var(--sa-color-border-soft));
 }
 .sa-admin-drawer__stack {
     display: flex;
@@ -412,7 +412,7 @@ const currentPageTitle = computed(() => {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--sa-admin-drawer-section-fg, var(--sa-muted));
+    color: var(--sa-admin-drawer-section-fg, var(--sa-color-fg-muted));
     padding: 14px 18px 6px;
     font-weight: 600;
 }
@@ -430,7 +430,7 @@ const currentPageTitle = computed(() => {
     padding-right: 8px;
 }
 .sa-admin-drawer__list :deep(.q-item .q-icon) {
-    color: var(--sa-border);
+    color: var(--sa-color-border);
 }
 .sa-admin-drawer__list :deep(.q-item:hover) {
     background: var(--sa-admin-drawer-hover-bg, var(--sa-color-inverse-accent-surface));
@@ -462,7 +462,7 @@ const currentPageTitle = computed(() => {
     align-items: center;
     gap: 6px;
     margin-top: 6px;
-    color: var(--sa-border);
+    color: var(--sa-color-border);
     text-decoration: none;
 }
 .sa-admin-drawer__doc:hover {

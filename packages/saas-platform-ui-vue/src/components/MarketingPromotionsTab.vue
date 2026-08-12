@@ -586,7 +586,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-subtitle {
     font-size: 12px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .mc-promo-stats {
     display: flex;
@@ -597,8 +597,8 @@ async function onRemove(p: PromotionRow): Promise<void> {
     font-weight: 600;
     padding: 3px 9px;
     border-radius: 999px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
 }
 .mc-promo-stat.active {
     background: var(--sa-color-positive-surface-strong);
@@ -606,40 +606,40 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-stat.scheduled {
     background: var(--sa-color-info-surface-strong);
-    color: var(--sa-primary-strong);
+    color: var(--sa-color-accent-strong);
 }
 .mc-promo-stat.expired {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-light);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-subtle);
 }
 .mc-promo-timeline {
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     padding: 12px 14px;
 }
 .mc-promo-timeline-head {
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-bottom: 6px;
 }
 .mc-promo-timeline-chart {
     position: relative;
-    border-left: 1px solid var(--sa-border);
+    border-left: 1px solid var(--sa-color-border);
 }
 .mc-promo-tick {
     position: absolute;
     top: 0;
     bottom: 0;
     width: 1px;
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
 }
 .mc-promo-tick-label {
     position: absolute;
     bottom: 0;
     left: 3px;
     font-size: 9px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     white-space: nowrap;
 }
 .mc-promo-today {
@@ -680,7 +680,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-empty {
     padding: 28px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-size: 13px;
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 10px;
@@ -695,7 +695,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     align-items: center;
     gap: 12px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 10px 12px;
     cursor: pointer;
@@ -729,30 +729,30 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-typechip {
     font-size: 10px;
     font-weight: 700;
-    background: var(--sa-primary-50);
-    color: var(--sa-primary-strong);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent-strong);
     padding: 1px 6px;
     border-radius: 4px;
 }
 .mc-promo-planchip {
     font-size: 10px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     padding: 1px 6px;
     border-radius: 4px;
 }
 .mc-promo-muted {
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .mc-promo-row-when {
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     text-align: right;
 }
 .mc-promo-cycle {
     display: block;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .mc-promo-status {
     font-size: 10px;
@@ -767,17 +767,17 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-status.scheduled {
     background: var(--sa-color-info-surface-strong);
-    color: var(--sa-primary-strong);
+    color: var(--sa-color-accent-strong);
 }
 .mc-promo-status.expired {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-light);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-subtle);
 }
 .mc-promo-editor {
     border: 1px solid var(--sa-color-accent);
     border-top: 0;
     border-radius: 0 0 8px 8px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     padding: 14px;
 }
 .mc-promo-editor-grid {
@@ -795,7 +795,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     margin-top: 6px;
 }
 .mc-promo-input {
@@ -827,8 +827,8 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-typeopt.active {
     border-color: var(--sa-color-accent);
-    background: var(--sa-primary-50);
-    color: var(--sa-primary-strong);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent-strong);
     font-weight: 600;
 }
 .mc-promo-planlist {
@@ -848,10 +848,10 @@ async function onRemove(p: PromotionRow): Promise<void> {
 }
 .mc-promo-planopt.active {
     border-color: var(--sa-color-accent);
-    background: var(--sa-primary-50);
+    background: var(--sa-color-accent-surface-strong);
 }
 .mc-promo-planopt code {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-size: 10px;
 }
 .mc-promo-i18n-block {
@@ -859,14 +859,14 @@ async function onRemove(p: PromotionRow): Promise<void> {
     flex-direction: column;
     gap: 4px;
     padding: 8px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     background: var(--sa-color-bg-surface);
 }
 .mc-promo-i18n-code {
     font-size: 10px;
     font-weight: 700;
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     padding: 2px 7px;
     border-radius: 5px;
     align-self: flex-start;
@@ -883,7 +883,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     cursor: pointer;
 }
 .mc-promo-colorbtn.active {
-    border-color: var(--sa-heading);
+    border-color: var(--sa-color-fg-heading);
 }
 .mc-promo-delete {
     margin-top: 12px;

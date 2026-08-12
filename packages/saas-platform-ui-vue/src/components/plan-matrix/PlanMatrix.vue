@@ -657,16 +657,16 @@ function formatQuota(v: number | undefined): string {
 <style scoped>
 .pm {
     padding: 22px 26px;
-    background: var(--sa-bg-app);
-    color: var(--sa-heading);
+    background: var(--sa-color-bg-app);
+    color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
 }
 
 .pm-card {
-    background: var(--sa-bg-surface);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
 }
 .pm-wrap {
@@ -681,7 +681,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-head th {
     background: var(--sa-color-bg-surface-raised);
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pm-rowhead-cell {
     text-align: left;
@@ -694,7 +694,7 @@ function formatQuota(v: number | undefined): string {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 
@@ -705,7 +705,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-plan-card {
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-top: 3px solid;
     border-radius: 10px;
     padding: 14px 14px 12px;
@@ -720,30 +720,30 @@ function formatQuota(v: number | undefined): string {
 .pm-plan-key {
     font: 700 11px var(--sa-font-mono);
     letter-spacing: 0.08em;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .pm-plan-label {
     font-size: 17px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pm-plan-desc {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 4px;
     line-height: 1.4;
     min-height: 32px;
 }
 .pm-plan-divider {
     height: 1px;
-    background: var(--sa-border);
+    background: var(--sa-color-border);
     margin: 10px 0;
 }
 .pm-kebab {
     background: none;
     border: 0;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
     font-size: 16px;
     padding: 0;
@@ -769,17 +769,17 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-price-unit {
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .pm-price-yearly {
     font-size: 10px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-left: 4px;
 }
 .pm-price-free {
     font-size: 14px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pm-plan-meta {
     display: flex;
@@ -787,7 +787,7 @@ function formatQuota(v: number | undefined): string {
     flex-wrap: wrap;
     align-items: center;
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 8px;
 }
 .pm-plan-actions {
@@ -795,7 +795,7 @@ function formatQuota(v: number | undefined): string {
     gap: 6px;
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
 }
 
 .pm-add-col {
@@ -827,18 +827,18 @@ function formatQuota(v: number | undefined): string {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: var(--sa-primary-50);
-    color: var(--sa-primary);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent);
     margin: 0 auto 6px;
 }
 .pm-add-title {
     font-size: 12px;
     font-weight: 600;
-    color: var(--sa-primary);
+    color: var(--sa-color-accent);
 }
 .pm-add-sub {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-top: 3px;
 }
 
@@ -851,27 +851,27 @@ function formatQuota(v: number | undefined): string {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .pm-chip--tiny {
     padding: 1px 6px;
     font-size: 10px;
 }
 .pm-chip--live {
-    background: var(--sa-positive-bg);
+    background: var(--sa-color-positive-surface);
     color: var(--sa-color-positive-fg);
     border-color: var(--sa-color-positive-border);
 }
 .pm-chip--draft {
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border-color: var(--sa-color-warning-border);
 }
 .pm-chip--supersed {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     border-color: var(--sa-color-border-strong);
 }
 .pm-chip--dot::before {
@@ -884,9 +884,9 @@ function formatQuota(v: number | undefined): string {
 
 /* Group rows */
 .pm-group td {
-    background: var(--sa-bg-surface-2);
-    border-top: 1px solid var(--sa-border);
-    border-bottom: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    border-top: 1px solid var(--sa-color-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pm-group-inner {
     display: flex;
@@ -897,7 +897,7 @@ function formatQuota(v: number | undefined): string {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .pm-group-dot {
     width: 7px;
@@ -914,8 +914,8 @@ function formatQuota(v: number | undefined): string {
     background: var(--sa-color-bundle);
 }
 .pm-group-count {
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
     padding: 1px 7px;
     border-radius: 999px;
     font-size: 10px;
@@ -923,7 +923,7 @@ function formatQuota(v: number | undefined): string {
 
 /* Data rows */
 .pm-row td {
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
     height: 44px;
 }
 .pm-row:hover td {
@@ -940,11 +940,11 @@ function formatQuota(v: number | undefined): string {
 .pm-rh-label {
     font-size: 13px;
     font-weight: 500;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pm-rh-key {
     font: 500 10px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pm-cell {
     text-align: center;
@@ -962,7 +962,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-cell--base {
     text-align: center;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .pm-base-badge {
     display: inline-flex;
@@ -990,11 +990,11 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-num {
     font: 600 14px var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pm-unit {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-left: 3px;
 }
 .pm-quota {
@@ -1009,7 +1009,7 @@ function formatQuota(v: number | undefined): string {
     gap: 18px;
     margin-top: 14px;
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     align-items: center;
 }
 .pm-legend-item {
@@ -1038,6 +1038,6 @@ function formatQuota(v: number | undefined): string {
 .pm-legend-loading {
     margin-left: auto;
     font-style: italic;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 </style>

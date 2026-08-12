@@ -45,11 +45,18 @@ import {
 } from '../vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from '../vue/ui-notify.js';
 import {
+    SA_THEME_KEY,
+    createSaTheme,
+    type SaTheme,
+    type SaThemeOptions,
+} from '../vue/use-sa-theme.js';
+import {
     SUPER_ADMIN_I18N_KEY,
     createSuperAdminI18n,
     type SuperAdminI18n,
     type SuperAdminI18nOptions,
 } from '../vue/use-super-admin-i18n.js';
+import { bindSaThemeToDocument } from './dark-bridge.js';
 import { quasarNotify } from './notify.js';
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
@@ -112,6 +119,17 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * runtime. Consumed via `useSuperAdminI18n()` / `useSaMessages()`.
      */
     i18n?: SuperAdminI18nOptions;
+    /**
+     * Optional: colour scheme. Default follows the operating system and
+     * remembers an explicit pick. The context is returned on the handle
+     * (`handle.theme`) — set `handle.theme.scheme.value = 'dark'` to switch at
+     * runtime, and read it anywhere via `useSaTheme()`.
+     *
+     * Whatever it resolves to is mirrored onto `<html data-sa-theme>` AND into
+     * Quasar's `Dark`, so the platform's surfaces and Quasar's own components
+     * never disagree.
+     */
+    theme?: SaThemeOptions;
 }
 
 export interface SuperAdminAppHandle {
@@ -120,6 +138,8 @@ export interface SuperAdminAppHandle {
     pinia: Pinia;
     /** i18n context of the shell — switch locale via `i18n.locale.value`. */
     i18n: SuperAdminI18n;
+    /** Colour scheme of the shell — switch via `theme.scheme.value`. */
+    theme: SaTheme;
     /** Mounts the app on a selector. Returns the root component instance. */
     mount: (selector: string | Element) => ReturnType<App['mount']>;
 }
@@ -164,9 +184,12 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     };
 
     const i18n = createSuperAdminI18n(options.i18n);
+    const theme = createSaTheme(options.theme);
+    bindSaThemeToDocument(theme);
 
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);
+    app.provide(SA_THEME_KEY, theme);
     app.provide(SUPER_ADMIN_ENDPOINTS_KEY, endpoints);
     app.provide(SUPER_ADMIN_EXTENSIONS_KEY, options.extensions ?? {});
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
@@ -191,6 +214,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
         router,
         pinia,
         i18n,
+        theme,
         mount: (selector) => app.mount(selector),
     };
 }

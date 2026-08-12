@@ -300,7 +300,7 @@ async function submitConfirm(): Promise<void> {
 .sa-setup-locale {
     margin-left: auto;
     align-self: flex-start;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-setup-badge {
     width: 44px;
@@ -323,21 +323,21 @@ async function submitConfirm(): Promise<void> {
     margin: 0;
     font-weight: 800;
     font-size: 18px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     line-height: 1.1;
 }
 .sa-setup-sub {
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-setup-hint {
     font-size: 13px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     line-height: 1.5;
     margin: 0 0 16px;
 }
 .sa-setup-hint code {
-    background: var(--sa-border);
+    background: var(--sa-color-border);
     padding: 1px 5px;
     border-radius: 4px;
 }
@@ -365,17 +365,17 @@ async function submitConfirm(): Promise<void> {
     margin-bottom: 12px;
 }
 .sa-setup-qr img {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 8px;
     background: var(--sa-color-bg-surface);
 }
 .sa-setup-qr__hint {
     font-size: 12px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .sa-setup-secret {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 10px;
@@ -384,27 +384,27 @@ async function submitConfirm(): Promise<void> {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-bottom: 4px;
 }
 .sa-setup-secret__value {
     font-size: 15px;
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     word-break: break-all;
     letter-spacing: 0.04em;
 }
 .sa-setup-uri {
     margin: 4px 0 4px;
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-setup-uri__value {
     display: block;
     margin-top: 6px;
     word-break: break-all;
     color: var(--sa-color-fg-body);
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     padding: 6px 8px;
     border-radius: 6px;
 }
@@ -413,7 +413,7 @@ async function submitConfirm(): Promise<void> {
     width: 100%;
     background: none;
     border: none;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-size: 12px;
     cursor: pointer;
     text-decoration: underline;

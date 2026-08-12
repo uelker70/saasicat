@@ -327,12 +327,12 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
     padding-bottom: 14px;
     margin-bottom: 16px;
 }
 .sa-tenant-detail__card-sub {
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-size: 13px;
     margin: 4px 0 0;
 }
@@ -343,7 +343,7 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
     align-items: center;
 }
 .sa-tenant-detail__empty {
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-size: 13px;
 }
 code {

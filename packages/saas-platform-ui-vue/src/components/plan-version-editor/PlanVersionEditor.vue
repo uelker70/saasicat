@@ -772,7 +772,7 @@ function emitSave(): void {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-mono {
     font: 500 11px var(--sa-font-mono);
@@ -792,9 +792,9 @@ function emitSave(): void {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.01em;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .pve-chip--plan {
     background: var(--sa-color-info-surface-strong);
@@ -802,7 +802,7 @@ function emitSave(): void {
     border-color: var(--sa-color-info-border);
 }
 .pve-chip--draft {
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border-color: var(--sa-color-warning-border);
 }
@@ -814,18 +814,18 @@ function emitSave(): void {
     background: currentColor;
 }
 .pve-chip--changes {
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border-color: var(--sa-color-warning-border);
 }
 
 .pve-kbd {
     font: 600 10.5px var(--sa-font-mono);
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
 }
 
 /* ── Body Grid ──────────────────────────────────────────────────── */
@@ -841,13 +841,13 @@ function emitSave(): void {
     overflow: hidden;
     display: grid;
     grid-template-columns: 380px 1fr 400px;
-    background: var(--sa-bg-app);
+    background: var(--sa-color-bg-app);
 }
 
 .pve-col {
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--sa-border);
+    border-right: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
     min-width: 0;
     overflow: hidden;
@@ -857,7 +857,7 @@ function emitSave(): void {
 }
 .pve-col-header {
     padding: 16px 18px 12px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: flex-start;
     gap: 8px;
@@ -876,7 +876,7 @@ function emitSave(): void {
 }
 .pve-col-sub {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
 
@@ -891,7 +891,7 @@ function emitSave(): void {
     padding: 10px 14px;
     margin: 10px 14px 0;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
 }
 .pve-search input {
@@ -900,10 +900,10 @@ function emitSave(): void {
     outline: 0;
     background: transparent;
     font: 13px var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-search-ico {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     display: inline-flex;
 }
 .pve-tabs {
@@ -917,22 +917,22 @@ function emitSave(): void {
     padding: 5px 10px;
     border-radius: 6px;
     font: 500 12.5px var(--sa-font-body);
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 .pve-tab--active {
-    background: var(--sa-heading);
+    background: var(--sa-color-fg-heading);
     color: var(--sa-color-fg-on-accent);
 }
 .pve-tab-count {
     font-size: 10.5px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .pve-tab--active .pve-tab-count {
     background: var(--sa-color-inverse-border-strong);
@@ -948,7 +948,7 @@ function emitSave(): void {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
     padding: 12px 4px 6px;
 }
@@ -957,7 +957,7 @@ function emitSave(): void {
     align-items: flex-start;
     gap: 10px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 9px 10px;
     margin-bottom: 6px;
@@ -975,12 +975,12 @@ function emitSave(): void {
     cursor: grabbing;
 }
 .pve-pool-card--selected {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     opacity: 0.7;
 }
 .pve-pool-card--partial {
     border-color: var(--sa-color-warning-border);
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
 }
 .pve-pool-grip {
     color: var(--sa-color-fg-disabled);
@@ -999,7 +999,7 @@ function emitSave(): void {
 .pve-pool-card-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-pool-card-check {
     display: inline-grid;
@@ -1017,12 +1017,12 @@ function emitSave(): void {
     align-items: center;
     flex-wrap: wrap;
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .pve-pool-card-key {
     font: 500 10px var(--sa-font-mono);
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .pve-pool-card-dot {
     color: var(--sa-color-fg-disabled);
@@ -1031,7 +1031,7 @@ function emitSave(): void {
 .pve-empty {
     padding: 24px 4px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-size: 12.5px;
     font-style: italic;
 }
@@ -1046,11 +1046,15 @@ function emitSave(): void {
 }
 .pve-basket--dragover {
     background: var(--sa-color-accent-surface);
-    box-shadow: inset 0 0 0 2px var(--sa-primary);
+    box-shadow: inset 0 0 0 2px var(--sa-color-accent);
 }
 .pve-basket-settings {
-    background: linear-gradient(180deg, var(--sa-bg-surface-2) 0%, var(--sa-color-bg-surface) 100%);
-    border-bottom: 1px solid var(--sa-border);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-bg-sunken) 0%,
+        var(--sa-color-bg-surface) 100%
+    );
+    border-bottom: 1px solid var(--sa-color-border);
     padding: 14px 22px 16px;
     display: flex;
     flex-direction: column;
@@ -1063,7 +1067,7 @@ function emitSave(): void {
 }
 .pve-bs-label {
     font-size: 12px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     font-weight: 500;
     min-width: 88px;
 }
@@ -1073,15 +1077,15 @@ function emitSave(): void {
 }
 .pve-bs-input {
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 6px 10px;
     font: 13px var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     outline: none;
 }
 .pve-bs-input:focus {
-    border-color: var(--sa-primary);
+    border-color: var(--sa-color-accent);
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-2);
 }
 .pve-bs-input--error {
@@ -1111,7 +1115,7 @@ function emitSave(): void {
 .pve-bs-input-grp {
     display: flex;
     align-items: stretch;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     background: var(--sa-color-bg-surface);
     overflow: hidden;
@@ -1127,17 +1131,17 @@ function emitSave(): void {
 }
 .pve-bs-prefix,
 .pve-bs-suffix {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     padding: 6px 10px;
     font-size: 12px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     display: grid;
     place-items: center;
-    border-right: 1px solid var(--sa-border);
+    border-right: 1px solid var(--sa-color-border);
 }
 .pve-bs-suffix {
     border-right: 0;
-    border-left: 1px solid var(--sa-border);
+    border-left: 1px solid var(--sa-color-border);
 }
 
 .pve-toggle {
@@ -1171,7 +1175,7 @@ function emitSave(): void {
     transition: transform 0.15s;
 }
 .pve-toggle input:checked + span {
-    background: var(--sa-primary);
+    background: var(--sa-color-accent);
 }
 .pve-toggle input:checked + span::before {
     transform: translateX(16px);
@@ -1179,7 +1183,7 @@ function emitSave(): void {
 
 .pve-basket-group {
     padding: 14px 22px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .pve-basket-group:last-child {
     border-bottom: 0;
@@ -1214,23 +1218,23 @@ function emitSave(): void {
 .pve-bg-count {
     margin-left: 6px;
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 
 .pve-dz {
-    border: 1.5px dashed var(--sa-border-strong);
+    border: 1.5px dashed var(--sa-color-border-strong);
     border-radius: 10px;
     padding: 12px;
     background: var(--sa-color-bg-surface-raised);
     min-height: 60px;
 }
 .pve-basket--dragover .pve-dz {
-    border-color: var(--sa-primary);
+    border-color: var(--sa-color-accent);
     background: var(--sa-color-accent-surface);
 }
 .pve-dz-empty {
     font-size: 12px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     text-align: center;
     padding: 4px 0;
 }
@@ -1244,7 +1248,7 @@ function emitSave(): void {
     gap: 10px;
     padding: 8px 10px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     margin-bottom: 4px;
 }
@@ -1273,20 +1277,20 @@ function emitSave(): void {
 .pve-sel-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-sel-sub {
     font: 500 10.5px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-sel-val-edit {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     padding: 3px 8px;
     border-radius: 5px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
 }
 .pve-sel-val-input {
     width: 64px;
@@ -1294,7 +1298,7 @@ function emitSave(): void {
     outline: 0;
     background: transparent;
     font: 600 13px var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     text-align: right;
     -moz-appearance: textfield;
 }
@@ -1305,12 +1309,12 @@ function emitSave(): void {
 }
 .pve-sel-val-unit {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-sel-x {
     background: transparent;
     border: 0;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -1324,7 +1328,7 @@ function emitSave(): void {
 
 /* ── RIGHT — Preview ───────────────────────────────────────────── */
 .pve-preview {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     overflow: auto;
 }
 .pve-preview-toggle {
@@ -1336,7 +1340,7 @@ function emitSave(): void {
     margin: 14px 18px;
     background: var(--sa-color-bg-surface);
     border-radius: 10px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     overflow: hidden;
     transition: max-width 0.18s;
 }
@@ -1348,8 +1352,8 @@ function emitSave(): void {
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background: var(--sa-border-soft);
-    border-bottom: 1px solid var(--sa-border);
+    background: var(--sa-color-border-soft);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pve-prev-dot {
     width: 9px;
@@ -1363,8 +1367,8 @@ function emitSave(): void {
     padding: 3px 10px;
     margin-left: 10px;
     font: 500 11px var(--sa-font-mono);
-    color: var(--sa-muted);
-    border: 1px solid var(--sa-border);
+    color: var(--sa-color-fg-muted);
+    border: 1px solid var(--sa-color-border);
 }
 .pve-prev-body {
     padding: 18px 18px 16px;
@@ -1373,7 +1377,7 @@ function emitSave(): void {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-weight: 700;
 }
 .pve-prev-title {
@@ -1381,11 +1385,11 @@ function emitSave(): void {
     font-weight: 700;
     letter-spacing: -0.03em;
     margin-top: 6px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-prev-desc {
     font-size: 12.5px;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     margin-top: 6px;
     line-height: 1.5;
 }
@@ -1399,11 +1403,11 @@ function emitSave(): void {
     font-size: 38px;
     font-weight: 700;
     letter-spacing: -0.03em;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-prev-price-unit {
     font-size: 13px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .pve-prev-price-yearly {
     font-size: 11.5px;
@@ -1416,7 +1420,7 @@ function emitSave(): void {
     width: 100%;
     margin-top: 14px;
     padding: 10px;
-    background: var(--sa-heading);
+    background: var(--sa-color-fg-heading);
     color: var(--sa-color-fg-on-accent);
     border: 0;
     border-radius: 7px;
@@ -1426,11 +1430,11 @@ function emitSave(): void {
 .pve-prev-sep {
     margin-top: 18px;
     padding-top: 14px;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 .pve-prev-list {
@@ -1446,7 +1450,7 @@ function emitSave(): void {
     align-items: center;
     gap: 8px;
     font-size: 12.5px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-prev-list li b {
     font-weight: 600;
@@ -1462,22 +1466,22 @@ function emitSave(): void {
     flex: 0 0 auto;
 }
 .pve-prev-empty {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
 }
 .pve-prev-foot {
     margin-top: 16px;
     padding-top: 14px;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     line-height: 1.5;
 }
 
 .pve-prev-validate {
     margin: 0 18px 18px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 12px;
 }
@@ -1488,7 +1492,7 @@ function emitSave(): void {
     margin-bottom: 6px;
 }
 .pve-prev-validate-tick {
-    color: var(--sa-positive-light);
+    color: var(--sa-color-positive-strong);
     display: inline-flex;
 }
 .pve-prev-validate-title {
@@ -1498,7 +1502,7 @@ function emitSave(): void {
 .pve-prev-validate-count {
     margin-left: auto;
     font-size: 11px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .pve-vchk {
     display: flex;
@@ -1508,17 +1512,17 @@ function emitSave(): void {
     padding: 3px 0;
 }
 .pve-vchk--ok {
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .pve-vchk--ok span:first-child {
-    color: var(--sa-positive-light);
+    color: var(--sa-color-positive-strong);
     display: inline-flex;
 }
 .pve-vchk--warn {
     color: var(--sa-color-warning-fg);
 }
 .pve-vchk--warn span:first-child {
-    color: var(--sa-amber);
+    color: var(--sa-color-warning-strong);
     display: inline-flex;
 }
 
@@ -1535,7 +1539,7 @@ function emitSave(): void {
     }
     .pve-col {
         border-right: 0;
-        border-bottom: 1px solid var(--sa-border);
+        border-bottom: 1px solid var(--sa-color-border);
     }
 }
 
@@ -1548,14 +1552,14 @@ function emitSave(): void {
     box-shadow: 0 24px 60px var(--sa-shadow-tint-4);
     overflow: hidden;
     font-family: var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-diff-modal * {
     box-sizing: border-box;
 }
 .pve-diff-head {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -1567,7 +1571,7 @@ function emitSave(): void {
 }
 .pve-diff-sub {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
 .pve-diff-close {
@@ -1577,7 +1581,7 @@ function emitSave(): void {
     border-radius: 6px;
     background: transparent;
     border: 0;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
     display: grid;
     place-items: center;
@@ -1585,7 +1589,7 @@ function emitSave(): void {
 }
 .pve-diff-close:hover {
     background: var(--sa-color-bg-sunken);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-diff-body {
     padding: 14px 20px 18px;
@@ -1633,7 +1637,7 @@ function emitSave(): void {
 .pve-diff-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-diff-change {
     display: flex;
@@ -1644,10 +1648,10 @@ function emitSave(): void {
 }
 .pve-diff-from {
     text-decoration: line-through;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-diff-to {
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     font-weight: 600;
 }
 .pve-diff-arrow {
@@ -1660,7 +1664,7 @@ function emitSave(): void {
 .pve-diff-empty {
     padding: 24px 8px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: 13px;
 }

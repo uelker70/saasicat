@@ -280,14 +280,14 @@ function onCancel(): void {
 
 <style scoped>
 .pcd-modal {
-    background: var(--sa-bg-app);
+    background: var(--sa-color-bg-app);
     width: 640px;
     max-width: 92vw;
     border-radius: 14px;
     box-shadow: 0 24px 60px var(--sa-shadow-tint-4);
     overflow: hidden;
     font-family: var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pcd-modal * {
     box-sizing: border-box;
@@ -295,7 +295,7 @@ function onCancel(): void {
 
 .pcd-head {
     padding: 18px 22px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -311,7 +311,7 @@ function onCancel(): void {
 }
 .pcd-sub {
     font-size: 12px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
 .pcd-close {
@@ -320,14 +320,14 @@ function onCancel(): void {
     border-radius: 6px;
     background: transparent;
     border: 0;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
     display: grid;
     place-items: center;
 }
 .pcd-close:hover {
     background: var(--sa-color-bg-sunken);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 
 .pcd-body {
@@ -365,21 +365,21 @@ function onCancel(): void {
 }
 .pcd-kbd {
     font: 600 10.5px var(--sa-font-mono);
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     letter-spacing: 0.04em;
 }
 .pcd-input {
     width: 100%;
     padding: 9px 12px;
     background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 7px;
     font: 13.5px var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     outline: none;
     transition:
         border-color 0.12s,
@@ -391,22 +391,22 @@ function onCancel(): void {
     line-height: 1.5;
 }
 .pcd-input:focus {
-    border-color: var(--sa-primary);
+    border-color: var(--sa-color-accent);
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 .pcd-input--error {
-    border-color: var(--sa-negative);
+    border-color: var(--sa-color-negative);
 }
 .pcd-input--error:focus {
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 .pcd-hint {
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-top: 4px;
 }
 .pcd-hint--error {
-    color: var(--sa-negative);
+    color: var(--sa-color-negative);
 }
 
 .pcd-choice-grid {
@@ -415,7 +415,7 @@ function onCancel(): void {
     gap: 8px;
 }
 .pcd-choice {
-    border: 1.5px solid var(--sa-border);
+    border: 1.5px solid var(--sa-color-border);
     border-radius: 9px;
     padding: 12px 14px;
     cursor: pointer;
@@ -431,27 +431,27 @@ function onCancel(): void {
     font-family: inherit;
 }
 .pcd-choice:hover {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .pcd-choice--selected {
-    border-color: var(--sa-primary);
+    border-color: var(--sa-color-accent);
     background: var(--sa-color-accent-surface);
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-2);
 }
 .pcd-choice-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pcd-choice-sub {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 
 .pcd-foot {
     padding: 14px 22px;
     background: var(--sa-color-bg-surface-raised);
-    border-top: 1px solid var(--sa-border);
+    border-top: 1px solid var(--sa-color-border);
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -464,15 +464,15 @@ function onCancel(): void {
     border-radius: 7px;
     font: 500 13px var(--sa-font-body);
     cursor: pointer;
-    border: 1px solid var(--sa-border-strong);
+    border: 1px solid var(--sa-color-border-strong);
     background: var(--sa-color-bg-surface);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .pcd-btn:hover:not(:disabled) {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .pcd-btn:disabled {
     cursor: not-allowed;
@@ -486,12 +486,12 @@ function onCancel(): void {
     background: var(--sa-color-bg-sunken);
 }
 .pcd-btn--primary {
-    background: var(--sa-primary);
-    border-color: var(--sa-primary);
+    background: var(--sa-color-accent);
+    border-color: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
 }
 .pcd-btn--primary:hover:not(:disabled) {
-    background: var(--sa-primary-strong);
+    background: var(--sa-color-accent-strong);
 }
 .pcd-ico {
     display: inline-flex;

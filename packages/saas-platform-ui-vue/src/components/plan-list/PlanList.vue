@@ -552,8 +552,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 <style scoped>
 .sa-plan-list {
     /* padding: 22px 26px; */
-    background: var(--sa-bg-app);
-    color: var(--sa-heading);
+    background: var(--sa-color-bg-app);
+    color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
@@ -563,8 +563,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 
 /* List wrap */
 .sa-plan-list-wrap {
-    background: var(--sa-bg-surface);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -573,8 +573,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--sa-border);
-    background: var(--sa-bg-surface-2);
+    border-bottom: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-sunken);
 }
 /* The search takes the row; the sort hint keeps its content width. */
 .sa-plan-list-toolbar > .q-field {
@@ -583,7 +583,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-sortinfo {
     margin-left: auto;
     font-size: 11.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 
 /* List grid */
@@ -601,15 +601,15 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     font-weight: 700;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-empty {
     grid-column: 1 / -1;
     padding: 32px 24px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
     font-size: 13px;
 }
@@ -619,14 +619,14 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 }
 .sa-plan-list-row > .sa-plan-list-cell {
     padding: 14px 16px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
     transition: background 0.12s;
 }
 .sa-plan-list-row:hover > .sa-plan-list-cell {
     background: var(--sa-color-bg-surface-raised);
 }
 .sa-plan-list-row--new > .sa-plan-list-cell {
-    background: var(--sa-positive-bg) !important;
+    background: var(--sa-color-positive-surface) !important;
     animation: sa-plan-list-flashNew 2.4s ease-out;
 }
 @keyframes sa-plan-list-flashNew {
@@ -634,7 +634,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
         background: var(--sa-color-positive-surface-strong) !important;
     }
     100% {
-        background: var(--sa-positive-bg) !important;
+        background: var(--sa-color-positive-surface) !important;
     }
 }
 
@@ -645,7 +645,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     padding-bottom: 10px;
 }
 .sa-plan-list-row--sub:hover > .sa-plan-list-cell {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
 }
 .sa-plan-list-cell--sub-name {
     display: flex;
@@ -677,14 +677,14 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-sub-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     display: flex;
     align-items: center;
     gap: 8px;
 }
 .sa-plan-list-sub-desc {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -693,10 +693,10 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-version-num--sub {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-plan-list-cell--sub-impact {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 
 .sa-plan-list-plan-name {
@@ -721,7 +721,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-plan-title {
     font-size: 14.5px;
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     letter-spacing: -0.01em;
     display: flex;
     align-items: center;
@@ -730,7 +730,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 }
 .sa-plan-list-plan-desc {
     font-size: 11.5px;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -753,9 +753,9 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-chip--tiny {
     padding: 1px 6px;
@@ -768,18 +768,18 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     font-size: 10px;
 }
 .sa-plan-list-chip--live {
-    background: var(--sa-positive-bg);
+    background: var(--sa-color-positive-surface);
     color: var(--sa-color-positive-fg);
     border-color: var(--sa-color-positive-border);
 }
 .sa-plan-list-chip--draft {
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
     border-color: var(--sa-color-warning-border);
 }
 .sa-plan-list-chip--supersed {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     border-color: var(--sa-color-border-strong);
 }
 .sa-plan-list-chip--scheduled {
@@ -798,35 +798,35 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-version-num {
     font-size: 13px;
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-plan-list-version-num--muted {
     color: var(--sa-color-fg-disabled);
 }
 .sa-plan-list-version-sub {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 
 .sa-plan-list-price-big {
     font-size: 14px;
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-plan-list-price-unit {
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-plan-list-price-sub {
     font-size: 10.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .sa-plan-list-price-text {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 
 .sa-plan-list-cell--tenants {
@@ -837,12 +837,12 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-tenant-num {
     font-size: 16px;
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-plan-list-tenant-bar {
     flex: 1;
     height: 6px;
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border-radius: 999px;
     overflow: hidden;
 }

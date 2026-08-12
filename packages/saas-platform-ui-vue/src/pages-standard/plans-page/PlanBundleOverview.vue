@@ -85,13 +85,13 @@ function compatLabel(bundle: BundleEntry): string {
 <style scoped>
 .sa-bundles__count {
     font-size: 12px;
-    color: var(--sa-muted);
-    background: var(--sa-border);
+    color: var(--sa-color-fg-muted);
+    background: var(--sa-color-border);
     border-radius: 999px;
     padding: 1px 8px;
 }
 .sa-bundle-overview__empty {
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-size: 14px;
     padding: 8px 0;
 }
@@ -105,18 +105,18 @@ function compatLabel(bundle: BundleEntry): string {
 }
 .sa-bundle__label {
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-bundle__key {
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-family: monospace;
 }
 .sa-bundle__caption {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-bottom: 4px;
 }
 .sa-bundle__chips {
@@ -129,7 +129,7 @@ function compatLabel(bundle: BundleEntry): string {
     color: var(--sa-color-scheduled-fg);
 }
 .sa-bundle__muted {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-bundle__compat {
     padding-top: 0;

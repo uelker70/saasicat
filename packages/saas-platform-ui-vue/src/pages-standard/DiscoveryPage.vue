@@ -469,8 +469,8 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--sa-heading);
-    color: var(--sa-border);
+    background: var(--sa-color-fg-heading);
+    color: var(--sa-color-border);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -485,7 +485,7 @@ onMounted(() => {
 }
 .sa-discovery__banner-meta {
     font-size: 11px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-discovery__banner-time {
     text-align: right;
@@ -494,7 +494,7 @@ onMounted(() => {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-discovery__banner-time-val {
     font-size: 13px;
@@ -504,7 +504,7 @@ onMounted(() => {
     border-left: 4px solid var(--sa-color-negative);
 }
 .sa-discovery__tabs {
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-discovery__search {
     flex: 1;
@@ -526,8 +526,8 @@ onMounted(() => {
 .sa-discovery__group-count {
     font-size: 10px;
     font-weight: 700;
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
     padding: 1px 7px;
     border-radius: 8px;
 }
@@ -538,20 +538,20 @@ onMounted(() => {
 }
 .sa-discovery__orphan-hint code {
     font-size: 10px;
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     padding: 1px 4px;
     border-radius: 4px;
 }
 .sa-discovery__empty-row {
     padding: 36px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-size: 13px;
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 12px;
 }
 .sa-muted {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-right: 3px;
 }
 /* Status badge (review lifecycle) — shared by feature and quota card. */
@@ -561,8 +561,8 @@ onMounted(() => {
     text-transform: uppercase;
     padding: 3px 8px;
     border-radius: 6px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     flex-shrink: 0;
 }
 .sa-review--pending {
@@ -578,16 +578,16 @@ onMounted(() => {
     color: var(--sa-color-negative-fg);
 }
 .sa-review--obsolete {
-    background: var(--sa-border);
-    color: var(--sa-muted);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-muted);
 }
 .sa-chip {
     font-size: 10px;
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
 }
 /* i18n coverage pill — shared by feature and quota card. */
 .sa-cov-pill {
@@ -598,18 +598,18 @@ onMounted(() => {
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 8px;
-    border: 1px solid var(--sa-border);
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-cov-pill.complete {
     border-color: var(--sa-color-positive-border);
-    background: var(--sa-positive-bg);
+    background: var(--sa-color-positive-surface);
     color: var(--sa-color-positive-fg);
 }
 .sa-cov-pill.warn {
     border-color: var(--sa-color-warning-border);
-    background: var(--sa-warning-bg);
+    background: var(--sa-color-warning-surface);
     color: var(--sa-color-warning-fg);
 }
 .sa-cov-pill.low {
