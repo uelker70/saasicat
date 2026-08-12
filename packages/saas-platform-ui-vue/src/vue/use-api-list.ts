@@ -115,7 +115,8 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
     }
 
     async function setPageSize(size: number) {
-        pageSize.value = Math.max(1, Math.floor(size));
+        // The admin API's pageSize is 1..200; there is no "all" to pass on.
+        pageSize.value = Math.min(200, Math.max(1, Math.floor(size)));
         page.value = 1;
         await load();
     }

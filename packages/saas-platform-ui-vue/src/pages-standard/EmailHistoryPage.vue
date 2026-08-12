@@ -2,77 +2,79 @@
     <AdminPage class="sa-emh">
         <AdminHero :title="resolvedTitle" :subtitle="msg.history.subtitle">
             <template #actions>
-                <q-btn flat icon="refresh" :label="common.reload" @click="applyFilter" />
+                <AdminRefreshBtn :loading="loading" @refresh="applyFilter" />
             </template>
         </AdminHero>
 
-        <div class="sa-emh__body">
-            <div class="sa-emh__filter">
-                <q-input
-                    v-model="filter.search"
-                    outlined
-                    dense
-                    clearable
-                    :label="msg.history.searchLabel"
-                    debounce="350"
-                    @keyup.enter="applyFilter"
-                    @update:model-value="applyFilter"
-                >
-                    <template #prepend><q-icon name="search" /></template>
-                </q-input>
-                <q-select
-                    v-model="filter.status"
-                    outlined
-                    dense
-                    clearable
-                    emit-value
-                    map-options
-                    :label="common.status"
-                    :options="statusOptions"
-                    @update:model-value="applyFilter"
-                />
-                <q-input
-                    v-model="filter.from"
-                    outlined
-                    dense
-                    clearable
-                    type="date"
-                    :label="common.from"
-                    @update:model-value="applyFilter"
-                />
-                <q-input
-                    v-model="filter.to"
-                    outlined
-                    dense
-                    clearable
-                    type="date"
-                    :label="common.to"
-                    @update:model-value="applyFilter"
-                />
-            </div>
+        <AdminBody>
+            <AdminSection class="sa-emh__body">
+                <div class="sa-emh__filter">
+                    <q-input
+                        v-model="filter.search"
+                        outlined
+                        dense
+                        clearable
+                        :label="msg.history.searchLabel"
+                        debounce="350"
+                        @keyup.enter="applyFilter"
+                        @update:model-value="applyFilter"
+                    >
+                        <template #prepend><q-icon name="search" /></template>
+                    </q-input>
+                    <q-select
+                        v-model="filter.status"
+                        outlined
+                        dense
+                        clearable
+                        emit-value
+                        map-options
+                        :label="common.status"
+                        :options="statusOptions"
+                        @update:model-value="applyFilter"
+                    />
+                    <q-input
+                        v-model="filter.from"
+                        outlined
+                        dense
+                        clearable
+                        type="date"
+                        :label="common.from"
+                        @update:model-value="applyFilter"
+                    />
+                    <q-input
+                        v-model="filter.to"
+                        outlined
+                        dense
+                        clearable
+                        type="date"
+                        :label="common.to"
+                        @update:model-value="applyFilter"
+                    />
+                </div>
 
-            <div class="sa-emh__card">
-                <q-table
-                    v-model:pagination="pagination"
-                    flat
-                    :rows="rows"
-                    :columns="columns"
-                    row-key="id"
-                    :loading="loading"
-                    :rows-number="pagination.rowsNumber"
-                    @request="onRequest"
-                    @row-click="(_evt, row) => openDetail(row)"
-                >
-                    <template #body-cell-status="{ row }">
-                        <q-td>
-                            <q-badge
-                                :color="statusColor(row.status)"
-                                :label="statusLabel(row.status)"
-                            />
-                        </q-td>
-                    </template>
-                    <template #body-cell-actions="{ row }">
-                        <q-td class="text-right">
+                <div class="sa-emh__card">
+                    <AdminTable
+                        server-side
+                        :rows="rows"
+                        :columns="columns"
+                        :loading="loading"
+                        :page="pagination.page"
+                        :rows-per-page="pagination.rowsPerPage"
+                        :total="pagination.rowsNumber"
+                        storage-key="email-history"
+                        @row-click="(_evt: Event, row: EmailHistoryRow) => openDetail(row)"
+                        @update:page="onPageChange"
+                        @update:rows-per-page="onRowsPerPageChange"
+                    >
+                        <template #body-cell-status="{ row }">
+                            <q-td>
+                                <q-badge
+                                    :color="statusColor(row.status)"
+                                    :label="statusLabel(row.status)"
+                                />
+                            </q-td>
+                        </template>
+                        <template #row-actions="{ row }">
                             <q-btn
                                 flat
                                 dense
@@ -89,14 +91,14 @@
                                 :title="msg.history.removeFromHistory"
                                 @click.stop="askDelete(row.id)"
                             />
-                        </q-td>
-                    </template>
-                    <template #no-data>
-                        <div class="sa-emh__empty">{{ msg.history.empty }}</div>
-                    </template>
-                </q-table>
-            </div>
-        </div>
+                        </template>
+                        <template #no-data>
+                            <div class="sa-emh__empty">{{ msg.history.empty }}</div>
+                        </template>
+                    </AdminTable>
+                </div>
+            </AdminSection>
+        </AdminBody>
 
         <q-dialog v-model="detailOpen">
             <q-card class="sa-emh__detail">
@@ -215,9 +217,13 @@
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
@@ -307,7 +313,6 @@ const columns = computed(() => [
         field: (r: EmailHistoryRow) => formatTs(r.sentAt),
         align: 'left' as const,
     },
-    { name: 'actions', label: '', field: 'id' as never, align: 'right' as const },
 ]);
 
 const detailOpen = ref(false);
@@ -352,12 +357,17 @@ async function reload(): Promise<void> {
 void reload();
 defineExpose({ reload });
 
-async function onRequest(req: {
-    pagination: { page: number; rowsPerPage: number };
-}): Promise<void> {
-    pagination.value.page = req.pagination.page;
-    pagination.value.rowsPerPage = req.pagination.rowsPerPage;
-    await reload();
+// The pager owns page and size; both need a fetch, and a size change starts
+// over at page 1 — the row it would land on otherwise is arbitrary.
+function onPageChange(page: number): void {
+    pagination.value.page = page;
+    void reload();
+}
+
+function onRowsPerPageChange(rows: number): void {
+    pagination.value.rowsPerPage = rows;
+    pagination.value.page = 1;
+    void reload();
 }
 
 function applyFilter(): void {
@@ -508,7 +518,7 @@ function formatTs(iso: string | null | undefined): string {
 }
 .sa-emh__card {
     background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
+    border: 1px solid var(--sa-border, var(--sa-border));
     border-radius: 12px;
     overflow: hidden;
     padding: 8px 0;
@@ -516,7 +526,7 @@ function formatTs(iso: string | null | undefined): string {
 .sa-emh__empty {
     width: 100%;
     text-align: center;
-    color: var(--sa-muted-dark, #64748b);
+    color: var(--sa-muted-dark, var(--sa-muted));
     padding: 24px 0;
 }
 .sa-emh__detail {
@@ -534,14 +544,14 @@ function formatTs(iso: string | null | undefined): string {
     width: 100%;
     min-height: 320px;
     max-height: 60vh;
-    border: 1px solid var(--sa-border, #e2e8f0);
+    border: 1px solid var(--sa-border, var(--sa-border));
     border-radius: 8px;
     background: #fff;
 }
 .sa-emh__text,
 .sa-emh__smtp {
-    background: #f8fafc;
-    border: 1px solid var(--sa-border, #e2e8f0);
+    background: var(--sa-bg-surface-2);
+    border: 1px solid var(--sa-border, var(--sa-border));
     border-radius: 8px;
     padding: 12px;
     font-size: 12px;

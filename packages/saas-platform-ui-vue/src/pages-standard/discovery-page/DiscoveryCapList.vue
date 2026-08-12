@@ -91,7 +91,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     gap: 10px;
     align-items: flex-start;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 8px 10px;
 }
@@ -142,8 +142,8 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     color: #b91c1c;
 }
 .sa-caps-row__flag--gone {
-    background: #e2e8f0;
-    color: #64748b;
+    background: var(--sa-border);
+    color: var(--sa-muted);
 }
 .sa-caps-row.gone {
     opacity: 0.6;
@@ -153,7 +153,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     gap: 12px;
     flex-wrap: wrap;
     font-size: 11px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     margin-top: 1px;
 }
 .sa-caps-row__meta code {
@@ -165,7 +165,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     gap: 6px;
     font-size: 11px;
     color: #b45309;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     border: 1px dashed #fde68a;
     border-radius: 8px;
     padding: 10px 12px;

@@ -22,14 +22,15 @@
                 <template v-else>—</template>
             </template>
             <template #actions>
-                <q-btn
+                <button
+                    class="sa-btn sa-btn--primary"
+                    type="button"
                     v-if="editSubmit && data"
-                    color="primary"
-                    unelevated
-                    icon="edit"
-                    :label="labels.edit"
                     @click="openEdit"
-                />
+                >
+                    <q-icon name="edit" size="16px" />
+                    <span>{{ labels.edit }}</span>
+                </button>
                 <slot name="header-actions" />
             </template>
         </AdminHero>
@@ -41,13 +42,13 @@
             :empty-text="labels.empty"
         >
             <template v-if="data">
-                <AdminSection :title="labels.config" class="sa-card sa-promo-detail__section">
+                <AdminSection :title="labels.config">
                     <slot name="config" :promo="data.promo">
                         <pre class="sa-promo-detail__kv">{{ resolveFormatPromo(data.promo) }}</pre>
                     </slot>
                 </AdminSection>
 
-                <AdminSection :title="labels.stats" class="sa-card sa-promo-detail__section">
+                <AdminSection :title="labels.stats">
                     <slot name="stats" :stats="data.stats">
                         <pre class="sa-promo-detail__kv">{{
                             JSON.stringify(data.stats, null, 2)
@@ -55,18 +56,12 @@
                     </slot>
                 </AdminSection>
 
-                <AdminSection
-                    :title="`${labels.redemptions} (${data.redemptions.length})`"
-                    class="sa-card sa-promo-detail__section"
-                >
+                <AdminSection :title="`${labels.redemptions} (${data.redemptions.length})`">
                     <slot name="redemptions" :redemptions="data.redemptions">
-                        <q-table
-                            flat
-                            :rows="data.redemptions"
+                        <AdminTable
+                            :rows="redemptionRows"
                             :columns="redemptionsColumns ?? defaultColumns"
-                            row-key="id"
-                            :pagination="{ rowsPerPage: 0 }"
-                            hide-pagination
+                            storage-key="promo-code-redemptions"
                         />
                     </slot>
                 </AdminSection>
@@ -87,6 +82,7 @@
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, ref } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
@@ -281,6 +277,8 @@ const defaultColumns = computed<QTableColumn[]>(() => [
         align: 'left',
     },
 ]);
+
+const redemptionRows = computed(() => data.value?.redemptions ?? []);
 </script>
 
 <style scoped>
@@ -297,18 +295,6 @@ const defaultColumns = computed<QTableColumn[]>(() => [
     display: flex;
     flex-direction: column;
     gap: 14px;
-}
-.sa-promo-detail__section {
-    padding: 16px 18px;
-}
-.sa-promo-detail__section-head {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--sa-muted);
-    text-transform: uppercase;
-    margin-bottom: 10px;
-    font-family: var(--sa-font-head);
 }
 .sa-promo-detail__kv {
     background: #fafbfc;

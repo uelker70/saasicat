@@ -1,15 +1,9 @@
 <template>
-    <q-table
-        flat
-        :rows="users"
-        :columns="columns"
-        row-key="id"
-        :pagination="{ rowsPerPage: 0 }"
-        hide-pagination
-    />
+    <AdminTable :rows="users" :columns="columns" storage-key="tenant-users" />
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../../components/admin-page/AdminTable.vue';
 import type { QTableColumn } from 'quasar';
 
 // The tenant's users. The column set comes from the page, which falls back to

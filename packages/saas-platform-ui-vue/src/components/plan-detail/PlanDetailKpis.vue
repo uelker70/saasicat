@@ -1,43 +1,38 @@
 <template>
-    <div class="pd-kpis">
-        <div class="pd-kpi">
-            <div class="pd-kpi-label">{{ msg.kpis.activeVersion }}</div>
-            <div class="pd-kpi-big">
+    <AdminStatistics :columns="4">
+        <AdminKpi :label="msg.kpis.activeVersion" :sub="activeVersionSub">
+            <template #value>
                 <template v-if="liveVersion">
                     v{{ liveVersion.version }}
                     <span class="chip live dot">live</span>
                 </template>
                 <template v-else>—</template>
-            </div>
-            <div class="pd-kpi-sub">{{ activeVersionSub }}</div>
-        </div>
+            </template>
+        </AdminKpi>
 
-        <div class="pd-kpi">
-            <div class="pd-kpi-label">{{ msg.kpis.tenantImpact }}</div>
-            <div class="pd-kpi-big">{{ tenantTotal }}</div>
-            <div class="pd-kpi-sub">{{ msg.kpis.tenantsOnPlan }}</div>
-        </div>
+        <AdminKpi
+            :label="msg.kpis.tenantImpact"
+            :value="tenantTotal"
+            :sub="msg.kpis.tenantsOnPlan"
+        />
 
-        <div class="pd-kpi">
-            <div class="pd-kpi-label">{{ msg.kpis.versions }}</div>
-            <div class="pd-kpi-big">{{ versionCount }}</div>
-            <div class="pd-kpi-sub">{{ versionsSummary }}</div>
-        </div>
+        <AdminKpi :label="msg.kpis.versions" :value="versionCount" :sub="versionsSummary" />
 
-        <div :class="['pd-kpi', draftVersion ? 'draft' : '']">
-            <div class="pd-kpi-label">{{ msg.kpis.openDraft }}</div>
-            <div class="pd-kpi-big" :style="draftVersion ? '' : 'color:#cbd5e1'">
-                {{ draftVersion ? `v${draftVersion.version}` : '—' }}
-            </div>
-            <div class="pd-kpi-sub">
-                {{ draftVersion ? msg.kpis.readyToEdit : msg.kpis.noOpenDraft }}
-            </div>
-        </div>
-    </div>
+        <AdminKpi
+            :label="msg.kpis.openDraft"
+            :value="draftVersion ? `v${draftVersion.version}` : null"
+            :sub="draftVersion ? msg.kpis.readyToEdit : msg.kpis.noOpenDraft"
+            :tone="draftVersion ? 'warn' : 'neutral'"
+            emphasis="surface"
+        />
+    </AdminStatistics>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import AdminKpi from '../admin-page/AdminKpi.vue';
+import AdminStatistics from '../admin-page/AdminStatistics.vue';
 import type { PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

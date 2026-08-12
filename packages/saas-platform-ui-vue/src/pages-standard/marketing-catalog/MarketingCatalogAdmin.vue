@@ -400,7 +400,7 @@
                                 <div class="sa-marketing-tf-add">
                                     <button
                                         type="button"
-                                        class="sa-marketing-btn sa-marketing-btn--sm"
+                                        class="sa-btn sa-btn--sm"
                                         :disabled="busy"
                                         @click="$emit('add-feature', row)"
                                     >

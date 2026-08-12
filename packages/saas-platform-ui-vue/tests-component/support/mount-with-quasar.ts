@@ -6,11 +6,33 @@
 // attributes and assertions pass or fail for reasons that have nothing to do
 // with the component under test.
 
-import { QBtn, QIcon, QItem, QItemSection, QList, QMenu, Quasar, ClosePopup } from 'quasar';
+import {
+    QBtn,
+    QIcon,
+    QInput,
+    QItem,
+    QItemSection,
+    QList,
+    QMenu,
+    QSelect,
+    QTable,
+    Quasar,
+    ClosePopup,
+} from 'quasar';
 import { mount, type MountingOptions } from '@vue/test-utils';
 import type { Component } from 'vue';
 
-const QUASAR_COMPONENTS = { QBtn, QIcon, QItem, QItemSection, QList, QMenu };
+const QUASAR_COMPONENTS = {
+    QBtn,
+    QIcon,
+    QInput,
+    QItem,
+    QItemSection,
+    QList,
+    QMenu,
+    QSelect,
+    QTable,
+};
 
 export function mountWithQuasar<T extends Component>(
     component: T,

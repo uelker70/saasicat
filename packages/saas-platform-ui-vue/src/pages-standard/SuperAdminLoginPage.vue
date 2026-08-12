@@ -199,7 +199,7 @@ async function handleSubmit(): Promise<void> {
        on top of the centered card on short viewports. */
     margin-left: auto;
     align-self: flex-start;
-    color: var(--sa-login-tag-color, #475569);
+    color: var(--sa-login-tag-color, var(--sa-muted-dark));
 }
 .sa-login-wrap {
     min-height: 100vh;
@@ -208,7 +208,7 @@ async function handleSubmit(): Promise<void> {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    background: linear-gradient(180deg, var(--sa-heading) 0%, #1e293b 100%);
 }
 .sa-login-card {
     width: 420px;
@@ -234,7 +234,7 @@ async function handleSubmit(): Promise<void> {
     overflow: hidden;
 }
 .sa-login-logo--text {
-    background: var(--sa-login-logo-bg, linear-gradient(135deg, #475569, #1e293b));
+    background: var(--sa-login-logo-bg, linear-gradient(135deg, var(--sa-muted-dark), #1e293b));
     color: var(--sa-login-logo-color, #fff);
     font-weight: 800;
     font-size: 18px;
@@ -248,12 +248,12 @@ async function handleSubmit(): Promise<void> {
 .sa-login-brand__name {
     font-weight: 800;
     font-size: 16px;
-    color: #0f172a;
+    color: var(--sa-heading);
     line-height: 1.1;
 }
 .sa-login-brand__tag {
     font-size: 12px;
-    color: var(--sa-login-tag-color, #475569);
+    color: var(--sa-login-tag-color, var(--sa-muted-dark));
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
@@ -261,12 +261,12 @@ async function handleSubmit(): Promise<void> {
 .sa-login-title {
     font-size: 22px;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--sa-heading);
     margin: 0 0 6px;
 }
 .sa-login-subtitle {
     font-size: 13px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     margin: 0 0 20px;
     line-height: 1.5;
 }
@@ -290,13 +290,13 @@ async function handleSubmit(): Promise<void> {
 .sa-login-hint {
     margin-top: 18px;
     padding: 10px 12px;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     border-radius: 8px;
     font-size: 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .sa-login-hint code {
-    background: #e2e8f0;
+    background: var(--sa-border);
     padding: 1px 5px;
     border-radius: 4px;
 }

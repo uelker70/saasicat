@@ -5,6 +5,8 @@ export const plansMessages = defineMessages(
         // PlansPage — shell of the plan area: loading state, toasts and the
         // error texts of the draft/publish/archive/discard actions.
         page: {
+            subtitle:
+                'Pläne bündeln Features & Quotas zu einem Angebot. Jede Änderung wird als neue Version veröffentlicht — Live-Versionen bleiben unangetastet.',
             loading: 'Pläne werden geladen…',
             toastPlanCreated: 'Plan {planKey} angelegt — jetzt die erste Version zusammenstellen.',
             toastDraftSaved: 'Draft v{version} von {planKey} gespeichert.',
@@ -68,8 +70,10 @@ export const plansMessages = defineMessages(
         // PlanList — default plan overview with one row per plan.
         list: {
             title: 'Alle Pläne',
-            summary:
-                '{plans} Pläne · {live} live · {drafts} offene Drafts · {tenants} Mandanten zugeordnet',
+            statPlans: 'Pläne',
+            statLive: 'Live',
+            statDrafts: 'Offene Drafts',
+            statTenants: 'Mandanten',
             matrixView: 'Matrix-Ansicht',
             newPlan: 'Neuer Plan',
             searchPlaceholder: 'Plan suchen…',
@@ -108,8 +112,10 @@ export const plansMessages = defineMessages(
         // PlanMatrix — all plans side by side, components as rows.
         matrix: {
             title: 'Pläne · Matrix-Vergleich',
-            summary:
-                'Alle Pläne nebeneinander · {plans} Pläne · {features} Features · {quotas} Quotas · {bundles} Bundles',
+            statPlans: 'Pläne',
+            statFeatures: 'Features',
+            statQuotas: 'Quotas',
+            statBundles: 'Bundles',
             catalogPreview: 'Catalog-Vorschau',
             createPlan: 'Plan anlegen',
             createPlanSub: 'oder Klon erstellen',
@@ -260,6 +266,8 @@ export const plansMessages = defineMessages(
     },
     {
         page: {
+            subtitle:
+                'Plans bundle features & quotas into an offering. Every change ships as a new version — live versions stay untouched.',
             loading: 'Loading plans…',
             toastPlanCreated: 'Plan {planKey} created — now assemble the first version.',
             toastDraftSaved: 'Draft v{version} of {planKey} saved.',
@@ -319,8 +327,10 @@ export const plansMessages = defineMessages(
         },
         list: {
             title: 'All plans',
-            summary:
-                '{plans} plans · {live} live · {drafts} open drafts · {tenants} tenants assigned',
+            statPlans: 'Plans',
+            statLive: 'Live',
+            statDrafts: 'Open drafts',
+            statTenants: 'Tenants',
             matrixView: 'Matrix view',
             newPlan: 'New plan',
             searchPlaceholder: 'Search plan…',
@@ -358,8 +368,10 @@ export const plansMessages = defineMessages(
         },
         matrix: {
             title: 'Plans · matrix comparison',
-            summary:
-                'All plans side by side · {plans} plans · {features} features · {quotas} quotas · {bundles} bundles',
+            statPlans: 'Plans',
+            statFeatures: 'Features',
+            statQuotas: 'Quotas',
+            statBundles: 'Bundles',
             catalogPreview: 'Catalog preview',
             createPlan: 'Create plan',
             createPlanSub: 'or create a clone',

@@ -1,11 +1,10 @@
 <template>
-    <section class="sa-bundles">
-        <div class="sa-bundles__head">
-            <h2 class="sa-bundles__title">{{ msg.bundleOverview.title }}</h2>
+    <AdminSection :title="msg.bundleOverview.title">
+        <template #actions>
             <span class="sa-bundles__count">{{ bundles.length }}</span>
-        </div>
+        </template>
 
-        <div v-if="bundles.length === 0" class="sa-bundles__empty">
+        <div v-if="bundles.length === 0" class="sa-bundle-overview__empty">
             {{ msg.bundleOverview.empty }}
         </div>
 
@@ -44,11 +43,12 @@
                 </q-card-section>
             </q-card>
         </div>
-    </section>
+    </AdminSection>
 </template>
 
 <script setup lang="ts">
 import type { PlanRow } from '@saasicat/types';
+import AdminSection from '../../components/admin-page/AdminSection.vue';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
 interface BundleEntry {
@@ -83,30 +83,15 @@ function compatLabel(bundle: BundleEntry): string {
 </script>
 
 <style scoped>
-.sa-bundles {
-    padding: 8px 16px 32px;
-}
-.sa-bundles__head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 8px 0 12px;
-}
-.sa-bundles__title {
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0;
-    color: #0f172a;
-}
 .sa-bundles__count {
     font-size: 12px;
-    color: #64748b;
-    background: #e2e8f0;
+    color: var(--sa-muted);
+    background: var(--sa-border);
     border-radius: 999px;
     padding: 1px 8px;
 }
-.sa-bundles__empty {
-    color: #64748b;
+.sa-bundle-overview__empty {
+    color: var(--sa-muted);
     font-size: 14px;
     padding: 8px 0;
 }
@@ -120,18 +105,18 @@ function compatLabel(bundle: BundleEntry): string {
 }
 .sa-bundle__label {
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .sa-bundle__key {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-family: monospace;
 }
 .sa-bundle__caption {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-bottom: 4px;
 }
 .sa-bundle__chips {
@@ -144,7 +129,7 @@ function compatLabel(bundle: BundleEntry): string {
     color: #3730a3;
 }
 .sa-bundle__muted {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-bundle__compat {
     padding-top: 0;

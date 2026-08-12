@@ -1,41 +1,11 @@
 <template>
     <div class="pm">
-        <!-- Page header -->
-        <div class="pm-page-head">
-            <div>
-                <h2 class="pm-h-title">{{ msg.matrix.title }}</h2>
-                <p class="pm-h-sub">{{ summary }}</p>
-            </div>
-            <div class="pm-head-actions">
-                <button class="pm-btn" type="button" @click="$emit('viewCatalog')">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    <span>{{ msg.matrix.catalogPreview }}</span>
-                </button>
-                <button class="pm-btn pm-btn--primary" type="button" @click="$emit('createPlan')">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                    >
-                        <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    <span>{{ msg.matrix.createPlan }}</span>
-                </button>
-            </div>
-        </div>
+        <AdminStatistics :columns="4">
+            <AdminKpi :label="msg.matrix.statPlans" :value="plans.length" />
+            <AdminKpi :label="msg.matrix.statFeatures" :value="orderedFeatureKeys.length" />
+            <AdminKpi :label="msg.matrix.statQuotas" :value="orderedQuotaKeys.length" />
+            <AdminKpi :label="msg.matrix.statBundles" :value="orderedBundleKeys.length" />
+        </AdminStatistics>
 
         <!-- Matrix -->
         <div class="pm-card pm-wrap">
@@ -150,7 +120,7 @@
 
                                 <div class="pm-plan-actions">
                                     <button
-                                        class="pm-btn pm-btn--sm pm-btn--flex"
+                                        class="sa-btn sa-btn--sm sa-btn--flex"
                                         type="button"
                                         @click="$emit('openPlan', p.plan)"
                                     >
@@ -169,7 +139,7 @@
                                         <span>{{ common.open }}</span>
                                     </button>
                                     <button
-                                        class="pm-btn pm-btn--sm pm-btn--ghost"
+                                        class="sa-btn sa-btn--sm sa-btn--ghost"
                                         type="button"
                                         @click="$emit('clonePlan', p.plan)"
                                         :aria-label="msg.matrix.clonePlan"
@@ -403,6 +373,8 @@
 </template>
 
 <script setup lang="ts">
+import AdminKpi from '../admin-page/AdminKpi.vue';
+import AdminStatistics from '../admin-page/AdminStatistics.vue';
 import { computed } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
@@ -464,9 +436,8 @@ const props = withDefaults(
 
 defineEmits<{
     (e: 'openPlan', plan: PlanRow): void;
-    (e: 'createPlan'): void;
     (e: 'clonePlan', plan: PlanRow): void;
-    (e: 'viewCatalog'): void;
+    (e: 'createPlan'): void;
 }>();
 
 interface ResolvedPlan {
@@ -632,15 +603,6 @@ const orderedFeatureKeys = computed<string[]>(() => {
 
 const orderedBundleKeys = computed<string[]>(() => props.availableBundles.map((b) => b.bundleKey));
 
-const summary = computed(() =>
-    formatMessage(msg.value.matrix.summary, {
-        plans: props.plans.length,
-        features: orderedFeatureKeys.value.length,
-        quotas: orderedQuotaKeys.value.length,
-        bundles: orderedBundleKeys.value.length,
-    }),
-);
-
 function quotaLabel(key: string): string {
     return props.availableQuotas.find((q) => q.quotaKey === key)?.label || key;
 }
@@ -687,103 +649,17 @@ function formatQuota(v: number | undefined): string {
 
 <style scoped>
 .pm {
-    --pm-bg: #f6f7f9;
-    --pm-surface: #ffffff;
-    --pm-surface-2: #f8fafc;
-    --pm-border: #e5e7eb;
-    --pm-border-strong: #d1d5db;
-    --pm-text: #0f172a;
-    --pm-text-2: #475569;
-    --pm-text-3: #94a3b8;
-    --pm-primary: #2563eb;
-    --pm-live: #10b981;
-    --pm-live-bg: #ecfdf5;
-    --pm-draft: #f59e0b;
-    --pm-draft-bg: #fffbeb;
-    --pm-supersed: #94a3b8;
-    --pm-supersed-bg: #f1f5f9;
-    --pm-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --pm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
     padding: 22px 26px;
-    background: var(--pm-bg);
-    color: var(--pm-text);
-    font-family: var(--pm-font-sans);
+    background: var(--sa-bg-app);
+    color: var(--sa-heading);
+    font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
 }
-.pm * {
-    box-sizing: border-box;
-}
-
-.pm-page-head {
-    display: flex;
-    align-items: flex-end;
-    gap: 20px;
-    margin-bottom: 18px;
-}
-.pm-h-title {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin: 0;
-}
-.pm-h-sub {
-    font-size: 12.5px;
-    color: var(--pm-text-2);
-    margin: 3px 0 0;
-}
-.pm-head-actions {
-    margin-left: auto;
-    display: flex;
-    gap: 8px;
-}
-
-.pm-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--pm-font-sans);
-    cursor: pointer;
-    border: 1px solid var(--pm-border-strong);
-    background: #fff;
-    color: var(--pm-text);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.pm-btn:hover {
-    background: var(--pm-surface-2);
-}
-.pm-btn--primary {
-    background: var(--pm-primary);
-    border-color: var(--pm-primary);
-    color: #fff;
-}
-.pm-btn--primary:hover {
-    background: #1d4ed8;
-}
-.pm-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.pm-btn--ghost:hover {
-    background: rgba(15, 23, 42, 0.05);
-}
-.pm-btn--sm {
-    padding: 5px 9px;
-    font-size: 12px;
-    gap: 5px;
-}
-.pm-btn--flex {
-    flex: 1;
-}
 
 .pm-card {
-    background: var(--pm-surface);
-    border: 1px solid var(--pm-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
 }
 .pm-wrap {
@@ -798,7 +674,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-head th {
     background: #fbfbfd;
-    border-bottom: 1px solid var(--pm-border);
+    border-bottom: 1px solid var(--sa-border);
 }
 .pm-rowhead-cell {
     text-align: left;
@@ -811,7 +687,7 @@ function formatQuota(v: number | undefined): string {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     font-weight: 700;
 }
 
@@ -822,7 +698,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-plan-card {
     background: #fff;
-    border: 1px solid var(--pm-border);
+    border: 1px solid var(--sa-border);
     border-top: 3px solid;
     border-radius: 10px;
     padding: 14px 14px 12px;
@@ -835,32 +711,32 @@ function formatQuota(v: number | undefined): string {
     align-items: flex-start;
 }
 .pm-plan-key {
-    font: 700 11px var(--pm-font-mono);
+    font: 700 11px var(--sa-font-mono);
     letter-spacing: 0.08em;
-    color: var(--pm-text-2);
+    color: var(--sa-muted-dark);
 }
 .pm-plan-label {
     font-size: 17px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--pm-text);
+    color: var(--sa-heading);
 }
 .pm-plan-desc {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 4px;
     line-height: 1.4;
     min-height: 32px;
 }
 .pm-plan-divider {
     height: 1px;
-    background: var(--pm-border);
+    background: var(--sa-border);
     margin: 10px 0;
 }
 .pm-kebab {
     background: none;
     border: 0;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     cursor: pointer;
     font-size: 16px;
     padding: 0;
@@ -886,17 +762,17 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-price-unit {
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pm-price-yearly {
     font-size: 10px;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     margin-left: 4px;
 }
 .pm-price-free {
     font-size: 14px;
     font-weight: 600;
-    color: var(--pm-text);
+    color: var(--sa-heading);
 }
 .pm-plan-meta {
     display: flex;
@@ -904,7 +780,7 @@ function formatQuota(v: number | undefined): string {
     flex-wrap: wrap;
     align-items: center;
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 8px;
 }
 .pm-plan-actions {
@@ -912,7 +788,7 @@ function formatQuota(v: number | undefined): string {
     gap: 6px;
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
 }
 
 .pm-add-col {
@@ -944,18 +820,18 @@ function formatQuota(v: number | undefined): string {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #eff6ff;
-    color: var(--pm-primary);
+    background: var(--sa-primary-50);
+    color: var(--sa-primary);
     margin: 0 auto 6px;
 }
 .pm-add-title {
     font-size: 12px;
     font-weight: 600;
-    color: var(--pm-primary);
+    color: var(--sa-primary);
 }
 .pm-add-sub {
     font-size: 10.5px;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     margin-top: 3px;
 }
 
@@ -968,27 +844,27 @@ function formatQuota(v: number | undefined): string {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: var(--pm-surface-2);
-    color: var(--pm-text-2);
-    border: 1px solid var(--pm-border);
+    background: var(--sa-bg-surface-2);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
 }
 .pm-chip--tiny {
     padding: 1px 6px;
     font-size: 10px;
 }
 .pm-chip--live {
-    background: var(--pm-live-bg);
+    background: var(--sa-positive-bg);
     color: #047857;
     border-color: #a7f3d0;
 }
 .pm-chip--draft {
-    background: var(--pm-draft-bg);
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
 .pm-chip--supersed {
-    background: var(--pm-supersed-bg);
-    color: var(--pm-text-2);
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     border-color: #cbd5e1;
 }
 .pm-chip--dot::before {
@@ -1001,9 +877,9 @@ function formatQuota(v: number | undefined): string {
 
 /* Group rows */
 .pm-group td {
-    background: var(--pm-surface-2);
-    border-top: 1px solid var(--pm-border);
-    border-bottom: 1px solid var(--pm-border);
+    background: var(--sa-bg-surface-2);
+    border-top: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-border);
 }
 .pm-group-inner {
     display: flex;
@@ -1014,7 +890,7 @@ function formatQuota(v: number | undefined): string {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--pm-text-2);
+    color: var(--sa-muted-dark);
 }
 .pm-group-dot {
     width: 7px;
@@ -1031,8 +907,8 @@ function formatQuota(v: number | undefined): string {
     background: #f59e0b;
 }
 .pm-group-count {
-    background: #e2e8f0;
-    color: var(--pm-text-2);
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
     padding: 1px 7px;
     border-radius: 999px;
     font-size: 10px;
@@ -1040,7 +916,7 @@ function formatQuota(v: number | undefined): string {
 
 /* Data rows */
 .pm-row td {
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
     height: 44px;
 }
 .pm-row:hover td {
@@ -1057,11 +933,11 @@ function formatQuota(v: number | undefined): string {
 .pm-rh-label {
     font-size: 13px;
     font-weight: 500;
-    color: var(--pm-text);
+    color: var(--sa-heading);
 }
 .pm-rh-key {
-    font: 500 10px var(--pm-font-mono);
-    color: var(--pm-text-3);
+    font: 500 10px var(--sa-font-mono);
+    color: var(--sa-muted-light);
 }
 .pm-cell {
     text-align: center;
@@ -1079,7 +955,7 @@ function formatQuota(v: number | undefined): string {
 }
 .pm-cell--base {
     text-align: center;
-    background: var(--pm-surface-2);
+    background: var(--sa-bg-surface-2);
 }
 .pm-base-badge {
     display: inline-flex;
@@ -1106,12 +982,12 @@ function formatQuota(v: number | undefined): string {
     font-weight: 500;
 }
 .pm-num {
-    font: 600 14px var(--pm-font-sans);
-    color: var(--pm-text);
+    font: 600 14px var(--sa-font-body);
+    color: var(--sa-heading);
 }
 .pm-unit {
     font-size: 10.5px;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
     margin-left: 3px;
 }
 .pm-quota {
@@ -1126,7 +1002,7 @@ function formatQuota(v: number | undefined): string {
     gap: 18px;
     margin-top: 14px;
     font-size: 12px;
-    color: var(--pm-text-2);
+    color: var(--sa-muted-dark);
     align-items: center;
 }
 .pm-legend-item {
@@ -1155,6 +1031,6 @@ function formatQuota(v: number | undefined): string {
 .pm-legend-loading {
     margin-left: auto;
     font-style: italic;
-    color: var(--pm-text-3);
+    color: var(--sa-muted-light);
 }
 </style>

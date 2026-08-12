@@ -1,25 +1,14 @@
 <template>
-    <div class="pd">
-        <PlanDetailHeader
-            :plan="plan"
-            :draft-version="draftVersion"
-            :tenant-total="tenantTotal"
-            :published-count="publishedCount"
-            @back="$emit('back')"
-            @delete-plan="$emit('deletePlan')"
-            @clone-plan="$emit('clonePlan')"
-            @create-draft="$emit('createDraft')"
-            @publish="$emit('publish', $event)"
-            @update-plan="$emit('updatePlan', $event)"
-        />
-
-        <PlanDetailKpis
-            :live-version="liveVersion"
-            :draft-version="draftVersion"
-            :tenant-total="tenantTotal"
-            :version-count="versions.length"
-            :published-count="publishedCount"
-        />
+    <div>
+        <AdminSection class="q-mb-md">
+            <PlanDetailKpis
+                :live-version="liveVersion"
+                :draft-version="draftVersion"
+                :tenant-total="tenantTotal"
+                :version-count="versions.length"
+                :published-count="publishedCount"
+            />
+        </AdminSection>
 
         <div class="pd-body">
             <PlanVersionsPanel
@@ -81,7 +70,7 @@ import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanAuditLog from './PlanAuditLog.vue';
-import PlanDetailHeader from './PlanDetailHeader.vue';
+import AdminSection from '../admin-page/AdminSection.vue';
 import PlanDetailKpis from './PlanDetailKpis.vue';
 import PlanTerminateDialog from './PlanTerminateDialog.vue';
 import PlanVersionDiffPanel from './PlanVersionDiffPanel.vue';
@@ -131,13 +120,9 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-    (e: 'back'): void;
     (e: 'createDraft'): void;
     (e: 'editDraft', version: PlanVersionRow): void;
     (e: 'publish', version: PlanVersionRow): void;
-    (e: 'clonePlan'): void;
-    (e: 'deletePlan'): void;
-    (e: 'updatePlan', patch: { label: string }): void;
     (e: 'terminate', versionId: string, endsAt: string): void;
 }>();
 
@@ -420,38 +405,8 @@ async function executeTerminate(): Promise<void> {
 </script>
 
 <style>
-.pd {
-    --primary: #2563eb;
-    --border: #e5e7eb;
-    --border-strong: #d1d5db;
-    --text: #0f172a;
-    --text-2: #475569;
-    --bg: #f6f7f9;
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-    padding: 22px 26px;
-    background: var(--bg);
-    font-family: var(--font-sans);
-    color: var(--text);
-    min-height: 100%;
-    box-sizing: border-box;
-}
-.pd * {
-    box-sizing: border-box;
-}
-/* Consumer apps load Quasar, which styles h1–h6 globally with very large
-   line-heights. Neutralize that here so headings (and the tier chip
-   sitting next to them) are aligned correctly. */
-.pd h1,
-.pd h2,
-.pd h3,
-.pd h4 {
-    line-height: 1.2;
-    margin: 0;
-}
 .pd-code {
-    font: 500 11px var(--font-mono);
+    font: 500 11px var(--sa-font-mono);
 }
 
 /* buttons + chips (1:1 styles.css) */
@@ -461,39 +416,30 @@ async function executeTerminate(): Promise<void> {
     gap: 7px;
     padding: 8px 14px;
     border-radius: 7px;
-    font: 500 13px var(--font-sans);
+    font: 500 13px var(--sa-font-body);
     cursor: pointer;
-    border: 1px solid var(--border-strong);
+    border: 1px solid var(--sa-border-strong);
     background: #fff;
-    color: var(--text);
+    color: var(--sa-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .btn:hover {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .btn.primary {
-    background: var(--primary);
-    border-color: var(--primary);
+    background: var(--sa-primary);
+    border-color: var(--sa-primary);
     color: #fff;
 }
 .btn.primary:hover {
-    background: #1d4ed8;
+    background: var(--sa-primary-strong);
 }
 .btn.btn--sm {
     padding: 5px 9px;
     font-size: 12px;
     gap: 5px;
-}
-.btn.danger {
-    border-color: #fecaca;
-    color: #b91c1c;
-    background: #fff;
-}
-.btn.danger:hover {
-    background: #fef2f2;
-    border-color: #fca5a5;
 }
 .chip {
     display: inline-flex;
@@ -503,23 +449,23 @@ async function executeTerminate(): Promise<void> {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: #f8fafc;
-    color: var(--text-2);
-    border: 1px solid var(--border);
+    background: var(--sa-bg-surface-2);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
 }
 .chip.live {
-    background: #ecfdf5;
+    background: var(--sa-positive-bg);
     color: #047857;
     border-color: #a7f3d0;
 }
 .chip.draft {
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
 .chip.supersed {
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     border-color: #cbd5e1;
 }
 .chip.dot::before {
@@ -531,148 +477,8 @@ async function executeTerminate(): Promise<void> {
 }
 
 /* header */
-.pd-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 18px;
-    margin-bottom: 18px;
-}
-.pd-header-left {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    min-width: 0;
-    flex: 1;
-}
-.pd-header-titles {
-    min-width: 0;
-}
-.pd-back-arrow {
-    display: inline-flex;
-    transform: rotate(180deg);
-}
-.pd-tier-chip {
-    font: 700 10.5px var(--font-mono);
-    letter-spacing: 0.08em;
-    background: #f1f5f9;
-    color: #475569;
-    border: 1px solid #e2e8f0;
-    padding: 4px 10px;
-    border-radius: 6px;
-    margin-top: 8px;
-}
-.pd-title {
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    margin: 0;
-    color: var(--text);
-}
-.pd-desc {
-    margin-top: 4px;
-    font-size: 13px;
-    color: var(--text-2);
-}
-.pd-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-.pd-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.pd-title-edit-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: transparent;
-    border: 1px solid transparent;
-    color: #94a3b8;
-    cursor: pointer;
-    transition:
-        background 0.12s,
-        color 0.12s,
-        border-color 0.12s;
-}
-.pd-title-edit-btn:hover {
-    background: #f1f5f9;
-    color: var(--primary);
-    border-color: #e2e8f0;
-}
-.pd-title-input {
-    font: inherit;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-    color: var(--text);
-    border: 0;
-    background: #fffbeb;
-    outline: 2px solid #fcd34d;
-    padding: 2px 8px;
-    border-radius: 6px;
-    min-width: 220px;
-}
-.pd-title-hint {
-    font-size: 11px;
-    color: #92400e;
-    font-weight: 500;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    padding: 2px 8px;
-    border-radius: 999px;
-    margin-left: 4px;
-}
 
 /* KPI cards */
-.pd-kpis {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-}
-.pd-kpi {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 16px 12px;
-    min-height: 102px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-.pd-kpi-label {
-    font-size: 10.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #64748b;
-}
-.pd-kpi-big {
-    font: 700 26px/1 var(--font-sans);
-    letter-spacing: -0.025em;
-    color: var(--text);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.pd-kpi-sub {
-    font-size: 11.5px;
-    color: #64748b;
-    margin-top: auto;
-}
-.pd-kpi.draft {
-    background: linear-gradient(180deg, #fffbeb 0%, #fffef7 100%);
-    border-color: #fde68a;
-}
-.pd-kpi.draft .pd-kpi-label,
-.pd-kpi.draft .pd-kpi-sub {
-    color: #92400e;
-}
 
 /* body */
 .pd-body {
@@ -681,10 +487,9 @@ async function executeTerminate(): Promise<void> {
     gap: 16px;
     align-items: start;
 }
+/* Surface, border and radius come from `.sa-section` — the panel IS one.
+ * Only `overflow` stays, so content is clipped at the rounded edge. */
 .pd-panel {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: 10px;
     overflow: hidden;
 }
 .pd-panel-head {
@@ -692,29 +497,18 @@ async function executeTerminate(): Promise<void> {
     align-items: flex-start;
     gap: 12px;
     padding: 14px 16px 12px;
-    border-bottom: 1px solid #f1f5f9;
-}
-.pd-panel .sa-section__head {
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px 12px;
-    border-bottom: 1px solid #f1f5f9;
-    margin-bottom: 0;
-}
-.pd-panel .sa-section__sub {
-    font-size: 11.5px;
-    margin-top: 2px;
+    border-bottom: 1px solid var(--sa-border-soft);
 }
 .pd-panel-title {
     font-size: 15px;
     font-weight: 700;
     margin: 0;
     letter-spacing: -0.01em;
-    color: var(--text);
+    color: var(--sa-heading);
 }
 .pd-panel-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 3px;
 }
 .pd-panel-head-right {
@@ -733,7 +527,7 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 6px;
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-bottom: 8px;
     font-weight: 500;
 }
@@ -747,14 +541,14 @@ async function executeTerminate(): Promise<void> {
     height: 24px;
     border-radius: 6px;
     overflow: hidden;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background: var(--sa-border-soft);
+    border: 1px solid var(--sa-border);
 }
 .pd-timeline-seg {
     display: flex;
     align-items: center;
     justify-content: center;
-    font: 600 11px var(--font-sans);
+    font: 600 11px var(--sa-font-body);
     color: rgba(15, 23, 42, 0.65);
     border-right: 1px solid rgba(0, 0, 0, 0.06);
     white-space: nowrap;
@@ -777,8 +571,8 @@ async function executeTerminate(): Promise<void> {
     transform: translateY(0);
 }
 .pd-timeline-seg.superseded {
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .pd-timeline-seg.live {
     background: #10b981;
@@ -793,13 +587,13 @@ async function executeTerminate(): Promise<void> {
 .pd-timeline-seg.is-selected {
     position: relative;
     z-index: 1;
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--sa-primary);
     outline-offset: -2px;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
     font-weight: 700;
 }
 .pd-timeline-seg.is-selected.superseded {
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pd-timeline-seg.is-selected.live {
     outline-color: #047857;
@@ -813,8 +607,8 @@ async function executeTerminate(): Promise<void> {
     display: flex;
     justify-content: space-between;
     margin-top: 6px;
-    font: 500 10.5px var(--font-mono);
-    color: #94a3b8;
+    font: 500 10.5px var(--sa-font-mono);
+    color: var(--sa-muted-light);
 }
 
 /* versions table */
@@ -830,7 +624,7 @@ async function executeTerminate(): Promise<void> {
         64px minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1fr)
         minmax(96px, auto);
     align-items: stretch;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     margin-top: 12px;
 }
 .pd-versions-head {
@@ -842,9 +636,9 @@ async function executeTerminate(): Promise<void> {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #64748b;
+    color: var(--sa-muted);
     font-weight: 700;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--sa-border);
 }
 .pd-vrow {
     display: contents;
@@ -852,11 +646,11 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-vrow > div {
     padding: 13px 12px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
     display: flex;
     align-items: center;
     font-size: 12.5px;
-    color: var(--text);
+    color: var(--sa-heading);
 }
 .pd-vrow:hover > div {
     background: #fafbfd;
@@ -868,7 +662,7 @@ async function executeTerminate(): Promise<void> {
     background: #fff8e7;
 }
 .pd-vrow.is-selected > div {
-    background: #eff6ff !important;
+    background: var(--sa-primary-50) !important;
     box-shadow: inset 0 -1px 0 0 #bfdbfe;
 }
 .pd-vrow.is-selected.is-draft > div {
@@ -877,7 +671,7 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-vrow.is-selected > div:first-child {
     box-shadow:
-        inset 3px 0 0 0 var(--primary),
+        inset 3px 0 0 0 var(--sa-primary),
         inset 0 -1px 0 0 #bfdbfe;
 }
 .pd-vrow.is-draft > div:first-child {
@@ -895,7 +689,7 @@ async function executeTerminate(): Promise<void> {
     align-items: flex-start;
 }
 .pd-v-num {
-    font: 700 14px var(--font-sans);
+    font: 700 14px var(--sa-font-body);
 }
 .pd-validity {
     display: flex;
@@ -909,32 +703,32 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-validity-sub {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-validity-date {
-    font: 500 12.5px var(--font-mono);
+    font: 500 12.5px var(--sa-font-mono);
 }
 .pd-arrow-inf {
-    font: 600 13px var(--font-mono);
-    color: #94a3b8;
+    font: 600 13px var(--sa-font-mono);
+    color: var(--sa-muted-light);
 }
 .pd-pricing-m {
-    font: 600 13px var(--font-sans);
+    font: 600 13px var(--sa-font-body);
 }
 .pd-pricing-y {
-    font: 500 10.5px var(--font-sans);
-    color: #94a3b8;
+    font: 500 10.5px var(--sa-font-body);
+    color: var(--sa-muted-light);
     margin-top: 2px;
 }
 .pd-impact-num {
-    font: 700 14px var(--font-sans);
+    font: 700 14px var(--sa-font-body);
 }
 .pd-impact-sub {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-change-note {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-style: italic;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -951,8 +745,8 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     padding: 3px 8px;
     border-radius: 999px;
-    font: 600 10.5px var(--font-mono);
-    background: #fffbeb;
+    font: 600 10.5px var(--sa-font-mono);
+    background: var(--sa-warning-bg);
     color: #b45309;
     border: 1px solid #fde68a;
     white-space: nowrap;
@@ -964,12 +758,12 @@ async function executeTerminate(): Promise<void> {
     gap: 6px;
 }
 .pd-diff-chip {
-    font: 700 11px var(--font-mono);
+    font: 700 11px var(--sa-font-mono);
     padding: 3px 8px;
     border-radius: 6px;
 }
 .pd-diff-chip.add {
-    background: #ecfdf5;
+    background: var(--sa-positive-bg);
     color: #047857;
     border: 1px solid #a7f3d0;
 }
@@ -979,9 +773,9 @@ async function executeTerminate(): Promise<void> {
     border: 1px solid #fecaca;
 }
 .pd-diff-chip.mod {
-    background: #f1f5f9;
-    color: #475569;
-    border: 1px solid #e2e8f0;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
 }
 .pd-diff-list {
     padding: 12px;
@@ -994,13 +788,13 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 10px;
     background: #fff;
-    border: 1px solid var(--border);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 11px 12px 11px 0;
     overflow: hidden;
 }
 .pd-diff-row.add {
-    background: linear-gradient(90deg, #ecfdf5 0%, #fff 60%);
+    background: linear-gradient(90deg, var(--sa-positive-bg) 0%, #fff 60%);
     border-color: #a7f3d0;
 }
 .pd-diff-row.rm {
@@ -1008,8 +802,8 @@ async function executeTerminate(): Promise<void> {
     border-color: #fecaca;
 }
 .pd-diff-row.mod {
-    background: linear-gradient(90deg, #f8fafc 0%, #fff 60%);
-    border-color: #e2e8f0;
+    background: linear-gradient(90deg, var(--sa-bg-surface-2) 0%, #fff 60%);
+    border-color: var(--sa-border);
 }
 .pd-diff-icon {
     width: 32px;
@@ -1018,7 +812,7 @@ async function executeTerminate(): Promise<void> {
     place-items: center;
     flex: 0 0 32px;
     color: #fff;
-    font: 700 16px var(--font-sans);
+    font: 700 16px var(--sa-font-body);
 }
 .pd-diff-row.add .pd-diff-icon {
     background: #10b981;
@@ -1027,7 +821,7 @@ async function executeTerminate(): Promise<void> {
     background: #ef4444;
 }
 .pd-diff-row.mod .pd-diff-icon {
-    background: #64748b;
+    background: var(--sa-muted);
 }
 .pd-diff-body {
     flex: 1;
@@ -1038,29 +832,29 @@ async function executeTerminate(): Promise<void> {
     flex-wrap: wrap;
 }
 .pd-diff-kind {
-    font: 700 10px var(--font-mono);
+    font: 700 10px var(--sa-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pd-diff-label {
     font-size: 13.5px;
     font-weight: 600;
-    color: var(--text);
+    color: var(--sa-heading);
 }
 .pd-diff-key {
-    font: 500 11px var(--font-mono);
-    color: #94a3b8;
+    font: 500 11px var(--sa-font-mono);
+    color: var(--sa-muted-light);
 }
 .pd-diff-vals {
     display: flex;
     align-items: center;
     gap: 6px;
-    font: 500 12px var(--font-mono);
+    font: 500 12px var(--sa-font-mono);
 }
 .pd-diff-strike {
     text-decoration: line-through;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pd-diff-arrow {
     color: #cbd5e1;
@@ -1089,12 +883,12 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-diff-tag.mod {
     background: #fff;
-    color: #475569;
+    color: var(--sa-muted-dark);
     border-color: #cbd5e1;
 }
 .pd-diff-row.plain {
     background: #fff;
-    border-color: #e2e8f0;
+    border-color: var(--sa-border);
     padding: 11px 12px 11px 0;
 }
 .pd-diff-section {
@@ -1106,7 +900,7 @@ async function executeTerminate(): Promise<void> {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 700;
 }
 .pd-diff-section:first-child {
@@ -1115,17 +909,17 @@ async function executeTerminate(): Promise<void> {
 .pd-diff-section hr {
     flex: 1;
     border: 0;
-    border-top: 1px dashed #e2e8f0;
+    border-top: 1px dashed var(--sa-border);
 }
 .pd-diff-empty {
     padding: 28px 18px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 13px;
 }
 .pd-diff-empty b {
     display: block;
-    color: #475569;
+    color: var(--sa-muted-dark);
     font-size: 14px;
     margin-bottom: 4px;
 }
@@ -1142,7 +936,7 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 14px;
     padding: 9px 0;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
 }
 .pd-audit-row:first-child {
     border-top: 0;
@@ -1160,7 +954,7 @@ async function executeTerminate(): Promise<void> {
     background: #10b981;
 }
 .pd-audit-change {
-    background: #2563eb;
+    background: var(--sa-primary);
 }
 .pd-audit-publish {
     background: #8b5cf6;
@@ -1170,37 +964,34 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-audit-when {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     min-width: 130px;
 }
 .pd-audit-avatar {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: var(--text);
+    background: var(--sa-heading);
     color: #fff;
     display: grid;
     place-items: center;
-    font: 700 11px var(--font-sans);
+    font: 700 11px var(--sa-font-body);
     flex: 0 0 auto;
 }
 .pd-audit-who {
     font-size: 12px;
-    color: var(--text-2);
+    color: var(--sa-muted-dark);
     min-width: 64px;
 }
 .pd-audit-what {
     font-size: 13px;
-    color: var(--text);
+    color: var(--sa-heading);
     flex: 1;
 }
 
 @media (max-width: 1180px) {
     .pd-body {
         grid-template-columns: 1fr;
-    }
-    .pd-kpis {
-        grid-template-columns: repeat(2, 1fr);
     }
 }
 </style>

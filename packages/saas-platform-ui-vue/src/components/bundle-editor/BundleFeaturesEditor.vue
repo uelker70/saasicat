@@ -155,7 +155,7 @@ function onToggle(featureKey: string): void {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .bd-features-row {
     display: flex;
@@ -168,19 +168,19 @@ function onToggle(featureKey: string): void {
     gap: 6px;
     padding: 6px 10px;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 999px;
     cursor: pointer;
     font-family: inherit;
     font-size: 12px;
-    color: #0f172a;
+    color: var(--sa-heading);
     transition:
         background 0.12s,
         border-color 0.12s,
         color 0.12s;
 }
 .bd-feature-pill:hover:not(:disabled) {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
     border-color: #cbd5e1;
 }
 .bd-feature-pill.on {
@@ -204,18 +204,18 @@ function onToggle(featureKey: string): void {
         600 10px 'JetBrains Mono',
         ui-monospace,
         monospace;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-left: 4px;
 }
 .bd-feature-pill.on .bd-feature-key {
-    color: #2563eb;
+    color: var(--sa-primary);
 }
 .bd-feature-pill.overlap .bd-feature-key {
     color: #b91c1c;
 }
 .bd-features-empty {
     padding: 12px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-style: italic;
     font-size: 12.5px;
 }

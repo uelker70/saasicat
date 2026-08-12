@@ -1,30 +1,21 @@
 <template>
-    <div class="sa-bundles__kpis">
-        <div class="sa-bundles__kpi">
-            <div class="sa-bundles__kpi-label">{{ msg.kpis.total }}</div>
-            <div class="sa-bundles__kpi-value">{{ bundlesTotal }}</div>
-            <div class="sa-bundles__kpi-sub">{{ totalSub }}</div>
-        </div>
-        <div class="sa-bundles__kpi">
-            <div class="sa-bundles__kpi-label">{{ msg.kpis.scheduled }}</div>
-            <div class="sa-bundles__kpi-value">{{ totalScheduledVersions }}</div>
-            <div class="sa-bundles__kpi-sub">{{ msg.kpis.scheduledSub }}</div>
-        </div>
-        <div class="sa-bundles__kpi">
-            <div class="sa-bundles__kpi-label">{{ msg.kpis.drafts }}</div>
-            <div class="sa-bundles__kpi-value">{{ totalDraftVersions }}</div>
-            <div class="sa-bundles__kpi-sub">{{ draftsSub }}</div>
-        </div>
-        <div class="sa-bundles__kpi">
-            <div class="sa-bundles__kpi-label">{{ msg.kpis.translated }}</div>
-            <div class="sa-bundles__kpi-value">{{ translatedCount }}</div>
-            <div class="sa-bundles__kpi-sub">{{ translatedSub }}</div>
-        </div>
-    </div>
+    <AdminStatistics :columns="4">
+        <AdminKpi :label="msg.kpis.total" :value="bundlesTotal" :sub="totalSub" />
+        <AdminKpi
+            :label="msg.kpis.scheduled"
+            :value="totalScheduledVersions"
+            :sub="msg.kpis.scheduledSub"
+        />
+        <AdminKpi :label="msg.kpis.drafts" :value="totalDraftVersions" :sub="draftsSub" />
+        <AdminKpi :label="msg.kpis.translated" :value="translatedCount" :sub="translatedSub" />
+    </AdminStatistics>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import AdminKpi from '../../components/admin-page/AdminKpi.vue';
+import AdminStatistics from '../../components/admin-page/AdminStatistics.vue';
 
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

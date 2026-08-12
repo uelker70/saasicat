@@ -48,8 +48,8 @@ defineProps<{
     color: var(--sa-negative, #dc2626);
 }
 .sa-pill--muted {
-    background: #f1f5f9;
-    color: var(--sa-muted, #64748b);
+    background: var(--sa-border-soft);
+    color: var(--sa-muted, var(--sa-muted));
 }
 .sa-pill--primary {
     background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));

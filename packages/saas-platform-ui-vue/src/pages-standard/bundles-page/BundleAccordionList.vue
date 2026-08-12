@@ -12,13 +12,16 @@
                     <div class="sa-bd-card__titlerow">
                         <span class="sa-bd-card__key">{{ bundle.bundleKey }}</span>
                         <span
-                            class="sa-chip"
-                            :class="`sa-chip--${statusClass(bundle)}`"
+                            class="sa-bundle-chip"
+                            :class="`sa-bundle-chip--${statusClass(bundle)}`"
                             :title="statusTooltip(bundle)"
                         >
                             {{ statusLabel(bundle) }}
                         </span>
-                        <span v-if="i18nLocaleCount(bundle) > 0" class="sa-chip sa-chip--info">
+                        <span
+                            v-if="i18nLocaleCount(bundle) > 0"
+                            class="sa-bundle-chip sa-bundle-chip--info"
+                        >
                             {{ translationCount(bundle) }}
                         </span>
                     </div>
@@ -93,34 +96,34 @@ function translationCount(bundle: BundleRow): string {
 
 <style scoped>
 /* Status chips co-located with the markup (analogous to PlanList .pl-chip*).
-   Deliberately scoped: the identically named global .sa-chip rule in
-   DiscoveryPage.vue would otherwise override .sa-chip--live (same specificity,
+   Deliberately scoped: the identically named global .sa-bundle-chip rule in
+   DiscoveryPage.vue would otherwise override .sa-bundle-chip--live (same specificity,
    later source order) and render the "Live" tag grey instead of green. */
-.sa-chip {
+.sa-bundle-chip {
     font-size: 10px;
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
 }
-.sa-chip--info {
-    background: #eff6ff;
-    color: #1d4ed8;
+.sa-bundle-chip--info {
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
 }
-.sa-chip--live {
+.sa-bundle-chip--live {
     background: #dcfce7;
     color: #166534;
 }
-.sa-chip--draft {
+.sa-bundle-chip--draft {
     background: #fef3c7;
     color: #92400e;
 }
-.sa-chip--supersed {
-    background: #e2e8f0;
-    color: #64748b;
+.sa-bundle-chip--supersed {
+    background: var(--sa-border);
+    color: var(--sa-muted);
 }
-.sa-chip--scheduled {
+.sa-bundle-chip--scheduled {
     background: #fef3c7;
     color: #92400e;
 }

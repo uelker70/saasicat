@@ -109,10 +109,10 @@ function formatValue(value: unknown): string {
 
 <style scoped>
 .sa-diff-preview__empty {
-    color: #64748b;
+    color: var(--sa-muted);
     font-style: italic;
     padding: 12px;
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
     border-radius: 8px;
     border: 1px dashed #cbd5e1;
 }
@@ -142,9 +142,9 @@ function formatValue(value: unknown): string {
     color: #991b1b;
 }
 .sa-diff-preview__row--neutral {
-    background: #f8fafc;
-    border-color: #e2e8f0;
-    color: #475569;
+    background: var(--sa-bg-surface-2);
+    border-color: var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .sa-diff-preview__direction {
     display: flex;
@@ -156,7 +156,7 @@ function formatValue(value: unknown): string {
     letter-spacing: 0.04em;
 }
 .sa-diff-preview__field {
-    color: #0f172a;
+    color: var(--sa-heading);
     font-weight: 500;
 }
 .sa-diff-preview__values {
@@ -165,7 +165,7 @@ function formatValue(value: unknown): string {
     gap: 8px;
 }
 .sa-diff-preview__values .old {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     text-decoration: line-through;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
     font-size: 12px;

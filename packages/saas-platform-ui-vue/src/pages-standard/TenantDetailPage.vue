@@ -22,22 +22,19 @@
         <AdminBody :loading="loading" :empty="!data">
             <template v-if="data">
                 <!-- Master data -->
-                <AdminSection
-                    :title="labels.masterData"
-                    :subtitle="stammdatenSub"
-                    class="sa-card q-mb-md"
-                >
+                <AdminSection :title="labels.masterData" :subtitle="stammdatenSub" class="q-mb-md">
                     <template #actions>
                         <!-- Manifest-driven default actions (Suspend/Reactivate) -->
-                        <q-btn
+                        <button
                             v-for="action in manifestActions"
                             :key="action.def.id"
-                            outline
-                            :color="toneColor(action.def.actionKey)"
-                            :icon="iconForActionKey(action.def.actionKey)"
-                            :label="action.def.label"
+                            :class="['sa-btn', toneClass(action.def.actionKey)]"
+                            type="button"
                             @click="action.onClick"
-                        />
+                        >
+                            <q-icon :name="iconForActionKey(action.def.actionKey)" size="16px" />
+                            <span>{{ action.def.label }}</span>
+                        </button>
                         <slot name="card-actions" :data="data" :reload="load" />
                     </template>
                     <slot name="stammdaten" :data="data">
@@ -57,17 +54,13 @@
                 <AdminSection
                     v-if="verbrauchFields.length > 0"
                     :title="labels.usage"
-                    class="sa-card q-mb-md"
+                    class="q-mb-md"
                 >
                     <TenantUsage :data="data" :fields="verbrauchFields" />
                 </AdminSection>
 
                 <!-- Users -->
-                <AdminSection
-                    v-if="showUsers && data.users"
-                    :title="labels.users"
-                    class="sa-card q-mb-md"
-                >
+                <AdminSection v-if="showUsers && data.users" :title="labels.users" class="q-mb-md">
                     <TenantUsers :users="data.users" :columns="userColumns ?? defaultUserColumns" />
                 </AdminSection>
 
@@ -278,10 +271,10 @@ function iconForActionKey(actionKey: string): string {
     return 'bolt';
 }
 
-function toneColor(actionKey: string): string {
-    if (actionKey.endsWith('.suspend')) return 'negative';
-    if (actionKey.endsWith('.reactivate')) return 'positive';
-    return 'primary';
+function toneClass(actionKey: string): string {
+    if (actionKey.endsWith('.suspend')) return 'sa-btn--danger';
+    if (actionKey.endsWith('.reactivate')) return 'sa-btn--positive';
+    return 'sa-btn--primary';
 }
 
 const defaultUserColumns = computed<QTableColumn[]>(() => [

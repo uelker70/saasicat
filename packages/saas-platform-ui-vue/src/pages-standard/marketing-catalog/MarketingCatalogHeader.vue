@@ -48,24 +48,13 @@
                 </div>
             </div>
         </div>
-        <button class="sa-marketing-btn" type="button" :disabled="busy" @click="$emit('reload')">
-            <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6" />
-            </svg>
-            <span>{{ msg.header.refresh }}</span>
-        </button>
+        <AdminRefreshBtn :loading="busy" @refresh="$emit('reload')" />
     </div>
 </template>
 
 <script setup lang="ts">
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import AdminRefreshBtn from '../../components/admin-page/AdminRefreshBtn.vue';
 
 defineProps<{
     activeLocaleSet: string[];

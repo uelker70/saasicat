@@ -107,7 +107,7 @@ defineEmits<{
     margin: 4px 0;
 }
 .sa-publish-regression__old {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     text-decoration: line-through;
 }
 .sa-publish-regression__new {

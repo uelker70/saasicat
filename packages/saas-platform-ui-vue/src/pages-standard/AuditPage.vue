@@ -5,59 +5,52 @@
             :subtitle="formatMessage(msg.subtitle, { count: rows.length })"
         >
             <template #actions>
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="refresh"
-                    :label="msg.filterButton"
-                    @click="reload"
-                />
+                <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
 
-        <div class="sa-audit__body">
-            <div class="sa-audit__filter">
-                <q-input
-                    v-model="filter.actor"
-                    outlined
-                    dense
-                    :label="msg.filters.actor"
-                    clearable
-                />
-                <q-input
-                    v-model="filter.action"
-                    outlined
-                    dense
-                    :label="msg.filters.action"
-                    clearable
-                />
-                <q-input
-                    v-model="filter.entity"
-                    outlined
-                    dense
-                    :label="msg.filters.entity"
-                    clearable
-                />
-                <q-input
-                    v-model="filter.since"
-                    outlined
-                    dense
-                    type="date"
-                    :label="msg.filters.since"
-                    clearable
-                />
-            </div>
+        <AdminBody>
+            <AdminSection class="sa-audit__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="filter.actor"
+                        outlined
+                        dense
+                        :label="msg.filters.actor"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.action"
+                        outlined
+                        dense
+                        :label="msg.filters.action"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.entity"
+                        outlined
+                        dense
+                        :label="msg.filters.entity"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.since"
+                        outlined
+                        dense
+                        type="date"
+                        :label="msg.filters.since"
+                        clearable
+                        @update:model-value="reload"
+                    />
+                </AdminFilters>
 
-            <div class="sa-audit__card">
-                <q-table
-                    flat
-                    :rows="rows"
-                    :columns="columns"
-                    row-key="id"
-                    :pagination="{ rowsPerPage: 0 }"
-                    :loading="loading"
-                    hide-pagination
-                >
+                <AdminTable :rows="rows" :columns="columns" :loading="loading" storage-key="audit">
                     <template #body-cell-changes="{ row }">
                         <q-td>
                             <q-btn flat dense icon="code" color="primary" @click="openDetail(row)">
@@ -65,9 +58,9 @@
                             </q-btn>
                         </q-td>
                     </template>
-                </q-table>
-            </div>
-        </div>
+                </AdminTable>
+            </AdminSection>
+        </AdminBody>
 
         <q-dialog v-model="detailOpen">
             <q-card style="min-width: 480px; max-width: 96vw">
@@ -92,8 +85,13 @@
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
@@ -207,26 +205,9 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <style scoped>
-.sa-audit__filter {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-}
-.sa-audit__filter > * {
-    flex: 1;
-    min-width: 180px;
-}
-.sa-audit__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-    padding: 8px 0;
-}
 .sa-audit__kv {
-    background: #f8fafc;
-    border: 1px solid var(--sa-border, #e2e8f0);
+    background: var(--sa-bg-surface-2);
+    border: 1px solid var(--sa-border, var(--sa-border));
     border-radius: 8px;
     padding: 12px;
     font-size: 12px;

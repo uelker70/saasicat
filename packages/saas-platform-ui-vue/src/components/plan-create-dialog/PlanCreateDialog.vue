@@ -280,26 +280,14 @@ function onCancel(): void {
 
 <style scoped>
 .pcd-modal {
-    --pcd-bg: #ffffff;
-    --pcd-border: #e5e7eb;
-    --pcd-border-strong: #d1d5db;
-    --pcd-text: #0f172a;
-    --pcd-text-2: #475569;
-    --pcd-text-3: #94a3b8;
-    --pcd-primary: #2563eb;
-    --pcd-primary-700: #1d4ed8;
-    --pcd-danger: #ef4444;
-    --pcd-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --pcd-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-    background: var(--pcd-bg);
+    background: var(--sa-bg-app);
     width: 640px;
     max-width: 92vw;
     border-radius: 14px;
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
     overflow: hidden;
-    font-family: var(--pcd-font-sans);
-    color: var(--pcd-text);
+    font-family: var(--sa-font-body);
+    color: var(--sa-heading);
 }
 .pcd-modal * {
     box-sizing: border-box;
@@ -307,7 +295,7 @@ function onCancel(): void {
 
 .pcd-head {
     padding: 18px 22px;
-    border-bottom: 1px solid var(--pcd-border);
+    border-bottom: 1px solid var(--sa-border);
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -323,7 +311,7 @@ function onCancel(): void {
 }
 .pcd-sub {
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 3px;
 }
 .pcd-close {
@@ -332,14 +320,14 @@ function onCancel(): void {
     border-radius: 6px;
     background: transparent;
     border: 0;
-    color: var(--pcd-text-3);
+    color: var(--sa-muted-light);
     cursor: pointer;
     display: grid;
     place-items: center;
 }
 .pcd-close:hover {
     background: rgba(15, 23, 42, 0.05);
-    color: var(--pcd-text);
+    color: var(--sa-heading);
 }
 
 .pcd-body {
@@ -376,22 +364,22 @@ function onCancel(): void {
     margin-bottom: 6px;
 }
 .pcd-kbd {
-    font: 600 10.5px var(--pcd-font-mono);
-    background: #f1f5f9;
-    color: #475569;
+    font: 600 10.5px var(--sa-font-mono);
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     letter-spacing: 0.04em;
 }
 .pcd-input {
     width: 100%;
     padding: 9px 12px;
     background: #fff;
-    border: 1px solid var(--pcd-border);
+    border: 1px solid var(--sa-border);
     border-radius: 7px;
-    font: 13.5px var(--pcd-font-sans);
-    color: var(--pcd-text);
+    font: 13.5px var(--sa-font-body);
+    color: var(--sa-heading);
     outline: none;
     transition:
         border-color 0.12s,
@@ -403,22 +391,22 @@ function onCancel(): void {
     line-height: 1.5;
 }
 .pcd-input:focus {
-    border-color: var(--pcd-primary);
+    border-color: var(--sa-primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 .pcd-input--error {
-    border-color: var(--pcd-danger);
+    border-color: var(--sa-negative);
 }
 .pcd-input--error:focus {
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
 }
 .pcd-hint {
     font-size: 11px;
-    color: var(--pcd-text-3);
+    color: var(--sa-muted-light);
     margin-top: 4px;
 }
 .pcd-hint--error {
-    color: var(--pcd-danger);
+    color: var(--sa-negative);
 }
 
 .pcd-choice-grid {
@@ -427,7 +415,7 @@ function onCancel(): void {
     gap: 8px;
 }
 .pcd-choice {
-    border: 1.5px solid var(--pcd-border);
+    border: 1.5px solid var(--sa-border);
     border-radius: 9px;
     padding: 12px 14px;
     cursor: pointer;
@@ -443,27 +431,27 @@ function onCancel(): void {
     font-family: inherit;
 }
 .pcd-choice:hover {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .pcd-choice--selected {
-    border-color: var(--pcd-primary);
+    border-color: var(--sa-primary);
     background: #f0f6ff;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 .pcd-choice-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--pcd-text);
+    color: var(--sa-heading);
 }
 .pcd-choice-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 
 .pcd-foot {
     padding: 14px 22px;
     background: #fbfbfd;
-    border-top: 1px solid var(--pcd-border);
+    border-top: 1px solid var(--sa-border);
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -474,17 +462,17 @@ function onCancel(): void {
     gap: 7px;
     padding: 9px 16px;
     border-radius: 7px;
-    font: 500 13px var(--pcd-font-sans);
+    font: 500 13px var(--sa-font-body);
     cursor: pointer;
-    border: 1px solid var(--pcd-border-strong);
+    border: 1px solid var(--sa-border-strong);
     background: #fff;
-    color: var(--pcd-text);
+    color: var(--sa-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .pcd-btn:hover:not(:disabled) {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .pcd-btn:disabled {
     cursor: not-allowed;
@@ -498,12 +486,12 @@ function onCancel(): void {
     background: rgba(15, 23, 42, 0.05);
 }
 .pcd-btn--primary {
-    background: var(--pcd-primary);
-    border-color: var(--pcd-primary);
+    background: var(--sa-primary);
+    border-color: var(--sa-primary);
     color: #fff;
 }
 .pcd-btn--primary:hover:not(:disabled) {
-    background: var(--pcd-primary-700);
+    background: var(--sa-primary-strong);
 }
 .pcd-ico {
     display: inline-flex;

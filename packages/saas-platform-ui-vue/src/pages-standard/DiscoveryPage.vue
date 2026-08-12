@@ -5,136 +5,139 @@
                 {{ msg.subtitleLead }} <b>{{ msg.subtitleEmphasis }}</b> {{ msg.subtitleTail }}
             </template>
             <template #actions>
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="bolt"
-                    :label="msg.runDiscovery"
-                    :loading="loading"
-                    @click="onRunDiscovery"
-                />
+                <AdminRefreshBtn :loading="loading" @refresh="onRunDiscovery" />
             </template>
         </AdminHero>
 
-        <DiscoveryMetaBanner
-            :app-label="appLabel"
-            :app-key="appKey"
-            :app-version="appVersion"
-            :scan-label="scanLabel"
-        />
+        <AdminBody>
+            <DiscoveryMetaBanner
+                :app-label="appLabel"
+                :app-key="appKey"
+                :app-version="appVersion"
+                :scan-label="scanLabel"
+            />
+            <q-banner v-if="error" class="sa-discovery__error" rounded>
+                <template #avatar><q-icon name="warning" color="negative" /></template>
+                {{ common.error }}: {{ error.message }}
+            </q-banner>
 
-        <q-banner v-if="error" class="sa-discovery__error" rounded>
-            <template #avatar><q-icon name="warning" color="negative" /></template>
-            {{ common.error }}: {{ error.message }}
-        </q-banner>
+            <AdminSection class="q-mt-lg">
+                <DiscoveryKpis
+                    :features-count="features.length"
+                    :capabilities-count="capabilities.length"
+                    :approved-count="approvedCount"
+                    :pending-count="pendingCount"
+                    :outdated-count="outdatedCount"
+                    :obsolete-count="obsoleteCount"
+                    :orphan-count="orphanCaps.length"
+                />
+            </AdminSection>
 
-        <DiscoveryKpis
-            :features-count="features.length"
-            :capabilities-count="capabilities.length"
-            :approved-count="approvedCount"
-            :pending-count="pendingCount"
-            :outdated-count="outdatedCount"
-            :obsolete-count="obsoleteCount"
-            :orphan-count="orphanCaps.length"
-        />
+            <AdminSection class="sa-discovery__panels">
+                <q-tabs v-model="activeTab" align="left" dense class="sa-discovery__tabs">
+                    <q-tab name="features" :label="featuresTabLabel" />
+                    <q-tab name="quotas" :label="quotasTabLabel" />
+                </q-tabs>
+                <q-tab-panels v-model="activeTab" animated>
+                    <q-tab-panel name="features" class="sa-discovery__panel">
+                        <AdminFilters class="q-mb-md">
+                            <q-input
+                                v-model="featureQuery"
+                                dense
+                                outlined
+                                clearable
+                                :placeholder="msg.searchPlaceholder"
+                                class="sa-discovery__search"
+                            >
+                                <template #prepend><q-icon name="search" /></template>
+                            </q-input>
+                            <q-select
+                                v-model="statusFilter"
+                                dense
+                                outlined
+                                emit-value
+                                map-options
+                                :options="statusFilterOptions"
+                                class="sa-discovery__filter"
+                            />
+                        </AdminFilters>
 
-        <q-tabs v-model="activeTab" align="left" dense class="sa-discovery__tabs">
-            <q-tab name="features" :label="featuresTabLabel" />
-            <q-tab name="quotas" :label="quotasTabLabel" />
-        </q-tabs>
+                        <AdminSection
+                            v-for="group in featureGroups"
+                            :key="group.label"
+                            :title="group.label"
+                            class="sa-discovery__group"
+                        >
+                            <template #actions>
+                                <span class="sa-discovery__group-count">{{
+                                    group.features.length
+                                }}</span>
+                            </template>
+                            <div class="sa-discovery__cardlist">
+                                <DiscoveryFeatureCard
+                                    v-for="f in group.features"
+                                    :key="f.featureKey"
+                                    :feature="f"
+                                    :capabilities="capsByFeature.get(f.featureKey) ?? []"
+                                    :owners="ownersByFeature.get(f.featureKey) ?? []"
+                                    :declared-at-by-key="declaredAtByKey"
+                                    :active-locales="activeLocales"
+                                    :expanded="expandedFeature === f.featureKey"
+                                    @toggle="toggleFeature(f.featureKey)"
+                                    @review="onFeatureReview"
+                                    @feature-base="onFeatureBase"
+                                    @feature-locale="onFeatureLocale"
+                                />
+                            </div>
+                        </AdminSection>
 
-        <q-tab-panels v-model="activeTab" animated class="sa-discovery__panels">
-            <q-tab-panel name="features" class="sa-discovery__panel">
-                <div class="sa-discovery__toolbar">
-                    <q-input
-                        v-model="featureQuery"
-                        dense
-                        outlined
-                        clearable
-                        :placeholder="msg.searchPlaceholder"
-                        class="sa-discovery__search"
-                    >
-                        <template #prepend><q-icon name="search" /></template>
-                    </q-input>
-                    <q-select
-                        v-model="statusFilter"
-                        dense
-                        outlined
-                        emit-value
-                        map-options
-                        :options="statusFilterOptions"
-                        class="sa-discovery__filter"
-                    />
-                </div>
+                        <div v-if="filteredFeatures.length === 0" class="sa-discovery__empty-row">
+                            {{ msg.noFeaturesMatchFilters }}
+                        </div>
 
-                <AdminSection
-                    v-for="group in featureGroups"
-                    :key="group.label"
-                    :title="group.label"
-                    class="sa-discovery__group"
-                >
-                    <template #actions>
-                        <span class="sa-discovery__group-count">{{ group.features.length }}</span>
-                    </template>
-                    <div class="sa-discovery__cardlist">
-                        <DiscoveryFeatureCard
-                            v-for="f in group.features"
-                            :key="f.featureKey"
-                            :feature="f"
-                            :capabilities="capsByFeature.get(f.featureKey) ?? []"
-                            :owners="ownersByFeature.get(f.featureKey) ?? []"
-                            :declared-at-by-key="declaredAtByKey"
-                            :active-locales="activeLocales"
-                            :expanded="expandedFeature === f.featureKey"
-                            @toggle="toggleFeature(f.featureKey)"
-                            @review="onFeatureReview"
-                            @feature-base="onFeatureBase"
-                            @feature-locale="onFeatureLocale"
-                        />
-                    </div>
-                </AdminSection>
-                <div v-if="filteredFeatures.length === 0" class="sa-discovery__empty-row">
-                    {{ msg.noFeaturesMatchFilters }}
-                </div>
+                        <AdminSection
+                            v-if="orphanCaps.length"
+                            :title="msg.orphansTitle"
+                            class="sa-discovery__group sa-discovery__group--orphan"
+                        >
+                            <template #actions>
+                                <span class="sa-discovery__group-count">{{
+                                    orphanCaps.length
+                                }}</span>
+                            </template>
+                            <p class="sa-discovery__orphan-hint">
+                                {{ msg.orphanHint.before }} <code>feature:</code
+                                >{{ msg.orphanHint.middle }} <code>@ImplementsCapability</code
+                                >{{ msg.orphanHint.after }}
+                            </p>
+                            <DiscoveryCapList
+                                :capabilities="orphanCaps"
+                                :declared-at-by-key="declaredAtByKey"
+                            />
+                        </AdminSection>
+                    </q-tab-panel>
 
-                <AdminSection
-                    v-if="orphanCaps.length"
-                    :title="msg.orphansTitle"
-                    class="sa-discovery__group sa-discovery__group--orphan"
-                >
-                    <template #actions>
-                        <span class="sa-discovery__group-count">{{ orphanCaps.length }}</span>
-                    </template>
-                    <p class="sa-discovery__orphan-hint">
-                        {{ msg.orphanHint.before }} <code>feature:</code>{{ msg.orphanHint.middle }}
-                        <code>@ImplementsCapability</code>{{ msg.orphanHint.after }}
-                    </p>
-                    <DiscoveryCapList
-                        :capabilities="orphanCaps"
-                        :declared-at-by-key="declaredAtByKey"
-                    />
-                </AdminSection>
-            </q-tab-panel>
-
-            <q-tab-panel name="quotas" class="sa-discovery__panel">
-                <div class="sa-discovery__cardlist">
-                    <DiscoveryQuotaCard
-                        v-for="q in quotas"
-                        :key="q.quotaKey"
-                        :quota="q"
-                        :active-locales="activeLocales"
-                        :expanded="expandedQuota === q.quotaKey"
-                        @toggle="toggleQuota(q.quotaKey)"
-                        @review="onQuotaReview"
-                        @quota-base="onQuotaBase"
-                        @quota-locale="onQuotaLocale"
-                    />
-                    <div v-if="quotas.length === 0" class="sa-discovery__empty-row">
-                        {{ msg.noQuotasDeclared }}
-                    </div>
-                </div>
-            </q-tab-panel>
-        </q-tab-panels>
+                    <q-tab-panel name="quotas" class="sa-discovery__panel">
+                        <div class="sa-discovery__cardlist">
+                            <DiscoveryQuotaCard
+                                v-for="q in quotas"
+                                :key="q.quotaKey"
+                                :quota="q"
+                                :active-locales="activeLocales"
+                                :expanded="expandedQuota === q.quotaKey"
+                                @toggle="toggleQuota(q.quotaKey)"
+                                @review="onQuotaReview"
+                                @quota-base="onQuotaBase"
+                                @quota-locale="onQuotaLocale"
+                            />
+                            <div v-if="quotas.length === 0" class="sa-discovery__empty-row">
+                                {{ msg.noQuotasDeclared }}
+                            </div>
+                        </div>
+                    </q-tab-panel>
+                </q-tab-panels>
+            </AdminSection>
+        </AdminBody>
     </AdminPage>
 </template>
 
@@ -151,8 +154,11 @@ import type {
     ReviewCatalogEntryData,
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import DiscoveryCapList from './discovery-page/DiscoveryCapList.vue';
 import DiscoveryFeatureCard from './discovery-page/DiscoveryFeatureCard.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
@@ -202,7 +208,8 @@ const featuresTabLabel = computed(() =>
 const quotasTabLabel = computed(() =>
     formatMessage(msg.value.tabQuotas, { count: props.quotas.length }),
 );
-const featureQuery = ref('');
+// `clearable` emits null, not '' — see Quasar's use-field clearValue().
+const featureQuery = ref<string | null>('');
 const statusFilter = ref<DiscoveryStatus | 'all'>('all');
 const expandedFeature = ref<string | null>(null);
 const expandedQuota = ref<string | null>(null);
@@ -293,7 +300,7 @@ const obsoleteCount = computed(
 );
 
 const filteredFeatures = computed(() => {
-    const q = featureQuery.value.trim().toLowerCase();
+    const q = (featureQuery.value ?? '').trim().toLowerCase();
     return props.features.filter((f) => {
         if (statusFilter.value !== 'all' && f.discoveryStatus !== statusFilter.value) {
             return false;
@@ -462,8 +469,8 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #0f172a;
-    color: #e2e8f0;
+    background: var(--sa-heading);
+    color: var(--sa-border);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -478,7 +485,7 @@ onMounted(() => {
 }
 .sa-discovery__banner-meta {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-discovery__banner-time {
     text-align: right;
@@ -487,7 +494,7 @@ onMounted(() => {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-discovery__banner-time-val {
     font-size: 13px;
@@ -496,57 +503,8 @@ onMounted(() => {
 .sa-discovery__error {
     border-left: 4px solid #dc2626;
 }
-.sa-discovery__kpis {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-}
-.sa-discovery__kpi {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    padding: 12px 14px;
-    border-radius: 10px;
-}
-.sa-discovery__kpi.good {
-    border-color: #a7f3d0;
-}
-.sa-discovery__kpi.good .sa-discovery__kpi-label,
-.sa-discovery__kpi.good .sa-discovery__kpi-value {
-    color: #047857;
-}
-.sa-discovery__kpi.warn {
-    border-color: #fde68a;
-    background: #fffbeb;
-}
-.sa-discovery__kpi.bad {
-    border-color: #fecaca;
-    background: #fef2f2;
-}
-.sa-discovery__kpi-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #64748b;
-}
-.sa-discovery__kpi-value {
-    font-size: 26px;
-    font-weight: 700;
-}
-.sa-discovery__kpi-sub {
-    font-size: 11px;
-    color: #94a3b8;
-}
 .sa-discovery__tabs {
-    border-bottom: 1px solid #e2e8f0;
-}
-.sa-discovery__panel {
-    padding: 14px 0;
-}
-.sa-discovery__toolbar {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 14px;
-    align-items: center;
+    border-bottom: 1px solid var(--sa-border);
 }
 .sa-discovery__search {
     flex: 1;
@@ -568,8 +526,8 @@ onMounted(() => {
 .sa-discovery__group-count {
     font-size: 10px;
     font-weight: 700;
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
     padding: 1px 7px;
     border-radius: 8px;
 }
@@ -580,20 +538,20 @@ onMounted(() => {
 }
 .sa-discovery__orphan-hint code {
     font-size: 10px;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     padding: 1px 4px;
     border-radius: 4px;
 }
 .sa-discovery__empty-row {
     padding: 36px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 13px;
     border: 1px dashed #cbd5e1;
     border-radius: 12px;
 }
 .sa-muted {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-right: 3px;
 }
 /* Status badge (review lifecycle) — shared by feature and quota card. */
@@ -603,8 +561,8 @@ onMounted(() => {
     text-transform: uppercase;
     padding: 3px 8px;
     border-radius: 6px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     flex-shrink: 0;
 }
 .sa-review--pending {
@@ -620,16 +578,16 @@ onMounted(() => {
     color: #b91c1c;
 }
 .sa-review--obsolete {
-    background: #e2e8f0;
-    color: #64748b;
+    background: var(--sa-border);
+    color: var(--sa-muted);
 }
 .sa-chip {
     font-size: 10px;
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
 }
 /* i18n coverage pill — shared by feature and quota card. */
 .sa-cov-pill {
@@ -640,18 +598,18 @@ onMounted(() => {
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    color: #475569;
+    border: 1px solid var(--sa-border);
+    background: var(--sa-bg-surface-2);
+    color: var(--sa-muted-dark);
 }
 .sa-cov-pill.complete {
     border-color: #a7f3d0;
-    background: #ecfdf5;
+    background: var(--sa-positive-bg);
     color: #047857;
 }
 .sa-cov-pill.warn {
     border-color: #fde68a;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     color: #b45309;
 }
 .sa-cov-pill.low {

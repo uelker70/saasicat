@@ -2,14 +2,7 @@
     <AdminPage class="sa-dashboard">
         <AdminHero :title="msg.title" :subtitle="subtitle">
             <template #actions>
-                <q-btn
-                    flat
-                    dense
-                    icon="refresh"
-                    :loading="loading"
-                    :aria-label="common.reload"
-                    @click="reload"
-                />
+                <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
 
@@ -25,30 +18,28 @@
             {{ msg.emptyKpiCards }}
         </div>
 
-        <div v-else class="sa-dashboard__strip">
-            <article v-for="card in cards" :key="card.id" class="sa-kpi" :data-card-id="card.id">
-                <div class="sa-kpi__icon" v-if="card.displayHint?.icon">
-                    <q-icon :name="card.displayHint.icon" size="20px" />
-                </div>
-                <div class="sa-kpi__body">
-                    <div class="sa-kpi__label">{{ card.label }}</div>
-                    <div class="sa-kpi__value">
+        <AdminSection v-else>
+            <AdminStatistics :label="msg.title">
+                <AdminKpi
+                    v-for="card in cards"
+                    :key="card.id"
+                    :data-card-id="card.id"
+                    :label="card.label"
+                    :sub="card.sub"
+                    :icon="card.displayHint?.icon"
+                    layout="inline"
+                >
+                    <template #value>
                         <q-spinner v-if="card.loading" size="18px" />
-                        <span v-else-if="card.error" class="sa-kpi__error">—</span>
-                        <span v-else>{{ formatValue(card) }}</span>
-                    </div>
-                    <div v-if="card.sub" class="sa-kpi__sub">{{ card.sub }}</div>
-                </div>
-            </article>
-        </div>
+                        <template v-else-if="card.error">—</template>
+                        <template v-else>{{ formatValue(card) }}</template>
+                    </template>
+                </AdminKpi>
+            </AdminStatistics>
+        </AdminSection>
 
         <div v-if="distributions && distributions.length > 0" class="sa-dashboard__rows">
-            <AdminSection
-                v-for="dist in distributions"
-                :key="dist.id"
-                :title="dist.label"
-                class="sa-card sa-dashboard__row-card"
-            >
+            <AdminSection v-for="dist in distributions" :key="dist.id" :title="dist.label">
                 <template v-if="dist.total" #actions>
                     <span class="sa-dashboard__count">{{ dist.total }}</span>
                 </template>
@@ -77,7 +68,7 @@
         <AdminSection
             v-if="resolvedShortcuts.length > 0"
             :title="msg.shortcutsTitle"
-            class="sa-card sa-dashboard__shortcuts"
+            class="sa-dashboard__shortcuts"
         >
             <div class="sa-dashboard__shortcut-grid">
                 <a
@@ -108,9 +99,12 @@ import { formatMessage } from '../client/i18n/format.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminHttp } from '../vue/use-super-admin-context.js';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
 
 // Platform standard page: Dashboard.
 //
@@ -401,72 +395,9 @@ function barWidth(value: number, max?: number): number {
 
 <style scoped>
 /* Header look comes from the global .sa-page-head — only a margin tweak here. */
-.sa-dashboard__strip {
-    display: grid;
-    /* Responsive: 4 cards while there is space, then automatically 3 → 2 → 1. */
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 14px;
-}
 
-.sa-kpi {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    padding: 14px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition:
-        border-color 0.12s,
-        box-shadow 0.12s;
-}
-.sa-kpi:hover {
-    border-color: #94a3b8;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-}
-.sa-kpi__icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 9px;
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 .sa-kpi__icon :deep(.q-icon) {
     color: var(--sa-primary, #3f6bff);
-}
-.sa-kpi__body {
-    flex: 1;
-    min-width: 0;
-}
-.sa-kpi__label {
-    font-size: 11.5px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    color: var(--sa-muted, #64748b);
-    text-transform: uppercase;
-}
-.sa-kpi__value {
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: 28px;
-    color: var(--sa-heading, #0f172a);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    margin-top: 4px;
-    min-height: 30px;
-    display: flex;
-    align-items: center;
-}
-.sa-kpi__sub {
-    font-size: 11.5px;
-    color: #94a3b8;
-    margin-top: 4px;
-}
-.sa-kpi__error {
-    color: var(--sa-negative, #dc2626);
 }
 
 .sa-dashboard__rows {
@@ -508,10 +439,10 @@ function barWidth(value: number, max?: number): number {
 }
 .sa-dashboard__bar-name {
     font-weight: 600;
-    color: var(--sa-heading, #0f172a);
+    color: var(--sa-heading, var(--sa-heading));
 }
 .sa-dashboard__bar-track {
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     height: 8px;
     border-radius: 999px;
     overflow: hidden;
@@ -525,7 +456,7 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__bar-count {
     font-variant-numeric: tabular-nums;
     text-align: right;
-    color: var(--sa-muted-dark, #475569);
+    color: var(--sa-muted-dark, var(--sa-muted-dark));
 }
 
 .sa-dashboard__shortcuts {
@@ -541,7 +472,7 @@ function barWidth(value: number, max?: number): number {
     gap: 12px;
     align-items: flex-start;
     padding: 12px 14px;
-    border: 1px solid var(--sa-border, #e2e8f0);
+    border: 1px solid var(--sa-border, var(--sa-border));
     border-radius: 10px;
     text-decoration: none;
     color: inherit;
@@ -558,19 +489,19 @@ function barWidth(value: number, max?: number): number {
 }
 .sa-dashboard__shortcut-title {
     font-weight: 700;
-    color: var(--sa-heading, #0f172a);
+    color: var(--sa-heading, var(--sa-heading));
     font-family: var(--sa-font-head, system-ui, sans-serif);
 }
 .sa-dashboard__shortcut-sub {
     font-size: 12px;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
     margin-top: 2px;
 }
 
 .sa-dashboard__loading,
 .sa-dashboard__empty {
     padding: 32px 28px;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
     display: flex;
     align-items: center;
     gap: 12px;

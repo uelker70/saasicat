@@ -110,7 +110,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     gap: 8px;
     padding: 14px 16px;
     background: #fbfbfd;
-    border: 1px solid var(--bv-border, #e5e7eb);
+    border: 1px solid var(--bv-border, var(--sa-border));
     border-radius: 10px;
 }
 .bv-vstrip-label {
@@ -118,7 +118,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .bv-vstrip-tabs {
     display: flex;
@@ -135,11 +135,11 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     align-items: center;
     padding: 8px 12px;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     cursor: pointer;
     font-family: inherit;
-    color: #0f172a;
+    color: var(--sa-heading);
     text-align: left;
     transition:
         border-color 0.12s,
@@ -147,10 +147,10 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
         background 0.12s;
 }
 .bv-vtab:hover {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .bv-vtab-current {
-    border-color: #2563eb;
+    border-color: var(--sa-primary);
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 .bv-vtab-name {
@@ -178,8 +178,8 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     color: #92400e;
 }
 .bv-vtab-status.superseded {
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .bv-vtab-status.draft {
     background: #dbeafe;
@@ -188,12 +188,12 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 .bv-vtab-dates {
     grid-column: 1 / -1;
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .bv-vtab-price {
     grid-column: 1 / -1;
     font-size: 11.5px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     font-weight: 600;
 }
 
@@ -204,12 +204,12 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     padding: 8px 12px;
     background: #fff;
     border: 1px dashed #cbd5e1;
-    color: #2563eb;
+    color: var(--sa-primary);
     font-size: 12.5px;
     font-weight: 600;
 }
 .bv-vtab-new:hover:not(:disabled) {
-    background: #eff6ff;
+    background: var(--sa-primary-50);
     border-color: #93c5fd;
 }
 .bv-vtab-new:disabled {

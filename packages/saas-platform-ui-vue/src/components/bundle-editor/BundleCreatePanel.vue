@@ -503,18 +503,18 @@ async function submit(): Promise<void> {
     justify-content: space-between;
     gap: 16px;
     padding: 18px 22px 12px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--sa-border);
 }
 .bcp-title {
     font-size: 18px;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--sa-heading);
     letter-spacing: -0.01em;
 }
 .bcp-sub {
     margin-top: 4px;
     font-size: 12.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     max-width: 580px;
     line-height: 1.5;
 }
@@ -522,13 +522,13 @@ async function submit(): Promise<void> {
     background: transparent;
     border: 0;
     cursor: pointer;
-    color: #64748b;
+    color: var(--sa-muted);
     padding: 4px;
     border-radius: 4px;
 }
 .bcp-close:hover {
-    background: #f1f5f9;
-    color: #0f172a;
+    background: var(--sa-border-soft);
+    color: var(--sa-heading);
 }
 .bcp-body {
     padding: 16px 22px;
@@ -552,7 +552,7 @@ async function submit(): Promise<void> {
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    background: #2563eb;
+    background: var(--sa-primary);
     color: #fff;
     font:
         700 12px 'JetBrains Mono',
@@ -563,11 +563,11 @@ async function submit(): Promise<void> {
 .bcp-section-title {
     font-size: 14px;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .bcp-section-sub {
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 2px;
     line-height: 1.4;
 }
@@ -587,11 +587,11 @@ async function submit(): Promise<void> {
 .bcp-field-label {
     font-size: 11.5px;
     font-weight: 600;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .bcp-field-hint {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 500;
 }
 .bcp-input {
@@ -600,7 +600,7 @@ async function submit(): Promise<void> {
     border-radius: 6px;
     font-family: inherit;
     font-size: 13px;
-    color: #0f172a;
+    color: var(--sa-heading);
     background: #fff;
 }
 .bcp-input--mono {
@@ -628,9 +628,9 @@ async function submit(): Promise<void> {
     align-items: center;
     padding: 0 10px;
     font-size: 11.5px;
-    color: #64748b;
-    background: #f8fafc;
-    border-left: 1px solid #e2e8f0;
+    color: var(--sa-muted);
+    background: var(--sa-bg-surface-2);
+    border-left: 1px solid var(--sa-border);
     border-radius: 0 6px 6px 0;
 }
 .bcp-error-inline {
@@ -650,8 +650,8 @@ async function submit(): Promise<void> {
     align-items: center;
     gap: 10px;
     padding: 12px 22px;
-    border-top: 1px solid #e5e7eb;
-    background: #f8fafc;
+    border-top: 1px solid var(--sa-border);
+    background: var(--sa-bg-surface-2);
     border-radius: 0 0 12px 12px;
 }
 .bcp-foot-hint {
@@ -660,7 +660,7 @@ async function submit(): Promise<void> {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .bcp-foot-hint--warn {
     color: #b91c1c;
@@ -674,21 +674,21 @@ async function submit(): Promise<void> {
     cursor: pointer;
     font-size: 12.5px;
     font-family: inherit;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .bcp-btn:hover:not(:disabled) {
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .bcp-btn:disabled {
     cursor: not-allowed;
     opacity: 0.5;
 }
 .bcp-btn--primary {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: var(--sa-primary);
+    border-color: var(--sa-primary);
     color: #fff;
 }
 .bcp-btn--primary:hover:not(:disabled) {
-    background: #1d4ed8;
+    background: var(--sa-primary-strong);
 }
 </style>

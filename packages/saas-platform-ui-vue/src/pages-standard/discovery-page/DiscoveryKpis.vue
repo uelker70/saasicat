@@ -1,35 +1,39 @@
 <template>
-    <div class="sa-discovery__kpis">
-        <div class="sa-discovery__kpi">
-            <div class="sa-discovery__kpi-label">{{ msg.kpi.featuresTotal }}</div>
-            <div class="sa-discovery__kpi-value">{{ featuresCount }}</div>
-            <div class="sa-discovery__kpi-sub">{{ featuresTotalSub }}</div>
-        </div>
-        <div class="sa-discovery__kpi good">
-            <div class="sa-discovery__kpi-label">{{ msg.kpi.approved }}</div>
-            <div class="sa-discovery__kpi-value">{{ approvedCount }}</div>
-            <div class="sa-discovery__kpi-sub">{{ msg.kpi.approvedSub }}</div>
-        </div>
-        <div class="sa-discovery__kpi" :class="{ warn: pendingCount > 0 }">
-            <div class="sa-discovery__kpi-label">{{ msg.kpi.pending }}</div>
-            <div class="sa-discovery__kpi-value">{{ pendingCount }}</div>
-            <div class="sa-discovery__kpi-sub">{{ msg.kpi.pendingSub }}</div>
-        </div>
-        <div class="sa-discovery__kpi">
-            <div class="sa-discovery__kpi-label">{{ msg.kpi.outdated }}</div>
-            <div class="sa-discovery__kpi-value">{{ outdatedCount + obsoleteCount }}</div>
-            <div class="sa-discovery__kpi-sub">{{ outdatedSub }}</div>
-        </div>
-        <div class="sa-discovery__kpi" :class="{ bad: orphanCount > 0 }">
-            <div class="sa-discovery__kpi-label">{{ msg.kpi.orphans }}</div>
-            <div class="sa-discovery__kpi-value">{{ orphanCount }}</div>
-            <div class="sa-discovery__kpi-sub">{{ msg.orphansTitle }}</div>
-        </div>
-    </div>
+    <AdminStatistics :columns="5">
+        <AdminKpi :label="msg.kpi.featuresTotal" :value="featuresCount" :sub="featuresTotalSub" />
+        <AdminKpi
+            :label="msg.kpi.approved"
+            :value="approvedCount"
+            :sub="msg.kpi.approvedSub"
+            tone="positive"
+        />
+        <AdminKpi
+            :label="msg.kpi.pending"
+            :value="pendingCount"
+            :sub="msg.kpi.pendingSub"
+            :tone="pendingCount > 0 ? 'warn' : 'neutral'"
+            emphasis="surface"
+        />
+        <AdminKpi
+            :label="msg.kpi.outdated"
+            :value="outdatedCount + obsoleteCount"
+            :sub="outdatedSub"
+        />
+        <AdminKpi
+            :label="msg.kpi.orphans"
+            :value="orphanCount"
+            :sub="msg.orphansTitle"
+            :tone="orphanCount > 0 ? 'danger' : 'neutral'"
+            emphasis="surface"
+        />
+    </AdminStatistics>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import AdminKpi from '../../components/admin-page/AdminKpi.vue';
+import AdminStatistics from '../../components/admin-page/AdminStatistics.vue';
 
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

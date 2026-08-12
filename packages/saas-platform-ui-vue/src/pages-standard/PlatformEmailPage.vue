@@ -2,40 +2,40 @@
     <AdminPage class="sa-pemail">
         <AdminHero :title="resolvedTitle" :subtitle="msg.provider.subtitle">
             <template #actions>
-                <q-btn
+                <button
+                    class="sa-btn sa-btn--primary"
+                    type="button"
                     v-if="rows.length === 0"
-                    unelevated
-                    color="primary"
-                    icon="add"
-                    :label="msg.sender"
                     @click="openCreate"
-                />
-                <q-btn flat icon="refresh" :label="common.reload" @click="reload" />
+                >
+                    <q-icon name="add" size="16px" />
+                    <span>{{ msg.sender }}</span>
+                </button>
+                <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
 
-        <div class="sa-pemail__card">
-            <q-table
-                flat
-                :rows="rows"
-                :columns="columns"
-                row-key="id"
-                :loading="loading"
-                :pagination="{ rowsPerPage: 0 }"
-                hide-pagination
-            >
-                <template #body-cell-active="{ row }">
-                    <q-td>
-                        <q-badge
-                            :color="row.active ? 'positive' : 'grey'"
-                            :label="
-                                row.active ? msg.provider.statusActive : msg.provider.statusInactive
-                            "
-                        />
-                    </q-td>
-                </template>
-                <template #body-cell-actions="{ row }">
-                    <q-td>
+        <AdminBody>
+            <AdminSection class="sa-pemail__card">
+                <AdminTable
+                    :rows="rows"
+                    :columns="columns"
+                    :loading="loading"
+                    storage-key="platform-email"
+                >
+                    <template #body-cell-active="{ row }">
+                        <q-td>
+                            <q-badge
+                                :color="row.active ? 'positive' : 'grey'"
+                                :label="
+                                    row.active
+                                        ? msg.provider.statusActive
+                                        : msg.provider.statusInactive
+                                "
+                            />
+                        </q-td>
+                    </template>
+                    <template #row-actions="{ row }">
                         <q-btn
                             flat
                             dense
@@ -60,10 +60,10 @@
                             :title="common.delete"
                             @click="onDelete(row)"
                         />
-                    </q-td>
-                </template>
-            </q-table>
-        </div>
+                    </template>
+                </AdminTable>
+            </AdminSection>
+        </AdminBody>
 
         <q-dialog v-model="showForm">
             <q-card class="sa-pemail__dialog">
@@ -192,10 +192,14 @@
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
+import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
@@ -264,7 +268,6 @@ const columns = computed(() => [
         align: 'left' as const,
     },
     { name: 'active', label: common.value.status, field: 'active', align: 'left' as const },
-    { name: 'actions', label: '', field: 'id' as never, align: 'right' as 'left' },
 ]);
 
 const showForm = ref(false);
@@ -457,12 +460,6 @@ async function onTest(): Promise<void> {
 </script>
 
 <style scoped>
-.sa-pemail__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-}
 .sa-pemail__dialog {
     min-width: 420px;
 }

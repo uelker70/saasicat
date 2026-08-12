@@ -3,74 +3,68 @@
         <AdminHero :title="msg.title" :subtitle="subtitle">
             <template #actions>
                 <slot name="head-actions">
-                    <q-btn
+                    <button
+                        class="sa-btn sa-btn--primary"
+                        type="button"
                         v-if="enableCreate"
-                        unelevated
-                        color="primary"
-                        icon="add"
-                        :label="resolvedCreateLabel"
                         @click="showCreate = true"
-                    />
+                    >
+                        <q-icon name="add" size="16px" />
+                        <span>{{ resolvedCreateLabel }}</span>
+                    </button>
                 </slot>
             </template>
         </AdminHero>
 
-        <div class="sa-stats">
-            <button
-                v-for="tile in statTiles"
-                :key="tile.id"
-                class="sa-stat"
-                :class="[
-                    tile.tone ? `sa-stat--${tile.tone}` : null,
-                    statusFilter === tile.id ? 'sa-stat--active' : null,
-                ]"
-                @click="onStatusTileClick(tile.id)"
-            >
-                <span class="sa-stat__num">{{ tile.count }}</span>
-                <span class="sa-stat__label">{{ tile.label }}</span>
-                <span v-if="tile.hint" class="sa-stat__hint">{{ tile.hint }}</span>
-            </button>
-        </div>
+        <AdminBody>
+            <AdminSection>
+                <AdminStatistics :label="msg.title">
+                    <AdminKpi
+                        v-for="tile in statTiles"
+                        :key="tile.id"
+                        :label="tile.label"
+                        :value="tile.count"
+                        :sub="tile.hint"
+                        :tone="tile.tone"
+                        :selected="statusFilter === tile.id"
+                        :action="() => onStatusTileClick(tile.id)"
+                    />
+                </AdminStatistics>
+            </AdminSection>
 
-        <div class="sa-promo-codes__filter">
-            <q-input
-                v-model="filter.search"
-                outlined
-                dense
-                :label="msg.list.searchLabel"
-                clearable
-                @update:model-value="reload"
-            />
-            <q-select
-                v-model="filter.status"
-                outlined
-                dense
-                emit-value
-                map-options
-                clearable
-                :label="common.status"
-                :options="statusOptions"
-                @update:model-value="reload"
-            />
-        </div>
+            <AdminSection class="sa-promo-codes__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="filter.search"
+                        outlined
+                        dense
+                        :label="msg.list.searchLabel"
+                        clearable
+                    />
+                    <q-select
+                        v-model="filter.status"
+                        outlined
+                        dense
+                        emit-value
+                        map-options
+                        clearable
+                        :label="common.status"
+                        :options="statusOptions"
+                    />
+                </AdminFilters>
 
-        <div class="sa-promo-codes__card">
-            <q-table
-                flat
-                :rows="filteredRows"
-                :columns="effectiveColumns"
-                row-key="id"
-                :pagination="{ rowsPerPage: 0 }"
-                :loading="loading"
-                hide-pagination
-            >
-                <template #body-cell-status="{ row }">
-                    <q-td>
-                        <q-badge :color="statusColor(row.status)" :label="row.status" />
-                    </q-td>
-                </template>
-                <template #body-cell-actions="{ row }">
-                    <q-td>
+                <AdminTable
+                    :rows="filteredRows"
+                    :columns="effectiveColumns"
+                    :loading="loading"
+                    storage-key="promo-codes"
+                >
+                    <template #body-cell-status="{ row }">
+                        <q-td>
+                            <q-badge :color="statusColor(row.status)" :label="row.status" />
+                        </q-td>
+                    </template>
+                    <template #row-actions="{ row }">
                         <slot name="row-actions" :row="row" :reload="reload">
                             <q-btn
                                 v-for="action in visibleActions(row)"
@@ -83,10 +77,10 @@
                                 @click="action.handler(row)"
                             />
                         </slot>
-                    </q-td>
-                </template>
-            </q-table>
-        </div>
+                    </template>
+                </AdminTable>
+            </AdminSection>
+        </AdminBody>
 
         <PromoCodeCreateDialog
             v-if="enableCreate && submitCreate"
@@ -112,6 +106,7 @@
 // `<script setup>` (the whole setup section is wrapped in setup()).
 // Pure helpers + constants therefore live here in the regular `<script>` block.
 
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import type { PromoCodePlanOption } from '../components/dialogs/types.js';
 
 const PLAN_COLOR_PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#64748b'];
@@ -133,8 +128,13 @@ export function computePlanColors(
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
 import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
@@ -251,11 +251,25 @@ function classifyRow(row: PromoRow): Exclude<StatusFilter, 'all'> | null {
     return null;
 }
 
+// The table narrows; the tiles above it deliberately do not — see statTiles.
 const filteredRows = computed(() => {
-    if (statusFilter.value === 'all') return rows.value;
-    return rows.value.filter((r) => classifyRow(r) === statusFilter.value);
+    // `clearable` emits null, not '' — see Quasar's use-field clearValue().
+    const q = (filter.search ?? '').trim().toLowerCase();
+    const status = filter.status?.toUpperCase() ?? null;
+
+    return rows.value.filter((row) => {
+        if (statusFilter.value !== 'all' && classifyRow(row) !== statusFilter.value) return false;
+        if (status && String(row.status ?? '').toUpperCase() !== status) return false;
+        if (!q) return true;
+        return [row.code, row.description, row.campaignTag]
+            .filter((v): v is string => typeof v === 'string')
+            .some((v) => v.toLowerCase().includes(q));
+    });
 });
 
+// Absolute counts over everything the tenant has, deliberately independent of
+// the filter below: these tiles are the status filter, so counting the filtered
+// set would drop every unselected tile to zero the moment one is picked.
 const statTiles = computed<
     Array<{
         id: StatusFilter;
@@ -291,22 +305,8 @@ const statTiles = computed<
     ];
 });
 
-// Tile click: set the filter AND, if a server status match exists, pass it
-// through to the search so `loadPromos` can pre-filter server-side if needed.
 function onStatusTileClick(id: StatusFilter): void {
     statusFilter.value = id;
-    const serverStatus =
-        id === 'active'
-            ? 'ACTIVE'
-            : id === 'paused'
-              ? 'PAUSED'
-              : id === 'expired'
-                ? 'EXPIRED'
-                : null;
-    if (serverStatus !== filter.status) {
-        filter.status = serverStatus;
-        reload();
-    }
 }
 
 const baseColumns = computed(() => [
@@ -394,14 +394,6 @@ const mergedActions = computed<readonly PromoRowAction[]>(() => [
 
 const effectiveColumns = computed(() => {
     const cols = [...baseColumns.value];
-    if (mergedActions.value.length > 0) {
-        cols.push({
-            name: 'actions',
-            label: '',
-            field: 'id' as never,
-            align: 'right' as 'left',
-        });
-    }
     return cols;
 });
 
@@ -419,10 +411,9 @@ function statusColor(status: string): string {
 async function reload() {
     loading.value = true;
     try {
-        rows.value = await props.loadPromos({
-            search: filter.search || undefined,
-            status: filter.status || undefined,
-        });
+        // Unfiltered on purpose: the tiles count the tenant's full set, and
+        // the table narrows locally, so filtering costs no round trip.
+        rows.value = await props.loadPromos({});
     } catch (err) {
         rows.value = [];
         console.warn('[PromoCodesPage] loadPromos failed:', err);
@@ -559,21 +550,4 @@ function formatDate(iso: string | Date | null | undefined): string | null {
 }
 </script>
 
-<style scoped>
-.sa-promo-codes__filter {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-}
-.sa-promo-codes__filter > * {
-    flex: 1;
-    min-width: 200px;
-}
-.sa-promo-codes__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-}
-</style>
+<style scoped></style>

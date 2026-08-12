@@ -16,7 +16,6 @@ export const marketingMessages = defineMessages(
             defaultLocale: 'Default-Sprache',
             deactivateLocale: 'Sprache deaktivieren',
             addLocale: '+ Sprache',
-            refresh: 'Aktualisieren',
         },
         page: {
             loading: 'Lade Marketing-Catalog …',
@@ -150,7 +149,6 @@ export const marketingMessages = defineMessages(
             defaultLocale: 'Default language',
             deactivateLocale: 'Deactivate language',
             addLocale: '+ Language',
-            refresh: 'Refresh',
         },
         page: {
             loading: 'Loading marketing catalog …',

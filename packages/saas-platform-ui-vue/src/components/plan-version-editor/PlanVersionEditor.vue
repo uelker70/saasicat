@@ -12,91 +12,93 @@
             @save="emitSave"
         />
 
-        <!-- Save error banner (e.g. "Plan hat bereits eine Draft-Version") -->
-        <div v-if="saveError" class="pve-error" role="alert">
-            <span class="pve-error-ico" aria-hidden="true">
-                <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path
-                        d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-                    />
-                    <path d="M12 9v4M12 17h.01" />
-                </svg>
-            </span>
-            <span>{{ saveError }}</span>
-        </div>
+        <AdminBody>
+            <!-- Save error banner (e.g. "Plan hat bereits eine Draft-Version") -->
+            <div v-if="saveError" class="pve-error" role="alert">
+                <span class="pve-error-ico" aria-hidden="true">
+                    <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path
+                            d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                        />
+                        <path d="M12 9v4M12 17h.01" />
+                    </svg>
+                </span>
+                <span>{{ saveError }}</span>
+            </div>
 
-        <!-- 3-Col Body -->
-        <div class="pve-body">
-            <PlanComponentPool
-                v-model:search-term="searchTerm"
-                v-model:active-tab="activeTab"
-                :pool-tabs="poolTabs"
-                :filtered-feature-groups="filteredFeatureGroups"
-                :filtered-quotas="filteredQuotas"
-                :filtered-bundles="filteredBundles"
-                :feature-label="featureLabel"
-                :feature-group-label="featureGroupLabel"
-                :is-feature-on="isFeatureOn"
-                :is-quota-on="isQuotaOn"
-                :is-bundle-fully-on="isBundleFullyOn"
-                :is-bundle-partially-on="isBundlePartiallyOn"
-                @toggle-feature="toggleFeature"
-                @pool-quota-click="onPoolQuotaClick"
-                @toggle-bundle="toggleBundle"
-                @drag-start="onDragStart"
-                @drag-end="onDragEnd"
-            />
+            <!-- 3-Col Body -->
+            <div class="pve-body">
+                <PlanComponentPool
+                    v-model:search-term="searchTerm"
+                    v-model:active-tab="activeTab"
+                    :pool-tabs="poolTabs"
+                    :filtered-feature-groups="filteredFeatureGroups"
+                    :filtered-quotas="filteredQuotas"
+                    :filtered-bundles="filteredBundles"
+                    :feature-label="featureLabel"
+                    :feature-group-label="featureGroupLabel"
+                    :is-feature-on="isFeatureOn"
+                    :is-quota-on="isQuotaOn"
+                    :is-bundle-fully-on="isBundleFullyOn"
+                    :is-bundle-partially-on="isBundlePartiallyOn"
+                    @toggle-feature="toggleFeature"
+                    @pool-quota-click="onPoolQuotaClick"
+                    @toggle-bundle="toggleBundle"
+                    @drag-start="onDragStart"
+                    @drag-end="onDragEnd"
+                />
 
-            <PlanVersionBasket
-                :form="form"
-                :drag-over="dragOver"
-                :change-count="changeCount"
-                :min-valid-from="minValidFrom"
-                :valid-from-error="validFromError"
-                :selected-quota-list="selectedQuotaList"
-                :sorted-selected-features="sortedSelectedFeatures"
-                :active-bundles="activeBundles"
-                :feature-label="featureLabel"
-                @update:valid-from="onValidFromInput($event)"
-                @update:valid-until="form.validUntil = $event"
-                @update:monthly-net="form.monthlyNet = $event"
-                @update:yearly-net="form.yearlyNet = $event"
-                @update:marketed="form.marketed = $event"
-                @update:change-note="form.changeNote = $event"
-                @set-quota-value="setQuotaValue"
-                @toggle-quota="toggleQuota"
-                @toggle-feature="toggleFeature"
-                @toggle-bundle="toggleBundle"
-                @drag-over="onDragOver"
-                @drag-leave="onDragLeave"
-                @drop="onDrop"
-            />
+                <PlanVersionBasket
+                    :form="form"
+                    :drag-over="dragOver"
+                    :change-count="changeCount"
+                    :min-valid-from="minValidFrom"
+                    :valid-from-error="validFromError"
+                    :selected-quota-list="selectedQuotaList"
+                    :sorted-selected-features="sortedSelectedFeatures"
+                    :active-bundles="activeBundles"
+                    :feature-label="featureLabel"
+                    @update:valid-from="onValidFromInput($event)"
+                    @update:valid-until="form.validUntil = $event"
+                    @update:monthly-net="form.monthlyNet = $event"
+                    @update:yearly-net="form.yearlyNet = $event"
+                    @update:marketed="form.marketed = $event"
+                    @update:change-note="form.changeNote = $event"
+                    @set-quota-value="setQuotaValue"
+                    @toggle-quota="toggleQuota"
+                    @toggle-feature="toggleFeature"
+                    @toggle-bundle="toggleBundle"
+                    @drag-over="onDragOver"
+                    @drag-leave="onDragLeave"
+                    @drop="onDrop"
+                />
 
-            <PlanCatalogPreview
-                v-model:preview-mode="previewMode"
-                :catalog-url="catalogUrl"
-                :plan-key="planKey"
-                :version="form.version"
-                :change-note="form.changeNote"
-                :quotas="form.quotas"
-                :plan-display-name="planDisplayName"
-                :formatted-monthly="formattedMonthly"
-                :formatted-yearly="formattedYearly"
-                :yearly-savings-label="yearlySavingsLabel"
-                :selected-quota-list="selectedQuotaList"
-                :sorted-selected-features="sortedSelectedFeatures"
-                :checklist="checklist"
-                :checklist-ok-count="checklistOkCount"
-                :feature-label="featureLabel"
-            />
-        </div>
+                <PlanCatalogPreview
+                    v-model:preview-mode="previewMode"
+                    :catalog-url="catalogUrl"
+                    :plan-key="planKey"
+                    :version="form.version"
+                    :change-note="form.changeNote"
+                    :quotas="form.quotas"
+                    :plan-display-name="planDisplayName"
+                    :formatted-monthly="formattedMonthly"
+                    :formatted-yearly="formattedYearly"
+                    :yearly-savings-label="yearlySavingsLabel"
+                    :selected-quota-list="selectedQuotaList"
+                    :sorted-selected-features="sortedSelectedFeatures"
+                    :checklist="checklist"
+                    :checklist-ok-count="checklistOkCount"
+                    :feature-label="featureLabel"
+                />
+            </div>
+        </AdminBody>
 
         <PlanVersionDiffDialog
             v-model="showDiff"
@@ -116,6 +118,7 @@ import PlanComponentPool from './PlanComponentPool.vue';
 import PlanCatalogPreview from './PlanCatalogPreview.vue';
 import PlanVersionBasket from './PlanVersionBasket.vue';
 import PlanVersionDiffDialog from './PlanVersionDiffDialog.vue';
+import AdminBody from '../admin-page/AdminBody.vue';
 import PlanVersionEditorHeader from './PlanVersionEditorHeader.vue';
 import type {
     BundleEntry,
@@ -734,48 +737,15 @@ function emitSave(): void {
 
 <style>
 .pve {
-    --pve-nav-bg: #0b1929;
-    --pve-bg: #f6f7f9;
-    --pve-surface: #ffffff;
-    --pve-surface-2: #f8fafc;
-    --pve-border: #e5e7eb;
-    --pve-border-strong: #d1d5db;
-    --pve-text: #0f172a;
-    --pve-text-2: #475569;
-    --pve-text-3: #94a3b8;
-    --pve-primary: #2563eb;
-    --pve-primary-700: #1d4ed8;
-    --pve-live: #10b981;
-    --pve-draft: #f59e0b;
-    --pve-draft-bg: #fffbeb;
-    --pve-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --pve-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
     display: flex;
     flex-direction: column;
-    background: var(--pve-bg);
-    color: var(--pve-text);
-    font-family: var(--pve-font-sans);
     box-sizing: border-box;
-    /* Fullscreen screen instead of a modal: fills the content area of the
-       hosting AdminLayout page (topbar 56px subtracted). */
+    /* A full view rather than a modal: the columns stretch to the content area
+       AdminPage already sizes. */
     height: 100%;
-    min-height: calc(100vh - 56px);
-}
-.pve :deep(*) {
-    box-sizing: border-box;
 }
 
 /* ── Editor bar ─────────────────────────────────────────────────── */
-.pve-bar {
-    background: #fff;
-    border-bottom: 1px solid var(--pve-border);
-    padding: 12px 22px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex: 0 0 auto;
-}
 
 /* ── Save error banner ──────────────────────────────────────────── */
 .pve-error {
@@ -794,95 +764,24 @@ function emitSave(): void {
     display: inline-flex;
     flex: 0 0 auto;
 }
-.pve-bar-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-width: 0;
-}
-.pve-bar-right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-}
-.pve-titlechip {
-    display: flex;
+/* The kicker above the heading: "Plan" plus the plan key. */
+.pve-kicker {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-.pve-titlechip-kicker {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.1em;
-    color: #94a3b8;
-}
-.pve-title {
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: -0.02em;
-}
-.pve-bar-note {
-    font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted-light);
 }
 .pve-mono {
-    font: 500 11px var(--pve-font-mono);
+    font: 500 11px var(--sa-font-mono);
 }
 .pve-mono--xs {
     font-size: 10px;
 }
 
 /* ── Buttons & Chips ───────────────────────────────────────────── */
-.pve-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--pve-font-sans);
-    cursor: pointer;
-    border: 1px solid var(--pve-border-strong);
-    background: #fff;
-    color: var(--pve-text);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.pve-btn:hover {
-    background: var(--pve-surface-2);
-}
-.pve-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.pve-btn--primary {
-    background: var(--pve-primary);
-    border-color: var(--pve-primary);
-    color: #fff;
-}
-.pve-btn--primary:hover {
-    background: var(--pve-primary-700);
-}
-.pve-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.pve-btn--ghost:hover {
-    background: rgba(15, 23, 42, 0.05);
-}
-.pve-btn--sm {
-    padding: 5px 9px;
-    font-size: 12px;
-    gap: 5px;
-}
-.pve-ico {
-    display: inline-flex;
-}
-.pve-ico--rot180 {
-    transform: rotate(180deg);
-}
 
 .pve-chip {
     display: inline-flex;
@@ -893,9 +792,9 @@ function emitSave(): void {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.01em;
-    background: var(--pve-surface-2);
-    color: var(--pve-text-2);
-    border: 1px solid var(--pve-border);
+    background: var(--sa-bg-surface-2);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
 }
 .pve-chip--plan {
     background: #dbeafe;
@@ -903,7 +802,7 @@ function emitSave(): void {
     border-color: #bfdbfe;
 }
 .pve-chip--draft {
-    background: var(--pve-draft-bg);
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
@@ -915,34 +814,40 @@ function emitSave(): void {
     background: currentColor;
 }
 .pve-chip--changes {
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
 
 .pve-kbd {
-    font: 600 10.5px var(--pve-font-mono);
-    background: #f1f5f9;
-    color: #475569;
+    font: 600 10.5px var(--sa-font-mono);
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
 }
 
 /* ── Body Grid ──────────────────────────────────────────────────── */
+.pve > .sa-page-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
 .pve-body {
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
     display: grid;
     grid-template-columns: 380px 1fr 400px;
-    background: var(--pve-bg);
+    background: var(--sa-bg-app);
 }
 
 .pve-col {
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--pve-border);
+    border-right: 1px solid var(--sa-border);
     background: #fff;
     min-width: 0;
     overflow: hidden;
@@ -952,7 +857,7 @@ function emitSave(): void {
 }
 .pve-col-header {
     padding: 16px 18px 12px;
-    border-bottom: 1px solid var(--pve-border);
+    border-bottom: 1px solid var(--sa-border);
     display: flex;
     align-items: flex-start;
     gap: 8px;
@@ -971,7 +876,7 @@ function emitSave(): void {
 }
 .pve-col-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 2px;
 }
 
@@ -986,7 +891,7 @@ function emitSave(): void {
     padding: 10px 14px;
     margin: 10px 14px 0;
     background: #fff;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
 }
 .pve-search input {
@@ -994,11 +899,11 @@ function emitSave(): void {
     border: 0;
     outline: 0;
     background: transparent;
-    font: 13px var(--pve-font-sans);
-    color: #0f172a;
+    font: 13px var(--sa-font-body);
+    color: var(--sa-heading);
 }
 .pve-search-ico {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     display: inline-flex;
 }
 .pve-tabs {
@@ -1011,23 +916,23 @@ function emitSave(): void {
     border: 0;
     padding: 5px 10px;
     border-radius: 6px;
-    font: 500 12.5px var(--pve-font-sans);
-    color: #475569;
+    font: 500 12.5px var(--sa-font-body);
+    color: var(--sa-muted-dark);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 .pve-tab--active {
-    background: #0f172a;
+    background: var(--sa-heading);
     color: #fff;
 }
 .pve-tab-count {
     font-size: 10.5px;
     padding: 1px 5px;
     border-radius: 4px;
-    background: #e2e8f0;
-    color: #475569;
+    background: var(--sa-border);
+    color: var(--sa-muted-dark);
 }
 .pve-tab--active .pve-tab-count {
     background: rgba(255, 255, 255, 0.15);
@@ -1043,7 +948,7 @@ function emitSave(): void {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 700;
     padding: 12px 4px 6px;
 }
@@ -1052,7 +957,7 @@ function emitSave(): void {
     align-items: flex-start;
     gap: 10px;
     background: #fff;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 9px 10px;
     margin-bottom: 6px;
@@ -1070,12 +975,12 @@ function emitSave(): void {
     cursor: grabbing;
 }
 .pve-pool-card--selected {
-    background: var(--pve-surface-2);
+    background: var(--sa-bg-surface-2);
     opacity: 0.7;
 }
 .pve-pool-card--partial {
     border-color: #fde68a;
-    background: #fffbeb;
+    background: var(--sa-warning-bg);
 }
 .pve-pool-grip {
     color: #cbd5e1;
@@ -1094,7 +999,7 @@ function emitSave(): void {
 .pve-pool-card-label {
     font-size: 13px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-pool-card-check {
     display: inline-grid;
@@ -1112,12 +1017,12 @@ function emitSave(): void {
     align-items: center;
     flex-wrap: wrap;
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     margin-top: 2px;
 }
 .pve-pool-card-key {
-    font: 500 10px var(--pve-font-mono);
-    color: #64748b;
+    font: 500 10px var(--sa-font-mono);
+    color: var(--sa-muted);
 }
 .pve-pool-card-dot {
     color: #cbd5e1;
@@ -1126,7 +1031,7 @@ function emitSave(): void {
 .pve-empty {
     padding: 24px 4px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 12.5px;
     font-style: italic;
 }
@@ -1141,11 +1046,11 @@ function emitSave(): void {
 }
 .pve-basket--dragover {
     background: #f0f6ff;
-    box-shadow: inset 0 0 0 2px var(--pve-primary);
+    box-shadow: inset 0 0 0 2px var(--sa-primary);
 }
 .pve-basket-settings {
-    background: linear-gradient(180deg, var(--pve-surface-2) 0%, #fff 100%);
-    border-bottom: 1px solid var(--pve-border);
+    background: linear-gradient(180deg, var(--sa-bg-surface-2) 0%, #fff 100%);
+    border-bottom: 1px solid var(--sa-border);
     padding: 14px 22px 16px;
     display: flex;
     flex-direction: column;
@@ -1158,7 +1063,7 @@ function emitSave(): void {
 }
 .pve-bs-label {
     font-size: 12px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     font-weight: 500;
     min-width: 88px;
 }
@@ -1168,15 +1073,15 @@ function emitSave(): void {
 }
 .pve-bs-input {
     background: #fff;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
     border-radius: 6px;
     padding: 6px 10px;
-    font: 13px var(--pve-font-sans);
-    color: #0f172a;
+    font: 13px var(--sa-font-body);
+    color: var(--sa-heading);
     outline: none;
 }
 .pve-bs-input:focus {
-    border-color: var(--pve-primary);
+    border-color: var(--sa-primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 .pve-bs-input--error {
@@ -1206,7 +1111,7 @@ function emitSave(): void {
 .pve-bs-input-grp {
     display: flex;
     align-items: stretch;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
     border-radius: 6px;
     background: #fff;
     overflow: hidden;
@@ -1222,17 +1127,17 @@ function emitSave(): void {
 }
 .pve-bs-prefix,
 .pve-bs-suffix {
-    background: var(--pve-surface-2);
+    background: var(--sa-bg-surface-2);
     padding: 6px 10px;
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
     display: grid;
     place-items: center;
-    border-right: 1px solid var(--pve-border);
+    border-right: 1px solid var(--sa-border);
 }
 .pve-bs-suffix {
     border-right: 0;
-    border-left: 1px solid var(--pve-border);
+    border-left: 1px solid var(--sa-border);
 }
 
 .pve-toggle {
@@ -1266,7 +1171,7 @@ function emitSave(): void {
     transition: transform 0.15s;
 }
 .pve-toggle input:checked + span {
-    background: var(--pve-primary);
+    background: var(--sa-primary);
 }
 .pve-toggle input:checked + span::before {
     transform: translateX(16px);
@@ -1274,7 +1179,7 @@ function emitSave(): void {
 
 .pve-basket-group {
     padding: 14px 22px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
 }
 .pve-basket-group:last-child {
     border-bottom: 0;
@@ -1309,23 +1214,23 @@ function emitSave(): void {
 .pve-bg-count {
     margin-left: 6px;
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 
 .pve-dz {
-    border: 1.5px dashed var(--pve-border-strong);
+    border: 1.5px dashed var(--sa-border-strong);
     border-radius: 10px;
     padding: 12px;
     background: #fafbfc;
     min-height: 60px;
 }
 .pve-basket--dragover .pve-dz {
-    border-color: var(--pve-primary);
+    border-color: var(--sa-primary);
     background: #f0f6ff;
 }
 .pve-dz-empty {
     font-size: 12px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     text-align: center;
     padding: 4px 0;
 }
@@ -1339,7 +1244,7 @@ function emitSave(): void {
     gap: 10px;
     padding: 8px 10px;
     background: #fff;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
     border-radius: 6px;
     margin-bottom: 4px;
 }
@@ -1368,28 +1273,28 @@ function emitSave(): void {
 .pve-sel-label {
     font-size: 13px;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-sel-sub {
-    font: 500 10.5px var(--pve-font-mono);
-    color: #94a3b8;
+    font: 500 10.5px var(--sa-font-mono);
+    color: var(--sa-muted-light);
 }
 .pve-sel-val-edit {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: var(--pve-surface-2);
+    background: var(--sa-bg-surface-2);
     padding: 3px 8px;
     border-radius: 5px;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
 }
 .pve-sel-val-input {
     width: 64px;
     border: 0;
     outline: 0;
     background: transparent;
-    font: 600 13px var(--pve-font-sans);
-    color: #0f172a;
+    font: 600 13px var(--sa-font-body);
+    color: var(--sa-heading);
     text-align: right;
     -moz-appearance: textfield;
 }
@@ -1400,12 +1305,12 @@ function emitSave(): void {
 }
 .pve-sel-val-unit {
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .pve-sel-x {
     background: transparent;
     border: 0;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -1419,7 +1324,7 @@ function emitSave(): void {
 
 /* ── RIGHT — Preview ───────────────────────────────────────────── */
 .pve-preview {
-    background: var(--pve-surface-2);
+    background: var(--sa-bg-surface-2);
     overflow: auto;
 }
 .pve-preview-toggle {
@@ -1431,7 +1336,7 @@ function emitSave(): void {
     margin: 14px 18px;
     background: #fff;
     border-radius: 10px;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
     overflow: hidden;
     transition: max-width 0.18s;
 }
@@ -1443,8 +1348,8 @@ function emitSave(): void {
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background: #f1f5f9;
-    border-bottom: 1px solid var(--pve-border);
+    background: var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-border);
 }
 .pve-prev-dot {
     width: 9px;
@@ -1457,9 +1362,9 @@ function emitSave(): void {
     border-radius: 4px;
     padding: 3px 10px;
     margin-left: 10px;
-    font: 500 11px var(--pve-font-mono);
-    color: #64748b;
-    border: 1px solid var(--pve-border);
+    font: 500 11px var(--sa-font-mono);
+    color: var(--sa-muted);
+    border: 1px solid var(--sa-border);
 }
 .pve-prev-body {
     padding: 18px 18px 16px;
@@ -1468,7 +1373,7 @@ function emitSave(): void {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #64748b;
+    color: var(--sa-muted);
     font-weight: 700;
 }
 .pve-prev-title {
@@ -1476,11 +1381,11 @@ function emitSave(): void {
     font-weight: 700;
     letter-spacing: -0.03em;
     margin-top: 6px;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-prev-desc {
     font-size: 12.5px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     margin-top: 6px;
     line-height: 1.5;
 }
@@ -1494,11 +1399,11 @@ function emitSave(): void {
     font-size: 38px;
     font-weight: 700;
     letter-spacing: -0.03em;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-prev-price-unit {
     font-size: 13px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pve-prev-price-yearly {
     font-size: 11.5px;
@@ -1511,21 +1416,21 @@ function emitSave(): void {
     width: 100%;
     margin-top: 14px;
     padding: 10px;
-    background: #0f172a;
+    background: var(--sa-heading);
     color: #fff;
     border: 0;
     border-radius: 7px;
-    font: 600 13px var(--pve-font-sans);
+    font: 600 13px var(--sa-font-body);
     cursor: pointer;
 }
 .pve-prev-sep {
     margin-top: 18px;
     padding-top: 14px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 700;
 }
 .pve-prev-list {
@@ -1541,7 +1446,7 @@ function emitSave(): void {
     align-items: center;
     gap: 8px;
     font-size: 12.5px;
-    color: #0f172a;
+    color: var(--sa-heading);
 }
 .pve-prev-list li b {
     font-weight: 600;
@@ -1557,22 +1462,22 @@ function emitSave(): void {
     flex: 0 0 auto;
 }
 .pve-prev-empty {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-style: italic;
 }
 .pve-prev-foot {
     margin-top: 16px;
     padding-top: 14px;
-    border-top: 1px solid #f1f5f9;
+    border-top: 1px solid var(--sa-border-soft);
     font-size: 10.5px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     line-height: 1.5;
 }
 
 .pve-prev-validate {
     margin: 0 18px 18px;
     background: #fff;
-    border: 1px solid var(--pve-border);
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 12px;
 }
@@ -1583,7 +1488,7 @@ function emitSave(): void {
     margin-bottom: 6px;
 }
 .pve-prev-validate-tick {
-    color: var(--pve-live);
+    color: var(--sa-positive-light);
     display: inline-flex;
 }
 .pve-prev-validate-title {
@@ -1593,7 +1498,7 @@ function emitSave(): void {
 .pve-prev-validate-count {
     margin-left: auto;
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .pve-vchk {
     display: flex;
@@ -1603,17 +1508,17 @@ function emitSave(): void {
     padding: 3px 0;
 }
 .pve-vchk--ok {
-    color: #475569;
+    color: var(--sa-muted-dark);
 }
 .pve-vchk--ok span:first-child {
-    color: var(--pve-live);
+    color: var(--sa-positive-light);
     display: inline-flex;
 }
 .pve-vchk--warn {
     color: #b45309;
 }
 .pve-vchk--warn span:first-child {
-    color: var(--pve-draft);
+    color: var(--sa-amber);
     display: inline-flex;
 }
 
@@ -1630,7 +1535,7 @@ function emitSave(): void {
     }
     .pve-col {
         border-right: 0;
-        border-bottom: 1px solid var(--pve-border);
+        border-bottom: 1px solid var(--sa-border);
     }
 }
 
@@ -1642,15 +1547,15 @@ function emitSave(): void {
     border-radius: 14px;
     box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
     overflow: hidden;
-    font-family: var(--pve-font-sans);
-    color: var(--pve-text);
+    font-family: var(--sa-font-body);
+    color: var(--sa-heading);
 }
 .pve-diff-modal * {
     box-sizing: border-box;
 }
 .pve-diff-head {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--pve-border);
+    border-bottom: 1px solid var(--sa-border);
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -1662,7 +1567,7 @@ function emitSave(): void {
 }
 .pve-diff-sub {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 3px;
 }
 .pve-diff-close {
@@ -1672,7 +1577,7 @@ function emitSave(): void {
     border-radius: 6px;
     background: transparent;
     border: 0;
-    color: var(--pve-text-3);
+    color: var(--sa-muted-light);
     cursor: pointer;
     display: grid;
     place-items: center;
@@ -1680,7 +1585,7 @@ function emitSave(): void {
 }
 .pve-diff-close:hover {
     background: rgba(15, 23, 42, 0.05);
-    color: var(--pve-text);
+    color: var(--sa-heading);
 }
 .pve-diff-body {
     padding: 14px 20px 18px;
@@ -1728,7 +1633,7 @@ function emitSave(): void {
 .pve-diff-label {
     font-size: 13px;
     font-weight: 600;
-    color: var(--pve-text);
+    color: var(--sa-heading);
 }
 .pve-diff-change {
     display: flex;
@@ -1739,10 +1644,10 @@ function emitSave(): void {
 }
 .pve-diff-from {
     text-decoration: line-through;
-    color: var(--pve-text-3);
+    color: var(--sa-muted-light);
 }
 .pve-diff-to {
-    color: var(--pve-text);
+    color: var(--sa-heading);
     font-weight: 600;
 }
 .pve-diff-arrow {
@@ -1755,7 +1660,7 @@ function emitSave(): void {
 .pve-diff-empty {
     padding: 24px 8px;
     text-align: center;
-    color: var(--pve-text-3);
+    color: var(--sa-muted-light);
     font-style: italic;
     font-size: 13px;
 }

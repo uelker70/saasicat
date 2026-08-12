@@ -1,28 +1,17 @@
 <template>
     <div class="sa-plan-list">
-        <p class="sa-plan-list-summary">{{ summary }}</p>
-
         <!-- List wrapper -->
         <div class="sa-plan-list-wrap">
             <div class="sa-plan-list-toolbar">
-                <div class="sa-plan-list-search">
-                    <span class="sa-plan-list-search-ico" aria-hidden="true">
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <circle cx="11" cy="11" r="7" />
-                            <path d="M21 21l-4.35-4.35" />
-                        </svg>
-                    </span>
-                    <input v-model="search" :placeholder="msg.list.searchPlaceholder" />
-                    <span class="sa-plan-list-kbd">⌘ K</span>
-                </div>
-                <div class="sa-plan-list-toolbar-spacer" />
+                <q-input
+                    v-model="search"
+                    dense
+                    outlined
+                    clearable
+                    :placeholder="msg.list.searchPlaceholder"
+                >
+                    <template #prepend><q-icon name="search" /></template>
+                </q-input>
                 <div class="sa-plan-list-sortinfo">{{ msg.list.sortedBy }}</div>
             </div>
 
@@ -174,7 +163,7 @@
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <button
                                 v-if="hasAnyPublished(p)"
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 disabled
                                 :title="msg.list.actionDeleteBlocked"
@@ -194,7 +183,7 @@
                             </button>
                             <button
                                 v-else
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost sa-plan-list-btn--danger"
+                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
                                 type="button"
                                 :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
@@ -213,7 +202,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionClonePlan"
                                 @click="$emit('clonePlan', p.plan)"
@@ -231,7 +220,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionNewVersion"
                                 :disabled="!!p.draft"
@@ -251,7 +240,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm"
+                                class="sa-btn sa-btn--sm"
                                 type="button"
                                 :title="msg.list.actionOpenPlan"
                                 @click="$emit('openPlan', p.plan)"
@@ -359,7 +348,7 @@
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
                             <button
                                 v-if="sub.publishedAt === null"
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost sa-plan-list-btn--danger"
+                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
                                 type="button"
                                 :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
@@ -379,7 +368,7 @@
                             </button>
                             <button
                                 v-if="sub.publishedAt === null"
-                                class="sa-plan-list-btn sa-plan-list-btn--sm sa-plan-list-btn--ghost"
+                                class="sa-btn sa-btn--sm sa-btn--ghost"
                                 type="button"
                                 :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
@@ -398,7 +387,7 @@
                                 </svg>
                             </button>
                             <button
-                                class="sa-plan-list-btn sa-plan-list-btn--sm"
+                                class="sa-btn sa-btn--sm"
                                 type="button"
                                 :title="msg.list.actionOpenInCockpit"
                                 @click="$emit('openPlan', p.plan)"
@@ -423,11 +412,15 @@
 </template>
 
 <script setup lang="ts">
+import AdminKpi from '../admin-page/AdminKpi.vue';
+import AdminStatistics from '../admin-page/AdminStatistics.vue';
+import { resolvePlans, type ResolvedPlan } from '../../client/resolve-plans.js';
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
+import AdminSection from '../admin-page/AdminSection.vue';
 
 // PlanList — list view of all plans (default view in PlansPage,
 // corresponds to the ListScreen from the plan simulation). One row per
@@ -463,27 +456,8 @@ const msg = useSaMessages('plans');
 const { locale, intlLocale } = useSuperAdminI18n();
 const common = useSaMessages('common');
 
-const search = ref('');
-
-interface ResolvedPlan {
-    plan: PlanRow;
-    planKey: string;
-    label: string;
-    description: string | null;
-    /** Version currently active for new bookings (validFrom ≤ today < validUntil or validUntil null). */
-    currentLive: PlanVersionRow | null;
-    /** Version shown on the parent row (currentLive preferred). */
-    primary: PlanVersionRow | null;
-    /** Drafts + future-published versions (sorted: future ASC by validFrom, drafts at the end). */
-    subRows: PlanVersionRow[];
-    /** True if the plan has any versions at all (for hide logic). */
-    hasAnyVersion: boolean;
-    /** True if all versions are expired (validUntil < today, no draft / no future). */
-    allExpired: boolean;
-    /** First open draft (for the header KPI "offene Drafts"). */
-    draft: PlanVersionRow | null;
-    tenantCount: number;
-}
+// `clearable` emits null, not '' — see Quasar's use-field clearValue().
+const search = ref<string | null>('');
 
 const DEFAULT_ACCENTS: Record<string, string> = {
     STARTER: '#64748b',
@@ -505,91 +479,20 @@ function planAccent(planKey: string): string {
     return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length] ?? FALLBACK_ACCENTS[0]!;
 }
 
-function todayIsoDate(): string {
-    return new Date().toISOString().slice(0, 10);
-}
-
-function isCurrentlyValid(v: PlanVersionRow, today: string): boolean {
-    if (v.publishedAt === null) return false;
-    if (v.validFrom && v.validFrom.slice(0, 10) > today) return false;
-    if (v.validUntil && v.validUntil.slice(0, 10) < today) return false;
-    return true;
-}
-
-function isFutureScheduled(v: PlanVersionRow, today: string): boolean {
-    if (v.publishedAt === null) return false;
-    if (!v.validFrom) return false;
-    return v.validFrom.slice(0, 10) > today;
-}
-
-function isExpired(v: PlanVersionRow, today: string): boolean {
-    if (v.publishedAt === null) return false;
-    if (!v.validUntil) return false;
-    return v.validUntil.slice(0, 10) < today;
-}
-
-const resolvedPlans = computed<ResolvedPlan[]>(() => {
-    const today = todayIsoDate();
-    return [...props.plans]
-        .sort((a, b) => a.sortOrder - b.sortOrder || a.planKey.localeCompare(b.planKey))
-        .map<ResolvedPlan>((plan) => {
-            const versions = props.versionsByPlanId[plan.id] ?? [];
-            const drafts = versions.filter((v) => v.publishedAt === null);
-            const published = versions.filter((v) => v.publishedAt !== null);
-            const currentLive = published.find((v) => isCurrentlyValid(v, today)) ?? null;
-            const futureScheduled = published
-                .filter((v) => isFutureScheduled(v, today))
-                .sort((a, b) => (a.validFrom ?? '').localeCompare(b.validFrom ?? ''));
-
-            // Parent = currentLive preferred; otherwise the next upcoming
-            // future version; otherwise null (drafts only → root row without a version).
-            const primary = currentLive ?? futureScheduled[0] ?? null;
-
-            // Sub-rows = all visible versions except the parent
-            const subSet = new Set<string>();
-            if (primary) subSet.add(primary.id);
-            const subRows: PlanVersionRow[] = [];
-            for (const v of futureScheduled) {
-                if (!subSet.has(v.id)) {
-                    subRows.push(v);
-                    subSet.add(v.id);
-                }
-            }
-            for (const d of drafts) {
-                if (!subSet.has(d.id)) {
-                    subRows.push(d);
-                    subSet.add(d.id);
-                }
-            }
-
-            const allExpired =
-                versions.length > 0 &&
-                drafts.length === 0 &&
-                published.every((v) => isExpired(v, today)) &&
-                futureScheduled.length === 0;
-
-            return {
-                plan,
-                planKey: plan.planKey,
-                label: plan.label,
-                description: plan.description ?? null,
-                currentLive,
-                primary,
-                subRows,
-                hasAnyVersion: versions.length > 0,
-                allExpired,
-                draft: drafts[0] ?? null,
-                tenantCount: props.tenantCountsByPlanKey[plan.planKey] ?? 0,
-            };
-        });
-});
+const resolvedPlans = computed(() =>
+    resolvePlans({
+        plans: props.plans,
+        versionsByPlanId: props.versionsByPlanId,
+        tenantCountsByPlanKey: props.tenantCountsByPlanKey,
+    }),
+);
 
 const filteredPlans = computed(() => {
     // Plans with only expired versions are hidden entirely
     // (SPEC_V2 §4.2.1: only currently-valid + future ones stay visible
     // in the admin listing).
     const base = resolvedPlans.value.filter((p) => !p.allExpired);
-    const q = search.value.trim().toLocaleLowerCase(intlLocale.value);
+    const q = (search.value ?? '').trim().toLocaleLowerCase(intlLocale.value);
     if (!q) return base;
     return base.filter(
         (p) =>
@@ -598,21 +501,8 @@ const filteredPlans = computed(() => {
     );
 });
 
-const liveCount = computed(() => resolvedPlans.value.filter((p) => p.currentLive !== null).length);
-const draftCount = computed(() => resolvedPlans.value.filter((p) => p.draft !== null).length);
-const totalTenants = computed(() => resolvedPlans.value.reduce((sum, p) => sum + p.tenantCount, 0));
-
-const summary = computed(() =>
-    formatMessage(msg.value.list.summary, {
-        plans: resolvedPlans.value.length,
-        live: liveCount.value,
-        drafts: draftCount.value,
-        tenants: totalTenants.value,
-    }),
-);
-
 const emptyNoMatch = computed(() =>
-    formatMessage(msg.value.list.emptyNoMatch, { query: search.value }),
+    formatMessage(msg.value.list.emptyNoMatch, { query: search.value ?? '' }),
 );
 
 function validFromLabel(validFrom: string | null | undefined): string {
@@ -644,7 +534,7 @@ function tenantBarWidth(count: number): string {
     return `${Math.min(100, count / 1.5)}%`;
 }
 
-function onNewVersion(row: ResolvedPlan): void {
+function onNewVersion(row: ResolvedPlan<PlanRow, PlanVersionRow>): void {
     if (row.draft) return; // already an open draft → no new one
     const basis = row.currentLive;
     if (!basis) {
@@ -655,7 +545,7 @@ function onNewVersion(row: ResolvedPlan): void {
     emit('newVersion', row.plan, basis);
 }
 
-function hasAnyPublished(row: ResolvedPlan): boolean {
+function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     // Superseded or expired counts too — the plan root stays in the DB
     // forever for contract-protection P1 reasons.
     const versions = props.versionsByPlanId[row.plan.id] ?? [];
@@ -665,94 +555,20 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 
 <style scoped>
 .sa-plan-list {
-    --sa-plan-list-bg: #f6f7f9;
-    --sa-plan-list-surface: #ffffff;
-    --sa-plan-list-surface-2: #f8fafc;
-    --sa-plan-list-border: #e5e7eb;
-    --sa-plan-list-border-strong: #d1d5db;
-    --sa-plan-list-text: #0f172a;
-    --sa-plan-list-text-2: #475569;
-    --sa-plan-list-text-3: #94a3b8;
-    --sa-plan-list-primary: #2563eb;
-    --sa-plan-list-primary-700: #1d4ed8;
-    --sa-plan-list-live-bg: #ecfdf5;
-    --sa-plan-list-draft-bg: #fffbeb;
-    --sa-plan-list-font-sans:
-        'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    --sa-plan-list-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-    padding: 22px 26px;
-    background: var(--sa-plan-list-bg);
-    color: var(--sa-plan-list-text);
-    font-family: var(--sa-plan-list-font-sans);
+    /* padding: 22px 26px; */
+    background: var(--sa-bg-app);
+    color: var(--sa-heading);
+    font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
 }
-.sa-plan-list * {
-    box-sizing: border-box;
-}
-
-.sa-plan-list-summary {
-    font-size: 12.5px;
-    color: var(--sa-plan-list-text-2);
-    margin: 0 0 18px;
-}
 
 /* Buttons */
-.sa-plan-list-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    padding: 8px 14px;
-    border-radius: 7px;
-    font: 500 13px var(--sa-plan-list-font-sans);
-    cursor: pointer;
-    border: 1px solid var(--sa-plan-list-border-strong);
-    background: #fff;
-    color: var(--sa-plan-list-text);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.sa-plan-list-btn:hover:not(:disabled) {
-    background: var(--sa-plan-list-surface-2);
-}
-.sa-plan-list-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-}
-.sa-plan-list-btn--primary {
-    background: var(--sa-plan-list-primary);
-    border-color: var(--sa-plan-list-primary);
-    color: #fff;
-}
-.sa-plan-list-btn--primary:hover {
-    background: var(--sa-plan-list-primary-700);
-}
-.sa-plan-list-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.sa-plan-list-btn--ghost:hover:not(:disabled) {
-    background: rgba(15, 23, 42, 0.05);
-}
-.sa-plan-list-btn--danger {
-    color: #ef4444;
-}
-.sa-plan-list-btn--danger:hover:not(:disabled) {
-    background: #fef2f2;
-    color: #b91c1c;
-}
-.sa-plan-list-btn--sm {
-    padding: 5px 8px;
-    font-size: 12px;
-    gap: 5px;
-}
 
 /* List wrap */
 .sa-plan-list-wrap {
-    background: var(--sa-plan-list-surface);
-    border: 1px solid var(--sa-plan-list-border);
+    background: var(--sa-bg-surface);
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -761,47 +577,17 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--sa-plan-list-border);
-    background: #fbfbfd;
+    border-bottom: 1px solid var(--sa-border);
+    background: var(--sa-bg-surface-2);
 }
-.sa-plan-list-search {
-    flex: 1;
-    max-width: 360px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #fff;
-    border: 1px solid var(--sa-plan-list-border);
-    border-radius: 7px;
-    padding: 7px 10px;
-}
-.sa-plan-list-search-ico {
-    color: var(--sa-plan-list-text-3);
-    display: inline-flex;
-}
-.sa-plan-list-search input {
-    flex: 1;
-    border: 0;
-    outline: 0;
-    font: 13px var(--sa-plan-list-font-sans);
-    background: transparent;
-    color: var(--sa-plan-list-text);
-}
-.sa-plan-list-kbd {
-    font: 600 10.5px var(--sa-plan-list-font-mono);
-    background: #f1f5f9;
-    color: var(--sa-plan-list-text-2);
-    padding: 2px 6px;
-    border-radius: 4px;
-    border: 1px solid #e2e8f0;
-}
-.sa-plan-list-toolbar-spacer {
+/* The search takes the row; the sort hint keeps its content width. */
+.sa-plan-list-toolbar > .q-field {
     flex: 1;
 }
 .sa-plan-list-sortinfo {
     margin-left: auto;
     font-size: 11.5px;
-    color: var(--sa-plan-list-text-3);
+    color: var(--sa-muted-light);
 }
 
 /* List grid */
@@ -819,15 +605,15 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-plan-list-text-2);
+    color: var(--sa-muted-dark);
     font-weight: 700;
-    border-bottom: 1px solid var(--sa-plan-list-border);
+    border-bottom: 1px solid var(--sa-border);
 }
 .sa-plan-list-empty {
     grid-column: 1 / -1;
     padding: 32px 24px;
     text-align: center;
-    color: var(--sa-plan-list-text-3);
+    color: var(--sa-muted-light);
     font-style: italic;
     font-size: 13px;
 }
@@ -837,14 +623,14 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 }
 .sa-plan-list-row > .sa-plan-list-cell {
     padding: 14px 16px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--sa-border-soft);
     transition: background 0.12s;
 }
 .sa-plan-list-row:hover > .sa-plan-list-cell {
     background: #fcfcfd;
 }
 .sa-plan-list-row--new > .sa-plan-list-cell {
-    background: var(--sa-plan-list-live-bg) !important;
+    background: var(--sa-positive-bg) !important;
     animation: sa-plan-list-flashNew 2.4s ease-out;
 }
 @keyframes sa-plan-list-flashNew {
@@ -852,7 +638,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
         background: #d1fae5 !important;
     }
     100% {
-        background: var(--sa-plan-list-live-bg) !important;
+        background: var(--sa-positive-bg) !important;
     }
 }
 
@@ -863,7 +649,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     padding-bottom: 10px;
 }
 .sa-plan-list-row--sub:hover > .sa-plan-list-cell {
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
 }
 .sa-plan-list-cell--sub-name {
     display: flex;
@@ -895,14 +681,14 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 .sa-plan-list-sub-title {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-plan-list-text-2);
+    color: var(--sa-muted-dark);
     display: flex;
     align-items: center;
     gap: 8px;
 }
 .sa-plan-list-sub-desc {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -911,10 +697,10 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 .sa-plan-list-version-num--sub {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-plan-list-text-2);
+    color: var(--sa-muted-dark);
 }
 .sa-plan-list-cell--sub-impact {
-    color: var(--sa-plan-list-text-3);
+    color: var(--sa-muted-light);
 }
 
 .sa-plan-list-plan-name {
@@ -928,7 +714,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     border-radius: 8px;
     display: grid;
     place-items: center;
-    font: 700 11px var(--sa-plan-list-font-mono);
+    font: 700 11px var(--sa-font-mono);
     letter-spacing: 0.04em;
     flex: 0 0 auto;
     border: 1px solid;
@@ -939,7 +725,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 .sa-plan-list-plan-title {
     font-size: 14.5px;
     font-weight: 700;
-    color: var(--sa-plan-list-text);
+    color: var(--sa-heading);
     letter-spacing: -0.01em;
     display: flex;
     align-items: center;
@@ -948,7 +734,7 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 }
 .sa-plan-list-plan-desc {
     font-size: 11.5px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -971,9 +757,9 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
-    background: var(--sa-plan-list-surface-2);
-    color: var(--sa-plan-list-text-2);
-    border: 1px solid var(--sa-plan-list-border);
+    background: var(--sa-bg-surface-2);
+    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-border);
 }
 .sa-plan-list-chip--tiny {
     padding: 1px 6px;
@@ -986,18 +772,18 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
     font-size: 10px;
 }
 .sa-plan-list-chip--live {
-    background: var(--sa-plan-list-live-bg);
+    background: var(--sa-positive-bg);
     color: #047857;
     border-color: #a7f3d0;
 }
 .sa-plan-list-chip--draft {
-    background: var(--sa-plan-list-draft-bg);
+    background: var(--sa-warning-bg);
     color: #b45309;
     border-color: #fde68a;
 }
 .sa-plan-list-chip--supersed {
-    background: #f1f5f9;
-    color: var(--sa-plan-list-text-2);
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark);
     border-color: #cbd5e1;
 }
 .sa-plan-list-chip--scheduled {
@@ -1016,35 +802,35 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 .sa-plan-list-version-num {
     font-size: 13px;
     font-weight: 700;
-    color: var(--sa-plan-list-text);
+    color: var(--sa-heading);
 }
 .sa-plan-list-version-num--muted {
     color: #cbd5e1;
 }
 .sa-plan-list-version-sub {
     font-size: 10.5px;
-    color: var(--sa-plan-list-text-3);
+    color: var(--sa-muted-light);
     margin-top: 2px;
 }
 
 .sa-plan-list-price-big {
     font-size: 14px;
     font-weight: 700;
-    color: var(--sa-plan-list-text);
+    color: var(--sa-heading);
 }
 .sa-plan-list-price-unit {
     font-size: 11px;
-    color: var(--sa-plan-list-text-3);
+    color: var(--sa-muted-light);
 }
 .sa-plan-list-price-sub {
     font-size: 10.5px;
-    color: var(--sa-plan-list-text-3);
+    color: var(--sa-muted-light);
     margin-top: 2px;
 }
 .sa-plan-list-price-text {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-plan-list-text);
+    color: var(--sa-heading);
 }
 
 .sa-plan-list-cell--tenants {
@@ -1055,12 +841,12 @@ function hasAnyPublished(row: ResolvedPlan): boolean {
 .sa-plan-list-tenant-num {
     font-size: 16px;
     font-weight: 700;
-    color: var(--sa-plan-list-text);
+    color: var(--sa-heading);
 }
 .sa-plan-list-tenant-bar {
     flex: 1;
     height: 6px;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     border-radius: 999px;
     overflow: hidden;
 }

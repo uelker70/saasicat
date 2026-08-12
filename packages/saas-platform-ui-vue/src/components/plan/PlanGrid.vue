@@ -113,7 +113,7 @@ function planPrice(plan: CatalogPlan): number | null {
     --sp-text-strong: rgba(255, 255, 255, 0.92);
     --sp-text-muted: rgba(255, 255, 255, 0.65);
     --sp-flag-current-bg: rgba(255, 255, 255, 0.85);
-    --sp-flag-current-fg: #0f172a;
+    --sp-flag-current-fg: var(--sa-heading);
 }
 .sp-model {
     position: relative;

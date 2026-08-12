@@ -2,139 +2,135 @@
     <AdminPage class="sa-tenants">
         <AdminHero :title="msg.list.title" :subtitle="subtitle" />
 
-        <div class="sa-tenants__filter">
-            <div class="sa-tenants__search">
-                <q-icon name="search" size="15px" />
-                <input
-                    v-model="searchInput"
-                    :placeholder="msg.list.searchPlaceholder"
-                    @input="reloadDebounced"
-                />
-                <button v-if="searchInput" class="sa-tenants__clear" @click="onClearSearch">
-                    <q-icon name="close" size="13px" />
-                </button>
-            </div>
-            <select v-model="statusFilter" class="sa-tenants__select" @change="applyFilter">
-                <option :value="null">{{ msg.list.allStatuses }}</option>
-                <option v-for="opt in resolvedStatusOptions" :key="opt.value" :value="opt.value">
-                    {{ opt.label }}
-                </option>
-            </select>
-            <select
-                v-if="planOptions && planOptions.length > 0"
-                v-model="planFilter"
-                class="sa-tenants__select"
-                @change="applyFilter"
-            >
-                <option :value="null">{{ resolvedPlanFilterLabel }}</option>
-                <option v-for="p in planOptions" :key="p" :value="p">{{ p }}</option>
-            </select>
-            <slot name="filters-extra" />
-        </div>
+        <AdminBody>
+            <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
+                <strong>{{ common.error }}:</strong> {{ error.message }}
+            </q-banner>
 
-        <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
-            <strong>{{ common.error }}:</strong> {{ error.message }}
-        </q-banner>
+            <AdminSection class="sa-tenants__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="searchInput"
+                        outlined
+                        dense
+                        clearable
+                        :label="msg.list.searchPlaceholder"
+                        debounce="250"
+                        @update:model-value="applyFilter"
+                    >
+                        <template #prepend><q-icon name="search" size="18px" /></template>
+                    </q-input>
+                    <q-select
+                        v-model="statusFilter"
+                        outlined
+                        dense
+                        clearable
+                        emit-value
+                        map-options
+                        :options="statusSelectOptions"
+                        :label="msg.list.allStatuses"
+                        @update:model-value="applyFilter"
+                    />
+                    <q-select
+                        v-if="planOptions && planOptions.length > 0"
+                        v-model="planFilter"
+                        outlined
+                        dense
+                        clearable
+                        :options="planOptions"
+                        :label="resolvedPlanFilterLabel"
+                        @update:model-value="applyFilter"
+                    />
+                    <slot name="filters-extra" />
+                </AdminFilters>
 
-        <div class="sa-tenants__card">
-            <div class="sa-tenants__wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>{{ msg.tenant }}</th>
-                            <th v-if="showPlanColumn">{{ resolvedPlanColumnLabel }}</th>
-                            <th>{{ common.status }}</th>
-                            <th v-if="usageFields.length > 0" class="num">
-                                {{ msg.list.columnUsage }}
-                            </th>
-                            <th class="num">{{ msg.list.columnCreatedAt }}</th>
-                            <th v-if="hasActions" class="num"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="row in items" :key="row.id">
-                            <td>
-                                <div class="sa-tenants__tenant">
-                                    <div class="sa-tenants__avatar" :style="avatarStyle(row)">
-                                        {{ tenantInitials(row.name) }}
-                                    </div>
-                                    <div>
-                                        <div class="sa-tenants__name">{{ row.name }}</div>
-                                        <div class="sa-tenants__slug">{{ row.slug }}</div>
-                                    </div>
+                <AdminTable
+                    server-side
+                    :rows="items"
+                    :columns="tenantColumns"
+                    :loading="loading"
+                    :page="page"
+                    :rows-per-page="pageSize"
+                    :total="total"
+                    :empty-text="msg.list.empty"
+                    storage-key="tenants"
+                    @update:page="goToPage"
+                    @update:rows-per-page="setPageSize"
+                >
+                    <template #body-cell-tenant="{ row }">
+                        <q-td>
+                            <div class="sa-tenants__tenant">
+                                <div class="sa-tenants__avatar" :style="avatarStyle(row)">
+                                    {{ tenantInitials(row.name) }}
                                 </div>
-                            </td>
-                            <td v-if="showPlanColumn">
-                                <span class="sa-tenants__plan">
-                                    <span
-                                        class="sa-tenants__plan-dot"
-                                        :style="{ background: planAccentFor(row) }"
+                                <div>
+                                    <div class="sa-tenants__name">{{ row.name }}</div>
+                                    <div class="sa-tenants__slug">{{ row.slug }}</div>
+                                </div>
+                            </div>
+                        </q-td>
+                    </template>
+
+                    <template #body-cell-plan="{ row }">
+                        <q-td>
+                            <span class="sa-tenants__plan">
+                                <span
+                                    class="sa-tenants__plan-dot"
+                                    :style="{ background: planAccentFor(row) }"
+                                />
+                                {{ planLabel(row) }}
+                            </span>
+                        </q-td>
+                    </template>
+
+                    <template #body-cell-status="{ row }">
+                        <q-td>
+                            <div class="sa-tenants__pills">
+                                <slot name="status-pills" :row="row">
+                                    <StatusPill
+                                        v-for="(p, i) in resolvedPills(row)"
+                                        :key="i"
+                                        :label="p.label"
+                                        :icon="p.icon"
+                                        :tone="p.tone"
                                     />
-                                    {{ planLabel(row) }}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="sa-tenants__pills">
-                                    <slot name="status-pills" :row="row">
-                                        <StatusPill
-                                            v-for="(p, i) in resolvedPills(row)"
-                                            :key="i"
-                                            :label="p.label"
-                                            :icon="p.icon"
-                                            :tone="p.tone"
-                                        />
-                                    </slot>
-                                </div>
-                            </td>
-                            <td v-if="usageFields.length > 0" class="num">
-                                <div
-                                    v-for="(uf, i) in usageFields"
-                                    :key="i"
-                                    class="sa-tenants__usage"
-                                >
-                                    <q-icon :name="uf.icon" size="11px" />
-                                    {{ usageValue(row, uf) }}
-                                </div>
-                            </td>
-                            <td class="num sa-tenants__mono">
-                                {{ formatCreatedAt(row) }}
-                            </td>
-                            <td v-if="hasActions" class="num sa-tenants__actions">
-                                <slot name="row-actions" :row="row" :actions="visibleActions(row)">
-                                    <component
-                                        :is="action.to ? 'a' : 'button'"
-                                        v-for="action in visibleActions(row)"
-                                        :key="action.id"
-                                        :href="action.to ? action.to(row) : undefined"
-                                        class="sa-tenants__icon-btn"
-                                        :class="
-                                            action.tone
-                                                ? `sa-tenants__icon-btn--${action.tone}`
-                                                : ''
-                                        "
-                                        :title="action.label"
-                                        @click="action.handler ? action.handler(row) : undefined"
-                                    >
-                                        <q-icon :name="action.icon" size="15px" />
-                                    </component>
                                 </slot>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <div v-if="items.length === 0 && !loading" class="sa-tenants__empty">
-                    <q-icon name="search_off" size="32px" />
-                    <div>{{ msg.list.empty }}</div>
-                </div>
-                <div v-if="loading" class="sa-tenants__loading">
-                    <q-spinner size="20px" /> {{ common.loading }}
-                </div>
-            </div>
-        </div>
+                            </div>
+                        </q-td>
+                    </template>
 
-        <footer class="sa-tenants__foot">
-            {{ paginationLabel }}
-        </footer>
+                    <template #body-cell-usage="{ row }">
+                        <q-td class="text-right">
+                            <div v-for="(uf, i) in usageFields" :key="i" class="sa-tenants__usage">
+                                <q-icon :name="uf.icon" size="11px" />
+                                {{ usageValue(row, uf) }}
+                            </div>
+                        </q-td>
+                    </template>
+
+                    <template #body-cell-createdAt="{ row }">
+                        <q-td class="text-right sa-tenants__mono">{{ formatCreatedAt(row) }}</q-td>
+                    </template>
+
+                    <template v-if="hasActions" #row-actions="{ row }">
+                        <slot name="row-actions" :row="row" :actions="visibleActions(row)">
+                            <component
+                                :is="action.to ? 'a' : 'button'"
+                                v-for="action in visibleActions(row)"
+                                :key="action.id"
+                                :href="action.to ? action.to(row) : undefined"
+                                class="sa-tenants__icon-btn"
+                                :class="action.tone ? `sa-tenants__icon-btn--${action.tone}` : ''"
+                                :title="action.label"
+                                @click="action.handler ? action.handler(row) : undefined"
+                            >
+                                <q-icon :name="action.icon" size="15px" />
+                            </component>
+                        </slot>
+                    </template>
+                </AdminTable>
+            </AdminSection>
+        </AdminBody>
 
         <!-- Manifest-Driven Action Flow: only mounted when the `manifest` prop
              is set AND `manifestActionsEnabled` is true (default when manifest
@@ -161,12 +157,16 @@
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, ref, watch } from 'vue';
+import type { QTableColumn } from 'quasar';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { AdminManifest, TenantActionDef, TenantDto, TenantListFilter } from '@saasicat/types';
 import type { HttpClient } from '../client/types.js';
-import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useTenants } from '../vue/use-tenants.js';
 import {
@@ -333,6 +333,9 @@ const msg = useSaMessages('tenants');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
 
+const statusSelectOptions = computed(() =>
+    resolvedStatusOptions.value.map((o) => ({ label: o.label, value: o.value })),
+);
 const resolvedStatusOptions = computed<ReadonlyArray<{ value: string; label: string }>>(
     () =>
         props.statusOptions ?? [
@@ -354,17 +357,39 @@ const list = useTenants<TenantRow>({
     http: props.http,
     getAuthToken: props.getAuthToken,
 });
-const { items, page, total, loading, error, goToPage, setPageSize } = list;
+const { items, page, pageSize, total, loading, error, goToPage, setPageSize } = list;
 
 setPageSize(props.pageSize);
 
-const paginationLabel = computed(() =>
-    formatMessage(msg.value.list.pagination, {
-        total: total.value,
-        page: page.value,
-        pages: Math.max(1, Math.ceil(total.value / props.pageSize)),
-    }),
-);
+const tenantColumns = computed<QTableColumn[]>(() => {
+    const cols: QTableColumn[] = [
+        { name: 'tenant', label: msg.value.tenant, field: 'name', align: 'left' },
+    ];
+    if (props.showPlanColumn) {
+        cols.push({
+            name: 'plan',
+            label: resolvedPlanColumnLabel.value,
+            field: 'plan',
+            align: 'left',
+        });
+    }
+    cols.push({ name: 'status', label: common.value.status, field: 'status', align: 'left' });
+    if (props.usageFields.length > 0) {
+        cols.push({
+            name: 'usage',
+            label: msg.value.list.columnUsage,
+            field: 'id',
+            align: 'right',
+        });
+    }
+    cols.push({
+        name: 'createdAt',
+        label: msg.value.list.columnCreatedAt,
+        field: 'createdAt',
+        align: 'right',
+    });
+    return cols;
+});
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 function reloadDebounced(): void {
@@ -515,63 +540,6 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 </script>
 
 <style scoped>
-.sa-tenants__filter {
-    padding: 0 0 12px;
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.sa-tenants__search {
-    flex: 1;
-    min-width: 240px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    padding: 6px 10px;
-}
-.sa-tenants__search :deep(.q-icon) {
-    color: var(--sa-muted, #64748b);
-}
-.sa-tenants__search input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 13px;
-    font-family: inherit;
-    color: var(--sa-body, #1e293b);
-    min-width: 0;
-}
-.sa-tenants__clear {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 2px;
-}
-.sa-tenants__select {
-    padding: 7px 10px;
-    font-size: 12.5px;
-    font-family: inherit;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 8px;
-    background: #fff;
-    cursor: pointer;
-}
-
-.sa-tenants__card {
-    margin: 0 0 16px;
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-.sa-tenants__wrap {
-    overflow-x: auto;
-}
 table {
     width: 100%;
     border-collapse: collapse;
@@ -586,14 +554,14 @@ th {
     font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
     text-transform: uppercase;
     text-align: left;
 }
 td {
     padding: 11px 14px;
     vertical-align: middle;
-    border-top: 1px solid var(--sa-border-soft, #f1f5f9);
+    border-top: 1px solid var(--sa-border-soft, var(--sa-border-soft));
 }
 .num {
     text-align: right;
@@ -623,11 +591,11 @@ td {
 .sa-tenants__name {
     font-size: 13px;
     font-weight: 600;
-    color: var(--sa-heading, #0f172a);
+    color: var(--sa-heading, var(--sa-heading));
 }
 .sa-tenants__slug {
     font-size: 11px;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
     font-family: var(--sa-font-mono, ui-monospace, monospace);
 }
 
@@ -653,16 +621,13 @@ td {
     align-items: center;
     gap: 4px;
     font-size: 12px;
-    color: var(--sa-muted-dark, #475569);
+    color: var(--sa-muted-dark, var(--sa-muted-dark));
     margin-left: 8px;
 }
 .sa-tenants__usage :deep(.q-icon) {
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
 }
 
-.sa-tenants__actions {
-    white-space: nowrap;
-}
 .sa-tenants__icon-btn {
     background: transparent;
     border: none;
@@ -674,10 +639,10 @@ td {
     align-items: center;
     justify-content: center;
     text-decoration: none;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
 }
 .sa-tenants__icon-btn:hover {
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
 }
 .sa-tenants__icon-btn :deep(.q-icon) {
     color: inherit;
@@ -696,25 +661,5 @@ td {
 }
 .sa-tenants__icon-btn--accent {
     color: var(--sa-accent, #7c3aed);
-}
-
-.sa-tenants__empty {
-    padding: 40px 16px;
-    text-align: center;
-    color: var(--sa-muted, #64748b);
-}
-.sa-tenants__loading {
-    padding: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--sa-muted, #64748b);
-}
-
-.sa-tenants__foot {
-    padding: 0;
-    text-align: right;
-    font-size: 12px;
-    color: var(--sa-muted, #64748b);
 }
 </style>

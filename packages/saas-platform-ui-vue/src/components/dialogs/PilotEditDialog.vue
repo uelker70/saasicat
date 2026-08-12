@@ -339,7 +339,7 @@ async function doSubmit(code: string): Promise<void> {
 
 .pl-dlg__sub {
     font-size: 12.5px;
-    color: var(--sa-muted, #64748b);
+    color: var(--sa-muted, var(--sa-muted));
     margin-top: 3px;
 }
 
@@ -350,8 +350,8 @@ async function doSubmit(code: string): Promise<void> {
 
 .pl-dlg__sub code {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
-    background: #f1f5f9;
-    color: var(--sa-muted-dark, #475569);
+    background: var(--sa-border-soft);
+    color: var(--sa-muted-dark, var(--sa-muted-dark));
     padding: 1px 6px;
     border-radius: 4px;
     font-size: 11.5px;

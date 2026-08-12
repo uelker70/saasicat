@@ -1,20 +1,71 @@
 <template>
     <AdminPage class="sa-plans">
-        <AdminHero :title="msg.list.title">
+        <AdminHero v-if="!viewOwnsHero" :title="heroTitle" :subtitle="heroSubtitle">
+            <template v-if="mode === 'cockpit' && selectedPlan" #title>
+                <PlanTitleEdit
+                    :plan="selectedPlan"
+                    :editable="detailDraftVersion !== null"
+                    @update-plan="onUpdatePlanFromDetail"
+                />
+            </template>
+
             <template v-if="mode === 'list'" #actions>
-                <q-btn
-                    flat
-                    icon="grid_view"
-                    :label="msg.list.matrixView"
-                    @click="mode = 'matrix'"
-                />
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="add"
-                    :label="msg.list.newPlan"
-                    @click="openCreate"
-                />
+                <button class="sa-btn" type="button" @click="mode = 'matrix'">
+                    <q-icon name="grid_view" size="16px" />
+                    <span>{{ msg.list.matrixView }}</span>
+                </button>
+                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
+                    <q-icon name="add" size="16px" />
+                    <span>{{ msg.list.newPlan }}</span>
+                </button>
+            </template>
+            <template v-else-if="mode === 'matrix'" #actions>
+                <button class="sa-btn" type="button" @click="mode = 'list'">
+                    <q-icon name="storefront" size="16px" />
+                    <span>{{ msg.matrix.catalogPreview }}</span>
+                </button>
+                <button class="sa-btn sa-btn--primary" type="button" @click="openCreate">
+                    <q-icon name="add" size="16px" />
+                    <span>{{ msg.matrix.createPlan }}</span>
+                </button>
+            </template>
+            <template v-else-if="mode === 'cockpit' && selectedPlan" #actions>
+                <button class="sa-btn" type="button" @click="onBackToList">
+                    <q-icon name="arrow_back" size="16px" />
+                    <span>{{ common.back }}</span>
+                </button>
+                <button
+                    v-if="detailIsDeletable"
+                    class="sa-btn sa-btn--danger"
+                    type="button"
+                    :title="planDetailMsg.header.deletePlanTitle"
+                    @click="onArchiveSelectedPlan"
+                >
+                    <q-icon name="delete_outline" size="16px" />
+                    <span>{{ planDetailMsg.header.deletePlan }}</span>
+                </button>
+                <button class="sa-btn" type="button" @click="onCloneSelectedPlan">
+                    <q-icon name="content_copy" size="16px" />
+                    <span>{{ planDetailMsg.header.clonePlan }}</span>
+                </button>
+                <button
+                    v-if="!detailDraftVersion"
+                    class="sa-btn sa-btn--primary"
+                    type="button"
+                    @click="openCreateDraft"
+                >
+                    <q-icon name="add" size="16px" />
+                    <span>{{ planDetailMsg.header.newDraftVersion }}</span>
+                </button>
+                <button
+                    v-else
+                    class="sa-btn sa-btn--primary"
+                    type="button"
+                    @click="openPublish(detailDraftVersion)"
+                >
+                    <q-icon name="bolt" size="16px" />
+                    <span>{{ publishDraftLabel }}</span>
+                </button>
             </template>
         </AdminHero>
 
@@ -28,22 +79,44 @@
             </template>
         </q-banner>
 
-        <AdminBody :loading="loading && plans.length === 0" :loading-text="msg.page.loading">
+        <AdminBody
+            v-if="!viewOwnsHero"
+            :loading="loading && plans.length === 0"
+            :loading-text="msg.page.loading"
+        >
             <!-- Default: list view (plan simulation) + Bundle overview -->
             <template v-if="mode === 'list'">
-                <PlanList
-                    :plans="plans"
-                    :versions-by-plan-id="versionsByPlanId"
-                    :tenant-counts-by-plan-key="tenantCountsByPlanKey"
-                    :plan-accents="props.planAccents"
-                    :highlight-plan-key="highlightPlanKey"
-                    @open-plan="onOpenPlan"
-                    @clone-plan="onClonePlan"
-                    @new-version="onNewVersionFromList"
-                    @edit-draft="onEditDraftFromList"
-                    @discard-draft="onDiscardDraftFromList"
-                    @archive-plan="onArchivePlanFromList"
-                />
+                <AdminSection>
+                    <AdminStatistics :columns="4">
+                        <AdminKpi :label="msg.list.statPlans" :value="planCounts.plans" />
+                        <AdminKpi
+                            :label="msg.list.statLive"
+                            :value="planCounts.live"
+                            tone="positive"
+                        />
+                        <AdminKpi
+                            :label="msg.list.statDrafts"
+                            :value="planCounts.drafts"
+                            :tone="planCounts.drafts > 0 ? 'warn' : 'neutral'"
+                        />
+                        <AdminKpi :label="msg.list.statTenants" :value="planCounts.tenants" />
+                    </AdminStatistics>
+                </AdminSection>
+                <AdminSection>
+                    <PlanList
+                        :plans="plans"
+                        :versions-by-plan-id="versionsByPlanId"
+                        :tenant-counts-by-plan-key="tenantCountsByPlanKey"
+                        :plan-accents="props.planAccents"
+                        :highlight-plan-key="highlightPlanKey"
+                        @open-plan="onOpenPlan"
+                        @clone-plan="onClonePlan"
+                        @new-version="onNewVersionFromList"
+                        @edit-draft="onEditDraftFromList"
+                        @discard-draft="onDiscardDraftFromList"
+                        @archive-plan="onArchivePlanFromList"
+                    />
+                </AdminSection>
                 <PlanBundleOverview
                     :bundles="availableBundles"
                     :plans="plans"
@@ -52,21 +125,21 @@
             </template>
 
             <!-- V1 matrix: component comparison -->
-            <PlanMatrix
-                v-else-if="mode === 'matrix'"
-                :plans="plans"
-                :versions-by-plan-id="versionsByPlanId"
-                :available-quotas="availableQuotas"
-                :available-bundles="availableBundles"
-                :feature-registry="featureRegistry"
-                :tenant-counts-by-plan-key="tenantCountsByPlanKey"
-                :plan-accents="props.planAccents"
-                :loading="bulkVersionsLoading"
-                @open-plan="onOpenPlan"
-                @create-plan="openCreate"
-                @clone-plan="onClonePlan"
-                @view-catalog="mode = 'list'"
-            />
+            <AdminSection v-else-if="mode === 'matrix'">
+                <PlanMatrix
+                    :plans="plans"
+                    :versions-by-plan-id="versionsByPlanId"
+                    :available-quotas="availableQuotas"
+                    :available-bundles="availableBundles"
+                    :feature-registry="featureRegistry"
+                    :tenant-counts-by-plan-key="tenantCountsByPlanKey"
+                    :plan-accents="props.planAccents"
+                    :loading="bulkVersionsLoading"
+                    @open-plan="onOpenPlan"
+                    @create-plan="openCreate"
+                    @clone-plan="onClonePlan"
+                />
+            </AdminSection>
 
             <!-- Plan detail: drill-in for a single Plan (plan simulation) -->
             <PlanDetail
@@ -80,51 +153,47 @@
                 :audit-rows="auditRows"
                 :loading-audit="loadingAudit"
                 :submit-terminate="onSubmitTerminate"
-                @back="onBackToList"
                 @create-draft="openCreateDraft"
                 @edit-draft="openEditDraft"
                 @publish="openPublish"
-                @clone-plan="onClonePlan(selectedPlan)"
-                @delete-plan="onArchivePlanFromList(selectedPlan, false)"
-                @update-plan="onUpdatePlanFromDetail"
-            />
-
-            <!-- V2 split-view editor as a full-screen view (plan simulation) -->
-            <PlanVersionEditor
-                v-else-if="mode === 'editor' && draftEditing && selectedPlan"
-                :plan-key="selectedPlan.planKey"
-                :editing-id="draftEditing.editingId"
-                :initial-form="draftEditing.initialForm"
-                :saving="draftSaving"
-                :available-features="availableFeatures"
-                :available-quotas="availableQuotas"
-                :available-bundles="availableBundles"
-                :feature-registry="featureRegistry"
-                :plan-display-name="selectedPlan.label"
-                :save-error="draftSaveError"
-                :predecessor-version="editorPredecessor"
-                @save="onEditorNext"
-                @cancel="onCancelEditor"
-            />
-
-            <!-- V3 Review & Publish — wizard step 3 (plan simulation) -->
-            <PlanReview
-                v-else-if="mode === 'review' && reviewDraft && selectedPlan"
-                :plan="selectedPlan"
-                :version="reviewDraft"
-                :predecessor="reviewPredecessor"
-                :available-quotas="availableQuotas"
-                :available-bundles="availableBundles"
-                :feature-registry="featureRegistry"
-                :tenant-impact-count="tenantCountsByPlanKey[selectedPlan.planKey] ?? 0"
-                :saving="draftSaving"
-                :publishing="publishing"
-                :publish-error="reviewError"
-                @back="onReviewBack"
-                @save-and-exit="onReviewSaveExit"
-                @publish="onReviewPublish"
             />
         </AdminBody>
+
+        <!-- V2 split-view editor as a full-screen view (plan simulation) -->
+        <PlanVersionEditor
+            v-if="mode === 'editor' && draftEditing && selectedPlan"
+            :plan-key="selectedPlan.planKey"
+            :editing-id="draftEditing.editingId"
+            :initial-form="draftEditing.initialForm"
+            :saving="draftSaving"
+            :available-features="availableFeatures"
+            :available-quotas="availableQuotas"
+            :available-bundles="availableBundles"
+            :feature-registry="featureRegistry"
+            :plan-display-name="selectedPlan.label"
+            :save-error="draftSaveError"
+            :predecessor-version="editorPredecessor"
+            @save="onEditorNext"
+            @cancel="onCancelEditor"
+        />
+
+        <!-- V3 Review & Publish — wizard step 3 (plan simulation) -->
+        <PlanReview
+            v-else-if="mode === 'review' && reviewDraft && selectedPlan"
+            :plan="selectedPlan"
+            :version="reviewDraft"
+            :predecessor="reviewPredecessor"
+            :available-quotas="availableQuotas"
+            :available-bundles="availableBundles"
+            :feature-registry="featureRegistry"
+            :tenant-impact-count="tenantCountsByPlanKey[selectedPlan.planKey] ?? 0"
+            :saving="draftSaving"
+            :publishing="publishing"
+            :publish-error="reviewError"
+            @back="onReviewBack"
+            @save-and-exit="onReviewSaveExit"
+            @publish="onReviewPublish"
+        />
 
         <PlansPageToast :message="toastMessage" />
 
@@ -174,8 +243,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
+import { countPlans, resolvePlans } from '../client/resolve-plans.js';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import type {
     FeatureCatalogEntryRow,
     PlanRow,
@@ -199,6 +272,7 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import PlanVersionEditor from '../components/plan-version-editor/PlanVersionEditor.vue';
 import PlanMatrix from '../components/plan-matrix/PlanMatrix.vue';
 import PlanDetail from '../components/plan-detail/PlanDetail.vue';
+import PlanTitleEdit from '../components/plan-detail/PlanTitleEdit.vue';
 import PlanList from '../components/plan-list/PlanList.vue';
 import PlanCreateDialog, {
     type PlanCreateSubmit,
@@ -265,6 +339,58 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('plans');
+// The plan detail's own strings: its header moved into this page's hero.
+const planDetailMsg = useSaMessages('planDetail');
+
+// The same derivation PlanList uses for its rows, so the counts above the list
+// and the list itself cannot drift apart.
+const planCounts = computed(() =>
+    countPlans(
+        resolvePlans({
+            plans: plans.value,
+            versionsByPlanId: versionsByPlanId.value,
+            tenantCountsByPlanKey: tenantCountsByPlanKey.value,
+        }),
+    ),
+);
+
+// The editor and the review render the hero themselves: their actions hang on
+// state that lives in those views — the publish checklist, the force flags, the
+// draft's validity — so the page steps aside rather than lifting all of it up.
+const viewOwnsHero = computed(() => mode.value === 'editor' || mode.value === 'review');
+
+// One page, one heading. Every view here — the list, the matrix, a single plan
+// — is a mode of the same page, so each swaps the hero's title and actions
+// instead of rendering a second header underneath it. The plan detail used to
+// do the latter, which put a competing <h1> on the page.
+const heroTitle = computed(() => {
+    if (mode.value === 'cockpit' && selectedPlan.value) return selectedPlan.value.label;
+    return mode.value === 'matrix' ? msg.value.matrix.title : msg.value.list.title;
+});
+
+const heroSubtitle = computed(() => {
+    if (mode.value !== 'cockpit' || !selectedPlan.value) return msg.value.page.subtitle;
+    return selectedPlan.value.description || planDetailMsg.value.header.noDescription;
+});
+
+const detailDraftVersion = computed(
+    () => versions.value.find((v) => v.publishedAt === null) ?? null,
+);
+
+// Deleting a plan is only offered while nothing depends on it: no tenants, no
+// published version, no open draft.
+const detailIsDeletable = computed(
+    () =>
+        detailDraftVersion.value === null &&
+        versions.value.every((v) => v.publishedAt === null) &&
+        Object.values(impactByVersion.value).every((n) => n === 0),
+);
+
+const publishDraftLabel = computed(() =>
+    formatMessage(planDetailMsg.value.header.publishDraft, {
+        version: detailDraftVersion.value?.version ?? '',
+    }),
+);
 const common = useSaMessages('common');
 
 const composable: UsePlansResult = usePlans({
@@ -553,6 +679,18 @@ async function onEditDraftFromList(plan: PlanRow, draft: PlanVersionRow): Promis
     openEditDraft(draft);
 }
 
+// The hero's detail actions only render while a plan is selected, but a
+// template condition on the surrounding slot does not narrow `selectedPlan`
+// inside a handler expression — a consumer's stricter build rejects it. These
+// carry the guard in code, where the type checker can see it.
+function onCloneSelectedPlan(): void {
+    if (selectedPlan.value) onClonePlan(selectedPlan.value);
+}
+
+function onArchiveSelectedPlan(): void {
+    if (selectedPlan.value) onArchivePlanFromList(selectedPlan.value, false);
+}
+
 function onBackToList(): void {
     mode.value = 'list';
     selectedPlan.value = null;
@@ -799,7 +937,7 @@ const editorPredecessor = computed<{
     const editingId = draftEditing.value?.editingId ?? null;
     const candidates = editingId ? published.filter((v) => v.id !== editingId) : published;
     if (candidates.length === 0) return null;
-    const latest = candidates.reduce((a, b) => (a.version > b.version ? a : b));
+    const latest = candidates.reduce((a: any, b: any) => (a.version > b.version ? a : b));
     return {
         version: latest.version,
         features: [...latest.features],

@@ -6,25 +6,25 @@
             </template>
         </AdminHero>
 
-        <div class="sa-subscriptions__body">
-            <div class="sa-subscriptions__card">
-                <q-table
-                    flat
+        <AdminBody>
+            <AdminSection class="sa-subscriptions__body">
+                <AdminTable
                     :rows="rows"
                     :columns="effectiveColumns"
-                    row-key="id"
-                    :pagination="{ rowsPerPage: 0 }"
                     :loading="loading"
-                    hide-pagination
+                    storage-key="subscriptions"
                 />
-            </div>
-        </div>
+            </AdminSection>
+        </AdminBody>
     </AdminPage>
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, ref } from 'vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
@@ -128,11 +128,4 @@ function formatDate(iso: string | null | undefined): string | null {
 }
 </script>
 
-<style scoped>
-.sa-subscriptions__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-}
-</style>
+<style scoped></style>

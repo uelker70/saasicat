@@ -30,7 +30,7 @@ defineProps<{
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: #0f172a;
+    background: var(--sa-heading);
     color: #fff;
     padding: 12px 18px;
     border-radius: 10px;

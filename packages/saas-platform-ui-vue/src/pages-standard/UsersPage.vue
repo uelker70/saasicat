@@ -1,81 +1,66 @@
 <template>
     <AdminPage class="sa-users">
-        <AdminHero :title="resolvedTitle" :subtitle="subtitle">
-            <template #actions>
-                <q-btn
-                    unelevated
-                    color="primary"
-                    icon="search"
-                    :label="common.search"
-                    @click="reload"
-                />
-            </template>
-        </AdminHero>
+        <AdminHero :title="resolvedTitle" :subtitle="subtitle" />
 
-        <div class="sa-stats">
-            <button
-                v-for="tile in statTiles"
-                :key="tile.id"
-                class="sa-stat"
-                :class="[
-                    tile.tone ? `sa-stat--${tile.tone}` : null,
-                    statusFilter === tile.id ? 'sa-stat--active' : null,
-                ]"
-                @click="statusFilter = tile.id"
-            >
-                <span class="sa-stat__num">{{ tile.count }}</span>
-                <span class="sa-stat__label">{{ tile.label }}</span>
-            </button>
-        </div>
+        <AdminBody>
+            <AdminSection>
+                <AdminStatistics :label="resolvedTitle">
+                    <AdminKpi
+                        v-for="tile in statTiles"
+                        :key="tile.id"
+                        :label="tile.label"
+                        :value="tile.count"
+                        :tone="tile.tone"
+                        :selected="statusFilter === tile.id"
+                        :action="() => (statusFilter = tile.id)"
+                    />
+                </AdminStatistics>
+            </AdminSection>
 
-        <div class="sa-users__filter">
-            <q-input
-                v-model="filter.q"
-                outlined
-                dense
-                :label="msg.filterQuery"
-                clearable
-                @keyup.enter="reload"
-                @clear="reload"
-            />
-            <q-input
-                v-model="filter.tenant"
-                outlined
-                dense
-                :label="msg.filterTenant"
-                clearable
-                @keyup.enter="reload"
-                @clear="reload"
-            />
-            <slot name="filters-extra" />
-        </div>
+            <AdminSection :title="common.results" class="sa-users__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="filter.q"
+                        outlined
+                        dense
+                        :label="msg.filterQuery"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.tenant"
+                        outlined
+                        dense
+                        :label="msg.filterTenant"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <slot name="filters-extra" />
+                </AdminFilters>
 
-        <div class="sa-users__card">
-            <q-table
-                flat
-                :rows="filteredRows"
-                :columns="effectiveColumns"
-                row-key="id"
-                :pagination="{ rowsPerPage: 0 }"
-                :loading="loading"
-                hide-pagination
-            >
-                <template #body-cell-status="{ row }">
-                    <q-td>
-                        <q-badge
-                            :color="row.isActive ? 'positive' : 'grey'"
-                            :label="row.isActive ? msg.statusActive : msg.statusDeactivated"
-                        />
-                        <q-badge
-                            v-if="row.invitationStatus === 'PENDING'"
-                            color="amber-7"
-                            :label="msg.badgePending"
-                            class="q-ml-xs"
-                        />
-                    </q-td>
-                </template>
-                <template #body-cell-actions="{ row }">
-                    <q-td>
+                <AdminTable
+                    :rows="filteredRows"
+                    :columns="effectiveColumns"
+                    :loading="loading"
+                    storage-key="users"
+                >
+                    <template #body-cell-status="{ row }">
+                        <q-td>
+                            <q-badge
+                                :color="row.isActive ? 'positive' : 'grey'"
+                                :label="row.isActive ? msg.statusActive : msg.statusDeactivated"
+                            />
+                            <q-badge
+                                v-if="row.invitationStatus === 'PENDING'"
+                                color="amber-7"
+                                :label="msg.badgePending"
+                                class="q-ml-xs"
+                            />
+                        </q-td>
+                    </template>
+                    <template #row-actions="{ row }">
                         <slot name="row-actions" :row="row">
                             <q-btn
                                 v-for="action in visibleActions(row)"
@@ -88,10 +73,10 @@
                                 @click="action.handler(row)"
                             />
                         </slot>
-                    </q-td>
-                </template>
-            </q-table>
-        </div>
+                    </template>
+                </AdminTable>
+            </AdminSection>
+        </AdminBody>
 
         <MfaPromptDialog
             v-if="needsMfaDialog"
@@ -106,12 +91,18 @@
 </template>
 
 <script setup lang="ts">
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminKpi from '../components/admin-page/AdminKpi.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
+import AdminStatistics from '../components/admin-page/AdminStatistics.vue';
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
@@ -318,14 +309,6 @@ const mergedActions = computed<readonly UserRowAction[]>(() => [
 
 const effectiveColumns = computed(() => {
     const cols = [...baseColumns.value];
-    if (mergedActions.value.length > 0) {
-        cols.push({
-            name: 'actions',
-            label: '',
-            field: 'id' as never,
-            align: 'right' as 'left',
-        });
-    }
     return cols;
 });
 
@@ -468,22 +451,4 @@ function onDeactivateClick(row: UserRow): void {
 }
 </script>
 
-<style scoped>
-.sa-users__filter {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-.sa-users__filter > * {
-    flex: 1;
-    min-width: 200px;
-}
-.sa-users__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, #e2e8f0);
-    border-radius: 12px;
-    overflow: hidden;
-}
-</style>
+<style scoped></style>

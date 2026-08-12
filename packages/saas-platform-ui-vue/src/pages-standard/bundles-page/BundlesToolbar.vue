@@ -14,16 +14,11 @@
         >
             <template #prepend><q-icon name="translate" size="18px" /></template>
         </q-select>
-        <q-btn
-            unelevated
-            color="primary"
-            icon="add"
-            :label="msg.header.newBundle"
-            @click="emit('create')"
-        />
-        <q-btn flat icon="refresh" :loading="loading" @click="emit('refresh')">
-            <q-tooltip>{{ msg.header.reload }}</q-tooltip>
-        </q-btn>
+        <button class="sa-btn sa-btn--primary" type="button" @click="emit('create')">
+            <q-icon name="add" size="16px" />
+            <span>{{ msg.header.newBundle }}</span>
+        </button>
+        <AdminRefreshBtn :loading="loading" @refresh="emit('refresh')" />
     </div>
 </template>
 
@@ -31,6 +26,7 @@
 import { computed } from 'vue';
 
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import AdminRefreshBtn from '../../components/admin-page/AdminRefreshBtn.vue';
 
 // The language selector controls which locale feature/quota labels are resolved
 // on the create form and in the detail view (fallback locale → DE → key). The default is the

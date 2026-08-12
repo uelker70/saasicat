@@ -1,5 +1,5 @@
 <template>
-    <q-layout view="lHh Lpr lFf">
+    <q-layout view="lHh Lpr lFf" class="sa-admin-layout">
         <div v-if="isProduction" class="sa-admin-banner sa-admin-banner--prod">
             <q-icon name="warning" size="14px" />
             <strong>PRODUCTION</strong> — {{ msg.header.productionWarning }}
@@ -295,7 +295,7 @@ const currentPageTitle = computed(() => {
 }
 
 .sa-admin-header {
-    background: var(--sa-admin-header-bg, linear-gradient(90deg, #0f172a, #1e293b));
+    background: var(--sa-admin-header-bg, linear-gradient(90deg, var(--sa-heading), #1e293b));
     color: var(--sa-admin-header-fg, #fff);
 }
 .sa-admin-header__sub {
@@ -306,7 +306,7 @@ const currentPageTitle = computed(() => {
 
 .sa-admin-badge {
     background: var(--sa-admin-badge-bg, #f59e0b);
-    color: var(--sa-admin-badge-fg, #0f172a);
+    color: var(--sa-admin-badge-fg, var(--sa-heading));
     font-weight: 800;
     letter-spacing: 0.08em;
     font-size: 10px;
@@ -333,7 +333,7 @@ const currentPageTitle = computed(() => {
 .sa-admin-drawer :deep(.q-drawer__content),
 .sa-admin-drawer__stack {
     background: var(--sa-admin-drawer-bg, #0b1220);
-    color: var(--sa-admin-drawer-fg, #f1f5f9);
+    color: var(--sa-admin-drawer-fg, var(--sa-border-soft));
 }
 .sa-admin-drawer__stack {
     display: flex;
@@ -353,7 +353,7 @@ const currentPageTitle = computed(() => {
     height: 36px;
     border-radius: 10px;
     background: var(--sa-admin-drawer-logo-bg, linear-gradient(135deg, #f59e0b, #d97706));
-    color: var(--sa-admin-drawer-logo-fg, #0f172a);
+    color: var(--sa-admin-drawer-logo-fg, var(--sa-heading));
     font-weight: 800;
     display: flex;
     align-items: center;
@@ -378,7 +378,7 @@ const currentPageTitle = computed(() => {
     font-size: 10px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--sa-admin-drawer-section-fg, #64748b);
+    color: var(--sa-admin-drawer-section-fg, var(--sa-muted));
     padding: 14px 18px 6px;
     font-weight: 600;
 }
@@ -396,7 +396,7 @@ const currentPageTitle = computed(() => {
     padding-right: 8px;
 }
 .sa-admin-drawer__list :deep(.q-item .q-icon) {
-    color: #e2e8f0;
+    color: var(--sa-border);
 }
 .sa-admin-drawer__list :deep(.q-item:hover) {
     background: var(--sa-admin-drawer-hover-bg, rgba(245, 158, 11, 0.15));
@@ -425,7 +425,7 @@ const currentPageTitle = computed(() => {
     align-items: center;
     gap: 6px;
     margin-top: 6px;
-    color: #e2e8f0;
+    color: var(--sa-border);
     text-decoration: none;
 }
 .sa-admin-drawer__doc:hover {

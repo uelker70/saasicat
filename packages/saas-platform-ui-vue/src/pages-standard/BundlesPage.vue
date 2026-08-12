@@ -13,115 +13,123 @@
             </template>
         </AdminHero>
 
-        <q-banner v-if="error" class="sa-bundles__error" rounded>
-            <template #avatar><q-icon name="warning" color="negative" /></template>
-            {{ loadErrorText }}
-        </q-banner>
+        <AdminBody>
+            <q-banner v-if="error" class="sa-bundles__error" rounded>
+                <template #avatar><q-icon name="warning" color="negative" /></template>
+                {{ loadErrorText }}
+            </q-banner>
 
-        <BundlesKpis
-            :bundles-total="bundles.length"
-            :live-count="liveCount"
-            :scheduled-bundles-count="scheduledBundlesCount"
-            :total-scheduled-versions="totalScheduledVersions"
-            :total-draft-versions="totalDraftVersions"
-            :draft-bundles-count="draftBundlesCount"
-            :translated-count="translatedCount"
-            :locales-count="locales.length"
-        />
+            <AdminSection>
+                <BundlesKpis
+                    :bundles-total="bundles.length"
+                    :live-count="liveCount"
+                    :scheduled-bundles-count="scheduledBundlesCount"
+                    :total-scheduled-versions="totalScheduledVersions"
+                    :total-draft-versions="totalDraftVersions"
+                    :draft-bundles-count="draftBundlesCount"
+                    :translated-count="translatedCount"
+                    :locales-count="locales.length"
+                />
+            </AdminSection>
 
-        <BundlesFilterBar
-            v-model:query="query"
-            v-model:status-filter="statusFilter"
-            :status-filter-options="statusFilterOptions"
-        />
+            <AdminSection class="sa-bundles__filter">
+                <BundlesFilterBar
+                    class="q-mb-md"
+                    v-model:query="query"
+                    v-model:status-filter="statusFilter"
+                    :status-filter-options="statusFilterOptions"
+                />
 
-        <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
-        <BundleCreatePanel
-            v-if="createOpen"
-            :project-key="projectKey"
-            :available-features="snapshot?.features ?? []"
-            :available-quotas="snapshot?.quotas ?? []"
-            :plans="plans"
-            :live-plan-versions="livePlanVersions"
-            :feature-registry="featureRegistryResolved"
-            :quota-registry="quotaRegistryResolved"
-            :existing-bundle-keys="existingBundleKeys"
-            :create="create"
-            :create-draft="createDraft"
-            @cancel="createOpen = false"
-            @created="onWizardCreated"
-        />
-
-        <q-banner
-            v-if="bundles.length === 0 && !loading && !error"
-            class="sa-bundles__empty"
-            rounded
-        >
-            <template #avatar><q-icon name="info" color="info" /></template>
-            {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
-            {{ msg.page.emptyAfter }}
-        </q-banner>
-
-        <BundleAccordionList
-            :filtered-bundles="filteredBundles"
-            :bundles-total="bundles.length"
-            :open-key="openKey"
-            :aggregate-status-of="aggregateStatusOf"
-            :i18n-locale-count="i18nLocaleCount"
-            @toggle="toggle"
-        >
-            <template #detail="{ bundle }">
-                <BundleDetailPanel
-                    :bundle="bundle"
-                    v-model:edit-form="editForm"
-                    :i18n-draft="i18nDraft"
-                    :translatable-locales="translatableLocales"
-                    :edit-submitting="editSubmitting"
-                    :detail-versions="detailVersions"
-                    :selected-version-id="selectedVersionIdByBundle[bundle.id] ?? null"
-                    :selected-version="selectedVersion"
+                <!-- Inline creation (collapsible panel, replaces the former dialog modal) -->
+                <BundleCreatePanel
+                    class="q-mb-sm"
+                    v-if="createOpen"
+                    :project-key="projectKey"
                     :available-features="snapshot?.features ?? []"
                     :available-quotas="snapshot?.quotas ?? []"
                     :plans="plans"
                     :live-plan-versions="livePlanVersions"
                     :feature-registry="featureRegistryResolved"
                     :quota-registry="quotaRegistryResolved"
-                    :inline-editor-saving="inlineEditorSaving"
-                    :inline-editor-error="inlineEditorError"
-                    @set-i18n="setI18n"
-                    @submit-edit="submitEdit"
-                    @select-version="onSelectVersion"
-                    @add-version="onAddVersion"
-                    @inline-save="onInlineSave"
-                    @discard-version="onDiscardVersion"
-                    @publish-version="openPublish"
-                    @delete-bundle="confirmDelete"
+                    :existing-bundle-keys="existingBundleKeys"
+                    :create="create"
+                    :create-draft="createDraft"
+                    @cancel="createOpen = false"
+                    @created="onWizardCreated"
                 />
-            </template>
-        </BundleAccordionList>
 
-        <!-- Strict mode warnings after the last mutation -->
-        <q-banner
-            v-if="lastWarnings.length > 0"
-            class="sa-bundles__warnings-banner"
-            inline-actions
-            rounded
-        >
-            <template #avatar><q-icon name="warning" color="warning" /></template>
-            <strong>{{ strictWarningsText }}</strong>
-            <ul class="sa-bundles__warnings-list">
-                <li v-for="(w, i) in lastWarnings" :key="i">
-                    <code>{{ w.code }}</code>
-                    <template v-if="w.value">
-                        · <code>{{ w.value }}</code></template
-                    >
-                    — {{ w.message }}
-                </li>
-            </ul>
-            <template #action>
-                <q-btn flat dense :label="common.close" @click="lastWarnings = []" />
-            </template>
-        </q-banner>
+                <q-banner
+                    v-if="bundles.length === 0 && !loading && !error"
+                    class="sa-bundles__empty"
+                    rounded
+                >
+                    <template #avatar><q-icon name="info" color="info" /></template>
+                    {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
+                    {{ msg.page.emptyAfter }}
+                </q-banner>
+
+                <BundleAccordionList
+                    :filtered-bundles="filteredBundles"
+                    :bundles-total="bundles.length"
+                    :open-key="openKey"
+                    :aggregate-status-of="aggregateStatusOf"
+                    :i18n-locale-count="i18nLocaleCount"
+                    @toggle="toggle"
+                >
+                    <template #detail="{ bundle }">
+                        <BundleDetailPanel
+                            :bundle="bundle"
+                            v-model:edit-form="editForm"
+                            :i18n-draft="i18nDraft"
+                            :translatable-locales="translatableLocales"
+                            :edit-submitting="editSubmitting"
+                            :detail-versions="detailVersions"
+                            :selected-version-id="selectedVersionIdByBundle[bundle.id] ?? null"
+                            :selected-version="selectedVersion"
+                            :available-features="snapshot?.features ?? []"
+                            :available-quotas="snapshot?.quotas ?? []"
+                            :plans="plans"
+                            :live-plan-versions="livePlanVersions"
+                            :feature-registry="featureRegistryResolved"
+                            :quota-registry="quotaRegistryResolved"
+                            :inline-editor-saving="inlineEditorSaving"
+                            :inline-editor-error="inlineEditorError"
+                            @set-i18n="setI18n"
+                            @submit-edit="submitEdit"
+                            @select-version="onSelectVersion"
+                            @add-version="onAddVersion"
+                            @inline-save="onInlineSave"
+                            @discard-version="onDiscardVersion"
+                            @publish-version="openPublish"
+                            @delete-bundle="confirmDelete"
+                        />
+                    </template>
+                </BundleAccordionList>
+            </AdminSection>
+
+            <!-- Strict mode warnings after the last mutation -->
+            <q-banner
+                v-if="lastWarnings.length > 0"
+                class="sa-bundles__warnings-banner"
+                inline-actions
+                rounded
+            >
+                <template #avatar><q-icon name="warning" color="warning" /></template>
+                <strong>{{ strictWarningsText }}</strong>
+                <ul class="sa-bundles__warnings-list">
+                    <li v-for="(w, i) in lastWarnings" :key="i">
+                        <code>{{ w.code }}</code>
+                        <template v-if="w.value">
+                            · <code>{{ w.value }}</code></template
+                        >
+                        — {{ w.message }}
+                    </li>
+                </ul>
+                <template #action>
+                    <q-btn flat dense :label="common.close" @click="lastWarnings = []" />
+                </template>
+            </q-banner>
+        </AdminBody>
 
         <!-- Publish confirmation modal -->
         <BundleVersionPublishDialog
@@ -178,7 +186,9 @@ import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import BundleAccordionList from './bundles-page/BundleAccordionList.vue';
 import BundleDetailPanel from './bundles-page/BundleDetailPanel.vue';
 import BundlesFilterBar from './bundles-page/BundlesFilterBar.vue';
+import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
+import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import BundlesToolbar from './bundles-page/BundlesToolbar.vue';
 import BundlesKpis from './bundles-page/BundlesKpis.vue';
@@ -659,32 +669,6 @@ const classifyDiff = computed(() => props.classifyDiff);
 .sa-bundles__empty {
     border-left: 4px solid #31ccec;
 }
-.sa-bundles__kpis {
-    display: grid;
-    /* Responsive: as many KPIs as fit (up to 4), then 3 → 2 → 1. */
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-}
-.sa-bundles__kpi {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px 14px;
-}
-.sa-bundles__kpi-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #64748b;
-}
-.sa-bundles__kpi-value {
-    font-size: 26px;
-    font-weight: 700;
-}
-.sa-bundles__kpi-sub {
-    font-size: 11px;
-    color: #94a3b8;
-}
 .sa-bundles__filter-row {
     display: flex;
     align-items: center;
@@ -705,7 +689,7 @@ const classifyDiff = computed(() => props.classifyDiff);
 }
 .sa-bd-card {
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -723,8 +707,8 @@ const classifyDiff = computed(() => props.classifyDiff);
     width: 34px;
     height: 34px;
     border-radius: 8px;
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--sa-primary-50);
+    color: var(--sa-primary-strong);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -751,19 +735,19 @@ const classifyDiff = computed(() => props.classifyDiff);
 }
 .sa-bd-card__desc {
     font-size: 12px;
-    color: #64748b;
+    color: var(--sa-muted);
 }
 .sa-bd-card__chev {
     transition: transform 0.15s;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-bd-card__chev.open {
     transform: rotate(90deg);
 }
 .sa-bd-card__body {
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--sa-border);
     padding: 14px;
-    background: #f8fafc;
+    background: var(--sa-bg-surface-2);
 }
 .sa-bd-grid {
     display: grid;
@@ -794,7 +778,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: #475569;
+    color: var(--sa-muted-dark);
     display: flex;
     justify-content: space-between;
 }
@@ -802,7 +786,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     margin-top: 10px;
 }
 .sa-bd-section-count {
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-weight: 600;
 }
 .sa-bundles__form {
@@ -812,14 +796,14 @@ const classifyDiff = computed(() => props.classifyDiff);
 }
 .sa-bd-i18n-hint {
     font-size: 11px;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
 }
 .sa-bd-i18n-block {
     display: flex;
     flex-direction: column;
     gap: 6px;
     padding: 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     background: #fff;
 }
@@ -831,7 +815,7 @@ const classifyDiff = computed(() => props.classifyDiff);
 .sa-bd-i18n-code {
     font-size: 10px;
     font-weight: 700;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     padding: 2px 7px;
     border-radius: 5px;
 }
@@ -852,7 +836,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     gap: 10px;
     align-items: flex-start;
     background: #fff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 10px;
 }
@@ -867,7 +851,7 @@ const classifyDiff = computed(() => props.classifyDiff);
 }
 .sa-bd-version__sub {
     font-size: 11px;
-    color: #64748b;
+    color: var(--sa-muted);
     margin: 2px 0;
 }
 .sa-bd-version__feats {
@@ -877,7 +861,7 @@ const classifyDiff = computed(() => props.classifyDiff);
 }
 .sa-bd-feat-chip {
     font-size: 10px;
-    background: #f1f5f9;
+    background: var(--sa-border-soft);
     padding: 2px 6px;
     border-radius: 5px;
 }
@@ -888,7 +872,7 @@ const classifyDiff = computed(() => props.classifyDiff);
 .sa-bd-empty-row {
     padding: 20px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--sa-muted-light);
     font-size: 12px;
     border: 1px dashed #cbd5e1;
     border-radius: 8px;
