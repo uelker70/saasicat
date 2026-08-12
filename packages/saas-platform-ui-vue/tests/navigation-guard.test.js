@@ -294,6 +294,33 @@ describe('buildNavigationGuard — no login loop on a persistent manifest 401', 
         assert.equal(second, '/login', 'the second waiter must not fail closed on the same 401');
     });
 
+    test('a cached error instance does not resurrect the login loop', async () => {
+        // A store that keeps one Error and rethrows it on every failed request
+        // is a perfectly reasonable implementation — and it defeats any check
+        // based on error identity: every later 401 would look like a concurrent
+        // waiter, `onUnauthenticated()` would fire forever, and the loop this
+        // budget exists to break would be back. The attempt is identified by
+        // the promise instead, which `ensureLoaded()` recreates per load.
+        const cached = Object.assign(new Error('HTTP 401'), { status: 401 });
+        const guard = buildNavigationGuard({
+            authGuard: {
+                isAuthenticated: () => true,
+                onUnauthenticated: () => '/login',
+            },
+            manifestGuard: {
+                ensureLoaded: () => Promise.reject(cached),
+                errorRoute: '/admin-error',
+            },
+        });
+
+        assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.equal(
+            await guard(makeRoute('/admin')),
+            '/admin-error',
+            'the same Error object across separate loads must not buy a second re-login',
+        );
+    });
+
     test('a later, different rejection still fails closed', async () => {
         // The one-shot budget has to survive: a fresh failure after the login
         // attempt is a new error object and must reach the error page.

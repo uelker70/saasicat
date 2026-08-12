@@ -246,9 +246,16 @@ export function buildNavigationGuard(
     // Cleared as soon as any navigation gets through, so a later expiry is
     // handled again — see the loop note below.
     let redirectedForUnauthorized = false;
-    // The rejection that redirect belonged to, so concurrent waiters on the
-    // same in-flight manifest request are not mistaken for a second attempt.
-    let handledRejection: unknown = null;
+    // The load attempt that redirect belonged to, so concurrent waiters on one
+    // in-flight manifest request are not mistaken for a second attempt.
+    //
+    // The PROMISE, not the error: `ensureLoaded()` hands every concurrent
+    // caller the same in-flight promise and creates a fresh one per attempt,
+    // which is exactly the distinction needed. An error object cannot carry it
+    // — a store that caches and rethrows one `Error` across requests would make
+    // every later 401 look like a concurrent waiter, and the login loop this
+    // budget exists to break would be back.
+    let handledLoad: Promise<void> | null = null;
 
     return async (to: RouteLocationNormalized) => {
         if (to.meta?.public === true) return true;
@@ -261,10 +268,12 @@ export function buildNavigationGuard(
         }
 
         if (manifestGuard) {
+            let load: Promise<void> | null = null;
             try {
-                await manifestGuard.ensureLoaded();
+                load = manifestGuard.ensureLoaded();
+                await load;
                 redirectedForUnauthorized = false;
-                handledRejection = null;
+                handledLoad = null;
             } catch (err) {
                 // A 401/403 is usually an expired or missing session, not a
                 // broken manifest. Sending it to the fail-closed error page
@@ -284,19 +293,18 @@ export function buildNavigationGuard(
                 // /login. The second time we fail closed to the error page
                 // instead, which at least says something and keeps the session.
                 //
-                // "Once" means once per REJECTION, not once per guard call.
+                // "Once" means once per LOAD, not once per guard call.
                 // Two protected navigations can overlap, and `ensureLoaded()`
                 // hands both of them the same in-flight promise — so both land
-                // here with the identical error object. Counting that as two
-                // attempts would send the second, newer navigation to the
-                // error page over an ordinary expired session. Comparing the
-                // error identity keeps concurrent waiters on one destination,
-                // while a genuinely new failure after the login attempt is a
-                // different object and does fail closed.
+                // here off the same promise. Counting that as two attempts
+                // would send the second, newer navigation to the error page
+                // over an ordinary expired session. Comparing the promise keeps
+                // concurrent waiters on one destination, while a later attempt
+                // is a new promise and does fail closed.
                 if (authGuard && isUnauthorizedError(err)) {
-                    if (!redirectedForUnauthorized || err === handledRejection) {
+                    if (!redirectedForUnauthorized || load === handledLoad) {
                         redirectedForUnauthorized = true;
-                        handledRejection = err;
+                        handledLoad = load;
                         return authGuard.onUnauthenticated();
                     }
                 }
