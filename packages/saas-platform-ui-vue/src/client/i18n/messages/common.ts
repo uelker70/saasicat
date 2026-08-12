@@ -76,6 +76,15 @@ export const commonMessages = defineMessages(
         both: 'Beide',
         createFailed: 'Anlegen fehlgeschlagen',
         noChanges: 'Keine Änderungen',
+        paginator: {
+            label: 'Seitennavigation',
+            rowsPerPage: 'Zeilen pro Seite',
+            all: 'Alle',
+            page: 'Seite {page}/{pages}',
+            pageInput: 'Seite, 1 bis {pages}',
+            previous: 'Vorherige Seite',
+            next: 'Nächste Seite',
+        },
     },
     {
         save: 'Save',
@@ -149,5 +158,14 @@ export const commonMessages = defineMessages(
         both: 'Both',
         createFailed: 'Creation failed',
         noChanges: 'No changes',
+        paginator: {
+            label: 'Pagination',
+            rowsPerPage: 'Rows per page',
+            all: 'All',
+            page: 'Page {page}/{pages}',
+            pageInput: 'Page, 1 to {pages}',
+            previous: 'Previous page',
+            next: 'Next page',
+        },
     },
 );

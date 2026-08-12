@@ -145,9 +145,14 @@
                 </div>
             </AdminSection>
 
-            <footer class="sa-tenants__foot">
-                {{ paginationLabel }}
-            </footer>
+            <AdminPaginator
+                storage-key="tenants"
+                :page="page"
+                :rows-per-page="pageSize"
+                :total="total"
+                @update:page="goToPage"
+                @update:rows-per-page="setPageSize"
+            />
         </AdminBody>
 
         <!-- Manifest-Driven Action Flow: only mounted when the `manifest` prop
@@ -175,6 +180,7 @@
 </template>
 
 <script setup lang="ts">
+import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import { computed, ref, watch } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminFilters from '../components/admin-page/AdminFilters.vue';
@@ -374,17 +380,9 @@ const list = useTenants<TenantRow>({
     http: props.http,
     getAuthToken: props.getAuthToken,
 });
-const { items, page, total, loading, error, goToPage, setPageSize } = list;
+const { items, page, pageSize, total, loading, error, goToPage, setPageSize } = list;
 
 setPageSize(props.pageSize);
-
-const paginationLabel = computed(() =>
-    formatMessage(msg.value.list.pagination, {
-        total: total.value,
-        page: page.value,
-        pages: Math.max(1, Math.ceil(total.value / props.pageSize)),
-    }),
-);
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 function reloadDebounced(): void {
@@ -674,13 +672,6 @@ td {
     display: flex;
     align-items: center;
     gap: 12px;
-    color: var(--sa-muted, var(--sa-muted));
-}
-
-.sa-tenants__foot {
-    padding: 0;
-    text-align: right;
-    font-size: 12px;
     color: var(--sa-muted, var(--sa-muted));
 }
 </style>

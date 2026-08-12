@@ -11,12 +11,18 @@
                 <div class="sa-subscriptions__card">
                     <q-table
                         flat
-                        :rows="rows"
+                        :rows="pagedRows"
                         :columns="effectiveColumns"
                         row-key="id"
-                        :pagination="{ rowsPerPage: 0 }"
                         :loading="loading"
                         hide-pagination
+                    />
+
+                    <AdminPaginator
+                        storage-key="subscriptions"
+                        v-model:page="page"
+                        v-model:rows-per-page="rowsPerPage"
+                        :total="total"
                     />
                 </div>
             </AdminSection>
@@ -25,6 +31,8 @@
 </template>
 
 <script setup lang="ts">
+import { usePagination } from '../vue/use-pagination.js';
+import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import { computed, onMounted, ref } from 'vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
@@ -130,6 +138,8 @@ function formatDate(iso: string | null | undefined): string | null {
         return String(iso);
     }
 }
+
+const { page, rowsPerPage, total, pagedRows } = usePagination(rows);
 </script>
 
 <style scoped>

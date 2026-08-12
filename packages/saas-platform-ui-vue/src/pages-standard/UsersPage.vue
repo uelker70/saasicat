@@ -42,10 +42,9 @@
 
                 <q-table
                     flat
-                    :rows="filteredRows"
+                    :rows="pagedRows"
                     :columns="effectiveColumns"
                     row-key="id"
-                    :pagination="{ rowsPerPage: 0 }"
                     :loading="loading"
                     hide-pagination
                 >
@@ -80,6 +79,13 @@
                         </q-td>
                     </template>
                 </q-table>
+
+                <AdminPaginator
+                    storage-key="users"
+                    v-model:page="page"
+                    v-model:rows-per-page="rowsPerPage"
+                    :total="total"
+                />
             </AdminSection>
         </AdminBody>
 
@@ -96,6 +102,8 @@
 </template>
 
 <script setup lang="ts">
+import { usePagination } from '../vue/use-pagination.js';
+import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
@@ -461,6 +469,8 @@ function onDeactivateClick(row: UserRow): void {
         );
     });
 }
+
+const { page, rowsPerPage, total, pagedRows } = usePagination(filteredRows);
 </script>
 
 <style scoped></style>

@@ -55,10 +55,9 @@
 
                 <q-table
                     flat
-                    :rows="filteredRows"
+                    :rows="pagedRows"
                     :columns="effectiveColumns"
                     row-key="id"
-                    :pagination="{ rowsPerPage: 0 }"
                     :loading="loading"
                     hide-pagination
                 >
@@ -84,6 +83,13 @@
                         </q-td>
                     </template>
                 </q-table>
+
+                <AdminPaginator
+                    storage-key="promo-codes"
+                    v-model:page="page"
+                    v-model:rows-per-page="rowsPerPage"
+                    :total="total"
+                />
             </AdminSection>
         </AdminBody>
 
@@ -111,6 +117,8 @@
 // `<script setup>` (the whole setup section is wrapped in setup()).
 // Pure helpers + constants therefore live here in the regular `<script>` block.
 
+import { usePagination } from '../vue/use-pagination.js';
+import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import type { PromoCodePlanOption } from '../components/dialogs/types.js';
 
 const PLAN_COLOR_PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#64748b'];
@@ -560,6 +568,8 @@ function formatDate(iso: string | Date | null | undefined): string | null {
         return String(iso);
     }
 }
+
+const { page, rowsPerPage, total, pagedRows } = usePagination(filteredRows);
 </script>
 
 <style scoped></style>

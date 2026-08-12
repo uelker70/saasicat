@@ -575,3 +575,65 @@
     color: var(--sa-heading);
     letter-spacing: -0.005em;
 }
+
+/* The pager below a list (see AdminPaginator). Right-aligned, one rule, so a
+ * list contributes its counts and nothing about where paging sits. */
+.sa-paginator {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 0 0;
+    font-size: 12.5px;
+    color: var(--sa-muted);
+}
+.sa-paginator__size-label {
+    font-weight: 500;
+}
+.sa-paginator__select {
+    min-width: 92px;
+}
+.sa-paginator__step,
+.sa-paginator__page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--sa-border);
+    border-radius: var(--sa-radius-control);
+    background: var(--sa-bg-surface);
+    color: var(--sa-body);
+    font: inherit;
+    cursor: pointer;
+    transition:
+        background 0.12s,
+        border-color 0.12s;
+}
+.sa-paginator__page {
+    font-weight: 600;
+    color: var(--sa-heading);
+    min-width: 96px;
+}
+.sa-paginator__step:hover:not(:disabled),
+.sa-paginator__page:hover:not(:disabled) {
+    background: var(--sa-bg-surface-2);
+    border-color: var(--sa-border-strong);
+}
+.sa-paginator__step:disabled,
+.sa-paginator__page:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+.sa-paginator__input {
+    min-width: 96px;
+    min-height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--sa-primary);
+    border-radius: var(--sa-radius-control);
+    background: var(--sa-bg-surface);
+    color: var(--sa-heading);
+    font: inherit;
+    font-weight: 600;
+    text-align: center;
+}

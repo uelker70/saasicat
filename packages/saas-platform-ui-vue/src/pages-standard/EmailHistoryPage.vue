@@ -61,6 +61,7 @@
                         row-key="id"
                         :loading="loading"
                         :rows-number="pagination.rowsNumber"
+                        hide-pagination
                         @request="onRequest"
                         @row-click="(_evt, row) => openDetail(row)"
                     >
@@ -96,6 +97,15 @@
                             <div class="sa-emh__empty">{{ msg.history.empty }}</div>
                         </template>
                     </q-table>
+
+                    <AdminPaginator
+                        storage-key="email-history"
+                        :page="pagination.page"
+                        :rows-per-page="pagination.rowsPerPage"
+                        :total="pagination.rowsNumber"
+                        @update:page="onPageChange"
+                        @update:rows-per-page="onRowsPerPageChange"
+                    />
                 </div>
             </AdminSection>
         </AdminBody>
@@ -217,6 +227,7 @@
 </template>
 
 <script setup lang="ts">
+import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
@@ -363,6 +374,19 @@ async function onRequest(req: {
     pagination.value.page = req.pagination.page;
     pagination.value.rowsPerPage = req.pagination.rowsPerPage;
     await reload();
+}
+
+// The pager owns page and size; both need a fetch, and a size change starts
+// over at page 1 — the row it would land on otherwise is arbitrary.
+function onPageChange(page: number): void {
+    pagination.value.page = page;
+    void reload();
+}
+
+function onRowsPerPageChange(rows: number): void {
+    pagination.value.rowsPerPage = rows;
+    pagination.value.page = 1;
+    void reload();
 }
 
 function applyFilter(): void {

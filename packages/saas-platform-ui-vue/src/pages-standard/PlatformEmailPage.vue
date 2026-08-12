@@ -19,11 +19,10 @@
             <AdminSection class="sa-pemail__card">
                 <q-table
                     flat
-                    :rows="rows"
+                    :rows="pagedRows"
                     :columns="columns"
                     row-key="id"
                     :loading="loading"
-                    :pagination="{ rowsPerPage: 0 }"
                     hide-pagination
                 >
                     <template #body-cell-active="{ row }">
@@ -67,6 +66,13 @@
                         </q-td>
                     </template>
                 </q-table>
+
+                <AdminPaginator
+                    storage-key="platform-email"
+                    v-model:page="page"
+                    v-model:rows-per-page="rowsPerPage"
+                    :total="total"
+                />
             </AdminSection>
         </AdminBody>
 
@@ -197,6 +203,8 @@
 </template>
 
 <script setup lang="ts">
+import { usePagination } from '../vue/use-pagination.js';
+import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useQuasar } from 'quasar';
@@ -462,6 +470,8 @@ async function onTest(): Promise<void> {
         testing.value = false;
     }
 }
+
+const { page, rowsPerPage, total, pagedRows } = usePagination(rows);
 </script>
 
 <style scoped>
