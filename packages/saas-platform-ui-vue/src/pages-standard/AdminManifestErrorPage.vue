@@ -60,12 +60,14 @@ const signOut = useSignOut({ loginPath: props.loginPath });
 // page is route-mounted, so injection is the only route in.
 const clearManifestCache = inject(SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY, undefined);
 
-function retry(): void {
-    if (props.onRetry) {
-        void props.onRetry();
-        return;
-    }
-    void bootIntoGuardedRoute();
+// Both handlers RETURN their promise rather than discarding it with `void`.
+// Vue's event invoker forwards a returned rejection to the app's error handler;
+// a dropped one becomes an unhandled rejection instead — and this is the page
+// that renders when things are already going wrong, so a consumer's failing
+// `onRetry` would vanish exactly where it matters most.
+function retry(): void | Promise<void> {
+    if (props.onRetry) return props.onRetry();
+    return bootIntoGuardedRoute();
 }
 
 /**
@@ -99,12 +101,12 @@ async function bootIntoGuardedRoute(): Promise<void> {
     window.location.assign(router.resolve(props.retryPath ?? '/admin').href);
 }
 
-function logout(): void {
+function logout(): void | Promise<void> {
     if (props.onLogout) {
         props.onLogout();
         return;
     }
-    void signOut();
+    return signOut();
 }
 </script>
 

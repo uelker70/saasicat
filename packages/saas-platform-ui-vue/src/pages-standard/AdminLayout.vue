@@ -201,12 +201,16 @@ const instance = getCurrentInstance();
  * no listeners — so `emit('logout')` alone made the header's sign-out button
  * do nothing at all. Apps that pass `@logout` keep full control.
  */
-function onLogoutClick(): void {
-    if (instance?.vnode.props?.onLogout) {
+function onLogoutClick(): void | Promise<void> {
+    // Both spellings: `@logout` lands on `onLogout`, `@logout.once` on
+    // `onLogoutOnce`. Checking only the first would run the platform default
+    // and never emit — silently ignoring a listener the consumer did attach.
+    const listeners = instance?.vnode.props ?? {};
+    if (listeners.onLogout || listeners.onLogoutOnce) {
         emit('logout');
         return;
     }
-    void signOut();
+    return signOut();
 }
 
 const route = useRoute();

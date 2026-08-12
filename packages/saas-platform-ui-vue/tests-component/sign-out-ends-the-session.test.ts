@@ -13,11 +13,15 @@
 
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { createRouter, createMemoryHistory } from 'vue-router';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import AdminLayout from '../src/pages-standard/AdminLayout.vue';
 import AdminManifestErrorPage from '../src/pages-standard/AdminManifestErrorPage.vue';
 import { SUPER_ADMIN_LOGIN_ADAPTER_KEY } from '../src/vue/super-admin-context.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
+
+const SRC_DIR = resolve(process.cwd(), 'src');
 
 function makeRouter() {
     return createRouter({
@@ -142,5 +146,45 @@ describe('AdminLayout sign-out', () => {
         expect(onLogout).toHaveBeenCalledTimes(1);
         expect(adapterLogout).not.toHaveBeenCalled();
         wrapper.unmount();
+    });
+
+    test('also defers when the listener was attached with @logout.once', async () => {
+        // Vue stores that one as `onLogoutOnce`. Checking only `onLogout` runs
+        // the platform default and never emits — the consumer's handler, which
+        // they did attach, is simply ignored.
+        const onLogoutOnce = vi.fn();
+        const adapterLogout = vi.fn();
+        const wrapper = mountWithQuasar(AdminLayout, {
+            props: { onLogoutOnce },
+            global: { provide: contextWith(adapterLogout), plugins: [makeRouter()] },
+        });
+
+        await clickSignOut(wrapper);
+
+        expect(onLogoutOnce).toHaveBeenCalledTimes(1);
+        expect(adapterLogout).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+});
+
+describe('handlers hand their promise back to Vue', () => {
+    /**
+     * A discarded promise becomes an unhandled rejection instead of reaching
+     * the app's error handler — and this is the page that renders when things
+     * are already going wrong, so a consumer's failing `onRetry` would vanish
+     * exactly where it matters most.
+     */
+    test.each([
+        ['AdminManifestErrorPage.vue', 'retry'],
+        ['AdminManifestErrorPage.vue', 'logout'],
+        ['AdminLayout.vue', 'onLogoutClick'],
+    ])('%s: %s returns rather than voids', (file, fn) => {
+        const source = readFileSync(resolve(SRC_DIR, 'pages-standard', file), 'utf8');
+        const body = new RegExp(`function ${fn}\\(\\)[^{]*\\{([\\s\\S]*?)\\n\\}`).exec(source);
+
+        expect(body, `${fn} not found in ${file}`).not.toBeNull();
+        expect(body?.[1], `${fn} discards a promise instead of returning it`).not.toMatch(
+            /\bvoid\s+\w/,
+        );
     });
 });
