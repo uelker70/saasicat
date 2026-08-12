@@ -1,0 +1,50 @@
+/* The page canvas and the type baseline. Everything else is a component.
+ *
+ * Nothing here styles a bare element outside `.sa-page`, which is what makes
+ * the whole theme safe to load into an application that has its own design —
+ * including the tenant-facing pages, which are embedded in a consumer's own
+ * app rather than in the admin shell.
+ */
+
+/* The app canvas. It sits on the layout rather than on the page so that the
+ * gutters beside `max-width: 1600px` are painted too — and so a page can be a
+ * transparent frame while sections carry the surfaces. Declared here rather
+ * than on `body`: both known consumer apps load their own stylesheet after
+ * this one, and a `body` rule would lose to them. */
+.sa-admin-layout,
+.sa-admin-content {
+    background: var(--sa-color-bg-app);
+}
+
+/* Page frame — min-height, the page padding and the admin type, in one place
+ * instead of once per page (see AdminPage). No surface of its own.
+ *
+ * The font and text colour belong here because the hosting app's stylesheet
+ * loads after this one: without a rule on the page itself, admin pages would
+ * inherit whatever the consumer sets. Two full-page views used to pin both on
+ * their own root, which is exactly the divergence this prevents. */
+.sa-page {
+    min-height: calc(100vh - 56px);
+    padding: 20px 28px 28px;
+    font-family: var(--sa-font-body);
+    color: var(--sa-color-fg-body);
+}
+
+/* Consumer apps load Quasar, whose element-level h1–h6 rules carry display
+ * sizes and huge line-heights. Neutralised here so a bare heading inside a
+ * page is legible without a class of its own.
+ *
+ * `:where()` keeps this at the specificity of a single class, so any heading
+ * class in the package still wins — this is a baseline, not a verdict. Three
+ * views used to carry their own copy of it, each covering a different subset
+ * of h1–h6. */
+.sa-page :where(h1, h2, h3, h4, h5, h6) {
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Border-box for the whole page. Six views declared this for their own
+ * subtree, which is the same rule six times with six different roots. */
+.sa-page * {
+    box-sizing: border-box;
+}

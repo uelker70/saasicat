@@ -49,7 +49,7 @@ defineProps<{
 }
 .sa-pill--muted {
     background: var(--sa-border-soft);
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
 }
 .sa-pill--primary {
     background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));

@@ -1,0 +1,26 @@
+/* Cards — the generic block inside dashboard and detail sections, and the
+ * corner correction for Quasar's own card.
+ *
+ * Quasar cards round at 4px, which reads sharper than every surface around
+ * them. One rule so a card inside the admin agrees with the sections and tiles
+ * it sits between, without each page saying so.
+ */
+
+.sa-page .q-card {
+    border-radius: var(--sa-radius-card);
+}
+
+.sa-card {
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
+    border-radius: var(--sa-radius-card);
+    padding: 16px 18px;
+}
+.sa-card__title {
+    margin: 0 0 12px;
+    font-family: var(--sa-font-head);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--sa-color-fg-heading);
+    letter-spacing: -0.005em;
+}

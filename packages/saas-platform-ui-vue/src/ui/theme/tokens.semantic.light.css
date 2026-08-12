@@ -1,0 +1,173 @@
+/* Layer 2 — roles, light theme. What a colour is FOR.
+ *
+ * This is the only layer that changes between light and dark, and that is the
+ * whole reason the split exists: a dark theme is this file with other values,
+ * not 62 stylesheets with other values.
+ *
+ * Two rules, both enforced by the layer-discipline test (rule 22):
+ *
+ *   1. No colour literal may appear here. Every value is a primitive, a
+ *      `--q-*` brand variable from the host, or a `color-mix()` of those.
+ *      A literal here is a value nobody can find from the outside.
+ *   2. `tokens.semantic.dark.css` declares exactly the same keys. A role that
+ *      exists in one theme and not the other is a page that goes unreadable the
+ *      moment somebody flips the switch (rule 21).
+ *
+ * ── Where the accent comes from ────────────────────────────────────────────
+ *
+ * `--sa-color-accent` reads Quasar's `--q-primary`, which Quasar publishes from
+ * the host application's `$primary`. That is the fix for the worst finding in
+ * the audit: the platform painted `#3f6bff` while the scaffolded app painted
+ * `#1e40af`, in the same surface, because each had its own source of truth.
+ * Now there is one — the host's — and `--sa-brand-blue` is what it falls back
+ * to when the host declares nothing. Setting `$primary`, or calling Quasar's
+ * `setCssVar('primary', …)` at runtime, re-tints the admin with it, and there
+ * is no second switch to remember.
+ *
+ * Tints derive from the accent with `color-mix()` for the same reason: a fixed
+ * `rgba(63, 107, 255, 0.08)` would stay platform-blue on a host that is green.
+ */
+
+:root {
+    /* ── Surfaces, from the page canvas up to what floats above it. ─────── */
+    --sa-color-bg-app: var(--sa-neutral-100);
+    --sa-color-bg-surface: var(--sa-white);
+    --sa-color-bg-surface-raised: var(--sa-neutral-25);
+    --sa-color-bg-sunken: var(--sa-neutral-50);
+    --sa-color-bg-overlay: color-mix(in srgb, var(--sa-neutral-900) 55%, transparent);
+
+    /* ── Text, from the loudest to the quietest.
+     *
+     * Six rungs, not five, because the surface uses six. `-secondary` was very
+     * nearly folded into `-muted` on the argument that two greys one step apart
+     * are a duplicate — the baseline said otherwise: it carries the figures and
+     * meta lines of over a hundred elements, and reading it one step lighter
+     * made them quieter than the captions beside them. A rung the product uses
+     * for a distinct job is not a duplicate, it is a rung. ───────────────── */
+    --sa-color-fg-heading: var(--sa-neutral-900);
+    --sa-color-fg-body: var(--sa-neutral-800);
+    --sa-color-fg-secondary: var(--sa-neutral-600);
+    --sa-color-fg-muted: var(--sa-neutral-500);
+    --sa-color-fg-subtle: var(--sa-neutral-400);
+    --sa-color-fg-disabled: var(--sa-neutral-300);
+    --sa-color-fg-on-accent: var(--sa-white);
+
+    /* ── Lines. ─────────────────────────────────────────────────────────── */
+    --sa-color-border: var(--sa-neutral-200);
+    --sa-color-border-soft: var(--sa-neutral-100);
+    --sa-color-border-strong: var(--sa-neutral-300);
+    --sa-color-border-focus: var(--sa-color-accent);
+
+    /* ── Accent — the host's brand, and the surfaces derived from it. ───── */
+    --sa-color-accent: var(--q-primary, var(--sa-brand-blue));
+    --sa-color-accent-strong: color-mix(in srgb, var(--sa-color-accent) 82%, var(--sa-black));
+    --sa-color-accent-surface: color-mix(in srgb, var(--sa-color-accent) 8%, transparent);
+    --sa-color-accent-surface-soft: color-mix(in srgb, var(--sa-color-accent) 4%, transparent);
+    --sa-color-accent-surface-strong: color-mix(
+        in srgb,
+        var(--sa-color-accent) 10%,
+        var(--sa-color-bg-surface)
+    );
+    --sa-color-accent-border: color-mix(in srgb, var(--sa-color-accent) 18%, transparent);
+
+    /* ── Status tones. Five, and all five have the same six slots, so a page
+     * that knows one knows the others:
+     *
+     *   <tone>                 the solid graphic colour — an icon, a bar, a dot
+     *   <tone>-strong          the brighter variant, for a selected outline
+     *   <tone>-fg              text ON the tinted surface, contrast-checked
+     *   <tone>-surface         the quiet tint — a banner across a section
+     *   <tone>-surface-strong  the loud tint — a chip, a pill, a single cell
+     *   <tone>-border          the tinted line that closes either surface
+     * ──────────────────────────────────────────────────────────────────── */
+    --sa-color-positive: var(--sa-green-700);
+    --sa-color-positive-strong: var(--sa-green-500);
+    --sa-color-positive-fg: var(--sa-green-700);
+    --sa-color-positive-surface: var(--sa-green-50);
+    --sa-color-positive-surface-strong: var(--sa-green-100);
+    --sa-color-positive-border: var(--sa-green-200);
+
+    --sa-color-warning: var(--sa-amber-700);
+    --sa-color-warning-strong: var(--sa-amber-500);
+    --sa-color-warning-fg: var(--sa-amber-700);
+    --sa-color-warning-surface: var(--sa-amber-50);
+    --sa-color-warning-surface-strong: var(--sa-amber-100);
+    --sa-color-warning-border: var(--sa-amber-200);
+
+    --sa-color-negative: var(--sa-red-600);
+    --sa-color-negative-strong: var(--sa-red-500);
+    --sa-color-negative-fg: var(--sa-red-700);
+    --sa-color-negative-surface: var(--sa-red-50);
+    --sa-color-negative-surface-strong: var(--sa-red-100);
+    --sa-color-negative-border: var(--sa-red-200);
+
+    --sa-color-info: var(--sa-blue-600);
+    --sa-color-info-strong: var(--sa-blue-500);
+    --sa-color-info-fg: var(--sa-blue-700);
+    --sa-color-info-surface: var(--sa-blue-50);
+    --sa-color-info-surface-strong: var(--sa-blue-100);
+    --sa-color-info-border: var(--sa-blue-200);
+
+    /* `scheduled` is a tone rather than a status colour reused: a version that
+     * is planned but not yet live is neither a warning nor an achievement, and
+     * six surfaces had each picked their own blue-ish colour to say so. */
+    --sa-color-scheduled: var(--sa-indigo-700);
+    --sa-color-scheduled-strong: var(--sa-indigo-400);
+    --sa-color-scheduled-fg: var(--sa-indigo-700);
+    --sa-color-scheduled-surface: var(--sa-indigo-50);
+    --sa-color-scheduled-surface-strong: var(--sa-indigo-100);
+    --sa-color-scheduled-border: var(--sa-indigo-200);
+
+    /* ── Catalogue entities. Not statuses: these two say WHAT a row is, and
+     * the plan editor, the matrix, the review and the discovery page all need
+     * to agree, or the same dot means two things on two screens. ────────── */
+    --sa-color-feature: var(--sa-violet-500);
+    --sa-color-feature-fg: var(--sa-violet-700);
+    --sa-color-feature-surface: var(--sa-violet-50);
+    --sa-color-quota: var(--sa-sky-500);
+    --sa-color-quota-surface: var(--sa-sky-50);
+    --sa-color-quota-border: var(--sa-sky-200);
+
+    /* ── Inverse chrome — the dark header, drawer and login backdrop.
+     *
+     * Declared identically in both themes ON PURPOSE. This surface is dark in
+     * a light theme too, so a role that flipped would turn the drawer's labels
+     * black on black the moment somebody enabled dark mode. Same reasoning as
+     * for the brand accent: what is dark by design does not follow the theme.
+     * ──────────────────────────────────────────────────────────────────── */
+    --sa-color-inverse-bg: var(--sa-neutral-950);
+    --sa-color-inverse-surface: var(--sa-neutral-800);
+    --sa-color-inverse-fg: var(--sa-white);
+    --sa-color-inverse-fg-muted: var(--sa-neutral-300);
+    --sa-color-inverse-fg-subtle: color-mix(in srgb, var(--sa-white) 55%, transparent);
+    --sa-color-inverse-border: color-mix(in srgb, var(--sa-white) 8%, transparent);
+    --sa-color-inverse-border-strong: color-mix(in srgb, var(--sa-white) 16%, transparent);
+
+    /* ── Focus and selection. ───────────────────────────────────────────── */
+    --sa-color-focus-ring: color-mix(in srgb, var(--sa-color-accent) 35%, transparent);
+    --sa-color-selection: color-mix(in srgb, var(--sa-color-accent) 22%, transparent);
+
+    /* ── Shadow. One ink, four tints, five elevations.
+     *
+     * The ink is a token rather than black because a slate-tinted shadow reads
+     * as depth on a slate-tinted page, while pure black reads as dirt. In the
+     * dark theme it becomes black and the alphas rise, because a light shadow
+     * on a dark surface is invisible at 6%. ─────────────────────────────── */
+    --sa-shadow-ink: var(--sa-neutral-900);
+    --sa-shadow-tint-1: color-mix(in srgb, var(--sa-shadow-ink) 6%, transparent);
+    --sa-shadow-tint-2: color-mix(in srgb, var(--sa-shadow-ink) 8%, transparent);
+    --sa-shadow-tint-3: color-mix(in srgb, var(--sa-shadow-ink) 12%, transparent);
+    --sa-shadow-tint-4: color-mix(in srgb, var(--sa-shadow-ink) 20%, transparent);
+
+    --sa-shadow-0: none;
+    --sa-shadow-1: 0 1px 2px var(--sa-shadow-tint-1);
+    --sa-shadow-2: 0 2px 6px var(--sa-shadow-tint-2);
+    --sa-shadow-3: 0 8px 20px var(--sa-shadow-tint-3);
+    --sa-shadow-4: 0 20px 48px var(--sa-shadow-tint-4);
+    --sa-shadow-focus: 0 0 0 3px var(--sa-color-focus-ring);
+
+    --sa-elevation-tile: var(--sa-shadow-1);
+    --sa-elevation-card: var(--sa-shadow-2);
+    --sa-elevation-menu: var(--sa-shadow-3);
+    --sa-elevation-dialog: var(--sa-shadow-4);
+}

@@ -1,0 +1,258 @@
+/* Layer 2 — roles, dark theme. The same keys as `tokens.semantic.light.css`,
+ * with other values. That sentence is the whole design: nothing else in the
+ * package knows a dark theme exists.
+ *
+ * ── Three ways in, and no fourth ───────────────────────────────────────────
+ *
+ *   [data-sa-theme='dark']            the app decided, e.g. via useSaTheme()
+ *   body.body--dark                   Quasar decided — `$q.dark.set(true)`
+ *   prefers-color-scheme, unattributed the operating system decided, and the
+ *                                     app has not overruled it
+ *
+ * Quasar's own class is in the list because a consumer who calls
+ * `$q.dark.set(true)` expects the whole screen to follow. Without it the admin
+ * would be the one light rectangle in a dark app, and the fix would be a second
+ * switch that everybody forgets.
+ *
+ * The unattributed guard `:root:not([data-sa-theme])` is what lets an explicit
+ * light choice survive a dark operating system. Without it, "light" would be a
+ * setting that works everywhere except on the machines that need it.
+ *
+ * ── Why the block appears twice ────────────────────────────────────────────
+ *
+ * A media query is a condition on the environment, not on the DOM, so no
+ * selector can carry all three cases. CSS offers no way to alias one set of
+ * declarations into a second at-rule — style queries could, but they are too
+ * young to ship in a library. So the declarations are duplicated, and
+ * `tests/theme-token-parity.test.js` asserts the two copies are identical: the
+ * failure mode of a hand-maintained duplicate is that one half is edited, and
+ * that is precisely the half nobody looks at.
+ */
+
+[data-sa-theme='dark'],
+body.body--dark {
+    --sa-color-bg-app: var(--sa-neutral-975);
+    --sa-color-bg-surface: var(--sa-neutral-900);
+    --sa-color-bg-surface-raised: var(--sa-neutral-800);
+    --sa-color-bg-sunken: var(--sa-neutral-950);
+    --sa-color-bg-overlay: color-mix(in srgb, var(--sa-black) 70%, transparent);
+
+    --sa-color-fg-heading: var(--sa-neutral-50);
+    --sa-color-fg-body: var(--sa-neutral-200);
+    --sa-color-fg-secondary: var(--sa-neutral-300);
+    --sa-color-fg-muted: var(--sa-neutral-400);
+    --sa-color-fg-subtle: var(--sa-neutral-500);
+    --sa-color-fg-disabled: var(--sa-neutral-600);
+    --sa-color-fg-on-accent: var(--sa-white);
+
+    --sa-color-border: var(--sa-neutral-700);
+    --sa-color-border-soft: var(--sa-neutral-800);
+    --sa-color-border-strong: var(--sa-neutral-600);
+    --sa-color-border-focus: var(--sa-color-accent);
+
+    /* The brand does not flip — a green product stays green in the dark. Only
+     * the derivations change: `-strong` lightens instead of darkening, because
+     * "more emphatic" means "closer to the paper" here, and every tint needs
+     * more of the accent to register against a dark surface. */
+    --sa-color-accent: var(--q-primary, var(--sa-brand-blue));
+    --sa-color-accent-strong: color-mix(in srgb, var(--sa-color-accent) 82%, var(--sa-white));
+    --sa-color-accent-surface: color-mix(in srgb, var(--sa-color-accent) 16%, transparent);
+    --sa-color-accent-surface-soft: color-mix(in srgb, var(--sa-color-accent) 8%, transparent);
+    --sa-color-accent-surface-strong: color-mix(
+        in srgb,
+        var(--sa-color-accent) 22%,
+        var(--sa-color-bg-surface)
+    );
+    --sa-color-accent-border: color-mix(in srgb, var(--sa-color-accent) 32%, transparent);
+
+    /* Each tone rises one or two steps up its ramp, because the dark shades
+     * that read as "deep red" on white read as "almost black" on slate. The
+     * surfaces become translucent so that a chip on a raised card and a chip on
+     * the page canvas both keep their contrast. */
+    --sa-color-positive: var(--sa-green-500);
+    --sa-color-positive-strong: var(--sa-green-500);
+    --sa-color-positive-fg: var(--sa-green-200);
+    --sa-color-positive-surface: color-mix(in srgb, var(--sa-green-500) 14%, transparent);
+    --sa-color-positive-surface-strong: color-mix(in srgb, var(--sa-green-500) 24%, transparent);
+    --sa-color-positive-border: color-mix(in srgb, var(--sa-green-500) 36%, transparent);
+
+    --sa-color-warning: var(--sa-amber-400);
+    --sa-color-warning-strong: var(--sa-amber-400);
+    --sa-color-warning-fg: var(--sa-amber-200);
+    --sa-color-warning-surface: color-mix(in srgb, var(--sa-amber-500) 14%, transparent);
+    --sa-color-warning-surface-strong: color-mix(in srgb, var(--sa-amber-500) 24%, transparent);
+    --sa-color-warning-border: color-mix(in srgb, var(--sa-amber-500) 36%, transparent);
+
+    --sa-color-negative: var(--sa-red-500);
+    --sa-color-negative-strong: var(--sa-red-500);
+    --sa-color-negative-fg: var(--sa-red-300);
+    --sa-color-negative-surface: color-mix(in srgb, var(--sa-red-500) 14%, transparent);
+    --sa-color-negative-surface-strong: color-mix(in srgb, var(--sa-red-500) 24%, transparent);
+    --sa-color-negative-border: color-mix(in srgb, var(--sa-red-500) 36%, transparent);
+
+    --sa-color-info: var(--sa-blue-500);
+    --sa-color-info-strong: var(--sa-blue-500);
+    --sa-color-info-fg: var(--sa-blue-200);
+    --sa-color-info-surface: color-mix(in srgb, var(--sa-blue-500) 14%, transparent);
+    --sa-color-info-surface-strong: color-mix(in srgb, var(--sa-blue-500) 24%, transparent);
+    --sa-color-info-border: color-mix(in srgb, var(--sa-blue-500) 36%, transparent);
+
+    --sa-color-scheduled: var(--sa-indigo-400);
+    --sa-color-scheduled-strong: var(--sa-indigo-400);
+    --sa-color-scheduled-fg: var(--sa-indigo-200);
+    --sa-color-scheduled-surface: color-mix(in srgb, var(--sa-indigo-400) 14%, transparent);
+    --sa-color-scheduled-surface-strong: color-mix(in srgb, var(--sa-indigo-400) 24%, transparent);
+    --sa-color-scheduled-border: color-mix(in srgb, var(--sa-indigo-400) 36%, transparent);
+
+    --sa-color-feature: var(--sa-violet-500);
+    --sa-color-feature-fg: var(--sa-violet-200);
+    --sa-color-feature-surface: color-mix(in srgb, var(--sa-violet-500) 16%, transparent);
+    --sa-color-quota: var(--sa-sky-500);
+    --sa-color-quota-surface: color-mix(in srgb, var(--sa-sky-500) 16%, transparent);
+    --sa-color-quota-border: color-mix(in srgb, var(--sa-sky-500) 36%, transparent);
+
+    /* Identical to the light theme, and that is the point — see there. */
+    --sa-color-inverse-bg: var(--sa-neutral-950);
+    --sa-color-inverse-surface: var(--sa-neutral-800);
+    --sa-color-inverse-fg: var(--sa-white);
+    --sa-color-inverse-fg-muted: var(--sa-neutral-300);
+    --sa-color-inverse-fg-subtle: color-mix(in srgb, var(--sa-white) 55%, transparent);
+    --sa-color-inverse-border: color-mix(in srgb, var(--sa-white) 8%, transparent);
+    --sa-color-inverse-border-strong: color-mix(in srgb, var(--sa-white) 16%, transparent);
+
+    --sa-color-focus-ring: color-mix(in srgb, var(--sa-color-accent) 45%, transparent);
+    --sa-color-selection: color-mix(in srgb, var(--sa-color-accent) 30%, transparent);
+
+    /* Black ink and roughly double the alpha: a slate shadow at 6% is invisible
+     * on a slate surface, so the depth cue has to come from real darkness. */
+    --sa-shadow-ink: var(--sa-black);
+    --sa-shadow-tint-1: color-mix(in srgb, var(--sa-shadow-ink) 24%, transparent);
+    --sa-shadow-tint-2: color-mix(in srgb, var(--sa-shadow-ink) 32%, transparent);
+    --sa-shadow-tint-3: color-mix(in srgb, var(--sa-shadow-ink) 44%, transparent);
+    --sa-shadow-tint-4: color-mix(in srgb, var(--sa-shadow-ink) 60%, transparent);
+
+    --sa-shadow-0: none;
+    --sa-shadow-1: 0 1px 2px var(--sa-shadow-tint-1);
+    --sa-shadow-2: 0 2px 6px var(--sa-shadow-tint-2);
+    --sa-shadow-3: 0 8px 20px var(--sa-shadow-tint-3);
+    --sa-shadow-4: 0 20px 48px var(--sa-shadow-tint-4);
+    --sa-shadow-focus: 0 0 0 3px var(--sa-color-focus-ring);
+
+    --sa-elevation-tile: var(--sa-shadow-1);
+    --sa-elevation-card: var(--sa-shadow-2);
+    --sa-elevation-menu: var(--sa-shadow-3);
+    --sa-elevation-dialog: var(--sa-shadow-4);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-sa-theme]) {
+        --sa-color-bg-app: var(--sa-neutral-975);
+        --sa-color-bg-surface: var(--sa-neutral-900);
+        --sa-color-bg-surface-raised: var(--sa-neutral-800);
+        --sa-color-bg-sunken: var(--sa-neutral-950);
+        --sa-color-bg-overlay: color-mix(in srgb, var(--sa-black) 70%, transparent);
+
+        --sa-color-fg-heading: var(--sa-neutral-50);
+        --sa-color-fg-body: var(--sa-neutral-200);
+        --sa-color-fg-secondary: var(--sa-neutral-300);
+        --sa-color-fg-muted: var(--sa-neutral-400);
+        --sa-color-fg-subtle: var(--sa-neutral-500);
+        --sa-color-fg-disabled: var(--sa-neutral-600);
+        --sa-color-fg-on-accent: var(--sa-white);
+
+        --sa-color-border: var(--sa-neutral-700);
+        --sa-color-border-soft: var(--sa-neutral-800);
+        --sa-color-border-strong: var(--sa-neutral-600);
+        --sa-color-border-focus: var(--sa-color-accent);
+
+        --sa-color-accent: var(--q-primary, var(--sa-brand-blue));
+        --sa-color-accent-strong: color-mix(in srgb, var(--sa-color-accent) 82%, var(--sa-white));
+        --sa-color-accent-surface: color-mix(in srgb, var(--sa-color-accent) 16%, transparent);
+        --sa-color-accent-surface-soft: color-mix(in srgb, var(--sa-color-accent) 8%, transparent);
+        --sa-color-accent-surface-strong: color-mix(
+            in srgb,
+            var(--sa-color-accent) 22%,
+            var(--sa-color-bg-surface)
+        );
+        --sa-color-accent-border: color-mix(in srgb, var(--sa-color-accent) 32%, transparent);
+
+        --sa-color-positive: var(--sa-green-500);
+        --sa-color-positive-strong: var(--sa-green-500);
+        --sa-color-positive-fg: var(--sa-green-200);
+        --sa-color-positive-surface: color-mix(in srgb, var(--sa-green-500) 14%, transparent);
+        --sa-color-positive-surface-strong: color-mix(
+            in srgb,
+            var(--sa-green-500) 24%,
+            transparent
+        );
+        --sa-color-positive-border: color-mix(in srgb, var(--sa-green-500) 36%, transparent);
+
+        --sa-color-warning: var(--sa-amber-400);
+        --sa-color-warning-strong: var(--sa-amber-400);
+        --sa-color-warning-fg: var(--sa-amber-200);
+        --sa-color-warning-surface: color-mix(in srgb, var(--sa-amber-500) 14%, transparent);
+        --sa-color-warning-surface-strong: color-mix(in srgb, var(--sa-amber-500) 24%, transparent);
+        --sa-color-warning-border: color-mix(in srgb, var(--sa-amber-500) 36%, transparent);
+
+        --sa-color-negative: var(--sa-red-500);
+        --sa-color-negative-strong: var(--sa-red-500);
+        --sa-color-negative-fg: var(--sa-red-300);
+        --sa-color-negative-surface: color-mix(in srgb, var(--sa-red-500) 14%, transparent);
+        --sa-color-negative-surface-strong: color-mix(in srgb, var(--sa-red-500) 24%, transparent);
+        --sa-color-negative-border: color-mix(in srgb, var(--sa-red-500) 36%, transparent);
+
+        --sa-color-info: var(--sa-blue-500);
+        --sa-color-info-strong: var(--sa-blue-500);
+        --sa-color-info-fg: var(--sa-blue-200);
+        --sa-color-info-surface: color-mix(in srgb, var(--sa-blue-500) 14%, transparent);
+        --sa-color-info-surface-strong: color-mix(in srgb, var(--sa-blue-500) 24%, transparent);
+        --sa-color-info-border: color-mix(in srgb, var(--sa-blue-500) 36%, transparent);
+
+        --sa-color-scheduled: var(--sa-indigo-400);
+        --sa-color-scheduled-strong: var(--sa-indigo-400);
+        --sa-color-scheduled-fg: var(--sa-indigo-200);
+        --sa-color-scheduled-surface: color-mix(in srgb, var(--sa-indigo-400) 14%, transparent);
+        --sa-color-scheduled-surface-strong: color-mix(
+            in srgb,
+            var(--sa-indigo-400) 24%,
+            transparent
+        );
+        --sa-color-scheduled-border: color-mix(in srgb, var(--sa-indigo-400) 36%, transparent);
+
+        --sa-color-feature: var(--sa-violet-500);
+        --sa-color-feature-fg: var(--sa-violet-200);
+        --sa-color-feature-surface: color-mix(in srgb, var(--sa-violet-500) 16%, transparent);
+        --sa-color-quota: var(--sa-sky-500);
+        --sa-color-quota-surface: color-mix(in srgb, var(--sa-sky-500) 16%, transparent);
+        --sa-color-quota-border: color-mix(in srgb, var(--sa-sky-500) 36%, transparent);
+
+        --sa-color-inverse-bg: var(--sa-neutral-950);
+        --sa-color-inverse-surface: var(--sa-neutral-800);
+        --sa-color-inverse-fg: var(--sa-white);
+        --sa-color-inverse-fg-muted: var(--sa-neutral-300);
+        --sa-color-inverse-fg-subtle: color-mix(in srgb, var(--sa-white) 55%, transparent);
+        --sa-color-inverse-border: color-mix(in srgb, var(--sa-white) 8%, transparent);
+        --sa-color-inverse-border-strong: color-mix(in srgb, var(--sa-white) 16%, transparent);
+
+        --sa-color-focus-ring: color-mix(in srgb, var(--sa-color-accent) 45%, transparent);
+        --sa-color-selection: color-mix(in srgb, var(--sa-color-accent) 30%, transparent);
+
+        --sa-shadow-ink: var(--sa-black);
+        --sa-shadow-tint-1: color-mix(in srgb, var(--sa-shadow-ink) 24%, transparent);
+        --sa-shadow-tint-2: color-mix(in srgb, var(--sa-shadow-ink) 32%, transparent);
+        --sa-shadow-tint-3: color-mix(in srgb, var(--sa-shadow-ink) 44%, transparent);
+        --sa-shadow-tint-4: color-mix(in srgb, var(--sa-shadow-ink) 60%, transparent);
+
+        --sa-shadow-0: none;
+        --sa-shadow-1: 0 1px 2px var(--sa-shadow-tint-1);
+        --sa-shadow-2: 0 2px 6px var(--sa-shadow-tint-2);
+        --sa-shadow-3: 0 8px 20px var(--sa-shadow-tint-3);
+        --sa-shadow-4: 0 20px 48px var(--sa-shadow-tint-4);
+        --sa-shadow-focus: 0 0 0 3px var(--sa-color-focus-ring);
+
+        --sa-elevation-tile: var(--sa-shadow-1);
+        --sa-elevation-card: var(--sa-shadow-2);
+        --sa-elevation-menu: var(--sa-shadow-3);
+        --sa-elevation-dialog: var(--sa-shadow-4);
+    }
+}

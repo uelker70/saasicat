@@ -491,7 +491,7 @@ async function doSubmit(code: string): Promise<void> {
 
 .pl-dlg__sub {
     font-size: 12.5px;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     margin-top: 3px;
     line-height: 1.4;
 }
@@ -508,7 +508,7 @@ async function doSubmit(code: string): Promise<void> {
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
+    color: var(--sa-muted-dark);
     background: var(--sa-primary-50);
     border: 1px solid #bfdbfe;
     border-radius: 999px;
@@ -539,7 +539,7 @@ async function doSubmit(code: string): Promise<void> {
     font: 600 11px var(--sa-font-body, system-ui, sans-serif);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     display: flex;
     align-items: baseline;
     gap: 6px;
@@ -576,7 +576,7 @@ async function doSubmit(code: string): Promise<void> {
     display: flex;
     align-items: stretch;
     background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     overflow: hidden;
 }
@@ -586,7 +586,7 @@ async function doSubmit(code: string): Promise<void> {
     background: var(--sa-bg-surface-2);
     color: var(--sa-muted-light);
     font: 500 12px var(--sa-font-mono, ui-monospace, monospace);
-    border-right: 1px solid var(--sa-border, var(--sa-border));
+    border-right: 1px solid var(--sa-border);
     white-space: nowrap;
 }
 

@@ -118,14 +118,14 @@ function metaText(s: CatalogSnapshot): string {
     width: 280px;
     flex-shrink: 0;
     background: var(--sa-bg-surface, #ffffff);
-    border-right: 1px solid var(--sa-border, var(--sa-border));
+    border-right: 1px solid var(--sa-border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 .sa-pv-timeline__head {
     padding: 14px 16px;
-    border-bottom: 1px solid var(--sa-border, var(--sa-border));
+    border-bottom: 1px solid var(--sa-border);
     background: #fafbfc;
 }
 .sa-pv-timeline__row {
@@ -137,13 +137,13 @@ function metaText(s: CatalogSnapshot): string {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     text-transform: uppercase;
 }
 .sa-pv-timeline__count {
     margin-top: 2px;
     font-size: 11px;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
 }
 
 .sa-pv-timeline__list {
@@ -160,7 +160,7 @@ function metaText(s: CatalogSnapshot): string {
     top: 36px;
     bottom: -6px;
     width: 2px;
-    background: var(--sa-border, var(--sa-border));
+    background: var(--sa-border);
     z-index: 0;
 }
 .sa-pv-timeline__btn {
@@ -182,7 +182,7 @@ function metaText(s: CatalogSnapshot): string {
     color: inherit;
 }
 .sa-pv-timeline__btn:hover:not(.sa-pv-timeline__btn--selected) {
-    background: var(--sa-border-soft, var(--sa-border-soft));
+    background: var(--sa-border-soft);
 }
 .sa-pv-timeline__btn--selected {
     background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
@@ -211,8 +211,8 @@ function metaText(s: CatalogSnapshot): string {
 }
 .sa-pv-timeline__node--archived {
     background: var(--sa-border-soft);
-    border-color: var(--sa-muted, var(--sa-muted));
-    color: var(--sa-muted, var(--sa-muted));
+    border-color: var(--sa-muted);
+    color: var(--sa-muted);
 }
 .sa-pv-timeline__node-dot {
     width: 6px;
@@ -237,7 +237,7 @@ function metaText(s: CatalogSnapshot): string {
     font-family: var(--sa-font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
     font-size: 12px;
     font-weight: 700;
-    color: var(--sa-heading, var(--sa-heading));
+    color: var(--sa-heading);
 }
 .sa-pv-timeline__status {
     font-size: 9.5px;
@@ -256,7 +256,7 @@ function metaText(s: CatalogSnapshot): string {
 }
 .sa-pv-timeline__status--archived {
     background: var(--sa-border-soft);
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
 }
 .sa-pv-timeline__vs {
     font-size: 9.5px;
@@ -278,7 +278,7 @@ function metaText(s: CatalogSnapshot): string {
 }
 .sa-pv-timeline__meta {
     font-size: 11px;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     margin-top: 2px;
     display: flex;
     align-items: center;
@@ -287,10 +287,10 @@ function metaText(s: CatalogSnapshot): string {
 
 .sa-pv-timeline__foot {
     padding: 10px 14px;
-    border-top: 1px solid var(--sa-border, var(--sa-border));
+    border-top: 1px solid var(--sa-border);
     background: #fafbfc;
     font-size: 11px;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
 }
 .sa-pv-timeline__hint {
     display: flex;
@@ -300,7 +300,7 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline__clear-btn {
     margin-top: 6px;
     background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-border);
     border-radius: 6px;
     padding: 4px 10px;
     font-size: 11px;

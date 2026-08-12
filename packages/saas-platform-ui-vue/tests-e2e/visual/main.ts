@@ -1,5 +1,5 @@
 import 'quasar/src/css/index.sass';
-import '../../src/pages-standard/sa-theme.css';
+import '../../src/ui/theme/index.css';
 
 import {
     createApp,

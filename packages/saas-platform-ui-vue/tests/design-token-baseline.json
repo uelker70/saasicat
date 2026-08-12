@@ -1,9 +1,9 @@
 {
-    "hexColors.total": 644,
+    "hexColors.total": 643,
     "functionalColors.total": 198,
-    "distinctPixelValues": 80,
+    "distinctPixelValues": 79,
     "distinctFontSizes": 23,
     "distinctBreakpoints": 6,
-    "selfReferencingVars.total": 73,
+    "selfReferencingVars.total": 0,
     "worstStyleShare": 0.6349206349206349
 }

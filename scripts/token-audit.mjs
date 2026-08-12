@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Token audit — the worklist for the design-system migration, and the data the
-// ratchets in `tests-component/design-token-budget.test.ts` measure against.
+// ratchets in `packages/saas-platform-ui-vue/tests/design-token-budget.test.js`
+// measure against.
 //
-// The admin UI ships a token file AND 500+ literal colours, 70+ distinct pixel
-// values and 20 font sizes. That combination is worse than having no tokens: a
-// reader cannot tell which values were a decision and which were a guess, so
-// every new page guesses again.
+// The admin UI ships a token layer AND hundreds of literal colours, dozens of
+// distinct pixel values and 23 font sizes. That combination is worse than
+// having no tokens: a reader cannot tell which values were a decision and which
+// were a guess, so every new page guesses again.
 //
 // This script does not judge. It counts, groups and points at file:line, so the
 // migration has a list to work through and a number to drive down.
@@ -16,17 +17,22 @@
 //   node scripts/token-audit.mjs --top=20     n most frequent values per category
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, join, relative, dirname, resolve } from 'node:path';
+import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');
 
 /**
- * Files that DEFINE the palette rather than consume it. Literals are what they
- * are for, so counting them would make the target unreachable by construction.
+ * The directory that DEFINES the palette rather than consuming it. Literals are
+ * what it is for, so counting them would make the target unreachable by
+ * construction.
+ *
+ * A directory rather than a list of file names: the theme is a set of layered
+ * files now, and a name list would silently start counting the next one added.
+ * Everything outside it — every page, every component — is a consumer.
  */
-const TOKEN_DEFINITION_FILES = new Set(['sa-theme.css']);
+const TOKEN_DEFINITION_DIR = join(UI_SRC, 'ui', 'theme');
 
 /** Hairlines and zero — a scale for these would be ceremony, not clarity. */
 const ALLOWED_PX = new Set(['0px', '1px', '2px']);
@@ -34,8 +40,11 @@ const ALLOWED_PX = new Set(['0px', '1px', '2px']);
 const CATEGORIES = {
     // #rgb, #rrggbb, #rrggbbaa
     hexColor: /#[0-9a-fA-F]{3,8}\b/g,
-    // rgb()/rgba()/hsl()/hsla() with literal channels
-    functionalColor: /\b(?:rgba?|hsla?)\([^)]*\)/g,
+    // rgb()/rgba()/hsl()/hsla() with LITERAL channels. `rgb(var(--x) / .06)` is
+    // a token being used, not a value being invented, and counting it would
+    // make an alpha derived from a theme-aware ink indistinguishable from a
+    // hard-coded shadow — the first is the goal, the second is the debt.
+    functionalColor: /\b(?:rgba?|hsla?)\((?![^)]*var\()[^)]*\)/g,
     pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/g,
     fontSize: /font-size:\s*([^;}\n]+)/g,
     breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+)px/g,
@@ -80,13 +89,8 @@ export function audit() {
 
     for (const file of files) {
         const rel = relative(REPO_ROOT, file);
-        // `basename`, not a split on '/': join() yields backslashes on Windows,
-        // where the split would leave `name` as the whole path. `sa-theme.css`
-        // would then miss the exclusion list and the palette's own literals
-        // would be counted as violations — dozens of them, failing the budget.
-        const name = basename(file);
         const content = readFileSync(file, 'utf8');
-        const isTokenDefinition = TOKEN_DEFINITION_FILES.has(name);
+        const isTokenDefinition = file.startsWith(TOKEN_DEFINITION_DIR);
         reach.files += 1;
         reach.styleBlocks += styleSource(file, content).length;
 

@@ -1,0 +1,46 @@
+/* The page hero — the banner that answers "which page am I on" (AdminHero).
+ *
+ * A tinted, bordered block rather than a first paragraph, so identity is
+ * visually separate from content. Tint and border come from the accent role,
+ * which reads the host application's brand: an app that sets `$primary` gets
+ * its own hero without touching this file.
+ */
+
+.sa-page-head {
+    /* Top-aligned, so the controls sit level with the title rather than
+     * drifting down with the subtitle's height. */
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    padding: 13px 22px 15px;
+    border: 1px solid var(--sa-color-accent-border);
+    border-radius: var(--sa-radius-hero);
+    background: linear-gradient(
+        135deg,
+        var(--sa-color-accent-surface) 0%,
+        var(--sa-color-accent-surface-soft) 100%
+    );
+}
+.sa-page-head__title {
+    margin: 0;
+    font-family: var(--sa-font-head);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: var(--sa-color-fg-heading);
+}
+.sa-page-head__sub {
+    margin: 1px 0 0;
+    font-size: 12.5px;
+    line-height: 1.35;
+    color: var(--sa-color-fg-muted);
+}
+.sa-page-head__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}

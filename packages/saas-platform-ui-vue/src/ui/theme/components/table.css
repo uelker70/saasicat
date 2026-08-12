@@ -1,0 +1,49 @@
+/* Lists (see AdminTable). The package shipped no table rules at all until
+ * this, which is why nine pages each looked slightly different.
+ */
+
+.sa-page .q-table thead th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sa-color-fg-muted);
+    background: var(--sa-color-bg-sunken);
+    border-bottom: 1px solid var(--sa-color-border);
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+.sa-page .q-table tbody td {
+    font-size: 13px;
+    color: var(--sa-color-fg-body);
+    border-bottom: 1px solid var(--sa-color-border-soft);
+    padding: 10px 14px;
+}
+.sa-page .q-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+.sa-page .q-table tbody tr:hover td {
+    background: var(--sa-color-bg-sunken);
+}
+/* Sorted column: the header carries the state, not just the arrow. */
+.sa-page .q-table thead th.sortable:hover,
+.sa-page .q-table thead th[aria-sort]:not([aria-sort='none']) {
+    color: var(--sa-color-fg-heading);
+}
+.sa-page .q-table thead th[aria-sort]:not([aria-sort='none']) {
+    background: var(--sa-color-accent-surface-strong);
+}
+.sa-table__actions {
+    white-space: nowrap;
+}
+.sa-table__empty {
+    color: var(--sa-color-fg-muted);
+}
+
+/* The pager sits below the list, separated by a line that runs the full width
+ * of the surface — hence the pull-out by the section's own padding token. */
+.sa-table__foot {
+    margin: 0 calc(-1 * var(--sa-pad-section)) calc(-1 * var(--sa-pad-section));
+    padding: 0 var(--sa-pad-section) 10px;
+    border-top: 1px solid var(--sa-color-border);
+}

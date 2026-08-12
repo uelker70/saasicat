@@ -518,7 +518,7 @@ function formatTs(iso: string | null | undefined): string {
 }
 .sa-emh__card {
     background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-border);
     border-radius: 12px;
     overflow: hidden;
     padding: 8px 0;
@@ -544,14 +544,14 @@ function formatTs(iso: string | null | undefined): string {
     width: 100%;
     min-height: 320px;
     max-height: 60vh;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     background: #fff;
 }
 .sa-emh__text,
 .sa-emh__smtp {
     background: var(--sa-bg-surface-2);
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-border);
     border-radius: 8px;
     padding: 12px;
     font-size: 12px;

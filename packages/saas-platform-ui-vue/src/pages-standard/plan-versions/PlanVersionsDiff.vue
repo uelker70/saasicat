@@ -196,7 +196,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
 }
 .sa-pv-diff__overview {
     background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-border);
     border-radius: 12px;
     padding: 16px 20px;
     margin-bottom: 18px;
@@ -217,17 +217,17 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     text-transform: uppercase;
 }
 .sa-pv-diff__title {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
     font-size: 18px;
-    color: var(--sa-heading, var(--sa-heading));
+    color: var(--sa-heading);
 }
 .sa-pv-diff__sep {
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     font-weight: 500;
 }
 .sa-pv-diff__spacer {
@@ -244,7 +244,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     text-transform: uppercase;
 }
 .sa-pv-diff__stat-value {
@@ -264,7 +264,7 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-size: 14px;
     font-weight: 700;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }

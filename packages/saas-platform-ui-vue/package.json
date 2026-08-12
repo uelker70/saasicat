@@ -41,6 +41,8 @@
         "./pages-standard/*": "./src/pages-standard/*",
         "./pages-tenant/*": "./src/pages-tenant/*",
         "./components/*": "./src/components/*",
+        "./theme.css": "./src/ui/theme/index.css",
+        "./theme/*": "./src/ui/theme/*",
         "./sa-theme.css": "./src/pages-standard/sa-theme.css",
         "./testing-e2e/*": {
             "import": {
