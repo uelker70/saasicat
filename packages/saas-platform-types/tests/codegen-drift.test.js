@@ -39,9 +39,10 @@ describe('Q.4 Codegen drift gate', () => {
             const committed = await readFile(join(GEN_DIR, genFile), 'utf8');
             if (fresh !== committed) {
                 throw new Error(
-                    `${genFile} ist nicht aktuell. Schema und committed Snapshot driften.\n` +
-                        `Fix: \`pnpm --filter @saasicat/types gen:types\` laufen lassen ` +
-                        `und das Diff in src/generated/${genFile} committen.`,
+                    `${genFile} is out of date — the schema and the committed snapshot have drifted.\n` +
+                        `Fix: run \`pnpm --filter @saasicat/types gen:types\` and commit the ` +
+                        `diff in src/generated/${genFile}.\n` +
+                        `Never hand-edit the generated file: the next regeneration discards it.`,
                 );
             }
             assert.equal(fresh, committed);
