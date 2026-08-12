@@ -86,6 +86,7 @@ import {
     StaticPlanResolver,
 } from './plan-resolver.port.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';
+import { FeatureGuardCoverageCheck } from './feature-guard-coverage.check.js';
 import { StaticFeatureGuard } from './static-feature.guard.js';
 import { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from './enforce-quota.interceptor.js';
 import { QuotaProvidersUsageSnapshot } from './quota-providers-usage-snapshot.js';
@@ -1152,14 +1153,13 @@ export class SaasPlatformModule {
             );
 
             if (options.globalFeatureGuard === false) {
-                PLATFORM_LOGGER.warn(
-                    'globalFeatureGuard is off — the platform did NOT bind StaticFeatureGuard ' +
-                        'as an APP_GUARD. @RequireFeature only blocks on routes where you bound a ' +
-                        'feature guard yourself, behind your auth guard: ' +
-                        '@UseGuards(JwtAuthGuard, StaticFeatureGuard), or FeatureGuard from ' +
-                        '@saasicat/nest/billing on the V3 entitlement path. Any annotated route ' +
-                        'without one serves unlicensed traffic.',
-                );
+                // Binding the app's guards is the app's job here, so the
+                // platform can only say something useful once the routes
+                // exist. `FeatureGuardCoverageCheck` looks after bootstrap and
+                // names the routes that are actually open — a warning at this
+                // point could only repeat the option back, and did, to
+                // applications that had nothing open at all.
+                lightweightProviders.push(FeatureGuardCoverageCheck);
             }
         } else {
             // Reaching here means `@RequireFeature`/`@EnforceQuota` are inert:

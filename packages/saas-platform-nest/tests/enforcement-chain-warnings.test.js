@@ -96,17 +96,27 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
         );
     });
 
-    test('warns when globalFeatureGuard is switched off', () => {
-        SaasPlatformModule.forRoot(
+    test('registers the coverage check instead of warning on the option alone', () => {
+        // `forRoot()` runs before any controller exists, so the only thing it
+        // could say here is the option read back — which it did, at
+        // applications that had every annotated route guarded correctly. The
+        // question is asked after bootstrap now, by FeatureGuardCoverageCheck,
+        // against the routes that are actually there.
+        const moduleDef = SaasPlatformModule.forRoot(
             baseOptions({ defaultPlanId: 'STARTER', globalFeatureGuard: false }),
         );
 
-        const hit = warnings.find((w) => w.includes('globalFeatureGuard is off'));
-        assert.ok(hit, `expected a globalFeatureGuard warning, got: ${JSON.stringify(warnings)}`);
-        // Both replacement guards must be named — they are different classes and
-        // picking the wrong one is the trap this warning exists for.
-        assert.match(hit, /StaticFeatureGuard/);
-        assert.match(hit, /FeatureGuard from @saasicat\/nest\/billing/);
+        assert.deepEqual(
+            warnings.filter((w) => w.includes('globalFeatureGuard')),
+            [],
+            'the option alone is not evidence of an open route',
+        );
+        assert.ok(
+            (moduleDef.providers ?? []).some(
+                (p) => typeof p === 'function' && p.name === 'FeatureGuardCoverageCheck',
+            ),
+            'the check has to be registered, or nothing asks the question at all',
+        );
     });
 
     test('stays silent on the default path with the guard bound', () => {
