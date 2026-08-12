@@ -90,7 +90,18 @@ const COLLECT = ({ properties }: { properties: readonly string[] }) => {
     };
 
     const root = document.getElementById('visual-root') ?? document.body;
-    for (const el of [root, ...root.querySelectorAll('*')]) {
+
+    // The page, plus any dialog Quasar teleported out of it. QDialog renders
+    // into a portal appended to <body>, so a detail dialog opened by
+    // `revealBy` sits outside `#visual-root` entirely — collecting only the
+    // root would record the click and none of its result.
+    const roots: Element[] = [
+        root,
+        ...[...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d)),
+    ];
+    const collected = roots.flatMap((r) => [r, ...r.querySelectorAll('*')]);
+
+    for (const el of collected) {
         // Skip what the browser cannot lay out — invisible nodes have no
         // meaningful computed geometry and would only add churn.
         const style = window.getComputedStyle(el);
@@ -107,6 +118,27 @@ const COLLECT = ({ properties }: { properties: readonly string[] }) => {
     }
 
     return lines.join('\n');
+};
+
+/**
+ * True while any Vue/Quasar transition is still running.
+ *
+ * A dialog opened by `revealBy` fades and scales in, and its computed opacity
+ * is a different number on every run until it settles. Snapshotting mid-flight
+ * produces a baseline that fails against itself — the fastest way to teach
+ * everyone to ignore this suite.
+ */
+const IS_ANIMATING = () =>
+    document.querySelectorAll('[class*="-enter-active"], [class*="-leave-active"]').length > 0;
+
+/** Element count across the page and any teleported dialog. */
+const COUNT_ELEMENTS = () => {
+    const root = document.getElementById('visual-root') ?? document.body;
+    const dialogs = [...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d));
+    return (
+        root.querySelectorAll('*').length +
+        dialogs.reduce((n, d) => n + 1 + d.querySelectorAll('*').length, 0)
+    );
 };
 
 test.describe('design-token visual baselines', () => {
@@ -133,8 +165,26 @@ test.describe('design-token visual baselines', () => {
             // Surfaces that only exist once something is opened. `click()`
             // already waits for the element, so a selector that stops matching
             // fails the case instead of quietly baselining the closed state.
+            const before = await page.evaluate(COUNT_ELEMENTS);
             for (const selector of visualCase.revealBy ?? []) {
                 await page.locator(selector).first().click();
+            }
+            if (visualCase.revealBy?.length) {
+                // A click that opens nothing is the quiet failure this whole
+                // field exists to prevent: the case looks like it covers the
+                // opened state and covers the closed one. It happened — the
+                // email detail is a QDialog, and clicking its row changed
+                // nothing the collector could see.
+                await expect
+                    .poll(() => page.evaluate(COUNT_ELEMENTS), {
+                        message: `${visualCase.id}: revealBy clicked, but nothing new rendered`,
+                    })
+                    .toBeGreaterThan(before);
+                await expect
+                    .poll(() => page.evaluate(IS_ANIMATING), {
+                        message: `${visualCase.id}: something is still animating`,
+                    })
+                    .toBe(false);
             }
 
             // A request the fixture cannot answer gets an empty array, which

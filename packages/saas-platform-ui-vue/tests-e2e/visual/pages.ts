@@ -268,6 +268,10 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             deleteEmail: async () => ({}),
             resendEmail: async () => ({ success: true }),
         }),
+        // Opens the detail dialog — `@row-click` on the table. Without it
+        // `loadEmailDetail` never runs and the dialog, its preview frame and
+        // its actions stay out of the snapshot.
+        revealBy: ['tbody tr'],
     },
     {
         id: 'platform-email',
