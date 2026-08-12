@@ -1,6 +1,7 @@
 import { describe, test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Logger } from '@nestjs/common';
+import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 
 import { SaasPlatformModule } from '../dist/platform/index.js';
 
@@ -116,6 +117,22 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
                 (p) => typeof p === 'function' && p.name === 'FeatureGuardCoverageCheck',
             ),
             'the check has to be registered, or nothing asks the question at all',
+        );
+
+        // ...and it has to be constructible. The check injects Nest's
+        // DiscoveryService and MetadataScanner, which only exist once
+        // @nestjs/core's DiscoveryModule is imported. Registering the provider
+        // without it takes the whole application down at boot with "Nest can't
+        // resolve dependencies" — found by a consumer's test suite, not by
+        // ours, because the first test for this check constructed the class
+        // directly and never went through DI.
+        // By IDENTITY, not by name: the platform ships a DiscoveryModule of its
+        // own, so a name comparison here passes whether or not Nest's is
+        // present — it would assert nothing. (That is the same mistake this
+        // package already made once, matching guards by class name.)
+        assert.ok(
+            (moduleDef.imports ?? []).includes(NestDiscoveryModule),
+            "@nestjs/core's DiscoveryModule must be imported, or the check cannot be constructed",
         );
     });
 
