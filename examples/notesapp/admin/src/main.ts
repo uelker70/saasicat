@@ -60,6 +60,10 @@ const handle = createSuperAdminApp({
         ensureLoaded: () => useManifestStore().ensureLoaded(),
         getManifest: () => useManifestStore().manifest,
         errorRoute: '/admin-error',
+        // Without this the error page's retry cannot recover from a stale
+        // ETag: the loader would revalidate against the same cached entry
+        // and land straight back on the error page.
+        clearCache: () => useManifestStore().clearCache(),
     },
     // Platform pages issue their own requests (KPI cards, tenant tables) —
     // without this they would fall back to a bare fetch() and lose the app's auth.

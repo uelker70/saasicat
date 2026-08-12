@@ -73,12 +73,18 @@ export function audit() {
     const files = walk(UI_SRC, (name) => name.endsWith('.vue') || name.endsWith('.css'));
     const findings = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, []]));
     const styleShare = [];
+    // How much was actually looked at, counted independently of what was found.
+    // Every finding count can legitimately fall to zero once the migration is
+    // done, so "no findings" cannot tell a finished job from a broken sweep.
+    const reach = { files: 0, styleBlocks: 0 };
 
     for (const file of files) {
         const rel = relative(REPO_ROOT, file);
         const name = file.split('/').pop();
         const content = readFileSync(file, 'utf8');
         const isTokenDefinition = TOKEN_DEFINITION_FILES.has(name);
+        reach.files += 1;
+        reach.styleBlocks += styleSource(file, content).length;
 
         if (file.endsWith('.vue')) {
             const total = content.split('\n').length;
@@ -118,14 +124,15 @@ export function audit() {
         }
     }
 
-    return { findings, styleShare };
+    return { findings, styleShare, reach };
 }
 
-export function summarise({ findings, styleShare }) {
+export function summarise({ findings, styleShare, reach }) {
     const distinct = (list) => new Set(list.map((f) => f.value)).size;
     const files = (list) => new Set(list.map((f) => f.file)).size;
 
     return {
+        reach,
         hexColors: { total: findings.hexColor.length, files: files(findings.hexColor) },
         functionalColors: { total: findings.functionalColor.length },
         distinctPixelValues: distinct(findings.pixelValue),

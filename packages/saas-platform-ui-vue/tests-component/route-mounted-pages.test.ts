@@ -27,6 +27,7 @@ import {
     SUPER_ADMIN_ENDPOINTS_KEY,
     SUPER_ADMIN_HTTP_KEY,
     SUPER_ADMIN_LOGIN_ADAPTER_KEY,
+    SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY,
 } from '../src/vue/super-admin-context.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
 
@@ -189,6 +190,44 @@ describe('AdminManifestErrorPage retry', () => {
         expect(publicPathsOfAdminRoutes(), 'retry target must run through the guard').not.toContain(
             target,
         );
+
+        wrapper.unmount();
+    });
+
+    /**
+     * …and it has to discard the cached manifest on the way out.
+     *
+     * The loader keeps an ETag in storage, which a full document load does not
+     * touch. Its own documented failure — "server returned 304 but the cache
+     * body is missing" (`manifest-loader.ts`) — would otherwise repeat exactly:
+     * same `If-None-Match`, same 304, same missing body, straight back to this
+     * page. Landing on a guarded route is necessary but not sufficient.
+     */
+    test('discards the cached manifest before booting, not after', async () => {
+        const order: string[] = [];
+        const assign = vi.fn(() => order.push('assign'));
+        vi.spyOn(window, 'location', 'get').mockReturnValue({
+            ...window.location,
+            assign,
+        } as unknown as Location);
+
+        const wrapper = mountWithQuasar(AdminManifestErrorPage, {
+            global: {
+                provide: {
+                    ...SHELL_CONTEXT,
+                    [SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY as symbol]: () => order.push('clear'),
+                },
+                plugins: [makeRouter()],
+            },
+        });
+
+        await wrapper.findAll('button')[0].trigger('click');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(order, 'a boot that revalidates against the stale ETag gets the same 304').toEqual([
+            'clear',
+            'assign',
+        ]);
 
         wrapper.unmount();
     });

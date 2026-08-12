@@ -20,9 +20,11 @@
 </template>
 
 <script setup lang="ts">
+import { inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import { useSignOut } from '../vue/use-sign-out.js';
+import { SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY } from '../vue/super-admin-context.js';
 
 // Platform standard error page for `manifestGuard.errorRoute`.
 //
@@ -54,24 +56,46 @@ const props = defineProps<{
 
 const signOut = useSignOut({ loginPath: props.loginPath });
 
+// Provided by the shell when the app passes `manifestGuard.clearCache`. The
+// page is route-mounted, so injection is the only route in.
+const clearManifestCache = inject(SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY, undefined);
+
 function retry(): void {
     if (props.onRetry) {
         void props.onRetry();
         return;
     }
-    // A full document load rather than a router navigation: the failure may sit
-    // in a cached manifest body or a stale store, and only a fresh boot clears
-    // both.
-    //
-    // It must target a GUARDED route. Reloading in place does nothing here:
-    // `createAdminRoutes` registers `/admin-error` as `meta.public` (it has to,
-    // or the guard would redirect to itself forever), and the guard returns
-    // before it ever reaches `ensureLoaded()` on a public route. So a reload
-    // re-renders the same error even after the backend has recovered, and the
-    // operator's only way out is to edit the address bar.
-    //
-    // `router.resolve` rather than a bare path so an app served under a base
-    // href lands inside its own app and not at the domain root.
+    void bootIntoGuardedRoute();
+}
+
+/**
+ * Discards the cached manifest, then boots into a route the guard protects.
+ *
+ * Two things have to happen, and each covers a failure the other does not:
+ *
+ * The target must be GUARDED. `createAdminRoutes` registers `/admin-error` as
+ * `meta.public` — it has to be, or the guard would redirect to itself forever
+ * — and the guard returns before it ever reaches `ensureLoaded()` on a public
+ * route. Reloading in place therefore re-renders the same error even after the
+ * backend has recovered.
+ *
+ * And the cache must go first. The loader keeps an ETag in storage, which a
+ * full document load does not touch. Its own documented failure — "server
+ * returned 304 but the cache body is missing" — would otherwise repeat exactly:
+ * same `If-None-Match`, same 304, same missing body, straight back here.
+ *
+ * `router.resolve` rather than a bare path so an app served under a base href
+ * lands inside its own app and not at the domain root.
+ */
+async function bootIntoGuardedRoute(): Promise<void> {
+    if (clearManifestCache) {
+        try {
+            await clearManifestCache();
+        } catch (err) {
+            // Retrying with a stale cache is still better than not retrying.
+            console.warn('[SaaSiCat] Clearing the manifest cache failed before retry:', err);
+        }
+    }
     window.location.assign(router.resolve(props.retryPath ?? '/admin').href);
 }
 

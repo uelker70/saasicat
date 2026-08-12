@@ -58,11 +58,22 @@ const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
 
 describe('design-token budgets', () => {
     test('the audit reaches the source tree', () => {
-        // A renamed directory would otherwise report zero of everything and
-        // read as a spectacular success.
+        // Counted independently of what was found. Deriving reach from the
+        // findings cannot work: every budget below is allowed to fall to zero
+        // as the migration progresses, so "found nothing" is indistinguishable
+        // from "looked at nothing" — a renamed directory or a broken file
+        // predicate would report zero of everything and read as a spectacular
+        // success.
+        //
+        // The floors sit well under today's 115 files / 80 style blocks. They
+        // are here to catch a sweep that collapsed, not to pin the tree size.
         assert.ok(
-            summary.hexColors.files > 0 || summary.hexColors.total === 0,
-            'the audit found no files at all — check the path in scripts/token-audit.mjs',
+            summary.reach.files >= 80,
+            `the audit only reached ${summary.reach.files} files — check the path and the file predicate in scripts/token-audit.mjs`,
+        );
+        assert.ok(
+            summary.reach.styleBlocks >= 50,
+            `the audit found only ${summary.reach.styleBlocks} style blocks — SFC style extraction is no longer matching`,
         );
         assert.ok(
             Object.keys(baseline).length === Object.keys(FLOORS).length,

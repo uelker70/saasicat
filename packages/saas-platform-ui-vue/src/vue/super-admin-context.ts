@@ -130,6 +130,20 @@ export interface SuperAdminManifestGuardOptions {
      * manifest guard again and produces a redirect loop.
      */
     errorRoute?: string;
+    /**
+     * Discards the cached manifest, so the next `ensureLoaded()` fetches a
+     * fresh body instead of revalidating.
+     *
+     * Needed because the loader keeps an ETag in storage. Its own documented
+     * failure — "server returned 304 but the cache body is missing" — survives
+     * a full page reload: the next request sends the same `If-None-Match`,
+     * gets another 304, and lands back on the error page. Retry is a dead end
+     * for that case unless something clears the ETag first.
+     *
+     * `ManifestLoader.clearCache()` and the manifest store's reset both fit;
+     * pass whichever the app uses.
+     */
+    clearCache?: () => void | Promise<void>;
 }
 
 /**
@@ -181,6 +195,14 @@ export const SUPER_ADMIN_ACTIONS_KEY: InjectionKey<ActionsMap> = Symbol.for(
 export const SUPER_ADMIN_MANIFEST_KEY: InjectionKey<() => AdminManifest | null> = Symbol.for(
     '@saasicat/ui-vue/SUPER_ADMIN_MANIFEST',
 );
+/**
+ * Vue inject key for `manifestGuard.clearCache`.
+ *
+ * The fail-closed error page is route-mounted and gets no props, so the only
+ * way it can reach the app's cache is through the shell.
+ */
+export const SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY: InjectionKey<() => void | Promise<void>> =
+    Symbol.for('@saasicat/ui-vue/SUPER_ADMIN_MANIFEST_CLEAR_CACHE');
 /** Vue inject key for `useSuperAdminLoginAdapter()`. */
 export const SUPER_ADMIN_LOGIN_ADAPTER_KEY: InjectionKey<SuperAdminLoginAdapter> = Symbol.for(
     '@saasicat/ui-vue/SUPER_ADMIN_LOGIN_ADAPTER',
