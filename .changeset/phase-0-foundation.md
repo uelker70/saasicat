@@ -48,6 +48,14 @@ recovered. Retry now boots into a guarded route (`retryPath`, default
 `createSuperAdminApp({ http })`. One of them was unreachable code that
 looked like a safeguard; two were live.
 
+**The dashboard dropped the auth token it was given.** `DashboardPage`
+declared `getAuthToken` and documented it as the token provider for the
+default client — and never read it. Removing the page's bare `fetch()` had
+taken the Authorization header with it, so an app mounting the page the
+documented way sent every KPI request unauthenticated and rendered an error
+in all of its cards. The token now travels as a header the way `useApiList`
+and the other standard pages do it.
+
 **`@RequireFeature` failing silently.** `SaaSiCatModule` documented a boot
 warning for the case where no plan resolver is configured — and never
 emitted one. Annotated routes then served everyone, quotas read as
