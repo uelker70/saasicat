@@ -3,47 +3,47 @@
         <AdminHero :title="msg.list.title" :subtitle="subtitle" />
 
         <AdminBody>
-            <AdminFilters>
-                <q-input
-                    v-model="searchInput"
-                    outlined
-                    dense
-                    clearable
-                    :label="msg.list.searchPlaceholder"
-                    debounce="250"
-                    @update:model-value="applyFilter"
-                >
-                    <template #prepend><q-icon name="search" size="18px" /></template>
-                </q-input>
-                <q-select
-                    v-model="statusFilter"
-                    outlined
-                    dense
-                    clearable
-                    emit-value
-                    map-options
-                    :options="statusSelectOptions"
-                    :label="msg.list.allStatuses"
-                    @update:model-value="applyFilter"
-                />
-                <q-select
-                    v-if="planOptions && planOptions.length > 0"
-                    v-model="planFilter"
-                    outlined
-                    dense
-                    clearable
-                    :options="planOptions"
-                    :label="resolvedPlanFilterLabel"
-                    @update:model-value="applyFilter"
-                />
-                <slot name="filters-extra" />
-            </AdminFilters>
-
             <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
                 <strong>{{ common.error }}:</strong> {{ error.message }}
             </q-banner>
 
             <AdminSection class="sa-tenants__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="searchInput"
+                        outlined
+                        dense
+                        clearable
+                        :label="msg.list.searchPlaceholder"
+                        debounce="250"
+                        @update:model-value="applyFilter"
+                    >
+                        <template #prepend><q-icon name="search" size="18px" /></template>
+                    </q-input>
+                    <q-select
+                        v-model="statusFilter"
+                        outlined
+                        dense
+                        clearable
+                        emit-value
+                        map-options
+                        :options="statusSelectOptions"
+                        :label="msg.list.allStatuses"
+                        @update:model-value="applyFilter"
+                    />
+                    <q-select
+                        v-if="planOptions && planOptions.length > 0"
+                        v-model="planFilter"
+                        outlined
+                        dense
+                        clearable
+                        :options="planOptions"
+                        :label="resolvedPlanFilterLabel"
+                        @update:model-value="applyFilter"
+                    />
+                    <slot name="filters-extra" />
+                </AdminFilters>
+
                 <div class="sa-tenants__wrap">
                     <table>
                         <thead>

@@ -3,41 +3,43 @@
         <AdminHero :title="resolvedTitle" :subtitle="subtitle" />
 
         <AdminBody>
-            <AdminStatistics :label="resolvedTitle">
-                <AdminKpi
-                    v-for="tile in statTiles"
-                    :key="tile.id"
-                    :label="tile.label"
-                    :value="tile.count"
-                    :tone="tile.tone"
-                    :selected="statusFilter === tile.id"
-                    :action="() => (statusFilter = tile.id)"
-                />
-            </AdminStatistics>
-
-            <AdminFilters>
-                <q-input
-                    v-model="filter.q"
-                    outlined
-                    dense
-                    :label="msg.filterQuery"
-                    clearable
-                    debounce="250"
-                    @update:model-value="reload"
-                />
-                <q-input
-                    v-model="filter.tenant"
-                    outlined
-                    dense
-                    :label="msg.filterTenant"
-                    clearable
-                    debounce="250"
-                    @update:model-value="reload"
-                />
-                <slot name="filters-extra" />
-            </AdminFilters>
+            <AdminSection>
+                <AdminStatistics :label="resolvedTitle">
+                    <AdminKpi
+                        v-for="tile in statTiles"
+                        :key="tile.id"
+                        :label="tile.label"
+                        :value="tile.count"
+                        :tone="tile.tone"
+                        :selected="statusFilter === tile.id"
+                        :action="() => (statusFilter = tile.id)"
+                    />
+                </AdminStatistics>
+            </AdminSection>
 
             <AdminSection :title="common.results" class="sa-users__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="filter.q"
+                        outlined
+                        dense
+                        :label="msg.filterQuery"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.tenant"
+                        outlined
+                        dense
+                        :label="msg.filterTenant"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <slot name="filters-extra" />
+                </AdminFilters>
+
                 <q-table
                     flat
                     :rows="filteredRows"

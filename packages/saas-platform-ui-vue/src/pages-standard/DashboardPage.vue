@@ -9,6 +9,9 @@
         <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
             <strong>{{ common.error }}:</strong> {{ error.message }}
         </q-banner>
+        <q-banner class="bg-red-1 text-red-9 q-mb-md" rounded>
+            <strong>{{ common.error }}:</strong> aaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        </q-banner>
 
         <div v-if="loading && !cards.length" class="sa-dashboard__loading">
             <q-spinner size="32px" /> {{ common.loadingData }}

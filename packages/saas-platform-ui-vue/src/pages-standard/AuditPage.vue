@@ -10,46 +10,46 @@
         </AdminHero>
 
         <AdminBody>
-            <AdminFilters>
-                <q-input
-                    v-model="filter.actor"
-                    outlined
-                    dense
-                    :label="msg.filters.actor"
-                    clearable
-                    debounce="250"
-                    @update:model-value="reload"
-                />
-                <q-input
-                    v-model="filter.action"
-                    outlined
-                    dense
-                    :label="msg.filters.action"
-                    clearable
-                    debounce="250"
-                    @update:model-value="reload"
-                />
-                <q-input
-                    v-model="filter.entity"
-                    outlined
-                    dense
-                    :label="msg.filters.entity"
-                    clearable
-                    debounce="250"
-                    @update:model-value="reload"
-                />
-                <q-input
-                    v-model="filter.since"
-                    outlined
-                    dense
-                    type="date"
-                    :label="msg.filters.since"
-                    clearable
-                    @update:model-value="reload"
-                />
-            </AdminFilters>
-
             <AdminSection class="sa-audit__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="filter.actor"
+                        outlined
+                        dense
+                        :label="msg.filters.actor"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.action"
+                        outlined
+                        dense
+                        :label="msg.filters.action"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.entity"
+                        outlined
+                        dense
+                        :label="msg.filters.entity"
+                        clearable
+                        debounce="250"
+                        @update:model-value="reload"
+                    />
+                    <q-input
+                        v-model="filter.since"
+                        outlined
+                        dense
+                        type="date"
+                        :label="msg.filters.since"
+                        clearable
+                        @update:model-value="reload"
+                    />
+                </AdminFilters>
+
                 <q-table
                     flat
                     :rows="rows"

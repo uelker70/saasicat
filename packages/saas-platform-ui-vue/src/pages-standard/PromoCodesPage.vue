@@ -17,42 +17,42 @@
         </AdminHero>
 
         <AdminBody>
-            <AdminStatistics :label="msg.title">
-                <AdminKpi
-                    v-for="tile in statTiles"
-                    :key="tile.id"
-                    :label="tile.label"
-                    :value="tile.count"
-                    :sub="tile.hint"
-                    :tone="tile.tone"
-                    :selected="statusFilter === tile.id"
-                    :action="() => onStatusTileClick(tile.id)"
-                />
-            </AdminStatistics>
-
-            <AdminFilters>
-                <q-input
-                    v-model="filter.search"
-                    outlined
-                    dense
-                    :label="msg.list.searchLabel"
-                    clearable
-                    @update:model-value="reload"
-                />
-                <q-select
-                    v-model="filter.status"
-                    outlined
-                    dense
-                    emit-value
-                    map-options
-                    clearable
-                    :label="common.status"
-                    :options="statusOptions"
-                    @update:model-value="reload"
-                />
-            </AdminFilters>
+            <AdminSection>
+                <AdminStatistics :label="msg.title">
+                    <AdminKpi
+                        v-for="tile in statTiles"
+                        :key="tile.id"
+                        :label="tile.label"
+                        :value="tile.count"
+                        :sub="tile.hint"
+                        :tone="tile.tone"
+                        :selected="statusFilter === tile.id"
+                        :action="() => onStatusTileClick(tile.id)"
+                    />
+                </AdminStatistics>
+            </AdminSection>
 
             <AdminSection class="sa-promo-codes__card">
+                <AdminFilters class="q-mb-lg">
+                    <q-input
+                        v-model="filter.search"
+                        outlined
+                        dense
+                        :label="msg.list.searchLabel"
+                        clearable
+                    />
+                    <q-select
+                        v-model="filter.status"
+                        outlined
+                        dense
+                        emit-value
+                        map-options
+                        clearable
+                        :label="common.status"
+                        :options="statusOptions"
+                    />
+                </AdminFilters>
+
                 <q-table
                     flat
                     :rows="filteredRows"
@@ -255,11 +255,25 @@ function classifyRow(row: PromoRow): Exclude<StatusFilter, 'all'> | null {
     return null;
 }
 
+// The table narrows; the tiles above it deliberately do not — see statTiles.
 const filteredRows = computed(() => {
-    if (statusFilter.value === 'all') return rows.value;
-    return rows.value.filter((r) => classifyRow(r) === statusFilter.value);
+    // `clearable` emits null, not '' — see Quasar's use-field clearValue().
+    const q = (filter.search ?? '').trim().toLowerCase();
+    const status = filter.status?.toUpperCase() ?? null;
+
+    return rows.value.filter((row) => {
+        if (statusFilter.value !== 'all' && classifyRow(row) !== statusFilter.value) return false;
+        if (status && String(row.status ?? '').toUpperCase() !== status) return false;
+        if (!q) return true;
+        return [row.code, row.description, row.campaignTag]
+            .filter((v): v is string => typeof v === 'string')
+            .some((v) => v.toLowerCase().includes(q));
+    });
 });
 
+// Absolute counts over everything the tenant has, deliberately independent of
+// the filter below: these tiles are the status filter, so counting the filtered
+// set would drop every unselected tile to zero the moment one is picked.
 const statTiles = computed<
     Array<{
         id: StatusFilter;
@@ -295,22 +309,8 @@ const statTiles = computed<
     ];
 });
 
-// Tile click: set the filter AND, if a server status match exists, pass it
-// through to the search so `loadPromos` can pre-filter server-side if needed.
 function onStatusTileClick(id: StatusFilter): void {
     statusFilter.value = id;
-    const serverStatus =
-        id === 'active'
-            ? 'ACTIVE'
-            : id === 'paused'
-              ? 'PAUSED'
-              : id === 'expired'
-                ? 'EXPIRED'
-                : null;
-    if (serverStatus !== filter.status) {
-        filter.status = serverStatus;
-        reload();
-    }
 }
 
 const baseColumns = computed(() => [
@@ -423,10 +423,9 @@ function statusColor(status: string): string {
 async function reload() {
     loading.value = true;
     try {
-        rows.value = await props.loadPromos({
-            search: filter.search || undefined,
-            status: filter.status || undefined,
-        });
+        // Unfiltered on purpose: the tiles count the tenant's full set, and
+        // the table narrows locally, so filtering costs no round trip.
+        rows.value = await props.loadPromos({});
     } catch (err) {
         rows.value = [];
         console.warn('[PromoCodesPage] loadPromos failed:', err);
