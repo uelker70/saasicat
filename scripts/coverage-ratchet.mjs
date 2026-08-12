@@ -96,6 +96,12 @@ const SUMMARY = /^ℹ all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/
 function newestMtime(dir) {
     let newest = 0;
     const walk = (d) => {
+        // Directories count too, and not as an afterthought: deleting a source
+        // file leaves every surviving file's timestamp untouched, so a
+        // file-only maximum cannot see the deletion at all — the module stays
+        // in the bundle and the build looks current. Removing an entry does
+        // bump its parent directory.
+        newest = Math.max(newest, statSync(d).mtimeMs);
         for (const entry of readdirSync(d)) {
             const full = join(d, entry);
             const stat = statSync(full);
