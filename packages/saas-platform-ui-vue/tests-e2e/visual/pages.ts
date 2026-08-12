@@ -3,6 +3,7 @@ import type { Component } from 'vue';
 import type { PlatformEmailProvider } from '../../src/pages-standard/platform-email.types.js';
 import type { BundleVersionRow } from '@saasicat/types';
 import type { PromoDetailData } from '../../src/pages-standard/PromoCodeDetailPage.vue';
+import type { TenantDetailData } from '../../src/pages-standard/tenant-detail/types.js';
 import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
 import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
 import { FIXTURE_BUNDLES, FIXTURE_BUNDLE_VERSIONS } from './fixture-data.js';
@@ -195,13 +196,22 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         props: () => ({
             backRoute: '/admin/tenants',
             manifest: null,
-            loadDetail: async () => ({
+            loadDetail: async (): Promise<TenantDetailData> => ({
                 id: 't-0001',
                 name: 'Northwind Ltd',
                 slug: 'northwind',
                 isActive: true,
-                plan: 'PRO',
-                createdAt: '2025-03-04T09:00:00.000Z',
+                vatId: 'DE123456789',
+                // Nested, not top-level: TenantMasterData reads
+                // `data.subscription?.plan` and friends, so a flat `plan`
+                // rendered an em dash in every one of those fields.
+                subscription: {
+                    plan: 'PRO',
+                    status: 'ACTIVE',
+                    isPilot: false,
+                    trialEndsAt: null,
+                    pilotEndsAt: null,
+                },
                 users: [],
             }),
         }),

@@ -21,6 +21,14 @@
 //
 // It only reports the package's own files; see COVERAGE_INCLUDE for why that is
 // not a detail.
+//
+// PRECONDITION: a current build. The suites import from `dist/`, so measuring a
+// stale one describes a program nobody is running — silently, and in either
+// direction. That used to be a staleness heuristic here, and three review
+// rounds found three more build inputs it did not know about: a deleted source
+// file, `tsup.config.ts`, and the helpers that config imports. Enumerating the
+// inputs of an arbitrary build script is not winnable, so the `coverage` and
+// `coverage:update` npm scripts build first and this file simply measures.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -86,59 +94,6 @@ const SLACK = 0.5;
 const SUMMARY = /^ℹ all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/m;
 
 /**
- * Newest modification time anywhere below `dir`, or 0 when it does not exist.
- *
- * Used to tell a current build from a stale one. Checking only that `dist/`
- * exists answers the wrong question: a build from before the last edit exists
- * just as much as a fresh one, and the numbers it produces describe a program
- * nobody is running.
- */
-function newestMtime(dir) {
-    let newest = 0;
-    const walk = (d) => {
-        // Directories count too, and not as an afterthought: deleting a source
-        // file leaves every surviving file's timestamp untouched, so a
-        // file-only maximum cannot see the deletion at all — the module stays
-        // in the bundle and the build looks current. Removing an entry does
-        // bump its parent directory.
-        newest = Math.max(newest, statSync(d).mtimeMs);
-        for (const entry of readdirSync(d)) {
-            const full = join(d, entry);
-            const stat = statSync(full);
-            if (stat.isDirectory()) walk(full);
-            else newest = Math.max(newest, stat.mtimeMs);
-        }
-    };
-    try {
-        walk(dir);
-    } catch {
-        return 0;
-    }
-    return newest;
-}
-
-/**
- * Newest timestamp among everything the build reads.
- *
- * Not just `src/`: the bundler config and the build script itself decide what
- * ends up in `dist/`, so editing `tsup.config.ts` or a `build` script produces
- * a different program from unchanged sources — and a src-only comparison would
- * call the old bundle current.
- *
- * `tsconfig.json` counts too: it drives the declarations that ship.
- */
-function newestBuildInput(cwd) {
-    const files = ['package.json', 'tsup.config.ts', 'tsup.cjs.config.ts', 'tsconfig.json'];
-    return Math.max(
-        newestMtime(join(cwd, 'src')),
-        ...files.map((f) => {
-            const full = join(cwd, f);
-            return existsSync(full) ? statSync(full).mtimeMs : 0;
-        }),
-    );
-}
-
-/**
  * Collects test files without a shell.
  *
  * `spawn(..., { shell: true })` with arguments concatenates them into a command
@@ -168,31 +123,6 @@ function measure(pkg) {
     const cwd = join(REPO_ROOT, 'packages', pkg);
     const files = testFiles(cwd);
     if (files.length === 0) return null;
-
-    // The suites import from `dist/`, and so does the coverage report. Against a
-    // stale or missing build the numbers describe a different program than the
-    // one in the working tree — silently, and in either direction.
-    //
-    // Only packages that HAVE a build step are checked: @saasicat/spec ships
-    // hand-written entry files at its package root and never produces a dist/.
-    const manifest = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8'));
-    if (manifest.scripts?.build) {
-        const dist = join(cwd, 'dist');
-        if (!existsSync(dist)) {
-            throw new Error(
-                `${pkg} has no dist/ — run \`pnpm -r build\` first. Coverage is measured on the ` +
-                    `built output, so a missing build produces numbers for a different program.`,
-            );
-        }
-        if (newestBuildInput(cwd) > newestMtime(dist)) {
-            throw new Error(
-                `${pkg}'s dist/ is older than its sources or its build config — run \`pnpm -r build\` ` +
-                    `first. Measuring a ` +
-                    `stale build hides a regression just as easily as it invents one, and ` +
-                    `\`--update\` would write the thresholds down for the wrong program.`,
-            );
-        }
-    }
 
     const result = spawnSync(
         process.execPath,

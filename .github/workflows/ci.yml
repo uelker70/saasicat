@@ -78,6 +78,11 @@ jobs:
             # what is recorded in coverage-baseline.json. An invented threshold
             # would be either ignored or routed around; this one moves down as
             # the suites improve, and never up by accident.
+            #
+            # The script rebuilds first. That repeats the build step above, and
+            # the alternative — deciding whether dist/ is current — cost three
+            # review rounds and was still wrong; the suites measure dist/, so
+            # the build has to be a precondition rather than a guess.
             - name: Coverage ratchet
               run: pnpm run coverage
             # Uploaded even when the step above fails — that is precisely when
