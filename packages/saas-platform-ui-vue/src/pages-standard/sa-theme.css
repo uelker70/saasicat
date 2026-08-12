@@ -301,8 +301,9 @@
 .sa-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    /* Kept in step with GAP_PX in AdminStatistics, which subtracts the gap
+     * total when it caps the track count. */
     gap: 10px;
-    /* margin: 0 0 16px; */
 }
 
 .sa-kpi {

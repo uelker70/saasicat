@@ -238,6 +238,20 @@ describe('page shell contract', () => {
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
+    test('a table fed a paged slice does not page it again', () => {
+        // Removing `:pagination` from a QTable does not turn its paging off —
+        // it falls back to Quasar's own default. With `hide-pagination` that
+        // silently trimmed every list to a handful of rows, so choosing a page
+        // size in AdminPaginator changed a number with no visible effect.
+        const offenders = allVueFiles().filter((file) => {
+            const template = templateOf(readFileSync(file, 'utf8'));
+            if (!template.includes(':rows="pagedRows"')) return false;
+            return !/:pagination="\{ rowsPerPage: ALL_ROWS \}"/.test(template);
+        });
+
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
+    });
+
     test('no page declares its own statistic tile styling', () => {
         // Seven near-copies of the same tile preceded AdminKpi, two of them
         // byte identical, three living in unscoped page-level <style> blocks

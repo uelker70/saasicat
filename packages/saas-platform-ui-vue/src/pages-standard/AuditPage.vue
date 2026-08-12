@@ -53,6 +53,7 @@
                 <q-table
                     flat
                     :rows="pagedRows"
+                    :pagination="{ rowsPerPage: ALL_ROWS }"
                     :columns="columns"
                     row-key="id"
                     :loading="loading"
@@ -99,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { usePagination } from '../vue/use-pagination.js';
+import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
 import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';

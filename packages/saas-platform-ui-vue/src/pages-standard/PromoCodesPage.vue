@@ -56,6 +56,7 @@
                 <q-table
                     flat
                     :rows="pagedRows"
+                    :pagination="{ rowsPerPage: ALL_ROWS }"
                     :columns="effectiveColumns"
                     row-key="id"
                     :loading="loading"
@@ -117,7 +118,7 @@
 // `<script setup>` (the whole setup section is wrapped in setup()).
 // Pure helpers + constants therefore live here in the regular `<script>` block.
 
-import { usePagination } from '../vue/use-pagination.js';
+import { ALL_ROWS, usePagination } from '../vue/use-pagination.js';
 import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
 import type { PromoCodePlanOption } from '../components/dialogs/types.js';
 

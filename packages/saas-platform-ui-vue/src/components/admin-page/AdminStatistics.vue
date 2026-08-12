@@ -25,11 +25,16 @@ const props = defineProps<{
 }>();
 
 const TILE_MIN_WIDTH = '150px';
-const GAP = '10px';
+const GAP_PX = 10;
 
 const gridStyle = computed(() => {
     const n = props.columns!;
-    const track = `max(${TILE_MIN_WIDTH}, (100% - (${n} - 1) * ${GAP}) / ${n})`;
+    // The gap total is computed here rather than left as `(n - 1) * 10px` in
+    // the declaration: a plain calc() sum is the conservative form, and one
+    // rejected expression would drop the whole track list back to an uncapped
+    // auto-fit — the cap would fail open, invisibly.
+    const gaps = `${(n - 1) * GAP_PX}px`;
+    const track = `max(${TILE_MIN_WIDTH}, calc((100% - ${gaps}) / ${n}))`;
     return { gridTemplateColumns: `repeat(auto-fit, minmax(${track}, 1fr))` };
 });
 </script>

@@ -15,13 +15,24 @@ import {
     QList,
     QMenu,
     QSelect,
+    QTable,
     Quasar,
     ClosePopup,
 } from 'quasar';
 import { mount, type MountingOptions } from '@vue/test-utils';
 import type { Component } from 'vue';
 
-const QUASAR_COMPONENTS = { QBtn, QIcon, QInput, QItem, QItemSection, QList, QMenu, QSelect };
+const QUASAR_COMPONENTS = {
+    QBtn,
+    QIcon,
+    QInput,
+    QItem,
+    QItemSection,
+    QList,
+    QMenu,
+    QSelect,
+    QTable,
+};
 
 export function mountWithQuasar<T extends Component>(
     component: T,

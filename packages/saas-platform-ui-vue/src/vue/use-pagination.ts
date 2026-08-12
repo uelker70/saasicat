@@ -14,7 +14,7 @@ export const ALL_ROWS = 0;
 export const DEFAULT_ROWS_PER_PAGE = 10;
 
 /** The sizes every pager offers, in order. */
-export const PAGE_SIZE_OPTIONS = [10, 25, 50, ALL_ROWS] as const;
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, ALL_ROWS] as const;
 
 export interface UsePaginationResult<T> {
     page: Ref<number>;

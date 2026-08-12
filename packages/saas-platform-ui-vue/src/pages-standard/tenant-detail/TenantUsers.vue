@@ -1,5 +1,12 @@
 <template>
-    <q-table flat :rows="pagedRows" :columns="columns" row-key="id" hide-pagination />
+    <q-table
+        flat
+        :rows="pagedRows"
+        :columns="columns"
+        row-key="id"
+        :pagination="{ rowsPerPage: ALL_ROWS }"
+        hide-pagination
+    />
 
     <AdminPaginator
         storage-key="tenant-users"
@@ -11,7 +18,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { usePagination } from '../../vue/use-pagination.js';
+import { ALL_ROWS, usePagination } from '../../vue/use-pagination.js';
 import AdminPaginator from '../../components/admin-page/AdminPaginator.vue';
 import type { QTableColumn } from 'quasar';
 

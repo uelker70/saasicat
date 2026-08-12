@@ -35,12 +35,12 @@
                     class="sa-btn sa-btn--danger"
                     type="button"
                     :title="planDetailMsg.header.deletePlanTitle"
-                    @click="onArchivePlanFromList(selectedPlan, false)"
+                    @click="onArchiveSelectedPlan"
                 >
                     <q-icon name="delete_outline" size="16px" />
                     <span>{{ planDetailMsg.header.deletePlan }}</span>
                 </button>
-                <button class="sa-btn" type="button" @click="onClonePlan(selectedPlan)">
+                <button class="sa-btn" type="button" @click="onCloneSelectedPlan">
                     <q-icon name="content_copy" size="16px" />
                     <span>{{ planDetailMsg.header.clonePlan }}</span>
                 </button>
@@ -674,6 +674,18 @@ async function onEditDraftFromList(plan: PlanRow, draft: PlanVersionRow): Promis
     mode.value = 'cockpit';
     await Promise.all([loadCockpitVersions(plan), loadAuditFor(plan)]);
     openEditDraft(draft);
+}
+
+// The hero's detail actions only render while a plan is selected, but a
+// template condition on the surrounding slot does not narrow `selectedPlan`
+// inside a handler expression — a consumer's stricter build rejects it. These
+// carry the guard in code, where the type checker can see it.
+function onCloneSelectedPlan(): void {
+    if (selectedPlan.value) onClonePlan(selectedPlan.value);
+}
+
+function onArchiveSelectedPlan(): void {
+    if (selectedPlan.value) onArchivePlanFromList(selectedPlan.value, false);
 }
 
 function onBackToList(): void {
