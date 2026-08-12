@@ -190,11 +190,29 @@ export type InstallPlugin = (app: App) => void;
  * behavior (auth redirect, manifest fail-closed path). Consumers should call
  * `createSuperAdminApp()`, not this helper directly.
  */
+/**
+ * Recognises "your session is gone" among manifest-load failures.
+ *
+ * Structural rather than `instanceof`: the manifest loader lives in the
+ * framework-free client layer, and a consumer store may wrap or re-throw the
+ * error (or use its own loader entirely). What all of them carry is a numeric
+ * `status`.
+ */
+function isUnauthorizedError(err: unknown): boolean {
+    const status = (err as { status?: unknown } | null)?.status;
+    return status === 401 || status === 403;
+}
+
 export function buildNavigationGuard(
     options: SuperAdminGuardOptions,
 ): NavigationGuardWithThis<undefined> | null {
     const { authGuard, manifestGuard } = options;
     if (!authGuard && !manifestGuard) return null;
+
+    // Set when a manifest 401/403 already sent the user to `onUnauthenticated()`.
+    // Cleared as soon as any navigation gets through, so a later expiry is
+    // handled again — see the loop note below.
+    let redirectedForUnauthorized = false;
 
     return async (to: RouteLocationNormalized) => {
         if (to.meta?.public === true) return true;
@@ -209,7 +227,30 @@ export function buildNavigationGuard(
         if (manifestGuard) {
             try {
                 await manifestGuard.ensureLoaded();
+                redirectedForUnauthorized = false;
             } catch (err) {
+                // A 401/403 is usually an expired or missing session, not a
+                // broken manifest. Sending it to the fail-closed error page
+                // tells the operator "the manifest could not be loaded" and
+                // leaves them on a dead end, when the truth is "log in again".
+                //
+                // This happens whenever `isAuthenticated()` only checks that a
+                // token exists (the common implementation) while the token has
+                // expired: auth passes, the manifest request does not.
+                //
+                // Exactly ONCE, though. `onUnauthenticated()` commonly clears
+                // the session (`authStore.logout(); return '/login'`), so if
+                // the manifest keeps rejecting for a reason the login cannot
+                // fix — the account lacks the admin role, the endpoint is
+                // misconfigured, the backend is down — retrying it produces
+                // an unbreakable loop: log in → /admin → 401 → logged out →
+                // /login. The second time we fail closed to the error page
+                // instead, which at least says something and keeps the session.
+                if (authGuard && isUnauthorizedError(err) && !redirectedForUnauthorized) {
+                    redirectedForUnauthorized = true;
+                    return authGuard.onUnauthenticated();
+                }
+
                 if (manifestGuard.errorRoute && to.path !== manifestGuard.errorRoute) {
                     return manifestGuard.errorRoute;
                 }

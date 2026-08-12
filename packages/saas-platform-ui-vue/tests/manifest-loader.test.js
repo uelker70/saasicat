@@ -187,3 +187,71 @@ describe('ManifestLoader.readCachedBody', () => {
         assert.equal(cached.body.build.manifestHash, 'sha256-abc');
     });
 });
+
+describe('ManifestLoader — token acquired after construction', () => {
+    // `platform-loaders.ts` builds the loader at MODULE SCOPE, i.e. long before
+    // anyone has logged in. Every consumer does it that way, and the scaffolder
+    // template generates it that way.
+    //
+    // So the loader must read `getAuthToken()` per request. Reading it once in
+    // the constructor would produce the nastiest possible failure shape: the
+    // admin works after a page refresh (token already in storage at module
+    // load) and 401s right after logging in (token acquired later) — which
+    // looks like a backend problem and is not.
+
+    test('reads the token per request, not once at construction', async () => {
+        let token = null; // not logged in yet
+        const calls = [];
+        const loader = new ManifestLoader({
+            endpoint: '/api/v1/admin/manifest',
+            getAuthToken: () => token,
+            storage: buildStorage(),
+            http: (url, init) => {
+                calls.push(init);
+                return Promise.resolve({
+                    status: 200,
+                    headers: { get: () => null },
+                    json: async () => SAMPLE_MANIFEST,
+                    text: async () => '',
+                });
+            },
+        });
+
+        await loader.load();
+        assert.equal(calls[0].headers.Authorization, undefined, 'anonymous first call');
+
+        token = 'jwt-after-login'; // the user logs in — same loader instance
+        await loader.load();
+
+        assert.equal(
+            calls[1].headers.Authorization,
+            'Bearer jwt-after-login',
+            'the second call must carry the token acquired after construction',
+        );
+    });
+
+    test('a token that changes between requests is not cached', async () => {
+        const tokens = ['first', 'refreshed'];
+        const calls = [];
+        const loader = new ManifestLoader({
+            endpoint: '/api/v1/admin/manifest',
+            getAuthToken: () => tokens.shift() ?? null,
+            storage: buildStorage(),
+            http: (url, init) => {
+                calls.push(init);
+                return Promise.resolve({
+                    status: 200,
+                    headers: { get: () => null },
+                    json: async () => SAMPLE_MANIFEST,
+                    text: async () => '',
+                });
+            },
+        });
+
+        await loader.load();
+        await loader.load();
+
+        assert.equal(calls[0].headers.Authorization, 'Bearer first');
+        assert.equal(calls[1].headers.Authorization, 'Bearer refreshed');
+    });
+});

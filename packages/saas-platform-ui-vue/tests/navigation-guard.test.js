@@ -117,3 +117,150 @@ describe('buildNavigationGuard — manifest fail-closed', () => {
         assert.equal(calls, 1);
     });
 });
+
+describe('buildNavigationGuard — expired session vs broken manifest', () => {
+    // Reported from a running app: the admin bootstraps with a stale token,
+    // `isAuthenticated()` sees a token in localStorage and passes, and the very
+    // next request — GET /admin/manifest — comes back 401. The guard then sent
+    // the operator to the fail-closed error page, which says "the manifest
+    // could not be loaded" and offers Reload / Logout. Both statements are
+    // wrong: the manifest is fine, the session is not, and the way out is the
+    // login form.
+    //
+    // `isAuthenticated()` checking only for the presence of a token is the
+    // common consumer implementation, so this is the normal path after a token
+    // expires, not an edge case.
+
+    function guardWith(status) {
+        return buildNavigationGuard({
+            authGuard: {
+                isAuthenticated: () => true,
+                onUnauthenticated: () => '/login',
+            },
+            manifestGuard: {
+                ensureLoaded: async () => {
+                    throw Object.assign(new Error(`HTTP ${status}`), { status });
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+    }
+
+    test('401 from the manifest load routes to login, not to the error page', async () => {
+        const result = await guardWith(401)(makeRoute('/admin'));
+        assert.equal(result, '/login');
+    });
+
+    test('403 is treated the same way', async () => {
+        const result = await guardWith(403)(makeRoute('/admin'));
+        assert.equal(result, '/login');
+    });
+
+    test('a genuine manifest failure still fails closed to the error page', async () => {
+        const result = await guardWith(500)(makeRoute('/admin'));
+        assert.equal(result, '/admin-error');
+    });
+
+    test('an error without a status stays on the fail-closed path', async () => {
+        const guard = buildNavigationGuard({
+            authGuard: { isAuthenticated: () => true, onUnauthenticated: () => '/login' },
+            manifestGuard: {
+                ensureLoaded: async () => {
+                    throw new Error('network down');
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+        assert.equal(await guard(makeRoute('/admin')), '/admin-error');
+    });
+
+    test('without an authGuard a 401 still reaches the error page', async () => {
+        // Nothing to redirect to — failing closed remains the correct outcome.
+        const guard = buildNavigationGuard({
+            manifestGuard: {
+                ensureLoaded: async () => {
+                    throw Object.assign(new Error('HTTP 401'), { status: 401 });
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+        assert.equal(await guard(makeRoute('/admin')), '/admin-error');
+    });
+});
+
+describe('buildNavigationGuard — no login loop on a persistent manifest 401', () => {
+    // Reported from a running app, and caused by the redirect above.
+    //
+    // A consumer's `onUnauthenticated()` typically CLEARS the session:
+    //
+    //     onUnauthenticated: () => { useAuthStore().logout(); return '/login'; }
+    //
+    // So routing every manifest 401 there is only correct while logging in
+    // again can actually fix it. When it cannot — the account has no admin
+    // role, the manifest endpoint is misconfigured, the backend is down — the
+    // user is thrown into an unbreakable circle: log in → /admin → 401 →
+    // logged out → /login → log in → …
+    //
+    // The second attempt must therefore fail closed to the error page: it
+    // names the problem and, crucially, leaves the session alone.
+
+    function guardWithPersistent401() {
+        const logouts = [];
+        const guard = buildNavigationGuard({
+            authGuard: {
+                isAuthenticated: () => true,
+                onUnauthenticated: () => {
+                    logouts.push('logout');
+                    return '/login';
+                },
+            },
+            manifestGuard: {
+                ensureLoaded: async () => {
+                    throw Object.assign(new Error('HTTP 401'), { status: 401 });
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+        return { guard, logouts };
+    }
+
+    test('first 401 offers a re-login, the second stops the circle', async () => {
+        const { guard, logouts } = guardWithPersistent401();
+
+        assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.equal(await guard(makeRoute('/admin')), '/admin-error');
+        assert.equal(await guard(makeRoute('/admin')), '/admin-error');
+
+        // Exactly one forced logout — not one per attempt.
+        assert.deepEqual(logouts, ['logout']);
+    });
+
+    test('a successful load re-arms the redirect for a later expiry', async () => {
+        let fail = true;
+        const logouts = [];
+        const guard = buildNavigationGuard({
+            authGuard: {
+                isAuthenticated: () => true,
+                onUnauthenticated: () => {
+                    logouts.push('logout');
+                    return '/login';
+                },
+            },
+            manifestGuard: {
+                ensureLoaded: async () => {
+                    if (fail) throw Object.assign(new Error('HTTP 401'), { status: 401 });
+                },
+                errorRoute: '/admin-error',
+            },
+        });
+
+        assert.equal(await guard(makeRoute('/admin')), '/login'); // token expired
+        fail = false;
+        assert.equal(await guard(makeRoute('/admin')), true); // logged in again
+        fail = true;
+        // A much later expiry has to be offered a re-login again, not be
+        // treated as a continuation of the first one.
+        assert.equal(await guard(makeRoute('/admin')), '/login');
+        assert.deepEqual(logouts, ['logout', 'logout']);
+    });
+});

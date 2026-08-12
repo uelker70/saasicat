@@ -106,7 +106,7 @@ export class ManifestLoader {
         if (res.status !== 200) {
             throw new ManifestLoadError(
                 res.status,
-                `Manifest-Endpunkt antwortete HTTP ${res.status}`,
+                `Manifest endpoint responded with HTTP ${res.status}`,
             );
         }
 
