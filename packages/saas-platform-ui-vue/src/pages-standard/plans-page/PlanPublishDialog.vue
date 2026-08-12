@@ -100,7 +100,7 @@ defineEmits<{
 .sa-publish-regression {
     margin: 0;
     padding-left: 18px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-body);
 }
 .sa-publish-regression li {

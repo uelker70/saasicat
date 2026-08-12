@@ -38,7 +38,7 @@ defineProps<{
     align-items: center;
     gap: 10px;
     font:
-        500 13px 'Inter',
+        500 var(--sa-text-md) 'Inter',
         system-ui,
         sans-serif;
     box-shadow: 0 12px 40px var(--sa-shadow-tint-4);

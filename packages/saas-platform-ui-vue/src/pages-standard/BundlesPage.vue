@@ -725,16 +725,16 @@ const classifyDiff = computed(() => props.classifyDiff);
 }
 .sa-bd-card__key {
     font-weight: 700;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-family: var(--sa-font-mono, ui-monospace, monospace);
 }
 .sa-bd-card__name {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     margin-top: 2px;
 }
 .sa-bd-card__desc {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
 }
 .sa-bd-card__chev {
@@ -774,7 +774,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     margin-top: 4px;
 }
 .sa-bd-section-label {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -795,7 +795,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     gap: 10px;
 }
 .sa-bd-i18n-hint {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
 .sa-bd-i18n-block {
@@ -813,14 +813,14 @@ const classifyDiff = computed(() => props.classifyDiff);
     align-items: center;
 }
 .sa-bd-i18n-code {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     background: var(--sa-color-border-soft);
     padding: 2px 7px;
     border-radius: 5px;
 }
 .sa-bd-i18n-fallback {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     color: var(--sa-color-warning-fg);
 }
 .sa-bd-save {
@@ -850,7 +850,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     align-items: center;
 }
 .sa-bd-version__sub {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
     margin: 2px 0;
 }
@@ -860,7 +860,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     gap: 4px;
 }
 .sa-bd-feat-chip {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     background: var(--sa-color-border-soft);
     padding: 2px 6px;
     border-radius: 5px;
@@ -873,7 +873,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     padding: 20px;
     text-align: center;
     color: var(--sa-color-fg-subtle);
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 8px;
 }
@@ -883,6 +883,6 @@ const classifyDiff = computed(() => props.classifyDiff);
 .sa-bundles__warnings-list {
     margin: 8px 0 0;
     padding-left: 20px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 </style>

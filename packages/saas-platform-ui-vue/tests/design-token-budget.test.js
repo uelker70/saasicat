@@ -34,7 +34,11 @@ const FLOORS = {
     'hexColors.total': { floor: 0, why: 'every colour resolves to a semantic role token' },
     'functionalColors.total': { floor: 0, why: 'rgba() literals become shadow/overlay tokens' },
     distinctPixelValues: { floor: 12, why: 'the 12-step spacing scale' },
-    distinctFontSizes: { floor: 8, why: 'the 8-step type scale' },
+    // Zero, not "nine steps": this metric counts LITERAL sizes, and once every
+    // declaration reads `var(--sa-text-*)` there are none left to count. The
+    // scale itself is enforced where it can be — `theme-layer-discipline`
+    // asserts that no `font-size` in the package names a number.
+    distinctFontSizes: { floor: 0, why: 'every size reads a step of the type scale' },
     distinctBreakpoints: { floor: 5, why: 'xs/sm/md/lg/xl, aligned with Quasar' },
     'selfReferencingVars.total': { floor: 0, why: 'var(--x, var(--x)) is never meaningful' },
     worstStyleShare: { floor: 0.25, why: 'layout only; colour and surface come from primitives' },

@@ -302,7 +302,7 @@ defineExpose({ draft });
     align-items: center;
     gap: 8px;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--sa-color-accent);
@@ -313,7 +313,7 @@ defineExpose({ draft });
 }
 .sp-onb__header h1 {
     margin: 12px 0 8px;
-    font-size: clamp(1.6rem, 3vw, 2.4rem);
+    font-size: var(--sa-text-4xl);
     line-height: 1.1;
     letter-spacing: -0.01em;
 }
@@ -352,13 +352,13 @@ defineExpose({ draft });
 }
 .sp-onb__sec-head h2 {
     margin: 6px 0 0;
-    font-size: 1.4rem;
+    font-size: var(--sa-text-2xl);
     letter-spacing: -0.005em;
 }
 .sp-onb__sec-head p {
     margin: 4px 0 0;
     color: var(--sa-color-fg-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     max-width: 520px;
 }
 .sp-onb__sec-num {
@@ -366,7 +366,7 @@ defineExpose({ draft });
     align-items: center;
     gap: 8px;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--sa-color-accent);
@@ -396,7 +396,7 @@ defineExpose({ draft });
     border-radius: 10px;
     padding: 10px 16px;
     font-family: inherit;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     cursor: pointer;
     color: var(--sa-color-fg-body);
 }
@@ -408,6 +408,6 @@ defineExpose({ draft });
     background: var(--sa-color-negative-surface);
     padding: 10px 14px;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 </style>

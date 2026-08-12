@@ -495,7 +495,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     border: 1px solid var(--sa-color-negative-border);
     border-radius: 8px;
     color: var(--sa-color-negative-fg);
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     line-height: 1.5;
 }
 .bve-overlap-ico {
@@ -521,7 +521,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     align-items: baseline;
     justify-content: space-between;
     gap: 12px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -532,7 +532,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     margin-top: 8px;
 }
 .bve-section-count {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     color: var(--sa-color-fg-subtle);
     text-transform: none;
@@ -555,12 +555,12 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     gap: 4px;
 }
 .bve-field-label {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-secondary);
     font-weight: 600;
 }
 .bve-field-hint {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
 .bve-input-grp {
@@ -578,7 +578,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     display: inline-flex;
     align-items: center;
     padding: 0 8px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-bg-sunken);
     border-left: 1px solid var(--sa-color-border);
@@ -588,7 +588,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     padding: 6px 10px;
     border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-family: inherit;
     color: var(--sa-color-fg-heading);
     background: var(--sa-color-bg-surface);
@@ -598,7 +598,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     background: var(--sa-color-bg-sunken);
 }
 .bve-savings {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     display: inline-flex;
     align-items: center;
@@ -611,7 +611,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     color: var(--sa-color-positive-fg);
     border-radius: 4px;
     font-weight: 700;
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     letter-spacing: 0.04em;
 }
 .bve-toggle-row {
@@ -619,7 +619,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .bve-toggle-label {
     color: var(--sa-color-fg-heading);
@@ -628,7 +628,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     padding: 8px 10px;
     border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-family: inherit;
     color: var(--sa-color-fg-heading);
     background: var(--sa-color-bg-surface);
@@ -645,7 +645,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     font-family: inherit;
     color: var(--sa-color-fg-heading);
 }
@@ -670,6 +670,6 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     border: 1px solid var(--sa-color-negative-border);
     border-radius: 6px;
     color: var(--sa-color-negative-fg);
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
 }
 </style>

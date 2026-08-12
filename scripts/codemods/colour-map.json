@@ -6,7 +6,7 @@
         "KEYED BY PAIR, not by value. `#fff` under `background` is a surface and under",
         "`color` is a foreground; a hex-to-token map cannot tell them apart and would",
         "paint white text on white cards. The five groups come from the property:",
-        "text | surface | border | shadow | icon (see lib/style-colours.mjs).",
+        "text | surface | border | shadow | icon (see lib/stylesheets.mjs).",
         "",
         "HOW THE VALUES WERE CHOSEN. Not by taste: `node scripts/codemods/colour-to-token.mjs",
         "--report --context` prints every pair with the declarations it appears in, and the",

@@ -21,7 +21,7 @@
     min-height: 0;
     border-radius: var(--sa-radius-control);
     font-family: var(--sa-font-body);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 500;
     line-height: 1.3;
     letter-spacing: 0;
@@ -70,7 +70,7 @@
 /* Size and intent modifiers, carried over from the families that merged. */
 .sa-btn--sm {
     padding: 5px 8px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     gap: 5px;
 }
 .sa-btn--ghost {

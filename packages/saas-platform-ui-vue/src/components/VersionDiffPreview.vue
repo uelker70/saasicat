@@ -128,7 +128,7 @@ function formatValue(value: unknown): string {
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     align-items: center;
 }
 .sa-diff-preview__row--improvement {
@@ -151,7 +151,7 @@ function formatValue(value: unknown): string {
     align-items: center;
     gap: 6px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -168,12 +168,12 @@ function formatValue(value: unknown): string {
     color: var(--sa-color-fg-subtle);
     text-decoration: line-through;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 .sa-diff-preview__values .new {
     color: inherit;
     font-weight: 600;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 </style>

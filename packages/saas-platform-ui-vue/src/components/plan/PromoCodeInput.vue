@@ -109,7 +109,7 @@ function remove(): void {
     border-radius: 10px;
     color: var(--sa-color-accent);
     font-weight: 700;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     cursor: pointer;
     font-family: inherit;
     letter-spacing: 0.01em;
@@ -146,7 +146,7 @@ function remove(): void {
     border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     letter-spacing: 0.04em;
     background: var(--sa-color-bg-surface);
     outline: none;
@@ -162,7 +162,7 @@ function remove(): void {
     border: none;
     border-radius: 8px;
     font-family: inherit;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     cursor: pointer;
     min-width: 70px;
@@ -177,7 +177,7 @@ function remove(): void {
 }
 .sp-promo__msg {
     margin-top: 6px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
 }
 .sp-promo__msg--valid {

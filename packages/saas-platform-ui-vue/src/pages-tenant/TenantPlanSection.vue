@@ -649,7 +649,7 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
     flex-wrap: wrap;
 }
 .sp-plan-section__eyebrow {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--sp-text-muted);
@@ -657,7 +657,7 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 }
 .sp-plan-section__plan-name {
     margin: 0 0 8px;
-    font-size: 22px;
+    font-size: var(--sa-text-2xl);
     font-weight: 600;
 }
 .sp-plan-section__meta {
@@ -675,7 +675,7 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 .sp-plan-section__sub {
     margin: 6px 0 0;
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-plan-section__usage-title {
     font-weight: 600;
@@ -708,10 +708,10 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 }
 .sp-plan-section__item-price {
     color: var(--sp-text-secondary);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-plan-section__item-canceled {
     color: var(--sp-text-disabled);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 </style>

@@ -191,14 +191,14 @@ function coverage(locale: string): number {
 }
 .sa-qc__label {
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
 }
 .sa-qc__key {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
 }
 .sa-qc__flag {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 5px;
@@ -212,7 +212,7 @@ function coverage(locale: string): number {
     color: var(--sa-color-info-fg);
 }
 .sa-qc__sub {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
@@ -221,7 +221,7 @@ function coverage(locale: string): number {
     font-weight: 700;
 }
 .sa-qc__warning {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-negative-fg);
     margin-top: 4px;
 }
@@ -246,7 +246,7 @@ function coverage(locale: string): number {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 10px;

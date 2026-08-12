@@ -490,7 +490,7 @@ async function doSubmit(code: string): Promise<void> {
 }
 
 .pl-dlg__sub {
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
     margin-top: 3px;
     line-height: 1.4;
@@ -507,7 +507,7 @@ async function doSubmit(code: string): Promise<void> {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     background: var(--sa-color-accent-surface-strong);
     border: 1px solid var(--sa-color-info-border);
@@ -536,7 +536,7 @@ async function doSubmit(code: string): Promise<void> {
 }
 
 .pl-field label {
-    font: 600 11px var(--sa-font-body, system-ui, sans-serif);
+    font: 600 var(--sa-text-xs) var(--sa-font-body, system-ui, sans-serif);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--sa-color-fg-muted);
@@ -550,11 +550,11 @@ async function doSubmit(code: string): Promise<void> {
     text-transform: none;
     letter-spacing: 0;
     color: var(--sa-color-fg-subtle);
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
 }
 
 .pl-field__error {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-negative-fg);
 }
 
@@ -585,7 +585,7 @@ async function doSubmit(code: string): Promise<void> {
     padding: 9px 12px;
     background: var(--sa-color-bg-sunken);
     color: var(--sa-color-fg-subtle);
-    font: 500 12px var(--sa-font-mono, ui-monospace, monospace);
+    font: 500 var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);
     border-right: 1px solid var(--sa-color-border);
     white-space: nowrap;
 }

@@ -300,7 +300,7 @@ function formatValue(v: unknown): string {
     gap: 16px;
 }
 .bvpd__label {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -335,7 +335,7 @@ function formatValue(v: unknown): string {
 .bvpd__field {
     display: grid;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 700;
     color: var(--sa-color-fg-secondary);
 }
@@ -351,13 +351,13 @@ function formatValue(v: unknown): string {
 .bvpd__error {
     margin: 8px 0 0;
     color: var(--sa-color-negative);
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 700;
 }
 .bvpd__list {
     margin: 8px 0 0;
     padding-left: 20px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .bvpd__old {
     color: var(--sa-color-negative);

@@ -73,7 +73,7 @@ const formattedMax = computed(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-usage-bar__label {
     color: var(--sa-color-fg-secondary);

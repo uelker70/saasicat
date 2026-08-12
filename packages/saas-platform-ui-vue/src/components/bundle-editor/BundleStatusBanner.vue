@@ -147,7 +147,7 @@ const supersededTail = computed(() =>
     padding: 12px 14px;
     border-radius: 8px;
     border: 1px solid transparent;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     line-height: 1.4;
 }
 .bv-status-live {
@@ -195,7 +195,7 @@ const supersededTail = computed(() =>
     border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-negative-fg);
     font-family: inherit;
 }

@@ -134,7 +134,7 @@ function metaText(s: CatalogSnapshot): string {
     justify-content: space-between;
 }
 .sa-pv-timeline__title {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--sa-color-fg-muted);
@@ -142,7 +142,7 @@ function metaText(s: CatalogSnapshot): string {
 }
 .sa-pv-timeline__count {
     margin-top: 2px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
 }
 
@@ -235,12 +235,12 @@ function metaText(s: CatalogSnapshot): string {
 }
 .sa-pv-timeline__label {
     font-family: var(--sa-font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
 }
 .sa-pv-timeline__status {
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     letter-spacing: 0.06em;
     padding: 2px 6px;
@@ -259,7 +259,7 @@ function metaText(s: CatalogSnapshot): string {
     color: var(--sa-color-fg-muted);
 }
 .sa-pv-timeline__vs {
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     letter-spacing: 0.06em;
     background: var(--sa-color-warning-surface-strong);
@@ -268,7 +268,7 @@ function metaText(s: CatalogSnapshot): string {
     border-radius: 4px;
 }
 .sa-pv-timeline__h2 {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     color: var(--sa-color-fg-body);
     line-height: 1.3;
@@ -277,7 +277,7 @@ function metaText(s: CatalogSnapshot): string {
     text-overflow: ellipsis;
 }
 .sa-pv-timeline__meta {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
     margin-top: 2px;
     display: flex;
@@ -289,7 +289,7 @@ function metaText(s: CatalogSnapshot): string {
     padding: 10px 14px;
     border-top: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface-raised);
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
 }
 .sa-pv-timeline__hint {
@@ -303,7 +303,7 @@ function metaText(s: CatalogSnapshot): string {
     border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 4px 10px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     color: var(--sa-color-fg-body);
     cursor: pointer;

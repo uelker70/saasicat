@@ -124,7 +124,7 @@ function logout(): void | Promise<void> {
 }
 .sa-manifest-error__title {
     margin: 0;
-    font-size: 22px;
+    font-size: var(--sa-text-2xl);
 }
 .sa-manifest-error__lead,
 .sa-manifest-error__detail {
@@ -138,7 +138,7 @@ function logout(): void | Promise<void> {
     padding: 8px 12px;
     border-radius: 4px;
     font-family: ui-monospace, SFMono-Regular, monospace;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-negative-fg);
 }
 .sa-manifest-error__actions {

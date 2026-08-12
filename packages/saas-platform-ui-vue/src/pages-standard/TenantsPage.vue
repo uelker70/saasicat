@@ -543,7 +543,7 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
    AdminTable, behind a prop. */
 .sa-tenants__mono {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 
 .sa-tenants__tenant {
@@ -556,7 +556,7 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
     height: 32px;
     border-radius: 8px;
     font-weight: 800;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-family: var(--sa-font-head, system-ui, sans-serif);
     display: flex;
     align-items: center;
@@ -564,12 +564,12 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
     flex-shrink: 0;
 }
 .sa-tenants__name {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
 }
 .sa-tenants__slug {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
     font-family: var(--sa-font-mono, ui-monospace, monospace);
 }
@@ -595,7 +595,7 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     margin-left: 8px;
 }

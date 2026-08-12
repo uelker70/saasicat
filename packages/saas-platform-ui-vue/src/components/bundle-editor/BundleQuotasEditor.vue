@@ -174,13 +174,13 @@ function quotaUnit(q: DiscoveredQuota): string {
     min-width: 0;
 }
 .bd-quota-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
 }
 .bd-quota-key {
     font:
-        500 10.5px 'JetBrains Mono',
+        500 var(--sa-text-xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
     color: var(--sa-color-fg-subtle);
@@ -196,7 +196,7 @@ function quotaUnit(q: DiscoveredQuota): string {
     border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     font:
-        600 13px 'JetBrains Mono',
+        600 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
     text-align: right;
@@ -209,7 +209,7 @@ function quotaUnit(q: DiscoveredQuota): string {
     cursor: not-allowed;
 }
 .bd-quota-unit {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     min-width: 32px;
 }
@@ -217,6 +217,6 @@ function quotaUnit(q: DiscoveredQuota): string {
     padding: 12px;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
 }
 </style>

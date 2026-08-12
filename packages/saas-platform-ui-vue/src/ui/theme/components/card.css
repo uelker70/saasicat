@@ -19,7 +19,7 @@
 .sa-card__title {
     margin: 0 0 12px;
     font-family: var(--sa-font-head);
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
     letter-spacing: -0.005em;

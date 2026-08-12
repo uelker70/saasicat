@@ -182,7 +182,7 @@ function onToggle(planKey: string): void {
     gap: 10px;
 }
 .bv-compat-hint {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     line-height: 1.5;
 }
@@ -237,7 +237,7 @@ function onToggle(planKey: string): void {
     border: 1px solid var(--sa-color-scheduled-border);
     border-radius: 6px;
     font:
-        700 9px 'JetBrains Mono',
+        700 var(--sa-text-2xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
     letter-spacing: 0.04em;
@@ -248,12 +248,12 @@ function onToggle(planKey: string): void {
     min-width: 0;
 }
 .bv-compat-name {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
 }
 .bv-compat-key {
     font:
-        500 11px 'JetBrains Mono',
+        500 var(--sa-text-xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
     color: var(--sa-color-fg-muted);
@@ -273,7 +273,7 @@ function onToggle(planKey: string): void {
     color: var(--sa-color-negative-fg);
 }
 .bv-compat-overlap-head {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -283,7 +283,7 @@ function onToggle(planKey: string): void {
     align-items: center;
     gap: 5px;
     flex-wrap: wrap;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
 }
 .bv-compat-overlap-kind {
     color: var(--sa-color-negative-fg);
@@ -300,7 +300,7 @@ function onToggle(planKey: string): void {
     padding: 12px;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     text-align: center;
 }
 .bv-compat-summary {
@@ -312,7 +312,7 @@ function onToggle(planKey: string): void {
     border: 1px solid var(--sa-color-negative-border);
     border-radius: 8px;
     color: var(--sa-color-negative-fg);
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     line-height: 1.5;
 }
 .bv-compat-summary-ico {

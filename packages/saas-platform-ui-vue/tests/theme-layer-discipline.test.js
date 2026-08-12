@@ -128,6 +128,27 @@ describe('the token layers only point one way', () => {
         );
     });
 
+    test('every font-size names a step of the type scale', () => {
+        // The counting ratchet cannot express this once the migration is done:
+        // it counts literals, and there are none. What is worth guarding from
+        // here on is not the number of sizes but that nobody writes one — the
+        // package reached 23 sizes by each author picking a number that looked
+        // right next to the last one.
+        // Collect every size, then filter — a `(?!var\()` lookahead after a
+        // `\s*` is not the guard it looks like: the whitespace backtracks and
+        // the lookahead passes on the space, so every tokenised size reported
+        // itself as a violation.
+        const offenders = [...componentFiles, ...consumers]
+            .flatMap((file) => findings(file, /font-size:\s*([^;}]+)/g))
+            .filter((entry) => !/:\s*var\(--sa-text-/.test(entry));
+        assert.deepEqual(
+            offenders,
+            [],
+            'a literal font size. Pick the step that says what the text IS — ' +
+                '`--sa-text-sm` for a table cell, `--sa-text-xl` for a page title.',
+        );
+    });
+
     test('pages and components do not reach past the roles into the palette', () => {
         const offenders = consumers.flatMap((file) => findings(file, COLOUR_PRIMITIVE));
         assert.deepEqual(

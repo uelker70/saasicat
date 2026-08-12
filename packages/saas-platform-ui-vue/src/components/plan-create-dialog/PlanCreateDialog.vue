@@ -305,12 +305,12 @@ function onCancel(): void {
     min-width: 0;
 }
 .pcd-title {
-    font-size: 16px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     letter-spacing: -0.01em;
 }
 .pcd-sub {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
@@ -355,7 +355,7 @@ function onCancel(): void {
     margin-bottom: 0;
 }
 .pcd-field-label {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     color: var(--sa-color-fg-body);
     display: flex;
@@ -364,7 +364,7 @@ function onCancel(): void {
     margin-bottom: 6px;
 }
 .pcd-kbd {
-    font: 600 10.5px var(--sa-font-mono);
+    font: 600 var(--sa-text-xs) var(--sa-font-mono);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
     padding: 2px 6px;
@@ -378,7 +378,7 @@ function onCancel(): void {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
     border-radius: 7px;
-    font: 13.5px var(--sa-font-body);
+    font: var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-heading);
     outline: none;
     transition:
@@ -401,7 +401,7 @@ function onCancel(): void {
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 .pcd-hint {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     margin-top: 4px;
 }
@@ -439,12 +439,12 @@ function onCancel(): void {
     box-shadow: 0 0 0 3px var(--sa-shadow-tint-2);
 }
 .pcd-choice-title {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
 }
 .pcd-choice-sub {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
 }
 
@@ -462,7 +462,7 @@ function onCancel(): void {
     gap: 7px;
     padding: 9px 16px;
     border-radius: 7px;
-    font: 500 13px var(--sa-font-body);
+    font: 500 var(--sa-text-md) var(--sa-font-body);
     cursor: pointer;
     border: 1px solid var(--sa-color-border-strong);
     background: var(--sa-color-bg-surface);

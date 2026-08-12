@@ -207,21 +207,21 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     gap: 10px;
 }
 .sp-public-bundle__name {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
 }
 .sp-public-bundle__desc {
     margin: 4px 0 0;
     color: var(--sa-color-fg-muted);
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     line-height: 1.4;
 }
 .sp-public-bundle__tag {
     align-self: flex-start;
     white-space: nowrap;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     letter-spacing: 0.06em;
     color: var(--sa-color-positive-fg);
     background: var(--sa-color-positive-surface-strong);
@@ -232,7 +232,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
 }
 .sp-public-bundle__state {
     align-self: flex-start;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     padding: 3px 8px;
     border-radius: 999px;
@@ -251,7 +251,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     line-height: 1.4;
 }
@@ -270,13 +270,13 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     border-top: 1px dashed var(--sa-color-border);
 }
 .sp-public-bundle__foot strong {
-    font-size: 16px;
+    font-size: var(--sa-text-lg);
     font-weight: 800;
     color: var(--sa-color-fg-heading);
 }
 .sp-public-bundle__cycle {
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     color: var(--sa-color-fg-muted);
     letter-spacing: 0.06em;
 }
@@ -284,7 +284,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     grid-column: 1 / -1;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     padding: 20px;
     text-align: center;
 }

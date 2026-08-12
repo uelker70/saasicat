@@ -25,7 +25,7 @@ defineProps<{
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.04em;
     padding: 3px 8px;

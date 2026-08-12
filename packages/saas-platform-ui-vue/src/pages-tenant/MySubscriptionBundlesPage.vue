@@ -410,14 +410,14 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-title {
     margin: 0;
-    font-size: 20px;
+    font-size: var(--sa-text-xl);
     font-weight: 700;
     letter-spacing: -0.01em;
 }
 .msb-sub {
     margin: 4px 0 0;
     color: var(--sa-color-fg-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     max-width: 580px;
     line-height: 1.5;
 }
@@ -448,7 +448,7 @@ function formatDate(date: Date | string | null | undefined): string {
     border: 1px solid var(--sa-color-negative-border);
     border-radius: 8px;
     color: var(--sa-color-negative-fg);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .msb-list {
     display: flex;
@@ -482,18 +482,18 @@ function formatDate(date: Date | string | null | undefined): string {
 }
 .msb-card-key {
     font:
-        700 13px 'JetBrains Mono',
+        700 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
     letter-spacing: 0.04em;
 }
 .msb-card-meta {
     margin-top: 4px;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
 }
 .msb-chip {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -519,7 +519,7 @@ function formatDate(date: Date | string | null | undefined): string {
     border: 1px solid var(--sa-color-warning-border);
     border-radius: 6px;
     color: var(--sa-color-warning-fg);
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
 }
 
 .msb-btn {
@@ -532,7 +532,7 @@ function formatDate(date: Date | string | null | undefined): string {
     border-radius: 7px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
 }
 .msb-btn:hover:not(:disabled) {
@@ -583,7 +583,7 @@ function formatDate(date: Date | string | null | undefined): string {
     border-bottom: 1px solid var(--sa-color-border);
 }
 .msb-modal-title {
-    font-size: 16px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
 }
 .msb-modal-x {
@@ -619,12 +619,12 @@ function formatDate(date: Date | string | null | undefined): string {
     gap: 4px;
 }
 .msb-field-label {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     color: var(--sa-color-fg-secondary);
 }
 .msb-field-hint {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
 .msb-input {
@@ -632,7 +632,7 @@ function formatDate(date: Date | string | null | undefined): string {
     border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
     background: var(--sa-color-bg-surface);
 }

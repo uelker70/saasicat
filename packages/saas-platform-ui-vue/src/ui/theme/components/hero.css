@@ -26,7 +26,7 @@
 .sa-page-head__title {
     margin: 0;
     font-family: var(--sa-font-head);
-    font-size: 22px;
+    font-size: var(--sa-text-2xl);
     font-weight: 700;
     letter-spacing: -0.02em;
     line-height: 1.25;
@@ -34,7 +34,7 @@
 }
 .sa-page-head__sub {
     margin: 1px 0 0;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     line-height: 1.35;
     color: var(--sa-color-fg-muted);
 }

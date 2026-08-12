@@ -417,7 +417,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 .pc-section__title {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
     margin-bottom: 12px;
     letter-spacing: -0.005em;
@@ -427,7 +427,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     border: 0;
     background: transparent;
     cursor: pointer;
-    font: 600 12.5px var(--sa-font-body, system-ui, sans-serif);
+    font: 600 var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-secondary);
     display: inline-flex;
     align-items: center;
@@ -469,7 +469,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 }
 
 .pc-field__label {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     color: var(--sa-color-fg-muted);
     text-transform: uppercase;
@@ -477,7 +477,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 }
 
 .pc-field__hint {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
 }
 
@@ -487,7 +487,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 8px 10px;
-    font: 13.5px var(--sa-font-body, system-ui, sans-serif);
+    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-body);
     outline: 0;
 }
@@ -498,13 +498,13 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 }
 
 .pc-input--code {
-    font: 600 14px var(--sa-font-mono, ui-monospace, monospace);
+    font: 600 var(--sa-text-lg) var(--sa-font-mono, ui-monospace, monospace);
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 
 textarea.pc-input {
-    font: 13.5px var(--sa-font-body, system-ui, sans-serif);
+    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     resize: vertical;
 }
 
@@ -519,7 +519,7 @@ textarea.pc-input {
     background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
-    font: 500 12px var(--sa-font-body, system-ui, sans-serif);
+    font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
 }
@@ -556,12 +556,12 @@ textarea.pc-input {
 }
 
 .pc-type-opt__label {
-    font: 600 12.5px var(--sa-font-body, system-ui, sans-serif);
+    font: 600 var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-heading);
 }
 
 .pc-type-opt__sub {
-    font: 11.5px var(--sa-font-mono, ui-monospace, monospace);
+    font: var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);
     color: var(--sa-color-fg-muted);
     margin-top: 1px;
 }
@@ -580,7 +580,7 @@ textarea.pc-input {
     border: 1px solid var(--sa-color-border);
     border-radius: 999px;
     padding: 5px 12px 5px 8px;
-    font: 600 12px var(--sa-font-body, system-ui, sans-serif);
+    font: 600 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
     transition:
@@ -615,7 +615,7 @@ textarea.pc-input {
     background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
-    font: 500 12px var(--sa-font-body, system-ui, sans-serif);
+    font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     color: var(--sa-color-fg-secondary);
 }
@@ -630,7 +630,7 @@ textarea.pc-input {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font: 13px var(--sa-font-body, system-ui, sans-serif);
+    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-body);
     cursor: pointer;
 }
@@ -643,7 +643,7 @@ textarea.pc-input {
 }
 
 .pc-preview__eyebrow {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     color: var(--sa-color-accent);
     text-transform: uppercase;
@@ -663,18 +663,18 @@ textarea.pc-input {
     border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 3px 8px;
-    font: 600 13px var(--sa-font-mono, ui-monospace, monospace);
+    font: 600 var(--sa-text-md) var(--sa-font-mono, ui-monospace, monospace);
     letter-spacing: 0.04em;
     color: var(--sa-color-fg-heading);
 }
 
 .pc-preview__disc {
-    font: 700 13px var(--sa-font-body, system-ui, sans-serif);
+    font: 700 var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-positive-fg);
 }
 
 .pc-preview__meta {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
 }
 </style>

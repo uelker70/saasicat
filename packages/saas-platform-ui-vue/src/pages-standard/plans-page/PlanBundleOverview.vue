@@ -84,7 +84,7 @@ function compatLabel(bundle: BundleEntry): string {
 
 <style scoped>
 .sa-bundles__count {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-border);
     border-radius: 999px;
@@ -92,7 +92,7 @@ function compatLabel(bundle: BundleEntry): string {
 }
 .sa-bundle-overview__empty {
     color: var(--sa-color-fg-muted);
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     padding: 8px 0;
 }
 .sa-bundles__grid {
@@ -108,12 +108,12 @@ function compatLabel(bundle: BundleEntry): string {
     color: var(--sa-color-fg-heading);
 }
 .sa-bundle__key {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     font-family: monospace;
 }
 .sa-bundle__caption {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--sa-color-fg-subtle);
@@ -135,7 +135,7 @@ function compatLabel(bundle: BundleEntry): string {
     padding-top: 0;
 }
 .sa-bundle__plans {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-body);
 }
 </style>

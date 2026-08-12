@@ -481,23 +481,23 @@ onMounted(() => {
 }
 .sa-discovery__banner-name {
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
 }
 .sa-discovery__banner-meta {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
 .sa-discovery__banner-time {
     text-align: right;
 }
 .sa-discovery__banner-time-lbl {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--sa-color-fg-subtle);
 }
 .sa-discovery__banner-time-val {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
 }
 .sa-discovery__error {
@@ -524,7 +524,7 @@ onMounted(() => {
     color: var(--sa-color-warning-fg);
 }
 .sa-discovery__group-count {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     background: var(--sa-color-border);
     color: var(--sa-color-fg-secondary);
@@ -533,11 +533,11 @@ onMounted(() => {
 }
 .sa-discovery__orphan-hint {
     margin: 0 0 8px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-warning-fg);
 }
 .sa-discovery__orphan-hint code {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     background: var(--sa-color-warning-surface);
     padding: 1px 4px;
     border-radius: 4px;
@@ -546,7 +546,7 @@ onMounted(() => {
     padding: 36px;
     text-align: center;
     color: var(--sa-color-fg-subtle);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 12px;
 }
@@ -556,7 +556,7 @@ onMounted(() => {
 }
 /* Status badge (review lifecycle) — shared by feature and quota card. */
 .sa-review {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     padding: 3px 8px;
@@ -582,7 +582,7 @@ onMounted(() => {
     color: var(--sa-color-fg-muted);
 }
 .sa-chip {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
@@ -594,7 +594,7 @@ onMounted(() => {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 8px;

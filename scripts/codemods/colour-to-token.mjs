@@ -27,7 +27,7 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { colourSites, siteKey } from './lib/style-colours.mjs';
+import { colourSites, siteKey } from './lib/stylesheets.mjs';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');

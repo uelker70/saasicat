@@ -506,14 +506,14 @@ async function submit(): Promise<void> {
     border-bottom: 1px solid var(--sa-color-border);
 }
 .bcp-title {
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
     letter-spacing: -0.01em;
 }
 .bcp-sub {
     margin-top: 4px;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
     max-width: 580px;
     line-height: 1.5;
@@ -555,18 +555,18 @@ async function submit(): Promise<void> {
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
     font:
-        700 12px 'JetBrains Mono',
+        700 var(--sa-text-sm) 'JetBrains Mono',
         ui-monospace,
         monospace;
     flex: 0 0 auto;
 }
 .bcp-section-title {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
 }
 .bcp-section-sub {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     margin-top: 2px;
     line-height: 1.4;
@@ -585,12 +585,12 @@ async function submit(): Promise<void> {
     gap: 4px;
 }
 .bcp-field-label {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     color: var(--sa-color-fg-secondary);
 }
 .bcp-field-hint {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     font-weight: 500;
 }
@@ -599,13 +599,13 @@ async function submit(): Promise<void> {
     border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     font-family: inherit;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
     background: var(--sa-color-bg-surface);
 }
 .bcp-input--mono {
     font:
-        600 13px 'JetBrains Mono',
+        600 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
     letter-spacing: 0.02em;
@@ -627,14 +627,14 @@ async function submit(): Promise<void> {
     display: inline-flex;
     align-items: center;
     padding: 0 10px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-bg-sunken);
     border-left: 1px solid var(--sa-color-border);
     border-radius: 0 6px 6px 0;
 }
 .bcp-error-inline {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-negative-fg);
 }
 .bcp-error {
@@ -643,7 +643,7 @@ async function submit(): Promise<void> {
     border: 1px solid var(--sa-color-negative-border);
     border-radius: 6px;
     color: var(--sa-color-negative-fg);
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
 }
 .bcp-foot {
     display: flex;
@@ -659,7 +659,7 @@ async function submit(): Promise<void> {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
 }
 .bcp-foot-hint--warn {
@@ -672,7 +672,7 @@ async function submit(): Promise<void> {
     border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     font-family: inherit;
     color: var(--sa-color-fg-heading);
 }

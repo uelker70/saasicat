@@ -189,12 +189,12 @@ async function onSubmit() {
 .pc-dlg__title {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     color: var(--sa-color-fg-heading);
 }
 
 .pc-dlg__sub {
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
@@ -214,7 +214,7 @@ async function onSubmit() {
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
     color: var(--sa-color-negative-fg);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     margin: 8px 0 0;
     padding: 8px 12px;
     border-radius: 8px;

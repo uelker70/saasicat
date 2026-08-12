@@ -22,13 +22,13 @@ defineProps<{ label: string; value: string }>();
 }
 .kv__label {
     color: var(--sa-color-fg-muted);
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 700;
 }
 .kv__value {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
     margin-top: 4px;

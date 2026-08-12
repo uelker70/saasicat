@@ -100,7 +100,7 @@ function translationCount(bundle: BundleRow): string {
    DiscoveryPage.vue would otherwise override .sa-bundle-chip--live (same specificity,
    later source order) and render the "Live" tag grey instead of green. */
 .sa-bundle-chip {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;

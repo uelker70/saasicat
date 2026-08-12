@@ -19,5 +19,5 @@
     gap: 12px;
 }
 .sa-page-body__state--empty {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }

@@ -139,7 +139,7 @@ function planPrice(plan: CatalogPlan): number | null {
     right: 14px;
     background: var(--sa-color-accent);
     color: var(--sa-color-fg-on-accent);
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 4px 10px;
     border-radius: 999px;
@@ -151,12 +151,12 @@ function planPrice(plan: CatalogPlan): number | null {
     color: var(--sp-flag-current-fg);
 }
 .sp-model__name {
-    font-size: 17px;
+    font-size: var(--sa-text-xl);
     font-weight: 700;
     color: var(--sp-text-strong);
 }
 .sp-model__tagline {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sp-text-muted);
     line-height: 1.4;
 }
@@ -167,12 +167,12 @@ function planPrice(plan: CatalogPlan): number | null {
     margin-top: 4px;
 }
 .sp-model__price strong {
-    font-size: 22px;
+    font-size: var(--sa-text-2xl);
     font-weight: 800;
     color: var(--sp-text-strong);
 }
 .sp-model__price-cycle {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sp-text-muted);
 }
 .sp-model__quotas {
@@ -187,15 +187,15 @@ function planPrice(plan: CatalogPlan): number | null {
     display: flex;
     flex-direction: column;
     gap: 1px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
 }
 .sp-model__quota strong {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     color: var(--sp-text-strong);
 }
 .sp-model__quota span {
     color: var(--sp-text-muted);
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }

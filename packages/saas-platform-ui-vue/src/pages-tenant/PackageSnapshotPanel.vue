@@ -170,7 +170,7 @@ const rawJson = computed(() => {
     flex-wrap: wrap;
 }
 .sp-package-snapshot__eyebrow {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--sp-text-muted);
@@ -180,11 +180,11 @@ const rawJson = computed(() => {
 .sp-package-snapshot__sub {
     margin: 0;
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-package-snapshot__empty {
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-style: italic;
 }
 .sp-package-snapshot__list {
@@ -204,7 +204,7 @@ const rawJson = computed(() => {
 }
 .sp-package-snapshot__muted {
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-package-snapshot__bundles {
     margin: 0;
@@ -221,13 +221,13 @@ const rawJson = computed(() => {
     padding: 12px;
     background: var(--sp-pre-bg);
     border-radius: 4px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     overflow-x: auto;
     max-height: 320px;
 }
 code {
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     background: var(--sp-pre-bg);
     padding: 1px 4px;
     border-radius: 3px;

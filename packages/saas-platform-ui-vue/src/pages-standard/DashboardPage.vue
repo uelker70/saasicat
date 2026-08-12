@@ -421,7 +421,7 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__count {
     background: var(--sa-color-accent-surface);
     color: var(--sa-color-accent);
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 5px;
@@ -440,7 +440,7 @@ function barWidth(value: number, max?: number): number {
     grid-template-columns: 130px 1fr 50px;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sa-dashboard__bar-name {
     font-weight: 600;
@@ -498,7 +498,7 @@ function barWidth(value: number, max?: number): number {
     font-family: var(--sa-font-head, system-ui, sans-serif);
 }
 .sa-dashboard__shortcut-sub {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }

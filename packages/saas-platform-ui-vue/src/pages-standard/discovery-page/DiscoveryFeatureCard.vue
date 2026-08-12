@@ -300,7 +300,7 @@ function coverage(locale: string): number {
     flex-wrap: wrap;
 }
 .sa-fc__key {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
@@ -309,12 +309,12 @@ function coverage(locale: string): number {
     white-space: nowrap;
 }
 .sa-fc__label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
 }
 .sa-fc__flag {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 5px;
@@ -336,7 +336,7 @@ function coverage(locale: string): number {
     color: var(--sa-color-info-fg);
 }
 .sa-fc__sub {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
     margin-top: 1px;
 }
@@ -371,7 +371,7 @@ function coverage(locale: string): number {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 10px;
@@ -396,7 +396,7 @@ function coverage(locale: string): number {
     gap: 14px;
 }
 .sa-fc__split-head {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -421,7 +421,7 @@ function coverage(locale: string): number {
     gap: 3px;
 }
 .sa-fc-field__cap {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);

@@ -333,7 +333,7 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
 }
 .sa-tenant-detail__card-sub {
     color: var(--sa-color-fg-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     margin: 4px 0 0;
 }
 .sa-tenant-detail__card-actions {
@@ -344,12 +344,12 @@ const defaultUserColumns = computed<QTableColumn[]>(() => [
 }
 .sa-tenant-detail__empty {
     color: var(--sa-color-fg-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 code {
     background: var(--sa-color-bg-sunken);
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 </style>

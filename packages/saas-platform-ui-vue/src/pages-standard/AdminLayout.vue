@@ -309,7 +309,7 @@ const currentPageTitle = computed(() => {
     justify-content: center;
     gap: 8px;
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     letter-spacing: 0.05em;
     text-transform: uppercase;
 }
@@ -326,7 +326,7 @@ const currentPageTitle = computed(() => {
     color: var(--sa-admin-header-fg, var(--sa-color-inverse-fg));
 }
 .sa-admin-header__sub {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-admin-header-sub, var(--sa-color-inverse-accent));
     font-weight: 400;
 }
@@ -336,7 +336,7 @@ const currentPageTitle = computed(() => {
     color: var(--sa-admin-badge-fg, var(--sa-color-inverse-accent-fg));
     font-weight: 800;
     letter-spacing: 0.08em;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     padding: 4px 8px;
 }
 
@@ -398,7 +398,7 @@ const currentPageTitle = computed(() => {
     color: var(--sa-color-inverse-fg);
 }
 .sa-admin-drawer__brand-tag {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-admin-drawer-brand-tag, var(--sa-color-inverse-accent));
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -409,7 +409,7 @@ const currentPageTitle = computed(() => {
     padding: 6px 4px;
 }
 .sa-admin-drawer__section {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--sa-admin-drawer-section-fg, var(--sa-color-fg-muted));
@@ -422,7 +422,7 @@ const currentPageTitle = computed(() => {
     margin: 1px 6px;
     min-height: 36px;
     padding: 6px 12px;
-    font-size: 13.5px;
+    font-size: var(--sa-text-md);
     font-weight: 500;
 }
 .sa-admin-drawer__list :deep(.q-item__section--avatar) {
@@ -454,7 +454,7 @@ const currentPageTitle = computed(() => {
 .sa-admin-drawer__footer {
     padding: 12px 16px;
     border-top: 1px solid var(--sa-color-inverse-border);
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-inverse-fg-muted);
 }
 .sa-admin-drawer__doc {

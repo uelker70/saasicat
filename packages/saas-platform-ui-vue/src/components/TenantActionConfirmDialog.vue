@@ -242,13 +242,13 @@ function onCancel(): void {
 .tenant-action-confirm__hint {
     margin: 0 0 8px;
     color: var(--sa-color-fg-secondary);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .tenant-action-confirm__hint code {
     background: var(--sa-color-border-soft);
     padding: 1px 6px;
     border-radius: 4px;
     font-family: ui-monospace, SFMono-Regular, monospace;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 </style>

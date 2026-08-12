@@ -75,7 +75,7 @@ const labels = computed(() => ({
     border: none;
     background: none;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 700;
     color: var(--sp-cycle-btn-fg);
     cursor: pointer;
@@ -94,7 +94,7 @@ const labels = computed(() => ({
 .sp-cycle__pill {
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     padding: 2px 7px;
     border-radius: 999px;
     font-family: 'SF Mono', Consolas, monospace;

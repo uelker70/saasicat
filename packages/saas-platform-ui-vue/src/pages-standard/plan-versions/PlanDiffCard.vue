@@ -109,13 +109,13 @@ const changeCountLabel = computed(() => {
 }
 .sa-pv-diff-card__name {
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-head, system-ui, sans-serif);
 }
 .sa-pv-diff-card__ver {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     color: var(--sa-color-fg-muted);
     background: var(--sa-color-border-soft);
@@ -123,11 +123,11 @@ const changeCountLabel = computed(() => {
     border-radius: 4px;
 }
 .sa-pv-diff-card__sub {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
 }
 .sa-pv-diff-card__count {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.06em;
     background: var(--sa-color-warning-surface-strong);

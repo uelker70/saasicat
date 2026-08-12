@@ -144,12 +144,12 @@ const emit = defineEmits<{
     gap: 8px;
 }
 .sp-summary__title {
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     font-weight: 700;
 }
 .sp-summary__cycle {
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     background: var(--sa-color-inverse-border-strong);
@@ -166,7 +166,7 @@ const emit = defineEmits<{
 }
 .sp-summary__group-head {
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);
@@ -181,7 +181,7 @@ const emit = defineEmits<{
     gap: 10px;
     align-items: baseline;
     padding: 4px 0;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-summary__line strong {
     font-weight: 600;
@@ -189,7 +189,7 @@ const emit = defineEmits<{
 .sp-summary__line small {
     display: block;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);
@@ -198,12 +198,12 @@ const emit = defineEmits<{
 .sp-summary__price {
     white-space: nowrap;
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
 }
 .sp-summary__empty {
     padding: 20px 8px;
     text-align: center;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
     line-height: 1.5;
     font-style: italic;
@@ -217,7 +217,7 @@ const emit = defineEmits<{
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     margin-bottom: 4px;
 }
@@ -231,13 +231,13 @@ const emit = defineEmits<{
     margin-top: 6px;
 }
 .sp-summary__total-l {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
 }
 .sp-summary__total-l small {
     display: block;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--sa-color-fg-subtle);
@@ -245,7 +245,7 @@ const emit = defineEmits<{
     margin-top: 2px;
 }
 .sp-summary__total-r {
-    font-size: 32px;
+    font-size: var(--sa-text-4xl);
     font-weight: 800;
     color: var(--sa-color-accent);
     letter-spacing: -0.02em;
@@ -257,7 +257,7 @@ const emit = defineEmits<{
     background: var(--sa-color-positive-surface-strong);
     color: var(--sa-color-positive-fg);
     border-radius: 8px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
 }
 .sp-summary__cta {
@@ -270,7 +270,7 @@ const emit = defineEmits<{
     border: none;
     border-radius: 14px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     letter-spacing: 0.01em;
     cursor: pointer;
@@ -285,7 +285,7 @@ const emit = defineEmits<{
 }
 .sp-summary__disclaimer {
     margin-top: 12px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     line-height: 1.5;
     text-align: center;

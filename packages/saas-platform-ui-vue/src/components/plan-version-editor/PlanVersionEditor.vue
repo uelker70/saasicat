@@ -757,7 +757,7 @@ function emitSave(): void {
     background: var(--sa-color-negative-surface);
     border-bottom: 1px solid var(--sa-color-negative-border);
     color: var(--sa-color-negative-fg);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 500;
 }
 .pve-error-ico {
@@ -769,16 +769,16 @@ function emitSave(): void {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     letter-spacing: 0.1em;
     color: var(--sa-color-fg-subtle);
 }
 .pve-mono {
-    font: 500 11px var(--sa-font-mono);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
 }
 .pve-mono--xs {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
 }
 
 /* ── Buttons & Chips ───────────────────────────────────────────── */
@@ -789,7 +789,7 @@ function emitSave(): void {
     gap: 5px;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     letter-spacing: 0.01em;
     background: var(--sa-color-bg-sunken);
@@ -820,7 +820,7 @@ function emitSave(): void {
 }
 
 .pve-kbd {
-    font: 600 10.5px var(--sa-font-mono);
+    font: 600 var(--sa-text-xs) var(--sa-font-mono);
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-secondary);
     padding: 2px 6px;
@@ -870,12 +870,12 @@ function emitSave(): void {
     padding: 16px 18px 12px;
 }
 .pve-col-title {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     letter-spacing: -0.01em;
 }
 .pve-col-sub {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
@@ -899,7 +899,7 @@ function emitSave(): void {
     border: 0;
     outline: 0;
     background: transparent;
-    font: 13px var(--sa-font-body);
+    font: var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-heading);
 }
 .pve-search-ico {
@@ -916,7 +916,7 @@ function emitSave(): void {
     border: 0;
     padding: 5px 10px;
     border-radius: 6px;
-    font: 500 12.5px var(--sa-font-body);
+    font: 500 var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-secondary);
     cursor: pointer;
     display: flex;
@@ -928,7 +928,7 @@ function emitSave(): void {
     color: var(--sa-color-fg-on-accent);
 }
 .pve-tab-count {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     padding: 1px 5px;
     border-radius: 4px;
     background: var(--sa-color-border);
@@ -945,7 +945,7 @@ function emitSave(): void {
     padding: 6px 14px 18px;
 }
 .pve-pool-group {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--sa-color-fg-subtle);
@@ -997,7 +997,7 @@ function emitSave(): void {
     gap: 8px;
 }
 .pve-pool-card-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
 }
@@ -1016,12 +1016,12 @@ function emitSave(): void {
     gap: 5px;
     align-items: center;
     flex-wrap: wrap;
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .pve-pool-card-key {
-    font: 500 10px var(--sa-font-mono);
+    font: 500 var(--sa-text-2xs) var(--sa-font-mono);
     color: var(--sa-color-fg-muted);
 }
 .pve-pool-card-dot {
@@ -1032,7 +1032,7 @@ function emitSave(): void {
     padding: 24px 4px;
     text-align: center;
     color: var(--sa-color-fg-subtle);
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     font-style: italic;
 }
 
@@ -1066,7 +1066,7 @@ function emitSave(): void {
     gap: 10px;
 }
 .pve-bs-label {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     font-weight: 500;
     min-width: 88px;
@@ -1080,7 +1080,7 @@ function emitSave(): void {
     border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 6px 10px;
-    font: 13px var(--sa-font-body);
+    font: var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-heading);
     outline: none;
 }
@@ -1101,7 +1101,7 @@ function emitSave(): void {
     align-items: center;
     gap: 6px;
     margin: -2px 0 2px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     font-weight: 500;
     color: var(--sa-color-negative-fg);
 }
@@ -1133,7 +1133,7 @@ function emitSave(): void {
 .pve-bs-suffix {
     background: var(--sa-color-bg-sunken);
     padding: 6px 10px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     display: grid;
     place-items: center;
@@ -1209,7 +1209,7 @@ function emitSave(): void {
     background: var(--sa-color-bundle);
 }
 .pve-bg-title {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 700;
@@ -1217,7 +1217,7 @@ function emitSave(): void {
 }
 .pve-bg-count {
     margin-left: 6px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
 
@@ -1233,7 +1233,7 @@ function emitSave(): void {
     background: var(--sa-color-accent-surface);
 }
 .pve-dz-empty {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
     text-align: center;
     padding: 4px 0;
@@ -1275,12 +1275,12 @@ function emitSave(): void {
     min-width: 0;
 }
 .pve-sel-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
 }
 .pve-sel-sub {
-    font: 500 10.5px var(--sa-font-mono);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
     color: var(--sa-color-fg-subtle);
 }
 .pve-sel-val-edit {
@@ -1297,7 +1297,7 @@ function emitSave(): void {
     border: 0;
     outline: 0;
     background: transparent;
-    font: 600 13px var(--sa-font-body);
+    font: 600 var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-heading);
     text-align: right;
     -moz-appearance: textfield;
@@ -1308,7 +1308,7 @@ function emitSave(): void {
     margin: 0;
 }
 .pve-sel-val-unit {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
 }
 .pve-sel-x {
@@ -1366,7 +1366,7 @@ function emitSave(): void {
     border-radius: 4px;
     padding: 3px 10px;
     margin-left: 10px;
-    font: 500 11px var(--sa-font-mono);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
     color: var(--sa-color-fg-muted);
     border: 1px solid var(--sa-color-border);
 }
@@ -1374,21 +1374,21 @@ function emitSave(): void {
     padding: 18px 18px 16px;
 }
 .pve-prev-eyebrow {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--sa-color-fg-muted);
     font-weight: 700;
 }
 .pve-prev-title {
-    font-size: 28px;
+    font-size: var(--sa-text-3xl);
     font-weight: 700;
     letter-spacing: -0.03em;
     margin-top: 6px;
     color: var(--sa-color-fg-heading);
 }
 .pve-prev-desc {
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-secondary);
     margin-top: 6px;
     line-height: 1.5;
@@ -1400,17 +1400,17 @@ function emitSave(): void {
     margin-top: 14px;
 }
 .pve-prev-price-big {
-    font-size: 38px;
+    font-size: var(--sa-text-4xl);
     font-weight: 700;
     letter-spacing: -0.03em;
     color: var(--sa-color-fg-heading);
 }
 .pve-prev-price-unit {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-muted);
 }
 .pve-prev-price-yearly {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-positive-fg);
     margin-top: 2px;
     font-weight: 500;
@@ -1424,14 +1424,14 @@ function emitSave(): void {
     color: var(--sa-color-fg-on-accent);
     border: 0;
     border-radius: 7px;
-    font: 600 13px var(--sa-font-body);
+    font: 600 var(--sa-text-md) var(--sa-font-body);
     cursor: pointer;
 }
 .pve-prev-sep {
     margin-top: 18px;
     padding-top: 14px;
     border-top: 1px solid var(--sa-color-border-soft);
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--sa-color-fg-subtle);
@@ -1449,7 +1449,7 @@ function emitSave(): void {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-heading);
 }
 .pve-prev-list li b {
@@ -1473,7 +1473,7 @@ function emitSave(): void {
     margin-top: 16px;
     padding-top: 14px;
     border-top: 1px solid var(--sa-color-border-soft);
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-subtle);
     line-height: 1.5;
 }
@@ -1496,19 +1496,19 @@ function emitSave(): void {
     display: inline-flex;
 }
 .pve-prev-validate-title {
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
 }
 .pve-prev-validate-count {
     margin-left: auto;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
 }
 .pve-vchk {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     padding: 3px 0;
 }
 .pve-vchk--ok {
@@ -1565,12 +1565,12 @@ function emitSave(): void {
     gap: 12px;
 }
 .pve-diff-title {
-    font-size: 15px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     letter-spacing: -0.01em;
 }
 .pve-diff-sub {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
@@ -1613,7 +1613,7 @@ function emitSave(): void {
     border-radius: 5px;
     color: var(--sa-color-fg-on-accent);
     font-weight: 800;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     display: grid;
     place-items: center;
     flex: 0 0 auto;
@@ -1629,13 +1629,13 @@ function emitSave(): void {
     flex-wrap: wrap;
 }
 .pve-diff-section {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 700;
 }
 .pve-diff-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
     color: var(--sa-color-fg-heading);
 }
@@ -1644,7 +1644,7 @@ function emitSave(): void {
     align-items: center;
     gap: 8px;
     margin-top: 3px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 .pve-diff-from {
     text-decoration: line-through;
@@ -1658,7 +1658,7 @@ function emitSave(): void {
     font-weight: 700;
 }
 .pve-diff-tag {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     background: var(--sa-color-bg-surface);
 }
 .pve-diff-empty {
@@ -1666,6 +1666,6 @@ function emitSave(): void {
     text-align: center;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 </style>

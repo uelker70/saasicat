@@ -151,7 +151,7 @@ function onToggle(featureKey: string): void {
     gap: 6px;
 }
 .bd-features-group-label {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -172,7 +172,7 @@ function onToggle(featureKey: string): void {
     border-radius: 999px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-heading);
     transition:
         background 0.12s,
@@ -201,7 +201,7 @@ function onToggle(featureKey: string): void {
 }
 .bd-feature-key {
     font:
-        600 10px 'JetBrains Mono',
+        600 var(--sa-text-2xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
     color: var(--sa-color-fg-subtle);
@@ -217,6 +217,6 @@ function onToggle(featureKey: string): void {
     padding: 12px;
     color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
 }
 </style>

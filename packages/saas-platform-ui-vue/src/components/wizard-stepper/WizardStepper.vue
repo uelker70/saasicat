@@ -64,7 +64,7 @@ defineProps<{
     gap: 8px;
     padding: 6px 12px;
     border-radius: 999px;
-    font: 500 12.5px var(--sa-font-body);
+    font: 500 var(--sa-text-md) var(--sa-font-body);
     color: var(--sa-color-fg-muted);
 }
 .wz-step--current {
@@ -82,7 +82,7 @@ defineProps<{
     color: var(--sa-color-fg-secondary);
     display: grid;
     place-items: center;
-    font: 700 11px var(--sa-font-body);
+    font: 700 var(--sa-text-xs) var(--sa-font-body);
     flex: 0 0 auto;
 }
 .wz-step--current .wz-step-num {
@@ -101,7 +101,7 @@ defineProps<{
 }
 .wz-stepper-hint {
     margin-left: auto;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
 }
 </style>

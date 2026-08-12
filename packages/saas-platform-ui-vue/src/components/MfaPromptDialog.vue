@@ -105,6 +105,6 @@ code {
     background: var(--sa-color-bg-sunken);
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
 }
 </style>

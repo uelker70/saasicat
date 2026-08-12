@@ -316,22 +316,22 @@ async function submitConfirm(): Promise<void> {
     );
     color: var(--sa-color-fg-on-accent);
     font-weight: 800;
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     text-transform: uppercase;
 }
 .sa-setup-title {
     margin: 0;
     font-weight: 800;
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     color: var(--sa-color-fg-heading);
     line-height: 1.1;
 }
 .sa-setup-sub {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
 }
 .sa-setup-hint {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-secondary);
     line-height: 1.5;
     margin: 0 0 16px;
@@ -352,7 +352,7 @@ async function submitConfirm(): Promise<void> {
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
     color: var(--sa-color-negative-fg);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     margin-bottom: 16px;
     padding: 8px 12px;
     border-radius: 8px;
@@ -371,7 +371,7 @@ async function submitConfirm(): Promise<void> {
     background: var(--sa-color-bg-surface);
 }
 .sa-setup-qr__hint {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
 }
 .sa-setup-secret {
@@ -381,14 +381,14 @@ async function submitConfirm(): Promise<void> {
     margin-bottom: 10px;
 }
 .sa-setup-secret__label {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--sa-color-fg-muted);
     margin-bottom: 4px;
 }
 .sa-setup-secret__value {
-    font-size: 15px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
     word-break: break-all;
@@ -396,7 +396,7 @@ async function submitConfirm(): Promise<void> {
 }
 .sa-setup-uri {
     margin: 4px 0 4px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
 }
 .sa-setup-uri__value {
@@ -414,7 +414,7 @@ async function submitConfirm(): Promise<void> {
     background: none;
     border: none;
     color: var(--sa-color-fg-muted);
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     cursor: pointer;
     text-decoration: underline;
 }

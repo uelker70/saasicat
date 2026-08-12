@@ -3,7 +3,7 @@
  */
 
 .sa-page .q-table thead th {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -14,7 +14,7 @@
     white-space: nowrap;
 }
 .sa-page .q-table tbody td {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-body);
     border-bottom: 1px solid var(--sa-color-border-soft);
     padding: 10px 14px;

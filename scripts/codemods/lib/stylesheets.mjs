@@ -1,9 +1,9 @@
-// Finding colour literals in the places a stylesheet actually paints.
+// Reading the places a stylesheet actually paints — shared by the codemods that
+// rewrite them and by the inventories that drive those rewrites.
 //
-// The migration and the inventory that drives it MUST agree about what counts
-// as a colour and what role it plays, or the reviewed mapping describes one set
-// of sites and the rewrite touches another. So both read this module, and there
-// is no second parser.
+// Every consumer MUST agree about what a declaration is and where its value
+// sits, or a reviewed mapping describes one set of sites and the rewrite
+// touches another. So there is one parser here and no second one anywhere.
 //
 // Two rules shape everything here:
 //

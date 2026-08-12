@@ -259,6 +259,23 @@ test.describe('both themes are readable', () => {
             await page.waitForSelector('body[data-visual-ready="true"]');
             await expect(page.locator('#visual-error')).toHaveCount(0);
 
+            // The readiness marker says the PAGE rendered, not that the theme
+            // stylesheet arrived — on a cold Vite start those are seconds
+            // apart, and a contrast reading taken in between is a list of
+            // findings about a stylesheet that is not there yet. That happened
+            // once, on one worker, and looked exactly like a real defect.
+            await expect
+                .poll(
+                    () =>
+                        page.evaluate(() =>
+                            getComputedStyle(document.documentElement)
+                                .getPropertyValue('--sa-color-bg-app')
+                                .trim(),
+                        ),
+                    { message: 'the theme stylesheet never loaded' },
+                )
+                .not.toBe('');
+
             const light = await read(page);
             expect(
                 light.painted.length,

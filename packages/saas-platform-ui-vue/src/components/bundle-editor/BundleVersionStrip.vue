@@ -114,7 +114,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     border-radius: 10px;
 }
 .bv-vstrip-label {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -155,13 +155,13 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 }
 .bv-vtab-name {
     font:
-        700 13px 'JetBrains Mono',
+        700 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
     letter-spacing: 0.02em;
 }
 .bv-vtab-status {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -187,12 +187,12 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
 }
 .bv-vtab-dates {
     grid-column: 1 / -1;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
 }
 .bv-vtab-price {
     grid-column: 1 / -1;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     font-weight: 600;
 }
@@ -205,7 +205,7 @@ function statusMetaOf(v: BundleVersionRow): BundleStatusMeta {
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
     color: var(--sa-color-accent);
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
 }
 .bv-vtab-new:hover:not(:disabled) {

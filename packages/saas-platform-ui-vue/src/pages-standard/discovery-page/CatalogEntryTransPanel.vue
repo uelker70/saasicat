@@ -187,7 +187,7 @@ function copyFromDefault(locale: string): void {
     margin-bottom: 8px;
 }
 .sa-trans-lang__code {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     background: var(--sa-color-fg-heading);
     color: var(--sa-color-fg-on-accent);
@@ -195,13 +195,13 @@ function copyFromDefault(locale: string): void {
     border-radius: 5px;
 }
 .sa-trans-lang__name {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     color: var(--sa-color-fg-body);
     flex: 1;
 }
 .sa-trans-lang__badge {
-    font-size: 9px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -224,14 +224,14 @@ function copyFromDefault(locale: string): void {
     gap: 3px;
 }
 .sa-trans-field__cap {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
     color: var(--sa-color-fg-subtle);
 }
 .sa-trans-locked {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-body);
     background: var(--sa-color-border-soft);
     border: 1px dashed var(--sa-color-border-strong);
@@ -242,7 +242,7 @@ function copyFromDefault(locale: string): void {
     gap: 8px;
 }
 .sa-trans-locked__hint {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     color: var(--sa-color-fg-subtle);
     text-transform: uppercase;
 }
@@ -250,7 +250,7 @@ function copyFromDefault(locale: string): void {
     grid-column: 1 / -1;
     padding: 16px;
     text-align: center;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 10px;

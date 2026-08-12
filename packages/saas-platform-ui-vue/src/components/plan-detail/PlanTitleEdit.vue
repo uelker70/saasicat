@@ -101,7 +101,7 @@ function cancel(): void {
     min-width: 220px;
 }
 .pd-title-edit__hint {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 500;
     color: var(--sa-color-warning);
     background: var(--sa-color-warning-surface);

@@ -100,7 +100,7 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     background: var(--sa-color-negative-surface);
 }
 .sa-caps-row__kind {
-    font-size: 9px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     padding: 2px 6px;
@@ -120,11 +120,11 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     flex-wrap: wrap;
 }
 .sa-caps-row__key {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
 }
 .sa-caps-row__flag {
-    font-size: 9px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 1px 5px;
     border-radius: 4px;
@@ -152,18 +152,18 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-secondary);
     margin-top: 1px;
 }
 .sa-caps-row__meta code {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
 }
 .sa-caps__empty {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-warning-fg);
     background: var(--sa-color-warning-surface);
     border: 1px dashed var(--sa-color-warning-border);

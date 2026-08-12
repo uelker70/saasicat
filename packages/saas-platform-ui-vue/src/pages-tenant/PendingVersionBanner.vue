@@ -87,7 +87,7 @@ defineEmits<{ accept: [] }>();
 .sp-pending-version__chip {
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -106,7 +106,7 @@ defineEmits<{ accept: [] }>();
 .sp-pending-version__effective,
 .sp-pending-version__accepted {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     color: var(--sa-color-fg-secondary);
 }
 .sp-pending-version__btn {

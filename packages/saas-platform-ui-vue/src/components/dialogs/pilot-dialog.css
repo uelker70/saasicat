@@ -19,7 +19,7 @@
 .pl-dlg__title {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
-    font-size: 17px;
+    font-size: var(--sa-text-xl);
     color: var(--sa-color-fg-heading);
     letter-spacing: -0.015em;
 }
@@ -53,21 +53,21 @@
     background: var(--sa-color-info-surface);
     color: var(--sa-color-info-fg);
     border-radius: 50%;
-    font: 700 12px var(--sa-font-body, system-ui, sans-serif);
+    font: 700 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     display: grid;
     place-items: center;
     flex: 0 0 auto;
 }
 
 .pl-section__title {
-    font-size: 13.5px;
+    font-size: var(--sa-text-md);
     font-weight: 700;
     color: var(--sa-color-fg-heading);
     letter-spacing: -0.005em;
 }
 
 .pl-section__sub {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
@@ -78,7 +78,7 @@
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
     border-radius: 8px;
-    font: 13px var(--sa-font-body, system-ui, sans-serif);
+    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-body);
     outline: 0;
     transition:
@@ -139,13 +139,13 @@
 }
 
 .pl-plan-opt__key {
-    font: 700 11px var(--sa-font-mono, ui-monospace, monospace);
+    font: 700 var(--sa-text-xs) var(--sa-font-mono, ui-monospace, monospace);
     letter-spacing: 0.05em;
     color: var(--sa-color-fg-heading);
 }
 
 .pl-plan-opt__label {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     color: var(--sa-color-fg-muted);
     margin-top: 1px;
 }
@@ -173,7 +173,7 @@
     border: 1px solid var(--sa-color-border);
     border-radius: 7px;
     color: var(--sa-color-fg-secondary);
-    font: 500 11.5px var(--sa-font-body, system-ui, sans-serif);
+    font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
     white-space: nowrap;
 }
@@ -195,7 +195,7 @@
     background: var(--sa-color-bg-surface);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 999px;
-    font: 600 11px var(--sa-font-body, system-ui, sans-serif);
+    font: 600 var(--sa-text-xs) var(--sa-font-body, system-ui, sans-serif);
     color: var(--sa-color-fg-secondary);
     cursor: pointer;
     transition:
@@ -215,7 +215,7 @@
     background: var(--sa-color-negative-surface);
     border: 1px solid var(--sa-color-negative-border);
     color: var(--sa-color-negative-fg);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     margin: 12px 0 0;
     padding: 8px 12px;
     border-radius: 8px;

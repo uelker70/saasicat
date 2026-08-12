@@ -554,7 +554,7 @@ function formatTs(iso: string | null | undefined): string {
     border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 12px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     margin: 4px 0 0;
     overflow-x: auto;
     max-height: 50vh;
