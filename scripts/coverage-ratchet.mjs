@@ -10,8 +10,12 @@
 // and afterwards only ever fails when coverage DROPS. Every PR that improves it
 // lowers the bar it has to clear next time.
 //
-//   node scripts/coverage-ratchet.mjs            check against the baseline
-//   node scripts/coverage-ratchet.mjs --update   record the current values
+//   pnpm run coverage           check against the baseline
+//   pnpm run coverage:update    record the current values
+//
+// Always through the scripts, never `node scripts/coverage-ratchet.mjs`
+// directly: they build first, and that build is a precondition of the
+// measurement (see below).
 //
 // Note on what is measured: the suites import from each package's `dist/`, not
 // from `src/` (see CONTRIBUTING.md, "Build before test"). Coverage therefore
@@ -203,7 +207,7 @@ if (update) {
 }
 
 if (!existsSync(BASELINE)) {
-    console.error('No coverage-baseline.json. Run: node scripts/coverage-ratchet.mjs --update');
+    console.error('No coverage-baseline.json. Run: pnpm run coverage:update');
     process.exit(1);
 }
 
@@ -230,7 +234,7 @@ if (regressions.length > 0) {
     for (const line of regressions) console.error(`  ✗ ${line}`);
     console.error(
         '\nAdd tests for what you changed, or — if the drop is intended (deleted code,\n' +
-            'moved package) — re-record with: node scripts/coverage-ratchet.mjs --update\n',
+            'moved package) — re-record with: pnpm run coverage:update\n',
     );
     process.exit(1);
 }

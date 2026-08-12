@@ -335,7 +335,10 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             projectKey: 'fixture',
             http,
         }),
-        revealBy: ['.sa-marketing-tab:nth-of-type(2)'],
+        // Ordered: the tab mounts the admin view, the expand button mounts
+        // its editors. Stopping after the tab left every editor guarded by
+        // `expandedKey` unrendered — the surfaces this case exists for.
+        revealBy: ['.sa-marketing-tab:nth-of-type(2)', '.sa-marketing-expand-btn'],
     },
     {
         // 14 required props, ten of them functions — the page AP3 replaces.
