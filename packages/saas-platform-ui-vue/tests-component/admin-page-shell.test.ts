@@ -238,15 +238,29 @@ describe('page shell contract', () => {
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
-    test('no view reaches for q-table instead of AdminTable', () => {
+    test('no view writes its own table instead of using AdminTable', () => {
         // Nine pages used QTable directly and agreed on nothing: header look,
         // where actions sat, whether there was a pager. AdminTable also keeps
         // sorting and paging together — a page that sliced its own rows would
         // have its table sort the slice rather than the list.
         const TABLE = resolve(SRC_DIR, 'components/admin-page/AdminTable.vue');
+        // Neither of these is a list. PlanMatrix compares plans across
+        // components — plans are its columns, so rows and paging mean nothing.
+        // PlanChangeWizard's limits table is a three-column before/after
+        // comparison inside a tenant-facing wizard, outside the admin shell.
+        const NOT_LISTS = new Set([
+            resolve(SRC_DIR, 'components/plan-matrix/PlanMatrix.vue'),
+            resolve(SRC_DIR, 'pages-tenant/PlanChangeWizard.vue'),
+        ]);
         const offenders = allVueFiles()
-            .filter((file) => file !== TABLE)
-            .filter((file) => /<q-table[\s>]/.test(templateOf(readFileSync(file, 'utf8'))));
+            .filter((file) => file !== TABLE && !NOT_LISTS.has(file))
+            .filter((file) => {
+                const template = templateOf(readFileSync(file, 'utf8'));
+                // A raw <table> counts too: the tenants list was hand-written
+                // markup with its own <thead>, so a check for QTable alone
+                // walked straight past the least uniform table in the admin.
+                return /<q-table[\s>]/.test(template) || /<table[\s>]/.test(template);
+            });
 
         expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });

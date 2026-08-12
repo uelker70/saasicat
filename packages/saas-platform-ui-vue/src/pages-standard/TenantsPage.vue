@@ -44,105 +44,91 @@
                     <slot name="filters-extra" />
                 </AdminFilters>
 
-                <div class="sa-tenants__wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>{{ msg.tenant }}</th>
-                                <th v-if="showPlanColumn">{{ resolvedPlanColumnLabel }}</th>
-                                <th>{{ common.status }}</th>
-                                <th v-if="usageFields.length > 0" class="num">
-                                    {{ msg.list.columnUsage }}
-                                </th>
-                                <th class="num">{{ msg.list.columnCreatedAt }}</th>
-                                <th v-if="hasActions" class="num"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in items" :key="row.id">
-                                <td>
-                                    <div class="sa-tenants__tenant">
-                                        <div class="sa-tenants__avatar" :style="avatarStyle(row)">
-                                            {{ tenantInitials(row.name) }}
-                                        </div>
-                                        <div>
-                                            <div class="sa-tenants__name">{{ row.name }}</div>
-                                            <div class="sa-tenants__slug">{{ row.slug }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td v-if="showPlanColumn">
-                                    <span class="sa-tenants__plan">
-                                        <span
-                                            class="sa-tenants__plan-dot"
-                                            :style="{ background: planAccentFor(row) }"
-                                        />
-                                        {{ planLabel(row) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="sa-tenants__pills">
-                                        <slot name="status-pills" :row="row">
-                                            <StatusPill
-                                                v-for="(p, i) in resolvedPills(row)"
-                                                :key="i"
-                                                :label="p.label"
-                                                :icon="p.icon"
-                                                :tone="p.tone"
-                                            />
-                                        </slot>
-                                    </div>
-                                </td>
-                                <td v-if="usageFields.length > 0" class="num">
-                                    <div
-                                        v-for="(uf, i) in usageFields"
+                <AdminTable
+                    server-side
+                    :rows="items"
+                    :columns="tenantColumns"
+                    :loading="loading"
+                    :page="page"
+                    :rows-per-page="pageSize"
+                    :total="total"
+                    :empty-text="msg.list.empty"
+                    storage-key="tenants"
+                    @update:page="goToPage"
+                    @update:rows-per-page="setPageSize"
+                >
+                    <template #body-cell-tenant="{ row }">
+                        <q-td>
+                            <div class="sa-tenants__tenant">
+                                <div class="sa-tenants__avatar" :style="avatarStyle(row)">
+                                    {{ tenantInitials(row.name) }}
+                                </div>
+                                <div>
+                                    <div class="sa-tenants__name">{{ row.name }}</div>
+                                    <div class="sa-tenants__slug">{{ row.slug }}</div>
+                                </div>
+                            </div>
+                        </q-td>
+                    </template>
+
+                    <template #body-cell-plan="{ row }">
+                        <q-td>
+                            <span class="sa-tenants__plan">
+                                <span
+                                    class="sa-tenants__plan-dot"
+                                    :style="{ background: planAccentFor(row) }"
+                                />
+                                {{ planLabel(row) }}
+                            </span>
+                        </q-td>
+                    </template>
+
+                    <template #body-cell-status="{ row }">
+                        <q-td>
+                            <div class="sa-tenants__pills">
+                                <slot name="status-pills" :row="row">
+                                    <StatusPill
+                                        v-for="(p, i) in resolvedPills(row)"
                                         :key="i"
-                                        class="sa-tenants__usage"
-                                    >
-                                        <q-icon :name="uf.icon" size="11px" />
-                                        {{ usageValue(row, uf) }}
-                                    </div>
-                                </td>
-                                <td class="num sa-tenants__mono">
-                                    {{ formatCreatedAt(row) }}
-                                </td>
-                                <td v-if="hasActions" class="num sa-tenants__actions">
-                                    <slot
-                                        name="row-actions"
-                                        :row="row"
-                                        :actions="visibleActions(row)"
-                                    >
-                                        <component
-                                            :is="action.to ? 'a' : 'button'"
-                                            v-for="action in visibleActions(row)"
-                                            :key="action.id"
-                                            :href="action.to ? action.to(row) : undefined"
-                                            class="sa-tenants__icon-btn"
-                                            :class="
-                                                action.tone
-                                                    ? `sa-tenants__icon-btn--${action.tone}`
-                                                    : ''
-                                            "
-                                            :title="action.label"
-                                            @click="
-                                                action.handler ? action.handler(row) : undefined
-                                            "
-                                        >
-                                            <q-icon :name="action.icon" size="15px" />
-                                        </component>
-                                    </slot>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <div v-if="items.length === 0 && !loading" class="sa-tenants__empty">
-                        <q-icon name="search_off" size="32px" />
-                        <div>{{ msg.list.empty }}</div>
-                    </div>
-                    <div v-if="loading" class="sa-tenants__loading">
-                        <q-spinner size="20px" /> {{ common.loading }}
-                    </div>
-                </div>
+                                        :label="p.label"
+                                        :icon="p.icon"
+                                        :tone="p.tone"
+                                    />
+                                </slot>
+                            </div>
+                        </q-td>
+                    </template>
+
+                    <template #body-cell-usage="{ row }">
+                        <q-td class="text-right">
+                            <div v-for="(uf, i) in usageFields" :key="i" class="sa-tenants__usage">
+                                <q-icon :name="uf.icon" size="11px" />
+                                {{ usageValue(row, uf) }}
+                            </div>
+                        </q-td>
+                    </template>
+
+                    <template #body-cell-createdAt="{ row }">
+                        <q-td class="text-right sa-tenants__mono">{{ formatCreatedAt(row) }}</q-td>
+                    </template>
+
+                    <template v-if="hasActions" #row-actions="{ row }">
+                        <slot name="row-actions" :row="row" :actions="visibleActions(row)">
+                            <component
+                                :is="action.to ? 'a' : 'button'"
+                                v-for="action in visibleActions(row)"
+                                :key="action.id"
+                                :href="action.to ? action.to(row) : undefined"
+                                class="sa-tenants__icon-btn"
+                                :class="action.tone ? `sa-tenants__icon-btn--${action.tone}` : ''"
+                                :title="action.label"
+                                @click="action.handler ? action.handler(row) : undefined"
+                            >
+                                <q-icon :name="action.icon" size="15px" />
+                            </component>
+                        </slot>
+                    </template>
+                </AdminTable>
             </AdminSection>
 
             <AdminPaginator
@@ -180,8 +166,9 @@
 </template>
 
 <script setup lang="ts">
-import AdminPaginator from '../components/admin-page/AdminPaginator.vue';
+import AdminTable from '../components/admin-page/AdminTable.vue';
 import { computed, ref, watch } from 'vue';
+import type { QTableColumn } from 'quasar';
 import AdminBody from '../components/admin-page/AdminBody.vue';
 import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
@@ -189,7 +176,6 @@ import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
 import type { AdminManifest, TenantActionDef, TenantDto, TenantListFilter } from '@saasicat/types';
 import type { HttpClient } from '../client/types.js';
-import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useTenants } from '../vue/use-tenants.js';
 import {
@@ -384,6 +370,36 @@ const { items, page, pageSize, total, loading, error, goToPage, setPageSize } = 
 
 setPageSize(props.pageSize);
 
+const tenantColumns = computed<QTableColumn[]>(() => {
+    const cols: QTableColumn[] = [
+        { name: 'tenant', label: msg.value.tenant, field: 'name', align: 'left' },
+    ];
+    if (props.showPlanColumn) {
+        cols.push({
+            name: 'plan',
+            label: resolvedPlanColumnLabel.value,
+            field: 'plan',
+            align: 'left',
+        });
+    }
+    cols.push({ name: 'status', label: common.value.status, field: 'status', align: 'left' });
+    if (props.usageFields.length > 0) {
+        cols.push({
+            name: 'usage',
+            label: msg.value.list.columnUsage,
+            field: 'id',
+            align: 'right',
+        });
+    }
+    cols.push({
+        name: 'createdAt',
+        label: msg.value.list.columnCreatedAt,
+        field: 'createdAt',
+        align: 'right',
+    });
+    return cols;
+});
+
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 function reloadDebounced(): void {
     if (searchTimer) clearTimeout(searchTimer);
@@ -533,9 +549,6 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 </script>
 
 <style scoped>
-.sa-tenants__wrap {
-    overflow-x: auto;
-}
 table {
     width: 100%;
     border-collapse: collapse;
@@ -624,9 +637,6 @@ td {
     color: var(--sa-muted, var(--sa-muted));
 }
 
-.sa-tenants__actions {
-    white-space: nowrap;
-}
 .sa-tenants__icon-btn {
     background: transparent;
     border: none;
@@ -660,18 +670,5 @@ td {
 }
 .sa-tenants__icon-btn--accent {
     color: var(--sa-accent, #7c3aed);
-}
-
-.sa-tenants__empty {
-    padding: 40px 16px;
-    text-align: center;
-    color: var(--sa-muted, var(--sa-muted));
-}
-.sa-tenants__loading {
-    padding: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    color: var(--sa-muted, var(--sa-muted));
 }
 </style>

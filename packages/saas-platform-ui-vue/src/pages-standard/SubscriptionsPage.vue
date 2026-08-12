@@ -8,14 +8,12 @@
 
         <AdminBody>
             <AdminSection class="sa-subscriptions__body">
-                <div class="sa-subscriptions__card">
-                    <AdminTable
-                        :rows="rows"
-                        :columns="effectiveColumns"
-                        :loading="loading"
-                        storage-key="subscriptions"
-                    />
-                </div>
+                <AdminTable
+                    :rows="rows"
+                    :columns="effectiveColumns"
+                    :loading="loading"
+                    storage-key="subscriptions"
+                />
             </AdminSection>
         </AdminBody>
     </AdminPage>
@@ -130,11 +128,4 @@ function formatDate(iso: string | null | undefined): string | null {
 }
 </script>
 
-<style scoped>
-.sa-subscriptions__card {
-    background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
-    border-radius: 12px;
-    overflow: hidden;
-}
-</style>
+<style scoped></style>

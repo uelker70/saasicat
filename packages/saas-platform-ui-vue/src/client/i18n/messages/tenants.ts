@@ -14,7 +14,6 @@ export const tenantsMessages = defineMessages(
             columnCreatedAt: 'Angelegt',
             suspended: 'Suspendiert',
             empty: 'Keine Mandanten mit diesen Filtern.',
-            pagination: '{total} Mandanten · Seite {page} / {pages}',
         },
         detail: {
             backToList: 'Mandanten-Liste',
@@ -63,7 +62,6 @@ export const tenantsMessages = defineMessages(
             columnCreatedAt: 'Created',
             suspended: 'Suspended',
             empty: 'No tenants match these filters.',
-            pagination: '{total} tenants · Page {page} / {pages}',
         },
         detail: {
             backToList: 'Tenant list',
