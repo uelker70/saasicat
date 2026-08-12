@@ -9,9 +9,6 @@
         <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
             <strong>{{ common.error }}:</strong> {{ error.message }}
         </q-banner>
-        <q-banner class="bg-red-1 text-red-9 q-mb-md" rounded>
-            <strong>{{ common.error }}:</strong> aaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-        </q-banner>
 
         <div v-if="loading && !cards.length" class="sa-dashboard__loading">
             <q-spinner size="32px" /> {{ common.loadingData }}
@@ -21,22 +18,25 @@
             {{ msg.emptyKpiCards }}
         </div>
 
-        <AdminStatistics v-else :label="msg.title">
-            <AdminKpi
-                v-for="card in cards"
-                :key="card.id"
-                :data-card-id="card.id"
-                :label="card.label"
-                :sub="card.sub"
-                :icon="card.displayHint?.icon"
-            >
-                <template #value>
-                    <q-spinner v-if="card.loading" size="18px" />
-                    <template v-else-if="card.error">—</template>
-                    <template v-else>{{ formatValue(card) }}</template>
-                </template>
-            </AdminKpi>
-        </AdminStatistics>
+        <AdminSection v-else>
+            <AdminStatistics :label="msg.title">
+                <AdminKpi
+                    v-for="card in cards"
+                    :key="card.id"
+                    :data-card-id="card.id"
+                    :label="card.label"
+                    :sub="card.sub"
+                    :icon="card.displayHint?.icon"
+                    layout="inline"
+                >
+                    <template #value>
+                        <q-spinner v-if="card.loading" size="18px" />
+                        <template v-else-if="card.error">—</template>
+                        <template v-else>{{ formatValue(card) }}</template>
+                    </template>
+                </AdminKpi>
+            </AdminStatistics>
+        </AdminSection>
 
         <div v-if="distributions && distributions.length > 0" class="sa-dashboard__rows">
             <AdminSection v-for="dist in distributions" :key="dist.id" :title="dist.label">

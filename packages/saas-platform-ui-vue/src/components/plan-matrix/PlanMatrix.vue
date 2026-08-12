@@ -656,9 +656,6 @@ function formatQuota(v: number | undefined): string {
     min-height: 100%;
     box-sizing: border-box;
 }
-.pm * {
-    box-sizing: border-box;
-}
 
 .pm-card {
     background: var(--sa-bg-surface);

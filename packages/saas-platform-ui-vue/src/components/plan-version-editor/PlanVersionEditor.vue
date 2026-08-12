@@ -744,9 +744,6 @@ function emitSave(): void {
        AdminPage already sizes. */
     height: 100%;
 }
-.pve :deep(*) {
-    box-sizing: border-box;
-}
 
 /* ── Editor bar ─────────────────────────────────────────────────── */
 

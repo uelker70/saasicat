@@ -455,9 +455,6 @@ function onPublish(): void {
     min-height: 100%;
     box-sizing: border-box;
 }
-.pr * {
-    box-sizing: border-box;
-}
 .pr-mono {
     font-family: var(--sa-font-mono);
     font-weight: 600;

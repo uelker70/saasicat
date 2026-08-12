@@ -94,6 +94,25 @@
     color: var(--sa-body);
 }
 
+/* Consumer apps load Quasar, whose element-level h1–h6 rules carry display
+ * sizes and huge line-heights. Neutralised here so a bare heading inside a
+ * page is legible without a class of its own.
+ *
+ * `:where()` keeps this at the specificity of a single class, so any heading
+ * class in the package still wins — this is a baseline, not a verdict. Three
+ * views used to carry their own copy of it, each covering a different subset
+ * of h1–h6. */
+.sa-page :where(h1, h2, h3, h4, h5, h6) {
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Border-box for the whole page. Six views declared this for their own
+ * subtree, which is the same rule six times with six different roots. */
+.sa-page * {
+    box-sizing: border-box;
+}
+
 /* The hero reads as a banner rather than as the first paragraph of the page:
  * a tinted, bordered block that separates "which page am I on" from the
  * content below it. Tint and border come from the primary token, so an app
@@ -288,9 +307,8 @@
 
 .sa-kpi {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
+    align-items: stretch;
+    gap: 12px;
     background: var(--sa-bg-surface);
     border: 1px solid var(--sa-border);
     border-radius: var(--sa-radius-tile);
@@ -298,6 +316,16 @@
     font: inherit;
     color: inherit;
     text-align: left;
+}
+/* The figure column. It carries the stacking so the tile itself can put an
+ * icon beside it without a second set of rules. */
+.sa-kpi__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
 }
 /* Subs line up across a row rather than floating under uneven values. */
 .sa-stats .sa-kpi__sub {
@@ -326,8 +354,33 @@
     order: 3;
 }
 .sa-kpi__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     color: var(--sa-muted);
-    order: 0;
+}
+
+/* Inline tiles: the icon leads in a tinted square and the label sits above the
+ * figure, for rows where the icon carries the identity of the number. */
+.sa-kpi--inline {
+    align-items: center;
+    padding: 12px 14px;
+}
+.sa-kpi--inline .sa-kpi__icon {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: var(--sa-radius-tile);
+    background: var(--sa-primary-50);
+    color: var(--sa-primary);
+}
+.sa-kpi--inline .sa-kpi__label {
+    order: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.sa-kpi--inline .sa-kpi__value {
+    order: 2;
 }
 
 /* Interactive tiles — rendered as <button> by AdminKpi when it has an action. */

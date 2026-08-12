@@ -845,9 +845,6 @@ async function onLocaleChange(loc: string): Promise<void> {
     min-height: 100%;
     box-sizing: border-box;
 }
-.sa-marketing * {
-    box-sizing: border-box;
-}
 
 .sa-marketing-head-actions {
     display: flex;

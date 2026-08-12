@@ -5,6 +5,7 @@
         :aria-pressed="action ? selected : undefined"
         :class="[
             'sa-kpi',
+            `sa-kpi--${layout}`,
             tone !== 'neutral' && `sa-kpi--${tone}`,
             emphasis === 'surface' && 'sa-kpi--surface',
             action && 'sa-kpi--action',
@@ -12,13 +13,17 @@
         ]"
         @click="action?.()"
     >
-        <q-icon v-if="icon" :name="icon" size="18px" class="sa-kpi__icon" />
-        <span class="sa-kpi__label">{{ label }}</span>
-        <span class="sa-kpi__value">
-            <slot name="value">{{ formattedValue }}</slot>
+        <span v-if="icon" class="sa-kpi__icon">
+            <q-icon :name="icon" size="18px" />
         </span>
-        <span v-if="sub || $slots.sub" class="sa-kpi__sub">
-            <slot name="sub">{{ sub }}</slot>
+        <span class="sa-kpi__text">
+            <span class="sa-kpi__label">{{ label }}</span>
+            <span class="sa-kpi__value">
+                <slot name="value">{{ formattedValue }}</slot>
+            </span>
+            <span v-if="sub || $slots.sub" class="sa-kpi__sub">
+                <slot name="sub">{{ sub }}</slot>
+            </span>
         </span>
     </component>
 </template>
@@ -36,6 +41,12 @@ import { useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 // explicit prop rather than inferring it from an attached listener keeps the
 // rendered tag, the role and the focus behaviour visible at the call site.
 //
+// `layout` is the second: `stacked` leads with the number, which is what a
+// count-at-a-glance row wants; `inline` puts the icon in a tinted square beside
+// a label-first column, for rows where the icon carries the identity of the
+// figure. It is a prop rather than a page-level style so both arrangements stay
+// in this file and a page can only pick one, not invent a third.
+//
 // `emphasis` is the one genuine fork between the two families that came
 // before: the filter pills recolour only the number, while the discovery and
 // draft tiles tint the whole tile because there the colour IS the statement.
@@ -49,11 +60,16 @@ const props = withDefaults(
         /** `value` colours the number only, `surface` tints the whole tile. */
         emphasis?: 'value' | 'surface';
         icon?: string;
+        /**
+         * `stacked` leads with the number, `inline` sets the icon beside a
+         * label-first column. One arrangement per tile row, never per page.
+         */
+        layout?: 'stacked' | 'inline';
         /** Supply to make the tile a button; omit for an informational tile. */
         action?: () => void;
         selected?: boolean;
     }>(),
-    { tone: 'neutral', emphasis: 'value', selected: false },
+    { tone: 'neutral', emphasis: 'value', selected: false, layout: 'stacked' },
 );
 
 const EMPTY = '—';

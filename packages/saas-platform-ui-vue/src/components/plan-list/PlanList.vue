@@ -562,9 +562,6 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     min-height: 100%;
     box-sizing: border-box;
 }
-.sa-plan-list * {
-    box-sizing: border-box;
-}
 
 /* Buttons */
 

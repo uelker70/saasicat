@@ -405,27 +405,6 @@ async function executeTerminate(): Promise<void> {
 </script>
 
 <style>
-.pd {
-    padding: 22px 26px;
-    background: var(--sa-bg-app);
-    font-family: var(--sa-font-body);
-    color: var(--sa-heading);
-    min-height: 100%;
-    box-sizing: border-box;
-}
-.pd * {
-    box-sizing: border-box;
-}
-/* Consumer apps load Quasar, which styles h1–h6 globally with very large
-   line-heights. Neutralize that here so headings (and the tier chip
-   sitting next to them) are aligned correctly. */
-.pd h1,
-.pd h2,
-.pd h3,
-.pd h4 {
-    line-height: 1.2;
-    margin: 0;
-}
 .pd-code {
     font: 500 11px var(--sa-font-mono);
 }
