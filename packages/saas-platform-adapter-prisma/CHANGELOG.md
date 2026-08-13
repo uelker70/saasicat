@@ -1,5 +1,11 @@
 # @saasicat/adapter-prisma
 
+## 0.23.0
+
+### Patch Changes
+
+- @saasicat/types@0.23.0
+
 ## 0.22.2
 
 ### Patch Changes
