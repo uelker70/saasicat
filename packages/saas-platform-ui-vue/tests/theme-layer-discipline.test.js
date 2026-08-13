@@ -239,6 +239,35 @@ describe('the token layers only point one way', () => {
         );
         assert.ok(flips.size > 30, `only ${flips.size} roles differ between the themes`);
 
+        // A surface can also be moved out from under a role by the CONSUMER,
+        // and that is the half this rule first missed: `--sa-color-fg-on-accent`
+        // is white in both themes, so it is not a flip — but the design guide
+        // tells a light brand to override it to something dark, and the setup
+        // badge painted it on a gradient that stays dark. Follow the
+        // documentation and the initials disappear.
+        //
+        // Derived, not listed, for the same reason as above: a role is the
+        // consumer's if its value reaches Quasar's `--q-` brand chain, or if
+        // its name says it is defined against the accent.
+        const reachesBrand = (role, seen = new Set()) => {
+            if (seen.has(role)) return false;
+            seen.add(role);
+            const value = lightValues.get(role) ?? '';
+            if (value.includes('var(--q-')) return true;
+            return [...value.matchAll(/var\(\s*(--sa-color-[\w-]+)/g)].some((m) =>
+                reachesBrand(m[1], seen),
+            );
+        };
+        const consumerOwned = new Set(
+            [...lightValues.keys()].filter(
+                (role) => /-on-accent$/.test(role) || reachesBrand(role),
+            ),
+        );
+        assert.ok(
+            consumerOwned.has('--sa-color-accent') && consumerOwned.has('--sa-color-fg-on-accent'),
+            'the brand chain was not detected — the rule would pass vacuously',
+        );
+
         const INVARIANT_SURFACE =
             /^\s*\.sa-(admin-header|admin-drawer|admin-banner|login-wrap|login-logo|setup-wrap|setup-badge|pv-diff__hero)/;
         const offenders = [];
@@ -250,8 +279,15 @@ describe('the token layers only point one way', () => {
                 const [, selector, body] = match;
                 if (!INVARIANT_SURFACE.test(selector)) continue;
                 for (const role of body.matchAll(/var\(\s*(--sa-color-[\w-]+)/g)) {
-                    if (!flips.has(role[1])) continue;
-                    offenders.push(`${relative(SRC, file)}: ${selector.trim()} uses ${role[1]}`);
+                    const why = flips.has(role[1])
+                        ? 'flips between the themes'
+                        : consumerOwned.has(role[1])
+                          ? 'belongs to the consumer\u2019s brand'
+                          : null;
+                    if (!why) continue;
+                    offenders.push(
+                        `${relative(SRC, file)}: ${selector.trim()} uses ${role[1]}, which ${why}`,
+                    );
                 }
             }
         }
@@ -259,9 +295,9 @@ describe('the token layers only point one way', () => {
         assert.deepEqual(
             offenders,
             [],
-            'a permanently dark surface painted with a role that flips. Use the ' +
+            'a surface that never moves, painted with a role that can. Use the ' +
                 '`--sa-color-inverse-*` family, which is declared identically in both ' +
-                'themes precisely so this cannot happen.',
+                'themes and is not the consumer\u2019s to rebrand.',
         );
     });
 

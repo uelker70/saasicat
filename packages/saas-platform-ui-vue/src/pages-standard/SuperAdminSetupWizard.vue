@@ -314,7 +314,10 @@ async function submitConfirm(): Promise<void> {
         var(--sa-color-inverse-surface-soft),
         var(--sa-color-inverse-surface)
     );
-    color: var(--sa-color-fg-on-accent);
+    /* The gradient never moves, so the text on it must not either.
+     * `--sa-color-fg-on-accent` is white today but belongs to the accent, and
+     * the design guide tells a light brand to override it to something dark. */
+    color: var(--sa-color-inverse-fg);
     font-weight: 800;
     font-size: var(--sa-text-xl);
     text-transform: uppercase;

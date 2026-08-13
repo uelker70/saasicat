@@ -246,7 +246,10 @@ async function handleSubmit(): Promise<void> {
             var(--sa-color-inverse-surface)
         )
     );
-    color: var(--sa-login-logo-color, var(--sa-color-fg-on-accent));
+    /* The fallback has to match the fallback background above, which is the
+     * invariant dark gradient — not the accent. An app that sets its own
+     * `--sa-login-logo-bg` sets `--sa-login-logo-color` with it. */
+    color: var(--sa-login-logo-color, var(--sa-color-inverse-fg));
     font-weight: 800;
     font-size: var(--sa-text-xl);
     text-transform: uppercase;
