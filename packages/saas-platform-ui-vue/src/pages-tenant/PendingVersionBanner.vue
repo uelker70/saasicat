@@ -115,7 +115,7 @@ defineEmits<{ accept: [] }>();
     border-radius: 4px;
     border: 0;
     background: var(--sa-color-accent);
-    color: white;
+    color: var(--sa-color-fg-on-accent);
     font-weight: 600;
     cursor: pointer;
 }

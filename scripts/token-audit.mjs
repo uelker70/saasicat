@@ -45,6 +45,13 @@ const CATEGORIES = {
     // make an alpha derived from a theme-aware ink indistinguishable from a
     // hard-coded shadow — the first is the goal, the second is the debt.
     functionalColor: /\b(?:rgba?|hsla?)\((?![^)]*var\()[^)]*\)/g,
+    // A named colour is a literal too, and it hid from the two above for the
+    // whole migration: `color: white` is neither a hex nor a function, so the
+    // audit read 0 while one button still painted itself. Anchored on a
+    // colour-bearing property so that `.text-white` in a selector and a font
+    // called "Black" are not findings.
+    namedColor:
+        /(?:^|[;{])\s*(?:color|background(?:-color)?|border(?:-[a-z]+)?-color|outline-color|fill|stroke)\s*:\s*([^;}\n]*(?<![\w-])(?:white|black|red|green|blue|orange|yellow|purple|grey|gray|silver|maroon|navy|teal|olive|lime|aqua|fuchsia)(?![\w-])[^;}\n]*)/gi,
     pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/g,
     fontSize: /font-size:\s*([^;}\n]+)/g,
     breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+)px/g,
@@ -143,6 +150,7 @@ export function summarise({ findings, styleShare, reach }) {
         reach,
         hexColors: { total: findings.hexColor.length, files: files(findings.hexColor) },
         functionalColors: { total: findings.functionalColor.length },
+        namedColors: { total: findings.namedColor.length },
         distinctPixelValues: distinct(findings.pixelValue),
         distinctFontSizes: distinct(findings.fontSize),
         distinctBreakpoints: distinct(findings.breakpoint),
@@ -183,6 +191,7 @@ function runCli(args) {
         `  hard-coded hex colours     ${summary.hexColors.total} in ${summary.hexColors.files} files`,
     );
     console.log(`  rgb()/hsl() literals       ${summary.functionalColors.total}`);
+    console.log(`  named colours              ${summary.namedColors.total}`);
     console.log(`  distinct pixel values      ${summary.distinctPixelValues}`);
     console.log(`  distinct font sizes        ${summary.distinctFontSizes}`);
     console.log(`  distinct breakpoints       ${summary.distinctBreakpoints}`);

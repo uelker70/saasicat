@@ -33,6 +33,10 @@ const BASELINE_PATH = fileURLToPath(new URL('./design-token-baseline.json', impo
 const FLOORS = {
     'hexColors.total': { floor: 0, why: 'every colour resolves to a semantic role token' },
     'functionalColors.total': { floor: 0, why: 'rgba() literals become shadow/overlay tokens' },
+    'namedColors.total': {
+        floor: 0,
+        why: '`color: white` is a literal that hid from both patterns above',
+    },
     distinctPixelValues: { floor: 12, why: 'the 12-step spacing scale' },
     // Zero, not "nine steps": this metric counts LITERAL sizes, and once every
     // declaration reads `var(--sa-text-*)` there are none left to count. The
