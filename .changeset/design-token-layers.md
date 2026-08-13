@@ -54,6 +54,22 @@ and wants OS-following dark opts in with
 2.56:1 on a white card — captions and price units were decoration rather than
 information.
 
+**Teleported dialogs are themed too.** Quasar appends every dialog, menu and
+tooltip to `<body>`, outside the `.sa-page` wrapper — so the theme never reached
+them, and dialog cards kept Quasar's grey surface, its 4px radius and its
+transparent outlined inputs. `createSuperAdminApp` now marks those portals
+(`config.globalNodes.class`, appended to yours if you set one) and the theme
+addresses `.sa-page` and `.sa-portal` alike. It deliberately does not style
+`.q-dialog` outright: that would reach your dialogs as well.
+
+**Quieter row actions.** Table row icons were three different recipes across
+five pages — two painted `primary`, two carried a per-action colour, one had its
+own class — so one table read as a row of traffic lights beside another's row of
+greys. They share `.sa-icon-btn` now: muted by default, colour reserved for the
+destructive action. Rows of actions are chrome, not announcements. And the plan
+list stretches its cells to a common height, so the hover band no longer
+notches where a column happens to be shorter.
+
 ## What you may need to do
 
 **If you embed `@saasicat/ui-vue/pages-tenant/*` in your own app**, add one
