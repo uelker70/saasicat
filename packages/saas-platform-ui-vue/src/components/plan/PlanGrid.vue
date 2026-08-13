@@ -103,8 +103,13 @@ function planPrice(plan: CatalogPlan): number | null {
     --sp-card-selected-grad: var(--sa-color-accent-surface-soft);
     --sp-text-strong: var(--sa-color-fg-heading);
     --sp-text-muted: var(--sa-color-fg-muted);
+    /* The flag is an inversion of the card: it paints a foreground colour as
+     * its surface, so its text has to be the background colour. Pairing it
+     * with `--sa-color-fg-on-accent` held only in light mode — that role is
+     * white in both themes, while this surface turns light in dark, and white
+     * on `--sa-neutral-300` reads 1.48:1. */
     --sp-flag-current-bg: var(--sa-color-fg-secondary);
-    --sp-flag-current-fg: var(--sa-color-fg-on-accent);
+    --sp-flag-current-fg: var(--sa-color-bg-surface);
 }
 .sp-model {
     position: relative;
