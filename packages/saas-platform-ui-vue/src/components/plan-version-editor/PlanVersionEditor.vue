@@ -563,10 +563,30 @@ const checklistOkCount = computed(() => checklist.value.filter((c) => c.ok).leng
 // ── Diff vs. predecessor ────────────────────────────────────────────
 const showDiff = ref(false);
 
+// Roles rather than values, because these reach the DOM through a `:style`
+// binding — see PlanVersionDiffDialog. Fixed light hexes there meant the dialog
+// kept white-ish rows in dark mode while the label above them turned near-white
+// with the theme, which is the one state where a diff has to be readable.
+// An inline style resolves `var()`, so the indirection costs nothing.
 const DIFF_STYLE = {
-    added: { bg: '#ecfdf5', border: '#a7f3d0', color: '#047857', sign: '+' },
-    removed: { bg: '#fef2f2', border: '#fecaca', color: '#b91c1c', sign: '−' },
-    changed: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', sign: '~' },
+    added: {
+        bg: 'var(--sa-color-positive-surface)',
+        border: 'var(--sa-color-positive-border)',
+        color: 'var(--sa-color-positive-fg)',
+        sign: '+',
+    },
+    removed: {
+        bg: 'var(--sa-color-negative-surface)',
+        border: 'var(--sa-color-negative-border)',
+        color: 'var(--sa-color-negative-fg)',
+        sign: '−',
+    },
+    changed: {
+        bg: 'var(--sa-color-warning-surface)',
+        border: 'var(--sa-color-warning-border)',
+        color: 'var(--sa-color-warning-fg)',
+        sign: '~',
+    },
 } as const;
 
 const diffStyles = computed(() => ({

@@ -65,8 +65,9 @@ import '@saasicat/ui-vue/theme.css';
 
 Those pages used to carry their own colours and their own dark theme; they read
 the shared roles now, which is what lets one `$primary` brand both surfaces. The
-stylesheet is safe to load beside your own design — it declares custom
-properties and `.sa-*` classes, and every rule is scoped under `.sa-page`.
+stylesheet is safe to load beside your own design — every selector in it is
+either a `.sa-`-prefixed class of ours or sits under `.sa-page`, and there is no
+bare element rule.
 
 **If you override an `--sa-*` variable in your own CSS**, reading still works;
 setting no longer does. The old names are aliases of the roles now. Set

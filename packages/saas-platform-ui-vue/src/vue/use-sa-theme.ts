@@ -15,7 +15,16 @@
 // carrying near-white platform text. Only the application can move both, so
 // only the application decides, and this is where it does.
 
-import { computed, inject, ref, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue';
+import {
+    computed,
+    inject,
+    isRef,
+    ref,
+    watch,
+    type ComputedRef,
+    type InjectionKey,
+    type Ref,
+} from 'vue';
 
 import { defaultKvStore, type KvStore } from '../client/types.js';
 
@@ -98,12 +107,16 @@ function systemScheme(): { value: Ref<SaResolvedScheme>; unsubscribe: () => void
 export function createSaTheme(options: SaThemeOptions = {}): SaTheme {
     const storage = options.storage ?? defaultKvStore();
     const persist = options.persist !== false;
-    const appOwnsIt = typeof options.scheme === 'object' && options.scheme !== null;
+    // `isRef`, like `createSuperAdminI18n` next door. Branched inline rather
+    // than through a boolean, because a boolean does not narrow the union and
+    // the version that went through one needed three casts to compile.
+    const provided = options.scheme;
+    const appOwnsIt = isRef(provided);
 
     const stored = persist && !appOwnsIt ? storage.get(STORAGE_KEY) : null;
-    const initial = isScheme(stored) ? stored : ((options.scheme as SaColorScheme) ?? 'system');
-
-    const scheme = appOwnsIt ? (options.scheme as Ref<SaColorScheme>) : ref<SaColorScheme>(initial);
+    const scheme = isRef(provided)
+        ? provided
+        : ref<SaColorScheme>(isScheme(stored) ? stored : (provided ?? 'system'));
     const { value: system, unsubscribe } = systemScheme();
 
     const stopPersisting =

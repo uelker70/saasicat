@@ -57,6 +57,9 @@ const CATEGORIES = {
     breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+)px/g,
     // `var(--x, var(--x))` — a fallback to itself, i.e. no fallback at all
     selfReferencingVar: /var\((--[\w-]+),\s*var\(\1\)\)/g,
+    // Filled by the script pass rather than by the block loop below; it needs a
+    // different source, not a different pattern.
+    scriptColor: /(?!)/g,
 };
 
 function walk(dir, predicate) {
@@ -67,6 +70,24 @@ function walk(dir, predicate) {
         else if (predicate(entry)) found.push(full);
     }
     return found;
+}
+
+/**
+ * Colour literals in SCRIPT, which no codemod may touch and no stylesheet rule
+ * can reach.
+ *
+ * These are the palettes a component keeps in TypeScript and applies through a
+ * `:style` binding — a plan accent, a diff row, a status dot. They were out of
+ * the migration's declared scope on purpose (the codemod is forbidden from
+ * touching a template or a script), and the cost of leaving them unmeasured was
+ * that a diff dialog kept fixed light rows in dark mode and nothing said so.
+ *
+ * Counted, not forbidden: an inline style can read `var(--sa-color-…)`, so the
+ * fix is per site and per judgement. The ratchet stops the number growing.
+ */
+function scriptSource(file, content) {
+    if (file.endsWith('.ts')) return content;
+    return [...content.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]).join('\n');
 }
 
 /** Extracts the `<style>` blocks of an SFC; returns whole content for `.css`. */
@@ -86,7 +107,10 @@ function lineOf(content, index) {
 }
 
 export function audit() {
-    const files = walk(UI_SRC, (name) => name.endsWith('.vue') || name.endsWith('.css'));
+    const files = walk(
+        UI_SRC,
+        (name) => name.endsWith('.vue') || name.endsWith('.css') || name.endsWith('.ts'),
+    );
     const findings = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, []]));
     const styleShare = [];
     // How much was actually looked at, counted independently of what was found.
@@ -100,6 +124,18 @@ export function audit() {
         const isTokenDefinition = file.startsWith(TOKEN_DEFINITION_DIR);
         reach.files += 1;
         reach.styleBlocks += styleSource(file, content).length;
+
+        if (!isTokenDefinition) {
+            const script = scriptSource(file, content)
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .replace(/^\s*\/\/.*$/gm, '');
+            for (const match of script.matchAll(CATEGORIES.hexColor)) {
+                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+            }
+            for (const match of script.matchAll(CATEGORIES.functionalColor)) {
+                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+            }
+        }
 
         if (file.endsWith('.vue')) {
             const total = content.split('\n').length;
@@ -151,6 +187,7 @@ export function summarise({ findings, styleShare, reach }) {
         hexColors: { total: findings.hexColor.length, files: files(findings.hexColor) },
         functionalColors: { total: findings.functionalColor.length },
         namedColors: { total: findings.namedColor.length },
+        scriptColors: { total: findings.scriptColor.length, files: files(findings.scriptColor) },
         distinctPixelValues: distinct(findings.pixelValue),
         distinctFontSizes: distinct(findings.fontSize),
         distinctBreakpoints: distinct(findings.breakpoint),
@@ -192,6 +229,9 @@ function runCli(args) {
     );
     console.log(`  rgb()/hsl() literals       ${summary.functionalColors.total}`);
     console.log(`  named colours              ${summary.namedColors.total}`);
+    console.log(
+        `  colours in script          ${summary.scriptColors.total} in ${summary.scriptColors.files} files`,
+    );
     console.log(`  distinct pixel values      ${summary.distinctPixelValues}`);
     console.log(`  distinct font sizes        ${summary.distinctFontSizes}`);
     console.log(`  distinct breakpoints       ${summary.distinctBreakpoints}`);

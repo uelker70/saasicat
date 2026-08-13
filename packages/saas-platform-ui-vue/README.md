@@ -98,7 +98,7 @@ own call: `i18n.locales` narrows the set, `i18n.additionalLocales` adds
 languages the platform does not ship, `i18n.overrides` replaces individual
 strings, and `i18n.switcher: false` drops the control entirely. Components read
 the catalog via `useSaMessages('<namespace>')` / `useSuperAdminI18n()`.
-See [handbook §8.6](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md#86-ui-language-i18n).
+See [handbook §8.7](https://github.com/uelker70/saasicat/blob/main/docs/handbook.md#87-ui-language-i18n).
 
 ## Build
 

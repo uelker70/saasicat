@@ -37,6 +37,13 @@ const FLOORS = {
         floor: 0,
         why: '`color: white` is a literal that hid from both patterns above',
     },
+    // A ratchet whose floor it has not reached, and that is the point: these sit
+    // in TypeScript and reach the DOM through a `:style` binding, so no codemod
+    // may touch them and each one is a judgement about which role it means. What
+    // the number must not do is grow — every one of them is a place the theme
+    // cannot reach, and a diff dialog kept fixed light rows in dark mode for
+    // exactly this reason.
+    'scriptColors.total': { floor: 0, why: 'an inline style can read a role token too' },
     distinctPixelValues: { floor: 12, why: 'the 12-step spacing scale' },
     // Zero, not "nine steps": this metric counts LITERAL sizes, and once every
     // declaration reads `var(--sa-text-*)` there are none left to count. The
