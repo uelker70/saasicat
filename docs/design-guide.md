@@ -221,6 +221,12 @@ Inside a component, `useSaTheme()` gives you `scheme` (what was picked) and
 resolved value onto both `data-sa-theme` and Quasar's `Dark`, because either one
 alone leaves half the screen behind.
 
+If you ever tear a shell down while the page survives — hot reload, a
+micro-frontend, two shells in one document — call `handle.dispose()`. It ends
+the `prefers-color-scheme` subscription and the bridge. Skip it and the old
+bridge keeps writing `data-sa-theme` and `Dark` onto the one document at the
+next OS theme change, and can overrule the scheme the new shell was given.
+
 **What does not flip:** the brand accent, and the inverse chrome. A green product
 stays green in the dark, and a surface that is dark on purpose does not become
 light. Everything else does.

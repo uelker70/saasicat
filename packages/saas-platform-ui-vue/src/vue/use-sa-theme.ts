@@ -30,6 +30,19 @@ export interface SaTheme {
     scheme: Ref<SaColorScheme>;
     /** What that means right now: `'system'` resolved against the OS. */
     resolved: ComputedRef<SaResolvedScheme>;
+    /**
+     * Releases the `prefers-color-scheme` subscription and the persistence
+     * watcher. Idempotent.
+     *
+     * Needed because this context outlives no component — nothing unmounts it.
+     * A second shell in the same document (hot reload, a micro-frontend, a
+     * second test file) would otherwise leave the first one subscribed, and the
+     * next change of the operating system's theme would drive TWO bridges, both
+     * writing `data-sa-theme` and Quasar's `Dark` onto the one document. The
+     * stale one can win, and then the new shell's explicit scheme is overruled
+     * by a context nobody holds a reference to any more.
+     */
+    dispose: () => void;
 }
 
 export interface SaThemeOptions {
@@ -50,7 +63,8 @@ function isScheme(value: unknown): value is SaColorScheme {
 }
 
 /**
- * Live `prefers-color-scheme`, as a ref that updates when the OS setting does.
+ * Live `prefers-color-scheme`, as a ref that updates when the OS setting does,
+ * plus the handle that unsubscribes it.
  *
  * A one-time read would leave every open tab on the old theme when somebody
  * flips their system to dark at sunset — which is exactly when they flip it.
@@ -58,9 +72,11 @@ function isScheme(value: unknown): value is SaColorScheme {
  * without a stub), because guessing dark for a missing API is worse than
  * matching the CSS default.
  */
-function systemScheme(): Ref<SaResolvedScheme> {
+function systemScheme(): { value: Ref<SaResolvedScheme>; unsubscribe: () => void } {
     const value = ref<SaResolvedScheme>('light');
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return value;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+        return { value, unsubscribe: () => {} };
+    }
 
     const query = window.matchMedia('(prefers-color-scheme: dark)');
     value.value = query.matches ? 'dark' : 'light';
@@ -71,7 +87,7 @@ function systemScheme(): Ref<SaResolvedScheme> {
     // `addListener`, because the package's Quasar peer needs a newer browser
     // than that anyway.
     query.addEventListener('change', onChange);
-    return value;
+    return { value, unsubscribe: () => query.removeEventListener('change', onChange) };
 }
 
 /**
@@ -88,15 +104,18 @@ export function createSaTheme(options: SaThemeOptions = {}): SaTheme {
     const initial = isScheme(stored) ? stored : ((options.scheme as SaColorScheme) ?? 'system');
 
     const scheme = appOwnsIt ? (options.scheme as Ref<SaColorScheme>) : ref<SaColorScheme>(initial);
-    const system = systemScheme();
+    const { value: system, unsubscribe } = systemScheme();
 
-    if (persist && !appOwnsIt) {
-        watch(scheme, (next) => storage.set(STORAGE_KEY, next));
-    }
+    const stopPersisting =
+        persist && !appOwnsIt ? watch(scheme, (next) => storage.set(STORAGE_KEY, next)) : null;
 
     return {
         scheme,
         resolved: computed(() => (scheme.value === 'system' ? system.value : scheme.value)),
+        dispose: () => {
+            unsubscribe();
+            stopPersisting?.();
+        },
     };
 }
 

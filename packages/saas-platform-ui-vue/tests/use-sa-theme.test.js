@@ -156,6 +156,46 @@ describe('createSaTheme', () => {
         assert.equal(storage.map.size, 0);
     });
 
+    test('dispose() ends the operating-system subscription', async () => {
+        // Nothing unmounts this context, so nothing releases it either. A second
+        // shell in the same document would otherwise leave the first subscribed,
+        // and the next OS change would drive two bridges onto one document — the
+        // stale one able to overrule the new shell's explicit scheme.
+        const media = stubMatchMedia(false);
+        try {
+            const theme = createSaTheme({ storage: buildStorage(), persist: false });
+            media.set(true);
+            await nextTick();
+            assert.equal(theme.resolved.value, 'dark', 'the subscription was never live');
+
+            theme.dispose();
+            media.set(false);
+            await nextTick();
+            assert.equal(
+                theme.resolved.value,
+                'dark',
+                'a disposed theme still follows the operating system',
+            );
+        } finally {
+            media.restore();
+        }
+    });
+
+    test('dispose() is idempotent and stops persisting', async () => {
+        const storage = buildStorage();
+        const theme = createSaTheme({ storage });
+        theme.dispose();
+        theme.dispose();
+
+        theme.scheme.value = 'dark';
+        await nextTick();
+        assert.equal(
+            storage.get('saasicat.theme.scheme'),
+            null,
+            'a disposed theme still writes to storage',
+        );
+    });
+
     test('a stored pick does not overrule an app-supplied Ref', () => {
         const storage = buildStorage({ 'saasicat.theme.scheme': 'dark' });
         const scheme = ref('light');

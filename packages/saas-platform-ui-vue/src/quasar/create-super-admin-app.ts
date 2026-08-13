@@ -142,6 +142,18 @@ export interface SuperAdminAppHandle {
     theme: SaTheme;
     /** Mounts the app on a selector. Returns the root component instance. */
     mount: (selector: string | Element) => ReturnType<App['mount']>;
+    /**
+     * Releases what this helper attached to the DOCUMENT — the theme's
+     * `prefers-color-scheme` subscription and the bridge that mirrors it onto
+     * `data-sa-theme` and Quasar's `Dark`. Idempotent; it does not unmount the
+     * app, which is `handle.app.unmount()`.
+     *
+     * Only matters where a shell is torn down while the document survives: hot
+     * reload, a micro-frontend, a second shell in one page. Skip it and the old
+     * bridge keeps writing to the one document on the next OS theme change, and
+     * can overrule the scheme the new shell was given.
+     */
+    dispose: () => void;
 }
 
 const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
@@ -185,7 +197,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
 
     const i18n = createSuperAdminI18n(options.i18n);
     const theme = createSaTheme(options.theme);
-    bindSaThemeToDocument(theme);
+    const stopThemeBridge = bindSaThemeToDocument(theme);
 
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);
@@ -216,5 +228,9 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
         i18n,
         theme,
         mount: (selector) => app.mount(selector),
+        dispose: () => {
+            stopThemeBridge();
+            theme.dispose();
+        },
     };
 }
