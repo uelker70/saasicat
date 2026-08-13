@@ -14,7 +14,7 @@
 //     app's own `main.ts`, because tsup does not bundle CSS.
 
 import { createApp, type App, type Component } from 'vue';
-import { Quasar, Dark, Notify, Dialog, Loading, type QuasarPluginOptions } from 'quasar';
+import { Quasar, Notify, Dialog, Loading, type QuasarPluginOptions } from 'quasar';
 import { createPinia, type Pinia } from 'pinia';
 import {
     createRouter,
@@ -196,20 +196,28 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     };
 
     const i18n = createSuperAdminI18n(options.i18n);
-    // An app that switched Quasar to dark — through `quasarOptions.config.dark`
-    // or a `Dark.set(true)` before bootstrap — has STATED a preference. The
-    // platform's default of 'system' has not. Seeding from Quasar keeps the
-    // documented "Quasar decided" path working here: without it the bridge's
-    // first, immediate tick resolved 'system' against a light machine and
-    // called `Dark.set(false)`, erasing the app's own choice one line after it
-    // was applied.
+    // An app that configured Quasar's dark mode has STATED a preference; the
+    // platform's default of 'system' has not. Seeding from it keeps the
+    // documented "Quasar decided" path working here — without it the bridge's
+    // first, immediate tick resolved 'system' against the machine and called
+    // `Dark.set()` with the answer, erasing the app's own choice one line after
+    // it was applied. In both directions: a configured `true` was undone on a
+    // light machine, a configured `false` on a dark one.
     //
-    // A stored operator pick still outranks this — `createSaTheme` gives
-    // storage precedence over the `scheme` option — because that is a person
-    // choosing rather than a default.
+    // Read from the OPTION rather than from `Dark.isActive`, because the option
+    // distinguishes three states and the resulting flag only two: `'auto'` means
+    // "follow the machine", which is what 'system' already does, and reading the
+    // flag would freeze whatever the machine happened to say at boot.
+    //
+    // A stored operator pick still outranks this — `createSaTheme` gives storage
+    // precedence over the `scheme` option — because that is a person choosing
+    // rather than a default.
+    const configuredDark = options.quasarOptions?.config?.dark;
     const theme = createSaTheme({
         ...options.theme,
-        scheme: options.theme?.scheme ?? (Dark.isActive ? 'dark' : undefined),
+        scheme:
+            options.theme?.scheme ??
+            (typeof configuredDark === 'boolean' ? (configuredDark ? 'dark' : 'light') : undefined),
     });
     const stopThemeBridge = bindSaThemeToDocument(theme);
 

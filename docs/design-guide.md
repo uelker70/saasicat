@@ -263,6 +263,12 @@ inherits the platform's value and never sees yours.
 For the brand you do not need any of this: set `$primary` and the accent
 follows.
 
+**One exception, and it is the one to know about.** `--sa-color-fg-on-accent` is
+white, and that is an assumption rather than a derivation: CSS cannot branch on
+a colour's luminance, so nothing notices when `$primary` is a light amber and
+white on it reads 2.15:1. If your brand is light, override this role — the
+buttons, active tabs and filled controls all read it.
+
 ---
 
 ## The scales

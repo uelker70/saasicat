@@ -836,7 +836,7 @@ async function executeTerminate(): Promise<void> {
     background: var(--sa-color-negative-strong);
 }
 .pd-diff-row.mod .pd-diff-icon {
-    background: var(--sa-color-fg-muted);
+    background: var(--sa-color-inverse-surface);
 }
 .pd-diff-body {
     flex: 1;

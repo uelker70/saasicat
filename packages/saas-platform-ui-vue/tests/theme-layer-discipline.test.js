@@ -149,6 +149,30 @@ describe('the token layers only point one way', () => {
         );
     });
 
+    test('a foreground role is never used as a background', () => {
+        // `background: var(--sa-color-fg-heading)` is right in light and white
+        // on white in dark, and it is how seven rules were written after the
+        // migration mapped each literal on its own.
+        //
+        // The paired-contrast test measures the same class, but only where one
+        // rule sets both halves. This one also reaches the split case — a
+        // `.pd-diff-icon { color }` in one rule and a
+        // `.pd-diff-row.mod .pd-diff-icon { background }` in another — which is
+        // exactly where the last one hid.
+        //
+        // To paint a surface in a text colour, ask for the inverse family; that
+        // is what it is for, and it does not flip.
+        const offenders = [...componentFiles, ...consumers].flatMap((file) =>
+            findings(file, /background(?:-color)?\s*:[^;}]*var\(\s*(--sa-color-fg-[\w-]+)/g),
+        );
+        assert.deepEqual(
+            offenders,
+            [],
+            'a foreground role painting a background. Use `--sa-color-inverse-*` ' +
+                'for a surface that is dark on purpose, or a `-surface` role for a tint.',
+        );
+    });
+
     test('the permanently dark chrome uses only roles that do not flip', () => {
         // The header, the drawer, the login and setup backdrops are dark in
         // BOTH themes. A role that flips is therefore wrong there by

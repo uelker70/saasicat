@@ -16,6 +16,10 @@
 //
 // The defaults are SaaSiCat's own, so a freshly scaffolded admin looks like the
 // documentation until you decide otherwise.
+// One caveat if you pick a LIGHT brand: text on accent-filled controls is white
+// by default, and CSS cannot work out that white on a light amber is 2.15:1. Set
+// `--sa-color-fg-on-accent` to a dark colour in your own CSS if so — in both
+// themes, like any role.
 $primary: #3f6bff;
 $secondary: #475569;
 $accent: #0ea5e9;

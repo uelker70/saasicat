@@ -18,10 +18,37 @@ import { createSuperAdminApp } from '../src/quasar/create-super-admin-app.js';
 // way is what showed it — the assertion failed for a reason that had nothing to
 // do with the fix.
 //
+// The seed reads that option rather than the resulting `Dark.isActive`, because
+// the option has three states and the flag has two: `'auto'` means "follow the
+// machine", which is what 'system' already does.
+//
 // These run against the real `createSuperAdminApp` rather than a re-creation of
 // its ordering, because the ordering IS the thing under test.
 
 const Root = defineComponent({ render: () => h('div') });
+
+/**
+ * Makes the machine report a dark preference for the duration of a case.
+ *
+ * jsdom ships no `matchMedia`, so without this the theme resolves 'system' to
+ * light and the case that says "on a dark-preferring system" would pass for the
+ * wrong reason — it is the whole condition of the finding.
+ */
+function prefersDark() {
+    const original = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+    Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        value: (query: string) => ({
+            matches: query.includes('dark'),
+            addEventListener: () => {},
+            removeEventListener: () => {},
+        }),
+    });
+    return () => {
+        if (original) Object.defineProperty(window, 'matchMedia', original);
+        else delete (window as unknown as Record<string, unknown>).matchMedia;
+    };
+}
 
 function bootstrap(options: Record<string, unknown> = {}) {
     return createSuperAdminApp({
@@ -65,7 +92,53 @@ describe('the bootstrap and an already-chosen theme', () => {
         handle.dispose();
     });
 
-    test('with Quasar light, the theme is left on system', () => {
+    test("Quasar's configured LIGHT mode survives a dark machine", () => {
+        // The mirror of the case above, and the one the first fix missed: an
+        // app that says `dark: false` on a dark-preferring machine had 'system'
+        // resolve to dark and the bridge turn Quasar dark anyway.
+        const restore = prefersDark();
+        try {
+            const handle = bootstrap({
+                quasarOptions: { plugins: {}, config: { dark: false } },
+            });
+
+            expect(handle.theme.scheme.value).toBe('light');
+            expect(Dark.isActive, 'the bridge overrode an explicit light config').toBe(false);
+            expect(document.documentElement.getAttribute('data-sa-theme')).toBe('light');
+            handle.dispose();
+        } finally {
+            restore();
+        }
+    });
+
+    test("the machine still decides when Quasar says 'auto'", () => {
+        const restore = prefersDark();
+        try {
+            const handle = bootstrap({
+                quasarOptions: { plugins: {}, config: { dark: 'auto' } },
+            });
+
+            expect(handle.theme.scheme.value).toBe('system');
+            expect(handle.theme.resolved.value).toBe('dark');
+            handle.dispose();
+        } finally {
+            restore();
+        }
+    });
+
+    test("Quasar's 'auto' stays 'system' rather than freezing", () => {
+        // `'auto'` and 'system' say the same thing. Reading `Dark.isActive`
+        // instead of the option would have pinned whatever the machine happened
+        // to report at boot, and stopped following it afterwards.
+        const handle = bootstrap({
+            quasarOptions: { plugins: {}, config: { dark: 'auto' } },
+        });
+
+        expect(handle.theme.scheme.value).toBe('system');
+        handle.dispose();
+    });
+
+    test('with no dark configuration at all, the theme is left on system', () => {
         const handle = bootstrap();
 
         expect(handle.theme.scheme.value).toBe('system');

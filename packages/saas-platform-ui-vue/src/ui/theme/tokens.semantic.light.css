@@ -50,6 +50,19 @@
     --sa-color-fg-muted: var(--sa-neutral-500);
     --sa-color-fg-subtle: var(--sa-neutral-450);
     --sa-color-fg-disabled: var(--sa-neutral-300);
+    /* Text lying on the accent. White, and that is an ASSUMPTION about your
+     * brand rather than a derivation from it: CSS cannot branch on a colour's
+     * luminance, so nothing here can notice that `$primary` is a light amber
+     * and white on it reads 2.15:1. `contrast-color()` will answer this without
+     * JavaScript once it is safe to ship; until then it is a knob.
+     *
+     * If your brand is light, set this — in BOTH themes, like any role
+     * (docs/design-guide.md#overriding-a-role):
+     *
+     *     :root, [data-sa-theme='dark'], body.body--dark {
+     *         --sa-color-fg-on-accent: #1a1300;
+     *     }
+     */
     --sa-color-fg-on-accent: var(--sa-white);
 
     /* ── Lines. ─────────────────────────────────────────────────────────── */
