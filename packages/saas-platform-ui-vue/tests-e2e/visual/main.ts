@@ -11,8 +11,9 @@ import {
     watch,
     type Component,
 } from 'vue';
-import { Quasar, Notify, Dialog, Loading } from 'quasar';
+import { Quasar, Notify, Dialog, Loading, type QuasarPluginOptions } from 'quasar';
 import { createPinia } from 'pinia';
+import { SA_PORTAL_CLASS } from '../../src/quasar/create-super-admin-app.js';
 import { createRouter, createWebHistory } from 'vue-router';
 
 import {
@@ -136,8 +137,14 @@ const Host = defineComponent({
 const app = createApp(Host);
 app.use(Quasar, {
     plugins: { Notify, Dialog, Loading },
-    config: { notify: { position: 'top-right', timeout: 3000 } },
-});
+    config: {
+        notify: { position: 'top-right', timeout: 3000 },
+        // The same marking `createSuperAdminApp` applies. Without it every
+        // teleported node in this fixture renders unthemed, and the baselines
+        // record Quasar's own dialog — white on a dark page — as the truth.
+        globalNodes: { class: SA_PORTAL_CLASS },
+    },
+} as Parameters<typeof app.use<QuasarPluginOptions>>[1]);
 app.use(createPinia());
 app.use(
     createRouter({

@@ -7,8 +7,11 @@ Three token layers, one colour system, and a dark theme
 
 The admin UI shipped a token file **and** 643 literal colours, 198 `rgba()`
 literals and 23 font sizes. A reader could not tell which value was a decision
-and which was a guess, so every new page guessed again. All four counts are now
-zero, and the audit (`pnpm run tokens`) keeps them there.
+and which was a guess, so every new page guessed again. Hex colours, `rgb()`
+and `hsl()` literals, named colours and raw font sizes are all at zero now, and
+the audit (`pnpm run tokens`) keeps them there. What it still reports is 56
+colours built in script (inline `:style` bindings) and 70 distinct pixel values
+— known debt, held under a ratchet so it can only shrink.
 
 **The layers.** `@saasicat/ui-vue/theme.css` is the new entry
 (`./sa-theme.css` still works and is removed in 1.0):
@@ -54,13 +57,20 @@ and wants OS-following dark opts in with
 2.56:1 on a white card — captions and price units were decoration rather than
 information.
 
-**Teleported dialogs are themed too.** Quasar appends every dialog, menu and
-tooltip to `<body>`, outside the `.sa-page` wrapper — so the theme never reached
-them, and dialog cards kept Quasar's grey surface, its 4px radius and its
-transparent outlined inputs. `createSuperAdminApp` now marks those portals
+**Teleported dialogs and menus are themed too.** Quasar appends every dialog,
+menu and tooltip to `<body>`, outside the `.sa-page` wrapper — so the theme
+never reached them, and dialog cards kept Quasar's grey surface, its 4px radius
+and its transparent outlined inputs, while every dropdown opened a `#1d1d1d`
+panel over a slate page. `createSuperAdminApp` now marks those portals
 (`config.globalNodes.class`, appended to yours if you set one) and the theme
-addresses `.sa-page` and `.sa-portal` alike. It deliberately does not style
-`.q-dialog` outright: that would reach your dialogs as well.
+addresses `.sa-page` and `.sa-portal` alike.
+
+Be aware of the scope: `globalNodes` is document-wide, not per-owner. Every
+portal opened inside an app bootstrapped by `createSuperAdminApp` is marked —
+including a dialog opened by a page you contribute into the admin shell. That is
+intended, because a page mounted in the shell is admin UI, and `.sa-page`
+already repaints its cards. An app that does not call `createSuperAdminApp` is
+untouched. Tooltips keep Quasar's own colours.
 
 **Quieter row actions.** Table row icons were three different recipes across
 five pages — two painted `primary`, two carried a per-action colour, one had its

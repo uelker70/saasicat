@@ -156,8 +156,10 @@ export interface SuperAdminAppHandle {
     dispose: () => void;
 }
 
-/** Marks Quasar's teleported portals as belonging to this shell. */
-const SA_PORTAL_CLASS = 'sa-portal';
+/** Marks Quasar's teleported nodes so the theme can reach them. Exported so a
+ * test fixture can install the same config a real app gets — without it the
+ * `.sa-portal` rules are exercised by nothing. */
+export const SA_PORTAL_CLASS = 'sa-portal';
 
 const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
     plugins: { Notify, Dialog, Loading },
@@ -177,16 +179,20 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     // `<body>`, so a rule prefixed with `.sa-page` never reaches them — which is
     // why dialog cards kept Quasar's neutral grey in dark mode while the page
     // behind them was slate, and why the outlined-field correction had silently
-    // never applied inside a dialog. Marking the portals lets the theme style
-    // them WITHOUT reaching a consumer's own dialogs, which a bare `.q-card`
-    // rule would.
+    // never applied inside a dialog.
+    //
+    // Scope, stated plainly: `globalNodes` is document-wide, not per-owner —
+    // `createGlobalNode` stamps the class on every portal Quasar opens, the
+    // shell's own and any a contributed project page opens inside it. That is
+    // intended: a page mounted in the admin shell is admin UI, and the same
+    // theme already repaints its cards via `.sa-page`. What the class buys is
+    // that an app which never calls `createSuperAdminApp` stays untouched —
+    // which a bare `.q-dialog .q-card` rule could not promise.
     const quasarOptions = options.quasarOptions ?? DEFAULT_QUASAR_OPTIONS;
     // `globalNodes` is a documented Quasar config option that its TypeScript
     // types do not declare (see quasar/src/utils/private.config/nodes.js, which
     // reads `globalConfig.globalNodes.class`). The cast is the exception this
-    // codebase allows for an API that exists and is simply untyped upstream —
-    // the alternative is a bare `.q-dialog .q-card` rule that would restyle a
-    // consumer's own dialogs.
+    // codebase allows for an API that exists and is simply untyped upstream.
     const config = quasarOptions.config as Record<string, unknown> | undefined;
     const existingPortalClass = (config?.globalNodes as { class?: string } | undefined)?.class;
     app.use(Quasar, {

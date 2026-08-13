@@ -662,7 +662,10 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-row > .sa-plan-list-cell--sub-name {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    /* The base rule centres on the main axis, which is vertical for a column
+     * cell but horizontal here — it would float the indent and leave the tree
+     * elbow pointing at nothing. */
+    justify-content: flex-start;
     align-items: center;
     gap: 12px;
     padding-left: 32px !important;
@@ -846,7 +849,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-row > .sa-plan-list-cell--tenants {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    justify-content: flex-start;
     align-items: center;
     gap: 10px;
 }
@@ -872,6 +875,5 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     align-items: center;
     justify-content: flex-end;
     gap: 4px;
-    justify-content: flex-end;
 }
 </style>
