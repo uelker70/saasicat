@@ -465,6 +465,12 @@ onMounted(() => {
     flex-direction: column;
     gap: 14px;
 }
+.sa-discovery__panel {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--sa-color-bg-surface);
+    padding: 16px 0 0;
+}
 .sa-discovery__banner {
     display: flex;
     justify-content: space-between;

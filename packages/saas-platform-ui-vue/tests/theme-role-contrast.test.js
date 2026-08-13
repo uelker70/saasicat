@@ -138,13 +138,16 @@ function rolePairedRules() {
     for (const file of walk(SRC)) {
         const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
         for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            // ANY `var(--sa-…)`, not only a bare role. Most of the admin
+            // chrome wraps its roles in a consumer knob —
+            // `var(--sa-admin-user-avatar-bg, var(--sa-color-inverse-accent))`
+            // — and a pattern anchored on `--sa-color-` saw none of it. That is
+            // where the avatar hid: white initials on amber at 1.67:1, two
+            // lines below a badge paired correctly. The resolver already walks
+            // a fallback chain, so it decides what this cannot.
             const background =
-                /(?:^|;|\s)background(?:-color)?\s*:\s*(var\(--sa-color-[^;]+?)\s*(?:;|$)/.exec(
-                    body,
-                );
-            const foreground = /(?:^|;|\s)color\s*:\s*(var\(--sa-color-[^;]+?)\s*(?:;|$)/.exec(
-                body,
-            );
+                /(?:^|;|\s)background(?:-color)?\s*:\s*(var\(--sa-[^;]+?)\s*(?:;|$)/.exec(body);
+            const foreground = /(?:^|;|\s)color\s*:\s*(var\(--sa-[^;]+?)\s*(?:;|$)/.exec(body);
             if (!background || !foreground) continue;
             rules.push({
                 file: relative(SRC, file),

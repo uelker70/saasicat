@@ -149,6 +149,38 @@ describe('the token layers only point one way', () => {
         );
     });
 
+    test('the package does not use its own deprecation shims', () => {
+        // `tokens.legacy.css` keeps the pre-role names alive for ONE release,
+        // for consumers. The package migrated off them — 809 references — and
+        // the claim that it is "purely a courtesy to consumers now" was, until
+        // this test, only a claim. The first violation appeared the same day.
+        //
+        // It is not a visual bug: an alias resolves to its role. It is a delayed
+        // one. The file is deleted in 1.0, and every reference here becomes a
+        // property that resolves to nothing — a background silently turning
+        // transparent, months after the line was written.
+        const legacy = new Set(
+            [
+                ...withoutComments(readFileSync(join(THEME, 'tokens.legacy.css'), 'utf8')).matchAll(
+                    /^\s{4}(--sa-[\w-]+)\s*:/gm,
+                ),
+            ].map((m) => m[1]),
+        );
+        assert.ok(legacy.size > 20, `only ${legacy.size} legacy aliases parsed`);
+
+        const offenders = [...componentFiles, ...consumers].flatMap((file) =>
+            findings(file, /var\(\s*(--sa-[\w-]+)/g).filter((entry) =>
+                legacy.has(entry.split(': ')[1]),
+            ),
+        );
+        assert.deepEqual(
+            offenders,
+            [],
+            'a deprecated alias inside the package. Use the role it points at — ' +
+                'the alias is a courtesy to consumers and goes away in 1.0.',
+        );
+    });
+
     test('a foreground role is never used as a background', () => {
         // `background: var(--sa-color-fg-heading)` is right in light and white
         // on white in dark, and it is how seven rules were written after the

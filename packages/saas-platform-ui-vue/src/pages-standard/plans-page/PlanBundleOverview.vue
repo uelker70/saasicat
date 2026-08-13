@@ -83,6 +83,12 @@ function compatLabel(bundle: BundleEntry): string {
 </script>
 
 <style scoped>
+.sa-bundle {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background-color: var(--sa-color-bg-surface);
+}
 .sa-bundles__count {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);

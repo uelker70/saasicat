@@ -355,7 +355,7 @@ const currentPageTitle = computed(() => {
 }
 .sa-admin-user__avatar {
     background: var(--sa-admin-user-avatar-bg, var(--sa-color-inverse-accent));
-    color: var(--sa-admin-user-avatar-fg, var(--sa-color-inverse-fg));
+    color: var(--sa-admin-user-avatar-fg, var(--sa-color-inverse-accent-fg));
 }
 .sa-admin-user__name {
     line-height: 1.05;
