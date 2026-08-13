@@ -55,8 +55,8 @@ defineProps<{
     align-items: center;
     gap: 6px;
     padding: 14px 26px;
-    background: var(--sa-bg-surface);
-    border-bottom: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .wz-step {
     display: flex;
@@ -64,44 +64,44 @@ defineProps<{
     gap: 8px;
     padding: 6px 12px;
     border-radius: 999px;
-    font: 500 12.5px var(--sa-font-body);
-    color: var(--sa-muted);
+    font: 500 var(--sa-text-md) var(--sa-font-body);
+    color: var(--sa-color-fg-muted);
 }
 .wz-step--current {
-    background: var(--sa-heading);
-    color: #fff;
+    background: var(--sa-color-inverse-bg);
+    color: var(--sa-color-fg-on-accent);
 }
 .wz-step--done {
-    color: var(--sa-positive);
+    color: var(--sa-color-positive);
 }
 .wz-step-num {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
     display: grid;
     place-items: center;
-    font: 700 11px var(--sa-font-body);
+    font: 700 var(--sa-text-xs) var(--sa-font-body);
     flex: 0 0 auto;
 }
 .wz-step--current .wz-step-num {
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
+    background: var(--sa-color-inverse-border-strong);
+    color: var(--sa-color-fg-on-accent);
 }
 .wz-step--done .wz-step-num {
-    background: var(--sa-positive-soft);
-    color: var(--sa-positive);
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive);
 }
 .wz-step-sep {
     width: 14px;
     height: 1px;
-    background: var(--sa-border);
+    background: var(--sa-color-border);
     margin: 0 2px;
 }
 .wz-stepper-hint {
     margin-left: auto;
-    font-size: 11px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
 }
 </style>

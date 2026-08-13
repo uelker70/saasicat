@@ -1,11 +1,19 @@
 // Quasar brand variables for the fixture app.
 //
-// Fixed on purpose: the baselines must not move because a consumer changed its
-// theme. These are the defaults the scaffolder emits.
-$primary: #1e40af;
-$secondary: #26a69a;
-$accent: #9c27b0;
-$positive: #21ba45;
-$negative: #c10015;
-$info: #31ccec;
-$warning: #f2c037;
+// These MUST be the values the scaffolder emits, byte for byte — the platform
+// reads its accent and its four status colours from Quasar's `--q-*`, so a
+// fixture with different brand variables measures a screen no user ever sees.
+// `tests/scaffolder-brand-defaults.test.js` compares the two files and fails if
+// they drift; the previous copy claimed in a comment to be the scaffolder's
+// defaults while carrying Quasar's stock palette, and nothing noticed.
+//
+// Source of truth:
+//     packages/create-saasicat-admin/templates/src/styles/theme.scss.tpl
+$primary: #3f6bff;
+$secondary: #475569;
+$accent: #0ea5e9;
+
+$positive: #047857;
+$negative: #dc2626;
+$warning: #f59e0b;
+$info: #2563eb;

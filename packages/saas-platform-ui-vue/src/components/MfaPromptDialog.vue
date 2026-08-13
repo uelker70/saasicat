@@ -102,9 +102,9 @@ function onConfirm() {
     padding-bottom: 0;
 }
 code {
-    background: rgba(15, 23, 42, 0.06);
+    background: var(--sa-color-bg-sunken);
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
 }
 </style>

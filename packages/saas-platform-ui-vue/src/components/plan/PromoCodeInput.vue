@@ -104,37 +104,37 @@ function remove(): void {
     width: 100%;
     padding: 10px 12px;
     margin: 10px 0 6px;
-    border: 1px dashed rgba(15, 118, 110, 0.3);
-    background: rgba(15, 118, 110, 0.04);
+    border: 1px dashed var(--sa-color-accent-border);
+    background: var(--sa-color-accent-surface-soft);
     border-radius: 10px;
-    color: var(--q-primary, #0f766e);
+    color: var(--sa-color-accent);
     font-weight: 700;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     cursor: pointer;
     font-family: inherit;
     letter-spacing: 0.01em;
 }
 .sp-promo__toggle:hover {
-    background: rgba(15, 118, 110, 0.1);
+    background: var(--sa-color-accent-surface);
 }
 .sp-promo {
     margin: 10px 0 6px;
     padding: 10px;
-    background: rgba(15, 118, 110, 0.04);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: var(--sa-color-accent-surface-soft);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
 }
 .sp-promo--valid {
-    border-color: rgba(22, 163, 74, 0.5);
-    background: rgba(22, 163, 74, 0.06);
+    border-color: var(--sa-color-positive-border);
+    background: var(--sa-color-positive-surface);
 }
 .sp-promo--invalid {
-    border-color: rgba(220, 38, 38, 0.4);
-    background: rgba(220, 38, 38, 0.04);
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
 }
 .sp-promo--restricted {
-    border-color: rgba(245, 158, 11, 0.4);
-    background: rgba(245, 158, 11, 0.06);
+    border-color: var(--sa-color-warning-border);
+    background: var(--sa-color-warning-surface);
 }
 .sp-promo__field {
     display: flex;
@@ -143,26 +143,26 @@ function remove(): void {
 .sp-promo__field input {
     flex: 1;
     padding: 8px 10px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     letter-spacing: 0.04em;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     outline: none;
     text-transform: uppercase;
 }
 .sp-promo__field input:focus {
-    border-color: var(--q-primary, #0f766e);
+    border-color: var(--sa-color-accent);
 }
 .sp-promo__btn {
     padding: 8px 12px;
-    background: var(--q-primary, #0f766e);
-    color: #fff;
+    background: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
     border: none;
     border-radius: 8px;
     font-family: inherit;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     cursor: pointer;
     min-width: 70px;
@@ -172,21 +172,21 @@ function remove(): void {
     cursor: not-allowed;
 }
 .sp-promo__btn--remove {
-    background: rgba(220, 38, 38, 0.1);
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
 }
 .sp-promo__msg {
     margin-top: 6px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
 }
 .sp-promo__msg--valid {
-    color: #166534;
+    color: var(--sa-color-positive-fg);
 }
 .sp-promo__msg--invalid {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 .sp-promo__msg--restricted {
-    color: #92400e;
+    color: var(--sa-color-warning-fg);
 }
 </style>

@@ -182,8 +182,8 @@ function onToggle(planKey: string): void {
     gap: 10px;
 }
 .bv-compat-hint {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     line-height: 1.5;
 }
 .bv-compat-grid {
@@ -196,27 +196,27 @@ function onToggle(planKey: string): void {
     flex-direction: column;
     gap: 6px;
     padding: 10px 12px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     cursor: pointer;
     text-align: left;
     font-family: inherit;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .bv-compat-card:hover:not(:disabled) {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .bv-compat-card.on {
-    border-color: var(--sa-primary);
-    background: var(--sa-primary-50);
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface-strong);
 }
 .bv-compat-card.warn {
-    border-color: #fca5a5;
-    background: #fef2f2;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
 }
 .bv-compat-card:disabled {
     cursor: not-allowed;
@@ -232,12 +232,12 @@ function onToggle(planKey: string): void {
     height: 26px;
     display: grid;
     place-items: center;
-    background: #e0e7ff;
-    color: #4338ca;
-    border: 1px solid #c7d2fe;
+    background: var(--sa-color-scheduled-surface-strong);
+    color: var(--sa-color-scheduled-fg);
+    border: 1px solid var(--sa-color-scheduled-border);
     border-radius: 6px;
     font:
-        700 9px 'JetBrains Mono',
+        700 var(--sa-text-2xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
     letter-spacing: 0.04em;
@@ -248,32 +248,32 @@ function onToggle(planKey: string): void {
     min-width: 0;
 }
 .bv-compat-name {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
 }
 .bv-compat-key {
     font:
-        500 11px 'JetBrains Mono',
+        500 var(--sa-text-xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .bv-compat-check {
-    color: var(--sa-primary);
+    color: var(--sa-color-accent);
     display: inline-flex;
 }
 .bv-compat-overlap {
     padding: 6px 8px;
-    background: #fff;
-    border: 1px dashed #fecaca;
+    background: var(--sa-color-bg-surface);
+    border: 1px dashed var(--sa-color-negative-border);
     border-radius: 6px;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 .bv-compat-overlap-head {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -283,24 +283,24 @@ function onToggle(planKey: string): void {
     align-items: center;
     gap: 5px;
     flex-wrap: wrap;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
 }
 .bv-compat-overlap-kind {
-    color: #7f1d1d;
+    color: var(--sa-color-negative-fg);
     font-weight: 600;
 }
 .bv-compat-overlap-chip {
     padding: 1px 6px;
-    border: 1px solid #fecaca;
+    border: 1px solid var(--sa-color-negative-border);
     border-radius: 4px;
-    background: #fff;
-    color: #b91c1c;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-negative-fg);
 }
 .bv-compat-empty {
     padding: 12px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     text-align: center;
 }
 .bv-compat-summary {
@@ -308,11 +308,11 @@ function onToggle(planKey: string): void {
     align-items: flex-start;
     gap: 8px;
     padding: 10px 12px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
     border-radius: 8px;
-    color: #b91c1c;
-    font-size: 12.5px;
+    color: var(--sa-color-negative-fg);
+    font-size: var(--sa-text-md);
     line-height: 1.5;
 }
 .bv-compat-summary-ico {

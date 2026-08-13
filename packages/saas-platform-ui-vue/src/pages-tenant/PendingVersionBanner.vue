@@ -71,8 +71,8 @@ defineEmits<{ accept: [] }>();
 
 <style scoped>
 .sp-pending-version {
-    border: 1px solid rgba(242, 192, 55, 0.4);
-    background: rgba(242, 192, 55, 0.08);
+    border: 1px solid var(--sa-color-warning-border);
+    background: var(--sa-color-warning-surface);
     border-radius: 6px;
     padding: 12px 16px;
     display: flex;
@@ -87,35 +87,35 @@ defineEmits<{ accept: [] }>();
 .sp-pending-version__chip {
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
     text-transform: uppercase;
 }
 .sp-pending-version__chip--good {
-    background: rgba(33, 186, 69, 0.15);
-    color: var(--q-positive, #21ba45);
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive);
 }
 .sp-pending-version__chip--warn {
-    background: rgba(193, 0, 21, 0.15);
-    color: var(--q-negative, #c10015);
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative);
 }
 .sp-pending-version__note {
     margin: 0;
-    color: rgba(0, 0, 0, 0.75);
+    color: var(--sa-color-fg-body);
 }
 .sp-pending-version__effective,
 .sp-pending-version__accepted {
     margin: 0;
-    font-size: 13px;
-    color: rgba(0, 0, 0, 0.6);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-secondary);
 }
 .sp-pending-version__btn {
     align-self: flex-start;
     padding: 6px 14px;
     border-radius: 4px;
     border: 0;
-    background: var(--q-primary, #1976d2);
-    color: white;
+    background: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
     font-weight: 600;
     cursor: pointer;
 }

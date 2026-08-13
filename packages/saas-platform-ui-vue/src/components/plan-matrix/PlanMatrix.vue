@@ -657,16 +657,16 @@ function formatQuota(v: number | undefined): string {
 <style scoped>
 .pm {
     padding: 22px 26px;
-    background: var(--sa-bg-app);
-    color: var(--sa-heading);
+    background: var(--sa-color-bg-app);
+    color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
 }
 
 .pm-card {
-    background: var(--sa-bg-surface);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
 }
 .pm-wrap {
@@ -677,11 +677,11 @@ function formatQuota(v: number | undefined): string {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .pm-head th {
-    background: #fbfbfd;
-    border-bottom: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface-raised);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pm-rowhead-cell {
     text-align: left;
@@ -691,10 +691,10 @@ function formatQuota(v: number | undefined): string {
     min-width: 240px;
 }
 .pm-component-kicker {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 
@@ -704,8 +704,8 @@ function formatQuota(v: number | undefined): string {
     min-width: 200px;
 }
 .pm-plan-card {
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-top: 3px solid;
     border-radius: 10px;
     padding: 14px 14px 12px;
@@ -718,34 +718,34 @@ function formatQuota(v: number | undefined): string {
     align-items: flex-start;
 }
 .pm-plan-key {
-    font: 700 11px var(--sa-font-mono);
+    font: 700 var(--sa-text-xs) var(--sa-font-mono);
     letter-spacing: 0.08em;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .pm-plan-label {
-    font-size: 17px;
+    font-size: var(--sa-text-xl);
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pm-plan-desc {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     margin-top: 4px;
     line-height: 1.4;
     min-height: 32px;
 }
 .pm-plan-divider {
     height: 1px;
-    background: var(--sa-border);
+    background: var(--sa-color-border);
     margin: 10px 0;
 }
 .pm-kebab {
     background: none;
     border: 0;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
-    font-size: 16px;
+    font-size: var(--sa-text-lg);
     padding: 0;
     line-height: 1;
 }
@@ -763,31 +763,31 @@ function formatQuota(v: number | undefined): string {
     flex-wrap: wrap;
 }
 .pm-price-big {
-    font-size: 20px;
+    font-size: var(--sa-text-xl);
     font-weight: 700;
     letter-spacing: -0.02em;
 }
 .pm-price-unit {
-    font-size: 11px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
 }
 .pm-price-yearly {
-    font-size: 10px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-2xs);
+    color: var(--sa-color-fg-subtle);
     margin-left: 4px;
 }
 .pm-price-free {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pm-plan-meta {
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
     align-items: center;
-    font-size: 11px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
     margin-top: 8px;
 }
 .pm-plan-actions {
@@ -795,7 +795,7 @@ function formatQuota(v: number | undefined): string {
     gap: 6px;
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
 }
 
 .pm-add-col {
@@ -804,10 +804,10 @@ function formatQuota(v: number | undefined): string {
     vertical-align: top;
 }
 .pm-add {
-    border: 1.5px dashed #c7d2fe;
+    border: 1.5px dashed var(--sa-color-scheduled-border);
     border-radius: 10px;
     padding: 16px 10px;
-    background: #f5f7ff;
+    background: var(--sa-color-accent-surface);
     text-align: center;
     cursor: pointer;
     min-height: 180px;
@@ -818,8 +818,8 @@ function formatQuota(v: number | undefined): string {
     font-family: inherit;
 }
 .pm-add:hover {
-    background: #eef2ff;
-    border-color: #818cf8;
+    background: var(--sa-color-scheduled-surface);
+    border-color: var(--sa-color-scheduled-strong);
 }
 .pm-add-icon {
     display: grid;
@@ -827,18 +827,18 @@ function formatQuota(v: number | undefined): string {
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: var(--sa-primary-50);
-    color: var(--sa-primary);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent);
     margin: 0 auto 6px;
 }
 .pm-add-title {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
-    color: var(--sa-primary);
+    color: var(--sa-color-accent);
 }
 .pm-add-sub {
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
     margin-top: 3px;
 }
 
@@ -849,30 +849,30 @@ function formatQuota(v: number | undefined): string {
     gap: 5px;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .pm-chip--tiny {
     padding: 1px 6px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
 }
 .pm-chip--live {
-    background: var(--sa-positive-bg);
-    color: #047857;
-    border-color: #a7f3d0;
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .pm-chip--draft {
-    background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 .pm-chip--supersed {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
+    border-color: var(--sa-color-border-strong);
 }
 .pm-chip--dot::before {
     content: '';
@@ -884,20 +884,20 @@ function formatQuota(v: number | undefined): string {
 
 /* Group rows */
 .pm-group td {
-    background: var(--sa-bg-surface-2);
-    border-top: 1px solid var(--sa-border);
-    border-bottom: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    border-top: 1px solid var(--sa-color-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pm-group-inner {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 9px 16px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .pm-group-dot {
     width: 7px;
@@ -905,29 +905,29 @@ function formatQuota(v: number | undefined): string {
     border-radius: 50%;
 }
 .pm-group-dot--quota {
-    background: #0ea5e9;
+    background: var(--sa-color-quota);
 }
 .pm-group-dot--feature {
-    background: #8b5cf6;
+    background: var(--sa-color-feature);
 }
 .pm-group-dot--bundle {
-    background: #f59e0b;
+    background: var(--sa-color-bundle);
 }
 .pm-group-count {
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
     padding: 1px 7px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
 }
 
 /* Data rows */
 .pm-row td {
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
     height: 44px;
 }
 .pm-row:hover td {
-    background: #fcfcfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .pm-rowhead {
     padding: 8px 16px;
@@ -938,13 +938,13 @@ function formatQuota(v: number | undefined): string {
     gap: 1px;
 }
 .pm-rh-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 500;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pm-rh-key {
-    font: 500 10px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    font: 500 var(--sa-text-2xs) var(--sa-font-mono);
+    color: var(--sa-color-fg-subtle);
 }
 .pm-cell {
     text-align: center;
@@ -957,12 +957,12 @@ function formatQuota(v: number | undefined): string {
     background-image: repeating-linear-gradient(
         135deg,
         transparent 0 6px,
-        rgba(217, 119, 6, 0.05) 6px 7px
+        var(--sa-color-warning-surface) 6px 7px
     );
 }
 .pm-cell--base {
     text-align: center;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .pm-base-badge {
     display: inline-flex;
@@ -970,12 +970,12 @@ function formatQuota(v: number | undefined): string {
     gap: 6px;
     padding: 3px 12px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     letter-spacing: 0.02em;
-    background: #eef2ff;
-    color: #4338ca;
-    border: 1px solid #c7d2fe;
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
+    border: 1px solid var(--sa-color-scheduled-border);
 }
 .pm-check {
     display: inline-grid;
@@ -985,16 +985,16 @@ function formatQuota(v: number | undefined): string {
     border-radius: 6px;
 }
 .pm-dash {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     font-weight: 500;
 }
 .pm-num {
-    font: 600 14px var(--sa-font-body);
-    color: var(--sa-heading);
+    font: 600 var(--sa-text-lg) var(--sa-font-body);
+    color: var(--sa-color-fg-heading);
 }
 .pm-unit {
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
     margin-left: 3px;
 }
 .pm-quota {
@@ -1008,8 +1008,8 @@ function formatQuota(v: number | undefined): string {
     display: flex;
     gap: 18px;
     margin-top: 14px;
-    font-size: 12px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-secondary);
     align-items: center;
 }
 .pm-legend-item {
@@ -1021,23 +1021,23 @@ function formatQuota(v: number | undefined): string {
     width: 14px;
     height: 14px;
     border-radius: 4px;
-    background: #dcfce7;
-    color: #16a34a;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive);
     display: grid;
     place-items: center;
 }
 .pm-legend-dash {
     width: 14px;
     height: 14px;
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     display: grid;
     place-items: center;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     line-height: 1;
 }
 .pm-legend-loading {
     margin-left: auto;
     font-style: italic;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 </style>

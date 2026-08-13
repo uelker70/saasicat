@@ -172,8 +172,8 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     cursor: pointer;
     font-family: inherit;
     text-align: left;
-    background: #fff;
-    border: 1.5px solid rgba(0, 0, 0, 0.1);
+    background: var(--sa-color-bg-surface);
+    border: 1.5px solid var(--sa-color-border);
     border-radius: 14px;
     padding: 14px 16px 12px;
     display: flex;
@@ -183,11 +183,15 @@ function priceLabel(bundle: PublicMarketingBundle): string {
 }
 .sp-public-bundle:hover {
     transform: translateY(-2px);
-    border-color: rgba(15, 118, 110, 0.3);
+    border-color: var(--sa-color-accent-border);
 }
 .sp-public-bundle--on {
-    border-color: var(--q-primary, #0f766e);
-    background: linear-gradient(180deg, rgba(15, 118, 110, 0.06), #fff 80%);
+    border-color: var(--sa-color-accent);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-accent-surface-soft),
+        var(--sa-color-bg-surface) 80%
+    );
 }
 .sp-public-bundle--off {
     cursor: not-allowed;
@@ -195,7 +199,7 @@ function priceLabel(bundle: PublicMarketingBundle): string {
 }
 .sp-public-bundle--off:hover {
     transform: none;
-    border-color: rgba(0, 0, 0, 0.1);
+    border-color: var(--sa-color-border);
 }
 .sp-public-bundle__head {
     display: flex;
@@ -203,24 +207,24 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     gap: 10px;
 }
 .sp-public-bundle__name {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
-    color: rgba(0, 0, 0, 0.85);
+    color: var(--sa-color-fg-heading);
 }
 .sp-public-bundle__desc {
     margin: 4px 0 0;
-    color: rgba(0, 0, 0, 0.55);
-    font-size: 12px;
+    color: var(--sa-color-fg-muted);
+    font-size: var(--sa-text-sm);
     line-height: 1.4;
 }
 .sp-public-bundle__tag {
     align-self: flex-start;
     white-space: nowrap;
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     letter-spacing: 0.06em;
-    color: #166534;
-    background: rgba(22, 163, 74, 0.16);
+    color: var(--sa-color-positive-fg);
+    background: var(--sa-color-positive-surface-strong);
     padding: 3px 7px;
     border-radius: 999px;
     font-weight: 700;
@@ -228,33 +232,33 @@ function priceLabel(bundle: PublicMarketingBundle): string {
 }
 .sp-public-bundle__state {
     align-self: flex-start;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     padding: 3px 8px;
     border-radius: 999px;
     line-height: 1.3;
 }
 .sp-public-bundle__state--covered {
-    color: #166534;
-    background: rgba(22, 163, 74, 0.16);
+    color: var(--sa-color-positive-fg);
+    background: var(--sa-color-positive-surface-strong);
 }
 .sp-public-bundle__state--blocked {
-    color: rgba(0, 0, 0, 0.6);
-    background: rgba(0, 0, 0, 0.08);
+    color: var(--sa-color-fg-secondary);
+    background: var(--sa-color-bg-sunken);
 }
 .sp-public-bundle__features,
 .sp-public-bundle__quotas {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    font-size: 12px;
-    color: rgba(0, 0, 0, 0.55);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     line-height: 1.4;
 }
 .sp-public-bundle__features span::before,
 .sp-public-bundle__quotas span::before {
     content: '+ ';
-    color: var(--q-primary, #0f766e);
+    color: var(--sa-color-accent);
     font-weight: 700;
 }
 .sp-public-bundle__foot {
@@ -263,24 +267,24 @@ function priceLabel(bundle: PublicMarketingBundle): string {
     align-items: baseline;
     padding-top: 8px;
     margin-top: auto;
-    border-top: 1px dashed rgba(0, 0, 0, 0.08);
+    border-top: 1px dashed var(--sa-color-border);
 }
 .sp-public-bundle__foot strong {
-    font-size: 16px;
+    font-size: var(--sa-text-lg);
     font-weight: 800;
-    color: rgba(0, 0, 0, 0.85);
+    color: var(--sa-color-fg-heading);
 }
 .sp-public-bundle__cycle {
     font-family: 'SF Mono', Consolas, monospace;
-    font-size: 9.5px;
-    color: rgba(0, 0, 0, 0.55);
+    font-size: var(--sa-text-2xs);
+    color: var(--sa-color-fg-muted);
     letter-spacing: 0.06em;
 }
 .sp-public-bundles__empty {
     grid-column: 1 / -1;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     padding: 20px;
     text-align: center;
 }

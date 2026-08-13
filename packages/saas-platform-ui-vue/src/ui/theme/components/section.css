@@ -1,0 +1,67 @@
+/* Section — a labelled block within a page (see AdminSection). It carries the
+ * surface: the page frame is transparent, so what a reader sees as "a block of
+ * this page" is exactly one section. A section that needs an inner card still
+ * adds `.sa-card`; a section IS one, so the two do not stack.
+ */
+
+/* Rhythm only for sections sitting directly in the page flow. Deliberately a
+ * child selector: sections placed inside a grid or flex container get their
+ * spacing from that container, and a blanket margin would fight it. */
+.sa-page > .sa-section,
+.sa-page-body > .sa-section {
+    margin-bottom: 16px;
+}
+.sa-page > .sa-section:last-child,
+.sa-page-body > .sa-section:last-child {
+    margin-bottom: 0;
+}
+
+.sa-section {
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
+    border-radius: var(--sa-radius-section);
+}
+.sa-section__body {
+    padding: var(--sa-pad-section);
+}
+
+/* The head is the hero's block one level down: same typography, same 22px
+ * inset — so a section title sits exactly under the page title — but no tinted
+ * box of its own. The section already is a surface; a box inside it would read
+ * as a panel within a panel.
+ *
+ * The size steps down because the level does. Everything else is the hero's. */
+.sa-section__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 18px 22px 0;
+}
+.sa-section__title {
+    margin: 0;
+    font-family: var(--sa-font-head);
+    font-size: var(--sa-text-xl);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: var(--sa-color-fg-heading);
+}
+.sa-section__sub {
+    margin: 1px 0 0;
+    font-size: var(--sa-text-md);
+    line-height: 1.35;
+    color: var(--sa-color-fg-muted);
+}
+.sa-section__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Key-value grid — the layout `KvBlock` is meant to sit in. */
+.sa-kv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+}

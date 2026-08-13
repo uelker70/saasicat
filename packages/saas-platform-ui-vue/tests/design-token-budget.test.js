@@ -33,8 +33,23 @@ const BASELINE_PATH = fileURLToPath(new URL('./design-token-baseline.json', impo
 const FLOORS = {
     'hexColors.total': { floor: 0, why: 'every colour resolves to a semantic role token' },
     'functionalColors.total': { floor: 0, why: 'rgba() literals become shadow/overlay tokens' },
+    'namedColors.total': {
+        floor: 0,
+        why: '`color: white` is a literal that hid from both patterns above',
+    },
+    // A ratchet whose floor it has not reached, and that is the point: these sit
+    // in TypeScript and reach the DOM through a `:style` binding, so no codemod
+    // may touch them and each one is a judgement about which role it means. What
+    // the number must not do is grow — every one of them is a place the theme
+    // cannot reach, and a diff dialog kept fixed light rows in dark mode for
+    // exactly this reason.
+    'scriptColors.total': { floor: 0, why: 'an inline style can read a role token too' },
     distinctPixelValues: { floor: 12, why: 'the 12-step spacing scale' },
-    distinctFontSizes: { floor: 8, why: 'the 8-step type scale' },
+    // Zero, not "nine steps": this metric counts LITERAL sizes, and once every
+    // declaration reads `var(--sa-text-*)` there are none left to count. The
+    // scale itself is enforced where it can be — `theme-layer-discipline`
+    // asserts that no `font-size` in the package names a number.
+    distinctFontSizes: { floor: 0, why: 'every size reads a step of the type scale' },
     distinctBreakpoints: { floor: 5, why: 'xs/sm/md/lg/xl, aligned with Quasar' },
     'selfReferencingVars.total': { floor: 0, why: 'var(--x, var(--x)) is never meaningful' },
     worstStyleShare: { floor: 0.25, why: 'layout only; colour and surface come from primitives' },

@@ -1,5 +1,5 @@
 import 'quasar/src/css/index.sass';
-import '../../src/pages-standard/sa-theme.css';
+import '../../src/ui/theme/index.css';
 
 import {
     createApp,
@@ -11,8 +11,9 @@ import {
     watch,
     type Component,
 } from 'vue';
-import { Quasar, Notify, Dialog, Loading } from 'quasar';
+import { Quasar, Notify, Dialog, Loading, type QuasarPluginOptions } from 'quasar';
 import { createPinia } from 'pinia';
+import { SA_PORTAL_CLASS } from '../../src/quasar/create-super-admin-app.js';
 import { createRouter, createWebHistory } from 'vue-router';
 
 import {
@@ -26,6 +27,8 @@ import {
 } from '../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
 import { SUPER_ADMIN_I18N_KEY, createSuperAdminI18n } from '../../src/vue/use-super-admin-i18n.js';
+import { SA_THEME_KEY, createSaTheme, type SaColorScheme } from '../../src/vue/use-sa-theme.js';
+import { bindSaThemeToDocument } from '../../src/quasar/dark-bridge.js';
 import { FIXTURE_MANIFEST, respondTo, unmatchedRequests } from './fixture-data.js';
 import { VISUAL_CASES } from './pages.js';
 
@@ -120,7 +123,13 @@ const Host = defineComponent({
                 return h('div', { id: 'visual-loading' }, 'loading');
             }
             const props = visualCase?.props?.({ http, adminBase: ADMIN_BASE }) ?? {};
-            return h('div', { id: 'visual-root' }, [h(page.value, props)]);
+            // Wrapped in the layout class a real app renders, so the page sits
+            // on the theme's app canvas rather than on the browser's white
+            // default. Without it nothing here reacts to `data-sa-theme`, and
+            // the theme check would be asking about the fixture's own body.
+            return h('div', { class: 'sa-admin-layout sa-admin-content' }, [
+                h('div', { id: 'visual-root' }, [h(page.value, props)]),
+            ]);
         };
     },
 });
@@ -128,8 +137,16 @@ const Host = defineComponent({
 const app = createApp(Host);
 app.use(Quasar, {
     plugins: { Notify, Dialog, Loading },
-    config: { notify: { position: 'top-right', timeout: 3000 } },
-});
+    config: {
+        notify: { position: 'top-right', timeout: 3000 },
+        // The same marking `createSuperAdminApp` applies. Without it every
+        // teleported node in this fixture renders unthemed, and the baselines
+        // record Quasar's own dialog — white on a dark page — as the truth.
+        globalNodes: { class: SA_PORTAL_CLASS },
+    },
+    // Same cast, same reason as in `createSuperAdminApp`: `globalNodes` is a
+    // documented Quasar option its own types do not declare.
+} as QuasarPluginOptions);
 app.use(createPinia());
 app.use(
     createRouter({
@@ -152,6 +169,17 @@ app.provide(SUPER_ADMIN_HTTP_KEY, http);
 app.provide(SUPER_ADMIN_MANIFEST_KEY, () => FIXTURE_MANIFEST);
 app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, { login: async () => ({ ok: true as const }) });
 
+// The theme, wired exactly as `createSuperAdminApp()` wires it — through the
+// shipped bridge rather than through an imitation of it. The first version of
+// the theme test set `data-sa-theme` by hand and reported nineteen pages of
+// unreadable text, because that attribute alone does not put QUASAR into dark
+// mode: its tables and cards keep their white surfaces while the platform's
+// text flips to light. Which is precisely the bug the bridge exists to prevent,
+// and precisely why the test has to go through it.
+const theme = createSaTheme({ persist: false });
+bindSaThemeToDocument(theme);
+app.provide(SA_THEME_KEY, theme);
+
 app.mount('#app');
 // Endpoints the fixture was asked for and does not have. The spec reads this
 // and fails the case: an unanswered request renders an empty card that looks
@@ -160,6 +188,12 @@ app.mount('#app');
 declare global {
     interface Window {
         __saasicatUnmatchedRequests?: string[];
+        /** Flips the shell's colour scheme; resolves once the DOM has caught up. */
+        __saasicatSetTheme?: (scheme: SaColorScheme) => Promise<void>;
     }
 }
 window.__saasicatUnmatchedRequests = unmatchedRequests;
+window.__saasicatSetTheme = async (scheme) => {
+    theme.scheme.value = scheme;
+    await nextTick();
+};

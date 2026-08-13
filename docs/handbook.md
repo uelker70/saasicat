@@ -1007,7 +1007,47 @@ const app = createSuperAdminApp({
 app.mount('#app');
 ```
 
-### 8.5 Wrapper Pages: Dumb Components with Data Composables
+### 8.5 Colour Scheme (Light / Dark)
+
+The shell ships both themes. `createSuperAdminApp` wires them; the option is
+there when you want to steer it:
+
+```ts
+const app = createSuperAdminApp({
+    // …
+    theme: { scheme: 'system' }, // 'light' | 'dark' | 'system' (default), or a Ref
+});
+
+app.theme.scheme.value = 'dark'; // switch at runtime
+app.theme.resolved.value; // 'light' | 'dark' — what 'system' means right now
+```
+
+`'system'` subscribes to `prefers-color-scheme` rather than reading it once, so
+an open tab follows the machine when somebody switches at sunset. Pass a `Ref`
+instead to keep the value in your own store — the platform then does not persist
+it, because it is yours. Inside any component, `useSaTheme()` returns the same
+context.
+
+**You may already be done.** The bridge is two-directional: your own
+`$q.dark.set(true)` moves the platform, and a switch here moves Quasar. Both
+have to move together or half the screen ends up in the wrong theme — the
+stylesheet paints the platform's surfaces, Quasar paints its own cards, dialogs
+and steppers.
+
+For the same reason the stylesheet does **not** answer `prefers-color-scheme` on
+its own: it cannot see Quasar's half. That is why following the operating system
+lives in the composable, where both halves move together.
+
+**`app.dispose()`** releases the OS subscription and the bridge. It only matters
+where a shell is torn down while the page survives — hot reload, a
+micro-frontend, two shells in one document. Without it the old bridge keeps
+writing to the document at the next theme change and can overrule the new shell.
+
+Which colours change and which deliberately do not — the brand, the dark chrome —
+is in the [design guide](design-guide.md#dark-mode), along with the rule for
+overriding a role.
+
+### 8.6 Wrapper Pages: Dumb Components with Data Composables
 
 Platform pages are deliberately _dumb_: they receive data + callbacks as props.
 In the consumer, a thin wrapper marries composables to the page.
@@ -1087,7 +1127,7 @@ onMounted(() => {
 > drifts on platform updates and you lose the i18n/action synchronization. Shared
 > logic belongs in the platform packages — the app wrapper stays thin.
 
-### 8.6 UI Language (i18n)
+### 8.7 UI Language (i18n)
 
 The platform ships two complete catalogs — **German** (the reference that fixes
 the key structure) and **English** — and deliberately nothing beyond that. Which
@@ -1199,6 +1239,25 @@ prop-based map (`TenantPlanSectionI18n`). They ship a German **and** an English
 default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by
 `defaultTenantPlanSectionI18n(locale)`); the `i18n` prop still overrides
 individual keys.
+
+That app needs one import that the SuperAdmin shell already has:
+
+```ts
+import '@saasicat/ui-vue/theme.css';
+```
+
+The tenant pages read the same colour roles as the admin — which is what lets
+one `$primary` brand both — and without the stylesheet those roles resolve to
+nothing. The file is safe to load next to your own design: every selector in it is either
+a `.sa-`-prefixed class of ours or sits under `.sa-page`, so nothing reaches an
+element of yours unless you use our class names. There is no bare element rule.
+See `examples/notesapp/web/src/main.ts`.
+
+It also will not change your app's appearance behind your back. The dark theme
+fires on `$q.dark.set(true)` or on an explicit `data-sa-theme`, never on the
+operating system — the stylesheet cannot see Quasar's cards and steppers, so it
+must not decide for them. To follow the OS in an embedded app, say so:
+`bindSaThemeToDocument(createSaTheme())` moves both halves together.
 
 **Adding a language to the platform itself** — as opposed to your app — means
 extending `SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` and adding a variant

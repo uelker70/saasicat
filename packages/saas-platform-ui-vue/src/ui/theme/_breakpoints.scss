@@ -1,0 +1,28 @@
+// Breakpoints — the one scale that cannot be a custom property.
+//
+// `@media (min-width: var(--sa-bp-md))` is invalid CSS: custom properties are
+// not substituted inside a media condition. So the values live here for SCSS
+// blocks, and plain-CSS `<style>` blocks use the five literals, which the lint
+// rule allows and nothing else.
+//
+// They are Quasar's own breakpoints, deliberately. A component that changes
+// layout at 980px inside an app whose grid changes at 1024px produces a band
+// 44px wide where the two disagree — and the admin surface had six such
+// values (540, 600, 980, 1100, 1180, 1280), so it had several such bands.
+//
+// Usage:
+//     @use '@saasicat/ui-vue/theme/breakpoints' as bp;
+//     @media (max-width: bp.$sm-max) { … }
+
+$xs: 0;
+$sm: 600px;
+$md: 1024px;
+$lg: 1440px;
+$xl: 1920px;
+
+// Upper bounds, for the `max-width` direction. Quasar uses the same 0.02px
+// step back, so the two never both match at an integer viewport width.
+$xs-max: 599.98px;
+$sm-max: 1023.98px;
+$md-max: 1439.98px;
+$lg-max: 1919.98px;

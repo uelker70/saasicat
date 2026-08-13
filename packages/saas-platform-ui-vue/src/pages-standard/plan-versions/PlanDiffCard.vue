@@ -63,8 +63,8 @@ const changeCountLabel = computed(() => {
 
 <style scoped>
 .sa-pv-diff-card {
-    background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     margin-bottom: 12px;
     overflow: hidden;
@@ -81,22 +81,22 @@ const changeCountLabel = computed(() => {
     width: 28px;
     height: 28px;
     border-radius: 7px;
-    background: var(--sa-positive-soft, rgba(4, 120, 87, 0.1));
+    background: var(--sa-color-positive-surface);
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .sa-pv-diff-card__noop-icon :deep(.q-icon) {
-    color: var(--sa-positive, #047857);
+    color: var(--sa-color-positive-fg);
 }
 
 .sa-pv-diff-card__head {
     padding: 12px 16px;
-    border-bottom: 1px solid var(--sa-border-soft, var(--sa-border-soft));
+    border-bottom: 1px solid var(--sa-color-border-soft);
     display: flex;
     align-items: center;
     gap: 12px;
-    background: #fafbfc;
+    background: var(--sa-color-bg-surface-raised);
 }
 .sa-pv-diff-card__accent {
     width: 28px;
@@ -109,29 +109,29 @@ const changeCountLabel = computed(() => {
 }
 .sa-pv-diff-card__name {
     font-weight: 700;
-    font-size: 14px;
-    color: var(--sa-heading, var(--sa-heading));
+    font-size: var(--sa-text-lg);
+    color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-head, system-ui, sans-serif);
 }
 .sa-pv-diff-card__ver {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
-    color: var(--sa-muted, var(--sa-muted));
-    background: var(--sa-border-soft);
+    color: var(--sa-color-fg-muted);
+    background: var(--sa-color-border-soft);
     padding: 2px 6px;
     border-radius: 4px;
 }
 .sa-pv-diff-card__sub {
-    font-size: 11.5px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
 }
 .sa-pv-diff-card__count {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.06em;
-    background: var(--sa-warning-soft, rgba(245, 158, 11, 0.1));
-    color: var(--sa-warning, #b45309);
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
     padding: 2px 8px;
     border-radius: 4px;
     margin-left: auto;

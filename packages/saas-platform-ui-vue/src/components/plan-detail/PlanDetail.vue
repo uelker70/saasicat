@@ -405,7 +405,7 @@ async function executeTerminate(): Promise<void> {
 
 <style>
 .pd-code {
-    font: 500 11px var(--sa-font-mono);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
 }
 
 /* buttons + chips (1:1 styles.css) */
@@ -415,29 +415,29 @@ async function executeTerminate(): Promise<void> {
     gap: 7px;
     padding: 8px 14px;
     border-radius: 7px;
-    font: 500 13px var(--sa-font-body);
+    font: 500 var(--sa-text-md) var(--sa-font-body);
     cursor: pointer;
-    border: 1px solid var(--sa-border-strong);
-    background: #fff;
-    color: var(--sa-heading);
+    border: 1px solid var(--sa-color-border-strong);
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-heading);
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .btn:hover {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .btn.primary {
-    background: var(--sa-primary);
-    border-color: var(--sa-primary);
-    color: #fff;
+    background: var(--sa-color-accent);
+    border-color: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
 }
 .btn.primary:hover {
-    background: var(--sa-primary-strong);
+    background: var(--sa-color-accent-strong);
 }
 .btn.btn--sm {
     padding: 5px 9px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     gap: 5px;
 }
 .chip {
@@ -446,26 +446,26 @@ async function executeTerminate(): Promise<void> {
     gap: 5px;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .chip.live {
-    background: var(--sa-positive-bg);
-    color: #047857;
-    border-color: #a7f3d0;
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .chip.draft {
-    background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 .chip.supersed {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
+    border-color: var(--sa-color-border-strong);
 }
 .chip.dot::before {
     content: '';
@@ -496,18 +496,18 @@ async function executeTerminate(): Promise<void> {
     align-items: flex-start;
     gap: 12px;
     padding: 14px 16px 12px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .pd-panel-title {
-    font-size: 15px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     margin: 0;
     letter-spacing: -0.01em;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pd-panel-sub {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
 .pd-panel-head-right {
@@ -525,13 +525,13 @@ async function executeTerminate(): Promise<void> {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
     margin-bottom: 8px;
     font-weight: 500;
 }
 .pd-timeline-hint svg {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     width: 12px;
     height: 12px;
 }
@@ -540,16 +540,16 @@ async function executeTerminate(): Promise<void> {
     height: 24px;
     border-radius: 6px;
     overflow: hidden;
-    background: var(--sa-border-soft);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-border-soft);
+    border: 1px solid var(--sa-color-border);
 }
 .pd-timeline-seg {
     display: flex;
     align-items: center;
     justify-content: center;
-    font: 600 11px var(--sa-font-body);
-    color: rgba(15, 23, 42, 0.65);
-    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    font: 600 var(--sa-text-xs) var(--sa-font-body);
+    color: var(--sa-color-fg-secondary);
+    border-right: 1px solid var(--sa-color-border-soft);
     white-space: nowrap;
     padding: 0 8px;
     min-width: 0;
@@ -570,44 +570,48 @@ async function executeTerminate(): Promise<void> {
     transform: translateY(0);
 }
 .pd-timeline-seg.superseded {
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .pd-timeline-seg.live {
-    background: #10b981;
-    color: #fff;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     font-weight: 700;
 }
 .pd-timeline-seg.draft {
-    background: repeating-linear-gradient(135deg, #fde68a 0 8px, #fcd34d 8px 16px);
-    color: #78350f;
+    background: repeating-linear-gradient(
+        135deg,
+        var(--sa-color-warning-border) 0 8px,
+        var(--sa-color-warning-strong) 8px 16px
+    );
+    color: var(--sa-color-warning-fg);
     font-weight: 700;
 }
 .pd-timeline-seg.is-selected {
     position: relative;
     z-index: 1;
-    outline: 2px solid var(--sa-primary);
+    outline: 2px solid var(--sa-color-accent);
     outline-offset: -2px;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
     font-weight: 700;
 }
 .pd-timeline-seg.is-selected.superseded {
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pd-timeline-seg.is-selected.live {
-    outline-color: #047857;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+    outline-color: var(--sa-color-positive);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-4);
 }
 .pd-timeline-seg.is-selected.draft {
-    outline-color: #b45309;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+    outline-color: var(--sa-color-warning-fg);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-4);
 }
 .pd-timeline-ticks {
     display: flex;
     justify-content: space-between;
     margin-top: 6px;
-    font: 500 10.5px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
+    color: var(--sa-color-fg-subtle);
 }
 
 /* versions table */
@@ -623,21 +627,21 @@ async function executeTerminate(): Promise<void> {
         64px minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1fr)
         minmax(96px, auto);
     align-items: stretch;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
     margin-top: 12px;
 }
 .pd-versions-head {
     display: contents;
 }
 .pd-versions-head > div {
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
     padding: 9px 12px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-weight: 700;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pd-vrow {
     display: contents;
@@ -645,41 +649,41 @@ async function executeTerminate(): Promise<void> {
 }
 .pd-vrow > div {
     padding: 13px 12px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
     display: flex;
     align-items: center;
-    font-size: 12.5px;
-    color: var(--sa-heading);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-heading);
 }
 .pd-vrow:hover > div {
-    background: #fafbfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .pd-vrow.is-draft > div {
-    background: #fffdf5;
+    background: var(--sa-color-warning-surface);
 }
 .pd-vrow.is-draft:hover > div {
-    background: #fff8e7;
+    background: var(--sa-color-warning-surface);
 }
 .pd-vrow.is-selected > div {
-    background: var(--sa-primary-50) !important;
-    box-shadow: inset 0 -1px 0 0 #bfdbfe;
+    background: var(--sa-color-accent-surface-strong) !important;
+    box-shadow: inset 0 -1px 0 0 var(--sa-color-info-border);
 }
 .pd-vrow.is-selected.is-draft > div {
-    background: #fff4d6 !important;
-    box-shadow: inset 0 -1px 0 0 #fcd34d;
+    background: var(--sa-color-warning-surface-strong) !important;
+    box-shadow: inset 0 -1px 0 0 var(--sa-color-warning-border);
 }
 .pd-vrow.is-selected > div:first-child {
     box-shadow:
-        inset 3px 0 0 0 var(--sa-primary),
-        inset 0 -1px 0 0 #bfdbfe;
+        inset 3px 0 0 0 var(--sa-color-accent),
+        inset 0 -1px 0 0 var(--sa-color-info-border);
 }
 .pd-vrow.is-draft > div:first-child {
-    box-shadow: inset 3px 0 0 0 #f59e0b;
+    box-shadow: inset 3px 0 0 0 var(--sa-color-warning-strong);
 }
 .pd-vrow.is-selected.is-draft > div:first-child {
     box-shadow:
-        inset 3px 0 0 0 #f59e0b,
-        inset 0 -1px 0 0 #fcd34d;
+        inset 3px 0 0 0 var(--sa-color-warning-strong),
+        inset 0 -1px 0 0 var(--sa-color-warning-border);
 }
 .pd-vcol {
     display: flex;
@@ -688,7 +692,7 @@ async function executeTerminate(): Promise<void> {
     align-items: flex-start;
 }
 .pd-v-num {
-    font: 700 14px var(--sa-font-body);
+    font: 700 var(--sa-text-lg) var(--sa-font-body);
 }
 .pd-validity {
     display: flex;
@@ -701,33 +705,33 @@ async function executeTerminate(): Promise<void> {
     gap: 6px;
 }
 .pd-validity-sub {
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-validity-date {
-    font: 500 12.5px var(--sa-font-mono);
+    font: 500 var(--sa-text-md) var(--sa-font-mono);
 }
 .pd-arrow-inf {
-    font: 600 13px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    font: 600 var(--sa-text-md) var(--sa-font-mono);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-pricing-m {
-    font: 600 13px var(--sa-font-body);
+    font: 600 var(--sa-text-md) var(--sa-font-body);
 }
 .pd-pricing-y {
-    font: 500 10.5px var(--sa-font-body);
-    color: var(--sa-muted-light);
+    font: 500 var(--sa-text-xs) var(--sa-font-body);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .pd-impact-num {
-    font: 700 14px var(--sa-font-body);
+    font: 700 var(--sa-text-lg) var(--sa-font-body);
 }
 .pd-impact-sub {
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-change-note {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -744,10 +748,10 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     padding: 3px 8px;
     border-radius: 999px;
-    font: 600 10.5px var(--sa-font-mono);
-    background: var(--sa-warning-bg);
-    color: #b45309;
-    border: 1px solid #fde68a;
+    font: 600 var(--sa-text-xs) var(--sa-font-mono);
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    border: 1px solid var(--sa-color-warning-border);
     white-space: nowrap;
 }
 
@@ -757,24 +761,24 @@ async function executeTerminate(): Promise<void> {
     gap: 6px;
 }
 .pd-diff-chip {
-    font: 700 11px var(--sa-font-mono);
+    font: 700 var(--sa-text-xs) var(--sa-font-mono);
     padding: 3px 8px;
     border-radius: 6px;
 }
 .pd-diff-chip.add {
-    background: var(--sa-positive-bg);
-    color: #047857;
-    border: 1px solid #a7f3d0;
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
+    border: 1px solid var(--sa-color-positive-border);
 }
 .pd-diff-chip.rm {
-    background: #fef2f2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
+    border: 1px solid var(--sa-color-negative-border);
 }
 .pd-diff-chip.mod {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .pd-diff-list {
     padding: 12px;
@@ -786,23 +790,35 @@ async function executeTerminate(): Promise<void> {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 11px 12px 11px 0;
     overflow: hidden;
 }
 .pd-diff-row.add {
-    background: linear-gradient(90deg, var(--sa-positive-bg) 0%, #fff 60%);
-    border-color: #a7f3d0;
+    background: linear-gradient(
+        90deg,
+        var(--sa-color-positive-surface) 0%,
+        var(--sa-color-bg-surface) 60%
+    );
+    border-color: var(--sa-color-positive-border);
 }
 .pd-diff-row.rm {
-    background: linear-gradient(90deg, #fef2f2 0%, #fff 60%);
-    border-color: #fecaca;
+    background: linear-gradient(
+        90deg,
+        var(--sa-color-negative-surface) 0%,
+        var(--sa-color-bg-surface) 60%
+    );
+    border-color: var(--sa-color-negative-border);
 }
 .pd-diff-row.mod {
-    background: linear-gradient(90deg, var(--sa-bg-surface-2) 0%, #fff 60%);
-    border-color: var(--sa-border);
+    background: linear-gradient(
+        90deg,
+        var(--sa-color-bg-sunken) 0%,
+        var(--sa-color-bg-surface) 60%
+    );
+    border-color: var(--sa-color-border);
 }
 .pd-diff-icon {
     width: 32px;
@@ -810,17 +826,17 @@ async function executeTerminate(): Promise<void> {
     display: grid;
     place-items: center;
     flex: 0 0 32px;
-    color: #fff;
-    font: 700 16px var(--sa-font-body);
+    color: var(--sa-color-fg-on-accent);
+    font: 700 var(--sa-text-lg) var(--sa-font-body);
 }
 .pd-diff-row.add .pd-diff-icon {
-    background: #10b981;
+    background: var(--sa-color-positive-strong);
 }
 .pd-diff-row.rm .pd-diff-icon {
-    background: #ef4444;
+    background: var(--sa-color-negative-strong);
 }
 .pd-diff-row.mod .pd-diff-icon {
-    background: var(--sa-muted);
+    background: var(--sa-color-inverse-surface);
 }
 .pd-diff-body {
     flex: 1;
@@ -831,63 +847,63 @@ async function executeTerminate(): Promise<void> {
     flex-wrap: wrap;
 }
 .pd-diff-kind {
-    font: 700 10px var(--sa-font-mono);
+    font: 700 var(--sa-text-2xs) var(--sa-font-mono);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
 }
 .pd-diff-label {
-    font-size: 13.5px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pd-diff-key {
-    font: 500 11px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-diff-vals {
     display: flex;
     align-items: center;
     gap: 6px;
-    font: 500 12px var(--sa-font-mono);
+    font: 500 var(--sa-text-sm) var(--sa-font-mono);
 }
 .pd-diff-strike {
     text-decoration: line-through;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pd-diff-arrow {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 .pd-diff-new {
-    color: #047857;
+    color: var(--sa-color-positive-fg);
     font-weight: 600;
 }
 .pd-diff-tag {
     margin-left: auto;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     padding: 2px 9px;
     border-radius: 999px;
     border: 1px solid;
 }
 .pd-diff-tag.add {
-    background: #fff;
-    color: #047857;
-    border-color: #a7f3d0;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .pd-diff-tag.rm {
-    background: #fff;
-    color: #b91c1c;
-    border-color: #fecaca;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-negative-fg);
+    border-color: var(--sa-color-negative-border);
 }
 .pd-diff-tag.mod {
-    background: #fff;
-    color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-secondary);
+    border-color: var(--sa-color-border-strong);
 }
 .pd-diff-row.plain {
-    background: #fff;
-    border-color: var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border-color: var(--sa-color-border);
     padding: 11px 12px 11px 0;
 }
 .pd-diff-section {
@@ -896,10 +912,10 @@ async function executeTerminate(): Promise<void> {
     gap: 8px;
     margin-top: 6px;
     padding: 0 2px;
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 .pd-diff-section:first-child {
@@ -908,18 +924,18 @@ async function executeTerminate(): Promise<void> {
 .pd-diff-section hr {
     flex: 1;
     border: 0;
-    border-top: 1px dashed var(--sa-border);
+    border-top: 1px dashed var(--sa-color-border);
 }
 .pd-diff-empty {
     padding: 28px 18px;
     text-align: center;
-    color: var(--sa-muted-light);
-    font-size: 13px;
+    color: var(--sa-color-fg-subtle);
+    font-size: var(--sa-text-md);
 }
 .pd-diff-empty b {
     display: block;
-    color: var(--sa-muted-dark);
-    font-size: 14px;
+    color: var(--sa-color-fg-secondary);
+    font-size: var(--sa-text-lg);
     margin-bottom: 4px;
 }
 
@@ -935,7 +951,7 @@ async function executeTerminate(): Promise<void> {
     align-items: center;
     gap: 14px;
     padding: 9px 0;
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
 }
 .pd-audit-row:first-child {
     border-top: 0;
@@ -947,44 +963,44 @@ async function executeTerminate(): Promise<void> {
     flex: 0 0 auto;
 }
 .pd-audit-draft {
-    background: #f59e0b;
+    background: var(--sa-color-warning-strong);
 }
 .pd-audit-add {
-    background: #10b981;
+    background: var(--sa-color-positive-strong);
 }
 .pd-audit-change {
-    background: var(--sa-primary);
+    background: var(--sa-color-accent);
 }
 .pd-audit-publish {
-    background: #8b5cf6;
+    background: var(--sa-color-feature);
 }
 .pd-audit-remove {
-    background: #ef4444;
+    background: var(--sa-color-negative-strong);
 }
 .pd-audit-when {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     min-width: 130px;
 }
 .pd-audit-avatar {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: var(--sa-heading);
-    color: #fff;
+    background: var(--sa-color-inverse-bg);
+    color: var(--sa-color-fg-on-accent);
     display: grid;
     place-items: center;
-    font: 700 11px var(--sa-font-body);
+    font: 700 var(--sa-text-xs) var(--sa-font-body);
     flex: 0 0 auto;
 }
 .pd-audit-who {
-    font-size: 12px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-secondary);
     min-width: 64px;
 }
 .pd-audit-what {
-    font-size: 13px;
-    color: var(--sa-heading);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-heading);
     flex: 1;
 }
 

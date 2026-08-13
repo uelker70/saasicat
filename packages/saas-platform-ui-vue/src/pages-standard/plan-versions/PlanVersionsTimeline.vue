@@ -117,16 +117,16 @@ function metaText(s: CatalogSnapshot): string {
 .sa-pv-timeline {
     width: 280px;
     flex-shrink: 0;
-    background: var(--sa-bg-surface, #ffffff);
-    border-right: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-surface);
+    border-right: 1px solid var(--sa-color-border);
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
 .sa-pv-timeline__head {
     padding: 14px 16px;
-    border-bottom: 1px solid var(--sa-border, var(--sa-border));
-    background: #fafbfc;
+    border-bottom: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-surface-raised);
 }
 .sa-pv-timeline__row {
     display: flex;
@@ -134,16 +134,16 @@ function metaText(s: CatalogSnapshot): string {
     justify-content: space-between;
 }
 .sa-pv-timeline__title {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
 }
 .sa-pv-timeline__count {
     margin-top: 2px;
-    font-size: 11px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
 }
 
 .sa-pv-timeline__list {
@@ -160,7 +160,7 @@ function metaText(s: CatalogSnapshot): string {
     top: 36px;
     bottom: -6px;
     width: 2px;
-    background: var(--sa-border, var(--sa-border));
+    background: var(--sa-color-border);
     z-index: 0;
 }
 .sa-pv-timeline__btn {
@@ -182,11 +182,11 @@ function metaText(s: CatalogSnapshot): string {
     color: inherit;
 }
 .sa-pv-timeline__btn:hover:not(.sa-pv-timeline__btn--selected) {
-    background: var(--sa-border-soft, var(--sa-border-soft));
+    background: var(--sa-color-border-soft);
 }
 .sa-pv-timeline__btn--selected {
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    border-color: var(--sa-primary-border, rgba(63, 107, 255, 0.18));
+    background: var(--sa-color-accent-surface);
+    border-color: var(--sa-color-accent-border);
 }
 
 .sa-pv-timeline__node {
@@ -200,19 +200,19 @@ function metaText(s: CatalogSnapshot): string {
     border: 2px solid;
 }
 .sa-pv-timeline__node--draft {
-    background: var(--sa-warning-soft, rgba(245, 158, 11, 0.1));
-    border-color: var(--sa-warning, #b45309);
-    color: var(--sa-warning, #b45309);
+    background: var(--sa-color-warning-surface-strong);
+    border-color: var(--sa-color-warning-fg);
+    color: var(--sa-color-warning-fg);
 }
 .sa-pv-timeline__node--active {
-    background: var(--sa-positive-soft, rgba(4, 120, 87, 0.1));
-    border-color: var(--sa-positive, #047857);
-    color: var(--sa-positive, #047857);
+    background: var(--sa-color-positive-surface);
+    border-color: var(--sa-color-positive);
+    color: var(--sa-color-positive-fg);
 }
 .sa-pv-timeline__node--archived {
-    background: var(--sa-border-soft);
-    border-color: var(--sa-muted, var(--sa-muted));
-    color: var(--sa-muted, var(--sa-muted));
+    background: var(--sa-color-border-soft);
+    border-color: var(--sa-color-fg-muted);
+    color: var(--sa-color-fg-muted);
 }
 .sa-pv-timeline__node-dot {
     width: 6px;
@@ -235,50 +235,50 @@ function metaText(s: CatalogSnapshot): string {
 }
 .sa-pv-timeline__label {
     font-family: var(--sa-font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 700;
-    color: var(--sa-heading, var(--sa-heading));
+    color: var(--sa-color-fg-heading);
 }
 .sa-pv-timeline__status {
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     letter-spacing: 0.06em;
     padding: 2px 6px;
     border-radius: 4px;
 }
 .sa-pv-timeline__status--draft {
-    background: var(--sa-warning-soft, rgba(245, 158, 11, 0.1));
-    color: var(--sa-warning, #b45309);
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-pv-timeline__status--active {
-    background: var(--sa-positive-soft, rgba(4, 120, 87, 0.1));
-    color: var(--sa-positive, #047857);
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
 }
 .sa-pv-timeline__status--archived {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted, var(--sa-muted));
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-muted);
 }
 .sa-pv-timeline__vs {
-    font-size: 9.5px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     letter-spacing: 0.06em;
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
     padding: 2px 6px;
     border-radius: 4px;
 }
 .sa-pv-timeline__h2 {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
-    color: var(--sa-body, #1e293b);
+    color: var(--sa-color-fg-body);
     line-height: 1.3;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .sa-pv-timeline__meta {
-    font-size: 11px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
     display: flex;
     align-items: center;
@@ -287,10 +287,10 @@ function metaText(s: CatalogSnapshot): string {
 
 .sa-pv-timeline__foot {
     padding: 10px 14px;
-    border-top: 1px solid var(--sa-border, var(--sa-border));
-    background: #fafbfc;
-    font-size: 11px;
-    color: var(--sa-muted, var(--sa-muted));
+    border-top: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-surface-raised);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
 }
 .sa-pv-timeline__hint {
     display: flex;
@@ -299,13 +299,13 @@ function metaText(s: CatalogSnapshot): string {
 }
 .sa-pv-timeline__clear-btn {
     margin-top: 6px;
-    background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 4px 10px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
-    color: var(--sa-body, #1e293b);
+    color: var(--sa-color-fg-body);
     cursor: pointer;
 }
 </style>

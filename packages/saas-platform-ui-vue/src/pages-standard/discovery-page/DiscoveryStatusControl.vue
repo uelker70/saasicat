@@ -71,6 +71,6 @@ const menu = computed(() => reviewMenuActions(props.status, msg.value));
     flex-shrink: 0;
 }
 .sa-stc__danger {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 </style>

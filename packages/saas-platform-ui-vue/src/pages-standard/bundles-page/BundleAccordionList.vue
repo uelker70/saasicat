@@ -100,31 +100,31 @@ function translationCount(bundle: BundleRow): string {
    DiscoveryPage.vue would otherwise override .sa-bundle-chip--live (same specificity,
    later source order) and render the "Live" tag grey instead of green. */
 .sa-bundle-chip {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-bundle-chip--info {
-    background: var(--sa-primary-50);
-    color: var(--sa-primary-strong);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent-strong);
 }
 .sa-bundle-chip--live {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .sa-bundle-chip--draft {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-bundle-chip--supersed {
-    background: var(--sa-border);
-    color: var(--sa-muted);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-muted);
 }
 .sa-bundle-chip--scheduled {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 </style>

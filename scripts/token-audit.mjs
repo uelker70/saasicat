@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Token audit — the worklist for the design-system migration, and the data the
-// ratchets in `tests-component/design-token-budget.test.ts` measure against.
+// ratchets in `packages/saas-platform-ui-vue/tests/design-token-budget.test.js`
+// measure against.
 //
-// The admin UI ships a token file AND 500+ literal colours, 70+ distinct pixel
-// values and 20 font sizes. That combination is worse than having no tokens: a
-// reader cannot tell which values were a decision and which were a guess, so
-// every new page guesses again.
+// The admin UI ships a token layer AND hundreds of literal colours, dozens of
+// distinct pixel values and 23 font sizes. That combination is worse than
+// having no tokens: a reader cannot tell which values were a decision and which
+// were a guess, so every new page guesses again.
 //
 // This script does not judge. It counts, groups and points at file:line, so the
 // migration has a list to work through and a number to drive down.
@@ -16,17 +17,22 @@
 //   node scripts/token-audit.mjs --top=20     n most frequent values per category
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { basename, join, relative, dirname, resolve } from 'node:path';
+import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');
 
 /**
- * Files that DEFINE the palette rather than consume it. Literals are what they
- * are for, so counting them would make the target unreachable by construction.
+ * The directory that DEFINES the palette rather than consuming it. Literals are
+ * what it is for, so counting them would make the target unreachable by
+ * construction.
+ *
+ * A directory rather than a list of file names: the theme is a set of layered
+ * files now, and a name list would silently start counting the next one added.
+ * Everything outside it — every page, every component — is a consumer.
  */
-const TOKEN_DEFINITION_FILES = new Set(['sa-theme.css']);
+const TOKEN_DEFINITION_DIR = join(UI_SRC, 'ui', 'theme');
 
 /** Hairlines and zero — a scale for these would be ceremony, not clarity. */
 const ALLOWED_PX = new Set(['0px', '1px', '2px']);
@@ -34,13 +40,26 @@ const ALLOWED_PX = new Set(['0px', '1px', '2px']);
 const CATEGORIES = {
     // #rgb, #rrggbb, #rrggbbaa
     hexColor: /#[0-9a-fA-F]{3,8}\b/g,
-    // rgb()/rgba()/hsl()/hsla() with literal channels
-    functionalColor: /\b(?:rgba?|hsla?)\([^)]*\)/g,
+    // rgb()/rgba()/hsl()/hsla() with LITERAL channels. `rgb(var(--x) / .06)` is
+    // a token being used, not a value being invented, and counting it would
+    // make an alpha derived from a theme-aware ink indistinguishable from a
+    // hard-coded shadow — the first is the goal, the second is the debt.
+    functionalColor: /\b(?:rgba?|hsla?)\((?![^)]*var\()[^)]*\)/g,
+    // A named colour is a literal too, and it hid from the two above for the
+    // whole migration: `color: white` is neither a hex nor a function, so the
+    // audit read 0 while one button still painted itself. Anchored on a
+    // colour-bearing property so that `.text-white` in a selector and a font
+    // called "Black" are not findings.
+    namedColor:
+        /(?:^|[;{])\s*(?:color|background(?:-color)?|border(?:-[a-z]+)?-color|outline-color|fill|stroke)\s*:\s*([^;}\n]*(?<![\w-])(?:white|black|red|green|blue|orange|yellow|purple|grey|gray|silver|maroon|navy|teal|olive|lime|aqua|fuchsia)(?![\w-])[^;}\n]*)/gi,
     pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/g,
     fontSize: /font-size:\s*([^;}\n]+)/g,
     breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+)px/g,
     // `var(--x, var(--x))` — a fallback to itself, i.e. no fallback at all
     selfReferencingVar: /var\((--[\w-]+),\s*var\(\1\)\)/g,
+    // Filled by the script pass rather than by the block loop below; it needs a
+    // different source, not a different pattern.
+    scriptColor: /(?!)/g,
 };
 
 function walk(dir, predicate) {
@@ -51,6 +70,24 @@ function walk(dir, predicate) {
         else if (predicate(entry)) found.push(full);
     }
     return found;
+}
+
+/**
+ * Colour literals in SCRIPT, which no codemod may touch and no stylesheet rule
+ * can reach.
+ *
+ * These are the palettes a component keeps in TypeScript and applies through a
+ * `:style` binding — a plan accent, a diff row, a status dot. They were out of
+ * the migration's declared scope on purpose (the codemod is forbidden from
+ * touching a template or a script), and the cost of leaving them unmeasured was
+ * that a diff dialog kept fixed light rows in dark mode and nothing said so.
+ *
+ * Counted, not forbidden: an inline style can read `var(--sa-color-…)`, so the
+ * fix is per site and per judgement. The ratchet stops the number growing.
+ */
+function scriptSource(file, content) {
+    if (file.endsWith('.ts')) return content;
+    return [...content.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]).join('\n');
 }
 
 /** Extracts the `<style>` blocks of an SFC; returns whole content for `.css`. */
@@ -70,7 +107,10 @@ function lineOf(content, index) {
 }
 
 export function audit() {
-    const files = walk(UI_SRC, (name) => name.endsWith('.vue') || name.endsWith('.css'));
+    const files = walk(
+        UI_SRC,
+        (name) => name.endsWith('.vue') || name.endsWith('.css') || name.endsWith('.ts'),
+    );
     const findings = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, []]));
     const styleShare = [];
     // How much was actually looked at, counted independently of what was found.
@@ -80,15 +120,22 @@ export function audit() {
 
     for (const file of files) {
         const rel = relative(REPO_ROOT, file);
-        // `basename`, not a split on '/': join() yields backslashes on Windows,
-        // where the split would leave `name` as the whole path. `sa-theme.css`
-        // would then miss the exclusion list and the palette's own literals
-        // would be counted as violations — dozens of them, failing the budget.
-        const name = basename(file);
         const content = readFileSync(file, 'utf8');
-        const isTokenDefinition = TOKEN_DEFINITION_FILES.has(name);
+        const isTokenDefinition = file.startsWith(TOKEN_DEFINITION_DIR);
         reach.files += 1;
         reach.styleBlocks += styleSource(file, content).length;
+
+        if (!isTokenDefinition) {
+            const script = scriptSource(file, content)
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .replace(/^\s*\/\/.*$/gm, '');
+            for (const match of script.matchAll(CATEGORIES.hexColor)) {
+                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+            }
+            for (const match of script.matchAll(CATEGORIES.functionalColor)) {
+                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+            }
+        }
 
         if (file.endsWith('.vue')) {
             const total = content.split('\n').length;
@@ -139,6 +186,8 @@ export function summarise({ findings, styleShare, reach }) {
         reach,
         hexColors: { total: findings.hexColor.length, files: files(findings.hexColor) },
         functionalColors: { total: findings.functionalColor.length },
+        namedColors: { total: findings.namedColor.length },
+        scriptColors: { total: findings.scriptColor.length, files: files(findings.scriptColor) },
         distinctPixelValues: distinct(findings.pixelValue),
         distinctFontSizes: distinct(findings.fontSize),
         distinctBreakpoints: distinct(findings.breakpoint),
@@ -179,6 +228,10 @@ function runCli(args) {
         `  hard-coded hex colours     ${summary.hexColors.total} in ${summary.hexColors.files} files`,
     );
     console.log(`  rgb()/hsl() literals       ${summary.functionalColors.total}`);
+    console.log(`  named colours              ${summary.namedColors.total}`);
+    console.log(
+        `  colours in script          ${summary.scriptColors.total} in ${summary.scriptColors.files} files`,
+    );
     console.log(`  distinct pixel values      ${summary.distinctPixelValues}`);
     console.log(`  distinct font sizes        ${summary.distinctFontSizes}`);
     console.log(`  distinct breakpoints       ${summary.distinctBreakpoints}`);

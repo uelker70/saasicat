@@ -25,7 +25,7 @@ defineProps<{
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.04em;
     padding: 3px 8px;
@@ -36,27 +36,27 @@ defineProps<{
     color: inherit;
 }
 .sa-pill--positive {
-    background: var(--sa-positive-soft, rgba(4, 120, 87, 0.1));
-    color: var(--sa-positive, #047857);
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
 }
 .sa-pill--warning {
-    background: var(--sa-warning-soft, rgba(245, 158, 11, 0.1));
-    color: var(--sa-warning, #b45309);
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-pill--negative {
-    background: var(--sa-negative-soft, rgba(220, 38, 38, 0.08));
-    color: var(--sa-negative, #dc2626);
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative);
 }
 .sa-pill--muted {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted, var(--sa-muted));
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-muted);
 }
 .sa-pill--primary {
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    color: var(--sa-primary, #3f6bff);
+    background: var(--sa-color-accent-surface);
+    color: var(--sa-color-accent);
 }
 .sa-pill--accent {
-    background: rgba(245, 158, 11, 0.16);
-    color: #b45309;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 </style>

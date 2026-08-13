@@ -402,7 +402,7 @@ function barWidth(value: number, max?: number): number {
 /* Header look comes from the global .sa-page-head — only a margin tweak here. */
 
 .sa-kpi__icon :deep(.q-icon) {
-    color: var(--sa-primary, #3f6bff);
+    color: var(--sa-color-accent);
 }
 
 .sa-dashboard__rows {
@@ -419,9 +419,9 @@ function barWidth(value: number, max?: number): number {
 }
 
 .sa-dashboard__count {
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    color: var(--sa-primary, #3f6bff);
-    font-size: 11px;
+    background: var(--sa-color-accent-surface);
+    color: var(--sa-color-accent);
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 5px;
@@ -440,14 +440,14 @@ function barWidth(value: number, max?: number): number {
     grid-template-columns: 130px 1fr 50px;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sa-dashboard__bar-name {
     font-weight: 600;
-    color: var(--sa-heading, var(--sa-heading));
+    color: var(--sa-color-fg-heading);
 }
 .sa-dashboard__bar-track {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     height: 8px;
     border-radius: 999px;
     overflow: hidden;
@@ -461,7 +461,7 @@ function barWidth(value: number, max?: number): number {
 .sa-dashboard__bar-count {
     font-variant-numeric: tabular-nums;
     text-align: right;
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
+    color: var(--sa-color-fg-secondary);
 }
 
 .sa-dashboard__shortcuts {
@@ -477,36 +477,36 @@ function barWidth(value: number, max?: number): number {
     gap: 12px;
     align-items: flex-start;
     padding: 12px 14px;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     text-decoration: none;
     color: inherit;
-    background: #fafbfc;
+    background: var(--sa-color-bg-surface-raised);
     transition: all 0.12s;
 }
 .sa-dashboard__shortcut:hover {
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    border-color: var(--sa-primary-border, rgba(63, 107, 255, 0.18));
+    background: var(--sa-color-accent-surface);
+    border-color: var(--sa-color-accent-border);
 }
 .sa-dashboard__shortcut :deep(.q-icon) {
-    color: var(--sa-primary, #3f6bff);
+    color: var(--sa-color-accent);
     flex-shrink: 0;
 }
 .sa-dashboard__shortcut-title {
     font-weight: 700;
-    color: var(--sa-heading, var(--sa-heading));
+    color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-head, system-ui, sans-serif);
 }
 .sa-dashboard__shortcut-sub {
-    font-size: 12px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
 
 .sa-dashboard__loading,
 .sa-dashboard__empty {
     padding: 32px 28px;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     display: flex;
     align-items: center;
     gap: 12px;

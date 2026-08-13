@@ -563,10 +563,30 @@ const checklistOkCount = computed(() => checklist.value.filter((c) => c.ok).leng
 // ── Diff vs. predecessor ────────────────────────────────────────────
 const showDiff = ref(false);
 
+// Roles rather than values, because these reach the DOM through a `:style`
+// binding — see PlanVersionDiffDialog. Fixed light hexes there meant the dialog
+// kept white-ish rows in dark mode while the label above them turned near-white
+// with the theme, which is the one state where a diff has to be readable.
+// An inline style resolves `var()`, so the indirection costs nothing.
 const DIFF_STYLE = {
-    added: { bg: '#ecfdf5', border: '#a7f3d0', color: '#047857', sign: '+' },
-    removed: { bg: '#fef2f2', border: '#fecaca', color: '#b91c1c', sign: '−' },
-    changed: { bg: '#fffbeb', border: '#fde68a', color: '#b45309', sign: '~' },
+    added: {
+        bg: 'var(--sa-color-positive-surface)',
+        border: 'var(--sa-color-positive-border)',
+        color: 'var(--sa-color-positive-fg)',
+        sign: '+',
+    },
+    removed: {
+        bg: 'var(--sa-color-negative-surface)',
+        border: 'var(--sa-color-negative-border)',
+        color: 'var(--sa-color-negative-fg)',
+        sign: '−',
+    },
+    changed: {
+        bg: 'var(--sa-color-warning-surface)',
+        border: 'var(--sa-color-warning-border)',
+        color: 'var(--sa-color-warning-fg)',
+        sign: '~',
+    },
 } as const;
 
 const diffStyles = computed(() => ({
@@ -754,10 +774,10 @@ function emitSave(): void {
     align-items: center;
     gap: 10px;
     padding: 10px 22px;
-    background: #fef2f2;
-    border-bottom: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: 13px;
+    background: var(--sa-color-negative-surface);
+    border-bottom: 1px solid var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
+    font-size: var(--sa-text-md);
     font-weight: 500;
 }
 .pve-error-ico {
@@ -769,16 +789,16 @@ function emitSave(): void {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-mono {
-    font: 500 11px var(--sa-font-mono);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
 }
 .pve-mono--xs {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
 }
 
 /* ── Buttons & Chips ───────────────────────────────────────────── */
@@ -789,22 +809,22 @@ function emitSave(): void {
     gap: 5px;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     letter-spacing: 0.01em;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .pve-chip--plan {
-    background: #dbeafe;
-    color: #1e40af;
-    border-color: #bfdbfe;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
+    border-color: var(--sa-color-info-border);
 }
 .pve-chip--draft {
-    background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 .pve-chip--dot::before {
     content: '';
@@ -814,18 +834,18 @@ function emitSave(): void {
     background: currentColor;
 }
 .pve-chip--changes {
-    background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 
 .pve-kbd {
-    font: 600 10.5px var(--sa-font-mono);
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    font: 600 var(--sa-text-xs) var(--sa-font-mono);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
 }
 
 /* ── Body Grid ──────────────────────────────────────────────────── */
@@ -841,14 +861,14 @@ function emitSave(): void {
     overflow: hidden;
     display: grid;
     grid-template-columns: 380px 1fr 400px;
-    background: var(--sa-bg-app);
+    background: var(--sa-color-bg-app);
 }
 
 .pve-col {
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--sa-border);
-    background: #fff;
+    border-right: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-surface);
     min-width: 0;
     overflow: hidden;
 }
@@ -857,7 +877,7 @@ function emitSave(): void {
 }
 .pve-col-header {
     padding: 16px 18px 12px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: flex-start;
     gap: 8px;
@@ -870,19 +890,19 @@ function emitSave(): void {
     padding: 16px 18px 12px;
 }
 .pve-col-title {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     letter-spacing: -0.01em;
 }
 .pve-col-sub {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
 
 /* ── LEFT — Pool ───────────────────────────────────────────────── */
 .pve-pool {
-    background: #fbfbfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .pve-search {
     display: flex;
@@ -890,8 +910,8 @@ function emitSave(): void {
     gap: 8px;
     padding: 10px 14px;
     margin: 10px 14px 0;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
 }
 .pve-search input {
@@ -899,11 +919,11 @@ function emitSave(): void {
     border: 0;
     outline: 0;
     background: transparent;
-    font: 13px var(--sa-font-body);
-    color: var(--sa-heading);
+    font: var(--sa-text-md) var(--sa-font-body);
+    color: var(--sa-color-fg-heading);
 }
 .pve-search-ico {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     display: inline-flex;
 }
 .pve-tabs {
@@ -916,27 +936,27 @@ function emitSave(): void {
     border: 0;
     padding: 5px 10px;
     border-radius: 6px;
-    font: 500 12.5px var(--sa-font-body);
-    color: var(--sa-muted-dark);
+    font: 500 var(--sa-text-md) var(--sa-font-body);
+    color: var(--sa-color-fg-secondary);
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
 }
 .pve-tab--active {
-    background: var(--sa-heading);
-    color: #fff;
+    background: var(--sa-color-inverse-bg);
+    color: var(--sa-color-fg-on-accent);
 }
 .pve-tab-count {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     padding: 1px 5px;
     border-radius: 4px;
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .pve-tab--active .pve-tab-count {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
+    background: var(--sa-color-inverse-border-strong);
+    color: var(--sa-color-fg-on-accent);
 }
 .pve-pool-list {
     flex: 1;
@@ -945,10 +965,10 @@ function emitSave(): void {
     padding: 6px 14px 18px;
 }
 .pve-pool-group {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
     padding: 12px 4px 6px;
 }
@@ -956,8 +976,8 @@ function emitSave(): void {
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 9px 10px;
     margin-bottom: 6px;
@@ -968,22 +988,22 @@ function emitSave(): void {
     user-select: none;
 }
 .pve-pool-card:hover {
-    border-color: #c7d2fe;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    border-color: var(--sa-color-scheduled-border);
+    box-shadow: 0 1px 3px var(--sa-shadow-tint-1);
 }
 .pve-pool-card:active {
     cursor: grabbing;
 }
 .pve-pool-card--selected {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     opacity: 0.7;
 }
 .pve-pool-card--partial {
-    border-color: #fde68a;
-    background: var(--sa-warning-bg);
+    border-color: var(--sa-color-warning-border);
+    background: var(--sa-color-warning-surface);
 }
 .pve-pool-grip {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     padding-top: 3px;
     flex: 0 0 auto;
 }
@@ -997,9 +1017,9 @@ function emitSave(): void {
     gap: 8px;
 }
 .pve-pool-card-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-pool-card-check {
     display: inline-grid;
@@ -1007,8 +1027,8 @@ function emitSave(): void {
     width: 16px;
     height: 16px;
     border-radius: 4px;
-    background: #d1fae5;
-    color: #047857;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     margin-left: auto;
 }
 .pve-pool-card-meta {
@@ -1016,23 +1036,23 @@ function emitSave(): void {
     gap: 5px;
     align-items: center;
     flex-wrap: wrap;
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .pve-pool-card-key {
-    font: 500 10px var(--sa-font-mono);
-    color: var(--sa-muted);
+    font: 500 var(--sa-text-2xs) var(--sa-font-mono);
+    color: var(--sa-color-fg-muted);
 }
 .pve-pool-card-dot {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 
 .pve-empty {
     padding: 24px 4px;
     text-align: center;
-    color: var(--sa-muted-light);
-    font-size: 12.5px;
+    color: var(--sa-color-fg-subtle);
+    font-size: var(--sa-text-md);
     font-style: italic;
 }
 
@@ -1045,12 +1065,16 @@ function emitSave(): void {
         box-shadow 0.15s;
 }
 .pve-basket--dragover {
-    background: #f0f6ff;
-    box-shadow: inset 0 0 0 2px var(--sa-primary);
+    background: var(--sa-color-accent-surface);
+    box-shadow: inset 0 0 0 2px var(--sa-color-accent);
 }
 .pve-basket-settings {
-    background: linear-gradient(180deg, var(--sa-bg-surface-2) 0%, #fff 100%);
-    border-bottom: 1px solid var(--sa-border);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-bg-sunken) 0%,
+        var(--sa-color-bg-surface) 100%
+    );
+    border-bottom: 1px solid var(--sa-color-border);
     padding: 14px 22px 16px;
     display: flex;
     flex-direction: column;
@@ -1062,8 +1086,8 @@ function emitSave(): void {
     gap: 10px;
 }
 .pve-bs-label {
-    font-size: 12px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-secondary);
     font-weight: 500;
     min-width: 88px;
 }
@@ -1072,34 +1096,34 @@ function emitSave(): void {
     margin-left: 8px;
 }
 .pve-bs-input {
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 6px 10px;
-    font: 13px var(--sa-font-body);
-    color: var(--sa-heading);
+    font: var(--sa-text-md) var(--sa-font-body);
+    color: var(--sa-color-fg-heading);
     outline: none;
 }
 .pve-bs-input:focus {
-    border-color: var(--sa-primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    border-color: var(--sa-color-accent);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-2);
 }
 .pve-bs-input--error {
-    border-color: #ef4444;
-    background: #fef2f2;
+    border-color: var(--sa-color-negative-strong);
+    background: var(--sa-color-negative-surface);
 }
 .pve-bs-input--error:focus {
-    border-color: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+    border-color: var(--sa-color-negative-strong);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 .pve-bs-error {
     display: flex;
     align-items: center;
     gap: 6px;
     margin: -2px 0 2px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     font-weight: 500;
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
 }
 .pve-bs-error svg {
     flex: 0 0 auto;
@@ -1111,9 +1135,9 @@ function emitSave(): void {
 .pve-bs-input-grp {
     display: flex;
     align-items: stretch;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     overflow: hidden;
 }
 .pve-bs-input-grp--gap {
@@ -1127,17 +1151,17 @@ function emitSave(): void {
 }
 .pve-bs-prefix,
 .pve-bs-suffix {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     padding: 6px 10px;
-    font-size: 12px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     display: grid;
     place-items: center;
-    border-right: 1px solid var(--sa-border);
+    border-right: 1px solid var(--sa-color-border);
 }
 .pve-bs-suffix {
     border-right: 0;
-    border-left: 1px solid var(--sa-border);
+    border-left: 1px solid var(--sa-color-border);
 }
 
 .pve-toggle {
@@ -1155,7 +1179,7 @@ function emitSave(): void {
 .pve-toggle span {
     position: absolute;
     inset: 0;
-    background: #cbd5e1;
+    background: var(--sa-color-border-strong);
     border-radius: 999px;
     transition: background 0.15s;
 }
@@ -1167,11 +1191,11 @@ function emitSave(): void {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     transition: transform 0.15s;
 }
 .pve-toggle input:checked + span {
-    background: var(--sa-primary);
+    background: var(--sa-color-accent);
 }
 .pve-toggle input:checked + span::before {
     transform: translateX(16px);
@@ -1179,7 +1203,7 @@ function emitSave(): void {
 
 .pve-basket-group {
     padding: 14px 22px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .pve-basket-group:last-child {
     border-bottom: 0;
@@ -1196,41 +1220,41 @@ function emitSave(): void {
     border-radius: 50%;
 }
 .pve-bg-dot--quota {
-    background: #0ea5e9;
+    background: var(--sa-color-quota);
 }
 .pve-bg-dot--feature {
-    background: #8b5cf6;
+    background: var(--sa-color-feature);
 }
 .pve-bg-dot--bundle {
-    background: #f59e0b;
+    background: var(--sa-color-bundle);
 }
 .pve-bg-title {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-weight: 700;
-    color: #334155;
+    color: var(--sa-color-fg-body);
 }
 .pve-bg-count {
     margin-left: 6px;
-    font-size: 11px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
 }
 
 .pve-dz {
-    border: 1.5px dashed var(--sa-border-strong);
+    border: 1.5px dashed var(--sa-color-border-strong);
     border-radius: 10px;
     padding: 12px;
-    background: #fafbfc;
+    background: var(--sa-color-bg-surface-raised);
     min-height: 60px;
 }
 .pve-basket--dragover .pve-dz {
-    border-color: var(--sa-primary);
-    background: #f0f6ff;
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
 }
 .pve-dz-empty {
-    font-size: 12px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-subtle);
     text-align: center;
     padding: 4px 0;
 }
@@ -1243,8 +1267,8 @@ function emitSave(): void {
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     margin-bottom: 4px;
 }
@@ -1258,43 +1282,43 @@ function emitSave(): void {
     flex: 0 0 auto;
 }
 .pve-sel-dot--quota {
-    background: #0ea5e9;
+    background: var(--sa-color-quota);
 }
 .pve-sel-dot--feature {
-    background: #8b5cf6;
+    background: var(--sa-color-feature);
 }
 .pve-sel-dot--bundle {
-    background: #f59e0b;
+    background: var(--sa-color-bundle);
 }
 .pve-sel-body {
     flex: 1;
     min-width: 0;
 }
 .pve-sel-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-sel-sub {
-    font: 500 10.5px var(--sa-font-mono);
-    color: var(--sa-muted-light);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-sel-val-edit {
     display: flex;
     align-items: center;
     gap: 4px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     padding: 3px 8px;
     border-radius: 5px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
 }
 .pve-sel-val-input {
     width: 64px;
     border: 0;
     outline: 0;
     background: transparent;
-    font: 600 13px var(--sa-font-body);
-    color: var(--sa-heading);
+    font: 600 var(--sa-text-md) var(--sa-font-body);
+    color: var(--sa-color-fg-heading);
     text-align: right;
     -moz-appearance: textfield;
 }
@@ -1304,13 +1328,13 @@ function emitSave(): void {
     margin: 0;
 }
 .pve-sel-val-unit {
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-sel-x {
     background: transparent;
     border: 0;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
     padding: 4px;
     border-radius: 4px;
@@ -1318,13 +1342,13 @@ function emitSave(): void {
     place-items: center;
 }
 .pve-sel-x:hover {
-    background: #fef2f2;
-    color: #ef4444;
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-strong);
 }
 
 /* ── RIGHT — Preview ───────────────────────────────────────────── */
 .pve-preview {
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     overflow: auto;
 }
 .pve-preview-toggle {
@@ -1334,9 +1358,9 @@ function emitSave(): void {
 }
 .pve-prev-window {
     margin: 14px 18px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 10px;
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     overflow: hidden;
     transition: max-width 0.18s;
 }
@@ -1348,8 +1372,8 @@ function emitSave(): void {
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background: var(--sa-border-soft);
-    border-bottom: 1px solid var(--sa-border);
+    background: var(--sa-color-border-soft);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .pve-prev-dot {
     width: 9px;
@@ -1358,34 +1382,34 @@ function emitSave(): void {
 }
 .pve-prev-url {
     flex: 1;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 4px;
     padding: 3px 10px;
     margin-left: 10px;
-    font: 500 11px var(--sa-font-mono);
-    color: var(--sa-muted);
-    border: 1px solid var(--sa-border);
+    font: 500 var(--sa-text-xs) var(--sa-font-mono);
+    color: var(--sa-color-fg-muted);
+    border: 1px solid var(--sa-color-border);
 }
 .pve-prev-body {
     padding: 18px 18px 16px;
 }
 .pve-prev-eyebrow {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-weight: 700;
 }
 .pve-prev-title {
-    font-size: 28px;
+    font-size: var(--sa-text-3xl);
     font-weight: 700;
     letter-spacing: -0.03em;
     margin-top: 6px;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-prev-desc {
-    font-size: 12.5px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-secondary);
     margin-top: 6px;
     line-height: 1.5;
 }
@@ -1396,18 +1420,18 @@ function emitSave(): void {
     margin-top: 14px;
 }
 .pve-prev-price-big {
-    font-size: 38px;
+    font-size: var(--sa-text-4xl);
     font-weight: 700;
     letter-spacing: -0.03em;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-prev-price-unit {
-    font-size: 13px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-muted);
 }
 .pve-prev-price-yearly {
-    font-size: 11.5px;
-    color: #047857;
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-positive-fg);
     margin-top: 2px;
     font-weight: 500;
 }
@@ -1416,21 +1440,21 @@ function emitSave(): void {
     width: 100%;
     margin-top: 14px;
     padding: 10px;
-    background: var(--sa-heading);
-    color: #fff;
+    background: var(--sa-color-inverse-bg);
+    color: var(--sa-color-fg-on-accent);
     border: 0;
     border-radius: 7px;
-    font: 600 13px var(--sa-font-body);
+    font: 600 var(--sa-text-md) var(--sa-font-body);
     cursor: pointer;
 }
 .pve-prev-sep {
     margin-top: 18px;
     padding-top: 14px;
-    border-top: 1px solid var(--sa-border-soft);
-    font-size: 10.5px;
+    border-top: 1px solid var(--sa-color-border-soft);
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-weight: 700;
 }
 .pve-prev-list {
@@ -1445,8 +1469,8 @@ function emitSave(): void {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12.5px;
-    color: var(--sa-heading);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-heading);
 }
 .pve-prev-list li b {
     font-weight: 600;
@@ -1457,27 +1481,27 @@ function emitSave(): void {
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    background: #d1fae5;
-    color: #047857;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     flex: 0 0 auto;
 }
 .pve-prev-empty {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
 }
 .pve-prev-foot {
     margin-top: 16px;
     padding-top: 14px;
-    border-top: 1px solid var(--sa-border-soft);
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    border-top: 1px solid var(--sa-color-border-soft);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
     line-height: 1.5;
 }
 
 .pve-prev-validate {
     margin: 0 18px 18px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 12px;
 }
@@ -1488,37 +1512,37 @@ function emitSave(): void {
     margin-bottom: 6px;
 }
 .pve-prev-validate-tick {
-    color: var(--sa-positive-light);
+    color: var(--sa-color-positive-strong);
     display: inline-flex;
 }
 .pve-prev-validate-title {
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
 }
 .pve-prev-validate-count {
     margin-left: auto;
-    font-size: 11px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
 }
 .pve-vchk {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     padding: 3px 0;
 }
 .pve-vchk--ok {
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .pve-vchk--ok span:first-child {
-    color: var(--sa-positive-light);
+    color: var(--sa-color-positive-strong);
     display: inline-flex;
 }
 .pve-vchk--warn {
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
 }
 .pve-vchk--warn span:first-child {
-    color: var(--sa-amber);
+    color: var(--sa-color-warning-strong);
     display: inline-flex;
 }
 
@@ -1535,39 +1559,39 @@ function emitSave(): void {
     }
     .pve-col {
         border-right: 0;
-        border-bottom: 1px solid var(--sa-border);
+        border-bottom: 1px solid var(--sa-color-border);
     }
 }
 
 /* ── Diff dialog ────────────────────────────────────────────────── */
 .pve-diff-modal {
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     width: 560px;
     max-width: 92vw;
     border-radius: 14px;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+    box-shadow: 0 24px 60px var(--sa-shadow-tint-4);
     overflow: hidden;
     font-family: var(--sa-font-body);
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-diff-modal * {
     box-sizing: border-box;
 }
 .pve-diff-head {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
     display: flex;
     align-items: flex-start;
     gap: 12px;
 }
 .pve-diff-title {
-    font-size: 15px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
     letter-spacing: -0.01em;
 }
 .pve-diff-sub {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
 .pve-diff-close {
@@ -1577,15 +1601,15 @@ function emitSave(): void {
     border-radius: 6px;
     background: transparent;
     border: 0;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
     display: grid;
     place-items: center;
     flex: 0 0 auto;
 }
 .pve-diff-close:hover {
-    background: rgba(15, 23, 42, 0.05);
-    color: var(--sa-heading);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-heading);
 }
 .pve-diff-body {
     padding: 14px 20px 18px;
@@ -1607,9 +1631,9 @@ function emitSave(): void {
     width: 20px;
     height: 20px;
     border-radius: 5px;
-    color: #fff;
+    color: var(--sa-color-fg-on-accent);
     font-weight: 800;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     display: grid;
     place-items: center;
     flex: 0 0 auto;
@@ -1625,43 +1649,43 @@ function emitSave(): void {
     flex-wrap: wrap;
 }
 .pve-diff-section {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 700;
 }
 .pve-diff-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .pve-diff-change {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-top: 3px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 .pve-diff-from {
     text-decoration: line-through;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .pve-diff-to {
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     font-weight: 600;
 }
 .pve-diff-arrow {
     font-weight: 700;
 }
 .pve-diff-tag {
-    font-size: 10px;
-    background: #fff;
+    font-size: var(--sa-text-2xs);
+    background: var(--sa-color-bg-surface);
 }
 .pve-diff-empty {
     padding: 24px 8px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 </style>

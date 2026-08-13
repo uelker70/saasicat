@@ -1,0 +1,108 @@
+/* Layer 1 — primitives. The raw palette, and nothing else.
+ *
+ * A primitive says WHAT a colour is (`--sa-red-600` is a particular red). It
+ * never says what the colour is FOR — that is layer 2's job, and it is the only
+ * layer that changes between light and dark. Consequently:
+ *
+ *   - nothing in this file may reference another variable;
+ *   - nothing outside `tokens.semantic.*.css` may reference this file.
+ *
+ * A component reaching for `--sa-red-600` instead of `--sa-color-negative` is
+ * the bug this split exists to prevent: it is invisible in review, and it is
+ * the reason a dark theme costs 62 files instead of one. Rule 22 in the
+ * layer-discipline test enforces both directions.
+ *
+ * The ramps are the ones the admin surface already used. Steps that no role
+ * consumes are absent on purpose: a palette with unused rungs invites people to
+ * pick one, and then the role layer is no longer the single answer.
+ */
+
+:root {
+    /* ── Neutral (slate). Carries text, surfaces and lines. ─────────────── */
+    --sa-white: #ffffff;
+    --sa-black: #000000;
+    --sa-neutral-25: #fbfbfd;
+    --sa-neutral-50: #f8fafc;
+    --sa-neutral-100: #f1f5f9;
+    --sa-neutral-200: #e2e8f0;
+    --sa-neutral-300: #cbd5e1;
+    --sa-neutral-400: #94a3b8;
+    /* Between 400 and 500, and it exists for a measured reason: `fg-subtle` at
+     * slate-400 reads 2.56:1 on a white card and 2.34:1 on the page canvas —
+     * under the 3:1 floor, i.e. captions and price units that are decoration
+     * rather than information. Slate-500 is the next rung and too dark to stay
+     * quiet. This one clears 3:1 on both. */
+    --sa-neutral-450: #7c8aa0;
+    --sa-neutral-500: #64748b;
+    --sa-neutral-600: #475569;
+    --sa-neutral-700: #334155;
+    --sa-neutral-800: #1e293b;
+    --sa-neutral-900: #0f172a;
+    --sa-neutral-950: #0b1220;
+    --sa-neutral-975: #070d18;
+
+    /* ── Blue. The `info` tone. ─────────────────────────────────────────── */
+    --sa-blue-50: #eff6ff;
+    --sa-blue-100: #dbeafe;
+    --sa-blue-200: #bfdbfe;
+    --sa-blue-300: #93c5fd;
+    --sa-blue-500: #3b82f6;
+    --sa-blue-600: #2563eb;
+    --sa-blue-700: #1d4ed8;
+    --sa-blue-800: #1e40af;
+
+    /* The platform's own brand blue. Kept out of the blue ramp because it is
+     * not a step in it: it is the value the accent role falls back to when the
+     * host application declares no Quasar `$primary` of its own. */
+    --sa-brand-blue: #3f6bff;
+
+    /* ── Green (emerald). `positive`. ───────────────────────────────────── */
+    --sa-green-50: #ecfdf5;
+    --sa-green-100: #d1fae5;
+    --sa-green-200: #a7f3d0;
+    --sa-green-500: #10b981;
+    --sa-green-700: #047857;
+    --sa-green-800: #065f46;
+
+    /* ── Amber. `warning`, and every "draft / scheduled / pending" state. ─ */
+    --sa-amber-50: #fffbeb;
+    --sa-amber-100: #fef3c7;
+    --sa-amber-200: #fde68a;
+    --sa-amber-300: #fcd34d;
+    --sa-amber-400: #fbbf24;
+    --sa-amber-500: #f59e0b;
+    --sa-amber-600: #d97706;
+    --sa-amber-700: #b45309;
+    --sa-amber-800: #92400e;
+
+    /* ── Red. `negative`. ───────────────────────────────────────────────── */
+    --sa-red-50: #fef2f2;
+    --sa-red-100: #fee2e2;
+    --sa-red-200: #fecaca;
+    --sa-red-300: #fca5a5;
+    --sa-red-500: #ef4444;
+    --sa-red-600: #dc2626;
+    --sa-red-700: #b91c1c;
+    --sa-red-800: #991b1b;
+
+    /* ── Indigo. `scheduled` — a version that is planned but not yet live. */
+    --sa-indigo-50: #eef2ff;
+    --sa-indigo-100: #e0e7ff;
+    --sa-indigo-200: #c7d2fe;
+    --sa-indigo-400: #818cf8;
+    --sa-indigo-700: #4338ca;
+
+    /* ── Violet and sky. The two catalogue entities, feature and quota. ── */
+    --sa-violet-50: #ede9fe;
+    --sa-violet-200: #ddd6fe;
+    --sa-violet-500: #8b5cf6;
+    --sa-violet-700: #6d28d9;
+    --sa-sky-50: #f0f9ff;
+    --sa-sky-200: #bae6fd;
+    --sa-sky-500: #0ea5e9;
+
+    /* ── Type families. ─────────────────────────────────────────────────── */
+    --sa-font-head: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    --sa-font-body: 'Inter', system-ui, sans-serif;
+    --sa-font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}

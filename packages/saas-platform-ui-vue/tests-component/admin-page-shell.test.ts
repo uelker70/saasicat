@@ -1,7 +1,7 @@
 // The page shell is a contract, not a convention.
 //
 // This repo already tried to hold the admin pages to one page structure using
-// CSS class names (`sa-theme.css`), and it did not hold: of eighteen pages,
+// CSS class names (the theme's component layer), and it did not hold: of eighteen pages,
 // seven adopted `.sa-page-head`, four copied it into their own BEM variants,
 // four pushed the header into a sub-component, and one shipped its title in a
 // `<div>` with no heading tag at all. A class name is advice. These tests are
@@ -349,7 +349,7 @@ describe('page shell contract', () => {
         // Seven near-copies of the same tile preceded AdminKpi, two of them
         // byte identical, three living in unscoped page-level <style> blocks
         // that leaked their classes app-wide. The tile look is one rule in
-        // sa-theme.css now, and this keeps a page from starting an eighth.
+        // the theme's component layer now, and this keeps a page from starting an eighth.
         // Two things make a tile, and both are required before this complains:
         // a name that claims to be one, and a surface. A right-aligned
         // label/value pair in a diff header is not an eighth tile, and neither

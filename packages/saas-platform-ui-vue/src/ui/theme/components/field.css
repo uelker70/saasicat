@@ -1,0 +1,38 @@
+/* Form fields and the filter row.
+ *
+ * Quasar's outlined input rounds at 4px, which reads sharper than everything
+ * around it; the admin surface settles on `--sa-radius-field`, the radius the
+ * hand-built search boxes already used. Declared on the field control so it
+ * covers inputs, selects and date pickers alike.
+ */
+
+.sa-page .q-field--outlined .q-field__control,
+.sa-page .q-field--outlined .q-field__control:before,
+.sa-page .q-field--outlined .q-field__control:after,
+.sa-portal .q-field--outlined .q-field__control,
+.sa-portal .q-field--outlined .q-field__control:before,
+.sa-portal .q-field--outlined .q-field__control:after {
+    border-radius: var(--sa-radius-field);
+}
+/* Quasar's outlined control is transparent, which reads as a hole wherever it
+ * sits on a section surface rather than on the page canvas.
+ *
+ * `.sa-portal` because a dialog is teleported out of `.sa-page` — this
+ * correction had silently never applied to a field inside a dialog. */
+.sa-page .q-field--outlined .q-field__control,
+.sa-portal .q-field--outlined .q-field__control {
+    background: var(--sa-color-bg-surface);
+}
+
+/* The filter row (see AdminFilters). Declared once so no page writes its own
+ * flex rule — which is how five pages ended up with five filter bars. */
+.sa-filters .sa-filters__body {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.sa-filters .sa-filters__body > * {
+    flex: 1;
+    min-width: 200px;
+}

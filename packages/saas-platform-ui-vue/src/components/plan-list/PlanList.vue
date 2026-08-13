@@ -552,8 +552,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 <style scoped>
 .sa-plan-list {
     /* padding: 22px 26px; */
-    background: var(--sa-bg-app);
-    color: var(--sa-heading);
+    background: var(--sa-color-bg-app);
+    color: var(--sa-color-fg-heading);
     font-family: var(--sa-font-body);
     min-height: 100%;
     box-sizing: border-box;
@@ -563,8 +563,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 
 /* List wrap */
 .sa-plan-list-wrap {
-    background: var(--sa-bg-surface);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -573,8 +573,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--sa-border);
-    background: var(--sa-bg-surface-2);
+    border-bottom: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-sunken);
 }
 /* The search takes the row; the sort hint keeps its content width. */
 .sa-plan-list-toolbar > .q-field {
@@ -582,73 +582,90 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 }
 .sa-plan-list-sortinfo {
     margin-left: auto;
-    font-size: 11.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-subtle);
 }
 
 /* List grid */
 .sa-plan-list-list {
     display: grid;
     grid-template-columns: 1.6fr 0.9fr 0.7fr 0.9fr 1.4fr 160px;
-    align-items: center;
+    /* Stretch, not centre. Every row is `display: contents`, so its cells are
+     * grid items in their own right — and a centred item is only as tall as its
+     * own content. The row's hover background is painted per cell, so the band
+     * came out notched wherever one column was shorter than its neighbours.
+     * The cells fill the row now and centre their contents themselves. */
+    align-items: stretch;
 }
 .sa-plan-list-list-head {
     display: contents;
 }
 .sa-plan-list-list-head > div {
-    background: #fbfbfd;
+    display: flex;
+    align-items: center;
+    background: var(--sa-color-bg-surface-raised);
     padding: 10px 16px;
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     font-weight: 700;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-empty {
     grid-column: 1 / -1;
     padding: 32px 24px;
     text-align: center;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sa-plan-list-row {
     display: contents;
     cursor: pointer;
 }
 .sa-plan-list-row > .sa-plan-list-cell {
+    /* Column by default — most cells stack a value over a caption. The three
+     * that lay their content out in a row say so below. */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     padding: 14px 16px;
-    border-bottom: 1px solid var(--sa-border-soft);
+    border-bottom: 1px solid var(--sa-color-border-soft);
     transition: background 0.12s;
 }
 .sa-plan-list-row:hover > .sa-plan-list-cell {
-    background: #fcfcfd;
+    background: var(--sa-color-bg-surface-raised);
 }
 .sa-plan-list-row--new > .sa-plan-list-cell {
-    background: var(--sa-positive-bg) !important;
+    background: var(--sa-color-positive-surface) !important;
     animation: sa-plan-list-flashNew 2.4s ease-out;
 }
 @keyframes sa-plan-list-flashNew {
     0% {
-        background: #d1fae5 !important;
+        background: var(--sa-color-positive-surface-strong) !important;
     }
     100% {
-        background: var(--sa-positive-bg) !important;
+        background: var(--sa-color-positive-surface) !important;
     }
 }
 
 /* Sub-rows (drafts + future-scheduled versions, indented under the parent) */
 .sa-plan-list-row--sub > .sa-plan-list-cell {
-    background: #fafbfd;
+    background: var(--sa-color-bg-surface-raised);
     padding-top: 10px;
     padding-bottom: 10px;
 }
 .sa-plan-list-row--sub:hover > .sa-plan-list-cell {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
 }
-.sa-plan-list-cell--sub-name {
+.sa-plan-list-row > .sa-plan-list-cell--sub-name {
     display: flex;
+    flex-direction: row;
+    /* The base rule centres on the main axis, which is vertical for a column
+     * cell but horizontal here — it would float the indent and leave the tree
+     * elbow pointing at nothing. */
+    justify-content: flex-start;
     align-items: center;
     gap: 12px;
     padding-left: 32px !important;
@@ -667,36 +684,36 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     bottom: 50%;
     left: 12px;
     width: 14px;
-    border-left: 1.5px solid #cbd5e1;
-    border-bottom: 1.5px solid #cbd5e1;
+    border-left: 1.5px solid var(--sa-color-border-strong);
+    border-bottom: 1.5px solid var(--sa-color-border-strong);
     border-bottom-left-radius: 6px;
 }
 .sa-plan-list-sub-titles {
     min-width: 0;
 }
 .sa-plan-list-sub-title {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     display: flex;
     align-items: center;
     gap: 8px;
 }
 .sa-plan-list-sub-desc {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .sa-plan-list-version-num--sub {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-plan-list-cell--sub-impact {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 
 .sa-plan-list-plan-name {
@@ -710,7 +727,7 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     border-radius: 8px;
     display: grid;
     place-items: center;
-    font: 700 11px var(--sa-font-mono);
+    font: 700 var(--sa-text-xs) var(--sa-font-mono);
     letter-spacing: 0.04em;
     flex: 0 0 auto;
     border: 1px solid;
@@ -719,9 +736,9 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     min-width: 0;
 }
 .sa-plan-list-plan-title {
-    font-size: 14.5px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     letter-spacing: -0.01em;
     display: flex;
     align-items: center;
@@ -729,8 +746,8 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     flex-wrap: wrap;
 }
 .sa-plan-list-plan-desc {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -751,41 +768,41 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     gap: 5px;
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
+    border: 1px solid var(--sa-color-border);
 }
 .sa-plan-list-chip--tiny {
     padding: 1px 6px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
 }
 .sa-plan-list-chip--new {
-    background: #dbeafe;
-    color: #1e40af;
-    border-color: #bfdbfe;
-    font-size: 10px;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
+    border-color: var(--sa-color-info-border);
+    font-size: var(--sa-text-2xs);
 }
 .sa-plan-list-chip--live {
-    background: var(--sa-positive-bg);
-    color: #047857;
-    border-color: #a7f3d0;
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
+    border-color: var(--sa-color-positive-border);
 }
 .sa-plan-list-chip--draft {
-    background: var(--sa-warning-bg);
-    color: #b45309;
-    border-color: #fde68a;
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+    border-color: var(--sa-color-warning-border);
 }
 .sa-plan-list-chip--supersed {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
-    border-color: #cbd5e1;
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
+    border-color: var(--sa-color-border-strong);
 }
 .sa-plan-list-chip--scheduled {
-    background: #eef2ff;
-    color: #4338ca;
-    border-color: #c7d2fe;
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
+    border-color: var(--sa-color-scheduled-border);
 }
 .sa-plan-list-chip--dot::before {
     content: '';
@@ -796,53 +813,55 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 }
 
 .sa-plan-list-version-num {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-plan-list-version-num--muted {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 .sa-plan-list-version-sub {
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 
 .sa-plan-list-price-big {
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-plan-list-price-unit {
-    font-size: 11px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-plan-list-price-sub {
-    font-size: 10.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
     margin-top: 2px;
 }
 .sa-plan-list-price-text {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 
-.sa-plan-list-cell--tenants {
+.sa-plan-list-row > .sa-plan-list-cell--tenants {
     display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
     align-items: center;
     gap: 10px;
 }
 .sa-plan-list-tenant-num {
-    font-size: 16px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-plan-list-tenant-bar {
     flex: 1;
     height: 6px;
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border-radius: 999px;
     overflow: hidden;
 }
@@ -850,9 +869,11 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     height: 100%;
 }
 
-.sa-plan-list-cell--actions {
+.sa-plan-list-row > .sa-plan-list-cell--actions {
     display: flex;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
     justify-content: flex-end;
+    gap: 4px;
 }
 </style>

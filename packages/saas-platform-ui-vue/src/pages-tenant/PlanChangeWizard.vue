@@ -511,18 +511,11 @@ watch(
 }
 /* CSS vars for light + dark mode */
 .sp-wizard {
-    --sp-wiz-border: rgba(0, 0, 0, 0.08);
-    --sp-wiz-text-strong: rgba(0, 0, 0, 0.87);
-    --sp-wiz-text-muted: rgba(0, 0, 0, 0.6);
-    --sp-wiz-text-faint: rgba(0, 0, 0, 0.55);
-    --sp-wiz-border-soft: rgba(0, 0, 0, 0.1);
-}
-:global(.body--dark) .sp-wizard {
-    --sp-wiz-border: rgba(255, 255, 255, 0.12);
-    --sp-wiz-text-strong: rgba(255, 255, 255, 0.92);
-    --sp-wiz-text-muted: rgba(255, 255, 255, 0.7);
-    --sp-wiz-text-faint: rgba(255, 255, 255, 0.6);
-    --sp-wiz-border-soft: rgba(255, 255, 255, 0.18);
+    --sp-wiz-border: var(--sa-color-border);
+    --sp-wiz-text-strong: var(--sa-color-fg-heading);
+    --sp-wiz-text-muted: var(--sa-color-fg-secondary);
+    --sp-wiz-text-faint: var(--sa-color-fg-muted);
+    --sp-wiz-border-soft: var(--sa-color-border-soft);
 }
 .sp-wizard__head {
     display: flex;
@@ -531,13 +524,13 @@ watch(
     border-bottom: 1px solid var(--sp-wiz-border);
 }
 .sp-wizard__title {
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     font-weight: 600;
     color: var(--sp-wiz-text-strong);
 }
 .sp-wizard__sub {
     color: var(--sp-wiz-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-wizard__intro {
     color: var(--sp-wiz-text-muted);
@@ -550,8 +543,8 @@ watch(
     padding: 24px 0;
 }
 .sp-wizard__error {
-    color: var(--q-negative, #c10015);
-    background: rgba(193, 0, 21, 0.08);
+    color: var(--sa-color-negative);
+    background: var(--sa-color-negative-surface);
     padding: 12px;
     border-radius: 4px;
 }
@@ -559,14 +552,14 @@ watch(
     margin-bottom: 12px;
 }
 .sp-wizard__proration {
-    background: rgba(25, 118, 210, 0.06);
+    background: var(--sa-color-info-surface);
     padding: 12px 14px;
     border-radius: 4px;
     margin-top: 12px;
 }
 .sp-wizard__proration h4 {
     margin: 0 0 6px;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
 }
 .sp-wizard__proration p {
     margin: 0;
@@ -579,7 +572,7 @@ watch(
 .sp-wizard__limits thead th {
     padding: 6px 12px;
     text-align: left;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     color: var(--sp-wiz-text-faint);
     text-transform: uppercase;
     border-bottom: 1px solid var(--sp-wiz-border-soft);
@@ -592,33 +585,33 @@ watch(
 .sp-wizard__feat h4,
 .sp-wizard__blockers h4 {
     margin: 0 0 6px;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
 }
 .sp-wizard__feat--warn {
-    color: rgba(193, 0, 21, 0.8);
+    color: var(--sa-color-negative);
 }
 .sp-wizard__blockers {
-    color: var(--q-negative, #c10015);
-    background: rgba(193, 0, 21, 0.06);
+    color: var(--sa-color-negative);
+    background: var(--sa-color-negative-surface);
     padding: 12px 14px;
     border-radius: 4px;
 }
 .sp-wizard__warnings {
-    color: var(--q-warning, #c87b00);
-    font-size: 13px;
+    color: var(--sa-color-warning);
+    font-size: var(--sa-text-md);
 }
 .sp-wizard__confirm-line {
     color: var(--sp-wiz-text-muted);
 }
 .sp-wizard__price-summary {
     margin-top: 16px;
-    background: rgba(25, 118, 210, 0.06);
+    background: var(--sa-color-info-surface);
     padding: 12px 14px;
     border-radius: 4px;
 }
 .sp-wizard__price-summary h4 {
     margin: 0 0 8px;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
 }
 .sp-wizard__price-row {
     display: flex;

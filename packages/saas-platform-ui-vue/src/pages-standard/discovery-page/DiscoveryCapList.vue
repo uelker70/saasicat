@@ -90,17 +90,17 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     display: flex;
     gap: 10px;
     align-items: flex-start;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 8px 10px;
 }
 .sa-caps-row.dep {
-    border-color: #fecaca;
-    background: #fef2f2;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
 }
 .sa-caps-row__kind {
-    font-size: 9px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     padding: 2px 6px;
@@ -120,30 +120,30 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     flex-wrap: wrap;
 }
 .sa-caps-row__key {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
 }
 .sa-caps-row__flag {
-    font-size: 9px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 1px 5px;
     border-radius: 4px;
 }
 .sa-caps-row__flag--new {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-caps-row__flag--exp {
-    background: #ede9fe;
-    color: #6d28d9;
+    background: var(--sa-color-feature-surface);
+    color: var(--sa-color-feature-fg);
 }
 .sa-caps-row__flag--dep {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
 }
 .sa-caps-row__flag--gone {
-    background: var(--sa-border);
-    color: var(--sa-muted);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-muted);
 }
 .sa-caps-row.gone {
     opacity: 0.6;
@@ -152,21 +152,21 @@ function isNew(cap: CapabilityCatalogEntryRow): boolean {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    font-size: 11px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-secondary);
     margin-top: 1px;
 }
 .sa-caps-row__meta code {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
 }
 .sa-caps__empty {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    color: #b45309;
-    background: var(--sa-warning-bg);
-    border: 1px dashed #fde68a;
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-warning-fg);
+    background: var(--sa-color-warning-surface);
+    border: 1px dashed var(--sa-color-warning-border);
     border-radius: 8px;
     padding: 10px 12px;
 }

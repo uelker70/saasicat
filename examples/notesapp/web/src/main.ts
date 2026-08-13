@@ -4,6 +4,10 @@
 
 import 'quasar/src/css/index.sass';
 import '@quasar/extras/material-icons/material-icons.css';
+// The tenant-facing pages read the same colour roles as the admin, so this app
+// needs the theme too. It only declares custom properties and `.sa-*` classes —
+// nothing that reaches an element of your own.
+import '@saasicat/ui-vue/theme.css';
 
 import { createApp } from 'vue';
 import { Dialog, Loading, Notify, Quasar } from 'quasar';

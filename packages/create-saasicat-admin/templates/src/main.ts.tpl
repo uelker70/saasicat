@@ -4,7 +4,7 @@ import 'quasar/src/css/index.sass';
 import '@quasar/extras/material-icons/material-icons.css';
 // Platform page styles (sa-* classes + CSS variables). Without it the
 // standard pages render unstyled.
-import '@saasicat/ui-vue/sa-theme.css';
+import '@saasicat/ui-vue/theme.css';
 
 import { createSuperAdminApp } from '@saasicat/ui-vue/quasar';
 import App from './App.vue';
@@ -37,7 +37,7 @@ const handle = createSuperAdminApp({
     extensions: {},
     // Starting UI language — the shell's header switcher lets the user change
     // it from there and remembers the pick. `overrides` replaces individual
-    // strings (handbook §8.6).
+    // strings (handbook §8.7).
     i18n: { locale: 'de' },
 });
 

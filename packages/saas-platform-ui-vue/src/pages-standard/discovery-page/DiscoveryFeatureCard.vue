@@ -269,14 +269,14 @@ function coverage(locale: string): number {
 
 <style scoped>
 .sa-fc {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     overflow: hidden;
 }
 .sa-fc.expanded {
-    border-color: #c7d2fe;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    border-color: var(--sa-color-scheduled-border);
+    box-shadow: 0 1px 3px var(--sa-shadow-tint-2);
 }
 .sa-fc__head {
     display: flex;
@@ -286,7 +286,7 @@ function coverage(locale: string): number {
     cursor: pointer;
 }
 .sa-fc__icon {
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
     flex-shrink: 0;
 }
 .sa-fc__main {
@@ -300,55 +300,55 @@ function coverage(locale: string): number {
     flex-wrap: wrap;
 }
 .sa-fc__key {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     padding: 2px 6px;
     border-radius: 5px;
     white-space: nowrap;
 }
 .sa-fc__label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .sa-fc__flag {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 5px;
 }
 .sa-fc__flag--new {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-fc__flag--dep {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
 }
 .sa-fc__flag--succ {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-fc__flag--repl {
-    background: #dbeafe;
-    color: #1e40af;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
 }
 .sa-fc__sub {
-    font-size: 11px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
     margin-top: 1px;
 }
 .sa-fc__dot {
     margin: 0 4px;
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 .sa-fc__tier {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    color: #4f46e5;
+    color: var(--sa-color-scheduled);
 }
 .sa-fc__coverage {
     display: flex;
@@ -356,39 +356,39 @@ function coverage(locale: string): number {
     flex-shrink: 0;
 }
 .sa-fc__chev {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     transition: transform 0.15s;
 }
 .sa-fc__chev.open {
     transform: rotate(90deg);
 }
 .sa-fc__body {
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
     padding: 12px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .sa-fc__banner {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 10px;
 }
 .sa-fc__banner.warn {
-    background: var(--sa-warning-bg);
-    border: 1px solid #fde68a;
-    color: #92400e;
+    background: var(--sa-color-warning-surface);
+    border: 1px solid var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
 }
 .sa-fc__banner.mute {
-    background: var(--sa-border-soft);
-    border: 1px solid var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    border: 1px solid var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-fc__subtabs {
     margin-bottom: 12px;
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-fc__split {
     display: grid;
@@ -396,18 +396,18 @@ function coverage(locale: string): number {
     gap: 14px;
 }
 .sa-fc__split-head {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-bottom: 8px;
 }
 .sa-fc__split-count {
     font-weight: 600;
     text-transform: none;
     letter-spacing: 0;
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     margin-left: 6px;
 }
 .sa-fc__fields {
@@ -421,9 +421,9 @@ function coverage(locale: string): number {
     gap: 3px;
 }
 .sa-fc-field__cap {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 600;
     text-transform: uppercase;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 </style>

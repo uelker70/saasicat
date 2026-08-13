@@ -199,7 +199,7 @@ async function handleSubmit(): Promise<void> {
        on top of the centered card on short viewports. */
     margin-left: auto;
     align-self: flex-start;
-    color: var(--sa-login-tag-color, var(--sa-muted-dark));
+    color: var(--sa-login-tag-color, var(--sa-color-fg-secondary));
 }
 .sa-login-wrap {
     min-height: 100vh;
@@ -208,15 +208,19 @@ async function handleSubmit(): Promise<void> {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(180deg, var(--sa-heading) 0%, #1e293b 100%);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-inverse-bg) 0%,
+        var(--sa-color-inverse-surface) 100%
+    );
 }
 .sa-login-card {
     width: 420px;
     max-width: 92vw;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 18px;
     padding: 32px;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 24px 48px var(--sa-shadow-tint-4);
 }
 .sa-login-brand {
     display: flex;
@@ -234,10 +238,20 @@ async function handleSubmit(): Promise<void> {
     overflow: hidden;
 }
 .sa-login-logo--text {
-    background: var(--sa-login-logo-bg, linear-gradient(135deg, var(--sa-muted-dark), #1e293b));
-    color: var(--sa-login-logo-color, #fff);
+    background: var(
+        --sa-login-logo-bg,
+        linear-gradient(
+            135deg,
+            var(--sa-color-inverse-surface-soft),
+            var(--sa-color-inverse-surface)
+        )
+    );
+    /* The fallback has to match the fallback background above, which is the
+     * invariant dark gradient — not the accent. An app that sets its own
+     * `--sa-login-logo-bg` sets `--sa-login-logo-color` with it. */
+    color: var(--sa-login-logo-color, var(--sa-color-inverse-fg));
     font-weight: 800;
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     text-transform: uppercase;
 }
 .sa-login-logo--img img {
@@ -247,26 +261,26 @@ async function handleSubmit(): Promise<void> {
 }
 .sa-login-brand__name {
     font-weight: 800;
-    font-size: 16px;
-    color: var(--sa-heading);
+    font-size: var(--sa-text-lg);
+    color: var(--sa-color-fg-heading);
     line-height: 1.1;
 }
 .sa-login-brand__tag {
-    font-size: 12px;
-    color: var(--sa-login-tag-color, var(--sa-muted-dark));
+    font-size: var(--sa-text-sm);
+    color: var(--sa-login-tag-color, var(--sa-color-fg-secondary));
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
 
 .sa-login-title {
-    font-size: 22px;
+    font-size: var(--sa-text-2xl);
     font-weight: 800;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     margin: 0 0 6px;
 }
 .sa-login-subtitle {
-    font-size: 13px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-secondary);
     margin: 0 0 20px;
     line-height: 1.5;
 }
@@ -279,10 +293,10 @@ async function handleSubmit(): Promise<void> {
     width: 100%;
 }
 .sa-login-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: 13px;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
+    font-size: var(--sa-text-md);
     margin-top: 4px;
     padding: 8px 12px;
     border-radius: 8px;
@@ -290,20 +304,20 @@ async function handleSubmit(): Promise<void> {
 .sa-login-hint {
     margin-top: 18px;
     padding: 10px 12px;
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border-radius: 8px;
-    font-size: 12px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-login-hint code {
-    background: var(--sa-border);
+    background: var(--sa-color-border);
     padding: 1px 5px;
     border-radius: 4px;
 }
 .sa-login-env {
     margin-top: 18px;
-    color: #cbd5e1;
-    font-size: 12px;
+    color: var(--sa-color-inverse-fg-muted);
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }

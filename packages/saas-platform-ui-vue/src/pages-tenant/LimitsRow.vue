@@ -44,7 +44,7 @@ function formatMax(n: number): string {
 
 <style scoped>
 .sp-limits-row {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    border-bottom: 1px solid var(--sa-color-border-soft);
 }
 .sp-limits-row td {
     padding: 8px 12px;
@@ -54,14 +54,14 @@ function formatMax(n: number): string {
     font-weight: 500;
 }
 .sp-limits-row__target--ok {
-    color: var(--q-positive, #21ba45);
+    color: var(--sa-color-positive);
     font-weight: 600;
 }
 .sp-limits-row__target--bad {
-    color: var(--q-negative, #c10015);
+    color: var(--sa-color-negative);
     font-weight: 600;
 }
 .sp-limits-row--exceeded {
-    background: rgba(193, 0, 21, 0.05);
+    background: var(--sa-color-negative-surface);
 }
 </style>

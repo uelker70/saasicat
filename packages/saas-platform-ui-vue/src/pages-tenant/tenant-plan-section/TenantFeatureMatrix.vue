@@ -118,8 +118,8 @@ const features = computed<FeatureRow[]>(() => {
     flex-wrap: wrap;
 }
 .sp-feature-matrix__desc {
-    font-size: 12px;
-    color: var(--sp-text-muted, rgba(0, 0, 0, 0.55));
+    font-size: var(--sa-text-sm);
+    color: var(--sp-text-muted, var(--sa-color-fg-muted));
     margin-top: 2px;
 }
 </style>

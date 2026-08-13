@@ -157,16 +157,10 @@ const rawJson = computed(() => {
 
 <style scoped>
 .sp-package-snapshot {
-    --sp-text-muted: rgba(0, 0, 0, 0.55);
-    --sp-text-strong: rgba(0, 0, 0, 0.85);
-    --sp-border: rgba(0, 0, 0, 0.08);
-    --sp-pre-bg: rgba(0, 0, 0, 0.04);
-}
-body.body--dark .sp-package-snapshot {
-    --sp-text-muted: rgba(255, 255, 255, 0.62);
-    --sp-text-strong: rgba(255, 255, 255, 0.85);
-    --sp-border: rgba(255, 255, 255, 0.16);
-    --sp-pre-bg: rgba(255, 255, 255, 0.06);
+    --sp-text-muted: var(--sa-color-fg-muted);
+    --sp-text-strong: var(--sa-color-fg-heading);
+    --sp-border: var(--sa-color-border);
+    --sp-pre-bg: var(--sa-color-bg-sunken);
 }
 .sp-package-snapshot__head {
     display: flex;
@@ -176,7 +170,7 @@ body.body--dark .sp-package-snapshot {
     flex-wrap: wrap;
 }
 .sp-package-snapshot__eyebrow {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--sp-text-muted);
@@ -186,11 +180,11 @@ body.body--dark .sp-package-snapshot {
 .sp-package-snapshot__sub {
     margin: 0;
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-package-snapshot__empty {
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-style: italic;
 }
 .sp-package-snapshot__list {
@@ -210,7 +204,7 @@ body.body--dark .sp-package-snapshot {
 }
 .sp-package-snapshot__muted {
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-package-snapshot__bundles {
     margin: 0;
@@ -227,13 +221,13 @@ body.body--dark .sp-package-snapshot {
     padding: 12px;
     background: var(--sp-pre-bg);
     border-radius: 4px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     overflow-x: auto;
     max-height: 320px;
 }
 code {
     font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     background: var(--sp-pre-bg);
     padding: 1px 4px;
     border-radius: 3px;

@@ -195,8 +195,8 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     padding: 20px 28px;
 }
 .sa-pv-diff__overview {
-    background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 12px;
     padding: 16px 20px;
     margin-bottom: 18px;
@@ -208,26 +208,32 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     width: 44px;
     height: 44px;
     border-radius: 10px;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    /* Invariant: the icon inside is explicitly white. The `warning` roles
+     * lighten in dark, which would leave it at 1.67:1 on its own badge. */
+    background: linear-gradient(
+        135deg,
+        var(--sa-color-inverse-notice),
+        var(--sa-color-inverse-notice-strong)
+    );
     display: flex;
     align-items: center;
     justify-content: center;
 }
 .sa-pv-diff__legend {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
 }
 .sa-pv-diff__title {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
-    font-size: 18px;
-    color: var(--sa-heading, var(--sa-heading));
+    font-size: var(--sa-text-xl);
+    color: var(--sa-color-fg-heading);
 }
 .sa-pv-diff__sep {
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     font-weight: 500;
 }
 .sa-pv-diff__spacer {
@@ -241,30 +247,30 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     text-align: right;
 }
 .sa-pv-diff__stat-label {
-    font-size: 10.5px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
 }
 .sa-pv-diff__stat-value {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
-    font-size: 22px;
+    font-size: var(--sa-text-2xl);
 }
 .sa-pv-diff__stat-value--warn {
-    color: var(--sa-warning, #b45309);
+    color: var(--sa-color-warning-fg);
 }
 .sa-pv-diff__stat-value--bad {
-    color: var(--sa-negative, #dc2626);
+    color: var(--sa-color-negative);
 }
 
 .sa-pv-diff__section {
     margin: 22px 0 10px;
     font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }

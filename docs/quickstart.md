@@ -403,7 +403,7 @@ This produces a runnable Vue 3 + Quasar + Vite project with:
 - branding variables in `src/styles/theme.scss`
 - German and English ship with the shell; the header switcher changes it per
   user. Which languages you offer, and whether you add your own, is set in
-  `main.ts` via `i18n` (see [handbook §8.6](handbook.md#86-ui-language-i18n))
+  `main.ts` via `i18n` (see [handbook §8.7](handbook.md#87-ui-language-i18n))
 
 The only thing left to do is adapt **`src/services/http.ts#adminLogin`** to
 your backend auth.

@@ -30,18 +30,18 @@ defineProps<{
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--sa-heading);
-    color: #fff;
+    background: var(--sa-color-inverse-bg);
+    color: var(--sa-color-fg-on-accent);
     padding: 12px 18px;
     border-radius: 10px;
     display: flex;
     align-items: center;
     gap: 10px;
     font:
-        500 13px 'Inter',
+        500 var(--sa-text-md) 'Inter',
         system-ui,
         sans-serif;
-    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.3);
+    box-shadow: 0 12px 40px var(--sa-shadow-tint-4);
     z-index: 6000;
     max-width: 80vw;
 }
@@ -49,8 +49,8 @@ defineProps<{
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #10b981;
-    color: #fff;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     display: grid;
     place-items: center;
     flex: 0 0 auto;

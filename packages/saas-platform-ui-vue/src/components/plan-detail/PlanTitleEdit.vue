@@ -92,20 +92,20 @@ function cancel(): void {
  * input keeps matching it when that changes. */
 .pd-title-edit__input {
     font: inherit;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     border: 0;
-    background: var(--sa-warning-bg);
-    outline: 2px solid var(--sa-amber-light);
+    background: var(--sa-color-warning-surface);
+    outline: 2px solid var(--sa-color-warning-strong);
     padding: 2px 8px;
     border-radius: var(--sa-radius-control);
     min-width: 220px;
 }
 .pd-title-edit__hint {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 500;
-    color: var(--sa-warning);
-    background: var(--sa-warning-bg);
-    border: 1px solid var(--sa-amber-border);
+    color: var(--sa-color-warning);
+    background: var(--sa-color-warning-surface);
+    border: 1px solid var(--sa-color-warning-border);
     border-radius: var(--sa-radius-control);
     padding: 3px 8px;
 }
@@ -118,7 +118,7 @@ function cancel(): void {
     border-radius: var(--sa-radius-control);
     background: transparent;
     border: 1px solid transparent;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     cursor: pointer;
     transition:
         background 0.12s,
@@ -126,8 +126,8 @@ function cancel(): void {
         border-color 0.12s;
 }
 .pd-title-edit__btn:hover {
-    background: var(--sa-border-soft);
-    color: var(--sa-primary);
-    border-color: var(--sa-border);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-accent);
+    border-color: var(--sa-color-border);
 }
 </style>

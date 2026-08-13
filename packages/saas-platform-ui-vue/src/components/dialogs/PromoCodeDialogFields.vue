@@ -408,17 +408,17 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 
 <style scoped>
 .pc-section {
-    border: 1px solid var(--sa-border, var(--sa-border));
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
     padding: 14px 16px;
-    background: #fafbfc;
+    background: var(--sa-color-bg-surface-raised);
 }
 
 .pc-section__title {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
-    font-size: 13px;
-    color: var(--sa-heading, var(--sa-heading));
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-heading);
     margin-bottom: 12px;
     letter-spacing: -0.005em;
 }
@@ -427,8 +427,8 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     border: 0;
     background: transparent;
     cursor: pointer;
-    font: 600 12.5px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
+    font: 600 var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
+    color: var(--sa-color-fg-secondary);
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -469,42 +469,42 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
 }
 
 .pc-field__label {
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
     font-weight: 600;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 
 .pc-field__hint {
-    font-size: 11.5px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-subtle);
 }
 
 .pc-input {
     width: 100%;
-    border: 1px solid var(--sa-border, var(--sa-border));
-    background: #fff;
+    border: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 8px 10px;
-    font: 13.5px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-body, #1e293b);
+    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
+    color: var(--sa-color-fg-body);
     outline: 0;
 }
 
 .pc-input:focus {
-    border-color: var(--sa-primary, #3f6bff);
-    box-shadow: 0 0 0 3px rgba(63, 107, 255, 0.12);
+    border-color: var(--sa-color-accent);
+    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
 }
 
 .pc-input--code {
-    font: 600 14px var(--sa-font-mono, ui-monospace, monospace);
+    font: 600 var(--sa-text-lg) var(--sa-font-mono, ui-monospace, monospace);
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 
 textarea.pc-input {
-    font: 13.5px var(--sa-font-body, system-ui, sans-serif);
+    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
     resize: vertical;
 }
 
@@ -515,17 +515,17 @@ textarea.pc-input {
 }
 
 .pc-btn-mini {
-    border: 1px solid var(--sa-border, var(--sa-border));
-    background: #fff;
+    border: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
-    font: 500 12px var(--sa-font-body, system-ui, sans-serif);
+    font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
+    color: var(--sa-color-fg-secondary);
 }
 
 .pc-btn-mini:hover {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
 }
 
 .pc-type-grid {
@@ -535,8 +535,8 @@ textarea.pc-input {
 }
 
 .pc-type-opt {
-    border: 1px solid var(--sa-border, var(--sa-border));
-    background: #fff;
+    border: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-surface);
     border-radius: 8px;
     padding: 8px 10px;
     text-align: left;
@@ -547,22 +547,22 @@ textarea.pc-input {
 }
 
 .pc-type-opt:hover {
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 
 .pc-type-opt--active {
-    border-color: var(--sa-primary, #3f6bff);
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
 }
 
 .pc-type-opt__label {
-    font: 600 12.5px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-heading, var(--sa-heading));
+    font: 600 var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
+    color: var(--sa-color-fg-heading);
 }
 
 .pc-type-opt__sub {
-    font: 11.5px var(--sa-font-mono, ui-monospace, monospace);
-    color: var(--sa-muted, var(--sa-muted));
+    font: var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);
+    color: var(--sa-color-fg-muted);
     margin-top: 1px;
 }
 
@@ -576,26 +576,26 @@ textarea.pc-input {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 999px;
     padding: 5px 12px 5px 8px;
-    font: 600 12px var(--sa-font-body, system-ui, sans-serif);
+    font: 600 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
+    color: var(--sa-color-fg-secondary);
     transition:
         border-color 0.1s,
         background 0.1s;
 }
 
 .pc-plan-opt:hover {
-    border-color: #cbd5e1;
+    border-color: var(--sa-color-border-strong);
 }
 
 .pc-plan-opt--on {
-    border-color: var(--sa-primary, #3f6bff);
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    color: var(--sa-primary, #3f6bff);
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
+    color: var(--sa-color-accent);
 }
 
 .pc-plan-opt__mark {
@@ -611,41 +611,41 @@ textarea.pc-input {
 
 .pc-dur-opt {
     flex: 1;
-    border: 1px solid var(--sa-border, var(--sa-border));
-    background: #fff;
+    border: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-surface);
     border-radius: 7px;
     padding: 6px 10px;
-    font: 500 12px var(--sa-font-body, system-ui, sans-serif);
+    font: 500 var(--sa-text-sm) var(--sa-font-body, system-ui, sans-serif);
     cursor: pointer;
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
+    color: var(--sa-color-fg-secondary);
 }
 
 .pc-dur-opt--active {
-    border-color: var(--sa-primary, #3f6bff);
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.08));
-    color: var(--sa-primary, #3f6bff);
+    border-color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface);
+    color: var(--sa-color-accent);
 }
 
 .pc-check {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font: 13px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-body, #1e293b);
+    font: var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
+    color: var(--sa-color-fg-body);
     cursor: pointer;
 }
 
 .pc-preview {
-    background: var(--sa-primary-soft, rgba(63, 107, 255, 0.06));
-    border: 1px solid var(--sa-primary-border, rgba(63, 107, 255, 0.18));
+    background: var(--sa-color-accent-surface-soft);
+    border: 1px solid var(--sa-color-accent-border);
     border-radius: 10px;
     padding: 12px 14px;
 }
 
 .pc-preview__eyebrow {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     font-weight: 700;
-    color: var(--sa-primary, #3f6bff);
+    color: var(--sa-color-accent);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     margin-bottom: 6px;
@@ -659,22 +659,22 @@ textarea.pc-input {
 }
 
 .pc-preview__code {
-    background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     padding: 3px 8px;
-    font: 600 13px var(--sa-font-mono, ui-monospace, monospace);
+    font: 600 var(--sa-text-md) var(--sa-font-mono, ui-monospace, monospace);
     letter-spacing: 0.04em;
-    color: var(--sa-heading, var(--sa-heading));
+    color: var(--sa-color-fg-heading);
 }
 
 .pc-preview__disc {
-    font: 700 13px var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-positive, #047857);
+    font: 700 var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
+    color: var(--sa-color-positive-fg);
 }
 
 .pc-preview__meta {
-    font-size: 12px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
 }
 </style>

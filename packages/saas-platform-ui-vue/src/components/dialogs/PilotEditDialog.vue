@@ -338,23 +338,23 @@ async function doSubmit(code: string): Promise<void> {
 }
 
 .pl-dlg__sub {
-    font-size: 12.5px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-muted);
     margin-top: 3px;
 }
 
 .pl-dlg__sep {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
     margin: 0 6px;
 }
 
 .pl-dlg__sub code {
     font-family: var(--sa-font-mono, ui-monospace, monospace);
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     padding: 1px 6px;
     border-radius: 4px;
-    font-size: 11.5px;
+    font-size: var(--sa-text-sm);
 }
 
 .pl-dlg__body {

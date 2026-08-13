@@ -300,8 +300,8 @@ function formatValue(v: unknown): string {
     gap: 16px;
 }
 .bvpd__label {
-    font-size: 12px;
-    color: var(--q-grey-7, #757575);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 6px;
@@ -313,18 +313,18 @@ function formatValue(v: unknown): string {
     padding: 32px;
 }
 .bvpd__warnings {
-    border-left: 4px solid var(--q-warning, #f2c037);
+    border-left: 4px solid var(--sa-color-warning-strong);
 }
 .bvpd__neutral {
-    border-left: 4px solid var(--q-grey-7, #757575);
+    border-left: 4px solid var(--sa-color-border-strong);
 }
 .bvpd__regression {
-    border-left: 4px solid var(--q-negative, #c10015);
+    border-left: 4px solid var(--sa-color-negative);
 }
 .bvpd__validity {
     padding: 12px;
-    background: var(--sa-bg-surface-2);
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-sunken);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
 }
 .bvpd__validity-grid {
@@ -335,36 +335,36 @@ function formatValue(v: unknown): string {
 .bvpd__field {
     display: grid;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     font-weight: 700;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .bvpd__input {
     min-height: 36px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     padding: 0 10px;
     font: inherit;
-    color: var(--sa-heading);
-    background: #fff;
+    color: var(--sa-color-fg-heading);
+    background: var(--sa-color-bg-surface);
 }
 .bvpd__error {
     margin: 8px 0 0;
-    color: var(--q-negative, #c10015);
-    font-size: 12px;
+    color: var(--sa-color-negative);
+    font-size: var(--sa-text-sm);
     font-weight: 700;
 }
 .bvpd__list {
     margin: 8px 0 0;
     padding-left: 20px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .bvpd__old {
-    color: var(--q-negative, #c10015);
+    color: var(--sa-color-negative);
     text-decoration: line-through;
 }
 .bvpd__new {
-    color: var(--q-positive, #21ba45);
+    color: var(--sa-color-positive);
     font-weight: 600;
 }
 </style>

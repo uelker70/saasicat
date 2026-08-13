@@ -109,12 +109,12 @@ function formatValue(value: unknown): string {
 
 <style scoped>
 .sa-diff-preview__empty {
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     font-style: italic;
     padding: 12px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
     border-radius: 8px;
-    border: 1px dashed #cbd5e1;
+    border: 1px dashed var(--sa-color-border-strong);
 }
 .sa-diff-preview__list {
     display: flex;
@@ -128,35 +128,35 @@ function formatValue(value: unknown): string {
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     align-items: center;
 }
 .sa-diff-preview__row--improvement {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
-    color: #166534;
+    background: var(--sa-color-positive-surface);
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
 }
 .sa-diff-preview__row--regression {
-    background: #fef2f2;
-    border-color: #fecaca;
-    color: #991b1b;
+    background: var(--sa-color-negative-surface);
+    border-color: var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
 }
 .sa-diff-preview__row--neutral {
-    background: var(--sa-bg-surface-2);
-    border-color: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-bg-sunken);
+    border-color: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-diff-preview__direction {
     display: flex;
     align-items: center;
     gap: 6px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
 .sa-diff-preview__field {
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     font-weight: 500;
 }
 .sa-diff-preview__values {
@@ -165,15 +165,15 @@ function formatValue(value: unknown): string {
     gap: 8px;
 }
 .sa-diff-preview__values .old {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     text-decoration: line-through;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 .sa-diff-preview__values .new {
     color: inherit;
     font-weight: 600;
     font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
 }
 </style>

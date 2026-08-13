@@ -47,16 +47,17 @@
                 >
                     <template #row-actions="{ row }">
                         <slot name="row-actions" :row="row">
-                            <q-btn
+                            <button
                                 v-for="action in visibleActions(row)"
                                 :key="action.id"
-                                flat
-                                dense
-                                :icon="action.icon"
+                                type="button"
+                                class="sa-icon-btn"
+                                :class="action.color === 'negative' ? 'sa-icon-btn--negative' : ''"
                                 :title="action.label"
-                                :color="action.color ?? 'grey-7'"
                                 @click="action.handler(row)"
-                            />
+                            >
+                                <q-icon :name="action.icon" size="18px" />
+                            </button>
                         </slot>
                     </template>
                 </AdminTable>

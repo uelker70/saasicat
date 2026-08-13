@@ -616,24 +616,16 @@ async function changePlan(plan: string, cycle: 'MONTHLY' | 'YEARLY', immediate: 
 
 <style>
 .sp-plan-section {
-    --sp-text-secondary: rgba(0, 0, 0, 0.6);
-    --sp-text-muted: rgba(0, 0, 0, 0.55);
-    --sp-text-disabled: rgba(0, 0, 0, 0.5);
-    --sp-text-strong: rgba(0, 0, 0, 0.7);
-    --sp-border: rgba(0, 0, 0, 0.08);
-    --sp-summary-bg: rgba(25, 118, 210, 0.06);
+    --sp-text-secondary: var(--sa-color-fg-secondary);
+    --sp-text-muted: var(--sa-color-fg-muted);
+    --sp-text-disabled: var(--sa-color-fg-subtle);
+    --sp-text-strong: var(--sa-color-fg-body);
+    --sp-border: var(--sa-color-border);
+    --sp-summary-bg: var(--sa-color-info-surface);
 
     display: flex;
     flex-direction: column;
     gap: 16px;
-}
-body.body--dark .sp-plan-section {
-    --sp-text-secondary: rgba(255, 255, 255, 0.72);
-    --sp-text-muted: rgba(255, 255, 255, 0.62);
-    --sp-text-disabled: rgba(255, 255, 255, 0.5);
-    --sp-text-strong: rgba(255, 255, 255, 0.85);
-    --sp-border: rgba(255, 255, 255, 0.16);
-    --sp-summary-bg: rgba(25, 118, 210, 0.18);
 }
 .sp-plan-section__loading,
 .sp-plan-section__empty {
@@ -644,8 +636,8 @@ body.body--dark .sp-plan-section {
     color: var(--sp-text-secondary);
 }
 .sp-plan-section__error {
-    color: var(--q-negative, #c10015);
-    background: rgba(193, 0, 21, 0.08);
+    color: var(--sa-color-negative);
+    background: var(--sa-color-negative-surface);
     padding: 12px 16px;
     border-radius: 4px;
 }
@@ -657,7 +649,7 @@ body.body--dark .sp-plan-section {
     flex-wrap: wrap;
 }
 .sp-plan-section__eyebrow {
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--sp-text-muted);
@@ -665,7 +657,7 @@ body.body--dark .sp-plan-section {
 }
 .sp-plan-section__plan-name {
     margin: 0 0 8px;
-    font-size: 22px;
+    font-size: var(--sa-text-2xl);
     font-weight: 600;
 }
 .sp-plan-section__meta {
@@ -683,7 +675,7 @@ body.body--dark .sp-plan-section {
 .sp-plan-section__sub {
     margin: 6px 0 0;
     color: var(--sp-text-muted);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-plan-section__usage-title {
     font-weight: 600;
@@ -716,10 +708,10 @@ body.body--dark .sp-plan-section {
 }
 .sp-plan-section__item-price {
     color: var(--sp-text-secondary);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-plan-section__item-canceled {
     color: var(--sp-text-disabled);
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 </style>

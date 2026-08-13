@@ -1,0 +1,48 @@
+/* Cards — the generic block inside dashboard and detail sections, and the
+ * corner correction for Quasar's own card.
+ *
+ * Quasar cards round at 4px, which reads sharper than every surface around
+ * them. One rule so a card inside the admin agrees with the sections and tiles
+ * it sits between, without each page saying so.
+ */
+
+/* Quasar paints its own card: white in light, and `var(--q-dark)` — a neutral
+ * #1d1d1d — as soon as `Dark` is active. That grey sits wrong on a slate page,
+ * so the surface is ours.
+ *
+ * The `.sa-portal` half is not decoration: Quasar teleports every dialog into a
+ * div appended to `<body>`, so a rule prefixed with `.sa-page` never reaches a
+ * dialog's card. `createSuperAdminApp` marks those portals — every portal in the
+ * document, the shell's own and those opened by a page contributed into it,
+ * which is the intent: a page inside the admin shell is admin UI. An app that
+ * never calls `createSuperAdminApp` is untouched. */
+.sa-page .q-card,
+.sa-portal .q-card {
+    border-radius: var(--sa-radius-card);
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-body);
+}
+
+/* A dropdown is teleported like a dialog, and QMenu adds `q-dark` to itself in
+ * dark mode (QMenu.js), which resolves to the same neutral grey. Without this
+ * the select in the paginator under every table opens a #1d1d1d panel over a
+ * slate page — the reported defect, one portal type further along. */
+.sa-portal .q-menu {
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-body);
+}
+
+.sa-card {
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
+    border-radius: var(--sa-radius-card);
+    padding: 16px 18px;
+}
+.sa-card__title {
+    margin: 0 0 12px;
+    font-family: var(--sa-font-head);
+    font-size: var(--sa-text-lg);
+    font-weight: 700;
+    color: var(--sa-color-fg-heading);
+    letter-spacing: -0.005em;
+}

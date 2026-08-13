@@ -154,17 +154,17 @@ function coverage(locale: string): number {
 
 <style scoped>
 .sa-qc {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 10px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     overflow: hidden;
 }
 .sa-qc.warn {
-    border-color: #fecaca;
+    border-color: var(--sa-color-negative-border);
 }
 .sa-qc.expanded {
-    border-color: #c7d2fe;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+    border-color: var(--sa-color-scheduled-border);
+    box-shadow: 0 1px 3px var(--sa-shadow-tint-2);
 }
 .sa-qc__head {
     display: flex;
@@ -174,7 +174,7 @@ function coverage(locale: string): number {
     cursor: pointer;
 }
 .sa-qc.warn .sa-qc__head {
-    background: #fef2f2;
+    background: var(--sa-color-negative-surface);
 }
 .sa-qc__icon {
     flex-shrink: 0;
@@ -191,38 +191,38 @@ function coverage(locale: string): number {
 }
 .sa-qc__label {
     font-weight: 600;
-    font-size: 13px;
-    color: var(--sa-heading);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-heading);
 }
 .sa-qc__key {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
 }
 .sa-qc__flag {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 5px;
 }
 .sa-qc__flag--succ {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-qc__flag--repl {
-    background: #dbeafe;
-    color: #1e40af;
+    background: var(--sa-color-info-surface-strong);
+    color: var(--sa-color-info-fg);
 }
 .sa-qc__sub {
-    font-size: 11px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
 .sa-qc__missing {
-    color: #b91c1c;
+    color: var(--sa-color-negative-fg);
     font-weight: 700;
 }
 .sa-qc__warning {
-    font-size: 11px;
-    color: #b91c1c;
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-negative-fg);
     margin-top: 4px;
 }
 .sa-qc__coverage {
@@ -231,27 +231,27 @@ function coverage(locale: string): number {
     flex-shrink: 0;
 }
 .sa-qc__chev {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     transition: transform 0.15s;
 }
 .sa-qc__chev.open {
     transform: rotate(90deg);
 }
 .sa-qc__body {
-    border-top: 1px solid var(--sa-border-soft);
+    border-top: 1px solid var(--sa-color-border-soft);
     padding: 12px;
-    background: var(--sa-bg-surface-2);
+    background: var(--sa-color-bg-sunken);
 }
 .sa-qc__banner {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 10px;
-    background: var(--sa-warning-bg);
-    border: 1px solid #fde68a;
-    color: #92400e;
+    background: var(--sa-color-warning-surface);
+    border: 1px solid var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
 }
 </style>

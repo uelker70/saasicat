@@ -45,11 +45,18 @@ import {
 } from '../vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from '../vue/ui-notify.js';
 import {
+    SA_THEME_KEY,
+    createSaTheme,
+    type SaTheme,
+    type SaThemeOptions,
+} from '../vue/use-sa-theme.js';
+import {
     SUPER_ADMIN_I18N_KEY,
     createSuperAdminI18n,
     type SuperAdminI18n,
     type SuperAdminI18nOptions,
 } from '../vue/use-super-admin-i18n.js';
+import { bindSaThemeToDocument } from './dark-bridge.js';
 import { quasarNotify } from './notify.js';
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
@@ -112,6 +119,17 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * runtime. Consumed via `useSuperAdminI18n()` / `useSaMessages()`.
      */
     i18n?: SuperAdminI18nOptions;
+    /**
+     * Optional: colour scheme. Default follows the operating system and
+     * remembers an explicit pick. The context is returned on the handle
+     * (`handle.theme`) — set `handle.theme.scheme.value = 'dark'` to switch at
+     * runtime, and read it anywhere via `useSaTheme()`.
+     *
+     * Whatever it resolves to is mirrored onto `<html data-sa-theme>` AND into
+     * Quasar's `Dark`, so the platform's surfaces and Quasar's own components
+     * never disagree.
+     */
+    theme?: SaThemeOptions;
 }
 
 export interface SuperAdminAppHandle {
@@ -120,9 +138,28 @@ export interface SuperAdminAppHandle {
     pinia: Pinia;
     /** i18n context of the shell — switch locale via `i18n.locale.value`. */
     i18n: SuperAdminI18n;
+    /** Colour scheme of the shell — switch via `theme.scheme.value`. */
+    theme: SaTheme;
     /** Mounts the app on a selector. Returns the root component instance. */
     mount: (selector: string | Element) => ReturnType<App['mount']>;
+    /**
+     * Releases what this helper attached to the DOCUMENT — the theme's
+     * `prefers-color-scheme` subscription and the bridge that mirrors it onto
+     * `data-sa-theme` and Quasar's `Dark`. Idempotent; it does not unmount the
+     * app, which is `handle.app.unmount()`.
+     *
+     * Only matters where a shell is torn down while the document survives: hot
+     * reload, a micro-frontend, a second shell in one page. Skip it and the old
+     * bridge keeps writing to the one document on the next OS theme change, and
+     * can overrule the scheme the new shell was given.
+     */
+    dispose: () => void;
 }
+
+/** Marks Quasar's teleported nodes so the theme can reach them. Exported so a
+ * test fixture can install the same config a real app gets — without it the
+ * `.sa-portal` rules are exercised by nothing. */
+export const SA_PORTAL_CLASS = 'sa-portal';
 
 const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
     plugins: { Notify, Dialog, Loading },
@@ -138,7 +175,35 @@ const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
 export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperAdminAppHandle {
     const app = createApp(options.rootComponent);
 
-    app.use(Quasar, options.quasarOptions ?? DEFAULT_QUASAR_OPTIONS);
+    // Quasar teleports every dialog, menu and tooltip into a div appended to
+    // `<body>`, so a rule prefixed with `.sa-page` never reaches them — which is
+    // why dialog cards kept Quasar's neutral grey in dark mode while the page
+    // behind them was slate, and why the outlined-field correction had silently
+    // never applied inside a dialog.
+    //
+    // Scope, stated plainly: `globalNodes` is document-wide, not per-owner —
+    // `createGlobalNode` stamps the class on every portal Quasar opens, the
+    // shell's own and any a contributed project page opens inside it. That is
+    // intended: a page mounted in the admin shell is admin UI, and the same
+    // theme already repaints its cards via `.sa-page`. What the class buys is
+    // that an app which never calls `createSuperAdminApp` stays untouched —
+    // which a bare `.q-dialog .q-card` rule could not promise.
+    const quasarOptions = options.quasarOptions ?? DEFAULT_QUASAR_OPTIONS;
+    // `globalNodes` is a documented Quasar config option that its TypeScript
+    // types do not declare (see quasar/src/utils/private.config/nodes.js, which
+    // reads `globalConfig.globalNodes.class`). The cast is the exception this
+    // codebase allows for an API that exists and is simply untyped upstream.
+    const config = quasarOptions.config as Record<string, unknown> | undefined;
+    const existingPortalClass = (config?.globalNodes as { class?: string } | undefined)?.class;
+    app.use(Quasar, {
+        ...quasarOptions,
+        config: {
+            ...quasarOptions.config,
+            globalNodes: {
+                class: [existingPortalClass, SA_PORTAL_CLASS].filter(Boolean).join(' '),
+            },
+        },
+    } as QuasarPluginOptions);
 
     const pinia = createPinia();
     app.use(pinia);
@@ -164,9 +229,34 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     };
 
     const i18n = createSuperAdminI18n(options.i18n);
+    // An app that configured Quasar's dark mode has STATED a preference; the
+    // platform's default of 'system' has not. Seeding from it keeps the
+    // documented "Quasar decided" path working here — without it the bridge's
+    // first, immediate tick resolved 'system' against the machine and called
+    // `Dark.set()` with the answer, erasing the app's own choice one line after
+    // it was applied. In both directions: a configured `true` was undone on a
+    // light machine, a configured `false` on a dark one.
+    //
+    // Read from the OPTION rather than from `Dark.isActive`, because the option
+    // distinguishes three states and the resulting flag only two: `'auto'` means
+    // "follow the machine", which is what 'system' already does, and reading the
+    // flag would freeze whatever the machine happened to say at boot.
+    //
+    // A stored operator pick still outranks this — `createSaTheme` gives storage
+    // precedence over the `scheme` option — because that is a person choosing
+    // rather than a default.
+    const configuredDark = options.quasarOptions?.config?.dark;
+    const theme = createSaTheme({
+        ...options.theme,
+        scheme:
+            options.theme?.scheme ??
+            (typeof configuredDark === 'boolean' ? (configuredDark ? 'dark' : 'light') : undefined),
+    });
+    const stopThemeBridge = bindSaThemeToDocument(theme);
 
     app.provide(SUPER_ADMIN_BRAND_KEY, { tag: 'SuperAdmin', ...options.brand });
     app.provide(SUPER_ADMIN_I18N_KEY, i18n);
+    app.provide(SA_THEME_KEY, theme);
     app.provide(SUPER_ADMIN_ENDPOINTS_KEY, endpoints);
     app.provide(SUPER_ADMIN_EXTENSIONS_KEY, options.extensions ?? {});
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
@@ -191,6 +281,11 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
         router,
         pinia,
         i18n,
+        theme,
         mount: (selector) => app.mount(selector),
+        dispose: () => {
+            stopThemeBridge();
+            theme.dispose();
+        },
     };
 }

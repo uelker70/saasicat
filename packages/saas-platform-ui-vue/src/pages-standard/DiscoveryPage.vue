@@ -465,12 +465,18 @@ onMounted(() => {
     flex-direction: column;
     gap: 14px;
 }
+.sa-discovery__panel {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--sa-color-bg-surface);
+    padding: 16px 0 0;
+}
 .sa-discovery__banner {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--sa-heading);
-    color: var(--sa-border);
+    background: var(--sa-color-inverse-bg);
+    color: var(--sa-color-inverse-fg-muted);
     border-radius: 12px;
     padding: 14px 18px;
 }
@@ -481,30 +487,30 @@ onMounted(() => {
 }
 .sa-discovery__banner-name {
     font-weight: 700;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
 }
 .sa-discovery__banner-meta {
-    font-size: 11px;
-    color: var(--sa-muted-light);
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-discovery__banner-time {
     text-align: right;
 }
 .sa-discovery__banner-time-lbl {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-discovery__banner-time-val {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
 }
 .sa-discovery__error {
-    border-left: 4px solid #dc2626;
+    border-left: 4px solid var(--sa-color-negative);
 }
 .sa-discovery__tabs {
-    border-bottom: 1px solid var(--sa-border);
+    border-bottom: 1px solid var(--sa-color-border);
 }
 .sa-discovery__search {
     flex: 1;
@@ -521,100 +527,100 @@ onMounted(() => {
     margin-bottom: 16px;
 }
 .sa-discovery__group--orphan .sa-section__title {
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
 }
 .sa-discovery__group-count {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
-    background: var(--sa-border);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-secondary);
     padding: 1px 7px;
     border-radius: 8px;
 }
 .sa-discovery__orphan-hint {
     margin: 0 0 8px;
-    font-size: 11px;
-    color: #b45309;
+    font-size: var(--sa-text-xs);
+    color: var(--sa-color-warning-fg);
 }
 .sa-discovery__orphan-hint code {
-    font-size: 10px;
-    background: var(--sa-warning-bg);
+    font-size: var(--sa-text-2xs);
+    background: var(--sa-color-warning-surface);
     padding: 1px 4px;
     border-radius: 4px;
 }
 .sa-discovery__empty-row {
     padding: 36px;
     text-align: center;
-    color: var(--sa-muted-light);
-    font-size: 13px;
-    border: 1px dashed #cbd5e1;
+    color: var(--sa-color-fg-subtle);
+    font-size: var(--sa-text-md);
+    border: 1px dashed var(--sa-color-border-strong);
     border-radius: 12px;
 }
 .sa-muted {
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     margin-right: 3px;
 }
 /* Status badge (review lifecycle) — shared by feature and quota card. */
 .sa-review {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     padding: 3px 8px;
     border-radius: 6px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
     flex-shrink: 0;
 }
 .sa-review--pending {
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--sa-color-warning-surface-strong);
+    color: var(--sa-color-warning-fg);
 }
 .sa-review--approved {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .sa-review--outdated {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
 }
 .sa-review--obsolete {
-    background: var(--sa-border);
-    color: var(--sa-muted);
+    background: var(--sa-color-border);
+    color: var(--sa-color-fg-muted);
 }
 .sa-chip {
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 6px;
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-secondary);
 }
 /* i18n coverage pill — shared by feature and quota card. */
 .sa-cov-pill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
+    font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 8px;
-    border: 1px solid var(--sa-border);
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-dark);
+    border: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-cov-pill.complete {
-    border-color: #a7f3d0;
-    background: var(--sa-positive-bg);
-    color: #047857;
+    border-color: var(--sa-color-positive-border);
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
 }
 .sa-cov-pill.warn {
-    border-color: #fde68a;
-    background: var(--sa-warning-bg);
-    color: #b45309;
+    border-color: var(--sa-color-warning-border);
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
 }
 .sa-cov-pill.low {
-    border-color: #fecaca;
-    background: #fef2f2;
-    color: #b91c1c;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
 }
 </style>

@@ -1,0 +1,147 @@
+/* The pre-role token names, kept alive as aliases for one release.
+ *
+ * Every name below is what `sa-theme.css` published before the role layer
+ * existed. They are aliases, not values: each resolves to the role it turned
+ * out to mean, so a consumer stylesheet that still says `var(--sa-muted)` keeps
+ * working — and starts following the dark theme for free.
+ *
+ * ── They are aliases in ONE direction ──────────────────────────────────────
+ *
+ * Reading an old name still works. OVERRIDING one no longer does: setting
+ * `--sa-primary` in your own `:root` used to re-tint the admin, and now the
+ * role it feeds is `--sa-color-accent`, which reads Quasar's `--q-primary`.
+ * The replacement is better than what it removes — set `$primary` and the
+ * admin, Quasar's own components and the tenant-facing pages all follow one
+ * value instead of three. At runtime, use
+ * `setCssVar('primary', value, document.documentElement)`; the default target
+ * is `<body>`, which the roles on `:root` cannot see.
+ *
+ * To override a ROLE rather than the brand, write both of its values, on the
+ * same selectors the theme uses — `:root` for light, and
+ * `[data-sa-theme='dark'], body.body--dark` for dark. A role has two values, so
+ * an override has two, and `:root` alone silently loses in the Quasar-triggered
+ * dark path. `docs/design-guide.md#overriding-a-role` has the measurements.
+ *
+ * Nothing in this repository or in the scaffolder template overrode an `--sa-*`
+ * name; that was checked before choosing this direction.
+ *
+ * ── Consolidations, so a moved colour is not a surprise ────────────────────
+ *
+ * Five names had no role of their own and now share one, which is the point of
+ * the exercise rather than a side effect:
+ *
+ *   --sa-border-strong #d1d5db → --sa-color-border-strong (#cbd5e1, the slate
+ *                      ramp — the grey ramp had exactly this one member)
+ *   --sa-positive-soft, --sa-warning-soft  translucent tints → the opaque
+ *                      `-surface` roles, so they stack predictably
+ *   --sa-amber-light  #fbbf24 → --sa-color-warning-strong (#f59e0b)
+ *   --sa-primary-50   #eff6ff → --sa-color-accent-surface-strong, which now
+ *                      follows the host's brand instead of staying blue
+ *
+ * This file is deleted in 1.0. Its contents are the migration checklist.
+ */
+
+:root {
+    --sa-bg-app: var(--sa-color-bg-app);
+    --sa-bg-surface: var(--sa-color-bg-surface);
+    --sa-bg-surface-2: var(--sa-color-bg-sunken);
+
+    --sa-primary: var(--sa-color-accent);
+    --sa-primary-strong: var(--sa-color-accent-strong);
+    --sa-primary-soft: var(--sa-color-accent-surface);
+    --sa-primary-softer: var(--sa-color-accent-surface-soft);
+    --sa-primary-border: var(--sa-color-accent-border);
+    --sa-primary-50: var(--sa-color-accent-surface-strong);
+
+    --sa-positive: var(--sa-color-positive);
+    --sa-positive-light: var(--sa-color-positive-strong);
+    --sa-positive-soft: var(--sa-color-positive-surface);
+    --sa-positive-bg: var(--sa-color-positive-surface);
+
+    --sa-negative: var(--sa-color-negative);
+    --sa-negative-soft: var(--sa-color-negative-surface);
+
+    --sa-warning: var(--sa-color-warning);
+    --sa-warning-soft: var(--sa-color-warning-surface);
+    --sa-warning-bg: var(--sa-color-warning-surface);
+    --sa-amber: var(--sa-color-warning-strong);
+    --sa-amber-light: var(--sa-color-warning-strong);
+    --sa-amber-border: var(--sa-color-warning-border);
+
+    /* Read by `TenantsPage` as `var(--sa-accent, #7c3aed)` and never declared
+     * anywhere — the fallback was the only value it ever had. It marked the
+     * catalogue-feature action, which is now a role. */
+    --sa-accent: var(--sa-color-feature);
+
+    --sa-heading: var(--sa-color-fg-heading);
+    --sa-body: var(--sa-color-fg-body);
+    --sa-muted: var(--sa-color-fg-muted);
+    --sa-muted-dark: var(--sa-color-fg-secondary);
+    --sa-muted-light: var(--sa-color-fg-subtle);
+
+    --sa-border: var(--sa-color-border);
+    --sa-border-soft: var(--sa-color-border-soft);
+    --sa-border-strong: var(--sa-color-border-strong);
+
+    --sa-section-pad: var(--sa-pad-section);
+}
+
+/* The same declarations again, under the dark triggers.
+ *
+ * Not redundancy — an alias is computed WHERE it is declared. `--sa-heading` on
+ * `:root` substitutes whatever `--sa-color-fg-heading` resolves to ON `:root`,
+ * and descendants inherit that finished value. Quasar's trigger redeclares the
+ * roles on `<body>`, which never re-evaluates an alias computed one level up:
+ * a consumer still reading `var(--sa-heading)` kept light text while everything
+ * around it went dark, and this file promises the opposite for one release.
+ *
+ * The attribute trigger sits on `:root` itself and would not need this, but the
+ * pair is written the way the design guide tells consumers to write an override
+ * — both values, on the selectors the theme uses. A file that documents a rule
+ * and then exempts itself from it teaches the exemption.
+ */
+[data-sa-theme='dark'],
+body.body--dark {
+    --sa-bg-app: var(--sa-color-bg-app);
+    --sa-bg-surface: var(--sa-color-bg-surface);
+    --sa-bg-surface-2: var(--sa-color-bg-sunken);
+
+    --sa-primary: var(--sa-color-accent);
+    --sa-primary-strong: var(--sa-color-accent-strong);
+    --sa-primary-soft: var(--sa-color-accent-surface);
+    --sa-primary-softer: var(--sa-color-accent-surface-soft);
+    --sa-primary-border: var(--sa-color-accent-border);
+    --sa-primary-50: var(--sa-color-accent-surface-strong);
+
+    --sa-positive: var(--sa-color-positive);
+    --sa-positive-light: var(--sa-color-positive-strong);
+    --sa-positive-soft: var(--sa-color-positive-surface);
+    --sa-positive-bg: var(--sa-color-positive-surface);
+
+    --sa-negative: var(--sa-color-negative);
+    --sa-negative-soft: var(--sa-color-negative-surface);
+
+    --sa-warning: var(--sa-color-warning);
+    --sa-warning-soft: var(--sa-color-warning-surface);
+    --sa-warning-bg: var(--sa-color-warning-surface);
+    --sa-amber: var(--sa-color-warning-strong);
+    --sa-amber-light: var(--sa-color-warning-strong);
+    --sa-amber-border: var(--sa-color-warning-border);
+
+    /* Read by `TenantsPage` as `var(--sa-accent, #7c3aed)` and never declared
+     * anywhere — the fallback was the only value it ever had. It marked the
+     * catalogue-feature action, which is now a role. */
+    --sa-accent: var(--sa-color-feature);
+
+    --sa-heading: var(--sa-color-fg-heading);
+    --sa-body: var(--sa-color-fg-body);
+    --sa-muted: var(--sa-color-fg-muted);
+    --sa-muted-dark: var(--sa-color-fg-secondary);
+    --sa-muted-light: var(--sa-color-fg-subtle);
+
+    --sa-border: var(--sa-color-border);
+    --sa-border-soft: var(--sa-color-border-soft);
+    --sa-border-strong: var(--sa-color-border-strong);
+
+    --sa-section-pad: var(--sa-pad-section);
+}

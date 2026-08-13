@@ -277,15 +277,19 @@ async function submitConfirm(): Promise<void> {
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(180deg, var(--sa-heading) 0%, #1e293b 100%);
+    background: linear-gradient(
+        180deg,
+        var(--sa-color-inverse-bg) 0%,
+        var(--sa-color-inverse-surface) 100%
+    );
 }
 .sa-setup-card {
     width: 460px;
     max-width: 92vw;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
     border-radius: 18px;
     padding: 32px;
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 24px 48px var(--sa-shadow-tint-4);
 }
 .sa-setup-head {
     display: flex;
@@ -296,7 +300,7 @@ async function submitConfirm(): Promise<void> {
 .sa-setup-locale {
     margin-left: auto;
     align-self: flex-start;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-setup-badge {
     width: 44px;
@@ -305,31 +309,38 @@ async function submitConfirm(): Promise<void> {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--sa-muted-dark), #1e293b);
-    color: #fff;
+    background: linear-gradient(
+        135deg,
+        var(--sa-color-inverse-surface-soft),
+        var(--sa-color-inverse-surface)
+    );
+    /* The gradient never moves, so the text on it must not either.
+     * `--sa-color-fg-on-accent` is white today but belongs to the accent, and
+     * the design guide tells a light brand to override it to something dark. */
+    color: var(--sa-color-inverse-fg);
     font-weight: 800;
-    font-size: 18px;
+    font-size: var(--sa-text-xl);
     text-transform: uppercase;
 }
 .sa-setup-title {
     margin: 0;
     font-weight: 800;
-    font-size: 18px;
-    color: var(--sa-heading);
+    font-size: var(--sa-text-xl);
+    color: var(--sa-color-fg-heading);
     line-height: 1.1;
 }
 .sa-setup-sub {
-    font-size: 12px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-setup-hint {
-    font-size: 13px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-secondary);
     line-height: 1.5;
     margin: 0 0 16px;
 }
 .sa-setup-hint code {
-    background: var(--sa-border);
+    background: var(--sa-color-border);
     padding: 1px 5px;
     border-radius: 4px;
 }
@@ -341,10 +352,10 @@ async function submitConfirm(): Promise<void> {
     width: 100%;
 }
 .sa-setup-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: 13px;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
+    font-size: var(--sa-text-md);
     margin-bottom: 16px;
     padding: 8px 12px;
     border-radius: 8px;
@@ -357,46 +368,46 @@ async function submitConfirm(): Promise<void> {
     margin-bottom: 12px;
 }
 .sa-setup-qr img {
-    border: 1px solid var(--sa-border);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 8px;
-    background: #fff;
+    background: var(--sa-color-bg-surface);
 }
 .sa-setup-qr__hint {
-    font-size: 12px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
 }
 .sa-setup-secret {
-    background: var(--sa-border-soft);
+    background: var(--sa-color-border-soft);
     border-radius: 8px;
     padding: 10px 12px;
     margin-bottom: 10px;
 }
 .sa-setup-secret__label {
-    font-size: 11px;
+    font-size: var(--sa-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--sa-muted);
+    color: var(--sa-color-fg-muted);
     margin-bottom: 4px;
 }
 .sa-setup-secret__value {
-    font-size: 15px;
+    font-size: var(--sa-text-lg);
     font-weight: 700;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
     word-break: break-all;
     letter-spacing: 0.04em;
 }
 .sa-setup-uri {
     margin: 4px 0 4px;
-    font-size: 12px;
-    color: var(--sa-muted-dark);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-secondary);
 }
 .sa-setup-uri__value {
     display: block;
     margin-top: 6px;
     word-break: break-all;
-    color: #334155;
-    background: var(--sa-bg-surface-2);
+    color: var(--sa-color-fg-body);
+    background: var(--sa-color-bg-sunken);
     padding: 6px 8px;
     border-radius: 6px;
 }
@@ -405,8 +416,8 @@ async function submitConfirm(): Promise<void> {
     width: 100%;
     background: none;
     border: none;
-    color: var(--sa-muted);
-    font-size: 12px;
+    color: var(--sa-color-fg-muted);
+    font-size: var(--sa-text-sm);
     cursor: pointer;
     text-decoration: underline;
 }

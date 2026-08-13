@@ -246,32 +246,32 @@ function close() {
     padding-bottom: 8px;
 }
 .sp-bundle-preview__title {
-    font-size: 16px;
+    font-size: var(--sa-text-lg);
     font-weight: 600;
 }
 .sp-bundle-preview__bundle {
     margin-top: 2px;
-    color: var(--sp-text-secondary, rgba(0, 0, 0, 0.6));
+    color: var(--sp-text-secondary, var(--sa-color-fg-secondary));
 }
 .sp-bundle-preview__loading {
     display: flex;
     align-items: center;
     gap: 12px;
-    color: var(--sp-text-secondary, rgba(0, 0, 0, 0.6));
+    color: var(--sp-text-secondary, var(--sa-color-fg-secondary));
 }
 .sp-bundle-preview__error {
-    color: var(--q-negative, #c10015);
+    color: var(--sa-color-negative);
 }
 .sp-bundle-preview__blockers {
-    background: rgba(193, 0, 21, 0.08);
-    color: var(--q-negative, #c10015);
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative);
 }
 .sp-bundle-preview__warnings {
-    background: rgba(242, 192, 55, 0.12);
+    background: var(--sa-color-warning-surface-strong);
 }
 .sp-bundle-preview__block-title {
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     margin-bottom: 6px;
 }
 .sp-bundle-preview__block-subtitle {
@@ -281,26 +281,26 @@ function close() {
 .sp-bundle-preview__warnings ul {
     margin: 0;
     padding-left: 18px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-bundle-preview__requires {
     margin-top: 6px;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
 }
 .sp-bundle-preview__price-row {
     display: flex;
     justify-content: space-between;
     gap: 16px;
     padding: 4px 0;
-    font-size: 14px;
+    font-size: var(--sa-text-lg);
 }
 .sp-bundle-preview__price-row small {
     font-weight: 400;
-    color: var(--sp-text-muted, rgba(0, 0, 0, 0.55));
+    color: var(--sp-text-muted, var(--sa-color-fg-muted));
 }
 .sp-bundle-preview__note {
-    font-size: 13px;
-    color: var(--sp-text-muted, rgba(0, 0, 0, 0.55));
+    font-size: var(--sa-text-md);
+    color: var(--sp-text-muted, var(--sa-color-fg-muted));
     padding: 4px 0;
 }
 </style>

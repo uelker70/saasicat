@@ -126,7 +126,10 @@ pnpm create saasicat-admin admin --project-key=myapp --brand-name=MyApp
 Then follow the **[quickstart](docs/quickstart.md)** — 10 steps from an
 existing CRUD backend to a discovered, packaged and enforced feature in about
 30 minutes and under 100 lines of app-owned code. The
-[handbook](docs/handbook.md) is the in-depth reference behind it.
+[handbook](docs/handbook.md) is the in-depth reference behind it, and the
+[design guide](docs/design-guide.md) is what you read before writing an admin
+page of your own: the page recipe, the colour roles, the scales and the dark
+theme that comes with them.
 
 > The Admin UI ships German and English messages; users switch in the header.
 > Apps choose which of them to offer and can add languages of their own — the

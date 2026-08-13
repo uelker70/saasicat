@@ -1,0 +1,23 @@
+/* Page body — everything below the hero (see AdminBody), including the
+ * loading and empty states the pages used to spell out one by one.
+ *
+ * Inset from the page edge, so the hero frames the page and everything below
+ * sits inside it. The inset lives here rather than on the section, because
+ * AdminStatistics is the other thing allowed at this level and would otherwise
+ * be the only block sticking out.
+ */
+
+.sa-page-body {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+.sa-page-body__state {
+    padding: 32px 0;
+    color: var(--sa-color-fg-muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.sa-page-body__state--empty {
+    font-size: var(--sa-text-md);
+}

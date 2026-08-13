@@ -490,8 +490,8 @@ async function doSubmit(code: string): Promise<void> {
 }
 
 .pl-dlg__sub {
-    font-size: 12.5px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-muted);
     margin-top: 3px;
     line-height: 1.4;
 }
@@ -507,10 +507,10 @@ async function doSubmit(code: string): Promise<void> {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
-    color: var(--sa-muted-dark, var(--sa-muted-dark));
-    background: var(--sa-primary-50);
-    border: 1px solid #bfdbfe;
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-secondary);
+    background: var(--sa-color-accent-surface-strong);
+    border: 1px solid var(--sa-color-info-border);
     border-radius: 999px;
     padding: 4px 12px;
 }
@@ -536,10 +536,10 @@ async function doSubmit(code: string): Promise<void> {
 }
 
 .pl-field label {
-    font: 600 11px var(--sa-font-body, system-ui, sans-serif);
+    font: 600 var(--sa-text-xs) var(--sa-font-body, system-ui, sans-serif);
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--sa-muted, var(--sa-muted));
+    color: var(--sa-color-fg-muted);
     display: flex;
     align-items: baseline;
     gap: 6px;
@@ -549,21 +549,21 @@ async function doSubmit(code: string): Promise<void> {
     font-weight: 500;
     text-transform: none;
     letter-spacing: 0;
-    color: var(--sa-muted-light);
-    font-size: 11px;
+    color: var(--sa-color-fg-subtle);
+    font-size: var(--sa-text-xs);
 }
 
 .pl-field__error {
-    font-size: 11.5px;
-    color: #b91c1c;
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-negative-fg);
 }
 
 .pl-input--invalid {
-    border-color: #fca5a5;
+    border-color: var(--sa-color-negative-border);
 }
 
 .pl-input::placeholder {
-    color: #cbd5e1;
+    color: var(--sa-color-fg-disabled);
 }
 
 .pl-textarea {
@@ -575,18 +575,18 @@ async function doSubmit(code: string): Promise<void> {
 .pl-slug-input {
     display: flex;
     align-items: stretch;
-    background: #fff;
-    border: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     overflow: hidden;
 }
 
 .pl-slug-input__prefix {
     padding: 9px 12px;
-    background: var(--sa-bg-surface-2);
-    color: var(--sa-muted-light);
-    font: 500 12px var(--sa-font-mono, ui-monospace, monospace);
-    border-right: 1px solid var(--sa-border, var(--sa-border));
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-subtle);
+    font: 500 var(--sa-text-sm) var(--sa-font-mono, ui-monospace, monospace);
+    border-right: 1px solid var(--sa-color-border);
     white-space: nowrap;
 }
 

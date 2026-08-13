@@ -297,11 +297,11 @@ const redemptionRows = computed(() => data.value?.redemptions ?? []);
     gap: 14px;
 }
 .sa-promo-detail__kv {
-    background: #fafbfc;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface-raised);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     padding: 12px;
-    font-size: 12px;
+    font-size: var(--sa-text-sm);
     margin: 0;
     overflow-x: auto;
     font-family: var(--sa-font-mono);

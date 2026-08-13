@@ -36,30 +36,30 @@
                         </q-td>
                     </template>
                     <template #row-actions="{ row }">
-                        <q-btn
-                            flat
-                            dense
-                            icon="send"
-                            color="primary"
+                        <button
+                            type="button"
+                            class="sa-icon-btn"
                             :title="msg.provider.sendTestMail"
                             @click="openTest(row)"
-                        />
-                        <q-btn
-                            flat
-                            dense
-                            icon="edit"
-                            color="grey-7"
+                        >
+                            <q-icon name="send" size="18px" />
+                        </button>
+                        <button
+                            type="button"
+                            class="sa-icon-btn"
                             :title="common.edit"
                             @click="openEdit(row)"
-                        />
-                        <q-btn
-                            flat
-                            dense
-                            icon="delete"
-                            color="negative"
+                        >
+                            <q-icon name="edit" size="18px" />
+                        </button>
+                        <button
+                            type="button"
+                            class="sa-icon-btn sa-icon-btn--negative"
                             :title="common.delete"
                             @click="onDelete(row)"
-                        />
+                        >
+                            <q-icon name="delete" size="18px" />
+                        </button>
                     </template>
                 </AdminTable>
             </AdminSection>

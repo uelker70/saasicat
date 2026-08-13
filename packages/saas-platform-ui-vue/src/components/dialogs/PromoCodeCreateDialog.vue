@@ -189,13 +189,13 @@ async function onSubmit() {
 .pc-dlg__title {
     font-family: var(--sa-font-head, system-ui, sans-serif);
     font-weight: 700;
-    font-size: 18px;
-    color: var(--sa-heading, var(--sa-heading));
+    font-size: var(--sa-text-xl);
+    color: var(--sa-color-fg-heading);
 }
 
 .pc-dlg__sub {
-    font-size: 12.5px;
-    color: var(--sa-muted, var(--sa-muted));
+    font-size: var(--sa-text-md);
+    color: var(--sa-color-fg-muted);
     margin-top: 2px;
 }
 
@@ -207,14 +207,14 @@ async function onSubmit() {
 }
 
 .pc-dlg__foot {
-    border-top: 1px solid var(--sa-border, var(--sa-border));
+    border-top: 1px solid var(--sa-color-border);
 }
 
 .pc-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #b91c1c;
-    font-size: 13px;
+    background: var(--sa-color-negative-surface);
+    border: 1px solid var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
+    font-size: var(--sa-text-md);
     margin: 8px 0 0;
     padding: 8px 12px;
     border-radius: 8px;

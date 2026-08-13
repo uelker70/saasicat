@@ -1,0 +1,189 @@
+/* Statistics — one tile look for the whole admin surface (see AdminStatistics
+ * and AdminKpi). Seven near-copies preceded this; two of them were byte
+ * identical. Every radius here resolves to `--sa-radius-tile`, which is the
+ * single place a tile's corner is decided.
+ *
+ * Two arrangements, because the tiles serve two jobs: `grid` for informational
+ * rows that should share a baseline, `strip` for the clickable filter pills
+ * that wrap along a toolbar.
+ */
+
+.sa-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    /* Kept in step with GAP_PX in AdminStatistics, which subtracts the gap
+     * total when it caps the track count. */
+    gap: 10px;
+}
+
+.sa-kpi {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
+    border-radius: var(--sa-radius-tile);
+    padding: 10px 14px 9px;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+}
+/* The figure column. It carries the stacking so the tile itself can put an
+ * icon beside it without a second set of rules. */
+.sa-kpi__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+/* Subs line up across a row rather than floating under uneven values. */
+.sa-stats .sa-kpi__sub {
+    margin-top: auto;
+}
+
+.sa-kpi__label {
+    font-size: var(--sa-text-sm);
+    font-weight: 600;
+    color: var(--sa-color-fg-muted);
+    order: 2;
+}
+.sa-kpi__value {
+    font-size: var(--sa-text-2xl);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    color: var(--sa-color-fg-heading);
+    order: 1;
+}
+.sa-kpi__sub {
+    font: 500 var(--sa-text-2xs) var(--sa-font-mono);
+    letter-spacing: 0.04em;
+    color: var(--sa-color-fg-muted);
+    padding-top: 1px;
+    order: 3;
+}
+.sa-kpi__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sa-color-fg-muted);
+}
+
+/* Inline tiles: the icon leads in a tinted square and the label sits above the
+ * figure, for rows where the icon carries the identity of the number. */
+.sa-kpi--inline {
+    align-items: center;
+    padding: 12px 14px;
+}
+.sa-kpi--inline .sa-kpi__icon {
+    width: 34px;
+    height: 34px;
+    flex: none;
+    border-radius: var(--sa-radius-tile);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent);
+}
+.sa-kpi--inline .sa-kpi__label {
+    order: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.sa-kpi--inline .sa-kpi__value {
+    order: 2;
+}
+
+/* Interactive tiles — rendered as <button> by AdminKpi when it has an action. */
+.sa-kpi--action {
+    cursor: pointer;
+    transition:
+        border-color 0.12s,
+        background 0.12s,
+        box-shadow 0.12s;
+}
+.sa-kpi--action:hover {
+    background: var(--sa-color-bg-sunken);
+    border-color: var(--sa-color-border-strong);
+}
+.sa-kpi--selected {
+    border-color: var(--sa-color-fg-heading);
+    box-shadow:
+        0 0 0 1px var(--sa-color-fg-heading) inset,
+        var(--sa-shadow-2);
+}
+
+/* Tone. By default only the value takes the colour; `--surface` tints the
+ * whole tile, which is what the discovery and draft tiles need to read as a
+ * state rather than as a number. */
+.sa-kpi--positive .sa-kpi__value {
+    color: var(--sa-color-positive);
+}
+.sa-kpi--warn .sa-kpi__value {
+    color: var(--sa-color-warning);
+}
+.sa-kpi--danger .sa-kpi__value {
+    color: var(--sa-color-negative);
+}
+.sa-kpi--info .sa-kpi__value {
+    color: var(--sa-color-info-fg);
+}
+.sa-kpi--muted .sa-kpi__value {
+    color: var(--sa-color-fg-secondary);
+}
+.sa-kpi--purple .sa-kpi__value {
+    color: var(--sa-color-feature-fg);
+}
+
+.sa-kpi--surface.sa-kpi--positive {
+    border-color: var(--sa-color-positive-border);
+    background: var(--sa-color-positive-surface);
+}
+.sa-kpi--surface.sa-kpi--warn {
+    border-color: var(--sa-color-warning-border);
+    background: var(--sa-color-warning-surface);
+}
+.sa-kpi--surface.sa-kpi--danger {
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
+}
+.sa-kpi--surface.sa-kpi--positive .sa-kpi__label,
+.sa-kpi--surface.sa-kpi--warn .sa-kpi__label,
+.sa-kpi--surface.sa-kpi--danger .sa-kpi__label {
+    color: inherit;
+}
+
+/* Selected tiles keep the tone in the outline and take the neutral elevation.
+ * Five tinted shadows preceded this — one per tone, each a different rgba() —
+ * and at 6% alpha under a 1px outline none of them was distinguishable from
+ * the others. The outline is what carries the state. */
+.sa-kpi--selected.sa-kpi--positive {
+    border-color: var(--sa-color-positive-strong);
+    box-shadow:
+        0 0 0 1px var(--sa-color-positive-strong) inset,
+        var(--sa-shadow-2);
+}
+.sa-kpi--selected.sa-kpi--warn {
+    border-color: var(--sa-color-warning-strong);
+    box-shadow:
+        0 0 0 1px var(--sa-color-warning-strong) inset,
+        var(--sa-shadow-2);
+}
+.sa-kpi--selected.sa-kpi--danger {
+    border-color: var(--sa-color-negative);
+    box-shadow:
+        0 0 0 1px var(--sa-color-negative) inset,
+        var(--sa-shadow-2);
+}
+.sa-kpi--selected.sa-kpi--info {
+    border-color: var(--sa-color-info-strong);
+    box-shadow:
+        0 0 0 1px var(--sa-color-info-strong) inset,
+        var(--sa-shadow-2);
+}
+.sa-kpi--selected.sa-kpi--purple {
+    border-color: var(--sa-color-feature);
+    box-shadow:
+        0 0 0 1px var(--sa-color-feature) inset,
+        var(--sa-shadow-2);
+}

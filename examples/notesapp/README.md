@@ -25,7 +25,7 @@ What it demonstrates:
 | Full SuperAdmin UI                           | [`admin/src/pages`](admin/src/pages) — discovery, catalog, plans, bundles, tenants, users, audit, subscriptions and promos     |
 | 402 quota responses                          | `LimitExceededFilter` as `APP_FILTER` in `app.module.ts`                                                                       |
 | Auth ordering (global guard!)                | [`src/auth/demo-auth.guard.ts`](src/auth/demo-auth.guard.ts) + `DemoAuthModule`                                                |
-| DB-free platform test                        | [`tests/notesapp-smoke.test.js`](tests/notesapp-smoke.test.js)                                                                 |
+| DB-free platform test                        | [`tests/notesapp-smoke.test.mjs`](tests/notesapp-smoke.test.mjs)                                                               |
 
 > **Demo auth:** the app identifies callers from an `x-demo-tenant` header —
 > obviously NOT authentication. Swap `DemoAuthGuard` for your JWT guard; it

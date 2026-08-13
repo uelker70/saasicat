@@ -132,20 +132,20 @@ function quotaUnit(q: DiscoveredQuota): string {
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 8px;
     transition:
         background 0.12s,
         border-color 0.12s;
 }
 .bd-quota-row.on {
-    background: #f0f9ff;
-    border-color: #bae6fd;
+    background: var(--sa-color-quota-surface);
+    border-color: var(--sa-color-quota-border);
 }
 .bd-quota-row.overlap {
-    border-color: #fecaca;
-    background: #fef2f2;
+    border-color: var(--sa-color-negative-border);
+    background: var(--sa-color-negative-surface);
 }
 .bd-quota-toggle {
     display: inline-flex;
@@ -153,16 +153,16 @@ function quotaUnit(q: DiscoveredQuota): string {
     justify-content: center;
     width: 22px;
     height: 22px;
-    background: #fff;
-    border: 1px solid #cbd5e1;
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     cursor: pointer;
-    color: var(--sa-muted-dark);
+    color: var(--sa-color-fg-secondary);
 }
 .bd-quota-row.on .bd-quota-toggle {
-    background: var(--sa-primary);
-    border-color: var(--sa-primary);
-    color: #fff;
+    background: var(--sa-color-accent);
+    border-color: var(--sa-color-accent);
+    color: var(--sa-color-fg-on-accent);
 }
 .bd-quota-toggle:disabled {
     cursor: not-allowed;
@@ -174,16 +174,16 @@ function quotaUnit(q: DiscoveredQuota): string {
     min-width: 0;
 }
 .bd-quota-label {
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     font-weight: 600;
-    color: var(--sa-heading);
+    color: var(--sa-color-fg-heading);
 }
 .bd-quota-key {
     font:
-        500 10.5px 'JetBrains Mono',
+        500 var(--sa-text-xs) 'JetBrains Mono',
         ui-monospace,
         monospace;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
 }
 .bd-quota-valwrap {
     display: inline-flex;
@@ -193,30 +193,30 @@ function quotaUnit(q: DiscoveredQuota): string {
 .bd-quota-val {
     width: 90px;
     padding: 5px 8px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sa-color-border-strong);
     border-radius: 6px;
     font:
-        600 13px 'JetBrains Mono',
+        600 var(--sa-text-md) 'JetBrains Mono',
         ui-monospace,
         monospace;
     text-align: right;
-    background: #fff;
-    color: var(--sa-heading);
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-heading);
 }
 .bd-quota-val:disabled {
-    background: var(--sa-border-soft);
-    color: var(--sa-muted-light);
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-subtle);
     cursor: not-allowed;
 }
 .bd-quota-unit {
-    font-size: 11.5px;
-    color: var(--sa-muted);
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-fg-muted);
     min-width: 32px;
 }
 .bd-quotas-empty {
     padding: 12px;
-    color: var(--sa-muted-light);
+    color: var(--sa-color-fg-subtle);
     font-style: italic;
-    font-size: 12.5px;
+    font-size: var(--sa-text-md);
 }
 </style>

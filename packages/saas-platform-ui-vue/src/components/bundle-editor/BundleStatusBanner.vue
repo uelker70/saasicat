@@ -147,28 +147,28 @@ const supersededTail = computed(() =>
     padding: 12px 14px;
     border-radius: 8px;
     border: 1px solid transparent;
-    font-size: 13px;
+    font-size: var(--sa-text-md);
     line-height: 1.4;
 }
 .bv-status-live {
-    background: var(--sa-positive-bg);
-    border-color: #a7f3d0;
-    color: #065f46;
+    background: var(--sa-color-positive-surface);
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
 }
 .bv-status-scheduled {
-    background: var(--sa-warning-bg);
-    border-color: #fde68a;
-    color: #92400e;
+    background: var(--sa-color-warning-surface);
+    border-color: var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
 }
 .bv-status-superseded {
-    background: var(--sa-border-soft);
-    border-color: #cbd5e1;
-    color: var(--sa-muted-dark);
+    background: var(--sa-color-border-soft);
+    border-color: var(--sa-color-border-strong);
+    color: var(--sa-color-fg-secondary);
 }
 .bv-status-draft {
-    background: var(--sa-primary-50);
-    border-color: #bfdbfe;
-    color: #1e40af;
+    background: var(--sa-color-accent-surface-strong);
+    border-color: var(--sa-color-info-border);
+    color: var(--sa-color-info-fg);
 }
 .bv-status-icon {
     flex: 0 0 auto;
@@ -179,11 +179,11 @@ const supersededTail = computed(() =>
     min-width: 0;
 }
 .bv-status-warn {
-    color: #b45309;
+    color: var(--sa-color-warning-fg);
     font-weight: 500;
 }
 .bv-status-ok {
-    color: #047857;
+    color: var(--sa-color-positive-fg);
     font-weight: 500;
 }
 .bv-status-discard {
@@ -191,16 +191,16 @@ const supersededTail = computed(() =>
     align-items: center;
     gap: 5px;
     padding: 6px 10px;
-    background: #fff;
-    border: 1px solid var(--sa-border);
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
-    color: #b91c1c;
+    font-size: var(--sa-text-sm);
+    color: var(--sa-color-negative-fg);
     font-family: inherit;
 }
 .bv-status-discard:hover {
-    background: #fef2f2;
-    border-color: #fecaca;
+    background: var(--sa-color-negative-surface);
+    border-color: var(--sa-color-negative-border);
 }
 </style>
