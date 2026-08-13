@@ -426,6 +426,55 @@ test.describe('a consumer can override a role', () => {
         });
     });
 
+    test('a legacy alias follows both dark triggers', async ({ page }) => {
+        // `tokens.legacy.css` promises that reading an old `--sa-*` name keeps
+        // working for one release. An alias is computed WHERE it is declared,
+        // so one written only on `:root` substitutes the light value and is
+        // then inherited as a finished value — Quasar's trigger redeclares the
+        // roles on `<body>` and never re-evaluates it. A consumer still reading
+        // `var(--sa-heading)` kept light text while everything around it went
+        // dark, which is the opposite of the promise.
+        await page.goto('/?page=audit');
+        await page.waitForSelector('body[data-visual-ready="true"]');
+
+        const readings = await page.evaluate(() => {
+            const target = document.querySelector('.sa-section') as HTMLElement;
+            const read = () => {
+                const style = getComputedStyle(target);
+                return {
+                    alias: style.getPropertyValue('--sa-heading').trim(),
+                    role: style.getPropertyValue('--sa-color-fg-heading').trim(),
+                };
+            };
+            const set = (mode: 'light' | 'attribute' | 'quasar') => {
+                document.documentElement.removeAttribute('data-sa-theme');
+                document.body.classList.remove('body--dark');
+                if (mode === 'attribute') {
+                    document.documentElement.setAttribute('data-sa-theme', 'dark');
+                }
+                if (mode === 'quasar') document.body.classList.add('body--dark');
+            };
+            const result = {
+                light: (set('light'), read()),
+                darkViaAttribute: (set('attribute'), read()),
+                darkViaQuasar: (set('quasar'), read()),
+            };
+            set('light');
+            return result;
+        });
+
+        for (const [state, reading] of Object.entries(readings)) {
+            expect(
+                reading.alias,
+                `the legacy alias and the role it aliases disagree in ${state}`,
+            ).toBe(reading.role);
+        }
+        expect(
+            readings.darkViaQuasar.alias,
+            'the alias did not move at all — the two themes resolve it the same',
+        ).not.toBe(readings.light.alias);
+    });
+
     test('written on :root alone, it does not — and that is why the guide says so', async ({
         page,
     }) => {

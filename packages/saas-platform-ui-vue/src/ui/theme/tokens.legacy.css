@@ -83,3 +83,63 @@
 
     --sa-section-pad: var(--sa-pad-section);
 }
+
+/* The same declarations again, under the dark triggers.
+ *
+ * Not redundancy — an alias is computed WHERE it is declared. `--sa-heading` on
+ * `:root` substitutes whatever `--sa-color-fg-heading` resolves to ON `:root`,
+ * and descendants inherit that finished value. Quasar's trigger redeclares the
+ * roles on `<body>`, which never re-evaluates an alias computed one level up:
+ * a consumer still reading `var(--sa-heading)` kept light text while everything
+ * around it went dark, and this file promises the opposite for one release.
+ *
+ * The attribute trigger sits on `:root` itself and would not need this, but the
+ * pair is written the way the design guide tells consumers to write an override
+ * — both values, on the selectors the theme uses. A file that documents a rule
+ * and then exempts itself from it teaches the exemption.
+ */
+[data-sa-theme='dark'],
+body.body--dark {
+    --sa-bg-app: var(--sa-color-bg-app);
+    --sa-bg-surface: var(--sa-color-bg-surface);
+    --sa-bg-surface-2: var(--sa-color-bg-sunken);
+
+    --sa-primary: var(--sa-color-accent);
+    --sa-primary-strong: var(--sa-color-accent-strong);
+    --sa-primary-soft: var(--sa-color-accent-surface);
+    --sa-primary-softer: var(--sa-color-accent-surface-soft);
+    --sa-primary-border: var(--sa-color-accent-border);
+    --sa-primary-50: var(--sa-color-accent-surface-strong);
+
+    --sa-positive: var(--sa-color-positive);
+    --sa-positive-light: var(--sa-color-positive-strong);
+    --sa-positive-soft: var(--sa-color-positive-surface);
+    --sa-positive-bg: var(--sa-color-positive-surface);
+
+    --sa-negative: var(--sa-color-negative);
+    --sa-negative-soft: var(--sa-color-negative-surface);
+
+    --sa-warning: var(--sa-color-warning);
+    --sa-warning-soft: var(--sa-color-warning-surface);
+    --sa-warning-bg: var(--sa-color-warning-surface);
+    --sa-amber: var(--sa-color-warning-strong);
+    --sa-amber-light: var(--sa-color-warning-strong);
+    --sa-amber-border: var(--sa-color-warning-border);
+
+    /* Read by `TenantsPage` as `var(--sa-accent, #7c3aed)` and never declared
+     * anywhere — the fallback was the only value it ever had. It marked the
+     * catalogue-feature action, which is now a role. */
+    --sa-accent: var(--sa-color-feature);
+
+    --sa-heading: var(--sa-color-fg-heading);
+    --sa-body: var(--sa-color-fg-body);
+    --sa-muted: var(--sa-color-fg-muted);
+    --sa-muted-dark: var(--sa-color-fg-secondary);
+    --sa-muted-light: var(--sa-color-fg-subtle);
+
+    --sa-border: var(--sa-color-border);
+    --sa-border-soft: var(--sa-color-border-soft);
+    --sa-border-strong: var(--sa-color-border-strong);
+
+    --sa-section-pad: var(--sa-pad-section);
+}
