@@ -6,8 +6,19 @@
  * it sits between, without each page saying so.
  */
 
-.sa-page .q-card {
+/* Quasar paints its own card: white in light, and `var(--q-dark)` — a neutral
+ * #1d1d1d — as soon as `Dark` is active. That grey sits wrong on a slate page,
+ * so the surface is ours.
+ *
+ * The `.sa-portal` half is not decoration: Quasar teleports every dialog into a
+ * div appended to `<body>`, so a rule prefixed with `.sa-page` never reaches a
+ * dialog's card. `createSuperAdminApp` marks those portals, which is what keeps
+ * this from also restyling a consumer's own dialogs. */
+.sa-page .q-card,
+.sa-portal .q-card {
     border-radius: var(--sa-radius-card);
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-body);
 }
 
 .sa-card {

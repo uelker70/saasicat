@@ -7,8 +7,8 @@
         </AdminHero>
 
         <AdminBody>
-            <AdminSection class="sa-emh__body">
-                <div class="sa-emh__filter">
+            <AdminSection>
+                <AdminFilters class="q-mb-lg">
                     <q-input
                         v-model="filter.search"
                         outlined
@@ -50,53 +50,51 @@
                         :label="common.to"
                         @update:model-value="applyFilter"
                     />
-                </div>
+                </AdminFilters>
 
-                <div class="sa-emh__card">
-                    <AdminTable
-                        server-side
-                        :rows="rows"
-                        :columns="columns"
-                        :loading="loading"
-                        :page="pagination.page"
-                        :rows-per-page="pagination.rowsPerPage"
-                        :total="pagination.rowsNumber"
-                        storage-key="email-history"
-                        @row-click="(_evt: Event, row: EmailHistoryRow) => openDetail(row)"
-                        @update:page="onPageChange"
-                        @update:rows-per-page="onRowsPerPageChange"
-                    >
-                        <template #body-cell-status="{ row }">
-                            <q-td>
-                                <q-badge
-                                    :color="statusColor(row.status)"
-                                    :label="statusLabel(row.status)"
-                                />
-                            </q-td>
-                        </template>
-                        <template #row-actions="{ row }">
-                            <q-btn
-                                flat
-                                dense
-                                icon="send"
-                                color="primary"
-                                :title="msg.history.resend"
-                                @click.stop="onResend(row.id)"
+                <AdminTable
+                    server-side
+                    :rows="rows"
+                    :columns="columns"
+                    :loading="loading"
+                    :page="pagination.page"
+                    :rows-per-page="pagination.rowsPerPage"
+                    :total="pagination.rowsNumber"
+                    storage-key="email-history"
+                    @row-click="(_evt: Event, row: EmailHistoryRow) => openDetail(row)"
+                    @update:page="onPageChange"
+                    @update:rows-per-page="onRowsPerPageChange"
+                >
+                    <template #body-cell-status="{ row }">
+                        <q-td>
+                            <q-badge
+                                :color="statusColor(row.status)"
+                                :label="statusLabel(row.status)"
                             />
-                            <q-btn
-                                flat
-                                dense
-                                icon="delete"
-                                color="negative"
-                                :title="msg.history.removeFromHistory"
-                                @click.stop="askDelete(row.id)"
-                            />
-                        </template>
-                        <template #no-data>
-                            <div class="sa-emh__empty">{{ msg.history.empty }}</div>
-                        </template>
-                    </AdminTable>
-                </div>
+                        </q-td>
+                    </template>
+                    <template #row-actions="{ row }">
+                        <button
+                            type="button"
+                            class="sa-icon-btn"
+                            :title="msg.history.resend"
+                            @click.stop="onResend(row.id)"
+                        >
+                            <q-icon name="send" size="18px" />
+                        </button>
+                        <button
+                            type="button"
+                            class="sa-icon-btn sa-icon-btn--negative"
+                            :title="msg.history.removeFromHistory"
+                            @click.stop="askDelete(row.id)"
+                        >
+                            <q-icon name="delete" size="18px" />
+                        </button>
+                    </template>
+                    <template #no-data>
+                        <div class="sa-emh__empty">{{ msg.history.empty }}</div>
+                    </template>
+                </AdminTable>
             </AdminSection>
         </AdminBody>
 
@@ -222,6 +220,7 @@ import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminRefreshBtn from '../components/admin-page/AdminRefreshBtn.vue';
 import AdminBody from '../components/admin-page/AdminBody.vue';
+import AdminFilters from '../components/admin-page/AdminFilters.vue';
 import AdminHero from '../components/admin-page/AdminHero.vue';
 import AdminSection from '../components/admin-page/AdminSection.vue';
 import AdminPage from '../components/admin-page/AdminPage.vue';
@@ -506,23 +505,6 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <style scoped>
-.sa-emh__filter {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-}
-.sa-emh__filter > * {
-    flex: 1;
-    min-width: 180px;
-}
-.sa-emh__card {
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: 12px;
-    overflow: hidden;
-    padding: 8px 0;
-}
 .sa-emh__empty {
     width: 100%;
     text-align: center;

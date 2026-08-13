@@ -102,3 +102,57 @@
 .sa-btn--positive:hover:not(:disabled) {
     background: var(--sa-color-positive-surface);
 }
+
+/* The row-action icon — one recipe for the whole admin.
+ *
+ * There were three. `TenantsPage` had this bordered-less square with a muted
+ * icon; `PilotsPage` and `PromoCodesPage` rendered `<q-btn :color="…">`, which
+ * paints Quasar's brand colours and made a promo-code row read as a row of
+ * traffic lights beside a plans row of quiet greys; `EmailHistoryPage` and
+ * `PlatformEmailPage` pinned `color="primary"`.
+ *
+ * The quiet one wins. A row of actions is chrome, not a set of announcements —
+ * the colour belongs on the ONE action that is destructive, which is what the
+ * tone modifiers are for.
+ */
+.sa-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--sa-radius-control);
+    background: transparent;
+    color: var(--sa-color-fg-muted);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 0.12s;
+}
+.sa-icon-btn:hover:not(:disabled) {
+    background: var(--sa-color-border-soft);
+}
+.sa-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+/* The icon inherits, so a tone below colours the glyph without a second rule. */
+.sa-icon-btn .q-icon {
+    color: inherit;
+}
+
+.sa-icon-btn--negative {
+    color: var(--sa-color-negative);
+}
+.sa-icon-btn--positive {
+    color: var(--sa-color-positive-fg);
+}
+.sa-icon-btn--warning {
+    color: var(--sa-color-warning-fg);
+}
+.sa-icon-btn--primary {
+    color: var(--sa-color-accent);
+}
+.sa-icon-btn--accent {
+    color: var(--sa-color-feature);
+}

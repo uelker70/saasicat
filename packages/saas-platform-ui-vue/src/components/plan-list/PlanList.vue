@@ -590,12 +590,19 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-list {
     display: grid;
     grid-template-columns: 1.6fr 0.9fr 0.7fr 0.9fr 1.4fr 160px;
-    align-items: center;
+    /* Stretch, not centre. Every row is `display: contents`, so its cells are
+     * grid items in their own right — and a centred item is only as tall as its
+     * own content. The row's hover background is painted per cell, so the band
+     * came out notched wherever one column was shorter than its neighbours.
+     * The cells fill the row now and centre their contents themselves. */
+    align-items: stretch;
 }
 .sa-plan-list-list-head {
     display: contents;
 }
 .sa-plan-list-list-head > div {
+    display: flex;
+    align-items: center;
     background: var(--sa-color-bg-surface-raised);
     padding: 10px 16px;
     font-size: var(--sa-text-xs);
@@ -618,6 +625,11 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     cursor: pointer;
 }
 .sa-plan-list-row > .sa-plan-list-cell {
+    /* Column by default — most cells stack a value over a caption. The three
+     * that lay their content out in a row say so below. */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     padding: 14px 16px;
     border-bottom: 1px solid var(--sa-color-border-soft);
     transition: background 0.12s;
@@ -647,8 +659,10 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-row--sub:hover > .sa-plan-list-cell {
     background: var(--sa-color-border-soft);
 }
-.sa-plan-list-cell--sub-name {
+.sa-plan-list-row > .sa-plan-list-cell--sub-name {
     display: flex;
+    flex-direction: row;
+    align-items: center;
     align-items: center;
     gap: 12px;
     padding-left: 32px !important;
@@ -829,8 +843,10 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     color: var(--sa-color-fg-heading);
 }
 
-.sa-plan-list-cell--tenants {
+.sa-plan-list-row > .sa-plan-list-cell--tenants {
     display: flex;
+    flex-direction: row;
+    align-items: center;
     align-items: center;
     gap: 10px;
 }
@@ -850,8 +866,11 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     height: 100%;
 }
 
-.sa-plan-list-cell--actions {
+.sa-plan-list-row > .sa-plan-list-cell--actions {
     display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
     gap: 4px;
     justify-content: flex-end;
 }

@@ -8,12 +8,19 @@
 
 .sa-page .q-field--outlined .q-field__control,
 .sa-page .q-field--outlined .q-field__control:before,
-.sa-page .q-field--outlined .q-field__control:after {
+.sa-page .q-field--outlined .q-field__control:after,
+.sa-portal .q-field--outlined .q-field__control,
+.sa-portal .q-field--outlined .q-field__control:before,
+.sa-portal .q-field--outlined .q-field__control:after {
     border-radius: var(--sa-radius-field);
 }
 /* Quasar's outlined control is transparent, which reads as a hole wherever it
- * sits on a section surface rather than on the page canvas. */
-.sa-page .q-field--outlined .q-field__control {
+ * sits on a section surface rather than on the page canvas.
+ *
+ * `.sa-portal` because a dialog is teleported out of `.sa-page` — this
+ * correction had silently never applied to a field inside a dialog. */
+.sa-page .q-field--outlined .q-field__control,
+.sa-portal .q-field--outlined .q-field__control {
     background: var(--sa-color-bg-surface);
 }
 

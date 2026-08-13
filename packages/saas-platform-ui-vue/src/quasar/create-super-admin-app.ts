@@ -156,6 +156,9 @@ export interface SuperAdminAppHandle {
     dispose: () => void;
 }
 
+/** Marks Quasar's teleported portals as belonging to this shell. */
+const SA_PORTAL_CLASS = 'sa-portal';
+
 const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
     plugins: { Notify, Dialog, Loading },
     config: { notify: { position: 'top-right', timeout: 3000 } },
@@ -170,7 +173,31 @@ const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
 export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperAdminAppHandle {
     const app = createApp(options.rootComponent);
 
-    app.use(Quasar, options.quasarOptions ?? DEFAULT_QUASAR_OPTIONS);
+    // Quasar teleports every dialog, menu and tooltip into a div appended to
+    // `<body>`, so a rule prefixed with `.sa-page` never reaches them — which is
+    // why dialog cards kept Quasar's neutral grey in dark mode while the page
+    // behind them was slate, and why the outlined-field correction had silently
+    // never applied inside a dialog. Marking the portals lets the theme style
+    // them WITHOUT reaching a consumer's own dialogs, which a bare `.q-card`
+    // rule would.
+    const quasarOptions = options.quasarOptions ?? DEFAULT_QUASAR_OPTIONS;
+    // `globalNodes` is a documented Quasar config option that its TypeScript
+    // types do not declare (see quasar/src/utils/private.config/nodes.js, which
+    // reads `globalConfig.globalNodes.class`). The cast is the exception this
+    // codebase allows for an API that exists and is simply untyped upstream —
+    // the alternative is a bare `.q-dialog .q-card` rule that would restyle a
+    // consumer's own dialogs.
+    const config = quasarOptions.config as Record<string, unknown> | undefined;
+    const existingPortalClass = (config?.globalNodes as { class?: string } | undefined)?.class;
+    app.use(Quasar, {
+        ...quasarOptions,
+        config: {
+            ...quasarOptions.config,
+            globalNodes: {
+                class: [existingPortalClass, SA_PORTAL_CLASS].filter(Boolean).join(' '),
+            },
+        },
+    } as QuasarPluginOptions);
 
     const pinia = createPinia();
     app.use(pinia);

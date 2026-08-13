@@ -119,8 +119,8 @@
                                 v-for="action in visibleActions(row)"
                                 :key="action.id"
                                 :href="action.to ? action.to(row) : undefined"
-                                class="sa-tenants__icon-btn"
-                                :class="action.tone ? `sa-tenants__icon-btn--${action.tone}` : ''"
+                                class="sa-icon-btn"
+                                :class="action.tone ? `sa-icon-btn--${action.tone}` : ''"
                                 :title="action.label"
                                 @click="action.handler ? action.handler(row) : undefined"
                             >
@@ -601,40 +601,5 @@ function visibleActions(row: TenantRow): TenantRowAction[] {
 }
 .sa-tenants__usage :deep(.q-icon) {
     color: var(--sa-color-fg-muted);
-}
-
-.sa-tenants__icon-btn {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    color: var(--sa-color-fg-muted);
-}
-.sa-tenants__icon-btn:hover {
-    background: var(--sa-color-border-soft);
-}
-.sa-tenants__icon-btn :deep(.q-icon) {
-    color: inherit;
-}
-.sa-tenants__icon-btn--negative {
-    color: var(--sa-color-negative);
-}
-.sa-tenants__icon-btn--positive {
-    color: var(--sa-color-positive-fg);
-}
-.sa-tenants__icon-btn--primary {
-    color: var(--sa-color-accent);
-}
-.sa-tenants__icon-btn--warning {
-    color: var(--sa-color-warning-fg);
-}
-.sa-tenants__icon-btn--accent {
-    color: var(--sa-color-feature);
 }
 </style>

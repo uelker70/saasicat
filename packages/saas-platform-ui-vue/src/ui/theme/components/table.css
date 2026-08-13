@@ -2,6 +2,17 @@
  * this, which is why nine pages each looked slightly different.
  */
 
+/* The surface under the rows. Measured on the promo-codes page in dark mode:
+ * the `.q-table__container.q-table__card.q-dark` element resolved to
+ * rgb(29, 29, 29) while the section around it was rgb(15, 23, 42) — Quasar's
+ * neutral grey inside our slate. Only `thead th` and `tbody td` were ours, and
+ * neither of them is the table's background. */
+.sa-page .q-table__container,
+.sa-portal .q-table__container {
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-body);
+}
+
 .sa-page .q-table thead th {
     font-size: var(--sa-text-xs);
     font-weight: 700;
