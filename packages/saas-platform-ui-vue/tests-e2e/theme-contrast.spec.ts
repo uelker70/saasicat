@@ -218,6 +218,18 @@ const COLLECT = (): Reading => {
 async function read(page: Page): Promise<Reading> {
     let previous = '';
     for (let attempt = 0; attempt < 40; attempt += 1) {
+        // Sample after a paint, not just after a delay. `background: var(…)` is
+        // a pending-substitution shorthand, and Chromium resolves those lazily:
+        // under parallel load the paginator was caught with its text already on
+        // the dark value and its background still white, twice in a row, and
+        // "two identical readings" settled on the half-applied state. A frame
+        // has to have been rendered for the substitution to be finished.
+        await page.evaluate(
+            () =>
+                new Promise((resolve) =>
+                    requestAnimationFrame(() => requestAnimationFrame(resolve)),
+                ),
+        );
         const current = await page.evaluate(COLLECT);
         const serialised = JSON.stringify(current);
         if (serialised === previous) return current;
@@ -424,6 +436,43 @@ test.describe('a consumer can override a role', () => {
             darkViaAttribute: 'rgb(4, 5, 6)',
             darkViaQuasar: 'rgb(4, 5, 6)',
         });
+    });
+
+    test('a runtime brand change reaches the accent — from the root', async ({ page }) => {
+        // The documented runtime path, and the reason the third argument of
+        // `setCssVar` is not optional. Quasar writes to `<body>` by default; the
+        // accent role is computed on `:root`, one level above, and a custom
+        // property resolves where it is DECLARED. Written below, it is invisible
+        // — Quasar's own components would recolour and the admin would not.
+        await page.goto('/?page=audit');
+        await page.waitForSelector('body[data-visual-ready="true"]');
+
+        const readings = await page.evaluate(() => {
+            const target = document.querySelector('.sa-section') as HTMLElement;
+            const read = () =>
+                getComputedStyle(target).getPropertyValue('--sa-color-accent').trim();
+
+            const before = read();
+            document.body.style.setProperty('--q-primary', 'rgb(1, 2, 3)');
+            const writtenToBody = read();
+            document.body.style.removeProperty('--q-primary');
+
+            document.documentElement.style.setProperty('--q-primary', 'rgb(4, 5, 6)');
+            const writtenToRoot = read();
+            document.documentElement.style.removeProperty('--q-primary');
+
+            return { before, writtenToBody, writtenToRoot };
+        });
+
+        expect(readings.writtenToRoot, 'the documented runtime path does not work').toBe(
+            'rgb(4, 5, 6)',
+        );
+        expect(
+            readings.writtenToBody,
+            'a brand written to <body> now reaches the accent. If that is so — check ' +
+                'the selectors — the design guide can drop its warning about the third ' +
+                'argument of setCssVar.',
+        ).toBe(readings.before);
     });
 
     test('a legacy alias follows both dark triggers', async ({ page }) => {

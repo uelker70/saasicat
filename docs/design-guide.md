@@ -134,6 +134,17 @@ values — it is `-disabled`.
 configure: set it once and the hero, the buttons, the focus ring, the tinted
 surfaces, Quasar's own components and the tenant-facing pages all follow.
 
+To change it **at runtime**, write to the root:
+
+```ts
+setCssVar('primary', value, document.documentElement);
+```
+
+The third argument matters. Quasar's `setCssVar` defaults to `<body>`, and the
+accent role is computed on `:root` — a custom property resolves where it is
+declared, so a value written one level below is invisible to it. Quasar's own
+components would recolour and the admin would not.
+
 | Role                               | For                                                                  |
 | ---------------------------------- | -------------------------------------------------------------------- |
 | `--sa-color-accent`                | the brand itself — a selected border, an active icon                 |

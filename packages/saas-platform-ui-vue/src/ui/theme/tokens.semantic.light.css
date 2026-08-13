@@ -20,9 +20,19 @@
  * the audit: the platform painted `#3f6bff` while the scaffolded app painted
  * `#1e40af`, in the same surface, because each had its own source of truth.
  * Now there is one — the host's — and `--sa-brand-blue` is what it falls back
- * to when the host declares nothing. Setting `$primary`, or calling Quasar's
- * `setCssVar('primary', …)` at runtime, re-tints the admin with it, and there
- * is no second switch to remember.
+ * to when the host declares nothing. Setting `$primary` re-tints the admin with
+ * it, and there is no second switch to remember.
+ *
+ * To change the brand AT RUNTIME, write to the root:
+ *
+ *     setCssVar('primary', value, document.documentElement)
+ *
+ * The third argument is not optional here, and the reason is the same one that
+ * shapes the rest of this file: Quasar's `setCssVar` defaults to `<body>`, and
+ * this role is computed on `:root`, one level above it. A custom property is
+ * resolved where it is DECLARED, so the root substitution never sees a value
+ * written below it — Quasar's own components would recolour and the admin would
+ * not. Measured, and pinned by a test.
  *
  * Tints derive from the accent with `color-mix()` for the same reason: a fixed
  * `rgba(63, 107, 255, 0.08)` would stay platform-blue on a host that is green.

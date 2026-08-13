@@ -10,9 +10,11 @@
  * Reading an old name still works. OVERRIDING one no longer does: setting
  * `--sa-primary` in your own `:root` used to re-tint the admin, and now the
  * role it feeds is `--sa-color-accent`, which reads Quasar's `--q-primary`.
- * The replacement is better than what it removes — set `$primary` (or call
- * `setCssVar('primary', …)`) and the admin, Quasar's own components and the
- * tenant-facing pages all follow one value instead of three.
+ * The replacement is better than what it removes — set `$primary` and the
+ * admin, Quasar's own components and the tenant-facing pages all follow one
+ * value instead of three. At runtime, use
+ * `setCssVar('primary', value, document.documentElement)`; the default target
+ * is `<body>`, which the roles on `:root` cannot see.
  *
  * To override a ROLE rather than the brand, write both of its values, on the
  * same selectors the theme uses — `:root` for light, and

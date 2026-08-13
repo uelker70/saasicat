@@ -28,7 +28,10 @@ comes from your `$primary`. Set it once and the hero, the buttons, the focus
 ring, the tinted surfaces, Quasar's own components and the tenant-facing pages
 all follow. Previously the platform painted `#3f6bff` while a scaffolded app
 painted `#1e40af`, in the same screen, because each had its own source of truth.
-`setCssVar('primary', …)` works at runtime too.
+To change the brand at runtime, write to the root:
+`setCssVar('primary', value, document.documentElement)`. The third argument is
+not optional — Quasar's default target is `<body>`, and the accent role is
+computed on `:root`, which cannot see a value declared below it.
 
 **Dark mode.** `createSuperAdminApp({ theme: { scheme: 'system' } })`, plus
 `useSaTheme()` anywhere. `'system'` follows the operating system live. Quasar's
