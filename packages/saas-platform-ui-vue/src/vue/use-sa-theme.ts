@@ -7,9 +7,13 @@
 // stylesheet knows about, so a caller never has to ask "and what does 'system'
 // mean right now".
 //
-// The stylesheet already handles `prefers-color-scheme` on its own — an app
-// that never touches this composable still follows the operating system. What
-// this adds is the ability to OVERRIDE that, which is the part CSS cannot do.
+// Following the operating system lives HERE and not in the stylesheet, and
+// that is load-bearing rather than tidy. The stylesheet paints the platform's
+// surfaces; Quasar paints its own cards, dialogs and steppers, and follows only
+// `body--dark`. A media query in the stylesheet moves one of them — measured on
+// an embedded page with the OS set to dark, that meant a white Quasar card
+// carrying near-white platform text. Only the application can move both, so
+// only the application decides, and this is where it does.
 
 import { computed, inject, ref, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue';
 

@@ -14,13 +14,17 @@ import { fileURLToPath } from 'node:url';
 // a habit: the file is 150 declarations long and a role is added to whichever
 // theme the author was looking at.
 //
-// The dark theme also carries its declarations TWICE — once for the two
-// selectors that can express "the app decided" and once inside
-// `prefers-color-scheme`, because a media query is a condition on the
-// environment and no selector can carry it. CSS offers no way to alias one set
-// of declarations into a second at-rule. The duplicate is therefore checked for
-// being identical, since the failure mode of a hand-maintained copy is that one
-// half gets edited and it is always the half nobody opens.
+// The second rule here is that the dark theme fires only on a signal the
+// APPLICATION sent — `[data-sa-theme]` or Quasar's `body--dark`. It carried a
+// `prefers-color-scheme` block once, and that was wrong in exactly the case it
+// was meant to serve: an app embedding `pages-tenant/*` loads this stylesheet
+// without running the bridge, so the platform's surfaces went dark from the
+// operating system while Quasar's cards, steppers and separators stayed light.
+// Measured at the time: white card, rgb(226, 232, 240) text, about 1.15:1.
+//
+// A stylesheet cannot see the half of the screen it does not paint, so it must
+// not decide for it. Following the OS lives in `createSaTheme` instead, where
+// the bridge moves both halves together.
 
 const LIGHT = fileURLToPath(new URL('../src/ui/theme/tokens.semantic.light.css', import.meta.url));
 const DARK = fileURLToPath(new URL('../src/ui/theme/tokens.semantic.dark.css', import.meta.url));
@@ -47,26 +51,12 @@ function declarations(css) {
 
 const names = (list) => list.map((entry) => entry.split(':')[0]);
 
-/** The `@media (prefers-color-scheme: dark)` block, and everything before it. */
-function splitDarkFile(css) {
-    const at = css.indexOf('@media (prefers-color-scheme: dark)');
-    assert.notEqual(
-        at,
-        -1,
-        'the dark theme no longer has a prefers-color-scheme block — an operating ' +
-            'system set to dark would get the light theme unless the app asks for dark itself',
-    );
-    return { explicit: css.slice(0, at), system: css.slice(at) };
-}
-
 describe('light and dark declare the same roles', () => {
     const lightCss = readFileSync(LIGHT, 'utf8');
     const darkCss = readFileSync(DARK, 'utf8');
-    const { explicit, system } = splitDarkFile(darkCss);
 
     const light = declarations(lightCss);
-    const darkExplicit = declarations(explicit);
-    const darkSystem = declarations(system);
+    const dark = declarations(darkCss);
 
     test('the files were actually read', () => {
         // Every assertion below compares two lists, and two empty lists are
@@ -76,12 +66,12 @@ describe('light and dark declare the same roles', () => {
             light.length > 60,
             `only ${light.length} roles found in the light theme — check the parser and the path`,
         );
-        assert.ok(darkExplicit.length > 60, `only ${darkExplicit.length} roles in the dark theme`);
+        assert.ok(dark.length > 60, `only ${dark.length} roles in the dark theme`);
     });
 
     test('every light role has a dark counterpart, and the reverse', () => {
         const inLight = new Set(names(light));
-        const inDark = new Set(names(darkExplicit));
+        const inDark = new Set(names(dark));
 
         const missingInDark = [...inLight].filter((name) => !inDark.has(name));
         const missingInLight = [...inDark].filter((name) => !inLight.has(name));
@@ -99,20 +89,36 @@ describe('light and dark declare the same roles', () => {
         );
     });
 
-    test('the two dark blocks are identical', () => {
+    test('the theme fires only on a signal the application sent', () => {
+        // Not a style preference: the platform paints half the screen and
+        // Quasar paints the other half, and only the application can move both.
+        // A media query here would move one of them.
+        // Comments stripped first — the file explains at length why it does
+        // not do this, and the first version of this check read its own
+        // explanation as the violation.
+        const rules = darkCss.replace(/\/\*[\s\S]*?\*\//g, '');
+        assert.equal(
+            /@media[^{]*prefers-color-scheme/.test(rules),
+            false,
+            'the dark theme reacts to the operating system again. An app that loads ' +
+                'the stylesheet without the bridge — every consumer embedding ' +
+                'pages-tenant/* — then gets dark platform surfaces under white Quasar ' +
+                'cards. Put the OS preference in createSaTheme(), which moves both.',
+        );
+
+        const selectors = [...rules.matchAll(/^([^@/\s][^{]*)\{/gm)].map((m) => m[1].trim());
         assert.deepEqual(
-            darkSystem,
-            darkExplicit,
-            'the `prefers-color-scheme` copy of the dark theme has drifted from the ' +
-                'explicit one. Whoever set their operating system to dark now sees a ' +
-                'different product from whoever pressed the button.',
+            selectors,
+            ["[data-sa-theme='dark'],\nbody.body--dark"],
+            'the dark theme grew a trigger. Both existing ones mean "the application ' +
+                'decided"; anything else decides for the application.',
         );
     });
 
     test('no role is declared twice within one theme', () => {
         for (const [label, list] of [
             ['light', light],
-            ['dark', darkExplicit],
+            ['dark', dark],
         ]) {
             const seen = new Set();
             const duplicates = names(list).filter((name) => !seen.add(name) && true);

@@ -1212,6 +1212,12 @@ nothing. The file is safe to load next to your own design: it declares custom
 properties and `.sa-*` classes, and every rule is scoped under `.sa-page`, so it
 reaches no element of yours. See `examples/notesapp/web/src/main.ts`.
 
+It also will not change your app's appearance behind your back. The dark theme
+fires on `$q.dark.set(true)` or on an explicit `data-sa-theme`, never on the
+operating system — the stylesheet cannot see Quasar's cards and steppers, so it
+must not decide for them. To follow the OS in an embedded app, say so:
+`bindSaThemeToDocument(createSaTheme())` moves both halves together.
+
 **Adding a language to the platform itself** — as opposed to your app — means
 extending `SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` and adding a variant
 per namespace under `packages/saas-platform-ui-vue/src/client/i18n/messages/`.

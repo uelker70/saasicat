@@ -2,31 +2,43 @@
  * with other values. That sentence is the whole design: nothing else in the
  * package knows a dark theme exists.
  *
- * ── Three ways in, and no fourth ───────────────────────────────────────────
+ * ── Two ways in, and why there is no third ─────────────────────────────────
  *
- *   [data-sa-theme='dark']            the app decided, e.g. via useSaTheme()
- *   body.body--dark                   Quasar decided — `$q.dark.set(true)`
- *   prefers-color-scheme, unattributed the operating system decided, and the
- *                                     app has not overruled it
+ *   [data-sa-theme='dark']   the app decided — `handle.theme.scheme.value`
+ *   body.body--dark          Quasar decided — `$q.dark.set(true)`
  *
- * Quasar's own class is in the list because a consumer who calls
- * `$q.dark.set(true)` expects the whole screen to follow. Without it the admin
- * would be the one light rectangle in a dark app, and the fix would be a second
- * switch that everybody forgets.
+ * Both mean "the application decided", and that is the point: the application
+ * is the only party that can decide for BOTH halves of the screen. Quasar
+ * paints its own cards, dialogs, steppers and separators, and it does so only
+ * under `body--dark` — it has no `prefers-color-scheme` support of its own.
  *
- * The unattributed guard `:root:not([data-sa-theme])` is what lets an explicit
- * light choice survive a dark operating system. Without it, "light" would be a
- * setting that works everywhere except on the machines that need it.
+ * ── Why this file does NOT follow the operating system ─────────────────────
  *
- * ── Why the block appears twice ────────────────────────────────────────────
+ * It used to, via `@media (prefers-color-scheme: dark)`, and that was wrong in
+ * the one case it was supposed to serve. An app that loads this stylesheet
+ * without running the bridge — every consumer embedding `pages-tenant/*` into
+ * its own frontend — would have had the platform's surfaces go dark from the
+ * operating system while Quasar's stayed light. Measured, on an embedded page
+ * with the OS set to dark:
  *
- * A media query is a condition on the environment, not on the DOM, so no
- * selector can carry all three cases. CSS offers no way to alias one set of
- * declarations into a second at-rule — style queries could, but they are too
- * young to ship in a library. So the declarations are duplicated, and
- * `tests/theme-token-parity.test.js` asserts the two copies are identical: the
- * failure mode of a hand-maintained duplicate is that one half is edited, and
- * that is precisely the half nobody looks at.
+ *     .sa-section   rgb(15, 23, 42)     ← dark
+ *     .q-card       rgb(255, 255, 255)  ← white, with rgb(226, 232, 240) text
+ *     .q-separator  rgba(0, 0, 0, 0.12) ← a black hairline on near-black
+ *
+ * That is not "light cards beside dark surfaces", it is white-on-white at
+ * about 1.15:1. A stylesheet must not overrule the application that loaded it,
+ * because it cannot see the half of the screen it does not paint.
+ *
+ * Following the operating system is not lost — it moved to where both halves
+ * can be moved together. `createSaTheme({ scheme: 'system' })` is the default,
+ * it subscribes to `prefers-color-scheme` live, and `bindSaThemeToDocument`
+ * sets the attribute AND Quasar's `Dark`. `createSuperAdminApp` wires that up,
+ * so the admin shell follows the OS out of the box. An app that wants the same
+ * for an embedded surface calls those two functions; that is the one line that
+ * makes it actually work.
+ *
+ * `tests-e2e/theme-contrast.spec.ts` holds the counter-proof: with the OS set
+ * to dark and no bridge, the platform stays in step with Quasar.
  */
 
 [data-sa-theme='dark'],
@@ -154,129 +166,4 @@ body.body--dark {
     --sa-elevation-card: var(--sa-shadow-2);
     --sa-elevation-menu: var(--sa-shadow-3);
     --sa-elevation-dialog: var(--sa-shadow-4);
-}
-
-@media (prefers-color-scheme: dark) {
-    :root:not([data-sa-theme]) {
-        --sa-color-bg-app: var(--sa-neutral-975);
-        --sa-color-bg-surface: var(--sa-neutral-900);
-        --sa-color-bg-surface-raised: var(--sa-neutral-800);
-        --sa-color-bg-sunken: var(--sa-neutral-950);
-        --sa-color-bg-overlay: color-mix(in srgb, var(--sa-black) 70%, transparent);
-
-        --sa-color-fg-heading: var(--sa-neutral-50);
-        --sa-color-fg-body: var(--sa-neutral-200);
-        --sa-color-fg-secondary: var(--sa-neutral-300);
-        --sa-color-fg-muted: var(--sa-neutral-400);
-        --sa-color-fg-subtle: var(--sa-neutral-500);
-        --sa-color-fg-disabled: var(--sa-neutral-600);
-        --sa-color-fg-on-accent: var(--sa-white);
-
-        --sa-color-border: var(--sa-neutral-700);
-        --sa-color-border-soft: var(--sa-neutral-800);
-        --sa-color-border-strong: var(--sa-neutral-600);
-        --sa-color-border-focus: var(--sa-color-accent);
-
-        --sa-color-accent: var(--q-primary, var(--sa-brand-blue));
-        --sa-color-accent-strong: color-mix(in srgb, var(--sa-color-accent) 82%, var(--sa-white));
-        --sa-color-accent-surface: color-mix(in srgb, var(--sa-color-accent) 16%, transparent);
-        --sa-color-accent-surface-soft: color-mix(in srgb, var(--sa-color-accent) 8%, transparent);
-        --sa-color-accent-surface-strong: color-mix(
-            in srgb,
-            var(--sa-color-accent) 22%,
-            var(--sa-color-bg-surface)
-        );
-        --sa-color-accent-border: color-mix(in srgb, var(--sa-color-accent) 32%, transparent);
-
-        --sa-color-positive: var(--sa-green-500);
-        --sa-color-positive-strong: var(--sa-green-500);
-        --sa-color-positive-fg: var(--sa-green-200);
-        --sa-color-positive-surface: color-mix(in srgb, var(--sa-green-500) 14%, transparent);
-        --sa-color-positive-surface-strong: color-mix(
-            in srgb,
-            var(--sa-green-500) 24%,
-            transparent
-        );
-        --sa-color-positive-border: color-mix(in srgb, var(--sa-green-500) 36%, transparent);
-
-        --sa-color-warning: var(--sa-amber-400);
-        --sa-color-warning-strong: var(--sa-amber-400);
-        --sa-color-warning-fg: var(--sa-amber-200);
-        --sa-color-warning-surface: color-mix(in srgb, var(--sa-amber-500) 14%, transparent);
-        --sa-color-warning-surface-strong: color-mix(in srgb, var(--sa-amber-500) 24%, transparent);
-        --sa-color-warning-border: color-mix(in srgb, var(--sa-amber-500) 36%, transparent);
-
-        --sa-color-negative: var(--sa-red-500);
-        --sa-color-negative-strong: var(--sa-red-500);
-        --sa-color-negative-fg: var(--sa-red-300);
-        --sa-color-negative-surface: color-mix(in srgb, var(--sa-red-500) 14%, transparent);
-        --sa-color-negative-surface-strong: color-mix(in srgb, var(--sa-red-500) 24%, transparent);
-        --sa-color-negative-border: color-mix(in srgb, var(--sa-red-500) 36%, transparent);
-
-        --sa-color-info: var(--sa-blue-500);
-        --sa-color-info-strong: var(--sa-blue-500);
-        --sa-color-info-fg: var(--sa-blue-200);
-        --sa-color-info-surface: color-mix(in srgb, var(--sa-blue-500) 14%, transparent);
-        --sa-color-info-surface-strong: color-mix(in srgb, var(--sa-blue-500) 24%, transparent);
-        --sa-color-info-border: color-mix(in srgb, var(--sa-blue-500) 36%, transparent);
-
-        --sa-color-scheduled: var(--sa-indigo-400);
-        --sa-color-scheduled-strong: var(--sa-indigo-400);
-        --sa-color-scheduled-fg: var(--sa-indigo-200);
-        --sa-color-scheduled-surface: color-mix(in srgb, var(--sa-indigo-400) 14%, transparent);
-        --sa-color-scheduled-surface-strong: color-mix(
-            in srgb,
-            var(--sa-indigo-400) 24%,
-            transparent
-        );
-        --sa-color-scheduled-border: color-mix(in srgb, var(--sa-indigo-400) 36%, transparent);
-
-        --sa-color-feature: var(--sa-violet-500);
-        --sa-color-feature-fg: var(--sa-violet-200);
-        --sa-color-feature-surface: color-mix(in srgb, var(--sa-violet-500) 16%, transparent);
-        --sa-color-quota: var(--sa-sky-500);
-        --sa-color-quota-surface: color-mix(in srgb, var(--sa-sky-500) 16%, transparent);
-        --sa-color-quota-border: color-mix(in srgb, var(--sa-sky-500) 36%, transparent);
-        --sa-color-bundle: var(--sa-amber-500);
-        --sa-color-bundle-surface: color-mix(in srgb, var(--sa-amber-500) 16%, transparent);
-
-        --sa-color-inverse-bg: var(--sa-neutral-950);
-        --sa-color-inverse-surface: var(--sa-neutral-800);
-        --sa-color-inverse-surface-soft: var(--sa-neutral-600);
-        --sa-color-inverse-fg: var(--sa-white);
-        --sa-color-inverse-fg-muted: var(--sa-neutral-300);
-        --sa-color-inverse-accent: var(--sa-amber-400);
-        --sa-color-inverse-accent-strong: var(--sa-amber-600);
-        --sa-color-inverse-accent-surface: color-mix(in srgb, var(--sa-amber-500) 15%, transparent);
-        --sa-color-inverse-accent-surface-strong: color-mix(
-            in srgb,
-            var(--sa-amber-500) 22%,
-            transparent
-        );
-        --sa-color-inverse-accent-fg: var(--sa-neutral-900);
-        --sa-color-inverse-fg-subtle: color-mix(in srgb, var(--sa-white) 55%, transparent);
-        --sa-color-inverse-border: color-mix(in srgb, var(--sa-white) 8%, transparent);
-        --sa-color-inverse-border-strong: color-mix(in srgb, var(--sa-white) 16%, transparent);
-
-        --sa-color-focus-ring: color-mix(in srgb, var(--sa-color-accent) 45%, transparent);
-        --sa-color-selection: color-mix(in srgb, var(--sa-color-accent) 30%, transparent);
-
-        --sa-shadow-ink: var(--sa-black);
-        --sa-shadow-tint-1: color-mix(in srgb, var(--sa-shadow-ink) 24%, transparent);
-        --sa-shadow-tint-2: color-mix(in srgb, var(--sa-shadow-ink) 32%, transparent);
-        --sa-shadow-tint-3: color-mix(in srgb, var(--sa-shadow-ink) 44%, transparent);
-        --sa-shadow-tint-4: color-mix(in srgb, var(--sa-shadow-ink) 60%, transparent);
-
-        --sa-shadow-0: none;
-        --sa-shadow-1: 0 1px 2px var(--sa-shadow-tint-1);
-        --sa-shadow-2: 0 2px 6px var(--sa-shadow-tint-2);
-        --sa-shadow-3: 0 8px 20px var(--sa-shadow-tint-3);
-        --sa-shadow-4: 0 20px 48px var(--sa-shadow-tint-4);
-        --sa-shadow-focus: 0 0 0 3px var(--sa-color-focus-ring);
-
-        --sa-elevation-tile: var(--sa-shadow-1);
-        --sa-elevation-card: var(--sa-shadow-2);
-        --sa-elevation-menu: var(--sa-shadow-3);
-        --sa-elevation-dialog: var(--sa-shadow-4);
-    }
 }

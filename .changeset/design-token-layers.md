@@ -38,6 +38,14 @@ a contrast check rather than by a second set of screenshots: the canvas must get
 darker, most text colours must move, and nothing may fall under 3:1 in either
 theme.
 
+The stylesheet itself does **not** answer `prefers-color-scheme`, deliberately.
+It paints the platform's surfaces while Quasar paints its own cards, dialogs and
+steppers, and Quasar follows only `body--dark` — so a media query there moves
+one half of the screen and leaves the other. Following the OS lives in
+`createSaTheme`, where the bridge moves both. An app that embeds tenant pages
+and wants OS-following dark opts in with
+`bindSaThemeToDocument(createSaTheme())`.
+
 **Also:** the spacing, type, radius, shadow, z-index and breakpoint scales;
 `--sa-radius-pill`; and a fix for `--sa-color-fg-subtle`, which was reading
 2.56:1 on a white card — captions and price units were decoration rather than

@@ -315,3 +315,52 @@ test.describe('both themes are readable', () => {
         });
     }
 });
+
+test.describe('an embedded consumer stays in step with its host', () => {
+    // The case: an app that loads `theme.css` for the tenant-facing pages and
+    // never runs the bridge, on a machine whose OS is set to dark. That is
+    // `examples/notesapp/web`, and every consumer embedding `pages-tenant/*`.
+    //
+    // The stylesheet used to answer the operating system directly, and the
+    // measurement below is why it no longer does: it paints the platform's
+    // surfaces and Quasar paints its own cards, steppers and separators, and
+    // Quasar follows only `body--dark`. One of them moved, the other did not.
+    test.use({ colorScheme: 'dark' });
+
+    test('the OS alone does not put the platform into dark mode', async ({ page }) => {
+        await page.goto('/?page=audit');
+        await page.waitForSelector('body[data-visual-ready="true"]');
+
+        const reading = await page.evaluate(() => {
+            // Undo what the fixture's bridge did, leaving the embedded case.
+            document.documentElement.removeAttribute('data-sa-theme');
+            document.body.classList.remove('body--dark');
+
+            const host = document.querySelector('.sa-section') as HTMLElement;
+            const quasarPaints = (className: string) => {
+                const el = document.createElement('div');
+                el.className = className;
+                host.appendChild(el);
+                const background = getComputedStyle(el).backgroundColor;
+                el.remove();
+                return background;
+            };
+            return {
+                osPrefersDark: matchMedia('(prefers-color-scheme: dark)').matches,
+                platformSurface: getComputedStyle(host).backgroundColor,
+                quasarCard: quasarPaints('q-card'),
+            };
+        });
+
+        // Without this the case is vacuous: it only means something while the
+        // browser really is reporting a dark preference.
+        expect(reading.osPrefersDark, 'the dark OS preference was not emulated').toBe(true);
+
+        expect(
+            reading.platformSurface,
+            'the platform went dark from the operating system while Quasar did not — ' +
+                `its cards are still ${reading.quasarCard}. The application has to ` +
+                'decide, because it is the only one that can move both halves.',
+        ).toBe(reading.quasarCard);
+    });
+});
