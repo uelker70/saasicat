@@ -14,6 +14,12 @@
  * `setCssVar('primary', …)`) and the admin, Quasar's own components and the
  * tenant-facing pages all follow one value instead of three.
  *
+ * To override a ROLE rather than the brand, write both of its values, on the
+ * same selectors the theme uses — `:root` for light, and
+ * `[data-sa-theme='dark'], body.body--dark` for dark. A role has two values, so
+ * an override has two, and `:root` alone silently loses in the Quasar-triggered
+ * dark path. `docs/design-guide.md#overriding-a-role` has the measurements.
+ *
  * Nothing in this repository or in the scaffolder template overrode an `--sa-*`
  * name; that was checked before choosing this direction.
  *

@@ -67,7 +67,25 @@ properties and `.sa-*` classes, and every rule is scoped under `.sa-page`.
 
 **If you override an `--sa-*` variable in your own CSS**, reading still works;
 setting no longer does. The old names are aliases of the roles now. Set
-`$primary` for the brand, or override the `--sa-color-*` role directly.
+`$primary` for the brand — that is the whole answer for the common case.
+
+To override a **role**, write both of its values, on the same selectors the
+theme uses:
+
+```css
+:root {
+    --sa-color-negative: #a3122b;
+}
+[data-sa-theme='dark'],
+body.body--dark {
+    --sa-color-negative: #ff6b81;
+}
+```
+
+A role has two values, so an override has two. `:root` alone is not enough and
+fails differently per trigger — under Quasar's `body--dark` the roles are
+declared on `<body>`, and an inherited `:root` value never reaches past that.
+See the design guide.
 
 **Expect a visual change.** Colours that were three near-identical greens
 collapse to one success colour, the same for the browns and the reds; the type

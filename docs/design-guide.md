@@ -186,13 +186,30 @@ family exists.
 
 Nothing in a page knows a dark theme exists. Use roles and it follows.
 
-Three ways in, and no fourth:
+Two ways in, and both mean _the application decided_:
 
-| Trigger                                        | Who decided                                        |
-| ---------------------------------------------- | -------------------------------------------------- |
-| `[data-sa-theme='dark']` on `<html>`           | the app, e.g. `handle.theme.scheme.value = 'dark'` |
-| `body.body--dark`                              | Quasar — `$q.dark.set(true)`                       |
-| `prefers-color-scheme: dark`, no attribute set | the operating system, unoverruled                  |
+| Trigger                              | Who decided                                        |
+| ------------------------------------ | -------------------------------------------------- |
+| `[data-sa-theme='dark']` on `<html>` | the app, e.g. `handle.theme.scheme.value = 'dark'` |
+| `body.body--dark`                    | Quasar — `$q.dark.set(true)`                       |
+
+**The stylesheet does not answer `prefers-color-scheme`, on purpose.** It paints
+the platform's surfaces; Quasar paints its own cards, dialogs and steppers, and
+Quasar follows only `body--dark`. A media query in the stylesheet moves one of
+them and leaves the other — measured on an embedded page with a dark OS, that
+was a white card carrying near-white text.
+
+Following the OS therefore lives one level up, where both halves move together:
+`scheme: 'system'` is the default and subscribes to `prefers-color-scheme` live.
+`createSuperAdminApp` wires it, so the admin shell follows the OS out of the
+box. An app that embeds `pages-tenant/*` and wants the same says so:
+
+```ts
+import { createSaTheme } from '@saasicat/ui-vue';
+import { bindSaThemeToDocument } from '@saasicat/ui-vue/quasar';
+
+bindSaThemeToDocument(createSaTheme());
+```
 
 ```ts
 const handle = createSuperAdminApp({ /* … */, theme: { scheme: 'system' } });
@@ -207,6 +224,38 @@ alone leaves half the screen behind.
 **What does not flip:** the brand accent, and the inverse chrome. A green product
 stays green in the dark, and a surface that is dark on purpose does not become
 light. Everything else does.
+
+### Overriding a role
+
+A role has **two** values, so an override has two. Write them on the same
+selectors the theme uses, from a stylesheet that loads after it:
+
+```css
+:root {
+    --sa-color-negative: #a3122b;
+}
+[data-sa-theme='dark'],
+body.body--dark {
+    --sa-color-negative: #ff6b81;
+}
+```
+
+**Overriding on `:root` alone does not work, and it fails three different ways** —
+measured, and pinned by a test so this stays true:
+
+|                           | `:root` only                            | both selectors  |
+| ------------------------- | --------------------------------------- | --------------- |
+| light                     | your value                              | your value      |
+| dark, via `data-sa-theme` | your value — the **dark theme** is lost | your dark value |
+| dark, via Quasar          | **your override is lost**               | your dark value |
+
+The last row is the one that bites. Quasar's trigger declares the roles on
+`<body>`, and a value declared on a closer ancestor beats an inherited one no
+matter what the specificity or the order says — so everything inside the body
+inherits the platform's value and never sees yours.
+
+For the brand you do not need any of this: set `$primary` and the accent
+follows.
 
 ---
 

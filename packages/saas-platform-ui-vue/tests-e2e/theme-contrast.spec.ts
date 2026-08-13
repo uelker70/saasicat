@@ -364,3 +364,84 @@ test.describe('an embedded consumer stays in step with its host', () => {
         ).toBe(reading.quasarCard);
     });
 });
+
+test.describe('a consumer can override a role', () => {
+    // The documented recipe (docs/design-guide.md#overriding-a-role) and the
+    // warning that comes with it, both pinned by measurement.
+    //
+    // The warning is the half worth testing: `:root` alone LOOKS like it works,
+    // because it does in light mode and in one of the two dark paths. It fails
+    // silently in the other — Quasar's trigger declares the roles on `<body>`,
+    // and a value on a closer ancestor beats an inherited one whatever the
+    // specificity says. A caveat nobody can reproduce becomes folklore and then
+    // gets deleted; this one stays reproducible.
+
+    const OVERRIDE = '--sa-color-negative';
+
+    async function sweep(page: Page, css: string) {
+        return page.evaluate(
+            ({ css, name }) => {
+                const sheet = document.createElement('style');
+                sheet.textContent = css;
+                document.head.appendChild(sheet);
+
+                const target = document.querySelector('.sa-section') as HTMLElement;
+                const read = () => getComputedStyle(target).getPropertyValue(name).trim();
+                const set = (mode: 'light' | 'attribute' | 'quasar') => {
+                    document.documentElement.removeAttribute('data-sa-theme');
+                    document.body.classList.remove('body--dark');
+                    if (mode === 'attribute') {
+                        document.documentElement.setAttribute('data-sa-theme', 'dark');
+                    }
+                    if (mode === 'quasar') document.body.classList.add('body--dark');
+                };
+
+                const result = {
+                    light: (set('light'), read()),
+                    darkViaAttribute: (set('attribute'), read()),
+                    darkViaQuasar: (set('quasar'), read()),
+                };
+                sheet.remove();
+                set('light');
+                return result;
+            },
+            { css, name: OVERRIDE },
+        );
+    }
+
+    test('written per theme, it takes effect everywhere', async ({ page }) => {
+        await page.goto('/?page=audit');
+        await page.waitForSelector('body[data-visual-ready="true"]');
+
+        const result = await sweep(
+            page,
+            `:root { ${OVERRIDE}: rgb(1, 2, 3); }\n` +
+                `[data-sa-theme='dark'], body.body--dark { ${OVERRIDE}: rgb(4, 5, 6); }`,
+        );
+
+        expect(result).toEqual({
+            light: 'rgb(1, 2, 3)',
+            darkViaAttribute: 'rgb(4, 5, 6)',
+            darkViaQuasar: 'rgb(4, 5, 6)',
+        });
+    });
+
+    test('written on :root alone, it does not — and that is why the guide says so', async ({
+        page,
+    }) => {
+        await page.goto('/?page=audit');
+        await page.waitForSelector('body[data-visual-ready="true"]');
+
+        const result = await sweep(page, `:root { ${OVERRIDE}: rgb(1, 2, 3); }`);
+
+        expect(result.light, 'light mode is the case that makes this look fine').toBe(
+            'rgb(1, 2, 3)',
+        );
+        expect(
+            result.darkViaQuasar,
+            'the override survived Quasar-triggered dark mode. If CSS or this ' +
+                'stylesheet changed so that it now does, delete the warning from the ' +
+                'design guide — it would be describing a problem that no longer exists.',
+        ).not.toBe('rgb(1, 2, 3)');
+    });
+});
