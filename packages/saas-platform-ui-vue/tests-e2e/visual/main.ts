@@ -144,7 +144,9 @@ app.use(Quasar, {
         // record Quasar's own dialog — white on a dark page — as the truth.
         globalNodes: { class: SA_PORTAL_CLASS },
     },
-} as Parameters<typeof app.use<QuasarPluginOptions>>[1]);
+    // Same cast, same reason as in `createSuperAdminApp`: `globalNodes` is a
+    // documented Quasar option its own types do not declare.
+} as QuasarPluginOptions);
 app.use(createPinia());
 app.use(
     createRouter({
