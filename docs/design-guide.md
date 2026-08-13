@@ -169,7 +169,7 @@ their own colour to say it before this existed.
 the review and the discovery page all render the same dots; without shared roles
 the same colour meant two things on two screens.
 
-### Inverse chrome
+### Surfaces that do not follow the theme
 
 The header, the drawer and the login backdrop are dark **by design**, in both
 themes. They use `--sa-color-inverse-*` — `-bg`, `-surface`, `-surface-soft`,
@@ -179,6 +179,17 @@ those are declared identically in both themes on purpose. A role that flipped
 would turn the drawer's labels black on black the moment somebody enabled dark
 mode. That defect was in the login page's backdrop gradient and is why the
 family exists.
+
+Two more surfaces are loud rather than dark, for the same reason and with the
+same rule: the production banner (`--sa-color-inverse-danger`) and the plan-diff
+hero (`--sa-color-inverse-notice`). Their text is white and stays white, so the
+surface underneath has to stay dark enough for it — and the `negative` and
+`warning` roles deliberately lighten in dark mode, because they are meant for
+text ON dark surfaces rather than beneath it.
+
+**The rule, in one line:** if a surface is painted the same in both themes, every
+role on it must be one that does not flip. A test enforces it, deriving "flips"
+by comparing the two theme files rather than from a list.
 
 ---
 

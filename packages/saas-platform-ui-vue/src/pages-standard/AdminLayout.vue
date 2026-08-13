@@ -314,7 +314,15 @@ const currentPageTitle = computed(() => {
     text-transform: uppercase;
 }
 .sa-admin-banner--prod {
-    background: linear-gradient(90deg, var(--sa-color-negative-fg), var(--sa-color-negative));
+    /* Invariant on purpose: this strip says "you are on production", and its
+     * white text has to stay readable in both themes. The `negative` roles
+     * lighten in dark — for text ON dark surfaces — and would take this one to
+     * 1.9:1. */
+    background: linear-gradient(
+        90deg,
+        var(--sa-color-inverse-danger),
+        var(--sa-color-inverse-danger-strong)
+    );
     color: var(--sa-color-inverse-fg);
 }
 

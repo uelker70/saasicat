@@ -6,9 +6,10 @@
 //   Quasar's `Dark.set()`       drives q-card, q-table, q-menu, q-dialog …
 //
 // The stylesheet already accepts Quasar's `body--dark` as a dark trigger, so an
-// app that only calls `$q.dark.set(true)` is complete without this module. This
-// is the other direction — an operator switching the theme in the admin's own
-// header — and it exists so there is exactly one switch either way.
+// app that only calls `$q.dark.set(true)` is complete without this module. What
+// the bridge adds is the other direction — an operator switching the theme in
+// the admin's own header — and, once both exist, keeping them from disagreeing:
+// it watches BOTH and writes each into the other.
 
 import { Dark } from 'quasar';
 import { watch, type WatchStopHandle } from 'vue';
@@ -30,7 +31,7 @@ import type { SaTheme } from '../vue/use-sa-theme.js';
  * `createSuperAdminApp` does exactly that, seeding from `Dark.isActive`.
  */
 export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
-    return watch(
+    const toQuasar = watch(
         theme.resolved,
         (resolved) => {
             if (typeof document !== 'undefined') {
@@ -40,4 +41,26 @@ export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
         },
         { immediate: true },
     );
+
+    // …and back. An app with its own toggle calls `$q.dark.set(false)`, which
+    // this side of the bridge never hears: the theme has not changed, so
+    // `data-sa-theme="dark"` stays on `<html>` while Quasar goes light. That is
+    // the half-dark screen the bridge exists to prevent, arriving from the
+    // other direction.
+    //
+    // No loop: the write-back only fires when Quasar and the theme actually
+    // disagree, and setting the scheme drives `resolved` to the value Quasar
+    // already has, so the outbound watcher's `Dark.set` is a no-op.
+    const fromQuasar = watch(
+        () => Dark.isActive,
+        (isDark) => {
+            const asScheme = isDark ? 'dark' : 'light';
+            if (theme.resolved.value !== asScheme) theme.scheme.value = asScheme;
+        },
+    );
+
+    return () => {
+        toQuasar();
+        fromQuasar();
+    };
 }

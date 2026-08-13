@@ -1,5 +1,5 @@
 import { describe, expect, test, beforeEach } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 import { Dark } from 'quasar';
 
 import { createSuperAdminApp } from '../src/quasar/create-super-admin-app.js';
@@ -142,6 +142,34 @@ describe('the bootstrap and an already-chosen theme', () => {
         const handle = bootstrap();
 
         expect(handle.theme.scheme.value).toBe('system');
+        handle.dispose();
+    });
+
+    test("Quasar's own toggle is carried back into the theme", async () => {
+        // The bridge used to be one-directional. An app with its own dark
+        // switch calling `$q.dark.set(false)` never reached the theme, so
+        // `data-sa-theme` stayed 'dark' while Quasar went light — the half-dark
+        // screen the bridge exists to prevent, arriving from the other side.
+        const handle = bootstrap({ theme: { scheme: 'dark', persist: false } });
+        expect(Dark.isActive).toBe(true);
+
+        Dark.set(false);
+        await nextTick();
+
+        expect(handle.theme.resolved.value, 'the theme ignored Quasar').toBe('light');
+        expect(document.documentElement.getAttribute('data-sa-theme')).toBe('light');
+        handle.dispose();
+    });
+
+    test('the two directions do not chase each other', async () => {
+        const handle = bootstrap({ theme: { scheme: 'light', persist: false } });
+
+        Dark.set(true);
+        await nextTick();
+        await nextTick();
+
+        expect(handle.theme.resolved.value).toBe('dark');
+        expect(Dark.isActive, 'the write-back bounced Quasar straight off again').toBe(true);
         handle.dispose();
     });
 

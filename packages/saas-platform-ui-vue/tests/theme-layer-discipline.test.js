@@ -173,10 +173,11 @@ describe('the token layers only point one way', () => {
         );
     });
 
-    test('the permanently dark chrome uses only roles that do not flip', () => {
-        // The header, the drawer, the login and setup backdrops are dark in
-        // BOTH themes. A role that flips is therefore wrong there by
-        // construction: `--sa-color-border` is a light grey in light mode and
+    test('surfaces that do not follow the theme use only roles that do not flip', () => {
+        // Some surfaces are painted the same in both themes on purpose: the
+        // header, the drawer, the login and setup backdrops are dark; the
+        // production banner is loud red; the diff hero is loud amber. A role
+        // that flips is therefore wrong on any of them by construction: `--sa-color-border` is a light grey in light mode and
         // `--sa-neutral-700` in dark, so a drawer icon painted with it went
         // from readable to about 1.8:1 on a surface that never moved.
         //
@@ -206,8 +207,8 @@ describe('the token layers only point one way', () => {
         );
         assert.ok(flips.size > 30, `only ${flips.size} roles differ between the themes`);
 
-        const CHROME =
-            /^\s*\.sa-(admin-header|admin-drawer|login-wrap|login-logo|setup-wrap|setup-badge)/;
+        const INVARIANT_SURFACE =
+            /^\s*\.sa-(admin-header|admin-drawer|admin-banner|login-wrap|login-logo|setup-wrap|setup-badge|pv-diff__hero)/;
         const offenders = [];
 
         for (const file of consumers) {
@@ -215,7 +216,7 @@ describe('the token layers only point one way', () => {
             // Rule by rule, so a selector is judged with its own declarations.
             for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
                 const [, selector, body] = match;
-                if (!CHROME.test(selector)) continue;
+                if (!INVARIANT_SURFACE.test(selector)) continue;
                 for (const role of body.matchAll(/var\(\s*(--sa-color-[\w-]+)/g)) {
                     if (!flips.has(role[1])) continue;
                     offenders.push(`${relative(SRC, file)}: ${selector.trim()} uses ${role[1]}`);

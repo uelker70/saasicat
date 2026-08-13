@@ -140,6 +140,10 @@ body.body--dark {
         transparent
     );
     --sa-color-inverse-accent-fg: var(--sa-neutral-900);
+    --sa-color-inverse-danger: var(--sa-red-700);
+    --sa-color-inverse-danger-strong: var(--sa-red-600);
+    --sa-color-inverse-notice: var(--sa-amber-600);
+    --sa-color-inverse-notice-strong: var(--sa-amber-700);
     --sa-color-inverse-fg-subtle: color-mix(in srgb, var(--sa-white) 55%, transparent);
     --sa-color-inverse-border: color-mix(in srgb, var(--sa-white) 8%, transparent);
     --sa-color-inverse-border-strong: color-mix(in srgb, var(--sa-white) 16%, transparent);

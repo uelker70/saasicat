@@ -208,7 +208,13 @@ function directionFor(delta: number, polarity: 'higher' | 'lower'): VersionChang
     width: 44px;
     height: 44px;
     border-radius: 10px;
-    background: linear-gradient(135deg, var(--sa-color-warning-strong), var(--sa-color-warning));
+    /* Invariant: the icon inside is explicitly white. The `warning` roles
+     * lighten in dark, which would leave it at 1.67:1 on its own badge. */
+    background: linear-gradient(
+        135deg,
+        var(--sa-color-inverse-notice),
+        var(--sa-color-inverse-notice-strong)
+    );
     display: flex;
     align-items: center;
     justify-content: center;
