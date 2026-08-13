@@ -30,7 +30,7 @@ defineProps<{
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--sa-color-fg-heading);
+    background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
     padding: 12px 18px;
     border-radius: 10px;
@@ -49,8 +49,8 @@ defineProps<{
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: var(--sa-color-positive-strong);
-    color: var(--sa-color-fg-on-accent);
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     display: grid;
     place-items: center;
     flex: 0 0 auto;

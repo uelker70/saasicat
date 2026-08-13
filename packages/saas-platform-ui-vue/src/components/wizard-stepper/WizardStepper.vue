@@ -68,7 +68,7 @@ defineProps<{
     color: var(--sa-color-fg-muted);
 }
 .wz-step--current {
-    background: var(--sa-color-fg-heading);
+    background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
 }
 .wz-step--done {

@@ -1034,8 +1034,8 @@ async function onLocaleChange(loc: string): Promise<void> {
 .sa-marketing-tab-count {
     display: inline-block;
     margin-left: 5px;
-    background: var(--sa-color-positive-strong);
-    color: var(--sa-color-fg-on-accent);
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     font-size: var(--sa-text-2xs);
     font-weight: 700;
     padding: 1px 6px;

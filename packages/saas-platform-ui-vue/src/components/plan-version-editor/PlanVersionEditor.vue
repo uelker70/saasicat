@@ -924,7 +924,7 @@ function emitSave(): void {
     gap: 6px;
 }
 .pve-tab--active {
-    background: var(--sa-color-fg-heading);
+    background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
 }
 .pve-tab-count {
@@ -1420,7 +1420,7 @@ function emitSave(): void {
     width: 100%;
     margin-top: 14px;
     padding: 10px;
-    background: var(--sa-color-fg-heading);
+    background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
     border: 0;
     border-radius: 7px;

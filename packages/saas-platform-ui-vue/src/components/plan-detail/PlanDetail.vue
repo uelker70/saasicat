@@ -574,8 +574,8 @@ async function executeTerminate(): Promise<void> {
     color: var(--sa-color-fg-secondary);
 }
 .pd-timeline-seg.live {
-    background: var(--sa-color-positive-strong);
-    color: var(--sa-color-fg-on-accent);
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
     font-weight: 700;
 }
 .pd-timeline-seg.draft {
@@ -986,7 +986,7 @@ async function executeTerminate(): Promise<void> {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: var(--sa-color-fg-heading);
+    background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
     display: grid;
     place-items: center;

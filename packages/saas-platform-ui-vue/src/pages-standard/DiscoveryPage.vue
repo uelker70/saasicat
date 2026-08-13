@@ -469,8 +469,8 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--sa-color-fg-heading);
-    color: var(--sa-color-border);
+    background: var(--sa-color-inverse-bg);
+    color: var(--sa-color-inverse-fg-muted);
     border-radius: 12px;
     padding: 14px 18px;
 }

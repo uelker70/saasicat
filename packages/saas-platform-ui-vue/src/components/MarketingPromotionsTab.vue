@@ -605,8 +605,8 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-color-positive-fg);
 }
 .mc-promo-stat.scheduled {
-    background: var(--sa-color-info-surface-strong);
-    color: var(--sa-color-accent-strong);
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
 }
 .mc-promo-stat.expired {
     background: var(--sa-color-border-soft);
@@ -766,8 +766,8 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-color-positive-fg);
 }
 .mc-promo-status.scheduled {
-    background: var(--sa-color-info-surface-strong);
-    color: var(--sa-color-accent-strong);
+    background: var(--sa-color-scheduled-surface);
+    color: var(--sa-color-scheduled-fg);
 }
 .mc-promo-status.expired {
     background: var(--sa-color-border-soft);

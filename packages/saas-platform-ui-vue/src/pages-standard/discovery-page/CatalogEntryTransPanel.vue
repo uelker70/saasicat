@@ -189,7 +189,7 @@ function copyFromDefault(locale: string): void {
 .sa-trans-lang__code {
     font-size: var(--sa-text-2xs);
     font-weight: 700;
-    background: var(--sa-color-fg-heading);
+    background: var(--sa-color-inverse-bg);
     color: var(--sa-color-fg-on-accent);
     padding: 2px 6px;
     border-radius: 5px;
