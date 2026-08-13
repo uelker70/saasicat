@@ -149,6 +149,65 @@ describe('the token layers only point one way', () => {
         );
     });
 
+    test('the permanently dark chrome uses only roles that do not flip', () => {
+        // The header, the drawer, the login and setup backdrops are dark in
+        // BOTH themes. A role that flips is therefore wrong there by
+        // construction: `--sa-color-border` is a light grey in light mode and
+        // `--sa-neutral-700` in dark, so a drawer icon painted with it went
+        // from readable to about 1.8:1 on a surface that never moved.
+        //
+        // That is not hypothetical — it is how three foregrounds here were
+        // written, and neither the baselines nor the contrast check found them:
+        // `AdminLayout` is a layout, so it is in no page roster. A source rule
+        // is the guard that reaches it.
+        // "Flips" is derived, not listed: a role counts only if the two theme
+        // files really give it different values. The first version flagged any
+        // non-inverse role and reported `--sa-color-fg-on-accent`, which is
+        // white in both — an allow-list would have hidden that the rule was
+        // asking the wrong question.
+        const valuesOf = (name) =>
+            new Map(
+                [
+                    ...withoutComments(readFileSync(join(THEME, name), 'utf8')).matchAll(
+                        /(--sa-color-[\w-]+)\s*:\s*([^;]+);/g,
+                    ),
+                ].map((m) => [m[1], m[2].replace(/\s+/g, ' ').trim()]),
+            );
+        const lightValues = valuesOf('tokens.semantic.light.css');
+        const darkValues = valuesOf('tokens.semantic.dark.css');
+        const flips = new Set(
+            [...lightValues.keys()].filter(
+                (role) => lightValues.get(role) !== darkValues.get(role),
+            ),
+        );
+        assert.ok(flips.size > 30, `only ${flips.size} roles differ between the themes`);
+
+        const CHROME =
+            /^\s*\.sa-(admin-header|admin-drawer|login-wrap|login-logo|setup-wrap|setup-badge)/;
+        const offenders = [];
+
+        for (const file of consumers) {
+            const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
+            // Rule by rule, so a selector is judged with its own declarations.
+            for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+                const [, selector, body] = match;
+                if (!CHROME.test(selector)) continue;
+                for (const role of body.matchAll(/var\(\s*(--sa-color-[\w-]+)/g)) {
+                    if (!flips.has(role[1])) continue;
+                    offenders.push(`${relative(SRC, file)}: ${selector.trim()} uses ${role[1]}`);
+                }
+            }
+        }
+
+        assert.deepEqual(
+            offenders,
+            [],
+            'a permanently dark surface painted with a role that flips. Use the ' +
+                '`--sa-color-inverse-*` family, which is declared identically in both ' +
+                'themes precisely so this cannot happen.',
+        );
+    });
+
     test('pages and components do not reach past the roles into the palette', () => {
         const offenders = consumers.flatMap((file) => findings(file, COLOUR_PRIMITIVE));
         assert.deepEqual(

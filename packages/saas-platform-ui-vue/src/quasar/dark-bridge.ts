@@ -22,6 +22,12 @@ import type { SaTheme } from '../vue/use-sa-theme.js';
  * `immediate` is not optional: at bootstrap the stored pick is already resolved
  * and nothing has painted yet, so a first-change-only watcher would render one
  * frame in the wrong theme on every reload.
+ *
+ * That first tick MIRRORS, it does not negotiate — whatever `theme.resolved`
+ * says is written to Quasar, including `Dark.set(false)`. So a caller that
+ * bootstraps with Quasar already dark has to say so when it builds the theme,
+ * or its own choice is erased one line after it was applied.
+ * `createSuperAdminApp` does exactly that, seeding from `Dark.isActive`.
  */
 export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
     return watch(
