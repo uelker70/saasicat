@@ -497,7 +497,7 @@ function onCancel(): void {
     display: inline-flex;
 }
 
-@media (max-width: 540px) {
+@media (max-width: 599.98px) {
     .pcd-row--2col,
     .pcd-choice-grid {
         grid-template-columns: 1fr;

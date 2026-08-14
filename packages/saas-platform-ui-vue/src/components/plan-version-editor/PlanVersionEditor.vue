@@ -1547,12 +1547,12 @@ function emitSave(): void {
 }
 
 /* ── Responsive ────────────────────────────────────────────────── */
-@media (max-width: 1280px) {
+@media (max-width: 1439.98px) {
     .pve-body {
         grid-template-columns: 320px 1fr 360px;
     }
 }
-@media (max-width: 1100px) {
+@media (max-width: 1023.98px) {
     .pve-body {
         grid-template-columns: 1fr;
         overflow-y: auto;

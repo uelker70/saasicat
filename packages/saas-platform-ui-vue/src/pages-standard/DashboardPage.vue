@@ -215,7 +215,10 @@ const cards = reactive<KpiCardState[]>([]);
 const loading = ref(false);
 const error = ref<Error | null>(null);
 
-const defaultBarColor = 'linear-gradient(90deg, #3f6bff, #1d4ed8)';
+// Two stops of the brand accent rather than two fixed blues: a host that sets
+// its own `$primary` had a brand-coloured admin with platform-blue KPI bars.
+const defaultBarColor =
+    'linear-gradient(90deg, var(--sa-color-accent), var(--sa-color-accent-strong))';
 
 watch(
     () => props.manifest,
@@ -412,7 +415,7 @@ function barWidth(value: number, max?: number): number {
     margin-bottom: 14px;
     align-items: start;
 }
-@media (max-width: 1280px) {
+@media (max-width: 1439.98px) {
     .sa-dashboard__rows {
         grid-template-columns: 1fr;
     }

@@ -37,20 +37,61 @@ const FLOORS = {
         floor: 0,
         why: '`color: white` is a literal that hid from both patterns above',
     },
-    // A ratchet whose floor it has not reached, and that is the point: these sit
-    // in TypeScript and reach the DOM through a `:style` binding, so no codemod
-    // may touch them and each one is a judgement about which role it means. What
-    // the number must not do is grow — every one of them is a place the theme
-    // cannot reach, and a diff dialog kept fixed light rows in dark mode for
-    // exactly this reason.
+    // These sit in TypeScript and reach the DOM through a `:style` binding, so
+    // no codemod may touch them and each one was a judgement about which role it
+    // means. All 56 are now roles: the five duplicated accent ramps became one
+    // in the theme, and `DIFF_STYLE` reads roles.
     'scriptColors.total': { floor: 0, why: 'an inline style can read a role token too' },
-    distinctPixelValues: { floor: 12, why: 'the 12-step spacing scale' },
+    // The half of that debt a literal count cannot see. `accent + '15'` contains
+    // no colour, so `scriptColors` read 0 while two backgrounds rendered fully
+    // transparent — the trick needs a six-digit hex and the accents had just
+    // become `var()`. Zero from the start: unlike a literal, there is never a
+    // reason to keep one.
+    'alphaConcats.total': {
+        floor: 0,
+        why: 'color-mix(in srgb, X n%, transparent) works for a var() too',
+    },
+    // `distinctPixelValues` used to sit here and is gone on purpose, not to make
+    // a number go away. It asked one question of three different things:
+    // `padding: 6px` (a scale should answer it), `max-width: 1100px` (a
+    // one-off decision) and `@media (max-width: 980px)` (a breakpoint). The
+    // three metrics that replace it are each stricter than it was, and between
+    // them they cover every pixel it covered:
+    //
+    //   scalePixels      floor 0     — every one must read a token
+    //   dimensionPixels  ratchet     — a measurement is not a rung
+    //   offScaleBreakpoints floor 0  — every reflow point is one of Quasar's
+    // Zero, not "at most twelve distinct" — a strictly stronger rule, on the
+    // properties where a scale means something. Every one of these must read a
+    // token, so what is left is by construction the list of values that are not
+    // on the scale. Baselined at today's count because the migration itself is
+    // a layout change and belongs in its own pass.
+    'scalePixels.total': { floor: 0, why: 'padding, margin, gap, inset and radius read the scale' },
+    // A ratchet with no target at all, and that is the point. A drawer being
+    // 280px wide is a decision taken once; collapsing 59 such measurements onto
+    // twelve values would be ceremony, not clarity — the same reason 0/1/2px
+    // are exempt above. What it must not do is grow.
+    'dimensionPixels.total': {
+        floor: 0,
+        why: 'a one-off measurement is a decision, not a rung — this one only ratchets',
+    },
     // Zero, not "nine steps": this metric counts LITERAL sizes, and once every
     // declaration reads `var(--sa-text-*)` there are none left to count. The
     // scale itself is enforced where it can be — `theme-layer-discipline`
     // asserts that no `font-size` in the package names a number.
     distinctFontSizes: { floor: 0, why: 'every size reads a step of the type scale' },
-    distinctBreakpoints: { floor: 5, why: 'xs/sm/md/lg/xl, aligned with Quasar' },
+    // Informational, floor 0. The old floor of 5 asked "how many", and the
+    // package legitimately needs only three of Quasar's bands — with 5 as a
+    // floor, arriving at the goal made the baseline undershoot it and the
+    // second assertion below fire. The rule that matters is the next one.
+    distinctBreakpoints: { floor: 0, why: "fewer of Quasar's bands than five is not debt" },
+    // The actual rule: a value Quasar does not share. A component that reflows
+    // at 980px inside an app whose grid moves at 1024px leaves a 44px band
+    // where the two disagree, and the package had six such values.
+    'offScaleBreakpoints.total': {
+        floor: 0,
+        why: "every reflow point is one of Quasar's own bands",
+    },
     'selfReferencingVars.total': { floor: 0, why: 'var(--x, var(--x)) is never meaningful' },
     worstStyleShare: { floor: 0.25, why: 'layout only; colour and surface come from primitives' },
 };

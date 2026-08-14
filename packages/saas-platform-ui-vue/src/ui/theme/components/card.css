@@ -32,6 +32,32 @@
     color: var(--sa-color-fg-body);
 }
 
+/* Quasar's stepper, for the same reason and one component further along.
+ *
+ * Only the steps you are NOT on. Their titles are a hard-coded grey —
+ * `rgb(158,158,158)`, 2.68:1 on a white card — which is below the floor for
+ * text whose whole job is to say which steps exist. The ACTIVE step is left
+ * alone: Quasar marks it `text-primary`, and that accent is the "you are here"
+ * affordance. A first attempt here painted every title with the heading role
+ * and quietly took that affordance away; the baseline diff showed it.
+ *
+ * The theme could not see any of this until the contrast checker learned to
+ * look inside teleported nodes: the only stepper in the package is in a dialog.
+ */
+.sa-page .q-stepper,
+.sa-portal .q-stepper {
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-body);
+}
+.sa-page .q-stepper__tab:not(.q-stepper__tab--active) .q-stepper__title,
+.sa-portal .q-stepper__tab:not(.q-stepper__tab--active) .q-stepper__title {
+    color: var(--sa-color-fg-muted);
+}
+.sa-page .q-stepper__caption,
+.sa-portal .q-stepper__caption {
+    color: var(--sa-color-fg-subtle);
+}
+
 .sa-card {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);

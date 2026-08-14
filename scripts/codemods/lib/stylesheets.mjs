@@ -15,8 +15,21 @@
 //      `color: #fff`; a single hex-to-token map would collapse the two and
 //      repaint half the admin white-on-white.
 
-/** Hex (3/4/6/8 digits) and the functional notations with literal channels. */
-const COLOUR_PATTERN = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)/g;
+/**
+ * Hex (3/4/6/8 digits) and the functional notations with LITERAL channels.
+ *
+ * The `(?![^)]*var\()` is what makes the second half of that sentence true.
+ * Without it the pattern also matched `rgb(var(--sa-shadow-ink) / 6%)` — an
+ * alpha derived from a theme-aware ink, which is the migration's goal, not its
+ * debt. A codemod that treats its own output as a site to rewrite has no fixed
+ * point.
+ *
+ * `token-audit.mjs` carries the identical guard on its `functionalColor`
+ * pattern. The two have to agree: the audit produces the worklist and this
+ * module performs the edit, so a literal only one of them recognises is either
+ * a site nobody fixes or an edit nobody asked for.
+ */
+const COLOUR_PATTERN = /#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\((?![^)]*var\()[^)]*\)/g;
 
 /**
  * Which paint job a declaration is doing.
@@ -60,6 +73,46 @@ export function styleBlocks(file, content) {
 }
 
 /**
+ * The same text with every comment replaced by spaces, character for character.
+ *
+ * Blanking rather than deleting is what makes the rest of this module safe: a
+ * deletion shifts every following index, and this module's whole contract is
+ * that it reports byte ranges in the ORIGINAL text. Equal-length spaces keep
+ * `scan[i]` and `text[i]` describing the same position while removing the
+ * comment from every structural decision.
+ *
+ * Quotes and comments have to be recognised in ONE pass, because each can
+ * appear inside the other: `content: "/*"` opens no comment, and a `'` inside
+ * a comment opens no string.
+ */
+function withCommentsBlanked(text) {
+    let out = '';
+    let quote = null;
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (quote) {
+            out += char;
+            if (char === quote && text[i - 1] !== '\\') quote = null;
+            continue;
+        }
+        if (char === '"' || char === "'") {
+            quote = char;
+            out += char;
+            continue;
+        }
+        if (char === '/' && text[i + 1] === '*') {
+            const close = text.indexOf('*/', i + 2);
+            const end = close === -1 ? text.length : close + 2;
+            out += ' '.repeat(end - i);
+            i = end - 1;
+            continue;
+        }
+        out += char;
+    }
+    return out;
+}
+
+/**
  * Declarations in a stylesheet, as `property` plus the exact span of the value.
  *
  * Hand-written rather than delegated to a CSS parser because the input is
@@ -69,15 +122,21 @@ export function styleBlocks(file, content) {
  *
  * Nested blocks (`@media`, `:deep()`) need no special handling — a declaration
  * is whatever sits between two block delimiters, at any depth.
+ *
+ * Scanning happens on a comment-blanked copy, so a comment can sit anywhere a
+ * space can without hiding the declaration behind it. `value` is sliced from
+ * that copy too: a colour inside a comment is prose, not paint, and reporting
+ * it would send a codemod to rewrite an explanation of the old value.
  */
 export function declarations(text) {
+    const scan = withCommentsBlanked(text);
     const found = [];
     let chunkStart = 0;
     let parens = 0;
     let quote = null;
 
     const flush = (end) => {
-        const chunk = text.slice(chunkStart, end);
+        const chunk = scan.slice(chunkStart, end);
         const colon = colonAt(chunk);
         if (colon !== -1) {
             const property = chunk.slice(0, colon).trim();
@@ -87,7 +146,7 @@ export function declarations(text) {
                 const valueStart = chunkStart + colon + 1;
                 found.push({
                     property,
-                    value: text.slice(valueStart, end),
+                    value: scan.slice(valueStart, end),
                     valueStart,
                     valueEnd: end,
                 });
@@ -96,19 +155,14 @@ export function declarations(text) {
         chunkStart = end + 1;
     };
 
-    for (let i = 0; i < text.length; i += 1) {
-        const char = text[i];
+    for (let i = 0; i < scan.length; i += 1) {
+        const char = scan[i];
         if (quote) {
-            if (char === quote && text[i - 1] !== '\\') quote = null;
+            if (char === quote && scan[i - 1] !== '\\') quote = null;
             continue;
         }
         if (char === '"' || char === "'") {
             quote = char;
-            continue;
-        }
-        if (char === '/' && text[i + 1] === '*') {
-            const end = text.indexOf('*/', i + 2);
-            i = end === -1 ? text.length : end + 1;
             continue;
         }
         if (char === '(') parens += 1;

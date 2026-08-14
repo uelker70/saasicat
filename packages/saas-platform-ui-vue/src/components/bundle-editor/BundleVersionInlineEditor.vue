@@ -506,7 +506,7 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     grid-template-columns: 1fr 1fr;
     gap: 18px;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1023.98px) {
     .bve-grid {
         grid-template-columns: 1fr;
     }

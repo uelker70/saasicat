@@ -99,6 +99,75 @@ function resolveColour(expression, table, depth = 0) {
     return null;
 }
 
+/** Splits at commas that sit outside any parentheses. */
+function splitTopLevel(text) {
+    const parts = [];
+    let depth = 0;
+    let start = 0;
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (char === '(') depth += 1;
+        else if (char === ')') depth -= 1;
+        else if (char === ',' && depth === 0) {
+            parts.push(text.slice(start, i));
+            start = i + 1;
+        }
+    }
+    parts.push(text.slice(start));
+    return parts;
+}
+
+const GRADIENT = /^(?:repeating-)?(?:linear|radial|conic)-gradient\(([\s\S]*)\)$/;
+
+/**
+ * Every opaque colour a text can end up sitting on, given a `background` value.
+ *
+ * A gradient is not one background but several, and until now it was none: the
+ * pattern here demanded a value starting with `var(--sa-`, so
+ * `background: var(--sa-admin-header-bg, linear-gradient(…))` resolved to
+ * `null` and the rule was skipped in silence. That is the shape of the header,
+ * the drawer logo, the login badge and the diff hero — in other words, exactly
+ * the surfaces that produced C10, C19 and C20. Both contrast checkers were
+ * blind to them, from opposite ends: this one could not read a gradient, and
+ * the browser one skips any element with a `background-image`.
+ *
+ * Every stop is judged rather than an average of them, because a gradient
+ * renders all of its stops somewhere by construction. Passing on the mean would
+ * be a verdict about a colour that appears nowhere on screen.
+ */
+function backgroundColours(expression, table, depth = 0) {
+    if (!expression || depth > 12) return [];
+    const value = expression.trim();
+
+    // Layered backgrounds: `background: <gradient>, <gradient>`. Judging every
+    // layer is the conservative direction — it can only add candidates.
+    const layers = splitTopLevel(value);
+    if (layers.length > 1) return layers.flatMap((l) => backgroundColours(l, table, depth + 1));
+
+    const gradient = GRADIENT.exec(value);
+    if (gradient) {
+        return splitTopLevel(gradient[1]).flatMap((argument) =>
+            // A stop is a colour followed by optional positions; the direction
+            // (`90deg`, `to right`, `in oklab`) is an argument that is not a
+            // colour. Both are handled by simply trying to resolve them: what
+            // is not a colour returns nothing and drops out.
+            backgroundColours(argument.trim().replace(/(\s+[^\s()]+)+$/, ''), table, depth + 1),
+        );
+    }
+
+    // A `var()` whose value may itself be a gradient, so this cannot delegate
+    // to `resolveColour` — that one only ever yields a single colour.
+    const asVar = /^var\(\s*(--[\w-]+)\s*(?:,\s*([\s\S]+))?\)$/.exec(value);
+    if (asVar) {
+        const declared = table.get(asVar[1]);
+        if (declared !== undefined) return backgroundColours(declared, table, depth + 1);
+        return asVar[2] ? backgroundColours(asVar[2], table, depth + 1) : [];
+    }
+
+    const rgba = resolveColour(value, table, depth);
+    return rgba ? [{ label: value, rgba }] : [];
+}
+
 const relativeLuminance = ([r, g, b]) => {
     const channel = (v) => {
         const s = v / 255;
@@ -145,14 +214,20 @@ function rolePairedRules() {
             // where the avatar hid: white initials on amber at 1.67:1, two
             // lines below a badge paired correctly. The resolver already walks
             // a fallback chain, so it decides what this cannot.
-            const background =
-                /(?:^|;|\s)background(?:-color)?\s*:\s*(var\(--sa-[^;]+?)\s*(?:;|$)/.exec(body);
+            // The whole value, not a value that must START with `var(--sa-`.
+            // The narrower pattern was what hid every gradient: a background
+            // written as `var(--knob, linear-gradient(…))` matched it, resolved
+            // to null one step later, and left no trace of having been skipped.
+            const background = /(?:^|;|\s)background(?:-color)?\s*:\s*([^;]+?)\s*(?:;|$)/.exec(
+                body,
+            );
             const foreground = /(?:^|;|\s)color\s*:\s*(var\(--sa-[^;]+?)\s*(?:;|$)/.exec(body);
             if (!background || !foreground) continue;
             rules.push({
                 file: relative(SRC, file),
                 selector: selector.trim().replace(/\s+/g, ' '),
                 background: background[1],
+                isGradient: /-gradient\(/.test(background[1]),
                 foreground: foreground[1],
             });
         }
@@ -175,6 +250,38 @@ describe('a role background and a role foreground stay readable together', () =>
         );
     });
 
+    test('gradient backgrounds are read, not skipped', () => {
+        // Without this the gradient support can rot back to `null` and every
+        // assertion below stays green — which is precisely how the surfaces
+        // behind C10, C19 and C20 went unjudged in the first place.
+        //
+        // Six is the measured number of rules that paint a gradient AND name a
+        // foreground in the same rule: the production banner, the header, the
+        // drawer logo, the login badge, the setup badge and the draft segment
+        // of the plan timeline. The package has 19 gradient backgrounds; the
+        // other 13 set no `color`, so they are the split-rule shape from C14
+        // and belong to the invariance rule in `theme-layer-discipline`, which
+        // reads role names and therefore sees through a gradient too.
+        const gradients = rules.filter((r) => r.isGradient);
+        assert.ok(gradients.length >= 6, `only ${gradients.length} gradient-backed rules found`);
+
+        const judged = gradients.filter((r) => backgroundColours(r.background, light).length > 1);
+        assert.ok(
+            judged.length >= 6,
+            `only ${judged.length} gradients yielded more than one colour stop`,
+        );
+
+        // The direction argument must not be mistaken for a stop, and a stop's
+        // position must not stop it being read.
+        assert.deepEqual(
+            backgroundColours(
+                'linear-gradient(90deg, var(--sa-color-inverse-bg) 0%, #ffffff 100%)',
+                light,
+            ).map((c) => c.rgba),
+            [resolveColour('var(--sa-color-inverse-bg)', light), [255, 255, 255, 1]],
+        );
+    });
+
     for (const [themeName, tokens] of [
         ['light', light],
         ['dark', dark],
@@ -184,25 +291,27 @@ describe('a role background and a role foreground stay readable together', () =>
             let judged = 0;
 
             for (const rule of rules) {
-                const background = resolveColour(rule.background, tokens);
                 const foreground = resolveColour(rule.foreground, tokens);
-                if (!background || !foreground) continue;
+                if (!foreground) continue;
 
-                // A translucent background sits on a backdrop this file cannot
-                // know — the element's parent. Guessing the page surface would
-                // report `.pve-tab--active .pve-tab-count` (a white wash inside
-                // a dark tab) as white-on-white, which is a verdict about the
-                // guess rather than about the code. Those stay with the browser
-                // check, which sees the real ancestor.
-                if (background[3] < 1) continue;
+                for (const stop of backgroundColours(rule.background, tokens)) {
+                    // A translucent background sits on a backdrop this file
+                    // cannot know — the element's parent. Guessing the page
+                    // surface would report `.pve-tab--active .pve-tab-count`
+                    // (a white wash inside a dark tab) as white-on-white, which
+                    // is a verdict about the guess rather than about the code.
+                    // Those stay with the browser check, which sees the real
+                    // ancestor.
+                    if (stop.rgba[3] < 1) continue;
 
-                judged += 1;
-                const ratio = contrast(flatten(foreground, background), background);
-                if (ratio < CONTRAST_FLOOR) {
-                    failures.push(
-                        `${ratio.toFixed(2)}:1  ${rule.file}  ${rule.selector}\n` +
-                            `            ${rule.foreground} on ${rule.background}`,
-                    );
+                    judged += 1;
+                    const ratio = contrast(flatten(foreground, stop.rgba), stop.rgba);
+                    if (ratio < CONTRAST_FLOOR) {
+                        failures.push(
+                            `${ratio.toFixed(2)}:1  ${rule.file}  ${rule.selector}\n` +
+                                `            ${rule.foreground} on ${stop.label}`,
+                        );
+                    }
                 }
             }
 

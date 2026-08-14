@@ -754,7 +754,7 @@ const classifyDiff = computed(() => props.classifyDiff);
     grid-template-columns: minmax(280px, 360px) 1fr;
     gap: 18px;
 }
-@media (max-width: 980px) {
+@media (max-width: 1023.98px) {
     .sa-bd-grid {
         grid-template-columns: 1fr;
     }

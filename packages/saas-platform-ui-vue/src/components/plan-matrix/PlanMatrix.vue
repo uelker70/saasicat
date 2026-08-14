@@ -272,10 +272,7 @@
                                 <span
                                     v-if="hasFeature(p, fKey)"
                                     class="pm-check"
-                                    :style="{
-                                        background: planAccent(p.planKey) + '15',
-                                        color: planAccent(p.planKey),
-                                    }"
+                                    :style="identityChipStyle(planAccent(p.planKey))"
                                 >
                                     <svg
                                         width="12"
@@ -323,10 +320,7 @@
                             <span
                                 v-if="hasBundle(p, bKey)"
                                 class="pm-check"
-                                :style="{
-                                    background: planAccent(p.planKey) + '15',
-                                    color: planAccent(p.planKey),
-                                }"
+                                :style="identityChipStyle(planAccent(p.planKey))"
                             >
                                 <svg
                                     width="12"
@@ -384,6 +378,7 @@ import { computed } from 'vue';
  */
 const NBSP = '\u00A0';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
@@ -477,24 +472,12 @@ function validFromLabel(validFrom: string): string {
     return formatMessage(msg.value.matrix.validFrom, { date: validFrom.slice(0, 10) });
 }
 
-const DEFAULT_ACCENTS: Record<string, string> = {
-    STARTER: '#64748b',
-    STANDARD: '#2563eb',
-    PRO: '#7c3aed',
-    PROFESSIONAL: '#7c3aed',
-    BUSINESS: '#0ea5e9',
-    ENTERPRISE: '#0f766e',
-    BASIC: '#475569',
-};
-const FALLBACK_ACCENTS = ['#2563eb', '#7c3aed', '#0f766e', '#f59e0b', '#0ea5e9', '#ef4444'];
-
 function planAccent(planKey: string): string {
-    const provided = props.planAccents[planKey];
-    if (provided) return provided;
-    const def = DEFAULT_ACCENTS[planKey];
-    if (def) return def;
-    const idx = props.plans.findIndex((p) => p.planKey === planKey);
-    return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length] ?? FALLBACK_ACCENTS[0]!;
+    return identityAccentFor(
+        planKey,
+        props.planAccents,
+        props.plans.findIndex((p) => p.planKey === planKey),
+    );
 }
 
 const resolvedPlans = computed<ResolvedPlan[]>(() =>

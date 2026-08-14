@@ -494,3 +494,116 @@ export const DEFAULT_I18N_EN: TenantPlanSectionI18n = {
 export function defaultTenantPlanSectionI18n(locale: SaLocale): TenantPlanSectionI18n {
     return locale === 'en' ? DEFAULT_I18N_EN : DEFAULT_I18N_DE;
 }
+
+/**
+ * The strings `PlanChangeWizard` takes.
+ *
+ * A projection of `TenantPlanSectionI18n` with the `wizard` prefix dropped, so
+ * the wizard's own template reads `i18n.stepChoose` rather than
+ * `i18n.wizardStepChoose`.
+ */
+export interface PlanChangeWizardI18n {
+    title: string;
+    close: string;
+    currentLabel: string;
+    cycleMonthly: string;
+    cycleYearly: string;
+    badgeCurrent: string;
+    badgePopular: string;
+    priceUnitMonthly: string;
+    priceUnitYearly: string;
+    priceOnRequest: string;
+    stepChoose: string;
+    stepChooseIntro: string;
+    stepPreview: string;
+    stepConfirm: string;
+    next: string;
+    back: string;
+    previewLoading: string;
+    effectiveAtLabel: string;
+    effectiveImmediate: string;
+    prorationTitle: string;
+    prorationLine: string;
+    prorationDays: string;
+    limitsTitle: string;
+    limitsUsed: string;
+    limitsCurrent: string;
+    limitsTarget: string;
+    featuresGained: string;
+    featuresLost: string;
+    blockersTitle: string;
+    confirmImmediate: string;
+    confirmScheduled: string;
+    confirmAction: string;
+    confirmInProgress: string;
+    confirmPriceTitle: string;
+    confirmProratedNow: string;
+    confirmRecurringNext: string;
+    confirmRecurringFrom: string;
+    perCycleMonthly: string;
+    perCycleYearly: string;
+    confirmTrialNote: string;
+    confirmRecurringTrialEnd: string;
+    changeTypeUpgrade: string;
+    changeTypeDowngrade: string;
+    changeTypeCycle: string;
+    changeTypeNoop: string;
+}
+
+/**
+ * Builds the wizard's strings from the section's.
+ *
+ * Here rather than inline in `TenantPlanSection.vue`, because the wizard is an
+ * exported component: a consumer who mounts it directly would otherwise have to
+ * reproduce all 44 keys of this mapping by hand, and a visual fixture had to do
+ * exactly that before it moved.
+ */
+export function planChangeWizardI18n(i18n: TenantPlanSectionI18n): PlanChangeWizardI18n {
+    return {
+        title: i18n.wizardTitle,
+        close: i18n.wizardClose,
+        currentLabel: i18n.wizardCurrent,
+        cycleMonthly: i18n.cycleMonthly,
+        cycleYearly: i18n.cycleYearly,
+        badgeCurrent: i18n.wizardBadgeCurrent,
+        badgePopular: i18n.wizardBadgePopular,
+        priceUnitMonthly: i18n.wizardPriceUnitMonthly,
+        priceUnitYearly: i18n.wizardPriceUnitYearly,
+        priceOnRequest: i18n.wizardPriceOnRequest,
+        stepChoose: i18n.wizardStepChoose,
+        stepChooseIntro: i18n.wizardStepChooseIntro,
+        stepPreview: i18n.wizardStepPreview,
+        stepConfirm: i18n.wizardStepConfirm,
+        next: i18n.wizardNext,
+        back: i18n.wizardBack,
+        previewLoading: i18n.wizardPreviewLoading,
+        effectiveAtLabel: i18n.wizardEffectiveAtLabel,
+        effectiveImmediate: i18n.wizardEffectiveImmediate,
+        prorationTitle: i18n.wizardProrationTitle,
+        prorationLine: i18n.wizardProrationLine,
+        prorationDays: i18n.wizardProrationDays,
+        limitsTitle: i18n.wizardLimitsTitle,
+        limitsUsed: i18n.wizardLimitsUsed,
+        limitsCurrent: i18n.wizardLimitsCurrent,
+        limitsTarget: i18n.wizardLimitsTarget,
+        featuresGained: i18n.wizardFeaturesGained,
+        featuresLost: i18n.wizardFeaturesLost,
+        blockersTitle: i18n.wizardBlockersTitle,
+        confirmImmediate: i18n.wizardConfirmImmediate,
+        confirmScheduled: i18n.wizardConfirmScheduled,
+        confirmAction: i18n.wizardConfirmAction,
+        confirmInProgress: i18n.wizardConfirmInProgress,
+        confirmPriceTitle: i18n.wizardConfirmPriceTitle,
+        confirmProratedNow: i18n.wizardConfirmProratedNow,
+        confirmRecurringNext: i18n.wizardConfirmRecurringNext,
+        confirmRecurringFrom: i18n.wizardConfirmRecurringFrom,
+        perCycleMonthly: i18n.wizardConfirmPerCycleMonthly,
+        perCycleYearly: i18n.wizardConfirmPerCycleYearly,
+        confirmTrialNote: i18n.wizardConfirmTrialNote,
+        confirmRecurringTrialEnd: i18n.wizardConfirmRecurringTrialEnd,
+        changeTypeUpgrade: i18n.wizardChangeTypeUpgrade,
+        changeTypeDowngrade: i18n.wizardChangeTypeDowngrade,
+        changeTypeCycle: i18n.wizardChangeTypeCycle,
+        changeTypeNoop: i18n.wizardChangeTypeNoop,
+    };
+}

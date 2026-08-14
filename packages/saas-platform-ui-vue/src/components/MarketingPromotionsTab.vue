@@ -361,7 +361,9 @@ const cycleOptions = computed<Array<{ id: PromotionBillingCycle; label: string }
     { id: 'yearly', label: common.value.yearly },
     { id: 'both', label: common.value.both },
 ]);
-const COLORS = ['#10b981', '#dc2626', '#f59e0b', '#2563eb', '#7c3aed', '#0f172a'];
+import { IDENTITY_ACCENTS, identityAccentAt } from '../client/identity-accents.js';
+
+const COLORS = IDENTITY_ACCENTS;
 
 const today = new Date();
 
@@ -550,7 +552,7 @@ async function onAdd(): Promise<void> {
         validFrom: new Date().toISOString().slice(0, 10),
         validTo: new Date(today.getTime() + 30 * 86400000).toISOString().slice(0, 10),
         priority: 5,
-        color: '#2563eb',
+        color: identityAccentAt(0),
         i18n: { [DEFAULT_LOCALE]: { badge: 'Aktion' } },
     });
     expandedId.value = created.id;

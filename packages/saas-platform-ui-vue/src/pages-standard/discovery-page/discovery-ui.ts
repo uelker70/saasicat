@@ -122,16 +122,19 @@ export function reviewMenuActions(
 
 // ─── Capability kind styling (read-only code facts, #20) ─────────────────────
 
-const KIND_COLORS: Record<string, string> = {
-    endpoint: '#2563eb',
-    service: '#7c3aed',
-    job: '#0891b2',
-    event: '#f59e0b',
+// A capability kind is a category with no ranking, so it takes the identity
+// ramp rather than a status colour: an endpoint is not "better" than a job.
+import { IDENTITY_NEUTRAL, identityChipStyle } from '../../client/identity-accents.js';
+
+const KIND_ACCENTS: Record<string, string> = {
+    endpoint: 'var(--sa-color-identity-1)',
+    service: 'var(--sa-color-identity-2)',
+    job: 'var(--sa-color-identity-5)',
+    event: 'var(--sa-color-identity-4)',
 };
 
 export function kindStyle(kind: string): Record<string, string> {
-    const c = KIND_COLORS[kind] ?? '#64748b';
-    return { background: `${c}1a`, color: c, borderColor: `${c}33` };
+    return identityChipStyle(KIND_ACCENTS[kind] ?? IDENTITY_NEUTRAL);
 }
 
 /**

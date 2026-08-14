@@ -676,7 +676,7 @@ function onPublish(): void {
     line-height: 1.5;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1023.98px) {
     .pr-grid {
         grid-template-columns: 1fr;
     }

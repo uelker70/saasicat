@@ -223,6 +223,7 @@ import PlanGrid from '../components/plan/PlanGrid.vue';
 import { useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import type { BillingCycleStr, PlanChangePreviewShape } from '../vue/use-tenant-billing.js';
 import type { CatalogPlan } from '../vue/use-tenant-billing-catalog.js';
+import type { PlanChangeWizardI18n } from './default-i18n.js';
 
 // PlanChangeWizard — 3-step dialog for plan changes.
 //
@@ -230,54 +231,6 @@ import type { CatalogPlan } from '../vue/use-tenant-billing-catalog.js';
 // Logic: step 1 local selection, step 2 calls `previewPlanChange` and shows
 // the limits check + proration + feature diff + blockers, step 3 calls `changePlan`.
 // Data-driven via the passed `catalogQuotaKeys[]` — no hard-coded trinity.
-
-interface I18nStrings {
-    title: string;
-    close: string;
-    currentLabel: string;
-    cycleMonthly: string;
-    cycleYearly: string;
-    badgeCurrent: string;
-    badgePopular: string;
-    priceUnitMonthly: string;
-    priceUnitYearly: string;
-    priceOnRequest: string;
-    stepChoose: string;
-    stepChooseIntro: string;
-    stepPreview: string;
-    stepConfirm: string;
-    next: string;
-    back: string;
-    previewLoading: string;
-    effectiveAtLabel: string;
-    effectiveImmediate: string;
-    prorationTitle: string;
-    prorationLine: string;
-    prorationDays: string;
-    limitsTitle: string;
-    limitsUsed: string;
-    limitsCurrent: string;
-    limitsTarget: string;
-    featuresGained: string;
-    featuresLost: string;
-    blockersTitle: string;
-    confirmImmediate: string;
-    confirmScheduled: string;
-    confirmAction: string;
-    confirmInProgress: string;
-    confirmPriceTitle: string;
-    confirmProratedNow: string;
-    confirmRecurringNext: string;
-    confirmRecurringFrom: string;
-    perCycleMonthly: string;
-    perCycleYearly: string;
-    confirmTrialNote: string;
-    confirmRecurringTrialEnd: string;
-    changeTypeUpgrade: string;
-    changeTypeDowngrade: string;
-    changeTypeCycle: string;
-    changeTypeNoop: string;
-}
 
 interface Props {
     modelValue: boolean;
@@ -314,7 +267,7 @@ interface Props {
     /** Preview caller (passed through from the consumer composable). */
     previewPlanChange: (plan: string, cycle: BillingCycleStr) => Promise<PlanChangePreviewShape>;
     changePlan: (plan: string, cycle: BillingCycleStr, immediate: boolean) => Promise<void>;
-    i18n: I18nStrings;
+    i18n: PlanChangeWizardI18n;
 }
 
 const props = defineProps<Props>();

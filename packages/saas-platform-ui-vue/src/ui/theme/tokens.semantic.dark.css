@@ -125,6 +125,18 @@ body.body--dark {
     --sa-color-bundle: var(--sa-amber-500);
     --sa-color-bundle-surface: color-mix(in srgb, var(--sa-amber-500) 16%, transparent);
 
+    /* The identity ramp, one rung lighter throughout — see the light file for
+     * what it is for. This is the half that did not exist while the ramps lived
+     * as hex literals in TypeScript, and its absence is the whole reason the
+     * plan mark sat at 2.96:1 here. */
+    --sa-color-identity-1: var(--sa-blue-300);
+    --sa-color-identity-2: var(--sa-violet-200);
+    --sa-color-identity-3: var(--sa-green-200);
+    --sa-color-identity-4: var(--sa-amber-300);
+    --sa-color-identity-5: var(--sa-sky-200);
+    --sa-color-identity-6: var(--sa-red-300);
+    --sa-color-identity-neutral: var(--sa-neutral-400);
+
     /* Identical to the light theme, and that is the point — see there. */
     --sa-color-inverse-bg: var(--sa-neutral-950);
     --sa-color-inverse-surface: var(--sa-neutral-800);
