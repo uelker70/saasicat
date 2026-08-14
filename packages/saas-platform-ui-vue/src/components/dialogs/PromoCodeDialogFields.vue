@@ -101,13 +101,13 @@
         <div class="pc-grid pc-grid--2">
             <div class="pc-field">
                 <div class="pc-field__label">{{ msg.form.durationLabel }}</div>
-                <div class="pc-dur">
+                <div class="pc-seg pc-seg--fill">
                     <button
                         v-for="o in durationOptions"
                         :key="o.k"
                         type="button"
-                        class="pc-dur-opt"
-                        :class="{ 'pc-dur-opt--active': form.durationType === o.k }"
+                        class="pc-seg-opt"
+                        :class="{ 'pc-seg-opt--active': form.durationType === o.k }"
                         @click="form.durationType = o.k"
                     >
                         {{ o.label }}
@@ -161,13 +161,13 @@
         <div v-if="mode === 'edit'" class="pc-grid pc-grid--2">
             <div class="pc-field">
                 <div class="pc-field__label">{{ common.status }}</div>
-                <div class="pc-status">
+                <div class="pc-seg pc-status">
                     <button
                         v-for="o in statusOptions"
                         :key="o.k"
                         type="button"
-                        class="pc-status-opt"
-                        :class="{ 'pc-status-opt--active': form.status === o.k }"
+                        class="pc-seg-opt"
+                        :class="{ 'pc-seg-opt--active': form.status === o.k }"
                         @click="form.status = o.k"
                     >
                         <q-icon :name="o.icon" size="14px" />
@@ -595,8 +595,8 @@ textarea.pc-input {
 
 .pc-plan-opt--on {
     border-color: var(--sa-color-accent);
-    background: var(--sa-color-accent-surface);
-    color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent-strong);
 }
 
 .pc-plan-opt__mark {
@@ -605,13 +605,25 @@ textarea.pc-input {
     border-radius: 50%;
 }
 
-.pc-dur {
+/* One segmented control for both the duration and the status row. They are the
+ * same thing — a row of buttons of which one is chosen — and the status row had
+ * NO rules at all, so it rendered as raw browser buttons: white boxes on a dark
+ * dialog. Sharing the recipe is what makes the two look alike without either
+ * restating it. */
+.pc-seg {
     display: flex;
     gap: 4px;
 }
-
-.pc-dur-opt {
+/* The duration options divide the row; the status options size to their label. */
+.pc-seg--fill .pc-seg-opt {
     flex: 1;
+}
+
+.pc-seg-opt {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sa-gap-inline);
     border: 1px solid var(--sa-color-border);
     background: var(--sa-color-bg-surface);
     border-radius: 7px;
@@ -621,10 +633,19 @@ textarea.pc-input {
     color: var(--sa-color-fg-secondary);
 }
 
-.pc-dur-opt--active {
+.pc-seg-opt:hover {
+    border-color: var(--sa-color-border-strong);
+}
+
+/* `-accent-strong` on `-surface-strong`, which is what the design guide
+ * prescribes for accent text on a tint. The chosen option used to pair plain
+ * `--sa-color-accent` with the 8 % wash of itself: in dark mode that is the
+ * brand blue on a near-black blue, and the selected state was the one you could
+ * read least — the opposite of what selecting something should do. */
+.pc-seg-opt--active {
     border-color: var(--sa-color-accent);
-    background: var(--sa-color-accent-surface);
-    color: var(--sa-color-accent);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent-strong);
 }
 
 .pc-check {

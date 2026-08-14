@@ -1529,14 +1529,22 @@ async function onLocaleChange(loc: string): Promise<void> {
     transform: rotate(90deg);
 }
 
+/* The open editor is a WELL under its row, not another row.
+ *
+ * It used to end on a gradient whose last stop was `--sa-color-bg-surface` —
+ * exactly the colour of the next row — closed by the same soft hairline that
+ * separates any two rows. Nothing then said where the editor stopped, so the
+ * following plan read as part of the plan being edited.
+ *
+ * Three things say it now, and each carries a different half of the message:
+ * the surface is recessed (`bg-sunken`, which is what a well is for), an accent
+ * edge on the left ties the panel to the row it belongs to, and a real border
+ * closes it at the bottom instead of a hairline that means "next row". */
 .sa-marketing-admin-expand {
     grid-column: 1 / -1;
-    background: linear-gradient(
-        180deg,
-        var(--sa-color-bg-surface-raised) 0%,
-        var(--sa-color-bg-surface) 100%
-    );
-    border-bottom: 1px solid var(--sa-color-border-soft);
+    background: var(--sa-color-bg-sunken);
+    border-left: 2px solid var(--sa-color-accent);
+    border-bottom: 2px solid var(--sa-color-border-strong);
     padding: 18px 20px 22px;
 }
 .sa-marketing-expand-grid {

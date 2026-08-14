@@ -36,3 +36,36 @@
     flex: 1;
     min-width: 200px;
 }
+
+/* Quasar's own accent-coloured text, painted from the role that is safe on a
+ * dark surface.
+ *
+ * Quasar colours the focused field's floating label and the selected menu item
+ * with `--q-primary` — the brand itself, which does not change between themes.
+ * On a light card that is fine; on the dark theme's slate surfaces the brand
+ * blue lands around 3.4:1 and the shrunk label is small text, so it reads as
+ * decoration rather than as the name of the field you are typing in.
+ *
+ * `--sa-color-accent-strong` is the same brand mixed toward the theme's own
+ * extreme — darker in light, lighter in dark — which is exactly what the guide
+ * prescribes for accent text. The colour still follows the host's `$primary`,
+ * so nothing about branding changes.
+ *
+ * `.sa-portal` alongside `.sa-page` for the usual reason: Quasar teleports every
+ * menu to `<body>`, so a `.sa-page`-prefixed rule never reaches a dropdown. */
+.sa-page .q-field--focused .q-field__label,
+.sa-portal .q-field--focused .q-field__label,
+.sa-page .q-field--highlighted .q-field__label,
+.sa-portal .q-field--highlighted .q-field__label {
+    color: var(--sa-color-accent-strong);
+}
+
+/* The chosen entry in an open select. Quasar marks it `q-item--active` and
+ * colours it with the brand; on the dark menu surface that is the same 3.4:1,
+ * and it is the one line in the list that has to be legible. */
+.sa-page .q-item--active,
+.sa-portal .q-item--active,
+.sa-page .q-item.q-manual-focusable--focused,
+.sa-portal .q-item.q-manual-focusable--focused {
+    color: var(--sa-color-accent-strong);
+}

@@ -405,7 +405,7 @@ function barWidth(value: number, max?: number): number {
 /* Header look comes from the global .sa-page-head — only a margin tweak here. */
 
 .sa-kpi__icon :deep(.q-icon) {
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
 }
 
 .sa-dashboard__rows {
@@ -423,7 +423,7 @@ function barWidth(value: number, max?: number): number {
 
 .sa-dashboard__count {
     background: var(--sa-color-accent-surface);
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
     font-size: var(--sa-text-xs);
     font-weight: 700;
     padding: 2px 7px;
@@ -492,7 +492,7 @@ function barWidth(value: number, max?: number): number {
     border-color: var(--sa-color-accent-border);
 }
 .sa-dashboard__shortcut :deep(.q-icon) {
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
     flex-shrink: 0;
 }
 .sa-dashboard__shortcut-title {

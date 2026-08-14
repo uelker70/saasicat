@@ -107,7 +107,7 @@ function remove(): void {
     border: 1px dashed var(--sa-color-accent-border);
     background: var(--sa-color-accent-surface-soft);
     border-radius: 10px;
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
     font-weight: 700;
     font-size: var(--sa-text-sm);
     cursor: pointer;
