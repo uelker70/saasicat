@@ -42,20 +42,17 @@ const CONTRAST_FLOOR = 3;
  * future 2.9 too, and nobody would ever learn which one. Every entry is checked
  * for staleness below, so an exception cannot outlive the thing it describes.
  */
-const ACCEPTED: readonly { page: string; selector: string; why: string }[] = [
-    {
-        page: 'plans',
-        selector: '.sa-plan-list-plan-mark',
-        why:
-            'The plan identity chip takes its colour from a palette in TypeScript ' +
-            '(PlanList `DEFAULT_ACCENTS`/`FALLBACK_ACCENTS`), applied as an inline ' +
-            'style. Those are outside the token migration by construction — the ' +
-            'codemod never touches a template or a script — and they do not follow ' +
-            'the theme, so the violet mark lands at 2.96:1 on a dark surface. ' +
-            'Making per-plan accents theme-aware is its own change, with a prop ' +
-            '(`planAccents`) that consumers already set.',
-    },
-];
+const ACCEPTED: readonly { page: string; selector: string; why: string }[] = [];
+
+/**
+ * Pages in the roster that paint text directly on a gradient.
+ *
+ * Both are logo badges on a permanently dark wash — `.sa-login-logo--text` and
+ * `.sa-setup-badge` — and both were unjudged until this checker learned to read
+ * a gradient's stops. They are named here so the capability has a precondition
+ * rather than only a consequence.
+ */
+const GRADIENT_TEXT_PAGES = new Set(['login', 'setup-wizard']);
 
 /** Per-element colour facts, gathered in the page. */
 interface Painted {
@@ -64,6 +61,8 @@ interface Painted {
     background: string;
     contrast: number;
     text: string;
+    /** Judged against a gradient stop rather than against a flat background. */
+    viaGradient: boolean;
 }
 
 interface Reading {
@@ -151,9 +150,18 @@ const COLLECT = (): Reading => {
     };
 
     const root = document.getElementById('visual-root') ?? document.body;
+
+    // Quasar teleports every dialog, menu and tooltip to a node at `<body>`,
+    // so a checker that walks `#visual-root` alone has never judged one — and
+    // the package has twenty-one dialog sites. The visual baselines already
+    // gather them this way; this one did not, which is why a case whose whole
+    // subject is a dialog reported zero elements to judge.
+    const dialogs = [...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d));
     const painted: Painted[] = [];
 
-    for (const el of [root, ...root.querySelectorAll('*')]) {
+    for (const el of [root, ...root.querySelectorAll('*')].concat(
+        dialogs.flatMap((d) => [d, ...d.querySelectorAll('*')]),
+    )) {
         const style = window.getComputedStyle(el);
         if (style.display === 'none' || style.visibility === 'hidden') continue;
         if (Number(style.opacity) < 0.5) continue;
@@ -166,13 +174,32 @@ const COLLECT = (): Reading => {
         // words in the body font and the family says nothing.
         if (el.classList.contains('q-icon')) continue;
 
-        // A gradient cannot be reduced to one background colour, and this
-        // checker only composites `background-color`. Two elements are painted
-        // that way — the login and setup logo badges — and reading through the
-        // gradient to the white card below reported their white text at 1:1.
-        // Skipping is the honest answer; a wrong verdict would be worse than
-        // no verdict, and it would be the verdict people learn to ignore.
-        if (style.backgroundImage !== 'none') continue;
+        // A gradient cannot be reduced to ONE background colour — but it can be
+        // reduced to the handful of colours it is made of, and text has to be
+        // readable on every one of them. The earlier version skipped any
+        // element with a `background-image`, which was honest about not being
+        // able to composite one but left the header, the drawer logo and both
+        // logo badges unjudged. Those are painted permanently dark, so they are
+        // exactly the surfaces where a role that flips goes unnoticed.
+        //
+        // So: read the stops the browser has already resolved, and judge each.
+        // Anything that is not a gradient of solid colours — a `url()`, an
+        // image — is still skipped, because there is no colour to compare to.
+        const gradientStops: [number, number, number, number][] = [];
+        if (style.backgroundImage !== 'none') {
+            if (!/^(?:repeating-)?(?:linear|radial|conic)-gradient\(/.test(style.backgroundImage))
+                continue;
+            const stops = style.backgroundImage.match(/(?:rgba?|color)\([^)]*\)/g) ?? [];
+            if (stops.length === 0) continue;
+            for (const stop of stops) {
+                const colour = parse(stop);
+                // A translucent stop needs the backdrop below it, which is what
+                // `effectiveBackground` gives us for this element's ancestors.
+                gradientStops.push(
+                    colour[3] >= 1 ? colour : composite(colour, effectiveBackground(el)),
+                );
+            }
+        }
 
         // Only elements with their OWN visible text: a wrapper inherits its
         // child's characters and would be judged against the wrong background.
@@ -186,13 +213,24 @@ const COLLECT = (): Reading => {
 
         const fg = parse(style.color);
         if (fg[3] === 0) continue;
-        const bg = effectiveBackground(el);
+
+        // One entry per element, not per colour stop: the light/dark comparison
+        // below is keyed on the element path, and several rows sharing a path
+        // would quietly collapse into whichever came last. A gradient therefore
+        // reports its WORST stop — text has to survive all of them.
+        const candidates = gradientStops.length > 0 ? gradientStops : [effectiveBackground(el)];
+        const bg = candidates.reduce((worst, candidate) =>
+            contrast(composite(fg, candidate), candidate) < contrast(composite(fg, worst), worst)
+                ? candidate
+                : worst,
+        );
         painted.push({
             path: pathOf(el),
             color: style.color,
             background: `rgb(${bg.slice(0, 3).map(Math.round).join(', ')})`,
             contrast: Math.round(contrast(composite(fg, bg), bg) * 100) / 100,
             text: own.slice(0, 40),
+            viaGradient: gradientStops.length > 0,
         });
     }
 
@@ -293,6 +331,20 @@ test.describe('both themes are readable', () => {
                 light.painted.length,
                 `${visualCase.id} rendered no text to judge`,
             ).toBeGreaterThan(5);
+
+            // Preconditon for the pages that put text on a gradient: those
+            // elements have to have been READ, not skipped. Without this, the
+            // whole suite stays green if the gradient reading is removed again
+            // — which is exactly the state it was in before, when every one of
+            // these surfaces was silently excluded.
+            if (GRADIENT_TEXT_PAGES.has(visualCase.id)) {
+                expect(
+                    light.painted.filter((p) => p.viaGradient).map((p) => p.path),
+                    `${visualCase.id} paints text on a gradient, but nothing was judged ` +
+                        'against a gradient stop — the reading fell back to skipping',
+                ).not.toEqual([]);
+            }
+
             expect(
                 unreadable(light),
                 `${visualCase.id}: unreadable text in the LIGHT theme`,

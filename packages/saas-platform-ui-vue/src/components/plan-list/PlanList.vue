@@ -45,11 +45,7 @@
                             <div class="sa-plan-list-plan-name">
                                 <div
                                     class="sa-plan-list-plan-mark"
-                                    :style="{
-                                        background: planAccent(p.planKey) + '15',
-                                        color: planAccent(p.planKey),
-                                        borderColor: planAccent(p.planKey) + '33',
-                                    }"
+                                    :style="identityChipStyle(planAccent(p.planKey))"
                                 >
                                     {{ p.planKey.slice(0, 3) }}
                                 </div>
@@ -415,6 +411,7 @@
 import { resolvePlans, type ResolvedPlan } from '../../client/resolve-plans.js';
 import { computed, ref } from 'vue';
 import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
@@ -456,24 +453,12 @@ const common = useSaMessages('common');
 // `clearable` emits null, not '' — see Quasar's use-field clearValue().
 const search = ref<string | null>('');
 
-const DEFAULT_ACCENTS: Record<string, string> = {
-    STARTER: '#64748b',
-    STANDARD: '#2563eb',
-    PRO: '#7c3aed',
-    PROFESSIONAL: '#7c3aed',
-    BUSINESS: '#0ea5e9',
-    ENTERPRISE: '#0f766e',
-    BASIC: '#475569',
-};
-const FALLBACK_ACCENTS = ['#2563eb', '#7c3aed', '#0f766e', '#f59e0b', '#0ea5e9', '#ef4444'];
-
 function planAccent(planKey: string): string {
-    const provided = props.planAccents[planKey];
-    if (provided) return provided;
-    const def = DEFAULT_ACCENTS[planKey];
-    if (def) return def;
-    const idx = props.plans.findIndex((p) => p.planKey === planKey);
-    return FALLBACK_ACCENTS[idx % FALLBACK_ACCENTS.length] ?? FALLBACK_ACCENTS[0]!;
+    return identityAccentFor(
+        planKey,
+        props.planAccents,
+        props.plans.findIndex((p) => p.planKey === planKey),
+    );
 }
 
 const resolvedPlans = computed(() =>
@@ -566,7 +551,13 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
     border-radius: 10px;
-    overflow: hidden;
+    /* Scrolls rather than clips. `overflow: hidden` was here to keep the corner
+     * radius, and it also cut the six-column grid off below ~790px — six data
+     * columns squeezed into a phone are not readable anyway, so the honest
+     * answer is the same as for the tab bar: let it scroll. `hidden` on the
+     * cross axis keeps the radius doing its job. */
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .sa-plan-list-toolbar {
     display: flex;
@@ -590,6 +581,10 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-list {
     display: grid;
     grid-template-columns: 1.6fr 0.9fr 0.7fr 0.9fr 1.4fr 160px;
+    /* So the scroll above has something to scroll: without a content floor the
+     * tracks shrink to the container and the cells overflow individually,
+     * which is the clipped state rather than a scrollable one. */
+    min-width: max-content;
     /* Stretch, not centre. Every row is `display: contents`, so its cells are
      * grid items in their own right — and a centred item is only as tall as its
      * own content. The row's hover background is painted per cell, so the band

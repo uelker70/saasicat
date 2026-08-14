@@ -11,10 +11,7 @@
     </div>
     <div v-else class="sa-pv-diff-card">
         <header class="sa-pv-diff-card__head">
-            <span
-                class="sa-pv-diff-card__accent"
-                :style="{ background: `${accent}14`, borderColor: `${accent}40` }"
-            >
+            <span class="sa-pv-diff-card__accent" :style="accentWashStyle">
                 <q-icon name="inventory_2" size="14px" :style="{ color: accent }" />
             </span>
             <span class="sa-pv-diff-card__name">{{ title }}</span>
@@ -38,6 +35,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { VersionChange } from '@saasicat/types';
+import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import VersionDiffPreview from '../../components/VersionDiffPreview.vue';
@@ -52,6 +50,15 @@ const props = defineProps<{
 }>();
 
 const msg = useSaMessages('planVersions');
+
+// The wash and the edge this badge always had — deliberately not the chip
+// helper's third property. `identityChipStyle` also sets a text colour, and
+// the icon inside already sets its own; no fixture renders this card, so a
+// change nobody can observe is a change nobody should make.
+const accentWashStyle = computed(() => {
+    const { background, borderColor } = identityChipStyle(props.accent);
+    return { background, borderColor };
+});
 const common = useSaMessages('common');
 
 const changeCountLabel = computed(() => {

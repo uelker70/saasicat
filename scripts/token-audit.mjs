@@ -17,6 +17,8 @@
 //   node scripts/token-audit.mjs --top=20     n most frequent values per category
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
+
+import { declarations, styleBlocks } from './codemods/lib/stylesheets.mjs';
 import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,8 +36,66 @@ const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');
  */
 const TOKEN_DEFINITION_DIR = join(UI_SRC, 'ui', 'theme');
 
-/** Hairlines and zero — a scale for these would be ceremony, not clarity. */
-const ALLOWED_PX = new Set(['0px', '1px', '2px']);
+/**
+ * The script-side half of the palette definition.
+ *
+ * `tokens.primitive.css` holds the ramp for CSS; this file holds the same ramp
+ * as concrete values, for the places where a colour is DATA rather than paint —
+ * a promotion's accent is picked by an operator, sent over the wire and stored
+ * in a column the DTO caps at 16 characters, so it cannot be a `var()`.
+ *
+ * Exempt for the same reason the directory above is: literals are what it is
+ * for, and counting them would make the target unreachable by construction.
+ *
+ * A single named file rather than a directory, and that is the safer direction
+ * here — the worry that made the theme exemption a directory was that a name
+ * list would silently absorb the next file added. One name absorbs nothing: a
+ * second palette file is counted. And `identity-accents-match-theme.test.js`
+ * asserts that EVERY hex in this file is one of the ramp values, so it cannot
+ * become somewhere to put a colour that has no role.
+ */
+const SCRIPT_PALETTE_FILE = join(UI_SRC, 'client', 'identity-accents.ts');
+
+/**
+ * Zero needs no token anywhere: `padding: 0` is idiomatic, and
+ * `var(--sa-space-0)` for it would be ceremony.
+ */
+const ALWAYS_ALLOWED_PX = new Set(['0px']);
+
+/**
+ * Hairlines — but only where a hairline is what they are.
+ *
+ * A `border: 1px` is not a scale decision and never will be; a scale for it
+ * would be the ceremony this exemption exists to avoid. `padding: 2px` is a
+ * different animal: the spacing scale has a 2px rung, so a token exists and a
+ * literal is debt.
+ *
+ * Applying the exemption to every property hid 114 spacing declarations from a
+ * budget that claims to hold scale properties to zero literals — 72 of them
+ * `padding`/`margin`/`gap: 2px`, i.e. the one value with a rung waiting for it.
+ * The claim was false for exactly the values it sounded most confident about.
+ */
+const HAIRLINE_PX = new Set(['1px', '2px']);
+
+/**
+ * Quasar's five bands, and their `max-width` counterparts.
+ *
+ * The rule is WHICH values, not how many. A package that only needs three of
+ * them is not in debt — a package that invents a fourth is, because a component
+ * that reflows at 980px inside an app whose grid moves at 1024px produces a
+ * 44px band where the two disagree.
+ */
+const QUASAR_BREAKPOINTS = new Set([
+    '0',
+    '600',
+    '1024',
+    '1440',
+    '1920',
+    '599.98',
+    '1023.98',
+    '1439.98',
+    '1919.98',
+]);
 
 const CATEGORIES = {
     // #rgb, #rrggbb, #rrggbbaa
@@ -53,14 +113,57 @@ const CATEGORIES = {
     namedColor:
         /(?:^|[;{])\s*(?:color|background(?:-color)?|border(?:-[a-z]+)?-color|outline-color|fill|stroke)\s*:\s*([^;}\n]*(?<![\w-])(?:white|black|red|green|blue|orange|yellow|purple|grey|gray|silver|maroon|navy|teal|olive|lime|aqua|fuchsia)(?![\w-])[^;}\n]*)/gi,
     pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/g,
+    // Filled by the declaration pass; see SCALE_PROPERTY below.
+    scalePixel: /(?!)/g,
+    dimensionPixel: /(?!)/g,
     fontSize: /font-size:\s*([^;}\n]+)/g,
-    breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+)px/g,
+    // Fractional too. Quasar's upper bounds are `599.98px` and friends — the
+    // 0.02px step back that stops `max-width` and the next `min-width` both
+    // matching at an integer viewport. An integer-only pattern read 0 the
+    // moment the package adopted them, which is the most flattering possible
+    // way for this number to be wrong.
+    breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+(?:\.\d+)?)px/g,
     // `var(--x, var(--x))` — a fallback to itself, i.e. no fallback at all
     selfReferencingVar: /var\((--[\w-]+),\s*var\(\1\)\)/g,
     // Filled by the script pass rather than by the block loop below; it needs a
     // different source, not a different pattern.
     scriptColor: /(?!)/g,
+    alphaConcat: /(?!)/g,
 };
+
+/**
+ * A colour tint built by gluing two hex digits onto a colour: `accent + '15'`,
+ * or `` `${accent}33` ``.
+ *
+ * Its own category because it is the half of the script-colour debt that
+ * counting literals cannot see. When the five hard-coded accent palettes moved
+ * into the theme, `scriptColors` went to 0 and two backgrounds went fully
+ * TRANSPARENT at the same time: the trick needs a six-digit hex, and
+ * `var(--sa-color-identity-2)18` is not a colour. The number was right and the
+ * screen was broken, so the number was measuring the wrong thing.
+ *
+ * There is no second reason to append exactly two hex digits to an expression,
+ * so this needs no allow-list — and the replacement is one call:
+ * `color-mix(in srgb, <colour> n%, transparent)` works for a hex, for an
+ * `rgb()`, and for a `var()`, which is the whole point.
+ */
+const ALPHA_CONCAT = /(?:\+\s*['"`][0-9a-fA-F]{2}['"`])|(?:\$\{[^}]+\}[0-9a-fA-F]{2}(?=['"`]))/g;
+
+/**
+ * Properties a SCALE already has the answer for.
+ *
+ * The split matters more than either number. `distinctPixelValues` counted
+ * `padding: 6px` and `max-width: 1100px` as the same kind of debt and asked for
+ * both to collapse onto twelve values — but a drawer being 280px wide is a
+ * layout decision taken once, not a rung anybody should reuse, and inventing a
+ * scale for it is the ceremony this file already rejects for hairlines.
+ *
+ * So the question is asked twice, and the half that a scale governs is held to
+ * ZERO literals rather than to "at most twelve distinct" — a strictly stronger
+ * rule on the properties where a scale means something.
+ */
+const SCALE_PROPERTY =
+    /^(?:padding|margin|gap|row-gap|column-gap|inset|top|right|bottom|left|border(?:-[a-z]+)?-radius|letter-spacing|word-spacing|text-indent)(?:-[a-z-]+)?$/;
 
 function walk(dir, predicate) {
     const found = [];
@@ -129,11 +232,45 @@ export function audit() {
             const script = scriptSource(file, content)
                 .replace(/\/\*[\s\S]*?\*\//g, '')
                 .replace(/^\s*\/\/.*$/gm, '');
-            for (const match of script.matchAll(CATEGORIES.hexColor)) {
-                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+            if (file !== SCRIPT_PALETTE_FILE) {
+                for (const match of script.matchAll(CATEGORIES.hexColor)) {
+                    findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+                }
+                for (const match of script.matchAll(CATEGORIES.functionalColor)) {
+                    findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+                }
             }
-            for (const match of script.matchAll(CATEGORIES.functionalColor)) {
-                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+            // Over the WHOLE file, not only the script block: the same trick is
+            // written straight into a `:style` binding in the template, and
+            // that is where one of the two live instances sat.
+            // Comments stripped for the same reason the script sweep strips
+            // them: the sentence explaining this rule contains an example of
+            // what it forbids, and prose is not paint.
+            //
+            // All THREE kinds a `.vue` file can hold. This sweep reads the
+            // whole file rather than only the script block, so `// use
+            // color-mix, not accent + '15'` in a script and the same sentence
+            // in a `<!-- -->` above a template are both reachable — and either
+            // would fail a zero budget over a line telling people not to do the
+            // thing. Only block comments were handled, which made the rule's
+            // own documentation the first thing it flagged.
+            //
+            // `//` needs whitespace or a line start in front of it, or the `//`
+            // in `https://…` would blank the rest of that line.
+            //
+            // Blanked rather than deleted, newlines kept, so `line` still
+            // points at the real line.
+            const blank = (m) => m.replace(/[^\n]/g, ' ');
+            const prose = content
+                .replace(/\/\*[\s\S]*?\*\//g, blank)
+                .replace(/<!--[\s\S]*?-->/g, blank)
+                .replace(/(^|\s)\/\/[^\n]*/gm, (m, lead) => lead + blank(m.slice(lead.length)));
+            for (const match of prose.matchAll(ALPHA_CONCAT)) {
+                findings.alphaConcat.push({
+                    file: rel,
+                    line: lineOf(content, match.index),
+                    value: match[0],
+                });
             }
         }
 
@@ -157,12 +294,32 @@ export function audit() {
 
         if (isTokenDefinition) continue;
 
+        // Per DECLARATION, not per regex hit: only the property can say whether
+        // a scale has the answer, and the shared parser is what the codemods
+        // read too.
+        for (const block of styleBlocks(file, content)) {
+            for (const declaration of declarations(block.text)) {
+                const scaled = SCALE_PROPERTY.test(declaration.property.toLowerCase());
+                for (const match of declaration.value.matchAll(CATEGORIES.pixelValue)) {
+                    if (ALWAYS_ALLOWED_PX.has(match[0])) continue;
+                    if (!scaled && HAIRLINE_PX.has(match[0])) continue;
+                    const where = {
+                        file: rel,
+                        line: lineOf(content, block.offset + declaration.valueStart + match.index),
+                        value: match[0],
+                        property: declaration.property,
+                    };
+                    findings[scaled ? 'scalePixel' : 'dimensionPixel'].push(where);
+                }
+            }
+        }
+
         for (const block of styleSource(file, content)) {
             for (const [category, pattern] of Object.entries(CATEGORIES)) {
                 if (category === 'selfReferencingVar') continue;
                 for (const match of block.text.matchAll(pattern)) {
                     const value = (match[1] ?? match[0]).trim();
-                    if (category === 'pixelValue' && ALLOWED_PX.has(value)) continue;
+                    if (category === 'pixelValue' && ALWAYS_ALLOWED_PX.has(value)) continue;
                     // A `var(--sa-…)` is the goal, not a finding.
                     if (value.startsWith('var(')) continue;
                     findings[category].push({
@@ -188,9 +345,17 @@ export function summarise({ findings, styleShare, reach }) {
         functionalColors: { total: findings.functionalColor.length },
         namedColors: { total: findings.namedColor.length },
         scriptColors: { total: findings.scriptColor.length, files: files(findings.scriptColor) },
-        distinctPixelValues: distinct(findings.pixelValue),
+        alphaConcats: { total: findings.alphaConcat.length, files: files(findings.alphaConcat) },
+        scalePixels: { total: findings.scalePixel.length, distinct: distinct(findings.scalePixel) },
+        dimensionPixels: {
+            total: findings.dimensionPixel.length,
+            distinct: distinct(findings.dimensionPixel),
+        },
         distinctFontSizes: distinct(findings.fontSize),
         distinctBreakpoints: distinct(findings.breakpoint),
+        offScaleBreakpoints: {
+            total: findings.breakpoint.filter((f) => !QUASAR_BREAKPOINTS.has(f.value)).length,
+        },
         selfReferencingVars: {
             total: findings.selfReferencingVar.length,
             files: files(findings.selfReferencingVar),
@@ -232,9 +397,19 @@ function runCli(args) {
     console.log(
         `  colours in script          ${summary.scriptColors.total} in ${summary.scriptColors.files} files`,
     );
-    console.log(`  distinct pixel values      ${summary.distinctPixelValues}`);
+    console.log(
+        `  hex-alpha concatenations   ${summary.alphaConcats.total} in ${summary.alphaConcats.files} files`,
+    );
+    console.log(
+        `  px on scale properties     ${summary.scalePixels.total} (${summary.scalePixels.distinct} distinct)`,
+    );
+    console.log(
+        `  px as one-off dimensions   ${summary.dimensionPixels.total} (${summary.dimensionPixels.distinct} distinct)`,
+    );
     console.log(`  distinct font sizes        ${summary.distinctFontSizes}`);
-    console.log(`  distinct breakpoints       ${summary.distinctBreakpoints}`);
+    console.log(
+        `  distinct breakpoints       ${summary.distinctBreakpoints} (${summary.offScaleBreakpoints.total} off Quasar's scale)`,
+    );
     console.log(
         `  self-referencing var()     ${summary.selfReferencingVars.total} in ${summary.selfReferencingVars.files} files`,
     );

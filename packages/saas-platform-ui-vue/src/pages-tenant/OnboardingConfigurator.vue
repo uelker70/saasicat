@@ -328,7 +328,7 @@ defineExpose({ draft });
     gap: 24px;
     align-items: start;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1023.98px) {
     .sp-onb__layout {
         grid-template-columns: 1fr;
     }

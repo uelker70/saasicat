@@ -176,7 +176,8 @@ import {
 import MfaPromptDialog from '../components/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../components/TenantActionConfirmDialog.vue';
 import StatusPill, { type PillTone } from './tenants/StatusPill.vue';
-import { DEFAULT_PLAN_ACCENTS, formatDate, planAccent, tenantInitials } from './tenants/format.js';
+import { identityChipStyle } from '../client/identity-accents.js';
+import { formatDate, planAccent, tenantInitials } from './tenants/format.js';
 
 // Platform standard page: tenant list.
 //
@@ -323,7 +324,7 @@ const props = withDefaults(
         pageSize: 25,
         showPlanColumn: true,
         planLabelField: 'plan',
-        planAccents: () => DEFAULT_PLAN_ACCENTS,
+        planAccents: () => ({}),
         usageFields: () => [],
         manifest: null,
     },
@@ -484,8 +485,8 @@ const combinedActions = computed<TenantRowAction[]>(() => {
 const hasActions = computed(() => combinedActions.value.length > 0);
 
 function avatarStyle(row: TenantRow): Record<string, string> {
-    const accent = planAccentFor(row);
-    return { background: `${accent}18`, color: accent };
+    const { background, color } = identityChipStyle(planAccentFor(row));
+    return { background, color };
 }
 
 function planAccentFor(row: TenantRow): string {

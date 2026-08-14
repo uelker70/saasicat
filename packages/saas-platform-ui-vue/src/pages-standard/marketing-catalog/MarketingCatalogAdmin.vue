@@ -26,11 +26,7 @@
                         <div class="sa-marketing-plan-cell">
                             <div
                                 class="sa-marketing-plan-mark"
-                                :style="{
-                                    background: row.accent + '15',
-                                    color: row.accent,
-                                    borderColor: row.accent + '33',
-                                }"
+                                :style="identityChipStyle(row.accent)"
                             >
                                 {{ row.plan.planKey.slice(0, 3) }}
                             </div>
@@ -462,6 +458,7 @@
 
 <script setup lang="ts">
 import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/types';
+import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { FeatureSuggestion, MarketingRow, ResolvedMarketing } from './types.js';

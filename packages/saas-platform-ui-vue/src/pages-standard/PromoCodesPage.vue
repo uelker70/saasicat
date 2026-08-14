@@ -110,7 +110,9 @@
 import AdminTable from '../components/admin-page/AdminTable.vue';
 import type { PromoCodePlanOption } from '../components/dialogs/types.js';
 
-const PLAN_COLOR_PALETTE = ['#0ea5e9', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#64748b'];
+import { IDENTITY_ACCENTS } from '../client/identity-accents.js';
+
+const PLAN_COLOR_PALETTE = IDENTITY_ACCENTS;
 
 /**
  * Heuristic from a consumer wrapper: assigns each plan a stable color so plan

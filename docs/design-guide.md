@@ -180,6 +180,46 @@ their own colour to say it before this existed.
 the review and the discovery page all render the same dots; without shared roles
 the same colour meant two things on two screens.
 
+### Identity — colours that only need to differ
+
+`--sa-color-identity-1` … `-6`, plus `--sa-color-identity-neutral`.
+
+Reach for these when a colour's only job is to tell one row from the next and it
+means nothing beyond that: a plan's mark, a promotion badge, a capability kind.
+Reach for the tones or the catalogue entities above when the colour carries
+meaning. A reader should never have to work out which of the two a colour is
+doing.
+
+```ts
+import { IDENTITY_ACCENTS, identityAccentFor, identityChipStyle } from '@saasicat/ui-vue/client';
+
+// The three-part chip: a wash, the accent as text, a firmer edge.
+const style = identityChipStyle(identityAccentFor(plan.planKey, props.planAccents, index));
+```
+
+Two rules come with them, and both are the reason the ramp exists at all:
+
+- **Tint with `color-mix()`, never by string surgery.** `accent + '15'` needs a
+  six-digit hex; it produces nothing at all for an `rgb()`, for a named colour
+  and for a `var()`. That is why five components carried their own hex ramp and
+  none of them could follow the theme. `identityChipStyle()` does the mixing,
+  and an audit category fails the build on a reappearing `+ '15'`.
+- **A colour you _store_ is a value, not a token.** Use
+  `IDENTITY_ACCENT_VALUES` — the same ramp as concrete colours — anywhere the
+  colour leaves the browser: a picker whose choice is persisted, a payload
+  field, an export. `var(--sa-color-identity-1)` is 26 characters and means
+  nothing outside a document that has the stylesheet; the promotions endpoint
+  caps its `color` at 16, so pointing its swatches at the token form broke every
+  create. A test binds the two halves, so they cannot drift apart.
+- **Each rung is picked to be readable as text**, in its own theme, on that
+  theme's card surface — not just distinguishable as a dot. The plan mark used
+  violet-600 and measured 2.96:1 in dark; it was carried as a named contrast
+  exception for a release because there was no role to point it at.
+
+A consumer's own colours still win: `planAccents` takes any CSS colour, and
+everything here mixes rather than concatenates, so a hex works exactly as well
+as a role.
+
 ### Surfaces that do not follow the theme
 
 The header, the drawer and the login backdrop are dark **by design**, in both
@@ -252,6 +292,28 @@ next OS theme change, and can overrule the scheme the new shell was given.
 **What does not flip:** the brand accent, and the inverse chrome. A green product
 stays green in the dark, and a surface that is dark on purpose does not become
 light. Everything else does.
+
+### The one rule behind the next two sections
+
+**A custom property is resolved where it is _declared_, not where it is read.**
+
+That sentence is the single most expensive thing to not know about this theme.
+It caused four separate defects during the dark-mode work, each looking like a
+different bug:
+
+| What was written                                      | What happened                                                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `setCssVar('primary', c)` — Quasar's default          | written to `<body>`; the accent is computed on `:root`, one level **above**, and never saw it    |
+| a consumer override on `:root` alone                  | survives the attribute trigger and is **lost** under Quasar's, which redeclares on `<body>`      |
+| `--sa-heading: var(--sa-color-fg-heading)` on `:root` | the alias froze the **light** value; descendants inherit the finished result, not the expression |
+| a `:root` override meant to reach the dark roles      | never applies — the dark roles live under `body.body--dark`, i.e. **below** it                   |
+
+The same mechanic also carries: because the dark roles are declared on the body,
+a single `body { background: var(--sa-color-bg-app) }` covers both themes. Know
+the rule and you write one line; miss it and you write two, one of them wrong.
+
+**In practice:** declare a token wherever the thing that reads it is computed,
+and when a role has two values, write both — on the theme's own selectors.
 
 ### Overriding a role
 
@@ -353,7 +415,17 @@ substitute variables inside a `@media` condition. In an SCSS block:
 @media (max-width: bp.$sm-max) { … }
 ```
 
-In plain CSS, write the number; the five values are an allow-list.
+In plain CSS, write the number — and write the `max-width` bounds as Quasar
+writes them, with the 0.02px step back that stops a `max-width` and the next
+`min-width` both matching at an integer viewport:
+
+`599.98` · `1023.98` · `1439.98` · `1919.98`
+
+The audit fails on any other value. It counts _which_ rather than _how many_:
+using three of the five bands is not debt, inventing a sixth is. The package
+had six of its own (540, 600, 980, 1100, 1180, 1280), so a component reflowed at
+980px inside an app whose grid moves at 1024px — a 44px band where the two
+disagreed.
 
 ---
 

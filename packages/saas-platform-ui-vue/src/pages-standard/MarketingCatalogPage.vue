@@ -164,7 +164,9 @@ import type {
     ResolvedMarketing,
 } from './marketing-catalog/types.js';
 
-const DEFAULT_ACCENT = '#64748b';
+import { IDENTITY_NEUTRAL, identityAccentAt } from '../client/identity-accents.js';
+
+const DEFAULT_ACCENT = IDENTITY_NEUTRAL;
 
 const props = defineProps<{
     adminEndpoint: string;
@@ -650,7 +652,7 @@ function promoFineprintOf(row: MarketingRow): string {
     return promo.i18n?.[activeLocale.value]?.fineprint || promo.i18n?.de?.fineprint || '';
 }
 function promoColorOf(row: MarketingRow): string {
-    return promoOf(row)?.color ?? '#10b981';
+    return promoOf(row)?.color ?? identityAccentAt(0);
 }
 
 // ─── CTA ───
@@ -999,12 +1001,22 @@ async function onLocaleChange(loc: string): Promise<void> {
 
 .sa-marketing-toolbar {
     display: flex;
+    /* The tab bar and the meta line do not fit side by side below ~672px, and
+     * without this they simply pushed the page off its own right edge — at every
+     * viewport narrower than that, not just the smallest. Nothing measured it
+     * until the overflow guard started asking at each breakpoint band. */
+    flex-wrap: wrap;
     gap: 12px;
     align-items: center;
     margin: 0px;
 }
 .sa-marketing-tabbar {
     display: inline-flex;
+    /* Scrolls rather than wraps: a row of tabs broken across two lines reads as
+     * two groups. It fits every band except the narrowest phone, where the four
+     * tabs need 389px. */
+    overflow-x: auto;
+    max-width: 100%;
     gap: 2px;
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
@@ -1043,6 +1055,10 @@ async function onLocaleChange(loc: string): Promise<void> {
 }
 .sa-marketing-meta {
     margin-left: auto;
+    /* Its own contents wrap too: `catalogVersion <code> · locale <code>` is
+     * wider than a phone on its own, so wrapping only the toolbar would move
+     * the overflow one level down instead of removing it. */
+    flex-wrap: wrap;
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-secondary);
     display: flex;
@@ -1715,7 +1731,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     cursor: not-allowed;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1023.98px) {
     .sa-marketing-expand-grid {
         grid-template-columns: 1fr;
     }

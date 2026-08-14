@@ -66,8 +66,10 @@ const props = defineProps<{
 
 const msg = useSaMessages('planVersions');
 
+import { identityAccentFor } from '../../client/identity-accents.js';
+
 function planAccent(planId: string): string {
-    return props.planAccents?.[planId] ?? '#3f6bff';
+    return identityAccentFor(planId, props.planAccents ?? {});
 }
 
 const planDiffs = computed<SnapshotEntityDiff[]>(() => {

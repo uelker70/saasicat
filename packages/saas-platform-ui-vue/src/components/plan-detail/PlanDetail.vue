@@ -579,10 +579,15 @@ async function executeTerminate(): Promise<void> {
     font-weight: 700;
 }
 .pd-timeline-seg.draft {
+    /* Hatched from the two warning TINTS, not from the saturated amber.
+     * `--sa-color-warning-strong` is a border and icon tone: it put the label
+     * at 2.34:1 in light and 1.34:1 in dark on every second stripe. The tinted
+     * pair is what the guide documents for text on a status surface, and what
+     * `.live` above already uses. */
     background: repeating-linear-gradient(
         135deg,
-        var(--sa-color-warning-border) 0 8px,
-        var(--sa-color-warning-strong) 8px 16px
+        var(--sa-color-warning-surface) 0 8px,
+        var(--sa-color-warning-surface-strong) 8px 16px
     );
     color: var(--sa-color-warning-fg);
     font-weight: 700;
@@ -1004,7 +1009,7 @@ async function executeTerminate(): Promise<void> {
     flex: 1;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1023.98px) {
     .pd-body {
         grid-template-columns: 1fr;
     }

@@ -188,6 +188,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import type { SubscriptionBundleRecord } from '@saasicat/types';
+import type { HttpClient } from '../client/types.js';
 
 import { useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useTenantSubscriptionBundles } from '../vue/use-tenant-subscription-bundles.js';
@@ -213,6 +214,13 @@ interface BookableBundle {
 const props = withDefaults(
     defineProps<{
         billingEndpoint: string;
+        /**
+         * App-specific HTTP adapter, as every other tenant-facing component
+         * takes. Without it this page fell through to `defaultHttpClient()`,
+         * so an app using axios with an auth interceptor got a bare `fetch()`
+         * here and nowhere else — and no fixture could reach it either.
+         */
+        http?: HttpClient;
         /**
          * Mapping `bundleVersionId → BundleKey/Label` (the consumer can
          * preload this from the public catalog). Without a mapping we show the
@@ -253,6 +261,7 @@ const effectiveI18n = computed<TenantPlanSectionI18n>(() => ({
 const { bundles, loading, error, load, add, cancel } = useTenantSubscriptionBundles({
     billingEndpoint: props.billingEndpoint,
     getAuthToken: props.getAuthToken,
+    http: props.http,
 });
 
 onMounted(() => load());

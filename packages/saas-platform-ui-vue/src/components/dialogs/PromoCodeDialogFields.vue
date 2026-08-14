@@ -265,6 +265,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PromoCodeDurationType, PromoCodePlanOption, PromoCodeValueType } from './types.js';
@@ -376,7 +377,7 @@ function togglePlan(key: string): void {
 
 function planChipStyle(p: PromoCodePlanOption): Record<string, string> {
     if (!isPlanSelected(p.key) || !p.color) return {};
-    return { borderColor: p.color, background: `${p.color}12`, color: p.color };
+    return { ...identityChipStyle(p.color), borderColor: p.color };
 }
 
 const previewValue = computed(() => {
@@ -452,7 +453,7 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     grid-template-columns: 1fr 1fr;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 599.98px) {
     .pc-grid--2 {
         grid-template-columns: 1fr;
     }

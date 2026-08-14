@@ -153,6 +153,36 @@
     --sa-color-bundle: var(--sa-amber-500);
     --sa-color-bundle-surface: var(--sa-amber-100);
 
+    /* ── Identity. A CATEGORICAL ramp: the only job of these seven is to be
+     * told apart.
+     *
+     * Use them when a colour distinguishes one row from the next and means
+     * nothing beyond that — a plan's mark, a promotion badge, a capability
+     * kind. Use `feature`/`quota`/`bundle`/`scheduled` above when the category
+     * carries meaning; a reader should never have to guess which of the two a
+     * colour is doing.
+     *
+     * They exist because the package had FIVE of these ramps, all six colours
+     * long, none agreeing: `PlanList` and `PlanMatrix` shared one byte for
+     * byte, `tenants/format.ts` had a third that gave the same plan a
+     * different colour on the tenants page, and `PromoCodesPage`,
+     * `MarketingPromotionsTab` and `discovery-ui.ts` each invented their own.
+     * Every one of them was a hex literal in TypeScript, so none followed the
+     * theme: the plan mark measured 2.96:1 on a dark surface and was carried
+     * as a named contrast exception because there was nowhere to fix it.
+     *
+     * Each rung is chosen to clear 3:1 as TEXT on this theme's card surface,
+     * because that is how they are used — as the label, not only as a dot. */
+    --sa-color-identity-1: var(--sa-blue-700);
+    --sa-color-identity-2: var(--sa-violet-700);
+    --sa-color-identity-3: var(--sa-green-700);
+    --sa-color-identity-4: var(--sa-amber-700);
+    --sa-color-identity-5: var(--sa-sky-700);
+    --sa-color-identity-6: var(--sa-red-700);
+    /* The entry tier, and the answer for "no identity yet". Quiet on purpose:
+     * a starter plan reading as loud as an enterprise one is a wrong signal. */
+    --sa-color-identity-neutral: var(--sa-neutral-500);
+
     /* ── Inverse chrome — the dark header, drawer and login backdrop.
      *
      * Declared identically in both themes ON PURPOSE. This surface is dark in

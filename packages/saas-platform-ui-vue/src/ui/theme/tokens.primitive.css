@@ -100,6 +100,10 @@
     --sa-sky-50: #f0f9ff;
     --sa-sky-200: #bae6fd;
     --sa-sky-500: #0ea5e9;
+    /* Sky-500 is 2.6:1 on a white card — fine as a dot or a border, too pale to
+     * carry a label. The identity ramp needs a readable sky, so here is the
+     * rung below it. */
+    --sa-sky-700: #0369a1;
 
     /* ── Type families. ─────────────────────────────────────────────────── */
     --sa-font-head: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;

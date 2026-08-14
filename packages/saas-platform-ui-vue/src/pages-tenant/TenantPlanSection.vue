@@ -198,7 +198,11 @@ import { computed, ref } from 'vue';
 import PackageSnapshotPanel from './PackageSnapshotPanel.vue';
 import PendingVersionBanner from './PendingVersionBanner.vue';
 import PlanChangeWizard from './PlanChangeWizard.vue';
-import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './default-i18n.js';
+import {
+    defaultTenantPlanSectionI18n,
+    planChangeWizardI18n,
+    type TenantPlanSectionI18n,
+} from './default-i18n.js';
 import BundlePreviewDialog from './tenant-plan-section/BundlePreviewDialog.vue';
 import TenantBundleStore from './tenant-plan-section/TenantBundleStore.vue';
 import TenantFeatureMatrix from './tenant-plan-section/TenantFeatureMatrix.vue';
@@ -429,53 +433,7 @@ const statusColor = computed(() => {
     }
 });
 
-const wizardI18n = computed(() => ({
-    title: effectiveI18n.value.wizardTitle,
-    close: effectiveI18n.value.wizardClose,
-    currentLabel: effectiveI18n.value.wizardCurrent,
-    cycleMonthly: effectiveI18n.value.cycleMonthly,
-    cycleYearly: effectiveI18n.value.cycleYearly,
-    badgeCurrent: effectiveI18n.value.wizardBadgeCurrent,
-    badgePopular: effectiveI18n.value.wizardBadgePopular,
-    priceUnitMonthly: effectiveI18n.value.wizardPriceUnitMonthly,
-    priceUnitYearly: effectiveI18n.value.wizardPriceUnitYearly,
-    priceOnRequest: effectiveI18n.value.wizardPriceOnRequest,
-    stepChoose: effectiveI18n.value.wizardStepChoose,
-    stepChooseIntro: effectiveI18n.value.wizardStepChooseIntro,
-    stepPreview: effectiveI18n.value.wizardStepPreview,
-    stepConfirm: effectiveI18n.value.wizardStepConfirm,
-    next: effectiveI18n.value.wizardNext,
-    back: effectiveI18n.value.wizardBack,
-    previewLoading: effectiveI18n.value.wizardPreviewLoading,
-    effectiveAtLabel: effectiveI18n.value.wizardEffectiveAtLabel,
-    effectiveImmediate: effectiveI18n.value.wizardEffectiveImmediate,
-    prorationTitle: effectiveI18n.value.wizardProrationTitle,
-    prorationLine: effectiveI18n.value.wizardProrationLine,
-    prorationDays: effectiveI18n.value.wizardProrationDays,
-    limitsTitle: effectiveI18n.value.wizardLimitsTitle,
-    limitsUsed: effectiveI18n.value.wizardLimitsUsed,
-    limitsCurrent: effectiveI18n.value.wizardLimitsCurrent,
-    limitsTarget: effectiveI18n.value.wizardLimitsTarget,
-    featuresGained: effectiveI18n.value.wizardFeaturesGained,
-    featuresLost: effectiveI18n.value.wizardFeaturesLost,
-    blockersTitle: effectiveI18n.value.wizardBlockersTitle,
-    confirmImmediate: effectiveI18n.value.wizardConfirmImmediate,
-    confirmScheduled: effectiveI18n.value.wizardConfirmScheduled,
-    confirmAction: effectiveI18n.value.wizardConfirmAction,
-    confirmInProgress: effectiveI18n.value.wizardConfirmInProgress,
-    confirmPriceTitle: effectiveI18n.value.wizardConfirmPriceTitle,
-    confirmProratedNow: effectiveI18n.value.wizardConfirmProratedNow,
-    confirmRecurringNext: effectiveI18n.value.wizardConfirmRecurringNext,
-    confirmRecurringFrom: effectiveI18n.value.wizardConfirmRecurringFrom,
-    perCycleMonthly: effectiveI18n.value.wizardConfirmPerCycleMonthly,
-    perCycleYearly: effectiveI18n.value.wizardConfirmPerCycleYearly,
-    confirmTrialNote: effectiveI18n.value.wizardConfirmTrialNote,
-    confirmRecurringTrialEnd: effectiveI18n.value.wizardConfirmRecurringTrialEnd,
-    changeTypeUpgrade: effectiveI18n.value.wizardChangeTypeUpgrade,
-    changeTypeDowngrade: effectiveI18n.value.wizardChangeTypeDowngrade,
-    changeTypeCycle: effectiveI18n.value.wizardChangeTypeCycle,
-    changeTypeNoop: effectiveI18n.value.wizardChangeTypeNoop,
-}));
+const wizardI18n = computed(() => planChangeWizardI18n(effectiveI18n.value));
 
 // Helper hooks with defaults
 function quotaLabelResolved(key: string): string {

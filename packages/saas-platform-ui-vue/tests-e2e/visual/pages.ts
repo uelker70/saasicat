@@ -6,7 +6,16 @@ import type { PromoDetailData } from '../../src/pages-standard/PromoCodeDetailPa
 import type { TenantDetailData } from '../../src/pages-standard/tenant-detail/types.js';
 import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
 import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
-import { FIXTURE_BUNDLES, FIXTURE_BUNDLE_VERSIONS } from './fixture-data.js';
+import {
+    FIXTURE_BUNDLES,
+    FIXTURE_BUNDLE_VERSIONS,
+    FIXTURE_PLAN_CHANGE_PREVIEW,
+    TENANT_CATALOG_PLANS,
+} from './fixture-data.js';
+import {
+    defaultTenantPlanSectionI18n,
+    planChangeWizardI18n,
+} from '../../src/pages-tenant/default-i18n.js';
 
 // The roster the baselines cover, and what each page needs to render its real
 // chrome instead of an empty frame or an error banner.
@@ -108,6 +117,16 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             error: null,
             activeLocales: ['en'],
             runDiscovery: async () => {},
+            // Six required props this case never supplied. The page rendered
+            // anyway — Vue warns and passes `undefined` — so every review
+            // dialog and every save button under this baseline was wired to
+            // nothing, for as long as the case has existed.
+            reviewFeature: async () => ({}),
+            reviewQuota: async () => ({}),
+            setFeatureI18n: async () => ({}),
+            setQuotaI18n: async () => ({}),
+            setFeatureBase: async () => ({}),
+            setQuotaBase: async () => ({}),
         }),
     },
     {
@@ -372,6 +391,70 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         }),
         // Opens the bundle so its version controls and inline editor render.
         revealBy: ['.sa-bd-card__head'],
+    },
+    // ── Tenant-facing. These render in the CONSUMER's app, not in the admin
+    // shell, and nothing in this suite reached them before. Three defects in a
+    // single review round had exactly that as their root cause — a state no
+    // fixture renders. Each case below is chosen for the branch that hid:
+    // `currentPlanId` for the inverted "current plan" flag (1.48:1 in dark),
+    // a pending version for the banner behind its `v-if`, and a dialog for the
+    // teleported portal.
+    {
+        id: 'tenant-plan',
+        load: () => import('../../src/pages-tenant/TenantPlanSection.vue'),
+        props: ({ http }) => ({
+            http,
+            apiPrefix: '/api/billing',
+            formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
+            formatDate: (iso: string | Date) => String(iso).slice(0, 10),
+            quotaLabel: (key: string) => key,
+            featureLabel: (key: string) => key,
+        }),
+    },
+    {
+        id: 'tenant-bundles',
+        load: () => import('../../src/pages-tenant/MySubscriptionBundlesPage.vue'),
+        props: ({ http }) => ({
+            http,
+            billingEndpoint: '/api',
+            currentPlanKey: 'PRO',
+            bundleLabels: {
+                'bv-1': { bundleKey: 'ANALYTICS', label: 'Analytics' },
+                'bv-2': { bundleKey: 'SUPPORT', label: 'Priority support' },
+            },
+        }),
+    },
+    {
+        id: 'tenant-plan-change',
+        load: () => import('../../src/pages-tenant/PlanChangeWizard.vue'),
+        props: ({ http }) => ({
+            // Open from the start: the wizard is a dialog, so a closed one
+            // renders nothing and the case would be a snapshot of an empty div.
+            modelValue: true,
+            http,
+            apiPrefix: '/api/billing',
+            plans: TENANT_CATALOG_PLANS,
+            // The flag that reads "your current plan" is an INVERSION of the
+            // card — a foreground role painted as a surface. It needs this
+            // prop to render at all, and it measured 1.48:1 in dark.
+            currentPlanId: 'pl-1',
+            currentPlanName: 'Pro',
+            currentCycle: 'MONTHLY',
+            currentStatus: 'TRIAL',
+            trialEndsAt: '2026-02-01T00:00:00.000Z',
+            catalogQuotaKeys: ['users', 'storage', 'projects'],
+            formatCurrency: (n: number) => `€ ${n.toFixed(2)}`,
+            formatDate: (iso: string) => iso.slice(0, 10),
+            quotaLabel: (key: string) => key,
+            featureLabel: (key: string) => key,
+            // The wizard is a controlled component: without these three it
+            // renders, warns, and hands its buttons `undefined`. That is
+            // defect L1's shape, which is why the spec now fails on a Vue
+            // warning instead of snapshotting past one.
+            previewPlanChange: async () => FIXTURE_PLAN_CHANGE_PREVIEW,
+            changePlan: async () => {},
+            i18n: planChangeWizardI18n(defaultTenantPlanSectionI18n('en')),
+        }),
     },
 ];
 

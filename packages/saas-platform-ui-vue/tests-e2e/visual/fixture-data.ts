@@ -16,6 +16,13 @@ import type {
     PlanVersionRow,
 } from '@saasicat/types';
 
+import type {
+    SubscriptionBundleShape,
+    UsageSnapshotShape,
+} from '../../src/vue/use-tenant-billing.js';
+import type { CatalogPlan } from '../../src/vue/use-tenant-billing-catalog.js';
+import type { PlanChangePreviewShape } from '../../src/vue/use-tenant-billing.js';
+
 export const FIXTURE_MANIFEST: AdminManifest = {
     schemaVersion: 1,
     project: {
@@ -247,6 +254,193 @@ export const FIXTURE_MARKETING_PROJECTIONS: MarketingProjectionRow[] = [
     },
 ];
 
+// ── Tenant-facing surfaces ───────────────────────────────────────────────────
+//
+// `pages-tenant/*` renders in the CONSUMER's own app rather than in the admin
+// shell, and until now no fixture rendered any of it. That gap produced three
+// separate defects in one review round — the plan flag at 1.48:1, the sub-row
+// indent, the unstyled portals — because every guard the package owns only ever
+// looked at the nineteen admin pages.
+//
+// The data below is chosen to light up the states that hid: a CURRENT plan (the
+// inverted flag needs `currentPlanId`), a PENDING version (the banner is behind
+// a `v-if`), a booked bundle AND a cancelled one, and a trial.
+
+const TENANT_USAGE: UsageSnapshotShape = {
+    plan: 'PRO',
+    effectivePlan: 'PRO',
+    billingCycle: 'MONTHLY',
+    status: 'TRIAL',
+    isPilot: false,
+    pilotEndsAt: null,
+    trialEndsAt: '2026-02-01T00:00:00.000Z',
+    startedAt: '2026-01-01T00:00:00.000Z',
+    currentPeriodStart: '2026-01-01T00:00:00.000Z',
+    currentPeriodEnd: '2026-02-01T00:00:00.000Z',
+    pendingPlan: null,
+    pendingBillingCycle: null,
+    pendingEffectiveAt: null,
+    planVersion: {
+        id: 'pv-1',
+        planId: 'pl-1',
+        version: 3,
+        publishedAt: '2025-12-01T00:00:00.000Z',
+        supersededAt: null,
+        changeNote: 'More storage',
+    },
+    // The pending-version banner only renders when this is set, and it is the
+    // surface that paints `--sa-color-inverse-notice`.
+    pendingPlanVersion: {
+        id: 'pv-2',
+        planId: 'pl-1',
+        version: 4,
+        nonRegressive: true,
+        changeNote: 'Adds the export feature',
+        publishedChanges: null,
+    },
+    pendingPlanVersionEffectiveAt: '2026-03-01T00:00:00.000Z',
+    pendingPlanVersionAccepted: false,
+    pendingPlanVersionAcceptedAt: null,
+    limits: {
+        plan: 'PRO',
+        quotas: { users: 25, storage: 50, projects: 10 },
+        features: ['export', 'sso'],
+    },
+    usage: { users: 18, storage: 31.5, projects: 4 },
+    packageSnapshot: null,
+    checkoutOfferId: null,
+};
+
+const TENANT_BUNDLES: SubscriptionBundleShape[] = [
+    {
+        id: 'sb-1',
+        subscriptionId: 'sub-1',
+        bundleVersionId: 'bv-1',
+        bundleKey: 'ANALYTICS',
+        label: 'Analytics',
+        monthlyNet: '19.00',
+        startedAt: '2026-01-02T00:00:00.000Z',
+        minimumTermEndsAt: '2026-07-02T00:00:00.000Z',
+        canceledAt: null,
+        canceledEffectiveAt: null,
+    },
+    // A cancelled booking renders a different pill and a different row tone —
+    // one row of each, so neither branch is the one nobody looks at.
+    {
+        id: 'sb-2',
+        subscriptionId: 'sub-1',
+        bundleVersionId: 'bv-2',
+        bundleKey: 'SUPPORT',
+        label: 'Priority support',
+        monthlyNet: '49.00',
+        startedAt: '2025-11-02T00:00:00.000Z',
+        minimumTermEndsAt: null,
+        canceledAt: '2026-01-10T00:00:00.000Z',
+        canceledEffectiveAt: '2026-02-01T00:00:00.000Z',
+    },
+];
+
+export const TENANT_CATALOG_PLANS: CatalogPlan[] = [
+    {
+        id: 'pl-0',
+        name: 'Starter',
+        tagline: 'For trying things out',
+        monthlyNet: 0,
+        yearlyNet: 0,
+        popular: false,
+        quotas: { users: 3, storage: 5, projects: 1 },
+        features: [],
+    },
+    {
+        id: 'pl-1',
+        name: 'Pro',
+        tagline: 'For growing teams',
+        monthlyNet: 49,
+        yearlyNet: 490,
+        popular: true,
+        quotas: { users: 25, storage: 50, projects: 10 },
+        features: ['export', 'sso'],
+    },
+    {
+        id: 'pl-2',
+        name: 'Enterprise',
+        tagline: 'For the whole company',
+        monthlyNet: 199,
+        yearlyNet: 1990,
+        popular: false,
+        quotas: { users: -1, storage: 500, projects: -1 },
+        features: ['export', 'sso', 'audit'],
+    },
+];
+
+const TENANT_CATALOG_BUNDLES = [
+    {
+        bundleVersionId: 'bv-1',
+        bundleKey: 'ANALYTICS',
+        label: 'Analytics',
+        description: 'Dashboards and scheduled reports',
+        features: ['reports'],
+        quotas: { dashboards: 10 },
+        monthlyNet: '19.00',
+        yearlyNet: '190.00',
+        requiresFeatures: [],
+        priceTag: null,
+    },
+];
+
+/**
+ * What the plan-change wizard shows in its confirm step.
+ *
+ * An UPGRADE with proration and one exceeded limit: the price summary, the
+ * prorated delta and the blocking-limit row are three separate branches, and a
+ * NOOP preview would render none of them.
+ */
+export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = {
+    changeType: 'UPGRADE',
+    current: {
+        plan: {
+            id: 'pl-1',
+            name: 'Pro',
+            monthlyNet: 49,
+            yearlyNet: 490,
+            quotas: { users: 25, storage: 50 },
+            features: ['export'],
+        },
+        billingCycle: 'MONTHLY',
+    },
+    target: {
+        plan: {
+            id: 'pl-2',
+            name: 'Enterprise',
+            monthlyNet: 199,
+            yearlyNet: 1990,
+            quotas: { users: -1, storage: 500 },
+            features: ['export', 'audit'],
+        },
+        billingCycle: 'MONTHLY',
+    },
+    effectiveAt: '2026-02-01T00:00:00.000Z',
+    isImmediate: false,
+    projectedTrialEndsAt: null,
+    proration: {
+        daysRemainingInPeriod: 17,
+        daysInPeriod: 31,
+        periodStart: '2026-01-01T00:00:00.000Z',
+        periodEnd: '2026-02-01T00:00:00.000Z',
+        currentPriceNet: 49,
+        targetPriceNet: 199,
+        prorataDeltaNet: 82.26,
+    },
+    limitsCheck: {
+        users: { used: 18, currentMax: 25, targetMax: -1, exceeded: false },
+        projects: { used: 4, currentMax: 10, targetMax: 2, exceeded: true },
+    },
+    featuresLost: [],
+    featuresGained: ['audit'],
+    blockers: [],
+    warnings: [{ code: 'LIMIT_EXCEEDED', message: 'Projects over the target limit' }],
+};
+
 /** Routing table. Matched EXACTLY — see `respondTo` for why. */
 const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/boot', BOOT],
@@ -281,6 +475,13 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/dashboard/tenants', { value: 42 }],
     ['/api/admin/dashboard/subscriptions', { value: 17, delta: 3 }],
     ['/api/admin/dashboard/last-scan', { value: 128, timestamp: '2026-01-15T09:00:00.000Z' }],
+    // Tenant-facing. `apiPrefix` is the sub-path under the adapter's base, so
+    // the fixture's cases pass `/api/billing` and these are the full paths.
+    ['/api/billing/usage', TENANT_USAGE],
+    ['/api/billing/subscription-bundles', TENANT_BUNDLES],
+    ['/api/billing/plans', TENANT_CATALOG_PLANS],
+    ['/api/billing/feature-registry', { features: {}, quotas: {} }],
+    ['/api/billing/bundles', TENANT_CATALOG_BUNDLES],
 ];
 
 /**

@@ -71,6 +71,24 @@ const http = async (url: string, init?: { method?: string }) => {
     };
 };
 
+// 3b. And no way AROUND that responder.
+//
+// A composable that takes `http` as an option falls back to
+// `defaultHttpClient()` when nobody passes one, and that reaches the real
+// network. The fixture cannot see such a request — it never touched the stub —
+// so `unmatchedRequests` stays empty and the page quietly snapshots its empty
+// state as if that were the design. `MySubscriptionBundlesPage` did exactly
+// that, and the resulting baseline was eleven lines of an empty-state message.
+//
+// Replacing `fetch` rather than spying on it: the point is that the request
+// must not succeed by accident either.
+const escapedRequests: string[] = [];
+window.fetch = (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    if (!escapedRequests.includes(url)) escapedRequests.push(url);
+    return Promise.reject(new Error(`the fixture's HttpClient was bypassed: ${url}`));
+};
+
 const ADMIN_BASE = '/api/admin';
 
 const caseId = new URL(window.location.href).searchParams.get('page') ?? VISUAL_CASES[0].id;
@@ -134,6 +152,14 @@ const Host = defineComponent({
     },
 });
 
+// Vue's own complaints, collected rather than left in a console nobody reads.
+//
+// A missing required prop does not stop a render: Vue warns and hands the
+// component `undefined`, so the page still paints and the baseline still
+// records — of a screen with a dead button on it. That is defect L1 exactly,
+// and it shipped. The spec fails a case that produced one, so "the fixture
+// renders it" cannot quietly mean "the fixture renders most of it".
+const vueWarnings: string[] = [];
 const app = createApp(Host);
 app.use(Quasar, {
     plugins: { Notify, Dialog, Loading },
@@ -147,6 +173,9 @@ app.use(Quasar, {
     // Same cast, same reason as in `createSuperAdminApp`: `globalNodes` is a
     // documented Quasar option its own types do not declare.
 } as QuasarPluginOptions);
+app.config.warnHandler = (message, _instance, trace) => {
+    vueWarnings.push(`${message}${trace ? ` ${trace.split('\n')[0]}` : ''}`);
+};
 app.use(createPinia());
 app.use(
     createRouter({
@@ -188,11 +217,17 @@ app.mount('#app');
 declare global {
     interface Window {
         __saasicatUnmatchedRequests?: string[];
+        /** Requests that went round the stub to the real network. */
+        __saasicatEscapedRequests?: string[];
+        /** Vue's warnings for this render — a non-empty list fails the case. */
+        __saasicatVueWarnings?: string[];
         /** Flips the shell's colour scheme; resolves once the DOM has caught up. */
         __saasicatSetTheme?: (scheme: SaColorScheme) => Promise<void>;
     }
 }
 window.__saasicatUnmatchedRequests = unmatchedRequests;
+window.__saasicatEscapedRequests = escapedRequests;
+window.__saasicatVueWarnings = vueWarnings;
 window.__saasicatSetTheme = async (scheme) => {
     theme.scheme.value = scheme;
     await nextTick();

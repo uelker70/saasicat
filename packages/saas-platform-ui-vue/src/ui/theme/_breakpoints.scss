@@ -7,8 +7,14 @@
 //
 // They are Quasar's own breakpoints, deliberately. A component that changes
 // layout at 980px inside an app whose grid changes at 1024px produces a band
-// 44px wide where the two disagree — and the admin surface had six such
-// values (540, 600, 980, 1100, 1180, 1280), so it had several such bands.
+// 44px wide where the two disagree — and the admin surface had six such values
+// (540, 600, 980, 1100, 1180, 1280), so it had several such bands. All six are
+// now on the bounds below; the audit fails on a seventh.
+//
+// Moving 1100 and 1180 DOWN to 1023.98 keeps the wide layout for another 76 and
+// 156 pixels respectively, which is the one direction of this change that could
+// push content off the page. `visual-baseline.spec.ts` measures horizontal
+// overflow at both edges of every band, on every page, for exactly that reason.
 //
 // Usage:
 //     @use '@saasicat/ui-vue/theme/breakpoints' as bp;
