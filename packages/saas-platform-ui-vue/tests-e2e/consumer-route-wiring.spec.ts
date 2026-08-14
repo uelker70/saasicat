@@ -33,31 +33,111 @@ const ADMIN_ROOT = fileURLToPath(new URL('../../../examples/notesapp/admin', imp
  * did: a first sweep of this app used invented URLs, four of which hit the
  * catch-all redirect and rendered the dashboard. Every one "passed", and the
  * result was a statement about the guesses rather than about the app.
+ *
+ * The first parser then made the same mistake one level down. It matched
+ * `path: '…'` followed IMMEDIATELY by `component:`, so an ordinary record like
+ * `{ path: 'x', name: 'x', component: X }` was skipped in silence — and the
+ * floor assertion would still have passed on whatever survived. A guard
+ * satisfied exactly when coverage shrinks is the failure this file exists to
+ * prevent.
+ *
+ * Now every record is found by its `path:` alone, whatever else it declares and
+ * in whatever order, so a record cannot be missed: a route without a path is not
+ * a route. Field order is irrelevant, and the record's own extent is found by
+ * matching braces, so a nested `meta: { … }` does not end it early.
  */
-function consumerRoutes(): string[] {
-    const source = readFileSync(`${ADMIN_ROOT}/src/router/routes.ts`, 'utf8');
-
-    // Children of the `/admin` record, which is where every guarded page lives.
-    const paths = [...source.matchAll(/\{\s*path:\s*'([^']*)'\s*,\s*component:/g)].map((m) => m[1]);
-
-    return paths
-        .filter((path) => path && !path.startsWith('/'))
-        .map((path) =>
-            // One sample value per parameter. The parameterised routes are the
-            // ones that matter most here: reading a param is what needs the
-            // router instance, and it is the case that broke.
-            path.replace(/:(\w+)/g, (_, name) => (name === 'slug' ? 'globex' : 'sample')),
-        )
-        .map((path) => `/admin/${path}`);
+interface RouteRecord {
+    path: string;
+    hasComponent: boolean;
 }
 
-const ROUTES = consumerRoutes();
+/** The record a `path:` belongs to, from its declaration to its closing brace. */
+function recordAt(source: string, from: number): string {
+    let depth = 0;
+    for (let i = from; i < source.length; i += 1) {
+        const c = source[i];
+        if (c === '{') depth += 1;
+        else if (c === '}') {
+            if (depth === 0) return source.slice(from, i);
+            depth -= 1;
+        }
+    }
+    return source.slice(from);
+}
+
+function readRouteTable(): {
+    visit: string[];
+    shell: RouteRecord[];
+    records: RouteRecord[];
+    /** `component:` occurrences in the SOURCE, counted without this parser. */
+    componentsInSource: number;
+} {
+    const source = readFileSync(`${ADMIN_ROOT}/src/router/routes.ts`, 'utf8');
+
+    const records: RouteRecord[] = [...source.matchAll(/\bpath:\s*'([^']*)'/g)].map((m) => ({
+        path: m[1],
+        hasComponent: /\bcomponent:/.test(recordAt(source, m.index + m[0].length)),
+    }));
+
+    // Absolute paths are the shell's own records — login, the error page, the
+    // layout root, the index redirect and the catch-all. What remains are the
+    // children mounted under `/admin`: every guarded page, and the only thing
+    // worth sweeping.
+    const isShell = (r: RouteRecord) => r.path === '' || r.path.startsWith('/');
+
+    return {
+        records,
+        // Counted straight off the text. The first version of the cross-check
+        // below derived this from `records` too, which made it circular: a
+        // record this parser missed dropped out of BOTH sides and the totals
+        // still balanced. A check whose two halves come from the same parse
+        // cannot detect that parse being wrong.
+        componentsInSource: [...source.matchAll(/\bcomponent:/g)].length,
+        shell: records.filter(isShell),
+        visit: records
+            .filter((r) => !isShell(r))
+            .map((r) =>
+                // One sample value per parameter. The parameterised routes matter
+                // most here: reading a param is what needs the router instance,
+                // and it is the case that broke.
+                r.path.replace(/:(\w+)/g, (_, name) => (name === 'slug' ? 'globex' : 'sample')),
+            )
+            .map((path) => `/admin/${path}`),
+    };
+}
+
+const TABLE = readRouteTable();
+const ROUTES = TABLE.visit;
 
 test.describe('an assembled consumer app resolves every one of its routes', () => {
-    test('the route table was actually read', () => {
-        // A parse that silently returns nothing would make every case below
-        // vacuous — there would be no cases at all, and the suite would be green.
-        expect(ROUTES.length, 'no routes parsed from the consumer route table').toBeGreaterThan(8);
+    test('every record in the route table was accounted for', () => {
+        // The parse reached the file.
+        expect(
+            TABLE.records.length,
+            'no route records found — did the table move?',
+        ).toBeGreaterThan(10);
+
+        // Every record went somewhere. Tautological today, and deliberately
+        // kept: it is what fails first if a future filter drops a record.
+        expect(TABLE.visit.length + TABLE.shell.length).toBe(TABLE.records.length);
+
+        // The cross-check that can actually fail: every record that mounts a
+        // component is either one this sweep visits or one of the shell's own.
+        // A record whose path this parser misread would show up as a component
+        // belonging to neither.
+        // The cross-check that can actually fail, because its two halves come
+        // from different places: every `component:` in the file belongs to a
+        // record this sweep visits or to one of the shell's own. A path written
+        // in a shape the matcher does not read — double quotes, a template
+        // literal — leaves a component belonging to neither, and the counts
+        // stop adding up. Verified against both of those shapes.
+        const shellWithComponent = TABLE.shell.filter((r) => r.hasComponent).length;
+        expect(
+            TABLE.visit.length,
+            'a record mounts a component but is neither visited nor part of the shell — ' +
+                'its `path` is probably written in a form this parser does not read',
+        ).toBe(TABLE.componentsInSource - shellWithComponent);
+
         expect(ROUTES, 'the parameterised route is what this file exists for').toContain(
             '/admin/tenants/globex',
         );
