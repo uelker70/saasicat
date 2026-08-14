@@ -268,8 +268,19 @@ const scanLabel = computed(() => {
 
 const declaredAtByKey = computed<Record<string, string>>(() => {
     const map: Record<string, string> = {};
-    for (const c of props.snapshot?.capabilities ?? []) {
-        map[c.capabilityKey] = c.declaredAt;
+    // `Array.isArray`, not `?? []`. The nullish fallback only covers `null` and
+    // `undefined`; anything else present goes straight into `for…of`, and a
+    // JSON object or a number is not iterable — `for (const c of {})` throws,
+    // which takes the route down exactly like the string methods above did.
+    //
+    // A string would have slipped through both: it IS iterable, so the loop
+    // walks its characters and silently builds nonsense. That is why the case
+    // covering this in the test suite had to be an object rather than a string —
+    // the first version used a string and passed without exercising anything.
+    const capabilities = props.snapshot?.capabilities;
+    if (!Array.isArray(capabilities)) return map;
+    for (const c of capabilities) {
+        if (c && typeof c.capabilityKey === 'string') map[c.capabilityKey] = c.declaredAt;
     }
     return map;
 });

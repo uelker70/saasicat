@@ -21,13 +21,56 @@
 
 import { describe, expect, test } from 'vitest';
 
+import type { FeatureCatalogEntryRow } from '@saasicat/types';
+
 import DiscoveryPage from '../src/pages-standard/DiscoveryPage.vue';
 import { mountWithQuasar } from './support/mount-with-quasar';
 
-/** The props the page needs beyond the payload under test. */
+/**
+ * One real catalog entry, annotated against its own type.
+ *
+ * Fabricating a partial row here failed immediately — `DiscoveryFeatureCard`
+ * reads `feature.replaces.length` — which is the point of annotating fixtures
+ * rather than casting them: a made-up shape is a statement about a contract, and
+ * an unchecked one is a guess.
+ */
+const FEATURE: FeatureCatalogEntryRow = {
+    id: 'f-1',
+    projectKey: 'notesapp',
+    featureKey: 'export',
+    label: 'Export',
+    description: null,
+    marketingLabel: null,
+    marketingDescription: null,
+    icon: null,
+    tier: null,
+    discoveryStatus: 'approved',
+    requires: [],
+    replaces: [],
+    successorKey: null,
+    approvedAt: null,
+    approvedBy: null,
+    approvedSignature: null,
+    plannedOnly: false,
+    core: false,
+    i18n: {},
+    sortOrder: 0,
+    createdAt: '2026-01-15T12:00:00.000Z',
+    updatedAt: '2026-01-15T12:00:00.000Z',
+    deletedAt: null,
+};
+
+/**
+ * The props the page needs beyond the payload under test.
+ *
+ * `features` is non-empty on purpose. `declaredAtByKey` is a computed, so it is
+ * only evaluated once something renders that reads it — with an empty catalog
+ * the malformed-`capabilities` cases would mount happily without the loop ever
+ * running, and would prove nothing.
+ */
 const REQUIRED = {
     capabilities: [],
-    features: [],
+    features: [FEATURE],
     quotas: [],
     loading: false,
     error: null,
@@ -60,7 +103,14 @@ describe('DiscoveryPage survives a snapshot that is not a snapshot', () => {
         ['an object `key`', { app: { key: {} } }],
         ['a numeric `version`', { app: { key: 'notesapp', version: 2 } }],
         ['a numeric `scannedAt`', { app: { key: 'notesapp' }, scannedAt: 1737000000000 }],
-        ['`capabilities` that is not a list', { app: { key: 'x' }, capabilities: 'nope' }],
+        // Non-ITERABLE, not merely not-an-array. The first version of this case
+        // used a string, and a string is iterable — `for…of` walked its
+        // characters, built nonsense and threw nothing, so the case passed
+        // without exercising the protection it was named after.
+        ['`capabilities` as an object', { app: { key: 'x' }, capabilities: { a: 1 } }],
+        ['`capabilities` as a number', { app: { key: 'x' }, capabilities: 7 }],
+        ['`capabilities` as a string', { app: { key: 'x' }, capabilities: 'nope' }],
+        ['a capability entry that is null', { app: { key: 'x' }, capabilities: [null] }],
     ];
 
     for (const [label, snapshot] of MALFORMED) {
