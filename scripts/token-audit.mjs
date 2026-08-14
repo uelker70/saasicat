@@ -56,8 +56,26 @@ const TOKEN_DEFINITION_DIR = join(UI_SRC, 'ui', 'theme');
  */
 const SCRIPT_PALETTE_FILE = join(UI_SRC, 'client', 'identity-accents.ts');
 
-/** Hairlines and zero — a scale for these would be ceremony, not clarity. */
-const ALLOWED_PX = new Set(['0px', '1px', '2px']);
+/**
+ * Zero needs no token anywhere: `padding: 0` is idiomatic, and
+ * `var(--sa-space-0)` for it would be ceremony.
+ */
+const ALWAYS_ALLOWED_PX = new Set(['0px']);
+
+/**
+ * Hairlines — but only where a hairline is what they are.
+ *
+ * A `border: 1px` is not a scale decision and never will be; a scale for it
+ * would be the ceremony this exemption exists to avoid. `padding: 2px` is a
+ * different animal: the spacing scale has a 2px rung, so a token exists and a
+ * literal is debt.
+ *
+ * Applying the exemption to every property hid 114 spacing declarations from a
+ * budget that claims to hold scale properties to zero literals — 72 of them
+ * `padding`/`margin`/`gap: 2px`, i.e. the one value with a rung waiting for it.
+ * The claim was false for exactly the values it sounded most confident about.
+ */
+const HAIRLINE_PX = new Set(['1px', '2px']);
 
 /**
  * Quasar's five bands, and their `max-width` counterparts.
@@ -283,7 +301,8 @@ export function audit() {
             for (const declaration of declarations(block.text)) {
                 const scaled = SCALE_PROPERTY.test(declaration.property.toLowerCase());
                 for (const match of declaration.value.matchAll(CATEGORIES.pixelValue)) {
-                    if (ALLOWED_PX.has(match[0])) continue;
+                    if (ALWAYS_ALLOWED_PX.has(match[0])) continue;
+                    if (!scaled && HAIRLINE_PX.has(match[0])) continue;
                     const where = {
                         file: rel,
                         line: lineOf(content, block.offset + declaration.valueStart + match.index),
@@ -300,7 +319,7 @@ export function audit() {
                 if (category === 'selfReferencingVar') continue;
                 for (const match of block.text.matchAll(pattern)) {
                     const value = (match[1] ?? match[0]).trim();
-                    if (category === 'pixelValue' && ALLOWED_PX.has(value)) continue;
+                    if (category === 'pixelValue' && ALWAYS_ALLOWED_PX.has(value)) continue;
                     // A `var(--sa-…)` is the goal, not a finding.
                     if (value.startsWith('var(')) continue;
                     findings[category].push({
