@@ -36,7 +36,11 @@ the whole sRGB cube, not a sample, because the input is not a role.
 and the selected item in an open select are coloured `--q-primary` by Quasar, on
 surfaces the theme darkened — the shrunk label is small text and read as
 decoration rather than as the name of the field being edited. Both now take the
-same readable role, including inside teleported menus.
+same readable role, including inside teleported
+menus — except while a field is invalid, where Quasar's error colour still wins.
+That carve-out is deliberate: the label inherits the error red from the control,
+and colouring it at all cut that inheritance, so an invalid field looked normal
+while every other error indicator stayed red.
 
 **Two more, reported from a running admin.** The promo dialog's status buttons
 had no styles at all and rendered as raw browser buttons on a dark dialog; they
