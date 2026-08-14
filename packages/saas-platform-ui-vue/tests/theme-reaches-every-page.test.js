@@ -27,8 +27,27 @@ const SRC = fileURLToPath(new URL('../src', import.meta.url));
 const THEME_COMPONENTS = join(SRC, 'ui', 'theme', 'components');
 const PAGES = join(SRC, 'pages-standard');
 
-const withoutComments = (source) =>
-    source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '');
+/**
+ * Source with its comments removed, so commented-out markup is not read as
+ * markup.
+ *
+ * The HTML pass repeats until it stops changing, and then drops any orphaned
+ * delimiter. One pass is not enough: `<!<!-- -->--` leaves a bare `<!--`
+ * behind, and for this file the consequence is not cosmetic — a leftover
+ * delimiter means commented-out markup gets scanned for reach markers, so a
+ * page could PASS on a marker it only carries inside a comment. Erring toward
+ * removing too much is the safe direction here; erring toward keeping it is
+ * how a guard reports success it did not verify.
+ */
+const withoutComments = (source) => {
+    let text = source.replace(/\/\*[\s\S]*?\*\//g, '');
+    let previous;
+    do {
+        previous = text;
+        text = text.replace(/<!--[\s\S]*?-->/g, '');
+    } while (text !== previous);
+    return text.replace(/<!--|-->/g, '');
+};
 
 /** Every selector in a stylesheet, one per comma-separated part. */
 function selectorParts(css) {
