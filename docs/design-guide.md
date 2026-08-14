@@ -204,6 +204,13 @@ Two rules come with them, and both are the reason the ramp exists at all:
   and for a `var()`. That is why five components carried their own hex ramp and
   none of them could follow the theme. `identityChipStyle()` does the mixing,
   and an audit category fails the build on a reappearing `+ '15'`.
+- **A colour you _store_ is a value, not a token.** Use
+  `IDENTITY_ACCENT_VALUES` — the same ramp as concrete colours — anywhere the
+  colour leaves the browser: a picker whose choice is persisted, a payload
+  field, an export. `var(--sa-color-identity-1)` is 26 characters and means
+  nothing outside a document that has the stylesheet; the promotions endpoint
+  caps its `color` at 16, so pointing its swatches at the token form broke every
+  create. A test binds the two halves, so they cannot drift apart.
 - **Each rung is picked to be readable as text**, in its own theme, on that
   theme's card surface — not just distinguishable as a dot. The plan mark used
   violet-600 and measured 2.96:1 in dark; it was carried as a named contrast

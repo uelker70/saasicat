@@ -22,6 +22,12 @@ const style = identityChipStyle(identityAccentFor(plan.planKey, props.planAccent
 Consumer colours still win — `planAccents` takes any CSS colour, and the helpers
 mix rather than concatenate.
 
+The ramp ships in two forms, and which one you want depends on where the colour
+goes. `IDENTITY_ACCENTS` are token references and follow the theme — use them to
+paint. `IDENTITY_ACCENT_VALUES` are concrete colours — use them wherever the
+colour is **stored**, such as a picker whose choice is sent to an API. A test
+binds the two so they cannot drift.
+
 This closes the `.sa-plan-list-plan-mark` contrast exception: those accents were
 applied as inline styles built by gluing hex digits onto a colour
 (`accent + '15'`), so they could not follow the theme and the plan mark measured
