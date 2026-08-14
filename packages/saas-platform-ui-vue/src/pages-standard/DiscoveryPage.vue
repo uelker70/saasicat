@@ -228,12 +228,19 @@ const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStat
     ],
 );
 
-const appKey = computed(() => props.snapshot?.app.key ?? '—');
+// `?.app?.` rather than `?.app.` — the optional chain has to survive the whole
+// path, not just its first step. `useDiscovery` assigns the response body with
+// an unchecked `as DiscoverySnapshot`, so a 200 whose body is not a snapshot
+// (an older backend, a proxy's JSON error page, a partial response) reaches
+// here as a non-null value without `app`. The guard then stopped one step short
+// and the page threw during a computed — which white-screens the route rather
+// than showing the dash these fallbacks exist for.
+const appKey = computed(() => props.snapshot?.app?.key ?? '—');
 const appLabel = computed(() => {
-    const k = props.snapshot?.app.key ?? '';
+    const k = props.snapshot?.app?.key ?? '';
     return k ? k.charAt(0).toUpperCase() + k.slice(1) : 'Discovery';
 });
-const appVersion = computed(() => props.snapshot?.app.version ?? '0.0.0');
+const appVersion = computed(() => props.snapshot?.app?.version ?? '0.0.0');
 const scanLabel = computed(() => {
     if (!props.snapshot?.scannedAt) return msg.value.notScannedYet;
     try {
