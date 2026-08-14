@@ -50,6 +50,17 @@ describe('DiscoveryPage survives a snapshot that is not a snapshot', () => {
         ['an object without `app`', { schemaVersion: 1, scannedAt: '2026-01-15T12:00:00.000Z' }],
         ['an `app` without `key`', { app: {} }],
         ['a string', 'not json we expected'],
+        // Present but of the wrong TYPE — the half of this that the first
+        // version of the fix missed. A truthy non-string passes an existence
+        // check and throws on the string method that follows, which is the same
+        // white-screen one step further in. Guarding presence without guarding
+        // type only moves the crash.
+        ['a numeric `key`', { app: { key: 1, version: '1.0.0' } }],
+        ['a boolean `key`', { app: { key: true } }],
+        ['an object `key`', { app: { key: {} } }],
+        ['a numeric `version`', { app: { key: 'notesapp', version: 2 } }],
+        ['a numeric `scannedAt`', { app: { key: 'notesapp' }, scannedAt: 1737000000000 }],
+        ['`capabilities` that is not a list', { app: { key: 'x' }, capabilities: 'nope' }],
     ];
 
     for (const [label, snapshot] of MALFORMED) {
