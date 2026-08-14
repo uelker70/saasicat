@@ -33,6 +33,32 @@ export const IDENTITY_ACCENTS: readonly string[] = [
     'var(--sa-color-identity-6)',
 ];
 
+/**
+ * The same ramp as concrete colours, for values that are STORED rather than
+ * painted.
+ *
+ * A promotion's colour is data: the operator picks it, it goes over the wire,
+ * a database column holds it, and `CreatePromotionDto` caps it at 16
+ * characters. `var(--sa-color-identity-1)` is 28 and would fail validation on
+ * every create — which is exactly what happened when the swatches above were
+ * pointed at the token form. A token is paint; this is a value.
+ *
+ * These are the LIGHT theme's values, because a stored colour has to mean one
+ * thing wherever it is later rendered. `identity-accents-match-theme.test.js`
+ * binds each one to its role, so the two halves of the ramp cannot drift.
+ */
+export const IDENTITY_ACCENT_VALUES: readonly string[] = [
+    '#1d4ed8',
+    '#6d28d9',
+    '#047857',
+    '#b45309',
+    '#0369a1',
+    '#b91c1c',
+];
+
+/** The stored counterpart of `IDENTITY_NEUTRAL`. */
+export const IDENTITY_NEUTRAL_VALUE = '#64748b';
+
 /** For "no identity yet", and for the entry tier that should stay quiet. */
 export const IDENTITY_NEUTRAL = 'var(--sa-color-identity-neutral)';
 

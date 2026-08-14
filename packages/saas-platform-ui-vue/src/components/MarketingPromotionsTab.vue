@@ -361,9 +361,11 @@ const cycleOptions = computed<Array<{ id: PromotionBillingCycle; label: string }
     { id: 'yearly', label: common.value.yearly },
     { id: 'both', label: common.value.both },
 ]);
-import { IDENTITY_ACCENTS, identityAccentAt } from '../client/identity-accents.js';
+import { IDENTITY_ACCENT_VALUES } from '../client/identity-accents.js';
 
-const COLORS = IDENTITY_ACCENTS;
+// Concrete values, not tokens: every swatch here is PATCHed to
+// `/catalog/promotions` and stored, and the DTO caps `color` at 16 characters.
+const COLORS = IDENTITY_ACCENT_VALUES;
 
 const today = new Date();
 
@@ -552,7 +554,7 @@ async function onAdd(): Promise<void> {
         validFrom: new Date().toISOString().slice(0, 10),
         validTo: new Date(today.getTime() + 30 * 86400000).toISOString().slice(0, 10),
         priority: 5,
-        color: identityAccentAt(0),
+        color: IDENTITY_ACCENT_VALUES[0],
         i18n: { [DEFAULT_LOCALE]: { badge: 'Aktion' } },
     });
     expandedId.value = created.id;

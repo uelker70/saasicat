@@ -36,6 +36,26 @@ const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');
  */
 const TOKEN_DEFINITION_DIR = join(UI_SRC, 'ui', 'theme');
 
+/**
+ * The script-side half of the palette definition.
+ *
+ * `tokens.primitive.css` holds the ramp for CSS; this file holds the same ramp
+ * as concrete values, for the places where a colour is DATA rather than paint —
+ * a promotion's accent is picked by an operator, sent over the wire and stored
+ * in a column the DTO caps at 16 characters, so it cannot be a `var()`.
+ *
+ * Exempt for the same reason the directory above is: literals are what it is
+ * for, and counting them would make the target unreachable by construction.
+ *
+ * A single named file rather than a directory, and that is the safer direction
+ * here — the worry that made the theme exemption a directory was that a name
+ * list would silently absorb the next file added. One name absorbs nothing: a
+ * second palette file is counted. And `identity-accents-match-theme.test.js`
+ * asserts that EVERY hex in this file is one of the ramp values, so it cannot
+ * become somewhere to put a colour that has no role.
+ */
+const SCRIPT_PALETTE_FILE = join(UI_SRC, 'client', 'identity-accents.ts');
+
 /** Hairlines and zero — a scale for these would be ceremony, not clarity. */
 const ALLOWED_PX = new Set(['0px', '1px', '2px']);
 
@@ -194,20 +214,39 @@ export function audit() {
             const script = scriptSource(file, content)
                 .replace(/\/\*[\s\S]*?\*\//g, '')
                 .replace(/^\s*\/\/.*$/gm, '');
-            for (const match of script.matchAll(CATEGORIES.hexColor)) {
-                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
-            }
-            for (const match of script.matchAll(CATEGORIES.functionalColor)) {
-                findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+            if (file !== SCRIPT_PALETTE_FILE) {
+                for (const match of script.matchAll(CATEGORIES.hexColor)) {
+                    findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+                }
+                for (const match of script.matchAll(CATEGORIES.functionalColor)) {
+                    findings.scriptColor.push({ file: rel, line: 0, value: match[0] });
+                }
             }
             // Over the WHOLE file, not only the script block: the same trick is
             // written straight into a `:style` binding in the template, and
             // that is where one of the two live instances sat.
             // Comments stripped for the same reason the script sweep strips
             // them: the sentence explaining this rule contains an example of
-            // what it forbids, and prose is not paint. Blanked rather than
-            // deleted so `line` still points at the real line.
-            const prose = content.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '));
+            // what it forbids, and prose is not paint.
+            //
+            // All THREE kinds a `.vue` file can hold. This sweep reads the
+            // whole file rather than only the script block, so `// use
+            // color-mix, not accent + '15'` in a script and the same sentence
+            // in a `<!-- -->` above a template are both reachable — and either
+            // would fail a zero budget over a line telling people not to do the
+            // thing. Only block comments were handled, which made the rule's
+            // own documentation the first thing it flagged.
+            //
+            // `//` needs whitespace or a line start in front of it, or the `//`
+            // in `https://…` would blank the rest of that line.
+            //
+            // Blanked rather than deleted, newlines kept, so `line` still
+            // points at the real line.
+            const blank = (m) => m.replace(/[^\n]/g, ' ');
+            const prose = content
+                .replace(/\/\*[\s\S]*?\*\//g, blank)
+                .replace(/<!--[\s\S]*?-->/g, blank)
+                .replace(/(^|\s)\/\/[^\n]*/gm, (m, lead) => lead + blank(m.slice(lead.length)));
             for (const match of prose.matchAll(ALPHA_CONCAT)) {
                 findings.alphaConcat.push({
                     file: rel,
