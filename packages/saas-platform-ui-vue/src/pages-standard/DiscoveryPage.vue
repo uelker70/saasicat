@@ -228,25 +228,59 @@ const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStat
     ],
 );
 
-const appKey = computed(() => props.snapshot?.app.key ?? '—');
+// `?.app?.` rather than `?.app.` — the optional chain has to survive the whole
+// path, not just its first step. `useDiscovery` assigns the response body with
+// an unchecked `as DiscoverySnapshot`, so a 200 whose body is not a snapshot
+// (an older backend, a proxy's JSON error page, a partial response) reaches
+// here as a non-null value without `app`. The guard then stopped one step short
+// and the page threw during a computed — which white-screens the route rather
+// than showing the dash these fallbacks exist for.
+// Narrowed to a string, not merely to "present". The type says `key` is a
+// string; the runtime value is whatever the server sent, because `useDiscovery`
+// assigns the body with an unchecked `as DiscoverySnapshot`. A truthy non-string
+// — `{"app":{"key":1}}` — passes an existence check and then throws on
+// `.charAt`, which is the same white-screen one step further in. Guarding
+// presence without guarding type only moves the crash.
+const appKeyText = computed(() => {
+    const key = props.snapshot?.app?.key;
+    return typeof key === 'string' ? key : '';
+});
+const appKey = computed(() => appKeyText.value || '—');
 const appLabel = computed(() => {
-    const k = props.snapshot?.app.key ?? '';
+    const k = appKeyText.value;
     return k ? k.charAt(0).toUpperCase() + k.slice(1) : 'Discovery';
 });
-const appVersion = computed(() => props.snapshot?.app.version ?? '0.0.0');
+const appVersion = computed(() => {
+    const version = props.snapshot?.app?.version;
+    return typeof version === 'string' && version ? version : '0.0.0';
+});
 const scanLabel = computed(() => {
-    if (!props.snapshot?.scannedAt) return msg.value.notScannedYet;
+    const scannedAt = props.snapshot?.scannedAt;
+    // Same reasoning: the catch below covers a bad DATE, not a bad type — the
+    // fallback `return scannedAt` would hand the template a non-string.
+    if (typeof scannedAt !== 'string' || !scannedAt) return msg.value.notScannedYet;
     try {
-        return new Date(props.snapshot.scannedAt).toLocaleString(intlLocale.value);
+        return new Date(scannedAt).toLocaleString(intlLocale.value);
     } catch {
-        return props.snapshot.scannedAt;
+        return scannedAt;
     }
 });
 
 const declaredAtByKey = computed<Record<string, string>>(() => {
     const map: Record<string, string> = {};
-    for (const c of props.snapshot?.capabilities ?? []) {
-        map[c.capabilityKey] = c.declaredAt;
+    // `Array.isArray`, not `?? []`. The nullish fallback only covers `null` and
+    // `undefined`; anything else present goes straight into `for…of`, and a
+    // JSON object or a number is not iterable — `for (const c of {})` throws,
+    // which takes the route down exactly like the string methods above did.
+    //
+    // A string would have slipped through both: it IS iterable, so the loop
+    // walks its characters and silently builds nonsense. That is why the case
+    // covering this in the test suite had to be an object rather than a string —
+    // the first version used a string and passed without exercising anything.
+    const capabilities = props.snapshot?.capabilities;
+    if (!Array.isArray(capabilities)) return map;
+    for (const c of capabilities) {
+        if (c && typeof c.capabilityKey === 'string') map[c.capabilityKey] = c.declaredAt;
     }
     return map;
 });
