@@ -873,6 +873,47 @@ for a completely different language (e.g. Django/Python).
 
 ## 8. Admin Frontend (Vue/Quasar)
 
+### 8.0 Bundler: dedupe the peers — do this first
+
+Add this to your Vite config before anything else in this chapter:
+
+```ts
+export default defineConfig({
+    resolve: {
+        // Exactly one copy of each. See below for why.
+        dedupe: ['vue', 'vue-router', 'pinia', 'quasar'],
+    },
+    // …
+});
+```
+
+**Why it is not optional.** `createSuperAdminApp()` _creates_ the router, the
+Pinia instance and the Quasar plugin. Your own pages then read them back with
+`useRoute()`, `useRouter()` and store hooks. Those APIs work by **module
+identity** — `inject` with a key that is a module-level symbol — so two copies of
+a library do not share one.
+
+The package ships its pages as `.vue` **source**, so their
+`import … from 'vue-router'` resolves relative to the package while your files
+resolve relative to your app. If both resolve to different installs, the bundle
+contains both.
+
+**The symptom is not an error message.** `inject` returns `undefined`, so the
+first thing that touches it throws somewhere unrelated:
+
+```text
+TypeError: Cannot read properties of undefined (reading 'params')
+```
+
+The shell renders — header, drawer, navigation — and the content area is blank.
+Pages that read no route params keep working, so it looks like one broken page
+rather than a broken wiring. `create-saasicat-admin` emits the `dedupe` block
+for you; a hand-wired app has to add it.
+
+The list is this package's `peerDependencies`, and that is the rule rather than a
+coincidence: a peer dependency _is_ the declaration that the host owns exactly
+one.
+
 ### 8.1 Platform Loaders
 
 Wrap one HTTP client per app (Axios or Fetch) and pass it to `createPlatformLoaders`
