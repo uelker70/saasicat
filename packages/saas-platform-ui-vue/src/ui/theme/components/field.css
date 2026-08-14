@@ -51,12 +51,23 @@
  * prescribes for accent text. The colour still follows the host's `$primary`,
  * so nothing about branding changes.
  *
+ * `q-field--highlighted` is the whole story and `q-field--focused` would be
+ * noise: Quasar's only label-colour rule is
+ * `.q-field--highlighted .q-field__label { color: currentColor }`, and it sets
+ * that class whenever the field is focused OR invalid.
+ *
+ * Which is why the invalid half has to be carved back out. Quasar paints an
+ * invalid field's red by putting `text-negative` on the CONTROL and letting the
+ * label inherit it through that `currentColor`. Naming any colour on the label
+ * cuts the inheritance, and `!important` on `.text-negative` cannot defend it,
+ * because that declaration sits on a different element. Without the `:not()` a
+ * field with `rules` or `:error` — the login, setup and confirm forms — would
+ * announce its failure in every indicator except the one naming the field.
+ *
  * `.sa-portal` alongside `.sa-page` for the usual reason: Quasar teleports every
  * menu to `<body>`, so a `.sa-page`-prefixed rule never reaches a dropdown. */
-.sa-page .q-field--focused .q-field__label,
-.sa-portal .q-field--focused .q-field__label,
-.sa-page .q-field--highlighted .q-field__label,
-.sa-portal .q-field--highlighted .q-field__label {
+.sa-page .q-field--highlighted:not(.q-field--error) .q-field__label,
+.sa-portal .q-field--highlighted:not(.q-field--error) .q-field__label {
     color: var(--sa-color-accent-strong);
 }
 

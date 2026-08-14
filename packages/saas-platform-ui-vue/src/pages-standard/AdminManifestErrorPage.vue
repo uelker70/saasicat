@@ -1,5 +1,5 @@
 <template>
-    <div class="sa-manifest-error">
+    <div class="sa-page sa-manifest-error">
         <q-card class="sa-manifest-error__card">
             <q-card-section class="sa-manifest-error__head">
                 <q-icon name="cloud_off" size="32px" color="negative" />
@@ -112,6 +112,9 @@ function logout(): void | Promise<void> {
     padding: 32px;
     display: flex;
     justify-content: center;
+    /* The page frame is a full viewport tall, and a stretched flex item would
+     * make this card as tall as the screen for four lines of text. */
+    align-items: flex-start;
 }
 .sa-manifest-error__card {
     max-width: 640px;

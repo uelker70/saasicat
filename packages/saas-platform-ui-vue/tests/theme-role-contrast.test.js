@@ -4,6 +4,14 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+    IDENTITY_ACCENTS,
+    IDENTITY_ACCENT_VALUES,
+    IDENTITY_NEUTRAL,
+    IDENTITY_NEUTRAL_VALUE,
+    identityChipStyle,
+} from '../dist/client/index.js';
+
 // Every pairing of a role background with a role foreground, resolved to real
 // numbers and measured — in both themes, without rendering anything.
 //
@@ -323,6 +331,125 @@ describe('a role background and a role foreground stay readable together', () =>
                     'used as a background is the usual cause — `--sa-color-fg-heading` is ' +
                     'near-black in light and near-white in dark, so a rule that pairs it ' +
                     'with `--sa-color-fg-on-accent` is white on white in one of the two.',
+            );
+        });
+    }
+});
+
+// ─── The one foreground that is computed rather than declared ────────────────
+//
+// `identityChipStyle()` is the only place in the package that decides a text
+// colour in JavaScript, and everything above is a sweep of CSS RULES — so the
+// sweep cannot see it, and neither can the browser check, which skips an
+// element whose background is translucent. The helper's background IS
+// translucent by construction: it is an 8 % wash of the same accent it paints
+// the text with. That blind spot is what let the chip go on painting an accent
+// on a wash of itself, and it survived the rule-level fix that put
+// `--sa-color-accent-strong` into the selected states around it, because an
+// inline `style` beats a class.
+//
+// The helper is also the only one whose input is not a role. A
+// `var(--sa-color-identity-N)` has a value per theme and comes out readable on
+// its own; a stored plan colour is a fixed hex chosen against the LIGHT theme,
+// and a consumer's `planAccents` can be any colour at all. So the assertions
+// below are of two kinds: real product values, and a bound over the whole cube.
+
+describe('the identity chip stays readable on its own tint', () => {
+    const { light, dark } = themeTables();
+
+    // The chip is drawn on a card (`.pc-plan-opt`, the plan list row, a tenant
+    // avatar) or on the raised variant of one. Both are judged, and raised is
+    // the harder of the two in either theme: it sits between the plain surface
+    // and the mixed text, so it leaves the text less room.
+    const SURFACES = ['var(--sa-color-bg-surface)', 'var(--sa-color-bg-surface-raised)'];
+
+    /** The helper's own foreground on the helper's own background, flattened. */
+    function chipContrast(accent, tokens, surfaceExpression) {
+        const style = identityChipStyle(accent);
+        const surface = resolveColour(surfaceExpression, tokens);
+        const wash = resolveColour(style.background, tokens);
+        const foreground = resolveColour(style.color, tokens);
+        if (!surface || !wash || !foreground) return null;
+        const background = flatten(wash, surface);
+        return contrast(flatten(foreground, background), background);
+    }
+
+    test('the helper no longer hands back the bare accent as text', () => {
+        // The regression has one shape: `color: accent`. Naming it directly
+        // means the guard fails on the edit itself rather than only on whichever
+        // colour happens to drop under the floor.
+        for (const accent of [...IDENTITY_ACCENTS, ...IDENTITY_ACCENT_VALUES]) {
+            assert.notEqual(
+                identityChipStyle(accent).color,
+                accent,
+                'the chip text is the accent itself again, painted on a wash of that ' +
+                    'same accent, so it follows the theme only when the caller happens ' +
+                    'to pass a role',
+            );
+        }
+    });
+
+    test('the resolver reaches real numbers for both input shapes', () => {
+        // Without this every assertion below could pass on nulls, and a `var()`
+        // input and a hex input travel different branches of the resolver.
+        assert.ok(chipContrast('var(--sa-color-identity-1)', light, SURFACES[0]) > 1);
+        assert.ok(chipContrast('#10b981', dark, SURFACES[0]) > 1);
+    });
+
+    for (const [themeName, tokens] of [
+        ['light', light],
+        ['dark', dark],
+    ]) {
+        test(`every colour the product itself stores clears ${CONTRAST_FLOOR}:1 in ${themeName}`, () => {
+            const failures = [];
+            for (const accent of [
+                ...IDENTITY_ACCENTS,
+                IDENTITY_NEUTRAL,
+                ...IDENTITY_ACCENT_VALUES,
+                IDENTITY_NEUTRAL_VALUE,
+            ]) {
+                for (const surface of SURFACES) {
+                    const ratio = chipContrast(accent, tokens, surface);
+                    if (ratio < CONTRAST_FLOOR) {
+                        failures.push(`${ratio.toFixed(2)}:1  ${accent} on ${surface}`);
+                    }
+                }
+            }
+            assert.deepEqual(
+                failures,
+                [],
+                "the stored half of the identity ramp is the light theme's values by " +
+                    'design, so in the dark theme these are light-theme colours on a dark ' +
+                    'surface — the case the token half never exercises.',
+            );
+        });
+
+        test(`no colour in sRGB falls under ${CONTRAST_FLOOR}:1 in ${themeName}`, () => {
+            // `planAccents` is a public prop and takes any CSS colour, so the
+            // guarantee has to be a bound rather than a sample. The extremes are
+            // the degenerate accents — an accent that already IS the theme's own
+            // extreme cannot be pushed further away from the surface — and both
+            // corners are in the grid below.
+            let worst = { ratio: Infinity };
+            const STEP = 51;
+            for (let r = 0; r <= 255; r += STEP) {
+                for (let g = 0; g <= 255; g += STEP) {
+                    for (let b = 0; b <= 255; b += STEP) {
+                        const accent = `#${[r, g, b]
+                            .map((c) => c.toString(16).padStart(2, '0'))
+                            .join('')}`;
+                        for (const surface of SURFACES) {
+                            const ratio = chipContrast(accent, tokens, surface);
+                            if (ratio < worst.ratio) worst = { ratio, accent, surface };
+                        }
+                    }
+                }
+            }
+            assert.ok(
+                worst.ratio >= CONTRAST_FLOOR,
+                `${worst.ratio.toFixed(2)}:1 for ${worst.accent} on ${worst.surface} — the ` +
+                    'share of the accent that survives into the text is too high for an ' +
+                    'input nobody curates',
             );
         });
     }

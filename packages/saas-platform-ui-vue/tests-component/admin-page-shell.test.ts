@@ -31,6 +31,11 @@ const PAGES_DIR = resolve(SRC_DIR, 'pages-standard');
 // These render outside AdminLayout — the login, the first-run setup, the
 // manifest error screen and the tenant onboarding configurator. Each owns its
 // frame and its own single <h1>, and is deliberately out of the shell's scope.
+//
+// Out of the SHELL's scope, not out of the THEME's: three of them read as
+// exempt from `.sa-page` as well, and so shipped with none of the theme's
+// Quasar corrections. `tests/theme-reaches-every-page.test.js` asks that
+// question separately, and exempts nothing on this list.
 const NON_CONTENT_PAGES = new Set([
     'AdminLayout.vue',
     'AdminManifestErrorPage.vue',

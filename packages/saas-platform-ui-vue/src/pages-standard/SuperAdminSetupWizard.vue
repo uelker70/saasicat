@@ -1,5 +1,5 @@
 <template>
-    <div class="sa-setup-wrap">
+    <div class="sa-page sa-setup-wrap">
         <div class="sa-setup-card">
             <div class="sa-setup-head">
                 <div class="sa-setup-badge">{{ iconText }}</div>

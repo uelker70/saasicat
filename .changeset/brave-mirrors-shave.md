@@ -19,6 +19,19 @@ on the promo dialog's selected state: 3.99 → 5.35:1 light, 3.40 → 4.20:1 dar
 
 A rule in `theme-layer-discipline` fails the build on the pairing from now on.
 
+**Plan and tenant chips get the same treatment, and they needed it more.**
+`identityChipStyle()` painted its accent as text on an 8 % wash of that same
+accent, and it does so from an inline `style`, which beats the class rules above
+— so a plan carrying its own `color` kept the unreadable pairing. It also takes
+a colour nobody curates: a stored plan colour, or anything a consumer passes in
+`planAccents`. The text is now mixed halfway toward `--sa-color-fg-heading`,
+which is near-black in light and near-white in dark. All six colours the
+promotion editor itself stores were under 3:1 on a raised dark card (1.99–2.75)
+and four of them on a plain one; they now read 5.48–7.78. Chip backgrounds,
+borders and the plan dot are unchanged, so
+each plan keeps its identity. `theme-role-contrast` measures the helper across
+the whole sRGB cube, not a sample, because the input is not a role.
+
 **Quasar's own accent text is painted too.** The focused field's floating label
 and the selected item in an open select are coloured `--q-primary` by Quasar, on
 surfaces the theme darkened — the shrunk label is small text and read as
