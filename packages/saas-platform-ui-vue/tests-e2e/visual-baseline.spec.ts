@@ -301,24 +301,45 @@ test.describe('no page overflows its viewport', () => {
                         // scrolls it (`.q-table__middle`), and checking one
                         // level reported thirteen pages as broken when what
                         // they were doing was scrolling a table correctly.
-                        let clipped = false;
+                        //
+                        // Only SCROLLABLE ancestors, though — `hidden` is not
+                        // the same thing and is the worse of the two: `auto`
+                        // means the reader can still reach the content,
+                        // `hidden` means it is cut off. Treating them alike is
+                        // how a squeezed editor column got past this check. Its
+                        // content was never pushed off the page; it was clipped
+                        // inside an `overflow: hidden` grid cell, which is
+                        // precisely the state the skip was excusing.
+                        let scrollable = false;
                         for (let up = el.parentElement; up; up = up.parentElement) {
                             const upStyle = getComputedStyle(up).overflowX;
-                            if (
-                                upStyle === 'auto' ||
-                                upStyle === 'scroll' ||
-                                upStyle === 'hidden'
-                            ) {
-                                clipped = true;
+                            if (upStyle === 'auto' || upStyle === 'scroll') {
+                                scrollable = true;
                                 break;
                             }
                         }
-                        if (clipped) continue;
+                        if (scrollable) continue;
                         if (!worst || box.right > worst.right) {
-                            worst = {
-                                path: `${el.tagName.toLowerCase()}.${String(el.className).trim().split(/\s+/)[0]}`,
-                                right: box.right,
+                            // Named through its ancestry when it has no class
+                            // of its own: `div.` tells a reader nothing, and a
+                            // guard whose report cannot be acted on is a guard
+                            // people learn to re-record instead of read.
+                            const name = (node: Element) => {
+                                const cls = String(node.className || '')
+                                    .trim()
+                                    .split(/\s+/)[0];
+                                return node.tagName.toLowerCase() + (cls ? `.${cls}` : '');
                             };
+                            const trail = [];
+                            for (
+                                let n: Element | null = el;
+                                n && trail.length < 4;
+                                n = n.parentElement
+                            ) {
+                                trail.unshift(name(n));
+                                if (String(n.className || '').trim()) break;
+                            }
+                            worst = { path: trail.join('>'), right: box.right };
                         }
                     }
                     return worst ? { ...worst, limit } : null;

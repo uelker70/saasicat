@@ -551,7 +551,13 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
     background: var(--sa-color-bg-surface);
     border: 1px solid var(--sa-color-border);
     border-radius: 10px;
-    overflow: hidden;
+    /* Scrolls rather than clips. `overflow: hidden` was here to keep the corner
+     * radius, and it also cut the six-column grid off below ~790px — six data
+     * columns squeezed into a phone are not readable anyway, so the honest
+     * answer is the same as for the tab bar: let it scroll. `hidden` on the
+     * cross axis keeps the radius doing its job. */
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .sa-plan-list-toolbar {
     display: flex;
@@ -575,6 +581,10 @@ function hasAnyPublished(row: ResolvedPlan<PlanRow, PlanVersionRow>): boolean {
 .sa-plan-list-list {
     display: grid;
     grid-template-columns: 1.6fr 0.9fr 0.7fr 0.9fr 1.4fr 160px;
+    /* So the scroll above has something to scroll: without a content floor the
+     * tracks shrink to the container and the cells overflow individually,
+     * which is the clipped state rather than a scrollable one. */
+    min-width: max-content;
     /* Stretch, not centre. Every row is `display: contents`, so its cells are
      * grid items in their own right — and a centred item is only as tall as its
      * own content. The row's hover background is painted per cell, so the band

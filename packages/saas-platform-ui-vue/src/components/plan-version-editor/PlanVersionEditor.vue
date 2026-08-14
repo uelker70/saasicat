@@ -760,6 +760,10 @@ function emitSave(): void {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    /* The editor reflows on ITS OWN width, not the window's — see the
+       `@container` rules at the end of this block. */
+    container-type: inline-size;
+    container-name: pve;
     /* A full view rather than a modal: the columns stretch to the content area
        AdminPage already sizes. */
     height: 100%;
@@ -1546,13 +1550,28 @@ function emitSave(): void {
     display: inline-flex;
 }
 
-/* ── Responsive ────────────────────────────────────────────────── */
-@media (max-width: 1439.98px) {
+/* ── Responsive ────────────────────────────────────────────────────
+ *
+ * On the CONTAINER's width, not the viewport's, because the viewport is not
+ * what this grid has to fit into. The admin drawer is 240px and collapsible, so
+ * a viewport threshold is wrong in one of its two states by construction — and
+ * with the drawer open at 1024–1100px the old viewport rule left 784–860px for
+ * `320px 1fr 360px`, squeezing the middle column to 104–180px and clipping its
+ * form controls behind `overflow: hidden`.
+ *
+ * The thresholds are the widths the columns actually need:
+ *   1060px  →  320 + 360 fixed leaves ≥ 380px for the basket
+ *    780px  →  below this the three-column form is not usable at all
+ *
+ * These are container queries, so they are not viewport breakpoints and the
+ * Quasar-band rule does not reach them; `@container` needs no newer browser
+ * than the theme already requires. */
+@container pve (max-width: 1060px) {
     .pve-body {
         grid-template-columns: 320px 1fr 360px;
     }
 }
-@media (max-width: 1023.98px) {
+@container pve (max-width: 780px) {
     .pve-body {
         grid-template-columns: 1fr;
         overflow-y: auto;
