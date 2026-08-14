@@ -83,7 +83,7 @@ function reachMarkers() {
 
 /** The SFC's outermost `<template>`, which prettier keeps at column 0. */
 function templateOf(source) {
-    const block = source.match(/^<template>\r?\n([\s\S]*?)\r?\n<\/template>/m);
+    const block = source.match(/^<template>\r?\n([\s\S]*?)\r?\n<\/template>/im);
     return block ? withoutComments(block[1]) : null;
 }
 

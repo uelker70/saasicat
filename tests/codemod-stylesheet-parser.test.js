@@ -186,6 +186,19 @@ describe('styleBlocks — only stylesheets, with their offset', () => {
         assert.equal(sfc.slice(block.offset, block.offset + block.text.length), block.text);
     });
 
+    test('an upper-case tag is still a block', () => {
+        // Vue writes `<style>` lowercase and so does every file here, but a
+        // case-sensitive pattern fails SILENTLY on one that is not: no block,
+        // no declarations, no findings — a file that reads as clean because it
+        // was never read. The audit and this parser both carried that, and the
+        // audit is what reports "0 hard-coded colours".
+        assert.equal(styleBlocks('A.vue', '<STYLE>.a{color:red}</STYLE>').length, 1);
+        assert.equal(
+            styleBlocks('A.vue', '<Style scoped>.a{color:red}</Style>')[0].text,
+            '.a{color:red}',
+        );
+    });
+
     test('scoped and lang attributes do not hide a block', () => {
         assert.equal(styleBlocks('A.vue', '<style scoped lang="scss">.a{top:0}</style>').length, 1);
     });

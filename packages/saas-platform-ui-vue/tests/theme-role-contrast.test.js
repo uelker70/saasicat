@@ -207,7 +207,7 @@ function walk(dir) {
 const styleSource = (file, content) =>
     file.endsWith('.css')
         ? content
-        : [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+        : [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
 
 /** Rules that set BOTH a background and a colour, each from a role. */
 function rolePairedRules() {
