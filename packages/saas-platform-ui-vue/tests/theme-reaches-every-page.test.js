@@ -44,9 +44,17 @@ const withoutComments = (source) => {
     let previous;
     do {
         previous = text;
-        text = text.replace(/<!--[\s\S]*?-->/g, '');
+        // Both end forms. HTML closes a comment with `-->` OR `--!>`, and
+        // matching only the first let a commented-out `class="sa-page"` through
+        // — the guard would then pass on a marker that exists only in a comment.
+        text = text.replace(/<!--[\s\S]*?(?:--!?>)/g, '');
+        // Looped for the same reason as above, and for one more: removing a
+        // delimiter can JOIN its neighbours into a new one — `<<!--!--` becomes
+        // `<!--` after a single pass. Repeating until nothing changes is what
+        // makes "contains no delimiter" true rather than probable.
+        text = text.replace(/<!--|--!?>/g, '');
     } while (text !== previous);
-    return text.replace(/<!--|-->/g, '');
+    return text;
 };
 
 /** Every selector in a stylesheet, one per comma-separated part. */
@@ -83,7 +91,7 @@ function reachMarkers() {
 
 /** The SFC's outermost `<template>`, which prettier keeps at column 0. */
 function templateOf(source) {
-    const block = source.match(/^<template>\r?\n([\s\S]*?)\r?\n<\/template>/im);
+    const block = source.match(/^<template>\r?\n([\s\S]*?)\r?\n<\/template\s*>/im);
     return block ? withoutComments(block[1]) : null;
 }
 
@@ -170,6 +178,28 @@ describe('the theme reaches every page it ships', () => {
                 );
             assert.ok(rendered, `no file in src renders "${marker}" — is it a marker at all?`);
         }
+    });
+
+    test('a marker that exists only inside a comment does not count', () => {
+        // The whole guard rests on reading markup, so it has to stop reading
+        // markup that is commented out. Both HTML comment endings are covered:
+        // matching only `-->` let a `--!>` comment through, and a marker inside
+        // it would have satisfied the check below without ever rendering.
+        for (const ending of ['-->', '--!>']) {
+            const source = `<template>\n<!-- <div class="sa-page"> ${ending}\n<div class="thing" />\n</template>`;
+            assert.equal(
+                /class="[^"]*\bsa-page\b/.test(withoutComments(source)),
+                false,
+                `a commented-out marker survived a comment ending in ${ending}`,
+            );
+        }
+        // And an uncommented one still does count, or the case above would
+        // pass on a stripper that deletes everything.
+        assert.ok(
+            /class="[^"]*\bsa-page\b/.test(
+                withoutComments('<template>\n<div class="sa-page" />\n</template>'),
+            ),
+        );
     });
 
     test('every standard page renders a node inside that reach', () => {

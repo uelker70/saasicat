@@ -199,6 +199,15 @@ describe('styleBlocks — only stylesheets, with their offset', () => {
         );
     });
 
+    test('an end tag may carry whitespace before its bracket', () => {
+        // `</style >` is valid HTML and the pattern used to miss it, which
+        // means no block, which means the file reads as having no styles at
+        // all. Silent under-reach, in the parser that decides what a codemod
+        // may rewrite.
+        assert.equal(styleBlocks('A.vue', '<style>.a{top:0}</style >').length, 1);
+        assert.equal(styleBlocks('A.vue', '<style>.a{top:0}</style\n>')[0].text, '.a{top:0}');
+    });
+
     test('scoped and lang attributes do not hide a block', () => {
         assert.equal(styleBlocks('A.vue', '<style scoped lang="scss">.a{top:0}</style>').length, 1);
     });
