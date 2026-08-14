@@ -190,7 +190,7 @@ function walk(dir, predicate) {
  */
 function scriptSource(file, content) {
     if (file.endsWith('.ts')) return content;
-    return [...content.matchAll(/<script[^>]*>([\s\S]*?)<\/script\s*>/gi)]
+    return [...content.matchAll(/<script[^>]*>([\s\S]*?)<\/script[^>]*>/gi)]
         .map((m) => m[1])
         .join('\n');
 }
@@ -199,7 +199,7 @@ function scriptSource(file, content) {
 function styleSource(file, content) {
     if (file.endsWith('.css')) return [{ text: content, offset: 0 }];
     const blocks = [];
-    const re = /<style[^>]*>([\s\S]*?)<\/style\s*>/gi;
+    const re = /<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi;
     let match;
     while ((match = re.exec(content)) !== null) {
         blocks.push({ text: match[1], offset: match.index + match[0].indexOf(match[1]) });

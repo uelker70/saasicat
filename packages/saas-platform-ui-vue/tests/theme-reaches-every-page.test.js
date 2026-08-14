@@ -4,6 +4,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parse } from 'vue/compiler-sfc';
+
 // Every standard page sits inside the theme's reach.
 //
 // The component layer corrects Quasar's own DOM — the outlined control's
@@ -28,38 +30,20 @@ const THEME_COMPONENTS = join(SRC, 'ui', 'theme', 'components');
 const PAGES = join(SRC, 'pages-standard');
 
 /**
- * Source with its comments removed, so commented-out markup is not read as
- * markup.
+ * CSS comments only. There is no HTML comment handling here any more, and that
+ * is the point: `parse()` below hands back a template whose comment nodes are
+ * their own node type, so commented-out markup never reaches the class scan.
  *
- * The HTML pass repeats until it stops changing, and then drops any orphaned
- * delimiter. One pass is not enough: `<!<!-- -->--` leaves a bare `<!--`
- * behind, and for this file the consequence is not cosmetic — a leftover
- * delimiter means commented-out markup gets scanned for reach markers, so a
- * page could PASS on a marker it only carries inside a comment. Erring toward
- * removing too much is the safe direction here; erring toward keeping it is
- * how a guard reports success it did not verify.
+ * The hand-written version was wrong three times over — it missed `--!>` as a
+ * comment ending, and stripping one delimiter could join its neighbours into a
+ * new one. Each fix revealed the next case, which is the signal to stop writing
+ * a parser and use the one that ships with the framework whose files these are.
  */
-const withoutComments = (source) => {
-    let text = source.replace(/\/\*[\s\S]*?\*\//g, '');
-    let previous;
-    do {
-        previous = text;
-        // Both end forms. HTML closes a comment with `-->` OR `--!>`, and
-        // matching only the first let a commented-out `class="sa-page"` through
-        // — the guard would then pass on a marker that exists only in a comment.
-        text = text.replace(/<!--[\s\S]*?(?:--!?>)/g, '');
-        // Looped for the same reason as above, and for one more: removing a
-        // delimiter can JOIN its neighbours into a new one — `<<!--!--` becomes
-        // `<!--` after a single pass. Repeating until nothing changes is what
-        // makes "contains no delimiter" true rather than probable.
-        text = text.replace(/<!--|--!?>/g, '');
-    } while (text !== previous);
-    return text;
-};
+const withoutCssComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** Every selector in a stylesheet, one per comma-separated part. */
 function selectorParts(css) {
-    return [...withoutComments(css).matchAll(/([^{}]+)\{[^{}]*\}/g)].flatMap(([, selector]) =>
+    return [...withoutCssComments(css).matchAll(/([^{}]+)\{[^{}]*\}/g)].flatMap(([, selector]) =>
         selector.split(',').map((part) => part.trim().replace(/\s+/g, ' ')),
     );
 }
@@ -89,37 +73,50 @@ function reachMarkers() {
     return new Set([...prefixes].filter((name) => !styledOnTheirOwn.has(name)));
 }
 
-/** The SFC's outermost `<template>`, which prettier keeps at column 0. */
-function templateOf(source) {
-    const block = source.match(/^<template>\r?\n([\s\S]*?)\r?\n<\/template\s*>/im);
-    return block ? withoutComments(block[1]) : null;
+/**
+ * Root elements of an SFC's template, from the compiler's own AST.
+ *
+ * A `v-if` / `v-else` pair is two roots, which is why this returns a list.
+ *
+ * Parsed rather than matched. The hand-written version needed a tag pattern
+ * that consumed quoted runs whole (an attribute here contains `=>` often
+ * enough), a void-element list, and a depth counter — and it still mis-read
+ * `</template >`, treated `--!>` as ordinary text, and could turn `<<!--!--`
+ * into a live `<!--`. Three fixes, three new cases. The framework whose files
+ * these are ships the parser; there is no reason to keep a second one.
+ */
+function rootElements(source) {
+    const { descriptor, errors } = parse(source, { ignoreEmpty: false });
+    if (errors.length > 0 || !descriptor.template?.ast) return null;
+    // NodeTypes.ELEMENT === 1. A comment is its own node type, so commented-out
+    // markup is skipped here without any stripping — which is the whole reason
+    // this reads an AST.
+    return descriptor.template.ast.children.filter((node) => node.type === 1);
 }
 
-// Quoted runs are consumed whole, because an attribute value here contains
-// `=>` often enough that a `[^>]*` tag pattern loses track of the nesting and
-// starts reporting descendants as roots.
-const TAG = /<(\/?)([A-Za-z][\w.-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)\s*(\/?)>/g;
-const VOID_TAGS = new Set(['area', 'br', 'hr', 'img', 'input', 'link', 'meta', 'source']);
-
-/** Top-level nodes of a template — a `v-if`/`v-else` pair is two of them. */
-function rootNodes(template) {
-    const roots = [];
-    let depth = 0;
-    for (const [, closing, tag, attributes, selfClosed] of template.matchAll(TAG)) {
-        if (closing) {
-            depth -= 1;
-            continue;
+/**
+ * Class names an element carries, static and bound.
+ *
+ * The bound form is split on the punctuation of an object or array literal, so
+ * `:class="{ 'sa-page': ready }"` yields `sa-page` — a marker applied
+ * conditionally still counts, because the alternative is a guard that a page
+ * can fail by writing the same thing a different way.
+ */
+function classNames(node) {
+    const names = new Set();
+    for (const prop of node.props ?? []) {
+        // ATTRIBUTE === 6
+        if (prop.type === 6 && prop.name === 'class' && prop.value?.content) {
+            for (const name of prop.value.content.split(/\s+/)) if (name) names.add(name);
         }
-        if (depth === 0) roots.push({ tag, attributes });
-        if (!selfClosed && !VOID_TAGS.has(tag.toLowerCase())) depth += 1;
+        // DIRECTIVE === 7; `:class` is v-bind with `class` as its argument.
+        if (prop.type === 7 && prop.name === 'bind' && prop.arg?.content === 'class' && prop.exp) {
+            for (const name of prop.exp.content.split(/[\s'"[\]{},:?()!&|]+/)) {
+                if (name) names.add(name);
+            }
+        }
     }
-    return roots;
-}
-
-/** Class names a node carries, from `class` and from a `:class` binding. */
-function classNames(attributes) {
-    const values = [...attributes.matchAll(/:?class\s*=\s*"([^"]*)"/g)].map(([, value]) => value);
-    return new Set(values.flatMap((value) => value.split(/[\s'"[\]{},:]+/)).filter(Boolean));
+    return names;
 }
 
 const pascal = (tag) => tag.replace(/(^|-)(\w)/g, (_, __, letter) => letter.toUpperCase());
@@ -147,12 +144,12 @@ function reachesTheTheme(file, markers, resolved, seen = new Set()) {
     seen.add(file);
 
     const source = readFileSync(file, 'utf8');
-    const template = templateOf(source);
-    if (!template) return false;
+    const roots = rootElements(source);
+    if (!roots || roots.length === 0) return false;
     const imports = componentImports(file, source);
 
-    return rootNodes(template).every((root) => {
-        if ([...classNames(root.attributes)].some((name) => markers.has(name))) return true;
+    return roots.every((root) => {
+        if ([...classNames(root)].some((name) => markers.has(name))) return true;
         const child = imports.get(pascal(root.tag));
         if (!child) return false;
         resolved.add(`${relative(SRC, file)} → ${relative(SRC, child)}`);
@@ -181,25 +178,36 @@ describe('the theme reaches every page it ships', () => {
     });
 
     test('a marker that exists only inside a comment does not count', () => {
-        // The whole guard rests on reading markup, so it has to stop reading
-        // markup that is commented out. Both HTML comment endings are covered:
-        // matching only `-->` let a `--!>` comment through, and a marker inside
-        // it would have satisfied the check below without ever rendering.
-        for (const ending of ['-->', '--!>']) {
-            const source = `<template>\n<!-- <div class="sa-page"> ${ending}\n<div class="thing" />\n</template>`;
-            assert.equal(
-                /class="[^"]*\bsa-page\b/.test(withoutComments(source)),
-                false,
-                `a commented-out marker survived a comment ending in ${ending}`,
-            );
-        }
-        // And an uncommented one still does count, or the case above would
-        // pass on a stripper that deletes everything.
-        assert.ok(
-            /class="[^"]*\bsa-page\b/.test(
-                withoutComments('<template>\n<div class="sa-page" />\n</template>'),
-            ),
+        // The property three hand-written stripper fixes were chasing. It is
+        // free now — a comment is its own node type and `rootElements` keeps
+        // only elements — but asserted so it cannot regress silently if the
+        // parsing changes again.
+        //
+        // The two comment endings reach it differently, and both are recorded
+        // because the difference is the interesting part:
+        const closed = rootElements(
+            '<template>\n  <!-- <div class="sa-page"> -->\n  <div class="thing" />\n</template>\n',
         );
+        assert.equal(closed.length, 1, 'the commented-out element was read as an element');
+        assert.equal(closed[0].tag, 'div');
+        assert.equal(classNames(closed[0]).has('sa-page'), false);
+
+        // `--!>` is NOT a comment ending to Vue's parser — it reports
+        // "Unexpected EOF in comment" and swallows the rest. `rootElements`
+        // answers null for a file it cannot parse, and `reachesTheTheme` turns
+        // that into a failure rather than a pass. Either way the marker cannot
+        // leak, which is what this case is really about.
+        assert.equal(
+            rootElements(
+                '<template>\n  <!-- <div class="sa-page"> --!>\n  <div class="thing" />\n</template>\n',
+            ),
+            null,
+        );
+
+        // And an uncommented marker still counts, or both cases above would
+        // pass on a parser that returned nothing for everything.
+        const live = rootElements('<template>\n  <div class="sa-page" />\n</template>\n');
+        assert.equal(classNames(live[0]).has('sa-page'), true);
     });
 
     test('every standard page renders a node inside that reach', () => {

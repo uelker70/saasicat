@@ -53,7 +53,7 @@ function walk(dir, keep) {
 /** `<style>` blocks of an SFC, or the whole text of a `.css` file. */
 function styleSource(file, content) {
     if (file.endsWith('.css')) return content;
-    return [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style\s*>/gi)]
+    return [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi)]
         .map((m) => m[1])
         .join('\n');
 }

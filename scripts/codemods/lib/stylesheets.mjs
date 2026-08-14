@@ -64,7 +64,7 @@ export function propertyGroup(property) {
 export function styleBlocks(file, content) {
     if (file.endsWith('.css')) return [{ text: content, offset: 0 }];
     const blocks = [];
-    const pattern = /<style[^>]*>([\s\S]*?)<\/style\s*>/gi;
+    const pattern = /<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi;
     let match;
     while ((match = pattern.exec(content)) !== null) {
         blocks.push({ text: match[1], offset: match.index + match[0].indexOf(match[1]) });
