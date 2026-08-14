@@ -1,5 +1,110 @@
 # @saasicat/ui-vue
 
+## 0.24.1
+
+### Patch Changes
+
+- db43596: The brand colour no longer disappears in dark mode.
+
+    `--sa-color-accent` is the host's `$primary`, and it is the one role that does
+    **not** change between themes — that is what a brand is. Everything around it
+    does. So it reads at about 4.5:1 on a light card, near 3.4:1 on the dark theme's
+    slate, and worse on a tint of itself — which is exactly what a selected state is
+    made of. Six rules paired the two, and every one of them looked right in light
+    mode: the promo dialog's chosen duration and plan chips, the dashboard's KPI and
+    shortcut icons, a status pill, an onboarding eyebrow.
+
+    They now use `--sa-color-accent-strong`, which the design guide already names for
+    "accent text on a tint" and which mixes the brand toward the theme's own extreme
+    — darker in light, lighter in dark. Branding still follows `$primary`. Measured
+    on the promo dialog's selected state: 3.99 → 5.35:1 light, 3.40 → 4.20:1 dark.
+
+    A rule in `theme-layer-discipline` fails the build on the pairing from now on.
+
+    **Plan and tenant chips get the same treatment, and they needed it more.**
+    `identityChipStyle()` painted its accent as text on an 8 % wash of that same
+    accent, and it does so from an inline `style`, which beats the class rules above
+    — so a plan carrying its own `color` kept the unreadable pairing. It also takes
+    a colour nobody curates: a stored plan colour, or anything a consumer passes in
+    `planAccents`. The text is now mixed halfway toward `--sa-color-fg-heading`,
+    which is near-black in light and near-white in dark. All six colours the
+    promotion editor itself stores were under 3:1 on a raised dark card (1.99–2.75)
+    and four of them on a plain one; they now read 5.48–7.78. Chip backgrounds,
+    borders and the plan dot are unchanged, so
+    each plan keeps its identity. `theme-role-contrast` measures the helper across
+    the whole sRGB cube, not a sample, because the input is not a role.
+
+    **Quasar's own accent text is painted too.** The focused field's floating label
+    and the selected item in an open select are coloured `--q-primary` by Quasar, on
+    surfaces the theme darkened — the shrunk label is small text and read as
+    decoration rather than as the name of the field being edited. Both now take the
+    same readable role, including inside teleported
+    menus — except while a field is invalid, where Quasar's error colour still wins.
+    That carve-out is deliberate: the label inherits the error red from the control,
+    and colouring it at all cut that inheritance, so an invalid field looked normal
+    while every other error indicator stayed red.
+
+    **Two more, reported from a running admin.** The promo dialog's status buttons
+    had no styles at all and rendered as raw browser buttons on a dark dialog; they
+    share the segmented-control recipe with the duration row next to them now. And
+    the marketing catalogue's open editor ended on the same colour and the same
+    hairline as an ordinary row, so the next plan read as part of the plan being
+    edited — it is a recessed well with an accent edge and a real closing border.
+
+- 3ab6f56: `DiscoveryPage` no longer takes the route down when the discovery payload is not
+  a snapshot.
+
+    `useDiscovery` assigns the response body with an unchecked
+    `as DiscoverySnapshot`, so anything a server answers 200 with reaches the page —
+    an older backend, a proxy's JSON error page, a partial response. The page read
+    `props.snapshot?.app.key`: the optional chain covered `snapshot` being nullish
+    and stopped there, so a body that is non-null but has no `app` threw inside a
+    computed. A throw in a computed does not degrade a component, it takes the route
+    down — the admin shell rendered and the content area stayed blank.
+
+    The three fallbacks already in that file (`—`, `Discovery`, `0.0.0`) are what
+    should happen instead; the chain simply did not carry that intent far enough.
+
+    The fields are now narrowed to their **type**, not merely to "present". The type
+    says `app.key` is a string; the runtime value is whatever the server sent. A
+    truthy non-string — `{"app":{"key":1}}` — passes an existence check and then
+    throws on `.charAt`, which is the same white screen one step further in.
+
+- db43596: The three screens outside the admin shell are inside the theme.
+
+    The component layer corrects Quasar's own DOM — the outlined control's
+    transparent background, the 4px radii, the `#1d1d1d` card Quasar paints in dark
+    mode — and it reaches that DOM through exactly two classes: `.sa-page`, rendered
+    by `AdminPage`, and `.sa-portal`, which `createSuperAdminApp` sets on every
+    teleported node. The login screen, the first-run setup wizard and the
+    fail-closed manifest-error page render outside the shell and carried neither, so
+    no rule in `ui/theme/components/` had ever applied to them. They are the screens
+    a user sees before and instead of the admin.
+
+    Measured against the visual fixture rather than read off the source: of the
+    gated rules, five reached those screens once the marker was there. They now take
+    the theme's body colour instead of the browser's black and its body font instead
+    of Quasar's Roboto; their outlined inputs take `--sa-radius-field` and a real
+    surface instead of a transparent 4px control; the focused field's label takes
+    `--sa-color-accent-strong` rather than the raw brand; and the error page's card
+    takes `--sa-radius-card` and the slate surface, which is what removes the
+    neutral grey card from a dark page. The heading reset applies too: Quasar's
+    element-level `h1` had been giving the login and error titles a 96px line box.
+
+    Each screen keeps its own frame — its root class is more specific than
+    `.sa-page`, so the login's full-viewport height and padding are untouched.
+
+    Two consequences the marker exposed are fixed with it: the login's form now sits
+    the same distance below the heading whether or not the optional subtitle is
+    there (the gap used to be Quasar's stray line-height), and the error card no
+    longer stretches to the full height of the page frame.
+
+    `tests/theme-reaches-every-page.test.js` derives the reach markers from the
+    stylesheets — a class the component layer only ever prefixes and never styles —
+    and fails when a page under `pages-standard/` renders a root carrying none of
+    them.
+    - @saasicat/types@0.24.1
+
 ## 0.24.0
 
 ### Minor Changes
