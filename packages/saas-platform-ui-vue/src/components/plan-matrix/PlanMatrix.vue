@@ -811,7 +811,7 @@ function formatQuota(v: number | undefined): string {
     height: 30px;
     border-radius: 50%;
     background: var(--sa-color-accent-surface-strong);
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
     margin: 0 auto 6px;
 }
 .pm-add-title {

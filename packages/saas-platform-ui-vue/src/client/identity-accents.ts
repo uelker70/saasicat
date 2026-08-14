@@ -111,19 +111,57 @@ export function identityAccentFor(
 }
 
 /**
+ * How much of the accent survives when the accent becomes TEXT.
+ *
+ * The remainder comes from `--sa-color-fg-heading`, which is near-black in the
+ * light theme and near-white in the dark one. So a single expression darkens
+ * the accent in one theme and lightens it in the other, which is the same move
+ * `--sa-color-accent-strong` makes for the brand.
+ *
+ * It is not the brand's 82 %, and the difference is the point. The brand is one
+ * curated colour, checked by a person against both surfaces. This helper's
+ * input is uncontrolled: a plan's stored hex, a consumer's `planAccents`, a
+ * colour an operator picked out of a swatch. A share tuned for one colour is
+ * not a bound over all of them, and 82 % measurably is not one — three of the
+ * six colours the promotion editor itself stores stay under 3:1 on a raised
+ * dark card (2.81 to 2.98), and a light brand pick such as lime-400 only
+ * reaches 2.03:1 on a raised light one.
+ *
+ * At half, every colour in sRGB stays at or above 3.3:1 in light and 3.7:1 in
+ * dark, both extremes being the degenerate accents — an accent that already IS
+ * the theme's own extreme cannot be pushed further from the surface, so pure
+ * white decides the light bound and pure black the dark one. That is a bound
+ * over the whole cube rather than over a sample, which is what an uncontrolled
+ * input needs. `theme-role-contrast` measures it and fails if this share rises.
+ */
+const READABLE_ACCENT_SHARE = 50;
+
+/**
  * The three-part chip style every one of these sites was hand-rolling: a wash
- * of the accent, the accent as text, a firmer edge of it.
+ * of the accent, a readable rendering of the accent as text, a firmer edge.
  *
  * `color-mix()` rather than the `accent + '15'` string concatenation it
  * replaces. That trick only worked on a six-digit hex — it silently produced
  * garbage for `rgb()`, for a named colour and for anything a consumer might
  * reasonably pass — and it could never have worked for a `var()`, which is why
  * these palettes could not follow the theme in the first place.
+ *
+ * The text is a mix rather than the accent itself. A `var(--sa-color-identity-N)`
+ * would not need that — the ramp has a value per theme, so it already suits both
+ * surfaces. A concrete hex has one value for both, and a concrete hex is what
+ * reaches here from a stored plan colour or from a consumer's `planAccents`; on
+ * whichever theme it lands nearest the surface it fades into its own wash.
+ *
+ * Callers may still override any of the three. `PromoCodeDialogFields` replaces
+ * the border with the plan's undiluted colour, and `PlanDiffCard` takes only the
+ * wash and the edge — an inline style beats the class beneath it, which is how
+ * the chip kept its own unreadable foreground through a fix applied to the
+ * selected-state rules around it.
  */
 export function identityChipStyle(accent: string): Record<string, string> {
     return {
         background: `color-mix(in srgb, ${accent} 8%, transparent)`,
-        color: accent,
+        color: `color-mix(in srgb, ${accent} ${READABLE_ACCENT_SHARE}%, var(--sa-color-fg-heading))`,
         borderColor: `color-mix(in srgb, ${accent} 20%, transparent)`,
     };
 }

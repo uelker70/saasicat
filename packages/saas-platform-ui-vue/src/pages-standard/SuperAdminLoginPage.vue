@@ -5,7 +5,7 @@
         :icon="iconText"
         @done="needsSetup = false"
     />
-    <div v-else class="sa-login-wrap">
+    <div v-else class="sa-page sa-login-wrap">
         <div class="sa-login-card">
             <div class="sa-login-brand">
                 <div v-if="logoUrl" class="sa-login-logo sa-login-logo--img">
@@ -285,7 +285,12 @@ async function handleSubmit(): Promise<void> {
     line-height: 1.5;
 }
 
+/* The heading block is one unit, and the form sits the same distance below it
+ * whether or not the optional subtitle is there. Without this the gap was the
+ * title's 6px on a login that passes no subtitle — which nobody saw, because
+ * Quasar's element-level `h1` line-height was padding it out to 96px. */
 .sa-login-form {
+    margin-top: var(--sa-space-6);
     display: flex;
     flex-direction: column;
 }

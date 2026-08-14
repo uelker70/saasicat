@@ -83,7 +83,7 @@
     flex: none;
     border-radius: var(--sa-radius-tile);
     background: var(--sa-color-accent-surface-strong);
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
 }
 .sa-kpi--inline .sa-kpi__label {
     order: 1;

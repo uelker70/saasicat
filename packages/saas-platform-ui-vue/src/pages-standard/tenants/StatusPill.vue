@@ -53,7 +53,7 @@ defineProps<{
 }
 .sa-pill--primary {
     background: var(--sa-color-accent-surface);
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
 }
 .sa-pill--accent {
     background: var(--sa-color-warning-surface-strong);

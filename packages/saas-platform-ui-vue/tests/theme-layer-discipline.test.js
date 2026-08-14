@@ -53,7 +53,9 @@ function walk(dir, keep) {
 /** `<style>` blocks of an SFC, or the whole text of a `.css` file. */
 function styleSource(file, content) {
     if (file.endsWith('.css')) return content;
-    return [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+    return [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi)]
+        .map((m) => m[1])
+        .join('\n');
 }
 
 const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -308,6 +310,51 @@ describe('the token layers only point one way', () => {
             [],
             'a page naming a palette colour is the failure this split exists to prevent: ' +
                 'invisible in review, and wrong in exactly one theme',
+        );
+    });
+
+    // ── The brand is not a foreground on its own tint ────────────────────────
+    //
+    // `--sa-color-accent` is the host's `$primary`, and it is the one role that
+    // does NOT change between themes — that is the point of a brand. Everything
+    // around it does. So on a light card it reads at about 4.5:1 and on the dark
+    // theme's slate it lands near 3.4:1; on a tint of itself it is worse still,
+    // and a tint of itself is exactly what a selected state is made of.
+    //
+    // The guide already names the answer: `--sa-color-accent-strong` is "accent
+    // text on a tint", and it mixes the brand toward the theme's own extreme —
+    // darker in light, lighter in dark — so it follows the host's brand while
+    // staying readable.
+    //
+    // This was written after the same mistake turned up in six rules at once:
+    // the promo dialog's selected duration and plan chips, the dashboard's KPI
+    // and shortcut icons, a status pill and an onboarding eyebrow. Every one had
+    // been reviewed; none of them looked wrong in light mode.
+    test('no rule paints --sa-color-accent as text on an accent surface', () => {
+        const offenders = [];
+        const files = walk(SRC, (name) => name.endsWith('.vue') || name.endsWith('.css'));
+        for (const file of files) {
+            const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
+            for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+                const paintsAccentText =
+                    /(?:^|;|\s)color\s*:\s*var\(--sa-color-accent\)\s*(?:;|$)/.test(body);
+                const onAccentTint =
+                    /(?:^|;|\s)background(?:-color)?\s*:\s*var\(--sa-color-accent-surface[\w-]*\)/.test(
+                        body,
+                    );
+                if (paintsAccentText && onAccentTint) {
+                    offenders.push(
+                        `${relative(SRC, file)}  ${selector.trim().replace(/\s+/g, ' ')}`,
+                    );
+                }
+            }
+        }
+        assert.deepEqual(
+            offenders,
+            [],
+            'the brand colour is being used as text on a tint of itself. Use ' +
+                '`--sa-color-accent-strong`, which the design guide names for exactly this ' +
+                'and which lightens in the dark theme instead of staying put.',
         );
     });
 });

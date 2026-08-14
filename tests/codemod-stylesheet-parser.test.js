@@ -186,6 +186,39 @@ describe('styleBlocks — only stylesheets, with their offset', () => {
         assert.equal(sfc.slice(block.offset, block.offset + block.text.length), block.text);
     });
 
+    test('an upper-case tag is still a block', () => {
+        // Vue writes `<style>` lowercase and so does every file here, but a
+        // case-sensitive pattern fails SILENTLY on one that is not: no block,
+        // no declarations, no findings — a file that reads as clean because it
+        // was never read. The audit and this parser both carried that, and the
+        // audit is what reports "0 hard-coded colours".
+        assert.equal(styleBlocks('A.vue', '<STYLE>.a{color:red}</STYLE>').length, 1);
+        assert.equal(
+            styleBlocks('A.vue', '<Style scoped>.a{color:red}</Style>')[0].text,
+            '.a{color:red}',
+        );
+    });
+
+    test('an end tag is read however HTML lets it be written', () => {
+        // An end tag is `</name`, anything that is not `>`, then `>` — a space,
+        // a newline, even attributes, which the HTML parser ignores. The
+        // pattern used to demand `</style>` exactly, and a pattern that cannot
+        // match a tag does not fail: it returns NO BLOCK, so the file reads as
+        // having no styles at all. Silent under-reach, in the parser that
+        // decides what a codemod may rewrite.
+        for (const form of [
+            '</style>',
+            '</style >',
+            '</style\n>',
+            '</style\t\n bar>',
+            '</STYLE>',
+        ]) {
+            const blocks = styleBlocks('A.vue', `<style>.a{top:0}${form}`);
+            assert.equal(blocks.length, 1, `${JSON.stringify(form)} was not read as an end tag`);
+            assert.equal(blocks[0].text, '.a{top:0}');
+        }
+    });
+
     test('scoped and lang attributes do not hide a block', () => {
         assert.equal(styleBlocks('A.vue', '<style scoped lang="scss">.a{top:0}</style>').length, 1);
     });

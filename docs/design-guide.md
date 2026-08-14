@@ -56,6 +56,17 @@ surface. Nothing else in the package renders an `<h1>`, and no page writes its
 own `<q-table>` — both are enforced by `tests-component/admin-page-shell.test.ts`,
 which reads the source of every page and fails on a violation.
 
+**A screen that cannot use `AdminPage`** — a login, a first-run wizard, a
+fail-closed error page, anything full-viewport with a frame of its own — still
+puts `.sa-page` on its root, next to its own root class. That class is not
+decoration: `.sa-page` and `.sa-portal` (which `createSuperAdminApp` sets on
+every teleported node) are the only two prefixes through which the theme
+corrects Quasar's own DOM, so a screen carrying neither gets Quasar's outlined
+field, its 4px radii and, in dark mode, its neutral grey card — with nothing to
+announce it. The screen's own root class is more specific than `.sa-page`, so
+its frame still wins; only the reach is shared.
+`tests/theme-reaches-every-page.test.js` holds every page to it.
+
 > **Not yet in the roster.** The banner, empty-state, dialog and row-action
 > primitives named in the plan arrive with the Phase 4 directory move. Until
 > then a page writes those by hand; when they land, the recipe gains a

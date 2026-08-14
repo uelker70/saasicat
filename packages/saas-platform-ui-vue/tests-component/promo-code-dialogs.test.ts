@@ -229,7 +229,7 @@ describe('Shared form body', () => {
     test('the status switch appears on edit only', async () => {
         const create = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit: vi.fn() });
         await create.vm.$nextTick();
-        expect(document.querySelectorAll('.pc-status-opt').length).toBe(0);
+        expect(document.querySelectorAll('.pc-status .pc-seg-opt').length).toBe(0);
         create.unmount();
         document.body.innerHTML = '';
 
@@ -251,7 +251,7 @@ describe('Shared form body', () => {
             submit: vi.fn(),
         });
         await edit.vm.$nextTick();
-        expect(document.querySelectorAll('.pc-status-opt').length).toBe(2);
+        expect(document.querySelectorAll('.pc-status .pc-seg-opt').length).toBe(2);
     });
 
     test('the plan picker writes into the dialog form', async () => {

@@ -305,7 +305,7 @@ defineExpose({ draft });
     font-size: var(--sa-text-xs);
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--sa-color-accent);
+    color: var(--sa-color-accent-strong);
     background: var(--sa-color-accent-surface);
     padding: 6px 11px;
     border-radius: 999px;
