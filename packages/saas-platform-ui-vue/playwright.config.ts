@@ -44,11 +44,23 @@ export default defineConfig({
             stdout: 'pipe',
             stderr: 'pipe',
         },
+        {
+            // The consumer example's OWN dev server, running its own `main.ts`,
+            // its own router and its own bundler resolution. That is the point:
+            // every other server here is one the platform controls, and the
+            // defects this catches only exist in an assembled app.
+            command: 'pnpm --filter notesapp-admin exec vite --port 5176 --strictPort',
+            url: 'http://localhost:5176/login',
+            reuseExistingServer: !process.env.CI,
+            timeout: 180_000,
+            stdout: 'pipe',
+            stderr: 'pipe',
+        },
     ],
     projects: [
         {
             name: 'chromium',
-            testIgnore: /(visual-baseline|theme-contrast)\.spec\.ts$/,
+            testIgnore: /(visual-baseline|theme-contrast|consumer-route-wiring)\.spec\.ts$/,
             use: { browserName: 'chromium' },
         },
         {
@@ -69,6 +81,19 @@ export default defineConfig({
                 colorScheme: 'light',
                 locale: 'en-GB',
                 timezoneId: 'UTC',
+            },
+        },
+        {
+            // The integration level: the consumer app as a user gets it.
+            name: 'consumer',
+            testMatch: /consumer-route-wiring\.spec\.ts$/,
+            // Generous: each case logs in through the real form against a dev
+            // server that compiles on demand.
+            timeout: 120_000,
+            use: {
+                browserName: 'chromium',
+                baseURL: 'http://localhost:5176',
+                viewport: { width: 1440, height: 900 },
             },
         },
     ],

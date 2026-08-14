@@ -47,9 +47,26 @@ own theme.
   the package's twenty-one dialog sites. It found Quasar's inactive stepper
   labels at 2.68:1, which the theme now paints from a role.
 
-**Reflow points are Quasar's.** The six ad-hoc breakpoints (540, 600, 980, 1100,
-1180, 1280) are on Quasar's bands, so a component no longer reflows in a band
-where the host application's grid does not.
+**Reflow points agree with the thing they have to fit into.** Five of the six
+ad-hoc breakpoints (540, 600, 980, 1280 and one of the 1100s) are on Quasar's
+bands, so a component no longer reflows in a band where the host application's
+grid does not.
+
+The plan-version editor is the exception, and deliberately: it reflows on a
+**container query** rather than a viewport width. A viewport threshold is wrong
+in one of the admin drawer's two states by construction — with the 240px drawer
+open at 1024–1100px, `320px 1fr 360px` had only 784–860px to sit in, leaving the
+middle column at 104–180px and clipping its form controls behind
+`overflow: hidden`. If you embed `PlanVersionEditor` in a narrower shell than the
+admin's, it now stacks earlier than before; that is the point of the change.
+
+Two more layout fixes came with it. The plan list **scrolls horizontally**
+instead of being cut off — its six-column grid needs about 790px, and below that
+the wrapper's `overflow: hidden`, which is there for the corner radius, simply
+removed the far columns. And Quasar's **stepper** takes its colours from the
+theme: its inactive step titles were a hard-coded grey at 2.68:1 on a white card.
+The active step keeps Quasar's `text-primary` accent — that is the "you are here"
+affordance.
 
 **Tenant-facing fixes.** `MySubscriptionBundlesPage` takes an `http` prop like
 every other tenant component — without one it fell through to a bare `fetch()`,
