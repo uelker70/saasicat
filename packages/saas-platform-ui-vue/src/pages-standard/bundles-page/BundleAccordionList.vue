@@ -1,44 +1,40 @@
 <template>
     <div class="sa-bundles__list">
-        <div
+        <AdminAccordion
             v-for="bundle in filteredBundles"
             :key="bundle.id"
             class="sa-bd-card"
-            :class="{ open: openKey === bundle.id }"
+            :open="openKey === bundle.id"
+            @update:open="emit('toggle', bundle)"
         >
-            <div class="sa-bd-card__head" @click="emit('toggle', bundle)">
-                <div class="sa-bd-card__mark"><q-icon name="inventory_2" size="18px" /></div>
-                <div class="sa-bd-card__titlewrap">
-                    <div class="sa-bd-card__titlerow">
-                        <span class="sa-bd-card__key">{{ bundle.bundleKey }}</span>
-                        <span
-                            class="sa-bundle-chip"
-                            :class="`sa-bundle-chip--${statusClass(bundle)}`"
-                            :title="statusTooltip(bundle)"
-                        >
-                            {{ statusLabel(bundle) }}
-                        </span>
-                        <span
-                            v-if="i18nLocaleCount(bundle) > 0"
-                            class="sa-bundle-chip sa-bundle-chip--info"
-                        >
-                            {{ translationCount(bundle) }}
-                        </span>
+            <template #header>
+                <div class="sa-bd-card__head">
+                    <div class="sa-bd-card__mark"><q-icon name="inventory_2" size="18px" /></div>
+                    <div class="sa-bd-card__titlewrap">
+                        <div class="sa-bd-card__titlerow">
+                            <span class="sa-bd-card__key">{{ bundle.bundleKey }}</span>
+                            <span
+                                class="sa-bundle-chip"
+                                :class="`sa-bundle-chip--${statusClass(bundle)}`"
+                                :title="statusTooltip(bundle)"
+                            >
+                                {{ statusLabel(bundle) }}
+                            </span>
+                            <span
+                                v-if="i18nLocaleCount(bundle) > 0"
+                                class="sa-bundle-chip sa-bundle-chip--info"
+                            >
+                                {{ translationCount(bundle) }}
+                            </span>
+                        </div>
+                        <div class="sa-bd-card__name">{{ bundle.label }}</div>
+                        <div class="sa-bd-card__desc">{{ bundle.description || '—' }}</div>
                     </div>
-                    <div class="sa-bd-card__name">{{ bundle.label }}</div>
-                    <div class="sa-bd-card__desc">{{ bundle.description || '—' }}</div>
                 </div>
-                <q-icon
-                    name="chevron_right"
-                    class="sa-bd-card__chev"
-                    :class="{ open: openKey === bundle.id }"
-                />
-            </div>
+            </template>
 
-            <div v-if="openKey === bundle.id" class="sa-bd-card__body">
-                <slot name="detail" :bundle="bundle" />
-            </div>
-        </div>
+            <slot name="detail" :bundle="bundle" />
+        </AdminAccordion>
 
         <div v-if="bundlesTotal > 0 && filteredBundles.length === 0" class="sa-bd-empty-row">
             {{ msg.list.emptyNoMatch }}
@@ -48,6 +44,7 @@
 
 <script setup lang="ts">
 import type { BundleRow } from '@saasicat/types';
+import AdminAccordion from '../../components/admin-page/AdminAccordion.vue';
 import {
     bundleStatusMeta,
     type BundleAggregateStatus,

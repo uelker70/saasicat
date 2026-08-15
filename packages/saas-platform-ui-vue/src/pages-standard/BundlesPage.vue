@@ -687,21 +687,14 @@ const classifyDiff = computed(() => props.classifyDiff);
     flex-direction: column;
     gap: 8px;
 }
-.sa-bd-card {
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    overflow: hidden;
-}
-.sa-bd-card.open {
-    border-color: var(--sa-color-accent);
-}
+/* The card's surface, open border, head padding, chevron and body now come
+ * from `AdminAccordion` — twelve declarations that were this page's fourth
+ * opinion on what an accordion looks like. What is left below is what the
+ * BUNDLE row puts inside that header. */
 .sa-bd-card__head {
     display: flex;
-    gap: 12px;
+    gap: var(--sa-space-4);
     align-items: center;
-    padding: 12px 14px;
-    cursor: pointer;
 }
 .sa-bd-card__mark {
     width: 34px;
@@ -736,18 +729,6 @@ const classifyDiff = computed(() => props.classifyDiff);
 .sa-bd-card__desc {
     font-size: var(--sa-text-sm);
     color: var(--sa-color-fg-muted);
-}
-.sa-bd-card__chev {
-    transition: transform 0.15s;
-    color: var(--sa-color-fg-subtle);
-}
-.sa-bd-card__chev.open {
-    transform: rotate(90deg);
-}
-.sa-bd-card__body {
-    border-top: 1px solid var(--sa-color-border);
-    padding: 14px;
-    background: var(--sa-color-bg-sunken);
 }
 .sa-bd-grid {
     display: grid;

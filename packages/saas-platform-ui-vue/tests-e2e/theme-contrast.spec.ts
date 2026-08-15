@@ -336,6 +336,11 @@ test.describe('both themes are readable', () => {
             for (const selector of visualCase.revealBy ?? []) {
                 await page.locator(selector).first().click();
             }
+            // Off the last thing clicked, so the readings below are of the page
+            // at rest. `hoverBy` further down asks about a pointer deliberately;
+            // leaving one here would answer that question by accident, on
+            // whichever element the reveal happened to end on.
+            if (visualCase.revealBy?.length) await page.mouse.move(0, 0);
 
             const light = await read(page);
             expect(

@@ -1,71 +1,78 @@
 <template>
-    <div class="sa-fc" :class="{ expanded }">
-        <div class="sa-fc__head" @click="emit('toggle')">
-            <q-icon :name="iconValue || 'help_outline'" size="22px" class="sa-fc__icon" />
-            <div class="sa-fc__main">
-                <div class="sa-fc__titlerow">
-                    <code class="sa-fc__key">{{ feature.featureKey }}</code>
-                    <span class="sa-fc__label">{{ labelValue || feature.featureKey }}</span>
-                    <span v-if="newCapsCount > 0" class="sa-fc__flag sa-fc__flag--new">
-                        {{ newCapsLabel }}
-                    </span>
-                    <span v-if="deprecatedCapsCount > 0" class="sa-fc__flag sa-fc__flag--dep">
-                        {{ deprecatedCapsLabel }}
-                    </span>
+    <AdminAccordion class="sa-fc" :open="expanded" @update:open="emit('toggle')">
+        <template #header>
+            <div class="sa-fc__head">
+                <q-icon :name="iconValue || 'help_outline'" size="22px" class="sa-fc__icon" />
+                <div class="sa-fc__main">
+                    <div class="sa-fc__titlerow">
+                        <code class="sa-fc__key">{{ feature.featureKey }}</code>
+                        <span class="sa-fc__label">{{ labelValue || feature.featureKey }}</span>
+                        <span v-if="newCapsCount > 0" class="sa-fc__flag sa-fc__flag--new">
+                            {{ newCapsLabel }}
+                        </span>
+                        <span v-if="deprecatedCapsCount > 0" class="sa-fc__flag sa-fc__flag--dep">
+                            {{ deprecatedCapsLabel }}
+                        </span>
+                        <span
+                            v-if="feature.successorKey"
+                            class="sa-fc__flag sa-fc__flag--succ"
+                            :title="replacedByLabel"
+                        >
+                            {{ replacedByLabel }}
+                        </span>
+                        <span
+                            v-if="feature.replaces.length"
+                            class="sa-fc__flag sa-fc__flag--repl"
+                            :title="replacesLabel"
+                        >
+                            {{ replacesLabel }}
+                        </span>
+                    </div>
+                    <div class="sa-fc__sub">
+                        <template v-if="owners.length">
+                            <span class="sa-muted">{{ msg.owner }}</span>
+                            {{ owners.join(', ') }}
+                            <span class="sa-fc__dot">·</span>
+                        </template>
+                        {{ capabilities.length }}
+                        {{
+                            capabilities.length === 1
+                                ? msg.feature.capabilityOne
+                                : msg.feature.capabilityMany
+                        }}
+                        <template v-if="tierValue">
+                            <span class="sa-fc__dot">·</span>
+                            <span class="sa-fc__tier">{{ tierValue }}</span>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="sa-fc__coverage">
                     <span
-                        v-if="feature.successorKey"
-                        class="sa-fc__flag sa-fc__flag--succ"
-                        :title="replacedByLabel"
+                        v-for="lng in targetLocales"
+                        :key="lng"
+                        class="sa-cov-pill"
+                        :class="coverageClass(coverage(lng))"
                     >
-                        {{ replacedByLabel }}
-                    </span>
-                    <span
-                        v-if="feature.replaces.length"
-                        class="sa-fc__flag sa-fc__flag--repl"
-                        :title="replacesLabel"
-                    >
-                        {{ replacesLabel }}
+                        <span>{{ localeShort(lng) }}</span>
+                        <span>{{ coveragePct(coverage(lng)) }}%</span>
                     </span>
                 </div>
-                <div class="sa-fc__sub">
-                    <template v-if="owners.length">
-                        <span class="sa-muted">{{ msg.owner }}</span>
-                        {{ owners.join(', ') }}
-                        <span class="sa-fc__dot">·</span>
-                    </template>
-                    {{ capabilities.length }}
-                    {{
-                        capabilities.length === 1
-                            ? msg.feature.capabilityOne
-                            : msg.feature.capabilityMany
-                    }}
-                    <template v-if="tierValue">
-                        <span class="sa-fc__dot">·</span>
-                        <span class="sa-fc__tier">{{ tierValue }}</span>
-                    </template>
-                </div>
             </div>
+        </template>
 
-            <div class="sa-fc__coverage">
-                <span
-                    v-for="lng in targetLocales"
-                    :key="lng"
-                    class="sa-cov-pill"
-                    :class="coverageClass(coverage(lng))"
-                >
-                    <span>{{ localeShort(lng) }}</span>
-                    <span>{{ coveragePct(coverage(lng)) }}%</span>
-                </span>
-            </div>
-
+        <!-- Outside the trigger, not merely `@click.stop` inside it. The old
+             head was a `<div @click>` with this control nested in it, and the
+             only thing keeping a status change from also toggling the card was
+             a `.stop` somebody remembered. Structure beats memory. -->
+        <template #header-actions>
             <DiscoveryStatusControl
                 :status="feature.discoveryStatus"
                 @set-status="(target) => emit('review', feature.featureKey, target)"
             />
-            <q-icon name="chevron_right" class="sa-fc__chev" :class="{ open: expanded }" />
-        </div>
+        </template>
 
-        <div v-if="expanded" class="sa-fc__body">
+        <div class="sa-fc__body">
             <div v-if="feature.discoveryStatus === 'outdated'" class="sa-fc__banner warn">
                 <q-icon name="warning" size="16px" />
                 <span>
@@ -140,7 +147,7 @@
                 "
             />
         </div>
-    </div>
+    </AdminAccordion>
 </template>
 
 <script setup lang="ts">
@@ -152,6 +159,7 @@ import type {
     FeatureCatalogEntryRow,
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
+import AdminAccordion from '../../components/admin-page/AdminAccordion.vue';
 import CatalogEntryTransPanel from './CatalogEntryTransPanel.vue';
 import DiscoveryCapList from './DiscoveryCapList.vue';
 import DiscoveryStatusControl from './DiscoveryStatusControl.vue';
@@ -268,22 +276,16 @@ function coverage(locale: string): number {
 </script>
 
 <style scoped>
-.sa-fc {
-    border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    background: var(--sa-color-bg-surface);
-    overflow: hidden;
-}
-.sa-fc.expanded {
-    border-color: var(--sa-color-scheduled-border);
-    box-shadow: 0 1px 3px var(--sa-shadow-tint-2);
-}
+/* Surface, radius, open border, head padding, chevron and body come from
+ * `AdminAccordion`. What is left is what a FEATURE row puts in that header.
+ *
+ * These seven rules were byte-identical to `DiscoveryQuotaCard`'s after a
+ * prefix rename — jscpd could not see it, because `minTokens: 50` is larger
+ * than any single rule here. The duplication was real and below the threshold. */
 .sa-fc__head {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    cursor: pointer;
+    gap: var(--sa-space-4);
 }
 .sa-fc__icon {
     color: var(--sa-color-fg-secondary);
@@ -354,18 +356,6 @@ function coverage(locale: string): number {
     display: flex;
     gap: 6px;
     flex-shrink: 0;
-}
-.sa-fc__chev {
-    color: var(--sa-color-fg-subtle);
-    transition: transform 0.15s;
-}
-.sa-fc__chev.open {
-    transform: rotate(90deg);
-}
-.sa-fc__body {
-    border-top: 1px solid var(--sa-color-border-soft);
-    padding: 12px;
-    background: var(--sa-color-bg-sunken);
 }
 .sa-fc__banner {
     display: flex;

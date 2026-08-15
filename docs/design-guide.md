@@ -56,6 +56,38 @@ surface. Nothing else in the package renders an `<h1>`, and no page writes its
 own `<q-table>` — both are enforced by `tests-component/admin-page-shell.test.ts`,
 which reads the source of every page and fails on a violation.
 
+### Rows that open
+
+A list whose rows expand is `AdminAccordion`, one per row:
+
+```vue
+<AdminAccordion
+    v-for="row in rows"
+    :key="row.id"
+    :open="openId === row.id"
+    @update:open="openId = openId === row.id ? null : row.id"
+>
+    <template #header><!-- the row: keys, chips, whatever it carries --></template>
+    <template #header-actions><!-- controls that must NOT toggle it --></template>
+    <!-- the body, rendered only while open -->
+</AdminAccordion>
+```
+
+Three things about it are decisions rather than details, and each was a defect
+somewhere before it was a rule:
+
+- **The trigger is a `<button>`.** Four of the eight surfaces this replaced were
+  a `<div>` with a click handler — no keyboard, no `tabindex`, and nothing an
+  assistive technology could announce as a control. `aria-expanded` did not
+  appear anywhere in the package.
+- **`header-actions` renders outside the trigger.** A control inside it would
+  fire the toggle on the way past, and interactive content nested in a
+  `<button>` is not valid HTML. The discovery cards relied on an `@click.stop`
+  for this; structure does not have to be remembered.
+- **The page owns `open`.** Five of the eight tie opening one row to closing
+  another and loading its data. A component that flipped its own boolean would
+  fight them, so it emits and does not decide.
+
 **A screen that cannot use `AdminPage`** — a login, a first-run wizard, a
 fail-closed error page, anything full-viewport with a frame of its own — still
 puts `.sa-page` on its root, next to its own root class. That class is not
