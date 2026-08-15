@@ -85,9 +85,10 @@ somewhere before it was a rule:
   fire the toggle on the way past, and interactive content nested in a
   `<button>` is not valid HTML. The discovery cards relied on an `@click.stop`
   for this; structure does not have to be remembered.
-- **The page owns `open`.** Five of the eight tie opening one row to closing
-  another and loading its data. A component that flipped its own boolean would
-  fight them, so it emits and does not decide.
+- **The page owns `open`.** Five of the eight take it from outside, and the
+  bundle list ties opening one row to closing another and loading that bundle's
+  versions. A component that flipped its own boolean would fight that, so it
+  emits and does not decide.
 - **`#mark` gives the glyph, not the badge.** The row icon had been drawn three
   ways — a tinted 34px square, a bare 22px glyph, and a bare 20px glyph coloured
   through a Quasar _palette_ prop, which reaches past the role layer entirely —
