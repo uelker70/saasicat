@@ -42,6 +42,15 @@ const FLOORS = {
     // means. All 56 are now roles: the five duplicated accent ramps became one
     // in the theme, and `DIFF_STYLE` reads roles.
     'scriptColors.total': { floor: 0, why: 'an inline style can read a role token too' },
+    // The third place a colour can be written, and the one no category read
+    // until the metric above it was found to be false: `hexColors` printed
+    // `0 in 0 files` while twelve literals sat in six templates. Zero from the
+    // start rather than a ratchet, because they were all fixable in the same
+    // pass and an attribute reads `var(--sa-color-…)` exactly as a rule does.
+    'templateColors.total': {
+        floor: 0,
+        why: 'a style attribute can read a role token as well as a rule can',
+    },
     // The half of that debt a literal count cannot see. `accent + '15'` contains
     // no colour, so `scriptColors` read 0 while two backgrounds rendered fully
     // transparent — the trick needs a six-digit hex and the accents had just
@@ -130,6 +139,16 @@ describe('design-token budgets', () => {
         assert.ok(
             summary.reach.styleBlocks >= 50,
             `the audit found only ${summary.reach.styleBlocks} style blocks — SFC style extraction is no longer matching`,
+        );
+        // EQUAL, not a floor. A `.vue` file the SFC parser stops reading yields
+        // no props and therefore no findings, which is indistinguishable from a
+        // clean template — and a floor of "most of them" would let that happen
+        // one file at a time. Every SFC in the package must parse.
+        assert.equal(
+            summary.reach.templates,
+            summary.reach.vueFiles,
+            `${summary.reach.vueFiles - summary.reach.templates} of ${summary.reach.vueFiles} SFCs did not parse — ` +
+                'their templates were skipped, and a skipped template reports as a clean one',
         );
         assert.ok(
             Object.keys(baseline).length === Object.keys(FLOORS).length,

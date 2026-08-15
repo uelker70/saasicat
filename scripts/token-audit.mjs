@@ -18,7 +18,9 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 
-import { declarations, styleBlocks } from './codemods/lib/stylesheets.mjs';
+import { parse } from 'vue/compiler-sfc';
+
+import { declarations, styleBlocks, withCommentsBlanked } from './codemods/lib/stylesheets.mjs';
 import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -129,7 +131,41 @@ const CATEGORIES = {
     // different source, not a different pattern.
     scriptColor: /(?!)/g,
     alphaConcat: /(?!)/g,
+    templateColor: /(?!)/g,
 };
+
+/**
+ * The three patterns above that answer "is this a colour", in one list.
+ *
+ * The template pass has to ask the same question the style loop asks, of a
+ * different source. Asking it with a fourth copy of the patterns is how the two
+ * halves end up disagreeing about what a colour is — which is the failure this
+ * whole file exists to make visible.
+ */
+const COLOUR_PATTERNS = [CATEGORIES.hexColor, CATEGORIES.functionalColor, CATEGORIES.namedColor];
+
+/**
+ * Attributes that paint.
+ *
+ * The NAME decides, exactly as the property decides inside a stylesheet. That
+ * is what keeps the pass quiet about everything else a `#` means in a template:
+ * `#actions` is a slot, `mask="####-##-##"` is an input mask, `(#124)` in a
+ * comment is a pull request, and `href="#top"` is an anchor. None of them is
+ * read here, because none of them is a paint attribute — and none of them can
+ * become a false finding when the next one is written as `(#a1b2c3)`.
+ *
+ * `color` is deliberately ABSENT. On a Quasar component it names a palette
+ * entry (`color="primary"`), not a CSS colour, and reading it would flag the
+ * framework's own vocabulary.
+ */
+const PAINT_ATTRIBUTES = new Set([
+    'style',
+    'fill',
+    'stroke',
+    'stop-color',
+    'flood-color',
+    'lighting-color',
+]);
 
 /**
  * A colour tint built by gluing two hex digits onto a colour: `accent + '15'`,
@@ -195,16 +231,102 @@ function scriptSource(file, content) {
         .join('\n');
 }
 
-/** Extracts the `<style>` blocks of an SFC; returns whole content for `.css`. */
-function styleSource(file, content) {
-    if (file.endsWith('.css')) return [{ text: content, offset: 0 }];
-    const blocks = [];
-    const re = /<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi;
-    let match;
-    while ((match = re.exec(content)) !== null) {
-        blocks.push({ text: match[1], offset: match.index + match[0].indexOf(match[1]) });
+/**
+ * Colour literals in a TEMPLATE — the third place a colour can be written, and
+ * the only one nothing read.
+ *
+ * The headline of this report was `hard-coded hex colours 0 in 0 files` while
+ * twelve of them sat in six templates: three browser-chrome dots written out
+ * twice, three diff markers reaching past the token layers for a primitive, and
+ * three `p.color ?? '#94a3b8'` fallbacks that answered one question with two
+ * different greys. A zero that is wrong is worse than a number that is large,
+ * because it ends the search.
+ *
+ * Parsed, not matched — and the reasons are specific rather than stylistic:
+ *
+ *   - A `<template v-if>` nests inside the template, so no `<template>…
+ *     </template>` pattern can find the block's extent without a depth counter.
+ *   - A comment is its own node type, so `(#124)` in a `<!-- -->` is skipped
+ *     without any stripping pass. Written as a regex over the template's text
+ *     it would be a phantom colour the moment a pull-request number reaches six
+ *     hex-shaped digits.
+ *   - Reading PROPS rather than text is what keeps this honest for the next
+ *     category too: over the same tree, template text holds ~90 `px` values of
+ *     which only 20 are CSS — the rest are `size="18px"` component props.
+ *
+ * Vue ships the parser for the files these are; `theme-reaches-every-page`
+ * reached the same conclusion after three rounds of fixing a hand-written one.
+ *
+ * @returns {null | {value: string, line: number}[]} null if the file is not an
+ *          SFC or did not parse — the caller counts that, so a template the
+ *          audit stopped reading cannot look like a template with no findings.
+ */
+function templatePaint(file, content) {
+    if (!file.endsWith('.vue')) return null;
+    const { descriptor, errors } = parse(content, { ignoreEmpty: false });
+    if (errors.length > 0 || !descriptor.template?.ast) return null;
+
+    const painted = [];
+    const visit = (node) => {
+        // ELEMENT === 1. Only an element carries props.
+        if (node.type === 1) {
+            for (const prop of node.props ?? []) {
+                // ATTRIBUTE === 6 — `style="background: #ef4444"`.
+                if (prop.type === 6 && PAINT_ATTRIBUTES.has(prop.name) && prop.value) {
+                    painted.push({ value: prop.value.content, line: prop.value.loc.start.line });
+                }
+                // DIRECTIVE === 7 — `:style` is v-bind with `style` as its arg.
+                // The expression is JavaScript, so what is read here is the
+                // literal inside it: `p.color ?? '#94a3b8'` names a colour, and
+                // `{ background: p.color }` names none.
+                //
+                // `isStatic` because a DYNAMIC argument carries the variable's
+                // name, not the attribute's: in `:[style]="x"` the arg reads
+                // `style` and the attribute is whatever that variable holds.
+                if (
+                    prop.type === 7 &&
+                    prop.name === 'bind' &&
+                    prop.arg?.isStatic &&
+                    PAINT_ATTRIBUTES.has(prop.arg.content) &&
+                    prop.exp
+                ) {
+                    painted.push({ value: prop.exp.content, line: prop.exp.loc.start.line });
+                }
+            }
+        }
+        for (const child of node.children ?? []) visit(child);
+    };
+    for (const child of descriptor.template.ast.children ?? []) visit(child);
+    return painted;
+}
+
+/**
+ * The colour literals among those painted values, with the line each sits on.
+ *
+ * Exported for its own test. `null` and `[]` mean different things and the
+ * caller depends on the difference: `null` is "this file has no template the
+ * audit could read", `[]` is "read it, found nothing". Collapsing the two is
+ * how a template the parser stopped understanding would report as clean.
+ */
+export function templateColourSites(file, content) {
+    const painted = templatePaint(file, content);
+    if (painted === null) return null;
+
+    const sites = [];
+    for (const { value, line } of painted) {
+        for (const pattern of COLOUR_PATTERNS) {
+            for (const match of value.matchAll(pattern)) {
+                sites.push({
+                    // Relative to where the value starts, so a binding spread
+                    // over several lines points at the literal rather than at
+                    // the opening quote.
+                    line: line + lineOf(value, match.index) - 1,
+                    value: (match[1] ?? match[0]).trim(),
+                });
+            }
+        }
     }
-    return blocks;
+    return sites.sort((a, b) => a.line - b.line);
 }
 
 function lineOf(content, index) {
@@ -221,14 +343,18 @@ export function audit() {
     // How much was actually looked at, counted independently of what was found.
     // Every finding count can legitimately fall to zero once the migration is
     // done, so "no findings" cannot tell a finished job from a broken sweep.
-    const reach = { files: 0, styleBlocks: 0 };
+    // `vueFiles` and `templates` are counted separately on purpose: they must be
+    // EQUAL. A file the SFC parser stopped reading contributes no props and so
+    // no findings, which is indistinguishable from a clean template — the same
+    // failure the other two counters exist to catch, one level down.
+    const reach = { files: 0, styleBlocks: 0, vueFiles: 0, templates: 0 };
 
     for (const file of files) {
         const rel = relative(REPO_ROOT, file);
         const content = readFileSync(file, 'utf8');
         const isTokenDefinition = file.startsWith(TOKEN_DEFINITION_DIR);
         reach.files += 1;
-        reach.styleBlocks += styleSource(file, content).length;
+        reach.styleBlocks += styleBlocks(file, content).length;
 
         if (!isTokenDefinition) {
             const script = scriptSource(file, content)
@@ -277,12 +403,21 @@ export function audit() {
         }
 
         if (file.endsWith('.vue')) {
+            reach.vueFiles += 1;
             const total = content.split('\n').length;
-            const styleLines = styleSource(file, content).reduce(
+            const styleLines = styleBlocks(file, content).reduce(
                 (sum, block) => sum + block.text.split('\n').length,
                 0,
             );
             styleShare.push({ file: rel, total, styleLines, share: styleLines / total });
+
+            const sites = templateColourSites(file, content);
+            if (sites !== null) {
+                reach.templates += 1;
+                if (!isTokenDefinition) {
+                    for (const site of sites) findings.templateColor.push({ file: rel, ...site });
+                }
+            }
         }
 
         // Self-referencing vars can sit anywhere, including inline styles.
@@ -316,10 +451,18 @@ export function audit() {
             }
         }
 
-        for (const block of styleSource(file, content)) {
+        for (const block of styleBlocks(file, content)) {
+            // Comments blanked, and the same way the declaration pass above
+            // blanks them, so the two halves of this file agree about what is
+            // paint. Reading the raw text made a rule's own documentation the
+            // first thing it flagged — `#f59e0b` inside a comment explaining
+            // why `#f59e0b` may not be written was a hard-coded colour.
+            // Blanked rather than stripped: `lineOf` is an offset into the
+            // original text.
+            const text = withCommentsBlanked(block.text);
             for (const [category, pattern] of Object.entries(CATEGORIES)) {
                 if (category === 'selfReferencingVar') continue;
-                for (const match of block.text.matchAll(pattern)) {
+                for (const match of text.matchAll(pattern)) {
                     const value = (match[1] ?? match[0]).trim();
                     if (category === 'pixelValue' && ALWAYS_ALLOWED_PX.has(value)) continue;
                     // A `var(--sa-…)` is the goal, not a finding.
@@ -347,6 +490,10 @@ export function summarise({ findings, styleShare, reach }) {
         functionalColors: { total: findings.functionalColor.length },
         namedColors: { total: findings.namedColor.length },
         scriptColors: { total: findings.scriptColor.length, files: files(findings.scriptColor) },
+        templateColors: {
+            total: findings.templateColor.length,
+            files: files(findings.templateColor),
+        },
         alphaConcats: { total: findings.alphaConcat.length, files: files(findings.alphaConcat) },
         scalePixels: { total: findings.scalePixel.length, distinct: distinct(findings.scalePixel) },
         dimensionPixels: {
@@ -391,13 +538,18 @@ function runCli(args) {
     const topN = topFlag ? Number(topFlag.split('=')[1]) : 10;
 
     console.log('\nDesign-token audit — packages/saas-platform-ui-vue/src\n');
+    // "in stylesheets", not "hard-coded", because the next three lines are also
+    // hard-coded colours and this one used to read 0 while they did not.
     console.log(
-        `  hard-coded hex colours     ${summary.hexColors.total} in ${summary.hexColors.files} files`,
+        `  colours in stylesheets     ${summary.hexColors.total} in ${summary.hexColors.files} files`,
     );
     console.log(`  rgb()/hsl() literals       ${summary.functionalColors.total}`);
     console.log(`  named colours              ${summary.namedColors.total}`);
     console.log(
         `  colours in script          ${summary.scriptColors.total} in ${summary.scriptColors.files} files`,
+    );
+    console.log(
+        `  colours in templates       ${summary.templateColors.total} in ${summary.templateColors.files} files`,
     );
     console.log(
         `  hex-alpha concatenations   ${summary.alphaConcats.total} in ${summary.alphaConcats.files} files`,

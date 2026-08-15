@@ -81,11 +81,17 @@ export function styleBlocks(file, content) {
  * `scan[i]` and `text[i]` describing the same position while removing the
  * comment from every structural decision.
  *
+ * Exported because `token-audit.mjs` needs the same answer. Its per-declaration
+ * pass got this for free through `declarations()`, but its per-block pattern
+ * pass read the raw text — so a sentence explaining a rule was counted as a
+ * violation of it, and a `#f59e0b` inside a `/* … *\/` was a hard-coded colour.
+ * Prose is not paint, and the two files must not disagree about which is which.
+ *
  * Quotes and comments have to be recognised in ONE pass, because each can
  * appear inside the other: `content: "/*"` opens no comment, and a `'` inside
  * a comment opens no string.
  */
-function withCommentsBlanked(text) {
+export function withCommentsBlanked(text) {
     let out = '';
     let quote = null;
     for (let i = 0; i < text.length; i += 1) {

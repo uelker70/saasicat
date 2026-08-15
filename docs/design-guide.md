@@ -184,12 +184,33 @@ Five, each with the same six slots, so knowing one is knowing all five:
 not live is neither a warning nor an achievement. Six surfaces had each picked
 their own colour to say it before this existed.
 
+**A solid tone cannot carry text.** Every rung of `--sa-color-<tone>` and
+`-strong` is picked to be legible _as_ a colour against its own theme's surface,
+which puts it in the middle of the lightness range — and nothing reads on the
+middle. White on `--sa-color-positive-strong` (green-500 in **both** themes)
+measures **2.54:1**, and near-black on it is no better in the dark theme, where
+that same rung has to sit on slate. There is no `<tone>-on-solid` role because
+there is no colour that could fill it. A chip with a label is `-surface-strong`
+plus `-fg`, always. If you want the solid look, what you actually want is the
+tint with a heavier glyph.
+
+That the number is identical in both themes is the second half of the lesson:
+this defect was not a dark-mode regression, and no amount of dark-mode review
+would have surfaced it.
+
 ### Catalogue entities
 
 `--sa-color-feature` (violet), `--sa-color-quota` (sky) and `--sa-color-bundle`
 (amber) say **what a row is**, not how it is doing. The plan editor, the matrix,
 the review and the discovery page all render the same dots; without shared roles
 the same colour meant two things on two screens.
+
+Each has the same three slots a tone has — the colour, a `-surface` tint, and an
+`-fg` that is readable on that tint. `feature` had all three from the start and
+the other two did not, which is why the version diff wrote `#0ea5e9` and
+`#f59e0b` straight into its template: **there was no role to point at, so the
+component reached past the layers for a primitive.** A missing rung in a family
+does not stay missing; it becomes a literal somewhere.
 
 ### Identity — colours that only need to differ
 
@@ -452,6 +473,25 @@ belongs in the shared layer with a prop.
 
 **Naming.** One BEM block per page, `sa-<page>`, appearing in that page and its
 own folder and nowhere else.
+
+**A colour in a template is a colour.** `style="background: #ef4444"` and
+`:style="{ background: p.color ?? '#94a3b8' }"` are paint, and an attribute
+reads `var(--sa-color-…)` exactly as a rule does. The audit counts them —
+`colours in templates`, floor 0 — because for a long time it did not: its
+headline read `hard-coded hex colours 0 in 0 files` while twelve of them sat in
+six templates, and a zero that is wrong ends the search. A colour that is
+**stored** rather than painted is the one exception, and it has its own answer
+in `IDENTITY_ACCENT_VALUES` above.
+
+**Both halves of a pair in the same rule.** A `color` whose `background` is
+declared somewhere else is a pair no check can read — and **all five** contrast
+defects found in this package were that shape, in three variations: the
+background one rule further down (`.pd-diff-icon` held the colour, its variants
+held the background), the background on an ancestor (a `<em>` keeping its own
+colour while `:hover` moved the surface under it), and the background in a
+template attribute (`style="background: #f59e0b"` against a colour declared in
+CSS). Splitting geometry from paint is what let white-on-green-500 sit in the
+diff panel for the component's whole life.
 
 ---
 

@@ -1,9 +1,23 @@
 <template>
     <div class="sa-marketing-window">
         <div class="sa-marketing-chrome">
-            <span class="sa-marketing-chrome-dot" style="background: #ef4444" />
-            <span class="sa-marketing-chrome-dot" style="background: #f59e0b" />
-            <span class="sa-marketing-chrome-dot" style="background: #10b981" />
+            <!-- The window controls of the browser this mock-up draws. Their hue
+                 is fixed by what they depict rather than by what they mean, and
+                 the `-strong` rungs are exactly that hue — the three replaced
+                 the same three literals byte for byte. Only the amber differs
+                 between themes, and it lifts one rung in the dark one. -->
+            <span
+                class="sa-marketing-chrome-dot"
+                style="background: var(--sa-color-negative-strong)"
+            />
+            <span
+                class="sa-marketing-chrome-dot"
+                style="background: var(--sa-color-warning-strong)"
+            />
+            <span
+                class="sa-marketing-chrome-dot"
+                style="background: var(--sa-color-positive-strong)"
+            />
             <div class="sa-marketing-chrome-url">{{ previewUrl }}</div>
         </div>
         <div class="sa-marketing-canvas">

@@ -66,7 +66,7 @@
                     :key="'cf-' + f"
                     class="pd-diff-row plain"
                 >
-                    <div class="pd-diff-icon" style="background: #8b5cf6">·</div>
+                    <div class="pd-diff-icon feature">·</div>
                     <div class="pd-diff-body">
                         <span class="pd-diff-label">{{ featureLabel(f) }}</span>
                         <code class="pd-diff-key">{{ f }}</code>
@@ -88,7 +88,7 @@
                     :key="'cq-' + k"
                     class="pd-diff-row plain"
                 >
-                    <div class="pd-diff-icon" style="background: #0ea5e9">·</div>
+                    <div class="pd-diff-icon quota">·</div>
                     <div class="pd-diff-body">
                         <span class="pd-diff-label">{{ quotaLabel(k) }}</span>
                         <code class="pd-diff-key">{{ k }}</code>
@@ -111,7 +111,7 @@
                     :key="'cb-' + b"
                     class="pd-diff-row plain"
                 >
-                    <div class="pd-diff-icon" style="background: #f59e0b">·</div>
+                    <div class="pd-diff-icon bundle">·</div>
                     <div class="pd-diff-body">
                         <span class="pd-diff-label">{{ bundleLabel(b) }}</span>
                         <code class="pd-diff-key">{{ b }}</code>

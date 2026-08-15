@@ -1724,8 +1724,13 @@ async function onLocaleChange(loc: string): Promise<void> {
         color 0.12s;
 }
 .sa-marketing-tf-chip em {
+    /* No colour of its own — the mono face and the smaller step already set it
+     * apart from the chip's label, and a colour here does not follow the chip.
+     * `--sa-color-fg-subtle` stayed put when :hover moved the chip's surface to
+     * a 22 % accent tint, which measured 2.92:1 in the dark theme: a foreground
+     * declared without the background it will end up on is a pair nothing can
+     * check, and this one was wrong in exactly the state nobody screenshots. */
     font-style: normal;
-    color: var(--sa-color-fg-subtle);
     font: 500 var(--sa-text-xs) var(--sa-font-mono);
 }
 .sa-marketing-tf-chip:hover:not(:disabled) {

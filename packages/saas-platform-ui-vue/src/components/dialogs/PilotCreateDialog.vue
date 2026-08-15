@@ -170,7 +170,7 @@
                                 >
                                     <span
                                         class="pl-plan-opt__dot"
-                                        :style="{ background: p.color ?? '#94a3b8' }"
+                                        :style="{ background: p.color ?? IDENTITY_NEUTRAL }"
                                     />
                                     <div class="pl-plan-opt__text">
                                         <span class="pl-plan-opt__key">{{ p.value }}</span>
@@ -263,6 +263,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import MfaPromptDialog from '../MfaPromptDialog.vue';
+import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PilotCopy, PilotCreatePayload, PilotCreateResult } from './types.js';
