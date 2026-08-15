@@ -10,6 +10,7 @@ import { commonMessages } from './messages/common.js';
 import { dashboardMessages } from './messages/dashboard.js';
 import { discoveryMessages } from './messages/discovery.js';
 import { emailMessages } from './messages/email.js';
+import { errorsMessages } from './messages/errors.js';
 import { marketingMessages } from './messages/marketing.js';
 import { navMessages } from './messages/nav.js';
 import { pilotsMessages } from './messages/pilots.js';
@@ -25,6 +26,7 @@ import { usersMessages } from './messages/users.js';
 /** Complete platform catalog for one locale, keyed by namespace. */
 export type SaMessages = {
     readonly common: (typeof commonMessages)['de'];
+    readonly errors: (typeof errorsMessages)['de'];
     readonly nav: (typeof navMessages)['de'];
     readonly shell: (typeof shellMessages)['de'];
     readonly dashboard: (typeof dashboardMessages)['de'];
@@ -49,6 +51,7 @@ export type SaMessagesOverrides = PartialMessages<SaMessages>;
 function catalogFor(locale: SaBuiltinLocale): SaMessages {
     return {
         common: commonMessages[locale],
+        errors: errorsMessages[locale],
         nav: navMessages[locale],
         shell: shellMessages[locale],
         dashboard: dashboardMessages[locale],
