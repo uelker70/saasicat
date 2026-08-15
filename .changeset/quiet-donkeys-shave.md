@@ -48,6 +48,17 @@ have one. The platform reads statuses itself: a 304 is a manifest cache hit, a
 it is handed. Only a transport failure rejects now, and `toAdminError()` gives
 it `status: 0`.
 
+The axios adapter reaches that by **adapting the rejection**, not by overriding
+`validateStatus`. The override was the first attempt and it was wrong: axios
+decides resolve-vs-reject from `validateStatus`, and its response interceptors
+are chained as `then(onFulfilled, onRejected)` — so a config that never rejects
+makes the **rejection half unreachable for every status**. That is the
+conventional place a consumer puts token refresh and retry, and an expiring
+session would have been handed to the platform as a 401 instead of being
+refreshed. The instance now runs its own chain to the end; a rejection that
+still carries a response is adapted, and only a genuine no-response failure
+escapes.
+
 Two details the copies got wrong, fixed here once:
 
 - **Prefix stripping respects path boundaries.** Four of the shims wrote

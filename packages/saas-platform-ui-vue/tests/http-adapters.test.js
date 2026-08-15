@@ -194,6 +194,14 @@ describe('createAxiosHttpClient', () => {
         assert.equal(calls[1].url, '/admin/tenants');
     });
 
+    test('a prefix written with a trailing slash strips the same way', async () => {
+        // `'/api/v1/'` is how an axios baseURL is usually written. Requiring
+        // the exact form silently sent every request to a doubled path.
+        const { instance, calls } = stubAxios();
+        await createAxiosHttpClient(instance, { stripPrefix: '/api/v1/' })('/api/v1/admin/boot');
+        assert.equal(calls[0].url, '/admin/boot');
+    });
+
     test('leaves a URL that does not start with the prefix alone', async () => {
         const { instance, calls } = stubAxios();
         await createAxiosHttpClient(instance, { stripPrefix: '/api/v1' })('/api/v10/x');
@@ -214,14 +222,9 @@ describe('createAxiosHttpClient', () => {
 
     test('no status throws — 304, 402 and 500 all arrive as responses', async () => {
         for (const status of [304, 402, 500]) {
-            const { instance, calls } = stubAxios({ status });
+            const { instance } = stubAxios({ status });
             const res = await createAxiosHttpClient(instance)('/x');
             assert.equal(res.status, status);
-            assert.equal(
-                calls[0].validateStatus(status),
-                true,
-                `validateStatus rejected ${status}`,
-            );
         }
     });
 
@@ -294,6 +297,66 @@ describe('createAxiosHttpClient', () => {
             body: '{}',
         });
         assert.deepEqual(calls[0].headers, { 'content-type': 'application/json' });
+    });
+});
+
+describe('createAxiosHttpClient — the instance keeps its own error handling', () => {
+    /** An instance whose rejection-side interceptor refreshes and retries. */
+    function refreshingInstance() {
+        const log = [];
+        let refreshed = false;
+        const instance = {
+            async request(config) {
+                log.push(`${config.method} ${config.url}`);
+                if (!refreshed) {
+                    // What axios does when validateStatus rejects a status:
+                    // the rejection carries the response.
+                    const err = new Error('Request failed with status code 401');
+                    err.response = { status: 401, data: { code: 'EXPIRED' }, headers: {} };
+                    // The instance's own rejection interceptor gets first refusal.
+                    refreshed = true;
+                    log.push('refresh');
+                    return instance.request(config);
+                }
+                return { status: 200, data: { ok: true }, headers: {} };
+            },
+        };
+        return { instance, log };
+    }
+
+    test('a rejection the instance recovers from never reaches the platform', async () => {
+        const { instance, log } = refreshingInstance();
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(res.status, 200);
+        assert.deepEqual(log, ['GET /x', 'refresh', 'GET /x']);
+    });
+
+    test('a rejection it does not recover from arrives as a response, not a throw', async () => {
+        const instance = {
+            async request() {
+                const err = new Error('Request failed with status code 403');
+                err.response = { status: 403, data: { code: 'FORBIDDEN' }, headers: {} };
+                throw err;
+            },
+        };
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(res.status, 403);
+        assert.deepEqual(await res.json(), { code: 'FORBIDDEN' });
+    });
+
+    test('a failure with no response is a transport failure and stays a throw', async () => {
+        const instance = {
+            async request() {
+                throw new Error('Network Error');
+            },
+        };
+        await assert.rejects(createAxiosHttpClient(instance)('/x'), /Network Error/);
+    });
+
+    test('no validateStatus is imposed on the instance', async () => {
+        const { instance, calls } = stubAxios();
+        await createAxiosHttpClient(instance)('/x');
+        assert.equal('validateStatus' in calls[0], false);
     });
 });
 
