@@ -9,6 +9,7 @@ import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
 import {
     FIXTURE_BUNDLES,
     FIXTURE_BUNDLE_VERSIONS,
+    FIXTURE_DISCOVERY,
     FIXTURE_PLAN_CHANGE_PREVIEW,
     TENANT_CATALOG_PLANS,
 } from './fixture-data.js';
@@ -108,6 +109,16 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'discovery',
         load: () => import('../../src/pages-standard/DiscoveryPage.vue'),
         // Fully prop-driven: this page receives data, it does not fetch.
+        //
+        // Still empty, and knowingly so. This page records a baseline of empty
+        // states, exactly like `bundles` did — but its `capabilities`,
+        // `features` and `quotas` are CATALOG ROWS, not the snapshot's
+        // `Discovered*` shapes, so it needs its own fixture rather than the one
+        // next door. Filling it with the snapshot's arrays took the page down
+        // (it never reached `data-visual-ready`), and `props` is typed
+        // `Record<string, unknown>`, so `pnpm typecheck` said nothing — which
+        // is the same hole that let this case ship with six missing required
+        // props. Both belong in the follow-up, together.
         props: () => ({
             snapshot: null,
             capabilities: [],
@@ -378,7 +389,13 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             bundles: FIXTURE_BUNDLES,
             loading: false,
             error: null,
-            snapshot: null,
+            // Not `null`, for the same reason `bundles` is not `[]` — one level
+            // in. The editors bind `snapshot?.features ?? []`, so a null
+            // snapshot renders `bd-features-empty` and no feature pill has ever
+            // existed under a baseline. The 2.92:1 reading on
+            // `.bd-feature-pill.on .bd-feature-key` came from a human looking at
+            // a screen this suite could not reach.
+            snapshot: FIXTURE_DISCOVERY,
             load: async () => {},
             create: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
             update: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),

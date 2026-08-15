@@ -11,6 +11,7 @@ import type {
     AdminManifest,
     BundleRow,
     BundleVersionRow,
+    DiscoverySnapshot,
     MarketingProjectionRow,
     PlanRow,
     PlanVersionRow,
@@ -140,6 +141,67 @@ export const FIXTURE_BUNDLES: BundleRow[] = [
         deletedAt: null,
     },
 ];
+
+/**
+ * The discovery snapshot, which is the LIBRARY every editor picks from.
+ *
+ * Passing `snapshot: null` was the same mistake the comment above `FIXTURE_
+ * BUNDLES` names, one level further in: `BundlesPage` binds
+ * `:available-features="snapshot?.features ?? []"`, so a null snapshot made
+ * `BundleFeaturesEditor` render `bd-features-empty` and nothing else. Not one
+ * `.bd-feature-pill` has ever existed under a baseline or a contrast reading —
+ * and `.bd-feature-pill.on .bd-feature-key` was measured at 2.92:1 in the dark
+ * theme by a human, on a screen no test can reach.
+ *
+ * `notes.export` is deliberately one of the keys `FIXTURE_BUNDLE_VERSIONS`
+ * already selects, so both pill states render: one `on`, the rest off. A
+ * fixture that only ever produced the resting state would leave the half that
+ * was broken uncovered.
+ */
+export const FIXTURE_DISCOVERY: DiscoverySnapshot = {
+    schemaVersion: 1,
+    scannedAt: '2026-02-10T09:00:00.000Z',
+    app: { key: 'fixture', version: '1.4.0' },
+    capabilities: [
+        {
+            capabilityKey: 'notes.export.pdf',
+            label: 'Export as PDF',
+            feature: 'notes.export',
+            status: 'active',
+            kind: 'service',
+            owner: null,
+            replacementKey: null,
+            removalPlannedAt: null,
+            reason: null,
+            requires: [],
+            replaces: [],
+            declaredAt: 'NotesExportService.toPdf',
+        },
+    ],
+    features: [
+        {
+            featureKey: 'notes.export',
+            capabilityKeys: ['notes.export.pdf'],
+            requires: [],
+            replaces: [],
+        },
+        { featureKey: 'notes.share', capabilityKeys: [], requires: ['notes.export'], replaces: [] },
+        { featureKey: 'team.roles', capabilityKeys: [], requires: [], replaces: [] },
+    ],
+    quotas: [
+        {
+            quotaKey: 'notes',
+            label: 'Notes',
+            unit: 'notes',
+            policy: 'continuous',
+            feature: null,
+            replaces: null,
+            declaredAt: 'NotesService',
+            enforcedBy: ['notes.export.pdf'],
+        },
+    ],
+    hash: 'fixture-discovery-hash',
+};
 
 export const FIXTURE_PLANS: PlanRow[] = [
     {
