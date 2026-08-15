@@ -31,6 +31,7 @@ export * from './client/index.js';
 // ---------------------------------------------------------------------------
 export * from './vue/super-admin-context.js';
 export * from './vue/ui-notify.js';
+export * from './vue/ui-confirm.js';
 export * from './vue/use-super-admin-context.js';
 export * from './vue/use-super-admin-i18n.js';
 export * from './vue/use-sa-theme.js';
@@ -41,6 +42,8 @@ export * from './vue/use-sa-theme.js';
 export * from './vue/create-admin-routes.js';
 export * from './vue/use-api-list.js';
 export * from './vue/use-pagination.js';
+export * from './vue/use-async-action.js';
+export * from './vue/use-async-data.js';
 export * from './vue/use-tenants.js';
 export * from './vue/use-audit-entries.js';
 export * from './vue/use-entitlement.js';

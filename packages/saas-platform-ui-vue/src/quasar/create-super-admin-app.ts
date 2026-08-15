@@ -44,6 +44,7 @@ import {
     type SuperAdminLoginAdapter,
 } from '../vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from '../vue/ui-notify.js';
+import { SUPER_ADMIN_CONFIRM_KEY, type UiConfirm } from '../vue/ui-confirm.js';
 import {
     SA_THEME_KEY,
     createSaTheme,
@@ -58,6 +59,7 @@ import {
 } from '../vue/use-super-admin-i18n.js';
 import { bindSaThemeToDocument } from './dark-bridge.js';
 import { quasarNotify } from './notify.js';
+import { quasarConfirm } from './confirm.js';
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
     /** App root component (`App.vue`). */
@@ -100,6 +102,15 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * center replace it here without touching the pages.
      */
     notify?: UiNotify;
+    /**
+     * Optional: confirm port for the standard pages' "are you sure" step.
+     * Default is the Quasar `Dialog` implementation — apps with their own
+     * modal system replace it here without touching the pages.
+     *
+     * An implementation must actually ask. Resolving `{ ok: true }` outright
+     * turns every guarded action into an unguarded one.
+     */
+    confirm?: UiConfirm;
     /**
      * Optional: additional Vue plugins (e.g. an app's own NotificationCenter)
      * that are installed after the platform setup, before the mount.
@@ -263,6 +274,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     app.provide(SUPER_ADMIN_EXTENSIONS_KEY, options.extensions ?? {});
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
     app.provide(SUPER_ADMIN_NOTIFY_KEY, options.notify ?? quasarNotify);
+    app.provide(SUPER_ADMIN_CONFIRM_KEY, options.confirm ?? quasarConfirm);
     if (options.manifestGuard?.getManifest) {
         app.provide(SUPER_ADMIN_MANIFEST_KEY, options.manifestGuard.getManifest);
     }
