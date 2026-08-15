@@ -84,14 +84,50 @@ describe('a colour written as paint is found', () => {
         assert.deepEqual(values('<i style="fill: white" />'), ['white']);
     });
 
-    test('`color` on a native SVG element is paint', () => {
+    test('`color` inside SVG is paint', () => {
         // The other half of the `color` question. Excluding the attribute
-        // outright was right for a component and wrong for an SVG: `color`
+        // outright was right for a component and wrong inside SVG: `color`
         // establishes what `currentColor` resolves to, so a literal there
         // paints every glyph below it — and this scanner read `fill` and
         // `stroke` while walking past the thing that feeds them.
         assert.deepEqual(values('<svg color="#fff"><path fill="currentColor" /></svg>'), ['#fff']);
-        assert.deepEqual(values('<g color="red"><path fill="currentColor" /></g>'), ['red']);
+        assert.deepEqual(values('<svg><g color="red"><path fill="currentColor" /></g></svg>'), [
+            'red',
+        ]);
+    });
+
+    test('the namespace, not the tag name — a bare <g> is not SVG', () => {
+        // Written first as `<g color="red">` at the top level, which FAILED,
+        // and the code was right: outside an `<svg>` there is no SVG namespace,
+        // so `g` is an unknown HTML element and `color` is a component prop
+        // again. A tag list would have said "SVG" and been wrong.
+        assert.deepEqual(values('<g color="red" />'), []);
+    });
+
+    test('`color` on the SVG elements a tag list forgets', () => {
+        // The first version of this used a hand-kept list of twenty tags, and
+        // `filter` was not among them — nor were the two dozen `fe*` elements.
+        // The namespace is the actual question; a tag list is a guess at its
+        // answer and is never finished.
+        assert.deepEqual(
+            values(
+                '<svg><filter color="#fff"><feFlood flood-color="currentColor" /></filter></svg>',
+            ),
+            ['#fff'],
+        );
+    });
+
+    test('every CSS named colour, not the obvious eighteen', () => {
+        // A floor of zero with a hole in it: `gold` and `pink` are literals the
+        // budget claimed to forbid and never saw.
+        assert.deepEqual(values('<svg><path fill="pink" stroke="gold" /></svg>'), ['pink', 'gold']);
+        assert.deepEqual(values('<i style="background: rebeccapurple" />'), ['rebeccapurple']);
+    });
+
+    test('a longer keyword is not read as the shorter one inside it', () => {
+        // `blue` is in the list and so is `blueviolet`. The bound on each
+        // pattern is what keeps the alternation safe unordered.
+        assert.deepEqual(values('<svg><path fill="blueviolet" /></svg>'), ['blueviolet']);
     });
 
     test('several literals in one binding', () => {
@@ -188,6 +224,14 @@ describe('everything else a # means in a template stays silent', () => {
         // this file exists to argue against: a green tick over an open hole.
         assert.deepEqual(values('<svg><rect fill="url(#facade)" stroke="url(#abc)" /></svg>'), []);
         assert.deepEqual(values('<i style="background: url(#dedede) center/cover" />'), []);
+    });
+
+    test('a CSS function name is case-insensitive', () => {
+        // `URL(#abc)` is valid CSS, and without the `i` flag it was not blanked
+        // — so a clean component would have been REJECTED by a floor of zero.
+        // The other direction from everything else in this group, and the more
+        // annoying one: a false positive nobody can fix by editing their code.
+        assert.deepEqual(values('<svg><rect fill="URL(#abc)" stroke="Url(#facade)" /></svg>'), []);
     });
 
     test('a real colour beside a paint-server reference is still found', () => {

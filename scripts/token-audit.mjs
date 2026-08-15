@@ -100,15 +100,175 @@ const QUASAR_BREAKPOINTS = new Set([
 ]);
 
 /**
- * The CSS colour keywords worth naming, in one place.
+ * Every CSS named colour, not a shortlist of the obvious ones.
  *
- * Two patterns need this list and they read it differently — one wants it after
- * a `property:`, the other wants it as an entire attribute value — so it lives
+ * The shortlist was eighteen words, and eighteen words is a floor of zero with
+ * a hole in it: `fill="gold"` and `color: pink` are literals the budget claimed
+ * to forbid and never saw. There is no reason to prefer a subset — the set is
+ * closed, standardised, and 148 long, so it is written out.
+ *
+ * `transparent` and `currentcolor` are deliberately NOT here. Neither invents a
+ * colour: one paints nothing and the other defers to whatever `color` resolved
+ * to, which is the behaviour the token layers rely on.
+ *
+ * Two patterns read this and read it differently — one wants it after a
+ * `property:`, the other wants it as an entire attribute value — so it lives
  * here rather than being spelled out twice. A second copy is how `fill: white`
  * ends up being debt and `fill="white"` does not.
+ *
+ * The alternation is safe unordered: both patterns bound the match with
+ * `(?![\w-])` or with `^…$`, so `blue` cannot match inside `blueviolet`.
  */
-const NAMED_COLOUR_WORDS =
-    'white|black|red|green|blue|orange|yellow|purple|grey|gray|silver|maroon|navy|teal|olive|lime|aqua|fuchsia';
+const NAMED_COLOUR_WORDS = [
+    'aliceblue',
+    'antiquewhite',
+    'aqua',
+    'aquamarine',
+    'azure',
+    'beige',
+    'bisque',
+    'black',
+    'blanchedalmond',
+    'blue',
+    'blueviolet',
+    'brown',
+    'burlywood',
+    'cadetblue',
+    'chartreuse',
+    'chocolate',
+    'coral',
+    'cornflowerblue',
+    'cornsilk',
+    'crimson',
+    'cyan',
+    'darkblue',
+    'darkcyan',
+    'darkgoldenrod',
+    'darkgray',
+    'darkgreen',
+    'darkgrey',
+    'darkkhaki',
+    'darkmagenta',
+    'darkolivegreen',
+    'darkorange',
+    'darkorchid',
+    'darkred',
+    'darksalmon',
+    'darkseagreen',
+    'darkslateblue',
+    'darkslategray',
+    'darkslategrey',
+    'darkturquoise',
+    'darkviolet',
+    'deeppink',
+    'deepskyblue',
+    'dimgray',
+    'dimgrey',
+    'dodgerblue',
+    'firebrick',
+    'floralwhite',
+    'forestgreen',
+    'fuchsia',
+    'gainsboro',
+    'ghostwhite',
+    'gold',
+    'goldenrod',
+    'gray',
+    'green',
+    'greenyellow',
+    'grey',
+    'honeydew',
+    'hotpink',
+    'indianred',
+    'indigo',
+    'ivory',
+    'khaki',
+    'lavender',
+    'lavenderblush',
+    'lawngreen',
+    'lemonchiffon',
+    'lightblue',
+    'lightcoral',
+    'lightcyan',
+    'lightgoldenrodyellow',
+    'lightgray',
+    'lightgreen',
+    'lightgrey',
+    'lightpink',
+    'lightsalmon',
+    'lightseagreen',
+    'lightskyblue',
+    'lightslategray',
+    'lightslategrey',
+    'lightsteelblue',
+    'lightyellow',
+    'lime',
+    'limegreen',
+    'linen',
+    'magenta',
+    'maroon',
+    'mediumaquamarine',
+    'mediumblue',
+    'mediumorchid',
+    'mediumpurple',
+    'mediumseagreen',
+    'mediumslateblue',
+    'mediumspringgreen',
+    'mediumturquoise',
+    'mediumvioletred',
+    'midnightblue',
+    'mintcream',
+    'mistyrose',
+    'moccasin',
+    'navajowhite',
+    'navy',
+    'oldlace',
+    'olive',
+    'olivedrab',
+    'orange',
+    'orangered',
+    'orchid',
+    'palegoldenrod',
+    'palegreen',
+    'paleturquoise',
+    'palevioletred',
+    'papayawhip',
+    'peachpuff',
+    'peru',
+    'pink',
+    'plum',
+    'powderblue',
+    'purple',
+    'rebeccapurple',
+    'red',
+    'rosybrown',
+    'royalblue',
+    'saddlebrown',
+    'salmon',
+    'sandybrown',
+    'seagreen',
+    'seashell',
+    'sienna',
+    'silver',
+    'skyblue',
+    'slateblue',
+    'slategray',
+    'slategrey',
+    'snow',
+    'springgreen',
+    'steelblue',
+    'tan',
+    'teal',
+    'thistle',
+    'tomato',
+    'turquoise',
+    'violet',
+    'wheat',
+    'white',
+    'whitesmoke',
+    'yellow',
+    'yellowgreen',
+].join('|');
 
 const CATEGORIES = {
     // #rgb, #rrggbb, #rrggbbaa
@@ -185,37 +345,19 @@ const PAINT_ATTRIBUTES = new Set([
 ]);
 
 /**
- * SVG elements, where `color` is paint rather than a component's palette prop.
+ * Vue's `Namespaces.SVG`. The parser tracks it, so nothing here has to.
  *
- * A list rather than "is it inside an `<svg>`": the ancestor test needs a stack
- * and gets the answer wrong for a component that renders an icon, while these
- * tag names mean an SVG element wherever they appear — Vue resolves a component
- * by a PascalCase or hyphenated name, so none of them can be shadowed.
+ * This replaced a hand-kept list of twenty SVG tags, and the list was wrong in
+ * the way every such list is: `filter`, `feFlood`, `feColorMatrix` and two dozen
+ * others were missing, so `<filter color="#fff">` — which is what a
+ * `flood-color: currentColor` below it resolves against — read as a component
+ * prop and went uncounted. A namespace is the actual question; a tag list is a
+ * guess at its answer, and it is never finished.
+ *
+ * `foreignObject` is the case that proves the parser is doing it properly: its
+ * children are HTML again, and the AST says so.
  */
-const SVG_ELEMENTS = new Set([
-    'svg',
-    'g',
-    'path',
-    'circle',
-    'ellipse',
-    'rect',
-    'line',
-    'polyline',
-    'polygon',
-    'text',
-    'tspan',
-    'use',
-    'symbol',
-    'defs',
-    'marker',
-    'mask',
-    'pattern',
-    'linearGradient',
-    'radialGradient',
-    'stop',
-    'clipPath',
-    'foreignObject',
-]);
+const SVG_NAMESPACE = 1;
 
 /**
  * `url(…)` contents, blanked before anything looks for a colour.
@@ -230,7 +372,7 @@ const SVG_ELEMENTS = new Set([
  * was `#g`, one character, which `hexColor` could never have matched. A test
  * whose fixture cannot reach the failure is a green tick over an open hole.
  */
-const URL_FRAGMENT = /url\([^)]*\)/g;
+const URL_FRAGMENT = /url\([^)]*\)/gi;
 
 /**
  * A paint attribute other than `style` carries the colour BARE — `fill="white"`
@@ -354,10 +496,10 @@ function templatePaint(file, content) {
     const visit = (node) => {
         // ELEMENT === 1. Only an element carries props.
         if (node.type === 1) {
-            // `color` paints on a native SVG element and names a Quasar palette
-            // entry everywhere else, so the tag has to be part of the question.
+            // `color` paints inside SVG and names a Quasar palette entry
+            // everywhere else, so the namespace has to be part of the question.
             const paints = (name) =>
-                PAINT_ATTRIBUTES.has(name) || (name === 'color' && SVG_ELEMENTS.has(node.tag));
+                PAINT_ATTRIBUTES.has(name) || (name === 'color' && node.ns === SVG_NAMESPACE);
             for (const prop of node.props ?? []) {
                 // ATTRIBUTE === 6 — `style="background: #ef4444"`.
                 if (prop.type === 6 && paints(prop.name) && prop.value) {
