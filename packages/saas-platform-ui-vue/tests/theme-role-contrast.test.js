@@ -31,6 +31,10 @@ import {
 //
 // The floor is the same 3:1, and for the same reason: it is the line below
 // which text is not hard to read but gone.
+//
+// Every pairing this file finds is therefore either measured or named. A skip
+// that leaves no trace turns a checker into a decoration: it keeps passing, and
+// the passing says nothing about the rules it stopped reading.
 
 const CONTRAST_FLOOR = 3;
 
@@ -147,6 +151,15 @@ function backgroundColours(expression, table, depth = 0) {
     if (!expression || depth > 12) return [];
     const value = expression.trim();
 
+    // `background: none` is the shorthand resetting the layer to its initial
+    // value, which is `transparent` — so it paints nothing and the backdrop is
+    // whatever the ancestor paints. Saying that as a transparent stop rather
+    // than as an empty result puts it on the same footing as every other
+    // translucent background: counted, named, and left to the browser check.
+    // Only `none` is spelled out, because only `none` occurs; anything else the
+    // resolver cannot read is meant to fail loudly below.
+    if (value === 'none') return [{ label: value, rgba: [0, 0, 0, 0] }];
+
     // Layered backgrounds: `background: <gradient>, <gradient>`. Judging every
     // layer is the conservative direction — it can only add candidates.
     const layers = splitTopLevel(value);
@@ -211,6 +224,17 @@ const styleSource = (file, content) =>
               .map((m) => m[1])
               .join('\n');
 
+/**
+ * A declaration value without its priority.
+ *
+ * The captures below run to the semicolon, so `!important` travels with the
+ * value and every resolver pattern is anchored — `var(…) !important` matches
+ * none of them and used to resolve to `null`. That is one of the four rules
+ * this sweep dropped in silence, and the priority says nothing about the
+ * colour, so it comes off before anything tries to read it.
+ */
+const withoutPriority = (value) => value.replace(/\s*!\s*important\s*$/i, '');
+
 /** Rules that set BOTH a background and a colour, each from a role. */
 function rolePairedRules() {
     const rules = [];
@@ -233,17 +257,62 @@ function rolePairedRules() {
             );
             const foreground = /(?:^|;|\s)color\s*:\s*(var\(--sa-[^;]+?)\s*(?:;|$)/.exec(body);
             if (!background || !foreground) continue;
+            const backgroundValue = withoutPriority(background[1]);
             rules.push({
                 file: relative(SRC, file),
                 selector: selector.trim().replace(/\s+/g, ' '),
-                background: background[1],
-                isGradient: /-gradient\(/.test(background[1]),
-                foreground: foreground[1],
+                background: backgroundValue,
+                isGradient: /-gradient\(/.test(backgroundValue),
+                foreground: withoutPriority(foreground[1]),
             });
         }
     }
     return rules;
 }
+
+// Why a pairing can be counted and still not measured. The first is a decision
+// this file makes on purpose; the other two are the checker admitting it could
+// not read a value, and the assertions below hold both at zero.
+const NO_OPAQUE_BACKDROP = 'paints no opaque background of its own';
+const UNREADABLE_FOREGROUND = 'the foreground value did not resolve to a colour';
+const UNREADABLE_BACKGROUND = 'the background value yielded no colour';
+
+/**
+ * One outcome per pairing of a rule with a background stop: either a measured
+ * `ratio` or a stated `reason` for not measuring.
+ *
+ * Returning the reasons instead of `continue`-ing past them is the whole point.
+ * Every earlier version dropped an unreadable value in silence, and four rules
+ * — one `!important`, three `background: none` — sat outside the sweep for as
+ * long as it existed with nothing to say so. A checker that looks away has to
+ * leave a mark, or "no failures" and "no verdicts" read the same from outside.
+ */
+function outcomesFor(rule, tokens) {
+    const foreground = resolveColour(rule.foreground, tokens);
+    if (!foreground) {
+        return [{ reason: UNREADABLE_FOREGROUND, detail: `color: ${rule.foreground}` }];
+    }
+
+    const stops = backgroundColours(rule.background, tokens);
+    if (stops.length === 0) {
+        return [{ reason: UNREADABLE_BACKGROUND, detail: `background: ${rule.background}` }];
+    }
+
+    return stops.map((stop) => {
+        const detail = `${rule.foreground} on ${stop.label}`;
+        // A translucent background sits on a backdrop this file cannot know —
+        // the element's parent. Guessing the page surface would report
+        // `.pve-tab--active .pve-tab-count` (a white wash inside a dark tab) as
+        // white-on-white, which is a verdict about the guess rather than about
+        // the code. Those stay with the browser check, which sees the real
+        // ancestor.
+        if (stop.rgba[3] < 1) return { reason: NO_OPAQUE_BACKDROP, detail };
+        return { ratio: contrast(flatten(foreground, stop.rgba), stop.rgba), detail };
+    });
+}
+
+const describeOutcome = (rule, outcome) =>
+    `${rule.file}  ${rule.selector}\n            ${outcome.detail}`;
 
 describe('a role background and a role foreground stay readable together', () => {
     const { light, dark } = themeTables();
@@ -296,30 +365,22 @@ describe('a role background and a role foreground stay readable together', () =>
         ['light', light],
         ['dark', dark],
     ]) {
+        const outcomes = rules.map((rule) => ({ rule, outcomes: outcomesFor(rule, tokens) }));
+        const skipped = outcomes.flatMap(({ rule, outcomes: list }) =>
+            list.filter((outcome) => outcome.reason).map((outcome) => ({ rule, outcome })),
+        );
+
         test(`nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme`, () => {
             const failures = [];
             let judged = 0;
 
-            for (const rule of rules) {
-                const foreground = resolveColour(rule.foreground, tokens);
-                if (!foreground) continue;
-
-                for (const stop of backgroundColours(rule.background, tokens)) {
-                    // A translucent background sits on a backdrop this file
-                    // cannot know — the element's parent. Guessing the page
-                    // surface would report `.pve-tab--active .pve-tab-count`
-                    // (a white wash inside a dark tab) as white-on-white, which
-                    // is a verdict about the guess rather than about the code.
-                    // Those stay with the browser check, which sees the real
-                    // ancestor.
-                    if (stop.rgba[3] < 1) continue;
-
+            for (const { rule, outcomes: list } of outcomes) {
+                for (const outcome of list) {
+                    if (outcome.reason) continue;
                     judged += 1;
-                    const ratio = contrast(flatten(foreground, stop.rgba), stop.rgba);
-                    if (ratio < CONTRAST_FLOOR) {
+                    if (outcome.ratio < CONTRAST_FLOOR) {
                         failures.push(
-                            `${ratio.toFixed(2)}:1  ${rule.file}  ${rule.selector}\n` +
-                                `            ${rule.foreground} on ${stop.label}`,
+                            `${outcome.ratio.toFixed(2)}:1  ${describeOutcome(rule, outcome)}`,
                         );
                     }
                 }
@@ -333,6 +394,52 @@ describe('a role background and a role foreground stay readable together', () =>
                     'used as a background is the usual cause — `--sa-color-fg-heading` is ' +
                     'near-black in light and near-white in dark, so a rule that pairs it ' +
                     'with `--sa-color-fg-on-accent` is white on white in one of the two.',
+            );
+        });
+
+        test(`every pairing the ${themeName} sweep leaves unjudged says why`, () => {
+            // Structural, and the reason this is not simply a count: a future
+            // branch that skips a pairing without recording anything produces a
+            // rule with no outcome at all, and the sweep above would go quiet
+            // about it exactly the way it went quiet about the four.
+            const unaccounted = outcomes
+                .filter(({ outcomes: list }) => list.length === 0)
+                .map(({ rule }) => `${rule.file}  ${rule.selector}`);
+            assert.deepEqual(
+                unaccounted,
+                [],
+                'a paired rule produced neither a ratio nor a reason — the sweep grew a ' +
+                    'branch that drops a pairing without saying so',
+            );
+
+            // The two reasons that mean the checker could not read the value.
+            // Zero, and named individually rather than counted, because the
+            // number alone would say a rule went unjudged without saying which.
+            const unreadable = skipped
+                .filter(({ outcome }) => outcome.reason !== NO_OPAQUE_BACKDROP)
+                .map(({ rule, outcome }) => `${outcome.reason}: ${describeOutcome(rule, outcome)}`);
+            assert.deepEqual(
+                unreadable,
+                [],
+                `the ${themeName} sweep found values it could not resolve. Every one of ` +
+                    'these is a pairing nothing measures — neither this file nor the ' +
+                    'browser check, which only sees what a page renders at rest. A ' +
+                    'declaration priority is the known cause: the captures run to the ' +
+                    'semicolon, so `!important` arrives attached to the value and every ' +
+                    'resolver pattern here is anchored.',
+            );
+
+            // Counted for the same reason `reach` is counted in
+            // `design-token-budget.test.js`: derived from the findings, "nothing
+            // was skipped" and "nothing was looked at" are the same reading. If
+            // the alpha test ever stops firing, these translucent stops get
+            // judged against a backdrop nobody knows, and the floor is what
+            // says so.
+            const deliberate = skipped.length - unreadable.length;
+            assert.ok(
+                deliberate >= 20,
+                `only ${deliberate} pairings were held back for a backdrop this file cannot ` +
+                    'know — the translucency test is no longer reaching them',
             );
         });
     }
