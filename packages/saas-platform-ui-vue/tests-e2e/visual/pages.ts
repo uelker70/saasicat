@@ -55,6 +55,20 @@ export interface VisualCase {
      * untouched.
      */
     revealBy?: readonly string[];
+    /**
+     * Selectors to hover, one at a time, each read on its own.
+     *
+     * A `:hover` rule is a screen nobody screenshots and no static check can
+     * pair: 60 rules in this package move a background on hover, and the ones
+     * that also move a foreground do it in a DIFFERENT rule. The marketing
+     * chip's `<em>` sat at 2.92:1 in the dark theme for exactly that reason —
+     * `:hover` moved the surface under it and its own colour stayed put.
+     *
+     * Only the contrast check reads this. The baselines deliberately do not: a
+     * hovered snapshot would record one arbitrary pointer position as the
+     * truth, which is the opposite of what a baseline is for.
+     */
+    hoverBy?: readonly string[];
 }
 
 export const VISUAL_CASES: readonly VisualCase[] = [
@@ -375,6 +389,10 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // its editors. Stopping after the tab left every editor guarded by
         // `expandedKey` unrendered — the surfaces this case exists for.
         revealBy: ['.sa-marketing-tab:nth-of-type(2)', '.sa-marketing-expand-btn'],
+        // The chip whose `<em>` measured 2.92:1 in the dark theme — `:hover`
+        // moved the surface to a 22 % accent tint and the `<em>` kept its own
+        // colour. It is fixed; this is what stops it coming back.
+        hoverBy: ['.sa-marketing-tf-chip'],
     },
     {
         // 14 required props, ten of them functions — the page AP3 replaces.
@@ -408,6 +426,10 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         }),
         // Opens the bundle so its version controls and inline editor render.
         revealBy: ['.sa-bd-card__head'],
+        // The feature pill, which only exists at all since this case got a
+        // discovery snapshot. `.bd-feature-pill:hover:not(:disabled)` moves its
+        // background while the label and the key keep theirs.
+        hoverBy: ['.bd-feature-pill'],
     },
     // ── Tenant-facing. These render in the CONSUMER's app, not in the admin
     // shell, and nothing in this suite reached them before. Three defects in a
