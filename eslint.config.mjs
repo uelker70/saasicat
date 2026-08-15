@@ -64,13 +64,14 @@ export default tseslint.config(
         // silent: the call 401s, one card renders an em dash, nothing logs.
         //
         // Three such call sites existed. One was unreachable code that looked
-        // like a safeguard; two were live. `defaultHttpClient()` is the single
-        // sanctioned implementation, so the exemption is one file wide.
+        // like a safeguard; two were live. `createFetchHttpClient()` is the
+        // single sanctioned implementation — `defaultHttpClient()` delegates to
+        // it — so the exemption stays one file wide.
         //
         // Structurally this closes when the resource registry REQUIRES an
         // `http` — until then, this rule is what prevents a relapse.
         files: ['packages/saas-platform-ui-vue/src/**/*.{ts,vue}'],
-        ignores: ['packages/saas-platform-ui-vue/src/client/types.ts'],
+        ignores: ['packages/saas-platform-ui-vue/src/client/http/fetch-http-client.ts'],
         rules: {
             'no-restricted-globals': [
                 'error',
@@ -79,8 +80,8 @@ export default tseslint.config(
                     message:
                         'Use the injected HttpClient (useSuperAdminHttp() in a component, or the ' +
                         '`http` option of a composable). A bare fetch() bypasses the consumer’s ' +
-                        'auth. The only sanctioned implementation is defaultHttpClient() in ' +
-                        'src/client/types.ts.',
+                        'auth. The only sanctioned implementation is createFetchHttpClient() in ' +
+                        'src/client/http/fetch-http-client.ts.',
                 },
             ],
             'no-restricted-properties': [

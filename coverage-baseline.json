@@ -35,9 +35,9 @@
         "funcs": 72.13
     },
     "saas-platform-ui-vue": {
-        "line": 79.1,
-        "branch": 89.03,
-        "funcs": 79.13
+        "line": 79.31,
+        "branch": 89.39,
+        "funcs": 80.06
     },
     "create-saasicat-admin": {
         "line": 84.54,

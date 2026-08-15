@@ -916,48 +916,55 @@ one.
 
 ### 8.1 Platform Loaders
 
-Wrap one HTTP client per app (Axios or Fetch) and pass it to `createPlatformLoaders`
-— it assembles the endpoints and handles ETag caching.
+Every request the admin UI makes goes through one `HttpClient`, so your app's auth,
+base URL and retry logic apply everywhere. The package ships both implementations —
+you do not write the adapter.
+
+**If your app already has an axios instance**, hand it over. It keeps its
+interceptors, so the auth header you already inject applies unchanged:
 
 ```ts
 // services/platform-loaders.ts
-import { createPlatformLoaders, type HttpClient } from '@saasicat/ui-vue';
-import { api } from './api';
+import { createAxiosHttpClient, createPlatformLoaders } from '@saasicat/ui-vue';
+import { api } from './api'; // your axios instance, baseURL '/api/v1'
 
 export const ADMIN_ENDPOINTS = { apiBase: '/api/v1/admin' };
 
-const httpClient: HttpClient = async (url, init) => {
-    const stripped = url.startsWith('/api/v1') ? url.slice(7) : url;
-    const response = await api.request({
-        url: stripped,
-        method: init?.method ?? 'GET',
-        headers: init?.headers,
-        data: init?.body,
-        validateStatus: (s) => s < 500,
-    });
-    return {
-        status: response.status,
-        headers: {
-            get: (n) => {
-                const v = response.headers[n.toLowerCase()];
-                return v == null ? null : String(v);
-            },
-        },
-        json: async () => response.data,
-        text: async () =>
-            typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
-    };
-};
+// The platform passes fully-qualified paths and your instance already carries
+// `/api/v1`, so strip it back off or it is sent twice.
+export const platformHttpClient = createAxiosHttpClient(api, { stripPrefix: '/api/v1' });
 
 export const loaders = createPlatformLoaders({
     endpoints: ADMIN_ENDPOINTS,
-    http: httpClient,
+    http: platformHttpClient,
     storageKeyPrefix: 'myapp:',
     getAuthToken: () => localStorage.getItem('myapp-admin-token'),
 });
-
-export const platformHttpClient = httpClient;
 ```
+
+**If it does not**, use the `fetch` client and give it a headers hook. The hook runs
+per request, so a token that changes between calls is picked up without rebuilding
+anything:
+
+```ts
+import { createFetchHttpClient } from '@saasicat/ui-vue';
+
+export const platformHttpClient = createFetchHttpClient({
+    headers: () => {
+        const token = localStorage.getItem('myapp-admin-token');
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    },
+});
+```
+
+Two things worth knowing about both adapters:
+
+- **No HTTP status throws.** A 304 is a cache hit, a 402 carries a limit payload, a
+  409 carries a conflict — the platform reads the status itself, so every response is
+  handed over intact. Only a transport failure rejects, and it arrives as an
+  `AdminError` with `status: 0`.
+- `createAxiosHttpClient` is typed **structurally** and does not import axios, so
+  `@saasicat/ui-vue` adds no dependency to your install.
 
 ### 8.2 Manifest Store
 
