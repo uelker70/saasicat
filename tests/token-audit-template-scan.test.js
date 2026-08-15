@@ -84,6 +84,16 @@ describe('a colour written as paint is found', () => {
         assert.deepEqual(values('<i style="fill: white" />'), ['white']);
     });
 
+    test('`color` on a native SVG element is paint', () => {
+        // The other half of the `color` question. Excluding the attribute
+        // outright was right for a component and wrong for an SVG: `color`
+        // establishes what `currentColor` resolves to, so a literal there
+        // paints every glyph below it — and this scanner read `fill` and
+        // `stroke` while walking past the thing that feeds them.
+        assert.deepEqual(values('<svg color="#fff"><path fill="currentColor" /></svg>'), ['#fff']);
+        assert.deepEqual(values('<g color="red"><path fill="currentColor" /></g>'), ['red']);
+    });
+
     test('several literals in one binding', () => {
         assert.deepEqual(values(`<i :style="{ background: '#fff', color: '#000' }" />`), [
             '#fff',
@@ -139,11 +149,11 @@ describe('everything else a # means in a template stays silent', () => {
     });
 
     test('a Quasar `color` prop names a palette entry, not a colour', () => {
-        // Documented, not accidental: `color` is absent from the paint list
-        // because `color="primary"` is Quasar's vocabulary. The cost is that a
-        // hex written there is invisible here — but a hex written there does
-        // not paint anything either, since Quasar turns it into a `text-#fff`
-        // class. It is a bug for a different check.
+        // The counterpart to "`color` on a native SVG element is paint" above:
+        // the same attribute means two things, and the TAG is what separates
+        // them. On a component `color="primary"` is Quasar's vocabulary, and a
+        // hex written there paints nothing anyway — Quasar turns it into a
+        // `text-#fff` class. That is a bug for a different check.
         assert.deepEqual(values('<q-btn color="primary" /><q-icon color="#fff" />'), []);
     });
 
@@ -165,10 +175,26 @@ describe('everything else a # means in a template stays silent', () => {
     test('the SVG keywords that are not colours', () => {
         // `none` and `currentColor` are the two things an SVG paint attribute
         // holds in this package today, and both are correct.
-        assert.deepEqual(
-            values('<svg><path fill="none" stroke="currentColor" /><rect fill="url(#g)" /></svg>'),
-            [],
-        );
+        assert.deepEqual(values('<svg><path fill="none" stroke="currentColor" /></svg>'), []);
+    });
+
+    test('a paint-server reference is an address, not a colour', () => {
+        // A same-document paint server can be named anything, and `#facade`,
+        // `#abc` and `#dedede` are all legal ids that spell hex.
+        //
+        // The first version of this test used `url(#g)` — a ONE-character id,
+        // which `#[0-9a-fA-F]{3,8}` could never have matched. It passed against
+        // a scanner with no protection at all, which makes it the exact shape
+        // this file exists to argue against: a green tick over an open hole.
+        assert.deepEqual(values('<svg><rect fill="url(#facade)" stroke="url(#abc)" /></svg>'), []);
+        assert.deepEqual(values('<i style="background: url(#dedede) center/cover" />'), []);
+    });
+
+    test('a real colour beside a paint-server reference is still found', () => {
+        // The blanking must not swallow the rest of the value.
+        assert.deepEqual(values('<svg><rect fill="url(#abc)" stroke="#123456" /></svg>'), [
+            '#123456',
+        ]);
     });
 
     test('a word that merely contains a colour name is not one', () => {

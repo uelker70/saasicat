@@ -168,9 +168,12 @@ const COLOUR_PATTERNS = [CATEGORIES.hexColor, CATEGORIES.functionalColor, CATEGO
  * read here, because none of them is a paint attribute — and none of them can
  * become a false finding when the next one is written as `(#a1b2c3)`.
  *
- * `color` is deliberately ABSENT. On a Quasar component it names a palette
- * entry (`color="primary"`), not a CSS colour, and reading it would flag the
- * framework's own vocabulary.
+ * `color` is the one that depends on the ELEMENT rather than on the name, and
+ * excluding it outright was wrong in one direction: on a Quasar component it
+ * names a palette entry (`color="primary"`), but on a native SVG element it is
+ * real paint — `<svg color="#fff">` is what `fill="currentColor"` resolves
+ * against, so omitting it everywhere hid a literal that paints every glyph
+ * below it. The tag decides, which is the same rule one level up.
  */
 const PAINT_ATTRIBUTES = new Set([
     'style',
@@ -180,6 +183,54 @@ const PAINT_ATTRIBUTES = new Set([
     'flood-color',
     'lighting-color',
 ]);
+
+/**
+ * SVG elements, where `color` is paint rather than a component's palette prop.
+ *
+ * A list rather than "is it inside an `<svg>`": the ancestor test needs a stack
+ * and gets the answer wrong for a component that renders an icon, while these
+ * tag names mean an SVG element wherever they appear — Vue resolves a component
+ * by a PascalCase or hyphenated name, so none of them can be shadowed.
+ */
+const SVG_ELEMENTS = new Set([
+    'svg',
+    'g',
+    'path',
+    'circle',
+    'ellipse',
+    'rect',
+    'line',
+    'polyline',
+    'polygon',
+    'text',
+    'tspan',
+    'use',
+    'symbol',
+    'defs',
+    'marker',
+    'mask',
+    'pattern',
+    'linearGradient',
+    'radialGradient',
+    'stop',
+    'clipPath',
+    'foreignObject',
+]);
+
+/**
+ * `url(…)` contents, blanked before anything looks for a colour.
+ *
+ * A `#` inside `url()` is a FRAGMENT — `fill="url(#grad)"` points at a paint
+ * server in the same document, and a paint server whose id happens to spell
+ * three to eight hex digits (`#abc`, `#facade`) is not a colour anybody wrote.
+ * Blanked to equal-length spaces rather than removed, because every line number
+ * this file reports is an offset into the original value.
+ *
+ * The first version of this check had a test for it that proved nothing: the id
+ * was `#g`, one character, which `hexColor` could never have matched. A test
+ * whose fixture cannot reach the failure is a green tick over an open hole.
+ */
+const URL_FRAGMENT = /url\([^)]*\)/g;
 
 /**
  * A paint attribute other than `style` carries the colour BARE — `fill="white"`
@@ -303,9 +354,13 @@ function templatePaint(file, content) {
     const visit = (node) => {
         // ELEMENT === 1. Only an element carries props.
         if (node.type === 1) {
+            // `color` paints on a native SVG element and names a Quasar palette
+            // entry everywhere else, so the tag has to be part of the question.
+            const paints = (name) =>
+                PAINT_ATTRIBUTES.has(name) || (name === 'color' && SVG_ELEMENTS.has(node.tag));
             for (const prop of node.props ?? []) {
                 // ATTRIBUTE === 6 — `style="background: #ef4444"`.
-                if (prop.type === 6 && PAINT_ATTRIBUTES.has(prop.name) && prop.value) {
+                if (prop.type === 6 && paints(prop.name) && prop.value) {
                     painted.push({
                         value: prop.value.content,
                         line: prop.value.loc.start.line,
@@ -325,7 +380,7 @@ function templatePaint(file, content) {
                     prop.type === 7 &&
                     prop.name === 'bind' &&
                     prop.arg?.isStatic &&
-                    PAINT_ATTRIBUTES.has(prop.arg.content) &&
+                    paints(prop.arg.content) &&
                     prop.exp
                 ) {
                     painted.push({
@@ -361,10 +416,15 @@ export function templateColourSites(file, content) {
     const at = (line, value, index) => line + lineOf(value, index) - 1;
 
     for (const { value, line, attribute, isStatic } of painted) {
+        // A `url()` is an address, not a colour, and its fragment can spell one:
+        // `fill="url(#facade)"` points at a paint server. Blanked rather than
+        // removed so `at()` still lands on the right line.
+        const paint = value.replace(URL_FRAGMENT, (m) => ' '.repeat(m.length));
+
         for (const pattern of COLOUR_PATTERNS) {
-            for (const match of value.matchAll(pattern)) {
+            for (const match of paint.matchAll(pattern)) {
                 sites.push({
-                    line: at(line, value, match.index),
+                    line: at(line, paint, match.index),
                     value: (match[1] ?? match[0]).trim(),
                 });
             }
@@ -374,11 +434,11 @@ export function templateColourSites(file, content) {
         // Every other paint attribute holds the colour on its own.
         if (attribute === 'style') continue;
         if (isStatic) {
-            if (BARE_NAMED_COLOUR.test(value)) sites.push({ line, value: value.trim() });
+            if (BARE_NAMED_COLOUR.test(paint)) sites.push({ line, value: paint.trim() });
             continue;
         }
-        for (const match of value.matchAll(QUOTED_NAMED_COLOUR)) {
-            sites.push({ line: at(line, value, match.index), value: match[0] });
+        for (const match of paint.matchAll(QUOTED_NAMED_COLOUR)) {
+            sites.push({ line: at(line, paint, match.index), value: match[0] });
         }
     }
     return sites.sort((a, b) => a.line - b.line);
