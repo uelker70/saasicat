@@ -67,6 +67,12 @@ export interface VisualCase {
      * Only the contrast check reads this. The baselines deliberately do not: a
      * hovered snapshot would record one arbitrary pointer position as the
      * truth, which is the opposite of what a baseline is for.
+     *
+     * **Name the STATE, not the component.** The loop hovers `.first()` match,
+     * so a selector that covers several states reads whichever the fixture
+     * happens to render first and leaves the rest unhovered — the same
+     * "the state exists but nothing reaches it" gap this field was added to
+     * close. Write `.x.on` and `.x:not(.on)` rather than `.x`.
      */
     hoverBy?: readonly string[];
 }
@@ -429,7 +435,14 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // The feature pill, which only exists at all since this case got a
         // discovery snapshot. `.bd-feature-pill:hover:not(:disabled)` moves its
         // background while the label and the key keep theirs.
-        hoverBy: ['.bd-feature-pill'],
+        //
+        // BOTH states, named separately, because the hover loop takes
+        // `.first()` and the first pill is `notes.export` — the one the fixture
+        // version selects. A bare `.bd-feature-pill` would therefore only ever
+        // read the `.on` variant, and the unselected one carries a different
+        // foreground and a different key colour. That is this PR's own subject
+        // one level in: a state the fixture renders and the check cannot reach.
+        hoverBy: ['.bd-feature-pill.on', '.bd-feature-pill:not(.on)'],
     },
     // ── Tenant-facing. These render in the CONSUMER's app, not in the admin
     // shell, and nothing in this suite reached them before. Three defects in a

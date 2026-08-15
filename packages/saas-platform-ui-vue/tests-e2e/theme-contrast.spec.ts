@@ -425,13 +425,24 @@ test.describe('both themes are readable', () => {
 
                 const atRest = await subtreePaint();
                 await target.hover();
-                const underPointer = await subtreePaint();
-                expect(
-                    underPointer,
-                    `${visualCase.id}: hovering "${selector}" changed nothing on that element ` +
-                        'or inside it — the selector resolves, but no rule fires, so the ' +
-                        'reading below proves nothing',
-                ).not.toBe(atRest);
+
+                // Polled, not read once. These pills carry
+                // `transition: background 0.12s`, and sampling at t≈0 returns
+                // the interpolated value — which for the unselected pill
+                // (`bg-surface` → `bg-sunken`, #0f172a → #0b1220) still rounds
+                // to the resting colour. The precondition then reports "no rule
+                // fires" for a rule that fires perfectly well, half a frame
+                // later. The selected pill's jump is large enough to show
+                // immediately, so this was a difference between two states of
+                // one component rather than between two components.
+                await expect
+                    .poll(subtreePaint, {
+                        message:
+                            `${visualCase.id}: hovering "${selector}" changed nothing on that ` +
+                            'element or inside it — the selector resolves, but no rule fires, ' +
+                            'so the reading below proves nothing',
+                    })
+                    .not.toBe(atRest);
 
                 const hovered = await read(page);
 
