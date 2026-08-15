@@ -42,3 +42,7 @@ npm-debug.log
 
 # Internal planning notes — not part of the published project
 handoff/
+
+# Local agent instructions. Imports handoff/, so it would be half-broken in a
+# clone anyway; the contributor-facing rules live in CONTRIBUTING.md.
+CLAUDE.md
