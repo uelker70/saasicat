@@ -1,5 +1,7 @@
 // Shared configuration types for all UI-Vue loaders/composables.
 
+import { createFetchHttpClient } from './http/fetch-http-client.js';
+
 /**
  * Minimal abstraction over `fetch`. Consumers may pass their own
  * implementation (e.g. an axios wrapper that already injects auth headers
@@ -87,9 +89,14 @@ function resolveLocalStorage(): Storage | null {
 }
 
 /**
- * Default `HttpClient` over `fetch`. Consumers pass their own variant
- * through when they need auth headers / tenant headers / retry logic.
+ * Default `HttpClient` over `fetch`, with no base URL and no headers of its
+ * own. Consumers pass their own variant when they need auth headers, tenant
+ * headers or retry logic — `createFetchHttpClient({ headers })` and
+ * `createAxiosHttpClient(instance)` are the two the package ships.
+ *
+ * It delegates rather than calling `fetch` itself so that there is one
+ * implementation to reason about instead of two that drift.
  */
 export function defaultHttpClient(): HttpClient {
-    return (url, init) => fetch(url, init);
+    return createFetchHttpClient();
 }
