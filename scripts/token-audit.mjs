@@ -277,14 +277,27 @@ const CATEGORIES = {
     // a token being used, not a value being invented, and counting it would
     // make an alpha derived from a theme-aware ink indistinguishable from a
     // hard-coded shadow — the first is the goal, the second is the debt.
-    functionalColor: /\b(?:rgba?|hsla?)\((?![^)]*var\()[^)]*\)/g,
+    // Every CSS colour function, not only the two everybody remembers. `oklch()`
+    // and `lab()` are literals exactly as `rgb()` is, and a floor of zero that
+    // reads four notations out of ten is a floor with a hole in it. `color()`
+    // is here too, which is why the `var(` guard matters more than it looks:
+    // Chromium serialises `color-mix()` output as `color(srgb …)`.
+    functionalColor: /\b(?:rgba?|hsla?|hwb|(?:ok)?lab|(?:ok)?lch|color)\((?![^)]*var\()[^)]*\)/g,
     // A named colour is a literal too, and it hid from the two above for the
     // whole migration: `color: white` is neither a hex nor a function, so the
     // audit read 0 while one button still painted itself. Anchored on a
-    // colour-bearing property so that `.text-white` in a selector and a font
-    // called "Black" are not findings.
+    // colour-bearing property so that `.text-white` in a selector, a font
+    // called "Black" and a `grid-area: red` are not findings.
+    //
+    // The property list covers SHORTHANDS as well as the `-color` longhands:
+    // `border: 1px solid red` and `box-shadow: 0 0 2px red` are where a named
+    // colour actually gets written, and a list of longhands alone was a floor
+    // of zero that could not see either.
     namedColor: new RegExp(
-        `(?:^|[;{])\\s*(?:color|background(?:-color)?|border(?:-[a-z]+)?-color|outline-color|fill|stroke)` +
+        `(?:^|[;{])\\s*(?:color|background(?:-[a-z]+)?|border(?:-(?:top|right|bottom|left))?` +
+            `(?:-color)?|outline(?:-color)?|box-shadow|text-shadow|text-decoration(?:-color)?` +
+            `|column-rule(?:-color)?|caret-color|accent-color|fill|stroke|stop-color` +
+            `|flood-color|lighting-color|-webkit-text-fill-color|-webkit-text-stroke(?:-color)?)` +
             `\\s*:\\s*([^;}\\n]*(?<![\\w-])(?:${NAMED_COLOUR_WORDS})(?![\\w-])[^;}\\n]*)`,
         'gi',
     ),
@@ -558,10 +571,28 @@ export function templateColourSites(file, content) {
     const at = (line, value, index) => line + lineOf(value, index) - 1;
 
     for (const { value, line, attribute, isStatic } of painted) {
-        // A `url()` is an address, not a colour, and its fragment can spell one:
-        // `fill="url(#facade)"` points at a paint server. Blanked rather than
-        // removed so `at()` still lands on the right line.
-        const paint = value.replace(URL_FRAGMENT, (m) => ' '.repeat(m.length));
+        // Two things in an attribute value are not paint, and both are blanked
+        // rather than removed so `at()` still lands on the right line.
+        //
+        // A COMMENT is prose. `style="/* was #fff */ color: var(--x)"` is a
+        // clean component, and counting the explanation would REJECT it under a
+        // floor of zero — the direction that a contributor cannot fix by
+        // writing better code. The stylesheet pass has blanked comments since
+        // the same thing happened there; this is the same helper, and it is
+        // quote-aware, so `content: "/*"` opens nothing. A bound value is
+        // JavaScript and also has `//`, blanked with the idiom the alpha-concat
+        // sweep already uses — whitespace or a line start in front of it, so
+        // the `//` in `https://` survives.
+        //
+        // A `url()` is an address, and its fragment can spell a colour:
+        // `fill="url(#facade)"` points at a paint server, not at a hex.
+        const commentless = isStatic
+            ? withCommentsBlanked(value)
+            : withCommentsBlanked(value).replace(
+                  /(^|\s)\/\/[^\n]*/g,
+                  (m, lead) => lead + ' '.repeat(m.length - lead.length),
+              );
+        const paint = commentless.replace(URL_FRAGMENT, (m) => ' '.repeat(m.length));
 
         for (const pattern of COLOUR_PATTERNS) {
             for (const match of paint.matchAll(pattern)) {

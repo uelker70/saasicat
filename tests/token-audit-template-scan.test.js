@@ -234,6 +234,34 @@ describe('everything else a # means in a template stays silent', () => {
         assert.deepEqual(values('<svg><rect fill="URL(#abc)" stroke="Url(#facade)" /></svg>'), []);
     });
 
+    test('a comment in a style attribute is prose, not paint', () => {
+        // The other false-positive direction, and the one that would reject a
+        // CLEAN component: the sentence explaining which literal a token
+        // replaced is not the literal. The stylesheet pass has blanked comments
+        // since the same thing happened there — over a comment of mine that
+        // quoted `#f59e0b` in order to forbid it.
+        assert.deepEqual(values('<i style="/* was #fff */ color: var(--sa-color-fg-body)" />'), []);
+        assert.deepEqual(values(`<i :style="{ /* was '#fff' */ color: token }" />`), []);
+        assert.deepEqual(values(`<i :style="{\n  // was '#fff'\n  color: token,\n}" />`), []);
+    });
+
+    test('a colour beside a comment is still found', () => {
+        // The blanking must not swallow the declaration next to it.
+        assert.deepEqual(values('<i style="/* note */ color: #123456" />'), ['#123456']);
+    });
+
+    test('a modern colour function is a literal too', () => {
+        assert.deepEqual(values('<i style="color: oklch(60% .2 20)" />'), ['oklch(60% .2 20)']);
+        assert.deepEqual(values('<i style="background: lab(50% 40 59)" />'), ['lab(50% 40 59)']);
+    });
+
+    test('a named colour in a shorthand property', () => {
+        // `border: 1px solid red` is where a named colour actually gets
+        // written, and a list of `-color` longhands could not see it.
+        assert.deepEqual(values('<i style="border: 1px solid red" />'), ['1px solid red']);
+        assert.deepEqual(values('<i style="box-shadow: 0 0 2px red" />'), ['0 0 2px red']);
+    });
+
     test('a real colour beside a paint-server reference is still found', () => {
         // The blanking must not swallow the rest of the value.
         assert.deepEqual(values('<svg><rect fill="url(#abc)" stroke="#123456" /></svg>'), [
