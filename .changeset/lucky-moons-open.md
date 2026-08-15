@@ -30,8 +30,9 @@ Two of its three rules are structural rather than cosmetic. `header-actions`
 renders **outside** the trigger, so a control there cannot fire the toggle on
 the way past — the discovery cards relied on an `@click.stop` for that, and
 interactive content nested in a `<button>` has no defined behaviour anyway. And
-the page keeps `open`: five of the eight tie opening one row to closing another
-and loading its data, so a component that owned a boolean would fight them.
+the page keeps `open`: five of the eight take it from outside, and the bundle
+list ties opening one row to closing another and loading that bundle's versions
+— a component that owned a boolean would fight it.
 
 The bundle list and both discovery cards move onto it in this release. The
 remaining surfaces follow; the marketing catalogue's row lives in a CSS grid
