@@ -255,11 +255,39 @@ describe('everything else a # means in a template stays silent', () => {
         assert.deepEqual(values('<i style="background: lab(50% 40 59)" />'), ['lab(50% 40 59)']);
     });
 
-    test('a named colour in a shorthand property', () => {
-        // `border: 1px solid red` is where a named colour actually gets
-        // written, and a list of `-color` longhands could not see it.
+    test('a named colour in any property that paints', () => {
+        // The property allow-list this replaced was corrected four times —
+        // `border`, `box-shadow`, `text-decoration`, then `border-block` and
+        // `scrollbar-color` — because such a list cannot be finished. The
+        // question is now asked the other way round: a colour keyword in a
+        // value IS a colour unless the property names something.
         assert.deepEqual(values('<i style="border: 1px solid red" />'), ['1px solid red']);
         assert.deepEqual(values('<i style="box-shadow: 0 0 2px red" />'), ['0 0 2px red']);
+        assert.deepEqual(values('<i style="text-decoration: underline red" />'), ['underline red']);
+        assert.deepEqual(values('<i style="border-block: 1px solid red" />'), ['1px solid red']);
+        assert.deepEqual(values('<i style="scrollbar-color: red blue" />'), ['red blue']);
+    });
+
+    test('a colour WORD where the property names something', () => {
+        // The other side of the inversion, and the reason the old list existed:
+        // these are identifiers an author chose, not paint.
+        assert.deepEqual(values('<i style="grid-area: red" />'), []);
+        assert.deepEqual(values(`<i style="font-family: Linen, sans-serif" />`), []);
+        assert.deepEqual(values('<i style="animation: gold 1s" />'), []);
+    });
+
+    test('a hyphenated identifier that begins with a colour name', () => {
+        // Handled by the bounds rather than by the list: `gold-pulse` is a
+        // keyframe set, and `--sa-red-500` is a token.
+        assert.deepEqual(values('<i style="box-shadow: 0 0 2px var(--sa-red-500)" />'), []);
+        assert.deepEqual(values('<i style="border-color: var(--sa-color-negative)" />'), []);
+    });
+
+    test('a colour function written in capitals', () => {
+        // CSS function names are ASCII case-insensitive, so this is valid and
+        // was invisible — the same hole `URL(#abc)` had, one pattern over.
+        assert.deepEqual(values('<i style="color: OKLCH(60% .2 20)" />'), ['OKLCH(60% .2 20)']);
+        assert.deepEqual(values('<i style="background: RGB(1 2 3)" />'), ['RGB(1 2 3)']);
     });
 
     test('a real colour beside a paint-server reference is still found', () => {

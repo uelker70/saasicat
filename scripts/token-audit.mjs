@@ -270,6 +270,53 @@ const NAMED_COLOUR_WORDS = [
     'yellowgreen',
 ].join('|');
 
+/**
+ * Properties where a colour WORD is an identifier rather than a colour.
+ *
+ * The inverse of the list that used to be here, and the reason for the flip:
+ * an allow-list of colour-bearing properties cannot be finished. It was
+ * corrected four times — `border` and `box-shadow`, then `text-decoration`,
+ * then `border-block` and `scrollbar-color` — and CSS keeps adding more, so
+ * every round of review found another and every fix was one property wide.
+ *
+ * A colour keyword in a declaration VALUE is a colour, with these exceptions,
+ * and this list is closed in a way the other one never was: `grid-area: red`
+ * names a template area, `font-family: Linen` names a typeface, and
+ * `animation: gold-pulse` names a keyframe set. Nothing here is about paint.
+ *
+ * `(?<![\w-])`/`(?![\w-])` already carry most of the weight — `red` inside
+ * `red-pulse` or `--sa-red-500` cannot match — so what remains is the handful
+ * of properties whose value is a bare author-chosen name.
+ */
+const NON_PAINT_PROPERTIES = new Set([
+    'anchor-name',
+    'animation',
+    'animation-name',
+    'container',
+    'container-name',
+    'content',
+    'counter-increment',
+    'counter-reset',
+    'counter-set',
+    'font',
+    'font-family',
+    'grid-area',
+    'grid-column',
+    'grid-column-end',
+    'grid-column-start',
+    'grid-row',
+    'grid-row-end',
+    'grid-row-start',
+    'grid-template-areas',
+    'page',
+    'position-anchor',
+    'quotes',
+    'transition',
+    'transition-property',
+    'view-transition-name',
+    'will-change',
+]);
+
 const CATEGORIES = {
     // #rgb, #rrggbb, #rrggbbaa
     hexColor: /#[0-9a-fA-F]{3,8}\b/g,
@@ -282,36 +329,35 @@ const CATEGORIES = {
     // reads four notations out of ten is a floor with a hole in it. `color()`
     // is here too, which is why the `var(` guard matters more than it looks:
     // Chromium serialises `color-mix()` output as `color(srgb …)`.
-    functionalColor: /\b(?:rgba?|hsla?|hwb|(?:ok)?lab|(?:ok)?lch|color)\((?![^)]*var\()[^)]*\)/g,
+    //
+    // `i`, because CSS function names are ASCII case-insensitive and `RGB(1 2 3)`
+    // is valid. Every pattern here that reads CSS SYNTAX carries the flag for
+    // that reason; `selfReferencingVar` is the one that deliberately does not,
+    // since a custom-property name IS case-sensitive.
+    functionalColor: /\b(?:rgba?|hsla?|hwb|(?:ok)?lab|(?:ok)?lch|color)\((?![^)]*var\()[^)]*\)/gi,
     // A named colour is a literal too, and it hid from the two above for the
     // whole migration: `color: white` is neither a hex nor a function, so the
-    // audit read 0 while one button still painted itself. Anchored on a
-    // colour-bearing property so that `.text-white` in a selector, a font
-    // called "Black" and a `grid-area: red` are not findings.
+    // audit read 0 while one button still painted itself.
     //
-    // The property list covers SHORTHANDS as well as the `-color` longhands:
-    // `border: 1px solid red` and `box-shadow: 0 0 2px red` are where a named
-    // colour actually gets written, and a list of longhands alone was a floor
-    // of zero that could not see either.
+    // Group 1 is the PROPERTY and group 2 the value, because the property is
+    // filtered against `NON_PAINT_PROPERTIES` rather than matched against a
+    // list of paint ones — see there for why the list had to be inverted.
     namedColor: new RegExp(
-        `(?:^|[;{])\\s*(?:color|background(?:-[a-z]+)?|border(?:-(?:top|right|bottom|left))?` +
-            `(?:-color)?|outline(?:-color)?|box-shadow|text-shadow|text-decoration(?:-color)?` +
-            `|column-rule(?:-color)?|caret-color|accent-color|fill|stroke|stop-color` +
-            `|flood-color|lighting-color|-webkit-text-fill-color|-webkit-text-stroke(?:-color)?)` +
-            `\\s*:\\s*([^;}\\n]*(?<![\\w-])(?:${NAMED_COLOUR_WORDS})(?![\\w-])[^;}\\n]*)`,
+        `(?:^|[;{])\\s*([-\\w]+)\\s*:\\s*` +
+            `([^;}\\n]*(?<![\\w-])(?:${NAMED_COLOUR_WORDS})(?![\\w-])[^;}\\n]*)`,
         'gi',
     ),
-    pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/g,
+    pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/gi,
     // Filled by the declaration pass; see SCALE_PROPERTY below.
     scalePixel: /(?!)/g,
     dimensionPixel: /(?!)/g,
-    fontSize: /font-size:\s*([^;}\n]+)/g,
+    fontSize: /font-size:\s*([^;}\n]+)/gi,
     // Fractional too. Quasar's upper bounds are `599.98px` and friends — the
     // 0.02px step back that stops `max-width` and the next `min-width` both
     // matching at an integer viewport. An integer-only pattern read 0 the
     // moment the package adopted them, which is the most flattering possible
     // way for this number to be wrong.
-    breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+(?:\.\d+)?)px/g,
+    breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+(?:\.\d+)?)px/gi,
     // `var(--x, var(--x))` — a fallback to itself, i.e. no fallback at all
     selfReferencingVar: /var\((--[\w-]+),\s*var\(\1\)\)/g,
     // Filled by the script pass rather than by the block loop below; it needs a
@@ -330,6 +376,23 @@ const CATEGORIES = {
  * whole file exists to make visible.
  */
 const COLOUR_PATTERNS = [CATEGORIES.hexColor, CATEGORIES.functionalColor, CATEGORIES.namedColor];
+
+/**
+ * The one place that decides what a `namedColor` match means.
+ *
+ * That pattern captures a property and a value, and both consumers — the
+ * stylesheet loop and the template pass — need the same two decisions from it:
+ * skip the properties where a colour word is a name, and report the value
+ * rather than the property. Written twice, the two halves drift, which is the
+ * failure this whole file exists to make visible.
+ *
+ * @returns {null | string} the literal, or null when the property does not paint
+ */
+function namedColourValue(match) {
+    const property = (match[1] ?? '').trim().toLowerCase();
+    if (NON_PAINT_PROPERTIES.has(property)) return null;
+    return (match[2] ?? '').trim();
+}
 
 /**
  * Attributes that paint.
@@ -596,10 +659,10 @@ export function templateColourSites(file, content) {
 
         for (const pattern of COLOUR_PATTERNS) {
             for (const match of paint.matchAll(pattern)) {
-                sites.push({
-                    line: at(line, paint, match.index),
-                    value: (match[1] ?? match[0]).trim(),
-                });
+                const found =
+                    pattern === CATEGORIES.namedColor ? namedColourValue(match) : match[0];
+                if (found === null) continue;
+                sites.push({ line: at(line, paint, match.index), value: found.trim() });
             }
         }
 
@@ -751,7 +814,9 @@ export function audit() {
             for (const [category, pattern] of Object.entries(CATEGORIES)) {
                 if (category === 'selfReferencingVar') continue;
                 for (const match of text.matchAll(pattern)) {
-                    const value = (match[1] ?? match[0]).trim();
+                    const named = category === 'namedColor' ? namedColourValue(match) : undefined;
+                    if (named === null) continue;
+                    const value = (named ?? match[1] ?? match[0]).trim();
                     if (category === 'pixelValue' && ALWAYS_ALLOWED_PX.has(value)) continue;
                     // A `var(--sa-…)` is the goal, not a finding.
                     if (value.startsWith('var(')) continue;
