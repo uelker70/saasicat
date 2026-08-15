@@ -12,3 +12,18 @@
 export * from './define-resource.js';
 export * from './resource-request.js';
 export * from './plans.resource.js';
+
+import { planVersionsResource, plansResource } from './plans.resource.js';
+
+/**
+ * Every resource the shell offers by default.
+ *
+ * The registry binds these; an app overrides by key. Partial while the roster
+ * grows — a page whose resource is not here yet keeps its props.
+ */
+export const platformResources = {
+    plans: plansResource,
+    planVersions: planVersionsResource,
+};
+
+export type PlatformResources = typeof platformResources;

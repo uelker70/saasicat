@@ -44,6 +44,7 @@ export * from './vue/use-api-list.js';
 export * from './vue/use-pagination.js';
 export * from './vue/use-async-action.js';
 export * from './vue/use-async-data.js';
+export * from './vue/resource-registry.js';
 export * from './vue/use-tenants.js';
 export * from './vue/use-audit-entries.js';
 export * from './vue/use-entitlement.js';

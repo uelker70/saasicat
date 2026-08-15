@@ -46,6 +46,12 @@ import {
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from '../vue/ui-notify.js';
 import { SUPER_ADMIN_CONFIRM_KEY, type UiConfirm } from '../vue/ui-confirm.js';
 import {
+    SUPER_ADMIN_RESOURCES_KEY,
+    createResourceRegistry,
+    type ResourceOverrides,
+} from '../vue/resource-registry.js';
+import { platformResources } from '../client/resources/index.js';
+import {
     SA_THEME_KEY,
     createSaTheme,
     type SaTheme,
@@ -58,6 +64,7 @@ import {
     type SuperAdminI18nOptions,
 } from '../vue/use-super-admin-i18n.js';
 import { bindSaThemeToDocument } from './dark-bridge.js';
+import { resolveSuperAdminEndpoints } from '../vue/platform-loaders.js';
 import { quasarNotify } from './notify.js';
 import { quasarConfirm } from './confirm.js';
 
@@ -111,6 +118,13 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * turns every guarded action into an unguarded one.
      */
     confirm?: UiConfirm;
+    /**
+     * Optional: per-resource adjustments to the platform's own endpoint
+     * definitions — a different path for one resource, a different transport,
+     * or a single operation wrapped. Everything not named keeps the platform
+     * implementation.
+     */
+    resourceOverrides?: ResourceOverrides<typeof platformResources>;
     /**
      * Optional: additional Vue plugins (e.g. an app's own NotificationCenter)
      * that are installed after the platform setup, before the mount.
@@ -233,13 +247,8 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
 
     app.use(router);
 
-    const endpoints: Required<SuperAdminEndpoints> = {
-        apiBase: options.endpoints.apiBase,
-        publicBootEndpoint:
-            options.endpoints.publicBootEndpoint ?? `${options.endpoints.apiBase}/boot`,
-        manifestEndpoint:
-            options.endpoints.manifestEndpoint ?? `${options.endpoints.apiBase}/manifest`,
-    };
+    const endpoints = resolveSuperAdminEndpoints(options.endpoints);
+    const http = options.http ?? defaultHttpClient();
 
     const i18n = createSuperAdminI18n(options.i18n);
     // An app that configured Quasar's dark mode has STATED a preference; the
@@ -275,6 +284,20 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
     app.provide(SUPER_ADMIN_NOTIFY_KEY, options.notify ?? quasarNotify);
     app.provide(SUPER_ADMIN_CONFIRM_KEY, options.confirm ?? quasarConfirm);
+    app.provide(
+        SUPER_ADMIN_RESOURCES_KEY,
+        createResourceRegistry({
+            http,
+            // Read per call: the locale changes while the app runs.
+            context: () => ({
+                apiBase: endpoints.apiBase,
+                projectKey: endpoints.projectKey,
+                locale: i18n.locale.value,
+            }),
+            resources: platformResources,
+            overrides: options.resourceOverrides,
+        }),
+    );
     if (options.manifestGuard?.getManifest) {
         app.provide(SUPER_ADMIN_MANIFEST_KEY, options.manifestGuard.getManifest);
     }
@@ -284,7 +307,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     if (options.loginAdapter) {
         app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, options.loginAdapter);
     }
-    app.provide(SUPER_ADMIN_HTTP_KEY, options.http ?? defaultHttpClient());
+    app.provide(SUPER_ADMIN_HTTP_KEY, http);
 
     for (const plugin of options.installPlugins ?? []) {
         plugin(app);

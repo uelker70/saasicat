@@ -36,11 +36,21 @@ export interface PlatformLoaders {
     manifestLoader: ManifestLoader;
 }
 
-function resolveEndpoints(endpoints: SuperAdminEndpoints): Required<SuperAdminEndpoints> {
+/**
+ * Fills in what an app left out.
+ *
+ * Exported because the bootstrap needs the same answer, and two copies of a
+ * default are two places for it to drift — which is how `projectKey` was
+ * added to one of them and not the other.
+ */
+export function resolveSuperAdminEndpoints(
+    endpoints: SuperAdminEndpoints,
+): Required<SuperAdminEndpoints> {
     return {
         apiBase: endpoints.apiBase,
         publicBootEndpoint: endpoints.publicBootEndpoint ?? `${endpoints.apiBase}/boot`,
         manifestEndpoint: endpoints.manifestEndpoint ?? `${endpoints.apiBase}/manifest`,
+        projectKey: endpoints.projectKey ?? '',
     };
 }
 
@@ -49,7 +59,7 @@ function resolveEndpoints(endpoints: SuperAdminEndpoints): Required<SuperAdminEn
  * Apps use the same constant for `createSuperAdminApp({ endpoints })`.
  */
 export function createPlatformLoaders(options: CreatePlatformLoadersOptions): PlatformLoaders {
-    const resolved = resolveEndpoints(options.endpoints);
+    const resolved = resolveSuperAdminEndpoints(options.endpoints);
 
     const bootLoader = new BootLoader({
         endpoint: resolved.publicBootEndpoint,
