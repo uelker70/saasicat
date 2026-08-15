@@ -326,6 +326,17 @@ test.describe('both themes are readable', () => {
                 )
                 .not.toBe('');
 
+            // The roster already knows how to open these — `revealBy` is the
+            // field the visual baselines have used since they were written —
+            // and this check simply never asked for it. So a surface behind one
+            // click was unjudged for contrast while its computed styles were
+            // under baseline, which is the shape of a guard that looks thorough
+            // and is not: the fixture knows about the screen, and the checker
+            // does not.
+            for (const selector of visualCase.revealBy ?? []) {
+                await page.locator(selector).first().click();
+            }
+
             const light = await read(page);
             expect(
                 light.painted.length,
