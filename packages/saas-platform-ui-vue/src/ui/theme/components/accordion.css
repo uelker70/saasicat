@@ -1,0 +1,118 @@
+/* Accordion — a header that opens a body (see AdminAccordion).
+ *
+ * Every value here was one of several. The survey that led to this file found
+ * three header paddings across the package (0, 10/12, 12/14), three body
+ * paddings (12, 14, 18/20/22), two radii (8 and 10), two colours for the open
+ * border (`accent` and `scheduled-border`), two transition durations, and hover
+ * feedback on one of six surfaces that all set `cursor: pointer`.
+ *
+ * The values below are the scale's, not the average of the six: a rung exists
+ * for each, so a literal here would be a fourth opinion rather than a decision.
+ */
+
+.sa-accordion {
+    background: var(--sa-color-bg-surface);
+    border: 1px solid var(--sa-color-border);
+    border-radius: var(--sa-radius-head);
+    overflow: hidden;
+}
+
+/* The open card names itself with the accent rather than with a tone: which
+ * row is open is a position, not a status, and a status colour here would
+ * compete with the chips the header carries. */
+.sa-accordion--open {
+    border-color: var(--sa-color-accent);
+}
+
+.sa-accordion__head {
+    display: flex;
+    align-items: stretch;
+}
+
+/* The trigger fills the head so the whole row is the target — the affordance
+ * the `<div @click>` versions had, without giving up the button. */
+.sa-accordion__trigger {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sa-space-4);
+    padding: var(--sa-space-4) var(--sa-space-5);
+    background: none;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* Hover feedback, which five of the six surfaces promised with `cursor` and
+ * only one delivered. */
+.sa-accordion__trigger:hover:not(:disabled) {
+    background: var(--sa-color-bg-sunken);
+}
+.sa-accordion__trigger:disabled {
+    cursor: not-allowed;
+}
+
+/* The badge that identifies the row.
+ *
+ * Three surfaces drew this three ways — a 34px accent-tinted square, a bare
+ * 22px glyph, and a bare 20px glyph coloured through a Quasar palette prop — so
+ * the same kind of row did not look like the same kind of row from one page to
+ * the next. The frame is the component's; only the glyph is the page's.
+ *
+ * Square-ish rather than round: a circle here would read as an avatar, and none
+ * of these rows is about a person. */
+.sa-accordion__mark {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--sa-radius-field);
+    background: var(--sa-color-accent-surface-strong);
+    color: var(--sa-color-accent-strong);
+}
+
+/* Only for a row whose state the badge itself should report. The size, radius
+ * and position do not move with it — that is what keeps it the same badge. */
+.sa-accordion__mark--negative {
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
+}
+
+.sa-accordion__label {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Points right when closed, down when open. Not `transform: rotate(90deg)` on a
+ * `chevron_down`: the resting state is the one a reader sees most, and a glyph
+ * that means "there is more this way" is the honest one to rest on. */
+.sa-accordion__chev {
+    flex: 0 0 auto;
+    color: var(--sa-color-fg-subtle);
+    transition: transform 0.15s;
+}
+.sa-accordion--open .sa-accordion__chev {
+    transform: rotate(90deg);
+}
+
+/* Outside the trigger, so a control here does not toggle the row. Padded on
+ * its own rather than by the trigger, or the two would share a hover surface
+ * and the row would look pressed while the pointer is on a button that does
+ * something else. */
+.sa-accordion__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sa-space-3);
+    padding-right: var(--sa-space-5);
+}
+
+.sa-accordion__body {
+    padding: var(--sa-space-5);
+    border-top: 1px solid var(--sa-color-border);
+    background: var(--sa-color-bg-sunken);
+}

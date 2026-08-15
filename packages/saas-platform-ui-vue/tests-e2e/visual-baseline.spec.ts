@@ -198,6 +198,19 @@ test.describe('design-token visual baselines', () => {
                         message: `${visualCase.id}: revealBy clicked, but nothing new rendered`,
                     })
                     .toBeGreaterThan(before);
+
+                // And take the pointer off what was just clicked.
+                //
+                // `click()` leaves the mouse on the target, so whatever `:hover`
+                // that element carries was recorded as its RESTING appearance.
+                // It had been happening since `revealBy` was added:
+                // `.sa-marketing-expand-btn` sat in its baseline painted
+                // `--sa-color-accent` on `--sa-color-border-soft`, which are
+                // its hover values. A baseline is the answer to "what does this
+                // look like", and one pointer position is not part of the
+                // question — that is what the contrast check's `hoverBy` is for,
+                // where the state is asked about deliberately.
+                await page.mouse.move(0, 0);
             }
 
             // A request the fixture cannot answer gets an empty array, which

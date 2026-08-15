@@ -1,62 +1,76 @@
 <template>
-    <div class="sa-qc" :class="{ expanded, warn: !quota.usageProvider }">
-        <div class="sa-qc__head" @click="emit('toggle')">
-            <q-icon
-                :name="quota.usageProvider ? 'inventory_2' : 'error'"
-                :color="quota.usageProvider ? 'primary' : 'negative'"
-                size="20px"
-                class="sa-qc__icon"
-            />
-            <div class="sa-qc__main">
-                <div class="sa-qc__titlerow">
-                    <span class="sa-qc__label">{{ labelValue || quota.quotaKey }}</span>
-                    <code class="sa-qc__key">{{ quota.quotaKey }}</code>
-                    <span class="sa-chip">{{ quota.enforcementMode }}</span>
-                    <span
-                        v-if="quota.successorKey"
-                        class="sa-qc__flag sa-qc__flag--succ"
-                        :title="replacedByLabel"
-                    >
-                        {{ replacedByLabel }}
-                    </span>
-                    <span
-                        v-if="quota.replaces.length"
-                        class="sa-qc__flag sa-qc__flag--repl"
-                        :title="replacesLabel"
-                    >
-                        {{ replacesLabel }}
-                    </span>
+    <AdminAccordion
+        class="sa-qc"
+        :class="{ warn: !quota.usageProvider }"
+        :open="expanded"
+        :mark-tone="quota.usageProvider ? 'accent' : 'negative'"
+        @update:open="emit('toggle')"
+    >
+        <!-- The glyph already says it; the tone lets the badge say it too. The
+             `:color` this replaces was a Quasar PALETTE name, which reaches past
+             the role layer — `negative` there is Quasar's, not the theme's. -->
+        <template #mark>
+            <q-icon :name="quota.usageProvider ? 'inventory_2' : 'error'" size="18px" />
+        </template>
+
+        <template #header>
+            <div class="sa-qc__head">
+                <div class="sa-qc__main">
+                    <div class="sa-qc__titlerow">
+                        <span class="sa-qc__label">{{ labelValue || quota.quotaKey }}</span>
+                        <code class="sa-qc__key">{{ quota.quotaKey }}</code>
+                        <span class="sa-chip">{{ quota.enforcementMode }}</span>
+                        <span
+                            v-if="quota.successorKey"
+                            class="sa-qc__flag sa-qc__flag--succ"
+                            :title="replacedByLabel"
+                        >
+                            {{ replacedByLabel }}
+                        </span>
+                        <span
+                            v-if="quota.replaces.length"
+                            class="sa-qc__flag sa-qc__flag--repl"
+                            :title="replacesLabel"
+                        >
+                            {{ replacesLabel }}
+                        </span>
+                    </div>
+                    <div class="sa-qc__sub">
+                        {{ msg.unit }} <code>{{ quota.unit }}</code> · {{ msg.quota.usageProvider }}
+                        <code v-if="quota.usageProvider">{{ quota.usageProvider }}</code>
+                        <span v-else class="sa-qc__missing">{{
+                            msg.quota.usageProviderMissing
+                        }}</span>
+                    </div>
+                    <div v-if="!quota.usageProvider" class="sa-qc__warning">
+                        {{ msg.quota.noUsageProviderWarning }}
+                    </div>
                 </div>
-                <div class="sa-qc__sub">
-                    {{ msg.unit }} <code>{{ quota.unit }}</code> · {{ msg.quota.usageProvider }}
-                    <code v-if="quota.usageProvider">{{ quota.usageProvider }}</code>
-                    <span v-else class="sa-qc__missing">{{ msg.quota.usageProviderMissing }}</span>
-                </div>
-                <div v-if="!quota.usageProvider" class="sa-qc__warning">
-                    {{ msg.quota.noUsageProviderWarning }}
+
+                <div class="sa-qc__coverage">
+                    <span
+                        v-for="lng in targetLocales"
+                        :key="lng"
+                        class="sa-cov-pill"
+                        :class="coverageClass(coverage(lng))"
+                    >
+                        <span>{{ localeShort(lng) }}</span>
+                        <span>{{ coveragePct(coverage(lng)) }}%</span>
+                    </span>
                 </div>
             </div>
+        </template>
 
-            <div class="sa-qc__coverage">
-                <span
-                    v-for="lng in targetLocales"
-                    :key="lng"
-                    class="sa-cov-pill"
-                    :class="coverageClass(coverage(lng))"
-                >
-                    <span>{{ localeShort(lng) }}</span>
-                    <span>{{ coveragePct(coverage(lng)) }}%</span>
-                </span>
-            </div>
-
+        <!-- See DiscoveryFeatureCard: outside the trigger, not `@click.stop`
+             inside it. -->
+        <template #header-actions>
             <DiscoveryStatusControl
                 :status="quota.discoveryStatus"
                 @set-status="(target) => emit('review', quota.quotaKey, target)"
             />
-            <q-icon name="chevron_right" class="sa-qc__chev" :class="{ open: expanded }" />
-        </div>
+        </template>
 
-        <div v-if="expanded" class="sa-qc__body">
+        <div class="sa-qc__body">
             <div v-if="quota.discoveryStatus === 'outdated'" class="sa-qc__banner">
                 <q-icon name="warning" size="16px" />
                 <span>
@@ -74,7 +88,7 @@
                 "
             />
         </div>
-    </div>
+    </AdminAccordion>
 </template>
 
 <script setup lang="ts">
@@ -85,6 +99,7 @@ import type {
     QuotaCatalogEntryRow,
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
+import AdminAccordion from '../../components/admin-page/AdminAccordion.vue';
 import CatalogEntryTransPanel from './CatalogEntryTransPanel.vue';
 import DiscoveryStatusControl from './DiscoveryStatusControl.vue';
 import { formatMessage } from '../../client/i18n/format.js';
@@ -153,31 +168,22 @@ function coverage(locale: string): number {
 </script>
 
 <style scoped>
-.sa-qc {
-    border: 1px solid var(--sa-color-border);
-    border-radius: 10px;
-    background: var(--sa-color-bg-surface);
-    overflow: hidden;
-}
+/* Surface, radius, open border, head padding, chevron and body come from
+ * `AdminAccordion`. What is left is what a QUOTA row puts in that header — and
+ * `warn`, which is this card's own idea and not the accordion's.
+ *
+ * Two values changed by moving: the open border was
+ * `--sa-color-scheduled-border` plus a shadow here and `--sa-color-accent`
+ * everywhere else, and the head padding was 10/12 against 12/14 next door.
+ * Those differences were the finding, not the design. */
 .sa-qc.warn {
     border-color: var(--sa-color-negative-border);
-}
-.sa-qc.expanded {
-    border-color: var(--sa-color-scheduled-border);
-    box-shadow: 0 1px 3px var(--sa-shadow-tint-2);
+    background: var(--sa-color-negative-surface);
 }
 .sa-qc__head {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 12px;
-    cursor: pointer;
-}
-.sa-qc.warn .sa-qc__head {
-    background: var(--sa-color-negative-surface);
-}
-.sa-qc__icon {
-    flex-shrink: 0;
+    gap: var(--sa-space-4);
 }
 .sa-qc__main {
     flex: 1;
@@ -229,18 +235,6 @@ function coverage(locale: string): number {
     display: flex;
     gap: 6px;
     flex-shrink: 0;
-}
-.sa-qc__chev {
-    color: var(--sa-color-fg-subtle);
-    transition: transform 0.15s;
-}
-.sa-qc__chev.open {
-    transform: rotate(90deg);
-}
-.sa-qc__body {
-    border-top: 1px solid var(--sa-color-border-soft);
-    padding: 12px;
-    background: var(--sa-color-bg-sunken);
 }
 .sa-qc__banner {
     display: flex;
