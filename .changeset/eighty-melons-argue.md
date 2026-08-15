@@ -37,7 +37,13 @@ A NestJS `ValidationPipe` rejection carries `message: string[]` — one entry pe
 failed constraint. Nothing in the repository handled that: the grep for
 `Array.isArray(message)`, `message.join` and `message[0]` returned zero across
 `packages/` and `examples/`, so a malformed request rendered as a comma soup or
-fell through to the generic fallback. It is now joined deliberately.
+fell through to the generic fallback. It is now joined deliberately, in
+`readErrorDetail()` — exported rather than private because both paths that
+build an `AdminError` have to give the same answer. They did not on the first
+attempt: the JSON helper read the body a second, narrower way and accepted only
+a string, so a validation rejection arriving through `getJson`/`postJson` lost
+its constraints and showed the generic fallback anyway. Review found it; a test
+now holds it.
 
 New i18n namespace `errors`, nine keys, one per branch `adminErrorMessage` can
 take — `network`, `unauthorized`, `forbidden`, `notFound`, `conflict`,

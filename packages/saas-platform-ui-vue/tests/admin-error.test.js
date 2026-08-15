@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 
 import {
     AdminError,
+    DEFAULT_SA_LOCALE,
     HttpJsonError,
     SA_MESSAGES,
     adminErrorMessage,
@@ -20,6 +21,8 @@ import {
 } from '../dist/index.js';
 
 const EN = SA_MESSAGES.en.errors;
+/** What the composables resolve without an i18n provider. */
+const FALLBACK_ERRORS = SA_MESSAGES[DEFAULT_SA_LOCALE].errors;
 
 function httpReturning({ status = 200, body = {}, unparseable = false } = {}) {
     const calls = [];
@@ -270,6 +273,29 @@ describe('getJson / postJson raise AdminError', () => {
             assert.equal(err.status, 502);
             assert.equal(err.code, undefined);
             assert.equal(err.body, undefined);
+            return true;
+        });
+    });
+
+    test('a validation rejection keeps its constraints — the array is joined here too', async () => {
+        // The two paths that build an AdminError read the body the same way.
+        // They did not for one release: this one accepted only a string, so a
+        // ValidationPipe rejection arrived with no detail at all and the
+        // operator saw the generic fallback instead of what was wrong.
+        const { http } = httpReturning({
+            status: 400,
+            body: {
+                statusCode: 400,
+                error: 'Bad Request',
+                message: ['email must be an email', 'password is too short'],
+            },
+        });
+        await assert.rejects(postJson(http, '/api/v1/admin/setup', {}), (err) => {
+            assert.equal(err.detail, 'email must be an email, password is too short');
+            assert.equal(
+                adminErrorMessage(err, FALLBACK_ERRORS),
+                'email must be an email, password is too short',
+            );
             return true;
         });
     });

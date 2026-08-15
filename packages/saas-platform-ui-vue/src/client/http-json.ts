@@ -3,7 +3,7 @@
 // instead of raw `fetch` with divergent error handling per component. A
 // consumer `HttpClient` (auth header, baseURL, retry) then applies everywhere.
 
-import { AdminError } from './admin-error.js';
+import { AdminError, readErrorCode, readErrorDetail } from './admin-error.js';
 import type { HttpClient } from './types.js';
 
 /**
@@ -30,25 +30,22 @@ async function readErrorBody(res: { json(): Promise<unknown> }): Promise<unknown
     }
 }
 
-function asString(value: unknown): string | undefined {
-    return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
-}
-
 async function failed(
     res: { status: number; json(): Promise<unknown> },
     method: string,
     url: string,
 ): Promise<AdminError> {
     const body = await readErrorBody(res);
-    const record =
-        typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined;
     return new AdminError({
         status: res.status,
-        code: asString(record?.code),
+        code: readErrorCode(body),
         body,
         url,
         method,
-        detail: asString(record?.message),
+        // Shared with `toAdminError` on purpose: a NestJS `ValidationPipe`
+        // rejection carries `message` as an array, and reading it here in a
+        // second, narrower way is how those constraints went missing.
+        detail: readErrorDetail(body),
     });
 }
 

@@ -125,8 +125,14 @@ function asString(value: unknown): string | undefined {
  * `ValidationPipe` rejection carries `message: string[]` — one entry per
  * failed constraint. Joining them is what keeps a validation error readable
  * instead of rendering as `[object Object]`.
+ *
+ * Exported because every place that builds an `AdminError` from a response
+ * needs the same answer. It had two implementations for one release and they
+ * disagreed: the one in `http-json.ts` accepted only a string, so a validation
+ * rejection arriving through `getJson`/`postJson` lost its constraints
+ * entirely and the operator was shown the generic fallback.
  */
-function readDetail(body: unknown): string | undefined {
+export function readErrorDetail(body: unknown): string | undefined {
     const record = asRecord(body);
     if (!record) return asString(body);
     const message = record.message;
@@ -137,7 +143,8 @@ function readDetail(body: unknown): string | undefined {
     return asString(message) ?? asString(record.error) ?? asString(record.reason);
 }
 
-function readCode(body: unknown): string | undefined {
+/** Reads the machine-readable code out of a response body, if it carries one. */
+export function readErrorCode(body: unknown): string | undefined {
     return asString(asRecord(body)?.code);
 }
 
@@ -163,11 +170,11 @@ export function toAdminError(err: unknown): AdminError {
         const body = response.data;
         return new AdminError({
             status: response.status,
-            code: readCode(body),
+            code: readErrorCode(body),
             body,
             url: asString(config?.url),
             method: asString(config?.method)?.toUpperCase(),
-            detail: readDetail(body) ?? asString(record?.message),
+            detail: readErrorDetail(body) ?? asString(record?.message),
             cause: err,
         });
     }
@@ -177,9 +184,9 @@ export function toAdminError(err: unknown): AdminError {
     if (record && typeof record.status === 'number') {
         return new AdminError({
             status: record.status,
-            code: readCode(record.body) ?? asString(record.code),
+            code: readErrorCode(record.body) ?? asString(record.code),
             body: record.body,
-            detail: readDetail(record.body) ?? asString(record.message),
+            detail: readErrorDetail(record.body) ?? asString(record.message),
             message: asString(record.message),
             cause: err,
         });
