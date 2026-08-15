@@ -238,6 +238,13 @@ async function handleSubmit(): Promise<void> {
 .sa-login-logo {
     width: 44px;
     height: 44px;
+    /* The row has to give width up somewhere once the switchers joined it, and
+       the mark is the wrong donor: a flex item shrinks from its own basis, so
+       the logo went to 32.73px at 390 and to nothing at all at 320. Pinning it
+       moves the deficit onto the brand text beside it, which has somewhere to
+       put it — it wraps. `min-width: 0` on that text is the other half; without
+       it the text refuses the deficit too and the row leaves the viewport. */
+    flex: none;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -265,6 +272,13 @@ async function handleSubmit(): Promise<void> {
     width: 100%;
     height: 100%;
     object-fit: contain;
+}
+/* `min-width: auto` is a flex item's default and it refuses to shrink below the
+   longest word — which is why the row's deficit landed on the mark instead, and
+   why pinning the mark on its own is not the whole fix. Zero lets this block
+   take the deficit and wrap. */
+.sa-login-brand__text {
+    min-width: 0;
 }
 .sa-login-brand__name {
     font-weight: 800;

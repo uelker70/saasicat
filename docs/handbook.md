@@ -1099,7 +1099,12 @@ Note what that means for `'system'`. A hard `$q.dark.set(true)` or
 the scheme you named — there is no way to say "dark now, machine again later".
 `$q.dark.set('auto')` says the same thing `'system'` does and arrives as
 `'system'`, so an app with its own three-way control does not freeze the
-operator's choice.
+operator's choice. That holds even when the scheme you name is the one
+`'system'` was already resolving to — the bridge asks whether it wrote a value
+itself, not whether the colour on screen changed. The one call it cannot read is
+one that repeats the mode Quasar already holds (`$q.dark.set(true)` while it is
+already `true`): nothing changes for the bridge to see, so the pick stays
+`'system'`. Set `app.theme.scheme.value` when it has to stick.
 
 For the same reason the stylesheet does **not** answer `prefers-color-scheme` on
 its own: it cannot see Quasar's half. That is why following the operating system

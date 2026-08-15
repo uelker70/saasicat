@@ -3,7 +3,7 @@
         <div class="sa-setup-card">
             <div class="sa-setup-head">
                 <div class="sa-setup-badge">{{ iconText }}</div>
-                <div>
+                <div class="sa-setup-headings">
                     <h1 class="sa-setup-title">{{ msg.setup.title }}</h1>
                     <div class="sa-setup-sub">{{ subtitleText }}</div>
                 </div>
@@ -311,6 +311,12 @@ async function submitConfirm(): Promise<void> {
 .sa-setup-badge {
     width: 44px;
     height: 44px;
+    /* Same reasoning as `.sa-login-logo` on the login card: the mark is a fixed
+       square, so it is the wrong flex item to take the row's shortfall from.
+       Here it was squeezed at every width, 1440 included — 35.61px in the
+       platform's own fixture, 33.56px in the example app — because the two
+       switchers made the row's content wider than the card outright. */
+    flex: none;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -327,6 +333,11 @@ async function submitConfirm(): Promise<void> {
     font-weight: 800;
     font-size: var(--sa-text-xl);
     text-transform: uppercase;
+}
+/* The block that absorbs what the pinned badge no longer gives up — see
+   `.sa-login-brand__text`, which carries the same rule for the same reason. */
+.sa-setup-headings {
+    min-width: 0;
 }
 .sa-setup-title {
     margin: 0;

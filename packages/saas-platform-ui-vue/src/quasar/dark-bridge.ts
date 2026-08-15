@@ -14,7 +14,7 @@
 import { Dark } from 'quasar';
 import { watch, type WatchStopHandle } from 'vue';
 
-import type { SaTheme } from '../vue/use-sa-theme.js';
+import type { SaColorScheme, SaTheme } from '../vue/use-sa-theme.js';
 
 /**
  * Mirrors a theme context onto the document and Quasar. Returns the stop
@@ -28,16 +28,27 @@ import type { SaTheme } from '../vue/use-sa-theme.js';
  * says is written to Quasar, including `Dark.set(false)`. So a caller that
  * bootstraps with Quasar already dark has to say so when it builds the theme,
  * or its own choice is erased one line after it was applied.
- * `createSuperAdminApp` does exactly that, seeding from `Dark.isActive`.
+ * `createSuperAdminApp` does exactly that, seeding the scheme from the
+ * `quasarOptions.config.dark` it was handed.
  */
 export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
+    // Raised only while this bridge is inside `Dark.set()`. It is what the
+    // write-back below reads to tell the bridge's own echo apart from a
+    // decision the application made — see the comment on that watcher.
+    let mirroring = false;
+
     const toQuasar = watch(
         theme.resolved,
         (resolved) => {
             if (typeof document !== 'undefined') {
                 document.documentElement.setAttribute('data-sa-theme', resolved);
             }
-            Dark.set(resolved === 'dark');
+            mirroring = true;
+            try {
+                Dark.set(resolved === 'dark');
+            } finally {
+                mirroring = false;
+            }
         },
         { immediate: true },
     );
@@ -56,21 +67,33 @@ export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
     // an app doing nothing wrong, and the tab stopped following the OS. The
     // seed in `createSuperAdminApp` reads the same option for the same reason.
     //
-    // No loop: a boolean mode is only written back when Quasar and the theme
-    // actually disagree, and setting the scheme drives `resolved` to the value
-    // Quasar already has, so the outbound watcher's `Dark.set` is a no-op. The
-    // 'auto' branch settles the same way — `Dark.set(boolean)` leaves the mode
-    // agreeing with a 'system' that already resolves to it.
+    // No loop, and the question that closes it is "who wrote this?", not "does
+    // it look different?". The outbound leg mirrors 'system' into Quasar as the
+    // colour it currently resolves to, so a colour comparison cannot tell that
+    // echo apart from an application naming the same colour on purpose: moving
+    // a control from `set('auto')` to `set(true)` on a dark machine changes
+    // `Dark.mode` while the resolved colour stays 'dark'. Dropping that write
+    // left the pick on 'system' with nothing visibly wrong — until the next OS
+    // change moved a theme somebody had just fixed.
+    //
+    // `Dark.set()` assigns `Dark.mode` synchronously and this watcher runs on
+    // the sync flush, so the flag is still raised when the bridge's own write
+    // arrives here, and is down for every write that came from anywhere else.
+    //
+    // One case stays unanswerable, because Quasar leaves no trace of it: a
+    // `set(true)` while the mode is already `true` — an operator on 'system'
+    // and a dark machine, whose application then pins dark. Nothing in `Dark`
+    // changes, so there is no event to read and the pick stays 'system'. An
+    // application that wants that pick to stick sets `theme.scheme` instead.
     const fromQuasar = watch(
         () => Dark.mode,
         (mode) => {
-            if (mode === 'auto') {
-                theme.scheme.value = 'system';
-                return;
-            }
-            const asScheme = mode === true ? 'dark' : 'light';
-            if (theme.resolved.value !== asScheme) theme.scheme.value = asScheme;
+            if (mirroring) return;
+            const picked: SaColorScheme =
+                mode === 'auto' ? 'system' : mode === true ? 'dark' : 'light';
+            if (theme.scheme.value !== picked) theme.scheme.value = picked;
         },
+        { flush: 'sync' },
     );
 
     return () => {
