@@ -141,16 +141,25 @@
     --sa-color-scheduled-surface-strong: var(--sa-indigo-100);
     --sa-color-scheduled-border: var(--sa-indigo-200);
 
-    /* ── Catalogue entities. Not statuses: these two say WHAT a row is, and
+    /* ── Catalogue entities. Not statuses: these three say WHAT a row is, and
      * the plan editor, the matrix, the review and the discovery page all need
-     * to agree, or the same dot means two things on two screens. ────────── */
+     * to agree, or the same dot means two things on two screens.
+     *
+     * Each one has the same three slots a status tone has: the colour itself,
+     * a tinted SURFACE, and an `-fg` that is readable on that surface. Only
+     * `feature` had the third, and the two that were missing are why a diff
+     * marker painted white on `--sa-sky-500` (2.77:1) and on `--sa-amber-500`
+     * (2.15:1): with no role to point at, the panel reached past the layer for
+     * the primitive and wrote it into the template. ───────────────────────── */
     --sa-color-feature: var(--sa-violet-500);
     --sa-color-feature-fg: var(--sa-violet-700);
     --sa-color-feature-surface: var(--sa-violet-50);
     --sa-color-quota: var(--sa-sky-500);
+    --sa-color-quota-fg: var(--sa-sky-700);
     --sa-color-quota-surface: var(--sa-sky-50);
     --sa-color-quota-border: var(--sa-sky-200);
     --sa-color-bundle: var(--sa-amber-500);
+    --sa-color-bundle-fg: var(--sa-amber-700);
     --sa-color-bundle-surface: var(--sa-amber-100);
 
     /* ── Identity. A CATEGORICAL ramp: the only job of these seven is to be

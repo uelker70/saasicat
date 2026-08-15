@@ -120,9 +120,11 @@ body.body--dark {
     --sa-color-feature-fg: var(--sa-violet-200);
     --sa-color-feature-surface: color-mix(in srgb, var(--sa-violet-500) 16%, transparent);
     --sa-color-quota: var(--sa-sky-500);
+    --sa-color-quota-fg: var(--sa-sky-200);
     --sa-color-quota-surface: color-mix(in srgb, var(--sa-sky-500) 16%, transparent);
     --sa-color-quota-border: color-mix(in srgb, var(--sa-sky-500) 36%, transparent);
     --sa-color-bundle: var(--sa-amber-500);
+    --sa-color-bundle-fg: var(--sa-amber-200);
     --sa-color-bundle-surface: color-mix(in srgb, var(--sa-amber-500) 16%, transparent);
 
     /* The identity ramp, one rung lighter throughout — see the light file for

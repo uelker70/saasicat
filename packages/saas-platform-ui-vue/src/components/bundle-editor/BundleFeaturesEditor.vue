@@ -208,7 +208,12 @@ function onToggle(featureKey: string): void {
     margin-left: 4px;
 }
 .bd-feature-pill.on .bd-feature-key {
-    color: var(--sa-color-accent);
+    /* `-strong`, not the bare accent: the pill's `on` surface is a 24 % tint of
+     * blue over the dark card, and the brand does not change between themes —
+     * 2.92:1 there. The selected states around this one were moved to
+     * `-strong` already; this descendant was missed because it sets a colour
+     * and no background, which is a shape no contrast check reads. */
+    color: var(--sa-color-accent-strong);
 }
 .bd-feature-pill.overlap .bd-feature-key {
     color: var(--sa-color-negative-fg);

@@ -85,7 +85,10 @@
                     :style="planChipStyle(p)"
                     @click="togglePlan(p.key)"
                 >
-                    <span class="pc-plan-opt__mark" :style="{ background: p.color ?? '#64748b' }" />
+                    <span
+                        class="pc-plan-opt__mark"
+                        :style="{ background: p.color ?? IDENTITY_NEUTRAL }"
+                    />
                     {{ p.label }}
                 </button>
             </div>
@@ -265,7 +268,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { identityChipStyle } from '../../client/identity-accents.js';
+import { IDENTITY_NEUTRAL, identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PromoCodeDurationType, PromoCodePlanOption, PromoCodeValueType } from './types.js';

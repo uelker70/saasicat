@@ -18,7 +18,9 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 
-import { declarations, styleBlocks } from './codemods/lib/stylesheets.mjs';
+import { parse } from 'vue/compiler-sfc';
+
+import { declarations, styleBlocks, withCommentsBlanked } from './codemods/lib/stylesheets.mjs';
 import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -97,6 +99,237 @@ const QUASAR_BREAKPOINTS = new Set([
     '1919.98',
 ]);
 
+/**
+ * Every CSS named colour, not a shortlist of the obvious ones.
+ *
+ * The shortlist was eighteen words, and eighteen words is a floor of zero with
+ * a hole in it: `fill="gold"` and `color: pink` are literals the budget claimed
+ * to forbid and never saw. There is no reason to prefer a subset — the set is
+ * closed, standardised, and 148 long, so it is written out.
+ *
+ * `transparent` and `currentcolor` are deliberately NOT here. Neither invents a
+ * colour: one paints nothing and the other defers to whatever `color` resolved
+ * to, which is the behaviour the token layers rely on.
+ *
+ * Two patterns read this and read it differently — one wants it after a
+ * `property:`, the other wants it as an entire attribute value — so it lives
+ * here rather than being spelled out twice. A second copy is how `fill: white`
+ * ends up being debt and `fill="white"` does not.
+ *
+ * The alternation is safe unordered: both patterns bound the match with
+ * `(?![\w-])` or with `^…$`, so `blue` cannot match inside `blueviolet`.
+ */
+const NAMED_COLOUR_WORDS = [
+    'aliceblue',
+    'antiquewhite',
+    'aqua',
+    'aquamarine',
+    'azure',
+    'beige',
+    'bisque',
+    'black',
+    'blanchedalmond',
+    'blue',
+    'blueviolet',
+    'brown',
+    'burlywood',
+    'cadetblue',
+    'chartreuse',
+    'chocolate',
+    'coral',
+    'cornflowerblue',
+    'cornsilk',
+    'crimson',
+    'cyan',
+    'darkblue',
+    'darkcyan',
+    'darkgoldenrod',
+    'darkgray',
+    'darkgreen',
+    'darkgrey',
+    'darkkhaki',
+    'darkmagenta',
+    'darkolivegreen',
+    'darkorange',
+    'darkorchid',
+    'darkred',
+    'darksalmon',
+    'darkseagreen',
+    'darkslateblue',
+    'darkslategray',
+    'darkslategrey',
+    'darkturquoise',
+    'darkviolet',
+    'deeppink',
+    'deepskyblue',
+    'dimgray',
+    'dimgrey',
+    'dodgerblue',
+    'firebrick',
+    'floralwhite',
+    'forestgreen',
+    'fuchsia',
+    'gainsboro',
+    'ghostwhite',
+    'gold',
+    'goldenrod',
+    'gray',
+    'green',
+    'greenyellow',
+    'grey',
+    'honeydew',
+    'hotpink',
+    'indianred',
+    'indigo',
+    'ivory',
+    'khaki',
+    'lavender',
+    'lavenderblush',
+    'lawngreen',
+    'lemonchiffon',
+    'lightblue',
+    'lightcoral',
+    'lightcyan',
+    'lightgoldenrodyellow',
+    'lightgray',
+    'lightgreen',
+    'lightgrey',
+    'lightpink',
+    'lightsalmon',
+    'lightseagreen',
+    'lightskyblue',
+    'lightslategray',
+    'lightslategrey',
+    'lightsteelblue',
+    'lightyellow',
+    'lime',
+    'limegreen',
+    'linen',
+    'magenta',
+    'maroon',
+    'mediumaquamarine',
+    'mediumblue',
+    'mediumorchid',
+    'mediumpurple',
+    'mediumseagreen',
+    'mediumslateblue',
+    'mediumspringgreen',
+    'mediumturquoise',
+    'mediumvioletred',
+    'midnightblue',
+    'mintcream',
+    'mistyrose',
+    'moccasin',
+    'navajowhite',
+    'navy',
+    'oldlace',
+    'olive',
+    'olivedrab',
+    'orange',
+    'orangered',
+    'orchid',
+    'palegoldenrod',
+    'palegreen',
+    'paleturquoise',
+    'palevioletred',
+    'papayawhip',
+    'peachpuff',
+    'peru',
+    'pink',
+    'plum',
+    'powderblue',
+    'purple',
+    'rebeccapurple',
+    'red',
+    'rosybrown',
+    'royalblue',
+    'saddlebrown',
+    'salmon',
+    'sandybrown',
+    'seagreen',
+    'seashell',
+    'sienna',
+    'silver',
+    'skyblue',
+    'slateblue',
+    'slategray',
+    'slategrey',
+    'snow',
+    'springgreen',
+    'steelblue',
+    'tan',
+    'teal',
+    'thistle',
+    'tomato',
+    'turquoise',
+    'violet',
+    'wheat',
+    'white',
+    'whitesmoke',
+    'yellow',
+    'yellowgreen',
+].join('|');
+
+/**
+ * Properties where a colour WORD is an identifier rather than a colour.
+ *
+ * The inverse of the list that used to be here, and the reason for the flip:
+ * an allow-list of colour-bearing properties cannot be finished. It was
+ * corrected four times — `border` and `box-shadow`, then `text-decoration`,
+ * then `border-block` and `scrollbar-color` — and CSS keeps adding more, so
+ * every round of review found another and every fix was one property wide.
+ *
+ * A colour keyword in a declaration VALUE is a colour, except where the
+ * property's grammar accepts an AUTHOR-CHOSEN IDENTIFIER: `grid-area: red`
+ * names a template area, `font-family: Linen` a typeface, `animation: gold` a
+ * keyframe set, `list-style-type: red` a counter style the author defined.
+ * That criterion is what the list is derived from, and it is the thing to
+ * apply when CSS adds another — the list itself is not closed, and an earlier
+ * version of this comment claimed it was.
+ *
+ * It stays short because `(?<![\w-])`/`(?![\w-])` carry most of the weight:
+ * `red` inside `red-pulse` or `--sa-red-500` cannot match, so only a value
+ * that is a BARE chosen name reaches here. Custom properties are deliberately
+ * absent — `--brand: red` in a component is a literal, and catching it is the
+ * point.
+ */
+const NON_PAINT_PROPERTIES = new Set([
+    'anchor-name',
+    'animation',
+    'animation-name',
+    'container',
+    'container-name',
+    'content',
+    'counter-increment',
+    'counter-reset',
+    'counter-set',
+    'font',
+    'font-family',
+    'font-palette',
+    'grid-area',
+    'grid-column',
+    'grid-column-end',
+    'grid-column-start',
+    'grid-row',
+    'grid-row-end',
+    'grid-row-start',
+    'grid-template-areas',
+    'list-style',
+    'list-style-type',
+    'page',
+    'position-anchor',
+    'quotes',
+    'scroll-timeline',
+    'scroll-timeline-name',
+    'timeline-scope',
+    'transition',
+    'transition-property',
+    'view-timeline',
+    'view-timeline-name',
+    'view-transition-name',
+    'will-change',
+]);
+
 const CATEGORIES = {
     // #rgb, #rrggbb, #rrggbbaa
     hexColor: /#[0-9a-fA-F]{3,8}\b/g,
@@ -104,32 +337,150 @@ const CATEGORIES = {
     // a token being used, not a value being invented, and counting it would
     // make an alpha derived from a theme-aware ink indistinguishable from a
     // hard-coded shadow — the first is the goal, the second is the debt.
-    functionalColor: /\b(?:rgba?|hsla?)\((?![^)]*var\()[^)]*\)/g,
+    // Every CSS colour function, not only the two everybody remembers. `oklch()`
+    // and `lab()` are literals exactly as `rgb()` is, and a floor of zero that
+    // reads four notations out of ten is a floor with a hole in it. `color()`
+    // is here too, which is why the `var(` guard matters more than it looks:
+    // Chromium serialises `color-mix()` output as `color(srgb …)`.
+    //
+    // `i`, because CSS function names are ASCII case-insensitive and `RGB(1 2 3)`
+    // is valid. Every pattern here that reads CSS SYNTAX carries the flag for
+    // that reason; `selfReferencingVar` is the one that deliberately does not,
+    // since a custom-property name IS case-sensitive.
+    functionalColor: /\b(?:rgba?|hsla?|hwb|(?:ok)?lab|(?:ok)?lch|color)\((?![^)]*var\()[^)]*\)/gi,
     // A named colour is a literal too, and it hid from the two above for the
     // whole migration: `color: white` is neither a hex nor a function, so the
-    // audit read 0 while one button still painted itself. Anchored on a
-    // colour-bearing property so that `.text-white` in a selector and a font
-    // called "Black" are not findings.
-    namedColor:
-        /(?:^|[;{])\s*(?:color|background(?:-color)?|border(?:-[a-z]+)?-color|outline-color|fill|stroke)\s*:\s*([^;}\n]*(?<![\w-])(?:white|black|red|green|blue|orange|yellow|purple|grey|gray|silver|maroon|navy|teal|olive|lime|aqua|fuchsia)(?![\w-])[^;}\n]*)/gi,
-    pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/g,
+    // audit read 0 while one button still painted itself.
+    //
+    // Group 1 is the PROPERTY and group 2 the value, because the property is
+    // filtered against `NON_PAINT_PROPERTIES` rather than matched against a
+    // list of paint ones — see there for why the list had to be inverted.
+    namedColor: new RegExp(
+        `(?:^|[;{])\\s*([-\\w]+)\\s*:\\s*` +
+            `([^;}\\n]*(?<![\\w-])(?:${NAMED_COLOUR_WORDS})(?![\\w-])[^;}\\n]*)`,
+        'gi',
+    ),
+    pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/gi,
     // Filled by the declaration pass; see SCALE_PROPERTY below.
     scalePixel: /(?!)/g,
     dimensionPixel: /(?!)/g,
-    fontSize: /font-size:\s*([^;}\n]+)/g,
+    fontSize: /font-size:\s*([^;}\n]+)/gi,
     // Fractional too. Quasar's upper bounds are `599.98px` and friends — the
     // 0.02px step back that stops `max-width` and the next `min-width` both
     // matching at an integer viewport. An integer-only pattern read 0 the
     // moment the package adopted them, which is the most flattering possible
     // way for this number to be wrong.
-    breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+(?:\.\d+)?)px/g,
+    breakpoint: /@media[^{]*?\(\s*(?:min|max)-width:\s*(\d+(?:\.\d+)?)px/gi,
     // `var(--x, var(--x))` — a fallback to itself, i.e. no fallback at all
     selfReferencingVar: /var\((--[\w-]+),\s*var\(\1\)\)/g,
     // Filled by the script pass rather than by the block loop below; it needs a
     // different source, not a different pattern.
     scriptColor: /(?!)/g,
     alphaConcat: /(?!)/g,
+    templateColor: /(?!)/g,
 };
+
+/**
+ * The three patterns above that answer "is this a colour", in one list.
+ *
+ * The template pass has to ask the same question the style loop asks, of a
+ * different source. Asking it with a fourth copy of the patterns is how the two
+ * halves end up disagreeing about what a colour is — which is the failure this
+ * whole file exists to make visible.
+ */
+const COLOUR_PATTERNS = [CATEGORIES.hexColor, CATEGORIES.functionalColor, CATEGORIES.namedColor];
+
+/**
+ * The one place that decides what a `namedColor` match means.
+ *
+ * That pattern captures a property and a value, and both consumers — the
+ * stylesheet loop and the template pass — need the same two decisions from it:
+ * skip the properties where a colour word is a name, and report the value
+ * rather than the property. Written twice, the two halves drift, which is the
+ * failure this whole file exists to make visible.
+ *
+ * @returns {null | string} the literal, or null when the property does not paint
+ */
+function namedColourValue(match) {
+    const property = (match[1] ?? '').trim().toLowerCase();
+    if (NON_PAINT_PROPERTIES.has(property)) return null;
+    return (match[2] ?? '').trim();
+}
+
+/**
+ * Attributes that paint.
+ *
+ * The NAME decides, exactly as the property decides inside a stylesheet. That
+ * is what keeps the pass quiet about everything else a `#` means in a template:
+ * `#actions` is a slot, `mask="####-##-##"` is an input mask, `(#124)` in a
+ * comment is a pull request, and `href="#top"` is an anchor. None of them is
+ * read here, because none of them is a paint attribute — and none of them can
+ * become a false finding when the next one is written as `(#a1b2c3)`.
+ *
+ * `color` is the one that depends on the ELEMENT rather than on the name, and
+ * excluding it outright was wrong in one direction: on a Quasar component it
+ * names a palette entry (`color="primary"`), but on a native SVG element it is
+ * real paint — `<svg color="#fff">` is what `fill="currentColor"` resolves
+ * against, so omitting it everywhere hid a literal that paints every glyph
+ * below it. The tag decides, which is the same rule one level up.
+ */
+const PAINT_ATTRIBUTES = new Set([
+    'style',
+    'fill',
+    'stroke',
+    'stop-color',
+    'flood-color',
+    'lighting-color',
+]);
+
+/**
+ * Vue's `Namespaces.SVG`. The parser tracks it, so nothing here has to.
+ *
+ * This replaced a hand-kept list of twenty SVG tags, and the list was wrong in
+ * the way every such list is: `filter`, `feFlood`, `feColorMatrix` and two dozen
+ * others were missing, so `<filter color="#fff">` — which is what a
+ * `flood-color: currentColor` below it resolves against — read as a component
+ * prop and went uncounted. A namespace is the actual question; a tag list is a
+ * guess at its answer, and it is never finished.
+ *
+ * `foreignObject` is the case that proves the parser is doing it properly: its
+ * children are HTML again, and the AST says so.
+ */
+const SVG_NAMESPACE = 1;
+
+/**
+ * `url(…)` contents, blanked before anything looks for a colour.
+ *
+ * A `#` inside `url()` is a FRAGMENT — `fill="url(#grad)"` points at a paint
+ * server in the same document, and a paint server whose id happens to spell
+ * three to eight hex digits (`#abc`, `#facade`) is not a colour anybody wrote.
+ * Blanked to equal-length spaces rather than removed, because every line number
+ * this file reports is an offset into the original value.
+ *
+ * The first version of this check had a test for it that proved nothing: the id
+ * was `#g`, one character, which `hexColor` could never have matched. A test
+ * whose fixture cannot reach the failure is a green tick over an open hole.
+ */
+const URL_FRAGMENT = /url\([^)]*\)/gi;
+
+/**
+ * A paint attribute other than `style` carries the colour BARE — `fill="white"`
+ * is a value with no property in front of it, so `CATEGORIES.namedColor` cannot
+ * see it: that pattern is anchored on `property:` for good reason (`.text-white`
+ * in a selector and a font called "Black" are not findings), and there is no
+ * anchor here to give it.
+ *
+ * Without these two, the category treated `fill` and `stroke` as paint, found
+ * their hexes, and silently let a named colour through under a zero floor —
+ * a guard that covers three of the four notations is the kind of gap this whole
+ * category exists to close.
+ *
+ * Two patterns because the two attribute kinds hold different languages: a
+ * static attribute IS the colour, a bound one is JavaScript that may contain it
+ * as a string.
+ */
+const BARE_NAMED_COLOUR = new RegExp(`^\\s*(?:${NAMED_COLOUR_WORDS})\\s*$`, 'i');
+const QUOTED_NAMED_COLOUR = new RegExp(`(['"\`])\\s*(?:${NAMED_COLOUR_WORDS})\\s*\\1`, 'gi');
 
 /**
  * A colour tint built by gluing two hex digits onto a colour: `accent + '15'`,
@@ -195,16 +546,151 @@ function scriptSource(file, content) {
         .join('\n');
 }
 
-/** Extracts the `<style>` blocks of an SFC; returns whole content for `.css`. */
-function styleSource(file, content) {
-    if (file.endsWith('.css')) return [{ text: content, offset: 0 }];
-    const blocks = [];
-    const re = /<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi;
-    let match;
-    while ((match = re.exec(content)) !== null) {
-        blocks.push({ text: match[1], offset: match.index + match[0].indexOf(match[1]) });
+/**
+ * Colour literals in a TEMPLATE — the third place a colour can be written, and
+ * the only one nothing read.
+ *
+ * The headline of this report was `hard-coded hex colours 0 in 0 files` while
+ * twelve of them sat in six templates: three browser-chrome dots written out
+ * twice, three diff markers reaching past the token layers for a primitive, and
+ * three `p.color ?? '#94a3b8'` fallbacks that answered one question with two
+ * different greys. A zero that is wrong is worse than a number that is large,
+ * because it ends the search.
+ *
+ * Parsed, not matched — and the reasons are specific rather than stylistic:
+ *
+ *   - A `<template v-if>` nests inside the template, so no `<template>…
+ *     </template>` pattern can find the block's extent without a depth counter.
+ *   - A comment is its own node type, so `(#124)` in a `<!-- -->` is skipped
+ *     without any stripping pass. Written as a regex over the template's text
+ *     it would be a phantom colour the moment a pull-request number reaches six
+ *     hex-shaped digits.
+ *   - Reading PROPS rather than text is what keeps this honest for the next
+ *     category too: over the same tree, template text holds ~90 `px` values of
+ *     which only 20 are CSS — the rest are `size="18px"` component props.
+ *
+ * Vue ships the parser for the files these are; `theme-reaches-every-page`
+ * reached the same conclusion after three rounds of fixing a hand-written one.
+ *
+ * @returns {null | {value: string, line: number}[]} null if the file is not an
+ *          SFC or did not parse — the caller counts that, so a template the
+ *          audit stopped reading cannot look like a template with no findings.
+ */
+function templatePaint(file, content) {
+    if (!file.endsWith('.vue')) return null;
+    const { descriptor, errors } = parse(content, { ignoreEmpty: false });
+    if (errors.length > 0 || !descriptor.template?.ast) return null;
+
+    const painted = [];
+    const visit = (node) => {
+        // ELEMENT === 1. Only an element carries props.
+        if (node.type === 1) {
+            // `color` paints inside SVG and names a Quasar palette entry
+            // everywhere else, so the namespace has to be part of the question.
+            const paints = (name) =>
+                PAINT_ATTRIBUTES.has(name) || (name === 'color' && node.ns === SVG_NAMESPACE);
+            for (const prop of node.props ?? []) {
+                // ATTRIBUTE === 6 — `style="background: #ef4444"`.
+                if (prop.type === 6 && paints(prop.name) && prop.value) {
+                    painted.push({
+                        value: prop.value.content,
+                        line: prop.value.loc.start.line,
+                        attribute: prop.name,
+                        isStatic: true,
+                    });
+                }
+                // DIRECTIVE === 7 — `:style` is v-bind with `style` as its arg.
+                // The expression is JavaScript, so what is read here is the
+                // literal inside it: `p.color ?? '#94a3b8'` names a colour, and
+                // `{ background: p.color }` names none.
+                //
+                // `isStatic` because a DYNAMIC argument carries the variable's
+                // name, not the attribute's: in `:[style]="x"` the arg reads
+                // `style` and the attribute is whatever that variable holds.
+                if (
+                    prop.type === 7 &&
+                    prop.name === 'bind' &&
+                    prop.arg?.isStatic &&
+                    paints(prop.arg.content) &&
+                    prop.exp
+                ) {
+                    painted.push({
+                        value: prop.exp.content,
+                        line: prop.exp.loc.start.line,
+                        attribute: prop.arg.content,
+                        isStatic: false,
+                    });
+                }
+            }
+        }
+        for (const child of node.children ?? []) visit(child);
+    };
+    for (const child of descriptor.template.ast.children ?? []) visit(child);
+    return painted;
+}
+
+/**
+ * The colour literals among those painted values, with the line each sits on.
+ *
+ * Exported for its own test. `null` and `[]` mean different things and the
+ * caller depends on the difference: `null` is "this file has no template the
+ * audit could read", `[]` is "read it, found nothing". Collapsing the two is
+ * how a template the parser stopped understanding would report as clean.
+ */
+export function templateColourSites(file, content) {
+    const painted = templatePaint(file, content);
+    if (painted === null) return null;
+
+    const sites = [];
+    // Relative to where the value starts, so a binding spread over several
+    // lines points at the literal rather than at the opening quote.
+    const at = (line, value, index) => line + lineOf(value, index) - 1;
+
+    for (const { value, line, attribute, isStatic } of painted) {
+        // Two things in an attribute value are not paint, and both are blanked
+        // rather than removed so `at()` still lands on the right line.
+        //
+        // A COMMENT is prose. `style="/* was #fff */ color: var(--x)"` is a
+        // clean component, and counting the explanation would REJECT it under a
+        // floor of zero — the direction that a contributor cannot fix by
+        // writing better code. The stylesheet pass has blanked comments since
+        // the same thing happened there; this is the same helper, and it is
+        // quote-aware, so `content: "/*"` opens nothing. A bound value is
+        // JavaScript and also has `//`, blanked with the idiom the alpha-concat
+        // sweep already uses — whitespace or a line start in front of it, so
+        // the `//` in `https://` survives.
+        //
+        // A `url()` is an address, and its fragment can spell a colour:
+        // `fill="url(#facade)"` points at a paint server, not at a hex.
+        const commentless = isStatic
+            ? withCommentsBlanked(value)
+            : withCommentsBlanked(value).replace(
+                  /(^|\s)\/\/[^\n]*/g,
+                  (m, lead) => lead + ' '.repeat(m.length - lead.length),
+              );
+        const paint = commentless.replace(URL_FRAGMENT, (m) => ' '.repeat(m.length));
+
+        for (const pattern of COLOUR_PATTERNS) {
+            for (const match of paint.matchAll(pattern)) {
+                const found =
+                    pattern === CATEGORIES.namedColor ? namedColourValue(match) : match[0];
+                if (found === null) continue;
+                sites.push({ line: at(line, paint, match.index), value: found.trim() });
+            }
+        }
+
+        // `style` holds declarations, which the patterns above already read.
+        // Every other paint attribute holds the colour on its own.
+        if (attribute === 'style') continue;
+        if (isStatic) {
+            if (BARE_NAMED_COLOUR.test(paint)) sites.push({ line, value: paint.trim() });
+            continue;
+        }
+        for (const match of paint.matchAll(QUOTED_NAMED_COLOUR)) {
+            sites.push({ line: at(line, paint, match.index), value: match[0] });
+        }
     }
-    return blocks;
+    return sites.sort((a, b) => a.line - b.line);
 }
 
 function lineOf(content, index) {
@@ -221,14 +707,18 @@ export function audit() {
     // How much was actually looked at, counted independently of what was found.
     // Every finding count can legitimately fall to zero once the migration is
     // done, so "no findings" cannot tell a finished job from a broken sweep.
-    const reach = { files: 0, styleBlocks: 0 };
+    // `vueFiles` and `templates` are counted separately on purpose: they must be
+    // EQUAL. A file the SFC parser stopped reading contributes no props and so
+    // no findings, which is indistinguishable from a clean template — the same
+    // failure the other two counters exist to catch, one level down.
+    const reach = { files: 0, styleBlocks: 0, vueFiles: 0, templates: 0 };
 
     for (const file of files) {
         const rel = relative(REPO_ROOT, file);
         const content = readFileSync(file, 'utf8');
         const isTokenDefinition = file.startsWith(TOKEN_DEFINITION_DIR);
         reach.files += 1;
-        reach.styleBlocks += styleSource(file, content).length;
+        reach.styleBlocks += styleBlocks(file, content).length;
 
         if (!isTokenDefinition) {
             const script = scriptSource(file, content)
@@ -277,12 +767,21 @@ export function audit() {
         }
 
         if (file.endsWith('.vue')) {
+            reach.vueFiles += 1;
             const total = content.split('\n').length;
-            const styleLines = styleSource(file, content).reduce(
+            const styleLines = styleBlocks(file, content).reduce(
                 (sum, block) => sum + block.text.split('\n').length,
                 0,
             );
             styleShare.push({ file: rel, total, styleLines, share: styleLines / total });
+
+            const sites = templateColourSites(file, content);
+            if (sites !== null) {
+                reach.templates += 1;
+                if (!isTokenDefinition) {
+                    for (const site of sites) findings.templateColor.push({ file: rel, ...site });
+                }
+            }
         }
 
         // Self-referencing vars can sit anywhere, including inline styles.
@@ -316,11 +815,30 @@ export function audit() {
             }
         }
 
-        for (const block of styleSource(file, content)) {
+        for (const block of styleBlocks(file, content)) {
+            // Comments blanked, and the same way the declaration pass above
+            // blanks them, so the two halves of this file agree about what is
+            // paint. Reading the raw text made a rule's own documentation the
+            // first thing it flagged — `#f59e0b` inside a comment explaining
+            // why `#f59e0b` may not be written was a hard-coded colour.
+            // Blanked rather than stripped: `lineOf` is an offset into the
+            // original text.
+            //
+            // A `url()` goes the same way, and for the same reason the template
+            // pass blanks it: `background-image: url("/assets/red.svg")` is an
+            // address. That the two passes disagreed about this was an
+            // asymmetry introduced here, not an oversight inherited — the
+            // template half learned it first and this half did not, which is
+            // how a clean stylesheet would have been REJECTED by a zero floor.
+            const text = withCommentsBlanked(block.text).replace(URL_FRAGMENT, (m) =>
+                ' '.repeat(m.length),
+            );
             for (const [category, pattern] of Object.entries(CATEGORIES)) {
                 if (category === 'selfReferencingVar') continue;
-                for (const match of block.text.matchAll(pattern)) {
-                    const value = (match[1] ?? match[0]).trim();
+                for (const match of text.matchAll(pattern)) {
+                    const named = category === 'namedColor' ? namedColourValue(match) : undefined;
+                    if (named === null) continue;
+                    const value = (named ?? match[1] ?? match[0]).trim();
                     if (category === 'pixelValue' && ALWAYS_ALLOWED_PX.has(value)) continue;
                     // A `var(--sa-…)` is the goal, not a finding.
                     if (value.startsWith('var(')) continue;
@@ -347,6 +865,10 @@ export function summarise({ findings, styleShare, reach }) {
         functionalColors: { total: findings.functionalColor.length },
         namedColors: { total: findings.namedColor.length },
         scriptColors: { total: findings.scriptColor.length, files: files(findings.scriptColor) },
+        templateColors: {
+            total: findings.templateColor.length,
+            files: files(findings.templateColor),
+        },
         alphaConcats: { total: findings.alphaConcat.length, files: files(findings.alphaConcat) },
         scalePixels: { total: findings.scalePixel.length, distinct: distinct(findings.scalePixel) },
         dimensionPixels: {
@@ -391,13 +913,18 @@ function runCli(args) {
     const topN = topFlag ? Number(topFlag.split('=')[1]) : 10;
 
     console.log('\nDesign-token audit — packages/saas-platform-ui-vue/src\n');
+    // "in stylesheets", not "hard-coded", because the next three lines are also
+    // hard-coded colours and this one used to read 0 while they did not.
     console.log(
-        `  hard-coded hex colours     ${summary.hexColors.total} in ${summary.hexColors.files} files`,
+        `  colours in stylesheets     ${summary.hexColors.total} in ${summary.hexColors.files} files`,
     );
     console.log(`  rgb()/hsl() literals       ${summary.functionalColors.total}`);
     console.log(`  named colours              ${summary.namedColors.total}`);
     console.log(
         `  colours in script          ${summary.scriptColors.total} in ${summary.scriptColors.files} files`,
+    );
+    console.log(
+        `  colours in templates       ${summary.templateColors.total} in ${summary.templateColors.files} files`,
     );
     console.log(
         `  hex-alpha concatenations   ${summary.alphaConcats.total} in ${summary.alphaConcats.files} files`,

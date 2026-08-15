@@ -25,9 +25,13 @@
 
         <div class="pve-prev-window" :class="`pve-prev-window--${previewMode}`">
             <div class="pve-prev-chrome">
-                <span class="pve-prev-dot" style="background: #ef4444" />
-                <span class="pve-prev-dot" style="background: #f59e0b" />
-                <span class="pve-prev-dot" style="background: #10b981" />
+                <!-- The same window controls as MarketingCatalogPreview, drawn
+                     a second time, and the same reason for the `-strong`
+                     rungs. The chrome itself is duplicated markup and belongs
+                     in one component; that is a Phase 4 job, not a colour one. -->
+                <span class="pve-prev-dot" style="background: var(--sa-color-negative-strong)" />
+                <span class="pve-prev-dot" style="background: var(--sa-color-warning-strong)" />
+                <span class="pve-prev-dot" style="background: var(--sa-color-positive-strong)" />
                 <div class="pve-prev-url">{{ catalogUrl }}</div>
             </div>
             <div class="pve-prev-body">

@@ -825,23 +825,61 @@ async function executeTerminate(): Promise<void> {
     );
     border-color: var(--sa-color-border);
 }
+/* The marker block at the head of a diff row.
+ *
+ * Every rule below carries BOTH halves of its pair, and that is deliberate:
+ * the geometry used to live here and the background one rule further down,
+ * which made neither rule judgeable on its own. `theme-role-contrast` needs a
+ * background and a colour in the same body to measure anything, so the split
+ * hid `--sa-color-fg-on-accent` on `--sa-color-positive-strong` — white on
+ * green-500, 2.54:1, in BOTH themes — for as long as the component existed.
+ *
+ * A tint plus the tone's `-fg`, not a solid plus white: `-strong` is the rung
+ * chosen to read as a COLOUR against its theme's surface, which puts it in the
+ * middle of the lightness range — and nothing reads on the middle. That is
+ * what `<tone>-fg` and `-surface-strong` are for. */
 .pd-diff-icon {
     width: 32px;
     align-self: stretch;
     display: grid;
     place-items: center;
     flex: 0 0 32px;
-    color: var(--sa-color-fg-on-accent);
+    background: var(--sa-color-bg-sunken);
+    color: var(--sa-color-fg-body);
     font: 700 var(--sa-text-lg) var(--sa-font-body);
 }
 .pd-diff-row.add .pd-diff-icon {
-    background: var(--sa-color-positive-strong);
+    background: var(--sa-color-positive-surface-strong);
+    color: var(--sa-color-positive-fg);
 }
 .pd-diff-row.rm .pd-diff-icon {
-    background: var(--sa-color-negative-strong);
+    background: var(--sa-color-negative-surface-strong);
+    color: var(--sa-color-negative-fg);
 }
+/* Unchanged, and deliberately not brought into line with the two above: it was
+ * already readable (14.6:1) and `--sa-color-bg-sunken` is what the `mod` row
+ * itself starts its gradient with, so a neutral tint here would leave the
+ * marker with almost nothing to stand against in the light theme. It only
+ * gains the foreground it was already inheriting, so the rule can be read. */
 .pd-diff-row.mod .pd-diff-icon {
     background: var(--sa-color-inverse-surface);
+    color: var(--sa-color-inverse-fg);
+}
+/* The single-version listing marks WHAT a row is rather than what changed, so
+ * it reads the catalogue-entity roles. These three were the last colour
+ * literals in a template: `style="background: #f59e0b"` and friends, painted
+ * white by the base rule above at 2.15:1, 2.77:1 and 4.23:1. */
+.pd-diff-row.plain .pd-diff-icon.feature {
+    background: var(--sa-color-feature-surface);
+    color: var(--sa-color-feature-fg);
+}
+.pd-diff-row.plain .pd-diff-icon.quota {
+    background: var(--sa-color-quota-surface);
+    color: var(--sa-color-quota-fg);
+}
+.pd-diff-row.plain .pd-diff-icon.bundle {
+    background: var(--sa-color-bundle-surface);
+    color: var(--sa-color-bundle-fg);
 }
 .pd-diff-body {
     flex: 1;
