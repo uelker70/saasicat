@@ -36,3 +36,11 @@ and loading its data, so a component that owned a boolean would fight them.
 The bundle list and both discovery cards move onto it in this release. The
 remaining surfaces follow; the marketing catalogue's row lives in a CSS grid
 with `display: contents` and needs its own arrangement rather than this one.
+
+**The badge is the component's, the glyph is the page's.** The row icon was
+drawn three ways — a 34px accent-tinted square, a bare 22px glyph, and a bare
+20px glyph coloured through a Quasar **palette** prop (`color="negative"`, which
+reaches past the role layer entirely) — so the same kind of row did not look
+like the same kind of row from one page to the next. `#mark` takes the glyph and
+`AdminAccordion` draws the frame. `markTone` exists for the one row whose state
+the badge should report, and it moves nothing but the colour.

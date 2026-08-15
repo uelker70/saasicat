@@ -67,6 +67,7 @@ A list whose rows expand is `AdminAccordion`, one per row:
     :open="openId === row.id"
     @update:open="openId = openId === row.id ? null : row.id"
 >
+    <template #mark><q-icon name="inventory_2" size="18px" /></template>
     <template #header><!-- the row: keys, chips, whatever it carries --></template>
     <template #header-actions><!-- controls that must NOT toggle it --></template>
     <!-- the body, rendered only while open -->
@@ -87,6 +88,12 @@ somewhere before it was a rule:
 - **The page owns `open`.** Five of the eight tie opening one row to closing
   another and loading its data. A component that flipped its own boolean would
   fight them, so it emits and does not decide.
+- **`#mark` gives the glyph, not the badge.** The row icon had been drawn three
+  ways — a tinted 34px square, a bare 22px glyph, and a bare 20px glyph coloured
+  through a Quasar _palette_ prop, which reaches past the role layer entirely —
+  so the same kind of row did not look the same on two pages. `markTone` is for
+  the one row whose state the badge itself should report; it moves the colour
+  and nothing else, which is what keeps it the same badge.
 
 **A screen that cannot use `AdminPage`** — a login, a first-run wizard, a
 fail-closed error page, anything full-viewport with a frame of its own — still

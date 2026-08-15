@@ -10,6 +10,13 @@
                 :disabled="disabled"
                 @click="emit('update:open', !open)"
             >
+                <span
+                    v-if="$slots.mark"
+                    class="sa-accordion__mark"
+                    :class="`sa-accordion__mark--${markTone}`"
+                >
+                    <slot name="mark" />
+                </span>
                 <span class="sa-accordion__label"><slot name="header" /></span>
                 <q-icon name="chevron_right" size="18px" class="sa-accordion__chev" />
             </button>
@@ -65,16 +72,39 @@ import { useId } from 'vue';
 //
 // The body is `v-if`, which is what all seven JS implementations already did.
 // Uniform by accident until now; uniform on purpose from here.
-const { open, disabled = false } = defineProps<{
+const {
+    open,
+    disabled = false,
+    markTone = 'accent',
+} = defineProps<{
     /** Whether the body is shown. The page owns this — see above. */
     open: boolean;
     /** A locked row: the trigger is inert and announces itself as such. */
     disabled?: boolean;
+    /**
+     * The `mark` badge's tone. `accent` unless the row is in a state the badge
+     * itself should report — the discovery quota with no usage provider is the
+     * one case, and it swaps its glyph as well.
+     *
+     * Two values because two exist. The frame, size, radius and position do not
+     * change with it: that is what makes the badge the same badge everywhere.
+     */
+    markTone?: 'accent' | 'negative';
 }>();
 
 const emit = defineEmits<{ 'update:open': [value: boolean] }>();
 
 defineSlots<{
+    /**
+     * The icon that identifies the row, in a badge this component draws.
+     *
+     * A slot rather than a prop, because the glyph is sometimes conditional and
+     * sometimes carries its own attributes. The BADGE is not the page's
+     * business: three surfaces had three answers — a 34px accent-tinted square,
+     * a bare 22px glyph, and a bare 20px glyph coloured by a Quasar palette
+     * prop — so the same row on two pages did not look like the same row.
+     */
+    mark?(): unknown;
     /** The header's content — a title, keys, chips, whatever the row needs. */
     header(): unknown;
     /**

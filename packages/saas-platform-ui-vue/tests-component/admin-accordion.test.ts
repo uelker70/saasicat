@@ -137,3 +137,36 @@ describe('a control in the header is not part of the trigger', () => {
         expect(mount().find('.sa-accordion__actions').exists()).toBe(false);
     });
 });
+
+describe('the badge is the component, the glyph is the page', () => {
+    // Three surfaces drew this three ways — a 34px accent-tinted square, a bare
+    // 22px glyph, and a bare 20px glyph coloured through a Quasar PALETTE prop
+    // (`color="negative"`, which reaches past the role layer entirely). The
+    // same kind of row did not look like the same kind of row.
+    const withMark = (props = {}) => mount(props, { mark: () => h('i', { class: 'glyph' }) });
+
+    test('the page supplies a glyph and the component supplies the frame', () => {
+        const wrapper = withMark();
+        expect(wrapper.find('.sa-accordion__mark .glyph').exists()).toBe(true);
+        expect(wrapper.find('.sa-accordion__mark').classes()).toContain(
+            'sa-accordion__mark--accent',
+        );
+    });
+
+    test('a row whose state the badge should report says so', () => {
+        expect(withMark({ markTone: 'negative' }).find('.sa-accordion__mark').classes()).toContain(
+            'sa-accordion__mark--negative',
+        );
+    });
+
+    test('no badge is drawn for a row that has no glyph', () => {
+        // Otherwise every unmarked row would gain an empty tinted square.
+        expect(mount().find('.sa-accordion__mark').exists()).toBe(false);
+    });
+
+    test('the badge sits inside the trigger, unlike the actions', () => {
+        // It identifies the row rather than doing anything, so clicking it
+        // should open the row like the rest of the header does.
+        expect(withMark().find('.sa-accordion__trigger .sa-accordion__mark').exists()).toBe(true);
+    });
+});

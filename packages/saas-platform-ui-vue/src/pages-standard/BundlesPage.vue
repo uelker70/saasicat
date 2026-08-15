@@ -696,17 +696,6 @@ const classifyDiff = computed(() => props.classifyDiff);
     gap: var(--sa-space-4);
     align-items: center;
 }
-.sa-bd-card__mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    background: var(--sa-color-accent-surface-strong);
-    color: var(--sa-color-accent-strong);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
 .sa-bd-card__titlewrap {
     flex: 1;
     min-width: 0;

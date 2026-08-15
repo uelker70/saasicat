@@ -1,8 +1,9 @@
 <template>
     <AdminAccordion class="sa-fc" :open="expanded" @update:open="emit('toggle')">
+        <template #mark><q-icon :name="iconValue || 'help_outline'" size="18px" /></template>
+
         <template #header>
             <div class="sa-fc__head">
-                <q-icon :name="iconValue || 'help_outline'" size="22px" class="sa-fc__icon" />
                 <div class="sa-fc__main">
                     <div class="sa-fc__titlerow">
                         <code class="sa-fc__key">{{ feature.featureKey }}</code>
@@ -286,10 +287,6 @@ function coverage(locale: string): number {
     display: flex;
     align-items: center;
     gap: var(--sa-space-4);
-}
-.sa-fc__icon {
-    color: var(--sa-color-fg-secondary);
-    flex-shrink: 0;
 }
 .sa-fc__main {
     flex: 1;

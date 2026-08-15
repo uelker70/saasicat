@@ -7,9 +7,10 @@
             :open="openKey === bundle.id"
             @update:open="emit('toggle', bundle)"
         >
+            <template #mark><q-icon name="inventory_2" size="18px" /></template>
+
             <template #header>
                 <div class="sa-bd-card__head">
-                    <div class="sa-bd-card__mark"><q-icon name="inventory_2" size="18px" /></div>
                     <div class="sa-bd-card__titlewrap">
                         <div class="sa-bd-card__titlerow">
                             <span class="sa-bd-card__key">{{ bundle.bundleKey }}</span>

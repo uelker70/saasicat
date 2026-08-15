@@ -3,16 +3,18 @@
         class="sa-qc"
         :class="{ warn: !quota.usageProvider }"
         :open="expanded"
+        :mark-tone="quota.usageProvider ? 'accent' : 'negative'"
         @update:open="emit('toggle')"
     >
+        <!-- The glyph already says it; the tone lets the badge say it too. The
+             `:color` this replaces was a Quasar PALETTE name, which reaches past
+             the role layer — `negative` there is Quasar's, not the theme's. -->
+        <template #mark>
+            <q-icon :name="quota.usageProvider ? 'inventory_2' : 'error'" size="18px" />
+        </template>
+
         <template #header>
             <div class="sa-qc__head">
-                <q-icon
-                    :name="quota.usageProvider ? 'inventory_2' : 'error'"
-                    :color="quota.usageProvider ? 'primary' : 'negative'"
-                    size="20px"
-                    class="sa-qc__icon"
-                />
                 <div class="sa-qc__main">
                     <div class="sa-qc__titlerow">
                         <span class="sa-qc__label">{{ labelValue || quota.quotaKey }}</span>
@@ -182,9 +184,6 @@ function coverage(locale: string): number {
     display: flex;
     align-items: center;
     gap: var(--sa-space-4);
-}
-.sa-qc__icon {
-    flex-shrink: 0;
 }
 .sa-qc__main {
     flex: 1;
