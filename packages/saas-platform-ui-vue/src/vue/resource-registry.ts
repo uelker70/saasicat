@@ -12,6 +12,7 @@ import { inject, type InjectionKey } from 'vue';
 import {
     bindResource,
     type Bound,
+    type PlatformResources,
     type ResourceContext,
     type ResourceDef,
     type ResourceOps,
@@ -146,11 +147,23 @@ export const SUPER_ADMIN_RESOURCES_KEY: InjectionKey<ResourceRegistry> = Symbol.
 /**
  * The operations of one resource, ready to call.
  *
+ * Typed against the platform roster, so `useResource('plans').update(id, data)`
+ * carries the argument types the descriptor declares and an unknown key is a
+ * compile error. Without that mapping the key parameter erased the operations
+ * to `ResourceOps`, whose `never[]` constraint made *every* call with an
+ * argument a type error while accepting any misspelled resource name — the
+ * exact opposite of the guarantee the registry exists for.
+ *
+ * An app with its own resources passes its map as the second type argument.
+ *
  * Throws when the shell has no registry rather than returning something
  * inert — a page whose data silently never arrives is harder to diagnose than
  * one that says what is missing.
  */
-export function useResource<K extends string>(key: K): Bound<ResourceOps> {
+export function useResource<
+    K extends keyof TMap & string,
+    TMap extends ResourceMap = PlatformResources,
+>(key: K): Bound<TMap[K]['ops']> {
     const registry = inject(SUPER_ADMIN_RESOURCES_KEY, null);
     if (!registry) {
         throw new Error(
@@ -158,5 +171,5 @@ export function useResource<K extends string>(key: K): Bound<ResourceOps> {
                 'inside createSuperAdminApp()?',
         );
     }
-    return registry.get(key);
+    return registry.get(key) as Bound<TMap[K]['ops']>;
 }

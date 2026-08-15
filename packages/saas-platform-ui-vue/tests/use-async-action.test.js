@@ -34,7 +34,7 @@ function deferred() {
 describe('useAsyncAction — the happy path', () => {
     test('resolves what the action returned', async () => {
         const action = useAsyncAction(async (a, b) => a + b);
-        assert.equal(await action.run(2, 3), 5);
+        assert.deepEqual(await action.run(2, 3), { ok: true, value: 5 });
     });
 
     test('passes every argument through', async () => {
@@ -107,11 +107,25 @@ describe('useAsyncAction — the happy path', () => {
 });
 
 describe('useAsyncAction — failure', () => {
-    test('resolves undefined instead of throwing', async () => {
+    test('reports the failure in the result instead of throwing', async () => {
         const action = useAsyncAction(async () => {
             throw new Error('nope');
         });
-        assert.equal(await action.run(), undefined);
+        const result = await action.run();
+        assert.equal(result.ok, false);
+        assert.equal(result.error.detail, 'nope');
+    });
+
+    test('a void action is still distinguishable — the whole reason for the shape', async () => {
+        // Most mutations here resolve `Promise<void>`: softDelete, discardDraft,
+        // remove. With a bare `T | undefined` a success and a failure were the
+        // same value, so no call site could branch on it.
+        const succeeds = useAsyncAction(async () => {});
+        const fails = useAsyncAction(async () => {
+            throw new Error('gone');
+        });
+        assert.deepEqual(await succeeds.run(), { ok: true, value: undefined });
+        assert.equal((await fails.run()).ok, false);
     });
 
     test('records the failure as an AdminError', async () => {

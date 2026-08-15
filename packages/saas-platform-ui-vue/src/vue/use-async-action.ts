@@ -9,8 +9,16 @@
 //
 // `run` does not re-throw. A wrapper that recorded the failure and then threw
 // it again would leave every call site with the `try`/`catch` this exists to
-// remove, so the return type says what actually happens: `undefined` means the
-// call failed, and `error` says why.
+// remove, so the outcome is in the return value instead.
+//
+// It is a discriminated result rather than `T | undefined`, because the second
+// shape cannot answer the question for the actions this package has most of.
+// `softDelete`, `discardDraft`, `remove` and their siblings resolve
+// `Promise<void>`: a successful call already produces `undefined`, so
+// "`undefined` means it failed" was a signal that did not exist there — and
+// TypeScript narrows the success branch of `void | undefined` to `never`, so
+// the wrong call site compiles, lints clean, and silently never runs its
+// follow-up.
 
 import { inject, ref, type Ref } from 'vue';
 
@@ -18,9 +26,15 @@ import { adminErrorMessage, toAdminError, type AdminError } from '../client/admi
 import { useSaMessages } from './use-super-admin-i18n.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from './ui-notify.js';
 
+/**
+ * What an action did. `ok` is the branch to read — it answers for a
+ * `Promise<void>` action exactly as well as for one that returns a row.
+ */
+export type AsyncActionResult<T> = { ok: true; value: T } | { ok: false; error: AdminError };
+
 export interface AsyncAction<A extends unknown[], T> {
-    /** Runs the action. Resolves `undefined` when it failed. */
-    run: (...args: A) => Promise<T | undefined>;
+    /** Runs the action. Never throws; the outcome is in the result. */
+    run: (...args: A) => Promise<AsyncActionResult<T>>;
     /** True while the call is in flight — what a submit button disables on. */
     pending: Ref<boolean>;
     /** The last failure, or `null`. Cleared at the start of every run. */
@@ -69,7 +83,7 @@ export function useAsyncAction<A extends unknown[], T>(
     const messages = useSaMessages('errors');
     const notifyOn = options.notifyOn ?? 'error';
 
-    async function run(...args: A): Promise<T | undefined> {
+    async function run(...args: A): Promise<AsyncActionResult<T>> {
         pending.value = true;
         error.value = null;
         try {
@@ -82,7 +96,7 @@ export function useAsyncAction<A extends unknown[], T>(
                 if (message) notify?.('positive', message);
             }
             await options.onSuccess?.(result);
-            return result;
+            return { ok: true, value: result };
         } catch (err: unknown) {
             const adminError = toAdminError(err);
             error.value = adminError;
@@ -93,7 +107,7 @@ export function useAsyncAction<A extends unknown[], T>(
                         adminErrorMessage(adminError, messages.value),
                 );
             }
-            return undefined;
+            return { ok: false, error: adminError };
         } finally {
             pending.value = false;
         }

@@ -42,16 +42,30 @@ export function useAsyncData<T>(
     const pending = ref(false);
     const error = ref<AdminError | null>(null);
 
+    // Which load is the current one. A watched source that changes twice in
+    // quick succession starts a second request before the first answers, and
+    // without this the loser writes last: the older result overwrites the
+    // newer, its `finally` clears `pending` while the newer request is still
+    // running, and — worst — its `catch` resets `data` to `initial` and raises
+    // an error for a filter the operator has already left.
+    let generation = 0;
+
     async function reload(): Promise<void> {
+        const mine = ++generation;
         pending.value = true;
         error.value = null;
         try {
-            data.value = await fn();
+            const result = await fn();
+            if (mine !== generation) return;
+            data.value = result;
         } catch (err: unknown) {
+            if (mine !== generation) return;
             error.value = toAdminError(err);
             data.value = options.initial;
         } finally {
-            pending.value = false;
+            // Only the newest load owns the flag; a superseded one leaving it
+            // false would announce a page that is still loading as settled.
+            if (mine === generation) pending.value = false;
         }
     }
 

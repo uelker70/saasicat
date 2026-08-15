@@ -134,6 +134,77 @@ describe('useAsyncData — failure', () => {
     });
 });
 
+describe('useAsyncData — overlapping loads', () => {
+    /** A load whose promise the test settles by hand. */
+    function gate() {
+        let release;
+        let fail;
+        const promise = new Promise((resolve, reject) => {
+            release = resolve;
+            fail = reject;
+        });
+        return { promise, release, fail };
+    }
+
+    test('a superseded load does not overwrite the newer one', async () => {
+        const gates = [gate(), gate()];
+        let call = 0;
+        const state = useAsyncData(() => gates[call++].promise, {
+            initial: 'initial',
+            immediate: false,
+        });
+
+        const first = state.reload();
+        const second = state.reload();
+        // The newer request answers first, the older one last.
+        gates[1].release('second');
+        gates[0].release('first');
+        await Promise.all([first, second]);
+
+        assert.equal(state.data.value, 'second');
+    });
+
+    test('a superseded load does not clear pending while the newer one runs', async () => {
+        const gates = [gate(), gate()];
+        let call = 0;
+        const state = useAsyncData(() => gates[call++].promise, {
+            initial: null,
+            immediate: false,
+        });
+
+        const first = state.reload();
+        const second = state.reload();
+        gates[0].release('first');
+        await first;
+        assert.equal(state.pending.value, true, 'the newer load is still running');
+
+        gates[1].release('second');
+        await second;
+        assert.equal(state.pending.value, false);
+    });
+
+    test('a superseded load that FAILS does not wipe the page or raise its error', async () => {
+        // The worst of the three: the stale catch resets data to `initial` and
+        // shows an error for a filter the operator has already left.
+        const gates = [gate(), gate()];
+        let call = 0;
+        const state = useAsyncData(() => gates[call++].promise, {
+            initial: [],
+            immediate: false,
+        });
+
+        const first = state.reload();
+        const second = state.reload();
+        gates[1].release(['fresh']);
+        await second;
+        gates[0].fail(new Error('abandoned'));
+        await first;
+
+        assert.deepEqual(state.data.value, ['fresh']);
+        assert.equal(state.error.value, null);
+    });
+});
+
 describe('useAsyncData — watch', () => {
     test('reloads when a watched source changes', async () => {
         const slug = ref('acme');

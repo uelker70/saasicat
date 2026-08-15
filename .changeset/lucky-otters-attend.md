@@ -14,7 +14,12 @@ name one.
 `createResourceRegistry` binds the platform's endpoint definitions to one
 `(http, context)` and hands a page the operations already knowing where they
 go. `useResource('plans')` is the whole of what a standard page needs to reach
-its data.
+its data, and it is typed against the roster: `useResource('plans').update(id,
+data)` carries the argument types the descriptor declares, and an unknown key is
+a compile error. The first attempt got that exactly backwards — the key
+parameter erased the operations to a constraint whose `never[]` arguments made
+every call with an argument a type error, while any misspelled resource name was
+accepted. Review caught it; both directions are now checked.
 
 **`http` is required, with no fallback.** A registry that quietly reached for
 `fetch` when nobody passed a client would send every request without the app's

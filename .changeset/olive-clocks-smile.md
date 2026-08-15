@@ -16,9 +16,17 @@ message from a raw `unknown`.
 
 `run` does **not** re-throw. A wrapper that recorded the failure and threw it
 again would leave every call site with the `try`/`catch` this exists to remove,
-so the return type says what actually happens: `undefined` means the call
-failed, and `error` says why. That is a deliberate departure from the sketch
-this was planned against, which had it returning `Promise<T>`.
+so the outcome is in the return value: `{ ok: true, value }` or
+`{ ok: false, error }`. That is a deliberate departure from the sketch this was
+planned against, which had it returning `Promise<T>`.
+
+The first attempt returned `T | undefined`, and review caught that it cannot
+answer for the actions this package has most of. `softDelete`, `discardDraft`
+and `remove` resolve `Promise<void>`, so a successful call already produces
+`undefined` and "undefined means it failed" was a signal that did not exist
+there. Worse, TypeScript narrows the success branch of `void | undefined` to
+`never` — the wrong call site compiles, lints clean, and silently never runs
+its follow-up.
 
 It carries an `errorMessage` hook, and that is not decoration. Five call sites
 map a status and an error code to a specific sentence — a 422 carrying
@@ -31,6 +39,12 @@ five sites could not move.
 `initial` rather than leaving what was there — which is what `useApiList`
 already does, and the safer of the two: stale rows under an error message read
 as current data, and nothing on the page says which reload they came from.
+
+Loads are numbered, so a request a filter change abandoned cannot write over the
+one that replaced it. Review found that gap: the older result won when it
+resolved last, its `finally` cleared `pending` while the newer request was still
+running, and — worst of the three — its `catch` reset `data` to `initial` and
+raised an error for a filter the operator had already left.
 
 **`UiConfirm`** is the seam a page asks through before doing something it cannot
 undo, alongside the notify port it mirrors. `createSuperAdminApp({ confirm })`
