@@ -9,6 +9,7 @@ import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
 import {
     FIXTURE_BUNDLES,
     FIXTURE_BUNDLE_VERSIONS,
+    FIXTURE_DISCOVERY,
     FIXTURE_PLAN_CHANGE_PREVIEW,
     TENANT_CATALOG_PLANS,
 } from './fixture-data.js';
@@ -54,6 +55,26 @@ export interface VisualCase {
      * untouched.
      */
     revealBy?: readonly string[];
+    /**
+     * Selectors to hover, one at a time, each read on its own.
+     *
+     * A `:hover` rule is a screen nobody screenshots and no static check can
+     * pair: 60 rules in this package move a background on hover, and the ones
+     * that also move a foreground do it in a DIFFERENT rule. The marketing
+     * chip's `<em>` sat at 2.92:1 in the dark theme for exactly that reason —
+     * `:hover` moved the surface under it and its own colour stayed put.
+     *
+     * Only the contrast check reads this. The baselines deliberately do not: a
+     * hovered snapshot would record one arbitrary pointer position as the
+     * truth, which is the opposite of what a baseline is for.
+     *
+     * **Name the STATE, not the component.** The loop hovers `.first()` match,
+     * so a selector that covers several states reads whichever the fixture
+     * happens to render first and leaves the rest unhovered — the same
+     * "the state exists but nothing reaches it" gap this field was added to
+     * close. Write `.x.on` and `.x:not(.on)` rather than `.x`.
+     */
+    hoverBy?: readonly string[];
 }
 
 export const VISUAL_CASES: readonly VisualCase[] = [
@@ -108,6 +129,16 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         id: 'discovery',
         load: () => import('../../src/pages-standard/DiscoveryPage.vue'),
         // Fully prop-driven: this page receives data, it does not fetch.
+        //
+        // Still empty, and knowingly so. This page records a baseline of empty
+        // states, exactly like `bundles` did — but its `capabilities`,
+        // `features` and `quotas` are CATALOG ROWS, not the snapshot's
+        // `Discovered*` shapes, so it needs its own fixture rather than the one
+        // next door. Filling it with the snapshot's arrays took the page down
+        // (it never reached `data-visual-ready`), and `props` is typed
+        // `Record<string, unknown>`, so `pnpm typecheck` said nothing — which
+        // is the same hole that let this case ship with six missing required
+        // props. Both belong in the follow-up, together.
         props: () => ({
             snapshot: null,
             capabilities: [],
@@ -364,6 +395,10 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // its editors. Stopping after the tab left every editor guarded by
         // `expandedKey` unrendered — the surfaces this case exists for.
         revealBy: ['.sa-marketing-tab:nth-of-type(2)', '.sa-marketing-expand-btn'],
+        // The chip whose `<em>` measured 2.92:1 in the dark theme — `:hover`
+        // moved the surface to a 22 % accent tint and the `<em>` kept its own
+        // colour. It is fixed; this is what stops it coming back.
+        hoverBy: ['.sa-marketing-tf-chip'],
     },
     {
         // 14 required props, ten of them functions — the page AP3 replaces.
@@ -378,7 +413,13 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             bundles: FIXTURE_BUNDLES,
             loading: false,
             error: null,
-            snapshot: null,
+            // Not `null`, for the same reason `bundles` is not `[]` — one level
+            // in. The editors bind `snapshot?.features ?? []`, so a null
+            // snapshot renders `bd-features-empty` and no feature pill has ever
+            // existed under a baseline. The 2.92:1 reading on
+            // `.bd-feature-pill.on .bd-feature-key` came from a human looking at
+            // a screen this suite could not reach.
+            snapshot: FIXTURE_DISCOVERY,
             load: async () => {},
             create: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
             update: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
@@ -391,6 +432,17 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         }),
         // Opens the bundle so its version controls and inline editor render.
         revealBy: ['.sa-bd-card__head'],
+        // The feature pill, which only exists at all since this case got a
+        // discovery snapshot. `.bd-feature-pill:hover:not(:disabled)` moves its
+        // background while the label and the key keep theirs.
+        //
+        // BOTH states, named separately, because the hover loop takes
+        // `.first()` and the first pill is `notes.export` — the one the fixture
+        // version selects. A bare `.bd-feature-pill` would therefore only ever
+        // read the `.on` variant, and the unselected one carries a different
+        // foreground and a different key colour. That is this PR's own subject
+        // one level in: a state the fixture renders and the check cannot reach.
+        hoverBy: ['.bd-feature-pill.on', '.bd-feature-pill:not(.on)'],
     },
     // ── Tenant-facing. These render in the CONSUMER's app, not in the admin
     // shell, and nothing in this suite reached them before. Three defects in a

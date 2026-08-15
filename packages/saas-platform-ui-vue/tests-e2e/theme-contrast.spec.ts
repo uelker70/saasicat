@@ -326,6 +326,17 @@ test.describe('both themes are readable', () => {
                 )
                 .not.toBe('');
 
+            // The roster already knows how to open these — `revealBy` is the
+            // field the visual baselines have used since they were written —
+            // and this check simply never asked for it. So a surface behind one
+            // click was unjudged for contrast while its computed styles were
+            // under baseline, which is the shape of a guard that looks thorough
+            // and is not: the fixture knows about the screen, and the checker
+            // does not.
+            for (const selector of visualCase.revealBy ?? []) {
+                await page.locator(selector).first().click();
+            }
+
             const light = await read(page);
             expect(
                 light.painted.length,
@@ -376,6 +387,70 @@ test.describe('both themes are readable', () => {
             expect(unreadable(dark), `${visualCase.id}: unreadable text in the DARK theme`).toEqual(
                 [],
             );
+
+            // 4. And nothing disappears while the pointer is on it.
+            //
+            // Read in the DARK theme, which is where every hover defect found
+            // so far has been: a tint over slate moves further than the same
+            // tint over white. The page is already dark at this point.
+            for (const selector of visualCase.hoverBy ?? []) {
+                const target = page.locator(selector).first();
+                await expect(
+                    target,
+                    `${visualCase.id}: nothing matches "${selector}" — the case names a hover ` +
+                        'target its own fixture does not render',
+                ).toBeVisible();
+                // The precondition, and it has to be about the TARGET rather
+                // than about the page.
+                //
+                // The first version asked "did anything change anywhere", and a
+                // counter-check pointed `hoverBy` at a label with no hover rule
+                // of its own — it PASSED, because putting the pointer there
+                // fired a `:hover` on an ancestor card. A check that something
+                // adjacent satisfies is the exact failure this suite exists to
+                // catch, one state further in.
+                //
+                // So the subtree under the hovered element has to paint
+                // differently. Descendants included, because a rule may restyle
+                // only a child — `.sa-marketing-tf-chip:hover em` would.
+                const subtreePaint = () =>
+                    target.evaluate((el) =>
+                        [el, ...el.querySelectorAll('*')]
+                            .map((node) => {
+                                const s = getComputedStyle(node);
+                                return `${s.color}|${s.backgroundColor}|${s.borderTopColor}`;
+                            })
+                            .join('\n'),
+                    );
+
+                const atRest = await subtreePaint();
+                await target.hover();
+
+                // Polled, not read once. These pills carry
+                // `transition: background 0.12s`, and sampling at t≈0 returns
+                // the interpolated value — which for the unselected pill
+                // (`bg-surface` → `bg-sunken`, #0f172a → #0b1220) still rounds
+                // to the resting colour. The precondition then reports "no rule
+                // fires" for a rule that fires perfectly well, half a frame
+                // later. The selected pill's jump is large enough to show
+                // immediately, so this was a difference between two states of
+                // one component rather than between two components.
+                await expect
+                    .poll(subtreePaint, {
+                        message:
+                            `${visualCase.id}: hovering "${selector}" changed nothing on that ` +
+                            'element or inside it — the selector resolves, but no rule fires, ' +
+                            'so the reading below proves nothing',
+                    })
+                    .not.toBe(atRest);
+
+                const hovered = await read(page);
+
+                expect(
+                    unreadable(hovered),
+                    `${visualCase.id}: unreadable text while hovering "${selector}" (dark)`,
+                ).toEqual([]);
+            }
         });
     }
 });
