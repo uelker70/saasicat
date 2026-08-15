@@ -99,6 +99,17 @@ const QUASAR_BREAKPOINTS = new Set([
     '1919.98',
 ]);
 
+/**
+ * The CSS colour keywords worth naming, in one place.
+ *
+ * Two patterns need this list and they read it differently — one wants it after
+ * a `property:`, the other wants it as an entire attribute value — so it lives
+ * here rather than being spelled out twice. A second copy is how `fill: white`
+ * ends up being debt and `fill="white"` does not.
+ */
+const NAMED_COLOUR_WORDS =
+    'white|black|red|green|blue|orange|yellow|purple|grey|gray|silver|maroon|navy|teal|olive|lime|aqua|fuchsia';
+
 const CATEGORIES = {
     // #rgb, #rrggbb, #rrggbbaa
     hexColor: /#[0-9a-fA-F]{3,8}\b/g,
@@ -112,8 +123,11 @@ const CATEGORIES = {
     // audit read 0 while one button still painted itself. Anchored on a
     // colour-bearing property so that `.text-white` in a selector and a font
     // called "Black" are not findings.
-    namedColor:
-        /(?:^|[;{])\s*(?:color|background(?:-color)?|border(?:-[a-z]+)?-color|outline-color|fill|stroke)\s*:\s*([^;}\n]*(?<![\w-])(?:white|black|red|green|blue|orange|yellow|purple|grey|gray|silver|maroon|navy|teal|olive|lime|aqua|fuchsia)(?![\w-])[^;}\n]*)/gi,
+    namedColor: new RegExp(
+        `(?:^|[;{])\\s*(?:color|background(?:-color)?|border(?:-[a-z]+)?-color|outline-color|fill|stroke)` +
+            `\\s*:\\s*([^;}\\n]*(?<![\\w-])(?:${NAMED_COLOUR_WORDS})(?![\\w-])[^;}\\n]*)`,
+        'gi',
+    ),
     pixelValue: /\b\d{1,4}(?:\.\d+)?px\b/g,
     // Filled by the declaration pass; see SCALE_PROPERTY below.
     scalePixel: /(?!)/g,
@@ -166,6 +180,25 @@ const PAINT_ATTRIBUTES = new Set([
     'flood-color',
     'lighting-color',
 ]);
+
+/**
+ * A paint attribute other than `style` carries the colour BARE — `fill="white"`
+ * is a value with no property in front of it, so `CATEGORIES.namedColor` cannot
+ * see it: that pattern is anchored on `property:` for good reason (`.text-white`
+ * in a selector and a font called "Black" are not findings), and there is no
+ * anchor here to give it.
+ *
+ * Without these two, the category treated `fill` and `stroke` as paint, found
+ * their hexes, and silently let a named colour through under a zero floor —
+ * a guard that covers three of the four notations is the kind of gap this whole
+ * category exists to close.
+ *
+ * Two patterns because the two attribute kinds hold different languages: a
+ * static attribute IS the colour, a bound one is JavaScript that may contain it
+ * as a string.
+ */
+const BARE_NAMED_COLOUR = new RegExp(`^\\s*(?:${NAMED_COLOUR_WORDS})\\s*$`, 'i');
+const QUOTED_NAMED_COLOUR = new RegExp(`(['"\`])\\s*(?:${NAMED_COLOUR_WORDS})\\s*\\1`, 'gi');
 
 /**
  * A colour tint built by gluing two hex digits onto a colour: `accent + '15'`,
@@ -273,7 +306,12 @@ function templatePaint(file, content) {
             for (const prop of node.props ?? []) {
                 // ATTRIBUTE === 6 — `style="background: #ef4444"`.
                 if (prop.type === 6 && PAINT_ATTRIBUTES.has(prop.name) && prop.value) {
-                    painted.push({ value: prop.value.content, line: prop.value.loc.start.line });
+                    painted.push({
+                        value: prop.value.content,
+                        line: prop.value.loc.start.line,
+                        attribute: prop.name,
+                        isStatic: true,
+                    });
                 }
                 // DIRECTIVE === 7 — `:style` is v-bind with `style` as its arg.
                 // The expression is JavaScript, so what is read here is the
@@ -290,7 +328,12 @@ function templatePaint(file, content) {
                     PAINT_ATTRIBUTES.has(prop.arg.content) &&
                     prop.exp
                 ) {
-                    painted.push({ value: prop.exp.content, line: prop.exp.loc.start.line });
+                    painted.push({
+                        value: prop.exp.content,
+                        line: prop.exp.loc.start.line,
+                        attribute: prop.arg.content,
+                        isStatic: false,
+                    });
                 }
             }
         }
@@ -313,17 +356,29 @@ export function templateColourSites(file, content) {
     if (painted === null) return null;
 
     const sites = [];
-    for (const { value, line } of painted) {
+    // Relative to where the value starts, so a binding spread over several
+    // lines points at the literal rather than at the opening quote.
+    const at = (line, value, index) => line + lineOf(value, index) - 1;
+
+    for (const { value, line, attribute, isStatic } of painted) {
         for (const pattern of COLOUR_PATTERNS) {
             for (const match of value.matchAll(pattern)) {
                 sites.push({
-                    // Relative to where the value starts, so a binding spread
-                    // over several lines points at the literal rather than at
-                    // the opening quote.
-                    line: line + lineOf(value, match.index) - 1,
+                    line: at(line, value, match.index),
                     value: (match[1] ?? match[0]).trim(),
                 });
             }
+        }
+
+        // `style` holds declarations, which the patterns above already read.
+        // Every other paint attribute holds the colour on its own.
+        if (attribute === 'style') continue;
+        if (isStatic) {
+            if (BARE_NAMED_COLOUR.test(value)) sites.push({ line, value: value.trim() });
+            continue;
+        }
+        for (const match of value.matchAll(QUOTED_NAMED_COLOUR)) {
+            sites.push({ line: at(line, value, match.index), value: match[0] });
         }
     }
     return sites.sort((a, b) => a.line - b.line);

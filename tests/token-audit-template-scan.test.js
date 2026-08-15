@@ -62,6 +62,28 @@ describe('a colour written as paint is found', () => {
         assert.deepEqual(values('<i style="background: white" />'), ['white']);
     });
 
+    test('a named colour BARE in an SVG paint attribute', () => {
+        // The gap review found. `fill="white"` is a value with no property in
+        // front of it, and the named-colour pattern is anchored on `property:`
+        // — so this category read `fill` and `stroke` as paint, found their
+        // hexes, and let a keyword through under a zero floor. Three notations
+        // out of four is not a guard.
+        assert.deepEqual(values('<svg><path fill="white" stroke="red" /></svg>'), ['white', 'red']);
+    });
+
+    test('a named colour as a string inside a bound paint attribute', () => {
+        assert.deepEqual(values(`<svg><path :fill="ok ? 'green' : 'red'" /></svg>`), [
+            "'green'",
+            "'red'",
+        ]);
+    });
+
+    test('the two halves do not report the same colour twice', () => {
+        // `style` holds declarations and the property-anchored pattern already
+        // reads them; the bare check must not fire there as well.
+        assert.deepEqual(values('<i style="fill: white" />'), ['white']);
+    });
+
     test('several literals in one binding', () => {
         assert.deepEqual(values(`<i :style="{ background: '#fff', color: '#000' }" />`), [
             '#fff',
@@ -138,6 +160,21 @@ describe('everything else a # means in a template stays silent', () => {
 
     test('a binding that carries data rather than a literal', () => {
         assert.deepEqual(values('<i :style="{ background: planAccentFor(row) }" />'), []);
+    });
+
+    test('the SVG keywords that are not colours', () => {
+        // `none` and `currentColor` are the two things an SVG paint attribute
+        // holds in this package today, and both are correct.
+        assert.deepEqual(
+            values('<svg><path fill="none" stroke="currentColor" /><rect fill="url(#g)" /></svg>'),
+            [],
+        );
+    });
+
+    test('a word that merely contains a colour name is not one', () => {
+        // The bare check matches the WHOLE value, so `redirect` and a font
+        // called "Black Italic" are not findings.
+        assert.deepEqual(values('<svg><path fill="redirect" stroke="blackish" /></svg>'), []);
     });
 
     test('a dynamic directive argument does not throw', () => {
