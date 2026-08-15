@@ -339,9 +339,13 @@ function coverage(locale: string): number {
     color: var(--sa-color-fg-muted);
     margin-top: 1px;
 }
+/* `-subtle`, not `-disabled`. Nothing here is disabled: this is the quietest
+ * rung of readable text, and the disabled rung is not on that ladder — it read
+ * 1.48:1 on the card's own surface, which the contrast check only saw once a
+ * fixture rendered a feature row for the first time. */
 .sa-fc__dot {
     margin: 0 4px;
-    color: var(--sa-color-fg-disabled);
+    color: var(--sa-color-fg-subtle);
 }
 .sa-fc__tier {
     font-weight: 700;
@@ -390,11 +394,12 @@ function coverage(locale: string): number {
     color: var(--sa-color-fg-subtle);
     margin-bottom: 8px;
 }
+/* Same swap, same reason: "2 · read-only" sat at 1.42:1 on the sunken column. */
 .sa-fc__split-count {
     font-weight: 600;
     text-transform: none;
     letter-spacing: 0;
-    color: var(--sa-color-fg-disabled);
+    color: var(--sa-color-fg-subtle);
     margin-left: 6px;
 }
 .sa-fc__fields {

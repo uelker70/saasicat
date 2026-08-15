@@ -1,14 +1,27 @@
 import type { Component } from 'vue';
 
-import type { PlatformEmailProvider } from '../../src/pages-standard/platform-email.types.js';
-import type { BundleVersionRow } from '@saasicat/types';
+import type { HttpClient } from '../../src/client/types.js';
+import type {
+    PlatformEmailProvider,
+    PlatformEmailTestResult,
+} from '../../src/pages-standard/platform-email.types.js';
+import type {
+    EmailHistoryDetail,
+    EmailHistoryListResult,
+} from '../../src/pages-standard/email-history.types.js';
+import type { BundleRow, BundleVersionMutationResult, BundleVersionRow } from '@saasicat/types';
+import type { AuditRow } from '../../src/pages-standard/AuditPage.vue';
 import type { PromoDetailData } from '../../src/pages-standard/PromoCodeDetailPage.vue';
 import type { TenantDetailData } from '../../src/pages-standard/tenant-detail/types.js';
 import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
 import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
+import type { BillingCycleStr } from '../../src/vue/use-tenant-billing.js';
 import {
     FIXTURE_BUNDLES,
     FIXTURE_BUNDLE_VERSIONS,
+    FIXTURE_CATALOG_CAPABILITIES,
+    FIXTURE_CATALOG_FEATURES,
+    FIXTURE_CATALOG_QUOTAS,
     FIXTURE_DISCOVERY,
     FIXTURE_PLAN_CHANGE_PREVIEW,
     TENANT_CATALOG_PLANS,
@@ -26,8 +39,14 @@ import {
 
 /** What the fixture can hand a page. */
 export interface CaseContext {
-    /** The stubbed HttpClient from `main.ts`. */
-    http: unknown;
+    /**
+     * The stubbed HttpClient from `main.ts`.
+     *
+     * Typed as the contract rather than as `unknown`: every page that takes an
+     * `http` prop declares it as `HttpClient`, so an `unknown` here would be the
+     * one value in a case that no page could ever accept.
+     */
+    http: HttpClient;
     adminBase: string;
 }
 
@@ -36,7 +55,12 @@ export interface VisualCase {
     id: string;
     load: () => Promise<{ default: Component }>;
     /**
-     * Props for this page.
+     * Props for this page, with the component type erased.
+     *
+     * This is the shape the HARNESS reads — `main.ts` hands the result to `h()`
+     * and knows nothing about which page it is mounting. The shape a case is
+     * WRITTEN against is `TypedVisualCase` below, which checks the same function
+     * against the page's own `defineProps`.
      *
      * Several composables still read `http` from an OPTION rather than from the
      * shell (`useSuperAdminHttp()`), so the fixture has to pass it explicitly or
@@ -77,8 +101,94 @@ export interface VisualCase {
     hoverBy?: readonly string[];
 }
 
+/**
+ * The props a component declares, read off the component itself.
+ *
+ * Vue puts the resolved prop set on the instance as `$props`, so the declared
+ * props of an SFC are reachable from its constructor type without the component
+ * having to export anything. The intersection Vue adds there — `VNodeProps`,
+ * `AllowedComponentProps`, `ComponentCustomProps` — is what makes `key`, `ref`,
+ * `class` and `style` legal on any case.
+ *
+ * Written out rather than imported: `vue-component-type-helpers` ships the same
+ * one line, and it is not a dependency of this package.
+ */
+type PropsOf<T> = T extends new (...args: never[]) => { $props: infer P } ? NonNullable<P> : never;
+
+/**
+ * A case as it is WRITTEN — its props checked against the page it loads.
+ *
+ * `load()` is a dynamic import, so the component type is not knowable from the
+ * `VisualCase` declaration; it only exists at the roster entry, where the import
+ * is written. `visualCase()` captures it there as `T` and `PropsOf<T>` turns it
+ * into the return type `props` has to satisfy.
+ *
+ * That is the whole point of the helper. Until it existed, `props` returned
+ * `Record<string, unknown>`, which accepts anything: the `discovery` case shipped
+ * for months missing six REQUIRED props (Vue warns and passes `undefined`, so
+ * every review dialog and save button under that baseline was wired to nothing),
+ * and handing a page an array of the wrong shape took it down at runtime while
+ * `pnpm -r typecheck` stayed green.
+ */
+interface TypedVisualCase<T> extends Omit<VisualCase, 'load' | 'props'> {
+    load: () => Promise<{ default: T }>;
+    props?: (ctx: CaseContext) => PropsOf<T>;
+}
+
+/**
+ * Declares one case, checked against the page it mounts.
+ *
+ * Inference runs in two passes, which is what makes this work: `load` takes no
+ * parameters, so `T` is fixed from its return type in the first pass, and the
+ * context-sensitive `props` is then checked against the `PropsOf<T>` that
+ * produced.
+ */
+function visualCase<T extends Component>(entry: TypedVisualCase<T>): VisualCase {
+    return entry;
+}
+
+/**
+ * What `DiscoveryPage` gets handed on both of its cases.
+ *
+ * Written once: the two cases differ only in which tab they reveal, and the same
+ * catalog in two places is the duplication rule's own example.
+ */
+const discoveryProps = () => ({
+    // The snapshot is the SCAN; `capabilities`, `features` and `quotas` are the
+    // CATALOG rows kept for what the scan found, and the two have different
+    // shapes. Handing the page the snapshot's arrays is what took it down the
+    // first time somebody tried to fill this case in, so it went back to empty
+    // and stayed there — a baseline of `sa-discovery__empty-row` and nothing
+    // else. Both mistakes are compile errors now: `visualCase()` checks this
+    // object against the page's own `defineProps`.
+    //
+    // The snapshot is still passed, because that is what it is FOR here: the
+    // meta banner's app name and scan time, and the `declaredAt` the capability
+    // rows are annotated with.
+    snapshot: FIXTURE_DISCOVERY,
+    capabilities: FIXTURE_CATALOG_CAPABILITIES,
+    features: FIXTURE_CATALOG_FEATURES,
+    quotas: FIXTURE_CATALOG_QUOTAS,
+    loading: false,
+    error: null,
+    // `de` is this page's translation base (`DISCOVERY_DEFAULT_LOCALE`), so it
+    // is the second entry that produces a coverage pill at all.
+    activeLocales: ['de', 'en'],
+    runDiscovery: async () => {},
+    // Six required props this case never supplied, for as long as it has
+    // existed. The page rendered anyway — Vue warns about a missing required
+    // prop and passes `undefined` — so every review dialog and every save
+    // button under that baseline was wired to nothing.
+    reviewFeature: async () => ({}),
+    reviewQuota: async () => ({}),
+    setFeatureI18n: async () => ({}),
+    setQuotaI18n: async () => ({}),
+    setFeatureBase: async () => ({}),
+    setQuotaBase: async () => ({}),
+});
+
 export const VISUAL_CASES: readonly VisualCase[] = [
-    {
+    visualCase({
         id: 'tenants',
         load: () => import('../../src/pages-standard/TenantsPage.vue'),
         props: ({ http, adminBase }) => ({
@@ -87,25 +197,30 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             http,
             usageFields: [{ icon: 'person', field: 'users' }],
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'audit',
         load: () => import('../../src/pages-standard/AuditPage.vue'),
         // `loadAudit` returns a plain array — the page owns paging itself.
         props: () => ({
-            loadAudit: async () => [
+            loadAudit: async (): Promise<AuditRow[]> => [
                 {
                     id: 'a-1',
                     action: 'TENANT_SUSPENDED',
-                    actorEmail: 'admin@fixture.test',
-                    entityType: 'Tenant',
+                    // `entity` and `user`, not `entityType` and `actorEmail`.
+                    // The table has an Entity column and derives its Actor
+                    // column from `user.email ?? userEmail`, so the fixture's
+                    // own spellings rendered a blank cell and an em dash.
+                    entity: 'Tenant',
                     entityId: 't-0001',
+                    user: { email: 'admin@fixture.test' },
+                    changes: { isActive: { from: true, to: false } },
                     createdAt: '2026-01-10T08:30:00.000Z',
                 },
             ],
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'subscriptions',
         load: () => import('../../src/pages-standard/SubscriptionsPage.vue'),
         props: () => ({
@@ -119,48 +234,39 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 },
             ],
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'dashboard',
         load: () => import('../../src/pages-standard/DashboardPage.vue'),
         props: ({ http }) => ({ http }),
-    },
-    {
+    }),
+    visualCase({
         id: 'discovery',
         load: () => import('../../src/pages-standard/DiscoveryPage.vue'),
         // Fully prop-driven: this page receives data, it does not fetch.
-        //
-        // Still empty, and knowingly so. This page records a baseline of empty
-        // states, exactly like `bundles` did — but its `capabilities`,
-        // `features` and `quotas` are CATALOG ROWS, not the snapshot's
-        // `Discovered*` shapes, so it needs its own fixture rather than the one
-        // next door. Filling it with the snapshot's arrays took the page down
-        // (it never reached `data-visual-ready`), and `props` is typed
-        // `Record<string, unknown>`, so `pnpm typecheck` said nothing — which
-        // is the same hole that let this case ship with six missing required
-        // props. Both belong in the follow-up, together.
-        props: () => ({
-            snapshot: null,
-            capabilities: [],
-            features: [],
-            quotas: [],
-            loading: false,
-            error: null,
-            activeLocales: ['en'],
-            runDiscovery: async () => {},
-            // Six required props this case never supplied. The page rendered
-            // anyway — Vue warns and passes `undefined` — so every review
-            // dialog and every save button under this baseline was wired to
-            // nothing, for as long as the case has existed.
-            reviewFeature: async () => ({}),
-            reviewQuota: async () => ({}),
-            setFeatureI18n: async () => ({}),
-            setQuotaI18n: async () => ({}),
-            setFeatureBase: async () => ({}),
-            setQuotaBase: async () => ({}),
-        }),
-    },
-    {
+        props: discoveryProps,
+        // Opens the first feature card. `DiscoveryFeatureCard` moved to
+        // `AdminAccordion` in 0.25.0 and no test had ever rendered one, open or
+        // closed; the body behind this click is the master-data subtab with the
+        // read-only capability list.
+        revealBy: ['.sa-fc .sa-accordion__trigger'],
+    }),
+    visualCase({
+        // The same page on its other tab, for the same reason `marketing-
+        // catalog-admin` is its own case: `q-tab-panels` mounts one panel, so
+        // one case can cover the feature cards or the quota cards, never both.
+        // `DiscoveryQuotaCard` is the second of the two accordion migrations
+        // and had no baseline at all.
+        id: 'discovery-quotas',
+        load: () => import('../../src/pages-standard/DiscoveryPage.vue'),
+        props: discoveryProps,
+        // Ordered: the tab mounts the quota list, the trigger opens the first
+        // card. The quota card has no subtabs, so its body IS the shared
+        // translation panel — the one surface the feature case cannot reach
+        // without losing its capability list.
+        revealBy: ['.sa-discovery__tabs .q-tab:nth-child(2)', '.sa-qc .sa-accordion__trigger'],
+    }),
+    visualCase({
         id: 'plans',
         load: () => import('../../src/pages-standard/PlansPage.vue'),
         props: ({ http, adminBase }) => ({
@@ -168,21 +274,21 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             projectKey: 'fixture',
             http,
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'login',
         load: () => import('../../src/pages-standard/SuperAdminLoginPage.vue'),
-    },
-    {
+    }),
+    visualCase({
         id: 'manifest-error',
         load: () => import('../../src/pages-standard/AdminManifestErrorPage.vue'),
         props: () => ({ errorMessage: 'Manifest endpoint responded with HTTP 500' }),
-    },
-    {
+    }),
+    visualCase({
         id: 'setup-wizard',
         load: () => import('../../src/pages-standard/SuperAdminSetupWizard.vue'),
-    },
-    {
+    }),
+    visualCase({
         id: 'users',
         load: () => import('../../src/pages-standard/UsersPage.vue'),
         props: () => ({
@@ -200,8 +306,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 },
             ],
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'promo-codes',
         load: () => import('../../src/pages-standard/PromoCodesPage.vue'),
         props: () => ({
@@ -222,8 +328,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 },
             ],
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'pilots',
         load: () => import('../../src/pages-standard/PilotsPage.vue'),
         props: () => ({
@@ -239,8 +345,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 },
             ],
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'tenant-detail',
         load: () => import('../../src/pages-standard/TenantDetailPage.vue'),
         props: () => ({
@@ -265,8 +371,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 users: [],
             }),
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'promo-code-detail',
         load: () => import('../../src/pages-standard/PromoCodeDetailPage.vue'),
         props: () => ({
@@ -296,12 +402,12 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 redemptions: [],
             }),
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'email-history',
         load: () => import('../../src/pages-standard/EmailHistoryPage.vue'),
         props: () => ({
-            loadEmails: async () => ({
+            loadEmails: async (): Promise<EmailHistoryListResult> => ({
                 rows: [
                     {
                         id: 'e-1',
@@ -315,7 +421,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 ],
                 total: 1,
             }),
-            loadEmailDetail: async () => ({
+            loadEmailDetail: async (): Promise<EmailHistoryDetail> => ({
                 id: 'e-1',
                 fromEmail: 'noreply@fixture.test',
                 toEmail: 'admin@fixture.test',
@@ -332,8 +438,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // `loadEmailDetail` never runs and the dialog, its preview frame and
         // its actions stay out of the snapshot.
         revealBy: ['tbody tr'],
-    },
-    {
+    }),
+    visualCase({
         id: 'platform-email',
         load: () => import('../../src/pages-standard/PlatformEmailPage.vue'),
         props: () => ({
@@ -360,10 +466,16 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             createProvider: async () => {},
             updateProvider: async () => {},
             deleteProvider: async () => {},
-            testProvider: async () => {},
+            // A RESULT, not `void`: the page renders the returned message in its
+            // test dialog, so a void stub is a button wired to nothing — the
+            // same shape as the six missing props on `discovery`.
+            testProvider: async (): Promise<PlatformEmailTestResult> => ({
+                success: true,
+                message: 'Test mail delivered to admin@fixture.test',
+            }),
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'marketing-catalog',
         load: () => import('../../src/pages-standard/MarketingCatalogPage.vue'),
         props: ({ http, adminBase }) => ({
@@ -376,8 +488,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             // controls missing entirely.
             availableLocales: ['en', 'de'],
         }),
-    },
-    {
+    }),
+    visualCase({
         // The same page on its other tab. Two cases rather than one with a
         // click, because the preview is what the page opens on and both halves
         // carry styles worth protecting — `MarketingCatalogAdmin` is only
@@ -399,8 +511,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // moved the surface to a 22 % accent tint and the `<em>` kept its own
         // colour. It is fixed; this is what stops it coming back.
         hoverBy: ['.sa-marketing-tf-chip'],
-    },
-    {
+    }),
+    visualCase({
         // 14 required props, ten of them functions — the page AP3 replaces.
         // Kept under baseline precisely because it is about to change the most.
         id: 'bundles',
@@ -421,14 +533,28 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             // a screen this suite could not reach.
             snapshot: FIXTURE_DISCOVERY,
             load: async () => {},
-            create: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
-            update: async () => ({ id: 'b-1', bundleKey: 'STARTER_PACK' }),
+            // The rows the page would get back, not a two-field sketch of them.
+            // `create`/`update` answer with a `BundleRow` and the mutations with
+            // `{ bundleVersion, warnings }` — the fixture's `{ version, warnings }`
+            // was a field name the page never reads, and `classifyDiff` returned
+            // a `kind` where the editor reads `nonRegressive`.
+            create: async (): Promise<BundleRow> => FIXTURE_BUNDLES[0],
+            update: async (): Promise<BundleRow> => FIXTURE_BUNDLES[0],
             softDelete: async () => {},
             loadVersions: async (): Promise<BundleVersionRow[]> => FIXTURE_BUNDLE_VERSIONS,
-            createDraft: async () => ({ version: {}, warnings: [] }),
-            updateDraft: async () => ({ version: {}, warnings: [] }),
-            publish: async () => ({ version: {}, warnings: [] }),
-            classifyDiff: () => ({ kind: 'NON_REGRESSIVE', changes: [] }),
+            createDraft: async (): Promise<BundleVersionMutationResult> => ({
+                bundleVersion: FIXTURE_BUNDLE_VERSIONS[0],
+                warnings: [],
+            }),
+            updateDraft: async (): Promise<BundleVersionMutationResult> => ({
+                bundleVersion: FIXTURE_BUNDLE_VERSIONS[0],
+                warnings: [],
+            }),
+            publish: async (): Promise<BundleVersionMutationResult> => ({
+                bundleVersion: FIXTURE_BUNDLE_VERSIONS[0],
+                warnings: [],
+            }),
+            classifyDiff: () => ({ changes: [], nonRegressive: true }),
         }),
         // Opens the bundle so its version controls and inline editor render.
         revealBy: ['.sa-bd-card__head'],
@@ -443,7 +569,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // foreground and a different key colour. That is this PR's own subject
         // one level in: a state the fixture renders and the check cannot reach.
         hoverBy: ['.bd-feature-pill.on', '.bd-feature-pill:not(.on)'],
-    },
+    }),
     // ── Tenant-facing. These render in the CONSUMER's app, not in the admin
     // shell, and nothing in this suite reached them before. Three defects in a
     // single review round had exactly that as their root cause — a state no
@@ -451,7 +577,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     // `currentPlanId` for the inverted "current plan" flag (1.48:1 in dark),
     // a pending version for the banner behind its `v-if`, and a dialog for the
     // teleported portal.
-    {
+    visualCase({
         id: 'tenant-plan',
         load: () => import('../../src/pages-tenant/TenantPlanSection.vue'),
         props: ({ http }) => ({
@@ -462,8 +588,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             quotaLabel: (key: string) => key,
             featureLabel: (key: string) => key,
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'tenant-bundles',
         load: () => import('../../src/pages-tenant/MySubscriptionBundlesPage.vue'),
         props: ({ http }) => ({
@@ -475,23 +601,24 @@ export const VISUAL_CASES: readonly VisualCase[] = [
                 'bv-2': { bundleKey: 'SUPPORT', label: 'Priority support' },
             },
         }),
-    },
-    {
+    }),
+    visualCase({
         id: 'tenant-plan-change',
         load: () => import('../../src/pages-tenant/PlanChangeWizard.vue'),
-        props: ({ http }) => ({
+        props: () => ({
             // Open from the start: the wizard is a dialog, so a closed one
             // renders nothing and the case would be a snapshot of an empty div.
             modelValue: true,
-            http,
-            apiPrefix: '/api/billing',
+            // No `http` and no `apiPrefix`: this wizard declares neither. It
+            // reaches the server through `previewPlanChange`/`changePlan`, so
+            // both were landing on the root element as stray attributes.
             plans: TENANT_CATALOG_PLANS,
             // The flag that reads "your current plan" is an INVERSION of the
             // card — a foreground role painted as a surface. It needs this
             // prop to render at all, and it measured 1.48:1 in dark.
             currentPlanId: 'pl-1',
             currentPlanName: 'Pro',
-            currentCycle: 'MONTHLY',
+            currentCycle: 'MONTHLY' as BillingCycleStr,
             currentStatus: 'TRIAL',
             trialEndsAt: '2026-02-01T00:00:00.000Z',
             catalogQuotaKeys: ['users', 'storage', 'projects'],
@@ -507,7 +634,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
             changePlan: async () => {},
             i18n: planChangeWizardI18n(defaultTenantPlanSectionI18n('en')),
         }),
-    },
+    }),
 ];
 
 export const VISUAL_CASE_IDS = VISUAL_CASES.map((c) => c.id);
