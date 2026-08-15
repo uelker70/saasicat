@@ -48,13 +48,27 @@ export function bindSaThemeToDocument(theme: SaTheme): WatchStopHandle {
     // the half-dark screen the bridge exists to prevent, arriving from the
     // other direction.
     //
-    // No loop: the write-back only fires when Quasar and the theme actually
-    // disagree, and setting the scheme drives `resolved` to the value Quasar
-    // already has, so the outbound watcher's `Dark.set` is a no-op.
+    // `Dark.mode` rather than `Dark.isActive`, because the mode has the three
+    // states the scheme has and the flag has two. `Dark.set('auto')` is
+    // Quasar's spelling of 'system', and read through the flag it arrives as
+    // whatever the machine happens to say at that moment — so an operator who
+    // picked 'system' had it silently frozen into a hard 'light' or 'dark' by
+    // an app doing nothing wrong, and the tab stopped following the OS. The
+    // seed in `createSuperAdminApp` reads the same option for the same reason.
+    //
+    // No loop: a boolean mode is only written back when Quasar and the theme
+    // actually disagree, and setting the scheme drives `resolved` to the value
+    // Quasar already has, so the outbound watcher's `Dark.set` is a no-op. The
+    // 'auto' branch settles the same way — `Dark.set(boolean)` leaves the mode
+    // agreeing with a 'system' that already resolves to it.
     const fromQuasar = watch(
-        () => Dark.isActive,
-        (isDark) => {
-            const asScheme = isDark ? 'dark' : 'light';
+        () => Dark.mode,
+        (mode) => {
+            if (mode === 'auto') {
+                theme.scheme.value = 'system';
+                return;
+            }
+            const asScheme = mode === true ? 'dark' : 'light';
             if (theme.resolved.value !== asScheme) theme.scheme.value = asScheme;
         },
     );

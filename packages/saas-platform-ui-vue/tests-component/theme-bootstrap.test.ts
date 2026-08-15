@@ -33,6 +33,11 @@ const Root = defineComponent({ render: () => h('div') });
  * jsdom ships no `matchMedia`, so without this the theme resolves 'system' to
  * light and the case that says "on a dark-preferring system" would pass for the
  * wrong reason — it is the whole condition of the finding.
+ *
+ * Both subscription spellings, because the two readers of this query disagree
+ * about which one to use: the composable calls `addEventListener`, Quasar's
+ * `Dark.set('auto')` still calls the deprecated `addListener`. A stub with only
+ * one of them turns "Quasar follows the machine" into a TypeError.
  */
 function prefersDark() {
     const original = Object.getOwnPropertyDescriptor(window, 'matchMedia');
@@ -42,6 +47,8 @@ function prefersDark() {
             matches: query.includes('dark'),
             addEventListener: () => {},
             removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
         }),
     });
     return () => {
@@ -171,6 +178,61 @@ describe('the bootstrap and an already-chosen theme', () => {
         expect(handle.theme.resolved.value).toBe('dark');
         expect(Dark.isActive, 'the write-back bounced Quasar straight off again').toBe(true);
         handle.dispose();
+    });
+
+    test("a 'system' pick survives the bridge's own round trip", async () => {
+        // The switcher writes 'system' and the bridge immediately writes what
+        // it resolves to into Quasar, which the write-back then reads. If that
+        // return leg compared anything other than `resolved`, the standing
+        // instruction "follow the machine" would collapse into whatever the
+        // machine said at that instant — and the tab would stop following it.
+        //
+        // Both machines, because the collapse is only visible on the one where
+        // 'system' and the previous pick disagree.
+        for (const dark of [true, false]) {
+            const restore = dark ? prefersDark() : () => {};
+            try {
+                const handle = bootstrap({ theme: { scheme: 'light', persist: false } });
+
+                handle.theme.scheme.value = 'system';
+                await nextTick();
+                await nextTick();
+
+                expect(handle.theme.scheme.value, `on a ${dark ? 'dark' : 'light'} machine`).toBe(
+                    'system',
+                );
+                expect(handle.theme.resolved.value).toBe(dark ? 'dark' : 'light');
+                expect(Dark.isActive).toBe(dark);
+                handle.dispose();
+            } finally {
+                restore();
+            }
+        }
+    });
+
+    test("Quasar's 'auto' comes back as 'system', not as a frozen value", async () => {
+        // `$q.dark.set('auto')` says exactly what 'system' says. Read through
+        // `Dark.isActive` it arrives as one boolean, so an app that offers its
+        // own "follow the system" switch used to overwrite the operator's
+        // 'system' with a hard scheme — and the tab stopped following the OS
+        // from that moment on, in the one case where nothing looked wrong.
+        const restore = prefersDark();
+        try {
+            const handle = bootstrap({ theme: { scheme: 'light', persist: false } });
+
+            Dark.set('auto');
+            await nextTick();
+            await nextTick();
+
+            expect(handle.theme.scheme.value, 'the bridge froze the machine preference').toBe(
+                'system',
+            );
+            expect(handle.theme.resolved.value).toBe('dark');
+            expect(document.documentElement.getAttribute('data-sa-theme')).toBe('dark');
+            handle.dispose();
+        } finally {
+            restore();
+        }
     });
 
     test('dispose() stops the bridge writing to the document', async () => {

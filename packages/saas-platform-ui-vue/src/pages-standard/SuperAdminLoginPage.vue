@@ -19,6 +19,7 @@
                     <div class="sa-login-brand__tag">{{ tagText }}</div>
                 </div>
                 <LocaleSwitcher class="sa-login-locale" />
+                <ThemeSwitcher class="sa-login-theme" />
             </div>
 
             <h1 class="sa-login-title">{{ msg.login.signIn }}</h1>
@@ -101,6 +102,7 @@ import { getJson } from '../client/http-json.js';
 import { isProductionBoot, resolveLoginBranding } from '../client/login-branding.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import LocaleSwitcher from '../components/LocaleSwitcher.vue';
+import ThemeSwitcher from '../components/ThemeSwitcher.vue';
 import SuperAdminSetupWizard from './SuperAdminSetupWizard.vue';
 
 interface Props {
@@ -194,12 +196,17 @@ async function handleSubmit(): Promise<void> {
 </script>
 
 <style scoped>
-.sa-login-locale {
+.sa-login-locale,
+.sa-login-theme {
     /* In the card's flow rather than floating over it: a fixed overlay lands
        on top of the centered card on short viewports. */
-    margin-left: auto;
     align-self: flex-start;
     color: var(--sa-login-tag-color, var(--sa-color-fg-secondary));
+}
+/* One `auto` on the first of the pair moves both — a second would put the gap
+   between them at the mercy of the card width instead of the row's own. */
+.sa-login-locale {
+    margin-left: auto;
 }
 .sa-login-wrap {
     min-height: 100vh;

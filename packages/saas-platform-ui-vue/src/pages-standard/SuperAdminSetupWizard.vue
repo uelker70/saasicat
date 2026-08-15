@@ -8,6 +8,7 @@
                     <div class="sa-setup-sub">{{ subtitleText }}</div>
                 </div>
                 <LocaleSwitcher class="sa-setup-locale" />
+                <ThemeSwitcher class="sa-setup-theme" />
             </div>
 
             <q-banner v-if="errorMessage" class="sa-setup-error" rounded>
@@ -162,6 +163,7 @@ import { HttpJsonError, postJson as httpPostJson } from '../client/http-json.js'
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import LocaleSwitcher from '../components/LocaleSwitcher.vue';
+import ThemeSwitcher from '../components/ThemeSwitcher.vue';
 
 interface Props {
     /** Display name + badge abbreviation (override the app branding, e.g. from PublicBoot). */
@@ -297,10 +299,14 @@ async function submitConfirm(): Promise<void> {
     gap: 12px;
     margin-bottom: 20px;
 }
-.sa-setup-locale {
-    margin-left: auto;
+.sa-setup-locale,
+.sa-setup-theme {
     align-self: flex-start;
     color: var(--sa-color-fg-secondary);
+}
+/* One `auto` on the first of the pair moves both. */
+.sa-setup-locale {
+    margin-left: auto;
 }
 .sa-setup-badge {
     width: 44px;

@@ -123,7 +123,9 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * Optional: colour scheme. Default follows the operating system and
      * remembers an explicit pick. The context is returned on the handle
      * (`handle.theme`) — set `handle.theme.scheme.value = 'dark'` to switch at
-     * runtime, and read it anywhere via `useSaTheme()`.
+     * runtime, and read it anywhere via `useSaTheme()`. The shell chrome
+     * renders a three-way switcher for it; `theme: { switcher: false }` drops
+     * it, as `i18n: { switcher: false }` drops the language one.
      *
      * Whatever it resolves to is mirrored onto `<html data-sa-theme>` AND into
      * Quasar's `Dark`, so the platform's surfaces and Quasar's own components
