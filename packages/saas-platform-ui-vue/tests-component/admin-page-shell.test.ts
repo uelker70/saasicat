@@ -122,6 +122,18 @@ function templateOf(source: string): string {
     return stripComments(source.slice(start, end));
 }
 
+/**
+ * The other half of the file — both blocks of a `<script setup>` plus
+ * `<script>` pair, joined. The blocks are cut out rather than taken as
+ * everything after the first `<script`, so a `<style>` sheet and a template
+ * that follows the script stay out of what is read as code.
+ */
+function scriptOf(source: string): string {
+    return [...source.matchAll(/<script[^>]*>([\s\S]*?)<\/script[^>]*>/gi)]
+        .map((block) => block[1]!)
+        .join('\n');
+}
+
 describe('AdminHero', () => {
     test('renders the title as the page heading', () => {
         const wrapper = mountWithQuasar(AdminHero, { props: { title: 'Plans & versions' } });
@@ -477,6 +489,14 @@ describe('page shell contract', () => {
         //      disclosure: `step = 'done'` beside `v-else-if="step === 'done'"`
         //      is a wizard advancing, and a rule that could not tell those
         //      apart would spend its life being suppressed.
+        //
+        //      The flip counts wherever it is written — in the attribute, or
+        //      in the body of the function the attribute names. Those are the
+        //      same disclosure and the same missing keyboard, and reading only
+        //      the attribute would have made `toggleExpanded(p.id)` the way to
+        //      write one this test cannot see. Nothing about a hand-rolled
+        //      disclosure should turn on which of the two a file happens to
+        //      pick.
         //   2. A control that says out loud that it is one — a hand-written
         //      `aria-expanded`, or a native `<details>`. Neither is a defect in
         //      itself; both mean this view decided to implement a disclosure,
@@ -510,9 +530,117 @@ describe('page shell contract', () => {
             return found.sort();
         };
 
+        /** Index just past the bracket group that opens at `at`. */
+        const pastGroup = (text: string, at: number, open: string, close: string): number => {
+            let depth = 0;
+            for (let i = at; i < text.length; i++) {
+                if (text[i] === open) depth++;
+                else if (text[i] === close && --depth === 0) return i + 1;
+            }
+            return text.length;
+        };
+
+        /** Index of the next character that is not whitespace. */
+        const nextNonSpace = (text: string, at: number): number => {
+            let i = at;
+            while (i < text.length && /\s/.test(text[i]!)) i++;
+            return i;
+        };
+
+        /** The block that opens at `at`, or the single expression that starts there. */
+        const regionAt = (text: string, at: number): string => {
+            if (text[at] === '{') return text.slice(at, pastGroup(text, at, '{', '}'));
+            // An arrow whose body is an expression: `() => (open = !open)`.
+            let depth = 0;
+            for (let i = at; i < text.length; i++) {
+                const character = text[i]!;
+                if ('([{'.includes(character)) depth++;
+                else if (')]}'.includes(character)) depth--;
+                else if (depth === 0 && (character === ';' || character === '\n')) {
+                    return text.slice(at, i);
+                }
+            }
+            return text.slice(at);
+        };
+
+        /**
+         * The body of a function this file declares, so that naming the flip
+         * hides it no better than writing it into the attribute. Between
+         * `@click="expandedId = expandedId === p.id ? null : p.id"` and
+         * `@click="toggleExpanded(p.id)"` there is a name and nothing else —
+         * same click, same body, same missing keyboard.
+         *
+         * One level deep on purpose. A click that calls a function that calls
+         * a function no longer describes what the click does, and the
+         * condition this rule pairs it with is loose enough that ordinary page
+         * state would start matching: `draftEditing` on the plans page is
+         * merged into itself deep in a save path and read by a `v-if` at the
+         * top of the same template, and it is a wizard step, not a disclosure.
+         *
+         * The braces are found by scanning rather than by the first `{` after
+         * the name: a parameter list (`opts: { id: string }`) and a return
+         * type (`): { value: string } {`) each bring one along, and this
+         * package writes both.
+         */
+        const handlerBody = (script: string, name: string): string => {
+            const declaration = new RegExp(
+                // `function name(`, with or without `async`, or `const name =`
+                // — never `props.name =`. `=(?![=>])` keeps a comparison and an
+                // arrow out, exactly as in the attribute below.
+                String.raw`(?<![.\w$])(?:(?:async\s+)?function\s+${name}\s*\(` +
+                    String.raw`|(?:const|let|var)\s+${name}\s*=(?![=>]))`,
+            ).exec(script);
+            if (!declaration) return '';
+            let at = declaration.index + declaration[0].length;
+
+            if (declaration[0].endsWith('(')) {
+                // `at - 1` is that `(`: the match ends on it.
+                let opening = script.indexOf('{', pastGroup(script, at - 1, '(', ')'));
+                // A return type's braces are followed by the block they
+                // annotate; a body's are not.
+                while (opening !== -1) {
+                    const past = pastGroup(script, opening, '{', '}');
+                    if (script[nextNonSpace(script, past)] !== '{') break;
+                    opening = script.indexOf('{', past);
+                }
+                return opening === -1 ? '' : regionAt(script, opening);
+            }
+
+            // `const name = …`: the arrow, if this declaration has one, and
+            // then whatever follows it. The search for it ends with the
+            // statement, or `const emit = defineEmits<…>()` would adopt the
+            // body of the next arrow function anywhere below it.
+            at = nextNonSpace(script, at);
+            if (script.startsWith('async', at)) at = nextNonSpace(script, at + 'async'.length);
+            if (script[at] === '(') at = pastGroup(script, at, '(', ')');
+            for (; at < script.length; at++) {
+                const character = script[at]!;
+                if (character === ';' || character === '\n') return '';
+                if (character === '=' && script[at + 1] === '>') break;
+            }
+            const body = nextNonSpace(script, at + 2);
+            return body < script.length ? regionAt(script, body) : '';
+        };
+
+        /**
+         * Everywhere a click can write the flip: the attribute, and the body
+         * of every function the attribute names — `@click="close"` and
+         * `@click="openDetail(row)"` alike, but not `row.close()`, which is
+         * not this file's to look into.
+         */
+        const clickRegions = (script: string, attribute: string): string[] => {
+            const named = [...attribute.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g)].map(
+                (m) => m[1]!,
+            );
+            const bare = /^\s*([A-Za-z_$][\w$]*)\s*$/.exec(attribute)?.[1];
+            if (bare) named.push(bare);
+            return [attribute, ...named.map((name) => handlerBody(script, name))];
+        };
+
         /** What makes this file a disclosure of its own, if anything does. */
         const ownDisclosures = (source: string): string[] => {
             const template = templateOf(source);
+            const script = scriptOf(source);
             const findings: string[] = [];
 
             const conditions = [...template.matchAll(/\sv-(?:if|else-if|show)="([^"]*)"/g)].map(
@@ -521,16 +649,23 @@ describe('page shell contract', () => {
             for (const [tag] of template.matchAll(/<[A-Za-z][^>]*?>/g)) {
                 const handler = /@click(?:\.\w+)*="([^"]*)"/.exec(tag);
                 if (!handler) continue;
-                // `=(?![=>])` so a comparison and an arrow function are not read
-                // as assignments.
-                const assignment = /([A-Za-z_$][\w$]*)(?:\.[\w$]+)*\s*=(?![=>])\s*(.+)/.exec(
-                    handler[1]!,
-                );
-                if (!assignment) continue;
-                const name = assignment[1]!;
-                const reads = new RegExp(`\\b${name}\\b`);
-                if (!reads.test(assignment[2]!)) continue;
-                if (conditions.some((c) => reads.test(c))) findings.push(`toggles \`${name}\``);
+                for (const region of clickRegions(script, handler[1]!)) {
+                    // `=(?![=>])` so a comparison and an arrow function are not
+                    // read as assignments. Every assignment in the region, not
+                    // the first: a function body holds several statements, and
+                    // the flip is rarely the one at the top.
+                    const assignments = region.matchAll(
+                        /([A-Za-z_$][\w$]*)(?:\.[\w$]+)*\s*=(?![=>])\s*(.+)/g,
+                    );
+                    for (const assignment of assignments) {
+                        const name = assignment[1]!;
+                        const reads = new RegExp(`\\b${name}\\b`);
+                        if (!reads.test(assignment[2]!)) continue;
+                        if (conditions.some((c) => reads.test(c))) {
+                            findings.push(`toggles \`${name}\``);
+                        }
+                    }
+                }
             }
 
             if (/\baria-expanded\b/.test(template)) findings.push('writes `aria-expanded`');
