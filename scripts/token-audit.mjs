@@ -279,14 +279,19 @@ const NAMED_COLOUR_WORDS = [
  * then `border-block` and `scrollbar-color` — and CSS keeps adding more, so
  * every round of review found another and every fix was one property wide.
  *
- * A colour keyword in a declaration VALUE is a colour, with these exceptions,
- * and this list is closed in a way the other one never was: `grid-area: red`
- * names a template area, `font-family: Linen` names a typeface, and
- * `animation: gold-pulse` names a keyframe set. Nothing here is about paint.
+ * A colour keyword in a declaration VALUE is a colour, except where the
+ * property's grammar accepts an AUTHOR-CHOSEN IDENTIFIER: `grid-area: red`
+ * names a template area, `font-family: Linen` a typeface, `animation: gold` a
+ * keyframe set, `list-style-type: red` a counter style the author defined.
+ * That criterion is what the list is derived from, and it is the thing to
+ * apply when CSS adds another — the list itself is not closed, and an earlier
+ * version of this comment claimed it was.
  *
- * `(?<![\w-])`/`(?![\w-])` already carry most of the weight — `red` inside
- * `red-pulse` or `--sa-red-500` cannot match — so what remains is the handful
- * of properties whose value is a bare author-chosen name.
+ * It stays short because `(?<![\w-])`/`(?![\w-])` carry most of the weight:
+ * `red` inside `red-pulse` or `--sa-red-500` cannot match, so only a value
+ * that is a BARE chosen name reaches here. Custom properties are deliberately
+ * absent — `--brand: red` in a component is a literal, and catching it is the
+ * point.
  */
 const NON_PAINT_PROPERTIES = new Set([
     'anchor-name',
@@ -300,6 +305,7 @@ const NON_PAINT_PROPERTIES = new Set([
     'counter-set',
     'font',
     'font-family',
+    'font-palette',
     'grid-area',
     'grid-column',
     'grid-column-end',
@@ -308,11 +314,18 @@ const NON_PAINT_PROPERTIES = new Set([
     'grid-row-end',
     'grid-row-start',
     'grid-template-areas',
+    'list-style',
+    'list-style-type',
     'page',
     'position-anchor',
     'quotes',
+    'scroll-timeline',
+    'scroll-timeline-name',
+    'timeline-scope',
     'transition',
     'transition-property',
+    'view-timeline',
+    'view-timeline-name',
     'view-transition-name',
     'will-change',
 ]);
@@ -810,7 +823,16 @@ export function audit() {
             // why `#f59e0b` may not be written was a hard-coded colour.
             // Blanked rather than stripped: `lineOf` is an offset into the
             // original text.
-            const text = withCommentsBlanked(block.text);
+            //
+            // A `url()` goes the same way, and for the same reason the template
+            // pass blanks it: `background-image: url("/assets/red.svg")` is an
+            // address. That the two passes disagreed about this was an
+            // asymmetry introduced here, not an oversight inherited — the
+            // template half learned it first and this half did not, which is
+            // how a clean stylesheet would have been REJECTED by a zero floor.
+            const text = withCommentsBlanked(block.text).replace(URL_FRAGMENT, (m) =>
+                ' '.repeat(m.length),
+            );
             for (const [category, pattern] of Object.entries(CATEGORIES)) {
                 if (category === 'selfReferencingVar') continue;
                 for (const match of text.matchAll(pattern)) {

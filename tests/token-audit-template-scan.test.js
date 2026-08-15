@@ -269,11 +269,31 @@ describe('everything else a # means in a template stays silent', () => {
     });
 
     test('a colour WORD where the property names something', () => {
-        // The other side of the inversion, and the reason the old list existed:
-        // these are identifiers an author chose, not paint.
+        // The other side of the inversion, and the criterion the exception list
+        // is derived from: the property's grammar accepts an author-chosen
+        // IDENTIFIER, so the word is a name rather than paint. `list-style-type`
+        // is the one review added — a counter style the author defined — and it
+        // is why the comment on that list no longer claims to be closed.
         assert.deepEqual(values('<i style="grid-area: red" />'), []);
         assert.deepEqual(values(`<i style="font-family: Linen, sans-serif" />`), []);
         assert.deepEqual(values('<i style="animation: gold 1s" />'), []);
+        assert.deepEqual(values('<i style="list-style-type: red" />'), []);
+        assert.deepEqual(values('<i style="list-style: red inside" />'), []);
+    });
+
+    test('a custom property holding a literal is NOT excused', () => {
+        // Deliberately absent from that list: `--brand: red` in a component is
+        // a literal with no role behind it, and catching it is the point.
+        assert.deepEqual(values('<i style="--brand: red" />'), ['red']);
+    });
+
+    test('an asset URL that spells a colour is an address', () => {
+        // The stylesheet pass and this one share `URL_FRAGMENT`, and for two
+        // commits they did not: this half blanked `url()` and the other did
+        // not, so `background-image: url("/assets/red.svg")` would have been
+        // reported there. Counter-checked against the unblanked pattern, which
+        // returns the whole URL as a finding.
+        assert.deepEqual(values('<i style="background-image: url(\'/assets/red.svg\')" />'), []);
     });
 
     test('a hyphenated identifier that begins with a colour name', () => {
