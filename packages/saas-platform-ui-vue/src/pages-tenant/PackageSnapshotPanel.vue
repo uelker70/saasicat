@@ -95,16 +95,20 @@
                     color="primary"
                     :label="showRaw ? i18n.packageSnapshotHideRaw : i18n.packageSnapshotShowRaw"
                     :icon="showRaw ? 'expand_less' : 'expand_more'"
+                    :aria-expanded="showRaw"
+                    :aria-controls="rawId"
                     @click="showRaw = !showRaw"
                 />
-                <pre v-if="showRaw" class="sp-package-snapshot__raw-body">{{ rawJson }}</pre>
+                <pre v-if="showRaw" :id="rawId" class="sp-package-snapshot__raw-body">{{
+                    rawJson
+                }}</pre>
             </div>
         </q-card-section>
     </q-card>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, useId } from 'vue';
 import type { PackageSnapshotShape } from '../vue/use-tenant-billing.js';
 import type { TenantPlanSectionI18n } from './default-i18n.js';
 
@@ -125,7 +129,31 @@ interface Props {
 
 const props = defineProps<Props>();
 
+// sa-disclosure-exempt: a tenant-facing raw payload toggle, in a directory that is leaving
+//
+// The package has one disclosure, `AdminAccordion`, and every surface inside
+// the admin uses it. This one is outside the admin twice over.
+//
+// It is outside by AUDIENCE: `pages-tenant/*` renders inside the customer's own
+// application, for the paying tenant rather than the operator, and is planned
+// to ship as its own package with its own translations. Reaching into the
+// admin's component layer from here adds a dependency that the split would
+// have to unpick, for a card that is already built from Quasar's own.
+//
+// It is outside by SHAPE: `AdminAccordion` is a row in a list whose header
+// opens its body — the design guide calls the pattern "rows that open". This is
+// a `q-card` with a `<pre>` of raw JSON behind a link-styled button at its foot,
+// and wrapping that in an accordion card would seat a bordered card inside a
+// bordered card to say "this opens".
+//
+// What it does take from the shared one is the half that is not layout. A
+// `q-btn` was already a real `<button>` with a label — the accessibility gap
+// here was never the keyboard, only that nothing said the button expands
+// something or what it expands. `role="region"` is deliberately not copied: the
+// accordion's body is named by a trigger that carries the row's title, and this
+// trigger's name is "Show raw JSON".
 const showRaw = ref(false);
+const rawId = useId();
 
 const capturedAtIso = computed(() => {
     if (!props.snapshot) return null;

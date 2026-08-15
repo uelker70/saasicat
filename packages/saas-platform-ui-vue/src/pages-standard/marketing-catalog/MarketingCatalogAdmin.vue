@@ -132,11 +132,9 @@
                             v-if="row.liveVersion"
                             type="button"
                             class="sa-marketing-expand-btn"
-                            :title="
-                                expandedKey === row.plan.planKey
-                                    ? common.close
-                                    : msg.admin.expandTitle
-                            "
+                            :title="msg.admin.expandTitle"
+                            :aria-expanded="expandedKey === row.plan.planKey"
+                            :aria-controls="panelId(row)"
                             @click="$emit('toggle-expand', row)"
                         >
                             <span
@@ -158,7 +156,11 @@
                     </div>
                 </div>
 
-                <div v-if="expandedKey === row.plan.planKey" class="sa-marketing-admin-expand">
+                <div
+                    v-if="expandedKey === row.plan.planKey"
+                    :id="panelId(row)"
+                    class="sa-marketing-admin-expand"
+                >
                     <div class="sa-marketing-expand-grid">
                         <div class="sa-marketing-expand-col">
                             <div class="sa-marketing-expand-sec">
@@ -457,6 +459,7 @@
 </template>
 
 <script setup lang="ts">
+import { useId } from 'vue';
 import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/types';
 import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
@@ -494,6 +497,40 @@ defineEmits<{
 
 const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
+
+// sa-disclosure-exempt: this row is six grid cells, not a header that opens a body
+//
+// Every other disclosure in the package is an `AdminAccordion`. This one cannot
+// be, and the obstacle is structural rather than a matter of taste.
+//
+// The rows here are `display: contents` inside a six-column grid, and the open
+// editor is a sibling at `grid-column: 1 / -1` (both declared in
+// `MarketingCatalogPage.vue`). A self-contained wrapper around either would put
+// a box between the grid and its cells, and the columns would stop lining up.
+// A wrapper-less `AdminAccordion` variant would not rescue it either: the
+// component's recipe is a trigger that FILLS the header, and this header is six
+// cells carrying two checkboxes and two text inputs — interactive content
+// nested in a `<button>` is not valid HTML. What would be left of the component
+// after removing its wrapper, its full-width trigger, its badge and its body
+// padding is a second component wearing the first one's name.
+//
+// So the disclosure stays here, and what it takes from the shared one is the
+// part that has nothing to do with layout: the WAI-ARIA disclosure pattern —
+// a `<button>` (it already was one) that says whether it is expanded and which
+// element it controls. Not the `role="region"` half of `AdminAccordion`'s body:
+// its trigger is named by the row it opens, whereas this one is a bare chevron,
+// and a screenful of regions all named "Edit teaser, trial & top features"
+// would be worse than none.
+//
+// The title no longer flips to "Close" when open. `aria-expanded` says that
+// now, and a control whose NAME changes with its state is announced as a
+// different control each time.
+const uid = useId();
+
+/** The panel a row's chevron controls — unique per row, and per instance of this list. */
+function panelId(row: MarketingRow): string {
+    return `${uid}-marketing-panel-${row.plan.id}`;
+}
 
 /** Hint below the trial toggle — shows the auto CTA text for the set trial days. */
 function trialCtaHint(row: MarketingRow): string {

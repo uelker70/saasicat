@@ -96,6 +96,32 @@ somewhere before it was a rule:
   the one row whose state the badge itself should report; it moves the colour
   and nothing else, which is what keeps it the same badge.
 
+`tests-component/admin-page-shell.test.ts` keeps the package at one disclosure:
+it reads every `.vue` under `src` for a click that flips a value the same
+template renders a body on, and for a view that declares itself a disclosure
+control with a hand-written `aria-expanded` or a native `<details>`.
+
+Three surfaces are deliberately not `AdminAccordion`, and each says why in its
+own source rather than in a list here. The test finds those notes, and fails
+just as loudly on a note left behind after its surface was migrated:
+
+- **`marketing-catalog/MarketingCatalogAdmin.vue`** — its rows are
+  `display: contents` cells of a six-column grid and the open editor spans
+  `1 / -1`, so a self-contained wrapper would stop the columns lining up. The
+  header is also six cells carrying checkboxes and text inputs, which cannot sit
+  inside a `<button>`.
+- **`pages-tenant/PackageSnapshotPanel.vue`** — tenant-facing rather than admin,
+  in a directory planned to ship as its own package, and a raw-JSON toggle at
+  the foot of a `q-card` is not a row in a list.
+- **`pages-standard/SuperAdminSetupWizard.vue`** — a native `<details>`, already
+  keyboard-operable and already announced. The screen is a centred first-run
+  card outside `AdminLayout`, and the body it opens is one line of text.
+
+The first two still take the half of the recipe that is not layout: a `<button>`
+that reports `aria-expanded` and names the element it controls. `role="region"`
+is the part they leave — the accordion's body is named by a trigger carrying the
+row's title, and a bare chevron makes a poor name for a landmark.
+
 **A screen that cannot use `AdminPage`** — a login, a first-run wizard, a
 fail-closed error page, anything full-viewport with a frame of its own — still
 puts `.sa-page` on its root, next to its own root class. That class is not

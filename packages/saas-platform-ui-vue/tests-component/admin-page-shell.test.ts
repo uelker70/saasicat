@@ -451,4 +451,126 @@ describe('page shell contract', () => {
 
         expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
     });
+
+    test('no view writes its own disclosure instead of using AdminAccordion', () => {
+        // The same story as rule 14 one component over. Eight surfaces opened a
+        // body from a header and agreed on nothing measurable: three header
+        // paddings, three body paddings, two radii, two colours for the open
+        // border, two transition durations, and hover feedback on one of six
+        // although five set `cursor: pointer`. Four of them were a `<div>` with
+        // a click handler — no `tabindex`, no keyboard, nothing an assistive
+        // technology could announce as a control.
+        //
+        // Rule 19 above is why this one is not written as a list of class
+        // names. It looks for `section-head|card-title|panel-title`, and every
+        // accordion header in the package walked straight past it, because none
+        // of the eight happened to pick one of those three words. A guard that
+        // enumerates the shapes it has already seen only ever catches those.
+        //
+        // So this asks what a disclosure IS, in two forms the source can be
+        // read for:
+        //
+        //   1. A click that flips a value the template also renders a body on.
+        //      The mechanical definition of "open this" — an assignment whose
+        //      right-hand side reads the same name it writes, next to a `v-if`
+        //      or `v-show` on that name. Assigning a CONSTANT is not a
+        //      disclosure: `step = 'done'` beside `v-else-if="step === 'done'"`
+        //      is a wizard advancing, and a rule that could not tell those
+        //      apart would spend its life being suppressed.
+        //   2. A control that says out loud that it is one — a hand-written
+        //      `aria-expanded`, or a native `<details>`. Neither is a defect in
+        //      itself; both mean this view decided to implement a disclosure,
+        //      and that decision belongs to `AdminAccordion` unless there is a
+        //      reason it cannot.
+        //
+        // Where there is such a reason, it goes in the file that carries the
+        // surface, marked so this test can find it. Not a list of file names
+        // here: a name in a test says which files are allowed, the marker says
+        // WHY this one is — and it sits where the next person to touch the
+        // surface will read it. The second half of the test then holds the
+        // markers to their side of that bargain.
+        //
+        // Every `.vue` under src, with none of the shell's exemptions. A login
+        // screen sits outside `AdminLayout` and so writes its own `<h1>` and its
+        // own frame; none of that makes a hand-rolled disclosure on it any more
+        // operable by keyboard.
+        const ACCORDION = resolve(SRC_DIR, 'components/admin-page/AdminAccordion.vue');
+        const MARKER = /sa-disclosure-exempt:[ \t]*(.*)/;
+
+        const everyVueFile = (): string[] => {
+            const found: string[] = [];
+            const walk = (dir: string): void => {
+                for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                    const full = join(dir, entry.name);
+                    if (entry.isDirectory()) walk(full);
+                    else if (entry.name.endsWith('.vue')) found.push(full);
+                }
+            };
+            walk(SRC_DIR);
+            return found.sort();
+        };
+
+        /** What makes this file a disclosure of its own, if anything does. */
+        const ownDisclosures = (source: string): string[] => {
+            const template = templateOf(source);
+            const findings: string[] = [];
+
+            const conditions = [...template.matchAll(/\sv-(?:if|else-if|show)="([^"]*)"/g)].map(
+                (m) => m[1]!,
+            );
+            for (const [tag] of template.matchAll(/<[A-Za-z][^>]*?>/g)) {
+                const handler = /@click(?:\.\w+)*="([^"]*)"/.exec(tag);
+                if (!handler) continue;
+                // `=(?![=>])` so a comparison and an arrow function are not read
+                // as assignments.
+                const assignment = /([A-Za-z_$][\w$]*)(?:\.[\w$]+)*\s*=(?![=>])\s*(.+)/.exec(
+                    handler[1]!,
+                );
+                if (!assignment) continue;
+                const name = assignment[1]!;
+                const reads = new RegExp(`\\b${name}\\b`);
+                if (!reads.test(assignment[2]!)) continue;
+                if (conditions.some((c) => reads.test(c))) findings.push(`toggles \`${name}\``);
+            }
+
+            if (/\baria-expanded\b/.test(template)) findings.push('writes `aria-expanded`');
+            if (/<details[\s>]/.test(template)) findings.push('uses `<details>`');
+            return [...new Set(findings)];
+        };
+
+        const files = everyVueFile();
+        // The sweep reaches src at all. Without this both halves below pass by
+        // finding nothing, which is exactly how they would read if the cwd moved.
+        expect(files).toContain(ACCORDION);
+
+        const unexplained: string[] = [];
+        const stale: string[] = [];
+
+        for (const file of files) {
+            if (file === ACCORDION) continue;
+            const source = readFileSync(file, 'utf8');
+            const findings = ownDisclosures(source);
+            const marker = MARKER.exec(source);
+            const name = relative(SRC_DIR, file);
+
+            if (findings.length > 0 && !marker) {
+                unexplained.push(`${name}: ${findings.join(', ')}`);
+            }
+            // A marker with a word or two after it is a silencer; the point is
+            // that somebody had to write down a reason.
+            if (marker && marker[1]!.trim().split(/\s+/).length < 5) {
+                unexplained.push(`${name}: exempt without a reason`);
+            }
+            // The other direction, and the reason this test cannot go blind
+            // unnoticed: the exempt files are the detector's fixtures. If one is
+            // migrated the marker has to go, and if the detector stops seeing a
+            // disclosure it is still looking at, this says so.
+            if (marker && findings.length === 0) {
+                stale.push(`${name}: marked exempt, but nothing here is a disclosure any more`);
+            }
+        }
+
+        expect(unexplained).toEqual([]);
+        expect(stale).toEqual([]);
+    });
 });
