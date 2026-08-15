@@ -1,5 +1,11 @@
 # @saasicat/persistence-testing
 
+## 0.25.0
+
+### Patch Changes
+
+- @saasicat/types@0.25.0
+
 ## 0.24.2
 
 ### Patch Changes
