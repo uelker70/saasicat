@@ -66,9 +66,10 @@ import { useId } from 'vue';
 // rely on.
 //
 // The state is NOT owned here. Five of the eight take it from the page
-// (`openKey === row.id`), because opening one card while closing another is
-// tied to loading that card's data; a component that owned a boolean would
-// break exactly those. `v-model:open` keeps the page in charge.
+// (`openKey === row.id`), and in the bundle list opening one card while closing
+// another is tied to loading that bundle's versions — a component that owned a
+// boolean would break that. The other four simply hold the id, and lose nothing
+// by the arrangement. `v-model:open` keeps the page in charge either way.
 //
 // The body is `v-if`, which is what all seven JS implementations already did.
 // Uniform by accident until now; uniform on purpose from here.

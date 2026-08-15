@@ -100,9 +100,10 @@ describe('the page owns the state', () => {
         const wrapper = mount({ open: false });
         await wrapper.find('.sa-accordion__trigger').trigger('click');
         expect(wrapper.emitted('update:open')).toEqual([[true]]);
-        // Still closed: five of the eight surfaces tie opening one row to
-        // closing another and loading its data, so a component that flipped its
-        // own boolean would fight them.
+        // Still closed: the bundle list ties opening one row to closing another
+        // and loading that bundle's versions, so a component that flipped its
+        // own boolean would fight it. Four more take the state from outside
+        // without that coupling, and lose nothing by the arrangement.
         expect(wrapper.find('.sa-accordion__body').exists()).toBe(false);
     });
 
