@@ -132,7 +132,33 @@ function splitTopLevel(text) {
 const GRADIENT = /^(?:repeating-)?(?:linear|radial|conic)-gradient\(([\s\S]*)\)$/;
 
 /**
- * Every opaque colour a text can end up sitting on, given a `background` value.
+ * Whether a gradient argument is a parameter rather than a colour stop.
+ *
+ * A gradient's argument list mixes the two: `90deg`, `to bottom right`,
+ * `in oklab longer hue`, `circle closest-side at 50% 50%`, `from 45deg` and the
+ * bare `50%` interpolation hint are not colours, and everything else in the
+ * list is. Telling them apart on syntax is the whole point — the earlier
+ * version told them apart by handing each to the resolver and dropping whatever
+ * came back empty, which made a stop whose token was renamed indistinguishable
+ * from a direction. That is the silence this file exists to remove, reproduced
+ * one level down.
+ *
+ * This half is the safer half to enumerate: the CSS grammar keeps the set of
+ * gradient parameters closed, while the set of colour syntaxes grows with every
+ * colour level. And it errs in the direction that gets looked at — a parameter
+ * mistaken for a stop is reported as unresolvable and someone reads it, whereas
+ * a stop mistaken for a parameter says nothing at all.
+ */
+const isGradientParameter = (argument) =>
+    // An angle, a length, a percentage or a position. No colour starts this way.
+    /^[-+.\d]/.test(argument) ||
+    /^(?:to|in|at|from|circle|ellipse|closest-side|closest-corner|farthest-side|farthest-corner)\b/i.test(
+        argument,
+    );
+
+/**
+ * Every colour a text can end up sitting on, given a `background` value — one
+ * entry per stop, with `rgba: null` for a stop that could not be read.
  *
  * A gradient is not one background but several, and until now it was none: the
  * pattern here demanded a value starting with `var(--sa-`, so
@@ -146,6 +172,14 @@ const GRADIENT = /^(?:repeating-)?(?:linear|radial|conic)-gradient\(([\s\S]*)\)$
  * Every stop is judged rather than an average of them, because a gradient
  * renders all of its stops somewhere by construction. Passing on the mean would
  * be a verdict about a colour that appears nowhere on screen.
+ *
+ * And an unreadable stop is reported rather than dropped, because a background
+ * is not all-or-nothing. `linear-gradient(90deg, var(--a), var(--b))` with only
+ * `--a` declared used to come back as one perfectly readable stop and a
+ * nonempty result, so the caller's "did the background yield anything?" check
+ * was satisfied and half the strip went unmeasured with nothing to say so —
+ * measured on `.sa-admin-banner--prod`, the one rule whose white text has no
+ * second chance. The number of stops in now equals the number of outcomes out.
  */
 function backgroundColours(expression, table, depth = 0) {
     if (!expression || depth > 12) return [];
@@ -167,13 +201,15 @@ function backgroundColours(expression, table, depth = 0) {
 
     const gradient = GRADIENT.exec(value);
     if (gradient) {
-        return splitTopLevel(gradient[1]).flatMap((argument) =>
-            // A stop is a colour followed by optional positions; the direction
-            // (`90deg`, `to right`, `in oklab`) is an argument that is not a
-            // colour. Both are handled by simply trying to resolve them: what
-            // is not a colour returns nothing and drops out.
-            backgroundColours(argument.trim().replace(/(\s+[^\s()]+)+$/, ''), table, depth + 1),
-        );
+        return splitTopLevel(gradient[1]).flatMap((raw) => {
+            const argument = raw.trim();
+            if (isGradientParameter(argument)) return [];
+            // What is left is a colour stop: a colour followed by optional
+            // positions. It owes an outcome whether or not it can be read.
+            const stop = argument.replace(/(\s+[^\s()]+)+$/, '');
+            const read = backgroundColours(stop, table, depth + 1);
+            return read.length > 0 ? read : [{ label: stop, rgba: null }];
+        });
     }
 
     // A `var()` whose value may itself be a gradient, so this cannot delegate
@@ -182,11 +218,11 @@ function backgroundColours(expression, table, depth = 0) {
     if (asVar) {
         const declared = table.get(asVar[1]);
         if (declared !== undefined) return backgroundColours(declared, table, depth + 1);
-        return asVar[2] ? backgroundColours(asVar[2], table, depth + 1) : [];
+        if (asVar[2]) return backgroundColours(asVar[2], table, depth + 1);
+        return [{ label: value, rgba: null }];
     }
 
-    const rgba = resolveColour(value, table, depth);
-    return rgba ? [{ label: value, rgba }] : [];
+    return [{ label: value, rgba: resolveColour(value, table, depth) }];
 }
 
 const relativeLuminance = ([r, g, b]) => {
@@ -286,6 +322,13 @@ const UNREADABLE_BACKGROUND = 'the background value yielded no colour';
  * — one `!important`, three `background: none` — sat outside the sweep for as
  * long as it existed with nothing to say so. A checker that looks away has to
  * leave a mark, or "no failures" and "no verdicts" read the same from outside.
+ *
+ * The mark is per STOP, not per background. Asking only whether the background
+ * yielded any colour at all leaves the mixed case unnamed: one readable stop
+ * next to one whose token was renamed satisfies the question and hides the
+ * other half of a gradient. So the reason below is raised for the individual
+ * stop that could not be read, and `background:` prefixes the whole value only
+ * when there was no stop to name.
  */
 function outcomesFor(rule, tokens) {
     const foreground = resolveColour(rule.foreground, tokens);
@@ -300,6 +343,7 @@ function outcomesFor(rule, tokens) {
 
     return stops.map((stop) => {
         const detail = `${rule.foreground} on ${stop.label}`;
+        if (!stop.rgba) return { reason: UNREADABLE_BACKGROUND, detail };
         // A translucent background sits on a backdrop this file cannot know —
         // the element's parent. Guessing the page surface would report
         // `.pve-tab--active .pve-tab-count` (a white wash inside a dark tab) as
@@ -344,11 +388,16 @@ describe('a role background and a role foreground stay readable together', () =>
         const gradients = rules.filter((r) => r.isGradient);
         assert.ok(gradients.length >= 6, `only ${gradients.length} gradient-backed rules found`);
 
-        const judged = gradients.filter((r) => backgroundColours(r.background, light).length > 1);
-        assert.ok(
-            judged.length >= 6,
-            `only ${judged.length} gradients yielded more than one colour stop`,
-        );
+        // Derived from the sweep rather than counted against a remembered
+        // number: CSS requires two colour stops for a gradient to be valid, so
+        // every one of them owes more than one stop, and the ones that do not
+        // are named. The earlier form asserted `>= 6` — which happened to equal
+        // the total, so losing any single stop tripped it, but only by
+        // coincidence and with a message that named no rule.
+        const thin = gradients
+            .filter((r) => backgroundColours(r.background, light).length < 2)
+            .map((r) => `${r.file}  ${r.selector}`);
+        assert.deepEqual(thin, [], 'a gradient background was parsed into fewer than two stops');
 
         // The direction argument must not be mistaken for a stop, and a stop's
         // position must not stop it being read.
@@ -358,6 +407,30 @@ describe('a role background and a role foreground stay readable together', () =>
                 light,
             ).map((c) => c.rgba),
             [resolveColour('var(--sa-color-inverse-bg)', light), [255, 255, 255, 1]],
+        );
+
+        // The mixed case, asserted directly rather than only through the sweep:
+        // a stop that cannot be read is still a stop. Dropping it left the
+        // result nonempty, so the caller's "did this yield a colour?" question
+        // was answered yes and the other half of the gradient went unmeasured.
+        assert.deepEqual(
+            backgroundColours(
+                'linear-gradient(90deg, var(--sa-color-inverse-bg), var(--sa-nothing-declares-this))',
+                light,
+            ).map((c) => c.rgba),
+            [resolveColour('var(--sa-color-inverse-bg)', light), null],
+        );
+
+        // An interpolation hint and a colour space are parameters, not stops —
+        // otherwise the rule above would report every one of them unreadable.
+        assert.deepEqual(
+            backgroundColours('linear-gradient(in oklab, #000000 0%, 50%, #ffffff)', light).map(
+                (c) => c.rgba,
+            ),
+            [
+                [0, 0, 0, 1],
+                [255, 255, 255, 1],
+            ],
         );
     });
 
