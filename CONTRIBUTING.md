@@ -146,6 +146,15 @@ the release workflow in CI, not from local machines.
 - A PR is mergeable when `build`, `test`, `lint`, and `typecheck` are green.
 - Reference related issues in the PR description.
 
+**Do not stack pull requests.** Branch each one off `main` and merge it before
+opening the next, or make it a single PR. This repository merges by squash, and a
+stacked branch pays for that twice: `main` ends up with one commit describing the
+same change your branch carries as many, so the next merge conflicts on files
+neither of you meant to touch — and deleting the parent's branch on merge
+_closes_ the child PR outright, because its base is gone. Rebuilding a stacked
+branch on top of `main` afterwards is usually conflict-free, which is the tell
+that the conflicts came from the shape rather than from the work.
+
 ## Security issues
 
 Do not open public issues or PRs for vulnerabilities — see [SECURITY.md](SECURITY.md)
