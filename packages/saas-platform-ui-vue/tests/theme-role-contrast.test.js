@@ -31,6 +31,10 @@ import {
 //
 // The floor is the same 3:1, and for the same reason: it is the line below
 // which text is not hard to read but gone.
+//
+// Every pairing this file finds is therefore either measured or named. A skip
+// that leaves no trace turns a checker into a decoration: it keeps passing, and
+// the passing says nothing about the rules it stopped reading.
 
 const CONTRAST_FLOOR = 3;
 
@@ -128,7 +132,33 @@ function splitTopLevel(text) {
 const GRADIENT = /^(?:repeating-)?(?:linear|radial|conic)-gradient\(([\s\S]*)\)$/;
 
 /**
- * Every opaque colour a text can end up sitting on, given a `background` value.
+ * Whether a gradient argument is a parameter rather than a colour stop.
+ *
+ * A gradient's argument list mixes the two: `90deg`, `to bottom right`,
+ * `in oklab longer hue`, `circle closest-side at 50% 50%`, `from 45deg` and the
+ * bare `50%` interpolation hint are not colours, and everything else in the
+ * list is. Telling them apart on syntax is the whole point — the earlier
+ * version told them apart by handing each to the resolver and dropping whatever
+ * came back empty, which made a stop whose token was renamed indistinguishable
+ * from a direction. That is the silence this file exists to remove, reproduced
+ * one level down.
+ *
+ * This half is the safer half to enumerate: the CSS grammar keeps the set of
+ * gradient parameters closed, while the set of colour syntaxes grows with every
+ * colour level. And it errs in the direction that gets looked at — a parameter
+ * mistaken for a stop is reported as unresolvable and someone reads it, whereas
+ * a stop mistaken for a parameter says nothing at all.
+ */
+const isGradientParameter = (argument) =>
+    // An angle, a length, a percentage or a position. No colour starts this way.
+    /^[-+.\d]/.test(argument) ||
+    /^(?:to|in|at|from|circle|ellipse|closest-side|closest-corner|farthest-side|farthest-corner)\b/i.test(
+        argument,
+    );
+
+/**
+ * Every colour a text can end up sitting on, given a `background` value — one
+ * entry per stop, with `rgba: null` for a stop that could not be read.
  *
  * A gradient is not one background but several, and until now it was none: the
  * pattern here demanded a value starting with `var(--sa-`, so
@@ -142,10 +172,27 @@ const GRADIENT = /^(?:repeating-)?(?:linear|radial|conic)-gradient\(([\s\S]*)\)$
  * Every stop is judged rather than an average of them, because a gradient
  * renders all of its stops somewhere by construction. Passing on the mean would
  * be a verdict about a colour that appears nowhere on screen.
+ *
+ * And an unreadable stop is reported rather than dropped, because a background
+ * is not all-or-nothing. `linear-gradient(90deg, var(--a), var(--b))` with only
+ * `--a` declared used to come back as one perfectly readable stop and a
+ * nonempty result, so the caller's "did the background yield anything?" check
+ * was satisfied and half the strip went unmeasured with nothing to say so —
+ * measured on `.sa-admin-banner--prod`, the one rule whose white text has no
+ * second chance. The number of stops in now equals the number of outcomes out.
  */
 function backgroundColours(expression, table, depth = 0) {
     if (!expression || depth > 12) return [];
     const value = expression.trim();
+
+    // `background: none` is the shorthand resetting the layer to its initial
+    // value, which is `transparent` — so it paints nothing and the backdrop is
+    // whatever the ancestor paints. Saying that as a transparent stop rather
+    // than as an empty result puts it on the same footing as every other
+    // translucent background: counted, named, and left to the browser check.
+    // Only `none` is spelled out, because only `none` occurs; anything else the
+    // resolver cannot read is meant to fail loudly below.
+    if (value === 'none') return [{ label: value, rgba: [0, 0, 0, 0] }];
 
     // Layered backgrounds: `background: <gradient>, <gradient>`. Judging every
     // layer is the conservative direction — it can only add candidates.
@@ -154,13 +201,15 @@ function backgroundColours(expression, table, depth = 0) {
 
     const gradient = GRADIENT.exec(value);
     if (gradient) {
-        return splitTopLevel(gradient[1]).flatMap((argument) =>
-            // A stop is a colour followed by optional positions; the direction
-            // (`90deg`, `to right`, `in oklab`) is an argument that is not a
-            // colour. Both are handled by simply trying to resolve them: what
-            // is not a colour returns nothing and drops out.
-            backgroundColours(argument.trim().replace(/(\s+[^\s()]+)+$/, ''), table, depth + 1),
-        );
+        return splitTopLevel(gradient[1]).flatMap((raw) => {
+            const argument = raw.trim();
+            if (isGradientParameter(argument)) return [];
+            // What is left is a colour stop: a colour followed by optional
+            // positions. It owes an outcome whether or not it can be read.
+            const stop = argument.replace(/(\s+[^\s()]+)+$/, '');
+            const read = backgroundColours(stop, table, depth + 1);
+            return read.length > 0 ? read : [{ label: stop, rgba: null }];
+        });
     }
 
     // A `var()` whose value may itself be a gradient, so this cannot delegate
@@ -169,11 +218,11 @@ function backgroundColours(expression, table, depth = 0) {
     if (asVar) {
         const declared = table.get(asVar[1]);
         if (declared !== undefined) return backgroundColours(declared, table, depth + 1);
-        return asVar[2] ? backgroundColours(asVar[2], table, depth + 1) : [];
+        if (asVar[2]) return backgroundColours(asVar[2], table, depth + 1);
+        return [{ label: value, rgba: null }];
     }
 
-    const rgba = resolveColour(value, table, depth);
-    return rgba ? [{ label: value, rgba }] : [];
+    return [{ label: value, rgba: resolveColour(value, table, depth) }];
 }
 
 const relativeLuminance = ([r, g, b]) => {
@@ -211,6 +260,17 @@ const styleSource = (file, content) =>
               .map((m) => m[1])
               .join('\n');
 
+/**
+ * A declaration value without its priority.
+ *
+ * The captures below run to the semicolon, so `!important` travels with the
+ * value and every resolver pattern is anchored — `var(…) !important` matches
+ * none of them and used to resolve to `null`. That is one of the four rules
+ * this sweep dropped in silence, and the priority says nothing about the
+ * colour, so it comes off before anything tries to read it.
+ */
+const withoutPriority = (value) => value.replace(/\s*!\s*important\s*$/i, '');
+
 /** Rules that set BOTH a background and a colour, each from a role. */
 function rolePairedRules() {
     const rules = [];
@@ -233,17 +293,70 @@ function rolePairedRules() {
             );
             const foreground = /(?:^|;|\s)color\s*:\s*(var\(--sa-[^;]+?)\s*(?:;|$)/.exec(body);
             if (!background || !foreground) continue;
+            const backgroundValue = withoutPriority(background[1]);
             rules.push({
                 file: relative(SRC, file),
                 selector: selector.trim().replace(/\s+/g, ' '),
-                background: background[1],
-                isGradient: /-gradient\(/.test(background[1]),
-                foreground: foreground[1],
+                background: backgroundValue,
+                isGradient: /-gradient\(/.test(backgroundValue),
+                foreground: withoutPriority(foreground[1]),
             });
         }
     }
     return rules;
 }
+
+// Why a pairing can be counted and still not measured. The first is a decision
+// this file makes on purpose; the other two are the checker admitting it could
+// not read a value, and the assertions below hold both at zero.
+const NO_OPAQUE_BACKDROP = 'paints no opaque background of its own';
+const UNREADABLE_FOREGROUND = 'the foreground value did not resolve to a colour';
+const UNREADABLE_BACKGROUND = 'the background value yielded no colour';
+
+/**
+ * One outcome per pairing of a rule with a background stop: either a measured
+ * `ratio` or a stated `reason` for not measuring.
+ *
+ * Returning the reasons instead of `continue`-ing past them is the whole point.
+ * Every earlier version dropped an unreadable value in silence, and four rules
+ * — one `!important`, three `background: none` — sat outside the sweep for as
+ * long as it existed with nothing to say so. A checker that looks away has to
+ * leave a mark, or "no failures" and "no verdicts" read the same from outside.
+ *
+ * The mark is per STOP, not per background. Asking only whether the background
+ * yielded any colour at all leaves the mixed case unnamed: one readable stop
+ * next to one whose token was renamed satisfies the question and hides the
+ * other half of a gradient. So the reason below is raised for the individual
+ * stop that could not be read, and `background:` prefixes the whole value only
+ * when there was no stop to name.
+ */
+function outcomesFor(rule, tokens) {
+    const foreground = resolveColour(rule.foreground, tokens);
+    if (!foreground) {
+        return [{ reason: UNREADABLE_FOREGROUND, detail: `color: ${rule.foreground}` }];
+    }
+
+    const stops = backgroundColours(rule.background, tokens);
+    if (stops.length === 0) {
+        return [{ reason: UNREADABLE_BACKGROUND, detail: `background: ${rule.background}` }];
+    }
+
+    return stops.map((stop) => {
+        const detail = `${rule.foreground} on ${stop.label}`;
+        if (!stop.rgba) return { reason: UNREADABLE_BACKGROUND, detail };
+        // A translucent background sits on a backdrop this file cannot know —
+        // the element's parent. Guessing the page surface would report
+        // `.pve-tab--active .pve-tab-count` (a white wash inside a dark tab) as
+        // white-on-white, which is a verdict about the guess rather than about
+        // the code. Those stay with the browser check, which sees the real
+        // ancestor.
+        if (stop.rgba[3] < 1) return { reason: NO_OPAQUE_BACKDROP, detail };
+        return { ratio: contrast(flatten(foreground, stop.rgba), stop.rgba), detail };
+    });
+}
+
+const describeOutcome = (rule, outcome) =>
+    `${rule.file}  ${rule.selector}\n            ${outcome.detail}`;
 
 describe('a role background and a role foreground stay readable together', () => {
     const { light, dark } = themeTables();
@@ -275,11 +388,16 @@ describe('a role background and a role foreground stay readable together', () =>
         const gradients = rules.filter((r) => r.isGradient);
         assert.ok(gradients.length >= 6, `only ${gradients.length} gradient-backed rules found`);
 
-        const judged = gradients.filter((r) => backgroundColours(r.background, light).length > 1);
-        assert.ok(
-            judged.length >= 6,
-            `only ${judged.length} gradients yielded more than one colour stop`,
-        );
+        // Derived from the sweep rather than counted against a remembered
+        // number: CSS requires two colour stops for a gradient to be valid, so
+        // every one of them owes more than one stop, and the ones that do not
+        // are named. The earlier form asserted `>= 6` — which happened to equal
+        // the total, so losing any single stop tripped it, but only by
+        // coincidence and with a message that named no rule.
+        const thin = gradients
+            .filter((r) => backgroundColours(r.background, light).length < 2)
+            .map((r) => `${r.file}  ${r.selector}`);
+        assert.deepEqual(thin, [], 'a gradient background was parsed into fewer than two stops');
 
         // The direction argument must not be mistaken for a stop, and a stop's
         // position must not stop it being read.
@@ -290,36 +408,52 @@ describe('a role background and a role foreground stay readable together', () =>
             ).map((c) => c.rgba),
             [resolveColour('var(--sa-color-inverse-bg)', light), [255, 255, 255, 1]],
         );
+
+        // The mixed case, asserted directly rather than only through the sweep:
+        // a stop that cannot be read is still a stop. Dropping it left the
+        // result nonempty, so the caller's "did this yield a colour?" question
+        // was answered yes and the other half of the gradient went unmeasured.
+        assert.deepEqual(
+            backgroundColours(
+                'linear-gradient(90deg, var(--sa-color-inverse-bg), var(--sa-nothing-declares-this))',
+                light,
+            ).map((c) => c.rgba),
+            [resolveColour('var(--sa-color-inverse-bg)', light), null],
+        );
+
+        // An interpolation hint and a colour space are parameters, not stops —
+        // otherwise the rule above would report every one of them unreadable.
+        assert.deepEqual(
+            backgroundColours('linear-gradient(in oklab, #000000 0%, 50%, #ffffff)', light).map(
+                (c) => c.rgba,
+            ),
+            [
+                [0, 0, 0, 1],
+                [255, 255, 255, 1],
+            ],
+        );
     });
 
     for (const [themeName, tokens] of [
         ['light', light],
         ['dark', dark],
     ]) {
+        const outcomes = rules.map((rule) => ({ rule, outcomes: outcomesFor(rule, tokens) }));
+        const skipped = outcomes.flatMap(({ rule, outcomes: list }) =>
+            list.filter((outcome) => outcome.reason).map((outcome) => ({ rule, outcome })),
+        );
+
         test(`nothing falls under ${CONTRAST_FLOOR}:1 in the ${themeName} theme`, () => {
             const failures = [];
             let judged = 0;
 
-            for (const rule of rules) {
-                const foreground = resolveColour(rule.foreground, tokens);
-                if (!foreground) continue;
-
-                for (const stop of backgroundColours(rule.background, tokens)) {
-                    // A translucent background sits on a backdrop this file
-                    // cannot know — the element's parent. Guessing the page
-                    // surface would report `.pve-tab--active .pve-tab-count`
-                    // (a white wash inside a dark tab) as white-on-white, which
-                    // is a verdict about the guess rather than about the code.
-                    // Those stay with the browser check, which sees the real
-                    // ancestor.
-                    if (stop.rgba[3] < 1) continue;
-
+            for (const { rule, outcomes: list } of outcomes) {
+                for (const outcome of list) {
+                    if (outcome.reason) continue;
                     judged += 1;
-                    const ratio = contrast(flatten(foreground, stop.rgba), stop.rgba);
-                    if (ratio < CONTRAST_FLOOR) {
+                    if (outcome.ratio < CONTRAST_FLOOR) {
                         failures.push(
-                            `${ratio.toFixed(2)}:1  ${rule.file}  ${rule.selector}\n` +
-                                `            ${rule.foreground} on ${stop.label}`,
+                            `${outcome.ratio.toFixed(2)}:1  ${describeOutcome(rule, outcome)}`,
                         );
                     }
                 }
@@ -333,6 +467,52 @@ describe('a role background and a role foreground stay readable together', () =>
                     'used as a background is the usual cause — `--sa-color-fg-heading` is ' +
                     'near-black in light and near-white in dark, so a rule that pairs it ' +
                     'with `--sa-color-fg-on-accent` is white on white in one of the two.',
+            );
+        });
+
+        test(`every pairing the ${themeName} sweep leaves unjudged says why`, () => {
+            // Structural, and the reason this is not simply a count: a future
+            // branch that skips a pairing without recording anything produces a
+            // rule with no outcome at all, and the sweep above would go quiet
+            // about it exactly the way it went quiet about the four.
+            const unaccounted = outcomes
+                .filter(({ outcomes: list }) => list.length === 0)
+                .map(({ rule }) => `${rule.file}  ${rule.selector}`);
+            assert.deepEqual(
+                unaccounted,
+                [],
+                'a paired rule produced neither a ratio nor a reason — the sweep grew a ' +
+                    'branch that drops a pairing without saying so',
+            );
+
+            // The two reasons that mean the checker could not read the value.
+            // Zero, and named individually rather than counted, because the
+            // number alone would say a rule went unjudged without saying which.
+            const unreadable = skipped
+                .filter(({ outcome }) => outcome.reason !== NO_OPAQUE_BACKDROP)
+                .map(({ rule, outcome }) => `${outcome.reason}: ${describeOutcome(rule, outcome)}`);
+            assert.deepEqual(
+                unreadable,
+                [],
+                `the ${themeName} sweep found values it could not resolve. Every one of ` +
+                    'these is a pairing nothing measures — neither this file nor the ' +
+                    'browser check, which only sees what a page renders at rest. A ' +
+                    'declaration priority is the known cause: the captures run to the ' +
+                    'semicolon, so `!important` arrives attached to the value and every ' +
+                    'resolver pattern here is anchored.',
+            );
+
+            // Counted for the same reason `reach` is counted in
+            // `design-token-budget.test.js`: derived from the findings, "nothing
+            // was skipped" and "nothing was looked at" are the same reading. If
+            // the alpha test ever stops firing, these translucent stops get
+            // judged against a backdrop nobody knows, and the floor is what
+            // says so.
+            const deliberate = skipped.length - unreadable.length;
+            assert.ok(
+                deliberate >= 20,
+                `only ${deliberate} pairings were held back for a backdrop this file cannot ` +
+                    'know — the translucency test is no longer reaching them',
             );
         });
     }
