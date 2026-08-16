@@ -107,6 +107,19 @@ describe('createFetchHttpClient', () => {
         }
     });
 
+    test('an Accept the hook asked for is kept', async () => {
+        const { calls, restore } = stubFetch();
+        try {
+            const http = createFetchHttpClient({
+                headers: () => ({ Accept: 'application/vnd.example.v2+json' }),
+            });
+            await http('/x');
+            assert.equal(calls[0].init.headers.get('accept'), 'application/vnd.example.v2+json');
+        } finally {
+            restore();
+        }
+    });
+
     test('a per-call header wins over the hook, whatever the casing', async () => {
         const { calls, restore } = stubFetch();
         try {
