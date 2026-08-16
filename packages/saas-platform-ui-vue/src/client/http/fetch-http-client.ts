@@ -8,6 +8,7 @@
 // four fields `HttpResponse` declares.
 
 import { markTransportFailure } from '../admin-error.js';
+import { trimTrailingSlashes } from '../http-json.js';
 import type { HttpClient, HttpResponse } from '../types.js';
 
 export interface FetchHttpClientOptions {
@@ -36,7 +37,7 @@ const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:|^\/\//i;
 
 function resolveUrl(url: string, baseUrl: string | undefined): string {
     if (!baseUrl || ABSOLUTE_URL.test(url)) return url;
-    return `${baseUrl.replace(/\/+$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+    return `${trimTrailingSlashes(baseUrl)}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
 /**

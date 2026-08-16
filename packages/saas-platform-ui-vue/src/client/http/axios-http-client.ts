@@ -15,6 +15,7 @@
 // stand-in cannot reproduce is the transform axios applies to a body — and that
 // transform is what `bodyIsRaw` below has to read correctly.
 
+import { trimTrailingSlashes } from '../http-json.js';
 import type { HttpClient, HttpResponse } from '../types.js';
 
 /**
@@ -111,7 +112,7 @@ export interface AxiosHttpClientOptions {
  */
 function stripped(url: string, prefixes: readonly string[]): string {
     for (const prefix of prefixes) {
-        const trimmed = prefix.replace(/\/+$/, '');
+        const trimmed = trimTrailingSlashes(prefix);
         if (!trimmed || !url.startsWith(trimmed)) continue;
         const rest = url.slice(trimmed.length);
         if (rest === '') return '/';
