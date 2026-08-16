@@ -368,3 +368,50 @@ test.describe('no page overflows its viewport', () => {
         });
     }
 });
+
+// The brand mark on the two card pages is a fixed square, and a flex row takes
+// its shortfall out of every item that can give — including that one. Adding a
+// second switcher gave those rows a shortfall to distribute, and nothing looked
+// broken while they distributed it: measured before the fix, the login mark read
+// 23.47px wide at 360 and 0px at 320, and the setup mark was squeezed at every
+// width in this list, 1440 included, where it read 35.61.
+//
+// Shape rather than "44px": the number is a design decision that may move, and
+// a test repeating it only proves somebody typed it twice. Flex shrinks along
+// the main axis alone, so a mark that lost width and kept its height is exactly
+// the defect, and squareness is the invariant that says so without knowing what
+// the design chose. The two marks are named here because only they claim it —
+// every other item in those rows is text, and shrinking is what text is for.
+const SQUARE_MARKS = [
+    { page: 'login', selector: '.sa-login-logo' },
+    { page: 'setup-wizard', selector: '.sa-setup-badge' },
+];
+
+test.describe('the brand mark keeps its shape', () => {
+    for (const mark of SQUARE_MARKS) {
+        test(`${mark.page} — every breakpoint band`, async ({ page }) => {
+            const offenders: string[] = [];
+            for (const { width, label } of BREAKPOINT_WIDTHS) {
+                await page.setViewportSize({ width, height: 900 });
+                await page.goto(`/?page=${mark.page}`);
+                await page.waitForSelector('body[data-visual-ready="true"]');
+
+                const box = await page
+                    .locator(mark.selector)
+                    .first()
+                    .evaluate((el) => {
+                        const r = el.getBoundingClientRect();
+                        return { width: r.width, height: r.height };
+                    });
+                if (box.width === 0 || box.height === 0) {
+                    offenders.push(`${width}px (${label}): squeezed to nothing`);
+                } else if (Math.abs(box.width - box.height) > 1) {
+                    offenders.push(
+                        `${width}px (${label}): ${box.width.toFixed(2)}×${box.height.toFixed(2)}`,
+                    );
+                }
+            }
+            expect(offenders, `${mark.selector} is squeezed out of shape`).toEqual([]);
+        });
+    }
+});

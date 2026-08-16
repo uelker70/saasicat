@@ -3,11 +3,12 @@
         <div class="sa-setup-card">
             <div class="sa-setup-head">
                 <div class="sa-setup-badge">{{ iconText }}</div>
-                <div>
+                <div class="sa-setup-headings">
                     <h1 class="sa-setup-title">{{ msg.setup.title }}</h1>
                     <div class="sa-setup-sub">{{ subtitleText }}</div>
                 </div>
                 <LocaleSwitcher class="sa-setup-locale" />
+                <ThemeSwitcher class="sa-setup-theme" />
             </div>
 
             <q-banner v-if="errorMessage" class="sa-setup-error" rounded>
@@ -162,6 +163,7 @@ import { HttpJsonError, postJson as httpPostJson } from '../client/http-json.js'
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import LocaleSwitcher from '../components/LocaleSwitcher.vue';
+import ThemeSwitcher from '../components/ThemeSwitcher.vue';
 
 interface Props {
     /** Display name + badge abbreviation (override the app branding, e.g. from PublicBoot). */
@@ -314,14 +316,24 @@ async function submitConfirm(): Promise<void> {
     gap: 12px;
     margin-bottom: 20px;
 }
-.sa-setup-locale {
-    margin-left: auto;
+.sa-setup-locale,
+.sa-setup-theme {
     align-self: flex-start;
     color: var(--sa-color-fg-secondary);
+}
+/* One `auto` on the first of the pair moves both. */
+.sa-setup-locale {
+    margin-left: auto;
 }
 .sa-setup-badge {
     width: 44px;
     height: 44px;
+    /* Same reasoning as `.sa-login-logo` on the login card: the mark is a fixed
+       square, so it is the wrong flex item to take the row's shortfall from.
+       Here it was squeezed at every width, 1440 included — 35.61px in the
+       platform's own fixture, 33.56px in the example app — because the two
+       switchers made the row's content wider than the card outright. */
+    flex: none;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -338,6 +350,11 @@ async function submitConfirm(): Promise<void> {
     font-weight: 800;
     font-size: var(--sa-text-xl);
     text-transform: uppercase;
+}
+/* The block that absorbs what the pinned badge no longer gives up — see
+   `.sa-login-brand__text`, which carries the same rule for the same reason. */
+.sa-setup-headings {
+    min-width: 0;
 }
 .sa-setup-title {
     margin: 0;

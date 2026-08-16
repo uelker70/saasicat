@@ -4,9 +4,15 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { nextTick, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 
-import { createSaTheme, useSaTheme, SA_THEME_KEY } from '../dist/index.js';
+import {
+    createSaTheme,
+    useSaTheme,
+    SA_COLOR_SCHEMES,
+    SA_THEME_KEY,
+    SA_THEME_STORAGE_KEY,
+} from '../dist/index.js';
 
 function buildStorage(initial = {}) {
     const map = new Map(Object.entries(initial));
@@ -201,6 +207,65 @@ describe('createSaTheme', () => {
         const scheme = ref('light');
         const theme = createSaTheme({ scheme, storage });
         assert.equal(theme.scheme.value, 'light');
+    });
+});
+
+describe('the switcher the theme offers', () => {
+    test('the switcher is on by default', () => {
+        const theme = createSaTheme({ storage: buildStorage(), persist: false });
+        assert.equal(theme.switcherEnabled, true);
+    });
+
+    test('an app can turn it off', () => {
+        // A deployment that ships one appearance — the control would be noise.
+        const theme = createSaTheme({ switcher: false, storage: buildStorage(), persist: false });
+        assert.equal(theme.switcherEnabled, false);
+    });
+
+    test('a readonly scheme turns it off on its own', () => {
+        // Typically a `computed` derived from a profile setting. It swallows
+        // writes silently, and TypeScript ignores `readonly` when checking
+        // assignability — so a dead control is what the type system permits and
+        // only a runtime check prevents.
+        const scheme = computed(() => 'dark');
+        const theme = createSaTheme({ scheme, storage: buildStorage(), persist: false });
+        assert.equal(theme.switcherEnabled, false);
+    });
+
+    test('it offers exactly the three schemes, in a stable order', () => {
+        assert.deepEqual([...SA_COLOR_SCHEMES], ['light', 'dark', 'system']);
+    });
+});
+
+describe('the persisted key', () => {
+    test('two apps on one origin can keep their picks apart', async () => {
+        // Without a prefix both write `saasicat.theme.scheme`, so opening the
+        // second admin inherits whatever the first one's operator picked. The
+        // key itself does not move: it is already in browsers.
+        const storage = buildStorage();
+        const first = createSaTheme({ storage });
+        const second = createSaTheme({ storage, storageKeyPrefix: 'ops:' });
+
+        first.scheme.value = 'dark';
+        second.scheme.value = 'light';
+        await nextTick();
+
+        assert.equal(storage.get(SA_THEME_STORAGE_KEY), 'dark');
+        assert.equal(storage.get(`ops:${SA_THEME_STORAGE_KEY}`), 'light');
+    });
+
+    test('a prefixed app reads back its own pick, not the unprefixed one', () => {
+        const storage = buildStorage({
+            [SA_THEME_STORAGE_KEY]: 'dark',
+            [`ops:${SA_THEME_STORAGE_KEY}`]: 'light',
+        });
+        assert.equal(createSaTheme({ storage, storageKeyPrefix: 'ops:' }).scheme.value, 'light');
+    });
+
+    test('the key itself is unchanged', () => {
+        // It is persisted in real browsers; renaming it would silently reset
+        // every operator's pick.
+        assert.equal(SA_THEME_STORAGE_KEY, 'saasicat.theme.scheme');
     });
 });
 

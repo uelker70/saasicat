@@ -1069,11 +1069,48 @@ instead to keep the value in your own store — the platform then does not persi
 it, because it is yours. Inside any component, `useSaTheme()` returns the same
 context.
 
+**Out of the box** the `AdminLayout` header, the login card and the first-run
+setup card each render a `ThemeSwitcher` offering light, dark and system. The
+pick is stored under `saasicat.theme.scheme` and survives reloads. Drop the
+control for a deployment that ships one appearance — or hand over a readonly
+`computed` and it hides itself rather than presenting a dead switch:
+
+```ts
+createSuperAdminApp({ theme: { switcher: false } });
+```
+
+Below `sm` (600px) the header shows both switchers as icons without their
+labels, and drops the role badge and the signed-in name and email — the badge
+repeats the subtitle under the title, and the name costs that title the room it
+needs. The avatar and the sign-out button stay: a header that runs out of room
+shortens what it says before it removes anything you can press.
+
+Several apps on one origin share that storage key. Separate them with
+`theme.storageKeyPrefix: 'admin:'`, mirroring `i18n.storageKeyPrefix`. To place
+the switcher in your own chrome as well — it renders nothing when disabled, so
+it needs no guard around it:
+
+```ts
+import ThemeSwitcher from '@saasicat/ui-vue/components/ThemeSwitcher.vue';
+```
+
 **You may already be done.** The bridge is two-directional: your own
 `$q.dark.set(true)` moves the platform, and a switch here moves Quasar. Both
 have to move together or half the screen ends up in the wrong theme — the
 stylesheet paints the platform's surfaces, Quasar paints its own cards, dialogs
 and steppers.
+
+Note what that means for `'system'`. A hard `$q.dark.set(true)` or
+`$q.dark.set(false)` is an instruction, so it replaces a `'system'` pick with
+the scheme you named — there is no way to say "dark now, machine again later".
+`$q.dark.set('auto')` says the same thing `'system'` does and arrives as
+`'system'`, so an app with its own three-way control does not freeze the
+operator's choice. That holds even when the scheme you name is the one
+`'system'` was already resolving to — the bridge asks whether it wrote a value
+itself, not whether the colour on screen changed. The one call it cannot read is
+one that repeats the mode Quasar already holds (`$q.dark.set(true)` while it is
+already `true`): nothing changes for the bridge to see, so the pick stays
+`'system'`. Set `app.theme.scheme.value` when it has to stick.
 
 For the same reason the stylesheet does **not** answer `prefers-color-scheme` on
 its own: it cannot see Quasar's half. That is why following the operating system
