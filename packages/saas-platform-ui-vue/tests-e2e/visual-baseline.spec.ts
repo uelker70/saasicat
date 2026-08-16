@@ -21,12 +21,15 @@ declare global {
 //   - The failure mode of a token migration is `#64748b` mapped to the wrong
 //     role. A computed-style diff names the element and prints both values; a
 //     pixel diff reports "0.3% of pixels differ" and leaves you bisecting.
-//   - Computed styles are platform-independent. Pixel baselines are not: font
-//     hinting and anti-aliasing differ between a dev machine and CI, so pixel
-//     snapshots need everyone to run the same Playwright Docker image or they
-//     produce false failures until people stop trusting them.
-//   - Layout still shows up, because the captured set includes the resolved box
-//     metrics.
+//   - Computed styles are almost all platform-independent. Pixel baselines are
+//     not: font hinting and anti-aliasing differ between a dev machine and CI,
+//     so pixel snapshots need everyone to run the same Playwright Docker image
+//     or they produce false failures until people stop trusting them. The one
+//     exception in the captured set is `width`/`height`; see the note on them.
+//   - Layout shows up, because the captured set includes the resolved box
+//     metrics. It did not always: this list recorded two of four margins, none
+//     of the four insets and neither dimension, so a card could change from
+//     280px wide to 320px and all 22 baselines stayed green.
 //
 // What it does NOT catch: a change with no computed-style footprint — a swapped
 // background-image, an SVG path edit, a z-index reshuffle that only matters
@@ -60,6 +63,48 @@ const TRACKED_PROPERTIES = [
     'align-items',
     'justify-content',
     'opacity',
+
+    // ── The box, added later and added at the END on purpose ─────────────
+    //
+    // The ORDER of this list is the recorded line format: every element is one
+    // line of `property=value` pairs in exactly this sequence. Insert a
+    // property in the middle and every line of every baseline is rewritten, and
+    // a re-record that rewrites everything cannot show that it changed nothing.
+    // Appended, each recorded line keeps its old text as a prefix, so
+    // "additive only" is something a script can check rather than something a
+    // pull request has to assert. Keep adding at the end.
+    //
+    // What they close: `pnpm run tokens` counts pixel literals on the
+    // properties a scale governs and on the ones it does not. When these were
+    // added, 33 of the first group and 233 of the second sat on properties
+    // nothing above recorded — the insets, the horizontal margins, and every
+    // explicit box dimension. A page could hardcode a 220px column, and this
+    // suite's answer to "what does this look like" left the number out.
+    'margin-left',
+    'margin-right',
+    'top',
+    'right',
+    'bottom',
+    'left',
+    // `border-right-width` is not a finding today. It is here because the list
+    // above records all four border COLOURS and two of the four widths, and a
+    // set that can answer "did this border move" for three sides is the same
+    // hole one side narrower.
+    'border-left-width',
+    'border-right-width',
+    // The used box — and the one pair here that is NOT platform-independent:
+    // these resolve against the text inside the element, so a machine with
+    // different font metrics reads different numbers. That cost is paid
+    // deliberately, because an explicit `width: 220px` is invisible without
+    // them and they were 133 of those 233 findings. If CI and a
+    // developer machine ever disagree here, the fix is to pin the font the
+    // fixture renders with, not to stop recording the box.
+    'width',
+    'height',
+    'min-width',
+    'min-height',
+    'max-width',
+    'max-height',
 ] as const;
 
 /**
