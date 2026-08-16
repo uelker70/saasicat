@@ -7,6 +7,7 @@ import type {
     AuditEntry,
     PromoCodeRecord,
 } from '@saasicat/types';
+import { filterQueryString } from './resources/list-resource.js';
 import type { HttpClient } from './types.js';
 
 export interface AdminResourceClientOptions {
@@ -57,11 +58,11 @@ export function createAdminResourceClient(options: AdminResourceClientOptions) {
             getJson<AdminTenantDetail>(`${tenantsEndpoint}/${encodeURIComponent(slug)}`),
         loadUsers: (filter: AdminUserListFilter) =>
             getJson<AdminUserListRow[]>(
-                `${base}/users${queryString({ q: filter.q, tenant: filter.tenant })}`,
+                `${base}/users${filterQueryString({ q: filter.q, tenant: filter.tenant })}`,
             ),
         loadAudit: (filter: AdminAuditListFilter) =>
             getJson<AuditEntry[]>(
-                `${base}/audit${queryString({
+                `${base}/audit${filterQueryString({
                     actor: filter.actor,
                     action: filter.action,
                     entity: filter.entity,
@@ -72,7 +73,7 @@ export function createAdminResourceClient(options: AdminResourceClientOptions) {
         loadSubscriptions: () => getJson<AdminSubscriptionListRow[]>(`${base}/subscriptions`),
         loadPromos: (filter: AdminPromoListFilter) =>
             getJson<AdminPromoListRow[]>(
-                `${base}/promo-codes${queryString({
+                `${base}/promo-codes${filterQueryString({
                     search: filter.search,
                     status: filter.status,
                 })}`,
@@ -101,12 +102,8 @@ function assertSuccess(status: number, method: string, url: string): void {
     }
 }
 
-function queryString(params: Record<string, string | number | null | undefined>): string {
-    const search = new URLSearchParams();
-    for (const [key, value] of Object.entries(params)) {
-        if (value === undefined || value === null || value === '') continue;
-        search.set(key, String(value));
-    }
-    const value = search.toString();
-    return value ? `?${value}` : '';
-}
+// The query string these endpoints take is `filterQueryString` — the same
+// omit-the-empties rule the paginated lists apply, minus the pagination these
+// controllers do not offer. It used to be written out again here, which is one
+// decision in two places: the copies agreed by coincidence, and either could
+// have started sending `status=null` on its own.

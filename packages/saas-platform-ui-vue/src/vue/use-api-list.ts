@@ -1,18 +1,35 @@
 // useApiList — generic reactive list composable with filter + pagination.
 //
-// Consumer components ($-table, $-list, …) consume the typed wrappers
-// (`useTenants`, `useAuditEntries`, …), which are based on `useApiList`.
-// Direct use is also allowed for custom endpoints.
+// The untyped escape hatch, for an app's own list endpoints: it takes the URL
+// per call site, so nothing needs to know the endpoint in advance.
+// `useResourceList` is the typed default over the platform's own endpoints,
+// which the resource registry already knows the base of.
+//
+// What both send is one decision and lives in `list-resource.ts` — the query
+// string, the page bounds, and how an answer is read. Only the state around it
+// differs, and it differs on purpose: this one keeps the last known `total`
+// when an answer omits it, and has no guard against a superseded load.
 
 import { ref, watch, type Ref } from 'vue';
+import {
+    LIST_FIRST_PAGE,
+    LIST_PAGE_SIZE_DEFAULT,
+    clampListPage,
+    clampListPageSize,
+    listUrl,
+    readListPage,
+    type ResourceListPage,
+} from '../client/resources/list-resource.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
-export interface ApiListResponse<T> {
-    items: T[];
-    page?: number;
-    pageSize?: number;
-    total?: number;
-}
+/**
+ * The envelope a list endpoint may answer with.
+ *
+ * @deprecated Use `ResourceListPage`, which is this shape under the name the
+ * resource layer works with. Kept as an alias so an app that typed its own
+ * endpoint against it keeps compiling; one shape, one definition.
+ */
+export type ApiListResponse<T> = ResourceListPage<T>;
 
 export interface UseApiListOptions<TFilter> {
     endpoint: string;
@@ -51,23 +68,18 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
 ): UseApiListResult<T> {
     const http = options.http ?? defaultHttpClient();
     const items = ref<T[]>([]) as Ref<T[]>;
-    const page = ref(1);
-    const pageSize = ref(50);
+    const page = ref(LIST_FIRST_PAGE);
+    const pageSize = ref(LIST_PAGE_SIZE_DEFAULT);
     const total = ref(0);
     const loading = ref(false);
     const error = ref<Error | null>(null);
 
     function buildUrl(): string {
-        const params = new URLSearchParams();
-        params.set('page', String(page.value));
-        params.set('pageSize', String(pageSize.value));
-        const f = options.filter?.value ?? ({} as TFilter);
-        for (const [k, v] of Object.entries(f)) {
-            if (v === undefined || v === null || v === '') continue;
-            params.set(k, String(v));
-        }
-        const sep = options.endpoint.includes('?') ? '&' : '?';
-        return `${options.endpoint}${sep}${params.toString()}`;
+        return listUrl(options.endpoint, {
+            page: page.value,
+            pageSize: pageSize.value,
+            filter: options.filter?.value,
+        });
     }
 
     async function load() {
@@ -81,25 +93,19 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
             if (res.status !== 200) {
                 throw new Error(`Endpoint ${options.endpoint} → HTTP ${res.status}`);
             }
-            // Apps deliver different shapes for list endpoints:
-            //   - raw array `[{...}, …]` (no wrapper).
-            //   - paginated: `{ items, total, page, pageSize }`.
-            // The platform composable accepts both — otherwise correctly
-            // delivered array responses would be shown as an empty list.
-            const raw = (await res.json()) as unknown;
-            if (Array.isArray(raw)) {
-                items.value = raw as T[];
-                total.value = raw.length;
-            } else if (raw !== null && typeof raw === 'object') {
-                const body = raw as ApiListResponse<T>;
-                items.value = body.items ?? [];
-                if (typeof body.page === 'number') page.value = body.page;
-                if (typeof body.pageSize === 'number') pageSize.value = body.pageSize;
-                if (typeof body.total === 'number') total.value = body.total;
-            } else {
-                items.value = [];
-                total.value = 0;
-            }
+            // Apps deliver different shapes for list endpoints — a raw array or
+            // the `{ items, total, page, pageSize }` envelope — and `readListPage`
+            // accepts both, so a correctly delivered array is not shown as an
+            // empty list.
+            //
+            // What the answer did not state is left alone rather than reset: an
+            // envelope without `total` keeps the count from the last one that
+            // carried it, which is what this composable has always done.
+            const body = readListPage<T>(await res.json());
+            items.value = body.items;
+            if (typeof body.page === 'number') page.value = body.page;
+            if (typeof body.pageSize === 'number') pageSize.value = body.pageSize;
+            if (typeof body.total === 'number') total.value = body.total;
         } catch (err) {
             error.value = err instanceof Error ? err : new Error(String(err));
             items.value = [];
@@ -110,14 +116,13 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
     }
 
     async function goToPage(p: number) {
-        page.value = Math.max(1, Math.floor(p));
+        page.value = clampListPage(p);
         await load();
     }
 
     async function setPageSize(size: number) {
-        // The admin API's pageSize is 1..200; there is no "all" to pass on.
-        pageSize.value = Math.min(200, Math.max(1, Math.floor(size)));
-        page.value = 1;
+        pageSize.value = clampListPageSize(size);
+        page.value = LIST_FIRST_PAGE;
         await load();
     }
 
@@ -125,7 +130,7 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
         watch(
             options.filter,
             () => {
-                page.value = 1;
+                page.value = LIST_FIRST_PAGE;
                 void load();
             },
             { deep: true },
