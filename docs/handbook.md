@@ -969,7 +969,7 @@ Two things worth knowing about both adapters:
 One case needs a word from you. `res.json()` has to know whether your instance hands
 over the body as it arrived or a value it already parsed, and it reads that off the
 config axios echoes on the response — correctly for a stock instance and for each of
-`responseType: 'text'`, `transformResponse: []` and
+`responseType: 'text'`, `transformResponse: []`, `transformResponse: null` and
 `transitional: { forcedJSONParsing: false }`. If you replaced `transformResponse` with
 a pipeline of your own, that reading no longer works: your array and axios's echo
 identically, one opaque function each, so say which it is.
@@ -985,6 +985,14 @@ export const platformHttpClient = createAxiosHttpClient(api, {
 
 Leave `responseBody` alone otherwise — the default reads the response and needs no
 help.
+
+`responseBody` also settles the one body that is otherwise ambiguous. Axios's own
+transform turns a zero-byte response and the two bytes `""` — valid JSON meaning the
+empty string — into the same empty `data`, and nothing on the response tells the two
+apart. Left at `'auto'`, `res.json()` reads an empty `data` as no body and throws,
+which is what `Response.json()` does. Say `responseBody: 'decoded'` and it is read as
+the value your instance produced, so a `""` body arrives as `''` — and so does a
+zero-byte one, because that is the same tie seen from the other side.
 
 ### 8.2 Manifest Store
 

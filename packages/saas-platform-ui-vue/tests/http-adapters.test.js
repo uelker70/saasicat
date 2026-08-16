@@ -34,6 +34,8 @@ const DECODING_CONFIG = {
 };
 /** What `axios.create({ transformResponse: [] })` echoes: nothing ran. */
 const RAW_CONFIG = { transformResponse: [] };
+/** What `axios.create({ transformResponse: null })` echoes: nothing ran either. */
+const NULL_TRANSFORM_CONFIG = { transformResponse: null };
 
 /**
  * Minimal stand-in for an axios instance.
@@ -367,14 +369,46 @@ describe('createAxiosHttpClient', () => {
     });
 
     test('an empty body throws whatever the instance decodes', async () => {
-        // Nothing decoded an empty body in either mode — axios's transform
-        // skips a falsy one — so both readings agree, and `Response.json()`
-        // throws here as well.
-        for (const config of [DECODING_CONFIG, RAW_CONFIG]) {
+        // Under `'auto'` an empty `data` is read as no body, whichever way the
+        // instance is configured, and `Response.json()` throws on one too.
+        for (const config of [DECODING_CONFIG, RAW_CONFIG, NULL_TRANSFORM_CONFIG]) {
             const { instance } = stubAxios({ status: 200, data: '', config });
             const res = await createAxiosHttpClient(instance)('/x');
             await assert.rejects(res.json(), SyntaxError);
         }
+    });
+
+    test('a declared decoding instance hands an empty data over as the empty string', async () => {
+        // The declaration is the tiebreaker, so nothing may run ahead of it —
+        // and `''` is precisely a tie: axios's transform leaves it behind for a
+        // zero-byte body and for the two bytes `""` alike.
+        const { instance } = stubAxios({ status: 200, data: '', config: DECODING_CONFIG });
+        const res = await createAxiosHttpClient(instance, { responseBody: 'decoded' })('/x');
+        assert.equal(await res.json(), '');
+    });
+
+    test('a declared raw instance still throws on an empty data', async () => {
+        const { instance } = stubAxios({ status: 200, data: '', config: DECODING_CONFIG });
+        const res = await createAxiosHttpClient(instance, { responseBody: 'raw' })('/x');
+        await assert.rejects(res.json(), SyntaxError);
+    });
+
+    test('transformResponse null is a pipeline that ran nothing, so the body is raw', async () => {
+        // axios iterates `transformResponse` with its own `forEach`, which
+        // returns immediately for a nullish collection. `null` is therefore as
+        // much proof of an untouched body as `[]` is.
+        const { instance } = stubAxios({ data: '"ready"', config: NULL_TRANSFORM_CONFIG });
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(await res.json(), 'ready');
+    });
+
+    test('a config that merely omits transformResponse has not said anything', async () => {
+        // The other half of the reading above: absence is not `null`. Only a
+        // stand-in omits the property, and reading that as raw would parse
+        // every scalar such a stand-in already decoded.
+        const { instance } = stubAxios({ data: 'ready', config: { responseType: undefined } });
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(await res.json(), 'ready');
     });
 
     test('a response carrying no config is read as already decoded', async () => {
@@ -523,6 +557,12 @@ const SERVED = {
     '/number': [200, 'application/json', '42'],
     '/boolean': [200, 'application/json', 'true'],
     '/empty': [200, 'application/json', ''],
+    // Two bytes, not zero: valid JSON meaning the empty string. It is not in
+    // `MEANS` because it does not have one answer — an instance that decodes
+    // leaves the same `''` behind that a zero-byte body leaves, so what
+    // `json()` can still recover depends on what the instance said about
+    // itself. The three tests below cover the three answers.
+    '/empty-string': [200, 'application/json', '""'],
     '/html': [502, 'text/html', '<html>Bad Gateway</html>'],
     '/forbidden': [403, 'application/json', '{"code":"FORBIDDEN"}'],
 };
@@ -545,6 +585,9 @@ const INSTANCES = [
     ['responseType text', { responseType: 'text' }],
     ['transformResponse []', { transformResponse: [] }],
     ['forcedJSONParsing false', { transitional: { forcedJSONParsing: false } }],
+    // The echoed config is literally `null` — no pipeline, so nothing ran. That
+    // is readable, which puts this one outside `CUSTOM_TRANSFORMS` below.
+    ['transformResponse null', { transformResponse: null }],
 ];
 
 /** The first two decode the body; the rest hand it over as text. */
@@ -643,13 +686,63 @@ describe('createAxiosHttpClient — against a real axios instance', () => {
                 const res = await createAxiosHttpClient(axios.create(config))(`${base}/empty`);
                 await assert.rejects(res.json(), SyntaxError, label);
             }
-            // A declaration cannot make an empty body a decoded value: nothing
-            // decodes to `''`, so `json()` throws the way `Response.json()`
-            // does even where the instance says it decodes.
-            const declared = await createAxiosHttpClient(axios.create(), {
-                responseBody: 'decoded',
-            })(`${base}/empty`);
-            await assert.rejects(declared.json(), SyntaxError, 'responseBody decoded');
+            // `'raw'` says `data` is the body as it arrived, and an empty body
+            // is what `Response.json()` throws on.
+            const declared = await createAxiosHttpClient(
+                axios.create({ transformResponse: [(d) => d] }),
+                { responseBody: 'raw' },
+            )(`${base}/empty`);
+            await assert.rejects(declared.json(), SyntaxError, 'responseBody raw');
+        });
+    });
+
+    test('an instance that hands the body over reads `""` as the empty string', async () => {
+        // Two bytes on the wire, nothing decoded them, so `data` is `'""'` and
+        // parsing it gives what `Response.json()` gives.
+        await withServer(async (base) => {
+            for (const [label, config] of RAW) {
+                const res = await createAxiosHttpClient(axios.create(config))(
+                    `${base}/empty-string`,
+                );
+                assert.equal(await res.json(), '', label);
+            }
+        });
+    });
+
+    test('a declaration recovers `""` from an instance that already decoded it', async () => {
+        // The declaration has to be read before the body is looked at, or the
+        // empty string it produced is mistaken for no body at all.
+        await withServer(async (base) => {
+            for (const [label, config, responseBody] of CUSTOM_TRANSFORMS) {
+                const res = await createAxiosHttpClient(axios.create(config), { responseBody })(
+                    `${base}/empty-string`,
+                );
+                assert.equal(await res.json(), '', label);
+            }
+            for (const [label, config] of DECODING) {
+                const res = await createAxiosHttpClient(axios.create(config), {
+                    responseBody: 'decoded',
+                })(`${base}/empty-string`);
+                assert.equal(await res.json(), '', `${label} + decoded`);
+                // And the two readers of the one body agree on it.
+                assert.equal(await res.text(), '', `${label} + decoded, text()`);
+            }
+        });
+    });
+
+    test('`""` is the one body a decoding instance under `auto` cannot get back', async () => {
+        // Named rather than papered over: axios's own transform turns both a
+        // zero-byte body and the two bytes `""` into `''`, and no field of the
+        // response separates them. `'auto'` answers "no body" for both, so
+        // `json()` throws here exactly as it does for `/empty` — and
+        // `responseBody: 'decoded'`, held by the test above, is the way out.
+        await withServer(async (base) => {
+            for (const [label, config] of DECODING) {
+                const res = await createAxiosHttpClient(axios.create(config))(
+                    `${base}/empty-string`,
+                );
+                await assert.rejects(res.json(), SyntaxError, label);
+            }
         });
     });
 
