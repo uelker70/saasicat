@@ -14,6 +14,7 @@ import {
     SA_MESSAGES,
     adminErrorMessage,
     bindResource,
+    isTransportFailure,
     planVersionsResource,
     plansResource,
     requestJson,
@@ -204,6 +205,20 @@ describe('the shared request policy', () => {
         const { http, calls } = recordingHttp({ body: {} });
         await requestJson(http, '/x', { method: 'DELETE' });
         assert.equal(calls[0].init.body, undefined);
+    });
+
+    test('a client that resolved with no status never reads as an answer', async () => {
+        // `HttpClient` permits reporting a network, CORS or abort failure by
+        // RESOLVING with `status: 0`, and an axios or XHR wrapper does exactly
+        // that. Read as a 2xx it would hand a list `null` — an empty page with
+        // nothing wrong on it — and tell a mutation's operator their change may
+        // have been applied, for a request that never left the machine.
+        const { http } = recordingHttp({ status: 0 });
+        await assert.rejects(requestJson(http, '/x', { method: 'POST' }), (err) => {
+            assert.ok(err instanceof AdminError);
+            assert.equal(isTransportFailure(err), true);
+            return true;
+        });
     });
 
     test('a 204 and an unparsable 2xx both read as no body', async () => {

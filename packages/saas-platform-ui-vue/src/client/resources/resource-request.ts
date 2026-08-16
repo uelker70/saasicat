@@ -13,6 +13,7 @@
 // tenant package split. Nothing here should be pointed at them.
 
 import { AdminError, readErrorCode, readErrorDetail } from '../admin-error.js';
+import { requireServerAnswer } from '../http-json.js';
 import type { HttpClient } from '../types.js';
 
 export interface ResourceRequestInit {
@@ -34,6 +35,10 @@ export interface ResourceRequestInit {
  *
  * A non-2xx throws an `AdminError` carrying the parsed body, so a caller can
  * still branch on `status` and `body.code` the way the pages do today.
+ *
+ * A client that resolved without an HTTP status throws before any of that: no
+ * status means the request never reached the server, which is a transport
+ * failure and not an answer this function may read.
  */
 export async function requestJson<T>(
     http: HttpClient,
@@ -46,6 +51,20 @@ export async function requestJson<T>(
         headers: { 'content-type': 'application/json', ...init.headers },
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
     });
+
+    // Before anything is read off the response: a client that reports a
+    // network, CORS or abort failure by RESOLVING with `status: 0` — the shape
+    // `HttpClient` permits and `requireServerAnswer` exists for — otherwise
+    // arrives here as a successful answer with no body. A list would then be
+    // empty with nothing wrong on screen, and a mutation would tell the
+    // operator their change may have been applied when the request never left
+    // the machine.
+    requireServerAnswer(
+        response.status,
+        method,
+        url,
+        (diagnostic) => new AdminError({ status: response.status, url, method, message: diagnostic }),
+    );
 
     if (response.status === 204) return null;
     const body = await response.json().catch(() => null);
