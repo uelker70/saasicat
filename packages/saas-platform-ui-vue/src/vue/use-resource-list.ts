@@ -207,10 +207,25 @@ export function useResourceList<
         return { page: page.value, pageSize: pageSize.value, filter };
     }
 
-    const state = useAsyncData<ResourceListPage<Row>>(() => load(query()), {
-        initial: EMPTY_PAGE,
-        immediate: opts?.immediate,
-    });
+    const state = useAsyncData<ResourceListPage<Row>>(
+        async () => {
+            const answer = await load(query());
+            // The server decides which page it served, and says so. Asking for
+            // page 99 of a list that has two returns page 2, and the next
+            // request has to ask for the page being shown — otherwise `reload`
+            // asks for 99 again while the paginator reads "99 of 1" over the
+            // rows of page 2. `useApiList` adopts the echo for the same reason;
+            // the descriptor already carries it, and this was the only reader
+            // that dropped it.
+            if (typeof answer.page === 'number') page.value = answer.page;
+            if (typeof answer.pageSize === 'number') pageSize.value = answer.pageSize;
+            return answer;
+        },
+        {
+            initial: EMPTY_PAGE,
+            immediate: opts?.immediate,
+        },
+    );
 
     async function goToPage(next: number): Promise<void> {
         page.value = clampListPage(next);

@@ -263,6 +263,40 @@ describe('useResourceList — the state it delegates', () => {
     });
 });
 
+describe('useResourceList — the page the server actually served', () => {
+    test('a clamped page is adopted, so the next request asks for what is shown', async () => {
+        // The operator asks for page 99 of a list that has two. The server
+        // answers with page 2 and says so. Without adopting that, `reload`
+        // asks for 99 again and the paginator reads "99 of 1" over the rows of
+        // page 2 — `useApiList` has adopted the echo all along.
+        const served = { items: [{ id: 'row-on-page-2' }], total: 40, page: 2, pageSize: 25 };
+        const { http, calls } = recorder(served, served);
+        await inShell(http, async () => {
+            const list = useResourceList('tenants', { immediate: false });
+            await list.goToPage(99);
+            assert.equal(list.page.value, 2);
+            assert.equal(list.pageSize.value, 25);
+            await list.reload();
+            assert.match(calls[1].url, /[?&]page=2&/);
+            assert.match(calls[1].url, /pageSize=25/);
+        });
+    });
+
+    test('an answer that says nothing about the page leaves the asked-for one', async () => {
+        // A bare array, or an envelope without the echo, is not a statement
+        // about which page was served. Overwriting the request state from a
+        // silence would move the paginator on its own.
+        const { http } = recorder([{ id: 'a' }], { items: [{ id: 'b' }], total: 9 });
+        await inShell(http, async () => {
+            const list = useResourceList('tenants', { immediate: false });
+            await list.goToPage(3);
+            assert.equal(list.page.value, 3);
+            await list.reload();
+            assert.equal(list.page.value, 3);
+        });
+    });
+});
+
 describe('useResourceList — the failures it refuses to swallow', () => {
     test('an operation the resource does not have fails by name, listing what there is', () => {
         const { http } = recorder();
