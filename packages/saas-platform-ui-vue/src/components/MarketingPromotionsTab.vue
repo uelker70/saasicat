@@ -354,7 +354,8 @@ const { intlLocale } = useSuperAdminI18n();
 const busy = computed(() => props.busy ?? false);
 const expandedId = ref<string | null>(null);
 
-// sa-disclosure-exempt: the timeline bar is a second trigger for the accordion below it
+// sa-disclosure-exempt(toggles `expandedId`, writes `aria-expanded`):
+// the timeline bar is a second trigger for the accordion below it
 //
 // The disclosure itself IS an `AdminAccordion` — one per promotion, in the list
 // below, with the `<button>` and the `aria-expanded` that come with it. What

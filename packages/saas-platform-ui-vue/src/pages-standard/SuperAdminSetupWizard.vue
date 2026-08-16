@@ -174,7 +174,8 @@ const props = defineProps<Props>();
 // shown again — the freshly created SuperAdmin then signs in.
 const emit = defineEmits<{ done: [] }>();
 
-// sa-disclosure-exempt: a native <details> on the one screen that owns its own frame
+// sa-disclosure-exempt(uses `<details>`):
+// the platform's own disclosure, on the one screen that owns its own frame
 //
 // The `otpauth://` URI hides behind a `<details>`/`<summary>` above, and it
 // stays there. `AdminAccordion` exists because four of the eight surfaces it

@@ -498,7 +498,8 @@ defineEmits<{
 const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
 
-// sa-disclosure-exempt: this row is six grid cells, not a header that opens a body
+// sa-disclosure-exempt(writes `aria-expanded`):
+// this row is six grid cells, not a header that opens a body
 //
 // Every other disclosure in the package is an `AdminAccordion`. This one cannot
 // be, and the obstacle is structural rather than a matter of taste.

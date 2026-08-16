@@ -521,12 +521,48 @@ describe('page shell contract', () => {
         // surface will read it. The second half of the test then holds the
         // markers to their side of that bargain.
         //
+        // A marker names the finding it excuses and subtracts exactly that:
+        //
+        //     // sa-disclosure-exempt(toggles `showRaw`, writes `aria-expanded`):
+        //     // a tenant-facing raw payload toggle, in a directory that is leaving
+        //
+        // It used to name nothing, and a file that carried one was simply not
+        // asked the question again. That is not what any of the four markers in
+        // this package were written to say. Three of them explain a surface
+        // whose findings are TWO of the strings below, and the fourth explains a
+        // second trigger on an accordion that is already the shared one — none
+        // of them argued that the file should stop being read. Under a silencer
+        // the difference is invisible: adding a `<div>` with a click handler to
+        // a marked file, the exact shape this rule exists for, kept the suite
+        // green, and so did reverting a marked surface to the hand-rolled
+        // disclosure the marker was written beside.
+        //
+        // Naming the finding also makes the stale half sharper. It used to ask
+        // whether ANY disclosure was left in a marked file, so a marker survived
+        // its own surface as long as some other surface in the same file kept
+        // the file matching. Now each named finding has to still occur.
+        //
+        // What this still does not ask is WHICH occurrence. A finding is a kind
+        // and an identifier, deduplicated — `writes \`aria-expanded\`` is one
+        // string however many controls write it — so a second hand-written
+        // `aria-expanded`, or a second `<details>`, inside an already-marked
+        // file is covered by the marker for the first. A second toggle is
+        // caught, unless it flips a name already named. Closing that would mean
+        // a count or a line number in the marker, and both churn on every edit
+        // near the surface; the residue is written down here rather than
+        // papered over.
+        //
         // Every `.vue` under src, with none of the shell's exemptions. A login
         // screen sits outside `AdminLayout` and so writes its own `<h1>` and its
         // own frame; none of that makes a hand-rolled disclosure on it any more
         // operable by keyboard.
         const ACCORDION = resolve(SRC_DIR, 'components/admin-page/AdminAccordion.vue');
-        const MARKER = /sa-disclosure-exempt:[ \t]*(.*)/;
+        const MARKER_WORD = 'sa-disclosure-exempt';
+        // The findings sit in the parentheses, comma-separated; the reason
+        // follows the colon. A marker that does not parse is reported rather
+        // than ignored — silently not matching would be a silencer again, one
+        // typo wide.
+        const MARKER = /sa-disclosure-exempt\(([^)]*)\):[ \t]*(.*)/;
 
         const everyVueFile = (): string[] => {
             const found: string[] = [];
@@ -824,6 +860,88 @@ describe('page shell contract', () => {
             return [...new Set(findings)];
         };
 
+        /**
+         * The exemptions a file declares — one entry per finding named, with
+         * the reason written beside it — and the markers that do not parse.
+         *
+         * A marker that failed to parse is reported rather than skipped. The
+         * whole point of this round is that a marker subtracts one named thing,
+         * and a typo inside the parentheses would otherwise subtract nothing
+         * while still reading, to a human, like an accepted exemption.
+         */
+        const exemptionsOf = (
+            source: string,
+        ): { claims: Map<string, string>; malformed: string[] } => {
+            const claims = new Map<string, string>();
+            const malformed: string[] = [];
+            const lines = source.split('\n');
+
+            for (const [index, line] of lines.entries()) {
+                if (!line.includes(MARKER_WORD)) continue;
+                const parsed = MARKER.exec(line);
+                const named = (parsed?.[1] ?? '')
+                    .split(',')
+                    .map((finding) => finding.trim())
+                    .filter(Boolean);
+                if (!parsed || named.length === 0) {
+                    malformed.push(line.trim());
+                    continue;
+                }
+
+                // The reason may run onto the next comment line. Naming two
+                // findings and then explaining them does not fit on one, and a
+                // marker nobody can read at a glance is its own kind of silence.
+                const tail = parsed[2]!.trim();
+                const reason =
+                    tail !== ''
+                        ? tail
+                        : (lines[index + 1] ?? '').replace(/^\s*(?:\/\/|\*)\s*/, '').trim();
+                for (const finding of named) claims.set(finding, reason);
+            }
+
+            return { claims, malformed };
+        };
+
+        /**
+         * What one file still owes: the disclosures nobody explained, and the
+         * explanations that no longer describe anything it does.
+         *
+         * The second direction is what keeps this test from going blind
+         * unnoticed — the exempt files are the detector's fixtures. If a
+         * surface is migrated its marker has to go, and if the detector stops
+         * seeing a finding a marker is still written against, this says so.
+         * Per finding, not per file: three of the four marked files have two
+         * findings each, so a file-wide question was answered "yes, something
+         * here is still a disclosure" by whichever of them was left.
+         */
+        const review = (
+            name: string,
+            findings: string[],
+            source: string,
+        ): { unexplained: string[]; stale: string[] } => {
+            const { claims, malformed } = exemptionsOf(source);
+
+            const unexplained = malformed.map(
+                (marker) => `${name}: \`${marker}\` names no finding it excuses`,
+            );
+            for (const finding of findings) {
+                if (!claims.has(finding)) unexplained.push(`${name}: ${finding}`);
+            }
+            for (const [finding, reason] of claims) {
+                // A marker with a word or two after it is a silencer; the point
+                // is that somebody had to write down a reason.
+                if (reason.split(/\s+/).filter(Boolean).length < 5) {
+                    unexplained.push(`${name}: exempt from ${finding} without a reason`);
+                }
+            }
+
+            const stale = [...claims.keys()]
+                .filter((finding) => !findings.includes(finding))
+                .map((finding) => `${name}: exempt from ${finding}, which it no longer does`);
+
+            return { unexplained, stale };
+        };
+
         // The counter-proof, before the sweep that uses it.
         //
         // Three rounds of this rule shipped believing they asked "does a click
@@ -920,6 +1038,83 @@ describe('page shell contract', () => {
             ),
         ).toEqual([]);
 
+        // The counter-proof for the second half, on the same principle.
+        //
+        // The pairing is what this round changed, and it needs its own shapes
+        // for the reason the detector needed its: from inside a file with one
+        // finding, a silencer and a working exemption read exactly alike. Every
+        // earlier round had a file like that, and every earlier round was green.
+        const PROBE = 'probe.vue';
+        const marked = (findings: string, reason: string): string =>
+            `<script setup lang="ts">\n// ${MARKER_WORD}(${findings}): ${reason}\n</script>`;
+        const WHY = 'a tenant-facing raw payload toggle, deliberately';
+
+        // A marker subtracts the finding it names, and leaves the rest standing.
+        // This is the whole change: under the file-level marker the second entry
+        // was gone, and adding a keyboard-inoperable `<div>` to a marked file
+        // kept the suite green.
+        expect(
+            review(
+                PROBE,
+                ['toggles `showRaw`', 'writes `aria-expanded`'],
+                marked('toggles `showRaw`', WHY),
+            ),
+        ).toEqual({ unexplained: ['probe.vue: writes `aria-expanded`'], stale: [] });
+
+        // Both named, both excused.
+        expect(
+            review(
+                PROBE,
+                ['toggles `showRaw`', 'writes `aria-expanded`'],
+                marked('toggles `showRaw`, writes `aria-expanded`', WHY),
+            ),
+        ).toEqual({ unexplained: [], stale: [] });
+
+        // Stale per finding, not per file: the file is still a disclosure, and
+        // the marker still has to describe one this file actually does.
+        expect(
+            review(
+                PROBE,
+                ['writes `aria-expanded`'],
+                marked('toggles `showRaw`, writes `aria-expanded`', WHY),
+            ),
+        ).toEqual({
+            unexplained: [],
+            stale: ['probe.vue: exempt from toggles `showRaw`, which it no longer does'],
+        });
+
+        // The reason requirement, unchanged in substance.
+        expect(review(PROBE, ['uses `<details>`'], marked('uses `<details>`', 'because'))).toEqual({
+            unexplained: ['probe.vue: exempt from uses `<details>` without a reason'],
+            stale: [],
+        });
+
+        // A marker that names nothing — the old spelling among them — is a
+        // finding of its own, not a marker this test quietly fails to see.
+        expect(
+            review(
+                PROBE,
+                ['uses `<details>`'],
+                `<script setup lang="ts">\n// ${MARKER_WORD}: ${WHY}\n</script>`,
+            ),
+        ).toEqual({
+            unexplained: [
+                'probe.vue: `// sa-disclosure-exempt: a tenant-facing raw payload toggle, deliberately` names no finding it excuses',
+                'probe.vue: uses `<details>`',
+            ],
+            stale: [],
+        });
+
+        // The reason may sit on the next comment line, so that naming the
+        // findings does not push the sentence off the page.
+        expect(
+            review(
+                PROBE,
+                ['uses `<details>`'],
+                `<script setup lang="ts">\n// ${MARKER_WORD}(uses \`<details>\`):\n// ${WHY}\n</script>`,
+            ),
+        ).toEqual({ unexplained: [], stale: [] });
+
         const files = everyVueFile();
         // The sweep reaches src at all. Without this both halves below pass by
         // finding nothing, which is exactly how they would read if the cwd moved.
@@ -931,25 +1126,9 @@ describe('page shell contract', () => {
         for (const file of files) {
             if (file === ACCORDION) continue;
             const source = readFileSync(file, 'utf8');
-            const findings = ownDisclosures(file, source);
-            const marker = MARKER.exec(source);
-            const name = relative(SRC_DIR, file);
-
-            if (findings.length > 0 && !marker) {
-                unexplained.push(`${name}: ${findings.join(', ')}`);
-            }
-            // A marker with a word or two after it is a silencer; the point is
-            // that somebody had to write down a reason.
-            if (marker && marker[1]!.trim().split(/\s+/).length < 5) {
-                unexplained.push(`${name}: exempt without a reason`);
-            }
-            // The other direction, and the reason this test cannot go blind
-            // unnoticed: the exempt files are the detector's fixtures. If one is
-            // migrated the marker has to go, and if the detector stops seeing a
-            // disclosure it is still looking at, this says so.
-            if (marker && findings.length === 0) {
-                stale.push(`${name}: marked exempt, but nothing here is a disclosure any more`);
-            }
+            const verdict = review(relative(SRC_DIR, file), ownDisclosures(file, source), source);
+            unexplained.push(...verdict.unexplained);
+            stale.push(...verdict.stale);
         }
 
         expect(unexplained).toEqual([]);

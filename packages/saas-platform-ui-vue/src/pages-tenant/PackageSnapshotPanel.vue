@@ -129,7 +129,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// sa-disclosure-exempt: a tenant-facing raw payload toggle, in a directory that is leaving
+// sa-disclosure-exempt(toggles `showRaw`, writes `aria-expanded`):
+// a tenant-facing raw payload toggle, in a directory that is leaving
 //
 // The package has one disclosure, `AdminAccordion`, and every surface inside
 // the admin uses it. This one is outside the admin twice over.

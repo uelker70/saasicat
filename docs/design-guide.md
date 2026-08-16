@@ -102,8 +102,10 @@ template renders a body on, and for a view that declares itself a disclosure
 control with a hand-written `aria-expanded` or a native `<details>`.
 
 Three surfaces are deliberately not `AdminAccordion`, and each says why in its
-own source rather than in a list here. The test finds those notes, and fails
-just as loudly on a note left behind after its surface was migrated:
+own source rather than in a list here. A note names the finding it excuses —
+``sa-disclosure-exempt(writes `aria-expanded`): …`` — so it covers that one
+surface and nothing else. A second, unexplained disclosure in the same file is
+still a failure, and so is a note left behind after its surface was migrated:
 
 - **`marketing-catalog/MarketingCatalogAdmin.vue`** — its rows are
   `display: contents` cells of a six-column grid and the open editor spans
