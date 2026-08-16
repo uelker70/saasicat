@@ -654,8 +654,13 @@ describe('page shell contract', () => {
                     // read as assignments. Every assignment in the region, not
                     // the first: a function body holds several statements, and
                     // the flip is rarely the one at the top.
+                    // `(?:\.[\w$]+|\[[^\]]*\])*` so a keyed store counts:
+                    // `expanded[row.id] = !expanded[row.id]` beside
+                    // `v-if="expanded[row.id]"` is the ordinary way to hold
+                    // per-row state, and reading only the dotted form let it
+                    // through.
                     const assignments = region.matchAll(
-                        /([A-Za-z_$][\w$]*)(?:\.[\w$]+)*\s*=(?![=>])\s*(.+)/g,
+                        /([A-Za-z_$][\w$]*)(?:\.[\w$]+|\[[^\]]*\])*\s*=(?![=>])\s*(.+)/g,
                     );
                     for (const assignment of assignments) {
                         const name = assignment[1]!;
