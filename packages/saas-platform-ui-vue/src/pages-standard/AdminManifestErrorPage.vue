@@ -82,9 +82,10 @@ function retry(): void | Promise<void> {
  * backend has recovered.
  *
  * And the cache must go first. The loader keeps an ETag in storage, which a
- * full document load does not touch. Its own documented failure — "server
- * returned 304 but the cache body is missing" — would otherwise repeat exactly:
- * same `If-None-Match`, same 304, same missing body, straight back here.
+ * full document load does not touch, so a plain retry revalidates: a 304 hands
+ * back the manifest the app already had, and an operator retrying after a
+ * deployment would keep being shown the old one. Clearing first is what makes
+ * the retry ask an open question.
  *
  * `router.resolve` rather than a bare path so an app served under a base href
  * lands inside its own app and not at the domain root.

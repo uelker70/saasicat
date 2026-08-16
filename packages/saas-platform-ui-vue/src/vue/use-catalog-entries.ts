@@ -9,6 +9,7 @@
 // (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     CapabilityCatalogEntryRow,
     CatalogEntryI18n,
@@ -19,9 +20,8 @@ import type {
     SyncDiscoveryResult,
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
-import { formatMessage } from '../client/i18n/format.js';
+import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
 
 export interface UseCatalogEntriesOptions {
     /** Admin endpoint prefix incl. globalPrefix (`/api/admin`, `/api/v1/admin`). */
@@ -33,6 +33,12 @@ export interface UseCatalogEntriesOptions {
     autoLoad?: boolean;
 }
 
+/**
+ * A catalog-entries call failed. Its `message` is a diagnostic for the log, in
+ * English like every other developer-facing string in the repository — the
+ * sentence a user is shown comes from the `errors` catalog through
+ * `adminErrorMessage`, in whichever language the shell speaks.
+ */
 export class CatalogEntriesApiError extends Error {
     constructor(
         public readonly status: number,
@@ -41,6 +47,9 @@ export class CatalogEntriesApiError extends Error {
     ) {
         super(message);
         this.name = 'CatalogEntriesApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 
@@ -83,7 +92,6 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
         throw new Error('useCatalogEntries: `projectKey` is required.');
     }
 
-    const msg = useSaMessages('discovery');
     const http = options.http ?? defaultHttpClient();
     const capabilities = ref<CapabilityCatalogEntryRow[]>([]);
     const features = ref<FeatureCatalogEntryRow[]>([]);
@@ -100,18 +108,28 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: { 'content-type': 'application/json', ...authHeaders(), ...init?.headers },
             body: init?.body,
         });
+        // Before any body is read: `null` below has to mean "the server
+        // answered without one", which is what the callers' empty-response
+        // sentinels claim.
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new CatalogEntriesApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
             throw new CatalogEntriesApiError(
                 res.status,
                 body,
-                formatMessage(msg.value.errorCatalogHttp, { status: res.status }),
+                `Catalog entries API responded with HTTP ${res.status}`,
             );
         }
         return body as T;
@@ -144,7 +162,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}/review?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Review returned no body'));
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -157,7 +176,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}/review?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Review returned no body'));
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -170,7 +190,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}/i18n?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'i18n returned no body'));
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -183,7 +204,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}/i18n?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'i18n returned no body'));
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -196,7 +218,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Base returned no body'));
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -209,7 +232,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Base returned no body'));
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -219,7 +243,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             method: 'POST',
             body: JSON.stringify({ snapshot }),
         });
-        if (!result) throw new CatalogEntriesApiError(0, null, 'Sync returned no body');
+        if (!result)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Sync returned no body'));
         await load();
         return result;
     }

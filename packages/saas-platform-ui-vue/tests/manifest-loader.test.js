@@ -116,15 +116,74 @@ describe('ManifestLoader.load — cache hit (304)', () => {
         assert.equal(second.calls[0].init.headers['If-None-Match'], '"sha256-abc"');
     });
 
-    test('304 without cache → ManifestLoadError', async () => {
+    test('a 304 whose cached body is gone is repaired, not reported', async () => {
         const storage = buildStorage();
-        // Cache is empty; server still responds with 304
-        const { http } = buildHttp([{ status: 304, body: null }]);
+        // The ETag outlived the body: a quota eviction, another tab clearing
+        // one key, a half-written store. The conditional request that earned
+        // this 304 is the loader's own, and so is the cache it asked against —
+        // dropping the ETag and asking again is a step it can take itself.
+        storage.set('manifest:etag', '"sha256-abc"');
+        const { http, calls } = buildHttp([
+            { status: 304, body: null },
+            { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"sha256-def"' } },
+        ]);
+        const loader = new ManifestLoader({ http, storage, endpoint: ENDPOINT });
+
+        const manifest = await loader.load();
+
+        assert.equal(manifest.build.manifestHash, 'sha256-abc');
+        assert.equal(calls.length, 2);
+        assert.equal(calls[0].init.headers['If-None-Match'], '"sha256-abc"');
+        assert.equal(calls[1].init.headers['If-None-Match'], undefined);
+        // Repaired, not merely survived: the next load is conditional again.
+        assert.equal(storage.get('manifest:etag'), '"sha256-def"');
+        assert.deepEqual(JSON.parse(storage.get('manifest:body')), SAMPLE_MANIFEST);
+    });
+
+    test('a cached body that no longer parses is repaired the same way', async () => {
+        const storage = buildStorage();
+        storage.set('manifest:etag', '"sha256-abc"');
+        storage.set('manifest:body', '{"schemaVersion":1,"project"');
+        const { http, calls } = buildHttp([
+            { status: 304, body: null },
+            { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"sha256-def"' } },
+        ]);
+        const loader = new ManifestLoader({ http, storage, endpoint: ENDPOINT });
+
+        const manifest = await loader.load();
+
+        assert.equal(manifest.build.manifestHash, 'sha256-abc');
+        assert.equal(calls.length, 2);
+        assert.deepEqual(JSON.parse(storage.get('manifest:body')), SAMPLE_MANIFEST);
+    });
+
+    test('a 304 to a request that carried no ETag is a server fault, and is reported', async () => {
+        const storage = buildStorage();
+        // Nothing was cached, so nothing conditional was asked. There is no
+        // stale ETag to drop and repeating the same unconditional request
+        // would only ask the same question twice.
+        const { http, calls } = buildHttp([{ status: 304, body: null }]);
         const loader = new ManifestLoader({ http, storage, endpoint: ENDPOINT });
         await assert.rejects(
             loader.load(),
             (err) => err instanceof ManifestLoadError && err.status === 304,
         );
+        assert.equal(calls.length, 1);
+    });
+
+    test('a server answering 304 unconditionally is reported after one repair, not looped on', async () => {
+        const storage = buildStorage();
+        storage.set('manifest:etag', '"sha256-abc"');
+        const { http, calls } = buildHttp([{ status: 304, body: null }]);
+        const loader = new ManifestLoader({ http, storage, endpoint: ENDPOINT });
+        await assert.rejects(
+            loader.load(),
+            (err) => err instanceof ManifestLoadError && err.status === 304,
+        );
+        assert.equal(calls.length, 2, 'one repair attempt, not a retry loop');
+        // The stale pair is dropped either way, so the next load starts clean.
+        assert.equal(storage.get('manifest:etag'), null);
+        assert.equal(storage.get('manifest:body'), null);
     });
 });
 

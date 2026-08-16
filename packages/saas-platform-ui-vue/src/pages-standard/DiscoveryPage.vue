@@ -18,7 +18,7 @@
             />
             <q-banner v-if="error" class="sa-discovery__error" rounded>
                 <template #avatar><q-icon name="warning" color="negative" /></template>
-                {{ common.error }}: {{ error.message }}
+                {{ common.error }}: {{ errorText }}
             </q-banner>
 
             <AdminSection class="q-mt-lg">
@@ -165,6 +165,7 @@ import AdminPage from '../components/admin-page/AdminPage.vue';
 import DiscoveryKpis from './discovery-page/DiscoveryKpis.vue';
 import DiscoveryMetaBanner from './discovery-page/DiscoveryMetaBanner.vue';
 import DiscoveryQuotaCard from './discovery-page/DiscoveryQuotaCard.vue';
+import { adminErrorMessage } from '../client/admin-error.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { statusLabel } from './discovery-page/discovery-ui.js';
@@ -216,7 +217,13 @@ const expandedQuota = ref<string | null>(null);
 
 const msg = useSaMessages('discovery');
 const common = useSaMessages('common');
+const errors = useSaMessages('errors');
 const { intlLocale } = useSuperAdminI18n();
+
+// The banner shows what the failing side said, or the catalog's sentence for
+// what happened — never the error's own `message`, which is an English
+// diagnostic for the log and was reaching this screen verbatim.
+const errorText = computed(() => (props.error ? adminErrorMessage(props.error, errors.value) : ''));
 
 const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStatus | 'all' }>>(
     () => [

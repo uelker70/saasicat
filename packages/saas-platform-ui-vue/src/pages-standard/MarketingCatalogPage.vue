@@ -148,6 +148,7 @@ import { usePlans } from '../vue/use-plans.js';
 import { useMarketingProjections } from '../vue/use-marketing-projections.js';
 import { usePromotions } from '../vue/use-promotions.js';
 import { useCatalogEntries } from '../vue/use-catalog-entries.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import { formatCurrency } from '../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { formatMessage } from '../client/i18n/format.js';
@@ -185,7 +186,17 @@ const props = defineProps<{
 
 const msg = useSaMessages('marketing');
 const common = useSaMessages('common');
+const errors = useSaMessages('errors');
 const { locale, intlLocale } = useSuperAdminI18n();
+
+/**
+ * What to put in the page banner for a caught failure: what the failing side
+ * said, or the catalog's sentence for what happened. Never `err.message` — for
+ * this page's own composables that is an English diagnostic for the log.
+ */
+function bannerText(err: unknown): string {
+    return adminErrorMessage(err, errors.value);
+}
 
 const availableLocales = computed(() =>
     props.availableLocales && props.availableLocales.length > 0 ? props.availableLocales : ['de'],
@@ -398,7 +409,7 @@ async function reloadAll(): Promise<void> {
         ]);
         await reloadVersions();
     } catch (err) {
-        pageError.value = err instanceof Error ? err.message : String(err);
+        pageError.value = bannerText(err);
     } finally {
         busy.value = false;
     }
@@ -744,7 +755,7 @@ async function patch(row: MarketingRow, partial: Partial<ResolvedMarketing>): Pr
             });
         }
     } catch (err) {
-        pageError.value = err instanceof Error ? err.message : String(err);
+        pageError.value = bannerText(err);
         await projectionsApi.load();
     } finally {
         busy.value = false;
@@ -831,7 +842,7 @@ async function onLocaleChange(loc: string): Promise<void> {
             locale: loc,
         });
     } catch (err) {
-        pageError.value = err instanceof Error ? err.message : String(err);
+        pageError.value = bannerText(err);
     } finally {
         busy.value = false;
     }
