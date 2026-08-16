@@ -117,6 +117,23 @@ export function createResourceRegistry<TMap extends ResourceMap>(
             ? options.context
             : () => options.context as ResourceContext;
 
+    // An override for a resource that is not registered would otherwise be
+    // read by nothing: the loop below walks the resources, so a typo like
+    // `planVersion` silently drops the approval or auth wrapper it was meant to
+    // add and leaves the platform operation running. A misspelled OPERATION
+    // already fails at boot, so the two spellings of the same mistake had
+    // opposite outcomes. TypeScript catches this for a typed consumer; a
+    // JavaScript one, or a config assembled at runtime, gets nothing.
+    const unknown = Object.keys(options.overrides ?? {}).filter(
+        (key) => !(key in options.resources),
+    );
+    if (unknown.length > 0) {
+        throw new Error(
+            `createResourceRegistry: no resource named ${unknown.map((k) => `"${k}"`).join(', ')} ` +
+                `to override. The registry holds: ${Object.keys(options.resources).join(', ')}.`,
+        );
+    }
+
     // Bound once per resource: the context is read per call, so nothing here
     // goes stale, and a page that asks twice gets the same operations.
     const bound = new Map<string, unknown>();

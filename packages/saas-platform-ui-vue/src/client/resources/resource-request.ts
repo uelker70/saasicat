@@ -12,7 +12,7 @@
 // three are mutually incompatible and belong to a different audience — see the
 // tenant package split. Nothing here should be pointed at them.
 
-import { AdminError } from '../admin-error.js';
+import { AdminError, readErrorCode, readErrorDetail } from '../admin-error.js';
 import type { HttpClient } from '../types.js';
 
 export interface ResourceRequestInit {
@@ -50,13 +50,18 @@ export async function requestJson<T>(
     if (response.status === 204) return null;
     const body = await response.json().catch(() => null);
     if (response.status >= 400) {
-        const code =
-            typeof body === 'object' &&
-            body !== null &&
-            typeof (body as { code?: unknown }).code === 'string'
-                ? (body as { code: string }).code
-                : undefined;
-        throw new AdminError({ status: response.status, code, body, url, method });
+        throw new AdminError({
+            status: response.status,
+            code: readErrorCode(body),
+            body,
+            // The third place this had to be read, and the second time it was
+            // read a narrower way: without `detail` a page migrating onto these
+            // resources loses "Plan already exists" and shows the generic
+            // status sentence instead. One decision, one function.
+            detail: readErrorDetail(body),
+            url,
+            method,
+        });
     }
     return body as T | null;
 }

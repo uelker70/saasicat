@@ -166,6 +166,22 @@ describe('createResourceRegistry — overrides', () => {
         assert.equal(calls.length, 0);
     });
 
+    test('overriding a resource that does not exist fails at boot too', () => {
+        // The sibling case below already failed loudly. This one did not: the
+        // loop walks the resources, so an override keyed to a name that is not
+        // there was read by nothing — the wrapper silently absent, the platform
+        // operation still running.
+        const { http } = recordingHttp();
+        assert.throws(
+            () => registryWith(http, { planVersion: { context: { apiBase: '/x' } } }),
+            (err) => {
+                assert.match(err.message, /no resource named "planVersion"/);
+                assert.match(err.message, /The registry holds: plans, planVersions/);
+                return true;
+            },
+        );
+    });
+
     test('overriding an operation that does not exist fails at boot, not at click', () => {
         const { http } = recordingHttp();
         assert.throws(

@@ -230,6 +230,33 @@ describe('the shared request policy', () => {
         });
     });
 
+    test('what the server said survives — a page must not lose actionable text', async () => {
+        // Third place this had to be read, and the second time it was read a
+        // narrower way. Without it a page migrating onto the resources shows
+        // "The entry changed in the meantime" where the server said exactly
+        // what was wrong.
+        const { http } = recordingHttp({
+            status: 409,
+            body: { code: 'PLAN_EXISTS', message: 'Plan already exists' },
+        });
+        await assert.rejects(bindPlans(http).create({ planKey: 'pro' }), (err) => {
+            assert.equal(err.detail, 'Plan already exists');
+            assert.equal(err.code, 'PLAN_EXISTS');
+            return true;
+        });
+    });
+
+    test('a validation array is joined here too, not only in the JSON helper', async () => {
+        const { http } = recordingHttp({
+            status: 400,
+            body: { statusCode: 400, message: ['name is required', 'price must be positive'] },
+        });
+        await assert.rejects(bindPlans(http).create({}), (err) => {
+            assert.equal(err.detail, 'name is required, price must be positive');
+            return true;
+        });
+    });
+
     test('a non-2xx without a readable body still reports its status', async () => {
         const { http } = recordingHttp({ status: 502, unparseable: true });
         await assert.rejects(requestJson(http, '/x'), (err) => {
