@@ -11,6 +11,8 @@ import assert from 'node:assert/strict';
 
 import {
     AdminError,
+    SA_MESSAGES,
+    adminErrorMessage,
     bindResource,
     planVersionsResource,
     plansResource,
@@ -272,7 +274,15 @@ describe('the shared request policy', () => {
             assert.ok(err instanceof AdminError);
             // No HTTP status went wrong — the response was a 2xx.
             assert.equal(err.status, 0);
-            assert.equal(err.detail, 'Create returned no body');
+            assert.equal(err.emptyResponse, true);
+            // A diagnostic, so it stays on `message` where the log reads it…
+            assert.equal(err.message, 'Create returned no body');
+            // …and the operator is told the change may already have landed.
+            assert.equal(err.detail, undefined);
+            assert.equal(
+                adminErrorMessage(err, SA_MESSAGES.en.errors),
+                SA_MESSAGES.en.errors.emptyResponse,
+            );
             return true;
         });
     });
@@ -285,7 +295,8 @@ describe('the shared request policy', () => {
         for (const [call, expected] of cases) {
             const { http } = recordingHttp({ status: 204 });
             await assert.rejects(call(bindPlans(http)), (err) => {
-                assert.equal(err.detail, expected);
+                assert.equal(err.message, expected);
+                assert.equal(err.emptyResponse, true);
                 return true;
             });
         }
@@ -308,7 +319,8 @@ describe('the shared request policy', () => {
         await assert.rejects(requestJsonBody(http, '/x', 'nothing came back'), (err) => {
             assert.equal(err.status, 0);
             assert.equal(err.method, 'GET');
-            assert.equal(err.detail, 'nothing came back');
+            assert.equal(err.message, 'nothing came back');
+            assert.equal(err.emptyResponse, true);
             return true;
         });
     });

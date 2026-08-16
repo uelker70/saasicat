@@ -81,7 +81,17 @@ export async function requestJsonBody<T>(
 ): Promise<T> {
     const body = await requestJson<T>(http, url, init);
     if (body === null || body === undefined) {
-        throw new AdminError({ status: 0, url, method: init.method ?? 'GET', detail: what });
+        throw new AdminError({
+            status: 0,
+            url,
+            method: init.method ?? 'GET',
+            // `what` is a diagnostic — "Create returned no body" — so it goes
+            // on `message`, not `detail`. As `detail` it out-ranked the
+            // localized wording and the operator read an English internal
+            // string instead of being told the change may already have landed.
+            message: what,
+            emptyResponse: true,
+        });
     }
     return body;
 }

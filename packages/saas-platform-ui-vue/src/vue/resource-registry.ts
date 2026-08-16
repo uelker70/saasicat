@@ -124,8 +124,12 @@ export function createResourceRegistry<TMap extends ResourceMap>(
     // already fails at boot, so the two spellings of the same mistake had
     // opposite outcomes. TypeScript catches this for a typed consumer; a
     // JavaScript one, or a config assembled at runtime, gets nothing.
+    // `hasOwn`, not `in`: `in` walks the prototype chain, so an override named
+    // `constructor` or `toString` passed the check and was then skipped by the
+    // loop below — silently ignored, which is the outcome this validation
+    // exists to prevent.
     const unknown = Object.keys(options.overrides ?? {}).filter(
-        (key) => !(key in options.resources),
+        (key) => !Object.hasOwn(options.resources, key),
     );
     if (unknown.length > 0) {
         throw new Error(

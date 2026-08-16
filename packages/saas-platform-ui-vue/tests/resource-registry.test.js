@@ -182,6 +182,17 @@ describe('createResourceRegistry — overrides', () => {
         );
     });
 
+    test('an override named after an Object prototype key is still rejected', () => {
+        // `in` walks the prototype chain, so `constructor` passed validation
+        // and was then skipped by the binding loop — silently ignored, which
+        // is exactly what the validation exists to prevent.
+        const { http } = recordingHttp();
+        assert.throws(
+            () => registryWith(http, { constructor: { context: { apiBase: '/x' } } }),
+            /no resource named "constructor"/,
+        );
+    });
+
     test('overriding an operation that does not exist fails at boot, not at click', () => {
         const { http } = recordingHttp();
         assert.throws(
