@@ -6,8 +6,8 @@
 // request. A real app swaps the header interceptor for `Authorization: Bearer …`
 // and the localStorage session for its own token store — nothing else changes.
 
-import axios, { type Method } from 'axios';
-import type { HttpClient, HttpResponse } from '@saasicat/ui-vue';
+import axios from 'axios';
+import { createAxiosHttpClient } from '@saasicat/ui-vue';
 
 const SESSION_KEY = 'notesapp-web-tenant';
 const API_BASE = '/api/v1';
@@ -44,27 +44,4 @@ api.interceptors.request.use((cfg) => {
  * `apiPrefix`-relative path; the base axios client already holds `/api/v1`, so
  * a leading `/api/v1` is stripped to avoid a doubled prefix.
  */
-export const platformHttp: HttpClient = async (url, init) => {
-    const path = url.startsWith(API_BASE) ? url.slice(API_BASE.length) : url;
-    const r = await api.request({
-        url: path,
-        method: (init?.method ?? 'GET') as Method,
-        headers: init?.headers,
-        data: init?.body,
-        // The composables inspect 4xx bodies themselves (402/403), so only 5xx
-        // is treated as a thrown transport error.
-        validateStatus: (s) => s < 500,
-    });
-    const res: HttpResponse = {
-        status: r.status,
-        headers: {
-            get: (n) => {
-                const v = r.headers[n.toLowerCase()];
-                return v == null ? null : String(v);
-            },
-        },
-        json: async () => r.data,
-        text: async () => (typeof r.data === 'string' ? r.data : JSON.stringify(r.data)),
-    };
-    return res;
-};
+export const platformHttp = createAxiosHttpClient(api, { stripPrefix: API_BASE });
