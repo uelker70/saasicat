@@ -156,11 +156,32 @@ describe('toAdminError', () => {
         assert.equal(err.message, 'Bundles API said no');
     });
 
-    test('wraps a plain Error as status 0 and keeps its message as the detail', () => {
+    test('a transport failure keeps its diagnostic off detail, so the catalog answers', () => {
+        // `fetch` rejects with a TypeError whose text is the browser's, in
+        // English, whatever the UI speaks. As `detail` it would out-rank
+        // `msgs.network` — the one sentence that tells the operator what to do.
         const err = toAdminError(new TypeError('Failed to fetch'));
         assert.equal(err.status, 0);
-        assert.equal(err.detail, 'Failed to fetch');
+        assert.equal(err.detail, undefined);
+        assert.equal(err.message, 'Failed to fetch');
         assert.ok(err.cause instanceof TypeError);
+        assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
+    test('an axios failure with no response is transport too', () => {
+        const err = toAdminError(
+            Object.assign(new Error('Network Error'), { config: { url: '/x', method: 'get' } }),
+        );
+        assert.equal(err.status, 0);
+        assert.equal(err.detail, undefined);
+        assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
+    test('but an error from app code keeps its message — that IS what was said', () => {
+        const err = toAdminError(new Error('Plan is locked'));
+        assert.equal(err.status, 0);
+        assert.equal(err.detail, 'Plan is locked');
+        assert.equal(adminErrorMessage(err, EN), 'Plan is locked');
     });
 
     test('wraps a thrown string', () => {
@@ -175,14 +196,6 @@ describe('toAdminError', () => {
             assert.equal(err.status, 0);
             assert.equal(err.detail, undefined);
         }
-    });
-
-    test('an axios rejection without a response is a transport failure, not a 0-status body', () => {
-        const err = toAdminError(
-            Object.assign(new Error('Network Error'), { config: { url: '/x', method: 'get' } }),
-        );
-        assert.equal(err.status, 0);
-        assert.equal(err.detail, 'Network Error');
     });
 });
 

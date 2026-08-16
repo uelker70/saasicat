@@ -202,7 +202,23 @@ export function toAdminError(err: unknown): AdminError {
     }
 
     if (err instanceof Error) {
-        return new AdminError({ detail: asString(err.message), message: err.message, cause: err });
+        // A transport failure carries no message from a failing side — only
+        // the client's own diagnostic, generated in English by whichever
+        // client is installed: `fetch` rejects with a `TypeError` ("Failed to
+        // fetch", "NetworkError when attempting to fetch resource"), and axios
+        // rejects with a `config` but no `response`. Leaving `detail` unset is
+        // what lets `adminErrorMessage` reach `msgs.network`, which is the one
+        // sentence that actually tells the operator what to do.
+        //
+        // Anything else keeps its message: an `Error('Plan is locked')` from
+        // app code IS what the failing side said, and it is what the page-level
+        // copies this replaces showed.
+        const transport = err instanceof TypeError || (record?.config !== undefined && !response);
+        return new AdminError({
+            detail: transport ? undefined : asString(err.message),
+            message: err.message,
+            cause: err,
+        });
     }
 
     const text = asString(err);
