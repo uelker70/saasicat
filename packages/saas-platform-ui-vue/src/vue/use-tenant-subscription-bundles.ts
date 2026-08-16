@@ -4,6 +4,7 @@
 // `SubscriptionBundleModule.forRoot({ controller: {...} })`).
 
 import { ref, type Ref } from 'vue';
+import { markPlatformError } from '../client/admin-error.js';
 import type { SubscriptionBundleRecord } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
@@ -40,6 +41,9 @@ export class TenantSubscriptionBundlesApiError extends Error {
     ) {
         super(message);
         this.name = 'TenantSubscriptionBundlesApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 

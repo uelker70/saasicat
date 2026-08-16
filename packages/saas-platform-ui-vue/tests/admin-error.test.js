@@ -10,6 +10,8 @@ import assert from 'node:assert/strict';
 
 import {
     AdminError,
+    BundlesApiError,
+    PlansApiError,
     DEFAULT_SA_LOCALE,
     HttpJsonError,
     SA_MESSAGES,
@@ -138,14 +140,6 @@ describe('toAdminError', () => {
     });
 
     test('reads one of the package’s own API errors, which carry status and body', () => {
-        class BundlesApiError extends Error {
-            constructor(status, body, message) {
-                super(message);
-                this.name = 'BundlesApiError';
-                this.status = status;
-                this.body = body;
-            }
-        }
         const err = toAdminError(
             new BundlesApiError(422, { code: 'STRICT_MODE_VIOLATIONS' }, 'Bundles API said no'),
         );
@@ -162,16 +156,6 @@ describe('toAdminError', () => {
         // HTTP status to report, so both were `status: 0` and both were told
         // to check the connection. They need opposite words: this one may
         // already have happened.
-        class PlansApiError extends Error {
-            constructor(status, body, message) {
-                super(message);
-                // The real class sets this, and the empty-response rule reads
-                // it — a stand-in that omits it is not the class under test.
-                this.name = 'PlansApiError';
-                this.status = status;
-                this.body = body;
-            }
-        }
         const err = toAdminError(new PlansApiError(0, null, 'Create returned no body'));
         assert.equal(err.emptyResponse, true);
         assert.equal(adminErrorMessage(err, EN), EN.emptyResponse);
@@ -187,20 +171,14 @@ describe('toAdminError', () => {
         // never left.
         const err = toAdminError({ status: 0, message: 'Network Error' });
         assert.equal(err.emptyResponse, false);
-        assert.equal(adminErrorMessage(err, EN), EN.network);
+        // Its own wording survives — the platform does not overrule a message
+        // a consumer's client chose. What it must not do is claim the server
+        // answered and the change may have landed.
+        assert.equal(adminErrorMessage(err, EN), 'Network Error');
+        assert.notEqual(adminErrorMessage(err, EN), EN.emptyResponse);
     });
 
     test('a real HTTP failure is not an empty response', () => {
-        class PlansApiError extends Error {
-            constructor(status, body, message) {
-                super(message);
-                // The real class sets this, and the empty-response rule reads
-                // it — a stand-in that omits it is not the class under test.
-                this.name = 'PlansApiError';
-                this.status = status;
-                this.body = body;
-            }
-        }
         const err = toAdminError(new PlansApiError(403, {}, 'Plans API responded with HTTP 403'));
         assert.equal(err.emptyResponse, false);
         assert.equal(adminErrorMessage(err, EN), EN.forbidden);
@@ -247,6 +225,32 @@ describe('toAdminError', () => {
             assert.equal(err.status, 0);
             assert.equal(err.detail, undefined);
         }
+    });
+});
+
+describe('toAdminError and consumer errors', () => {
+    test('a consumer error carrying a status keeps its message', () => {
+        // `Object.assign(new Error('Quota exhausted'), { status: 429 })` from an
+        // injected HttpClient says something the operator needs. Only this
+        // package's own classes carry diagnostics there, and they are branded —
+        // shape alone could not tell the two apart, and two attempts to guess
+        // (a zero status, then a class-name suffix) each caught consumer errors.
+        const err = toAdminError(Object.assign(new Error('Quota exhausted'), { status: 429 }));
+        assert.equal(err.status, 429);
+        assert.equal(err.detail, 'Quota exhausted');
+        assert.equal(adminErrorMessage(err, EN), 'Quota exhausted');
+    });
+
+    test('a consumer error merely NAMED like ours is still a consumer error', () => {
+        class MyApiError extends Error {
+            constructor(message) {
+                super(message);
+                this.name = 'MyApiError';
+                this.status = 0;
+            }
+        }
+        const err = toAdminError(new MyApiError('Network Error'));
+        assert.equal(err.emptyResponse, false);
     });
 });
 

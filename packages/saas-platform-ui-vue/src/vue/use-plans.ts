@@ -4,6 +4,7 @@
 //   Pack 2a → usePlanVersions (draft/publish lifecycle)
 
 import { ref, type Ref } from 'vue';
+import { markPlatformError } from '../client/admin-error.js';
 import type {
     CreatePlanData,
     CreatePlanVersionDraftData,
@@ -37,6 +38,9 @@ export class PlansApiError extends Error {
     ) {
         super(message);
         this.name = 'PlansApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 

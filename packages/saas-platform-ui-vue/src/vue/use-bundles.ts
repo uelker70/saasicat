@@ -7,6 +7,7 @@
 // the catalog paths themselves — the consumer supplies only the admin prefix.
 
 import { ref, type Ref } from 'vue';
+import { markPlatformError } from '../client/admin-error.js';
 import type {
     BundleRow,
     BundleVersionMutationResult,
@@ -41,6 +42,9 @@ export class BundlesApiError extends Error {
     ) {
         super(message);
         this.name = 'BundlesApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 

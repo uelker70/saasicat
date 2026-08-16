@@ -7,6 +7,7 @@
 // low-frequency and consistency matters more than performance.
 
 import { ref, type Ref } from 'vue';
+import { markPlatformError } from '../client/admin-error.js';
 import type {
     CreateMarketingProjectionData,
     MarketingProjectionFilter,
@@ -34,6 +35,9 @@ export class MarketingProjectionsApiError extends Error {
     ) {
         super(message);
         this.name = 'MarketingProjectionsApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 

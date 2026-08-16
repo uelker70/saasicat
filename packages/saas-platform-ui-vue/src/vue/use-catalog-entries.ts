@@ -9,6 +9,7 @@
 // (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
+import { markPlatformError } from '../client/admin-error.js';
 import type {
     CapabilityCatalogEntryRow,
     CatalogEntryI18n,
@@ -41,6 +42,9 @@ export class CatalogEntriesApiError extends Error {
     ) {
         super(message);
         this.name = 'CatalogEntriesApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 
