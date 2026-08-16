@@ -165,6 +165,9 @@ describe('toAdminError', () => {
         class PlansApiError extends Error {
             constructor(status, body, message) {
                 super(message);
+                // The real class sets this, and the empty-response rule reads
+                // it — a stand-in that omits it is not the class under test.
+                this.name = 'PlansApiError';
                 this.status = status;
                 this.body = body;
             }
@@ -177,10 +180,23 @@ describe('toAdminError', () => {
         assert.equal(err.message, 'Create returned no body');
     });
 
+    test('a consumer client rejecting with status 0 is not an empty response', () => {
+        // A custom `HttpClient` may reject with a transport error that happens
+        // to carry `status: 0`. Inferring from the number alone told that
+        // operator the change might have been applied, for a request that
+        // never left.
+        const err = toAdminError({ status: 0, message: 'Network Error' });
+        assert.equal(err.emptyResponse, false);
+        assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
     test('a real HTTP failure is not an empty response', () => {
         class PlansApiError extends Error {
             constructor(status, body, message) {
                 super(message);
+                // The real class sets this, and the empty-response rule reads
+                // it — a stand-in that omits it is not the class under test.
+                this.name = 'PlansApiError';
                 this.status = status;
                 this.body = body;
             }

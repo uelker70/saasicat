@@ -211,10 +211,16 @@ export function toAdminError(err: unknown): AdminError {
             // "Bundles API responded with HTTP 403", a diagnostic. It stays on
             // `message`, where logs read it.
             detail: readErrorDetail(record.body),
-            // A package API error with `status: 0` is the empty-body sentinel —
-            // `PlansApiError(0, null, 'Create returned no body')`. The call
-            // reached the server; only the answer was unusable.
-            emptyResponse: record.status === 0,
+            // Only the package's own sentinel, not every zero.
+            //
+            // `PlansApiError(0, null, 'Create returned no body')` means the
+            // call reached the server and the answer was unusable. But a
+            // consumer's `HttpClient` may reject with `{ status: 0, message:
+            // 'Network Error' }` too, and inferring from the number alone told
+            // that operator the change might have been applied — for a request
+            // that never left. The name is what separates them: these classes
+            // are this package's, and they all set one.
+            emptyResponse: record.status === 0 && /ApiError$/.test(asString(record.name) ?? ''),
             message: asString(record.message),
             cause: err,
         });

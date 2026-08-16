@@ -56,9 +56,12 @@ else. Nothing here restates a key `common` already owns: those name an action
 so an existing `instanceof HttpJsonError` check keeps working and now also
 matches errors raised elsewhere in the package. Construction changed:
 `AdminError` takes one options object where `HttpJsonError` took
-`(status, code)`. Nothing in this repository or in the three known consumer apps
-constructs it — a response error is thrown at an app, not by one — and the new
-signature is a compile error rather than a silent misread if any code does.
+`(status, code)`. Nothing in this repository or in the two sibling consumer apps
+constructs it — a response error is thrown at an app, not by one. For a
+TypeScript caller the change is a compile error; for a JavaScript one it is
+silent, producing an error with `status: 0` and no `code`. That asymmetry is the
+reason to say it here rather than to keep a compatibility constructor for a
+caller no search could find.
 
 ---
 
