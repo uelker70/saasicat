@@ -194,6 +194,31 @@ const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
 };
 
 /**
+ * Merges an app's Quasar options over the platform's, keeping the plugins the
+ * shell's own ports depend on.
+ *
+ * The bootstrap provides `quasarConfirm`, which calls `Dialog.create`, and the
+ * notify port's fallback calls `Notify.create`. Taking the app's options whole
+ * — as this did — left those uninstalled for anything passing
+ * `{ plugins: {}, … }`, a shape this package's own tests use: the first
+ * confirmation threw instead of asking, turning a guarded action into a broken
+ * one rather than a stricter one.
+ *
+ * An app's own entry still wins on a key collision, so its build of a plugin
+ * replaces the platform's.
+ *
+ * Exported because it is the whole of the decision, and the only part of the
+ * bootstrap that can be checked without driving a real Quasar install.
+ */
+export function resolveQuasarOptions(own?: Partial<QuasarPluginOptions>): QuasarPluginOptions {
+    if (!own) return DEFAULT_QUASAR_OPTIONS;
+    return {
+        ...own,
+        plugins: { ...DEFAULT_QUASAR_OPTIONS.plugins, ...own.plugins },
+    } as QuasarPluginOptions;
+}
+
+/**
  * Universal bootstrap function for SuperAdmin apps. Replaces the `main.ts`
  * boilerplate duplicated per app today (Quasar + Pinia + Router + manifest
  * guard) and exposes the platform maps via `provide()` for downstream
@@ -215,7 +240,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     // theme already repaints its cards via `.sa-page`. What the class buys is
     // that an app which never calls `createSuperAdminApp` stays untouched —
     // which a bare `.q-dialog .q-card` rule could not promise.
-    const quasarOptions = options.quasarOptions ?? DEFAULT_QUASAR_OPTIONS;
+    const quasarOptions = resolveQuasarOptions(options.quasarOptions);
     // `globalNodes` is a documented Quasar config option that its TypeScript
     // types do not declare (see quasar/src/utils/private.config/nodes.js, which
     // reads `globalConfig.globalNodes.class`). The cast is the exception this

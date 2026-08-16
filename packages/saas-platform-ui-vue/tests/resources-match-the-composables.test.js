@@ -83,8 +83,11 @@ const PLAN_CASES = [
     { name: 'list', run: (c) => c.load(), op: 'list', args: [] },
     { name: 'tenantCounts', run: (c) => c.loadTenantCounts(), op: 'tenantCounts', args: [] },
     {
+        // The composable makes the caller supply the project; the descriptor
+        // takes it from the bound context. Same bytes on the wire — that is
+        // the point of comparing here rather than asserting a URL twice.
         name: 'create',
-        run: (c) => c.create({ planKey: 'pro' }),
+        run: (c) => c.create({ planKey: 'pro', projectKey: PROJECT_KEY }),
         op: 'create',
         args: [{ planKey: 'pro' }],
     },

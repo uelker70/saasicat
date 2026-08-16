@@ -56,10 +56,19 @@ export const plansResource = defineResource('plans', {
             scoped(`${plansUrl(ctx)}/tenant-counts`, ctx),
         )) ?? {},
 
-    create: (http, ctx, data: CreatePlanData): Promise<PlanRow> =>
+    /**
+     * The project comes from the context, not from the caller.
+     *
+     * The endpoint takes it in the body, and the composable this replaces made
+     * that the caller's job — so a page had to keep hold of the project it was
+     * administering just to create in it, and `list()` and `create()` read two
+     * different sources for one value. A stale one creates a plan outside the
+     * project the list is showing.
+     */
+    create: (http, ctx, data: Omit<CreatePlanData, 'projectKey'>): Promise<PlanRow> =>
         requestJsonBody<PlanRow>(http, plansUrl(ctx), 'Create returned no body', {
             method: 'POST',
-            body: data,
+            body: { ...data, projectKey: ctx.projectKey },
         }),
 
     update: (http, ctx, planId: string, data: UpdatePlanData): Promise<PlanRow> =>
