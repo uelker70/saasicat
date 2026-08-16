@@ -11,6 +11,7 @@
 // (e.g. `/api/admin/discovery` or `/api/v1/admin/discovery`).
 
 import { ref, type Ref } from 'vue';
+import { markPlatformError } from '../client/admin-error.js';
 import type { DiscoverySnapshot } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import { formatMessage } from '../client/i18n/format.js';
@@ -43,6 +44,9 @@ export class DiscoveryLoadError extends Error {
     ) {
         super(message);
         this.name = 'DiscoveryLoadError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 

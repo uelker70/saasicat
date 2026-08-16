@@ -15,6 +15,7 @@
 // Spec: admin-api.openapi.yaml `GET /admin/manifest`.
 
 import type { AdminManifest } from '@saasicat/types';
+import { markPlatformError } from './admin-error.js';
 import { defaultHttpClient, defaultKvStore, type HttpClient, type KvStore } from './types.js';
 
 export interface ManifestLoaderOptions {
@@ -46,6 +47,9 @@ export class ManifestLoadError extends Error {
     ) {
         super(message);
         this.name = 'ManifestLoadError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 

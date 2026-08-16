@@ -34,6 +34,37 @@ import type { SaMessages } from './i18n/messages.js';
  */
 const ADMIN_ERROR = Symbol.for('@saasicat/ui-vue/AdminError');
 
+/**
+ * Brand for the error classes this package throws itself.
+ *
+ * `toAdminError` has to answer one question about a caught error: is its
+ * `message` something an operator should read? For a consumer's
+ * `Error('Quota exhausted')` the answer is yes. For
+ * `PlansApiError(403, {}, 'Plans API responded with HTTP 403')` it is no — that
+ * is a diagnostic, and showing it instead of the translated wording is what
+ * this whole separation exists to prevent.
+ *
+ * Shape cannot answer it. Both are `Error`s with a numeric `status`, and two
+ * successive attempts to guess — first from `status === 0`, then from a class
+ * name ending in `ApiError` — each turned out to catch consumer errors as well.
+ * A name suffix is a convention anyone may share; identity is not. `Symbol.for`
+ * because the package ships more than one bundle copy.
+ */
+const PLATFORM_ERROR = Symbol.for('@saasicat/ui-vue/PlatformError');
+
+/**
+ * Marks an error as one this package raised. Called by the package's own error
+ * classes in their constructors; nothing else should call it.
+ */
+export function markPlatformError(error: Error): void {
+    Object.defineProperty(error, PLATFORM_ERROR, { value: true });
+}
+
+/** Whether an error came from this package, across bundle copies. */
+export function isPlatformError(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && PLATFORM_ERROR in value;
+}
+
 export interface AdminErrorInit {
     /** HTTP status. `0` means the request never produced one. */
     status?: number;
@@ -203,6 +234,11 @@ export function toAdminError(err: unknown): AdminError {
     // The package's own API errors (`BundlesApiError`, `PlansApiError`, …) all
     // carry `status` and most carry the parsed `body`.
     if (record && typeof record.status === 'number') {
+        // Only this package's own classes carry diagnostics in `message`. A
+        // consumer's status-bearing error — `Object.assign(new Error('Quota
+        // exhausted'), { status: 429 })` — says something an operator needs,
+        // and the page-level helper this replaces showed it.
+        const ours = isPlatformError(err);
         return new AdminError({
             status: record.status,
             code: readErrorCode(record.body) ?? asString(record.code),
@@ -210,17 +246,12 @@ export function toAdminError(err: unknown): AdminError {
             // Same reasoning as above: `BundlesApiError`'s message is
             // "Bundles API responded with HTTP 403", a diagnostic. It stays on
             // `message`, where logs read it.
-            detail: readErrorDetail(record.body),
-            // Only the package's own sentinel, not every zero.
-            //
-            // `PlansApiError(0, null, 'Create returned no body')` means the
-            // call reached the server and the answer was unusable. But a
-            // consumer's `HttpClient` may reject with `{ status: 0, message:
-            // 'Network Error' }` too, and inferring from the number alone told
-            // that operator the change might have been applied — for a request
-            // that never left. The name is what separates them: these classes
-            // are this package's, and they all set one.
-            emptyResponse: record.status === 0 && /ApiError$/.test(asString(record.name) ?? ''),
+            detail: readErrorDetail(record.body) ?? (ours ? undefined : asString(record.message)),
+            // `status: 0` from one of ours is the empty-body sentinel — the
+            // call reached the server and only the answer was unusable. From
+            // anyone else it is a transport failure, and telling that operator
+            // the change might have landed would be the opposite of the truth.
+            emptyResponse: record.status === 0 && ours,
             message: asString(record.message),
             cause: err,
         });

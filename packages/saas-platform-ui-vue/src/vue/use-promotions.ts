@@ -5,6 +5,7 @@
 // (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
+import { markPlatformError } from '../client/admin-error.js';
 import type { CreatePromotionData, PromotionRow, UpdatePromotionData } from '@saasicat/types';
 import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
@@ -26,6 +27,9 @@ export class PromotionsApiError extends Error {
     ) {
         super(message);
         this.name = 'PromotionsApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 

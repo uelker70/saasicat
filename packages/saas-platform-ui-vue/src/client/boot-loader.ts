@@ -12,6 +12,7 @@
 // Spec: admin-api.openapi.yaml.
 
 import type { PublicBootResponse } from '@saasicat/types';
+import { markPlatformError } from './admin-error.js';
 import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface BootLoaderOptions {
@@ -31,6 +32,9 @@ export class BootLoadError extends Error {
     ) {
         super(message);
         this.name = 'BootLoadError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 
