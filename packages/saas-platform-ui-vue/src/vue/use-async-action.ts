@@ -73,6 +73,29 @@ export interface UseAsyncActionOptions<T> {
     notify?: UiNotify;
 }
 
+/**
+ * Announces an outcome without being able to change it.
+ *
+ * A report is not part of the action. A notify port whose notification centre
+ * is not mounted used to throw from inside the `try`, so a mutation the server
+ * had already applied came back as a failure — and because the catch then
+ * announced *that*, the same port threw again and `run()` rejected outright. A
+ * caller answering a failed write with a retry repeated a non-idempotent
+ * request over a toast.
+ *
+ * The throw is isolated, not swallowed: it is raised again out of band, where
+ * the app's error handler still sees it and no result is left to corrupt.
+ */
+function report(announce: () => void): void {
+    try {
+        announce();
+    } catch (err: unknown) {
+        queueMicrotask(() => {
+            throw err;
+        });
+    }
+}
+
 export function useAsyncAction<A extends unknown[], T>(
     fn: (...args: A) => Promise<T>,
     options: UseAsyncActionOptions<T> = {},
@@ -109,21 +132,25 @@ export function useAsyncAction<A extends unknown[], T>(
             // "Saved" and then "reload failed", in that order.
             await options.onSuccess?.(result);
             if (notifyOn === 'both') {
-                const message =
-                    typeof options.successMessage === 'function'
-                        ? options.successMessage()
-                        : options.successMessage;
-                if (message) notify?.('positive', message);
+                report(() => {
+                    const message =
+                        typeof options.successMessage === 'function'
+                            ? options.successMessage()
+                            : options.successMessage;
+                    if (message) notify?.('positive', message);
+                });
             }
             return { ok: true, value: result };
         } catch (err: unknown) {
             const adminError = toAdminError(err);
             if (mine === generation) error.value = adminError;
             if (notifyOn !== 'none') {
-                notify?.(
-                    'negative',
-                    options.errorMessage?.(adminError) ??
-                        adminErrorMessage(adminError, messages.value),
+                report(() =>
+                    notify?.(
+                        'negative',
+                        options.errorMessage?.(adminError) ??
+                            adminErrorMessage(adminError, messages.value),
+                    ),
                 );
             }
             return { ok: false, error: adminError };

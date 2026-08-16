@@ -269,6 +269,77 @@ describe('useAsyncAction — a stale failure does not outlive a newer success', 
     });
 });
 
+describe('useAsyncAction — a report cannot change what happened', () => {
+    const boom = () => {
+        throw new Error('notification centre is not mounted');
+    };
+
+    /**
+     * Runs `body` and returns what the isolated report raised out of band.
+     *
+     * The rethrow is deliberate — a broken notify port must not go unnoticed —
+     * so it lands on `uncaughtException`, one tick after the test that caused
+     * it. Capturing it here is what keeps that from failing the file.
+     */
+    async function raisedWhile(body) {
+        const raised = [];
+        const previous = process.listeners('uncaughtException');
+        for (const listener of previous) process.off('uncaughtException', listener);
+        const capture = (err) => raised.push(err.message);
+        process.on('uncaughtException', capture);
+        try {
+            const value = await body();
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            return { value, raised };
+        } finally {
+            process.off('uncaughtException', capture);
+            for (const listener of previous) process.on('uncaughtException', listener);
+        }
+    }
+
+    test('a success toast that throws leaves the action successful', async () => {
+        // The write reached the server. A caller told it failed may answer with
+        // a retry, and a non-idempotent request is then sent twice over a toast.
+        const action = useAsyncAction(async () => 'saved', {
+            notifyOn: 'both',
+            successMessage: 'Saved',
+            notify: boom,
+        });
+        const { value, raised } = await raisedWhile(() => action.run());
+        assert.deepEqual(value, { ok: true, value: 'saved' });
+        assert.equal(action.error.value, null);
+        // Isolated, not swallowed.
+        assert.deepEqual(raised, ['notification centre is not mounted']);
+    });
+
+    test('a successMessage that throws does the same', async () => {
+        const action = useAsyncAction(async () => 'saved', {
+            notifyOn: 'both',
+            successMessage: () => {
+                throw new Error('no locale loaded');
+            },
+        });
+        const { value, raised } = await raisedWhile(() => action.run());
+        assert.deepEqual(value, { ok: true, value: 'saved' });
+        assert.deepEqual(raised, ['no locale loaded']);
+    });
+
+    test('an error toast that throws still returns the action failure', async () => {
+        // Previously this escaped `run()` entirely: the caller awaiting a result
+        // got a rejection about the toast instead of the error it asked about.
+        const action = useAsyncAction(
+            async () => {
+                throw new Error('server said no');
+            },
+            { notify: boom },
+        );
+        const { value, raised } = await raisedWhile(() => action.run());
+        assert.equal(value.ok, false);
+        assert.equal(value.error.detail, 'server said no');
+        assert.deepEqual(raised, ['notification centre is not mounted']);
+    });
+});
+
 describe('useAsyncAction — the success continuation', () => {
     test('a failing continuation fails the action, and says so only once', async () => {
         // Announcing success before the continuation produced both toasts:
