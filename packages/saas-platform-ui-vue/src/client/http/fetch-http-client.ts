@@ -48,7 +48,11 @@ function resolveUrl(url: string, baseUrl: string | undefined): string {
 export function createFetchHttpClient(options: FetchHttpClientOptions = {}): HttpClient {
     return async (url, init) => {
         const headers = new Headers(await options.headers?.());
-        headers.set('Accept', 'application/json');
+        // Only when the hook did not ask for something else. An app requesting
+        // a versioned or vendor representation —
+        // `Accept: application/vnd.example.v2+json` — has no other way to say
+        // so, because the per-call headers belong to platform code.
+        if (!headers.has('Accept')) headers.set('Accept', 'application/json');
         for (const [name, value] of Object.entries(init?.headers ?? {})) {
             headers.set(name, value);
         }
