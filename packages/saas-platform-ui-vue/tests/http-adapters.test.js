@@ -534,12 +534,22 @@ describe('createAxiosHttpClient — the instance keeps its own error handling', 
     });
 
     test('a failure with no response is a transport failure and stays a throw', async () => {
+        // A plain `Error`: what a rejection interceptor that rethrows its own
+        // produces, and what any structural `AxiosLike` that is not axios
+        // produces. `toAdminError`'s axios reading (a `config` and no
+        // `response`) cannot see either, so the brand has to carry it —
+        // otherwise an offline request is shown as this raw text instead of
+        // the localized network failure.
         const instance = {
             async request() {
                 throw new Error('Network Error');
             },
         };
-        await assert.rejects(createAxiosHttpClient(instance)('/x'), /Network Error/);
+        await assert.rejects(createAxiosHttpClient(instance)('/x'), (err) => {
+            assert.match(err.message, /Network Error/);
+            assert.equal(isTransportFailure(err), true);
+            return true;
+        });
     });
 
     test('no validateStatus is imposed on the instance', async () => {

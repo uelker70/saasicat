@@ -15,6 +15,7 @@
 // stand-in cannot reproduce is the transform axios applies to a body — and that
 // transform is what `bodyIsRaw` below has to read correctly.
 
+import { markTransportFailure } from '../admin-error.js';
 import { trimTrailingSlashes } from '../http-json.js';
 import type { HttpClient, HttpResponse } from '../types.js';
 
@@ -347,8 +348,19 @@ export function createAxiosHttpClient(
                 return adapt(response, responseBody);
             }
             // No response at all: the request never completed. That is a
-            // transport failure and belongs to the caller.
-            throw err;
+            // transport failure and belongs to the caller — declared here, the
+            // way the fetch adapter declares its own.
+            //
+            // `toAdminError` can read axios's documented network-failure shape
+            // (a `config` and no `response`) without the brand, but only while
+            // the rejection still carries that config. A rejection interceptor
+            // that rethrows `new Error(...)`, and any structural `AxiosLike`
+            // that is not axios, both drop it — and this is the one place that
+            // knows a request was made and produced nothing, so it says so
+            // instead of leaving the reading to a shape it cannot promise.
+            // Without it an offline request reaches the operator as the raw
+            // error text rather than as the localized network failure.
+            throw markTransportFailure(err);
         }
     };
 }
