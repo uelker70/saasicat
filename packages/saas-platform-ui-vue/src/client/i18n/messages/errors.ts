@@ -10,6 +10,8 @@ import { defineMessages } from '../define.js';
 export const errorsMessages = defineMessages(
     {
         network: 'Die Anfrage konnte nicht abgeschlossen werden. Bitte Verbindung prüfen.',
+        emptyResponse:
+            'Der Server hat nichts zurückgegeben. Bitte prüfen, ob die Änderung angekommen ist.',
         unauthorized: 'Die Sitzung ist abgelaufen. Bitte erneut anmelden.',
         forbidden: 'Für diese Aktion fehlt die Berechtigung.',
         notFound: 'Der angeforderte Eintrag existiert nicht mehr.',
@@ -21,6 +23,7 @@ export const errorsMessages = defineMessages(
     },
     {
         network: 'The request could not be completed. Please check your connection.',
+        emptyResponse: 'The server returned nothing. Please check whether the change was applied.',
         unauthorized: 'Your session has expired. Please sign in again.',
         forbidden: 'You do not have permission for this action.',
         notFound: 'The requested entry no longer exists.',
