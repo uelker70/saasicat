@@ -484,11 +484,15 @@ describe('page shell contract', () => {
         //
         //   1. A click that flips a value the template also renders a body on.
         //      The mechanical definition of "open this" — an assignment whose
-        //      right-hand side reads the same name it writes, next to a `v-if`
-        //      or `v-show` on that name. Assigning a CONSTANT is not a
+        //      right-hand side reads the same path it writes, next to a `v-if`
+        //      or `v-show` on that path. Assigning a CONSTANT is not a
         //      disclosure: `step = 'done'` beside `v-else-if="step === 'done'"`
         //      is a wizard advancing, and a rule that could not tell those
         //      apart would spend its life being suppressed.
+        //
+        //      Path, not root. Which of the two it compares decides the whole
+        //      question once the state lives on an object; `statePath` below
+        //      has the story.
         //
         //      The flip counts wherever it is written — in the attribute, or
         //      in the body of the function the attribute names. Those are the
@@ -547,7 +551,7 @@ describe('page shell contract', () => {
         // string however many controls write it — so a second hand-written
         // `aria-expanded`, or a second `<details>`, inside an already-marked
         // file is covered by the marker for the first. A second toggle is
-        // caught, unless it flips a name already named. Closing that would mean
+        // caught, unless it flips a path already named. Closing that would mean
         // a count or a line number in the marker, and both churn on every edit
         // near the surface; the residue is written down here rather than
         // papered over.
@@ -818,6 +822,48 @@ describe('page shell contract', () => {
             return [attribute, ...named.map((name) => handlerBody(script, name))];
         };
 
+        /**
+         * A reference as the source writes it — `open`, `expandedId.value`,
+         * `expanded[row.id]` — reduced to the state it names.
+         *
+         * This rule pairs a click with a condition written somewhere else, so
+         * two spellings of one piece of state have to survive the trip:
+         *
+         *   - `.value` is a ref unwrapped. The handler writes
+         *     `expandedId.value` and the template reads `expandedId`; those
+         *     are one piece of state, and a template cannot write the other
+         *     spelling.
+         *   - a subscript is a row key. The handler writes `expanded[id]`
+         *     where the template reads `expanded[row.id]`. Which name the key
+         *     goes by on each side is not what this asks, so every subscript
+         *     reduces to `[]` — the store, not the row.
+         *
+         * What does NOT reduce is the property, and that is the point of
+         * having this at all. `form.selected` and `form.panelOpen` are two
+         * pieces of state that merely share a root, and comparing roots — as
+         * this did — read `@click="form.selected = form.current"` beside
+         * `v-if="form.panelOpen"` as a disclosure of `form`. Nothing is
+         * flipped there. Assigning one property of an object while a body
+         * hangs off another is the most ordinary shape a page has, and the
+         * only way out of the finding would have been a marker excusing
+         * something that is not a disclosure — which teaches the next reader
+         * that these markers are how you get past the rule.
+         */
+        const PATH = String.raw`[A-Za-z_$][\w$]*(?:\s*\.\s*[\w$]+|\s*\[[^\]]*\])*`;
+        const statePath = (path: string): string =>
+            path
+                .replace(/\s+/g, '')
+                .replace(/\.value(?![\w$])/g, '')
+                .replace(/\[[^\]]*\]/g, '[]');
+
+        /**
+         * Every path a snippet reads, reduced the same way. Whole paths only:
+         * what sits inside a subscript is the key rather than the state, so
+         * `expanded[row.id]` contributes `expanded[]` and not `row.id`.
+         */
+        const pathsIn = (text: string): Set<string> =>
+            new Set([...text.matchAll(new RegExp(PATH, 'g'))].map((match) => statePath(match[0])));
+
         /** What makes this file a disclosure of its own, if anything does. */
         const ownDisclosures = (file: string, source: string): string[] => {
             const template = templateOf(source);
@@ -828,6 +874,9 @@ describe('page shell contract', () => {
                 ...[...template.matchAll(/\sv-(?:if|else-if|show)="([^"]*)"/g)].map((m) => m[1]!),
                 ...bodyBindings(file, template, script),
             ];
+            /** Every path some body in this template is shown on. */
+            const gated = new Set(conditions.flatMap((condition) => [...pathsIn(condition)]));
+
             for (const { tag } of openTags(template)) {
                 const handler = /@click(?:\.\w+)*="([^"]*)"/.exec(tag);
                 if (!handler) continue;
@@ -835,22 +884,24 @@ describe('page shell contract', () => {
                     // `=(?![=>])` so a comparison and an arrow function are not
                     // read as assignments. Every assignment in the region, not
                     // the first: a function body holds several statements, and
-                    // the flip is rarely the one at the top.
-                    // `(?:\.[\w$]+|\[[^\]]*\])*` so a keyed store counts:
+                    // the flip is rarely the one at the top. The left-hand side
+                    // is a whole `PATH` so that a keyed store counts —
                     // `expanded[row.id] = !expanded[row.id]` beside
                     // `v-if="expanded[row.id]"` is the ordinary way to hold
                     // per-row state, and reading only the dotted form let it
                     // through.
                     const assignments = region.matchAll(
-                        /([A-Za-z_$][\w$]*)(?:\.[\w$]+|\[[^\]]*\])*\s*=(?![=>])\s*(.+)/g,
+                        new RegExp(String.raw`(${PATH})\s*=(?![=>])\s*(.+)`, 'g'),
                     );
                     for (const assignment of assignments) {
-                        const name = assignment[1]!;
-                        const reads = new RegExp(`\\b${name}\\b`);
-                        if (!reads.test(assignment[2]!)) continue;
-                        if (conditions.some((c) => reads.test(c))) {
-                            findings.push(`toggles \`${name}\``);
-                        }
+                        // A flip is one path: the right-hand side reads what
+                        // the left-hand side writes, and a body hangs off that
+                        // same path. Both halves ask about the path rather than
+                        // its root, so an assignment that reads a SIBLING
+                        // property is not one.
+                        const written = statePath(assignment[1]!);
+                        if (!pathsIn(assignment[2]!).has(written)) continue;
+                        if (gated.has(written)) findings.push(`toggles \`${written}\``);
                     }
                 }
             }
@@ -994,7 +1045,10 @@ describe('page shell contract', () => {
             ),
         ).toEqual(['toggles `open`']);
 
-        // The same, per row, through a named handler and a keyed store.
+        // The same, per row, through a named handler and a keyed store. The
+        // click writes `expanded[id]` and the template reads `expanded[row.id]`;
+        // the finding names the store both spellings index, `expanded[]`, and
+        // not whichever name the key happened to have on one of the two sides.
         expect(
             ownDisclosures(
                 FIXTURE,
@@ -1003,7 +1057,7 @@ describe('page shell contract', () => {
                     `function onToggle(id: string): void { expanded[id] = !expanded[id]; }`,
                 ),
             ),
-        ).toEqual(['toggles `expanded`']);
+        ).toEqual(['toggles `expanded[]`']);
 
         // A body `AdminAccordion` renders, opened from a second trigger of this
         // view's own. No `v-if` in this file mentions `expandedId`.
@@ -1037,6 +1091,74 @@ describe('page shell contract', () => {
                 ),
             ),
         ).toEqual([]);
+
+        // And the shape that shares a ROOT with a condition without sharing
+        // anything else: a click that assigns one property of an object while a
+        // body hangs off another. This is an object being updated, which every
+        // page does, and every round of this rule so far called it a toggle of
+        // `form`, because both expressions were reduced to that root.
+        //
+        // It belongs beside the four above and not in a corner labelled edge
+        // case: a rule that fires here has no defence left. The file's author
+        // reaches for the marker — it is right there, it makes the suite green,
+        // and it now says in the source that an ordinary assignment is an
+        // excused disclosure. One of those is cheaper to write than an argument
+        // about the rule, so the rule ends up documenting its own defect.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="form.selected = form.current">head</div>` +
+                        `<div v-if="form.panelOpen">body</div>`,
+                    `const form = reactive({ selected: null, current: null, panelOpen: false });`,
+                ),
+            ),
+        ).toEqual([]);
+
+        // Sharpened once more: the flip is real and the body is real, and they
+        // are still two different pieces of state. `form.selected` is toggled
+        // outright here, so only the CONDITION half separates this from a
+        // disclosure — the half a fix aimed at the right-hand side alone would
+        // have left comparing roots.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="form.selected = !form.selected">head</div>` +
+                        `<div v-if="form.panelOpen">body</div>`,
+                    `const form = reactive({ selected: false, panelOpen: false });`,
+                ),
+            ),
+        ).toEqual([]);
+
+        // The other half, on its own: the condition IS on the property being
+        // written, and the right-hand side is what says this is not a flip.
+        // Bookkeeping beside a "is there anything" gate — no header, no body,
+        // no disclosure — and under root comparison `counts.pending` stood in
+        // for a read of `counts.total`.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="counts.total = counts.pending">head</div>` +
+                        `<div v-if="counts.total">body</div>`,
+                    `const counts = reactive({ total: 0, pending: 0 });`,
+                ),
+            ),
+        ).toEqual([]);
+
+        // And the property that IS the one the body hangs off is still caught,
+        // so the two above are about which property, not about objects.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="form.panelOpen = !form.panelOpen">head</div>` +
+                        `<div v-if="form.panelOpen">body</div>`,
+                    `const form = reactive({ selected: false, panelOpen: false });`,
+                ),
+            ),
+        ).toEqual(['toggles `form.panelOpen`']);
 
         // The counter-proof for the second half, on the same principle.
         //
