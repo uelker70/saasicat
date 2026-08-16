@@ -134,11 +134,11 @@ export interface SuperAdminManifestGuardOptions {
      * Discards the cached manifest, so the next `ensureLoaded()` fetches a
      * fresh body instead of revalidating.
      *
-     * Needed because the loader keeps an ETag in storage. Its own documented
-     * failure — "server returned 304 but the cache body is missing" — survives
-     * a full page reload: the next request sends the same `If-None-Match`,
-     * gets another 304, and lands back on the error page. Retry is a dead end
-     * for that case unless something clears the ETag first.
+     * Needed because the loader keeps an ETag in storage, which a full page
+     * reload does not touch. A plain retry therefore sends `If-None-Match`,
+     * and a 304 hands back the very manifest the app already had — so an
+     * operator retrying after a deployment would keep looking at the old one.
+     * Clearing first is what makes the retry ask an open question.
      *
      * `ManifestLoader.clearCache()` and the manifest store's reset both fit;
      * pass whichever the app uses.

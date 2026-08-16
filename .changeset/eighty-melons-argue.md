@@ -63,6 +63,22 @@ silent, producing an error with `status: 0` and no `code`. That asymmetry is the
 reason to say it here rather than to keep a compatibility constructor for a
 caller no search could find.
 
+**`ManifestLoader` repairs a broken ETag cache instead of reporting it.** Its two
+storage keys can come apart — a quota eviction, another tab clearing one of them
+— and the conditional request built from the surviving ETag then earns a 304 for
+a body that is gone. That used to throw `ManifestLoadError(304, '… call
+clearCache() and reload')`: an instruction addressed to whoever was looking at
+the admin screen, who has neither a console nor a loader handle. The loader now
+drops the pair and repeats the request once without `If-None-Match`, which is
+the same recovery, performed where it is possible. A 304 to a request that
+carried no `If-None-Match` is a server fault and is still reported — with a
+message that says that, and no retry loop.
+
+Separating the two ideas above made the old behaviour visible: the instruction
+was reaching users only because it was mistaken for something the failing side
+had said, and it would have been shown in English to a German operator. Neither
+half was right, so neither was kept.
+
 ---
 
 Found while building it, and the reason `isAdminError()` exists rather than a

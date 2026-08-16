@@ -14,6 +14,7 @@ import {
     PlansApiError,
     DEFAULT_SA_LOCALE,
     HttpJsonError,
+    ManifestLoadError,
     SA_MESSAGES,
     adminErrorMessage,
     getJson,
@@ -176,6 +177,25 @@ describe('toAdminError', () => {
         // answered and the change may have landed.
         assert.equal(adminErrorMessage(err, EN), 'Network Error');
         assert.notEqual(adminErrorMessage(err, EN), EN.emptyResponse);
+    });
+
+    test('a manifest 304 that survives to be thrown is a diagnostic like any other', () => {
+        // The brand says "this message is a diagnostic", and it says it per
+        // class — which holds only while no throw site of such a class writes
+        // something a person is meant to act on. One did:
+        // `ManifestLoadError(304, '… call clearCache() and reload')` was an
+        // instruction, addressed to whoever was looking at the admin screen,
+        // who has neither a console nor a loader handle. `ManifestLoader` now
+        // performs that recovery itself (see `manifest-loader.test.js`), so
+        // the 304 that still reaches here is a server that answered one to an
+        // unconditional request — nothing an operator can do, and the catalog
+        // is the right voice for it.
+        const err = toAdminError(
+            new ManifestLoadError(304, 'Manifest endpoint answered HTTP 304 unconditionally'),
+        );
+        assert.equal(err.detail, undefined);
+        assert.equal(err.message, 'Manifest endpoint answered HTTP 304 unconditionally');
+        assert.equal(adminErrorMessage(err, EN), 'The request failed (HTTP 304).');
     });
 
     test('a real HTTP failure is not an empty response', () => {

@@ -11,12 +11,26 @@
 //   - Subsequent call: GET with `If-None-Match: <etag>` → on 304 the
 //     cached body is returned, no re-parse needed. On 200 the
 //     cache is overwritten.
+//   - The two keys can come apart — a quota eviction, another tab clearing
+//     one of them, a store that took the first write and refused the second.
+//     A 304 then answers a question this loader asked on behalf of a body it
+//     no longer holds, and the repair is to forget the ETag and ask again
+//     unconditionally. See `load()`.
 //
 // Spec: admin-api.openapi.yaml `GET /admin/manifest`.
 
 import type { AdminManifest } from '@saasicat/types';
 import { markPlatformError } from './admin-error.js';
-import { defaultHttpClient, defaultKvStore, type HttpClient, type KvStore } from './types.js';
+import {
+    defaultHttpClient,
+    defaultKvStore,
+    type HttpClient,
+    type HttpResponse,
+    type KvStore,
+} from './types.js';
+
+/** The conditional GET matched: no body was sent, so the cache has to answer. */
+const NOT_MODIFIED = 304;
 
 export interface ManifestLoaderOptions {
     /**
@@ -40,6 +54,11 @@ export interface ManifestLoaderOptions {
     getAuthToken?: () => string | null;
 }
 
+/**
+ * The manifest could not be loaded. Its `message` is a diagnostic for the log,
+ * never text for a screen — `markPlatformError` is what tells `toAdminError`
+ * so, and it is a promise this class has to keep at every throw site.
+ */
 export class ManifestLoadError extends Error {
     constructor(
         public readonly status: number,
@@ -86,27 +105,47 @@ export class ManifestLoader {
     /**
      * Loads the current manifest. On a cache hit (304) the cached
      * body is returned — otherwise the fresh server body.
+     *
+     * A 304 with no usable cached body is not a failure to report but one to
+     * undo: the request only carried `If-None-Match` because this loader put
+     * the ETag there, and the cache it validated against is this loader's own.
+     * So it drops the pair and asks once more without the header, which is the
+     * same recovery a person would have had to trigger by hand — except that
+     * the person reading an admin screen has neither this loader nor a
+     * console. Exactly one retry: a 304 to a request that asked nothing
+     * conditional is a server fault, and no repetition fixes it.
      */
     async load(): Promise<AdminManifest> {
         const cachedEtag = this.storage.get(this.etagKey);
+        const res = await this.request(cachedEtag);
+        if (res.status !== NOT_MODIFIED) return this.acceptFresh(res);
+
+        const cached = this.readCachedBody();
+        if (cached) return cached.body;
+
+        if (cachedEtag) {
+            this.clearCache();
+            const fresh = await this.request(null);
+            if (fresh.status !== NOT_MODIFIED) return this.acceptFresh(fresh);
+        }
+
+        throw new ManifestLoadError(
+            NOT_MODIFIED,
+            'Manifest endpoint answered HTTP 304 to a request without If-None-Match',
+        );
+    }
+
+    /** Sends the manifest GET, conditional when an ETag is supplied. */
+    private request(etag: string | null): Promise<HttpResponse> {
         const headers: Record<string, string> = {};
         const token = this.getAuthToken?.();
         if (token) headers.Authorization = `Bearer ${token}`;
-        if (cachedEtag) headers['If-None-Match'] = cachedEtag;
+        if (etag) headers['If-None-Match'] = etag;
+        return this.http(this.endpoint, { method: 'GET', headers });
+    }
 
-        const res = await this.http(this.endpoint, { method: 'GET', headers });
-
-        if (res.status === 304) {
-            const cachedBody = this.readCachedBody();
-            if (!cachedBody) {
-                throw new ManifestLoadError(
-                    304,
-                    'Server returned 304 but the cache body is missing — call clearCache() and reload',
-                );
-            }
-            return cachedBody.body;
-        }
-
+    /** Takes a non-304 response as the current manifest and caches it. */
+    private async acceptFresh(res: HttpResponse): Promise<AdminManifest> {
         if (res.status !== 200) {
             throw new ManifestLoadError(
                 res.status,
