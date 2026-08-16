@@ -207,25 +207,31 @@ export function useResourceList<
         return { page: page.value, pageSize: pageSize.value, filter };
     }
 
-    const state = useAsyncData<ResourceListPage<Row>>(
-        async () => {
-            const answer = await load(query());
-            // The server decides which page it served, and says so. Asking for
-            // page 99 of a list that has two returns page 2, and the next
-            // request has to ask for the page being shown — otherwise `reload`
-            // asks for 99 again while the paginator reads "99 of 1" over the
-            // rows of page 2. `useApiList` adopts the echo for the same reason;
-            // the descriptor already carries it, and this was the only reader
-            // that dropped it.
-            if (typeof answer.page === 'number') page.value = answer.page;
-            if (typeof answer.pageSize === 'number') pageSize.value = answer.pageSize;
-            return answer;
-        },
-        {
-            initial: EMPTY_PAGE,
-            immediate: opts?.immediate,
-        },
-    );
+    const state = useAsyncData<ResourceListPage<Row>>(() => load(query()), {
+        initial: EMPTY_PAGE,
+        immediate: opts?.immediate,
+    });
+
+    // The server decides which page it served, and says so. Asking for page 99
+    // of a list that has two returns page 2, and the next request has to ask
+    // for the page being shown — otherwise `reload` asks for 99 again while the
+    // paginator reads "99 of 1" over the rows of page 2. `useApiList` adopts
+    // the echo for the same reason; the descriptor carries it and this was the
+    // only reader that dropped it.
+    //
+    // Adopted from `state.data` rather than from inside the loader, because
+    // only the load that won writes there. Doing it in the loader put the
+    // assignment ahead of the generation check: two overlapping navigations
+    // then discarded the stale rows but kept the stale echo, leaving page 2's
+    // rows under a paginator reading 3 and a reload aimed at 3.
+    //
+    // An answer that says nothing about the page leaves the requested one
+    // standing. Silence is not a statement about what was served, and moving
+    // the paginator from it would move it on its own.
+    watch(state.data, (answer) => {
+        if (typeof answer.page === 'number') page.value = answer.page;
+        if (typeof answer.pageSize === 'number') pageSize.value = answer.pageSize;
+    });
 
     async function goToPage(next: number): Promise<void> {
         page.value = clampListPage(next);

@@ -282,6 +282,38 @@ describe('useResourceList — the page the server actually served', () => {
         });
     });
 
+    test('an overdue answer moves neither the rows nor the paginator', async () => {
+        // Two navigations overlap and the older one answers last. Its rows are
+        // discarded by the generation check in `useAsyncData` — and its echo
+        // has to be discarded with them, or the paginator names a page the
+        // table is not showing and the next reload fetches it.
+        const gates = [];
+        const http = (url) => {
+            let resolve;
+            const promise = new Promise((r) => (resolve = r));
+            gates.push({ url, resolve });
+            return promise;
+        };
+        const answer = (page, id) => ({
+            status: 200,
+            headers: { get: () => null },
+            json: async () => ({ items: [{ id }], total: 40, page, pageSize: 25 }),
+            text: async () => '{}',
+        });
+
+        await inShell(http, async () => {
+            const list = useResourceList('tenants', { immediate: false });
+            const older = list.goToPage(3);
+            const newer = list.goToPage(2);
+            gates[1].resolve(answer(2, 'rows-of-page-2'));
+            await newer;
+            gates[0].resolve(answer(3, 'rows-of-page-3'));
+            await older;
+            assert.equal(list.items.value[0].id, 'rows-of-page-2');
+            assert.equal(list.page.value, 2);
+        });
+    });
+
     test('an answer that says nothing about the page leaves the asked-for one', async () => {
         // A bare array, or an envelope without the echo, is not a statement
         // about which page was served. Overwriting the request state from a
