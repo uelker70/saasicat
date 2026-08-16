@@ -59,7 +59,7 @@ refreshed. The instance now runs its own chain to the end; a rejection that
 still carries a response is adapted, and only a genuine no-response failure
 escapes.
 
-Two details the copies got wrong, fixed here once:
+Three details the copies got wrong, fixed here once:
 
 - **Prefix stripping respects path boundaries.** Four of the shims wrote
   `url.slice(7)` — a hardcoded `'/api/v1'.length`. `startsWith` alone matches
@@ -67,6 +67,15 @@ Two details the copies got wrong, fixed here once:
 - **Response headers read under any casing.** The manifest loader asks for
   `ETag` and then again for `etag`, because it could not rely on the shims
   agreeing. Both adapters answer either.
+- **`json()` decodes the body once.** A normal axios instance has already
+  decoded it, so `response.data` may be a string because the body _was_ a JSON
+  string — a body of `"ready"` arrives as `ready`. Decoding that again throws,
+  and a body of `"null"` would quietly become `null`. The adapter now reads
+  which of the two it is off the config axios echoes on the response, so
+  `res.json()` yields the value that was on the wire whether the instance
+  decodes (the default, or `responseType: 'json'`) or hands over text
+  (`responseType: 'text'`, `transformResponse: []`,
+  `transitional: { forcedJSONParsing: false }`).
 
 `stripPrefix` accepts a list as well as a string, because one consumer strips
 `/api/v1` and then `/api` — apps there mount under both conventions. Order
@@ -74,7 +83,7 @@ matters and the shorter prefix must come last; it is documented on the option.
 
 Migrated in this release: both notesapp apps, the scaffolder template, and
 handbook §8.1, which now shows the two adapters instead of printing a shim.
-Duplication across `packages/` and `examples/` moves 2.89 % → 2.86 %.
+Duplication across `packages/` and `examples/` moves 2.89 % → 2.85 %.
 
 Existing hand-written clients keep working unchanged — the contract they satisfy
 did not move.
