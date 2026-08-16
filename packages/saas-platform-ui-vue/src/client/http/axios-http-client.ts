@@ -60,6 +60,10 @@ function stripped(url: string, prefixes: readonly string[]): string {
         const rest = url.slice(trimmed.length);
         if (rest === '') return '/';
         if (rest.startsWith('/')) return rest;
+        // A query or a fragment ends the path just as a slash does, so
+        // `/api/v1?tenant=acme` is the prefix too — without this it fell
+        // through unstripped and was sent doubled.
+        if (rest.startsWith('?') || rest.startsWith('#')) return `/${rest}`;
     }
     return url;
 }
