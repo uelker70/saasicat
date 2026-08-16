@@ -82,3 +82,35 @@ describe('AdminError across the CJS entries of @saasicat/ui-vue', () => {
         assert.equal(wrapped.detail, 'not ours');
     });
 });
+
+describe('the declarations about a failure survive the split too', () => {
+    // Same packaging argument, for the three facts a seam declares rather than
+    // for the class. Each is read back by the OTHER entry: a consumer's HTTP
+    // client typically comes from `./client` while the page that renders the
+    // error reaches `toAdminError` through `.`, so a brand that did not resolve
+    // across copies would silently drop the fact and take the wording with it.
+    test('a transport failure marked through one entry is read back through the other', () => {
+        const err = client.markTransportFailure(new TypeError('fetch failed'));
+        assert.equal(main.isTransportFailure(err), true);
+        assert.equal(main.toAdminError(err).transportFailure, true);
+        assert.equal(
+            main.adminErrorMessage(err, main.SA_MESSAGES.en.errors),
+            main.SA_MESSAGES.en.errors.network,
+        );
+    });
+
+    test('an empty response marked through one entry is read back through the other', () => {
+        const err = client.markEmptyResponse(new Error('Create returned no body'));
+        assert.equal(main.isEmptyResponse(err), true);
+    });
+
+    test('an unmarked error is not mistaken for either', () => {
+        const err = new TypeError('Cannot read properties of null');
+        assert.equal(main.isTransportFailure(err), false);
+        assert.equal(main.isEmptyResponse(err), false);
+        assert.equal(
+            main.adminErrorMessage(err, main.SA_MESSAGES.en.errors),
+            main.SA_MESSAGES.en.errors.unexpected,
+        );
+    });
+});

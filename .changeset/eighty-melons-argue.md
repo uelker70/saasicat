@@ -45,32 +45,57 @@ a string, so a validation rejection arriving through `getJson`/`postJson` lost
 its constraints and showed the generic fallback anyway. Review found it; a test
 now holds it.
 
-New i18n namespace `errors`, ten keys, one per branch `adminErrorMessage` can
-take — `network`, `emptyResponse`, `unauthorized`, `forbidden`, `notFound`,
-`conflict`, `validation`, `rateLimited`, `server`, and a `{status}` template for
-everything else. Nothing here restates a key `common` already owns: those name
-an action ("Failed to load"), these name a cause. German and English ship
-together, and `defineMessages` makes a missing English key a compile error.
+New i18n namespace `errors`, eleven keys, one per branch `adminErrorMessage` can
+take — `network`, `emptyResponse`, `unexpected`, `unauthorized`, `forbidden`,
+`notFound`, `conflict`, `validation`, `rateLimited`, `server`, and a `{status}`
+template for everything else. Nothing here restates a key `common` already owns:
+those name an action ("Failed to load"), these name a cause. German and English
+ship together, and `defineMessages` makes a missing English key a compile error.
 
-**Two of those keys describe the same absent status and must not be swapped.** A
-request that never left says `network` — check the connection. One the server
+**Three of those keys describe the same absent status and must not be swapped.**
+A request that never left says `network` — check the connection. One the server
 accepted and answered without the body it owed says `emptyResponse` — check
-whether the change was applied, because it may well have been. Neither has an
-HTTP status to reason from, so the throw site declares which it is: a mutation
-that needs a body wraps its sentinel in `markEmptyResponse()`, and
-`toAdminError` reads it back through `isEmptyResponse()`. Both are exported,
-because a consumer whose own client can produce that case needs the same
-vocabulary.
+whether the change was applied, because it may well have been. A failure nobody
+knows anything about says `unexpected`. None of them has an HTTP status to
+reason from, so no number can tell them apart, and each is reached only because
+the seam that knew declared it:
 
-Deriving it instead from "one of ours, and `status: 0`" was tried and is wrong.
-That is a fact about the class, and one class hosts both kinds of throw site:
-`BootLoader`, `ManifestLoader` and `useDiscovery` raise their branded errors
-with whatever status the consumer's client reported, so an `HttpClient` that
-resolves a transport failure as `status: 0` — which XHR and axios do, and which
-the `HttpClient` contract permits — turned a failed read-only GET into "check
-whether the change was applied", for a request that could not have changed
-anything. A consumer's own status-0 error is unaffected either way: it never
-carried the brand.
+- the client that could not send the request calls `markTransportFailure()` —
+  `defaultHttpClient` does it for every `fetch` rejection, and the JSON helpers
+  do it for a client that reports the same by RESOLVING with `status: 0`;
+- the mutation that needed a body and did not get one wraps its sentinel in
+  `markEmptyResponse()`.
+
+`toAdminError` reads both back through `isTransportFailure()` and
+`isEmptyResponse()`, and everything else with no status falls to `unexpected`.
+All four functions are exported, because a consumer whose own client can produce
+those cases needs the same vocabulary.
+
+Every one of those facts was a guess first, and each guess was wrong in a way
+its shape could not reveal:
+
+- **"one of ours, and `status: 0`" for an empty response.** That is a fact about
+  the class, and one class hosts both kinds of throw site: `BootLoader`,
+  `ManifestLoader` and `useDiscovery` raise their branded errors with whatever
+  status the consumer's client reported, so a client that resolves a transport
+  failure as `status: 0` — which XHR and axios do, and which the `HttpClient`
+  contract permits — turned a failed read-only GET into "check whether the
+  change was applied".
+- **`if (!data)` for an empty response, in all 24 mutation sentinels.** The
+  helpers under them only threw at `status >= 400`, so a status-0 resolve fell
+  through and `null` meant two things at once. `usePlans().create()` answered
+  "the change may have been applied" for a POST that never left the machine.
+  The helpers now rule that out before they read a body: `requireServerAnswer()`
+  is exported for a consumer writing its own.
+- **`err instanceof TypeError` for a transport failure.** `TypeError` is also
+  every ordinary null dereference, so a bug in page code was reported as a
+  connection problem — `rows.map` on a `null` sent the operator after their
+  router. An unrecognised `TypeError` now keeps its engine text on `message`,
+  where a log reads it, and the operator is told `unexpected` rather than shown
+  a stack-trace line.
+
+A consumer's own status-0 error is unaffected throughout: it never carried a
+brand, and its own message still outranks anything the platform would say.
 
 **`HttpJsonError` is now `AdminError`** — the same class object, not a subclass,
 so an existing `instanceof HttpJsonError` check keeps working and now also
@@ -99,6 +124,32 @@ was reaching users only because it was mistaken for something the failing side
 had said, and it would have been shown in English to a German operator. Neither
 half was right, so neither was kept.
 
+**The diagnostics are English again, and five catalog keys are gone with
+them.** `useDiscovery`, `useCatalogEntries`, `usePromotions` and
+`useMarketingProjections` built the `message` of their branded errors through
+the i18n layer, which made it a translated sentence — German by default — while
+the brand on the class states the opposite: that this text is a diagnostic for
+the log. Both halves were wrong, and one was visible: `DiscoveryPage` renders
+that message, so a 500 reached the screen as the platform's internal wording
+rather than as the catalog's.
+
+The five keys that produced it are removed, because nothing reaches them any
+more and a key that silently does nothing is worse than one that is gone:
+`discovery.errorDiscoveryHttp`, `discovery.errorRescanHttp`,
+`discovery.errorCatalogHttp`, `promos.apiErrorHttpStatus` and
+`marketing.errors.projectionsApi`. An app that overrode one of them gets a
+compile error from `SaMessagesOverrides` and should drop the override: the
+sentence its users see now comes from the `errors` namespace, which is
+overridable in one place for every seam.
+
+**Two standard pages stop rendering `error.message`.** `DiscoveryPage` and
+`MarketingCatalogPage` put the caught error's own text in their banner; with
+diagnostics no longer translated that would have shown an English internal line
+to a German operator. Both now call `adminErrorMessage()`, which is what the
+type exists for — what the failing side said when there is such a text, the
+catalog's sentence when there is not. The remaining page-level copies belong to
+the page migration and are untouched.
+
 ---
 
 Found while building it, and the reason `isAdminError()` exists rather than a
@@ -120,5 +171,12 @@ registry. Counter-checked by swapping it for a plain `Symbol()`: the
 cross-copy recognition test fails and the "two separate classes" test still
 passes, which is the discrimination that makes the test worth having.
 
-The five page-level copies are not removed here — they belong to the page
-migration, and this release changes no page behaviour.
+The same argument holds for the three declarations, which is why they are
+`Symbol.for` keys too: a consumer's HTTP client usually comes from `./client`
+while the page that renders the error reaches `toAdminError` through `.`, so a
+brand that did not resolve across copies would drop the fact and take the
+wording with it.
+
+The five page-level `errMsg()` copies are not removed here — they belong to the
+page migration. The two banners named above are changed because leaving them
+alone would have been the regression, not because the migration started.

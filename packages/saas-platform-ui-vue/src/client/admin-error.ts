@@ -109,6 +109,51 @@ export function isEmptyResponse(value: unknown): boolean {
     return typeof value === 'object' && value !== null && EMPTY_RESPONSE in value;
 }
 
+/**
+ * Brand for the opposite fact: the request never reached the server.
+ *
+ * The third brand, and for the third time because the shape does not carry the
+ * answer. `err instanceof TypeError` was the guess here, and `TypeError` is
+ * also what a null dereference raises — `rows.map` on a `null` produced "check
+ * your connection" for a bug in the page. A name, a status and a class are all
+ * things two unrelated failures can share; only the seam that made the request
+ * knows whether it left the machine.
+ *
+ * `defaultHttpClient` marks what `fetch` rejects with, which is the one client
+ * this package ships. A consumer's `HttpClient` is welcome to mark its own
+ * rejections — that is why this is exported — and an axios rejection is still
+ * recognised by its `config`-without-`response` shape, because axios documents
+ * that shape and cannot be asked to brand anything.
+ *
+ * `Symbol.for` for the same reason as above: the package ships more than one
+ * bundle copy.
+ */
+const TRANSPORT_FAILURE = Symbol.for('@saasicat/ui-vue/TransportFailure');
+
+/**
+ * Marks an error as one the request did not survive: no connection, DNS
+ * failure, CORS rejection, abort, or a client that reported the same by
+ * resolving without an HTTP status. Returns the error so a throw site stays one
+ * expression.
+ */
+export function markTransportFailure<E>(error: E): E {
+    if (typeof error === 'object' && error !== null) {
+        try {
+            Object.defineProperty(error, TRANSPORT_FAILURE, { value: true });
+        } catch {
+            // A frozen or sealed error cannot take the brand. Losing it costs
+            // the precise sentence; replacing the error would cost the
+            // diagnostic altogether, so the original is what propagates.
+        }
+    }
+    return error;
+}
+
+/** Whether an error is a declared transport failure, across bundle copies. */
+export function isTransportFailure(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && TRANSPORT_FAILURE in value;
+}
+
 export interface AdminErrorInit {
     /** HTTP status. `0` means the request never produced one. */
     status?: number;
@@ -137,6 +182,16 @@ export interface AdminErrorInit {
      * well have been.
      */
     emptyResponse?: boolean;
+    /**
+     * The request never reached the server.
+     *
+     * Its own state for the same reason as `emptyResponse`: neither has an HTTP
+     * status to reason from, so a status of `0` cannot tell them apart — and
+     * neither can it tell either of them from an error that simply carries no
+     * status, such as a bug in page code. Only the seam that made the request
+     * knows, and it says so with `markTransportFailure`.
+     */
+    transportFailure?: boolean;
     /** Diagnostic message. Derived from the fields above when omitted. */
     message?: string;
     /** The error this one was built from. */
@@ -176,6 +231,8 @@ export class AdminError extends Error {
     readonly detail?: string;
     /** The request completed but the answer was unusable. See `AdminErrorInit`. */
     readonly emptyResponse: boolean;
+    /** The request never reached the server. See `AdminErrorInit`. */
+    readonly transportFailure: boolean;
 
     constructor(init: AdminErrorInit = {}) {
         super(init.message ?? describe(init), { cause: init.cause });
@@ -187,7 +244,15 @@ export class AdminError extends Error {
         this.method = init.method;
         this.detail = init.detail;
         this.emptyResponse = init.emptyResponse ?? false;
+        this.transportFailure = init.transportFailure ?? false;
         Object.defineProperty(this, ADMIN_ERROR, { value: true });
+        // `message` here is `describe()`'s diagnostic, or one a throw site
+        // supplied — never text for a screen, which is exactly what the
+        // platform brand states. `toAdminError` returns an `AdminError`
+        // unchanged and so never reads it, but the promise holds for anyone
+        // who does, and it keeps the guard's rule ("every error class this
+        // package declares carries the brand") free of exceptions.
+        markPlatformError(this);
     }
 }
 
@@ -298,6 +363,7 @@ export function toAdminError(err: unknown): AdminError {
             // a client that resolves a transport failure as `0` turned a
             // failed GET into "the change may have been applied".
             emptyResponse: isEmptyResponse(err),
+            transportFailure: isTransportFailure(err),
             message: asString(record.message),
             cause: err,
         });
@@ -305,19 +371,36 @@ export function toAdminError(err: unknown): AdminError {
 
     if (err instanceof Error) {
         // A transport failure carries no message from a failing side — only
-        // the client's own diagnostic, generated in English by whichever
-        // client is installed: `fetch` rejects with a `TypeError` ("Failed to
-        // fetch", "NetworkError when attempting to fetch resource"), and axios
-        // rejects with a `config` but no `response`. Leaving `detail` unset is
-        // what lets `adminErrorMessage` reach `msgs.network`, which is the one
-        // sentence that actually tells the operator what to do.
+        // the client's own diagnostic, generated in English by whichever client
+        // is installed. Leaving `detail` unset is what lets
+        // `adminErrorMessage` reach `msgs.network`, the one sentence that
+        // actually tells the operator what to do.
+        //
+        // Which errors those are is declared, not inferred. `defaultHttpClient`
+        // brands what `fetch` rejects with; a consumer's client may brand its
+        // own. `err instanceof TypeError` used to stand in for it and was
+        // wrong in both directions: it caught every null dereference in page
+        // code ("Cannot read properties of null") and told the operator to
+        // check their connection, and it missed any client that fails with
+        // something else. Axios is the one shape still read rather than
+        // branded — a rejection with a `config` and no `response` is its
+        // documented network-failure form, and the package cannot ask a
+        // library to mark itself.
         //
         // Anything else keeps its message: an `Error('Plan is locked')` from
         // app code IS what the failing side said, and it is what the page-level
         // copies this replaces showed.
-        const transport = err instanceof TypeError || (record?.config !== undefined && !response);
+        const transport = isTransportFailure(err) || (record?.config !== undefined && !response);
+        // A `TypeError` nobody declared a transport failure is a JavaScript
+        // fault — `rows.map` on a `null`, or a client that failed in a way it
+        // did not mark. Either way its text is the engine's ("Cannot read
+        // properties of null (reading 'map')"), which belongs in a stack trace
+        // and not on an admin screen, so it stays on `message` and the fallback
+        // in `adminErrorMessage` answers instead.
+        const saidSomethingReadable = !transport && !(err instanceof TypeError);
         return new AdminError({
-            detail: transport ? undefined : asString(err.message),
+            detail: saidSomethingReadable ? asString(err.message) : undefined,
+            transportFailure: transport,
             message: err.message,
             cause: err,
         });
@@ -346,21 +429,26 @@ function statusKey(status: number): keyof SaMessages['errors'] | undefined {
  * Turns anything that was caught into text for a user.
  *
  * What the failing side said outranks anything this package could guess, so a
- * `detail` wins whenever there is one. Only when there is none does the status
- * decide, and a request that never produced a status cannot be described more
- * precisely than as one that did not complete.
+ * `detail` wins whenever there is one. After that come the two facts a seam
+ * declared about a request with no HTTP status — they need opposite sentences
+ * and no number can tell them apart — and only then the status.
+ *
+ * The last line is the honest one. An error with no status, no text and no
+ * declaration is an error nothing knows anything about; "check your connection"
+ * used to be the answer, and it sent an operator after their router for a null
+ * dereference in a page. Whoever knows better says so with
+ * `markTransportFailure` or `markEmptyResponse`.
  *
  * Pages do not call this — `useAsyncAction` and the error banner do.
  */
 export function adminErrorMessage(err: unknown, msgs: SaMessages['errors']): string {
     const error = toAdminError(err);
     if (error.detail) return error.detail;
-    // Before the status check: this one also has no status, and telling an
-    // operator to check their connection when the server answered would send
-    // them after the wrong thing — and hide that the change may have landed.
     if (error.emptyResponse) return msgs.emptyResponse;
-    if (error.status <= 0) return msgs.network;
-    const key = statusKey(error.status);
-    if (key) return msgs[key];
-    return formatMessage(msgs.httpStatus, { status: error.status });
+    if (error.transportFailure) return msgs.network;
+    if (error.status > 0) {
+        const key = statusKey(error.status);
+        return key ? msgs[key] : formatMessage(msgs.httpStatus, { status: error.status });
+    }
+    return msgs.unexpected;
 }

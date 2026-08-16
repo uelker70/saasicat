@@ -21,6 +21,7 @@
 
 import type { AdminManifest } from '@saasicat/types';
 import { markPlatformError } from './admin-error.js';
+import { requireServerAnswer } from './http-json.js';
 import {
     defaultHttpClient,
     defaultKvStore,
@@ -146,6 +147,12 @@ export class ManifestLoader {
 
     /** Takes a non-304 response as the current manifest and caches it. */
     private async acceptFresh(res: HttpResponse): Promise<AdminManifest> {
+        requireServerAnswer(
+            res.status,
+            'GET',
+            this.endpoint,
+            (diagnostic) => new ManifestLoadError(res.status, diagnostic),
+        );
         if (res.status !== 200) {
             throw new ManifestLoadError(
                 res.status,

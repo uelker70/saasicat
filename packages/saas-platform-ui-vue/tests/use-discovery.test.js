@@ -13,10 +13,16 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from 'vue';
 
-import { DEFAULT_SA_LOCALE, DiscoveryLoadError, SA_MESSAGES, useDiscovery } from '../dist/index.js';
+import {
+    DEFAULT_SA_LOCALE,
+    DiscoveryLoadError,
+    SA_MESSAGES,
+    adminErrorMessage,
+    useDiscovery,
+} from '../dist/index.js';
 
 /** What the composable resolves without an i18n provider. */
-const MSG = SA_MESSAGES[DEFAULT_SA_LOCALE].discovery;
+const ERRORS = SA_MESSAGES[DEFAULT_SA_LOCALE].errors;
 
 const SNAPSHOT = { scannedAt: '2026-01-01T00:00:00.000Z', capabilities: [] };
 const ENDPOINT = '/api/admin/discovery';
@@ -107,7 +113,12 @@ describe('useDiscovery', () => {
         await view.load();
         assert.ok(view.error.value instanceof DiscoveryLoadError);
         assert.equal(view.error.value.status, 503);
-        assert.equal(view.error.value.message, MSG.errorDiscoveryHttp.replace('{status}', '503'));
+        // A diagnostic for the log: English, and the same whatever the shell
+        // speaks. It was built through the i18n catalog, which made it a German
+        // sentence that the discovery page then rendered as if the server had
+        // said it.
+        assert.equal(view.error.value.message, 'Discovery endpoint responded with HTTP 503');
+        assert.equal(adminErrorMessage(view.error.value, ERRORS), ERRORS.server);
         assert.equal(view.snapshot.value, null);
         assert.equal(view.loading.value, false);
     });
@@ -132,7 +143,7 @@ describe('useDiscovery', () => {
         const view = discovery({ http });
         await view.rescan();
         assert.ok(view.error.value instanceof DiscoveryLoadError);
-        assert.equal(view.error.value.message, MSG.errorRescanHttp.replace('{status}', '500'));
+        assert.equal(view.error.value.message, 'Discovery rescan responded with HTTP 500');
     });
 
     test('a client that rejects is reported as it is, not re-wrapped', async () => {
@@ -140,6 +151,20 @@ describe('useDiscovery', () => {
         await view.load();
         assert.ok(view.error.value instanceof TypeError);
         assert.equal(view.loading.value, false);
+    });
+
+    test('a client that resolves with status 0 never reached the server', async () => {
+        // `HttpClient` permits reporting a transport failure by resolving, and
+        // axios and XHR do exactly that. Behind `status !== 200` the zero used
+        // to travel into a branded error that carried no further fact, and the
+        // catalog then had nothing left to reason from.
+        const { http } = httpQueue([{ status: 0, body: null }]);
+        const view = discovery({ http });
+        await view.load();
+        assert.ok(view.error.value instanceof DiscoveryLoadError);
+        assert.equal(view.error.value.status, 0);
+        assert.equal(adminErrorMessage(view.error.value, ERRORS), ERRORS.network);
+        assert.match(view.error.value.message, /produced no HTTP status/);
     });
 
     test('a client that throws a non-Error still leaves an Error behind', async () => {

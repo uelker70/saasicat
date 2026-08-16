@@ -13,9 +13,8 @@
 import { ref, type Ref } from 'vue';
 import { markPlatformError } from '../client/admin-error.js';
 import type { DiscoverySnapshot } from '@saasicat/types';
+import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
-import { formatMessage } from '../client/i18n/format.js';
-import { useSaMessages } from './use-super-admin-i18n.js';
 
 export interface UseDiscoveryOptions {
     /**
@@ -37,6 +36,12 @@ export interface UseDiscoveryOptions {
     autoLoad?: boolean;
 }
 
+/**
+ * The discovery endpoint could not be read. Its `message` is a diagnostic for
+ * the log, in English like every other developer-facing string in the
+ * repository — the sentence a user is shown comes from the `errors` catalog
+ * through `adminErrorMessage`, in whichever language the shell speaks.
+ */
 export class DiscoveryLoadError extends Error {
     constructor(
         public readonly status: number,
@@ -74,7 +79,6 @@ export interface UseDiscoveryResult {
 }
 
 export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
-    const msg = useSaMessages('discovery');
     if (!options?.endpoint) {
         throw new Error(
             'useDiscovery: `endpoint` is required (e.g. "/api/admin/discovery" ' +
@@ -101,6 +105,12 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
             }
 
             const res = await http(options.endpoint, { method: 'GET', headers });
+            requireServerAnswer(
+                res.status,
+                'GET',
+                options.endpoint,
+                (diagnostic) => new DiscoveryLoadError(res.status, diagnostic),
+            );
 
             if (res.status === 304) {
                 // Cache hit: snapshot stays unchanged, no re-parse.
@@ -109,7 +119,7 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
             if (res.status !== 200) {
                 throw new DiscoveryLoadError(
                     res.status,
-                    formatMessage(msg.value.errorDiscoveryHttp, { status: res.status }),
+                    `Discovery endpoint responded with HTTP ${res.status}`,
                 );
             }
 
@@ -140,11 +150,18 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
             const token = options.getAuthToken?.();
             if (token) headers.Authorization = `Bearer ${token}`;
 
-            const res = await http(`${options.endpoint}/rescan`, { method: 'POST', headers });
+            const rescanUrl = `${options.endpoint}/rescan`;
+            const res = await http(rescanUrl, { method: 'POST', headers });
+            requireServerAnswer(
+                res.status,
+                'POST',
+                rescanUrl,
+                (diagnostic) => new DiscoveryLoadError(res.status, diagnostic),
+            );
             if (res.status !== 200 && res.status !== 201) {
                 throw new DiscoveryLoadError(
                     res.status,
-                    formatMessage(msg.value.errorRescanHttp, { status: res.status }),
+                    `Discovery rescan responded with HTTP ${res.status}`,
                 );
             }
             const body = (await res.json()) as DiscoverySnapshot;

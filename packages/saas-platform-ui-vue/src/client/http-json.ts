@@ -3,8 +3,50 @@
 // instead of raw `fetch` with divergent error handling per component. A
 // consumer `HttpClient` (auth header, baseURL, retry) then applies everywhere.
 
-import { AdminError, readErrorCode, readErrorDetail } from './admin-error.js';
+import { AdminError, markTransportFailure, readErrorCode, readErrorDetail } from './admin-error.js';
 import type { HttpClient } from './types.js';
+
+/**
+ * Whether a resolved `HttpResponse` describes an answer from the server.
+ *
+ * `HttpClient` is a bare function type, and an axios or XHR wrapper reports a
+ * network error, a CORS rejection or an abort by RESOLVING with `status: 0`
+ * rather than by rejecting — a shape the contract permits and its own
+ * documentation invites. Every caller that reads a body afterwards is assuming
+ * an answer arrived; this is the one place that decides what "arrived" means,
+ * so the two sentences it separates ("check your connection" against "check
+ * whether the change was applied") cannot drift apart per composable.
+ *
+ * `> 0` is the same boundary `AdminError` documents for its `status`.
+ */
+function serverAnswered(status: number): boolean {
+    return status > 0;
+}
+
+/**
+ * Fails, at the seam that can still tell, when the client resolved without an
+ * HTTP status: the request never reached the server.
+ *
+ * Every caller below then knows that an absent body means the server answered
+ * without one, which is the precondition the empty-response sentinel needs and
+ * did not have — `if (!data)` was true for both facts, and the mutation
+ * sentinel told the operator of a request that never left the machine to go
+ * check whether their change had been applied.
+ *
+ * `raise` builds the error class of the calling seam from the diagnostic, so
+ * the caught error keeps saying which API it came from.
+ */
+export function requireServerAnswer(
+    status: number,
+    method: string,
+    url: string,
+    raise: (diagnostic: string) => Error,
+): void {
+    if (serverAnswered(status)) return;
+    throw markTransportFailure(
+        raise(`${method} ${url} produced no HTTP status — the request did not reach the server`),
+    );
+}
 
 /**
  * @deprecated Renamed to {@link AdminError}, which is the same class: an
@@ -38,6 +80,10 @@ async function failed(
     const body = await readErrorBody(res);
     return new AdminError({
         status: res.status,
+        // Read here rather than left to the status: `status: 0` reaches
+        // `adminErrorMessage` as "nothing is known about this failure", and
+        // this seam knows better — it held the response.
+        transportFailure: !serverAnswered(res.status),
         code: readErrorCode(body),
         body,
         url,

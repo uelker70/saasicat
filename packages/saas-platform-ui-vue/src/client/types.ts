@@ -1,5 +1,7 @@
 // Shared configuration types for all UI-Vue loaders/composables.
 
+import { markTransportFailure } from './admin-error.js';
+
 /**
  * Minimal abstraction over `fetch`. Consumers may pass their own
  * implementation (e.g. an axios wrapper that already injects auth headers
@@ -89,7 +91,21 @@ function resolveLocalStorage(): Storage | null {
 /**
  * Default `HttpClient` over `fetch`. Consumers pass their own variant
  * through when they need auth headers / tenant headers / retry logic.
+ *
+ * The rejection is marked on the way out. `fetch` reports every failure before
+ * a response — no connection, DNS, CORS, an aborted request, a URL it cannot
+ * parse — as a `TypeError`, and that is the same class a null dereference in
+ * page code raises. Downstream the two are indistinguishable, which is why the
+ * fact is declared here instead: this is the only place that knows the throw
+ * came out of a request. A consumer's own `HttpClient` can say the same thing
+ * about its own rejections with `markTransportFailure`.
  */
 export function defaultHttpClient(): HttpClient {
-    return (url, init) => fetch(url, init);
+    return async (url, init) => {
+        try {
+            return await fetch(url, init);
+        } catch (err) {
+            throw markTransportFailure(err);
+        }
+    };
 }

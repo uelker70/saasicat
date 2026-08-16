@@ -20,13 +20,23 @@ import {
     ManifestLoader,
     SA_MESSAGES,
     adminErrorMessage,
+    defaultHttpClient,
     getJson,
     isAdminError,
     isEmptyResponse,
+    isTransportFailure,
     markEmptyResponse,
+    markTransportFailure,
     postJson,
     toAdminError,
+    useBundleVersions,
+    useBundles,
+    useCatalogEntries,
     useDiscovery,
+    useMarketingProjections,
+    usePlanVersions,
+    usePlans,
+    usePromotions,
     useTenantSubscriptionBundles,
 } from '../dist/index.js';
 
@@ -116,6 +126,31 @@ describe('isEmptyResponse', () => {
     test('the marker is not enumerable, so it does not leak into a log line', () => {
         const err = markEmptyResponse(new PlansApiError(0, null, 'Create returned no body'));
         assert.deepEqual(Object.keys(err), Object.keys(new PlansApiError(0, null, 'x')));
+    });
+});
+
+describe('isTransportFailure', () => {
+    test('recognises what a client marked, and nothing else', () => {
+        assert.equal(isTransportFailure(markTransportFailure(new TypeError('fetch failed'))), true);
+        // The class the guess used to key on, unmarked: a null dereference.
+        assert.equal(isTransportFailure(new TypeError('Cannot read properties of null')), false);
+        assert.equal(isTransportFailure(new Error('plain')), false);
+        assert.equal(isTransportFailure({ status: 0 }), false);
+        assert.equal(isTransportFailure(null), false);
+        assert.equal(isTransportFailure('boom'), false);
+    });
+
+    test('marking a non-object is a no-op rather than a second failure', () => {
+        // `markTransportFailure` sits inside a `catch`, and a client is free to
+        // reject with a string. Throwing there would replace the failure with
+        // one about the failure.
+        assert.equal(markTransportFailure('down'), 'down');
+        assert.equal(isTransportFailure('down'), false);
+    });
+
+    test('the marker is not enumerable, so it does not leak into a log line', () => {
+        const err = markTransportFailure(new TypeError('Failed to fetch'));
+        assert.deepEqual(Object.keys(err), Object.keys(new TypeError('Failed to fetch')));
     });
 });
 
@@ -236,13 +271,16 @@ describe('toAdminError', () => {
         assert.equal(adminErrorMessage(err, EN), EN.forbidden);
     });
 
-    test('a transport failure keeps its diagnostic off detail, so the catalog answers', () => {
+    test('a declared transport failure keeps its diagnostic off detail, so the catalog answers', () => {
         // `fetch` rejects with a TypeError whose text is the browser's, in
         // English, whatever the UI speaks. As `detail` it would out-rank
         // `msgs.network` — the one sentence that tells the operator what to do.
-        const err = toAdminError(new TypeError('Failed to fetch'));
+        // Which TypeErrors those are is declared by the client, not guessed
+        // from the class; see the suite below for the case the guess got wrong.
+        const err = toAdminError(markTransportFailure(new TypeError('Failed to fetch')));
         assert.equal(err.status, 0);
         assert.equal(err.detail, undefined);
+        assert.equal(err.transportFailure, true);
         assert.equal(err.emptyResponse, false, 'nothing was answered at all');
         assert.equal(err.message, 'Failed to fetch');
         assert.ok(err.cause instanceof TypeError);
@@ -250,11 +288,15 @@ describe('toAdminError', () => {
     });
 
     test('an axios failure with no response is transport too', () => {
+        // Read from the shape rather than from a brand, and deliberately: that
+        // shape is axios's documented network-failure form, and a library
+        // cannot be asked to mark itself.
         const err = toAdminError(
             Object.assign(new Error('Network Error'), { config: { url: '/x', method: 'get' } }),
         );
         assert.equal(err.status, 0);
         assert.equal(err.detail, undefined);
+        assert.equal(err.transportFailure, true);
         assert.equal(adminErrorMessage(err, EN), EN.network);
     });
 
@@ -276,6 +318,75 @@ describe('toAdminError', () => {
             const err = toAdminError(value);
             assert.equal(err.status, 0);
             assert.equal(err.detail, undefined);
+        }
+    });
+});
+
+describe('a transport failure is declared by the client, not read off the class', () => {
+    // `err instanceof TypeError` stood in for "the request failed in transit"
+    // and was the third guess in this file to be wrong about a fact nothing in
+    // the error carries. `TypeError` is also every ordinary null or undefined
+    // dereference, so a bug in page code was reported to the operator as a
+    // connection problem — sending them after their router for a defect in the
+    // software.
+
+    test('a null dereference is not a connection problem', () => {
+        let caught;
+        try {
+            const rows = null;
+            rows.map((row) => row);
+        } catch (err) {
+            caught = err;
+        }
+        assert.ok(caught instanceof TypeError);
+
+        const err = toAdminError(caught);
+        assert.equal(err.transportFailure, false);
+        assert.notEqual(adminErrorMessage(err, EN), EN.network);
+        // Nor is the engine's text something to put on an admin screen: it is
+        // a stack-trace line. It stays on `message`, where a log reads it.
+        assert.equal(err.detail, undefined);
+        assert.match(err.message, /Cannot read properties of null/);
+        assert.equal(adminErrorMessage(err, EN), EN.unexpected);
+    });
+
+    test('a real fetch failure still says "check your connection"', async () => {
+        // Through the client the package ships, against a port nothing listens
+        // on: `fetch` rejects with `TypeError: fetch failed`, which IS a
+        // transport failure — the case the guess got right and that has to keep
+        // working now that the answer comes from a brand instead.
+        const err = await getJson(defaultHttpClient(), 'http://127.0.0.1:1/nothing-here').then(
+            () => null,
+            (e) => e,
+        );
+        assert.ok(err instanceof TypeError, `expected a fetch TypeError, got ${err}`);
+        assert.equal(isTransportFailure(err), true, 'the client marks what it could not send');
+        assert.equal(toAdminError(err).transportFailure, true);
+        assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
+    test('a malformed URL is a transport failure too, not an unknown one', async () => {
+        const err = await getJson(defaultHttpClient(), 'not a url').then(
+            () => null,
+            (e) => e,
+        );
+        assert.ok(err instanceof TypeError);
+        assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
+    test('the client passes a response through untouched', async () => {
+        // The marking sits in a `catch`; a resolved request must not notice it.
+        const calls = [];
+        const original = globalThis.fetch;
+        globalThis.fetch = async (url, init) => {
+            calls.push({ url, init });
+            return { status: 200, headers: { get: () => null }, json: async () => ({ ok: true }) };
+        };
+        try {
+            assert.deepEqual(await getJson(defaultHttpClient(), '/x'), { ok: true });
+            assert.equal(calls.length, 1);
+        } finally {
+            globalThis.fetch = original;
         }
     });
 });
@@ -327,6 +438,9 @@ describe('emptyResponse is read off the throw site, not off the class', () => {
             json: async () => null,
             text: async () => '',
         });
+
+    /** Composable options for such a client, plus whatever the seam requires. */
+    const withZero = (extra) => ({ adminEndpoint: '/api/admin', http: resolvesZero, ...extra });
 
     test('a mutation the server answered without a body is an empty response', async () => {
         // 204 to a POST that has to return the created row: the call reached
@@ -381,6 +495,61 @@ describe('emptyResponse is read off the throw site, not off the class', () => {
         assert.equal(adminErrorMessage(err, EN), EN.network);
     });
 
+    test('nor did a mutation a client resolved as status 0 — on any of the surfaces', async () => {
+        // The loaders were fixed one round earlier; the mutation sentinels were
+        // not, and they are the half that matters most. Every one of them read
+        // `if (!created)` — true both when the server answered without a body
+        // and when the client never got an answer at all — and then said "the
+        // change may have been applied" about a POST that never left the
+        // machine.
+        //
+        // Driven through the real composables, one per JSON seam in the
+        // package, because a hand-built error cannot show this: the sentinel is
+        // only wrong in the presence of the fall-through above it.
+        const app = createApp({});
+        const seams = [
+            ['usePlans.create', () => usePlans(withZero({ projectKey: 'p' })).create({})],
+            [
+                'usePlanVersions.createDraft',
+                () => usePlanVersions(withZero({ planId: 'pv' })).createDraft({}),
+            ],
+            ['useBundles.create', () => useBundles(withZero({ projectKey: 'p' })).create({})],
+            [
+                'useBundleVersions.createDraft',
+                () => useBundleVersions(withZero({ bundleId: 'b' })).createDraft({}),
+            ],
+            [
+                'useCatalogEntries.reviewFeature',
+                () => useCatalogEntries(withZero({ projectKey: 'p' })).reviewFeature('f', {}),
+            ],
+            ['usePromotions.create', () => usePromotions(withZero({ projectKey: 'p' })).create({})],
+            [
+                'useMarketingProjections.create',
+                () => useMarketingProjections(withZero({ filter: { projectKey: 'p' } })).create({}),
+            ],
+            [
+                'useTenantSubscriptionBundles.add',
+                () =>
+                    useTenantSubscriptionBundles({
+                        billingEndpoint: '/api/v1',
+                        http: resolvesZero,
+                    }).add({ bundleVersionId: 'bv-1' }),
+            ],
+        ];
+
+        for (const [name, mutate] of seams) {
+            const err = await app.runWithContext(mutate).then(
+                () => null,
+                (e) => e,
+            );
+            assert.ok(err instanceof Error, `${name} must reject`);
+            const admin = toAdminError(err);
+            assert.equal(admin.emptyResponse, false, `${name}: nothing was answered at all`);
+            assert.equal(admin.transportFailure, true, `${name}: the request did not go out`);
+            assert.equal(adminErrorMessage(err, EN), EN.network, name);
+        }
+    });
+
     test('a discovery load a client resolved as status 0 never reached the server', async () => {
         // `useDiscovery` captures the error into a ref instead of rejecting,
         // and that ref is what a page renders — so this is the shape a
@@ -433,9 +602,23 @@ describe('adminErrorMessage', () => {
         );
     });
 
-    test('a request that never produced a status is described as one that did not complete', () => {
-        assert.equal(adminErrorMessage(new AdminError(), EN), EN.network);
-        assert.equal(adminErrorMessage(null, EN), EN.network);
+    test('a failure nothing knows anything about says so, rather than blaming the network', () => {
+        // No text, no status, and no seam that declared what happened. "Check
+        // your connection" used to be the answer here and it was a guess — the
+        // one that made a null dereference look like a router problem. The
+        // three sentences for a statusless failure are now reached only on
+        // purpose: `network` when a client marked the request as unsent,
+        // `emptyResponse` when a throw site marked the body as missing, and
+        // this one when neither did.
+        assert.equal(adminErrorMessage(new AdminError(), EN), EN.unexpected);
+        assert.equal(adminErrorMessage(null, EN), EN.unexpected);
+        assert.notEqual(EN.unexpected, EN.network);
+        assert.notEqual(EN.unexpected, EN.emptyResponse);
+    });
+
+    test('a seam that declares the request never went out gets the network wording', () => {
+        const err = new AdminError({ transportFailure: true });
+        assert.equal(adminErrorMessage(err, EN), EN.network);
     });
 
     test('converts before formatting, so an axios rejection needs no pre-processing', () => {

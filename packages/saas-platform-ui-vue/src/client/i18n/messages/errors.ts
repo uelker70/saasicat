@@ -4,6 +4,12 @@
 //
 // `adminErrorMessage()` reaches exactly one of these per error, and reaches a
 // key here only when the response carried no message of its own.
+//
+// `network`, `emptyResponse` and `unexpected` all describe a request with no
+// HTTP status and must not be swapped. The first two are reached only when a
+// seam declared which one it was (`markTransportFailure`, `markEmptyResponse`);
+// `unexpected` is what is left when nothing knows — including the JavaScript
+// faults that used to be reported as connection problems.
 
 import { defineMessages } from '../define.js';
 
@@ -20,6 +26,7 @@ export const errorsMessages = defineMessages(
         rateLimited: 'Zu viele Anfragen. Bitte kurz warten und erneut versuchen.',
         server: 'Der Server konnte die Anfrage nicht verarbeiten.',
         httpStatus: 'Die Anfrage ist fehlgeschlagen (HTTP {status}).',
+        unexpected: 'Es ist ein unerwarteter Fehler aufgetreten. Bitte erneut versuchen.',
     },
     {
         network: 'The request could not be completed. Please check your connection.',
@@ -32,5 +39,6 @@ export const errorsMessages = defineMessages(
         rateLimited: 'Too many requests. Please wait a moment and try again.',
         server: 'The server could not process the request.',
         httpStatus: 'The request failed (HTTP {status}).',
+        unexpected: 'Something went wrong. Please try again.',
     },
 );

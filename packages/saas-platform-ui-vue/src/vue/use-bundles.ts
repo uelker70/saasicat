@@ -17,6 +17,7 @@ import type {
     UpdateBundleData,
     UpdateBundleVersionDraftData,
 } from '@saasicat/types';
+import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UseBundlesOptions {
@@ -84,11 +85,21 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: { 'content-type': 'application/json', ...authHeaders(), ...init?.headers },
             body: init?.body,
         });
+        // Before any body is read: `null` below has to mean "the server
+        // answered without one", which is what the callers' empty-response
+        // sentinels claim.
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new BundlesApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
@@ -215,11 +226,18 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: { 'content-type': 'application/json', ...authHeaders(), ...init?.headers },
             body: init?.body,
         });
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new BundlesApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
