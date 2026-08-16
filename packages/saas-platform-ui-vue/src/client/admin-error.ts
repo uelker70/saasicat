@@ -406,8 +406,26 @@ export function toAdminError(err: unknown): AdminError {
         });
     }
 
-    const text = asString(err);
-    return new AdminError({ detail: text, message: text, cause: err });
+    // A rejection that is not an `Error` still says something when it carries a
+    // readable `message`. A client rejecting with `{ code, message }` is an
+    // ordinary shape, and an `Error` built in another realm fails `instanceof`
+    // while being exactly that. The status-bearing branch above already reads
+    // both fields; leaving them unread here treated the same information
+    // differently depending on whether a status happened to travel with it.
+    //
+    // What this cannot separate is a cross-realm `TypeError`, whose message is
+    // the engine's rather than the failing side's — `instanceof` is the only
+    // thing that tells those apart, and it is precisely what has already failed
+    // by the time execution reaches here. So the reading is a decision, not a
+    // measurement: a consumer message shown once too often costs a confusing
+    // sentence, one swallowed costs the only explanation there was.
+    const text = asString(err) ?? asString(record?.message);
+    return new AdminError({
+        code: asString(record?.code),
+        detail: text,
+        message: text,
+        cause: err,
+    });
 }
 
 /**

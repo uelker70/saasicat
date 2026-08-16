@@ -7,6 +7,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
 import { createApp } from 'vue';
 
 import {
@@ -565,6 +566,35 @@ describe('emptyResponse is read off the throw site, not off the class', () => {
         assert.equal(err.status, 0);
         assert.equal(toAdminError(err).emptyResponse, false);
         assert.equal(adminErrorMessage(err, FALLBACK_ERRORS), FALLBACK_ERRORS.network);
+    });
+});
+
+describe('toAdminError and rejections that are not Errors', () => {
+    test('a plain object keeps the message it carries', () => {
+        // The same information reaches the operator either way: a client that
+        // rejects with `{ code, message }` says as much as one that attaches a
+        // status to an Error, and the status-bearing branch already shows it.
+        const err = toAdminError({ code: 'QUOTA', message: 'Quota exhausted' });
+        assert.equal(err.detail, 'Quota exhausted');
+        assert.equal(err.code, 'QUOTA');
+        assert.equal(adminErrorMessage(err, EN), 'Quota exhausted');
+    });
+
+    test('an Error from another realm is such an object', () => {
+        // `instanceof` is per realm, so this misses the branch above. Its
+        // message is still the failing side's words.
+        const foreign = vm.runInNewContext("new Error('Plan is locked')");
+        assert.equal(foreign instanceof Error, false);
+        assert.equal(adminErrorMessage(toAdminError(foreign), EN), 'Plan is locked');
+    });
+
+    test('an object with nothing readable falls through to the generic wording', () => {
+        assert.equal(adminErrorMessage(toAdminError({}), EN), EN.unexpected);
+        assert.equal(adminErrorMessage(toAdminError(null), EN), EN.unexpected);
+    });
+
+    test('a non-string message is not a message', () => {
+        assert.equal(toAdminError({ message: { nested: true } }).detail, undefined);
     });
 });
 
