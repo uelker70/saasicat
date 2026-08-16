@@ -859,6 +859,58 @@ describe('createAxiosHttpClient — against a real axios instance', () => {
         });
     });
 
+    test('what an interceptor rewrites, the adapter can no longer judge', async () => {
+        // Both directions are reproducible and neither is closable: this runs
+        // after the consumer's interceptors, which can set or delete any field.
+        // Pinned so the two answers are a decision on record rather than
+        // whatever the predicate happens to do next.
+        await withServer(async (base) => {
+            // Drops `request` from a real transport failure — unbranded, and the
+            // operator reads axios's own line instead of the localized one.
+            const dropping = axios.create();
+            dropping.interceptors.response.use(undefined, (err) => {
+                delete err.request;
+                return Promise.reject(err);
+            });
+            const offline = await createAxiosHttpClient(dropping)('http://127.0.0.1:1/x').then(
+                () => null,
+                (e) => e,
+            );
+            assert.equal(isTransportFailure(offline), false);
+
+            // Builds axios's no-response shape after an answered status —
+            // branded, because nothing on the object says otherwise.
+            const building = axios.create();
+            building.interceptors.response.use(undefined, (err) =>
+                Promise.reject(
+                    axios.AxiosError.from(
+                        new Error('Your session expired.'),
+                        'AUTH_EXPIRED',
+                        err.config,
+                        err.request,
+                    ),
+                ),
+            );
+            const answered = await createAxiosHttpClient(building)(`${base}/forbidden`).then(
+                () => null,
+                (e) => e,
+            );
+            assert.equal(isAxiosNoResponseError(answered), true);
+
+            // And the way out of both: say it, and the reading stands aside.
+            const declaring = axios.create();
+            declaring.interceptors.response.use(undefined, (err) => {
+                delete err.request;
+                return Promise.reject(markTransportFailure(err));
+            });
+            const declared = await createAxiosHttpClient(declaring)('http://127.0.0.1:1/x').then(
+                () => null,
+                (e) => e,
+            );
+            assert.equal(isTransportFailure(declared), true);
+        });
+    });
+
     test('a body axios delivered as bytes reads as the value those bytes spell', async () => {
         // `responseType: 'arraybuffer'` turns the decoding off the way `'text'`
         // does; the difference is the shape it hands over, not what arrived.

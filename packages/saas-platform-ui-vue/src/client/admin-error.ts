@@ -304,17 +304,43 @@ function asString(value: unknown): string | undefined {
  * - `request` present without it is axios's "made, nothing came back". The
  *   browser and `fetch` adapters attach it too — an `XMLHttpRequest` and a
  *   `Request` respectively — so the reading is not Node-only.
- * - Requiring `isAxiosError` on top of that is the decision. The row that makes
- *   it earn its place is the interceptor which copies both `config` and
- *   `request` onto its replacement: shape-wise that is axios's no-response
- *   form, but axios did not produce it and the server had answered. Only the
- *   brand axios sets on its own errors separates the two.
+ * - Requiring `isAxiosError` on top of that is the decision. It removes the
+ *   ordinary interceptor that copies `config` and `request` onto a hand-built
+ *   `new Error`, which is shape-wise axios's no-response form after the server
+ *   had answered.
  *
  * The previous reading was `config` without `response`, which is not axios's
  * statement about anything: `config` is echoed on every axios error including
  * the ones carrying a 401, and it is the field an interceptor is most likely to
  * carry over when it replaces the rejection. It matched three rows above that
  * mean the opposite of a transport failure.
+ *
+ * ## What this cannot decide, and which way it errs
+ *
+ * This is read *after* the consumer's interceptors have run — after the one
+ * place that can set or delete any field on the rejection. Both readings are
+ * therefore forgeable, in both directions, and each was reproduced:
+ *
+ * - An interceptor that **drops** `request` — `AxiosError.from(err, code,
+ *   config)` without its fourth argument, `err.toJSON()`, or a `delete
+ *   err.request` before logging — leaves a genuine `ECONNREFUSED` unbranded.
+ *   The operator then reads `connect ECONNREFUSED 127.0.0.1:44947` instead of
+ *   the localized sentence.
+ * - An interceptor that **builds** one — `AxiosError.from(msg, code,
+ *   error.config, error.request)` after an answered 401 — is branded. Nothing
+ *   distinguishes it: `AxiosError.from` is public API, so `isAxiosError` is
+ *   available to user code as well.
+ *
+ * Neither is closable by a better predicate; the fields simply do not carry the
+ * fact by then. So the reading errs deliberately toward *not* branding, because
+ * the two mistakes do not cost the same: an unbranded transport failure shows a
+ * true sentence in the wrong register, while a branded application failure tells
+ * the operator to check a connection that is fine. Saying less beats saying
+ * something false.
+ *
+ * An interceptor that rewrites rejections should say what it means with
+ * `markTransportFailure`, which is exported for exactly this. It is checked
+ * first and settles the case.
  */
 export function isAxiosNoResponseError(value: unknown): boolean {
     const record = asRecord(value);
