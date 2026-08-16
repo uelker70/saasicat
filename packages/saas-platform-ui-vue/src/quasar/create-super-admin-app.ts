@@ -44,6 +44,13 @@ import {
     type SuperAdminLoginAdapter,
 } from '../vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY, type UiNotify } from '../vue/ui-notify.js';
+import { SUPER_ADMIN_CONFIRM_KEY, type UiConfirm } from '../vue/ui-confirm.js';
+import {
+    SUPER_ADMIN_RESOURCES_KEY,
+    createResourceRegistry,
+    type ResourceOverrides,
+} from '../vue/resource-registry.js';
+import { platformResources } from '../client/resources/index.js';
 import {
     SA_THEME_KEY,
     createSaTheme,
@@ -57,7 +64,9 @@ import {
     type SuperAdminI18nOptions,
 } from '../vue/use-super-admin-i18n.js';
 import { bindSaThemeToDocument } from './dark-bridge.js';
+import { resolveSuperAdminEndpoints } from '../vue/platform-loaders.js';
 import { quasarNotify } from './notify.js';
+import { quasarConfirm } from './confirm.js';
 
 export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
     /** App root component (`App.vue`). */
@@ -100,6 +109,22 @@ export interface CreateSuperAdminAppOptions extends SuperAdminGuardOptions {
      * center replace it here without touching the pages.
      */
     notify?: UiNotify;
+    /**
+     * Optional: confirm port for the standard pages' "are you sure" step.
+     * Default is the Quasar `Dialog` implementation — apps with their own
+     * modal system replace it here without touching the pages.
+     *
+     * An implementation must actually ask. Resolving `{ ok: true }` outright
+     * turns every guarded action into an unguarded one.
+     */
+    confirm?: UiConfirm;
+    /**
+     * Optional: per-resource adjustments to the platform's own endpoint
+     * definitions — a different path for one resource, a different transport,
+     * or a single operation wrapped. Everything not named keeps the platform
+     * implementation.
+     */
+    resourceOverrides?: ResourceOverrides<typeof platformResources>;
     /**
      * Optional: additional Vue plugins (e.g. an app's own NotificationCenter)
      * that are installed after the platform setup, before the mount.
@@ -169,6 +194,31 @@ const DEFAULT_QUASAR_OPTIONS: QuasarPluginOptions = {
 };
 
 /**
+ * Merges an app's Quasar options over the platform's, keeping the plugins the
+ * shell's own ports depend on.
+ *
+ * The bootstrap provides `quasarConfirm`, which calls `Dialog.create`, and the
+ * notify port's fallback calls `Notify.create`. Taking the app's options whole
+ * — as this did — left those uninstalled for anything passing
+ * `{ plugins: {}, … }`, a shape this package's own tests use: the first
+ * confirmation threw instead of asking, turning a guarded action into a broken
+ * one rather than a stricter one.
+ *
+ * An app's own entry still wins on a key collision, so its build of a plugin
+ * replaces the platform's.
+ *
+ * Exported because it is the whole of the decision, and the only part of the
+ * bootstrap that can be checked without driving a real Quasar install.
+ */
+export function resolveQuasarOptions(own?: Partial<QuasarPluginOptions>): QuasarPluginOptions {
+    if (!own) return DEFAULT_QUASAR_OPTIONS;
+    return {
+        ...own,
+        plugins: { ...DEFAULT_QUASAR_OPTIONS.plugins, ...own.plugins },
+    } as QuasarPluginOptions;
+}
+
+/**
  * Universal bootstrap function for SuperAdmin apps. Replaces the `main.ts`
  * boilerplate duplicated per app today (Quasar + Pinia + Router + manifest
  * guard) and exposes the platform maps via `provide()` for downstream
@@ -190,7 +240,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     // theme already repaints its cards via `.sa-page`. What the class buys is
     // that an app which never calls `createSuperAdminApp` stays untouched —
     // which a bare `.q-dialog .q-card` rule could not promise.
-    const quasarOptions = options.quasarOptions ?? DEFAULT_QUASAR_OPTIONS;
+    const quasarOptions = resolveQuasarOptions(options.quasarOptions);
     // `globalNodes` is a documented Quasar config option that its TypeScript
     // types do not declare (see quasar/src/utils/private.config/nodes.js, which
     // reads `globalConfig.globalNodes.class`). The cast is the exception this
@@ -222,13 +272,8 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
 
     app.use(router);
 
-    const endpoints: Required<SuperAdminEndpoints> = {
-        apiBase: options.endpoints.apiBase,
-        publicBootEndpoint:
-            options.endpoints.publicBootEndpoint ?? `${options.endpoints.apiBase}/boot`,
-        manifestEndpoint:
-            options.endpoints.manifestEndpoint ?? `${options.endpoints.apiBase}/manifest`,
-    };
+    const endpoints = resolveSuperAdminEndpoints(options.endpoints);
+    const http = options.http ?? defaultHttpClient();
 
     const i18n = createSuperAdminI18n(options.i18n);
     // An app that configured Quasar's dark mode has STATED a preference; the
@@ -263,6 +308,33 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     app.provide(SUPER_ADMIN_EXTENSIONS_KEY, options.extensions ?? {});
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
     app.provide(SUPER_ADMIN_NOTIFY_KEY, options.notify ?? quasarNotify);
+    app.provide(SUPER_ADMIN_CONFIRM_KEY, options.confirm ?? quasarConfirm);
+    // Only when the app named its client. `createResourceRegistry` refuses to
+    // be built without one, because a bare `fetch` sends every request without
+    // the app's Authorization header and the failure is silent. Handing it the
+    // `defaultHttpClient()` fallback here would have defeated exactly that
+    // guarantee from inside the bootstrap: existing pages would keep working
+    // through their own `getAuthToken` options while anything reaching for
+    // `useResource()` collected 401s.
+    //
+    // Without a client the registry is simply absent, and `useResource` says
+    // so — a named failure at the first call beats a page that renders empty.
+    if (options.http) {
+        app.provide(
+            SUPER_ADMIN_RESOURCES_KEY,
+            createResourceRegistry({
+                http: options.http,
+                // Read per call: the locale changes while the app runs.
+                context: () => ({
+                    apiBase: endpoints.apiBase,
+                    projectKey: endpoints.projectKey,
+                    locale: i18n.locale.value,
+                }),
+                resources: platformResources,
+                overrides: options.resourceOverrides,
+            }),
+        );
+    }
     if (options.manifestGuard?.getManifest) {
         app.provide(SUPER_ADMIN_MANIFEST_KEY, options.manifestGuard.getManifest);
     }
@@ -272,7 +344,7 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     if (options.loginAdapter) {
         app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, options.loginAdapter);
     }
-    app.provide(SUPER_ADMIN_HTTP_KEY, options.http ?? defaultHttpClient());
+    app.provide(SUPER_ADMIN_HTTP_KEY, http);
 
     for (const plugin of options.installPlugins ?? []) {
         plugin(app);

@@ -37,6 +37,16 @@ export interface SuperAdminEndpoints {
     publicBootEndpoint?: string;
     /** Post-login full-manifest endpoint, default `${apiBase}/manifest`. */
     manifestEndpoint?: string;
+    /**
+     * The project whose catalogue this admin administers.
+     *
+     * App-wide and constant, which is why it belongs here. Today each page
+     * takes it as a prop and each consumer passes it again per route — the
+     * same value, written out once per page, with nothing keeping the copies
+     * in step. Default `''`, so an app that does not administer a catalogue
+     * need not name one.
+     */
+    projectKey?: string;
 }
 
 export type ExtensionLoader = () => Promise<Component | { default: Component }>;

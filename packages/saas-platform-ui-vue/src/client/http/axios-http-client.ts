@@ -15,7 +15,7 @@
 // stand-in cannot reproduce is the transform axios applies to a body — and that
 // transform is what `bodyIsRaw` below has to read correctly.
 
-import { markTransportFailure } from '../admin-error.js';
+import { isAxiosNoResponseError, markTransportFailure } from '../admin-error.js';
 import { trimTrailingSlashes } from '../http-json.js';
 import type { HttpClient, HttpResponse } from '../types.js';
 
@@ -347,20 +347,37 @@ export function createAxiosHttpClient(
             if (response && typeof response.status === 'number') {
                 return adapt(response, responseBody);
             }
-            // No response at all: the request never completed. That is a
-            // transport failure and belongs to the caller — declared here, the
-            // way the fetch adapter declares its own.
+            // No response came back through this seam — and that is the whole
+            // of what this seam knows. It knows a request was attempted; it
+            // does not know whether one arrived, because an interceptor that
+            // answered a status with an error of its own has already replaced
+            // everything the rejection would have said. So the brand goes on
+            // exactly what axios itself reports as "made, nothing came back",
+            // which `isAxiosNoResponseError` reads off axios's documented
+            // `request`-without-`response` form.
             //
-            // `toAdminError` can read axios's documented network-failure shape
-            // (a `config` and no `response`) without the brand, but only while
-            // the rejection still carries that config. A rejection interceptor
-            // that rethrows `new Error(...)`, and any structural `AxiosLike`
-            // that is not axios, both drop it — and this is the one place that
-            // knows a request was made and produced nothing, so it says so
-            // instead of leaving the reading to a shape it cannot promise.
-            // Without it an offline request reaches the operator as the raw
-            // error text rather than as the localized network failure.
-            throw markTransportFailure(err);
+            // Measured with axios 1.18.1 against a real `node:http` server.
+            // Marked: connection refused and reset, DNS failure, timeout,
+            // abort — each of them also when a rejection interceptor rethrows
+            // it. Not marked: an interceptor answering a 401 with
+            // `new Error('session expired')`, whether or not it copies
+            // `error.config` or `error.request` across; the setup failures
+            // axios files under neither half (unsupported protocol, a signal
+            // aborted before the call, a throwing `paramsSerializer`); and any
+            // structural `AxiosLike` that is not axios at all.
+            //
+            // That last group is the decision rather than the measurement, and
+            // it is the case an earlier round asked to mark: an offline request
+            // through a client that says nothing about itself. It stays
+            // unmarked because nothing in it can be told from an interceptor's
+            // replacement error — `new Error('cannot reach api')` after a dead
+            // socket and `new Error('session expired')` after a 401 are the
+            // same object down to the last own property, so marking the first
+            // costs the second its message, which is the only explanation the
+            // operator would have had. A client that knows it could not send
+            // says so itself: `markTransportFailure` is exported for that, and
+            // `createFetchHttpClient` is the reference use.
+            throw isAxiosNoResponseError(err) ? markTransportFailure(err) : err;
         }
     };
 }

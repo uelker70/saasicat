@@ -10,3 +10,4 @@
 export * from './create-super-admin-app.js';
 export * from './dark-bridge.js';
 export * from './notify.js';
+export * from './confirm.js';

@@ -59,6 +59,37 @@ refreshed. The instance now runs its own chain to the end; a rejection that
 still carries a response is adapted, and only a genuine no-response failure
 escapes.
 
+**"Genuine" is axios's own word for it, not a shape that resembles one.** The
+escaping rejection is marked with `markTransportFailure` — so that `status: 0`
+becomes "check your connection" rather than raw error text — and which
+rejections earn that mark was measured against axios 1.18.1 driven at a real
+`node:http` server, because two readings of the same `catch` disagree and no
+amount of reasoning settles which is right. axios states the answer itself,
+in the three-way split its README documents: `response` set means the server
+answered; `request` set without it means the request was made and nothing came
+back; neither means the failure happened while the request was still being set
+up. A refused connection, a DNS failure, a timeout and an abort all land in the
+middle group, and still do when a rejection interceptor rethrows them.
+
+Everything else propagates unmarked and keeps its own message. That matters most
+for the case a `config`-based reading got backwards: an interceptor that handles
+a 401 and rejects with `new Error('session expired')` had those words replaced
+by the network sentence, misreporting an expired session as a broken connection.
+`config` is echoed on every axios rejection, answered ones included, and it is
+the field an interceptor is most likely to carry over — it never was a statement
+about whether a response arrived. The same now holds for the failures axios files
+under "setting up the request" (an unsupported protocol, a signal aborted before
+the call, a throwing `paramsSerializer`): their message names the actual fault,
+which beats sending an operator after their router for a configuration mistake.
+
+The one case nothing here can decide is a client that replaced the rejection
+without saying which case it was in — a bare `Error` out of a structural
+`AxiosLike`, or out of an interceptor. Offline and "session expired" are the
+same object down to the last own property, so the platform declines to guess and
+the message survives. A client that knows says so with `markTransportFailure`,
+which is why that is exported; `isAxiosNoResponseError(err)` is now exported too,
+for a consumer that wants the same reading in its own interceptor.
+
 Three details the copies got wrong, fixed here once:
 
 - **Prefix stripping respects path boundaries.** Four of the shims wrote

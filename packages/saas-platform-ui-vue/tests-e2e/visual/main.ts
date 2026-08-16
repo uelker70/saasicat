@@ -190,6 +190,7 @@ app.provide(SUPER_ADMIN_ENDPOINTS_KEY, {
     apiBase: ADMIN_BASE,
     publicBootEndpoint: `${ADMIN_BASE}/boot`,
     manifestEndpoint: `${ADMIN_BASE}/manifest`,
+    projectKey: 'fixture',
 });
 app.provide(SUPER_ADMIN_EXTENSIONS_KEY, {});
 app.provide(SUPER_ADMIN_ACTIONS_KEY, {});
