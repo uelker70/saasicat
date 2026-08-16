@@ -223,6 +223,65 @@ describe('useAsyncAction — failure', () => {
     });
 });
 
+describe('useAsyncAction — overlapping invocations', () => {
+    test('pending stays true until the last one settles', async () => {
+        const gates = [deferred(), deferred()];
+        let call = 0;
+        const action = useAsyncAction(() => gates[call++].promise);
+
+        const first = action.run();
+        const second = action.run();
+        gates[0].resolve('first');
+        await first;
+        assert.equal(action.pending.value, true, 'the second is still running');
+
+        gates[1].resolve('second');
+        await second;
+        assert.equal(action.pending.value, false);
+    });
+});
+
+describe('useAsyncAction — the success continuation', () => {
+    test('a failing continuation fails the action, and says so only once', async () => {
+        // Announcing success before the continuation produced both toasts:
+        // "Saved" and then "reload failed". The continuation is part of the
+        // action, so when it fails the action failed.
+        const { notify, calls } = recordingNotify();
+        const action = useAsyncAction(async () => 'v', {
+            notify,
+            notifyOn: 'both',
+            successMessage: 'Saved',
+            onSuccess: async () => {
+                throw new Error('reload failed');
+            },
+        });
+
+        const result = await action.run();
+        assert.equal(result.ok, false);
+        assert.deepEqual(calls, [['negative', 'reload failed']]);
+    });
+
+    test('a continuation that succeeds still gets its success toast', async () => {
+        const { notify, calls } = recordingNotify();
+        const order = [];
+        const action = useAsyncAction(async () => 'v', {
+            notify: (kind, message) => {
+                order.push('notify');
+                notify(kind, message);
+            },
+            notifyOn: 'both',
+            successMessage: 'Saved',
+            onSuccess: async () => {
+                order.push('onSuccess');
+            },
+        });
+
+        await action.run();
+        assert.deepEqual(calls, [['positive', 'Saved']]);
+        assert.deepEqual(order, ['onSuccess', 'notify']);
+    });
+});
+
 describe('useAsyncAction — the error ref over time', () => {
     test('a later success clears an earlier failure', async () => {
         let fail = true;

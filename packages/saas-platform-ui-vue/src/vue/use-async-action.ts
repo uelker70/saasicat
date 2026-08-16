@@ -82,12 +82,24 @@ export function useAsyncAction<A extends unknown[], T>(
     const notify = options.notify ?? inject(SUPER_ADMIN_NOTIFY_KEY, undefined);
     const messages = useSaMessages('errors');
     const notifyOn = options.notifyOn ?? 'error';
+    // How many invocations are in flight. A second `run` before the first
+    // settles would otherwise let the first one's `finally` clear `pending`,
+    // and a button disabled from that ref becomes clickable again while the
+    // mutation it belongs to is still running — which is how a double submit
+    // happens.
+    let inFlight = 0;
 
     async function run(...args: A): Promise<AsyncActionResult<T>> {
+        inFlight++;
         pending.value = true;
         error.value = null;
         try {
             const result = await fn(...args);
+            // The continuation runs BEFORE the success toast. It is part of
+            // the action — a reload, a navigation — and when it fails the
+            // action failed. Announcing success first produced both toasts:
+            // "Saved" and then "reload failed", in that order.
+            await options.onSuccess?.(result);
             if (notifyOn === 'both') {
                 const message =
                     typeof options.successMessage === 'function'
@@ -95,7 +107,6 @@ export function useAsyncAction<A extends unknown[], T>(
                         : options.successMessage;
                 if (message) notify?.('positive', message);
             }
-            await options.onSuccess?.(result);
             return { ok: true, value: result };
         } catch (err: unknown) {
             const adminError = toAdminError(err);
@@ -109,7 +120,7 @@ export function useAsyncAction<A extends unknown[], T>(
             }
             return { ok: false, error: adminError };
         } finally {
-            pending.value = false;
+            if (--inFlight === 0) pending.value = false;
         }
     }
 

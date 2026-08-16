@@ -28,6 +28,13 @@ there. Worse, TypeScript narrows the success branch of `void | undefined` to
 `never` — the wrong call site compiles, lints clean, and silently never runs
 its follow-up.
 
+The success continuation runs **before** the success toast, and `pending` is
+counted rather than set. Both came out of review: announcing success first meant
+a continuation that failed produced "Saved" and then "reload failed" in that
+order, and a second `run` before the first settled let the first one's `finally`
+clear `pending` — releasing a button that was disabled precisely to stop the
+second submit.
+
 It carries an `errorMessage` hook, and that is not decoration. Five call sites
 map a status and an error code to a specific sentence — a 422 carrying
 `STRICT_MODE_VIOLATIONS` reads out the violations, a 401 says the session
