@@ -37,9 +37,10 @@
                 <div class="mc-promo-today" :style="{ left: `${todayX}%` }">
                     <span>{{ msg.promotionsTab.today }}</span>
                 </div>
-                <div
+                <button
                     v-for="bar in bars"
                     :key="bar.id"
+                    type="button"
                     class="mc-promo-bar"
                     :class="bar.status"
                     :style="{
@@ -49,10 +50,11 @@
                         background: bar.color,
                     }"
                     :title="`${bar.label} · ${bar.from} → ${bar.to}`"
+                    :aria-expanded="expandedId === bar.id"
                     @click="toggleExpanded(bar.id)"
                 >
                     <span class="mc-promo-bar-label">{{ bar.label }}</span>
-                </div>
+                </button>
             </div>
         </div>
 
@@ -351,6 +353,22 @@ const { intlLocale } = useSuperAdminI18n();
 
 const busy = computed(() => props.busy ?? false);
 const expandedId = ref<string | null>(null);
+
+// sa-disclosure-exempt: the timeline bar is a second trigger for the accordion below it
+//
+// The disclosure itself IS an `AdminAccordion` — one per promotion, in the list
+// below, with the `<button>` and the `aria-expanded` that come with it. What
+// this file adds is a second way into the same row: the bar that charts it on
+// the timeline. A Gantt segment positioned by date cannot be an accordion
+// header, so there is nothing here to migrate onto one.
+//
+// The rule sees the click write `expandedId` and the accordion's `:open` read
+// it, and from the source it cannot tell a second trigger from a hand-rolled
+// disclosure. What its story is actually about — "four of the eight were a
+// `<div>` with a click handler" — is fixed rather than exempted here: the bar
+// is a `<button>` that reports whether the row it charts is open. It carries no
+// `aria-controls`, because the body's id is generated inside `AdminAccordion`
+// and never leaves it; the row's own header owns that relationship.
 
 // One expression for "open this one, close whatever was open". The row and the
 // timeline bar above it both open the same editor, and they used to say so in
@@ -670,15 +688,21 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-color-negative-strong);
     font-weight: 700;
 }
+/* A `<button>` wearing a bar: the browser's own button chrome would draw a
+ * border and a background over the promotion colour the row is identified by. */
 .mc-promo-bar {
     position: absolute;
     height: 20px;
+    border: 0;
+    padding: 0;
     border-radius: 5px;
     cursor: pointer;
     display: flex;
     align-items: center;
     overflow: hidden;
     opacity: 0.92;
+    font: inherit;
+    text-align: left;
 }
 .mc-promo-bar.expired {
     opacity: 0.45;

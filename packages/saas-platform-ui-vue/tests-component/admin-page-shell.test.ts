@@ -497,6 +497,17 @@ describe('page shell contract', () => {
         //      write one this test cannot see. Nothing about a hand-rolled
         //      disclosure should turn on which of the two a file happens to
         //      pick.
+        //
+        //      And the body counts wherever it is rendered. `v-if` is one way
+        //      a template shows one; handing the value to a child that renders
+        //      its slot under a `v-if` is the other, and once `AdminAccordion`
+        //      exists it is the ordinary one. `:open="expandedId === p.id"`
+        //      decides precisely what `v-if="expandedId === p.id"` decides,
+        //      one component over — so a second, hand-rolled trigger that
+        //      writes `expandedId` was invisible here while the migration that
+        //      introduced the component was landing. Which props those are is
+        //      read out of the components (`bodyProps` below), not listed
+        //      here: a list would name `open` and go blind on the next one.
         //   2. A control that says out loud that it is one — a hand-written
         //      `aria-expanded`, or a native `<details>`. Neither is a defect in
         //      itself; both mean this view decided to implement a disclosure,
@@ -545,6 +556,140 @@ describe('page shell contract', () => {
             let i = at;
             while (i < text.length && /\s/.test(text[i]!)) i++;
             return i;
+        };
+
+        /**
+         * Index just past the `>` that ends the tag opening at `at`, quoted
+         * attribute values skipped.
+         *
+         * Not `[^>]*`: `v-if="promotions.length > 0"` ends a tag halfway
+         * through under that pattern, and everything written after it on the
+         * same element — an `@click`, a `:open` — falls out of view.
+         */
+        const pastOpenTag = (template: string, at: number): number => {
+            let quote = '';
+            for (let i = at; i < template.length; i++) {
+                const character = template[i]!;
+                if (quote !== '') {
+                    if (character === quote) quote = '';
+                } else if (character === '"' || character === "'") quote = character;
+                else if (character === '>') return i + 1;
+            }
+            return template.length;
+        };
+
+        /** Every opening tag in a template, with the attributes it carries. */
+        const openTags = function* (template: string): Generator<{ name: string; tag: string }> {
+            for (let i = 0; i < template.length;) {
+                if (template[i] !== '<' || !/[A-Za-z]/.test(template[i + 1] ?? '')) {
+                    i++;
+                    continue;
+                }
+                const past = pastOpenTag(template, i);
+                const tag = template.slice(i, past);
+                yield { name: /^<([A-Za-z][\w.-]*)/.exec(tag)![1]!, tag };
+                i = past;
+            }
+        };
+
+        const VOID_TAGS = new Set([
+            'area',
+            'base',
+            'br',
+            'col',
+            'embed',
+            'hr',
+            'img',
+            'input',
+            'link',
+            'meta',
+            'source',
+            'track',
+            'wbr',
+        ]);
+
+        /** The markup of the element whose tag opens at `at`, content included. */
+        const elementAt = (template: string, at: number): string => {
+            const past = pastOpenTag(template, at);
+            const name = /^<([A-Za-z][\w.-]*)/.exec(template.slice(at, past))?.[1];
+            if (!name) return '';
+            if (template[past - 2] === '/' || VOID_TAGS.has(name.toLowerCase())) {
+                return template.slice(at, past);
+            }
+            let depth = 0;
+            for (let i = at; i < template.length;) {
+                const closing = template.startsWith(`</${name}`, i);
+                const opening = !closing && template.startsWith(`<${name}`, i);
+                // `<div` must not count `<divider`.
+                const after = template[i + name.length + (closing ? 2 : 1)] ?? '';
+                if ((!closing && !opening) || !/[\s/>]/.test(after)) {
+                    i++;
+                    continue;
+                }
+                const end = pastOpenTag(template, i);
+                if (closing) {
+                    if (--depth === 0) return template.slice(at, end);
+                } else if (template[end - 2] !== '/') depth++;
+                i = end;
+            }
+            return template.slice(at);
+        };
+
+        /**
+         * The props a component renders a BODY on — `open` for
+         * `AdminAccordion`, read out of the component rather than named here.
+         *
+         * A prop qualifies when a `v-if`/`v-show` on it stands between the
+         * template and a `<slot>`. That is what makes the caller's expression
+         * a disclosure condition and not merely page state: `v-if="$slots.mark"`
+         * gates a slot too, and is deliberately not one of these, because it
+         * names nothing a caller could pass.
+         */
+        const bodyPropCache = new Map<string, Set<string>>();
+        const bodyProps = (component: string): Set<string> => {
+            const cached = bodyPropCache.get(component);
+            if (cached) return cached;
+
+            const template = templateOf(readFileSync(component, 'utf8'));
+            const props = new Set<string>();
+            const gate = /\sv-(?:if|show)="!?\s*([A-Za-z_$][\w$]*)\s*"/g;
+            for (let hit = gate.exec(template); hit; hit = gate.exec(template)) {
+                const opens = template.lastIndexOf('<', hit.index);
+                if (opens !== -1 && elementAt(template, opens).includes('<slot')) {
+                    props.add(hit[1]!);
+                }
+            }
+            bodyPropCache.set(component, props);
+            return props;
+        };
+
+        /**
+         * The expressions this template hands to such a prop. Only components
+         * this file imports by relative path, so the question stays one hop
+         * deep and answerable from the sources: what a Quasar component does
+         * with a prop is not readable here, and guessing would be worse than
+         * the gap.
+         */
+        const bodyBindings = (file: string, template: string, script: string): string[] => {
+            const imported = new Map<string, string>();
+            for (const [, local, specifier] of script.matchAll(
+                /import\s+([A-Za-z_$][\w$]*)\s+from\s+'([^']+\.vue)'/g,
+            )) {
+                imported.set(local!, resolve(dirname(file), specifier!));
+            }
+
+            const found: string[] = [];
+            for (const { name, tag } of openTags(template)) {
+                const component = imported.get(name);
+                if (!component) continue;
+                for (const prop of bodyProps(component)) {
+                    const bound = new RegExp(
+                        String.raw`(?::|v-bind:|v-model:)(?:${prop}|${kebab(prop)})="([^"]*)"`,
+                    ).exec(tag);
+                    if (bound) found.push(bound[1]!);
+                }
+            }
+            return found;
         };
 
         /** The block that opens at `at`, or the single expression that starts there. */
@@ -638,15 +783,16 @@ describe('page shell contract', () => {
         };
 
         /** What makes this file a disclosure of its own, if anything does. */
-        const ownDisclosures = (source: string): string[] => {
+        const ownDisclosures = (file: string, source: string): string[] => {
             const template = templateOf(source);
             const script = scriptOf(source);
             const findings: string[] = [];
 
-            const conditions = [...template.matchAll(/\sv-(?:if|else-if|show)="([^"]*)"/g)].map(
-                (m) => m[1]!,
-            );
-            for (const [tag] of template.matchAll(/<[A-Za-z][^>]*?>/g)) {
+            const conditions = [
+                ...[...template.matchAll(/\sv-(?:if|else-if|show)="([^"]*)"/g)].map((m) => m[1]!),
+                ...bodyBindings(file, template, script),
+            ];
+            for (const { tag } of openTags(template)) {
                 const handler = /@click(?:\.\w+)*="([^"]*)"/.exec(tag);
                 if (!handler) continue;
                 for (const region of clickRegions(script, handler[1]!)) {
@@ -678,6 +824,102 @@ describe('page shell contract', () => {
             return [...new Set(findings)];
         };
 
+        // The counter-proof, before the sweep that uses it.
+        //
+        // Three rounds of this rule shipped believing they asked "does a click
+        // open a body", while each in fact asked how the flip was SPELLED —
+        // attribute or named handler, dotted or bracketed path, `v-if` or
+        // `:open`. Every one of them was green against the tree at the time,
+        // because a detector that finds nothing and a tree with nothing in it
+        // read exactly alike. These five sources are the shapes themselves, so
+        // a detector that stops detecting says so by name.
+        //
+        // Answered against the real `AdminAccordion` — the fixture claims a
+        // path under `src/components/`, and never has to exist for the import
+        // in it to resolve. If `open` stops being read out of that component,
+        // the third case below goes silent and this fails.
+        const FIXTURE = resolve(SRC_DIR, 'components/DisclosureFixture.vue');
+        const fixture = (markup: string, code: string): string =>
+            `<template>${markup}</template>\n<script setup lang="ts">${code}</script>`;
+        const IMPORTS_ACCORDION = `import AdminAccordion from './admin-page/AdminAccordion.vue';`;
+
+        // A body this view renders itself, flipped in the attribute.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="open = !open">head</div><div v-if="open">body</div>`,
+                    `const open = ref(false);`,
+                ),
+            ),
+        ).toEqual(['toggles `open`']);
+
+        // The same disclosure, on an element whose attributes contain a `>`.
+        //
+        // A separate defect from the three spellings above, and one that was in
+        // the ORIGINAL rule rather than in what this change adds: tags were
+        // matched with `<[A-Za-z][^>]*?>`, which ends a tag at the first `>` in
+        // the source — including the one inside `v-if="rows.length > 0"`.
+        // Everything written after it on the same element, `@click` included,
+        // fell outside the "tag" and was never read. This file writes exactly
+        // that comparison (`v-if="promotions.length > 0"`), so the shape is not
+        // hypothetical; it happened to sit on a wrapper rather than on the
+        // trigger, which is the only reason the bar below was reachable at all.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div v-if="rows.length > 0" @click="open = !open">head</div>` +
+                        `<div v-if="open">body</div>`,
+                    `const open = ref(false);`,
+                ),
+            ),
+        ).toEqual(['toggles `open`']);
+
+        // The same, per row, through a named handler and a keyed store.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="onToggle(row.id)">head</div><div v-if="expanded[row.id]">body</div>`,
+                    `function onToggle(id: string): void { expanded[id] = !expanded[id]; }`,
+                ),
+            ),
+        ).toEqual(['toggles `expanded`']);
+
+        // A body `AdminAccordion` renders, opened from a second trigger of this
+        // view's own. No `v-if` in this file mentions `expandedId`.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="onToggle(bar.id)">bar</div>` +
+                        `<AdminAccordion :open="expandedId === p.id">body</AdminAccordion>`,
+                    `${IMPORTS_ACCORDION}
+                     function onToggle(id: string): void {
+                         expandedId.value = expandedId.value === id ? null : id;
+                     }`,
+                ),
+            ),
+        ).toEqual(['toggles `expandedId`']);
+
+        // And the shape one hop away from all three: a named handler that
+        // toggles something of its own, beside an `:open` on another name. A
+        // rule that fires here is worse than no rule.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<button type="button" @click="onPick(row.id)">pick</button>` +
+                        `<AdminAccordion :open="panelOpen">body</AdminAccordion>`,
+                    `${IMPORTS_ACCORDION}
+                     function onPick(id: string): void {
+                         selectedId.value = selectedId.value === id ? null : id;
+                     }`,
+                ),
+            ),
+        ).toEqual([]);
+
         const files = everyVueFile();
         // The sweep reaches src at all. Without this both halves below pass by
         // finding nothing, which is exactly how they would read if the cwd moved.
@@ -689,7 +931,7 @@ describe('page shell contract', () => {
         for (const file of files) {
             if (file === ACCORDION) continue;
             const source = readFileSync(file, 'utf8');
-            const findings = ownDisclosures(source);
+            const findings = ownDisclosures(file, source);
             const marker = MARKER.exec(source);
             const name = relative(SRC_DIR, file);
 

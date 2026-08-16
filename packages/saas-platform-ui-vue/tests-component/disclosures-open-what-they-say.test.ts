@@ -112,6 +112,28 @@ describe('a promotion row opens its editor', () => {
         await trigger().trigger('click');
         expect(wrapper.find('.sa-accordion__body').exists()).toBe(false);
     });
+
+    test('the timeline bar that opens the same row is a control too', async () => {
+        // The row moved onto `AdminAccordion`; the bar charting it on the
+        // timeline above kept opening the same editor from a `<div>` — the
+        // shape the migration existed to remove, one element away from where it
+        // was removed. Nothing rendered it: the visual fixture serves an empty
+        // promotions list, so the timeline is behind a `v-if` no baseline sees.
+        const wrapper = mountTab();
+        const bars = wrapper.findAll('.mc-promo-bar');
+
+        expect(bars).toHaveLength(2);
+        expect(bars[0]!.element.tagName).toBe('BUTTON');
+        expect(bars.map((b) => b.attributes('aria-expanded'))).toEqual(['false', 'false']);
+
+        await bars[1]!.trigger('click');
+
+        expect(wrapper.findAll('.sa-accordion__body')).toHaveLength(1);
+        expect(wrapper.findAll('.mc-promo-bar').map((b) => b.attributes('aria-expanded'))).toEqual([
+            'false',
+            'true',
+        ]);
+    });
 });
 
 describe('the advanced section of the promo-code form opens', () => {
