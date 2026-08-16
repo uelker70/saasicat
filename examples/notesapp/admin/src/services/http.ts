@@ -9,7 +9,7 @@
 // interceptor with `Authorization: Bearer …` — nothing else changes.
 
 import axios from 'axios';
-import type { HttpClient, HttpResponse } from '@saasicat/ui-vue';
+import { createAxiosHttpClient } from '@saasicat/ui-vue';
 
 const SESSION_KEY = 'notesapp-admin-session';
 
@@ -30,28 +30,10 @@ api.interceptors.request.use((cfg) => {
     return cfg;
 });
 
-export const platformHttp: HttpClient = async (url, init) => {
-    const stripped = url.startsWith('/api/v1') ? url.slice(7) : url;
-    const r = await api.request({
-        url: stripped,
-        method: (init?.method ?? 'GET') as 'GET' | 'POST',
-        headers: init?.headers,
-        data: init?.body,
-        validateStatus: (s) => s < 500,
-    });
-    const res: HttpResponse = {
-        status: r.status,
-        headers: {
-            get: (n) => {
-                const v = r.headers[n.toLowerCase()];
-                return v == null ? null : String(v);
-            },
-        },
-        json: async () => r.data,
-        text: async () => (typeof r.data === 'string' ? r.data : JSON.stringify(r.data)),
-    };
-    return res;
-};
+// The instance already carries `/api/v1` as its baseURL, and the platform
+// passes fully-qualified paths — so the prefix is stripped back off before the
+// request, or it would be sent twice.
+export const platformHttp = createAxiosHttpClient(api, { stripPrefix: '/api/v1' });
 
 export async function adminLogin(email: string, password: string) {
     if (email.trim().toLowerCase() !== DEMO_EMAIL || password !== DEMO_PASSWORD) {

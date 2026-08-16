@@ -18,6 +18,7 @@
 import {
     computed,
     inject,
+    isReadonly,
     isRef,
     ref,
     watch,
@@ -31,14 +32,23 @@ import { defaultKvStore, type KvStore } from '../client/types.js';
 export type SaColorScheme = 'light' | 'dark' | 'system';
 export type SaResolvedScheme = 'light' | 'dark';
 
-const SCHEMES: readonly SaColorScheme[] = ['light', 'dark', 'system'];
-const STORAGE_KEY = 'saasicat.theme.scheme';
+/** The schemes the switcher offers, in the order it lists them. */
+export const SA_COLOR_SCHEMES: readonly SaColorScheme[] = ['light', 'dark', 'system'];
+
+/** `KvStore` key holding the scheme the operator picked in the switcher. */
+export const SA_THEME_STORAGE_KEY = 'saasicat.theme.scheme';
 
 export interface SaTheme {
     /** What the operator picked. Writable — assigning switches the theme. */
     scheme: Ref<SaColorScheme>;
     /** What that means right now: `'system'` resolved against the OS. */
     resolved: ComputedRef<SaResolvedScheme>;
+    /**
+     * Whether the shell renders its theme switcher. `false` when the app opted
+     * out or when `scheme` cannot be written to — a switcher that cannot change
+     * anything is worse than none.
+     */
+    switcherEnabled: boolean;
     /**
      * Releases the `prefers-color-scheme` subscription and the persistence
      * watcher. Idempotent.
@@ -65,10 +75,22 @@ export interface SaThemeOptions {
     persist?: boolean;
     /** Injection seam for tests. */
     storage?: KvStore;
+    /**
+     * Prefix for the persisted key, mirroring `createSuperAdminI18n`. Set it
+     * when several admin apps share one origin and must not inherit each
+     * other's colour scheme.
+     */
+    storageKeyPrefix?: string;
+    /**
+     * Renders the theme switcher in the shell chrome, default `true`. Set
+     * `false` for a deployment that ships one appearance. A readonly `scheme`
+     * ref disables it on its own — no need to set this as well.
+     */
+    switcher?: boolean;
 }
 
 function isScheme(value: unknown): value is SaColorScheme {
-    return typeof value === 'string' && SCHEMES.includes(value as SaColorScheme);
+    return typeof value === 'string' && SA_COLOR_SCHEMES.includes(value as SaColorScheme);
 }
 
 /**
@@ -113,18 +135,25 @@ export function createSaTheme(options: SaThemeOptions = {}): SaTheme {
     const provided = options.scheme;
     const appOwnsIt = isRef(provided);
 
-    const stored = persist && !appOwnsIt ? storage.get(STORAGE_KEY) : null;
+    const key = `${options.storageKeyPrefix ?? ''}${SA_THEME_STORAGE_KEY}`;
+
+    const stored = persist && !appOwnsIt ? storage.get(key) : null;
     const scheme = isRef(provided)
         ? provided
         : ref<SaColorScheme>(isScheme(stored) ? stored : (provided ?? 'system'));
     const { value: system, unsubscribe } = systemScheme();
 
     const stopPersisting =
-        persist && !appOwnsIt ? watch(scheme, (next) => storage.set(STORAGE_KEY, next)) : null;
+        persist && !appOwnsIt ? watch(scheme, (next) => storage.set(key, next)) : null;
 
     return {
         scheme,
         resolved: computed(() => (scheme.value === 'system' ? system.value : scheme.value)),
+        // A readonly ref (typically a `computed` derived from a profile
+        // setting) silently swallows writes, so the switcher would be a dead
+        // control. TypeScript ignores `readonly` when checking assignability,
+        // so the guard has to be a runtime one — same as the locale next door.
+        switcherEnabled: (options.switcher ?? true) && !isReadonly(scheme),
         dispose: () => {
             unsubscribe();
             stopPersisting?.();

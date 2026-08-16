@@ -130,9 +130,6 @@ export const marketingMessages = defineMessages(
             delete: 'Aktion löschen',
             deleteConfirm: 'Aktion „{label}“ wirklich löschen?',
         },
-        errors: {
-            projectionsApi: 'MarketingProjections-API antwortete mit HTTP {status}',
-        },
     },
     {
         topFeatures: 'Top features',
@@ -260,9 +257,6 @@ export const marketingMessages = defineMessages(
             colorLabel: 'Color',
             delete: 'Delete promotion',
             deleteConfirm: 'Really delete promotion "{label}"?',
-        },
-        errors: {
-            projectionsApi: 'MarketingProjections API responded with HTTP {status}',
         },
     },
 );

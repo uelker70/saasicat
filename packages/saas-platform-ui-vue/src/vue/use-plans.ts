@@ -4,6 +4,7 @@
 //   Pack 2a → usePlanVersions (draft/publish lifecycle)
 
 import { ref, type Ref } from 'vue';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     CreatePlanData,
     CreatePlanVersionDraftData,
@@ -13,6 +14,7 @@ import type {
     UpdatePlanData,
     UpdatePlanVersionDraftData,
 } from '@saasicat/types';
+import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UsePlansOptions {
@@ -37,6 +39,9 @@ export class PlansApiError extends Error {
     ) {
         super(message);
         this.name = 'PlansApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 
@@ -94,8 +99,9 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: {
                 'content-type': 'application/json',
                 ...authHeaders(),
@@ -103,6 +109,15 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             },
             body: init?.body,
         });
+        // Before any body is read: `null` below has to mean "the server
+        // answered without one", which is what the callers' empty-response
+        // sentinels claim.
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new PlansApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
@@ -147,7 +162,8 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new PlansApiError(0, null, 'Create returned no body');
+        if (!created)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Create returned no body'));
         plans.value = [...plans.value, created];
         return created;
     }
@@ -157,7 +173,8 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new PlansApiError(0, null, 'Update returned no body');
+        if (!updated)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Update returned no body'));
         plans.value = plans.value.map((p) => (p.id === planId ? updated : p));
         return updated;
     }
@@ -264,8 +281,9 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: {
                 'content-type': 'application/json',
                 ...authHeaders(),
@@ -273,6 +291,12 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             },
             body: init?.body,
         });
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new PlansApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
@@ -305,7 +329,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!result) throw new PlansApiError(0, null, 'CreateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new PlansApiError(0, null, 'CreateDraft returned no body'));
         versions.value = [...versions.value, result.planVersion];
         return result;
     }
@@ -318,7 +343,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!result) throw new PlansApiError(0, null, 'UpdateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new PlansApiError(0, null, 'UpdateDraft returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? result.planVersion : v));
         return result;
     }
@@ -336,7 +362,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}/publish`,
             { method: 'POST', body: JSON.stringify(opts) },
         );
-        if (!result) throw new PlansApiError(0, null, 'Publish returned no body');
+        if (!result)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Publish returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? result.planVersion : v));
         return result;
     }
@@ -351,7 +378,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}/terminate`,
             { method: 'POST', body: JSON.stringify({ endsAt }) },
         );
-        if (!updated) throw new PlansApiError(0, null, 'Terminate returned no body');
+        if (!updated)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Terminate returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? updated : v));
         return updated;
     }

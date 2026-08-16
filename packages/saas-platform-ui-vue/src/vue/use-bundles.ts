@@ -7,6 +7,7 @@
 // the catalog paths themselves — the consumer supplies only the admin prefix.
 
 import { ref, type Ref } from 'vue';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     BundleRow,
     BundleVersionMutationResult,
@@ -16,6 +17,7 @@ import type {
     UpdateBundleData,
     UpdateBundleVersionDraftData,
 } from '@saasicat/types';
+import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UseBundlesOptions {
@@ -41,6 +43,9 @@ export class BundlesApiError extends Error {
     ) {
         super(message);
         this.name = 'BundlesApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 
@@ -80,11 +85,21 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: { 'content-type': 'application/json', ...authHeaders(), ...init?.headers },
             body: init?.body,
         });
+        // Before any body is read: `null` below has to mean "the server
+        // answered without one", which is what the callers' empty-response
+        // sentinels claim.
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new BundlesApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
@@ -117,7 +132,8 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new BundlesApiError(0, null, 'Create returned no body');
+        if (!created)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'Create returned no body'));
         bundles.value = [...bundles.value, created];
         return created;
     }
@@ -127,7 +143,8 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new BundlesApiError(0, null, 'Update returned no body');
+        if (!updated)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'Update returned no body'));
         bundles.value = bundles.value.map((b) => (b.id === bundleId ? updated : b));
         return updated;
     }
@@ -209,11 +226,18 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: { 'content-type': 'application/json', ...authHeaders(), ...init?.headers },
             body: init?.body,
         });
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new BundlesApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
@@ -246,7 +270,8 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!result) throw new BundlesApiError(0, null, 'CreateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'CreateDraft returned no body'));
         versions.value = [...versions.value, result.bundleVersion];
         return result;
     }
@@ -259,7 +284,8 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             `${versionUrlBase}/${versionId}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!result) throw new BundlesApiError(0, null, 'UpdateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'UpdateDraft returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? result.bundleVersion : v));
         return result;
     }
@@ -277,7 +303,8 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             `${versionUrlBase}/${versionId}/publish`,
             { method: 'POST', body: JSON.stringify(opts) },
         );
-        if (!result) throw new BundlesApiError(0, null, 'Publish returned no body');
+        if (!result)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'Publish returned no body'));
         // Reload versions, because publishing may mark another version as
         // superseded — the local cache would otherwise be inconsistent.
         await load();

@@ -4,7 +4,6 @@ export const promosMessages = defineMessages(
     {
         title: 'Promo-Codes',
         createAction: 'Promo-Code anlegen',
-        apiErrorHttpStatus: 'Promotions-API antwortete mit HTTP {status}',
         list: {
             searchLabel: 'Suche (Code)',
             tileScheduled: 'Geplant',
@@ -103,7 +102,6 @@ export const promosMessages = defineMessages(
     {
         title: 'Promo codes',
         createAction: 'Create promo code',
-        apiErrorHttpStatus: 'Promotions API responded with HTTP {status}',
         list: {
             searchLabel: 'Search (code)',
             tileScheduled: 'Scheduled',

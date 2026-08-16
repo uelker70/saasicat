@@ -19,6 +19,7 @@
                     <div class="sa-login-brand__tag">{{ tagText }}</div>
                 </div>
                 <LocaleSwitcher class="sa-login-locale" />
+                <ThemeSwitcher class="sa-login-theme" />
             </div>
 
             <h1 class="sa-login-title">{{ msg.login.signIn }}</h1>
@@ -101,6 +102,7 @@ import { getJson } from '../client/http-json.js';
 import { isProductionBoot, resolveLoginBranding } from '../client/login-branding.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import LocaleSwitcher from '../components/LocaleSwitcher.vue';
+import ThemeSwitcher from '../components/ThemeSwitcher.vue';
 import SuperAdminSetupWizard from './SuperAdminSetupWizard.vue';
 
 interface Props {
@@ -194,12 +196,17 @@ async function handleSubmit(): Promise<void> {
 </script>
 
 <style scoped>
-.sa-login-locale {
+.sa-login-locale,
+.sa-login-theme {
     /* In the card's flow rather than floating over it: a fixed overlay lands
        on top of the centered card on short viewports. */
-    margin-left: auto;
     align-self: flex-start;
     color: var(--sa-login-tag-color, var(--sa-color-fg-secondary));
+}
+/* One `auto` on the first of the pair moves both — a second would put the gap
+   between them at the mercy of the card width instead of the row's own. */
+.sa-login-locale {
+    margin-left: auto;
 }
 .sa-login-wrap {
     min-height: 100vh;
@@ -231,6 +238,13 @@ async function handleSubmit(): Promise<void> {
 .sa-login-logo {
     width: 44px;
     height: 44px;
+    /* The row has to give width up somewhere once the switchers joined it, and
+       the mark is the wrong donor: a flex item shrinks from its own basis, so
+       the logo went to 32.73px at 390 and to nothing at all at 320. Pinning it
+       moves the deficit onto the brand text beside it, which has somewhere to
+       put it — it wraps. `min-width: 0` on that text is the other half; without
+       it the text refuses the deficit too and the row leaves the viewport. */
+    flex: none;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -258,6 +272,13 @@ async function handleSubmit(): Promise<void> {
     width: 100%;
     height: 100%;
     object-fit: contain;
+}
+/* `min-width: auto` is a flex item's default and it refuses to shrink below the
+   longest word — which is why the row's deficit landed on the mark instead, and
+   why pinning the mark on its own is not the whole fix. Zero lets this block
+   take the deficit and wrap. */
+.sa-login-brand__text {
+    min-width: 0;
 }
 .sa-login-brand__name {
     font-weight: 800;

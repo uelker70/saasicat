@@ -23,9 +23,6 @@ export const discoveryMessages = defineMessages(
         replacedBy: 'ersetzt durch {key}',
         replaces: 'ersetzt: {keys}',
         reapproveEmphasis: 'erneut freigeben',
-        errorDiscoveryHttp: 'Discovery-Endpoint antwortete mit HTTP {status}',
-        errorRescanHttp: 'Discovery-Rescan antwortete mit HTTP {status}',
-        errorCatalogHttp: 'Catalog-Entries-API antwortete mit HTTP {status}',
         capList: {
             orphanFeature:
                 'Feature im Katalog ohne implementierende Capability — blockiert im blocking-Strict-Mode das Plan-Publish.',
@@ -137,9 +134,6 @@ export const discoveryMessages = defineMessages(
         replacedBy: 'replaced by {key}',
         replaces: 'replaces: {keys}',
         reapproveEmphasis: 'approve again',
-        errorDiscoveryHttp: 'Discovery endpoint responded with HTTP {status}',
-        errorRescanHttp: 'Discovery rescan responded with HTTP {status}',
-        errorCatalogHttp: 'Catalog entries API responded with HTTP {status}',
         capList: {
             orphanFeature:
                 'Feature in the catalog without an implementing capability — blocks plan publishing in blocking strict mode.',

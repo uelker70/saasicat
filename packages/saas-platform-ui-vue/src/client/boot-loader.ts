@@ -12,6 +12,8 @@
 // Spec: admin-api.openapi.yaml.
 
 import type { PublicBootResponse } from '@saasicat/types';
+import { markPlatformError } from './admin-error.js';
+import { requireServerAnswer } from './http-json.js';
 import { defaultHttpClient, type HttpClient } from './types.js';
 
 export interface BootLoaderOptions {
@@ -31,6 +33,9 @@ export class BootLoadError extends Error {
     ) {
         super(message);
         this.name = 'BootLoadError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 
@@ -52,8 +57,14 @@ export class BootLoader {
 
     async load(): Promise<PublicBootResponse> {
         const res = await this.http(this.endpoint);
+        requireServerAnswer(
+            res.status,
+            'GET',
+            this.endpoint,
+            (diagnostic) => new BootLoadError(res.status, diagnostic),
+        );
         if (res.status !== 200) {
-            throw new BootLoadError(res.status, `Boot-Endpunkt antwortete HTTP ${res.status}`);
+            throw new BootLoadError(res.status, `Boot endpoint responded with HTTP ${res.status}`);
         }
         return (await res.json()) as PublicBootResponse;
     }

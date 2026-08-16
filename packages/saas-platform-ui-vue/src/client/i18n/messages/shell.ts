@@ -11,6 +11,12 @@ export const shellMessages = defineMessages(
             roleBadge: 'SUPER ADMIN',
             logout: 'Abmelden',
             language: 'Sprache',
+            theme: {
+                label: 'Darstellung',
+                light: 'Hell',
+                dark: 'Dunkel',
+                system: 'System',
+            },
         },
         drawer: {
             docs: 'Doku öffnen',
@@ -83,6 +89,12 @@ export const shellMessages = defineMessages(
             roleBadge: 'SUPER ADMIN',
             logout: 'Sign out',
             language: 'Language',
+            theme: {
+                label: 'Appearance',
+                light: 'Light',
+                dark: 'Dark',
+                system: 'System',
+            },
         },
         drawer: {
             docs: 'Open documentation',

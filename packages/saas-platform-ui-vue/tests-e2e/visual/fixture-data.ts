@@ -11,10 +11,13 @@ import type {
     AdminManifest,
     BundleRow,
     BundleVersionRow,
+    CapabilityCatalogEntryRow,
     DiscoverySnapshot,
+    FeatureCatalogEntryRow,
     MarketingProjectionRow,
     PlanRow,
     PlanVersionRow,
+    QuotaCatalogEntryRow,
 } from '@saasicat/types';
 
 import type {
@@ -202,6 +205,313 @@ export const FIXTURE_DISCOVERY: DiscoverySnapshot = {
     ],
     hash: 'fixture-discovery-hash',
 };
+
+// ── The discovery CATALOG, which is not the discovery SNAPSHOT ───────────────
+//
+// `DiscoveryPage` takes both, and they are different things. The snapshot above
+// is what the scan found in the code; the three lists below are the catalog
+// rows the platform keeps for those findings — the approval status, the
+// editable label, the translations. `DiscoveryFeatureCard` reads
+// `feature.replaces.length` and `feature.i18n`, neither of which exists on a
+// `DiscoveredFeature`, so handing the page `FIXTURE_DISCOVERY.features` takes it
+// down before it reaches `data-visual-ready`. That is what the case did the
+// first time somebody tried to give it data, and why it went back to `[]`.
+//
+// Chosen for the branches, not for realism:
+//
+//   - all four `discoveryStatus` values, so each `sa-review--*` pill and each
+//     primary action of the status control renders at least once;
+//   - two owners plus one ownerless feature, so the page's group rollup renders
+//     three groups including the "no owner" one that sorts last;
+//   - a deprecated and an experimental capability, a `replaces` list and a
+//     `successorKey`, so the header flags are not all behind a false `v-if`;
+//   - full, half and no English translation, so the coverage pill renders
+//     `complete`, `warn` and `low`;
+//   - one capability with no feature, so the orphan section exists;
+//   - one quota without a `usageProvider`, which is the deploy-blocking state
+//     that paints the card's warning tone.
+//
+// `notes.export.pdf` is deliberately the key `FIXTURE_DISCOVERY` declares, so
+// the page's `declaredAtByKey` lookup resolves for one capability row and not
+// for the others — both halves of that `v-if`.
+
+const FEATURE_APPROVED_AT = '2026-01-20T09:00:00.000Z';
+
+export const FIXTURE_CATALOG_CAPABILITIES: CapabilityCatalogEntryRow[] = [
+    {
+        id: 'cap-1',
+        projectKey: 'fixture',
+        capabilityKey: 'notes.export.pdf',
+        label: 'Export as PDF',
+        description: null,
+        featureKey: 'notes.export',
+        bundleKey: null,
+        codeStatus: 'active',
+        owner: 'notes',
+        kind: 'service',
+        replacementKey: null,
+        deprecatedAt: null,
+        removalPlannedAt: null,
+        reason: null,
+        i18n: {},
+        sortOrder: 1,
+        // After the feature's approval, so the card's "new since approval" flag
+        // and the row's own `new` flag both render.
+        createdAt: '2026-02-01T09:00:00.000Z',
+        updatedAt: '2026-02-01T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        id: 'cap-2',
+        projectKey: 'fixture',
+        capabilityKey: 'notes.export.csv',
+        label: 'Export as CSV',
+        description: null,
+        featureKey: 'notes.export',
+        bundleKey: null,
+        codeStatus: 'deprecated',
+        owner: 'notes',
+        kind: 'endpoint',
+        replacementKey: 'notes.export.pdf',
+        deprecatedAt: '2026-01-05T09:00:00.000Z',
+        removalPlannedAt: '2026-06-01T00:00:00.000Z',
+        reason: 'Superseded by the PDF exporter.',
+        i18n: {},
+        sortOrder: 2,
+        createdAt: '2025-11-02T09:00:00.000Z',
+        updatedAt: '2026-01-05T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        id: 'cap-3',
+        projectKey: 'fixture',
+        capabilityKey: 'notes.share.link',
+        label: 'Share via link',
+        description: null,
+        featureKey: 'notes.share',
+        bundleKey: null,
+        codeStatus: 'experimental',
+        owner: 'notes',
+        kind: 'event',
+        replacementKey: null,
+        deprecatedAt: null,
+        removalPlannedAt: null,
+        reason: null,
+        i18n: {},
+        sortOrder: 3,
+        createdAt: '2026-01-08T09:00:00.000Z',
+        updatedAt: '2026-01-08T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        id: 'cap-4',
+        projectKey: 'fixture',
+        capabilityKey: 'team.roles.assign',
+        label: 'Assign a role',
+        description: null,
+        featureKey: 'team.roles',
+        bundleKey: null,
+        codeStatus: 'active',
+        owner: 'team',
+        kind: 'endpoint',
+        replacementKey: null,
+        deprecatedAt: null,
+        removalPlannedAt: null,
+        reason: null,
+        i18n: {},
+        sortOrder: 4,
+        createdAt: '2025-12-01T09:00:00.000Z',
+        updatedAt: '2025-12-01T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        // No `featureKey` — the page's orphan bucket, and the only thing that
+        // makes its section and its hint paragraph exist.
+        id: 'cap-5',
+        projectKey: 'fixture',
+        capabilityKey: 'legacy.import',
+        label: 'Import from the legacy store',
+        description: null,
+        featureKey: null,
+        bundleKey: null,
+        codeStatus: 'active',
+        owner: null,
+        kind: 'job',
+        replacementKey: null,
+        deprecatedAt: null,
+        removalPlannedAt: null,
+        reason: null,
+        i18n: {},
+        sortOrder: 5,
+        createdAt: '2025-10-01T09:00:00.000Z',
+        updatedAt: '2025-10-01T09:00:00.000Z',
+        deletedAt: null,
+    },
+];
+
+export const FIXTURE_CATALOG_FEATURES: FeatureCatalogEntryRow[] = [
+    {
+        id: 'fce-1',
+        projectKey: 'fixture',
+        featureKey: 'notes.export',
+        label: 'Notizen exportieren',
+        description: 'Notizen als PDF oder CSV herunterladen.',
+        marketingLabel: null,
+        marketingDescription: null,
+        icon: 'ios_share',
+        tier: 'CORE',
+        discoveryStatus: 'approved',
+        requires: [],
+        replaces: [],
+        successorKey: null,
+        approvedAt: FEATURE_APPROVED_AT,
+        approvedBy: 'u-1',
+        approvedSignature: 'notes.export.csv@deprecated|notes.export.pdf@active',
+        plannedOnly: false,
+        core: true,
+        // Both fields translated — the coverage pill reads `complete`.
+        i18n: { en: { label: 'Export notes', description: 'Download notes as PDF or CSV.' } },
+        sortOrder: 1,
+        createdAt: '2025-11-02T09:00:00.000Z',
+        updatedAt: '2026-02-01T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        id: 'fce-2',
+        projectKey: 'fixture',
+        featureKey: 'notes.share',
+        label: 'Notizen teilen',
+        description: 'Notizen über einen Link freigeben.',
+        marketingLabel: null,
+        marketingDescription: null,
+        icon: 'share',
+        tier: 'ADVANCED',
+        discoveryStatus: 'pending',
+        requires: ['notes.export'],
+        replaces: ['notes.public-link'],
+        successorKey: null,
+        approvedAt: null,
+        approvedBy: null,
+        approvedSignature: null,
+        plannedOnly: false,
+        core: false,
+        // Label only — the coverage pill reads `warn`.
+        i18n: { en: { label: 'Share notes' } },
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00.000Z',
+        updatedAt: '2026-01-08T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        id: 'fce-3',
+        projectKey: 'fixture',
+        featureKey: 'team.roles',
+        label: 'Rollen',
+        description: 'Rollen und Berechtigungen im Team.',
+        marketingLabel: null,
+        marketingDescription: null,
+        icon: 'groups',
+        tier: 'PRO',
+        // Drift: approved once, and the code has moved since.
+        discoveryStatus: 'outdated',
+        requires: [],
+        replaces: [],
+        successorKey: null,
+        approvedAt: '2025-12-02T09:00:00.000Z',
+        approvedBy: 'u-1',
+        approvedSignature: 'team.roles.assign@active',
+        plannedOnly: false,
+        core: false,
+        // Untranslated — the coverage pill reads `low`.
+        i18n: {},
+        sortOrder: 3,
+        createdAt: '2025-12-01T09:00:00.000Z',
+        updatedAt: '2026-01-30T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        // No capability declares it, so it lands in the ownerless group that
+        // sorts last, and its card body shows the "no capabilities" hint.
+        id: 'fce-4',
+        projectKey: 'fixture',
+        featureKey: 'notes.attachments',
+        label: 'Anhänge',
+        description: 'Dateien an eine Notiz hängen.',
+        marketingLabel: null,
+        marketingDescription: null,
+        icon: 'attach_file',
+        tier: null,
+        discoveryStatus: 'obsolete',
+        requires: [],
+        replaces: [],
+        successorKey: 'notes.files',
+        approvedAt: null,
+        approvedBy: null,
+        approvedSignature: null,
+        plannedOnly: false,
+        core: false,
+        i18n: {},
+        sortOrder: 4,
+        createdAt: '2025-09-01T09:00:00.000Z',
+        updatedAt: '2026-01-12T09:00:00.000Z',
+        deletedAt: null,
+    },
+];
+
+export const FIXTURE_CATALOG_QUOTAS: QuotaCatalogEntryRow[] = [
+    {
+        id: 'qce-1',
+        projectKey: 'fixture',
+        quotaKey: 'notes',
+        label: 'Notizen',
+        description: 'Wie viele Notizen ein Mandant anlegen darf.',
+        unit: 'Notizen',
+        featureKey: 'notes.export',
+        usageProvider: 'NotesService',
+        enforcementMode: 'hard',
+        discoveryStatus: 'approved',
+        replaces: [],
+        successorKey: null,
+        approvedAt: FEATURE_APPROVED_AT,
+        approvedBy: 'u-1',
+        approvedSignature: 'Notizen|hard|NotesService|notes.export',
+        i18n: {
+            en: {
+                label: 'Notes',
+                unit: 'notes',
+                description: 'How many notes a tenant may create.',
+            },
+        },
+        sortOrder: 1,
+        createdAt: '2025-11-02T09:00:00.000Z',
+        updatedAt: '2026-01-20T09:00:00.000Z',
+        deletedAt: null,
+    },
+    {
+        // `usageProvider: null` on a HARD quota — deploy-blocking, and the only
+        // state that paints the card's negative mark and its warning line.
+        id: 'qce-2',
+        projectKey: 'fixture',
+        quotaKey: 'storageGb',
+        label: 'Speicher',
+        description: null,
+        unit: 'GB',
+        featureKey: null,
+        usageProvider: null,
+        enforcementMode: 'hard',
+        discoveryStatus: 'pending',
+        replaces: ['diskQuota'],
+        successorKey: null,
+        approvedAt: null,
+        approvedBy: null,
+        approvedSignature: null,
+        i18n: {},
+        sortOrder: 2,
+        createdAt: '2026-01-08T09:00:00.000Z',
+        updatedAt: '2026-01-08T09:00:00.000Z',
+        deletedAt: null,
+    },
+];
 
 export const FIXTURE_PLANS: PlanRow[] = [
     {

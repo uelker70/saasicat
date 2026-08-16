@@ -5,6 +5,8 @@
 //
 // Contents:
 //   - types:                HttpClient, KvStore, defaultHttpClient, defaultKvStore
+//   - http:                 createFetchHttpClient, createAxiosHttpClient
+//   - admin-error:          AdminError, toAdminError, adminErrorMessage
 //   - http-json:            JSON fetch helper over HttpClient
 //   - boot-loader:          BootLoader + BootLoadError
 //   - manifest-loader:      ManifestLoader with ETag cache + ManifestLoadError
@@ -16,6 +18,8 @@
 
 export * from './version.js';
 export * from './types.js';
+export * from './http/index.js';
+export * from './admin-error.js';
 export * from './http-json.js';
 export * from './boot-loader.js';
 export * from './manifest-loader.js';

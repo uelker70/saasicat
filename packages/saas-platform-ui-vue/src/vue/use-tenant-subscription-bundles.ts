@@ -4,7 +4,9 @@
 // `SubscriptionBundleModule.forRoot({ controller: {...} })`).
 
 import { ref, type Ref } from 'vue';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type { SubscriptionBundleRecord } from '@saasicat/types';
+import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UseTenantSubscriptionBundlesOptions {
@@ -40,6 +42,9 @@ export class TenantSubscriptionBundlesApiError extends Error {
     ) {
         super(message);
         this.name = 'TenantSubscriptionBundlesApiError';
+        // Identity, so `toAdminError` can tell this diagnostic from a
+        // consumer error whose message an operator needs to read.
+        markPlatformError(this);
     }
 }
 
@@ -64,11 +69,21 @@ export function useTenantSubscriptionBundles(
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
+        const method = init?.method ?? 'GET';
         const res = await http(url, {
-            method: init?.method ?? 'GET',
+            method,
             headers: { 'content-type': 'application/json', ...authHeaders(), ...init?.headers },
             body: init?.body,
         });
+        // Before any body is read: `null` below has to mean "the server
+        // answered without one", which is what the callers' empty-response
+        // sentinels claim.
+        requireServerAnswer(
+            res.status,
+            method,
+            url,
+            (diagnostic) => new TenantSubscriptionBundlesApiError(res.status, null, diagnostic),
+        );
         if (res.status === 204) return null;
         const body = await res.json().catch(() => null);
         if (res.status >= 400) {
@@ -103,7 +118,9 @@ export function useTenantSubscriptionBundles(
             body: JSON.stringify(data),
         });
         if (!result) {
-            throw new TenantSubscriptionBundlesApiError(0, null, 'add returned no body');
+            throw markEmptyResponse(
+                new TenantSubscriptionBundlesApiError(0, null, 'add returned no body'),
+            );
         }
         const hydrated = rehydrateDates(result);
         bundles.value = [hydrated, ...bundles.value];
@@ -119,7 +136,9 @@ export function useTenantSubscriptionBundles(
             { method: 'DELETE', body: JSON.stringify(opts) },
         );
         if (!result) {
-            throw new TenantSubscriptionBundlesApiError(0, null, 'cancel returned no body');
+            throw markEmptyResponse(
+                new TenantSubscriptionBundlesApiError(0, null, 'cancel returned no body'),
+            );
         }
         const hydrated = rehydrateDates(result);
         bundles.value = bundles.value.map((b) => (b.id === subscriptionBundleId ? hydrated : b));

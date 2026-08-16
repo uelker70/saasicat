@@ -916,48 +916,88 @@ one.
 
 ### 8.1 Platform Loaders
 
-Wrap one HTTP client per app (Axios or Fetch) and pass it to `createPlatformLoaders`
-— it assembles the endpoints and handles ETag caching.
+Every request the admin UI makes goes through one `HttpClient`, so your app's auth,
+base URL and retry logic apply everywhere. The package ships both implementations —
+you do not write the adapter.
+
+**If your app already has an axios instance**, hand it over. It keeps its
+interceptors, so the auth header you already inject applies unchanged:
 
 ```ts
 // services/platform-loaders.ts
-import { createPlatformLoaders, type HttpClient } from '@saasicat/ui-vue';
-import { api } from './api';
+import { createAxiosHttpClient, createPlatformLoaders } from '@saasicat/ui-vue';
+import { api } from './api'; // your axios instance, baseURL '/api/v1'
 
 export const ADMIN_ENDPOINTS = { apiBase: '/api/v1/admin' };
 
-const httpClient: HttpClient = async (url, init) => {
-    const stripped = url.startsWith('/api/v1') ? url.slice(7) : url;
-    const response = await api.request({
-        url: stripped,
-        method: init?.method ?? 'GET',
-        headers: init?.headers,
-        data: init?.body,
-        validateStatus: (s) => s < 500,
-    });
-    return {
-        status: response.status,
-        headers: {
-            get: (n) => {
-                const v = response.headers[n.toLowerCase()];
-                return v == null ? null : String(v);
-            },
-        },
-        json: async () => response.data,
-        text: async () =>
-            typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
-    };
-};
+// The platform passes fully-qualified paths and your instance already carries
+// `/api/v1`, so strip it back off or it is sent twice.
+export const platformHttpClient = createAxiosHttpClient(api, { stripPrefix: '/api/v1' });
 
 export const loaders = createPlatformLoaders({
     endpoints: ADMIN_ENDPOINTS,
-    http: httpClient,
+    http: platformHttpClient,
     storageKeyPrefix: 'myapp:',
     getAuthToken: () => localStorage.getItem('myapp-admin-token'),
 });
-
-export const platformHttpClient = httpClient;
 ```
+
+**If it does not**, use the `fetch` client and give it a headers hook. The hook runs
+per request, so a token that changes between calls is picked up without rebuilding
+anything:
+
+```ts
+import { createFetchHttpClient } from '@saasicat/ui-vue';
+
+export const platformHttpClient = createFetchHttpClient({
+    headers: () => {
+        const token = localStorage.getItem('myapp-admin-token');
+        return token ? { Authorization: `Bearer ${token}` } : {};
+    },
+});
+```
+
+Two things worth knowing about both adapters:
+
+- **No HTTP status throws.** A 304 is a cache hit, a 402 carries a limit payload, a
+  409 carries a conflict — the platform reads the status itself, so every response is
+  handed over intact. Only a transport failure rejects, and it arrives as an
+  `AdminError` with `status: 0`.
+- `createAxiosHttpClient` is typed **structurally** and does not import axios, so
+  `@saasicat/ui-vue` adds no dependency to your install.
+
+One case needs a word from you. `res.json()` has to know whether your instance hands
+over the body as it arrived or a value it already parsed, and it reads that off the
+config axios echoes on the response — correctly for a stock instance and for each of
+`responseType: 'text'`, `transformResponse: []`, `transformResponse: null` and
+`transitional: { forcedJSONParsing: false }`. If you replaced `transformResponse` with
+a pipeline of your own, that reading no longer works: your array and axios's echo
+identically, one opaque function each, so say which it is.
+
+```ts
+const api = axios.create({ transformResponse: [(data) => data] }); // hands over text
+
+export const platformHttpClient = createAxiosHttpClient(api, {
+    stripPrefix: '/api/v1',
+    responseBody: 'raw', // 'decoded' if your pipeline parses
+});
+```
+
+Leave `responseBody` alone otherwise — the default reads the response and needs no
+help.
+
+If the instance you hand over sets `responseType: 'arraybuffer'` or `'blob'`, the
+body is decoded as UTF-8 and read like any other undecoded body — nothing to
+configure. `responseType: 'stream'` is refused: a stream can be read once and not
+synchronously, so neither `json()` nor `text()` could keep its promise.
+
+`responseBody` also settles the one body that is otherwise ambiguous. Axios's own
+transform turns a zero-byte response and the two bytes `""` — valid JSON meaning the
+empty string — into the same empty `data`, and nothing on the response tells the two
+apart. Left at `'auto'`, `res.json()` reads an empty `data` as no body and throws,
+which is what `Response.json()` does. Say `responseBody: 'decoded'` and it is read as
+the value your instance produced, so a `""` body arrives as `''` — and so does a
+zero-byte one, because that is the same tie seen from the other side.
 
 ### 8.2 Manifest Store
 
@@ -1069,11 +1109,48 @@ instead to keep the value in your own store — the platform then does not persi
 it, because it is yours. Inside any component, `useSaTheme()` returns the same
 context.
 
+**Out of the box** the `AdminLayout` header, the login card and the first-run
+setup card each render a `ThemeSwitcher` offering light, dark and system. The
+pick is stored under `saasicat.theme.scheme` and survives reloads. Drop the
+control for a deployment that ships one appearance — or hand over a readonly
+`computed` and it hides itself rather than presenting a dead switch:
+
+```ts
+createSuperAdminApp({ theme: { switcher: false } });
+```
+
+Below `sm` (600px) the header shows both switchers as icons without their
+labels, and drops the role badge and the signed-in name and email — the badge
+repeats the subtitle under the title, and the name costs that title the room it
+needs. The avatar and the sign-out button stay: a header that runs out of room
+shortens what it says before it removes anything you can press.
+
+Several apps on one origin share that storage key. Separate them with
+`theme.storageKeyPrefix: 'admin:'`, mirroring `i18n.storageKeyPrefix`. To place
+the switcher in your own chrome as well — it renders nothing when disabled, so
+it needs no guard around it:
+
+```ts
+import ThemeSwitcher from '@saasicat/ui-vue/components/ThemeSwitcher.vue';
+```
+
 **You may already be done.** The bridge is two-directional: your own
 `$q.dark.set(true)` moves the platform, and a switch here moves Quasar. Both
 have to move together or half the screen ends up in the wrong theme — the
 stylesheet paints the platform's surfaces, Quasar paints its own cards, dialogs
 and steppers.
+
+Note what that means for `'system'`. A hard `$q.dark.set(true)` or
+`$q.dark.set(false)` is an instruction, so it replaces a `'system'` pick with
+the scheme you named — there is no way to say "dark now, machine again later".
+`$q.dark.set('auto')` says the same thing `'system'` does and arrives as
+`'system'`, so an app with its own three-way control does not freeze the
+operator's choice. That holds even when the scheme you name is the one
+`'system'` was already resolving to — the bridge asks whether it wrote a value
+itself, not whether the colour on screen changed. The one call it cannot read is
+one that repeats the mode Quasar already holds (`$q.dark.set(true)` while it is
+already `true`): nothing changes for the bridge to see, so the pick stays
+`'system'`. Set `app.theme.scheme.value` when it has to stick.
 
 For the same reason the stylesheet does **not** answer `prefers-color-scheme` on
 its own: it cannot see Quasar's half. That is why following the operating system

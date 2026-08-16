@@ -3,11 +3,12 @@
         <div class="sa-setup-card">
             <div class="sa-setup-head">
                 <div class="sa-setup-badge">{{ iconText }}</div>
-                <div>
+                <div class="sa-setup-headings">
                     <h1 class="sa-setup-title">{{ msg.setup.title }}</h1>
                     <div class="sa-setup-sub">{{ subtitleText }}</div>
                 </div>
                 <LocaleSwitcher class="sa-setup-locale" />
+                <ThemeSwitcher class="sa-setup-theme" />
             </div>
 
             <q-banner v-if="errorMessage" class="sa-setup-error" rounded>
@@ -162,6 +163,7 @@ import { HttpJsonError, postJson as httpPostJson } from '../client/http-json.js'
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import LocaleSwitcher from '../components/LocaleSwitcher.vue';
+import ThemeSwitcher from '../components/ThemeSwitcher.vue';
 
 interface Props {
     /** Display name + badge abbreviation (override the app branding, e.g. from PublicBoot). */
@@ -174,6 +176,23 @@ const props = defineProps<Props>();
 // shown again — the freshly created SuperAdmin then signs in.
 const emit = defineEmits<{ done: [] }>();
 
+// sa-disclosure-exempt(uses `<details>`):
+// the platform's own disclosure, on the one screen that owns its own frame
+//
+// The `otpauth://` URI hides behind a `<details>`/`<summary>` above, and it
+// stays there. `AdminAccordion` exists because four of the eight surfaces it
+// replaced were a `<div>` with a click handler — no keyboard, nothing to
+// announce. `<details>` has none of that problem: it is the platform's own
+// disclosure, operable by keyboard, announced as one, and it needs no state
+// from the page at all.
+//
+// What is left is a consistency argument, and it points the other way here.
+// This wizard renders OUTSIDE `AdminLayout` — it is one of the screens the page
+// shell exempts, a centred card on a first run when no admin exists yet — and
+// the surface in question is a one-line "show me the URI" for someone whose
+// authenticator app could not read the QR code. An accordion card with a badge
+// frame, an accent open border and a sunken body would make it the loudest
+// element on the screen, to reveal one line of text.
 const msg = useSaMessages('shell');
 const brand = useSuperAdminBrand();
 const endpoints = useSuperAdminEndpoints();
@@ -297,14 +316,24 @@ async function submitConfirm(): Promise<void> {
     gap: 12px;
     margin-bottom: 20px;
 }
-.sa-setup-locale {
-    margin-left: auto;
+.sa-setup-locale,
+.sa-setup-theme {
     align-self: flex-start;
     color: var(--sa-color-fg-secondary);
+}
+/* One `auto` on the first of the pair moves both. */
+.sa-setup-locale {
+    margin-left: auto;
 }
 .sa-setup-badge {
     width: 44px;
     height: 44px;
+    /* Same reasoning as `.sa-login-logo` on the login card: the mark is a fixed
+       square, so it is the wrong flex item to take the row's shortfall from.
+       Here it was squeezed at every width, 1440 included — 35.61px in the
+       platform's own fixture, 33.56px in the example app — because the two
+       switchers made the row's content wider than the card outright. */
+    flex: none;
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -321,6 +350,11 @@ async function submitConfirm(): Promise<void> {
     font-weight: 800;
     font-size: var(--sa-text-xl);
     text-transform: uppercase;
+}
+/* The block that absorbs what the pinned badge no longer gives up — see
+   `.sa-login-brand__text`, which carries the same rule for the same reason. */
+.sa-setup-headings {
+    min-width: 0;
 }
 .sa-setup-title {
     margin: 0;

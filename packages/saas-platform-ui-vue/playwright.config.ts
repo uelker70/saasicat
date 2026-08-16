@@ -60,7 +60,7 @@ export default defineConfig({
     projects: [
         {
             name: 'chromium',
-            testIgnore: /(visual-baseline|theme-contrast|consumer-route-wiring)\.spec\.ts$/,
+            testIgnore: /(visual-baseline|theme-contrast|consumer-[\w-]+)\.spec\.ts$/,
             use: { browserName: 'chromium' },
         },
         {
@@ -85,8 +85,14 @@ export default defineConfig({
         },
         {
             // The integration level: the consumer app as a user gets it.
+            //
+            // Matched by the `consumer-` prefix rather than by name, so a spec
+            // written against the assembled app runs against it by being called
+            // what it is. A name list here and a second one in `testIgnore`
+            // above are two places to forget, and a spec forgotten in either
+            // one silently runs against the wrong server or not at all.
             name: 'consumer',
-            testMatch: /consumer-route-wiring\.spec\.ts$/,
+            testMatch: /consumer-[\w-]+\.spec\.ts$/,
             // Generous: each case logs in through the real form against a dev
             // server that compiles on demand.
             timeout: 120_000,
