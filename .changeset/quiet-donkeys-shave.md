@@ -70,12 +70,28 @@ Three details the copies got wrong, fixed here once:
 - **`json()` decodes the body once.** A normal axios instance has already
   decoded it, so `response.data` may be a string because the body _was_ a JSON
   string — a body of `"ready"` arrives as `ready`. Decoding that again throws,
-  and a body of `"null"` would quietly become `null`. The adapter now reads
-  which of the two it is off the config axios echoes on the response, so
-  `res.json()` yields the value that was on the wire whether the instance
-  decodes (the default, or `responseType: 'json'`) or hands over text
-  (`responseType: 'text'`, `transformResponse: []`,
-  `transitional: { forcedJSONParsing: false }`).
+  and a body of `"null"` would quietly become `null`. The adapter reads which of
+  the two it is off the config axios echoes on the response, so `res.json()`
+  yields the value that was on the wire for every instance that still runs
+  axios's own response transform — the default, `responseType: 'json'`,
+  `responseType: 'text'`, `transformResponse: []` and
+  `transitional: { forcedJSONParsing: false }` alike.
+
+    That reading stops where the transform does. An instance carrying its own
+    non-empty `transformResponse` echoes the same config a stock instance
+    echoes — one opaque function, same array length, same arity — and
+    `[(data) => data]` and `[(data) => JSON.parse(data)]` are indistinguishable
+    on the response while needing opposite answers. The only field that differs
+    is `content-length`, which gzip or a chunked reply makes meaningless. So
+    that instance says which it is, with the new `responseBody` option: `'raw'`
+    when the pipeline hands the body over as it arrived, `'decoded'` when it
+    parses, `'auto'` (the default) to read the response, which is what everyone
+    who left `transformResponse` alone wants and has to configure nothing for.
+
+    The adapter does not force the transform off to make the answer knowable.
+    That would work, and it would hand the consumer's own response interceptors
+    a string where they had an object — the same mistake as the
+    `validateStatus` override above, in a different place.
 
 `stripPrefix` accepts a list as well as a string, because one consumer strips
 `/api/v1` and then `/api` — apps there mount under both conventions. Order
