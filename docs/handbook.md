@@ -961,8 +961,11 @@ Two things worth knowing about both adapters:
 
 - **No HTTP status throws.** A 304 is a cache hit, a 402 carries a limit payload, a
   409 carries a conflict — the platform reads the status itself, so every response is
-  handed over intact. Only a transport failure rejects, and it arrives as an
-  `AdminError` with `status: 0`.
+  handed over intact. Only a transport failure rejects, and the adapter rethrows what
+  it caught, marked: the `TypeError` from `fetch`, the original rejection from axios.
+  It becomes an `AdminError` with `status: 0` one layer up, where the platform's
+  callers pass it through `toAdminError` — so catch it there, or read
+  `isTransportFailure(err)` if you are calling an adapter directly.
 - `createAxiosHttpClient` is typed **structurally** and does not import axios, so
   `@saasicat/ui-vue` adds no dependency to your install.
 
