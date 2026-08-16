@@ -1079,6 +1079,12 @@ control for a deployment that ships one appearance — or hand over a readonly
 createSuperAdminApp({ theme: { switcher: false } });
 ```
 
+Below `sm` (600px) the header shows both switchers as icons without their
+labels, and drops the role badge and the signed-in name and email — the badge
+repeats the subtitle under the title, and the name costs that title the room it
+needs. The avatar and the sign-out button stay: a header that runs out of room
+shortens what it says before it removes anything you can press.
+
 Several apps on one origin share that storage key. Separate them with
 `theme.storageKeyPrefix: 'admin:'`, mirroring `i18n.storageKeyPrefix`. To place
 the switcher in your own chrome as well — it renders nothing when disabled, so

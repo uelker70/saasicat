@@ -354,16 +354,71 @@ const currentPageTitle = computed(() => {
     display: flex;
     align-items: center;
     gap: 8px;
+    /* The row's flexible member. Without this the identity block below sits at
+     * its content width, and a long name pushes the sign-out button off the
+     * end of a `nowrap` toolbar instead of being shortened. */
+    min-width: 0;
 }
 .sa-admin-user__avatar {
     background: var(--sa-admin-user-avatar-bg, var(--sa-color-inverse-accent));
     color: var(--sa-admin-user-avatar-fg, var(--sa-color-inverse-accent-fg));
 }
+.sa-admin-user__avatar,
+.sa-admin-user .q-btn {
+    /* The two things in this group that are controls or fixed squares. A flex
+     * item shrinks from its own basis, so without this the avatar and the
+     * sign-out button donate width to a name they should be donating none to —
+     * the same shrink that squeezed the login mark to 0px at 320. */
+    flex: none;
+}
 .sa-admin-user__name {
     line-height: 1.05;
+    min-width: 0;
+}
+/* Text is what shrinking is for; a control is not. Both lines therefore
+ * shorten rather than widen the group. */
+.sa-admin-user__name > div {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .sa-admin-user__email {
     color: var(--sa-admin-user-email, var(--sa-color-inverse-accent));
+}
+
+/* Below `sm` the header row cannot hold everything it holds on a desktop, and
+ * the switcher LABELS are the cheapest thing in it: the icon still names the
+ * control, the menu still spells every option out, and — unlike hiding the
+ * button — the operator can still reach both. The role badge goes with them
+ * because the subtitle two lines up already carries the same word: it is the
+ * platform's own `header.subtitle`, "SuperAdmin · …", and it stays on screen at
+ * every width. The drawer's brand tag repeats it a third time by default.
+ *
+ * `599.98px` is Quasar's `xs` upper bound from `theme/_breakpoints.scss`; a
+ * `<style>` block cannot read the SCSS, and a custom property is not
+ * substituted inside a media condition. */
+@media (max-width: 599.98px) {
+    /* `!important` because the thing being hidden is Quasar's own `.block`
+     * utility, which declares `display: block !important` — specificity alone
+     * loses to it however long the selector gets. Same reason the active drawer
+     * item above carries one. */
+    .sa-admin-header :deep(.sa-locale-switcher .q-btn__content > .block),
+    .sa-admin-header :deep(.sa-theme-switcher .q-btn__content > .block) {
+        display: none !important;
+    }
+    .sa-admin-badge {
+        display: none;
+    }
+    /* And the operator's own name and address, which at this width would be
+     * bought from the page title: measured at 360 with both filled in, the
+     * title got 24px — one letter — while the row spelled out an email nobody
+     * came to the page to read. The avatar keeps the identity present and the
+     * full text is one breakpoint away. The truncation above is what covers
+     * the band where the block is shown and space is still tight. */
+    .sa-admin-user__name {
+        display: none;
+    }
 }
 
 .sa-admin-drawer :deep(.q-drawer),
