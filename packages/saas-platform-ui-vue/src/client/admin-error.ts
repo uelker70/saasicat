@@ -174,7 +174,13 @@ export function toAdminError(err: unknown): AdminError {
             body,
             url: asString(config?.url),
             method: asString(config?.method)?.toUpperCase(),
-            detail: readErrorDetail(body) ?? asString(record?.message),
+            // Only what the response actually said. `err.message` here is
+            // axios's own generated line ("Request failed with status code
+            // 401") — English, untranslated, and about the transport rather
+            // than about what went wrong. Letting it through as `detail` would
+            // make `adminErrorMessage` return it in preference to the
+            // localized wording, which is the whole point of that wording.
+            detail: readErrorDetail(body),
             cause: err,
         });
     }
@@ -186,7 +192,10 @@ export function toAdminError(err: unknown): AdminError {
             status: record.status,
             code: readErrorCode(record.body) ?? asString(record.code),
             body: record.body,
-            detail: readErrorDetail(record.body) ?? asString(record.message),
+            // Same reasoning as above: `BundlesApiError`'s message is
+            // "Bundles API responded with HTTP 403", a diagnostic. It stays on
+            // `message`, where logs read it.
+            detail: readErrorDetail(record.body),
             message: asString(record.message),
             cause: err,
         });

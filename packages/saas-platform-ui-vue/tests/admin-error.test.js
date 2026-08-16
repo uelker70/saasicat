@@ -112,13 +112,14 @@ describe('toAdminError', () => {
         assert.deepEqual(err.body, { code: 'PLAN_LOCKED', message: 'Plan is locked' });
     });
 
-    test('falls back to the axios message when the body carries none', () => {
+    test('a status-bearing error with an unreadable body has no detail at all', () => {
         const err = toAdminError({
             message: 'Request failed with status code 500',
             response: { status: 500, data: '' },
         });
         assert.equal(err.status, 500);
-        assert.equal(err.detail, 'Request failed with status code 500');
+        assert.equal(err.detail, undefined);
+        assert.equal(adminErrorMessage(err, EN), EN.server);
     });
 
     test('joins a NestJS ValidationPipe message array instead of stringifying it', () => {
@@ -150,7 +151,9 @@ describe('toAdminError', () => {
         );
         assert.equal(err.status, 422);
         assert.equal(err.code, 'STRICT_MODE_VIOLATIONS');
-        assert.equal(err.detail, 'Bundles API said no');
+        // The class's own message is a diagnostic, so it stays off `detail`.
+        assert.equal(err.detail, undefined);
+        assert.equal(err.message, 'Bundles API said no');
     });
 
     test('wraps a plain Error as status 0 and keeps its message as the detail', () => {
