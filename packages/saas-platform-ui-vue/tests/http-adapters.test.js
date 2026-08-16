@@ -15,7 +15,10 @@ import {
     createAxiosHttpClient,
     createFetchHttpClient,
     defaultHttpClient,
+    isAxiosNoResponseError,
     isTransportFailure,
+    markTransportFailure,
+    toAdminError,
 } from '../dist/index.js';
 
 /** Records what `fetch` was called with and answers with a real `Response`. */
@@ -533,21 +536,45 @@ describe('createAxiosHttpClient — the instance keeps its own error handling', 
         assert.deepEqual(await res.json(), { code: 'FORBIDDEN' });
     });
 
-    test('a failure with no response is a transport failure and stays a throw', async () => {
-        // A plain `Error`: what a rejection interceptor that rethrows its own
-        // produces, and what any structural `AxiosLike` that is not axios
-        // produces. `toAdminError`'s axios reading (a `config` and no
-        // `response`) cannot see either, so the brand has to carry it —
-        // otherwise an offline request is shown as this raw text instead of
-        // the localized network failure.
+    test('a failure with no response stays a throw', async () => {
         const instance = {
             async request() {
                 throw new Error('Network Error');
             },
         };
+        await assert.rejects(createAxiosHttpClient(instance)('/x'), /Network Error/);
+    });
+
+    test('a structural instance that says nothing is not marked for it', async () => {
+        // The honest answer, and the one this adapter cannot improve on. A bare
+        // `Error` out of a non-axios `AxiosLike` is the same object whether the
+        // socket was dead or an interceptor answered a 401 with its own words —
+        // same class, same absent `isAxiosError`, `config`, `request` and
+        // `response`. Marking it would put "check your connection" over every
+        // message such a client writes.
+        const instance = {
+            async request() {
+                throw new Error('backend unreachable');
+            },
+        };
         await assert.rejects(createAxiosHttpClient(instance)('/x'), (err) => {
-            assert.match(err.message, /Network Error/);
+            assert.equal(isTransportFailure(err), false);
+            assert.equal(toAdminError(err).detail, 'backend unreachable');
+            return true;
+        });
+    });
+
+    test('…and the way out is the one the fetch adapter uses', async () => {
+        // What such a client should do instead: it is the only party that knows
+        // its request never left, so it says so. Exported for exactly this.
+        const instance = {
+            async request() {
+                throw markTransportFailure(new Error('backend unreachable'));
+            },
+        };
+        await assert.rejects(createAxiosHttpClient(instance)('/x'), (err) => {
             assert.equal(isTransportFailure(err), true);
+            assert.equal(toAdminError(err).transportFailure, true);
             return true;
         });
     });
@@ -884,5 +911,259 @@ describe('createAxiosHttpClient — against a real axios instance', () => {
             const res = await client(`${base}/object`);
             assert.deepEqual(await res.json(), { wrapped: true });
         });
+    });
+});
+
+/**
+ * A TCP port on the loopback interface that nothing is listening on: bound long
+ * enough for the OS to name it, then released and never reused.
+ *
+ * A hardcoded port would be a guess about the machine running the suite. This
+ * is a measurement of it.
+ */
+async function closedPort() {
+    const server = http.createServer();
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address();
+    await new Promise((resolve) => server.close(resolve));
+    return port;
+}
+
+// Which rejections carry the transport brand, driven by real axios because the
+// question is entirely about what axios puts on its errors.
+//
+// Two review rounds asked for opposite things here. One wanted every rejection
+// with no response marked, so that an offline request reaches the operator as
+// "check your connection" rather than as raw error text. The other wanted an
+// interceptor's replacement error left alone, so that "session expired" is not
+// overwritten by a connection sentence for a request the server answered.
+//
+// Both cases are real, which means the predicate was reading a field that does
+// not carry the fact. The measurement below is what settles it: axios states
+// the answer itself, on `isAxiosError` and `request`, and the group that
+// remains genuinely undecidable is the one nothing here can see — a client that
+// replaced the rejection without saying which case it was in.
+describe('createAxiosHttpClient — the transport brand, against real axios', () => {
+    test('a genuine network failure is marked', async () => {
+        const port = await closedPort();
+        const client = createAxiosHttpClient(axios.create());
+        await assert.rejects(client(`http://127.0.0.1:${port}/x`), (err) => {
+            assert.equal(err.isAxiosError, true, 'axios produced it');
+            assert.ok('request' in err, 'axios says the request was made');
+            assert.equal('response' in err, false, 'and that nothing came back');
+            assert.equal(isTransportFailure(err), true);
+            assert.equal(toAdminError(err).transportFailure, true);
+            // The diagnostic stays off `detail`, so `adminErrorMessage` reaches
+            // the localized network sentence instead of `connect ECONNREFUSED
+            // 127.0.0.1:45883`.
+            assert.equal(toAdminError(err).detail, undefined);
+            return true;
+        });
+    });
+
+    test('a DNS failure and a timeout are the same fact and are marked too', async () => {
+        const unresolvable = createAxiosHttpClient(axios.create());
+        await assert.rejects(unresolvable('http://saasicat-does-not-exist.invalid/x'), (err) => {
+            assert.equal(isTransportFailure(err), true);
+            return true;
+        });
+
+        await withServer(async (base) => {
+            // The server answers immediately, so the timeout has to be short
+            // enough to lose the race regardless of machine speed.
+            const client = createAxiosHttpClient(axios.create({ timeout: 1 }));
+            const err = await client(`${base}/object`).then(
+                () => null,
+                (e) => e,
+            );
+            // A machine fast enough to answer within the millisecond has not
+            // produced the case, and asserting on it would be asserting on the
+            // machine.
+            if (err) assert.equal(isTransportFailure(err), true, err.message);
+        });
+    });
+
+    test('a network failure a rejection interceptor rethrows is still marked', async () => {
+        // The interceptor chain runs before this adapter sees anything, and
+        // passing the error through is what a refresh interceptor does for
+        // every failure it cannot handle.
+        const port = await closedPort();
+        const instance = axios.create();
+        instance.interceptors.response.use(undefined, (error) => Promise.reject(error));
+        await assert.rejects(
+            createAxiosHttpClient(instance)(`http://127.0.0.1:${port}/x`),
+            (err) => {
+                assert.equal(isTransportFailure(err), true);
+                return true;
+            },
+        );
+    });
+
+    test("an interceptor's replacement error keeps its message", async () => {
+        // The case the second round named: the server answered 403, the
+        // interceptor handled it and rejected with its own words. Marking that
+        // as a transport failure would replace "session expired" with the
+        // network sentence and misdiagnose an authentication problem as a
+        // cable.
+        await withServer(async (base) => {
+            const instance = axios.create();
+            instance.interceptors.response.use(undefined, (error) =>
+                error.response?.status === 403
+                    ? Promise.reject(new Error('session expired'))
+                    : Promise.reject(error),
+            );
+            await assert.rejects(createAxiosHttpClient(instance)(`${base}/forbidden`), (err) => {
+                assert.equal(isTransportFailure(err), false);
+                const admin = toAdminError(err);
+                assert.equal(admin.transportFailure, false);
+                assert.equal(admin.detail, 'session expired');
+                return true;
+            });
+        });
+    });
+
+    test('…including when it carries axios’s config across, which is the shape that fooled the old reading', async () => {
+        // `config` is echoed on every axios rejection, the 403 included, and it
+        // is the field an interceptor is most likely to copy onto its
+        // replacement. Reading it as "no response arrived" was true of neither.
+        await withServer(async (base) => {
+            const instance = axios.create();
+            instance.interceptors.response.use(undefined, (error) => {
+                const replacement = new Error('session expired');
+                replacement.config = error.config;
+                return Promise.reject(replacement);
+            });
+            await assert.rejects(createAxiosHttpClient(instance)(`${base}/forbidden`), (err) => {
+                assert.ok(err.config, 'the fixture reproduces the shape it is about');
+                assert.equal(isTransportFailure(err), false);
+                assert.equal(toAdminError(err).detail, 'session expired');
+                return true;
+            });
+        });
+    });
+
+    test('…and when it carries `request` too, which is why `isAxiosError` is read', async () => {
+        // Shape-wise this is axios's no-response form exactly. What separates
+        // it is that axios did not produce it — the brand axios sets on its own
+        // errors is absent, and the server had in fact answered.
+        await withServer(async (base) => {
+            const instance = axios.create();
+            instance.interceptors.response.use(undefined, (error) => {
+                const replacement = new Error('session expired');
+                replacement.config = error.config;
+                replacement.request = error.request;
+                return Promise.reject(replacement);
+            });
+            await assert.rejects(createAxiosHttpClient(instance)(`${base}/forbidden`), (err) => {
+                assert.ok('request' in err && !('response' in err), 'the shape is reproduced');
+                assert.equal(err.isAxiosError, undefined, 'but axios did not write it');
+                assert.equal(isTransportFailure(err), false);
+                assert.equal(toAdminError(err).detail, 'session expired');
+                return true;
+            });
+        });
+    });
+
+    test('an interceptor rejecting with another request’s failure is that request’s answer', async () => {
+        // A refresh call that itself fails carries its own response, so it
+        // arrives through the response path as a status — not as a throw at
+        // all. The adapter must not turn a 404 the refresh earned into a
+        // connection problem.
+        await withServer(async (base) => {
+            const instance = axios.create();
+            instance.interceptors.response.use(undefined, async (error) => {
+                if (error.response?.status !== 403) return Promise.reject(error);
+                try {
+                    await axios.create().request({ url: `${base}/missing`, method: 'POST' });
+                    return Promise.reject(error);
+                } catch (refreshError) {
+                    return Promise.reject(refreshError);
+                }
+            });
+            const res = await createAxiosHttpClient(instance)(`${base}/forbidden`);
+            assert.equal(res.status, 404);
+            assert.deepEqual(await res.json(), { code: 'NOT_FOUND' });
+        });
+    });
+
+    test('a failure while setting the request up keeps its own words', async () => {
+        // axios's third group: no response and no request, because nothing was
+        // ever sent. Its message names the actual fault — an unusable protocol,
+        // a signal that was already aborted — and "check your connection" would
+        // send the operator after a router for a configuration mistake.
+        const unsupported = await createAxiosHttpClient(axios.create())(
+            'ftp://example.invalid/x',
+        ).then(
+            () => null,
+            (e) => e,
+        );
+        assert.ok(unsupported, 'the fixture produced no failure');
+        assert.equal(isTransportFailure(unsupported), false);
+        assert.match(toAdminError(unsupported).detail ?? '', /Unsupported protocol/);
+    });
+
+    test('a request interceptor that throws is not a transport failure', async () => {
+        await withServer(async (base) => {
+            const instance = axios.create();
+            instance.interceptors.request.use(() => {
+                throw new Error('no tenant selected');
+            });
+            await assert.rejects(createAxiosHttpClient(instance)(`${base}/object`), (err) => {
+                assert.equal(isTransportFailure(err), false);
+                assert.equal(toAdminError(err).detail, 'no tenant selected');
+                return true;
+            });
+        });
+    });
+
+    test('an answered status never reaches the brand at all', async () => {
+        // The response path runs first, so a 403 is a response with a readable
+        // body — not a throw, marked or otherwise.
+        await withServer(async (base) => {
+            const res = await createAxiosHttpClient(axios.create())(`${base}/forbidden`);
+            assert.equal(res.status, 403);
+            assert.deepEqual(await res.json(), { code: 'FORBIDDEN' });
+        });
+    });
+
+    test('the reading holds on its own, not only where the adapter calls it', async () => {
+        // `isAxiosNoResponseError` is exported, so a consumer may put any
+        // rejection to it — including the answered ones the adapter's response
+        // branch intercepts before the question is ever asked. Without this
+        // test the "and no response" half of the reading is unreachable from
+        // the suite: deleting it left all 134 tests green, which is a term
+        // nothing was checking.
+        await withServer(async (base) => {
+            const answered = await axios
+                .create()
+                .request({ url: `${base}/forbidden`, method: 'GET' })
+                .then(
+                    () => null,
+                    (e) => e,
+                );
+            assert.equal(answered.isAxiosError, true);
+            assert.equal(answered.response.status, 403);
+            assert.equal(isAxiosNoResponseError(answered), false, 'the server answered');
+        });
+
+        const port = await closedPort();
+        const offline = await axios
+            .create()
+            .request({ url: `http://127.0.0.1:${port}/x`, method: 'GET' })
+            .then(
+                () => null,
+                (e) => e,
+            );
+        assert.equal(isAxiosNoResponseError(offline), true, 'nothing came back');
+
+        // A response too damaged for the adapter to read is still a response.
+        // The adapter refuses it — its branch wants a numeric status — and it
+        // must not be re-read here as "the request never arrived".
+        assert.equal(
+            isAxiosNoResponseError({ isAxiosError: true, request: {}, response: {} }),
+            false,
+        );
+        assert.equal(isAxiosNoResponseError(null), false);
+        assert.equal(isAxiosNoResponseError('offline'), false);
     });
 });

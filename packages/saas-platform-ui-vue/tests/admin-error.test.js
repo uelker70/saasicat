@@ -289,16 +289,42 @@ describe('toAdminError', () => {
     });
 
     test('an axios failure with no response is transport too', () => {
-        // Read from the shape rather than from a brand, and deliberately: that
-        // shape is axios's documented network-failure form, and a library
-        // cannot be asked to mark itself.
+        // Read from the shape rather than from a brand, and deliberately: a
+        // library cannot be asked to mark itself. What is read is axios's own
+        // statement — `isAxiosError` plus a `request` and no `response`, the
+        // form measured out of axios 1.18.1 in `http-adapters.test.js` and
+        // documented in its README under "Handling errors".
         const err = toAdminError(
-            Object.assign(new Error('Network Error'), { config: { url: '/x', method: 'get' } }),
+            Object.assign(new Error('connect ECONNREFUSED 127.0.0.1:1'), {
+                isAxiosError: true,
+                code: 'ECONNREFUSED',
+                config: { url: '/x', method: 'get' },
+                request: {},
+            }),
         );
         assert.equal(err.status, 0);
         assert.equal(err.detail, undefined);
         assert.equal(err.transportFailure, true);
         assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
+    test('but an interceptor’s own error is not, however much of axios it carries', () => {
+        // The reading this replaces was `config` and no `response`. `config` is
+        // echoed on every axios rejection, the answered ones included, so an
+        // interceptor that handled a 401 and rejected with its own words lost
+        // them to the connection sentence — for a request the server answered.
+        // Two rounds of review asked for opposite behaviour here and the shape
+        // decided neither; axios's own brand does.
+        for (const [label, extra] of [
+            ['bare', {}],
+            ['config copied across', { config: { url: '/x', method: 'get' } }],
+            ['config and request copied across', { config: { url: '/x' }, request: {} }],
+        ]) {
+            const err = toAdminError(Object.assign(new Error('session expired'), extra));
+            assert.equal(err.transportFailure, false, label);
+            assert.equal(err.detail, 'session expired', label);
+            assert.equal(adminErrorMessage(err, EN), 'session expired', label);
+        }
     });
 
     test('but an error from app code keeps its message — that IS what was said', () => {

@@ -961,13 +961,29 @@ Two things worth knowing about both adapters:
 
 - **No HTTP status throws.** A 304 is a cache hit, a 402 carries a limit payload, a
   409 carries a conflict — the platform reads the status itself, so every response is
-  handed over intact. Only a transport failure rejects, and the adapter rethrows what
-  it caught, marked: the `TypeError` from `fetch`, the original rejection from axios.
-  It becomes an `AdminError` with `status: 0` one layer up, where the platform's
-  callers pass it through `toAdminError` — so catch it there, or read
+  handed over intact. Only a failure with no response rejects, and the adapter
+  rethrows what it caught: the `TypeError` from `fetch`, the original rejection from
+  axios. It becomes an `AdminError` with `status: 0` one layer up, where the
+  platform's callers pass it through `toAdminError` — so catch it there, or read
   `isTransportFailure(err)` if you are calling an adapter directly.
+- **A transport failure is marked only where it can be proved.** `fetch` rejects only
+  when no response arrived, so `createFetchHttpClient` marks every rejection it
+  catches. `createAxiosHttpClient` marks the ones axios itself reports as "the request
+  was made and nothing came back" — its own `isAxiosError` brand with a `request` and
+  no `response`, which is a refused connection, a DNS failure, a timeout or an abort.
+  Everything else keeps its own words: an interceptor that answers a 401 with
+  `new Error('session expired')` reaches your operator with that sentence rather than
+  with "check your connection".
 - `createAxiosHttpClient` is typed **structurally** and does not import axios, so
   `@saasicat/ui-vue` adds no dependency to your install.
+
+**If your own client or interceptor knows a request never left, say so.** Call
+`markTransportFailure(err)` before rejecting — the fetch adapter does exactly that. A
+replacement error carries no evidence either way, and the platform will not guess:
+`new Error('cannot reach api')` after a dead socket and `new Error('session expired')`
+after a 401 are the same object to everything downstream, so marking both would cost
+the second one the only explanation it had. `isAxiosNoResponseError(err)` is exported
+if you want the reading the axios adapter uses.
 
 One case needs a word from you. `res.json()` has to know whether your instance hands
 over the body as it arrived or a value it already parsed, and it reads that off the

@@ -121,9 +121,10 @@ export function isEmptyResponse(value: unknown): boolean {
  *
  * `defaultHttpClient` marks what `fetch` rejects with, which is the one client
  * this package ships. A consumer's `HttpClient` is welcome to mark its own
- * rejections — that is why this is exported — and an axios rejection is still
- * recognised by its `config`-without-`response` shape, because axios documents
- * that shape and cannot be asked to brand anything.
+ * rejections — that is why this is exported — and axios is read rather than
+ * branded, because a library cannot be asked to mark itself. What is read of it
+ * is its own statement about the request, not a shape that merely correlates
+ * with one; see `isAxiosNoResponseError`.
  *
  * `Symbol.for` for the same reason as above: the package ships more than one
  * bundle copy.
@@ -273,6 +274,55 @@ function asString(value: unknown): string | undefined {
 }
 
 /**
+ * Whether an error is axios saying, in its own words, that the request was made
+ * and no response ever arrived.
+ *
+ * This is the one transport failure read rather than branded, because a library
+ * cannot be asked to mark itself. What it reads is axios's own three-way split,
+ * documented under "Handling errors" in its README and visible in the
+ * `AxiosError` constructor: `response` is set only when the server answered,
+ * `request` only once one was actually made, and an error with neither happened
+ * while the request was still being set up.
+ *
+ * Measured against axios 1.18.1 driven at a real `node:http` server, and the
+ * groups came out disjoint:
+ *
+ * | rejection                                       | `isAxiosError` | `request` | `response` |
+ * | ----------------------------------------------- | -------------- | --------- | ---------- |
+ * | connection refused / reset, DNS, timeout, abort  | `true`         | yes       | no         |
+ * | the same, rethrown by a rejection interceptor    | `true`         | yes       | no         |
+ * | a 401 or 500 the server really sent              | `true`         | yes       | yes        |
+ * | interceptor rejects with `new Error(…)`          | absent         | no        | no         |
+ * | …the same, but copying `error.config` across     | absent         | no        | no         |
+ * | …the same, copying `config` and `request`        | absent         | yes       | no         |
+ * | unsupported protocol, signal aborted before call | `true`         | no        | no         |
+ * | request interceptor throws, malformed URL        | absent         | no        | no         |
+ *
+ * Three readings follow from that table, and only the first is free of choice:
+ *
+ * - `response` present means the server answered, whatever else is set.
+ * - `request` present without it is axios's "made, nothing came back". The
+ *   browser and `fetch` adapters attach it too — an `XMLHttpRequest` and a
+ *   `Request` respectively — so the reading is not Node-only.
+ * - Requiring `isAxiosError` on top of that is the decision. The row that makes
+ *   it earn its place is the interceptor which copies both `config` and
+ *   `request` onto its replacement: shape-wise that is axios's no-response
+ *   form, but axios did not produce it and the server had answered. Only the
+ *   brand axios sets on its own errors separates the two.
+ *
+ * The previous reading was `config` without `response`, which is not axios's
+ * statement about anything: `config` is echoed on every axios error including
+ * the ones carrying a 401, and it is the field an interceptor is most likely to
+ * carry over when it replaces the rejection. It matched three rows above that
+ * mean the opposite of a transport failure.
+ */
+export function isAxiosNoResponseError(value: unknown): boolean {
+    const record = asRecord(value);
+    if (!record) return false;
+    return record.isAxiosError === true && record.request != null && record.response == null;
+}
+
+/**
  * Reads the human-readable message out of a response body.
  *
  * Covers the two shapes the platform and its host produce: a coded platform
@@ -383,14 +433,18 @@ export function toAdminError(err: unknown): AdminError {
         // code ("Cannot read properties of null") and told the operator to
         // check their connection, and it missed any client that fails with
         // something else. Axios is the one shape still read rather than
-        // branded — a rejection with a `config` and no `response` is its
-        // documented network-failure form, and the package cannot ask a
-        // library to mark itself.
+        // branded, because the package cannot ask a library to mark itself —
+        // but what is read of it is axios's own statement that the request was
+        // made and nothing came back, not the `config` it echoes on every
+        // rejection it produces. See `isAxiosNoResponseError` for the
+        // measurement; the `config` reading it replaces also caught an
+        // interceptor answering a 401 with its own error, which suppressed the
+        // very message the interceptor wrote.
         //
         // Anything else keeps its message: an `Error('Plan is locked')` from
         // app code IS what the failing side said, and it is what the page-level
         // copies this replaces showed.
-        const transport = isTransportFailure(err) || (record?.config !== undefined && !response);
+        const transport = isTransportFailure(err) || isAxiosNoResponseError(err);
         // A `TypeError` nobody declared a transport failure is a JavaScript
         // fault — `rows.map` on a `null`, or a client that failed in a way it
         // did not mark. Either way its text is the engine's ("Cannot read
