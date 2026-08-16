@@ -63,7 +63,8 @@ export async function requestJson<T>(
         response.status,
         method,
         url,
-        (diagnostic) => new AdminError({ status: response.status, url, method, message: diagnostic }),
+        (diagnostic) =>
+            new AdminError({ status: response.status, url, method, message: diagnostic }),
     );
 
     if (response.status === 204) return null;
