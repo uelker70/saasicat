@@ -193,6 +193,22 @@ describe('createResourceRegistry — overrides', () => {
         );
     });
 
+    test('an operation named after Object.prototype does not exist either', () => {
+        // The sibling of the resource-key case above, and it was missed there:
+        // indexing the bound resource walks the prototype chain, so `toString`
+        // found `Object.prototype`'s and got wrapped. A typo failed loudly
+        // while a prototype name passed silently — the outcome this check
+        // exists to prevent.
+        const { http } = recordingHttp();
+        for (const name of ['toString', 'constructor', 'hasOwnProperty', 'valueOf']) {
+            assert.throws(
+                () => registryWith(http, { plans: { ops: { [name]: async (next) => next() } } }),
+                new RegExp(`has no operation "${name}"`),
+                name,
+            );
+        }
+    });
+
     test('overriding an operation that does not exist fails at boot, not at click', () => {
         const { http } = recordingHttp();
         assert.throws(

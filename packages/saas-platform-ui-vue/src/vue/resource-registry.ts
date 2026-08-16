@@ -89,13 +89,18 @@ function boundWithOverride<TOps extends ResourceOps>(
     const result = { ...platform } as Record<string, unknown>;
     for (const [name, wrap] of Object.entries(override.ops)) {
         if (typeof wrap !== 'function') continue;
-        const next = (platform as Record<string, (...args: never[]) => Promise<unknown>>)[name];
-        if (!next) {
+        // `Object.hasOwn`, not a truthy read: indexing walks the prototype
+        // chain, so an override named `toString` or `constructor` found
+        // `Object.prototype`'s and wrapped that instead of reporting a name the
+        // resource does not offer — the one case this check exists for. A typo
+        // like `lst` failed loudly while `constructor` passed silently.
+        if (!Object.hasOwn(platform as object, name)) {
             throw new Error(
                 `createResourceRegistry: resource "${def.key}" has no operation "${name}" to ` +
                     `override. It offers: ${Object.keys(platform).join(', ')}.`,
             );
         }
+        const next = (platform as Record<string, (...args: never[]) => Promise<unknown>>)[name];
         result[name] = (...args: never[]) =>
             (wrap as (n: unknown, ...a: never[]) => Promise<unknown>)(next, ...args);
     }
