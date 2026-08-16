@@ -37,9 +37,10 @@
                 <div class="mc-promo-today" :style="{ left: `${todayX}%` }">
                     <span>{{ msg.promotionsTab.today }}</span>
                 </div>
-                <div
+                <button
                     v-for="bar in bars"
                     :key="bar.id"
+                    type="button"
                     class="mc-promo-bar"
                     :class="bar.status"
                     :style="{
@@ -49,10 +50,11 @@
                         background: bar.color,
                     }"
                     :title="`${bar.label} · ${bar.from} → ${bar.to}`"
-                    @click="expandedId = expandedId === bar.id ? null : bar.id"
+                    :aria-expanded="expandedId === bar.id"
+                    @click="toggleExpanded(bar.id)"
                 >
                     <span class="mc-promo-bar-label">{{ bar.label }}</span>
-                </div>
+                </button>
             </div>
         </div>
 
@@ -63,250 +65,251 @@
 
         <!-- List -->
         <div class="mc-promo-list">
-            <template v-for="p in sortedPromotions" :key="p.id">
-                <div
-                    class="mc-promo-row"
-                    :class="{ expanded: expandedId === p.id }"
-                    @click="expandedId = expandedId === p.id ? null : p.id"
-                >
-                    <span class="mc-promo-color" :style="{ background: p.color }" />
-                    <div class="mc-promo-row-main">
-                        <div class="mc-promo-row-title">{{ p.internalLabel }}</div>
-                        <div class="mc-promo-row-sub">
-                            <span class="mc-promo-typechip">{{ typeChip(p) }}</span>
-                            <span v-if="p.appliesTo.length === 0" class="mc-promo-muted">
-                                {{ msg.promotionsTab.noPlans }}
-                            </span>
-                            <span v-for="k in p.appliesTo" :key="k" class="mc-promo-planchip">
-                                {{ k }}
+            <AdminAccordion
+                v-for="p in sortedPromotions"
+                :key="p.id"
+                :open="expandedId === p.id"
+                @update:open="toggleExpanded(p.id)"
+            >
+                <template #header>
+                    <div class="mc-promo-row">
+                        <span class="mc-promo-color" :style="{ background: p.color }" />
+                        <div class="mc-promo-row-main">
+                            <div class="mc-promo-row-title">{{ p.internalLabel }}</div>
+                            <div class="mc-promo-row-sub">
+                                <span class="mc-promo-typechip">{{ typeChip(p) }}</span>
+                                <span v-if="p.appliesTo.length === 0" class="mc-promo-muted">
+                                    {{ msg.promotionsTab.noPlans }}
+                                </span>
+                                <span v-for="k in p.appliesTo" :key="k" class="mc-promo-planchip">
+                                    {{ k }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="mc-promo-row-when">
+                            {{ p.validFrom }} → {{ p.validTo }}
+                            <span class="mc-promo-cycle">
+                                {{ cycleLabel(p.billingCycle) }}
+                                <template v-if="p.onlyLocales">
+                                    · {{ msg.promotionsTab.onlyPrefix }}
+                                    {{ p.onlyLocales.join(', ').toUpperCase() }}
+                                </template>
                             </span>
                         </div>
-                    </div>
-                    <div class="mc-promo-row-when">
-                        {{ p.validFrom }} → {{ p.validTo }}
-                        <span class="mc-promo-cycle">
-                            {{ cycleLabel(p.billingCycle) }}
-                            <template v-if="p.onlyLocales">
-                                · {{ msg.promotionsTab.onlyPrefix }}
-                                {{ p.onlyLocales.join(', ').toUpperCase() }}
-                            </template>
+                        <span class="mc-promo-status" :class="statusOf(p)">
+                            {{ statusLabel(statusOf(p)) }}
                         </span>
                     </div>
-                    <span class="mc-promo-status" :class="statusOf(p)">
-                        {{ statusLabel(statusOf(p)) }}
-                    </span>
-                </div>
+                </template>
 
                 <!-- Editor -->
-                <div v-if="expandedId === p.id" class="mc-promo-editor">
-                    <div class="mc-promo-editor-grid">
-                        <div class="mc-promo-editor-col">
-                            <label class="mc-promo-label">
-                                {{ msg.promotionsTab.internalLabelLabel }}
-                            </label>
-                            <input
-                                class="mc-promo-input"
-                                :value="p.internalLabel"
-                                @change="patch(p, { internalLabel: inputVal($event) })"
-                            />
+                <div class="mc-promo-editor-grid">
+                    <div class="mc-promo-editor-col">
+                        <label class="mc-promo-label">
+                            {{ msg.promotionsTab.internalLabelLabel }}
+                        </label>
+                        <input
+                            class="mc-promo-input"
+                            :value="p.internalLabel"
+                            @change="patch(p, { internalLabel: inputVal($event) })"
+                        />
 
-                            <label class="mc-promo-label">{{ common.type }}</label>
-                            <div class="mc-promo-typegrid">
-                                <button
-                                    v-for="t in typeOptions"
-                                    :key="t.id"
-                                    type="button"
-                                    class="mc-promo-typeopt"
-                                    :class="{ active: p.type === t.id }"
-                                    @click="changeType(p, t.id)"
-                                >
-                                    {{ t.label }}
-                                </button>
-                            </div>
-
-                            <label class="mc-promo-label">{{ msg.promotionsTab.valueLabel }}</label>
-                            <div class="mc-promo-valrow">
-                                <template v-if="p.type === 'percent' || p.type === 'amount'">
-                                    <input
-                                        class="mc-promo-input mc-promo-input--sm"
-                                        type="number"
-                                        :value="numValue(p)"
-                                        @change="patch(p, { value: numInput($event) })"
-                                    />
-                                    <span class="mc-promo-muted">
-                                        {{
-                                            p.type === 'percent'
-                                                ? msg.promotionsTab.percentUnit
-                                                : msg.promotionsTab.amountUnit
-                                        }}
-                                    </span>
-                                </template>
-                                <template v-else-if="p.type === 'intro'">
-                                    <span class="mc-promo-muted">
-                                        {{ msg.promotionsTab.introForPrefix }}
-                                    </span>
-                                    <input
-                                        class="mc-promo-input mc-promo-input--sm"
-                                        type="number"
-                                        :value="introMonths(p)"
-                                        @change="patchIntro(p, 'months', numInput($event))"
-                                    />
-                                    <span class="mc-promo-muted">
-                                        {{ msg.promotionsTab.introMonthsUnit }}
-                                    </span>
-                                    <input
-                                        class="mc-promo-input mc-promo-input--sm"
-                                        type="number"
-                                        :value="introPrice(p)"
-                                        @change="patchIntro(p, 'price', numInput($event))"
-                                    />
-                                    <span class="mc-promo-muted">
-                                        {{ msg.promotionsTab.introPriceUnit }}
-                                    </span>
-                                </template>
-                                <template v-else>
-                                    <span class="mc-promo-muted">
-                                        {{ msg.promotionsTab.freeMonthsPrefix }}
-                                    </span>
-                                    <input
-                                        class="mc-promo-input mc-promo-input--sm"
-                                        type="number"
-                                        :value="numValue(p)"
-                                        @change="patch(p, { value: numInput($event) })"
-                                    />
-                                    <span class="mc-promo-muted">
-                                        {{ msg.promotionsTab.freeMonthsUnit }}
-                                    </span>
-                                </template>
-                            </div>
-
-                            <label class="mc-promo-label">
-                                {{ common.validity }}
-                            </label>
-                            <div class="mc-promo-valrow">
-                                <input
-                                    class="mc-promo-input"
-                                    type="date"
-                                    :value="p.validFrom"
-                                    @change="patch(p, { validFrom: inputVal($event) })"
-                                />
-                                <span class="mc-promo-muted">→</span>
-                                <input
-                                    class="mc-promo-input"
-                                    type="date"
-                                    :value="p.validTo"
-                                    @change="patch(p, { validTo: inputVal($event) })"
-                                />
-                            </div>
-
-                            <label class="mc-promo-label">
-                                {{ msg.promotionsTab.billingCycleLabel }}
-                            </label>
-                            <div class="mc-promo-typegrid">
-                                <button
-                                    v-for="c in cycleOptions"
-                                    :key="c.id"
-                                    type="button"
-                                    class="mc-promo-typeopt"
-                                    :class="{ active: p.billingCycle === c.id }"
-                                    @click="patch(p, { billingCycle: c.id })"
-                                >
-                                    {{ c.label }}
-                                </button>
-                            </div>
-
-                            <label class="mc-promo-label">
-                                {{ msg.promotionsTab.priorityLabel }}
-                            </label>
-                            <input
-                                class="mc-promo-input mc-promo-input--sm"
-                                type="number"
-                                :value="p.priority"
-                                @change="patch(p, { priority: numInput($event) })"
-                            />
-                        </div>
-
-                        <div class="mc-promo-editor-col">
-                            <label class="mc-promo-label">
-                                {{ msg.promotionsTab.appliesToLabel }}
-                            </label>
-                            <div class="mc-promo-planlist">
-                                <button
-                                    v-for="pl in plans"
-                                    :key="pl.key"
-                                    type="button"
-                                    class="mc-promo-planopt"
-                                    :class="{ active: p.appliesTo.includes(pl.key) }"
-                                    @click="toggleApply(p, pl.key)"
-                                >
-                                    {{ pl.label }}
-                                    <code>{{ pl.key }}</code>
-                                </button>
-                            </div>
-
-                            <label class="mc-promo-label">
-                                {{ msg.promotionsTab.localeRestrictionLabel }}
-                            </label>
-                            <div class="mc-promo-typegrid">
-                                <button
-                                    type="button"
-                                    class="mc-promo-typeopt"
-                                    :class="{ active: !p.onlyLocales }"
-                                    @click="patch(p, { onlyLocales: null })"
-                                >
-                                    {{ msg.promotionsTab.allLocales }}
-                                </button>
-                                <button
-                                    v-for="l in activeLocales"
-                                    :key="l"
-                                    type="button"
-                                    class="mc-promo-typeopt"
-                                    :class="{ active: p.onlyLocales?.includes(l) }"
-                                    @click="toggleLocale(p, l)"
-                                >
-                                    {{ msg.promotionsTab.onlyPrefix }} {{ l.toUpperCase() }}
-                                </button>
-                            </div>
-
-                            <label class="mc-promo-label">
-                                {{ msg.promotionsTab.translationsLabel }}
-                            </label>
-                            <div v-for="l in activeLocales" :key="l" class="mc-promo-i18n-block">
-                                <span class="mc-promo-i18n-code">{{ l.toUpperCase() }}</span>
-                                <input
-                                    class="mc-promo-input"
-                                    :placeholder="msg.promotionsTab.badgePlaceholder"
-                                    :value="p.i18n?.[l]?.badge || ''"
-                                    @change="patchI18n(p, l, 'badge', inputVal($event))"
-                                />
-                                <input
-                                    class="mc-promo-input"
-                                    :placeholder="msg.promotionsTab.fineprintPlaceholder"
-                                    :value="p.i18n?.[l]?.fineprint || ''"
-                                    @change="patchI18n(p, l, 'fineprint', inputVal($event))"
-                                />
-                            </div>
-
-                            <label class="mc-promo-label">{{ msg.promotionsTab.colorLabel }}</label>
-                            <div class="mc-promo-colors">
-                                <button
-                                    v-for="c in COLORS"
-                                    :key="c"
-                                    type="button"
-                                    class="mc-promo-colorbtn"
-                                    :class="{ active: p.color === c }"
-                                    :style="{ background: c }"
-                                    @click="patch(p, { color: c })"
-                                />
-                            </div>
-
-                            <button class="mc-promo-delete" type="button" @click="onRemove(p)">
-                                {{ msg.promotionsTab.delete }}
+                        <label class="mc-promo-label">{{ common.type }}</label>
+                        <div class="mc-promo-typegrid">
+                            <button
+                                v-for="t in typeOptions"
+                                :key="t.id"
+                                type="button"
+                                class="mc-promo-typeopt"
+                                :class="{ active: p.type === t.id }"
+                                @click="changeType(p, t.id)"
+                            >
+                                {{ t.label }}
                             </button>
                         </div>
+
+                        <label class="mc-promo-label">{{ msg.promotionsTab.valueLabel }}</label>
+                        <div class="mc-promo-valrow">
+                            <template v-if="p.type === 'percent' || p.type === 'amount'">
+                                <input
+                                    class="mc-promo-input mc-promo-input--sm"
+                                    type="number"
+                                    :value="numValue(p)"
+                                    @change="patch(p, { value: numInput($event) })"
+                                />
+                                <span class="mc-promo-muted">
+                                    {{
+                                        p.type === 'percent'
+                                            ? msg.promotionsTab.percentUnit
+                                            : msg.promotionsTab.amountUnit
+                                    }}
+                                </span>
+                            </template>
+                            <template v-else-if="p.type === 'intro'">
+                                <span class="mc-promo-muted">
+                                    {{ msg.promotionsTab.introForPrefix }}
+                                </span>
+                                <input
+                                    class="mc-promo-input mc-promo-input--sm"
+                                    type="number"
+                                    :value="introMonths(p)"
+                                    @change="patchIntro(p, 'months', numInput($event))"
+                                />
+                                <span class="mc-promo-muted">
+                                    {{ msg.promotionsTab.introMonthsUnit }}
+                                </span>
+                                <input
+                                    class="mc-promo-input mc-promo-input--sm"
+                                    type="number"
+                                    :value="introPrice(p)"
+                                    @change="patchIntro(p, 'price', numInput($event))"
+                                />
+                                <span class="mc-promo-muted">
+                                    {{ msg.promotionsTab.introPriceUnit }}
+                                </span>
+                            </template>
+                            <template v-else>
+                                <span class="mc-promo-muted">
+                                    {{ msg.promotionsTab.freeMonthsPrefix }}
+                                </span>
+                                <input
+                                    class="mc-promo-input mc-promo-input--sm"
+                                    type="number"
+                                    :value="numValue(p)"
+                                    @change="patch(p, { value: numInput($event) })"
+                                />
+                                <span class="mc-promo-muted">
+                                    {{ msg.promotionsTab.freeMonthsUnit }}
+                                </span>
+                            </template>
+                        </div>
+
+                        <label class="mc-promo-label">
+                            {{ common.validity }}
+                        </label>
+                        <div class="mc-promo-valrow">
+                            <input
+                                class="mc-promo-input"
+                                type="date"
+                                :value="p.validFrom"
+                                @change="patch(p, { validFrom: inputVal($event) })"
+                            />
+                            <span class="mc-promo-muted">→</span>
+                            <input
+                                class="mc-promo-input"
+                                type="date"
+                                :value="p.validTo"
+                                @change="patch(p, { validTo: inputVal($event) })"
+                            />
+                        </div>
+
+                        <label class="mc-promo-label">
+                            {{ msg.promotionsTab.billingCycleLabel }}
+                        </label>
+                        <div class="mc-promo-typegrid">
+                            <button
+                                v-for="c in cycleOptions"
+                                :key="c.id"
+                                type="button"
+                                class="mc-promo-typeopt"
+                                :class="{ active: p.billingCycle === c.id }"
+                                @click="patch(p, { billingCycle: c.id })"
+                            >
+                                {{ c.label }}
+                            </button>
+                        </div>
+
+                        <label class="mc-promo-label">
+                            {{ msg.promotionsTab.priorityLabel }}
+                        </label>
+                        <input
+                            class="mc-promo-input mc-promo-input--sm"
+                            type="number"
+                            :value="p.priority"
+                            @change="patch(p, { priority: numInput($event) })"
+                        />
+                    </div>
+
+                    <div class="mc-promo-editor-col">
+                        <label class="mc-promo-label">
+                            {{ msg.promotionsTab.appliesToLabel }}
+                        </label>
+                        <div class="mc-promo-planlist">
+                            <button
+                                v-for="pl in plans"
+                                :key="pl.key"
+                                type="button"
+                                class="mc-promo-planopt"
+                                :class="{ active: p.appliesTo.includes(pl.key) }"
+                                @click="toggleApply(p, pl.key)"
+                            >
+                                {{ pl.label }}
+                                <code>{{ pl.key }}</code>
+                            </button>
+                        </div>
+
+                        <label class="mc-promo-label">
+                            {{ msg.promotionsTab.localeRestrictionLabel }}
+                        </label>
+                        <div class="mc-promo-typegrid">
+                            <button
+                                type="button"
+                                class="mc-promo-typeopt"
+                                :class="{ active: !p.onlyLocales }"
+                                @click="patch(p, { onlyLocales: null })"
+                            >
+                                {{ msg.promotionsTab.allLocales }}
+                            </button>
+                            <button
+                                v-for="l in activeLocales"
+                                :key="l"
+                                type="button"
+                                class="mc-promo-typeopt"
+                                :class="{ active: p.onlyLocales?.includes(l) }"
+                                @click="toggleLocale(p, l)"
+                            >
+                                {{ msg.promotionsTab.onlyPrefix }} {{ l.toUpperCase() }}
+                            </button>
+                        </div>
+
+                        <label class="mc-promo-label">
+                            {{ msg.promotionsTab.translationsLabel }}
+                        </label>
+                        <div v-for="l in activeLocales" :key="l" class="mc-promo-i18n-block">
+                            <span class="mc-promo-i18n-code">{{ l.toUpperCase() }}</span>
+                            <input
+                                class="mc-promo-input"
+                                :placeholder="msg.promotionsTab.badgePlaceholder"
+                                :value="p.i18n?.[l]?.badge || ''"
+                                @change="patchI18n(p, l, 'badge', inputVal($event))"
+                            />
+                            <input
+                                class="mc-promo-input"
+                                :placeholder="msg.promotionsTab.fineprintPlaceholder"
+                                :value="p.i18n?.[l]?.fineprint || ''"
+                                @change="patchI18n(p, l, 'fineprint', inputVal($event))"
+                            />
+                        </div>
+
+                        <label class="mc-promo-label">{{ msg.promotionsTab.colorLabel }}</label>
+                        <div class="mc-promo-colors">
+                            <button
+                                v-for="c in COLORS"
+                                :key="c"
+                                type="button"
+                                class="mc-promo-colorbtn"
+                                :class="{ active: p.color === c }"
+                                :style="{ background: c }"
+                                @click="patch(p, { color: c })"
+                            />
+                        </div>
+
+                        <button class="mc-promo-delete" type="button" @click="onRemove(p)">
+                            {{ msg.promotionsTab.delete }}
+                        </button>
                     </div>
                 </div>
-            </template>
+            </AdminAccordion>
         </div>
     </div>
 </template>
@@ -322,6 +325,7 @@ import {
     type PromotionType,
     type UpdatePromotionData,
 } from '@saasicat/types';
+import AdminAccordion from './admin-page/AdminAccordion.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
@@ -349,6 +353,30 @@ const { intlLocale } = useSuperAdminI18n();
 
 const busy = computed(() => props.busy ?? false);
 const expandedId = ref<string | null>(null);
+
+// sa-disclosure-exempt(toggles `expandedId`, writes `aria-expanded`):
+// the timeline bar is a second trigger for the accordion below it
+//
+// The disclosure itself IS an `AdminAccordion` — one per promotion, in the list
+// below, with the `<button>` and the `aria-expanded` that come with it. What
+// this file adds is a second way into the same row: the bar that charts it on
+// the timeline. A Gantt segment positioned by date cannot be an accordion
+// header, so there is nothing here to migrate onto one.
+//
+// The rule sees the click write `expandedId` and the accordion's `:open` read
+// it, and from the source it cannot tell a second trigger from a hand-rolled
+// disclosure. What its story is actually about — "four of the eight were a
+// `<div>` with a click handler" — is fixed rather than exempted here: the bar
+// is a `<button>` that reports whether the row it charts is open. It carries no
+// `aria-controls`, because the body's id is generated inside `AdminAccordion`
+// and never leaves it; the row's own header owns that relationship.
+
+// One expression for "open this one, close whatever was open". The row and the
+// timeline bar above it both open the same editor, and they used to say so in
+// two copies of the same ternary.
+function toggleExpanded(id: string): void {
+    expandedId.value = expandedId.value === id ? null : id;
+}
 
 const typeOptions = computed<Array<{ id: PromotionType; label: string }>>(() => [
     { id: 'percent', label: msg.value.promotionsTab.typePercent },
@@ -661,15 +689,21 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-color-negative-strong);
     font-weight: 700;
 }
+/* A `<button>` wearing a bar: the browser's own button chrome would draw a
+ * border and a background over the promotion colour the row is identified by. */
 .mc-promo-bar {
     position: absolute;
     height: 20px;
+    border: 0;
+    padding: 0;
     border-radius: 5px;
     cursor: pointer;
     display: flex;
     align-items: center;
     overflow: hidden;
     opacity: 0.92;
+    font: inherit;
+    text-align: left;
 }
 .mc-promo-bar.expired {
     opacity: 0.45;
@@ -694,20 +728,15 @@ async function onRemove(p: PromotionRow): Promise<void> {
     flex-direction: column;
     gap: 6px;
 }
+/* Only what a PROMOTION puts in the header. The surface, border, radius, the
+ * padding, the open border and the hover feedback are `AdminAccordion`'s — this
+ * row used to state its own, and the editor below it stated a second, matching
+ * set so the two would read as one block. They were separated by the list's 6px
+ * gap all along. */
 .mc-promo-row {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: 8px;
-    padding: 10px 12px;
-    cursor: pointer;
-}
-.mc-promo-row.expanded {
-    border-color: var(--sa-color-accent);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
 }
 .mc-promo-color {
     width: 10px;
@@ -776,13 +805,6 @@ async function onRemove(p: PromotionRow): Promise<void> {
 .mc-promo-status.expired {
     background: var(--sa-color-border-soft);
     color: var(--sa-color-fg-subtle);
-}
-.mc-promo-editor {
-    border: 1px solid var(--sa-color-accent);
-    border-top: 0;
-    border-radius: 0 0 8px 8px;
-    background: var(--sa-color-bg-sunken);
-    padding: 14px;
 }
 .mc-promo-editor-grid {
     display: grid;

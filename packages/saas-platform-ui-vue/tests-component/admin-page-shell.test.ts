@@ -122,6 +122,18 @@ function templateOf(source: string): string {
     return stripComments(source.slice(start, end));
 }
 
+/**
+ * The other half of the file — both blocks of a `<script setup>` plus
+ * `<script>` pair, joined. The blocks are cut out rather than taken as
+ * everything after the first `<script`, so a `<style>` sheet and a template
+ * that follows the script stay out of what is read as code.
+ */
+function scriptOf(source: string): string {
+    return [...source.matchAll(/<script[^>]*>([\s\S]*?)<\/script[^>]*>/gi)]
+        .map((block) => block[1]!)
+        .join('\n');
+}
+
 describe('AdminHero', () => {
     test('renders the title as the page heading', () => {
         const wrapper = mountWithQuasar(AdminHero, { props: { title: 'Plans & versions' } });
@@ -450,5 +462,798 @@ describe('page shell contract', () => {
         );
 
         expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+    });
+
+    test('no view writes its own disclosure instead of using AdminAccordion', () => {
+        // The same story as rule 14 one component over. Eight surfaces opened a
+        // body from a header and agreed on nothing measurable: three header
+        // paddings, three body paddings, two radii, two colours for the open
+        // border, two transition durations, and hover feedback on one of six
+        // although five set `cursor: pointer`. Four of them were a `<div>` with
+        // a click handler — no `tabindex`, no keyboard, nothing an assistive
+        // technology could announce as a control.
+        //
+        // Rule 19 above is why this one is not written as a list of class
+        // names. It looks for `section-head|card-title|panel-title`, and every
+        // accordion header in the package walked straight past it, because none
+        // of the eight happened to pick one of those three words. A guard that
+        // enumerates the shapes it has already seen only ever catches those.
+        //
+        // So this asks what a disclosure IS, in two forms the source can be
+        // read for:
+        //
+        //   1. A click that flips a value the template also renders a body on.
+        //      The mechanical definition of "open this" — an assignment whose
+        //      right-hand side reads the same path it writes, next to a `v-if`
+        //      or `v-show` on that path. Assigning a CONSTANT is not a
+        //      disclosure: `step = 'done'` beside `v-else-if="step === 'done'"`
+        //      is a wizard advancing, and a rule that could not tell those
+        //      apart would spend its life being suppressed.
+        //
+        //      Path, not root. Which of the two it compares decides the whole
+        //      question once the state lives on an object; `statePath` below
+        //      has the story.
+        //
+        //      The flip counts wherever it is written — in the attribute, or
+        //      in the body of the function the attribute names. Those are the
+        //      same disclosure and the same missing keyboard, and reading only
+        //      the attribute would have made `toggleExpanded(p.id)` the way to
+        //      write one this test cannot see. Nothing about a hand-rolled
+        //      disclosure should turn on which of the two a file happens to
+        //      pick.
+        //
+        //      And the body counts wherever it is rendered. `v-if` is one way
+        //      a template shows one; handing the value to a child that renders
+        //      its slot under a `v-if` is the other, and once `AdminAccordion`
+        //      exists it is the ordinary one. `:open="expandedId === p.id"`
+        //      decides precisely what `v-if="expandedId === p.id"` decides,
+        //      one component over — so a second, hand-rolled trigger that
+        //      writes `expandedId` was invisible here while the migration that
+        //      introduced the component was landing. Which props those are is
+        //      read out of the components (`bodyProps` below), not listed
+        //      here: a list would name `open` and go blind on the next one.
+        //   2. A control that says out loud that it is one — a hand-written
+        //      `aria-expanded`, or a native `<details>`. Neither is a defect in
+        //      itself; both mean this view decided to implement a disclosure,
+        //      and that decision belongs to `AdminAccordion` unless there is a
+        //      reason it cannot.
+        //
+        // Where there is such a reason, it goes in the file that carries the
+        // surface, marked so this test can find it. Not a list of file names
+        // here: a name in a test says which files are allowed, the marker says
+        // WHY this one is — and it sits where the next person to touch the
+        // surface will read it. The second half of the test then holds the
+        // markers to their side of that bargain.
+        //
+        // A marker names the finding it excuses and subtracts exactly that:
+        //
+        //     // sa-disclosure-exempt(toggles `showRaw`, writes `aria-expanded`):
+        //     // a tenant-facing raw payload toggle, in a directory that is leaving
+        //
+        // It used to name nothing, and a file that carried one was simply not
+        // asked the question again. That is not what any of the four markers in
+        // this package were written to say. Three of them explain a surface
+        // whose findings are TWO of the strings below, and the fourth explains a
+        // second trigger on an accordion that is already the shared one — none
+        // of them argued that the file should stop being read. Under a silencer
+        // the difference is invisible: adding a `<div>` with a click handler to
+        // a marked file, the exact shape this rule exists for, kept the suite
+        // green, and so did reverting a marked surface to the hand-rolled
+        // disclosure the marker was written beside.
+        //
+        // Naming the finding also makes the stale half sharper. It used to ask
+        // whether ANY disclosure was left in a marked file, so a marker survived
+        // its own surface as long as some other surface in the same file kept
+        // the file matching. Now each named finding has to still occur.
+        //
+        // What this still does not ask is WHICH occurrence. A finding is a kind
+        // and an identifier, deduplicated — `writes \`aria-expanded\`` is one
+        // string however many controls write it — so a second hand-written
+        // `aria-expanded`, or a second `<details>`, inside an already-marked
+        // file is covered by the marker for the first. A second toggle is
+        // caught, unless it flips a path already named. Closing that would mean
+        // a count or a line number in the marker, and both churn on every edit
+        // near the surface; the residue is written down here rather than
+        // papered over.
+        //
+        // Every `.vue` under src, with none of the shell's exemptions. A login
+        // screen sits outside `AdminLayout` and so writes its own `<h1>` and its
+        // own frame; none of that makes a hand-rolled disclosure on it any more
+        // operable by keyboard.
+        const ACCORDION = resolve(SRC_DIR, 'components/admin-page/AdminAccordion.vue');
+        const MARKER_WORD = 'sa-disclosure-exempt';
+        // The findings sit in the parentheses, comma-separated; the reason
+        // follows the colon. A marker that does not parse is reported rather
+        // than ignored — silently not matching would be a silencer again, one
+        // typo wide.
+        const MARKER = /sa-disclosure-exempt\(([^)]*)\):[ \t]*(.*)/;
+
+        const everyVueFile = (): string[] => {
+            const found: string[] = [];
+            const walk = (dir: string): void => {
+                for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                    const full = join(dir, entry.name);
+                    if (entry.isDirectory()) walk(full);
+                    else if (entry.name.endsWith('.vue')) found.push(full);
+                }
+            };
+            walk(SRC_DIR);
+            return found.sort();
+        };
+
+        /** Index just past the bracket group that opens at `at`. */
+        const pastGroup = (text: string, at: number, open: string, close: string): number => {
+            let depth = 0;
+            for (let i = at; i < text.length; i++) {
+                if (text[i] === open) depth++;
+                else if (text[i] === close && --depth === 0) return i + 1;
+            }
+            return text.length;
+        };
+
+        /** Index of the next character that is not whitespace. */
+        const nextNonSpace = (text: string, at: number): number => {
+            let i = at;
+            while (i < text.length && /\s/.test(text[i]!)) i++;
+            return i;
+        };
+
+        /**
+         * Index just past the `>` that ends the tag opening at `at`, quoted
+         * attribute values skipped.
+         *
+         * Not `[^>]*`: `v-if="promotions.length > 0"` ends a tag halfway
+         * through under that pattern, and everything written after it on the
+         * same element — an `@click`, a `:open` — falls out of view.
+         */
+        const pastOpenTag = (template: string, at: number): number => {
+            let quote = '';
+            for (let i = at; i < template.length; i++) {
+                const character = template[i]!;
+                if (quote !== '') {
+                    if (character === quote) quote = '';
+                } else if (character === '"' || character === "'") quote = character;
+                else if (character === '>') return i + 1;
+            }
+            return template.length;
+        };
+
+        /** Every opening tag in a template, with the attributes it carries. */
+        const openTags = function* (template: string): Generator<{ name: string; tag: string }> {
+            for (let i = 0; i < template.length;) {
+                if (template[i] !== '<' || !/[A-Za-z]/.test(template[i + 1] ?? '')) {
+                    i++;
+                    continue;
+                }
+                const past = pastOpenTag(template, i);
+                const tag = template.slice(i, past);
+                yield { name: /^<([A-Za-z][\w.-]*)/.exec(tag)![1]!, tag };
+                i = past;
+            }
+        };
+
+        const VOID_TAGS = new Set([
+            'area',
+            'base',
+            'br',
+            'col',
+            'embed',
+            'hr',
+            'img',
+            'input',
+            'link',
+            'meta',
+            'source',
+            'track',
+            'wbr',
+        ]);
+
+        /** The markup of the element whose tag opens at `at`, content included. */
+        const elementAt = (template: string, at: number): string => {
+            const past = pastOpenTag(template, at);
+            const name = /^<([A-Za-z][\w.-]*)/.exec(template.slice(at, past))?.[1];
+            if (!name) return '';
+            if (template[past - 2] === '/' || VOID_TAGS.has(name.toLowerCase())) {
+                return template.slice(at, past);
+            }
+            let depth = 0;
+            for (let i = at; i < template.length;) {
+                const closing = template.startsWith(`</${name}`, i);
+                const opening = !closing && template.startsWith(`<${name}`, i);
+                // `<div` must not count `<divider`.
+                const after = template[i + name.length + (closing ? 2 : 1)] ?? '';
+                if ((!closing && !opening) || !/[\s/>]/.test(after)) {
+                    i++;
+                    continue;
+                }
+                const end = pastOpenTag(template, i);
+                if (closing) {
+                    if (--depth === 0) return template.slice(at, end);
+                } else if (template[end - 2] !== '/') depth++;
+                i = end;
+            }
+            return template.slice(at);
+        };
+
+        /**
+         * The props a component renders a BODY on — `open` for
+         * `AdminAccordion`, read out of the component rather than named here.
+         *
+         * A prop qualifies when a `v-if`/`v-show` on it stands between the
+         * template and a `<slot>`. That is what makes the caller's expression
+         * a disclosure condition and not merely page state: `v-if="$slots.mark"`
+         * gates a slot too, and is deliberately not one of these, because it
+         * names nothing a caller could pass.
+         */
+        const bodyPropCache = new Map<string, Set<string>>();
+        const bodyProps = (component: string): Set<string> => {
+            const cached = bodyPropCache.get(component);
+            if (cached) return cached;
+
+            const template = templateOf(readFileSync(component, 'utf8'));
+            const props = new Set<string>();
+            const gate = /\sv-(?:if|show)="!?\s*([A-Za-z_$][\w$]*)\s*"/g;
+            for (let hit = gate.exec(template); hit; hit = gate.exec(template)) {
+                const opens = template.lastIndexOf('<', hit.index);
+                if (opens !== -1 && elementAt(template, opens).includes('<slot')) {
+                    props.add(hit[1]!);
+                }
+            }
+            bodyPropCache.set(component, props);
+            return props;
+        };
+
+        /**
+         * The expressions this template hands to such a prop. Only components
+         * this file imports by relative path, so the question stays one hop
+         * deep and answerable from the sources: what a Quasar component does
+         * with a prop is not readable here, and guessing would be worse than
+         * the gap.
+         */
+        const bodyBindings = (file: string, template: string, script: string): string[] => {
+            const imported = new Map<string, string>();
+            for (const [, local, specifier] of script.matchAll(
+                /import\s+([A-Za-z_$][\w$]*)\s+from\s+'([^']+\.vue)'/g,
+            )) {
+                imported.set(local!, resolve(dirname(file), specifier!));
+            }
+
+            const found: string[] = [];
+            for (const { name, tag } of openTags(template)) {
+                const component = imported.get(name);
+                if (!component) continue;
+                for (const prop of bodyProps(component)) {
+                    const bound = new RegExp(
+                        String.raw`(?::|v-bind:|v-model:)(?:${prop}|${kebab(prop)})="([^"]*)"`,
+                    ).exec(tag);
+                    if (bound) found.push(bound[1]!);
+                }
+            }
+            return found;
+        };
+
+        /** The block that opens at `at`, or the single expression that starts there. */
+        const regionAt = (text: string, at: number): string => {
+            if (text[at] === '{') return text.slice(at, pastGroup(text, at, '{', '}'));
+            // An arrow whose body is an expression: `() => (open = !open)`.
+            let depth = 0;
+            for (let i = at; i < text.length; i++) {
+                const character = text[i]!;
+                if ('([{'.includes(character)) depth++;
+                else if (')]}'.includes(character)) depth--;
+                else if (depth === 0 && (character === ';' || character === '\n')) {
+                    return text.slice(at, i);
+                }
+            }
+            return text.slice(at);
+        };
+
+        /**
+         * The body of a function this file declares, so that naming the flip
+         * hides it no better than writing it into the attribute. Between
+         * `@click="expandedId = expandedId === p.id ? null : p.id"` and
+         * `@click="toggleExpanded(p.id)"` there is a name and nothing else —
+         * same click, same body, same missing keyboard.
+         *
+         * One level deep on purpose. A click that calls a function that calls
+         * a function no longer describes what the click does, and the
+         * condition this rule pairs it with is loose enough that ordinary page
+         * state would start matching: `draftEditing` on the plans page is
+         * merged into itself deep in a save path and read by a `v-if` at the
+         * top of the same template, and it is a wizard step, not a disclosure.
+         *
+         * The braces are found by scanning rather than by the first `{` after
+         * the name: a parameter list (`opts: { id: string }`) and a return
+         * type (`): { value: string } {`) each bring one along, and this
+         * package writes both.
+         */
+        const handlerBody = (script: string, name: string): string => {
+            const declaration = new RegExp(
+                // `function name(`, with or without `async`, or `const name =`
+                // — never `props.name =`. `=(?![=>])` keeps a comparison and an
+                // arrow out, exactly as in the attribute below.
+                String.raw`(?<![.\w$])(?:(?:async\s+)?function\s+${name}\s*\(` +
+                    String.raw`|(?:const|let|var)\s+${name}\s*=(?![=>]))`,
+            ).exec(script);
+            if (!declaration) return '';
+            let at = declaration.index + declaration[0].length;
+
+            if (declaration[0].endsWith('(')) {
+                // `at - 1` is that `(`: the match ends on it.
+                let opening = script.indexOf('{', pastGroup(script, at - 1, '(', ')'));
+                // A return type's braces are followed by the block they
+                // annotate; a body's are not.
+                while (opening !== -1) {
+                    const past = pastGroup(script, opening, '{', '}');
+                    if (script[nextNonSpace(script, past)] !== '{') break;
+                    opening = script.indexOf('{', past);
+                }
+                return opening === -1 ? '' : regionAt(script, opening);
+            }
+
+            // `const name = …`: the arrow, if this declaration has one, and
+            // then whatever follows it. The search for it ends with the
+            // statement, or `const emit = defineEmits<…>()` would adopt the
+            // body of the next arrow function anywhere below it.
+            at = nextNonSpace(script, at);
+            if (script.startsWith('async', at)) at = nextNonSpace(script, at + 'async'.length);
+            if (script[at] === '(') at = pastGroup(script, at, '(', ')');
+            for (; at < script.length; at++) {
+                const character = script[at]!;
+                if (character === ';' || character === '\n') return '';
+                if (character === '=' && script[at + 1] === '>') break;
+            }
+            const body = nextNonSpace(script, at + 2);
+            return body < script.length ? regionAt(script, body) : '';
+        };
+
+        /**
+         * Everywhere a click can write the flip: the attribute, and the body
+         * of every function the attribute names — `@click="close"` and
+         * `@click="openDetail(row)"` alike, but not `row.close()`, which is
+         * not this file's to look into.
+         */
+        const clickRegions = (script: string, attribute: string): string[] => {
+            const named = [...attribute.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g)].map(
+                (m) => m[1]!,
+            );
+            const bare = /^\s*([A-Za-z_$][\w$]*)\s*$/.exec(attribute)?.[1];
+            if (bare) named.push(bare);
+            return [attribute, ...named.map((name) => handlerBody(script, name))];
+        };
+
+        /**
+         * A reference as the source writes it — `open`, `expandedId.value`,
+         * `expanded[row.id]` — reduced to the state it names.
+         *
+         * This rule pairs a click with a condition written somewhere else, so
+         * two spellings of one piece of state have to survive the trip:
+         *
+         *   - `.value` is a ref unwrapped. The handler writes
+         *     `expandedId.value` and the template reads `expandedId`; those
+         *     are one piece of state, and a template cannot write the other
+         *     spelling.
+         *   - a subscript is a row key. The handler writes `expanded[id]`
+         *     where the template reads `expanded[row.id]`. Which name the key
+         *     goes by on each side is not what this asks, so every subscript
+         *     reduces to `[]` — the store, not the row.
+         *
+         * What does NOT reduce is the property, and that is the point of
+         * having this at all. `form.selected` and `form.panelOpen` are two
+         * pieces of state that merely share a root, and comparing roots — as
+         * this did — read `@click="form.selected = form.current"` beside
+         * `v-if="form.panelOpen"` as a disclosure of `form`. Nothing is
+         * flipped there. Assigning one property of an object while a body
+         * hangs off another is the most ordinary shape a page has, and the
+         * only way out of the finding would have been a marker excusing
+         * something that is not a disclosure — which teaches the next reader
+         * that these markers are how you get past the rule.
+         */
+        const PATH = String.raw`[A-Za-z_$][\w$]*(?:\s*\.\s*[\w$]+|\s*\[[^\]]*\])*`;
+        const statePath = (path: string): string =>
+            path
+                .replace(/\s+/g, '')
+                .replace(/\.value(?![\w$])/g, '')
+                .replace(/\[[^\]]*\]/g, '[]');
+
+        /**
+         * Every path a snippet reads, reduced the same way. Whole paths only:
+         * what sits inside a subscript is the key rather than the state, so
+         * `expanded[row.id]` contributes `expanded[]` and not `row.id`.
+         */
+        const pathsIn = (text: string): Set<string> =>
+            new Set([...text.matchAll(new RegExp(PATH, 'g'))].map((match) => statePath(match[0])));
+
+        /** What makes this file a disclosure of its own, if anything does. */
+        const ownDisclosures = (file: string, source: string): string[] => {
+            const template = templateOf(source);
+            const script = scriptOf(source);
+            const findings: string[] = [];
+
+            const conditions = [
+                ...[...template.matchAll(/\sv-(?:if|else-if|show)="([^"]*)"/g)].map((m) => m[1]!),
+                ...bodyBindings(file, template, script),
+            ];
+            /** Every path some body in this template is shown on. */
+            const gated = new Set(conditions.flatMap((condition) => [...pathsIn(condition)]));
+
+            for (const { tag } of openTags(template)) {
+                const handler = /@click(?:\.\w+)*="([^"]*)"/.exec(tag);
+                if (!handler) continue;
+                for (const region of clickRegions(script, handler[1]!)) {
+                    // `=(?![=>])` so a comparison and an arrow function are not
+                    // read as assignments. Every assignment in the region, not
+                    // the first: a function body holds several statements, and
+                    // the flip is rarely the one at the top. The left-hand side
+                    // is a whole `PATH` so that a keyed store counts —
+                    // `expanded[row.id] = !expanded[row.id]` beside
+                    // `v-if="expanded[row.id]"` is the ordinary way to hold
+                    // per-row state, and reading only the dotted form let it
+                    // through.
+                    const assignments = region.matchAll(
+                        new RegExp(String.raw`(${PATH})\s*=(?![=>])\s*(.+)`, 'g'),
+                    );
+                    for (const assignment of assignments) {
+                        // A flip is one path: the right-hand side reads what
+                        // the left-hand side writes, and a body hangs off that
+                        // same path. Both halves ask about the path rather than
+                        // its root, so an assignment that reads a SIBLING
+                        // property is not one.
+                        const written = statePath(assignment[1]!);
+                        if (!pathsIn(assignment[2]!).has(written)) continue;
+                        if (gated.has(written)) findings.push(`toggles \`${written}\``);
+                    }
+                }
+            }
+
+            if (/\baria-expanded\b/.test(template)) findings.push('writes `aria-expanded`');
+            if (/<details[\s>]/.test(template)) findings.push('uses `<details>`');
+            return [...new Set(findings)];
+        };
+
+        /**
+         * The exemptions a file declares — one entry per finding named, with
+         * the reason written beside it — and the markers that do not parse.
+         *
+         * A marker that failed to parse is reported rather than skipped. The
+         * whole point of this round is that a marker subtracts one named thing,
+         * and a typo inside the parentheses would otherwise subtract nothing
+         * while still reading, to a human, like an accepted exemption.
+         */
+        const exemptionsOf = (
+            source: string,
+        ): { claims: Map<string, string>; malformed: string[] } => {
+            const claims = new Map<string, string>();
+            const malformed: string[] = [];
+            const lines = source.split('\n');
+
+            for (const [index, line] of lines.entries()) {
+                if (!line.includes(MARKER_WORD)) continue;
+                const parsed = MARKER.exec(line);
+                const named = (parsed?.[1] ?? '')
+                    .split(',')
+                    .map((finding) => finding.trim())
+                    .filter(Boolean);
+                if (!parsed || named.length === 0) {
+                    malformed.push(line.trim());
+                    continue;
+                }
+
+                // The reason may run onto the next comment line. Naming two
+                // findings and then explaining them does not fit on one, and a
+                // marker nobody can read at a glance is its own kind of silence.
+                const tail = parsed[2]!.trim();
+                const reason =
+                    tail !== ''
+                        ? tail
+                        : (lines[index + 1] ?? '').replace(/^\s*(?:\/\/|\*)\s*/, '').trim();
+                for (const finding of named) claims.set(finding, reason);
+            }
+
+            return { claims, malformed };
+        };
+
+        /**
+         * What one file still owes: the disclosures nobody explained, and the
+         * explanations that no longer describe anything it does.
+         *
+         * The second direction is what keeps this test from going blind
+         * unnoticed — the exempt files are the detector's fixtures. If a
+         * surface is migrated its marker has to go, and if the detector stops
+         * seeing a finding a marker is still written against, this says so.
+         * Per finding, not per file: three of the four marked files have two
+         * findings each, so a file-wide question was answered "yes, something
+         * here is still a disclosure" by whichever of them was left.
+         */
+        const review = (
+            name: string,
+            findings: string[],
+            source: string,
+        ): { unexplained: string[]; stale: string[] } => {
+            const { claims, malformed } = exemptionsOf(source);
+
+            const unexplained = malformed.map(
+                (marker) => `${name}: \`${marker}\` names no finding it excuses`,
+            );
+            for (const finding of findings) {
+                if (!claims.has(finding)) unexplained.push(`${name}: ${finding}`);
+            }
+            for (const [finding, reason] of claims) {
+                // A marker with a word or two after it is a silencer; the point
+                // is that somebody had to write down a reason.
+                if (reason.split(/\s+/).filter(Boolean).length < 5) {
+                    unexplained.push(`${name}: exempt from ${finding} without a reason`);
+                }
+            }
+
+            const stale = [...claims.keys()]
+                .filter((finding) => !findings.includes(finding))
+                .map((finding) => `${name}: exempt from ${finding}, which it no longer does`);
+
+            return { unexplained, stale };
+        };
+
+        // The counter-proof, before the sweep that uses it.
+        //
+        // Three rounds of this rule shipped believing they asked "does a click
+        // open a body", while each in fact asked how the flip was SPELLED —
+        // attribute or named handler, dotted or bracketed path, `v-if` or
+        // `:open`. Every one of them was green against the tree at the time,
+        // because a detector that finds nothing and a tree with nothing in it
+        // read exactly alike. These five sources are the shapes themselves, so
+        // a detector that stops detecting says so by name.
+        //
+        // Answered against the real `AdminAccordion` — the fixture claims a
+        // path under `src/components/`, and never has to exist for the import
+        // in it to resolve. If `open` stops being read out of that component,
+        // the third case below goes silent and this fails.
+        const FIXTURE = resolve(SRC_DIR, 'components/DisclosureFixture.vue');
+        const fixture = (markup: string, code: string): string =>
+            `<template>${markup}</template>\n<script setup lang="ts">${code}</script>`;
+        const IMPORTS_ACCORDION = `import AdminAccordion from './admin-page/AdminAccordion.vue';`;
+
+        // A body this view renders itself, flipped in the attribute.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="open = !open">head</div><div v-if="open">body</div>`,
+                    `const open = ref(false);`,
+                ),
+            ),
+        ).toEqual(['toggles `open`']);
+
+        // The same disclosure, on an element whose attributes contain a `>`.
+        //
+        // A separate defect from the three spellings above, and one that was in
+        // the ORIGINAL rule rather than in what this change adds: tags were
+        // matched with `<[A-Za-z][^>]*?>`, which ends a tag at the first `>` in
+        // the source — including the one inside `v-if="rows.length > 0"`.
+        // Everything written after it on the same element, `@click` included,
+        // fell outside the "tag" and was never read. This file writes exactly
+        // that comparison (`v-if="promotions.length > 0"`), so the shape is not
+        // hypothetical; it happened to sit on a wrapper rather than on the
+        // trigger, which is the only reason the bar below was reachable at all.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div v-if="rows.length > 0" @click="open = !open">head</div>` +
+                        `<div v-if="open">body</div>`,
+                    `const open = ref(false);`,
+                ),
+            ),
+        ).toEqual(['toggles `open`']);
+
+        // The same, per row, through a named handler and a keyed store. The
+        // click writes `expanded[id]` and the template reads `expanded[row.id]`;
+        // the finding names the store both spellings index, `expanded[]`, and
+        // not whichever name the key happened to have on one of the two sides.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="onToggle(row.id)">head</div><div v-if="expanded[row.id]">body</div>`,
+                    `function onToggle(id: string): void { expanded[id] = !expanded[id]; }`,
+                ),
+            ),
+        ).toEqual(['toggles `expanded[]`']);
+
+        // A body `AdminAccordion` renders, opened from a second trigger of this
+        // view's own. No `v-if` in this file mentions `expandedId`.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="onToggle(bar.id)">bar</div>` +
+                        `<AdminAccordion :open="expandedId === p.id">body</AdminAccordion>`,
+                    `${IMPORTS_ACCORDION}
+                     function onToggle(id: string): void {
+                         expandedId.value = expandedId.value === id ? null : id;
+                     }`,
+                ),
+            ),
+        ).toEqual(['toggles `expandedId`']);
+
+        // And the shape one hop away from all three: a named handler that
+        // toggles something of its own, beside an `:open` on another name. A
+        // rule that fires here is worse than no rule.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<button type="button" @click="onPick(row.id)">pick</button>` +
+                        `<AdminAccordion :open="panelOpen">body</AdminAccordion>`,
+                    `${IMPORTS_ACCORDION}
+                     function onPick(id: string): void {
+                         selectedId.value = selectedId.value === id ? null : id;
+                     }`,
+                ),
+            ),
+        ).toEqual([]);
+
+        // And the shape that shares a ROOT with a condition without sharing
+        // anything else: a click that assigns one property of an object while a
+        // body hangs off another. This is an object being updated, which every
+        // page does, and every round of this rule so far called it a toggle of
+        // `form`, because both expressions were reduced to that root.
+        //
+        // It belongs beside the four above and not in a corner labelled edge
+        // case: a rule that fires here has no defence left. The file's author
+        // reaches for the marker — it is right there, it makes the suite green,
+        // and it now says in the source that an ordinary assignment is an
+        // excused disclosure. One of those is cheaper to write than an argument
+        // about the rule, so the rule ends up documenting its own defect.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="form.selected = form.current">head</div>` +
+                        `<div v-if="form.panelOpen">body</div>`,
+                    `const form = reactive({ selected: null, current: null, panelOpen: false });`,
+                ),
+            ),
+        ).toEqual([]);
+
+        // Sharpened once more: the flip is real and the body is real, and they
+        // are still two different pieces of state. `form.selected` is toggled
+        // outright here, so only the CONDITION half separates this from a
+        // disclosure — the half a fix aimed at the right-hand side alone would
+        // have left comparing roots.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="form.selected = !form.selected">head</div>` +
+                        `<div v-if="form.panelOpen">body</div>`,
+                    `const form = reactive({ selected: false, panelOpen: false });`,
+                ),
+            ),
+        ).toEqual([]);
+
+        // The other half, on its own: the condition IS on the property being
+        // written, and the right-hand side is what says this is not a flip.
+        // Bookkeeping beside a "is there anything" gate — no header, no body,
+        // no disclosure — and under root comparison `counts.pending` stood in
+        // for a read of `counts.total`.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="counts.total = counts.pending">head</div>` +
+                        `<div v-if="counts.total">body</div>`,
+                    `const counts = reactive({ total: 0, pending: 0 });`,
+                ),
+            ),
+        ).toEqual([]);
+
+        // And the property that IS the one the body hangs off is still caught,
+        // so the two above are about which property, not about objects.
+        expect(
+            ownDisclosures(
+                FIXTURE,
+                fixture(
+                    `<div @click="form.panelOpen = !form.panelOpen">head</div>` +
+                        `<div v-if="form.panelOpen">body</div>`,
+                    `const form = reactive({ selected: false, panelOpen: false });`,
+                ),
+            ),
+        ).toEqual(['toggles `form.panelOpen`']);
+
+        // The counter-proof for the second half, on the same principle.
+        //
+        // The pairing is what this round changed, and it needs its own shapes
+        // for the reason the detector needed its: from inside a file with one
+        // finding, a silencer and a working exemption read exactly alike. Every
+        // earlier round had a file like that, and every earlier round was green.
+        const PROBE = 'probe.vue';
+        const marked = (findings: string, reason: string): string =>
+            `<script setup lang="ts">\n// ${MARKER_WORD}(${findings}): ${reason}\n</script>`;
+        const WHY = 'a tenant-facing raw payload toggle, deliberately';
+
+        // A marker subtracts the finding it names, and leaves the rest standing.
+        // This is the whole change: under the file-level marker the second entry
+        // was gone, and adding a keyboard-inoperable `<div>` to a marked file
+        // kept the suite green.
+        expect(
+            review(
+                PROBE,
+                ['toggles `showRaw`', 'writes `aria-expanded`'],
+                marked('toggles `showRaw`', WHY),
+            ),
+        ).toEqual({ unexplained: ['probe.vue: writes `aria-expanded`'], stale: [] });
+
+        // Both named, both excused.
+        expect(
+            review(
+                PROBE,
+                ['toggles `showRaw`', 'writes `aria-expanded`'],
+                marked('toggles `showRaw`, writes `aria-expanded`', WHY),
+            ),
+        ).toEqual({ unexplained: [], stale: [] });
+
+        // Stale per finding, not per file: the file is still a disclosure, and
+        // the marker still has to describe one this file actually does.
+        expect(
+            review(
+                PROBE,
+                ['writes `aria-expanded`'],
+                marked('toggles `showRaw`, writes `aria-expanded`', WHY),
+            ),
+        ).toEqual({
+            unexplained: [],
+            stale: ['probe.vue: exempt from toggles `showRaw`, which it no longer does'],
+        });
+
+        // The reason requirement, unchanged in substance.
+        expect(review(PROBE, ['uses `<details>`'], marked('uses `<details>`', 'because'))).toEqual({
+            unexplained: ['probe.vue: exempt from uses `<details>` without a reason'],
+            stale: [],
+        });
+
+        // A marker that names nothing — the old spelling among them — is a
+        // finding of its own, not a marker this test quietly fails to see.
+        expect(
+            review(
+                PROBE,
+                ['uses `<details>`'],
+                `<script setup lang="ts">\n// ${MARKER_WORD}: ${WHY}\n</script>`,
+            ),
+        ).toEqual({
+            unexplained: [
+                'probe.vue: `// sa-disclosure-exempt: a tenant-facing raw payload toggle, deliberately` names no finding it excuses',
+                'probe.vue: uses `<details>`',
+            ],
+            stale: [],
+        });
+
+        // The reason may sit on the next comment line, so that naming the
+        // findings does not push the sentence off the page.
+        expect(
+            review(
+                PROBE,
+                ['uses `<details>`'],
+                `<script setup lang="ts">\n// ${MARKER_WORD}(uses \`<details>\`):\n// ${WHY}\n</script>`,
+            ),
+        ).toEqual({ unexplained: [], stale: [] });
+
+        const files = everyVueFile();
+        // The sweep reaches src at all. Without this both halves below pass by
+        // finding nothing, which is exactly how they would read if the cwd moved.
+        expect(files).toContain(ACCORDION);
+
+        const unexplained: string[] = [];
+        const stale: string[] = [];
+
+        for (const file of files) {
+            if (file === ACCORDION) continue;
+            const source = readFileSync(file, 'utf8');
+            const verdict = review(relative(SRC_DIR, file), ownDisclosures(file, source), source);
+            unexplained.push(...verdict.unexplained);
+            stale.push(...verdict.stale);
+        }
+
+        expect(unexplained).toEqual([]);
+        expect(stale).toEqual([]);
     });
 });

@@ -205,13 +205,20 @@
         </div>
     </div>
 
-    <!-- Section: Advanced (backend-only fields, collapsed) -->
-    <div class="pc-section">
-        <button type="button" class="pc-section__toggle" @click="advancedOpen = !advancedOpen">
-            <q-icon :name="advancedOpen ? 'expand_more' : 'chevron_right'" size="16px" />
-            {{ msg.form.advancedToggle }}
-        </button>
-        <div v-if="advancedOpen" class="pc-advanced">
+    <!-- Section: Advanced (backend-only fields, collapsed).
+
+         An `AdminAccordion` rather than a fourth `.pc-section`: this is the one
+         section of the four that opens, and the package has one way of saying
+         that. It reads as `bg-surface` where its three siblings are
+         `bg-surface-raised` — the section that behaves differently is the one
+         that looks different, and the radius is the same rung either way. -->
+    <AdminAccordion v-model:open="advancedOpen">
+        <template #header>
+            <span class="pc-section__title pc-section__title--inline">
+                {{ msg.form.advancedToggle }}
+            </span>
+        </template>
+        <div class="pc-advanced">
             <div class="pc-grid pc-grid--2">
                 <div class="pc-field">
                     <div class="pc-field__label">{{ msg.form.billingCycleLabel }}</div>
@@ -253,7 +260,7 @@
                 />
             </div>
         </div>
-    </div>
+    </AdminAccordion>
 
     <!-- Live preview -->
     <div class="pc-preview">
@@ -268,6 +275,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AdminAccordion from '../admin-page/AdminAccordion.vue';
 import { IDENTITY_NEUTRAL, identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
@@ -427,23 +435,15 @@ const advancedOpen = defineModel<boolean>('advancedOpen', { default: false });
     letter-spacing: -0.005em;
 }
 
-.pc-section__toggle {
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    font: 600 var(--sa-text-md) var(--sa-font-body, system-ui, sans-serif);
-    color: var(--sa-color-fg-secondary);
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0;
+/* The same title, in a header that already spaces itself. */
+.pc-section__title--inline {
+    margin-bottom: 0;
 }
 
 .pc-advanced {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-top: 12px;
 }
 
 .pc-grid {
