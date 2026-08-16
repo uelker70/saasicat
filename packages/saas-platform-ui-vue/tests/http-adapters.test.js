@@ -780,4 +780,71 @@ describe('createAxiosHttpClient — against a real axios instance', () => {
             assert.deepEqual(await res.json(), { slug: 'acme' });
         });
     });
+
+    test('a browser Blob body is read through the text() it exposes', () => {
+        // `responseType: 'blob'` is the browser's shape of the same decision
+        // `'arraybuffer'` expresses in Node, so real axios cannot produce one
+        // here. The stand-in is the branch's only reachable cover: without it
+        // the Blob path is code no run of this suite ever enters.
+        const blob = { text: async () => '{"slug":"acme"}' };
+        const { instance } = stubAxios({ data: blob, config: RAW_CONFIG });
+        return createAxiosHttpClient(instance)('/x').then(async (res) => {
+            assert.deepEqual(await res.json(), { slug: 'acme' });
+            assert.equal(await res.text(), '{"slug":"acme"}');
+        });
+    });
+
+    test('a body axios delivered as bytes reads as the value those bytes spell', async () => {
+        // `responseType: 'arraybuffer'` turns the decoding off the way `'text'`
+        // does; the difference is the shape it hands over, not what arrived.
+        await withServer(async (base) => {
+            const client = createAxiosHttpClient(axios.create({ responseType: 'arraybuffer' }));
+            const res = await client(`${base}/object`);
+            assert.deepEqual(await res.json(), { slug: 'acme' });
+            assert.equal(await res.text(), '{"slug":"acme"}');
+        });
+    });
+
+    test('and the two readers of a byte body agree about it', async () => {
+        // `text()` used to serialize the buffer, so it answered
+        // `{"type":"Buffer","data":[123,…]}` for a body reading `{"slug":"acme"}`.
+        await withServer(async (base) => {
+            const client = createAxiosHttpClient(axios.create({ responseType: 'arraybuffer' }));
+            const res = await client(`${base}/scalar`);
+            assert.equal(await res.json(), 'ready');
+            assert.equal(await res.text(), '"ready"');
+        });
+    });
+
+    test('an empty byte body throws, as an empty text body does', async () => {
+        await withServer(async (base) => {
+            const client = createAxiosHttpClient(axios.create({ responseType: 'arraybuffer' }));
+            const res = await client(`${base}/empty`);
+            await assert.rejects(res.json(), SyntaxError);
+        });
+    });
+
+    test('a streamed body is refused by name, not mishandled', async () => {
+        // A stream is consumable once and not synchronously, so neither reader
+        // can keep its promise. Handing it back satisfied the return type and
+        // broke the contract: `json()` returned the stream, and `text()` threw
+        // `Converting circular structure to JSON` trying to serialize it.
+        await withServer(async (base) => {
+            const client = createAxiosHttpClient(axios.create({ responseType: 'stream' }));
+            const res = await client(`${base}/object`);
+            await assert.rejects(res.json(), /responseType 'stream'/);
+            await assert.rejects(res.text(), /responseType 'stream'/);
+        });
+    });
+
+    test('a transform returning an object still hands that object over', async () => {
+        // The byte reading must not swallow the pass-through it sits in front of.
+        await withServer(async (base) => {
+            const client = createAxiosHttpClient(
+                axios.create({ transformResponse: [() => ({ wrapped: true })] }),
+            );
+            const res = await client(`${base}/object`);
+            assert.deepEqual(await res.json(), { wrapped: true });
+        });
+    });
 });

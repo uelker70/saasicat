@@ -103,6 +103,15 @@ Three details the copies got wrong, fixed here once:
     the value, so `''` is the empty string and is handed over; under `'raw'` it
     is an empty body and still throws.
 
+    **A body axios never turned into text is turned back.** `responseType:
+`'arraybuffer'`and`'blob'`switch the decoding off the way`'text'`does;
+only the shape differs, so the bytes are decoded as UTF-8 and read like any
+other undecoded body.`json()`used to hand back the buffer itself and
+ `text()`its serialization —`{"type":"Buffer","data":[123,…]}`for a body
+reading`{"slug":"acme"}`. A `'stream'` response is refused with a message
+    naming the option to change, because a stream is consumable once and never
+    synchronously: returning it satisfied the type and broke the promise.
+
     The adapter does not force the transform off to make the answer knowable.
     That would work, and it would hand the consumer's own response interceptors
     a string where they had an object — the same mistake as the

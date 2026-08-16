@@ -237,18 +237,54 @@ function bodyIsRaw(response: AxiosLikeResponse, declared: AxiosResponseBody): bo
     );
 }
 
+/**
+ * Reads a body axios was told not to turn into text.
+ *
+ * `responseType: 'arraybuffer'` and `'blob'` switch the decoding off the way
+ * `'text'` does, so the body arrives exactly as it was sent — only as bytes
+ * rather than as a string. Turning them back into text is a measurement, not a
+ * guess: JSON is defined in UTF-8, and `bodyIsRaw` already answers `true` for
+ * both, so the readings below stay the ones the rest of this file reasons about.
+ *
+ * A stream is refused. It can be consumed once, not synchronously, and not
+ * twice by `json()` and `text()` in turn; handing it back would satisfy the
+ * return type while breaking what the type promises, which is the failure mode
+ * this file spent three rounds removing. The message names the option that
+ * makes the request work.
+ *
+ * Anything else is passed through: a consumer's own transform may return an
+ * object, and that object is the body.
+ */
+async function readBody(data: unknown): Promise<unknown> {
+    if (typeof data === 'string' || data === null || data === undefined) return data;
+    if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+    if (ArrayBuffer.isView(data)) return new TextDecoder().decode(data as Uint8Array);
+    const maybe = data as { text?: unknown; pipe?: unknown; getReader?: unknown };
+    if (typeof maybe.pipe === 'function' || typeof maybe.getReader === 'function') {
+        throw new TypeError(
+            "createAxiosHttpClient cannot read a streamed body: responseType 'stream' can be " +
+                "consumed only once, and never synchronously. Use 'arraybuffer' or the default " +
+                'for the instance the platform receives.',
+        );
+    }
+    if (typeof maybe.text === 'function') return (maybe.text as () => Promise<string>).call(data);
+    return data;
+}
+
 /** Presents an axios response as the `HttpResponse` the contract declares. */
 function adapt(response: AxiosLikeResponse, declared: AxiosResponseBody): HttpResponse {
     return {
         status: response.status,
         headers: { get: headerReader(response.headers) },
         json: async () => {
-            const { data } = response;
+            const data = await readBody(response.data);
             if (typeof data !== 'string') return data;
-            return bodyIsRaw(response, declared) ? JSON.parse(data) : data;
+            return bodyIsRaw({ ...response, data }, declared) ? JSON.parse(data) : data;
         },
-        text: async () =>
-            typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
+        text: async () => {
+            const data = await readBody(response.data);
+            return typeof data === 'string' ? data : JSON.stringify(data);
+        },
     };
 }
 
