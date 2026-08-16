@@ -50,10 +50,14 @@ createSuperAdminApp({
 
 ### Confirm port
 
-Anything a page cannot undo goes through a second seam, `UiConfirm`
-(`SUPER_ADMIN_CONFIRM_KEY`), which works the same way: `createSuperAdminApp()`
-provides a Quasar `Dialog` default, and an app with its own modal system
-replaces it.
+A second seam, `UiConfirm` (`SUPER_ADMIN_CONFIRM_KEY`), works the same way:
+`createSuperAdminApp()` provides a Quasar `Dialog` default, and an app with its
+own modal system replaces it.
+
+It is available to your own pages today. The standard pages do **not** use it
+yet — `UsersPage`, `PilotsPage`, `PromoCodesPage` and `PlatformEmailPage` still
+call `q.dialog()` directly, so replacing the port does not change what they show.
+Moving them onto it belongs to the page migration.
 
 ```ts
 createSuperAdminApp({
