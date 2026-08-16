@@ -551,6 +551,22 @@ const INSTANCES = [
 const DECODING = INSTANCES.slice(0, 2);
 const RAW = INSTANCES.slice(2);
 
+/**
+ * Instances that replaced axios's response transform with one of their own, and
+ * the `responseBody` each has to declare.
+ *
+ * These are the configurations the response cannot describe. All three echo the
+ * same config a stock instance echoes — one function, arity one — so no reading
+ * of the response tells the first two apart, and the bare-function form is
+ * neither an array nor empty. The declaration is the only thing that separates
+ * them, which is why it exists.
+ */
+const CUSTOM_TRANSFORMS = [
+    ['transformResponse [identity]', { transformResponse: [(d) => d] }, 'raw'],
+    ['transformResponse identity, bare fn', { transformResponse: (d) => d }, 'raw'],
+    ['transformResponse [JSON.parse]', { transformResponse: [(d) => JSON.parse(d)] }, 'decoded'],
+];
+
 async function withServer(run) {
     const server = http.createServer((req, res) => {
         const [status, type, body] = SERVED[req.url.split(/[?#]/)[0]] ?? [
@@ -582,12 +598,58 @@ describe('createAxiosHttpClient — against a real axios instance', () => {
         });
     });
 
+    test('json() yields what was on the wire when the instance declares how', async () => {
+        await withServer(async (base) => {
+            for (const [label, config, responseBody] of CUSTOM_TRANSFORMS) {
+                const client = createAxiosHttpClient(axios.create(config), { responseBody });
+                for (const [path, expected] of Object.entries(MEANS)) {
+                    const res = await client(base + path);
+                    assert.deepEqual(await res.json(), expected, `${label} ${path}`);
+                }
+            }
+        });
+    });
+
+    test('a rejected status is read by the same declaration', async () => {
+        await withServer(async (base) => {
+            for (const [label, config, responseBody] of CUSTOM_TRANSFORMS) {
+                const res = await createAxiosHttpClient(axios.create(config), { responseBody })(
+                    `${base}/forbidden`,
+                );
+                assert.equal(res.status, 403, label);
+                assert.deepEqual(await res.json(), { code: 'FORBIDDEN' }, label);
+            }
+        });
+    });
+
+    test('an instance with its own transform is read as decoding until it says otherwise', async () => {
+        // Not the wire value, and deliberately so: `'auto'` reads the config,
+        // and a non-empty custom pipeline is the one thing the config cannot
+        // describe — it echoes exactly what a stock instance echoes. `'auto'`
+        // therefore keeps axios's own reading rather than guessing against it,
+        // and an instance that replaced the transform has to say so. This test
+        // is what fails if `responseBody` stops being consulted.
+        await withServer(async (base) => {
+            const res = await createAxiosHttpClient(
+                axios.create({ transformResponse: [(d) => d] }),
+            )(`${base}/object`);
+            assert.equal(await res.json(), '{"slug":"acme"}');
+        });
+    });
+
     test('an empty body throws, whichever instance asked for it', async () => {
         await withServer(async (base) => {
             for (const [label, config] of INSTANCES) {
                 const res = await createAxiosHttpClient(axios.create(config))(`${base}/empty`);
                 await assert.rejects(res.json(), SyntaxError, label);
             }
+            // A declaration cannot make an empty body a decoded value: nothing
+            // decodes to `''`, so `json()` throws the way `Response.json()`
+            // does even where the instance says it decodes.
+            const declared = await createAxiosHttpClient(axios.create(), {
+                responseBody: 'decoded',
+            })(`${base}/empty`);
+            await assert.rejects(declared.json(), SyntaxError, 'responseBody decoded');
         });
     });
 

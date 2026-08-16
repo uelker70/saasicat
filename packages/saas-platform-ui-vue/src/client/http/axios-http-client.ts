@@ -20,8 +20,9 @@ import type { HttpClient, HttpResponse } from '../types.js';
 /**
  * The part of the merged request config axios echoes back on every response —
  * on the one it resolves with and on the one it attaches to a rejection. These
- * three fields are the ones that say whether `data` is a decoded value or the
- * body as it arrived; see `bodyIsRaw`.
+ * three fields say whether `data` is a decoded value or the body as it arrived,
+ * for as long as axios's own response transform is the one that produced it;
+ * see `bodyIsRaw`.
  *
  * They are `unknown` rather than their axios types so that a real
  * `AxiosResponse` stays structurally assignable without this package taking a
@@ -52,6 +53,21 @@ export interface AxiosLike {
     request(config: AxiosLikeConfig): Promise<AxiosLikeResponse>;
 }
 
+/**
+ * What an instance leaves in `response.data`, for the one case the response
+ * cannot describe: an instance that replaced `transformResponse` with a
+ * non-empty pipeline of its own.
+ *
+ * - `'auto'` — read it off the config axios echoes on the response. Correct for
+ *   an instance that still runs axios's own transform, including all three ways
+ *   of switching its parsing off (`responseType: 'text'`,
+ *   `transformResponse: []`, `transitional: { forcedJSONParsing: false }`).
+ * - `'raw'` — `data` is the body as it arrived, and `json()` parses it.
+ * - `'decoded'` — `data` is a value the pipeline already produced, and `json()`
+ *   hands it over untouched.
+ */
+export type AxiosResponseBody = 'auto' | 'raw' | 'decoded';
+
 export interface AxiosHttpClientOptions {
     /**
      * Prefix(es) to remove from the start of a URL before handing it to the
@@ -60,6 +76,19 @@ export interface AxiosHttpClientOptions {
      * first (`['/api/v1', '/api']`), or `/api/v1/admin/x` loses only `/api`.
      */
     stripPrefix?: string | readonly string[];
+
+    /**
+     * How this instance hands the body over. Defaults to `'auto'`, which needs
+     * no configuration and is right for every instance that leaves axios's own
+     * `transformResponse` in place.
+     *
+     * Set it only if you replaced `transformResponse` with a non-empty pipeline
+     * of your own: `'raw'` if that pipeline hands the body over as it arrived
+     * (`[(data) => data]`), `'decoded'` if it parses. The response cannot be
+     * read for the answer — both echo one opaque function — so `'auto'` would
+     * take your pipeline for axios's; see `bodyIsRaw`.
+     */
+    responseBody?: AxiosResponseBody;
 }
 
 /**
@@ -118,25 +147,42 @@ function headerReader(headers: unknown): (name: string) => string | null {
  * type separates them. Decoding a second time then throws on `"ready"` and,
  * worse, silently turns the string `"null"` into `null`.
  *
- * The response answers it itself. axios echoes the merged config on every
- * response, including the one carried by a rejection, and
- * `config.transformResponse` is not a description of the decoding: it is the
- * function array axios applied to produce `data`. An empty array is therefore
- * proof that nothing touched the body, and the rest of the answer is the
- * condition axios's own default transform decides by, read off the same object.
+ * `'auto'` reads the answer off the merged config axios echoes on every
+ * response, including the one carried by a rejection. Two readings, in order:
+ * `transformResponse: []` is an empty pipeline and therefore proof that nothing
+ * touched the body; otherwise the condition axios's own default transform
+ * parses under, negated, off `responseType` and `transitional`.
  *
- * A config that proves neither means something decoded the body, and that
- * something's output *is* the body; decoding it again would be decoding it
- * twice. A response carrying no config at all is read the same way: real axios
- * always attaches one, so only a stand-in can omit it, and reading a stand-in
- * as already-decoded fails loudly — objects arriving as strings — instead of
+ * **The second reading is an assumption, not a measurement**: it holds while
+ * axios's default transform is the one that ran. `config.transformResponse` is
+ * not a description of the decoding — it is the function array axios applied,
+ * and functions are opaque. An instance built with `[(data) => data]` and one
+ * built with `[(data) => JSON.parse(data)]` echo the same config as a stock
+ * instance does, down to the array length and the arity of its one element, and
+ * each can be handed a body that makes it produce the very same `data` as the
+ * others — `"ready"` through the first, `"\"ready\""` through the other two,
+ * all three arriving as `"ready"` — while needing the opposite answer.
+ * Nothing else on the response separates them either: the
+ * only field that differs is `content-length`, which gzip or a chunked reply
+ * makes meaningless. Guessing "non-empty means decoded" is silently wrong for
+ * the first, guessing "non-empty means raw" for the second.
+ *
+ * So an instance that replaced `transformResponse` says which it is, through
+ * the `responseBody` option, and `'auto'` covers everyone who did not.
+ *
+ * A response carrying no config at all is read as decoded: real axios always
+ * attaches one, so only a stand-in can omit it, and reading a stand-in as
+ * already-decoded fails loudly — objects arriving as strings — instead of
  * silently changing what a scalar means.
  */
-function bodyIsRaw(response: AxiosLikeResponse): boolean {
-    // No body is raw under either reading: axios's transform skips a falsy
-    // body, so `''` is never something it decoded. Parsing it throws, which is
-    // what `Response.json()` does with an empty body.
+function bodyIsRaw(response: AxiosLikeResponse, declared: AxiosResponseBody): boolean {
+    // No body is raw under every reading, declared ones included: a transform
+    // that returned `''` returned the body, and axios's own skips a falsy body
+    // rather than decoding it. Parsing it throws, which is what
+    // `Response.json()` does with an empty body.
     if (response.data === '') return true;
+
+    if (declared !== 'auto') return declared === 'raw';
 
     const config = response.config;
     if (Array.isArray(config?.transformResponse) && config.transformResponse.length === 0) {
@@ -162,6 +208,21 @@ function bodyIsRaw(response: AxiosLikeResponse): boolean {
     );
 }
 
+/** Presents an axios response as the `HttpResponse` the contract declares. */
+function adapt(response: AxiosLikeResponse, declared: AxiosResponseBody): HttpResponse {
+    return {
+        status: response.status,
+        headers: { get: headerReader(response.headers) },
+        json: async () => {
+            const { data } = response;
+            if (typeof data !== 'string') return data;
+            return bodyIsRaw(response, declared) ? JSON.parse(data) : data;
+        },
+        text: async () =>
+            typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
+    };
+}
+
 /**
  * Adapts an axios instance to `HttpClient`.
  *
@@ -179,23 +240,16 @@ function bodyIsRaw(response: AxiosLikeResponse): boolean {
  * silently instead of refreshing.
  *
  * **`json()` decodes only what axios left undecoded.** Which of the two it is
- * cannot be guessed from the value; the response says it. See `bodyIsRaw`.
+ * cannot be guessed from the value. The response says it for every instance
+ * that still runs axios's own `transformResponse`; an instance that replaced it
+ * says it with the `responseBody` option, because at that point the response no
+ * longer can. See `bodyIsRaw`.
+ *
+ * Nothing here overrides the instance's own configuration — not
+ * `validateStatus`, and not `transformResponse` either. Forcing the transform
+ * off would make the answer knowable, at the price of handing the consumer's
+ * own response interceptors a string where they had an object.
  */
-/** Presents an axios response as the `HttpResponse` the contract declares. */
-function adapt(response: AxiosLikeResponse): HttpResponse {
-    return {
-        status: response.status,
-        headers: { get: headerReader(response.headers) },
-        json: async () => {
-            const { data } = response;
-            if (typeof data !== 'string') return data;
-            return bodyIsRaw(response) ? JSON.parse(data) : data;
-        },
-        text: async () =>
-            typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
-    };
-}
-
 export function createAxiosHttpClient(
     instance: AxiosLike,
     options: AxiosHttpClientOptions = {},
@@ -204,6 +258,7 @@ export function createAxiosHttpClient(
         typeof options.stripPrefix === 'string'
             ? [options.stripPrefix]
             : (options.stripPrefix ?? []);
+    const responseBody = options.responseBody ?? 'auto';
 
     return async (url, init) => {
         try {
@@ -214,6 +269,7 @@ export function createAxiosHttpClient(
                     headers: init?.headers,
                     data: init?.body,
                 }),
+                responseBody,
             );
         } catch (err: unknown) {
             // A status the instance rejected still carries its response, and
@@ -221,7 +277,9 @@ export function createAxiosHttpClient(
             // that may have retried and succeeded. Adapt what came back
             // instead of rethrowing, so the seam keeps its one error shape.
             const response = (err as { response?: AxiosLikeResponse })?.response;
-            if (response && typeof response.status === 'number') return adapt(response);
+            if (response && typeof response.status === 'number') {
+                return adapt(response, responseBody);
+            }
             // No response at all: the request never completed. That is a
             // transport failure and belongs to the caller.
             throw err;

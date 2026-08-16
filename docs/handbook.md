@@ -966,6 +966,26 @@ Two things worth knowing about both adapters:
 - `createAxiosHttpClient` is typed **structurally** and does not import axios, so
   `@saasicat/ui-vue` adds no dependency to your install.
 
+One case needs a word from you. `res.json()` has to know whether your instance hands
+over the body as it arrived or a value it already parsed, and it reads that off the
+config axios echoes on the response — correctly for a stock instance and for each of
+`responseType: 'text'`, `transformResponse: []` and
+`transitional: { forcedJSONParsing: false }`. If you replaced `transformResponse` with
+a pipeline of your own, that reading no longer works: your array and axios's echo
+identically, one opaque function each, so say which it is.
+
+```ts
+const api = axios.create({ transformResponse: [(data) => data] }); // hands over text
+
+export const platformHttpClient = createAxiosHttpClient(api, {
+    stripPrefix: '/api/v1',
+    responseBody: 'raw', // 'decoded' if your pipeline parses
+});
+```
+
+Leave `responseBody` alone otherwise — the default reads the response and needs no
+help.
+
 ### 8.2 Manifest Store
 
 ```ts
