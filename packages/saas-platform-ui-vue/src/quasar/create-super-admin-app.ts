@@ -309,20 +309,32 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     app.provide(SUPER_ADMIN_ACTIONS_KEY, options.actions ?? {});
     app.provide(SUPER_ADMIN_NOTIFY_KEY, options.notify ?? quasarNotify);
     app.provide(SUPER_ADMIN_CONFIRM_KEY, options.confirm ?? quasarConfirm);
-    app.provide(
-        SUPER_ADMIN_RESOURCES_KEY,
-        createResourceRegistry({
-            http,
-            // Read per call: the locale changes while the app runs.
-            context: () => ({
-                apiBase: endpoints.apiBase,
-                projectKey: endpoints.projectKey,
-                locale: i18n.locale.value,
+    // Only when the app named its client. `createResourceRegistry` refuses to
+    // be built without one, because a bare `fetch` sends every request without
+    // the app's Authorization header and the failure is silent. Handing it the
+    // `defaultHttpClient()` fallback here would have defeated exactly that
+    // guarantee from inside the bootstrap: existing pages would keep working
+    // through their own `getAuthToken` options while anything reaching for
+    // `useResource()` collected 401s.
+    //
+    // Without a client the registry is simply absent, and `useResource` says
+    // so — a named failure at the first call beats a page that renders empty.
+    if (options.http) {
+        app.provide(
+            SUPER_ADMIN_RESOURCES_KEY,
+            createResourceRegistry({
+                http: options.http,
+                // Read per call: the locale changes while the app runs.
+                context: () => ({
+                    apiBase: endpoints.apiBase,
+                    projectKey: endpoints.projectKey,
+                    locale: i18n.locale.value,
+                }),
+                resources: platformResources,
+                overrides: options.resourceOverrides,
             }),
-            resources: platformResources,
-            overrides: options.resourceOverrides,
-        }),
-    );
+        );
+    }
     if (options.manifestGuard?.getManifest) {
         app.provide(SUPER_ADMIN_MANIFEST_KEY, options.manifestGuard.getManifest);
     }

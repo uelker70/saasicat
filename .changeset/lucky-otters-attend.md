@@ -21,6 +21,14 @@ parameter erased the operations to a constraint whose `never[]` arguments made
 every call with an argument a type error, while any misspelled resource name was
 accepted. Review caught it; both directions are now checked.
 
+The bootstrap installs the registry **only when the app names its client**. It
+otherwise has a `defaultHttpClient()` fallback for its own `SUPER_ADMIN_HTTP_KEY`,
+and handing that to the registry would have defeated the guarantee below from
+the inside: existing pages would keep working through their own `getAuthToken`
+options while anything reaching for `useResource()` collected 401s. Without a
+client the registry is simply absent, and `useResource` says which of the two
+reasons applies.
+
 **`http` is required, with no fallback.** A registry that quietly reached for
 `fetch` when nobody passed a client would send every request without the app's
 `Authorization` header, and that failure is silent: the call 401s, one card

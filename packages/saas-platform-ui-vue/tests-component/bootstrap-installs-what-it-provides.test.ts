@@ -15,9 +15,11 @@
 // version of this test was written first and passed against the defect.
 
 import { describe, expect, test } from 'vitest';
+import { defineComponent, h } from 'vue';
 import { Notify } from 'quasar';
 
-import { resolveQuasarOptions } from '../src/quasar/create-super-admin-app.js';
+import { createSuperAdminApp, resolveQuasarOptions } from '../src/quasar/create-super-admin-app.js';
+import { SUPER_ADMIN_RESOURCES_KEY } from '../src/vue/resource-registry.js';
 
 /** The plugins the shell's own ports call into. */
 const REQUIRED = ['Notify', 'Dialog', 'Loading'];
@@ -53,5 +55,41 @@ describe('resolveQuasarOptions', () => {
     test('an app that passes only a config keeps the whole platform set', () => {
         const resolved = resolveQuasarOptions({ config: { dark: 'auto' } });
         expect(Object.keys(resolved.plugins ?? {}).sort()).toEqual([...REQUIRED].sort());
+    });
+});
+
+describe('the resource registry is installed only with a real client', () => {
+    const Root = defineComponent({ setup: () => () => h('div') });
+
+    function boot(extra: Record<string, unknown>) {
+        return createSuperAdminApp({
+            rootComponent: Root,
+            brand: { name: 'Fixture', logoText: 'FX' },
+            endpoints: { apiBase: '/api/v1/admin', projectKey: 'demo' },
+            appRoutes: [{ path: '/:pathMatch(.*)*', component: Root }],
+            theme: { persist: false },
+            ...extra,
+        } as never);
+    }
+
+    /** What the app provided under a key, without mounting anything. */
+    function provided(app: ReturnType<typeof boot>['app'], key: symbol): unknown {
+        return (app as unknown as { _context: { provides: Record<symbol, unknown> } })._context
+            .provides[key];
+    }
+
+    test('an app that names its client gets a registry', () => {
+        const { app } = boot({ http: async () => new Response('{}') });
+        expect(provided(app, SUPER_ADMIN_RESOURCES_KEY)).toBeDefined();
+    });
+
+    test('an app that does not gets none, rather than one wired to a bare fetch', () => {
+        // `createResourceRegistry` refuses to be built without a client,
+        // because a bare fetch sends every request without the app's
+        // Authorization header and the failure is silent — a 401, an em dash on
+        // one card, nothing logged. Handing it the `defaultHttpClient()`
+        // fallback here would have defeated that from inside the bootstrap.
+        const { app } = boot({});
+        expect(provided(app, SUPER_ADMIN_RESOURCES_KEY)).toBeUndefined();
     });
 });

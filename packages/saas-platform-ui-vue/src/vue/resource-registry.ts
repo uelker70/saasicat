@@ -184,8 +184,10 @@ export function useResource<
     const registry = inject(SUPER_ADMIN_RESOURCES_KEY, null);
     if (!registry) {
         throw new Error(
-            `useResource("${key}"): no resource registry in scope. Was the component mounted ` +
-                'inside createSuperAdminApp()?',
+            `useResource("${key}"): no resource registry in scope. Either the component was ` +
+                'not mounted inside createSuperAdminApp(), or the app did not pass an `http` ' +
+                'client — the registry is not installed without one, because a bare fetch would ' +
+                'send every request without your Authorization header and fail silently.',
         );
     }
     return registry.get(key) as Bound<TMap[K]['ops']>;
