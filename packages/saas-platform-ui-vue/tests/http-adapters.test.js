@@ -11,7 +11,12 @@ import http from 'node:http';
 
 import axios from 'axios';
 
-import { createAxiosHttpClient, createFetchHttpClient, defaultHttpClient } from '../dist/index.js';
+import {
+    createAxiosHttpClient,
+    createFetchHttpClient,
+    defaultHttpClient,
+    isTransportFailure,
+} from '../dist/index.js';
 
 /** Records what `fetch` was called with and answers with a real `Response`. */
 function stubFetch({ status = 200, body = '{}', headers = {} } = {}) {
@@ -200,6 +205,29 @@ describe('createFetchHttpClient', () => {
             assert.equal(res.headers.get('ETag'), 'W/"abc"');
         } finally {
             restore();
+        }
+    });
+
+    test('a failed request is marked as one, whichever way the client was built', async () => {
+        // `fetch` rejects with a `TypeError` for every failure before a
+        // response, and that is the same class a null dereference in page code
+        // raises. The mark is what separates them, and it belongs here rather
+        // than in `defaultHttpClient`: a consumer calling
+        // `createFetchHttpClient({ headers })` goes through this seam too.
+        const original = globalThis.fetch;
+        globalThis.fetch = async () => {
+            throw new TypeError('Failed to fetch');
+        };
+        try {
+            for (const client of [createFetchHttpClient(), defaultHttpClient()]) {
+                const err = await client('/x').then(
+                    () => null,
+                    (e) => e,
+                );
+                assert.equal(isTransportFailure(err), true);
+            }
+        } finally {
+            globalThis.fetch = original;
         }
     });
 
