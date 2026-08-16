@@ -149,15 +149,17 @@ async function settledStyles(page: Page): Promise<string> {
     throw new Error('the page never stopped changing — nothing settled within two seconds');
 }
 
-/** Element count across the page and any teleported dialog. */
-const COUNT_ELEMENTS = () => {
-    const root = document.getElementById('visual-root') ?? document.body;
-    const dialogs = [...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d));
-    return (
-        root.querySelectorAll('*').length +
-        dialogs.reduce((n, d) => n + 1 + d.querySelectorAll('*').length, 0)
-    );
-};
+/**
+ * The set of structural paths the collector can see, classes and styles dropped.
+ *
+ * `COLLECT` writes each element as `path.class.class  prop=value …`, and a path
+ * is `tag:index` segments joined by `>` — it contains no dot, so everything from
+ * the first dot on is class names and style values. What is left is the shape of
+ * the DOM: what exists and where, independent of how it is painted.
+ */
+function structuralPaths(collected: string): Set<string> {
+    return new Set(collected.split('\n').map((line) => line.split('.')[0].trimEnd()));
+}
 
 test.describe('design-token visual baselines', () => {
     test('the roster still covers every page it claims to', () => {
@@ -183,7 +185,9 @@ test.describe('design-token visual baselines', () => {
             // Surfaces that only exist once something is opened. `click()`
             // already waits for the element, so a selector that stops matching
             // fails the case instead of quietly baselining the closed state.
-            const before = await page.evaluate(COUNT_ELEMENTS);
+            const before = structuralPaths(
+                await page.evaluate(COLLECT, { properties: [] as readonly string[] }),
+            );
             for (const selector of visualCase.revealBy ?? []) {
                 await page.locator(selector).first().click();
             }
@@ -193,11 +197,33 @@ test.describe('design-token visual baselines', () => {
                 // opened state and covers the closed one. It happened — the
                 // email detail is a QDialog, and clicking its row changed
                 // nothing the collector could see.
+                //
+                // The question is "is something on the page that was not there
+                // before", and the first version of this asked it as "did the
+                // element count grow". That is the same question only while a
+                // reveal ADDS: a tab switch replaces one panel with another, so
+                // opening the discovery quota cards — the smaller of the two
+                // panels — shrank the page and read as a click that did nothing.
+                //
+                // Counting NEW PATHS answers the original question directly, and
+                // it is not the weaker check: a click that toggles a class
+                // without rendering anything adds no path either, because the
+                // paths carry no classes.
                 await expect
-                    .poll(() => page.evaluate(COUNT_ELEMENTS), {
-                        message: `${visualCase.id}: revealBy clicked, but nothing new rendered`,
-                    })
-                    .toBeGreaterThan(before);
+                    .poll(
+                        async () => {
+                            const now = structuralPaths(
+                                await page.evaluate(COLLECT, {
+                                    properties: [] as readonly string[],
+                                }),
+                            );
+                            return [...now].filter((path) => !before.has(path)).length;
+                        },
+                        {
+                            message: `${visualCase.id}: revealBy clicked, but nothing new rendered`,
+                        },
+                    )
+                    .toBeGreaterThan(0);
 
                 // And take the pointer off what was just clicked.
                 //
