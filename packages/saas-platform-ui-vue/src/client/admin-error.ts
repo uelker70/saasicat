@@ -50,6 +50,18 @@ export interface AdminErrorInit {
      * signal that only a translated fallback can be shown.
      */
     detail?: string;
+    /**
+     * The request completed and the answer was unusable — a 2xx that carried
+     * no body where one was required.
+     *
+     * Its own state because the model could not otherwise tell it from a
+     * transport failure: both have no HTTP status to report, and both were
+     * therefore `status: 0`. They need opposite words. A request that never
+     * left says "check your connection"; one the server accepted and answered
+     * with nothing says "check whether the change was applied", because it may
+     * well have been.
+     */
+    emptyResponse?: boolean;
     /** Diagnostic message. Derived from the fields above when omitted. */
     message?: string;
     /** The error this one was built from. */
@@ -87,6 +99,8 @@ export class AdminError extends Error {
      * output. `undefined` when nothing was supplied.
      */
     readonly detail?: string;
+    /** The request completed but the answer was unusable. See `AdminErrorInit`. */
+    readonly emptyResponse: boolean;
 
     constructor(init: AdminErrorInit = {}) {
         super(init.message ?? describe(init), { cause: init.cause });
@@ -97,6 +111,7 @@ export class AdminError extends Error {
         this.url = init.url;
         this.method = init.method;
         this.detail = init.detail;
+        this.emptyResponse = init.emptyResponse ?? false;
         Object.defineProperty(this, ADMIN_ERROR, { value: true });
     }
 }
@@ -196,6 +211,10 @@ export function toAdminError(err: unknown): AdminError {
             // "Bundles API responded with HTTP 403", a diagnostic. It stays on
             // `message`, where logs read it.
             detail: readErrorDetail(record.body),
+            // A package API error with `status: 0` is the empty-body sentinel —
+            // `PlansApiError(0, null, 'Create returned no body')`. The call
+            // reached the server; only the answer was unusable.
+            emptyResponse: record.status === 0,
             message: asString(record.message),
             cause: err,
         });
@@ -253,6 +272,10 @@ function statusKey(status: number): keyof SaMessages['errors'] | undefined {
 export function adminErrorMessage(err: unknown, msgs: SaMessages['errors']): string {
     const error = toAdminError(err);
     if (error.detail) return error.detail;
+    // Before the status check: this one also has no status, and telling an
+    // operator to check their connection when the server answered would send
+    // them after the wrong thing — and hide that the change may have landed.
+    if (error.emptyResponse) return msgs.emptyResponse;
     if (error.status <= 0) return msgs.network;
     const key = statusKey(error.status);
     if (key) return msgs[key];

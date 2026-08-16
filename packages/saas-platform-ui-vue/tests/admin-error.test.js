@@ -156,6 +156,40 @@ describe('toAdminError', () => {
         assert.equal(err.message, 'Bundles API said no');
     });
 
+    test('an answer that was empty is not a connection problem', () => {
+        // `PlansApiError(0, null, 'Create returned no body')` reaches the
+        // server and gets a 2xx — only the body is missing. Both cases have no
+        // HTTP status to report, so both were `status: 0` and both were told
+        // to check the connection. They need opposite words: this one may
+        // already have happened.
+        class PlansApiError extends Error {
+            constructor(status, body, message) {
+                super(message);
+                this.status = status;
+                this.body = body;
+            }
+        }
+        const err = toAdminError(new PlansApiError(0, null, 'Create returned no body'));
+        assert.equal(err.emptyResponse, true);
+        assert.equal(adminErrorMessage(err, EN), EN.emptyResponse);
+        assert.notEqual(EN.emptyResponse, EN.network);
+        // The diagnostic is still on `message`, for the log.
+        assert.equal(err.message, 'Create returned no body');
+    });
+
+    test('a real HTTP failure is not an empty response', () => {
+        class PlansApiError extends Error {
+            constructor(status, body, message) {
+                super(message);
+                this.status = status;
+                this.body = body;
+            }
+        }
+        const err = toAdminError(new PlansApiError(403, {}, 'Plans API responded with HTTP 403'));
+        assert.equal(err.emptyResponse, false);
+        assert.equal(adminErrorMessage(err, EN), EN.forbidden);
+    });
+
     test('a transport failure keeps its diagnostic off detail, so the catalog answers', () => {
         // `fetch` rejects with a TypeError whose text is the browser's, in
         // English, whatever the UI speaks. As `detail` it would out-rank
@@ -163,6 +197,7 @@ describe('toAdminError', () => {
         const err = toAdminError(new TypeError('Failed to fetch'));
         assert.equal(err.status, 0);
         assert.equal(err.detail, undefined);
+        assert.equal(err.emptyResponse, false, 'nothing was answered at all');
         assert.equal(err.message, 'Failed to fetch');
         assert.ok(err.cause instanceof TypeError);
         assert.equal(adminErrorMessage(err, EN), EN.network);
