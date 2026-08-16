@@ -986,6 +986,11 @@ export const platformHttpClient = createAxiosHttpClient(api, {
 Leave `responseBody` alone otherwise — the default reads the response and needs no
 help.
 
+If the instance you hand over sets `responseType: 'arraybuffer'` or `'blob'`, the
+body is decoded as UTF-8 and read like any other undecoded body — nothing to
+configure. `responseType: 'stream'` is refused: a stream can be read once and not
+synchronously, so neither `json()` nor `text()` could keep its promise.
+
 `responseBody` also settles the one body that is otherwise ambiguous. Axios's own
 transform turns a zero-byte response and the two bytes `""` — valid JSON meaning the
 empty string — into the same empty `data`, and nothing on the response tells the two
