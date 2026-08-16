@@ -4,7 +4,7 @@
 // `SubscriptionBundleModule.forRoot({ controller: {...} })`).
 
 import { ref, type Ref } from 'vue';
-import { markPlatformError } from '../client/admin-error.js';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type { SubscriptionBundleRecord } from '@saasicat/types';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
@@ -107,7 +107,9 @@ export function useTenantSubscriptionBundles(
             body: JSON.stringify(data),
         });
         if (!result) {
-            throw new TenantSubscriptionBundlesApiError(0, null, 'add returned no body');
+            throw markEmptyResponse(
+                new TenantSubscriptionBundlesApiError(0, null, 'add returned no body'),
+            );
         }
         const hydrated = rehydrateDates(result);
         bundles.value = [hydrated, ...bundles.value];
@@ -123,7 +125,9 @@ export function useTenantSubscriptionBundles(
             { method: 'DELETE', body: JSON.stringify(opts) },
         );
         if (!result) {
-            throw new TenantSubscriptionBundlesApiError(0, null, 'cancel returned no body');
+            throw markEmptyResponse(
+                new TenantSubscriptionBundlesApiError(0, null, 'cancel returned no body'),
+            );
         }
         const hydrated = rehydrateDates(result);
         bundles.value = bundles.value.map((b) => (b.id === subscriptionBundleId ? hydrated : b));

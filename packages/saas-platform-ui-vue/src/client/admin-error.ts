@@ -65,6 +65,50 @@ export function isPlatformError(value: unknown): boolean {
     return typeof value === 'object' && value !== null && PLATFORM_ERROR in value;
 }
 
+/**
+ * Brand for the throw sites where the request completed and only the body was
+ * missing.
+ *
+ * A second brand rather than an inference from the first, because the two
+ * answer different questions about different things. `PLATFORM_ERROR` is a
+ * fact about the *class* — is this `message` a diagnostic, or a consumer's
+ * words? Whether the server answered with an empty body is a fact about the
+ * *throw site*, and one class hosts both: `PlansApiError` is raised for
+ * `Plans API responded with HTTP 403` and for `Create returned no body`.
+ *
+ * Deriving the second from the first (`status === 0 && isPlatformError(err)`)
+ * looked equivalent and was not. `BootLoader.load`, `ManifestLoader` and
+ * `useDiscovery` pass a client-supplied status straight into a branded error
+ * behind a `status !== 200` guard, so an `HttpClient` that reports a transport
+ * failure as `status: 0` instead of rejecting — which XHR and axios do, and
+ * which `HttpClient` explicitly permits — produced a branded status-0 error
+ * for a read-only GET. `adminErrorMessage` then answered "check whether the
+ * change was applied" for a request that never left the machine and could not
+ * have changed anything.
+ *
+ * `Symbol.for` for the same reason as above: the package ships more than one
+ * bundle copy.
+ */
+const EMPTY_RESPONSE = Symbol.for('@saasicat/ui-vue/EmptyResponse');
+
+/**
+ * Marks an error as the empty-body sentinel: the call reached the server, the
+ * server answered, and the body the caller needed was not in it. Returns the
+ * error so a throw site stays one expression.
+ *
+ * Called at those throw sites only — never in a constructor, because the class
+ * is also raised for calls that failed outright.
+ */
+export function markEmptyResponse<E extends Error>(error: E): E {
+    Object.defineProperty(error, EMPTY_RESPONSE, { value: true });
+    return error;
+}
+
+/** Whether an error is that sentinel, across bundle copies. */
+export function isEmptyResponse(value: unknown): boolean {
+    return typeof value === 'object' && value !== null && EMPTY_RESPONSE in value;
+}
+
 export interface AdminErrorInit {
     /** HTTP status. `0` means the request never produced one. */
     status?: number;
@@ -247,11 +291,13 @@ export function toAdminError(err: unknown): AdminError {
             // "Bundles API responded with HTTP 403", a diagnostic. It stays on
             // `message`, where logs read it.
             detail: readErrorDetail(record.body) ?? (ours ? undefined : asString(record.message)),
-            // `status: 0` from one of ours is the empty-body sentinel — the
-            // call reached the server and only the answer was unusable. From
-            // anyone else it is a transport failure, and telling that operator
-            // the change might have landed would be the opposite of the truth.
-            emptyResponse: record.status === 0 && ours,
+            // Asked of the throw site, not of the class: only the site that
+            // read the response knows whether one arrived. `status === 0 &&
+            // ours` was the same question put to the wrong witness — the
+            // loaders raise branded errors from a status the client chose, so
+            // a client that resolves a transport failure as `0` turned a
+            // failed GET into "the change may have been applied".
+            emptyResponse: isEmptyResponse(err),
             message: asString(record.message),
             cause: err,
         });

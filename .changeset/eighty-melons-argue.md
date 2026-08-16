@@ -45,12 +45,32 @@ a string, so a validation rejection arriving through `getJson`/`postJson` lost
 its constraints and showed the generic fallback anyway. Review found it; a test
 now holds it.
 
-New i18n namespace `errors`, nine keys, one per branch `adminErrorMessage` can
-take — `network`, `unauthorized`, `forbidden`, `notFound`, `conflict`,
-`validation`, `rateLimited`, `server`, and a `{status}` template for everything
-else. Nothing here restates a key `common` already owns: those name an action
-("Failed to load"), these name a cause. German and English ship together, and
-`defineMessages` makes a missing English key a compile error.
+New i18n namespace `errors`, ten keys, one per branch `adminErrorMessage` can
+take — `network`, `emptyResponse`, `unauthorized`, `forbidden`, `notFound`,
+`conflict`, `validation`, `rateLimited`, `server`, and a `{status}` template for
+everything else. Nothing here restates a key `common` already owns: those name
+an action ("Failed to load"), these name a cause. German and English ship
+together, and `defineMessages` makes a missing English key a compile error.
+
+**Two of those keys describe the same absent status and must not be swapped.** A
+request that never left says `network` — check the connection. One the server
+accepted and answered without the body it owed says `emptyResponse` — check
+whether the change was applied, because it may well have been. Neither has an
+HTTP status to reason from, so the throw site declares which it is: a mutation
+that needs a body wraps its sentinel in `markEmptyResponse()`, and
+`toAdminError` reads it back through `isEmptyResponse()`. Both are exported,
+because a consumer whose own client can produce that case needs the same
+vocabulary.
+
+Deriving it instead from "one of ours, and `status: 0`" was tried and is wrong.
+That is a fact about the class, and one class hosts both kinds of throw site:
+`BootLoader`, `ManifestLoader` and `useDiscovery` raise their branded errors
+with whatever status the consumer's client reported, so an `HttpClient` that
+resolves a transport failure as `status: 0` — which XHR and axios do, and which
+the `HttpClient` contract permits — turned a failed read-only GET into "check
+whether the change was applied", for a request that could not have changed
+anything. A consumer's own status-0 error is unaffected either way: it never
+carried the brand.
 
 **`HttpJsonError` is now `AdminError`** — the same class object, not a subclass,
 so an existing `instanceof HttpJsonError` check keeps working and now also

@@ -4,7 +4,7 @@
 //   Pack 2a → usePlanVersions (draft/publish lifecycle)
 
 import { ref, type Ref } from 'vue';
-import { markPlatformError } from '../client/admin-error.js';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     CreatePlanData,
     CreatePlanVersionDraftData,
@@ -151,7 +151,8 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new PlansApiError(0, null, 'Create returned no body');
+        if (!created)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Create returned no body'));
         plans.value = [...plans.value, created];
         return created;
     }
@@ -161,7 +162,8 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new PlansApiError(0, null, 'Update returned no body');
+        if (!updated)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Update returned no body'));
         plans.value = plans.value.map((p) => (p.id === planId ? updated : p));
         return updated;
     }
@@ -309,7 +311,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!result) throw new PlansApiError(0, null, 'CreateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new PlansApiError(0, null, 'CreateDraft returned no body'));
         versions.value = [...versions.value, result.planVersion];
         return result;
     }
@@ -322,7 +325,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!result) throw new PlansApiError(0, null, 'UpdateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new PlansApiError(0, null, 'UpdateDraft returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? result.planVersion : v));
         return result;
     }
@@ -340,7 +344,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}/publish`,
             { method: 'POST', body: JSON.stringify(opts) },
         );
-        if (!result) throw new PlansApiError(0, null, 'Publish returned no body');
+        if (!result)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Publish returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? result.planVersion : v));
         return result;
     }
@@ -355,7 +360,8 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
             `${versionUrlBase}/${versionId}/terminate`,
             { method: 'POST', body: JSON.stringify({ endsAt }) },
         );
-        if (!updated) throw new PlansApiError(0, null, 'Terminate returned no body');
+        if (!updated)
+            throw markEmptyResponse(new PlansApiError(0, null, 'Terminate returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? updated : v));
         return updated;
     }

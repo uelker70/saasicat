@@ -7,7 +7,7 @@
 // the catalog paths themselves — the consumer supplies only the admin prefix.
 
 import { ref, type Ref } from 'vue';
-import { markPlatformError } from '../client/admin-error.js';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     BundleRow,
     BundleVersionMutationResult,
@@ -121,7 +121,8 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new BundlesApiError(0, null, 'Create returned no body');
+        if (!created)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'Create returned no body'));
         bundles.value = [...bundles.value, created];
         return created;
     }
@@ -131,7 +132,8 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new BundlesApiError(0, null, 'Update returned no body');
+        if (!updated)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'Update returned no body'));
         bundles.value = bundles.value.map((b) => (b.id === bundleId ? updated : b));
         return updated;
     }
@@ -250,7 +252,8 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!result) throw new BundlesApiError(0, null, 'CreateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'CreateDraft returned no body'));
         versions.value = [...versions.value, result.bundleVersion];
         return result;
     }
@@ -263,7 +266,8 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             `${versionUrlBase}/${versionId}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!result) throw new BundlesApiError(0, null, 'UpdateDraft returned no body');
+        if (!result)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'UpdateDraft returned no body'));
         versions.value = versions.value.map((v) => (v.id === versionId ? result.bundleVersion : v));
         return result;
     }
@@ -281,7 +285,8 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
             `${versionUrlBase}/${versionId}/publish`,
             { method: 'POST', body: JSON.stringify(opts) },
         );
-        if (!result) throw new BundlesApiError(0, null, 'Publish returned no body');
+        if (!result)
+            throw markEmptyResponse(new BundlesApiError(0, null, 'Publish returned no body'));
         // Reload versions, because publishing may mark another version as
         // superseded — the local cache would otherwise be inconsistent.
         await load();

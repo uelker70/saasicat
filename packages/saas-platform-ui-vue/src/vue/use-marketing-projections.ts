@@ -7,7 +7,7 @@
 // low-frequency and consistency matters more than performance.
 
 import { ref, type Ref } from 'vue';
-import { markPlatformError } from '../client/admin-error.js';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     CreateMarketingProjectionData,
     MarketingProjectionFilter,
@@ -131,7 +131,9 @@ export function useMarketingProjections(
             body: JSON.stringify(data),
         });
         if (!created) {
-            throw new MarketingProjectionsApiError(0, null, 'Create returned no body');
+            throw markEmptyResponse(
+                new MarketingProjectionsApiError(0, null, 'Create returned no body'),
+            );
         }
         // After create: reload the list (a unique tuple insert can
         // affect the filter).
@@ -148,7 +150,9 @@ export function useMarketingProjections(
             body: JSON.stringify(data),
         });
         if (!updated) {
-            throw new MarketingProjectionsApiError(0, null, 'Update returned no body');
+            throw markEmptyResponse(
+                new MarketingProjectionsApiError(0, null, 'Update returned no body'),
+            );
         }
         projections.value = projections.value.map((p) => (p.id === id ? updated : p));
         return updated;

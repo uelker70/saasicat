@@ -9,7 +9,7 @@
 // (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
-import { markPlatformError } from '../client/admin-error.js';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type {
     CapabilityCatalogEntryRow,
     CatalogEntryI18n,
@@ -148,7 +148,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}/review?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Review returned no body'));
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -161,7 +162,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}/review?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Review returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Review returned no body'));
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -174,7 +176,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}/i18n?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'i18n returned no body'));
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -187,7 +190,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}/i18n?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify({ i18n }) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'i18n returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'i18n returned no body'));
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -200,7 +204,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/features/${encodeURIComponent(featureKey)}?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Base returned no body'));
         features.value = features.value.map((f) => (f.featureKey === featureKey ? updated : f));
         return updated;
     }
@@ -213,7 +218,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             `${base}/quotas/${encodeURIComponent(quotaKey)}?projectKey=${pk}`,
             { method: 'PATCH', body: JSON.stringify(data) },
         );
-        if (!updated) throw new CatalogEntriesApiError(0, null, 'Base returned no body');
+        if (!updated)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Base returned no body'));
         quotas.value = quotas.value.map((q) => (q.quotaKey === quotaKey ? updated : q));
         return updated;
     }
@@ -223,7 +229,8 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
             method: 'POST',
             body: JSON.stringify({ snapshot }),
         });
-        if (!result) throw new CatalogEntriesApiError(0, null, 'Sync returned no body');
+        if (!result)
+            throw markEmptyResponse(new CatalogEntriesApiError(0, null, 'Sync returned no body'));
         await load();
         return result;
     }

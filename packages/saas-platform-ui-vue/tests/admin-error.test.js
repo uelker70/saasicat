@@ -7,20 +7,27 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createApp } from 'vue';
 
 import {
     AdminError,
+    BootLoader,
     BundlesApiError,
     PlansApiError,
     DEFAULT_SA_LOCALE,
     HttpJsonError,
     ManifestLoadError,
+    ManifestLoader,
     SA_MESSAGES,
     adminErrorMessage,
     getJson,
     isAdminError,
+    isEmptyResponse,
+    markEmptyResponse,
     postJson,
     toAdminError,
+    useDiscovery,
+    useTenantSubscriptionBundles,
 } from '../dist/index.js';
 
 const EN = SA_MESSAGES.en.errors;
@@ -92,6 +99,26 @@ describe('isAdminError', () => {
     });
 });
 
+describe('isEmptyResponse', () => {
+    test('recognises what a throw site marked, and nothing else', () => {
+        // A predicate over whatever was caught, so it has to survive the
+        // values a `catch` really produces — a thrown string, a thrown
+        // nothing — not just the errors this package raises.
+        assert.equal(isEmptyResponse(markEmptyResponse(new Error('no body'))), true);
+        assert.equal(isEmptyResponse(new PlansApiError(0, null, 'Plans API responded')), false);
+        assert.equal(isEmptyResponse(new Error('plain')), false);
+        assert.equal(isEmptyResponse({ status: 0, emptyResponse: true }), false);
+        assert.equal(isEmptyResponse(null), false);
+        assert.equal(isEmptyResponse(undefined), false);
+        assert.equal(isEmptyResponse('boom'), false);
+    });
+
+    test('the marker is not enumerable, so it does not leak into a log line', () => {
+        const err = markEmptyResponse(new PlansApiError(0, null, 'Create returned no body'));
+        assert.deepEqual(Object.keys(err), Object.keys(new PlansApiError(0, null, 'x')));
+    });
+});
+
 describe('toAdminError', () => {
     test('passes an AdminError through untouched', () => {
         const err = new AdminError({ status: 404 });
@@ -152,12 +179,17 @@ describe('toAdminError', () => {
     });
 
     test('an answer that was empty is not a connection problem', () => {
-        // `PlansApiError(0, null, 'Create returned no body')` reaches the
-        // server and gets a 2xx — only the body is missing. Both cases have no
-        // HTTP status to report, so both were `status: 0` and both were told
-        // to check the connection. They need opposite words: this one may
-        // already have happened.
-        const err = toAdminError(new PlansApiError(0, null, 'Create returned no body'));
+        // The sentinel a mutation throws when a 2xx carried no body. Both
+        // cases have no HTTP status to report, so both were `status: 0` and
+        // both were told to check the connection. They need opposite words:
+        // this one may already have happened.
+        //
+        // `markEmptyResponse` is how the throw site says which it is — see
+        // the suite at the bottom of this file for the same case driven
+        // through the composable that really raises it.
+        const err = toAdminError(
+            markEmptyResponse(new PlansApiError(0, null, 'Create returned no body')),
+        );
         assert.equal(err.emptyResponse, true);
         assert.equal(adminErrorMessage(err, EN), EN.emptyResponse);
         assert.notEqual(EN.emptyResponse, EN.network);
@@ -271,6 +303,99 @@ describe('toAdminError and consumer errors', () => {
         }
         const err = toAdminError(new MyApiError('Network Error'));
         assert.equal(err.emptyResponse, false);
+    });
+});
+
+describe('emptyResponse is read off the throw site, not off the class', () => {
+    // The cases below run the real throw sites rather than hand-built errors,
+    // because the defect they cover was invisible to a hand-built one: every
+    // fixture that asserted "status 0 is not an empty response" used an error
+    // this package had not raised, and the branded classes were only ever
+    // constructed at their sentinel sites. A class raised at both kinds of
+    // site is exactly the state no fixture rendered.
+
+    /**
+     * An `HttpClient` that reports a transport failure by RESOLVING with
+     * `status: 0` instead of rejecting. `HttpClient` is a bare function type
+     * whose doc invites an axios wrapper, and that is what XHR and axios do —
+     * `status === 0` for a network error, a CORS rejection or an abort.
+     */
+    const resolvesZero = () =>
+        Promise.resolve({
+            status: 0,
+            headers: { get: () => null },
+            json: async () => null,
+            text: async () => '',
+        });
+
+    test('a mutation the server answered without a body is an empty response', async () => {
+        // 204 to a POST that has to return the created row: the call reached
+        // the server, the server accepted it, and the row is missing. The
+        // change may well have been applied — that is what the wording says.
+        const { add } = useTenantSubscriptionBundles({
+            billingEndpoint: '/api/v1',
+            http: httpReturning({ status: 204 }).http,
+        });
+        const err = await add({ bundleVersionId: 'bv-1' }).then(
+            () => null,
+            (e) => e,
+        );
+        assert.ok(err, 'add() must reject when the body is missing');
+        assert.equal(toAdminError(err).emptyResponse, true);
+        assert.equal(adminErrorMessage(err, EN), EN.emptyResponse);
+    });
+
+    test('a boot GET a client resolved as status 0 never reached the server', async () => {
+        // `BootLoader.load()` is a read-only GET behind `status !== 200`, so
+        // the zero goes straight into a branded error. Inferring the sentinel
+        // from `status === 0 && isPlatformError(err)` told the operator of a
+        // pre-login boot failure to go check whether a change had been
+        // applied — for a request that never left the machine, on a screen
+        // that changes nothing.
+        const err = await new BootLoader({ endpoint: '/api/admin/boot', http: resolvesZero })
+            .load()
+            .then(
+                () => null,
+                (e) => e,
+            );
+        assert.ok(err instanceof Error);
+        assert.equal(err.status, 0);
+        assert.equal(toAdminError(err).emptyResponse, false);
+        assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
+    test('a manifest GET a client resolved as status 0 never reached the server', async () => {
+        // `ManifestLoader.acceptFresh` has the same `status !== 200` shape.
+        const err = await new ManifestLoader({
+            endpoint: '/api/admin/manifest',
+            http: resolvesZero,
+            storage: { get: () => null, set: () => {}, remove: () => {} },
+        })
+            .load()
+            .then(
+                () => null,
+                (e) => e,
+            );
+        assert.ok(err instanceof Error);
+        assert.equal(toAdminError(err).emptyResponse, false);
+        assert.equal(adminErrorMessage(err, EN), EN.network);
+    });
+
+    test('a discovery load a client resolved as status 0 never reached the server', async () => {
+        // `useDiscovery` captures the error into a ref instead of rejecting,
+        // and that ref is what a page renders — so this is the shape a
+        // consumer actually hands to `adminErrorMessage`. `runWithContext`
+        // gives its `inject()` an app to resolve against, the way a mount
+        // would; without one Vue warns and the catalog silently falls back.
+        const discovery = createApp({}).runWithContext(() =>
+            useDiscovery({ endpoint: '/api/admin/discovery', http: resolvesZero }),
+        );
+        await discovery.load();
+        const err = discovery.error.value;
+        assert.ok(err instanceof Error);
+        assert.equal(err.status, 0);
+        assert.equal(toAdminError(err).emptyResponse, false);
+        assert.equal(adminErrorMessage(err, FALLBACK_ERRORS), FALLBACK_ERRORS.network);
     });
 });
 

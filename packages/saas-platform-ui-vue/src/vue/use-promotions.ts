@@ -5,7 +5,7 @@
 // (e.g. `/api/admin` or `/api/v1/admin`).
 
 import { ref, type Ref } from 'vue';
-import { markPlatformError } from '../client/admin-error.js';
+import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
 import type { CreatePromotionData, PromotionRow, UpdatePromotionData } from '@saasicat/types';
 import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
@@ -101,7 +101,8 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
             method: 'POST',
             body: JSON.stringify(data),
         });
-        if (!created) throw new PromotionsApiError(0, null, 'Create returned no body');
+        if (!created)
+            throw markEmptyResponse(new PromotionsApiError(0, null, 'Create returned no body'));
         promotions.value = [...promotions.value, created];
         return created;
     }
@@ -111,7 +112,8 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
             method: 'PATCH',
             body: JSON.stringify(data),
         });
-        if (!updated) throw new PromotionsApiError(0, null, 'Update returned no body');
+        if (!updated)
+            throw markEmptyResponse(new PromotionsApiError(0, null, 'Update returned no body'));
         promotions.value = promotions.value.map((p) => (p.id === id ? updated : p));
         return updated;
     }

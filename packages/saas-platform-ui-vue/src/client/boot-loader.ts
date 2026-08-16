@@ -57,7 +57,7 @@ export class BootLoader {
     async load(): Promise<PublicBootResponse> {
         const res = await this.http(this.endpoint);
         if (res.status !== 200) {
-            throw new BootLoadError(res.status, `Boot-Endpunkt antwortete HTTP ${res.status}`);
+            throw new BootLoadError(res.status, `Boot endpoint responded with HTTP ${res.status}`);
         }
         return (await res.json()) as PublicBootResponse;
     }
