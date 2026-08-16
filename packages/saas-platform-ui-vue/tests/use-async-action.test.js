@@ -241,6 +241,34 @@ describe('useAsyncAction — overlapping invocations', () => {
     });
 });
 
+describe('useAsyncAction — a stale failure does not outlive a newer success', () => {
+    test('the older call failing last leaves no error behind', async () => {
+        const gates = [deferred(), deferred()];
+        let call = 0;
+        const action = useAsyncAction(() => gates[call++].promise);
+
+        const first = action.run();
+        const second = action.run();
+        // The newer one succeeds, then the older one fails.
+        gates[1].resolve('fresh');
+        await second;
+        gates[0].reject(new Error('abandoned'));
+        await first;
+
+        assert.equal(action.error.value, null);
+        assert.equal(action.pending.value, false);
+    });
+
+    test('but a failure from the newest call is still recorded', async () => {
+        const action = useAsyncAction(async () => {
+            throw new Error('real');
+        });
+        const result = await action.run();
+        assert.equal(result.ok, false);
+        assert.equal(action.error.value.detail, 'real');
+    });
+});
+
 describe('useAsyncAction — the success continuation', () => {
     test('a failing continuation fails the action, and says so only once', async () => {
         // Announcing success before the continuation produced both toasts:

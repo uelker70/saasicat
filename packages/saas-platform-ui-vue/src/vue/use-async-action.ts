@@ -88,8 +88,16 @@ export function useAsyncAction<A extends unknown[], T>(
     // mutation it belongs to is still running — which is how a double submit
     // happens.
     let inFlight = 0;
+    // Which invocation the visible state belongs to. `error` is cleared at the
+    // start of every run, so without this an older call failing after a newer
+    // one started would write its failure into a state the newer call had
+    // already reset — and the newer success, which only clears at ITS start,
+    // never removed it. The operator was left looking at an error for an
+    // operation that had succeeded.
+    let generation = 0;
 
     async function run(...args: A): Promise<AsyncActionResult<T>> {
+        const mine = ++generation;
         inFlight++;
         pending.value = true;
         error.value = null;
@@ -110,7 +118,7 @@ export function useAsyncAction<A extends unknown[], T>(
             return { ok: true, value: result };
         } catch (err: unknown) {
             const adminError = toAdminError(err);
-            error.value = adminError;
+            if (mine === generation) error.value = adminError;
             if (notifyOn !== 'none') {
                 notify?.(
                     'negative',
