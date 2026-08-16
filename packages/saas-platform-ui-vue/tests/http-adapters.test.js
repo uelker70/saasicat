@@ -202,6 +202,18 @@ describe('createAxiosHttpClient', () => {
         assert.equal(calls[0].url, '/admin/boot');
     });
 
+    test('a query ends the path, so the prefix is still the prefix', async () => {
+        const { instance, calls } = stubAxios();
+        await createAxiosHttpClient(instance, { stripPrefix: '/api/v1' })('/api/v1?tenant=acme');
+        assert.equal(calls[0].url, '/?tenant=acme');
+    });
+
+    test('a fragment ends it too', async () => {
+        const { instance, calls } = stubAxios();
+        await createAxiosHttpClient(instance, { stripPrefix: '/api/v1' })('/api/v1#top');
+        assert.equal(calls[0].url, '/#top');
+    });
+
     test('leaves a URL that does not start with the prefix alone', async () => {
         const { instance, calls } = stubAxios();
         await createAxiosHttpClient(instance, { stripPrefix: '/api/v1' })('/api/v10/x');
