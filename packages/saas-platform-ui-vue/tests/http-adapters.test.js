@@ -7,6 +7,9 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
+
+import axios from 'axios';
 
 import { createAxiosHttpClient, createFetchHttpClient, defaultHttpClient } from '../dist/index.js';
 
@@ -21,15 +24,34 @@ function stubFetch({ status = 200, body = '{}', headers = {} } = {}) {
     return { calls, restore: () => (globalThis.fetch = original) };
 }
 
-/** Minimal stand-in for an axios instance. */
-function stubAxios({ status = 200, data = {}, headers = {} } = {}) {
+/** What a default axios instance echoes back: its one default transform ran. */
+const DECODING_CONFIG = {
+    transformResponse: [
+        function transformResponse(d) {
+            return d;
+        },
+    ],
+};
+/** What `axios.create({ transformResponse: [] })` echoes: nothing ran. */
+const RAW_CONFIG = { transformResponse: [] };
+
+/**
+ * Minimal stand-in for an axios instance.
+ *
+ * `config` is not decoration. axios echoes the merged request config on every
+ * response, and `json()` reads it to tell a body axios already decoded from one
+ * it handed over as text. A fixture that left it out could not tell those apart
+ * either — which is why `JSON.parse` ran over values axios had already decoded
+ * and went unnoticed for as long as it did.
+ */
+function stubAxios({ status = 200, data = {}, headers = {}, config = DECODING_CONFIG } = {}) {
     const calls = [];
     return {
         calls,
         instance: {
-            async request(config) {
-                calls.push(config);
-                return { status, data, headers };
+            async request(requestConfig) {
+                calls.push(requestConfig);
+                return { status, data, headers, config };
             },
         },
     };
@@ -277,15 +299,95 @@ describe('createAxiosHttpClient', () => {
     });
 
     test('json() parses a raw string, for an instance with transformResponse disabled', async () => {
-        const { instance } = stubAxios({ data: '{"slug":"acme"}' });
+        const { instance } = stubAxios({ data: '{"slug":"acme"}', config: RAW_CONFIG });
         const res = await createAxiosHttpClient(instance)('/x');
         assert.deepEqual(await res.json(), { slug: 'acme' });
     });
 
-    test('json() throws on a body that is not JSON, exactly as Response.json() does', async () => {
-        const { instance } = stubAxios({ status: 502, data: '<html>Bad Gateway</html>' });
+    test('every way of turning axios’s own decoding off is read as text', async () => {
+        // Three of them, and each is a separate axis. Listing the two that
+        // came to mind is how the third would have been missed.
+        const off = [
+            { responseType: 'text' },
+            { responseType: 'stream' },
+            { transitional: { forcedJSONParsing: false } },
+        ];
+        for (const extra of off) {
+            const { instance } = stubAxios({
+                data: '{"slug":"acme"}',
+                config: { ...DECODING_CONFIG, ...extra },
+            });
+            const res = await createAxiosHttpClient(instance)('/x');
+            assert.deepEqual(await res.json(), { slug: 'acme' }, JSON.stringify(extra));
+        }
+    });
+
+    test('responseType json is the one that still means decoded', async () => {
+        const { instance } = stubAxios({
+            data: 'ready',
+            config: { ...DECODING_CONFIG, responseType: 'json' },
+        });
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(await res.json(), 'ready');
+    });
+
+    test('json() does not decode a second time what axios already decoded', async () => {
+        // The defect this pins: a body of `"ready"` reaches a normal instance
+        // as the string `ready`, and `JSON.parse('ready')` throws.
+        const { instance } = stubAxios({ data: 'ready' });
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(await res.json(), 'ready');
+    });
+
+    test('a decoded string that reads as JSON keeps its meaning', async () => {
+        // The quiet half of the same defect: `JSON.parse('null')` succeeds and
+        // turns the string `null` into the value `null`.
+        const { instance } = stubAxios({ data: 'null' });
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(await res.json(), 'null');
+    });
+
+    test('json() throws on a raw body that is not JSON, exactly as Response.json() does', async () => {
+        const { instance } = stubAxios({
+            status: 502,
+            data: '<html>Bad Gateway</html>',
+            config: RAW_CONFIG,
+        });
         const res = await createAxiosHttpClient(instance)('/x');
         await assert.rejects(res.json(), SyntaxError);
+    });
+
+    test('a body a decoding instance could not parse is the string it kept', async () => {
+        // axios's default transform swallows its own SyntaxError and hands the
+        // body back unchanged, so this string and a decoded `"ready"` are the
+        // same value. `readErrorBody` in `http-json.ts` takes either.
+        const { instance } = stubAxios({ status: 502, data: '<html>Bad Gateway</html>' });
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(await res.json(), '<html>Bad Gateway</html>');
+    });
+
+    test('an empty body throws whatever the instance decodes', async () => {
+        // Nothing decoded an empty body in either mode — axios's transform
+        // skips a falsy one — so both readings agree, and `Response.json()`
+        // throws here as well.
+        for (const config of [DECODING_CONFIG, RAW_CONFIG]) {
+            const { instance } = stubAxios({ status: 200, data: '', config });
+            const res = await createAxiosHttpClient(instance)('/x');
+            await assert.rejects(res.json(), SyntaxError);
+        }
+    });
+
+    test('a response carrying no config is read as already decoded', async () => {
+        // Real axios always attaches one, so only a stand-in can omit it.
+        // Reading it as decoded fails loudly if that is wrong, rather than
+        // silently changing what a scalar means.
+        const instance = {
+            async request() {
+                return { status: 200, data: 'ready', headers: {} };
+            },
+        };
+        const res = await createAxiosHttpClient(instance)('/x');
+        assert.equal(await res.json(), 'ready');
     });
 
     test('text() gives a string either way', async () => {
@@ -403,5 +505,124 @@ describe('the adapters satisfy what the platform loaders expect', () => {
         } finally {
             restore();
         }
+    });
+});
+
+// Everything above stands in for axios. Nothing here does: these run a real
+// instance against a real server, because the one thing a stand-in cannot
+// reproduce is the transform axios itself applies — and that transform is what
+// decides whether `response.data` is a value or the bytes that carried it.
+
+/** Status, content type and the exact bytes to write, per path. */
+const SERVED = {
+    '/object': [200, 'application/json', '{"slug":"acme"}'],
+    '/array': [200, 'application/json', '[{"a":1}]'],
+    '/scalar': [200, 'application/json', '"ready"'],
+    '/null': [200, 'application/json', 'null'],
+    '/string-null': [200, 'application/json', '"null"'],
+    '/number': [200, 'application/json', '42'],
+    '/boolean': [200, 'application/json', 'true'],
+    '/empty': [200, 'application/json', ''],
+    '/html': [502, 'text/html', '<html>Bad Gateway</html>'],
+    '/forbidden': [403, 'application/json', '{"code":"FORBIDDEN"}'],
+};
+
+/** What each of those bodies means, whoever decodes it. */
+const MEANS = {
+    '/object': { slug: 'acme' },
+    '/array': [{ a: 1 }],
+    '/scalar': 'ready',
+    '/null': null,
+    '/string-null': 'null',
+    '/number': 42,
+    '/boolean': true,
+};
+
+/** Instance configurations a consumer can plausibly hand the adapter. */
+const INSTANCES = [
+    ['default', {}],
+    ['responseType json', { responseType: 'json' }],
+    ['responseType text', { responseType: 'text' }],
+    ['transformResponse []', { transformResponse: [] }],
+    ['forcedJSONParsing false', { transitional: { forcedJSONParsing: false } }],
+];
+
+/** The first two decode the body; the rest hand it over as text. */
+const DECODING = INSTANCES.slice(0, 2);
+const RAW = INSTANCES.slice(2);
+
+async function withServer(run) {
+    const server = http.createServer((req, res) => {
+        const [status, type, body] = SERVED[req.url.split(/[?#]/)[0]] ?? [
+            404,
+            'application/json',
+            '{"code":"NOT_FOUND"}',
+        ];
+        res.writeHead(status, { 'content-type': type, etag: 'W/"abc"' });
+        res.end(body);
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+        await run(`http://127.0.0.1:${server.address().port}`);
+    } finally {
+        server.close();
+    }
+}
+
+describe('createAxiosHttpClient — against a real axios instance', () => {
+    test('json() yields what was on the wire, however the instance is configured', async () => {
+        await withServer(async (base) => {
+            for (const [label, config] of INSTANCES) {
+                const client = createAxiosHttpClient(axios.create(config));
+                for (const [path, expected] of Object.entries(MEANS)) {
+                    const res = await client(base + path);
+                    assert.deepEqual(await res.json(), expected, `${label} ${path}`);
+                }
+            }
+        });
+    });
+
+    test('an empty body throws, whichever instance asked for it', async () => {
+        await withServer(async (base) => {
+            for (const [label, config] of INSTANCES) {
+                const res = await createAxiosHttpClient(axios.create(config))(`${base}/empty`);
+                await assert.rejects(res.json(), SyntaxError, label);
+            }
+        });
+    });
+
+    test('a body no one could decode is the text it was, where axios kept it', async () => {
+        await withServer(async (base) => {
+            for (const [label, config] of DECODING) {
+                const res = await createAxiosHttpClient(axios.create(config))(`${base}/html`);
+                assert.equal(await res.json(), '<html>Bad Gateway</html>', label);
+            }
+            for (const [label, config] of RAW) {
+                const res = await createAxiosHttpClient(axios.create(config))(`${base}/html`);
+                await assert.rejects(res.json(), SyntaxError, label);
+            }
+        });
+    });
+
+    test('a rejected status arrives as a response with its body readable', async () => {
+        // The rejection path reads the same signal: axios attaches the merged
+        // config to `err.response` too, so a raw instance parses here as well.
+        await withServer(async (base) => {
+            for (const [label, config] of INSTANCES) {
+                const res = await createAxiosHttpClient(axios.create(config))(`${base}/forbidden`);
+                assert.equal(res.status, 403, label);
+                assert.deepEqual(await res.json(), { code: 'FORBIDDEN' }, label);
+            }
+        });
+    });
+
+    test('the prefix an instance carries as its baseURL is stripped back off', async () => {
+        await withServer(async (base) => {
+            const instance = axios.create({ baseURL: `${base}/` });
+            const client = createAxiosHttpClient(instance, { stripPrefix: '/api/v1/' });
+            const res = await client('/api/v1/object');
+            assert.equal(res.status, 200);
+            assert.deepEqual(await res.json(), { slug: 'acme' });
+        });
     });
 });
