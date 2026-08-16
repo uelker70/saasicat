@@ -59,9 +59,10 @@ export interface AxiosLike {
  * non-empty pipeline of its own.
  *
  * - `'auto'` — read it off the config axios echoes on the response. Correct for
- *   an instance that still runs axios's own transform, including all three ways
- *   of switching its parsing off (`responseType: 'text'`,
- *   `transformResponse: []`, `transitional: { forcedJSONParsing: false }`).
+ *   an instance that still runs axios's own transform, and for every way of
+ *   switching that transform's parsing off: `responseType: 'text'`,
+ *   `transitional: { forcedJSONParsing: false }`, and a `transformResponse`
+ *   that runs nothing (`[]` or `null`).
  * - `'raw'` — `data` is the body as it arrived, and `json()` parses it.
  * - `'decoded'` — `data` is a value the pipeline already produced, and `json()`
  *   hands it over untouched.
@@ -87,6 +88,11 @@ export interface AxiosHttpClientOptions {
      * (`[(data) => data]`), `'decoded'` if it parses. The response cannot be
      * read for the answer — both echo one opaque function — so `'auto'` would
      * take your pipeline for axios's; see `bodyIsRaw`.
+     *
+     * The declaration is read before anything else, an empty `data` included:
+     * under `'decoded'` an empty `data` is the empty string the pipeline
+     * produced, and `json()` hands it over; under `'raw'` it is an empty body,
+     * and `json()` throws the way `Response.json()` does.
      */
     responseBody?: AxiosResponseBody;
 }
@@ -148,10 +154,12 @@ function headerReader(headers: unknown): (name: string) => string | null {
  * worse, silently turns the string `"null"` into `null`.
  *
  * `'auto'` reads the answer off the merged config axios echoes on every
- * response, including the one carried by a rejection. Two readings, in order:
- * `transformResponse: []` is an empty pipeline and therefore proof that nothing
- * touched the body; otherwise the condition axios's own default transform
- * parses under, negated, off `responseType` and `transitional`.
+ * response, including the one carried by a rejection. Two readings, in order: a
+ * `transformResponse` axios's own iteration would run nothing for is proof that
+ * nothing touched the body; otherwise the condition axios's own default
+ * transform parses under, negated, off `responseType` and `transitional`. An
+ * empty `data` is answered before either of them, and the comment on that line
+ * says what it costs.
  *
  * **The second reading is an assumption, not a measurement**: it holds while
  * axios's default transform is the one that ran. `config.transformResponse` is
@@ -168,7 +176,9 @@ function headerReader(headers: unknown): (name: string) => string | null {
  * the first, guessing "non-empty means raw" for the second.
  *
  * So an instance that replaced `transformResponse` says which it is, through
- * the `responseBody` option, and `'auto'` covers everyone who did not.
+ * the `responseBody` option, and `'auto'` covers everyone who did not. The
+ * declaration is read first, because a reading that overrode it would leave the
+ * tie it exists to break unbroken.
  *
  * A response carrying no config at all is read as decoded: real axios always
  * attaches one, so only a stand-in can omit it, and reading a stand-in as
@@ -176,15 +186,34 @@ function headerReader(headers: unknown): (name: string) => string | null {
  * silently changing what a scalar means.
  */
 function bodyIsRaw(response: AxiosLikeResponse, declared: AxiosResponseBody): boolean {
-    // No body is raw under every reading, declared ones included: a transform
-    // that returned `''` returned the body, and axios's own skips a falsy body
-    // rather than decoding it. Parsing it throws, which is what
-    // `Response.json()` does with an empty body.
-    if (response.data === '') return true;
-
+    // The declaration answers for every body, the empty one included. Under
+    // `'decoded'` `data` is the value the pipeline produced and `''` is the
+    // empty string; under `'raw'` `data` is the body and an empty one is what
+    // `Response.json()` throws on.
     if (declared !== 'auto') return declared === 'raw';
 
+    // Under `'auto'` an empty `data` is read as no body, and `json()` therefore
+    // throws as `Response.json()` does. For an instance that hands the body
+    // over that reading is exact — nothing shortens a body to nothing. For one
+    // that decodes it is a collision the response cannot resolve: axios's
+    // transform turns a zero-byte body and the two bytes `""` into the same
+    // `''`, and `""` is valid JSON meaning the empty string. That is the same
+    // undecidability the docstring above owns, so it has the same way out —
+    // `responseBody: 'decoded'`, which is why it is read one line further up.
+    if (response.data === '') return true;
+
+    // `config.transformResponse` is not a description of the decoding, but it
+    // is the collection axios handed to its own `forEach`, and two of the
+    // shapes that accepts run nothing at all: the empty array, and `null`
+    // (`forEach` returns immediately for a nullish collection). Either is
+    // therefore proof that the body was not touched.
+    //
+    // `=== null` and not `== null`: an *absent* `transformResponse` reads as
+    // `undefined` too, and absence is not a statement about decoding — it is
+    // what a structural stand-in produces, which the readings below already
+    // answer for. Only a config that spells the property out has said anything.
     const config = response.config;
+    if (config?.transformResponse === null) return true;
     if (Array.isArray(config?.transformResponse) && config.transformResponse.length === 0) {
         return true;
     }
@@ -194,9 +223,9 @@ function bodyIsRaw(response: AxiosLikeResponse, declared: AxiosResponseBody): bo
     //
     //     (forcedJSONParsing && !responseType) || responseType === 'json'
     //
-    // Written from that condition rather than from the cases it produces,
-    // because there are three ways to turn the parsing off and reading them
-    // as a list is how the third one gets forgotten.
+    // Written from that condition rather than from the cases it produces:
+    // several settings turn the parsing off, and keeping a list of them is how
+    // one of them gets forgotten.
     const responseType = config?.responseType;
     if (responseType === 'json') return false;
     if (typeof responseType === 'string' && responseType !== '') return true;

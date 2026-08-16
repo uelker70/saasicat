@@ -74,8 +74,13 @@ Three details the copies got wrong, fixed here once:
   the two it is off the config axios echoes on the response, so `res.json()`
   yields the value that was on the wire for every instance that still runs
   axios's own response transform — the default, `responseType: 'json'`,
-  `responseType: 'text'`, `transformResponse: []` and
-  `transitional: { forcedJSONParsing: false }` alike.
+  `responseType: 'text'`, `transformResponse: []`, `transformResponse: null` and
+  `transitional: { forcedJSONParsing: false }` alike. The last two are read from
+  the same fact rather than listed: `transformResponse` is the collection axios
+  hands to its own `forEach`, and `forEach` runs nothing for an empty array and
+  nothing for a nullish collection, so either is proof the body was not touched.
+  An **absent** `transformResponse` is not — that is a structural stand-in that
+  never spoke, and it keeps being read as decoded.
 
     That reading stops where the transform does. An instance carrying its own
     non-empty `transformResponse` echoes the same config a stock instance
@@ -87,6 +92,16 @@ Three details the copies got wrong, fixed here once:
     when the pipeline hands the body over as it arrived, `'decoded'` when it
     parses, `'auto'` (the default) to read the response, which is what everyone
     who left `transformResponse` alone wants and has to configure nothing for.
+
+    **The declaration is read before the body is looked at**, and that ordering
+    is the whole point of having one. There is a second undecidable case hiding
+    in the empty body: axios's transform leaves the same empty `data` behind for
+    a zero-byte response and for the two bytes `""`, which are valid JSON meaning
+    the empty string. Under `'auto'` the adapter reads an empty `data` as no body
+    and `json()` throws, as `Response.json()` does — the honest answer when the
+    two cannot be told apart. Under `'decoded'` the consumer has said `data` is
+    the value, so `''` is the empty string and is handed over; under `'raw'` it
+    is an empty body and still throws.
 
     The adapter does not force the transform off to make the answer knowable.
     That would work, and it would hand the consumer's own response interceptors
