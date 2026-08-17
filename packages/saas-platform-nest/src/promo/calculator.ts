@@ -67,15 +67,76 @@ export function addCycles(date: Date, cycle: BillingCycle, n: number): Date {
     return r;
 }
 
+/** Number locale and currency for {@link buildLabel}. */
+export interface PromoLabelOptions {
+    /**
+     * BCP-47 tag deciding grouping, decimal separator, and where the currency
+     * symbol sits: `'de-DE'` produces `1.234,56 €`, `'en-US'` produces
+     * `€1,234.56`. An invalid tag makes `Intl` throw — a wrong tag is a
+     * configuration error, not something to silently fall back from.
+     */
+    locale?: string;
+    /**
+     * ISO-4217 code for `ABSOLUTE` values, e.g. `'EUR'`, `'CHF'`, `'JPY'`.
+     * The code also decides the number of decimals — two for EUR, none for
+     * JPY — because the minor-unit count is a property of the currency, not a
+     * formatting preference. Percentages ignore this.
+     */
+    currency?: string;
+}
+
+/**
+ * The words below are English; the numbers used to be German, unconditionally.
+ * These defaults keep that output byte for byte, so a consumer that never
+ * chose a locale does not see its checkout text move. They are legacy, not a
+ * recommendation: pass the locale and currency your audience reads in.
+ */
+const LEGACY_LABEL_LOCALE = 'de-DE';
+const LEGACY_LABEL_CURRENCY = 'EUR';
+
+/**
+ * ICU spaces a number from its unit — and in some locales its thousands from
+ * each other — with a non-breaking space (U+00A0), and since ICU 72 with a
+ * narrow one (U+202F) in a growing set of locales. Every such space in the
+ * formatted number is folded to a plain one: the label goes over the wire and
+ * into consumer assertions, where an invisible character that shifts with the
+ * runtime's ICU version is a liability. It renders the same, and `1.234,56 €`
+ * stays the byte string it has always been.
+ */
+const ICU_NON_BREAKING_SPACES = /[\u00A0\u202F]/g;
+
+function formatPromoValue(
+    value: number,
+    valueType: PromoCodeValueType | string,
+    { locale = LEGACY_LABEL_LOCALE, currency = LEGACY_LABEL_CURRENCY }: PromoLabelOptions,
+): string {
+    const numberFormat: Intl.NumberFormatOptions =
+        valueType === 'PERCENT'
+            ? { style: 'unit', unit: 'percent' }
+            : { style: 'currency', currency };
+    return new Intl.NumberFormat(locale, numberFormat)
+        .format(value)
+        .replace(ICU_NON_BREAKING_SPACES, ' ');
+}
+
+/**
+ * Human-readable summary of a promo code, e.g. `25 % once` or
+ * `1.234,56 € for the first month`.
+ *
+ * The words are English and cannot be swapped here — translating them needs
+ * the parts (`valueType`, `value`, `durationType`, `durationValue`), which the
+ * promo preview response already carries next to this string. Composing the
+ * sentence in the consumer's own i18n layer is the better answer and the one
+ * planned for the next breaking release; until then `options` at least stops
+ * the function from deciding number locale and currency for everyone.
+ */
 export function buildLabel(
     code: Pick<PromoCodeForCalc, 'valueType' | 'value' | 'durationType' | 'durationValue'>,
     cycle: BillingCycle,
+    options: PromoLabelOptions = {},
 ): string {
     const value = Number(code.value);
-    const valueStr =
-        code.valueType === 'PERCENT'
-            ? `${value.toLocaleString('de-DE')} %`
-            : `${value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+    const valueStr = formatPromoValue(value, code.valueType, options);
 
     if (code.durationType === 'ONCE') {
         return `${valueStr} once`;

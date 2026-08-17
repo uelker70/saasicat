@@ -144,3 +144,109 @@ test('buildLabel MONTHS 1 → singular', () => {
     );
     assert.equal(label, '25 % for the first month');
 });
+
+// ──────────────────────────────────────────────────────────────────
+// Calculator: label locale + currency
+// ──────────────────────────────────────────────────────────────────
+
+// The label travels over the wire (promo preview `label`), so the output of
+// the argument-free call is a contract, down to the bytes. Grouping, decimal
+// separator, symbol and the plain space in front of it are all pinned here.
+test('buildLabel without options keeps the de-DE/EUR output it always had', () => {
+    const absolute = buildLabel(
+        { valueType: 'ABSOLUTE', value: 1234.56, durationType: 'MONTHS', durationValue: 1 },
+        'MONTHLY',
+    );
+    assert.equal(absolute, '1.234,56 € for the first month');
+
+    const percent = buildLabel(
+        { valueType: 'PERCENT', value: 12.5, durationType: 'ONCE', durationValue: null },
+        'MONTHLY',
+    );
+    assert.equal(percent, '12,5 % once');
+});
+
+test('buildLabel formats the amount in the given locale', () => {
+    const label = buildLabel(
+        { valueType: 'ABSOLUTE', value: 1234.56, durationType: 'MONTHS', durationValue: 1 },
+        'MONTHLY',
+        { locale: 'en-US' },
+    );
+    assert.equal(label, '€1,234.56 for the first month');
+});
+
+test('buildLabel formats the percentage in the given locale', () => {
+    // English writes `25%` closed up, German `25 %` — the spacing is the
+    // locale's decision, not this function's.
+    const label = buildLabel(
+        { valueType: 'PERCENT', value: 25, durationType: 'ONCE', durationValue: null },
+        'MONTHLY',
+        { locale: 'en-US' },
+    );
+    assert.equal(label, '25% once');
+});
+
+test('buildLabel uses the given currency, symbol and decimals', () => {
+    assert.equal(
+        buildLabel(
+            { valueType: 'ABSOLUTE', value: 30, durationType: 'ONCE', durationValue: null },
+            'MONTHLY',
+            { locale: 'en-US', currency: 'USD' },
+        ),
+        '$30.00 once',
+    );
+    // The minor-unit count belongs to the currency: yen have none.
+    assert.equal(
+        buildLabel(
+            { valueType: 'ABSOLUTE', value: 3000, durationType: 'ONCE', durationValue: null },
+            'MONTHLY',
+            { locale: 'en-US', currency: 'JPY' },
+        ),
+        '¥3,000 once',
+    );
+});
+
+test('buildLabel ignores the currency for percentage codes', () => {
+    const label = buildLabel(
+        { valueType: 'PERCENT', value: 25, durationType: 'ONCE', durationValue: null },
+        'MONTHLY',
+        { locale: 'de-DE', currency: 'JPY' },
+    );
+    assert.equal(label, '25 % once');
+});
+
+test('buildLabel keeps non-breaking spaces out of the label', () => {
+    // ICU spaces the unit — and in some locales the thousands — with U+00A0
+    // and, since ICU 72, with U+202F. An invisible character that changes with
+    // the runtime's ICU version has no business on the wire, so no label in
+    // any locale may carry one.
+    const locales = ['de-DE', 'en-US', 'fr-FR', 'de-CH'];
+    const currencies = ['EUR', 'USD', 'CHF'];
+    for (const locale of locales) {
+        for (const currency of currencies) {
+            for (const valueType of ['ABSOLUTE', 'PERCENT']) {
+                const label = buildLabel(
+                    { valueType, value: 1234.5, durationType: 'ONCE', durationValue: null },
+                    'MONTHLY',
+                    { locale, currency },
+                );
+                assert.ok(
+                    !/[\u00A0\u202F]/.test(label),
+                    `non-breaking space in ${valueType} label for ${locale}/${currency}: ${JSON.stringify(label)}`,
+                );
+            }
+        }
+    }
+});
+
+test('buildLabel rejects an unusable locale instead of guessing one', () => {
+    assert.throws(
+        () =>
+            buildLabel(
+                { valueType: 'ABSOLUTE', value: 30, durationType: 'ONCE', durationValue: null },
+                'MONTHLY',
+                { locale: 'de_DE' },
+            ),
+        RangeError,
+    );
+});
