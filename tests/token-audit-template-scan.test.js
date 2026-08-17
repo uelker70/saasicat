@@ -606,6 +606,20 @@ describe('a Quasar palette prop is the same colour decision', () => {
         assert.deepEqual(props('<q-badge :color="statusColor(row.status)" />'), []);
     });
 
+    test('a nested object is configuration, not props', () => {
+        // Vue binds the outer key. `v-bind="{ options: { color: 'primary' } }"`
+        // emits `options`, not `color`, and a pattern that resumed at every `{`
+        // read the inner one as a prop — a nested `class` or `style` fed the
+        // other two ratchets the same way.
+        assert.deepEqual(props(`<q-icon v-bind="{ options: { color: 'primary' } }" />`), []);
+        assert.deepEqual(classes(`<span v-bind="{ cfg: { class: 'text-grey-7' } }">a</span>`), []);
+        // A top-level entry beside a nested one is still read.
+        assert.deepEqual(
+            props(`<q-icon v-bind="{ color: 'grey-7', cfg: { color: 'primary' } }" />`),
+            ['grey-7'],
+        );
+    });
+
     test('every prop that ends in -color on a Quasar component is one', () => {
         // Quasar's convention, not a list of three: QStepper alone adds
         // `active-color`, `done-color`, `error-color` and `inactive-color`, and

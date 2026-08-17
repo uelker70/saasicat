@@ -920,13 +920,45 @@ function templateAttributes(file, content) {
  * file can count, and guessing at it would be the over-read the colour readers
  * already refuse.
  */
-const OBJECT_ENTRY =
-    /(?:^|[{,])\s*(?:'([^']*)'|"([^"]*)"|([A-Za-z_$][\w$-]*))\s*:\s*('[^']*'|"[^"]*"|`[^`$]*`)/g;
+const OBJECT_ENTRY_KEY = /(?:'([^']*)'|"([^"]*)"|([A-Za-z_$][\w$-]*))\s*:\s*/y;
+const OBJECT_ENTRY_VALUE = /'[^']*'|"[^"]*"|`[^`$]*`/y;
 
 export function objectLiteralEntries(expression) {
+    const text = expression.trim();
+    if (text[0] !== '{') return [];
     const entries = [];
-    for (const match of expression.matchAll(OBJECT_ENTRY)) {
-        entries.push({ key: match[1] ?? match[2] ?? match[3], raw: match[4] });
+    let depth = 0;
+    let index = 0;
+    // Walked rather than matched globally: a global pattern resumes at every
+    // `{`, so `v-bind="{ options: { color: 'primary' } }"` reported `color` as
+    // a prop on the component while Vue binds only `options`. Depth is what
+    // separates the two, and a nested value is not a prop at all.
+    while (index < text.length) {
+        const char = text[index];
+        if ('{(['.includes(char)) {
+            depth += 1;
+            index += 1;
+            continue;
+        }
+        if ('})]'.includes(char)) {
+            depth -= 1;
+            index += 1;
+            continue;
+        }
+        if (depth !== 1 || /\s|,/.test(char)) {
+            index += 1;
+            continue;
+        }
+        OBJECT_ENTRY_KEY.lastIndex = index;
+        const key = OBJECT_ENTRY_KEY.exec(text);
+        if (!key) {
+            index += 1;
+            continue;
+        }
+        OBJECT_ENTRY_VALUE.lastIndex = OBJECT_ENTRY_KEY.lastIndex;
+        const value = OBJECT_ENTRY_VALUE.exec(text);
+        if (value) entries.push({ key: key[1] ?? key[2] ?? key[3], raw: value[0] });
+        index = value ? OBJECT_ENTRY_VALUE.lastIndex : OBJECT_ENTRY_KEY.lastIndex;
     }
     return entries;
 }
