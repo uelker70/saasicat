@@ -6,7 +6,11 @@ import { fileURLToPath } from 'node:url';
 
 import { createRequire } from 'node:module';
 
-import { QUASAR_PALETTE_NAMES, inlineStyleFragments } from '../../../scripts/token-audit.mjs';
+import {
+    QUASAR_PALETTE_NAMES,
+    inlineStyleFragments,
+    isQuasarComponent,
+} from '../../../scripts/token-audit.mjs';
 
 // Rule 22 — the layers only point one way.
 //
@@ -98,9 +102,12 @@ const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 const FONT_SIZE_DECLARATION = /font-size:\s*([^;}]+)/gi;
 const NAMES_A_TYPE_STEP = /:\s*var\(--sa-text-/;
 
+function findingsIn(label, css, pattern) {
+    return [...withoutComments(css).matchAll(pattern)].map((m) => `${label}: ${m[1] ?? m[0]}`);
+}
+
 function findings(file, pattern) {
-    const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
-    return [...css.matchAll(pattern)].map((m) => `${relative(SRC, file)}: ${m[1] ?? m[0]}`);
+    return findingsIn(relative(SRC, file), styleSource(file, readFileSync(file, 'utf8')), pattern);
 }
 
 describe('the token layers only point one way', () => {
@@ -136,13 +143,6 @@ describe('the token layers only point one way', () => {
         // step sharper: an SFC the parser cannot read yields `null`, which the
         // `?? []` above turns into "this file writes no inline CSS" — the exact
         // shape of failure every rule in this file would report as clean.
-        //
-        // So both directions are asserted. Every `.vue` consumer must parse,
-        // and the fragments they yield must still be there: the floor sits well
-        // under what the package writes and exists to catch a filter that
-        // stopped matching `style`. Deliberately not the count — moving an
-        // inline style into a class is progress, and a guard that fails on it
-        // teaches the wrong lesson.
         const sfcs = consumers.filter((file) => file.endsWith('.vue'));
         const unreadable = sfcs.filter(
             (file) => inlineStyleFragments(file, readFileSync(file, 'utf8')) === null,
@@ -154,12 +154,27 @@ describe('the token layers only point one way', () => {
                 'and a skipped attribute reads exactly like a clean one',
         );
 
-        const withInline = sfcs.filter(
-            (file) => inlineStyleFragments(file, readFileSync(file, 'utf8')).length > 0,
-        );
-        assert.ok(
-            withInline.length >= 10,
-            `only ${withInline.length} SFCs contributed an inline style attribute`,
+        // The other direction, on a fixture rather than on the package. This
+        // used to count how many SFCs still contribute an attribute and require
+        // at least ten — a floor under the package's own debt, so the day
+        // enough of those attributes became classes the rules above would all
+        // improve and this one would fail. A guard that forbids the cleanup it
+        // exists to measure teaches the next contributor to lower it, which is
+        // the one move a guard may never invite.
+        //
+        // The fixture cannot go clean behind the guard's back, and it asserts
+        // the whole chain rather than the filter alone: the template parses,
+        // the `style` attribute is picked out, `styleSource` joins it in with
+        // the terminator an attribute does not carry, and the rule below reads
+        // it. Break any link and this reports `[]` — which is what a clean
+        // package reports too, and why the assertion has to be made where a
+        // literal is guaranteed.
+        const inlineOnly = '<template>\n    <p style="font-size: 22px">x</p>\n</template>\n';
+        assert.deepEqual(
+            findingsIn('F.vue', styleSource('F.vue', inlineOnly), FONT_SIZE_DECLARATION),
+            ['F.vue: 22px'],
+            'a literal inside a static `style` attribute is no longer reaching the rules in ' +
+                'this file — every one of them would report the package as clean',
         );
     });
 
@@ -200,6 +215,44 @@ describe('the token layers only point one way', () => {
                 'this package builds against. Every name it lost is a colour class the audit ' +
                 'stopped counting.',
         );
+    });
+
+    test("the audit's idea of a Quasar component is Quasar's", () => {
+        // `color="grey-7"` is a palette decision on one of Quasar's components
+        // and an ordinary prop name on anybody else's, so `token-audit.mjs` has
+        // to answer "is this tag Quasar's" before it counts one. It answers by
+        // PREFIX rather than by a list of the component names — a list would go
+        // stale in the direction that costs most, silently dropping the next
+        // component to reach a template while the number stayed flat.
+        //
+        // The prefix is a convention of somebody else's library, which makes it
+        // a claim rather than a fact, so it is asserted against the release
+        // this package builds against — the same move the palette test above
+        // makes, one level up. The count is checked first: a web-types file
+        // that stopped parsing yields no components, and "every one of zero
+        // components satisfies the rule" is how a derivation passes vacuously.
+        const require = createRequire(import.meta.url);
+        const webTypes = JSON.parse(
+            readFileSync(require.resolve('quasar/dist/web-types/web-types.json'), 'utf8'),
+        );
+        const components = (webTypes.contributions?.html?.tags ?? []).map((tag) => tag.name);
+        assert.ok(
+            components.length > 100,
+            `only ${components.length} components parsed out of Quasar's web-types — the ` +
+                'sweep, not the library, changed',
+        );
+        assert.deepEqual(
+            components.filter((name) => !isQuasarComponent(name)),
+            [],
+            'a Quasar component whose tag does not carry the `q-` prefix the audit derives ' +
+                'from. Every palette prop on it is a decision the audit has stopped counting.',
+        );
+
+        // The other direction, which the list above cannot give: the prefix has
+        // to be `q-` and not `q`, or the check swallows every component whose
+        // name merely starts with the letter.
+        assert.equal(isQuasarComponent('my-chart'), false);
+        assert.equal(isQuasarComponent('QuasarLike'), false);
     });
 
     test('L1 primitives reference nothing', () => {

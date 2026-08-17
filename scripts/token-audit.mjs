@@ -557,15 +557,48 @@ const QUASAR_COLOUR_CLASS = new RegExp(
  * The props that take a palette name.
  *
  * Quasar's own vocabulary: `color`, and the two a component uses when it paints
- * both halves (`text-color`/`bg-color` on a chip, a badge, a button). The NAME
- * decides, exactly as it does for `PAINT_ATTRIBUTES` — and these three are
- * disjoint from that set, so nothing is counted under two metrics.
+ * both halves (`text-color`/`bg-color` on a chip, a badge, a button). These
+ * three are disjoint from `PAINT_ATTRIBUTES`, so nothing is counted under two
+ * metrics.
  *
- * `color` is the one that means two things, and the namespace separates them
- * the same way it does one constant up: inside SVG it is real paint and
- * `templateColourSites` owns it; on a component it is this palette.
+ * Unlike there, the name is only half the question: these are a COMPONENT's
+ * API, so the tag decides whether they mean Quasar's palette at all. See
+ * `isQuasarComponent`.
  */
 const QUASAR_PALETTE_ATTRIBUTES = new Set(['color', 'text-color', 'bg-color']);
+
+/**
+ * Whether a tag is one of Quasar's components.
+ *
+ * `color`, `text-color` and `bg-color` name a palette entry on a Quasar
+ * component and nothing in particular anywhere else, so reading them off every
+ * element made the metric answer for props it has no claim to:
+ * `<my-chart color="primary">` declares its own prop, `<div color="primary">`
+ * is an unknown attribute, and neither introduces a dependency on Quasar's
+ * palette — but both raised the count and could fail the ratchet.
+ *
+ * Derived from the prefix the library gives every component it registers,
+ * rather than from a list of the ones this package happens to write today. A
+ * list would go stale in the direction that costs most: the next Quasar
+ * component to reach a template would be one the audit had never heard of, and
+ * the number would stay flat while a palette decision was written.
+ *
+ * A template may spell the tag either way and Vue resolves both to the same
+ * component, so it is hyphenated first — `QBtn` and `q-btn` are one decision.
+ * The prefix is `q-` and not `q`, so `qux-panel` is somebody else's component.
+ *
+ * The boundary this leaves is `<component :is="…">`: the tag is `component` and
+ * the real one is in a script, where no template pass can reach it. That is the
+ * same trade `templatePaletteProps` already takes for `:color="statusColor(row)"`
+ * — a name nothing in the template spells is missed rather than guessed.
+ *
+ * Exported so `theme-layer-discipline.test.js` can hold the convention to the
+ * Quasar release this package builds against, the way it already does for the
+ * palette names. A convention is a claim about somebody else's library, and a
+ * claim is worth exactly as much as the assertion under it.
+ */
+const hyphenate = (tag) => tag.replace(/\B([A-Z])/g, '-$1').toLowerCase();
+export const isQuasarComponent = (tag) => hyphenate(tag).startsWith('q-');
 
 /**
  * A palette name as the WHOLE value of such a prop, and as a string inside a
@@ -781,10 +814,15 @@ function scriptSource(file, content) {
  * class list — and a second walk per category is how they end up disagreeing
  * about which node they saw.
  *
- * @returns {null | {name: string, value: string, line: number, isStatic:
- *          boolean, ns: number}[]} null if the file is not an SFC or did not
- *          parse — the caller counts that, so a template the audit stopped
- *          reading cannot look like a template with no findings.
+ * The element's TAG and namespace travel with each attribute, because for two
+ * of the three readers the attribute's name is only half the question: `color`
+ * is paint on an SVG element and a palette name on a Quasar component, and
+ * dropping the tag made every element a Quasar component.
+ *
+ * @returns {null | {tag: string, name: string, value: string, line: number,
+ *          isStatic: boolean, ns: number}[]} null if the file is not an SFC or
+ *          did not parse — the caller counts that, so a template the audit
+ *          stopped reading cannot look like a template with no findings.
  */
 function templateAttributes(file, content) {
     if (!file.endsWith('.vue')) return null;
@@ -799,6 +837,7 @@ function templateAttributes(file, content) {
                 // ATTRIBUTE === 6 — `style="background: #ef4444"`.
                 if (prop.type === 6 && prop.value) {
                     attributes.push({
+                        tag: node.tag,
                         name: prop.name,
                         value: prop.value.content,
                         line: prop.value.loc.start.line,
@@ -817,6 +856,7 @@ function templateAttributes(file, content) {
                 // holds.
                 if (prop.type === 7 && prop.name === 'bind' && prop.arg?.isStatic && prop.exp) {
                     attributes.push({
+                        tag: node.tag,
                         name: prop.arg.content,
                         value: prop.exp.content,
                         line: prop.exp.loc.start.line,
@@ -926,6 +966,12 @@ export function templateColourClasses(file, content) {
  * this was the one place no pattern could see, while a pattern one constant
  * away was reading the class it compiles to.
  *
+ * The tag is part of the question here and not for the class above, and the
+ * asymmetry is real rather than an oversight: `text-grey-7` is a utility class
+ * Quasar's stylesheet applies to any element, so who wears it does not change
+ * what it means, while `color` is a component's prop and means Quasar's palette
+ * only on a component of Quasar's.
+ *
  * Exported for its own test.
  *
  * @returns {null | {value: string, line: number}[]}
@@ -935,10 +981,12 @@ export function templatePaletteProps(file, content) {
     if (attributes === null) return null;
 
     const sites = [];
-    for (const { name, value, line, isStatic, ns } of attributes) {
-        // Inside SVG these names are CSS properties rather than Quasar props,
-        // and `templateColourSites` already reads `color` there as paint.
-        if (ns === SVG_NAMESPACE) continue;
+    for (const { tag, name, value, line, isStatic } of attributes) {
+        // Which also settles `color` inside SVG, where it is a CSS property
+        // rather than a Quasar prop and `templateColourSites` reads it as
+        // paint: no SVG element is one of Quasar's components, so the two
+        // passes stay disjoint without either naming the other's namespace.
+        if (!isQuasarComponent(tag)) continue;
         if (!QUASAR_PALETTE_ATTRIBUTES.has(name)) continue;
         if (isStatic) {
             const trimmed = value.trim();
@@ -1026,9 +1074,16 @@ function lineOf(content, index) {
     return content.slice(0, index).split('\n').length;
 }
 
-export function audit() {
+/**
+ * @param {string} [root] the tree to sweep. Defaults to the package this audit
+ *        is for; the budget test points it at a fixture instead, because every
+ *        number below is allowed to reach zero — so over the package alone,
+ *        "the sweep found nothing" and "the sweep is broken" are the same
+ *        report. Proving a pass is alive needs a tree that cannot go clean.
+ */
+export function audit(root = UI_SRC) {
     const files = walk(
-        UI_SRC,
+        root,
         (name) => name.endsWith('.vue') || name.endsWith('.css') || name.endsWith('.ts'),
     );
     const findings = Object.fromEntries(Object.keys(CATEGORIES).map((k) => [k, []]));
