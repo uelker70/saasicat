@@ -1,7 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { templateColourSites } from '../scripts/token-audit.mjs';
+import {
+    inlineStyleFragments,
+    templateColourClasses,
+    templateColourSites,
+} from '../scripts/token-audit.mjs';
 
 // The template half of the colour audit, under test — because the metric it
 // feeds is allowed to read zero, and a broken scanner reads zero too.
@@ -29,6 +33,9 @@ const sfc = (body, extra = '') => `<template>\n${body}\n</template>\n${extra}`;
 
 const found = (body, extra) => templateColourSites('A.vue', sfc(body, extra));
 const values = (body, extra) => found(body, extra).map((s) => s.value);
+const fragments = (body, extra) => inlineStyleFragments('A.vue', sfc(body, extra));
+const classes = (body, extra) =>
+    templateColourClasses('A.vue', sfc(body, extra)).map((s) => s.value);
 
 describe('a colour written as paint is found', () => {
     test('a static style attribute', () => {
@@ -380,5 +387,124 @@ describe('the line is the line the literal is on', () => {
             `<span\n    class="x"\n    :style="{\n        background: '#ef4444',\n    }"\n/>`,
         );
         assert.equal(only.line, 5);
+    });
+});
+
+// ── The rest of what an inline style says ────────────────────────────────────
+//
+// The group above reads a `style` attribute for COLOUR and stops there, and for
+// a long time so did the audit: it walked the AST, pulled `style` out of
+// `PAINT_ATTRIBUTES`, and applied nothing but the colour patterns to it. A
+// `style="font-size: 22px"` was therefore invisible to `distinctFontSizes`,
+// which read 0 — and `docs/design-guide.md` published that 0 as "no `font-size`
+// in the package names a number". A guard satisfied exactly in the damaging
+// case, with a sentence about it in the manual.
+//
+// `inlineStyleFragments` hands the attribute to the same declaration parser a
+// `<style>` block goes through, so every category the stylesheet pass has can
+// ask its question here too.
+
+describe('an inline style is a stylesheet fragment', () => {
+    test('a static style attribute is a fragment', () => {
+        assert.deepEqual(fragments('<span style="font-size: 22px" />'), [
+            { text: 'font-size: 22px', line: 2 },
+        ]);
+    });
+
+    test('several attributes, in template order', () => {
+        assert.deepEqual(
+            fragments('<i style="margin-top: 6px" />\n<b style="max-width: 120px" />').map(
+                (f) => f.text,
+            ),
+            ['margin-top: 6px', 'max-width: 120px'],
+        );
+    });
+
+    test('a bound :style is NOT a fragment', () => {
+        // Deliberate, and the reason is the property. A bound value is
+        // JavaScript: keys are camelCase and separators are commas, so a CSS
+        // declaration parser reading `{ minWidth: '200px', marginTop: '8px' }`
+        // hands both values to `min-width` and files a spacing literal as a
+        // dimension. `templateColourSites` can read a bound binding because a
+        // colour literal is the same string in either language and needs no
+        // property; a length needs one.
+        assert.deepEqual(fragments(`<i :style="{ marginTop: '8px' }" />`), []);
+    });
+
+    test('an attribute that is not `style` is not a fragment', () => {
+        assert.deepEqual(fragments('<q-icon size="18px" name="x" />'), []);
+    });
+
+    test('null and empty still mean different things', () => {
+        assert.equal(inlineStyleFragments('a.css', '.a { color: #fff; }'), null);
+        assert.equal(inlineStyleFragments('A.vue', '<template><div></template>'), null);
+        assert.deepEqual(fragments('<div>hello</div>'), []);
+    });
+
+    test('the line is the line the attribute value starts on', () => {
+        assert.deepEqual(fragments('<i />\n<b />\n<span style="font-size: 22px" />'), [
+            { text: 'font-size: 22px', line: 4 },
+        ]);
+    });
+});
+
+// ── The colour decision that is a class name ─────────────────────────────────
+//
+// The fourth place a colour can be written, and the one no pattern in the audit
+// could ever have seen: `class="text-grey-7"` contains no hex, no colour
+// function and no CSS keyword. It resolves to Quasar's palette, one layer BELOW
+// the role tokens and outside the theme — so the caption keeps its grey when the
+// dark theme moves the surface under it, and the template gives no sign.
+
+describe('a Quasar palette class is a colour decision', () => {
+    test('a static class list', () => {
+        assert.deepEqual(classes('<span class="row text-grey-7" />'), ['text-grey-7']);
+    });
+
+    test('a bound class list holds its literals as strings', () => {
+        assert.deepEqual(classes(`<span :class="['chip', ok ? 'bg-warning' : '']" />`), [
+            'bg-warning',
+        ]);
+    });
+
+    test('a brand or status name, not only a palette hue', () => {
+        assert.deepEqual(classes('<div class="bg-negative text-white" />'), [
+            'bg-negative',
+            'text-white',
+        ]);
+    });
+
+    test('a two-word hue is read whole', () => {
+        // The alternation lists `blue` and `grey` before `blue-grey`, so this
+        // only works because each match must end on a boundary that is not `-`.
+        // Read as `text-blue` the finding would name a class that does not
+        // exist, and `deep-orange`, `light-green` and `dark-page` have the same
+        // shape.
+        assert.deepEqual(classes('<div class="text-blue-grey-7 bg-deep-orange" />'), [
+            'text-blue-grey-7',
+            'bg-deep-orange',
+        ]);
+    });
+
+    test('a class that merely ends in a palette word is not one', () => {
+        // `sa-text-red` is this package's own naming, and a utility class is
+        // not a colour: `text-center` and `text-bold` are layout and weight.
+        assert.deepEqual(
+            classes('<div class="sa-text-red text-center text-bold my-bg-grey" />'),
+            [],
+        );
+    });
+
+    test('a rule ABOUT the class is not a use of it', () => {
+        // Read from `class` attributes only. A `.text-grey-7 { … }` selector in
+        // a `<style>` block is the package defining or overriding the class,
+        // which is a different act from a page choosing it.
+        assert.deepEqual(classes('<i />', '<style>.text-grey-7 { color: red; }</style>'), []);
+    });
+
+    test('null and empty still mean different things', () => {
+        assert.equal(templateColourClasses('a.ts', "const c = 'text-grey-7';"), null);
+        assert.equal(templateColourClasses('A.vue', '<template><div></template>'), null);
+        assert.deepEqual(classes('<div class="row" />'), []);
     });
 });

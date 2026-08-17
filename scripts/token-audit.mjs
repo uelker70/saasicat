@@ -365,6 +365,22 @@ const CATEGORIES = {
     scalePixel: /(?!)/g,
     dimensionPixel: /(?!)/g,
     fontSize: /font-size:\s*([^;}\n]+)/gi,
+    // The three scales AP2 §2.4 declares alongside the type sizes, and the
+    // three nothing counted. Each has a token family and zero consumers of it,
+    // which is the state a scale decays from: the tokens exist, nobody is told
+    // they are missing, and the next author picks a number that looks right
+    // next to the last one — exactly how the package reached 23 font sizes.
+    //
+    // Counted, not forbidden. `800` has no rung at all, so a floor of zero
+    // would be a decision about the scale rather than about the code, and that
+    // decision is not this script's to take.
+    fontWeight: /font-weight:\s*([^;}\n]+)/gi,
+    lineHeight: /line-height:\s*([^;}\n]+)/gi,
+    letterSpacing: /letter-spacing:\s*([^;}\n]+)/gi,
+    // Filled by the declaration pass; see fontShorthandLiteral below.
+    fontShorthand: /(?!)/g,
+    // Filled by the template pass; see QUASAR_COLOUR_CLASS.
+    quasarColorClass: /(?!)/g,
     // Fractional too. Quasar's upper bounds are `599.98px` and friends — the
     // 0.02px step back that stops `max-width` and the next `min-width` both
     // matching at an integer viewport. An integer-only pattern read 0 the
@@ -389,6 +405,23 @@ const CATEGORIES = {
  * whole file exists to make visible.
  */
 const COLOUR_PATTERNS = [CATEGORIES.hexColor, CATEGORIES.functionalColor, CATEGORIES.namedColor];
+
+/**
+ * The names of those same three categories, derived from the list above rather
+ * than written out again.
+ *
+ * The style pass reads two kinds of source — a `<style>` block and an inline
+ * `style="…"` — and only the first owns its colours: inside a template
+ * `templateColor` has already counted them, and it reaches places this pass
+ * cannot (a bound `:style`, a bare `fill="white"`). Naming the three again here
+ * is how the two halves start disagreeing about what a colour is, which is the
+ * failure this whole file exists to make visible.
+ */
+const COLOUR_CATEGORIES = new Set(
+    Object.entries(CATEGORIES)
+        .filter(([, pattern]) => COLOUR_PATTERNS.includes(pattern))
+        .map(([name]) => name),
+);
 
 /**
  * The one place that decides what a `namedColor` match means.
@@ -432,6 +465,84 @@ const PAINT_ATTRIBUTES = new Set([
     'flood-color',
     'lighting-color',
 ]);
+
+/**
+ * Quasar's colour palette, as it appears in a `text-…` / `bg-…` class.
+ *
+ * The fourth place a colour decision can be written, and the one no pattern in
+ * this file could ever see: `class="text-grey-7"` contains no hex, no function
+ * and no CSS named colour — it is an identifier that resolves to Quasar's own
+ * scale, one layer below the role tokens and outside the theme entirely. A
+ * `text-grey-7` caption stays the same grey when the dark theme moves every
+ * surface under it, and the reader of the template cannot tell that from the
+ * class name.
+ *
+ * The vocabulary is Quasar's, not this project's: nineteen Material hues with
+ * fourteen shades each, plus thirteen brand, status and utility colours. A
+ * subset would be a floor with a hole in it, exactly as a shortlist of named
+ * CSS colours was.
+ *
+ * Written out here rather than read from `quasar/dist/quasar.css` at run time,
+ * because a counting script that resolves a package from `node_modules` fails
+ * for a reason that has nothing to do with what it counts. It is not a guess
+ * either: `theme-layer-discipline.test.js` derives the same set from that
+ * stylesheet — every name that Quasar defines as BOTH `.text-x` and `.bg-x`,
+ * which is what separates a colour from `.text-bold` — and fails when the two
+ * disagree. The list is an assertion, not a memory.
+ *
+ * Counted, not forbidden, and deliberately NOT paired with an ESLint rule
+ * carrying a list of the files that may keep theirs: an exception list is the
+ * same defect one level up. Count first; the rule is worth writing when the
+ * number reaches zero and can stay there.
+ */
+export const QUASAR_PALETTE_NAMES = [
+    'primary',
+    'secondary',
+    'accent',
+    'dark',
+    'positive',
+    'negative',
+    'info',
+    'warning',
+    'white',
+    'black',
+    'transparent',
+    'separator',
+    'dark-separator',
+    'red',
+    'pink',
+    'purple',
+    'deep-purple',
+    'indigo',
+    'blue',
+    'light-blue',
+    'cyan',
+    'teal',
+    'green',
+    'light-green',
+    'lime',
+    'yellow',
+    'amber',
+    'orange',
+    'deep-orange',
+    'brown',
+    'grey',
+    'blue-grey',
+];
+
+/**
+ * `text-<palette>` / `bg-<palette>`, with Quasar's optional shade suffix.
+ *
+ * The bounds matter as much as the vocabulary: `sa-text-sm` must not match on
+ * `text-sm`, and `.text-grey-7` written as a SELECTOR in a stylesheet is a rule
+ * about the class rather than a use of it. The first is handled by requiring a
+ * word boundary that is not `-`, the second by only ever running this over a
+ * template's `class` attributes.
+ */
+const QUASAR_COLOUR_CLASS = new RegExp(
+    `(?<![\\w-])(?:text|bg)-(?:${QUASAR_PALETTE_NAMES.join('|')})(?:-\\d{1,2})?(?![\\w-])`,
+    'g',
+);
 
 /**
  * Vue's `Namespaces.SVG`. The parser tracks it, so nothing here has to.
@@ -516,6 +627,36 @@ const ALPHA_CONCAT = /(?:\+\s*['"`][0-9a-fA-F]{2}['"`])|(?:\$\{[^}]+\}[0-9a-fA-F
 const SCALE_PROPERTY =
     /^(?:padding|margin|gap|row-gap|column-gap|inset|top|right|bottom|left|border(?:-[a-z]+)?-radius|letter-spacing|word-spacing|text-indent)(?:-[a-z-]+)?$/;
 
+/**
+ * What a `font:` shorthand names outside a `var()`, if anything.
+ *
+ * The blind spot one property over from the one this file was fixed for, and
+ * the same shape: `font: 700 40px/1 var(--sa-font-head)` sets a weight, a size
+ * and a line height in one declaration, and the three patterns that read those
+ * are each anchored on the LONGHAND name — so all three read past it. Eighty-two
+ * of these are written in the package.
+ *
+ * Derived rather than parsed against the shorthand's grammar, which is genuinely
+ * awkward (four optional components in any order, then a size, then an optional
+ * `/leading`, then the family). The question that matters is simpler and does
+ * not need the grammar: strip every `var()` and see whether a NUMBER is left.
+ * `font: var(--sa-text-md) var(--sa-font-body)` leaves none, `font: inherit`
+ * leaves none, and `font: 700 var(--sa-text-sm) var(--sa-font-body)` leaves the
+ * weight — which is exactly the literal that should have been a token.
+ *
+ * Counted, not forbidden, for the same reason `font-weight: 800` is: the one
+ * literal SIZE among them is `40px`, and the type scale stops at 32. Deciding
+ * that is a decision about the scale, not about this script.
+ *
+ * @returns {null | string} the declaration value, whitespace-collapsed
+ */
+function fontShorthandLiteral(value) {
+    const font = value.replace(/\s+/g, ' ').trim();
+    // One level of nesting is all a `var(--x, var(--y))` fallback needs.
+    const outsideTokens = font.replace(/var\((?:[^()]|\([^()]*\))*\)/g, ' ');
+    return /\d/.test(outsideTokens) ? font : null;
+}
+
 function walk(dir, predicate) {
     const found = [];
     for (const entry of readdirSync(dir)) {
@@ -547,15 +688,17 @@ function scriptSource(file, content) {
 }
 
 /**
- * Colour literals in a TEMPLATE — the third place a colour can be written, and
- * the only one nothing read.
+ * Every attribute a TEMPLATE writes, static or bound, with the line its value
+ * starts on and the namespace of the element carrying it.
  *
- * The headline of this report was `hard-coded hex colours 0 in 0 files` while
- * twelve of them sat in six templates: three browser-chrome dots written out
- * twice, three diff markers reaching past the token layers for a primitive, and
- * three `p.color ?? '#94a3b8'` fallbacks that answered one question with two
- * different greys. A zero that is wrong is worse than a number that is large,
- * because it ends the search.
+ * The template is the third place a design decision can be written, and for a
+ * long time it was the only one nothing read. The headline of this report was
+ * `hard-coded hex colours 0 in 0 files` while twelve of them sat in six
+ * templates: three browser-chrome dots written out twice, three diff markers
+ * reaching past the token layers for a primitive, and three
+ * `p.color ?? '#94a3b8'` fallbacks that answered one question with two different
+ * greys. A zero that is wrong is worse than a number that is large, because it
+ * ends the search.
  *
  * Parsed, not matched — and the reasons are specific rather than stylistic:
  *
@@ -572,53 +715,52 @@ function scriptSource(file, content) {
  * Vue ships the parser for the files these are; `theme-reaches-every-page`
  * reached the same conclusion after three rounds of fixing a hand-written one.
  *
- * @returns {null | {value: string, line: number}[]} null if the file is not an
- *          SFC or did not parse — the caller counts that, so a template the
- *          audit stopped reading cannot look like a template with no findings.
+ * ONE walk, feeding every template-side category. Three readers want three
+ * different attributes out of the same tree — paint, an inline stylesheet, a
+ * class list — and a second walk per category is how they end up disagreeing
+ * about which node they saw.
+ *
+ * @returns {null | {name: string, value: string, line: number, isStatic:
+ *          boolean, ns: number}[]} null if the file is not an SFC or did not
+ *          parse — the caller counts that, so a template the audit stopped
+ *          reading cannot look like a template with no findings.
  */
-function templatePaint(file, content) {
+function templateAttributes(file, content) {
     if (!file.endsWith('.vue')) return null;
     const { descriptor, errors } = parse(content, { ignoreEmpty: false });
     if (errors.length > 0 || !descriptor.template?.ast) return null;
 
-    const painted = [];
+    const attributes = [];
     const visit = (node) => {
         // ELEMENT === 1. Only an element carries props.
         if (node.type === 1) {
-            // `color` paints inside SVG and names a Quasar palette entry
-            // everywhere else, so the namespace has to be part of the question.
-            const paints = (name) =>
-                PAINT_ATTRIBUTES.has(name) || (name === 'color' && node.ns === SVG_NAMESPACE);
             for (const prop of node.props ?? []) {
                 // ATTRIBUTE === 6 — `style="background: #ef4444"`.
-                if (prop.type === 6 && paints(prop.name) && prop.value) {
-                    painted.push({
+                if (prop.type === 6 && prop.value) {
+                    attributes.push({
+                        name: prop.name,
                         value: prop.value.content,
                         line: prop.value.loc.start.line,
-                        attribute: prop.name,
                         isStatic: true,
+                        ns: node.ns,
                     });
                 }
                 // DIRECTIVE === 7 — `:style` is v-bind with `style` as its arg.
-                // The expression is JavaScript, so what is read here is the
-                // literal inside it: `p.color ?? '#94a3b8'` names a colour, and
-                // `{ background: p.color }` names none.
+                // The expression is JavaScript, so what a reader finds here is
+                // the literal inside it: `p.color ?? '#94a3b8'` names a colour,
+                // and `{ background: p.color }` names none.
                 //
-                // `isStatic` because a DYNAMIC argument carries the variable's
-                // name, not the attribute's: in `:[style]="x"` the arg reads
-                // `style` and the attribute is whatever that variable holds.
-                if (
-                    prop.type === 7 &&
-                    prop.name === 'bind' &&
-                    prop.arg?.isStatic &&
-                    paints(prop.arg.content) &&
-                    prop.exp
-                ) {
-                    painted.push({
+                // `arg.isStatic` because a DYNAMIC argument carries the
+                // variable's name, not the attribute's: in `:[style]="x"` the
+                // arg reads `style` and the attribute is whatever that variable
+                // holds.
+                if (prop.type === 7 && prop.name === 'bind' && prop.arg?.isStatic && prop.exp) {
+                    attributes.push({
+                        name: prop.arg.content,
                         value: prop.exp.content,
                         line: prop.exp.loc.start.line,
-                        attribute: prop.arg.content,
                         isStatic: false,
+                        ns: node.ns,
                     });
                 }
             }
@@ -626,7 +768,91 @@ function templatePaint(file, content) {
         for (const child of node.children ?? []) visit(child);
     };
     for (const child of descriptor.template.ast.children ?? []) visit(child);
-    return painted;
+    return attributes;
+}
+
+/**
+ * The attributes of that set which PAINT.
+ *
+ * @returns {null | {value: string, line: number, attribute: string,
+ *          isStatic: boolean}[]}
+ */
+function templatePaint(file, content) {
+    const attributes = templateAttributes(file, content);
+    if (attributes === null) return null;
+    return attributes
+        .filter(
+            // `color` paints inside SVG and names a Quasar palette entry
+            // everywhere else, so the namespace has to be part of the question.
+            ({ name, ns }) =>
+                PAINT_ATTRIBUTES.has(name) || (name === 'color' && ns === SVG_NAMESPACE),
+        )
+        .map(({ name, value, line, isStatic }) => ({ value, line, attribute: name, isStatic }));
+}
+
+/**
+ * The inline stylesheets a template writes: every STATIC `style="…"`.
+ *
+ * A `style` attribute is a stylesheet fragment that happens to live in a
+ * template, and until this existed the audit read it with one eye. It walked
+ * the AST, pulled the attribute out, and then applied only the colour patterns
+ * to it — so `style="font-size: 22px"` was invisible to `distinctFontSizes`,
+ * `style="margin-top: 6px"` to `scalePixels`, and the report answered `0` to a
+ * question it had never asked. That number then reached `docs/design-guide.md`
+ * as a published claim, which is the combination that costs the most: a guard
+ * satisfied exactly in the damaging case, and a sentence about it.
+ *
+ * STATIC only, and the boundary is not laziness. A bound `:style` is
+ * JavaScript: its keys are camelCase, its separators are commas, and its values
+ * are expressions — reading it as CSS attributes the second key's value to the
+ * first key's property, so `{ minWidth: '200px', marginTop: '8px' }` would file
+ * a spacing literal under a dimension. `templateColourSites` can read a bound
+ * binding because a colour LITERAL is the same string in either language and
+ * needs no property to be recognised; a length is not, and only the property
+ * says whether `8px` is debt on a scale or a measurement taken once.
+ *
+ * Exported so `theme-layer-discipline.test.js` reads the same fragments with
+ * the same parser. Two answers to "where does this package write CSS" is how
+ * the ratchet and the rule end up guarding different files.
+ *
+ * @returns {null | {text: string, line: number}[]} null propagates the "did not
+ *          parse" state, which must not read as "has no inline styles".
+ */
+export function inlineStyleFragments(file, content) {
+    const attributes = templateAttributes(file, content);
+    if (attributes === null) return null;
+    return attributes
+        .filter(({ name, isStatic }) => name === 'style' && isStatic)
+        .map(({ value, line }) => ({ text: value, line }));
+}
+
+/**
+ * Quasar colour classes in a template's `class` lists.
+ *
+ * Exported for its own test. Reads `class` and `:class` alike: a bound class
+ * list holds its literals as strings (`['chip', ok ? 'text-positive' : '']`),
+ * and a class name cannot be built by an expression without one appearing.
+ *
+ * @returns {null | {value: string, line: number}[]}
+ */
+export function templateColourClasses(file, content) {
+    const attributes = templateAttributes(file, content);
+    if (attributes === null) return null;
+
+    const sites = [];
+    for (const { name, value, line } of attributes) {
+        if (name !== 'class') continue;
+        // A bound list is JavaScript and can carry a `//` comment; a static one
+        // cannot, and blanking is harmless there.
+        const text = withCommentsBlanked(value).replace(
+            /(^|\s)\/\/[^\n]*/g,
+            (m, lead) => lead + ' '.repeat(m.length - lead.length),
+        );
+        for (const match of text.matchAll(QUASAR_COLOUR_CLASS)) {
+            sites.push({ line: line + lineOf(text, match.index) - 1, value: match[0] });
+        }
+    }
+    return sites.sort((a, b) => a.line - b.line);
 }
 
 /**
@@ -711,7 +937,14 @@ export function audit() {
     // EQUAL. A file the SFC parser stopped reading contributes no props and so
     // no findings, which is indistinguishable from a clean template — the same
     // failure the other two counters exist to catch, one level down.
-    const reach = { files: 0, styleBlocks: 0, vueFiles: 0, templates: 0 };
+    //
+    // `inlineStyles` is the newest of these and exists because the sweep it
+    // counts was missing entirely: the pixel and font-size numbers below moved
+    // the day it was added, and without a reach counter that movement is
+    // indistinguishable from debt arriving. It also answers the reverse
+    // question later — a filter that stops matching `style` attributes takes
+    // this to 0 while every budget stays green.
+    const reach = { files: 0, styleBlocks: 0, vueFiles: 0, templates: 0, inlineStyles: 0 };
 
     for (const file of files) {
         const rel = relative(REPO_ROOT, file);
@@ -782,6 +1015,11 @@ export function audit() {
                     for (const site of sites) findings.templateColor.push({ file: rel, ...site });
                 }
             }
+
+            const classes = templateColourClasses(file, content);
+            if (classes !== null && !isTokenDefinition) {
+                for (const site of classes) findings.quasarColorClass.push({ file: rel, ...site });
+            }
         }
 
         // Self-referencing vars can sit anywhere, including inline styles.
@@ -795,33 +1033,86 @@ export function audit() {
 
         if (isTokenDefinition) continue;
 
+        // Every place this file writes CSS, with the way to turn an index in it
+        // back into a line in the file.
+        //
+        // A `<style>` block and an inline `style="…"` are the same language and
+        // carry the same debt, and for a long time only the first was read as
+        // such: the template pass pulled the attribute out of the AST and then
+        // applied nothing but the colour patterns to it. Both passes below now
+        // read both, which is the whole of this fix.
+        //
+        // `lineAt` rather than a shared offset, because the two sources answer
+        // "where am I" differently: a block knows its byte offset in the file,
+        // an attribute knows the line its value starts on and nothing more
+        // exact (Vue's `loc` spans the quotes, and an entity in the value would
+        // move the rest of it). Line is what every finding reports anyway.
+        const inline = inlineStyleFragments(file, content) ?? [];
+        reach.inlineStyles += inline.length;
+        const styleSources = [
+            ...styleBlocks(file, content).map(({ text, offset }) => ({
+                text,
+                lineAt: (index) => lineOf(content, offset + index),
+                // `hexColor` and its two siblings own a `<style>` block.
+                // Inside a template `templateColor` owns them, and it reaches
+                // further than this pass can — a bound `:style`, a bare
+                // `fill="white"`. Reading them here as well would count the
+                // same literal under two metrics.
+                readColours: true,
+            })),
+            ...inline.map(({ text, line }) => ({
+                text,
+                lineAt: (index) => line + lineOf(text, index) - 1,
+                readColours: false,
+            })),
+        ];
+
         // Per DECLARATION, not per regex hit: only the property can say whether
         // a scale has the answer, and the shared parser is what the codemods
         // read too.
-        for (const block of styleBlocks(file, content)) {
-            for (const declaration of declarations(block.text)) {
-                const scaled = SCALE_PROPERTY.test(declaration.property.toLowerCase());
+        //
+        // The trailing `}` terminates the last declaration. A `<style>` block
+        // already ends with one and gains an empty chunk the parser drops; an
+        // attribute is a bare declaration list with no terminator at all, so
+        // without this `style="margin-top: 6px"` parses to nothing.
+        for (const { text, lineAt } of styleSources) {
+            for (const declaration of declarations(`${text}}`)) {
+                const property = declaration.property.toLowerCase();
+                const scaled = SCALE_PROPERTY.test(property);
                 for (const match of declaration.value.matchAll(CATEGORIES.pixelValue)) {
                     if (ALWAYS_ALLOWED_PX.has(match[0])) continue;
                     if (!scaled && HAIRLINE_PX.has(match[0])) continue;
                     const where = {
                         file: rel,
-                        line: lineOf(content, block.offset + declaration.valueStart + match.index),
+                        line: lineAt(declaration.valueStart + match.index),
                         value: match[0],
                         property: declaration.property,
                     };
                     findings[scaled ? 'scalePixel' : 'dimensionPixel'].push(where);
                 }
+                // Here rather than in the pattern pass below, because only the
+                // property says this is a shorthand and only the whole value
+                // says whether it names anything the tokens should have said.
+                if (property === 'font') {
+                    const literal = fontShorthandLiteral(declaration.value);
+                    if (literal !== null) {
+                        findings.fontShorthand.push({
+                            file: rel,
+                            line: lineAt(declaration.valueStart),
+                            value: literal,
+                        });
+                    }
+                }
             }
         }
 
-        for (const block of styleBlocks(file, content)) {
+        for (const { text: source, lineAt, readColours } of styleSources) {
             // Comments blanked, and the same way the declaration pass above
             // blanks them, so the two halves of this file agree about what is
             // paint. Reading the raw text made a rule's own documentation the
             // first thing it flagged — `#f59e0b` inside a comment explaining
             // why `#f59e0b` may not be written was a hard-coded colour.
-            // Blanked rather than stripped: `lineOf` is an offset into the
+            // Blanked rather than stripped: `lineAt` is an index into the
             // original text.
             //
             // A `url()` goes the same way, and for the same reason the template
@@ -830,11 +1121,12 @@ export function audit() {
             // asymmetry introduced here, not an oversight inherited — the
             // template half learned it first and this half did not, which is
             // how a clean stylesheet would have been REJECTED by a zero floor.
-            const text = withCommentsBlanked(block.text).replace(URL_FRAGMENT, (m) =>
+            const text = withCommentsBlanked(source).replace(URL_FRAGMENT, (m) =>
                 ' '.repeat(m.length),
             );
             for (const [category, pattern] of Object.entries(CATEGORIES)) {
                 if (category === 'selfReferencingVar') continue;
+                if (!readColours && COLOUR_CATEGORIES.has(category)) continue;
                 for (const match of text.matchAll(pattern)) {
                     const named = category === 'namedColor' ? namedColourValue(match) : undefined;
                     if (named === null) continue;
@@ -844,7 +1136,7 @@ export function audit() {
                     if (value.startsWith('var(')) continue;
                     findings[category].push({
                         file: rel,
-                        line: lineOf(content, block.offset + match.index),
+                        line: lineAt(match.index),
                         value,
                     });
                 }
@@ -876,6 +1168,27 @@ export function summarise({ findings, styleShare, reach }) {
             distinct: distinct(findings.dimensionPixel),
         },
         distinctFontSizes: distinct(findings.fontSize),
+        // Totals, where the three above the line are `distinct` counts. The
+        // question is a different one: a type scale is finished when nobody
+        // writes a SIZE, and `--sa-weight-*` is finished when nobody writes a
+        // WEIGHT. Counting distinct values would read 5 for `font-weight` both
+        // today and after 244 of the 249 sites were migrated.
+        fontWeights: { total: findings.fontWeight.length, files: files(findings.fontWeight) },
+        lineHeights: { total: findings.lineHeight.length, files: files(findings.lineHeight) },
+        letterSpacings: {
+            total: findings.letterSpacing.length,
+            files: files(findings.letterSpacing),
+        },
+        // The declarations the three above cannot see, because the shorthand
+        // uses none of their names.
+        fontShorthands: {
+            total: findings.fontShorthand.length,
+            files: files(findings.fontShorthand),
+        },
+        quasarColorClasses: {
+            total: findings.quasarColorClass.length,
+            files: files(findings.quasarColorClass),
+        },
         distinctBreakpoints: distinct(findings.breakpoint),
         offScaleBreakpoints: {
             total: findings.breakpoint.filter((f) => !QUASAR_BREAKPOINTS.has(f.value)).length,
@@ -937,6 +1250,21 @@ function runCli(args) {
     );
     console.log(`  distinct font sizes        ${summary.distinctFontSizes}`);
     console.log(
+        `  font-weight literals       ${summary.fontWeights.total} in ${summary.fontWeights.files} files`,
+    );
+    console.log(
+        `  line-height literals       ${summary.lineHeights.total} in ${summary.lineHeights.files} files`,
+    );
+    console.log(
+        `  letter-spacing literals    ${summary.letterSpacings.total} in ${summary.letterSpacings.files} files`,
+    );
+    console.log(
+        `  font: shorthand literals   ${summary.fontShorthands.total} in ${summary.fontShorthands.files} files`,
+    );
+    console.log(
+        `  Quasar colour classes      ${summary.quasarColorClasses.total} in ${summary.quasarColorClasses.files} files`,
+    );
+    console.log(
         `  distinct breakpoints       ${summary.distinctBreakpoints} (${summary.offScaleBreakpoints.total} off Quasar's scale)`,
     );
     console.log(
@@ -957,6 +1285,11 @@ function runCli(args) {
 
     printTop('hex colours', result.findings.hexColor);
     printTop('font sizes', result.findings.fontSize);
+    printTop('font weights', result.findings.fontWeight);
+    printTop('line heights', result.findings.lineHeight);
+    printTop('letter spacings', result.findings.letterSpacing);
+    printTop('font: shorthands', result.findings.fontShorthand);
+    printTop('Quasar colour classes', result.findings.quasarColorClass);
     printTop('pixel values', result.findings.pixelValue);
 
     const worst = [...result.styleShare].sort((a, b) => b.share - a.share).slice(0, topN);

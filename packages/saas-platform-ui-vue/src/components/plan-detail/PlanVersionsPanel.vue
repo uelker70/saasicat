@@ -90,7 +90,10 @@
                 <div>
                     <div class="pd-vcol">
                         <span class="pd-v-num">v{{ v.version }}</span>
-                        <span :class="['chip dot', statusChip(v)]" style="font-size: 10px">
+                        <span
+                            :class="['chip dot', statusChip(v)]"
+                            style="font-size: var(--sa-text-2xs)"
+                        >
                             {{ statusOf(v) }}
                         </span>
                     </div>
@@ -105,7 +108,7 @@
                             <span v-if="v.validUntil" class="pd-validity-date">
                                 {{ v.validUntil.slice(0, 10) }}
                             </span>
-                            <span v-else class="pd-arrow-inf" style="font-size: 14px">∞</span>
+                            <span v-else class="pd-arrow-inf">∞</span>
                         </div>
                         <span class="pd-validity-sub">{{ validityLabel(v) }}</span>
                     </div>

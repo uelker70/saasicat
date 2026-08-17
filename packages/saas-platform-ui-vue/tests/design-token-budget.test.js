@@ -80,6 +80,14 @@ const FLOORS = {
     // 280px wide is a decision taken once; collapsing 59 such measurements onto
     // twelve values would be ceremony, not clarity — the same reason 0/1/2px
     // are exempt above. What it must not do is grow.
+    //
+    // It DID grow once, from 285 to 298, and not because anything was written:
+    // the audit read a `<style>` block and only half of an inline `style="…"`,
+    // so thirteen `min-width`/`max-width` measurements in dialog cards had
+    // never been counted. A number rising because the sweep got wider is the
+    // opposite of a ratchet being raised to let a change through, and the
+    // difference is not a matter of trust — `reach.inlineStyles` below is what
+    // makes it checkable.
     'dimensionPixels.total': {
         floor: 0,
         why: 'a one-off measurement is a decision, not a rung — this one only ratchets',
@@ -89,6 +97,46 @@ const FLOORS = {
     // scale itself is enforced where it can be — `theme-layer-discipline`
     // asserts that no `font-size` in the package names a number.
     distinctFontSizes: { floor: 0, why: 'every size reads a step of the type scale' },
+    // The three scales AP2 declares next to the type sizes, and the three that
+    // had a token family and no metric. Totals rather than distinct counts: a
+    // scale is finished when nobody writes a VALUE, and `font-weight` would
+    // read 5 distinct today and 5 again with 244 of its 249 sites migrated.
+    //
+    // Ratchets at the measured status quo, not blockers. Reaching zero on the
+    // first of them needs a decision this script cannot take: `800` appears 13
+    // times and the scale stops at `--sa-weight-bold` (700), so somebody has to
+    // either add the rung or rule the 13 out. Recording the number is what puts
+    // that decision in front of a person.
+    'fontWeights.total': {
+        floor: 0,
+        why: 'every weight reads --sa-weight-* — needs a rung for 800, or 13 fewer of them',
+    },
+    'lineHeights.total': { floor: 0, why: 'nine --sa-leading-* steps, one per type step' },
+    'letterSpacings.total': { floor: 0, why: 'four --sa-tracking-* steps cover the tracking' },
+    // The blind spot one property over from the one this file was fixed for.
+    // `font: 700 40px/1 var(--sa-font-head)` sets a weight, a size and a line
+    // height in one declaration, and all three metrics above are anchored on
+    // the LONGHAND name — so all three read past it. The package writes 82 of
+    // these shorthands, and the last literal `font-size` in it hides in one of
+    // them, which is why `distinctFontSizes` reads 0 and is not the whole
+    // answer.
+    'fontShorthands.total': {
+        floor: 0,
+        why: 'a `font:` shorthand names a size, a weight and a leading — all three have tokens',
+    },
+    // The colour decisions no colour pattern can see, because they are class
+    // names: `class="text-grey-7"` holds no hex, no function and no CSS keyword,
+    // and it resolves to Quasar's palette one layer BELOW the roles — so it
+    // keeps its grey when the dark theme moves the surface under it.
+    //
+    // Counted here rather than banned by an ESLint rule carrying the thirteen
+    // files that may keep theirs: an exception list is the same defect one
+    // level up. The rule is worth writing when this number is 0 and can stay
+    // there.
+    'quasarColorClasses.total': {
+        floor: 0,
+        why: 'a palette class is a role token written one layer too low',
+    },
     // Informational, floor 0. The old floor of 5 asked "how many", and the
     // package legitimately needs only three of Quasar's bands — with 5 as a
     // floor, arriving at the goal made the baseline undershoot it and the
@@ -149,6 +197,18 @@ describe('design-token budgets', () => {
             summary.reach.vueFiles,
             `${summary.reach.vueFiles - summary.reach.templates} of ${summary.reach.vueFiles} SFCs did not parse — ` +
                 'their templates were skipped, and a skipped template reports as a clean one',
+        );
+        // The newest of these counters, and the one that makes the pixel
+        // budgets above readable. An inline `style="…"` was pulled out of the
+        // AST and then read for colours only, so thirteen dimensions and four
+        // font sizes sat outside every number this file guards. With the sweep
+        // widened, `dimensionPixels` moved 285 → 298 in a commit that wrote no
+        // CSS — and without this counter that movement looks exactly like debt
+        // arriving. Floor well under today's 27, for the same reason as above.
+        assert.ok(
+            summary.reach.inlineStyles >= 15,
+            `the audit found only ${summary.reach.inlineStyles} inline style attributes — ` +
+                'an attribute the sweep stops reading reports as an attribute with no literals',
         );
         assert.ok(
             Object.keys(baseline).length === Object.keys(FLOORS).length,

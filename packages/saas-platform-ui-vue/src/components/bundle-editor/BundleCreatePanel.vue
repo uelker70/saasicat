@@ -157,7 +157,7 @@
                     <div>
                         <div class="bcp-section-title">
                             {{ msg.fields.quotas }}
-                            <span class="bcp-field-hint" style="margin-left: 6px">
+                            <span class="bcp-field-hint" style="margin-left: var(--sa-gap-inline)">
                                 {{ msg.create.quotasOptional }}
                             </span>
                         </div>
