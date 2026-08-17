@@ -13,67 +13,72 @@
 // rule for DI tokens") and above the keys in `src/vue/super-admin-context.ts`;
 // this file is what makes that explanation fail a build.
 //
-// Nothing here is a list of key names. One set comes from the declarations,
-// a second from the `provide()`/`inject()` call sites, and the two have to
-// agree — so a key that drops out of one scan is reported by the other instead
-// of quietly leaving the guard. The rule is applied to the union of both,
-// which is what catches a key that carries no `InjectionKey` annotation at all
-// and is only recognisable by being handed to `provide`.
+// The sources are read with TypeScript's own compiler API — the package already
+// depends on `typescript` to build. Four rounds of review had narrowed a regex
+// scan down to two shapes a pattern cannot decide (issue #158): an
+// `InjectionKey` reached through a local type alias, which needs the type
+// resolved, and two functions in one file declaring the same name, which needs
+// a lexical scope. A parser has both, so both are decided here, and the
+// hand-written readers that used to approximate one — comment and string
+// scrubbing, declarator splitting, annotation walking, import resolution,
+// re-export following, assertion-tail classification — are gone with it.
 //
-// A call site is matched with the binding its own file can see: a declaration
-// in the same file, or a named import resolved along the relative specifier it
-// was written with. Two files may therefore spell one name differently without
-// either being dragged into the other's rule — `SUPER_ADMIN_BRAND_KEY` is an
-// injection key where it is imported from `vue/super-admin-context.ts`, and
-// whatever an unrelated module means by that name stays that module's business.
+// Nothing here is a list of key names, and nothing here is a list of Vue's
+// names either. `provide`, `inject`, `App.provide` and `InjectionKey` are read
+// out of the `vue` package's own module surface and then matched by declaration
+// identity, so an alias, a re-export or a rename resolves to the same
+// declaration, and a same-named function from somewhere else does not.
+//
+// One set of keys comes from the declarations, a second from the
+// `provide()`/`inject()` call sites, and the two have to agree — so a key that
+// drops out of one scan is reported by the other instead of quietly leaving the
+// guard. The rule is applied to the union of both, which is what catches a key
+// that carries no `InjectionKey` annotation at all and is only recognisable by
+// being handed to `provide`.
 //
 // What this file cannot see:
-//   - Keys declared outside this package's `src`, or reached through a
-//     specifier this file cannot resolve to a scanned file. A `provide()`
-//     naming such an identifier is reported as a failure rather than skipped,
-//     so it stops the build until someone decides what it means — but the
-//     guard cannot check the other package's spelling.
 //   - Runtime identity. This is a source scan. It checks how a key is written,
 //     not that the loaded bundles ended up agreeing; `tests/cjs-entry-identity`
 //     in `@saasicat/nest` is the test that does the latter for classes.
-//   - Whether two keys accidentally share one `Symbol.for` argument, or
-//     whether the argument names the right namespace.
+//   - Whether two keys accidentally share one `Symbol.for` argument, or whether
+//     the argument names the right namespace.
+//   - Keys declared outside `src`. A `provide()` naming such an identifier is
+//     reported as a failure rather than skipped, so it stops the build until
+//     someone decides what it means — but the guard cannot check the other
+//     package's spelling.
 //   - A key reached through a property (`keys.THEME`) or any other computed
 //     expression: the call-site reader recognises a bare identifier and a
 //     string literal, and anything else fails the "every call site was read"
-//     test below rather than passing unnoticed. `provide` and `inject`
-//     themselves may be renamed on import from `vue` — those aliases are
-//     collected — but a binding taken any other way (`const p = provide`) is
-//     not a call site this file knows about.
-//   - The difference between calling `provide` and declaring something else by
-//     that name. `function provide(key: symbol, …)` reads as a call site whose
-//     first argument cannot be placed, so it fails the same test. There is no
-//     such declaration under `src`; a file that wants one has to teach this
-//     reader the difference rather than be waved through.
-//   - Anything in a `.vue` file outside its `<script>` blocks, and anything
-//     inside a template literal — both are blanked before the scan.
-//   - A key that never gets a name of its own. `const { THEME } = keys;` binds
-//     through a destructuring pattern, and the reader takes no name from one.
-//     Such a key does not leave quietly either: the cross-check below reports
-//     it as an identifier that nothing visible to its file declares.
-//   - The far side of an unusual comma. Which `,` separates two declarators is
-//     decided by what follows it rather than by a parser, because the angle
-//     brackets around an initializer's type arguments are not counted — see
-//     `endOfDeclarator`. `new Map<string, number>()` is therefore read whole,
-//     but type arguments that themselves begin like a declarator
-//     (`new Map<string, { a: 1 }>(), KEY = …`) end the walk early. What comes
-//     after is unread rather than approved: the floor at the bottom of this
-//     file counts that declarator straight from the source text, so a key
-//     annotated as an `InjectionKey` fails the build on the difference.
+//     test below rather than passing unnoticed.
+//   - `provide` and `inject` reached through a binding no import names. They
+//     may be renamed on import — those aliases are collected, and the checker
+//     confirms each one really is Vue's — but a binding taken any other way
+//     (`const p = provide`) is not a call this file asks about.
+//   - A key whose value arrives after its declaration (`let KEY:
+//     InjectionKey<T>; KEY = Symbol('x')`). The rule is applied to an
+//     initializer, and a declaration without one has nothing to judge.
+//   - Anything in a `.vue` file outside its `<script>` blocks, which are the
+//     only part handed to the parser.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import ts from 'typescript';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, posix, relative, sep } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const SRC = join(__dirname, '..', 'src');
+const PACKAGE = join(__dirname, '..');
+const SRC = join(PACKAGE, 'src');
+
+/**
+ * Where the counter-check trees at the bottom of this file pretend to live.
+ *
+ * Inside the package, so `vue` resolves for them along exactly the same
+ * `node_modules` walk as it does for `src`; on no disk, so they cannot be read,
+ * built or shipped by accident.
+ */
+const IN_MEMORY = join(PACKAGE, 'tests', '__counter-checks__');
 
 function* walk(dir) {
     for (const entry of readdirSync(dir)) {
@@ -87,6 +92,10 @@ function* walk(dir) {
 function lineAt(text, offset) {
     return text.slice(0, offset).split('\n').length;
 }
+
+/* -------------------------------------------------------------------------
+ * Handing a `.vue` file to a TypeScript parser
+ * ---------------------------------------------------------------------- */
 
 // A tag name ends where HTML says it ends: at whitespace, at `/`, or at `>`.
 // So `<scriptish>` is not a script tag, and — the half that matters — an end
@@ -123,9 +132,10 @@ function endOfOpenTag(source, from) {
  * A `.vue` file with everything outside its `<script>` blocks replaced by
  * spaces.
  *
- * Blanking rather than slicing is the point: every offset — and therefore
- * every line number this file reports — keeps pointing at the original file,
- * so a failure can be opened at the line it names.
+ * Blanking rather than slicing is the point: every offset — and therefore every
+ * line number this file reports — keeps pointing at the original file, so a
+ * failure can be opened at the line it names. What is left is TypeScript, which
+ * is what lets the parser below read a single-file component at all.
  *
  * The scan resumes behind each closing tag, which is what makes the `<script`
  * an SFC mentions inside its own script body harmless: it is part of a block
@@ -159,729 +169,305 @@ function scriptBlocksOnly(source) {
 }
 
 /**
- * Characters after which a `/` opens a regular expression rather than dividing.
- * Applied to the significant code seen so far, so `foo / 2` and `.replace(/…/)`
- * are told apart without parsing the file.
+ * One set of files to judge together, prepared for the compiler.
  *
- * The keywords carry an identifier boundary because they are matched at the end
- * of the text seen so far, where a bare alternation also matches a suffix:
- * `margin / 2` ends in `in`, so the division opened a regular expression that
- * never terminated and the whole file failed to scan. `.` is excluded with the
- * word characters — a keyword after a dot is a property name, not a keyword.
+ * TypeScript decides a file's language from its extension, so a `.vue` enters
+ * the program under a name it accepts (`Page.vue.ts`) carrying only its script
+ * blocks — and a `./Page.vue` specifier resolves to exactly that file, so a key
+ * crossing the boundary is still reachable. `path` stays the name the file has
+ * on disk, because that is what a failure message has to print.
  */
-const REGEX_MAY_FOLLOW =
-    /[(,=:[!&|?{};+\-*%~^<>]$|(?:^|[^\w$.])(?:return|typeof|case|in|of|do|else|yield|await|new)$/;
-
-/**
- * Replaces comments, string bodies and regular-expression literals with
- * spaces, character for character, and hands back what the quoted strings said.
- *
- * Both scans below need the blanking. `src/vue/super-admin-context.ts`
- * documents the rule with the words `app.provide(KEY, ...)` inside a comment,
- * and a scan that cannot tell a comment from a statement would read that
- * sentence as a call site — and then report a key named `KEY` that nothing
- * declares. The recorded strings are what the import reader resolves module
- * specifiers from: the specifier is code, but it is the one piece of code that
- * only exists inside a string.
- *
- * The walk also reports where it lost its footing: a single- or double-quoted
- * string or a regular expression that reaches a newline means the opening
- * delimiter was misread, which the test below turns into a failure rather than
- * leaving the rest of that file scanned as something it is not.
- */
-function scrubNonCode(source) {
-    const out = source.split('');
-    const anomalies = [];
-    const strings = [];
-    const blank = (index) => {
-        if (out[index] !== '\n') out[index] = ' ';
-    };
-
-    let state = 'code';
-    let quote = '';
-    let inCharacterClass = false;
-    let tail = '';
-    let opened = 0;
-    let index = 0;
-
-    while (index < source.length) {
-        const char = source[index];
-        const nextChar = source[index + 1];
-
-        if (state === 'code') {
-            if (char === '/' && nextChar === '/') {
-                blank(index);
-                blank(index + 1);
-                state = 'line-comment';
-                index += 2;
-            } else if (char === '/' && nextChar === '*') {
-                blank(index);
-                blank(index + 1);
-                state = 'block-comment';
-                index += 2;
-            } else if (char === '/' && REGEX_MAY_FOLLOW.test(tail)) {
-                blank(index);
-                state = 'regex';
-                inCharacterClass = false;
-                opened = index;
-                index += 1;
-            } else if (char === "'" || char === '"' || char === '`') {
-                blank(index);
-                state = 'quoted';
-                quote = char;
-                opened = index;
-                index += 1;
-            } else {
-                if (!/\s/.test(char)) tail = (tail + char).slice(-8);
-                index += 1;
-            }
-            continue;
-        }
-
-        if (state === 'line-comment') {
-            if (char === '\n') state = 'code';
-            else blank(index);
-            index += 1;
-            continue;
-        }
-
-        if (state === 'block-comment') {
-            if (char === '*' && nextChar === '/') {
-                blank(index);
-                blank(index + 1);
-                state = 'code';
-                index += 2;
-            } else {
-                blank(index);
-                index += 1;
-            }
-            continue;
-        }
-
-        if (state === 'quoted') {
-            if (char === '\\') {
-                blank(index);
-                blank(index + 1);
-                index += 2;
-            } else if (char === quote) {
-                blank(index);
-                // Every quoted string is recorded, escapes and all — a
-                // specifier written with one simply resolves to no file. What
-                // must not happen is a string going unrecorded: the blanks it
-                // leaves behind read as whitespace, and the reader below would
-                // walk over them to the next string and take that for the
-                // specifier. Template literals are the one gap, and a static
-                // import specifier cannot be one.
-                if (quote !== '`') {
-                    strings.push({ start: opened, value: source.slice(opened + 1, index) });
-                }
-                // A closed string is a value, so a `/` after it divides.
-                tail = (tail + 'x').slice(-8);
-                state = 'code';
-                index += 1;
-            } else if (char === '\n' && quote !== '`') {
-                anomalies.push(
-                    `unterminated ${quote} string opened at line ${lineAt(source, opened)}`,
-                );
-                state = 'code';
-                index += 1;
-            } else {
-                blank(index);
-                index += 1;
-            }
-            continue;
-        }
-
-        // state === 'regex'
-        if (char === '\\') {
-            blank(index);
-            blank(index + 1);
-            index += 2;
-        } else if (char === '[') {
-            blank(index);
-            inCharacterClass = true;
-            index += 1;
-        } else if (char === ']') {
-            blank(index);
-            inCharacterClass = false;
-            index += 1;
-        } else if (char === '/' && !inCharacterClass) {
-            blank(index);
-            tail = (tail + 'x').slice(-8);
-            state = 'code';
-            index += 1;
-        } else if (char === '\n') {
-            anomalies.push(
-                `unterminated regular expression opened at line ${lineAt(source, opened)}`,
-            );
-            state = 'code';
-            index += 1;
-        } else {
-            blank(index);
-            index += 1;
-        }
-    }
-
-    if (state !== 'code') anomalies.push(`file ends inside ${state}`);
-    return { code: out.join(''), anomalies, strings };
+function tree(root, files) {
+    return files.map(({ path, text }) => {
+        const isVue = path.endsWith('.vue');
+        const { code, anomalies } = isVue ? scriptBlocksOnly(text) : { code: text, anomalies: [] };
+        return { path, fileName: join(root, isVue ? `${path}.ts` : path), code, anomalies };
+    });
 }
 
-const sources = [...walk(SRC)].map((file) => {
-    const text = readFileSync(file, 'utf8');
-    const isVue = file.endsWith('.vue');
-    const block = isVue ? scriptBlocksOnly(text) : { code: text, anomalies: [] };
-    const { code, anomalies, strings } = scrubNonCode(block.code);
-    return {
-        path: relative(SRC, file).split(sep).join('/'),
-        code,
-        strings,
-        anomalies: [...block.anomalies, ...anomalies],
-    };
-});
-
-const byPath = new Map(sources.map((source) => [source.path, source]));
-
-// Type syntax nests in angle brackets as well as in round, square and curly
-// ones; expressions do not — `a < b` is a comparison far more often than
-// `Map<a, b>` is a type. So an annotation is walked with all four pairs and an
-// initializer with three.
-const OPENERS = '([{<';
-const CLOSERS = ')]}>';
-const NESTING_OPENERS = '([{';
-const NESTING_CLOSERS = ')]}';
-
-/**
- * The type annotation of a `const NAME: T = …`, read up to the `=` that starts
- * the initializer — or, for a declarator that carries no value, to the `,` or
- * `;` that ends it.
- *
- * Walked by bracket depth rather than matched by a regex, because the
- * annotations in this package contain their own `=` and their own `,`:
- * `InjectionKey<() => AdminManifest | null>` would end a lazier reader inside
- * the arrow, and `Map<string, number>` at the comma.
- */
-function readAnnotation(code, at) {
-    if (code[at] !== ':') return { annotation: '', valueAt: at + 1 };
-    let depth = 0;
-    let index = at;
-    while (index < code.length) {
-        const char = code[index];
-        // `=>` is one token: neither half may end the annotation or move the
-        // depth, or `: () => void = …` would be read as ending at the arrow.
-        if (char === '=' && code[index + 1] === '>') {
-            index += 2;
-            continue;
-        }
-        if (OPENERS.includes(char)) depth += 1;
-        else if (CLOSERS.includes(char)) depth -= 1;
-        else if ((char === ';' || char === ',') && depth <= 0)
-            return { annotation: code.slice(at + 1, index), valueAt: -1 };
-        else if (char === '=' && depth <= 0)
-            return { annotation: code.slice(at + 1, index), valueAt: index + 1 };
-        index += 1;
-    }
-    return { annotation: '', valueAt: -1 };
-}
-
-/**
- * What a declarator may start with, used to tell a `,` that separates two of
- * them from a `,` the bracket counter cannot see into.
- *
- * Sticky rather than anchored so it can be pointed at an offset without
- * slicing the file at every comma. Set `lastIndex` before every use.
- */
-const NEXT_DECLARATOR = /\s*(?:[A-Za-z_$][\w$]*\s*(?:[:;,]|=(?![=>]))|[{[])/y;
-
-/**
- * Where a declarator ends: the `,` that starts the next one, or the `;` that
- * ends the statement.
- *
- * The type arguments of an initializer are the reason the `,` has to prove
- * itself. `new Map<string, number>()` holds a comma outside every bracket this
- * counts, and stays one initializer only because `number>` cannot begin a
- * declarator.
- */
-function endOfDeclarator(code, from) {
-    let depth = 0;
-    for (let index = from; index < code.length; index += 1) {
-        const char = code[index];
-        if (NESTING_OPENERS.includes(char)) depth += 1;
-        else if (NESTING_CLOSERS.includes(char)) depth -= 1;
-        else if (char === ';' && depth <= 0) return { at: index, separated: false };
-        else if (char === ',' && depth <= 0) {
-            NEXT_DECLARATOR.lastIndex = index + 1;
-            if (NEXT_DECLARATOR.test(code)) return { at: index, separated: true };
-        }
-    }
-    return { at: code.length, separated: false };
-}
-
-const DECLARATION = /\b(export\s+)?(?:const|let|var)\s+/g;
-const DECLARATOR_NAME = /([A-Za-z_$][\w$]*)\s*/y;
-
-/**
- * The offset just past a destructuring target, or -1 where there is none.
- *
- * A pattern binds names this reader does not take — see the header — but it
- * still has to be stepped over, or the declarators after it would be lost too.
- */
-function skipPattern(code, at) {
-    if (code[at] !== '{' && code[at] !== '[') return -1;
-    let depth = 0;
-    for (let index = at; index < code.length; index += 1) {
-        const char = code[index];
-        if (NESTING_OPENERS.includes(char)) depth += 1;
-        else if (NESTING_CLOSERS.includes(char)) depth -= 1;
-        else continue;
-        if (depth > 0) continue;
-        let end = index + 1;
-        while (end < code.length && /\s/.test(code[end])) end += 1;
-        return end;
-    }
-    return -1;
-}
-
-/**
- * Every declarator of one `const`/`let`/`var` statement, in source order.
- *
- * One statement may bind more than one name — `const A = …, B = …;` — and the
- * second declarator is as much a declaration as the first. Reading only the
- * name that touches the keyword is how an injection key built from a plain
- * `Symbol()` walked past this guard: chained behind a well-behaved
- * `Symbol.for`, it was named by neither derivation, and the first declarator's
- * initializer simply swallowed it and still began with `Symbol.for(`.
- */
-function readDeclarators(code, start) {
-    const found = [];
-    let at = start;
-    while (at < code.length) {
-        // Onto the declarator itself: `at` is what the failure message points
-        // at, and a separator leaves the cursor on the whitespace behind it.
-        while (at < code.length && /\s/.test(code[at])) at += 1;
-        DECLARATOR_NAME.lastIndex = at;
-        const named = DECLARATOR_NAME.exec(code);
-        const afterTarget = named ? DECLARATOR_NAME.lastIndex : skipPattern(code, at);
-        if (afterTarget < 0) return found;
-        const punctuation = code[afterTarget];
-        // `let a, b = …`: a declarator may carry neither annotation nor value.
-        if (punctuation === ',') {
-            at = afterTarget + 1;
-            continue;
-        }
-        // Anything else ends the statement — the `;`, or the `of` of a `for`.
-        if (punctuation !== ':' && punctuation !== '=') return found;
-        const { annotation, valueAt } = readAnnotation(code, afterTarget);
-        const end = endOfDeclarator(code, valueAt < 0 ? afterTarget : valueAt);
-        if (named && valueAt >= 0) {
-            found.push({
-                name: named[1],
-                at,
-                annotation,
-                initializer: code.slice(valueAt, end.at).trim(),
-            });
-        }
-        if (!end.separated) return found;
-        at = end.at + 1;
-    }
-    return found;
-}
-
-/** Every named binding with an initializer, with its annotation and its value. */
-function declarations() {
-    const found = [];
-    for (const { path, code } of sources) {
-        for (const match of code.matchAll(DECLARATION)) {
-            for (const { name, at, annotation, initializer } of readDeclarators(
-                code,
-                match.index + match[0].length,
-            )) {
-                found.push({
-                    name,
-                    path,
-                    line: lineAt(code, at),
-                    exported: Boolean(match[1]),
-                    annotation,
-                    initializer,
-                });
-            }
-        }
-    }
-    return found;
-}
-
-const allBindings = declarations();
-
-const bindingsByPath = new Map();
-for (const binding of allBindings) {
-    if (!bindingsByPath.has(binding.path)) bindingsByPath.set(binding.path, []);
-    bindingsByPath.get(binding.path).push(binding);
-}
-
-const identity = ({ path, line, name }) => `${path}:${line}:${name}`;
-
-/**
- * The bindings that say they are injection keys — through the annotation
- * (`: InjectionKey<T>`) or through a cast (`… as InjectionKey<T>`). Vue accepts
- * a bare `symbol` where an `InjectionKey` is expected, so neither form is
- * required by the compiler; that is exactly why the second derivation below
- * exists.
- */
-const annotatedKeys = allBindings.filter(
-    ({ annotation, initializer }) =>
-        /\bInjectionKey\b/.test(annotation) ||
-        /\bas\s+(?:unknown\s+as\s+)?InjectionKey\b/.test(initializer) ||
-        // `satisfies InjectionKey<T>` classifies a key exactly as an annotation
-        // or a cast does. An exported, consumer-only key written that way — with
-        // no `provide`/`inject` inside `src` for the other derivation to recover
-        // it from — was in neither, so a plain local symbol could be published
-        // while this stayed green.
-        /\bsatisfies\s+InjectionKey\b/.test(initializer),
-);
-const ANNOTATED_FIRST_DECLARATOR = /\bconst\s+[A-Za-z_$][\w$]*\s*:\s*InjectionKey\s*</g;
-const ANNOTATED_NEXT_DECLARATOR = /\s*[A-Za-z_$][\w$]*\s*:\s*InjectionKey\s*</y;
-
-/**
- * How many declarators spell out `: InjectionKey<`, counted without the reader
- * above so that the two derivations can disagree.
- *
- * The first form is the declarator that touches the keyword. The second is
- * every further declarator of the same statement, recognised by a `,` that
- * stands outside every bracket — which is what a declarator separator is, and
- * what a comma in a parameter list, an object literal or an object type is not.
- *
- * The keyword form is `const` alone, and the reader accepts `let` and `var`
- * too, on purpose: `const` is the one that cannot stand without a value. The
- * reader passes over a declarator that has none, so a floor counting
- * `let KEY: InjectionKey<T>;` would climb above the reader it is checking and
- * report a loss that never happened.
- */
-function writtenAnnotations(code) {
-    let total = (code.match(ANNOTATED_FIRST_DECLARATOR) ?? []).length;
-    let depth = 0;
-    for (let index = 0; index < code.length; index += 1) {
-        const char = code[index];
-        if (NESTING_OPENERS.includes(char)) depth += 1;
-        else if (NESTING_CLOSERS.includes(char)) depth -= 1;
-        else if (char === ',' && depth <= 0) {
-            ANNOTATED_NEXT_DECLARATOR.lastIndex = index + 1;
-            if (ANNOTATED_NEXT_DECLARATOR.test(code)) total += 1;
-        }
-    }
-    return total;
-}
-
-const NAMED_IMPORT = /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*)\}\s*from\b/g;
-/**
- * Whether an initializer *is* a `Symbol.for(…)` call rather than merely opening
- * with one.
- *
- * A prefix test answers the wrong question: `Symbol.for('decoy') && Symbol('x')`
- * starts with the call and evaluates to the local symbol, which is exactly the
- * cross-bundle failure this file exists to prevent. So the call's own closing
- * parenthesis has to end the expression, with nothing after it but the type
- * syntax TypeScript allows there.
- */
-// Two shapes this file cannot decide, recorded in issue #158 rather than
-// half-solved: an `InjectionKey` reached through a local type alias
-// (`type AppKey<T> = InjectionKey<T>`) is not classified, and two functions in
-// one file declaring the same name both answer for a call site in it. The first
-// needs a resolved type, the second a lexical scope — a parser, not a pattern.
-// Neither shape occurs under `src` today.
-
-/** The index closing the bracket that opens at `start`, or -1. */
-function matchingClose(text, start) {
-    let depth = 0;
-    for (let i = start; i < text.length; i += 1) {
-        if ('([{'.includes(text[i])) depth += 1;
-        else if (')]}'.includes(text[i])) {
-            depth -= 1;
-            if (depth === 0) return i;
-        }
-    }
-    return -1;
-}
-
-function isSymbolForCall(initializer) {
-    const text = initializer.trim();
-    // `const KEY: InjectionKey<T> = (Symbol.for('k'));` is the same value with
-    // grouping around it, and a prefix test rejected it for starting with `(`.
-    // Peeled by recursion so the group carries its own tail: what follows the
-    // matching close must be an assertion, and what is inside must itself be
-    // the call. `(a) && (b)` fails on the first of those, not the second.
-    if (text.startsWith('(')) {
-        const close = matchingClose(text, 0);
-        if (close === -1) return false;
-        return isTypeAssertionTail(text.slice(close + 1)) && isSymbolForCall(text.slice(1, close));
-    }
-    if (!/^Symbol\.for\s*\(/.test(text)) return false;
-    let depth = 0;
-    for (let i = text.indexOf('('); i < text.length; i += 1) {
-        if (text[i] === '(') depth += 1;
-        else if (text[i] === ')') {
-            depth -= 1;
-            if (depth === 0) {
-                // `as InjectionKey<T>`, `satisfies InjectionKey<T>` and a
-                // trailing `!` are assertions, not another operand. The tail is
-                // judged structurally rather than by a character class: a type
-                // may contain `(`, `=>`, `{`, `&` — `as InjectionKey<() =>
-                // void>` is a supported form this file rejected — while what
-                // must not appear is a value operator OUTSIDE any bracket,
-                // which is what `Symbol.for('a') as T && Symbol('b')` has.
-                return isTypeAssertionTail(text.slice(i + 1));
-            }
-        }
-    }
-    return false;
-}
-
-/**
- * Whether what follows a call is only a type assertion.
- *
- * Enumerating the type grammar was the mistake: TypeScript puts `(`, `=>`, `{`,
- * `&` and quotes inside a type, and a character class listing what it had seen
- * so far rejected `as InjectionKey<() => void>`. What actually distinguishes an
- * assertion from a second operand is depth — a type's brackets nest, and the
- * operator that would change the value sits at depth zero.
- */
-function isTypeAssertionTail(tail) {
-    const text = tail.trim().replace(/^!\s*/, '');
-    if (text === '') return true;
-    const keyword = /^(?:as|satisfies)\s/.exec(text);
-    if (!keyword) return false;
-
-    // After the keyword everything is a type, so `|` and `&` are its own
-    // operators and say nothing. What a type cannot contain at depth zero is a
-    // value operator: the doubled forms, a ternary, a comma, or a call.
-    const body = keyword ? text.slice(keyword[0].length) : text;
-    let depth = 0;
-    for (let i = 0; i < body.length; i += 1) {
-        const char = body[i];
-        // `=>` is an arrow inside a function type; its `>` closes nothing.
-        if (char === '>' && body[i - 1] === '=') continue;
-        if ('<([{'.includes(char)) {
-            if (char === '(' && depth === 0) return false;
-            depth += 1;
-            continue;
-        }
-        if ('>)]}'.includes(char)) {
-            depth -= 1;
-            if (depth < 0) return false;
-            continue;
-        }
-        if (depth > 0) continue;
-        const pair = body.slice(i, i + 2);
-        if (pair === '&&' || pair === '||' || pair === '??') return false;
-        if ('?:,;+'.includes(char)) return false;
-    }
-    return depth === 0;
-}
-
-const NAMED_REEXPORT = /\bexport\s+(?:type\s+)?\{([^}]*)\}\s*from\b/g;
-const STAR_REEXPORT = /\bexport\s*\*\s*from\b/g;
-/**
- * `export { A, B as C }` without a `from`, which exports bindings declared in
- * this file. The lookahead is zero-width so it cannot backtrack into the
- * whitespace and swallow a re-export, which `\s*(?!from\b)` would.
- */
-const LOCAL_EXPORT = /\bexport\s*\{([^}]*)\}(?!\s*from\b)/g;
-const NAMED_BINDING = /(?:^|,)\s*(?:type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?/g;
-
-/** The `{ A, B as C }` of an import or re-export clause, as imported/local pairs. */
-function namedBindings(clause) {
-    return [...clause.matchAll(NAMED_BINDING)].map((match) => ({
-        imported: match[1],
-        local: match[2] ?? match[1],
+function filesUnder(dir) {
+    return [...walk(dir)].map((file) => ({
+        path: relative(dir, file).split(sep).join('/'),
+        text: readFileSync(file, 'utf8'),
     }));
 }
 
 /**
- * The module specifier that follows a `from` keyword, or null.
+ * The package's own compiler settings, which is where module resolution, the
+ * target and the lib set are decided. Reading them beats restating them: a
+ * guard that resolved modules differently from the build would be answering a
+ * question nobody asked.
  *
- * The scrub blanks string bodies, so the specifier is read from what it
- * recorded instead of from the blanked code — and only when nothing but
- * whitespace stands between the keyword and that string, so that a `from`
- * followed by something else cannot borrow a later statement's string. A
- * comment between the two is blanked, which is whitespace, so it is allowed.
+ * Emit is switched off because nothing is emitted, `rootDir` is dropped so the
+ * in-memory counter-check trees may sit beside `src`, and ambient type packages
+ * are dropped because they answer none of this file's questions while costing
+ * most of its run time.
  */
-function specifierAfter(source, at) {
-    const literal = source.strings.find(({ start }) => start >= at);
-    if (!literal || source.code.slice(at, literal.start).trim() !== '') return null;
-    return literal.value;
+function compilerOptions() {
+    const configPath = join(PACKAGE, 'tsconfig.json');
+    const { config, error } = ts.readConfigFile(configPath, ts.sys.readFile);
+    if (error) throw new Error(`cannot read ${configPath}: ${error.messageText}`);
+    const parsed = ts.parseJsonConfigFileContent(config, ts.sys, PACKAGE, undefined, configPath);
+    const options = {
+        ...parsed.options,
+        types: [],
+        noEmit: true,
+        declaration: false,
+        declarationMap: false,
+        sourceMap: false,
+        composite: false,
+        incremental: false,
+    };
+    delete options.outDir;
+    delete options.rootDir;
+    return options;
 }
+
+const REAL = tree(SRC, filesUnder(SRC));
+
+// The counter-check trees are declared next to the tests that read them, at the
+// bottom of this file; they join the same program as `src`, so the whole guard
+// costs one parse of Vue's types and one of the standard library.
+const COUNTER_CHECKS = [];
 
 /**
- * The scanned file a relative specifier names, or null for anything outside
- * `src` — a bare package name, or a path this scan does not hold.
+ * Registers a tree this guard has to fail on, and returns its report.
  *
- * The extensions are the ones this package writes: TypeScript source is
- * imported under its emitted `.js` name, single-file components under their
- * own, and a folder stands for its `index.ts`.
+ * `neighbours` are published into the program but left out of the tree. That is
+ * the shape of a key living in another package: reachable for the compiler,
+ * outside what this guard may judge.
  */
-function resolveSpecifier(fromPath, specifier) {
-    if (!specifier.startsWith('.')) return null;
-    const base = posix.normalize(posix.join(posix.dirname(fromPath), specifier));
-    const candidates = [base.replace(/\.js$/, '.ts'), base, `${base}.ts`, `${base}/index.ts`];
-    return candidates.find((candidate) => byPath.has(candidate)) ?? null;
+function counterCheck(name, files, neighbours = {}) {
+    const root = join(IN_MEMORY, name);
+    const spread = (source) => Object.entries(source).map(([path, text]) => ({ path, text }));
+    const built = tree(root, spread(files));
+    COUNTER_CHECKS.push(...built, ...tree(root, spread(neighbours)));
+    return () => inspect(built);
 }
 
-function addBinding(map, name, binding) {
-    if (!map.has(name)) map.set(name, []);
-    if (!map.get(name).some((known) => identity(known) === identity(binding)))
-        map.get(name).push(binding);
-}
+/* -------------------------------------------------------------------------
+ * The program
+ * ---------------------------------------------------------------------- */
 
-/** Every `X from './y'` clause of one file, already resolved to a scanned file. */
-function clausesOf(source, pattern) {
-    const found = [];
-    for (const match of source.code.matchAll(pattern)) {
-        const specifier = specifierAfter(source, match.index + match[0].length);
-        const target = specifier === null ? null : resolveSpecifier(source.path, specifier);
-        found.push({ clause: match[1] ?? '', specifier, target });
+const options = compilerOptions();
+
+/** Everything the program may read that is not on disk, by file name. */
+const inMemory = new Map();
+/** Directories those files pretend to be in, so module resolution walks them. */
+const inMemoryDirectories = new Set();
+
+function publish(units) {
+    for (const unit of units) {
+        inMemory.set(unit.fileName, unit.code);
+        let directory = dirname(unit.fileName);
+        for (;;) {
+            if (inMemoryDirectories.has(directory)) break;
+            inMemoryDirectories.add(directory);
+            const parent = dirname(directory);
+            if (parent === directory) break;
+            directory = parent;
+        }
     }
-    return found;
 }
 
-const exportsCache = new Map();
+let program;
+let checker;
 
 /**
- * What one file offers under each exported name.
+ * Vue's own declarations of the four things this guard recognises.
  *
- * Re-exports are followed, because a barrel is a legitimate way for a page to
- * reach a key and a guard that could not see through one would report the
- * import as undeclared. A cycle stops rather than recurses, and whatever a file
- * re-exports around that cycle is then missing from its surface — which shows
- * up as a call site this guard says it cannot place, not as one it waves
- * through.
+ * Read off the `vue` module's export surface and kept as declaration nodes:
+ * symbols get instantiated — `App<Element>['provide']` is not the symbol
+ * declared on `App` — while the declaration a symbol came from stays the same
+ * node. Matching on nodes therefore survives generics, import aliases and
+ * re-exports, and still says no to a `provide` that is somebody else's
+ * function.
  */
-function exportsOf(path, seen = new Set()) {
-    const cached = exportsCache.get(path);
-    if (cached) return cached;
-    if (seen.has(path)) return new Map();
-    const source = byPath.get(path);
-    const surface = new Map();
-    if (!source) return surface;
+const VUE = { calls: new Set(), injectionKey: new Set(), found: {} };
 
-    const withSelf = new Set([...seen, path]);
-    for (const binding of bindingsByPath.get(path) ?? []) {
-        if (binding.exported) addBinding(surface, binding.name, binding);
-    }
-    // `export { KEY }` names a binding declared above it. Without this a key
-    // written that way is exported in fact and unexported here, so a file
-    // importing it would be reported as naming a key nobody declared — a guard
-    // that rejects ordinary syntax gets switched off.
-    //
-    // No file under `src` writes that form today (measured: zero), so this loop
-    // has no input in this tree and no run exercises it. The test below proves
-    // the pattern and the local-to-exported mapping, which is what can be
-    // proven here; the integration is unproven until such a file exists.
-    for (const match of source.code.matchAll(LOCAL_EXPORT)) {
-        for (const { imported, local } of namedBindings(match[1] ?? '')) {
-            for (const binding of bindingsByPath.get(path) ?? []) {
-                if (binding.name === imported) addBinding(surface, local, binding);
-            }
-        }
-    }
-    for (const { target } of clausesOf(source, STAR_REEXPORT)) {
-        if (!target) continue;
-        for (const [name, bindings] of exportsOf(target, withSelf)) {
-            for (const binding of bindings) addBinding(surface, name, binding);
-        }
-    }
-    for (const { clause, target } of clausesOf(source, NAMED_REEXPORT)) {
-        if (!target) continue;
-        const reached = exportsOf(target, withSelf);
-        for (const { imported, local } of namedBindings(clause)) {
-            for (const binding of reached.get(imported) ?? []) addBinding(surface, local, binding);
-        }
-    }
-
-    exportsCache.set(path, surface);
-    return surface;
+function unalias(symbol) {
+    return symbol && symbol.flags & ts.SymbolFlags.Alias
+        ? checker.getAliasedSymbol(symbol)
+        : symbol;
 }
 
-/**
- * Every binding one file can name: what it declares itself, plus what its named
- * imports bring in under the local name they were given.
- *
- * Resolving per file is what keeps two unrelated modules that happen to agree
- * on a name out of each other's rule. A repo-wide lookup by name cannot: it
- * makes any `const SUPER_ADMIN_BRAND_KEY = 'storage-name'` anywhere under `src`
- * answer for a `provide()` that never reaches it, and a guard that fails on
- * code it has no business judging is a guard someone switches off.
- */
-function visibleBindings(source) {
-    const visible = new Map();
-    for (const binding of bindingsByPath.get(source.path) ?? []) {
-        addBinding(visible, binding.name, binding);
-    }
-    for (const { clause, target } of clausesOf(source, NAMED_IMPORT)) {
-        if (!target) continue;
-        const reached = exportsOf(target);
-        for (const { imported, local } of namedBindings(clause)) {
-            for (const binding of reached.get(imported) ?? []) addBinding(visible, local, binding);
-        }
-    }
-    return visible;
+const declarationsOf = (symbol) => symbol?.getDeclarations() ?? [];
+const declaredIn = (symbol, nodes) => declarationsOf(symbol).some((node) => nodes.has(node));
+
+function start() {
+    publish(REAL);
+    publish(COUNTER_CHECKS);
+
+    const base = ts.createCompilerHost(options, true);
+    const host = {
+        ...base,
+        fileExists: (name) => inMemory.has(name) || base.fileExists(name),
+        readFile: (name) => (inMemory.has(name) ? inMemory.get(name) : base.readFile(name)),
+        directoryExists: (name) =>
+            inMemoryDirectories.has(name) || Boolean(base.directoryExists?.(name)),
+        getSourceFile: (name, languageVersion, onError, shouldCreate) =>
+            inMemory.has(name)
+                ? ts.createSourceFile(name, inMemory.get(name), languageVersion, true)
+                : base.getSourceFile(name, languageVersion, onError, shouldCreate),
+    };
+
+    program = ts.createProgram([...inMemory.keys()], options, host);
+    checker = program.getTypeChecker();
+
+    const resolved = ts.resolveModuleName('vue', join(SRC, 'index.ts'), options, host);
+    const entry =
+        resolved.resolvedModule && program.getSourceFile(resolved.resolvedModule.resolvedFileName);
+    const module = entry && checker.getSymbolAtLocation(entry);
+    const surface = new Map(
+        module
+            ? checker
+                  .getExportsOfModule(module)
+                  .map((symbol) => [symbol.getName(), unalias(symbol)])
+            : [],
+    );
+    // `app.provide()` is the other half of the pair: a method on Vue's `App`
+    // rather than the free function, and the form every provide in this package
+    // actually uses.
+    const appProvide = surface.get('App')?.members?.get(ts.escapeLeadingUnderscores('provide'));
+    for (const declaration of [
+        ...declarationsOf(surface.get('provide')),
+        ...declarationsOf(surface.get('inject')),
+        ...declarationsOf(appProvide),
+    ])
+        VUE.calls.add(declaration);
+    for (const declaration of declarationsOf(surface.get('InjectionKey')))
+        VUE.injectionKey.add(declaration);
+    VUE.found = {
+        provide: declarationsOf(surface.get('provide')).length,
+        inject: declarationsOf(surface.get('inject')).length,
+        'App.provide': declarationsOf(appProvide).length,
+        InjectionKey: VUE.injectionKey.size,
+    };
 }
 
-const VUE_MODULE = 'vue';
+/* -------------------------------------------------------------------------
+ * Reading one tree
+ * ---------------------------------------------------------------------- */
+
+/** The `X` of `X(…)` and of `a.b.X(…)`, or null for anything computed. */
+function calleeName(expression) {
+    if (ts.isIdentifier(expression)) return expression.text;
+    if (ts.isPropertyAccessExpression(expression)) return expression.name.text;
+    return null;
+}
+
 const PROVIDE_AND_INJECT = ['provide', 'inject'];
 
 /**
- * The names that mean Vue's `provide`/`inject` in one file.
+ * The local names in one file that may mean Vue's `provide`/`inject`.
  *
  * `import { provide as vueProvide } from 'vue'` is a rename, not a disguise:
  * `vueProvide(LOCAL_KEY, …)` provides, so it is a call site, and a scan that
  * only knew the two original spellings would let the key it names out of both
- * derivations at once — declared without an annotation, used at a call site
- * nothing recognises, checked by nothing. Only `vue` is followed, so a
- * `provide` imported from somewhere else keeps whatever meaning it has there;
- * the bare spellings stay call sites regardless of where they come from.
+ * derivations at once. This decides which calls are worth asking the checker
+ * about; the checker decides whether the answer really is Vue's.
  */
-function callNames(source) {
+function localNamesOf(file) {
     const names = new Set(PROVIDE_AND_INJECT);
-    for (const { clause, specifier } of clausesOf(source, NAMED_IMPORT)) {
-        if (specifier !== VUE_MODULE) continue;
-        for (const { imported, local } of namedBindings(clause)) {
-            if (PROVIDE_AND_INJECT.includes(imported)) names.add(local);
+    for (const statement of file.statements) {
+        if (!ts.isImportDeclaration(statement)) continue;
+        const bindings = statement.importClause?.namedBindings;
+        if (!bindings || !ts.isNamedImports(bindings)) continue;
+        for (const element of bindings.elements) {
+            const imported = (element.propertyName ?? element.name).text;
+            if (PROVIDE_AND_INJECT.includes(imported)) names.add(element.name.text);
         }
     }
     return names;
 }
 
-const FIRST_ARGUMENT_IDENTIFIER = /^\s*([A-Za-z_$][\w$]*)\s*[,)]/;
-const FIRST_ARGUMENT_LITERAL = /^\s*['"`]/;
+/** The expression a declarator really assigns, past grouping and assertions. */
+function valueOf(declaration) {
+    let expression = declaration.initializer;
+    while (
+        expression &&
+        (ts.isParenthesizedExpression(expression) ||
+            ts.isNonNullExpression(expression) ||
+            ts.isAsExpression(expression) ||
+            ts.isSatisfiesExpression(expression))
+    )
+        expression = expression.expression;
+    return expression;
+}
+
+/** The types a declarator states outright: its annotation and its assertions. */
+function statedTypes(declaration) {
+    const nodes = declaration.type ? [declaration.type] : [];
+    let expression = declaration.initializer;
+    while (expression) {
+        if (ts.isParenthesizedExpression(expression) || ts.isNonNullExpression(expression)) {
+            expression = expression.expression;
+            continue;
+        }
+        if (ts.isAsExpression(expression) || ts.isSatisfiesExpression(expression)) {
+            nodes.push(expression.type);
+            expression = expression.expression;
+            continue;
+        }
+        break;
+    }
+    return nodes;
+}
 
 /**
- * Every `provide(…)` / `inject(…)` call, with whatever its first argument is
- * and with the declarations its own file can see under that name.
+ * Whether a written type is Vue's `InjectionKey`, following local type aliases
+ * to whatever they stand for.
+ *
+ * `type AppKey<T> = InjectionKey<T>` is the first of the two shapes issue #158
+ * recorded: the name at the declaration is `AppKey`, and a scan comparing names
+ * classified such a key as nothing at all. The alias is followed by asking the
+ * checker what the name binds to and, where that is another alias, reading its
+ * right-hand side — which terminates on `seen`, because `type T = T` is
+ * something a source file may contain.
  */
-function callSites() {
-    const found = [];
-    for (const source of sources) {
-        // Escaped: a legal identifier may contain `$`, which is an anchor in a
-        // pattern. `import { provide as provide$ }` then built an alternative
-        // that matched nothing, so its call sites were never read and an
-        // unannotated `Symbol()` behind one passed the whole suite.
-        const names = [...callNames(source)].map((name) => name.replaceAll('$', '\\$')).join('|');
-        const pattern = new RegExp(String.raw`\b(?:${names})\s*\(`, 'g');
-        const visible = visibleBindings(source);
-        for (const match of source.code.matchAll(pattern)) {
-            const argument = source.code.slice(match.index + match[0].length);
-            const identifier = FIRST_ARGUMENT_IDENTIFIER.exec(argument);
-            found.push({
-                path: source.path,
-                line: lineAt(source.code, match.index),
-                name: identifier ? identifier[1] : null,
-                bindings: identifier ? (visible.get(identifier[1]) ?? []) : [],
-                // A string key is legal in Vue and simply outside this rule:
-                // it has no symbol identity to split in the first place.
-                literal: !identifier && FIRST_ARGUMENT_LITERAL.test(argument),
-                excerpt: argument.slice(0, 40).replace(/\s+/g, ' ').trim(),
-            });
-        }
-    }
-    return found;
+function namesInjectionKey(typeNode, seen = new Set()) {
+    let node = typeNode;
+    while (node && ts.isParenthesizedTypeNode(node)) node = node.type;
+    const name = !node
+        ? null
+        : ts.isTypeReferenceNode(node)
+          ? node.typeName
+          : ts.isImportTypeNode(node)
+            ? (node.qualifier ?? null)
+            : null;
+    if (!name) return false;
+    const symbol = unalias(checker.getSymbolAtLocation(name));
+    if (!symbol || seen.has(symbol)) return false;
+    if (declaredIn(symbol, VUE.injectionKey)) return true;
+    seen.add(symbol);
+    return declarationsOf(symbol).some(
+        (declaration) =>
+            ts.isTypeAliasDeclaration(declaration) && namesInjectionKey(declaration.type, seen),
+    );
+}
+
+/**
+ * Whether an initializer is a call to the global `Symbol.for`.
+ *
+ * Being a call is the whole question: `Symbol.for('decoy') && Symbol('x')`
+ * starts with one and evaluates to the local symbol, which is exactly the
+ * cross-bundle failure this file exists to prevent. In a tree that question
+ * answers itself — a binary expression is not a call — and so does the one
+ * about which type assertions may follow, because an assertion is a node
+ * wrapped around the value rather than a shape the text has to be matched for.
+ *
+ * `Symbol` is checked rather than assumed: the callee has to resolve into the
+ * standard library, so a local binding that happens to be spelled `Symbol` does
+ * not satisfy the rule.
+ */
+function isGlobalSymbolFor(declaration) {
+    const value = valueOf(declaration);
+    if (!value || !ts.isCallExpression(value)) return false;
+    const callee = value.expression;
+    if (!ts.isPropertyAccessExpression(callee) || callee.name.text !== 'for') return false;
+    return declarationsOf(unalias(checker.getSymbolAtLocation(callee))).some((node) =>
+        program.isSourceFileDefaultLibrary(node.getSourceFile()),
+    );
 }
 
 /**
@@ -890,124 +476,535 @@ function callSites() {
  * Vue accepts a string as an injection key, and a string does not acquire a
  * symbol-identity problem by being stored in a constant first — `const KEY =
  * 'local'; provide(KEY, value)` is ordinary, valid code. The call-site
- * derivation reads it as an identifier, so without this it entered the roster
- * and failed both assertions: a guard rejecting correct source, which is how a
- * guard gets switched off.
+ * derivation reads it as an identifier, so without this it would enter the
+ * roster and be told to become a `Symbol.for`: a guard rejecting correct
+ * source, which is how a guard gets switched off.
  *
  * A key annotated `: InjectionKey<T>` cannot be one of these — Vue's own type
- * extends `Symbol` — so only this derivation needs the exemption.
- *
- * No file under `src` provides or injects a string-bound identifier today
- * (measured: none), so removing the filter changes nothing here and no run
- * exercises it. The test below proves the predicate, which is what can be
- * proven; the wiring stays unproven until such a call exists.
+ * is a branded `symbol` — so only this derivation needs the exemption.
  */
-function isStringKey(initializer) {
-    const text = (initializer ?? '').trim();
-    const quote = text[0];
-    if (!["'", '"', '`'].includes(quote) || text.at(-1) !== quote || text.length < 2) return false;
-    const body = text.slice(1, -1);
-    return !body.includes(quote) && !(quote === '`' && body.includes('${'));
+function isStringKey(declaration) {
+    const value = valueOf(declaration);
+    return Boolean(
+        value && (ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value)),
+    );
 }
 
-const sites = callSites();
-const namedSites = sites.filter(({ name }) => name);
-const usedBindings = namedSites
-    .flatMap(({ bindings }) => bindings)
-    .filter(({ initializer }) => !isStringKey(initializer));
+/**
+ * Whether a call is Vue's `provide`/`inject`.
+ *
+ * A call the checker resolves elsewhere is not one — a `function provide(key,
+ * value)` of somebody's own is decided, not waved through. A call it cannot
+ * resolve at all still counts, so an unreadable one fails a test below rather
+ * than leaving the guard.
+ */
+function isProvideOrInject(node, localNames) {
+    const called = calleeName(node.expression);
+    if (!called || !localNames.has(called)) return false;
+    const symbol = unalias(checker.getSymbolAtLocation(node.expression));
+    return !symbol || declaredIn(symbol, VUE.calls);
+}
 
-/** The rule applies to both derivations together. */
-const injectionKeys = [
-    ...new Map(
-        [...annotatedKeys, ...usedBindings].map((binding) => [identity(binding), binding]),
-    ).values(),
-];
+/** One `provide(…)`/`inject(…)` call, with whatever its first argument is. */
+function readSite(unit, file, node) {
+    const argument = node.arguments[0];
+    const identifier = argument && ts.isIdentifier(argument) ? argument : null;
+    return {
+        where: `${unit.path}:${file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1}`,
+        name: identifier?.text ?? null,
+        declarations: identifier
+            ? declarationsOf(unalias(checker.getSymbolAtLocation(identifier))).filter(
+                  ts.isVariableDeclaration,
+              )
+            : [],
+        // A string key is legal in Vue and simply outside this rule: it has no
+        // symbol identity to split in the first place.
+        literal: Boolean(
+            argument &&
+            (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument)),
+        ),
+        excerpt: (argument ? argument.getText(file) : '').slice(0, 40).replace(/\s+/g, ' ').trim(),
+    };
+}
 
-const where = ({ path, line, name }) => `${path}:${line} — ${name}`;
+/**
+ * Everything this guard has to say about one set of files.
+ *
+ * The tree is judged on its own: a declaration reached from a file outside it
+ * is reported as unplaceable rather than checked, which is what keeps the
+ * counter-check trees below from answering for `src` or for each other.
+ */
+function inspect(units) {
+    const own = new Map(units.map((unit) => [unit.fileName, unit]));
+    const anomalies = units
+        .filter((unit) => unit.anomalies.length > 0)
+        .map((unit) => `${unit.path}: ${unit.anomalies.join('; ')}`);
+    const missing = [];
+    const located = new Map();
+    const keys = new Set();
+    const sites = [];
+    const mine = (declaration) => own.has(declaration.getSourceFile().fileName);
+
+    const place = (declaration) => {
+        if (located.has(declaration)) return located.get(declaration);
+        const file = declaration.getSourceFile();
+        const unit = own.get(file.fileName);
+        const at = unit
+            ? {
+                  order: [units.indexOf(unit), declaration.pos],
+                  where: `${unit.path}:${
+                      file.getLineAndCharacterOfPosition(declaration.name.getStart(file)).line + 1
+                  } — ${declaration.name.getText(file)}`,
+              }
+            : null;
+        located.set(declaration, at);
+        return at;
+    };
+
+    for (const unit of units) {
+        const file = program.getSourceFile(unit.fileName);
+        if (!file) {
+            missing.push(unit.path);
+            continue;
+        }
+        const localNames = localNamesOf(file);
+        const visit = (node) => {
+            if (
+                ts.isVariableDeclaration(node) &&
+                ts.isIdentifier(node.name) &&
+                node.initializer &&
+                statedTypes(node).some((typeNode) => namesInjectionKey(typeNode))
+            )
+                keys.add(node);
+            if (ts.isCallExpression(node) && isProvideOrInject(node, localNames))
+                sites.push(readSite(unit, file, node));
+            ts.forEachChild(node, visit);
+        };
+        visit(file);
+    }
+
+    const byOrder = (left, right) =>
+        left.order[0] - right.order[0] || left.order[1] - right.order[1];
+    const list = (declarations) =>
+        [...new Set(declarations)]
+            .map(place)
+            .filter(Boolean)
+            .sort(byOrder)
+            .map(({ where }) => where);
+
+    const used = sites
+        .flatMap((site) => site.declarations)
+        .filter(mine)
+        .filter((declaration) => !isStringKey(declaration));
+
+    return {
+        anomalies,
+        missing,
+        sites,
+        keys: list(keys),
+        used: list(used),
+        loose: list([...keys, ...used].filter((declaration) => !isGlobalSymbolFor(declaration))),
+        unannounced: list(used.filter((declaration) => !keys.has(declaration))),
+        unplaceable: sites
+            .filter((site) => site.name && !site.declarations.some(mine))
+            .map((site) => `${site.where} — ${site.name}`),
+        unread: sites
+            .filter((site) => !site.name && !site.literal)
+            .map((site) => `${site.where} — provide/inject(${site.excerpt}…`),
+    };
+}
+
+/* -------------------------------------------------------------------------
+ * The second derivation
+ * ---------------------------------------------------------------------- */
+
+const OPENERS = new Set([
+    ts.SyntaxKind.OpenParenToken,
+    ts.SyntaxKind.OpenBracketToken,
+    ts.SyntaxKind.OpenBraceToken,
+]);
+const CLOSERS = new Set([
+    ts.SyntaxKind.CloseParenToken,
+    ts.SyntaxKind.CloseBracketToken,
+    ts.SyntaxKind.CloseBraceToken,
+]);
+
+/**
+ * How many declarators spell out `const NAME: InjectionKey<`, counted straight
+ * from the token stream so that this and the tree walk above can disagree.
+ *
+ * The tokeniser is a different tool from the parser — no tree, no scopes, no
+ * types — which is the point: a reader that stopped finding declarations would
+ * otherwise shrink the guard in silence, and nothing else would notice. The
+ * cross-check above catches a key that also has a call site; a key declared
+ * here and injected only by a consumer app has none, and then this count is all
+ * that is left.
+ *
+ * Further declarators of one statement are counted too, recognised by a `,`
+ * outside every bracket — which is what a declarator separator is, and what a
+ * comma in an argument list, an object literal or an object type is not. The
+ * keyword is `const` alone although the reader accepts `let` and `var`: `const`
+ * is the one that cannot stand without a value, and the reader passes over a
+ * declarator that has none.
+ *
+ * The template handling is not decoration. A scanner reads `` `${a}${b}` `` as
+ * a head and then has to be told that the `}` closing a substitution is a
+ * template token again; without that it takes the following backtick for the
+ * start of a new string and loses the rest of the file. Two of this package's
+ * keys sit behind such a template, and this count reported 12 of 14 until the
+ * rescan was added.
+ */
+function writtenAnnotations(text) {
+    const scanner = ts.createScanner(
+        ts.ScriptTarget.Latest,
+        true,
+        ts.LanguageVariant.Standard,
+        text,
+    );
+    const starts = (token) =>
+        token.kind === ts.SyntaxKind.ConstKeyword ||
+        (token.kind === ts.SyntaxKind.CommaToken && token.depth === 0);
+    /** Bracket depth each open template substitution sits at. */
+    const templates = [];
+    let total = 0;
+    let depth = 0;
+    let window = [];
+    for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+        if (kind === ts.SyntaxKind.CloseBraceToken && templates.at(-1) === depth) {
+            kind = scanner.reScanTemplateToken(false);
+            if (kind === ts.SyntaxKind.TemplateTail) templates.pop();
+        } else if (OPENERS.has(kind)) depth += 1;
+        else if (CLOSERS.has(kind)) depth -= 1;
+        if (kind === ts.SyntaxKind.TemplateHead) templates.push(depth);
+        if (
+            kind === ts.SyntaxKind.LessThanToken &&
+            window.length === 4 &&
+            starts(window[0]) &&
+            window[1].kind === ts.SyntaxKind.Identifier &&
+            window[2].kind === ts.SyntaxKind.ColonToken &&
+            window[3].kind === ts.SyntaxKind.Identifier &&
+            window[3].text === 'InjectionKey'
+        )
+            total += 1;
+        window = [...window, { kind, depth, text: scanner.getTokenText() }].slice(-4);
+    }
+    return total;
+}
+
+/* -------------------------------------------------------------------------
+ * The counter-check trees
+ *
+ * Each one is a state this guard has to fail on, kept as source so the failure
+ * is re-proved on every run rather than once by hand. Where a tree holds a
+ * sound declaration beside a broken one, the assertion names only the broken
+ * one — which is the repaired half of the same counter-check.
+ * ---------------------------------------------------------------------- */
+
+// Two lines, so the first line of every tree written against it is line 3.
+const HEAD = "import { provide, inject } from 'vue';\nimport type { InjectionKey } from 'vue';";
+
+const annotated = counterCheck('annotated', {
+    'keys.ts': `${HEAD}
+export const SOUND: InjectionKey<number> = Symbol.for('saas-platform/Sound');
+export const LOOSE: InjectionKey<number> = Symbol('loose');
+provide(SOUND, 1);
+provide(LOOSE, 1);
+inject(SOUND);
+`,
+});
+
+const typeAlias = counterCheck('type-alias', {
+    'keys.ts': `${HEAD}
+type AppKey<T> = InjectionKey<T>;
+type DeepKey<T> = AppKey<T>;
+type Cyclic<T> = Cyclic<T>;
+export const SOUND: AppKey<number> = Symbol.for('saas-platform/Sound');
+export const ALIASED: AppKey<number> = Symbol('loose');
+export const NESTED: DeepKey<number> = Symbol('loose');
+export const UNRELATED: Cyclic<number> = 1 as never;
+`,
+});
+
+const scopes = counterCheck('scopes', {
+    'keys.ts': `${HEAD}
+export function unrelated() {
+    const KEY = 123;
+    return KEY;
+}
+export function real() {
+    const KEY: InjectionKey<number> = Symbol('loose');
+    provide(KEY, 1);
+}
+export function sound() {
+    const KEY: InjectionKey<number> = Symbol.for('saas-platform/Sound');
+    provide(KEY, 1);
+}
+`,
+});
+
+const castAndSatisfies = counterCheck('cast-and-satisfies', {
+    'keys.ts': `${HEAD}
+export const CAST = Symbol('loose') as InjectionKey<number>;
+export const SATISFIES = Symbol('loose') satisfies InjectionKey<number>;
+export const SOUND_CAST = Symbol.for('saas-platform/A') as InjectionKey<number>;
+export const SOUND_SATISFIES = Symbol.for('saas-platform/B') satisfies InjectionKey<number>;
+`,
+});
+
+const declarators = counterCheck('declarators', {
+    'keys.ts': `${HEAD}
+export const FIRST: InjectionKey<number> = Symbol.for('saas-platform/First'),
+    CHAINED: InjectionKey<number> = Symbol('loose');
+const sizes = new Map<string, { a: 1 }>(),
+    AFTER_TYPE_ARGUMENTS: InjectionKey<number> = Symbol('loose');
+provide(AFTER_TYPE_ARGUMENTS, sizes.size);
+`,
+});
+
+const sfc = counterCheck('sfc', {
+    'Page.vue': `<template>
+    <div>const TEMPLATE_TEXT: InjectionKey<number> = Symbol('not code')</div>
+</template>
+
+<script setup lang="ts">
+import { inject } from 'vue';
+import type { InjectionKey } from 'vue';
+const IN_SFC: InjectionKey<number> = Symbol('loose');
+inject(IN_SFC);
+</script >
+`,
+});
+
+const sfcExport = counterCheck('sfc-export', {
+    'Widget.vue': `<template><div /></template>
+
+<script lang="ts">
+import type { InjectionKey } from 'vue';
+export const FROM_SFC: InjectionKey<number> = Symbol('loose');
+</script>
+
+<script setup lang="ts">
+const label = 'widget';
+</script>
+`,
+    'page.ts': `import { provide } from 'vue';
+import { FROM_SFC } from './Widget.vue';
+provide(FROM_SFC, 1);
+`,
+});
+
+const sfcUnclosed = counterCheck('sfc-unclosed', {
+    'Page.vue': `<template><div /></template>
+
+<script setup lang="ts">
+const KEY = 1;
+`,
+});
+
+const aliasedCall = counterCheck('aliased-call', {
+    'keys.ts': `${HEAD}
+import { provide as provide$, inject as inject$ } from 'vue';
+const PROVIDED = Symbol('loose');
+const INJECTED = Symbol('loose');
+provide$(PROVIDED, 1);
+inject$(INJECTED);
+`,
+});
+
+const barrel = counterCheck('barrel', {
+    'leaf.ts': `import type { InjectionKey } from 'vue';
+export const STARRED: InjectionKey<number> = Symbol('loose');
+`,
+    'other.ts': `import type { InjectionKey } from 'vue';
+export const RENAMED: InjectionKey<number> = Symbol('loose');
+`,
+    'index.ts': `export * from './leaf.js';
+export { RENAMED as PUBLIC } from './other.js';
+`,
+    'page.ts': `import { provide } from 'vue';
+import { STARRED, PUBLIC } from './index.js';
+provide(STARRED, 1);
+provide(PUBLIC, 1);
+`,
+});
+
+const stringKey = counterCheck('string-key', {
+    'keys.ts': `${HEAD}
+const TEXT = 'saas-platform/text';
+const SYMBOLIC = Symbol('loose');
+provide(TEXT, 1);
+provide(SYMBOLIC, 1);
+provide('inline', 1);
+`,
+});
+
+const grouping = counterCheck('grouping', {
+    'keys.ts': `${HEAD}
+export const GROUPED: InjectionKey<number> = (Symbol('loose'));
+export const DECOY: InjectionKey<number> = Symbol.for('saas-platform/Decoy') && Symbol('loose');
+export const COALESCED: InjectionKey<number> = Symbol.for('saas-platform/A') ?? Symbol('loose');
+export const TERNARY: InjectionKey<number> = 1 > 0 ? Symbol.for('saas-platform/B') : Symbol('x');
+export const SOUND: InjectionKey<number> = (Symbol.for('saas-platform/Sound'));
+export const SOUND_ASSERTED = ((Symbol.for('saas-platform/C'))) as InjectionKey<number>;
+`,
+});
+
+const assertionTails = counterCheck('assertion-tails', {
+    'keys.ts': `${HEAD}
+interface Left {
+    a?: string;
+}
+interface Right {
+    b?: string;
+}
+export const FUNCTION_TYPE = Symbol.for('saas-platform/A') as InjectionKey<() => void>;
+export const OBJECT_TYPE = Symbol.for('saas-platform/B') as InjectionKey<{ a: string }>;
+export const INTERSECTION = Symbol.for('saas-platform/C') as InjectionKey<Left & Right>;
+export const NON_NULL = Symbol.for('saas-platform/D')! as InjectionKey<number>;
+export const BROKEN = Symbol('loose') as InjectionKey<() => void>;
+`,
+});
+
+const computedKey = counterCheck('computed-key', {
+    'keys.ts': `${HEAD}
+const keys = { THEME: Symbol.for('saas-platform/Theme') };
+provide(keys.THEME, 1);
+inject(keys['THEME']);
+`,
+});
+
+const outside = counterCheck(
+    'outside',
+    {
+        'page.ts': `${HEAD}
+import { ELSEWHERE } from './neighbour.js';
+import { MISSING } from './nowhere.js';
+provide(ELSEWHERE, 1);
+provide(MISSING, 1);
+`,
+    },
+    {
+        'neighbour.ts': `import type { InjectionKey } from 'vue';
+export const ELSEWHERE: InjectionKey<number> = Symbol('loose');
+`,
+    },
+);
+
+const unannounced = counterCheck('unannounced', {
+    'keys.ts': `${HEAD}
+const UNTYPED = Symbol.for('saas-platform/Untyped');
+provide(UNTYPED, 1);
+`,
+});
+
+const shadowedSymbol = counterCheck('shadowed-symbol', {
+    'keys.ts': `${HEAD}
+const Symbol = { for: (key: string) => key as unknown as symbol };
+export const SHADOWED: InjectionKey<number> = Symbol.for('saas-platform/Shadowed');
+`,
+});
+
+const notCode = counterCheck('not-code', {
+    'keys.ts': `${HEAD}
+// Documented elsewhere as app.provide(GHOST, value) — a sentence, not a call.
+const sentence = "provide(GHOST, 1)";
+export const REAL_KEY: InjectionKey<number> = Symbol.for('saas-platform/Real');
+provide(REAL_KEY, sentence.length);
+`,
+});
+
+const notVueProvide = counterCheck('not-vue-provide', {
+    'keys.ts': `import type { InjectionKey } from 'vue';
+export const KEY: InjectionKey<number> = Symbol.for('saas-platform/Key');
+function provide(name: string, value: number) {
+    return \`\${name}:\${value}\`;
+}
+const loose = Symbol('loose');
+export const used = provide(String(loose), 1);
+`,
+});
+
+start();
+
+const real = inspect(REAL);
+
+/* -------------------------------------------------------------------------
+ * The rule, against `src`
+ * ---------------------------------------------------------------------- */
 
 describe('every Vue injection key is created with Symbol.for', () => {
-    test('the sources were read to the end', () => {
-        // The scans below are only worth as much as the scrub that feeds them.
-        // A misread delimiter would blank real code, and blanked code is code
-        // this guard silently stops looking at.
-        const confused = sources
-            .filter(({ anomalies }) => anomalies.length > 0)
-            .map(({ path, anomalies }) => `${path}: ${anomalies.join('; ')}`);
+    test('the guard found Vue and read every file', () => {
+        // Both halves are how a source scan passes by not looking: a `provide`
+        // that matches nothing because Vue was never resolved, and a file the
+        // program never received because its name was built wrong.
         assert.deepEqual(
-            confused,
+            Object.entries(VUE.found)
+                .filter(([, count]) => count === 0)
+                .map(([name]) => name),
             [],
-            'The script-block, comment, string and regex scrub lost its place in these files, ' +
-                'so everything after that point was scanned as the wrong kind of text:\n  ' +
-                confused.join('\n  '),
+            "Vue's own declarations of `provide`, `inject`, `App.provide` and `InjectionKey` " +
+                'are what this guard matches against. Finding none of one of them means it ' +
+                'silently stops recognising that form',
+        );
+        assert.deepEqual(real.missing, [], 'these files never reached the program');
+        assert.deepEqual(
+            real.anomalies,
+            [],
+            'the `.vue` script-block reader lost its place in these files, so everything after ' +
+                'that point was blanked and never parsed',
         );
     });
 
     test('there are keys and call sites to look at', () => {
         assert.ok(
-            annotatedKeys.length > 0,
+            real.keys.length > 0,
             'no `InjectionKey` declaration found under src — the declaration scan stopped matching',
         );
         assert.ok(
-            namedSites.length > 0,
-            'no provide()/inject() call names an identifier — the call-site scan stopped matching',
+            real.sites.length > 0,
+            'no provide()/inject() call was recognised — the call-site scan stopped matching',
         );
         assert.ok(
-            usedBindings.length > 0,
-            'no provide()/inject() call resolves to a declaration — the import reader stopped ' +
+            real.used.length > 0,
+            'no provide()/inject() call resolves to a declaration — name resolution stopped ' +
                 'reaching the files the keys are declared in',
         );
     });
 
     test('every injection key is created with Symbol.for', () => {
-        const local = injectionKeys
-            .filter(({ initializer }) => !isSymbolForCall(initializer))
-            .map(where);
         assert.deepEqual(
-            local,
+            real.loose,
             [],
             'A Vue injection key has to be created with `Symbol.for(...)`. This package is ' +
                 'loaded twice — pages from `src/`, the bootstrap from `dist/` — and a plain ' +
                 '`Symbol()` is a different symbol in each copy, so `inject()` never finds what ' +
                 '`provide()` wrote. See `CONTRIBUTING.md`:\n  ' +
-                local.join('\n  '),
+                real.loose.join('\n  '),
         );
     });
 
     test('every key a provide/inject call names is one the declaration scan found', () => {
         // This is what keeps the set above from shrinking in silence. A key
-        // that loses its declaration, or whose declaration changes into a
-        // shape the reader no longer parses, is still named at its call sites
-        // — and turns up here instead of simply leaving the guard. Deleting a
-        // key together with all of its uses is the one way it may leave, and
-        // then there is nothing left to guard.
-        const undeclared = namedSites
-            .filter(({ bindings }) => bindings.length === 0)
-            .map(({ path, line, name }) => `${path}:${line} — ${name}`);
+        // that loses its declaration, or whose declaration changes into a shape
+        // the reader no longer recognises, is still named at its call sites —
+        // and turns up here instead of simply leaving the guard.
         assert.deepEqual(
-            undeclared,
+            real.unplaceable,
             [],
-            'These identifiers are handed to provide()/inject() but nothing their own file can ' +
-                'see declares them. Either the declaration was removed or reshaped past the ' +
-                'reader in this file, the import that brings it in resolves to no scanned file, ' +
-                'or the key really comes from another package — in which case this guard has to ' +
-                'be taught how to reach it, because it cannot check a spelling it never ' +
-                'sees:\n  ' +
-                undeclared.join('\n  '),
+            'These identifiers are handed to provide()/inject() but resolve to no declaration ' +
+                'inside this package. Either the declaration was removed, the import resolves to ' +
+                'no file, or the key really comes from another package — in which case this ' +
+                'guard has to be taught how to reach it, because it cannot check a spelling it ' +
+                'never sees:\n  ' +
+                real.unplaceable.join('\n  '),
         );
-
-        const annotatedIds = new Set(annotatedKeys.map(identity));
-        const unannounced = [
-            ...new Set(
-                usedBindings.filter((binding) => !annotatedIds.has(identity(binding))).map(where),
-            ),
-        ];
         assert.deepEqual(
-            unannounced,
+            real.unannounced,
             [],
             'These are used as injection keys but are not declared as `InjectionKey<T>`. Vue ' +
                 'accepts a bare `symbol` there, so nothing else says what they are — annotate ' +
                 'them, so the declaration alone carries the fact:\n  ' +
-                unannounced.join('\n  '),
+                real.unannounced.join('\n  '),
         );
     });
 
@@ -1015,128 +1012,187 @@ describe('every Vue injection key is created with Symbol.for', () => {
         // The set of used keys is only complete while every call site yields
         // one. A key passed as `keys.THEME` or through any other expression
         // would leave no name behind, and the cross-check above would lose a
-        // member without noticing — so an unreadable call site is a failure
-        // here.
-        const unread = sites
-            .filter(({ name, literal }) => !name && !literal)
-            .map(({ path, line, excerpt }) => `${path}:${line} — provide/inject(${excerpt}…`);
+        // member without noticing.
         assert.deepEqual(
-            unread,
+            real.unread,
             [],
             'The first argument of these provide()/inject() calls is neither a bare identifier ' +
                 'nor a string literal, so this guard cannot tell which key they use. Pass the ' +
                 'key by name:\n  ' +
-                unread.join('\n  '),
+                real.unread.join('\n  '),
         );
+    });
+
+    test('the annotated declarations survive the tree walk', () => {
+        const written = REAL.reduce((total, { code }) => total + writtenAnnotations(code), 0);
+        assert.ok(written > 0, 'the token scan found no `const NAME: InjectionKey<` under src');
+        assert.ok(
+            real.keys.length >= written,
+            `${written} declarators spell out \`const NAME: InjectionKey<\` under src, but the ` +
+                `tree walk found only ${real.keys.length} keys — it lost ` +
+                `${written - real.keys.length} of them`,
+        );
+    });
+});
+
+/* -------------------------------------------------------------------------
+ * The counter-checks
+ *
+ * One per shape issue #158 lists as covered, plus the two it recorded as
+ * undecidable. Each names exactly what the guard reports for a broken tree, so
+ * a reader that no longer fails is a test that no longer passes.
+ * ---------------------------------------------------------------------- */
+
+describe('the guard fails on what it says it covers', () => {
+    test('an annotated declaration', () => {
+        assert.deepEqual(annotated().loose, ['keys.ts:4 — LOOSE']);
+    });
+
+    test('an InjectionKey reached through a local type alias (#158, shape 1)', () => {
+        // The shape a name comparison could not decide, and there is no
+        // `provide`/`inject` here, so the call-site derivation cannot recover
+        // it either — the annotation is the only thing that says what it is.
+        const report = typeAlias();
+        assert.deepEqual(report.loose, ['keys.ts:7 — ALIASED', 'keys.ts:8 — NESTED']);
+        // A cyclic alias resolves to nothing rather than to a hang.
+        assert.deepEqual(report.keys, [
+            'keys.ts:6 — SOUND',
+            'keys.ts:7 — ALIASED',
+            'keys.ts:8 — NESTED',
+        ]);
+    });
+
+    test('same-file homonyms stay in their own scope (#158, shape 2)', () => {
+        // The unrelated `const KEY = 123` in the neighbouring function must not
+        // answer for either call site, and the sound key must not be dragged in
+        // by the broken one sharing its name.
+        const report = scopes();
+        assert.deepEqual(report.loose, ['keys.ts:8 — KEY']);
+        assert.deepEqual(report.unplaceable, []);
+    });
+
+    test('a cast and a satisfies', () => {
+        assert.deepEqual(castAndSatisfies().loose, ['keys.ts:3 — CAST', 'keys.ts:4 — SATISFIES']);
+    });
+
+    test('a second declarator, and one behind type arguments', () => {
+        assert.deepEqual(declarators().loose, [
+            'keys.ts:4 — CHAINED',
+            'keys.ts:6 — AFTER_TYPE_ARGUMENTS',
+        ]);
+    });
+
+    test('a .vue script block that closes with `</script >`', () => {
+        const report = sfc();
+        assert.deepEqual(report.anomalies, []);
+        // The line is the line in the `.vue`, and the template text that reads
+        // like a declaration is not one.
+        assert.deepEqual(report.loose, ['Page.vue:8 — IN_SFC']);
+    });
+
+    test('a key exported from a .vue and provided from a .ts', () => {
+        // `./Widget.vue` reaches the file the guard renamed to `Widget.vue.ts`,
+        // so a key crossing that boundary is judged rather than reported as
+        // unreachable.
+        const report = sfcExport();
+        assert.deepEqual(report.unplaceable, []);
+        assert.deepEqual(report.loose, ['Widget.vue:5 — FROM_SFC']);
+    });
+
+    test('a .vue script block that never closes', () => {
+        assert.deepEqual(sfcUnclosed().anomalies, [
+            'Page.vue: <script> opened at line 3 is never closed',
+        ]);
+    });
+
+    test('provide and inject imported under another name', () => {
+        const report = aliasedCall();
+        assert.deepEqual(report.unannounced, ['keys.ts:4 — PROVIDED', 'keys.ts:5 — INJECTED']);
+        assert.deepEqual(report.loose, ['keys.ts:4 — PROVIDED', 'keys.ts:5 — INJECTED']);
+    });
+
+    test('a key imported through `export *` and through `export { … } from`', () => {
+        const report = barrel();
+        assert.deepEqual(report.loose, ['leaf.ts:2 — STARRED', 'other.ts:2 — RENAMED']);
+        assert.deepEqual(report.unplaceable, []);
     });
 
     test('a string key is a key, and not a missing Symbol.for', () => {
-        // `const KEY = 'local'; provide(KEY, value)` is valid Vue. Reading the
-        // identifier and then demanding a `Symbol.for` of it rejects correct
-        // source — the failure mode that gets a guard disabled. Predicate only:
-        // no such call exists under `src`, so nothing here drives the filter.
-        assert.equal(isStringKey("'local'"), true);
-        assert.equal(isStringKey('"local"'), true);
-        assert.equal(isStringKey('`local`'), true);
-        assert.equal(isStringKey("Symbol('local')"), false);
-        assert.equal(isStringKey("Symbol.for('local')"), false);
-        // A template literal that interpolates is not a plain string.
-        assert.equal(isStringKey('`local-${id}`'), false);
+        // `const KEY = 'local'; provide(KEY, value)` is valid Vue, and the
+        // symbol beside it in the same file still has to obey the rule.
+        const report = stringKey();
+        assert.deepEqual(report.loose, ['keys.ts:4 — SYMBOLIC']);
+        assert.deepEqual(report.unread, []);
     });
 
-    test('an alias containing a dollar sign is still a call site', () => {
-        // `$` is legal in an identifier and an anchor in a pattern. Unescaped,
-        // the alternative matched nothing and the guard passed by not looking.
-        const source = [
-            "import { provide as provide$ } from 'vue';",
-            "const LOCAL_KEY = Symbol('local');",
-            'provide$(LOCAL_KEY, 1);',
-        ].join('\n');
-        const names = [...callNames({ code: source, strings: scrubNonCode(source).strings })];
-        assert.ok(names.includes('provide$'), 'the alias is collected');
-        const escaped = names.map((name) => name.replaceAll('$', '\\$')).join('|');
-        assert.match(source, new RegExp(String.raw`\b(?:${escaped})\s*\(`));
-    });
-
-    test('grouping around the call is grouping, not another operand', () => {
-        assert.equal(isSymbolForCall("(Symbol.for('k'))"), true);
-        assert.equal(isSymbolForCall("((Symbol.for('k')))"), true);
-        assert.equal(isSymbolForCall("(Symbol.for('k')) as InjectionKey<string>"), true);
-        // A wrapper that closes in the middle is not a wrapper.
-        assert.equal(isSymbolForCall("(Symbol.for('a')) && (Symbol('b'))"), false);
-    });
-
-    test('a type assertion may contain what a type contains', () => {
-        assert.equal(isSymbolForCall("Symbol.for('k') as InjectionKey<() => void>"), true);
-        assert.equal(isSymbolForCall("Symbol.for('k') as InjectionKey<{ a: string }>"), true);
-        assert.equal(isSymbolForCall("Symbol.for('k') as InjectionKey<A & B>"), true);
-        assert.equal(isSymbolForCall("Symbol.for('k') satisfies InjectionKey<() => void>"), true);
-        // And still not a second operand.
-        assert.equal(isSymbolForCall("Symbol.for('a') as T && Symbol('b')"), false);
-        assert.equal(isSymbolForCall("Symbol.for('a') as T ? x : y"), false);
-    });
-
-    test('a division after a keyword-suffixed name is not a regular expression', () => {
-        // `margin` ends in `in`. Matched without an identifier boundary, the
-        // `/` opened a regular expression that never closed, and the scan of
-        // that file — and with it the whole guard — collapsed on valid source.
-        const divided = scrubNonCode('const half = (margin) => margin / 2;\nconst x = 1;');
-        assert.deepEqual(divided.anomalies, []);
-        assert.match(divided.code, /margin \/ 2/);
-
-        // And a keyword that really is one still opens a regular expression:
-        // its body is blanked, so the identifier inside it disappears.
-        const kept = scrubNonCode('return /needle/.test(m);');
-        assert.deepEqual(kept.anomalies, []);
-        assert.doesNotMatch(kept.code, /needle/);
-    });
-
-    test('an initializer that merely starts with Symbol.for is not one', () => {
-        assert.equal(isSymbolForCall("Symbol.for('a')"), true);
-        assert.equal(isSymbolForCall("  Symbol.for('a') as InjectionKey<string>"), true);
-        assert.equal(isSymbolForCall("Symbol.for('a')!"), true);
-        // Evaluates to the local symbol — the exact failure the guard prevents.
-        assert.equal(isSymbolForCall("Symbol.for('decoy') && Symbol('actual')"), false);
-        assert.equal(isSymbolForCall("Symbol.for('a') ?? Symbol('b')"), false);
-        assert.equal(isSymbolForCall("cond ? Symbol.for('a') : Symbol('b')"), false);
-    });
-
-    test('a local export list is an export, and a re-export is not one of them', () => {
-        // Pattern and mapping only — see the note at the loop that consumes it.
-        const local = [...'export { KEY, OTHER as PUBLIC };'.matchAll(LOCAL_EXPORT)];
-        assert.equal(local.length, 1);
-        assert.deepEqual(namedBindings(local[0][1]), [
-            { imported: 'KEY', local: 'KEY' },
-            { imported: 'OTHER', local: 'PUBLIC' },
+    test('grouping is grouping, and a decoy is not a Symbol.for', () => {
+        assert.deepEqual(grouping().loose, [
+            'keys.ts:3 — GROUPED',
+            'keys.ts:4 — DECOY',
+            'keys.ts:5 — COALESCED',
+            'keys.ts:6 — TERNARY',
         ]);
-        // The lookahead must not backtrack into the whitespace and take this.
-        assert.deepEqual([..."export { KEY } from './x';".matchAll(LOCAL_EXPORT)], []);
     });
 
-    test('the annotated declarations survive the bracket walk', () => {
-        // A second count, taken without the reader above, against a floor the
-        // sources set themselves: it says how many declarators plainly spell
-        // out `: InjectionKey<`, and the depth-walking reader has to have found
-        // at least that many. A key gained through a cast may exceed the floor
-        // — that direction adds a true statement rather than losing one.
-        //
-        // It counts the declarators after the first one as well, and has to:
-        // while it only looked behind a `const`, a comma-chained key was
-        // invisible to this count and to the reader at the same time, so the
-        // two could agree while both were wrong. A second derivation is only
-        // worth having where it reaches everything the first one claims.
-        //
-        // Today this overlaps the cross-check, because every key the package
-        // declares is also handed to a `provide()` or `inject()` inside `src`,
-        // so losing one is reported there too. The overlap ends the moment a
-        // key is declared here and used only by consumer apps: no call site in
-        // `src` then misses it, and this count is the only thing left that can.
-        const written = sources.reduce((total, { code }) => total + writtenAnnotations(code), 0);
-        assert.ok(
-            annotatedKeys.length >= written,
-            `${written} declarators spell out \`: InjectionKey<\` under src, but the ` +
-                `declaration reader found only ${annotatedKeys.length} — it lost ` +
-                `${written - annotatedKeys.length} of them`,
+    test('an assertion may contain what a type contains', () => {
+        assert.deepEqual(assertionTails().loose, ['keys.ts:13 — BROKEN']);
+    });
+
+    test('a key reached through a property is reported, not skipped', () => {
+        assert.deepEqual(computedKey().unread, [
+            'keys.ts:4 — provide/inject(keys.THEME…',
+            "keys.ts:5 — provide/inject(keys['THEME']…",
+        ]);
+    });
+
+    test('a key declared outside the tree is reported, not skipped', () => {
+        assert.deepEqual(outside().unplaceable, ['page.ts:5 — ELSEWHERE', 'page.ts:6 — MISSING']);
+    });
+
+    test('a used key that is not declared as an InjectionKey', () => {
+        const report = unannounced();
+        assert.deepEqual(report.unannounced, ['keys.ts:3 — UNTYPED']);
+        assert.deepEqual(report.loose, []);
+    });
+
+    test('a local binding spelled Symbol is not the global Symbol', () => {
+        assert.deepEqual(shadowedSymbol().loose, ['keys.ts:4 — SHADOWED']);
+    });
+
+    test('a comment and a string are not call sites', () => {
+        const report = notCode();
+        assert.deepEqual(report.loose, []);
+        assert.deepEqual(report.unplaceable, []);
+        assert.deepEqual(report.unread, []);
+    });
+
+    test("somebody else's provide is not Vue's", () => {
+        // The other direction: a guard that fires on unrelated code is a guard
+        // somebody switches off. `provide(String(loose), 1)` would be an
+        // unreadable call site if this local function were mistaken for Vue's.
+        const report = notVueProvide();
+        assert.deepEqual(report.unread, []);
+        assert.deepEqual(report.unplaceable, []);
+        assert.deepEqual(report.loose, []);
+    });
+
+    test('the token count is a second reader, not the same one', () => {
+        // Counter-check for the floor itself: it has to see a chained
+        // declarator and survive a substituting template, and it has to stay
+        // blind to the shapes that are not declarations at all.
+        assert.equal(writtenAnnotations('const A: InjectionKey<number> = Symbol.for("a");'), 1);
+        assert.equal(
+            writtenAnnotations('const A: InjectionKey<1> = x, B: InjectionKey<2> = y;'),
+            2,
         );
+        assert.equal(
+            writtenAnnotations('const k = `${a}${b}`;\nconst A: InjectionKey<number> = x;'),
+            1,
+        );
+        assert.equal(writtenAnnotations('const m = f(a, b: InjectionKey<1>);'), 0);
+        assert.equal(writtenAnnotations('interface X { key: InjectionKey<number> }'), 0);
+        assert.equal(writtenAnnotations('function f(key: InjectionKey<number>) {}'), 0);
+        assert.equal(writtenAnnotations('// const A: InjectionKey<number> = 1;'), 0);
+        assert.equal(writtenAnnotations('const s = "const A: InjectionKey<number> = 1";'), 0);
     });
 });
