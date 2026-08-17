@@ -33,7 +33,7 @@ interface I18n {
     ariaLabel?: string;
     monthly?: string;
     yearly?: string;
-    /** Optional: Spar-Pill neben "Jährlich" (z. B. "−2 Mt"). */
+    /** Optional savings pill next to the yearly option (e.g. "−2 mo"). */
     savePill?: string;
 }
 

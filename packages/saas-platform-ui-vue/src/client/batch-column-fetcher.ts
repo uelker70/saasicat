@@ -46,7 +46,7 @@ export class BatchColumnDriftError extends Error {
         public readonly column: TenantColumnDef,
         reason: string,
     ) {
-        super(`Spalte "${column.key}": ${reason}`);
+        super(`Column "${column.key}": ${reason}`);
         this.name = 'BatchColumnDriftError';
     }
 }
@@ -91,7 +91,7 @@ export class BatchColumnFetcher {
         const res = await this.http(url, { method: 'GET', headers });
         if (res.status !== 200) {
             throw new Error(
-                `Spalte "${column.key}" — Endpoint ${column.endpoint} antwortete HTTP ${res.status}`,
+                `Column "${column.key}" — endpoint ${column.endpoint} responded with HTTP ${res.status}`,
             );
         }
         const body = (await res.json()) as BatchColumnRow;

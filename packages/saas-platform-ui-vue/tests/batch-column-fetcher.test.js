@@ -138,6 +138,10 @@ describe('BatchColumnFetcher.fetchAll', () => {
     });
 });
 
+// Both messages below are asserted in full rather than by a fragment. They are
+// diagnostics an integrator reads in a console, so the sentence is the
+// behaviour — a fragment match let two of them sit in German through several
+// releases without a check noticing (issue #150).
 describe('BatchColumnFetcher — drift detection', () => {
     test('per-Tenant placeholder in endpoint → BatchColumnDriftError', async () => {
         const m = buildManifest([
@@ -148,10 +152,16 @@ describe('BatchColumnFetcher — drift detection', () => {
             },
         ]);
         const fetcher = new BatchColumnFetcher();
-        await assert.rejects(
-            fetcher.fetchAll(m, ['t1']),
-            (err) => err instanceof BatchColumnDriftError,
-        );
+        await assert.rejects(fetcher.fetchAll(m, ['t1']), (err) => {
+            assert.ok(err instanceof BatchColumnDriftError);
+            assert.equal(
+                err.message,
+                'Column "bad": endpoint contains per-tenant placeholders ({slug}/{tenantId}). ' +
+                    'Column endpoints must be batchable — switch the backend to a ' +
+                    '`?tenantIds=...` parameter.',
+            );
+            return true;
+        });
     });
 
     test('listDriftIssues collects all problematic columns', () => {
@@ -171,11 +181,17 @@ describe('BatchColumnFetcher — drift detection', () => {
         assert.equal(issues[1].column.key, 'bad2');
     });
 
-    test('non-200 response throws an error', async () => {
+    test('non-200 response throws an error naming column, endpoint and status', async () => {
         const m = buildManifest([{ key: 'k', label: 'K', endpoint: '/api/v1/admin/extras/k' }]);
         const { http } = buildHttp([{ status: 503, body: null }]);
         const fetcher = new BatchColumnFetcher({ http });
-        await assert.rejects(fetcher.fetchAll(m, ['t1']), /HTTP 503/);
+        await assert.rejects(fetcher.fetchAll(m, ['t1']), (err) => {
+            assert.equal(
+                err.message,
+                'Column "k" — endpoint /api/v1/admin/extras/k responded with HTTP 503',
+            );
+            return true;
+        });
     });
 });
 
