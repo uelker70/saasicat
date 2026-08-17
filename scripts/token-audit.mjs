@@ -380,7 +380,7 @@ const CATEGORIES = {
     // Filled by the declaration pass; see fontShorthandLiteral below.
     fontShorthand: /(?!)/g,
     // Filled by the template pass; see QUASAR_COLOUR_CLASS and
-    // QUASAR_PALETTE_ATTRIBUTES. Two categories rather than one, because the
+    // `isQuasarPaletteAttribute`. Two categories rather than one, because the
     // two syntaxes migrate differently: a class comes off with a rule, a prop
     // with a component API.
     quasarColorClass: /(?!)/g,
@@ -565,7 +565,22 @@ const QUASAR_COLOUR_CLASS = new RegExp(
  * API, so the tag decides whether they mean Quasar's palette at all. See
  * `isQuasarComponent`.
  */
-const QUASAR_PALETTE_ATTRIBUTES = new Set(['color', 'text-color', 'bg-color']);
+/**
+ * Whether a prop on a Quasar component takes a palette name.
+ *
+ * Derived from Quasar's own convention rather than listed: every such prop is
+ * `color` or ends in `-color` — `text-color`, `bg-color`, and on the components
+ * that have more of them, `active-color`, `done-color`, `error-color`,
+ * `inactive-color`, `indicator-color`, `track-color`, `thumb-color`,
+ * `label-color`, `selected-color`. A list of three understated the package's own
+ * debt: `PlanChangeWizard.vue:19` writes `active-color="primary"` and went
+ * uncounted, so the ratchet had room it was never granted.
+ *
+ * Widening costs nothing in the other direction. A prop that ends in `-color`
+ * and does not take a palette name still has to carry a palette VALUE to be
+ * counted, and `QUASAR_PALETTE_VALUE` decides that separately.
+ */
+const isQuasarPaletteAttribute = (name) => name === 'color' || name.endsWith('-color');
 
 /**
  * Whether a tag is one of Quasar's components.
@@ -744,11 +759,19 @@ const SCALE_PROPERTY =
  *
  * @returns {null | string} the declaration value, whitespace-collapsed
  */
-function fontShorthandLiteral(value) {
+export function fontShorthandLiteral(value) {
     const font = value.replace(/\s+/g, ' ').trim();
     // One level of nesting is all a `var(--x, var(--y))` fallback needs.
     const outsideTokens = font.replace(/var\((?:[^()]|\([^()]*\))*\)/g, ' ');
-    return /\d/.test(outsideTokens) ? font : null;
+    // The family comes last in the shorthand and is not a scale decision. A
+    // family whose name carries a number has to be quoted — CSS forbids a bare
+    // numeric component in an identifier — so dropping quoted strings removes
+    // exactly the digits that are a name rather than a size. Without this,
+    // `font: var(--sa-text-md) "Source Sans 3"` reads as a literal and the
+    // ratchet forbids adopting a numbered family whose type size is fully
+    // tokenized.
+    const outsideNames = outsideTokens.replace(/'[^']*'|"[^"]*"/g, ' ');
+    return /\d/.test(outsideNames) ? font : null;
 }
 
 function walk(dir, predicate) {
@@ -1048,7 +1071,7 @@ export function templatePaletteProps(file, content) {
         // paint: no SVG element is one of Quasar's components, so the two
         // passes stay disjoint without either naming the other's namespace.
         if (!isQuasarComponent(tag)) continue;
-        if (!QUASAR_PALETTE_ATTRIBUTES.has(name)) continue;
+        if (!isQuasarPaletteAttribute(name)) continue;
         if (isStatic) {
             const trimmed = value.trim();
             if (QUASAR_PALETTE_VALUE.test(trimmed)) sites.push({ line, value: trimmed });

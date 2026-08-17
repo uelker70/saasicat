@@ -6,6 +6,7 @@ import {
     templateColourClasses,
     templateColourSites,
     templatePaletteProps,
+    fontShorthandLiteral,
 } from '../scripts/token-audit.mjs';
 
 // The template half of the colour audit, under test — because the metric it
@@ -406,6 +407,30 @@ describe('the line is the line the literal is on', () => {
 // `<style>` block goes through, so every category the stylesheet pass has can
 // ask its question here too.
 
+describe('the font shorthand hides three scales behind one property', () => {
+    test('a size, a weight or a leading in it is a literal', () => {
+        assert.equal(fontShorthandLiteral('700 40px/1 sans-serif'), '700 40px/1 sans-serif');
+        assert.equal(fontShorthandLiteral('italic 13px/1.4 Inter'), 'italic 13px/1.4 Inter');
+    });
+
+    test('a tokenized shorthand is not', () => {
+        assert.equal(fontShorthandLiteral('var(--sa-text-md) Inter'), null);
+        assert.equal(fontShorthandLiteral('var(--sa-text-md, var(--sa-text-sm)) Inter'), null);
+        assert.equal(fontShorthandLiteral('menu'), null);
+    });
+
+    test('a number in the family name is a name, not a size', () => {
+        // The family is last in the shorthand, and CSS makes a numbered family
+        // quote itself — so the quotes are what separate a name from a scale
+        // decision. Counting it forbade adopting such a family while the type
+        // size was fully tokenized.
+        assert.equal(fontShorthandLiteral('var(--sa-text-md) "Source Sans 3"'), null);
+        assert.equal(fontShorthandLiteral("var(--sa-text-md) 'Roboto Mono 2'"), null);
+        // And a real size still counts, however the family is written.
+        assert.equal(fontShorthandLiteral('13px "Source Sans 3"'), '13px "Source Sans 3"');
+    });
+});
+
 describe('an inline style is a stylesheet fragment', () => {
     test('a static style attribute is a fragment', () => {
         assert.deepEqual(fragments('<span style="font-size: 22px" />'), [
@@ -579,6 +604,23 @@ describe('a Quasar palette prop is the same colour decision', () => {
         // missing it.
         assert.deepEqual(props('<q-btn :color="x" />'), []);
         assert.deepEqual(props('<q-badge :color="statusColor(row.status)" />'), []);
+    });
+
+    test('every prop that ends in -color on a Quasar component is one', () => {
+        // Quasar's convention, not a list of three: QStepper alone adds
+        // `active-color`, `done-color`, `error-color` and `inactive-color`, and
+        // `PlanChangeWizard.vue` writes the first of them — uncounted until now,
+        // so the ratchet held room it was never granted.
+        assert.deepEqual(props('<q-stepper active-color="primary" done-color="positive" />'), [
+            'primary',
+            'positive',
+        ]);
+        assert.deepEqual(props('<q-tabs indicator-color="accent" />'), ['accent']);
+        // The tag still decides — someone else's `-color` prop is not Quasar's
+        // palette, whatever it is called.
+        assert.deepEqual(props('<my-thing status-color="primary" />'), []);
+        // And a value outside the palette is not a palette decision either.
+        assert.deepEqual(props('<q-stepper active-color="ink" />'), []);
     });
 
     test('the object form of v-bind is read like the arg form', () => {
