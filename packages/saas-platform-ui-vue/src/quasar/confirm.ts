@@ -12,10 +12,15 @@
 // pages are not listed here — grepping those three shapes under
 // `src/pages-standard/` and `src/pages-tenant/` finds every one of them.
 //
-// An app that passes `createSuperAdminApp({ confirm })` therefore replaces the
-// confirmations of its own pages and none of this package's. Moving them onto
-// the hook is the page migration; the "Confirm port" section of this package's
-// README carries the same caveat for integrators.
+// Passing `createSuperAdminApp({ confirm })` therefore registers an
+// implementation and nothing more. It reaches exactly those pages that ask
+// through the port — an app's own, once they call `useSuperAdminConfirm()` or
+// inject `SUPER_ADMIN_CONFIRM_KEY` themselves — and none of this package's. By
+// the call-site note above, no page in this repository does either, the example
+// app included, so an integrator who passes the option and changes nothing else
+// replaces no confirmation at all. Moving the pages onto the hook is the page
+// migration; the "Confirm port" section of this package's README carries the
+// same caveat for integrators.
 //
 // The injection default keeps a page working that is mounted without
 // `createSuperAdminApp()` — and it is only safe as a default because it still
