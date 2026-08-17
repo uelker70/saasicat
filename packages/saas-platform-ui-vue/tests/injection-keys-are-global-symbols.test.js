@@ -20,26 +20,42 @@
 // which is what catches a key that carries no `InjectionKey` annotation at all
 // and is only recognisable by being handed to `provide`.
 //
+// A call site is matched with the binding its own file can see: a declaration
+// in the same file, or a named import resolved along the relative specifier it
+// was written with. Two files may therefore spell one name differently without
+// either being dragged into the other's rule — `SUPER_ADMIN_BRAND_KEY` is an
+// injection key where it is imported from `vue/super-admin-context.ts`, and
+// whatever an unrelated module means by that name stays that module's business.
+//
 // What this file cannot see:
-//   - Keys declared outside this package's `src`. A `provide()` naming an
-//     identifier that `src` does not declare is reported as a failure rather
-//     than skipped, so such a key stops the build until someone decides what
-//     it means — but the guard cannot check the other package's spelling.
+//   - Keys declared outside this package's `src`, or reached through a
+//     specifier this file cannot resolve to a scanned file. A `provide()`
+//     naming such an identifier is reported as a failure rather than skipped,
+//     so it stops the build until someone decides what it means — but the
+//     guard cannot check the other package's spelling.
 //   - Runtime identity. This is a source scan. It checks how a key is written,
 //     not that the loaded bundles ended up agreeing; `tests/cjs-entry-identity`
 //     in `@saasicat/nest` is the test that does the latter for classes.
 //   - Whether two keys accidentally share one `Symbol.for` argument, or
 //     whether the argument names the right namespace.
-//   - A key reached through an alias, a property (`keys.THEME`) or any
-//     computed expression: the call-site reader recognises a bare identifier
-//     and a string literal, and anything else fails the "every call site was
-//     read" test below rather than passing unnoticed.
+//   - A key reached through a property (`keys.THEME`) or any other computed
+//     expression: the call-site reader recognises a bare identifier and a
+//     string literal, and anything else fails the "every call site was read"
+//     test below rather than passing unnoticed. `provide` and `inject`
+//     themselves may be renamed on import from `vue` — those aliases are
+//     collected — but a binding taken any other way (`const p = provide`) is
+//     not a call site this file knows about.
+//   - The difference between calling `provide` and declaring something else by
+//     that name. `function provide(key: symbol, …)` reads as a call site whose
+//     first argument cannot be placed, so it fails the same test. There is no
+//     such declaration under `src`; a file that wants one has to teach this
+//     reader the difference rather than be waved through.
 //   - Anything in a `.vue` file outside its `<script>` blocks, and anything
 //     inside a template literal — both are blanked before the scan.
 //   - A key that never gets a name of its own. `const { THEME } = keys;` binds
 //     through a destructuring pattern, and the reader takes no name from one.
 //     Such a key does not leave quietly either: the cross-check below reports
-//     it as an identifier that nothing under `src` declares.
+//     it as an identifier that nothing visible to its file declares.
 //   - The far side of an unusual comma. Which `,` separates two declarators is
 //     decided by what follows it rather than by a parser, because the angle
 //     brackets around an initializer's type arguments are not counted — see
@@ -53,14 +69,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, posix, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const SRC = join(__dirname, '..', 'src');
-
-const SCRIPT_BLOCK = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
-const CLOSING_SCRIPT = '</script>';
 
 function* walk(dir) {
     for (const entry of readdirSync(dir)) {
@@ -75,6 +88,37 @@ function lineAt(text, offset) {
     return text.slice(0, offset).split('\n').length;
 }
 
+// A tag name ends where HTML says it ends: at whitespace, at `/`, or at `>`.
+// So `<scriptish>` is not a script tag, and — the half that matters — an end
+// tag written `</script >` is one. HTML allows whitespace between the tag name
+// and the `>` of an end tag, Vue's SFC parser follows HTML there, and a pattern
+// that insists on `</script>` reads the rest of such a file as template: every
+// key declared in it becomes invisible to this guard while the file compiles
+// and runs normally.
+const SCRIPT_OPEN = /<script(?=[\s/>])/gi;
+const SCRIPT_CLOSE = /<\/script\s*>/gi;
+
+/**
+ * The offset just past the `>` that ends an opening tag, or -1 if it has none.
+ *
+ * Quoted attribute values are stepped over, because a `>` inside one does not
+ * end the tag: `<script generic="T extends { a: 1 }">` is a single tag.
+ */
+function endOfOpenTag(source, from) {
+    let quote = '';
+    for (let index = from; index < source.length; index += 1) {
+        const char = source[index];
+        if (quote) {
+            if (char === quote) quote = '';
+        } else if (char === '"' || char === "'") {
+            quote = char;
+        } else if (char === '>') {
+            return index + 1;
+        }
+    }
+    return -1;
+}
+
 /**
  * A `.vue` file with everything outside its `<script>` blocks replaced by
  * spaces.
@@ -82,15 +126,36 @@ function lineAt(text, offset) {
  * Blanking rather than slicing is the point: every offset — and therefore
  * every line number this file reports — keeps pointing at the original file,
  * so a failure can be opened at the line it names.
+ *
+ * The scan resumes behind each closing tag, which is what makes the `<script`
+ * an SFC mentions inside its own script body harmless: it is part of a block
+ * already read, not the start of a new one. A block that never closes is
+ * reported instead of dropped — everything from there on would otherwise be
+ * blanked, and blanked code is code this guard silently stops looking at.
  */
 function scriptBlocksOnly(source) {
     const out = source.split('').map((char) => (char === '\n' ? '\n' : ' '));
-    for (const match of source.matchAll(SCRIPT_BLOCK)) {
-        const body = match[1];
-        const start = match.index + match[0].length - body.length - CLOSING_SCRIPT.length;
-        for (let offset = 0; offset < body.length; offset += 1) out[start + offset] = body[offset];
+    const anomalies = [];
+    SCRIPT_OPEN.lastIndex = 0;
+    let open = SCRIPT_OPEN.exec(source);
+    while (open) {
+        const bodyStart = endOfOpenTag(source, open.index + open[0].length);
+        if (bodyStart < 0) {
+            anomalies.push(`<script tag opened at line ${lineAt(source, open.index)} never ends`);
+            break;
+        }
+        SCRIPT_CLOSE.lastIndex = bodyStart;
+        const close = SCRIPT_CLOSE.exec(source);
+        if (!close) {
+            anomalies.push(`<script> opened at line ${lineAt(source, open.index)} is never closed`);
+            break;
+        }
+        for (let offset = bodyStart; offset < close.index; offset += 1)
+            out[offset] = source[offset];
+        SCRIPT_OPEN.lastIndex = close.index + close[0].length;
+        open = SCRIPT_OPEN.exec(source);
     }
-    return out.join('');
+    return { code: out.join(''), anomalies };
 }
 
 /**
@@ -103,12 +168,15 @@ const REGEX_MAY_FOLLOW =
 
 /**
  * Replaces comments, string bodies and regular-expression literals with
- * spaces, character for character.
+ * spaces, character for character, and hands back what the quoted strings said.
  *
- * Both scans below need this. `src/vue/super-admin-context.ts` documents the
- * rule with the words `app.provide(KEY, ...)` inside a comment, and a scan that
- * cannot tell a comment from a statement would read that sentence as a call
- * site — and then report a key named `KEY` that nothing declares.
+ * Both scans below need the blanking. `src/vue/super-admin-context.ts`
+ * documents the rule with the words `app.provide(KEY, ...)` inside a comment,
+ * and a scan that cannot tell a comment from a statement would read that
+ * sentence as a call site — and then report a key named `KEY` that nothing
+ * declares. The recorded strings are what the import reader resolves module
+ * specifiers from: the specifier is code, but it is the one piece of code that
+ * only exists inside a string.
  *
  * The walk also reports where it lost its footing: a single- or double-quoted
  * string or a regular expression that reaches a newline means the opening
@@ -118,6 +186,7 @@ const REGEX_MAY_FOLLOW =
 function scrubNonCode(source) {
     const out = source.split('');
     const anomalies = [];
+    const strings = [];
     const blank = (index) => {
         if (out[index] !== '\n') out[index] = ' ';
     };
@@ -190,6 +259,16 @@ function scrubNonCode(source) {
                 index += 2;
             } else if (char === quote) {
                 blank(index);
+                // Every quoted string is recorded, escapes and all — a
+                // specifier written with one simply resolves to no file. What
+                // must not happen is a string going unrecorded: the blanks it
+                // leaves behind read as whitespace, and the reader below would
+                // walk over them to the next string and take that for the
+                // specifier. Template literals are the one gap, and a static
+                // import specifier cannot be one.
+                if (quote !== '`') {
+                    strings.push({ start: opened, value: source.slice(opened + 1, index) });
+                }
                 // A closed string is a value, so a `/` after it divides.
                 tail = (tail + 'x').slice(-8);
                 state = 'code';
@@ -238,15 +317,23 @@ function scrubNonCode(source) {
     }
 
     if (state !== 'code') anomalies.push(`file ends inside ${state}`);
-    return { code: out.join(''), anomalies };
+    return { code: out.join(''), anomalies, strings };
 }
 
 const sources = [...walk(SRC)].map((file) => {
     const text = readFileSync(file, 'utf8');
-    const stripped = file.endsWith('.vue') ? scriptBlocksOnly(text) : text;
-    const { code, anomalies } = scrubNonCode(stripped);
-    return { path: relative(SRC, file), code, anomalies };
+    const isVue = file.endsWith('.vue');
+    const block = isVue ? scriptBlocksOnly(text) : { code: text, anomalies: [] };
+    const { code, anomalies, strings } = scrubNonCode(block.code);
+    return {
+        path: relative(SRC, file).split(sep).join('/'),
+        code,
+        strings,
+        anomalies: [...block.anomalies, ...anomalies],
+    };
 });
+
+const byPath = new Map(sources.map((source) => [source.path, source]));
 
 // Type syntax nests in angle brackets as well as in round, square and curly
 // ones; expressions do not — `a < b` is a comparison far more often than
@@ -323,7 +410,7 @@ function endOfDeclarator(code, from) {
     return { at: code.length, separated: false };
 }
 
-const DECLARATION = /\b(?:export\s+)?(?:const|let|var)\s+/g;
+const DECLARATION = /\b(export\s+)?(?:const|let|var)\s+/g;
 const DECLARATOR_NAME = /([A-Za-z_$][\w$]*)\s*/y;
 
 /**
@@ -402,7 +489,14 @@ function declarations() {
                 code,
                 match.index + match[0].length,
             )) {
-                found.push({ name, path, line: lineAt(code, at), annotation, initializer });
+                found.push({
+                    name,
+                    path,
+                    line: lineAt(code, at),
+                    exported: Boolean(match[1]),
+                    annotation,
+                    initializer,
+                });
             }
         }
     }
@@ -411,11 +505,13 @@ function declarations() {
 
 const allBindings = declarations();
 
-const byName = new Map();
+const bindingsByPath = new Map();
 for (const binding of allBindings) {
-    if (!byName.has(binding.name)) byName.set(binding.name, []);
-    byName.get(binding.name).push(binding);
+    if (!bindingsByPath.has(binding.path)) bindingsByPath.set(binding.path, []);
+    bindingsByPath.get(binding.path).push(binding);
 }
+
+const identity = ({ path, line, name }) => `${path}:${line}:${name}`;
 
 /**
  * The bindings that say they are injection keys — through the annotation
@@ -463,21 +559,179 @@ function writtenAnnotations(code) {
     return total;
 }
 
-const PROVIDE_OR_INJECT = /\b(?:provide|inject)\s*\(/g;
+const NAMED_IMPORT = /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*)\}\s*from\b/g;
+const NAMED_REEXPORT = /\bexport\s+(?:type\s+)?\{([^}]*)\}\s*from\b/g;
+const STAR_REEXPORT = /\bexport\s*\*\s*from\b/g;
+const NAMED_BINDING = /(?:^|,)\s*(?:type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?/g;
+
+/** The `{ A, B as C }` of an import or re-export clause, as imported/local pairs. */
+function namedBindings(clause) {
+    return [...clause.matchAll(NAMED_BINDING)].map((match) => ({
+        imported: match[1],
+        local: match[2] ?? match[1],
+    }));
+}
+
+/**
+ * The module specifier that follows a `from` keyword, or null.
+ *
+ * The scrub blanks string bodies, so the specifier is read from what it
+ * recorded instead of from the blanked code — and only when nothing but
+ * whitespace stands between the keyword and that string, so that a `from`
+ * followed by something else cannot borrow a later statement's string. A
+ * comment between the two is blanked, which is whitespace, so it is allowed.
+ */
+function specifierAfter(source, at) {
+    const literal = source.strings.find(({ start }) => start >= at);
+    if (!literal || source.code.slice(at, literal.start).trim() !== '') return null;
+    return literal.value;
+}
+
+/**
+ * The scanned file a relative specifier names, or null for anything outside
+ * `src` — a bare package name, or a path this scan does not hold.
+ *
+ * The extensions are the ones this package writes: TypeScript source is
+ * imported under its emitted `.js` name, single-file components under their
+ * own, and a folder stands for its `index.ts`.
+ */
+function resolveSpecifier(fromPath, specifier) {
+    if (!specifier.startsWith('.')) return null;
+    const base = posix.normalize(posix.join(posix.dirname(fromPath), specifier));
+    const candidates = [base.replace(/\.js$/, '.ts'), base, `${base}.ts`, `${base}/index.ts`];
+    return candidates.find((candidate) => byPath.has(candidate)) ?? null;
+}
+
+function addBinding(map, name, binding) {
+    if (!map.has(name)) map.set(name, []);
+    if (!map.get(name).some((known) => identity(known) === identity(binding)))
+        map.get(name).push(binding);
+}
+
+/** Every `X from './y'` clause of one file, already resolved to a scanned file. */
+function clausesOf(source, pattern) {
+    const found = [];
+    for (const match of source.code.matchAll(pattern)) {
+        const specifier = specifierAfter(source, match.index + match[0].length);
+        const target = specifier === null ? null : resolveSpecifier(source.path, specifier);
+        found.push({ clause: match[1] ?? '', specifier, target });
+    }
+    return found;
+}
+
+const exportsCache = new Map();
+
+/**
+ * What one file offers under each exported name.
+ *
+ * Re-exports are followed, because a barrel is a legitimate way for a page to
+ * reach a key and a guard that could not see through one would report the
+ * import as undeclared. A cycle stops rather than recurses, and whatever a file
+ * re-exports around that cycle is then missing from its surface — which shows
+ * up as a call site this guard says it cannot place, not as one it waves
+ * through.
+ */
+function exportsOf(path, seen = new Set()) {
+    const cached = exportsCache.get(path);
+    if (cached) return cached;
+    if (seen.has(path)) return new Map();
+    const source = byPath.get(path);
+    const surface = new Map();
+    if (!source) return surface;
+
+    const withSelf = new Set([...seen, path]);
+    for (const binding of bindingsByPath.get(path) ?? []) {
+        if (binding.exported) addBinding(surface, binding.name, binding);
+    }
+    for (const { target } of clausesOf(source, STAR_REEXPORT)) {
+        if (!target) continue;
+        for (const [name, bindings] of exportsOf(target, withSelf)) {
+            for (const binding of bindings) addBinding(surface, name, binding);
+        }
+    }
+    for (const { clause, target } of clausesOf(source, NAMED_REEXPORT)) {
+        if (!target) continue;
+        const reached = exportsOf(target, withSelf);
+        for (const { imported, local } of namedBindings(clause)) {
+            for (const binding of reached.get(imported) ?? []) addBinding(surface, local, binding);
+        }
+    }
+
+    exportsCache.set(path, surface);
+    return surface;
+}
+
+/**
+ * Every binding one file can name: what it declares itself, plus what its named
+ * imports bring in under the local name they were given.
+ *
+ * Resolving per file is what keeps two unrelated modules that happen to agree
+ * on a name out of each other's rule. A repo-wide lookup by name cannot: it
+ * makes any `const SUPER_ADMIN_BRAND_KEY = 'storage-name'` anywhere under `src`
+ * answer for a `provide()` that never reaches it, and a guard that fails on
+ * code it has no business judging is a guard someone switches off.
+ */
+function visibleBindings(source) {
+    const visible = new Map();
+    for (const binding of bindingsByPath.get(source.path) ?? []) {
+        addBinding(visible, binding.name, binding);
+    }
+    for (const { clause, target } of clausesOf(source, NAMED_IMPORT)) {
+        if (!target) continue;
+        const reached = exportsOf(target);
+        for (const { imported, local } of namedBindings(clause)) {
+            for (const binding of reached.get(imported) ?? []) addBinding(visible, local, binding);
+        }
+    }
+    return visible;
+}
+
+const VUE_MODULE = 'vue';
+const PROVIDE_AND_INJECT = ['provide', 'inject'];
+
+/**
+ * The names that mean Vue's `provide`/`inject` in one file.
+ *
+ * `import { provide as vueProvide } from 'vue'` is a rename, not a disguise:
+ * `vueProvide(LOCAL_KEY, …)` provides, so it is a call site, and a scan that
+ * only knew the two original spellings would let the key it names out of both
+ * derivations at once — declared without an annotation, used at a call site
+ * nothing recognises, checked by nothing. Only `vue` is followed, so a
+ * `provide` imported from somewhere else keeps whatever meaning it has there;
+ * the bare spellings stay call sites regardless of where they come from.
+ */
+function callNames(source) {
+    const names = new Set(PROVIDE_AND_INJECT);
+    for (const { clause, specifier } of clausesOf(source, NAMED_IMPORT)) {
+        if (specifier !== VUE_MODULE) continue;
+        for (const { imported, local } of namedBindings(clause)) {
+            if (PROVIDE_AND_INJECT.includes(imported)) names.add(local);
+        }
+    }
+    return names;
+}
+
 const FIRST_ARGUMENT_IDENTIFIER = /^\s*([A-Za-z_$][\w$]*)\s*[,)]/;
 const FIRST_ARGUMENT_LITERAL = /^\s*['"`]/;
 
-/** Every `provide(…)` / `inject(…)` call, with whatever its first argument is. */
+/**
+ * Every `provide(…)` / `inject(…)` call, with whatever its first argument is
+ * and with the declarations its own file can see under that name.
+ */
 function callSites() {
     const found = [];
-    for (const { path, code } of sources) {
-        for (const match of code.matchAll(PROVIDE_OR_INJECT)) {
-            const argument = code.slice(match.index + match[0].length);
+    for (const source of sources) {
+        const names = [...callNames(source)].join('|');
+        const pattern = new RegExp(String.raw`\b(?:${names})\s*\(`, 'g');
+        const visible = visibleBindings(source);
+        for (const match of source.code.matchAll(pattern)) {
+            const argument = source.code.slice(match.index + match[0].length);
             const identifier = FIRST_ARGUMENT_IDENTIFIER.exec(argument);
             found.push({
-                path,
-                line: lineAt(code, match.index),
+                path: source.path,
+                line: lineAt(source.code, match.index),
                 name: identifier ? identifier[1] : null,
+                bindings: identifier ? (visible.get(identifier[1]) ?? []) : [],
                 // A string key is legal in Vue and simply outside this rule:
                 // it has no symbol identity to split in the first place.
                 literal: !identifier && FIRST_ARGUMENT_LITERAL.test(argument),
@@ -489,14 +743,13 @@ function callSites() {
 }
 
 const sites = callSites();
-const usedNames = new Set(sites.filter(({ name }) => name).map(({ name }) => name));
+const namedSites = sites.filter(({ name }) => name);
+const usedBindings = namedSites.flatMap(({ bindings }) => bindings);
 
 /** The rule applies to both derivations together. */
 const injectionKeys = [
     ...new Map(
-        [...annotatedKeys, ...[...usedNames].flatMap((name) => byName.get(name) ?? [])].map(
-            (binding) => [`${binding.path}:${binding.line}:${binding.name}`, binding],
-        ),
+        [...annotatedKeys, ...usedBindings].map((binding) => [identity(binding), binding]),
     ).values(),
 ];
 
@@ -513,8 +766,8 @@ describe('every Vue injection key is created with Symbol.for', () => {
         assert.deepEqual(
             confused,
             [],
-            'The comment/string/regex scrub lost its place in these files, so everything ' +
-                'after that point was scanned as the wrong kind of text:\n  ' +
+            'The script-block, comment, string and regex scrub lost its place in these files, ' +
+                'so everything after that point was scanned as the wrong kind of text:\n  ' +
                 confused.join('\n  '),
         );
     });
@@ -525,8 +778,13 @@ describe('every Vue injection key is created with Symbol.for', () => {
             'no `InjectionKey` declaration found under src — the declaration scan stopped matching',
         );
         assert.ok(
-            usedNames.size > 0,
+            namedSites.length > 0,
             'no provide()/inject() call names an identifier — the call-site scan stopped matching',
+        );
+        assert.ok(
+            usedBindings.length > 0,
+            'no provide()/inject() call resolves to a declaration — the import reader stopped ' +
+                'reaching the files the keys are declared in',
         );
     });
 
@@ -552,27 +810,27 @@ describe('every Vue injection key is created with Symbol.for', () => {
         // — and turns up here instead of simply leaving the guard. Deleting a
         // key together with all of its uses is the one way it may leave, and
         // then there is nothing left to guard.
-        const undeclared = [...usedNames]
-            .filter((name) => !byName.has(name))
-            .map((name) => {
-                const site = sites.find((entry) => entry.name === name);
-                return `${site.path}:${site.line} — ${name}`;
-            });
+        const undeclared = namedSites
+            .filter(({ bindings }) => bindings.length === 0)
+            .map(({ path, line, name }) => `${path}:${line} — ${name}`);
         assert.deepEqual(
             undeclared,
             [],
-            'These identifiers are handed to provide()/inject() but nothing under src declares ' +
-                'them. Either the declaration was removed or reshaped past the reader in this ' +
-                'file, or the key really comes from another package — in which case this guard ' +
-                'has to be taught how to reach it, because it cannot check a spelling it never ' +
+            'These identifiers are handed to provide()/inject() but nothing their own file can ' +
+                'see declares them. Either the declaration was removed or reshaped past the ' +
+                'reader in this file, the import that brings it in resolves to no scanned file, ' +
+                'or the key really comes from another package — in which case this guard has to ' +
+                'be taught how to reach it, because it cannot check a spelling it never ' +
                 'sees:\n  ' +
                 undeclared.join('\n  '),
         );
 
-        const annotatedNames = new Set(annotatedKeys.map(({ name }) => name));
-        const unannounced = [...usedNames]
-            .filter((name) => byName.has(name) && !annotatedNames.has(name))
-            .flatMap((name) => byName.get(name).map(where));
+        const annotatedIds = new Set(annotatedKeys.map(identity));
+        const unannounced = [
+            ...new Set(
+                usedBindings.filter((binding) => !annotatedIds.has(identity(binding))).map(where),
+            ),
+        ];
         assert.deepEqual(
             unannounced,
             [],
@@ -585,9 +843,10 @@ describe('every Vue injection key is created with Symbol.for', () => {
 
     test('every provide/inject call site was read', () => {
         // The set of used keys is only complete while every call site yields
-        // one. A key passed as `keys.THEME` or through an alias would leave no
-        // name behind, and the cross-check above would lose a member without
-        // noticing — so an unreadable call site is a failure here.
+        // one. A key passed as `keys.THEME` or through any other expression
+        // would leave no name behind, and the cross-check above would lose a
+        // member without noticing — so an unreadable call site is a failure
+        // here.
         const unread = sites
             .filter(({ name, literal }) => !name && !literal)
             .map(({ path, line, excerpt }) => `${path}:${line} — provide/inject(${excerpt}…`);
