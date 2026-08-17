@@ -859,7 +859,11 @@ const FIRST_ARGUMENT_LITERAL = /^\s*['"`]/;
 function callSites() {
     const found = [];
     for (const source of sources) {
-        const names = [...callNames(source)].join('|');
+        // Escaped: a legal identifier may contain `$`, which is an anchor in a
+        // pattern. `import { provide as provide$ }` then built an alternative
+        // that matched nothing, so its call sites were never read and an
+        // unannotated `Symbol()` behind one passed the whole suite.
+        const names = [...callNames(source)].map((name) => name.replaceAll('$', '\\$')).join('|');
         const pattern = new RegExp(String.raw`\b(?:${names})\s*\(`, 'g');
         const visible = visibleBindings(source);
         for (const match of source.code.matchAll(pattern)) {
@@ -1038,6 +1042,20 @@ describe('every Vue injection key is created with Symbol.for', () => {
         assert.equal(isStringKey("Symbol.for('local')"), false);
         // A template literal that interpolates is not a plain string.
         assert.equal(isStringKey('`local-${id}`'), false);
+    });
+
+    test('an alias containing a dollar sign is still a call site', () => {
+        // `$` is legal in an identifier and an anchor in a pattern. Unescaped,
+        // the alternative matched nothing and the guard passed by not looking.
+        const source = [
+            "import { provide as provide$ } from 'vue';",
+            "const LOCAL_KEY = Symbol('local');",
+            'provide$(LOCAL_KEY, 1);',
+        ].join('\n');
+        const names = [...callNames({ code: source, strings: scrubNonCode(source).strings })];
+        assert.ok(names.includes('provide$'), 'the alias is collected');
+        const escaped = names.map((name) => name.replaceAll('$', '\\$')).join('|');
+        assert.match(source, new RegExp(String.raw`\b(?:${escaped})\s*\(`));
     });
 
     test('grouping around the call is grouping, not another operand', () => {
