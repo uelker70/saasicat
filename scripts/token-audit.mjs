@@ -80,6 +80,48 @@ const ALWAYS_ALLOWED_PX = new Set(['0px']);
 const HAIRLINE_PX = new Set(['1px', '2px']);
 
 /**
+ * The CSS-wide keywords — a value that invents none.
+ *
+ * `font-weight: inherit` takes the weight the parent already decided,
+ * `line-height: unset` falls back to inheritance or to the initial value, and
+ * `letter-spacing: revert` hands the declaration back to the user-agent sheet.
+ * None of them names a value a token could have named, so counting them would
+ * put a component that deliberately inherits into the typography budget — and
+ * the budget's own advice, "read a token instead", does not apply to a
+ * declaration whose whole point is to read whatever is above it.
+ *
+ * The file was already inconsistent about this, one property over:
+ * `fontShorthandLiteral()` calls `font: inherit` clean, because it asks whether
+ * a NUMBER is left. The longhand patterns ask for a value and a keyword is one.
+ *
+ * A written-out list, which this file otherwise refuses (see
+ * `NON_PAINT_PROPERTIES`, which had to be inverted for exactly that reason).
+ * The difference is that the CSS-wide keywords are a closed set in the
+ * specification — five of them, defined once for every property there is — so
+ * this list cannot go stale against the codebase the way a list of properties,
+ * palette names or component props does.
+ */
+const CSS_WIDE_KEYWORDS = new Set(['inherit', 'initial', 'unset', 'revert', 'revert-layer']);
+
+/**
+ * Whether a declaration value is nothing but such a keyword.
+ *
+ * The importance flag is stripped first because it belongs to the DECLARATION
+ * rather than to the value: `line-height: inherit !important` inherits exactly
+ * as the plain form does. The package writes `!important` where it has to
+ * out-specify one of Quasar's own rules, so the combination is reachable here.
+ *
+ * ASCII case-insensitive, like every other keyword in CSS.
+ */
+const isCssWideKeyword = (value) =>
+    CSS_WIDE_KEYWORDS.has(
+        value
+            .replace(/\s*!\s*important\s*$/i, '')
+            .trim()
+            .toLowerCase(),
+    );
+
+/**
  * Quasar's five bands, and their `max-width` counterparts.
  *
  * The rule is WHICH values, not how many. A package that only needs three of
@@ -632,14 +674,21 @@ export const isQuasarComponent = (tag) => hyphenate(tag).startsWith('q-');
  * is Quasar's palette. `:color="statusColor(row)"` names nothing and is not a
  * finding — the value lives in a script, where no template pass can reach it.
  *
- * It over-reads in one shape, and knowingly: a string COMPARED inside such a
- * binding — `:color="mode === 'dark' ? 'negative' : 'primary'"` — counts three
+ * It used to over-read in one shape, knowingly: a string COMPARED inside such a
+ * binding — `:color="mode === 'dark' ? 'negative' : 'primary'"` — counted three
  * where two were written, because `dark` is a palette name as well as a theme.
- * The package writes none today. It is the trade this file already took for
- * `:fill="ok ? 'green' : 'red'"`, and the direction matters: this metric is a
- * ratchet rather than a floor of zero, so an over-read costs a re-record, while
- * the hole costs the rule — a `color="negative"` rewritten as a ternary would
- * otherwise leave the number by itself.
+ * `withComparedStringsBlanked` narrows that, and only that: the operand of an
+ * equality comparison is dropped before this pattern runs, which is derived from
+ * the operator rather than from a list of the strings that cannot reach a value.
+ * What remains over-read is a string an expression can hold without emitting for
+ * some other reason, and reading that needs the expression parsed rather than
+ * scanned.
+ *
+ * The direction still decides how much of this to attempt: the metric is a
+ * ratchet rather than a floor of zero, so an over-read costs a re-record while a
+ * hole costs the rule — a `color="negative"` rewritten as a ternary would
+ * otherwise leave the number by itself. That is why the narrowing is the
+ * comparison and nothing beyond it.
  *
  * Both are anchored — `^…$` on one, the closing quote backreference on the
  * other — so the alternation is safe unordered and `blue-grey-7` cannot be read
@@ -1044,6 +1093,38 @@ export function inlineStyleFragments(file, content) {
 }
 
 /**
+ * The string operands of an equality comparison, blanked.
+ *
+ * A bound attribute is read for the literals it holds, because a class name and
+ * a palette name cannot be built by an expression without one appearing. A
+ * string the expression COMPARES is the shape that appears without being
+ * emitted: `:class="tone === 'text-grey-7' ? 'muted' : ''"` renders `muted`, and
+ * the class-shaped string is data being tested — so counting it turns an
+ * unrelated state comparison into a palette decision, on two metrics that are
+ * ratchets and can therefore fail on it.
+ *
+ * The OPERATOR decides, which is what keeps this from being a list: a string on
+ * either side of `===`, `==`, `!==` or `!=` is an operand, and everything else a
+ * binding holds is left exactly as it was. That is deliberately less than
+ * knowing which strings can reach a value position — `tones[key]`,
+ * `\`text-${hue}\``, a name assembled in a script — which needs the expression
+ * parsed rather than scanned, and that boundary is #158's.
+ *
+ * Blanked to equal-length spaces rather than removed, like every other pre-pass
+ * in this file: the line a finding reports is an offset into this text. A string
+ * never spans a newline here, so the offsets survive exactly.
+ *
+ * Neither operator is consumed, which is what lets `'a' === 'b'` lose both of
+ * its operands rather than only the one the scan reached first.
+ */
+const COMPARED_STRING =
+    /(['"`])(?:(?!\1)[^\n])*\1(?=\s*[=!]==?)|(?<=[=!]==?\s*)(['"`])(?:(?!\2)[^\n])*\2/g;
+
+export function withComparedStringsBlanked(text) {
+    return text.replace(COMPARED_STRING, (match) => ' '.repeat(match.length));
+}
+
+/**
  * Quasar colour classes in a template's `class` lists.
  *
  * Exported for its own test. Reads `class` and `:class` alike: a bound class
@@ -1060,10 +1141,14 @@ export function templateColourClasses(file, content) {
     for (const { name, value, line } of attributes) {
         if (name !== 'class') continue;
         // A bound list is JavaScript and can carry a `//` comment; a static one
-        // cannot, and blanking is harmless there.
-        const text = withCommentsBlanked(value).replace(
-            /(^|\s)\/\/[^\n]*/g,
-            (m, lead) => lead + ' '.repeat(m.length - lead.length),
+        // cannot, and blanking is harmless there. A compared string goes the
+        // same way and for the same reason the comment does: it is in the
+        // expression without being in the rendered class list.
+        const text = withComparedStringsBlanked(
+            withCommentsBlanked(value).replace(
+                /(^|\s)\/\/[^\n]*/g,
+                (m, lead) => lead + ' '.repeat(m.length - lead.length),
+            ),
         );
         for (const match of text.matchAll(QUASAR_COLOUR_CLASS)) {
             sites.push({ line: line + lineOf(text, match.index) - 1, value: match[0] });
@@ -1111,9 +1196,13 @@ export function templatePaletteProps(file, content) {
         }
         // A bound value is JavaScript and can carry a `//` comment; the idiom
         // is the one the alpha-concat sweep uses, so the `//` in a URL survives.
-        const text = withCommentsBlanked(value).replace(
-            /(^|\s)\/\/[^\n]*/g,
-            (m, lead) => lead + ' '.repeat(m.length - lead.length),
+        // A compared string is dropped for the same reason, and by the same
+        // helper the class list uses — one over-read, not two answers to it.
+        const text = withComparedStringsBlanked(
+            withCommentsBlanked(value).replace(
+                /(^|\s)\/\/[^\n]*/g,
+                (m, lead) => lead + ' '.repeat(m.length - lead.length),
+            ),
         );
         for (const match of text.matchAll(QUOTED_PALETTE_VALUE)) {
             sites.push({ line: line + lineOf(text, match.index) - 1, value: match[2] });
@@ -1413,6 +1502,13 @@ export function audit(root = UI_SRC) {
                     if (category === 'pixelValue' && ALWAYS_ALLOWED_PX.has(value)) continue;
                     // A `var(--sa-…)` is the goal, not a finding.
                     if (value.startsWith('var(')) continue;
+                    // And a CSS-wide keyword is not a value at all — the same
+                    // shape as the guard above it, and asked of the value
+                    // rather than of the category for the same reason: no
+                    // pattern here can match a hex, a colour function, a length
+                    // or a breakpoint IN one, so this can only ever quiet the
+                    // categories that read a whole declaration value.
+                    if (isCssWideKeyword(value)) continue;
                     findings[category].push({
                         file: rel,
                         line: lineAt(match.index),

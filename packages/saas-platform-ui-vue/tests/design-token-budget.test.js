@@ -297,6 +297,69 @@ describe('design-token budgets', () => {
         );
     });
 
+    test('a CSS-wide keyword is not a typographic value', () => {
+        // `font-weight: inherit` names no weight: it takes the one the parent
+        // already decided. The four typography metrics read a declaration's
+        // whole value, so each recorded the keyword as a literal — and the
+        // budget's advice, "read a token instead", is not something a
+        // declaration that exists in order to inherit can act on.
+        //
+        // Absent from the package today, which is why this needs a fixture: the
+        // tree cannot show that the filter works, and the day somebody writes
+        // one, a green suite would have said nothing about it in advance.
+        const inherits = auditOf({
+            'inherits.css': [
+                '.a { font-weight: inherit; }',
+                '.b { line-height: unset; }',
+                '.c { letter-spacing: revert; }',
+                '.d { font-size: initial; }',
+                '.e { font-weight: revert-layer; }',
+                // The flag belongs to the declaration, not to the value — and
+                // this is the form the package writes to out-specify Quasar.
+                '.f { line-height: INHERIT !important; }',
+            ].join('\n'),
+        });
+        assert.equal(
+            inherits.reach.styleBlocks,
+            1,
+            'the fixture was not read at all — "found nothing" and "looked at nothing" are ' +
+                'the same report, and every assertion below would pass on an empty sweep',
+        );
+        assert.deepEqual(
+            {
+                fontWeights: inherits.fontWeights.total,
+                lineHeights: inherits.lineHeights.total,
+                letterSpacings: inherits.letterSpacings.total,
+                distinctFontSizes: inherits.distinctFontSizes,
+            },
+            { fontWeights: 0, lineHeights: 0, letterSpacings: 0, distinctFontSizes: 0 },
+            'a CSS-wide keyword inherits or resets to a value that already exists — counting ' +
+                'it puts a component that deliberately inherits into the typography budget',
+        );
+
+        // The other direction, and the one a wider filter would break: a real
+        // value is still the literal these metrics exist to count.
+        const values = auditOf({
+            'values.css': [
+                '.a { font-weight: 700; }',
+                '.b { line-height: 1.4; }',
+                '.c { letter-spacing: 0.02em; }',
+                '.d { font-size: 13px; }',
+            ].join('\n'),
+        });
+        assert.deepEqual(
+            {
+                fontWeights: values.fontWeights.total,
+                lineHeights: values.lineHeights.total,
+                letterSpacings: values.letterSpacings.total,
+                distinctFontSizes: values.distinctFontSizes,
+            },
+            { fontWeights: 1, lineHeights: 1, letterSpacings: 1, distinctFontSizes: 1 },
+            'a literal typographic value is what these metrics are for — a filter that ' +
+                'quiets one of them has stopped measuring',
+        );
+    });
+
     test('a palette prop counts on a Quasar component and nowhere else', () => {
         // `quasarColorProps` counts `color`, `text-color` and `bg-color`, and
         // for a while it read them off every element the parser handed it —

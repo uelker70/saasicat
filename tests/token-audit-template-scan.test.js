@@ -531,6 +531,36 @@ describe('a Quasar palette class is a colour decision', () => {
         ]);
     });
 
+    test('a string the list COMPARES is not a class it renders', () => {
+        // `tone === 'text-grey-7' ? 'muted' : ''` renders `muted`. The
+        // class-shaped string is data being tested, and counting it made an
+        // unrelated state comparison a palette decision the ratchet can fail
+        // on. The operator is what says so, on either side of it.
+        assert.deepEqual(classes(`<span :class="tone === 'text-grey-7' ? 'muted' : ''" />`), []);
+        assert.deepEqual(classes(`<span :class="'text-grey-7' === tone ? 'muted' : ''" />`), []);
+        assert.deepEqual(classes(`<span :class="tone !== 'bg-warning' ? 'muted' : ''" />`), []);
+        assert.deepEqual(classes(`<span :class="{ muted: tone == 'text-red-5' }" />`), []);
+    });
+
+    test('the branch a comparison SELECTS is still a class', () => {
+        // The direction that matters more, because it is the one a hole would
+        // open: only the operand is dropped, so a palette class chosen by the
+        // comparison is counted exactly as before. Both operand shapes, so a
+        // wider blanking pass cannot satisfy this by accident.
+        assert.deepEqual(classes(`<span :class="mode === 'dark' ? 'text-grey-7' : ''" />`), [
+            'text-grey-7',
+        ]);
+        assert.deepEqual(classes(`<span :class="{ 'bg-warning': tone === 'muted' }" />`), [
+            'bg-warning',
+        ]);
+        // And an equality operand is the ONLY string dropped: a class list is
+        // read for its literals everywhere else in the same expression.
+        assert.deepEqual(
+            classes(`<span :class="[tone === 'x' ? 'text-positive' : '', 'bg-negative']" />`),
+            ['text-positive', 'bg-negative'],
+        );
+    });
+
     test('a class that merely ends in a palette word is not one', () => {
         // `sa-text-red` is this package's own naming, and a utility class is
         // not a colour: `text-center` and `text-bold` are layout and weight.
@@ -545,6 +575,20 @@ describe('a Quasar palette class is a colour decision', () => {
         // a `<style>` block is the package defining or overriding the class,
         // which is a different act from a page choosing it.
         assert.deepEqual(classes('<i />', '<style>.text-grey-7 { color: red; }</style>'), []);
+    });
+
+    test('blanking a compared string does not move the line after it', () => {
+        // Every pre-pass in the scanner blanks rather than removes, because the
+        // line a finding reports is an offset into the blanked text. Prettier
+        // wraps a long binding, so the operand and the class it selects
+        // routinely sit on different lines.
+        const [only] = templateColourClasses(
+            'A.vue',
+            sfc(
+                `<span\n    :class="\n        tone === 'text-grey-7'\n            ? 'bg-warning'\n            : ''\n    "\n/>`,
+            ),
+        );
+        assert.deepEqual(only, { line: 5, value: 'bg-warning' });
     });
 
     test('null and empty still mean different things', () => {
@@ -595,6 +639,18 @@ describe('a Quasar palette prop is the same colour decision', () => {
             'positive',
         ]);
         assert.deepEqual(props(`<q-btn :color="action.color ?? 'grey-7'" />`), ['grey-7']);
+    });
+
+    test('a string the binding COMPARES is not a palette name it emits', () => {
+        // The same over-read one attribute over, and it was disclosed rather
+        // than fixed: `dark` is a palette name as well as a theme, so this
+        // counted three where two were written. Narrowed by the operator, not
+        // by a list of the strings that cannot reach a value.
+        assert.deepEqual(props(`<q-btn :color="mode === 'dark' ? 'negative' : 'primary'" />`), [
+            'negative',
+            'primary',
+        ]);
+        assert.deepEqual(props(`<q-btn :color="mode === 'dark' ? tone : fallback" />`), []);
     });
 
     test('a binding that names nothing is not a finding', () => {
