@@ -443,6 +443,21 @@ describe('an inline style is a stylesheet fragment', () => {
         assert.deepEqual(fragments('<div>hello</div>'), []);
     });
 
+    test('a bound style that is one string literal is inline CSS too', () => {
+        // `:style="'font-size: 22px'"` is applied verbatim by Vue. It is bound,
+        // so a filter on `isStatic` dropped it and every budget stayed green
+        // for a declaration that really renders.
+        assert.deepEqual(fragments(`<span :style="'font-size: 22px'">a</span>`), [
+            { text: 'font-size: 22px', line: 2 },
+        ]);
+        // The object form is JavaScript — `fontSize` is not a CSS property and
+        // its value may be an expression — so it stays with the colour reader,
+        // which knows how to pick literals out of it.
+        assert.deepEqual(fragments(`<span :style="{ fontSize: size }">a</span>`), []);
+        // A template literal that interpolates says nothing knowable here.
+        assert.deepEqual(fragments('<span :style="`width: ${w}px`">a</span>'), []);
+    });
+
     test('the line is the line the attribute value starts on', () => {
         assert.deepEqual(fragments('<i />\n<b />\n<span style="font-size: 22px" />'), [
             { text: 'font-size: 22px', line: 4 },
@@ -564,6 +579,18 @@ describe('a Quasar palette prop is the same colour decision', () => {
         // missing it.
         assert.deepEqual(props('<q-btn :color="x" />'), []);
         assert.deepEqual(props('<q-badge :color="statusColor(row.status)" />'), []);
+    });
+
+    test('the object form of v-bind is read like the arg form', () => {
+        // `v-bind="{ color: 'grey-7' }"` has no arg, so a reader that requires
+        // one discarded the whole binding while Vue emitted the prop — the same
+        // decision written the other way, and it walked past every metric.
+        assert.deepEqual(props(`<q-icon v-bind="{ color: 'grey-7' }" />`), ['grey-7']);
+        // The tag still decides: an unrelated component's own prop is not a
+        // Quasar palette dependency, whichever syntax carries it.
+        assert.deepEqual(props(`<my-chart v-bind="{ color: 'primary' }" />`), []);
+        // And a key whose value is an expression names no colour here.
+        assert.deepEqual(props(`<q-icon v-bind="{ color: tone }" />`), []);
     });
 
     test('a value outside the palette is not a palette finding', () => {

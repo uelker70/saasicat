@@ -864,12 +864,65 @@ function templateAttributes(file, content) {
                         ns: node.ns,
                     });
                 }
+                // `v-bind="{ color: 'grey-7' }"` has no arg, and Vue emits the
+                // props all the same. Reading only the arg form let the object
+                // form past every reader below — the same decision, written the
+                // other way. Only literal values are taken: a key whose value is
+                // an expression names no colour and no length here either.
+                if (prop.type === 7 && prop.name === 'bind' && !prop.arg && prop.exp) {
+                    for (const entry of objectLiteralEntries(prop.exp.content)) {
+                        attributes.push({
+                            tag: node.tag,
+                            name: entry.key,
+                            value: entry.raw,
+                            line: prop.exp.loc.start.line,
+                            isStatic: false,
+                            ns: node.ns,
+                        });
+                    }
+                }
             }
         }
         for (const child of node.children ?? []) visit(child);
     };
     for (const child of descriptor.template.ast.children ?? []) visit(child);
     return attributes;
+}
+
+/**
+ * The `key: 'literal'` pairs of an object expression, with the value's own
+ * quotes kept so a reader downstream sees what a bound attribute would give it.
+ *
+ * Deliberately literal-only. A value built by an expression names nothing this
+ * file can count, and guessing at it would be the over-read the colour readers
+ * already refuse.
+ */
+const OBJECT_ENTRY =
+    /(?:^|[{,])\s*(?:'([^']*)'|"([^"]*)"|([A-Za-z_$][\w$-]*))\s*:\s*('[^']*'|"[^"]*"|`[^`$]*`)/g;
+
+export function objectLiteralEntries(expression) {
+    const entries = [];
+    for (const match of expression.matchAll(OBJECT_ENTRY)) {
+        entries.push({ key: match[1] ?? match[2] ?? match[3], raw: match[4] });
+    }
+    return entries;
+}
+
+/**
+ * The text of an expression that is nothing but one string literal, or null.
+ *
+ * `:style="'font-size: 22px'"` is inline CSS Vue applies verbatim; it is bound,
+ * so `isStatic` is false, and a reader that filters on that misses a real
+ * declaration. A literal carrying `${` is left alone — its value is not known
+ * here.
+ */
+export function constantStringValue(expression) {
+    const text = expression.trim();
+    const quote = text[0];
+    if (!["'", '"', '`'].includes(quote) || text.at(-1) !== quote || text.length < 2) return null;
+    const body = text.slice(1, -1);
+    if (body.includes(quote) || (quote === '`' && body.includes('${'))) return null;
+    return body;
 }
 
 /**
@@ -923,8 +976,16 @@ export function inlineStyleFragments(file, content) {
     const attributes = templateAttributes(file, content);
     if (attributes === null) return null;
     return attributes
-        .filter(({ name, isStatic }) => name === 'style' && isStatic)
-        .map(({ value, line }) => ({ text: value, line }));
+        .filter(({ name }) => name === 'style')
+        .map(({ value, line, isStatic }) => ({
+            // A bound style whose expression is one string literal is inline CSS
+            // as much as a static attribute is; an object form (`:style="{…}"`)
+            // is JavaScript and is left to the colour reader, which knows how to
+            // pick literals out of it without mistaking a key for a property.
+            text: isStatic ? value : constantStringValue(value),
+            line,
+        }))
+        .filter(({ text }) => text !== null);
 }
 
 /**
