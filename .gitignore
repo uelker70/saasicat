@@ -46,3 +46,10 @@ handoff/
 # Local agent instructions. Imports handoff/, so it would be half-broken in a
 # clone anyway; the contributor-facing rules live in CONTRIBUTING.md.
 CLAUDE.md
+
+# Agent working directory. A coding session puts its git worktrees here, so a
+# second checkout of the whole repository sits inside this one — and every tool
+# that walks the tree reports the other branch's files as if they were ours.
+# Prettier reads this file (see .prettierignore); ESLint flat config does not,
+# so eslint.config.mjs repeats the entry.
+.claude/
