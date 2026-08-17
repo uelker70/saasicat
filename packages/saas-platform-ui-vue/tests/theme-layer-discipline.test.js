@@ -82,6 +82,22 @@ function styleSource(file, content) {
 
 const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
+/**
+ * A `font-size` declaration, and what makes one acceptable.
+ *
+ * A CSS property name is ASCII case-insensitive, so `FONT-SIZE: 22px` sets the
+ * same thing `font-size: 22px` does. Without the `i` flag it slipped past the
+ * rule below, while `docs/design-guide.md` published that rule as "no
+ * `font-size:` declaration in the package names a number" — a guard with a hole
+ * and a sentence about it, which is the combination this file keeps paying for.
+ *
+ * The second pattern stays case-SENSITIVE, and that asymmetry is the point: a
+ * custom property name is not case-insensitive, so `var(--SA-TEXT-MD)` reads a
+ * property nobody declared and is a finding rather than a token in use.
+ */
+const FONT_SIZE_DECLARATION = /font-size:\s*([^;}]+)/gi;
+const NAMES_A_TYPE_STEP = /:\s*var\(--sa-text-/;
+
 function findings(file, pattern) {
     const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
     return [...css.matchAll(pattern)].map((m) => `${relative(SRC, file)}: ${m[1] ?? m[0]}`);
@@ -123,8 +139,10 @@ describe('the token layers only point one way', () => {
         //
         // So both directions are asserted. Every `.vue` consumer must parse,
         // and the fragments they yield must still be there: the floor sits well
-        // under today's 27 attributes in 13 files and exists to catch a filter
-        // that stopped matching `style`, not to pin the count.
+        // under what the package writes and exists to catch a filter that
+        // stopped matching `style`. Deliberately not the count — moving an
+        // inline style into a class is progress, and a guard that fails on it
+        // teaches the wrong lesson.
         const sfcs = consumers.filter((file) => file.endsWith('.vue'));
         const unreadable = sfcs.filter(
             (file) => inlineStyleFragments(file, readFileSync(file, 'utf8')) === null,
@@ -231,9 +249,21 @@ describe('the token layers only point one way', () => {
         // `\s*` is not the guard it looks like: the whitespace backtracks and
         // the lookahead passes on the space, so every tokenised size reported
         // itself as a violation.
+        //
+        // Counter-check first, on the two shapes the real sweep cannot be
+        // relied on to contain: the package writes no capitalised property
+        // today, so the `i` flag would be an untested claim without this, and a
+        // rule that reads nothing reports the same empty list as a clean tree.
+        const sizesIn = (css) =>
+            [...css.matchAll(FONT_SIZE_DECLARATION)]
+                .map((m) => `x: ${m[1]}`)
+                .filter((entry) => !NAMES_A_TYPE_STEP.test(entry));
+        assert.deepEqual(sizesIn('.a { FONT-SIZE: 22px; }'), ['x: 22px']);
+        assert.deepEqual(sizesIn('.a { font-size: var(--sa-text-2xl); }'), []);
+
         const offenders = [...componentFiles, ...consumers]
-            .flatMap((file) => findings(file, /font-size:\s*([^;}]+)/g))
-            .filter((entry) => !/:\s*var\(--sa-text-/.test(entry));
+            .flatMap((file) => findings(file, FONT_SIZE_DECLARATION))
+            .filter((entry) => !NAMES_A_TYPE_STEP.test(entry));
         assert.deepEqual(
             offenders,
             [],

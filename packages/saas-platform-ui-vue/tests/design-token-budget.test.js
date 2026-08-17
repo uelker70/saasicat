@@ -99,14 +99,16 @@ const FLOORS = {
     distinctFontSizes: { floor: 0, why: 'every size reads a step of the type scale' },
     // The three scales AP2 declares next to the type sizes, and the three that
     // had a token family and no metric. Totals rather than distinct counts: a
-    // scale is finished when nobody writes a VALUE, and `font-weight` would
-    // read 5 distinct today and 5 again with 244 of its 249 sites migrated.
+    // scale is finished when nobody writes a VALUE, and a DISTINCT count barely
+    // moves while that happens: `font-weight` reads the same handful of values
+    // with every site outstanding and with one site left.
     //
     // Ratchets at the measured status quo, not blockers. Reaching zero on the
-    // first of them needs a decision this script cannot take: `800` appears 13
-    // times and the scale stops at `--sa-weight-bold` (700), so somebody has to
-    // either add the rung or rule the 13 out. Recording the number is what puts
-    // that decision in front of a person.
+    // first of them needs a decision this script cannot take: `800` is the one
+    // weight the package writes that the scale has no rung for — it stops at
+    // `--sa-weight-bold` (700) — so somebody has to either add the rung or rule
+    // those sites out. Recording the number is what puts that decision in front
+    // of a person; `pnpm tokens` prints the weights by frequency.
     'fontWeights.total': {
         floor: 0,
         why: 'every weight reads --sa-weight-* — needs a rung for 800, or 13 fewer of them',
@@ -116,10 +118,10 @@ const FLOORS = {
     // The blind spot one property over from the one this file was fixed for.
     // `font: 700 40px/1 var(--sa-font-head)` sets a weight, a size and a line
     // height in one declaration, and all three metrics above are anchored on
-    // the LONGHAND name — so all three read past it. The package writes 82 of
-    // these shorthands, and the last literal `font-size` in it hides in one of
-    // them, which is why `distinctFontSizes` reads 0 and is not the whole
-    // answer.
+    // the LONGHAND name — so all three read past it. The package's last literal
+    // font SIZE hides in one of these, which is why `distinctFontSizes` reads 0
+    // and is not the whole answer. The count is the baseline entry below; it is
+    // not repeated here, where it would only fall out of step.
     'fontShorthands.total': {
         floor: 0,
         why: 'a `font:` shorthand names a size, a weight and a leading — all three have tokens',
@@ -136,6 +138,28 @@ const FLOORS = {
     'quasarColorClasses.total': {
         floor: 0,
         why: 'a palette class is a role token written one layer too low',
+    },
+    // The same decision written as Quasar's prop instead of Quasar's class, and
+    // the metric above was blind to it while claiming to be the one nothing
+    // could see: `<q-icon color="grey-7">` RENDERS `class="text-grey-7"`, so
+    // the class form was debt and the thing that produces it was free.
+    //
+    // Its own budget rather than folded into the one above, because the two
+    // migrate differently — a class comes off with a CSS rule, a prop with a
+    // component's API — and folding them would have moved a recorded number in
+    // a commit that wrote no template.
+    //
+    // A ratchet, and the reason is that the two halves of it are not the same
+    // debt. A hue (`grey-7`, `amber-9`) is a colour the theme cannot move, and
+    // the role layer has a name for what that text is. A brand or status name
+    // (`primary`, `negative`) resolves through `--q-*`, which the theme does
+    // read — and Quasar's `color` prop takes a palette name and nothing else,
+    // so driving those to zero means not using the prop at all. That is a
+    // decision about the component layer, not one this script may take;
+    // recording the number is what puts it in front of a person.
+    'quasarColorProps.total': {
+        floor: 0,
+        why: 'a hue sits below the roles; whether a brand name may stay is a decision to take',
     },
     // Informational, floor 0. The old floor of 5 asked "how many", and the
     // package legitimately needs only three of Quasar's bands — with 5 as a
@@ -204,7 +228,10 @@ describe('design-token budgets', () => {
         // font sizes sat outside every number this file guards. With the sweep
         // widened, `dimensionPixels` moved 285 → 298 in a commit that wrote no
         // CSS — and without this counter that movement looks exactly like debt
-        // arriving. Floor well under today's 27, for the same reason as above.
+        // arriving. The floor sits well under what the package writes, for the
+        // same reason as above: it catches a filter that stopped matching
+        // `style`, and deliberately does not pin the count — migrating an
+        // attribute onto a class is progress and must not fail this.
         assert.ok(
             summary.reach.inlineStyles >= 15,
             `the audit found only ${summary.reach.inlineStyles} inline style attributes — ` +

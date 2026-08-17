@@ -8,7 +8,8 @@ Give the seven design values in inline `style` attributes their tokens
 consumer imports carried four literal font sizes and three literal spacings in
 inline `style="…"` attributes. They now read the scale:
 `--sa-text-2xl` for the two marketing price tags, `--sa-text-2xs` for the
-version status chip, `--sa-space-3` for a hint's top margin twice and
+version status chip, `--sa-space-3` for the hint below the "allow zero price"
+toggle and for the top margin of the promo-code duration input, and
 `--sa-gap-inline` for an optional-field hint's left margin.
 
 Three of the seven change rendered geometry, all by 1–2px, because the value

@@ -379,8 +379,12 @@ const CATEGORIES = {
     letterSpacing: /letter-spacing:\s*([^;}\n]+)/gi,
     // Filled by the declaration pass; see fontShorthandLiteral below.
     fontShorthand: /(?!)/g,
-    // Filled by the template pass; see QUASAR_COLOUR_CLASS.
+    // Filled by the template pass; see QUASAR_COLOUR_CLASS and
+    // QUASAR_PALETTE_ATTRIBUTES. Two categories rather than one, because the
+    // two syntaxes migrate differently: a class comes off with a rule, a prop
+    // with a component API.
     quasarColorClass: /(?!)/g,
+    quasarColorProp: /(?!)/g,
     // Fractional too. Quasar's upper bounds are `599.98px` and friends — the
     // 0.02px step back that stops `max-width` and the next `min-width` both
     // matching at an integer viewport. An integer-only pattern read 0 the
@@ -467,15 +471,20 @@ const PAINT_ATTRIBUTES = new Set([
 ]);
 
 /**
- * Quasar's colour palette, as it appears in a `text-…` / `bg-…` class.
+ * Quasar's colour palette — the vocabulary, without saying where it is written.
  *
- * The fourth place a colour decision can be written, and the one no pattern in
- * this file could ever see: `class="text-grey-7"` contains no hex, no function
- * and no CSS named colour — it is an identifier that resolves to Quasar's own
- * scale, one layer below the role tokens and outside the theme entirely. A
- * `text-grey-7` caption stays the same grey when the dark theme moves every
- * surface under it, and the reader of the template cannot tell that from the
- * class name.
+ * A palette name is a colour decision that carries no colour: `grey-7` contains
+ * no hex, no function and no CSS named keyword, so none of the three patterns
+ * above can see one. It resolves to Quasar's own scale, one layer below the
+ * role tokens and outside the theme entirely — a `grey-7` caption stays the
+ * same grey when the dark theme moves every surface under it, and the reader of
+ * the template cannot tell that from the name.
+ *
+ * A template writes it in TWO syntaxes, and they are the same decision:
+ * `class="text-grey-7"` uses Quasar's utility class, `color="grey-7"` uses the
+ * palette prop its components take. The two constants below read one each, off
+ * this one list — counting the class and walking past the prop is the failure
+ * this file exists to make visible, one attribute over.
  *
  * The vocabulary is Quasar's, not this project's: nineteen Material hues with
  * fourteen shades each, plus thirteen brand, status and utility colours. A
@@ -541,6 +550,56 @@ export const QUASAR_PALETTE_NAMES = [
  */
 const QUASAR_COLOUR_CLASS = new RegExp(
     `(?<![\\w-])(?:text|bg)-(?:${QUASAR_PALETTE_NAMES.join('|')})(?:-\\d{1,2})?(?![\\w-])`,
+    'g',
+);
+
+/**
+ * The props that take a palette name.
+ *
+ * Quasar's own vocabulary: `color`, and the two a component uses when it paints
+ * both halves (`text-color`/`bg-color` on a chip, a badge, a button). The NAME
+ * decides, exactly as it does for `PAINT_ATTRIBUTES` — and these three are
+ * disjoint from that set, so nothing is counted under two metrics.
+ *
+ * `color` is the one that means two things, and the namespace separates them
+ * the same way it does one constant up: inside SVG it is real paint and
+ * `templateColourSites` owns it; on a component it is this palette.
+ */
+const QUASAR_PALETTE_ATTRIBUTES = new Set(['color', 'text-color', 'bg-color']);
+
+/**
+ * A palette name as the WHOLE value of such a prop, and as a string inside a
+ * bound one.
+ *
+ * Two patterns, because the two attribute kinds hold different languages — the
+ * same split `templateColourSites` makes for `fill="white"` against
+ * `:fill="ok ? 'green' : 'red'"`. Leaving the bound half out would put the hole
+ * where a contributor can route around the ratchet: the package already writes
+ * plenty of these as a ternary, and `:color="isRegression ? 'negative' :
+ * 'positive'"` is exactly as much a palette decision as `color="negative"`.
+ *
+ * A quoted string is read only because the ATTRIBUTE already said it is a
+ * colour. That is what makes it safe here and not in general: `'primary'`
+ * anywhere else in a template is a word, but inside a binding named `color` it
+ * is Quasar's palette. `:color="statusColor(row)"` names nothing and is not a
+ * finding — the value lives in a script, where no template pass can reach it.
+ *
+ * It over-reads in one shape, and knowingly: a string COMPARED inside such a
+ * binding — `:color="mode === 'dark' ? 'negative' : 'primary'"` — counts three
+ * where two were written, because `dark` is a palette name as well as a theme.
+ * The package writes none today. It is the trade this file already took for
+ * `:fill="ok ? 'green' : 'red'"`, and the direction matters: this metric is a
+ * ratchet rather than a floor of zero, so an over-read costs a re-record, while
+ * the hole costs the rule — a `color="negative"` rewritten as a ternary would
+ * otherwise leave the number by itself.
+ *
+ * Both are anchored — `^…$` on one, the closing quote backreference on the
+ * other — so the alternation is safe unordered and `blue-grey-7` cannot be read
+ * as `blue`.
+ */
+const QUASAR_PALETTE_VALUE = new RegExp(`^(?:${QUASAR_PALETTE_NAMES.join('|')})(?:-\\d{1,2})?$`);
+const QUOTED_PALETTE_VALUE = new RegExp(
+    `(['"\`])\\s*((?:${QUASAR_PALETTE_NAMES.join('|')})(?:-\\d{1,2})?)\\s*\\1`,
     'g',
 );
 
@@ -633,8 +692,10 @@ const SCALE_PROPERTY =
  * The blind spot one property over from the one this file was fixed for, and
  * the same shape: `font: 700 40px/1 var(--sa-font-head)` sets a weight, a size
  * and a line height in one declaration, and the three patterns that read those
- * are each anchored on the LONGHAND name — so all three read past it. Eighty-two
- * of these are written in the package.
+ * are each anchored on the LONGHAND name — so all three read past it. How many
+ * the package writes is printed by `pnpm tokens` and pinned in
+ * `design-token-baseline.json`; a number here would be a fourth place to keep
+ * it in step, and the first to fall out.
  *
  * Derived rather than parsed against the shorthand's grammar, which is genuinely
  * awkward (four optional components in any order, then a size, then an optional
@@ -856,6 +917,48 @@ export function templateColourClasses(file, content) {
 }
 
 /**
+ * Quasar palette names in a template's colour PROPS.
+ *
+ * The blind spot one attribute over from the class above, and the same shape:
+ * `<q-icon color="grey-7">` renders `class="text-grey-7"`, which is literally
+ * what `templateColourClasses` counts — so the class form was debt and the prop
+ * form, which produces it, was not. The comment on the palette list used to say
+ * this was the one place no pattern could see, while a pattern one constant
+ * away was reading the class it compiles to.
+ *
+ * Exported for its own test.
+ *
+ * @returns {null | {value: string, line: number}[]}
+ */
+export function templatePaletteProps(file, content) {
+    const attributes = templateAttributes(file, content);
+    if (attributes === null) return null;
+
+    const sites = [];
+    for (const { name, value, line, isStatic, ns } of attributes) {
+        // Inside SVG these names are CSS properties rather than Quasar props,
+        // and `templateColourSites` already reads `color` there as paint.
+        if (ns === SVG_NAMESPACE) continue;
+        if (!QUASAR_PALETTE_ATTRIBUTES.has(name)) continue;
+        if (isStatic) {
+            const trimmed = value.trim();
+            if (QUASAR_PALETTE_VALUE.test(trimmed)) sites.push({ line, value: trimmed });
+            continue;
+        }
+        // A bound value is JavaScript and can carry a `//` comment; the idiom
+        // is the one the alpha-concat sweep uses, so the `//` in a URL survives.
+        const text = withCommentsBlanked(value).replace(
+            /(^|\s)\/\/[^\n]*/g,
+            (m, lead) => lead + ' '.repeat(m.length - lead.length),
+        );
+        for (const match of text.matchAll(QUOTED_PALETTE_VALUE)) {
+            sites.push({ line: line + lineOf(text, match.index) - 1, value: match[2] });
+        }
+    }
+    return sites.sort((a, b) => a.line - b.line);
+}
+
+/**
  * The colour literals among those painted values, with the line each sits on.
  *
  * Exported for its own test. `null` and `[]` mean different things and the
@@ -1020,6 +1123,11 @@ export function audit() {
             if (classes !== null && !isTokenDefinition) {
                 for (const site of classes) findings.quasarColorClass.push({ file: rel, ...site });
             }
+
+            const props = templatePaletteProps(file, content);
+            if (props !== null && !isTokenDefinition) {
+                for (const site of props) findings.quasarColorProp.push({ file: rel, ...site });
+            }
         }
 
         // Self-referencing vars can sit anywhere, including inline styles.
@@ -1171,8 +1279,9 @@ export function summarise({ findings, styleShare, reach }) {
         // Totals, where the three above the line are `distinct` counts. The
         // question is a different one: a type scale is finished when nobody
         // writes a SIZE, and `--sa-weight-*` is finished when nobody writes a
-        // WEIGHT. Counting distinct values would read 5 for `font-weight` both
-        // today and after 244 of the 249 sites were migrated.
+        // WEIGHT. A distinct count barely moves while that happens —
+        // `font-weight` reads the same handful of values with every site
+        // outstanding and with one site left.
         fontWeights: { total: findings.fontWeight.length, files: files(findings.fontWeight) },
         lineHeights: { total: findings.lineHeight.length, files: files(findings.lineHeight) },
         letterSpacings: {
@@ -1188,6 +1297,10 @@ export function summarise({ findings, styleShare, reach }) {
         quasarColorClasses: {
             total: findings.quasarColorClass.length,
             files: files(findings.quasarColorClass),
+        },
+        quasarColorProps: {
+            total: findings.quasarColorProp.length,
+            files: files(findings.quasarColorProp),
         },
         distinctBreakpoints: distinct(findings.breakpoint),
         offScaleBreakpoints: {
@@ -1265,6 +1378,9 @@ function runCli(args) {
         `  Quasar colour classes      ${summary.quasarColorClasses.total} in ${summary.quasarColorClasses.files} files`,
     );
     console.log(
+        `  Quasar palette props       ${summary.quasarColorProps.total} in ${summary.quasarColorProps.files} files`,
+    );
+    console.log(
         `  distinct breakpoints       ${summary.distinctBreakpoints} (${summary.offScaleBreakpoints.total} off Quasar's scale)`,
     );
     console.log(
@@ -1290,6 +1406,7 @@ function runCli(args) {
     printTop('letter spacings', result.findings.letterSpacing);
     printTop('font: shorthands', result.findings.fontShorthand);
     printTop('Quasar colour classes', result.findings.quasarColorClass);
+    printTop('Quasar palette props', result.findings.quasarColorProp);
     printTop('pixel values', result.findings.pixelValue);
 
     const worst = [...result.styleShare].sort((a, b) => b.share - a.share).slice(0, topN);

@@ -579,12 +579,19 @@ attribute reads `var(--sa-text-…)` and `var(--sa-space-…)` exactly as a rule
 does, and both the audit and the layer test now read `<style>` blocks and
 `style` attributes through the same parser.
 
-**A palette class is a colour too.** `class="text-grey-7"` holds no hex, no
+**A palette name is a colour too.** `class="text-grey-7"` holds no hex, no
 colour function and no keyword, which is why no pattern here ever saw one — but
 it resolves to Quasar's scale, one layer **below** the roles. It therefore keeps
 its grey when the dark theme moves the surface under it. `pnpm tokens` counts
 these under `Quasar colour classes`; the answer is the role that says what the
 text is (`--sa-color-fg-muted`, `--sa-color-warning-surface`).
+
+`color="grey-7"` is the same decision written as a prop — Quasar renders it as
+exactly that class — and it is counted separately, under `Quasar palette props`,
+because the two come off differently: a class with a CSS rule, a prop with a
+component's API. A brand or status name there (`color="primary"`,
+`color="negative"`) resolves through `--q-*`, which the theme does read; an
+absolute hue does not, and is the half to give a role first.
 
 **Both halves of a pair in the same rule.** A `color` whose `background` is
 declared somewhere else is a pair no check can read — and **all five** contrast
