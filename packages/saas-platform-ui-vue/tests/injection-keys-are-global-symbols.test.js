@@ -581,8 +581,38 @@ const NAMED_IMPORT = /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]
  * parenthesis has to end the expression, with nothing after it but the type
  * syntax TypeScript allows there.
  */
+// Two shapes this file cannot decide, recorded in issue #158 rather than
+// half-solved: an `InjectionKey` reached through a local type alias
+// (`type AppKey<T> = InjectionKey<T>`) is not classified, and two functions in
+// one file declaring the same name both answer for a call site in it. The first
+// needs a resolved type, the second a lexical scope — a parser, not a pattern.
+// Neither shape occurs under `src` today.
+
+/** The index closing the bracket that opens at `start`, or -1. */
+function matchingClose(text, start) {
+    let depth = 0;
+    for (let i = start; i < text.length; i += 1) {
+        if ('([{'.includes(text[i])) depth += 1;
+        else if (')]}'.includes(text[i])) {
+            depth -= 1;
+            if (depth === 0) return i;
+        }
+    }
+    return -1;
+}
+
 function isSymbolForCall(initializer) {
     const text = initializer.trim();
+    // `const KEY: InjectionKey<T> = (Symbol.for('k'));` is the same value with
+    // grouping around it, and a prefix test rejected it for starting with `(`.
+    // Peeled by recursion so the group carries its own tail: what follows the
+    // matching close must be an assertion, and what is inside must itself be
+    // the call. `(a) && (b)` fails on the first of those, not the second.
+    if (text.startsWith('(')) {
+        const close = matchingClose(text, 0);
+        if (close === -1) return false;
+        return isTypeAssertionTail(text.slice(close + 1)) && isSymbolForCall(text.slice(1, close));
+    }
     if (!/^Symbol\.for\s*\(/.test(text)) return false;
     let depth = 0;
     for (let i = text.indexOf('('); i < text.length; i += 1) {
@@ -1008,6 +1038,14 @@ describe('every Vue injection key is created with Symbol.for', () => {
         assert.equal(isStringKey("Symbol.for('local')"), false);
         // A template literal that interpolates is not a plain string.
         assert.equal(isStringKey('`local-${id}`'), false);
+    });
+
+    test('grouping around the call is grouping, not another operand', () => {
+        assert.equal(isSymbolForCall("(Symbol.for('k'))"), true);
+        assert.equal(isSymbolForCall("((Symbol.for('k')))"), true);
+        assert.equal(isSymbolForCall("(Symbol.for('k')) as InjectionKey<string>"), true);
+        // A wrapper that closes in the middle is not a wrapper.
+        assert.equal(isSymbolForCall("(Symbol.for('a')) && (Symbol('b'))"), false);
     });
 
     test('a type assertion may contain what a type contains', () => {
