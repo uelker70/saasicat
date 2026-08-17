@@ -162,9 +162,15 @@ function scriptBlocksOnly(source) {
  * Characters after which a `/` opens a regular expression rather than dividing.
  * Applied to the significant code seen so far, so `foo / 2` and `.replace(/…/)`
  * are told apart without parsing the file.
+ *
+ * The keywords carry an identifier boundary because they are matched at the end
+ * of the text seen so far, where a bare alternation also matches a suffix:
+ * `margin / 2` ends in `in`, so the division opened a regular expression that
+ * never terminated and the whole file failed to scan. `.` is excluded with the
+ * word characters — a keyword after a dot is a property name, not a keyword.
  */
 const REGEX_MAY_FOLLOW =
-    /[(,=:[!&|?{};+\-*%~^<>]$|(?:return|typeof|case|in|of|do|else|yield|await|new)$/;
+    /[(,=:[!&|?{};+\-*%~^<>]$|(?:^|[^\w$.])(?:return|typeof|case|in|of|do|else|yield|await|new)$/;
 
 /**
  * Replaces comments, string bodies and regular-expression literals with
@@ -560,8 +566,42 @@ function writtenAnnotations(code) {
 }
 
 const NAMED_IMPORT = /\bimport\s+(?:type\s+)?(?:[A-Za-z_$][\w$]*\s*,\s*)?\{([^}]*)\}\s*from\b/g;
+/**
+ * Whether an initializer *is* a `Symbol.for(…)` call rather than merely opening
+ * with one.
+ *
+ * A prefix test answers the wrong question: `Symbol.for('decoy') && Symbol('x')`
+ * starts with the call and evaluates to the local symbol, which is exactly the
+ * cross-bundle failure this file exists to prevent. So the call's own closing
+ * parenthesis has to end the expression, with nothing after it but the type
+ * syntax TypeScript allows there.
+ */
+function isSymbolForCall(initializer) {
+    const text = initializer.trim();
+    if (!/^Symbol\.for\s*\(/.test(text)) return false;
+    let depth = 0;
+    for (let i = text.indexOf('('); i < text.length; i += 1) {
+        if (text[i] === '(') depth += 1;
+        else if (text[i] === ')') {
+            depth -= 1;
+            if (depth === 0) {
+                // `as InjectionKey<T>` and a trailing `!` are assertions, not
+                // another operand; anything else changes what the key becomes.
+                return /^\s*(?:!\s*)?(?:as\s+[\w$<>[\]|,.\s]+)?$/.test(text.slice(i + 1));
+            }
+        }
+    }
+    return false;
+}
+
 const NAMED_REEXPORT = /\bexport\s+(?:type\s+)?\{([^}]*)\}\s*from\b/g;
 const STAR_REEXPORT = /\bexport\s*\*\s*from\b/g;
+/**
+ * `export { A, B as C }` without a `from`, which exports bindings declared in
+ * this file. The lookahead is zero-width so it cannot backtrack into the
+ * whitespace and swallow a re-export, which `\s*(?!from\b)` would.
+ */
+const LOCAL_EXPORT = /\bexport\s*\{([^}]*)\}(?!\s*from\b)/g;
 const NAMED_BINDING = /(?:^|,)\s*(?:type\s+)?([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?/g;
 
 /** The `{ A, B as C }` of an import or re-export clause, as imported/local pairs. */
@@ -642,6 +682,22 @@ function exportsOf(path, seen = new Set()) {
     const withSelf = new Set([...seen, path]);
     for (const binding of bindingsByPath.get(path) ?? []) {
         if (binding.exported) addBinding(surface, binding.name, binding);
+    }
+    // `export { KEY }` names a binding declared above it. Without this a key
+    // written that way is exported in fact and unexported here, so a file
+    // importing it would be reported as naming a key nobody declared — a guard
+    // that rejects ordinary syntax gets switched off.
+    //
+    // No file under `src` writes that form today (measured: zero), so this loop
+    // has no input in this tree and no run exercises it. The test below proves
+    // the pattern and the local-to-exported mapping, which is what can be
+    // proven here; the integration is unproven until such a file exists.
+    for (const match of source.code.matchAll(LOCAL_EXPORT)) {
+        for (const { imported, local } of namedBindings(match[1] ?? '')) {
+            for (const binding of bindingsByPath.get(path) ?? []) {
+                if (binding.name === imported) addBinding(surface, local, binding);
+            }
+        }
     }
     for (const { target } of clausesOf(source, STAR_REEXPORT)) {
         if (!target) continue;
@@ -790,7 +846,7 @@ describe('every Vue injection key is created with Symbol.for', () => {
 
     test('every injection key is created with Symbol.for', () => {
         const local = injectionKeys
-            .filter(({ initializer }) => !/^Symbol\.for\s*\(/.test(initializer))
+            .filter(({ initializer }) => !isSymbolForCall(initializer))
             .map(where);
         assert.deepEqual(
             local,
@@ -858,6 +914,43 @@ describe('every Vue injection key is created with Symbol.for', () => {
                 'key by name:\n  ' +
                 unread.join('\n  '),
         );
+    });
+
+    test('a division after a keyword-suffixed name is not a regular expression', () => {
+        // `margin` ends in `in`. Matched without an identifier boundary, the
+        // `/` opened a regular expression that never closed, and the scan of
+        // that file — and with it the whole guard — collapsed on valid source.
+        const divided = scrubNonCode('const half = (margin) => margin / 2;\nconst x = 1;');
+        assert.deepEqual(divided.anomalies, []);
+        assert.match(divided.code, /margin \/ 2/);
+
+        // And a keyword that really is one still opens a regular expression:
+        // its body is blanked, so the identifier inside it disappears.
+        const kept = scrubNonCode('return /needle/.test(m);');
+        assert.deepEqual(kept.anomalies, []);
+        assert.doesNotMatch(kept.code, /needle/);
+    });
+
+    test('an initializer that merely starts with Symbol.for is not one', () => {
+        assert.equal(isSymbolForCall("Symbol.for('a')"), true);
+        assert.equal(isSymbolForCall("  Symbol.for('a') as InjectionKey<string>"), true);
+        assert.equal(isSymbolForCall("Symbol.for('a')!"), true);
+        // Evaluates to the local symbol — the exact failure the guard prevents.
+        assert.equal(isSymbolForCall("Symbol.for('decoy') && Symbol('actual')"), false);
+        assert.equal(isSymbolForCall("Symbol.for('a') ?? Symbol('b')"), false);
+        assert.equal(isSymbolForCall("cond ? Symbol.for('a') : Symbol('b')"), false);
+    });
+
+    test('a local export list is an export, and a re-export is not one of them', () => {
+        // Pattern and mapping only — see the note at the loop that consumes it.
+        const local = [...'export { KEY, OTHER as PUBLIC };'.matchAll(LOCAL_EXPORT)];
+        assert.equal(local.length, 1);
+        assert.deepEqual(namedBindings(local[0][1]), [
+            { imported: 'KEY', local: 'KEY' },
+            { imported: 'OTHER', local: 'PUBLIC' },
+        ]);
+        // The lookahead must not backtrack into the whitespace and take this.
+        assert.deepEqual([..."export { KEY } from './x';".matchAll(LOCAL_EXPORT)], []);
     });
 
     test('the annotated declarations survive the bracket walk', () => {
