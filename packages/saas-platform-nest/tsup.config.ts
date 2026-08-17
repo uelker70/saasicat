@@ -25,7 +25,12 @@ export default defineConfig({
     // it. Types (`.d.ts`/`.d.cts`) come from this pass and stay per-entry.
     format: ['esm', 'cjs'],
     dts: true,
-    clean: true,
+    // No `clean` — see scripts/build-and-prune.mjs, which the build script
+    // wraps this whole three-pass build in. Emptying dist/ up front leaves a
+    // window in which the JS exists and the .d.ts does not; pruning afterwards
+    // removes orphans without ever exposing that state. Cleaning here would
+    // also be wrong for a second reason: it would wipe the shared CJS bundle
+    // and the stubs on a `tsup`-only invocation.
     external: CJS_EXTERNAL,
     plugins: [
         swc.vite({

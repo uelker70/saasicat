@@ -11,9 +11,14 @@ import { defineConfig } from 'tsup';
 // other has already written. That is not hypothetical: it silently removed
 // `dist/testing-e2e/*.d.ts` after the declaration build had emitted them,
 // which left `package.json#exports` pointing its `types` condition at files
-// that did not exist. Cleaning happens once, before tsup, in the `build`
-// script — via `node -e fs.rmSync` rather than `rm -rf`, which does not exist
-// on a Windows `cmd.exe` and would fail the build before tsup ever starts.
+// that did not exist.
+//
+// Nothing empties `dist/` up front either: the `build` script runs tsup
+// through `scripts/build-and-prune.mjs`, which removes outputs this build did
+// not write once it has finished. Emptying first left a window — 12.5 s for
+// this package, the longest in the repo — in which the JS bundles existed and
+// the declarations did not, which a TypeScript server can observe and then
+// cache as an unresolvable module.
 export default defineConfig([
     {
         entry: {
