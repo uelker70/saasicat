@@ -529,9 +529,14 @@ const identity = ({ path, line, name }) => `${path}:${line}:${name}`;
 const annotatedKeys = allBindings.filter(
     ({ annotation, initializer }) =>
         /\bInjectionKey\b/.test(annotation) ||
-        /\bas\s+(?:unknown\s+as\s+)?InjectionKey\b/.test(initializer),
+        /\bas\s+(?:unknown\s+as\s+)?InjectionKey\b/.test(initializer) ||
+        // `satisfies InjectionKey<T>` classifies a key exactly as an annotation
+        // or a cast does. An exported, consumer-only key written that way — with
+        // no `provide`/`inject` inside `src` for the other derivation to recover
+        // it from — was in neither, so a plain local symbol could be published
+        // while this stayed green.
+        /\bsatisfies\s+InjectionKey\b/.test(initializer),
 );
-
 const ANNOTATED_FIRST_DECLARATOR = /\bconst\s+[A-Za-z_$][\w$]*\s*:\s*InjectionKey\s*</g;
 const ANNOTATED_NEXT_DECLARATOR = /\s*[A-Za-z_$][\w$]*\s*:\s*InjectionKey\s*</y;
 
@@ -585,13 +590,60 @@ function isSymbolForCall(initializer) {
         else if (text[i] === ')') {
             depth -= 1;
             if (depth === 0) {
-                // `as InjectionKey<T>` and a trailing `!` are assertions, not
-                // another operand; anything else changes what the key becomes.
-                return /^\s*(?:!\s*)?(?:as\s+[\w$<>[\]|,.\s]+)?$/.test(text.slice(i + 1));
+                // `as InjectionKey<T>`, `satisfies InjectionKey<T>` and a
+                // trailing `!` are assertions, not another operand. The tail is
+                // judged structurally rather than by a character class: a type
+                // may contain `(`, `=>`, `{`, `&` — `as InjectionKey<() =>
+                // void>` is a supported form this file rejected — while what
+                // must not appear is a value operator OUTSIDE any bracket,
+                // which is what `Symbol.for('a') as T && Symbol('b')` has.
+                return isTypeAssertionTail(text.slice(i + 1));
             }
         }
     }
     return false;
+}
+
+/**
+ * Whether what follows a call is only a type assertion.
+ *
+ * Enumerating the type grammar was the mistake: TypeScript puts `(`, `=>`, `{`,
+ * `&` and quotes inside a type, and a character class listing what it had seen
+ * so far rejected `as InjectionKey<() => void>`. What actually distinguishes an
+ * assertion from a second operand is depth — a type's brackets nest, and the
+ * operator that would change the value sits at depth zero.
+ */
+function isTypeAssertionTail(tail) {
+    const text = tail.trim().replace(/^!\s*/, '');
+    if (text === '') return true;
+    const keyword = /^(?:as|satisfies)\s/.exec(text);
+    if (!keyword) return false;
+
+    // After the keyword everything is a type, so `|` and `&` are its own
+    // operators and say nothing. What a type cannot contain at depth zero is a
+    // value operator: the doubled forms, a ternary, a comma, or a call.
+    const body = keyword ? text.slice(keyword[0].length) : text;
+    let depth = 0;
+    for (let i = 0; i < body.length; i += 1) {
+        const char = body[i];
+        // `=>` is an arrow inside a function type; its `>` closes nothing.
+        if (char === '>' && body[i - 1] === '=') continue;
+        if ('<([{'.includes(char)) {
+            if (char === '(' && depth === 0) return false;
+            depth += 1;
+            continue;
+        }
+        if ('>)]}'.includes(char)) {
+            depth -= 1;
+            if (depth < 0) return false;
+            continue;
+        }
+        if (depth > 0) continue;
+        const pair = body.slice(i, i + 2);
+        if (pair === '&&' || pair === '||' || pair === '??') return false;
+        if ('?:,;+'.includes(char)) return false;
+    }
+    return depth === 0;
 }
 
 const NAMED_REEXPORT = /\bexport\s+(?:type\s+)?\{([^}]*)\}\s*from\b/g;
@@ -798,9 +850,37 @@ function callSites() {
     return found;
 }
 
+/**
+ * Whether a binding holds a plain string.
+ *
+ * Vue accepts a string as an injection key, and a string does not acquire a
+ * symbol-identity problem by being stored in a constant first — `const KEY =
+ * 'local'; provide(KEY, value)` is ordinary, valid code. The call-site
+ * derivation reads it as an identifier, so without this it entered the roster
+ * and failed both assertions: a guard rejecting correct source, which is how a
+ * guard gets switched off.
+ *
+ * A key annotated `: InjectionKey<T>` cannot be one of these — Vue's own type
+ * extends `Symbol` — so only this derivation needs the exemption.
+ *
+ * No file under `src` provides or injects a string-bound identifier today
+ * (measured: none), so removing the filter changes nothing here and no run
+ * exercises it. The test below proves the predicate, which is what can be
+ * proven; the wiring stays unproven until such a call exists.
+ */
+function isStringKey(initializer) {
+    const text = (initializer ?? '').trim();
+    const quote = text[0];
+    if (!["'", '"', '`'].includes(quote) || text.at(-1) !== quote || text.length < 2) return false;
+    const body = text.slice(1, -1);
+    return !body.includes(quote) && !(quote === '`' && body.includes('${'));
+}
+
 const sites = callSites();
 const namedSites = sites.filter(({ name }) => name);
-const usedBindings = namedSites.flatMap(({ bindings }) => bindings);
+const usedBindings = namedSites
+    .flatMap(({ bindings }) => bindings)
+    .filter(({ initializer }) => !isStringKey(initializer));
 
 /** The rule applies to both derivations together. */
 const injectionKeys = [
@@ -914,6 +994,30 @@ describe('every Vue injection key is created with Symbol.for', () => {
                 'key by name:\n  ' +
                 unread.join('\n  '),
         );
+    });
+
+    test('a string key is a key, and not a missing Symbol.for', () => {
+        // `const KEY = 'local'; provide(KEY, value)` is valid Vue. Reading the
+        // identifier and then demanding a `Symbol.for` of it rejects correct
+        // source — the failure mode that gets a guard disabled. Predicate only:
+        // no such call exists under `src`, so nothing here drives the filter.
+        assert.equal(isStringKey("'local'"), true);
+        assert.equal(isStringKey('"local"'), true);
+        assert.equal(isStringKey('`local`'), true);
+        assert.equal(isStringKey("Symbol('local')"), false);
+        assert.equal(isStringKey("Symbol.for('local')"), false);
+        // A template literal that interpolates is not a plain string.
+        assert.equal(isStringKey('`local-${id}`'), false);
+    });
+
+    test('a type assertion may contain what a type contains', () => {
+        assert.equal(isSymbolForCall("Symbol.for('k') as InjectionKey<() => void>"), true);
+        assert.equal(isSymbolForCall("Symbol.for('k') as InjectionKey<{ a: string }>"), true);
+        assert.equal(isSymbolForCall("Symbol.for('k') as InjectionKey<A & B>"), true);
+        assert.equal(isSymbolForCall("Symbol.for('k') satisfies InjectionKey<() => void>"), true);
+        // And still not a second operand.
+        assert.equal(isSymbolForCall("Symbol.for('a') as T && Symbol('b')"), false);
+        assert.equal(isSymbolForCall("Symbol.for('a') as T ? x : y"), false);
     });
 
     test('a division after a keyword-suffixed name is not a regular expression', () => {
