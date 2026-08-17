@@ -36,6 +36,19 @@
 //     read" test below rather than passing unnoticed.
 //   - Anything in a `.vue` file outside its `<script>` blocks, and anything
 //     inside a template literal — both are blanked before the scan.
+//   - A key that never gets a name of its own. `const { THEME } = keys;` binds
+//     through a destructuring pattern, and the reader takes no name from one.
+//     Such a key does not leave quietly either: the cross-check below reports
+//     it as an identifier that nothing under `src` declares.
+//   - The far side of an unusual comma. Which `,` separates two declarators is
+//     decided by what follows it rather than by a parser, because the angle
+//     brackets around an initializer's type arguments are not counted — see
+//     `endOfDeclarator`. `new Map<string, number>()` is therefore read whole,
+//     but type arguments that themselves begin like a declarator
+//     (`new Map<string, { a: 1 }>(), KEY = …`) end the walk early. What comes
+//     after is unread rather than approved: the floor at the bottom of this
+//     file counts that declarator straight from the source text, so a key
+//     annotated as an `InjectionKey` fails the build on the difference.
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -235,17 +248,24 @@ const sources = [...walk(SRC)].map((file) => {
     return { path: relative(SRC, file), code, anomalies };
 });
 
+// Type syntax nests in angle brackets as well as in round, square and curly
+// ones; expressions do not — `a < b` is a comparison far more often than
+// `Map<a, b>` is a type. So an annotation is walked with all four pairs and an
+// initializer with three.
 const OPENERS = '([{<';
 const CLOSERS = ')]}>';
+const NESTING_OPENERS = '([{';
+const NESTING_CLOSERS = ')]}';
 
 /**
  * The type annotation of a `const NAME: T = …`, read up to the `=` that starts
- * the initializer.
+ * the initializer — or, for a declarator that carries no value, to the `,` or
+ * `;` that ends it.
  *
  * Walked by bracket depth rather than matched by a regex, because the
- * annotations in this package contain their own `=`:
+ * annotations in this package contain their own `=` and their own `,`:
  * `InjectionKey<() => AdminManifest | null>` would end a lazier reader inside
- * the arrow.
+ * the arrow, and `Map<string, number>` at the comma.
  */
 function readAnnotation(code, at) {
     if (code[at] !== ':') return { annotation: '', valueAt: at + 1 };
@@ -261,7 +281,7 @@ function readAnnotation(code, at) {
         }
         if (OPENERS.includes(char)) depth += 1;
         else if (CLOSERS.includes(char)) depth -= 1;
-        else if (char === ';' && depth <= 0)
+        else if ((char === ';' || char === ',') && depth <= 0)
             return { annotation: code.slice(at + 1, index), valueAt: -1 };
         else if (char === '=' && depth <= 0)
             return { annotation: code.slice(at + 1, index), valueAt: index + 1 };
@@ -270,34 +290,120 @@ function readAnnotation(code, at) {
     return { annotation: '', valueAt: -1 };
 }
 
-/** The initializer of a `const … = …;`, read to the semicolon that ends it. */
-function readInitializer(code, at) {
+/**
+ * What a declarator may start with, used to tell a `,` that separates two of
+ * them from a `,` the bracket counter cannot see into.
+ *
+ * Sticky rather than anchored so it can be pointed at an offset without
+ * slicing the file at every comma. Set `lastIndex` before every use.
+ */
+const NEXT_DECLARATOR = /\s*(?:[A-Za-z_$][\w$]*\s*(?:[:;,]|=(?![=>]))|[{[])/y;
+
+/**
+ * Where a declarator ends: the `,` that starts the next one, or the `;` that
+ * ends the statement.
+ *
+ * The type arguments of an initializer are the reason the `,` has to prove
+ * itself. `new Map<string, number>()` holds a comma outside every bracket this
+ * counts, and stays one initializer only because `number>` cannot begin a
+ * declarator.
+ */
+function endOfDeclarator(code, from) {
+    let depth = 0;
+    for (let index = from; index < code.length; index += 1) {
+        const char = code[index];
+        if (NESTING_OPENERS.includes(char)) depth += 1;
+        else if (NESTING_CLOSERS.includes(char)) depth -= 1;
+        else if (char === ';' && depth <= 0) return { at: index, separated: false };
+        else if (char === ',' && depth <= 0) {
+            NEXT_DECLARATOR.lastIndex = index + 1;
+            if (NEXT_DECLARATOR.test(code)) return { at: index, separated: true };
+        }
+    }
+    return { at: code.length, separated: false };
+}
+
+const DECLARATION = /\b(?:export\s+)?(?:const|let|var)\s+/g;
+const DECLARATOR_NAME = /([A-Za-z_$][\w$]*)\s*/y;
+
+/**
+ * The offset just past a destructuring target, or -1 where there is none.
+ *
+ * A pattern binds names this reader does not take — see the header — but it
+ * still has to be stepped over, or the declarators after it would be lost too.
+ */
+function skipPattern(code, at) {
+    if (code[at] !== '{' && code[at] !== '[') return -1;
     let depth = 0;
     for (let index = at; index < code.length; index += 1) {
         const char = code[index];
-        if ('([{'.includes(char)) depth += 1;
-        else if (')]}'.includes(char)) depth -= 1;
-        else if (char === ';' && depth <= 0) return code.slice(at, index);
+        if (NESTING_OPENERS.includes(char)) depth += 1;
+        else if (NESTING_CLOSERS.includes(char)) depth -= 1;
+        else continue;
+        if (depth > 0) continue;
+        let end = index + 1;
+        while (end < code.length && /\s/.test(code[end])) end += 1;
+        return end;
     }
-    return code.slice(at);
+    return -1;
 }
 
-const BINDING = /\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?=[:=])/g;
+/**
+ * Every declarator of one `const`/`let`/`var` statement, in source order.
+ *
+ * One statement may bind more than one name — `const A = …, B = …;` — and the
+ * second declarator is as much a declaration as the first. Reading only the
+ * name that touches the keyword is how an injection key built from a plain
+ * `Symbol()` walked past this guard: chained behind a well-behaved
+ * `Symbol.for`, it was named by neither derivation, and the first declarator's
+ * initializer simply swallowed it and still began with `Symbol.for(`.
+ */
+function readDeclarators(code, start) {
+    const found = [];
+    let at = start;
+    while (at < code.length) {
+        // Onto the declarator itself: `at` is what the failure message points
+        // at, and a separator leaves the cursor on the whitespace behind it.
+        while (at < code.length && /\s/.test(code[at])) at += 1;
+        DECLARATOR_NAME.lastIndex = at;
+        const named = DECLARATOR_NAME.exec(code);
+        const afterTarget = named ? DECLARATOR_NAME.lastIndex : skipPattern(code, at);
+        if (afterTarget < 0) return found;
+        const punctuation = code[afterTarget];
+        // `let a, b = …`: a declarator may carry neither annotation nor value.
+        if (punctuation === ',') {
+            at = afterTarget + 1;
+            continue;
+        }
+        // Anything else ends the statement — the `;`, or the `of` of a `for`.
+        if (punctuation !== ':' && punctuation !== '=') return found;
+        const { annotation, valueAt } = readAnnotation(code, afterTarget);
+        const end = endOfDeclarator(code, valueAt < 0 ? afterTarget : valueAt);
+        if (named && valueAt >= 0) {
+            found.push({
+                name: named[1],
+                at,
+                annotation,
+                initializer: code.slice(valueAt, end.at).trim(),
+            });
+        }
+        if (!end.separated) return found;
+        at = end.at + 1;
+    }
+    return found;
+}
 
 /** Every named binding with an initializer, with its annotation and its value. */
 function declarations() {
     const found = [];
     for (const { path, code } of sources) {
-        for (const match of code.matchAll(BINDING)) {
-            const { annotation, valueAt } = readAnnotation(code, match.index + match[0].length);
-            if (valueAt < 0) continue;
-            found.push({
-                name: match[1],
-                path,
-                line: lineAt(code, match.index),
-                annotation,
-                initializer: readInitializer(code, valueAt).trim(),
-            });
+        for (const match of code.matchAll(DECLARATION)) {
+            for (const { name, at, annotation, initializer } of readDeclarators(
+                code,
+                match.index + match[0].length,
+            )) {
+                found.push({ name, path, line: lineAt(code, at), annotation, initializer });
+            }
         }
     }
     return found;
@@ -323,6 +429,39 @@ const annotatedKeys = allBindings.filter(
         /\bInjectionKey\b/.test(annotation) ||
         /\bas\s+(?:unknown\s+as\s+)?InjectionKey\b/.test(initializer),
 );
+
+const ANNOTATED_FIRST_DECLARATOR = /\bconst\s+[A-Za-z_$][\w$]*\s*:\s*InjectionKey\s*</g;
+const ANNOTATED_NEXT_DECLARATOR = /\s*[A-Za-z_$][\w$]*\s*:\s*InjectionKey\s*</y;
+
+/**
+ * How many declarators spell out `: InjectionKey<`, counted without the reader
+ * above so that the two derivations can disagree.
+ *
+ * The first form is the declarator that touches the keyword. The second is
+ * every further declarator of the same statement, recognised by a `,` that
+ * stands outside every bracket — which is what a declarator separator is, and
+ * what a comma in a parameter list, an object literal or an object type is not.
+ *
+ * The keyword form is `const` alone, and the reader accepts `let` and `var`
+ * too, on purpose: `const` is the one that cannot stand without a value. The
+ * reader passes over a declarator that has none, so a floor counting
+ * `let KEY: InjectionKey<T>;` would climb above the reader it is checking and
+ * report a loss that never happened.
+ */
+function writtenAnnotations(code) {
+    let total = (code.match(ANNOTATED_FIRST_DECLARATOR) ?? []).length;
+    let depth = 0;
+    for (let index = 0; index < code.length; index += 1) {
+        const char = code[index];
+        if (NESTING_OPENERS.includes(char)) depth += 1;
+        else if (NESTING_CLOSERS.includes(char)) depth -= 1;
+        else if (char === ',' && depth <= 0) {
+            ANNOTATED_NEXT_DECLARATOR.lastIndex = index + 1;
+            if (ANNOTATED_NEXT_DECLARATOR.test(code)) total += 1;
+        }
+    }
+    return total;
+}
 
 const PROVIDE_OR_INJECT = /\b(?:provide|inject)\s*\(/g;
 const FIRST_ARGUMENT_IDENTIFIER = /^\s*([A-Za-z_$][\w$]*)\s*[,)]/;
@@ -463,27 +602,27 @@ describe('every Vue injection key is created with Symbol.for', () => {
     });
 
     test('the annotated declarations survive the bracket walk', () => {
-        // A second count, from a flat regex over the same text, against a
-        // floor the sources set themselves: it says how many declarations
-        // plainly spell out `: InjectionKey<`, and the depth-walking reader
-        // above has to have found at least that many. A key gained through a
-        // cast may exceed the floor — that direction adds a true statement
-        // rather than losing one.
+        // A second count, taken without the reader above, against a floor the
+        // sources set themselves: it says how many declarators plainly spell
+        // out `: InjectionKey<`, and the depth-walking reader has to have found
+        // at least that many. A key gained through a cast may exceed the floor
+        // — that direction adds a true statement rather than losing one.
+        //
+        // It counts the declarators after the first one as well, and has to:
+        // while it only looked behind a `const`, a comma-chained key was
+        // invisible to this count and to the reader at the same time, so the
+        // two could agree while both were wrong. A second derivation is only
+        // worth having where it reaches everything the first one claims.
         //
         // Today this overlaps the cross-check, because every key the package
         // declares is also handed to a `provide()` or `inject()` inside `src`,
         // so losing one is reported there too. The overlap ends the moment a
         // key is declared here and used only by consumer apps: no call site in
         // `src` then misses it, and this count is the only thing left that can.
-        const written = sources.reduce(
-            (total, { code }) =>
-                total +
-                (code.match(/\bconst\s+[A-Za-z_$][\w$]*\s*:\s*InjectionKey\s*</g) ?? []).length,
-            0,
-        );
+        const written = sources.reduce((total, { code }) => total + writtenAnnotations(code), 0);
         assert.ok(
             annotatedKeys.length >= written,
-            `${written} declarations spell out \`: InjectionKey<\` under src, but the ` +
+            `${written} declarators spell out \`: InjectionKey<\` under src, but the ` +
                 `declaration reader found only ${annotatedKeys.length} — it lost ` +
                 `${written - annotatedKeys.length} of them`,
         );
