@@ -50,7 +50,7 @@
 
                 <div>
                     <q-toggle v-model="allowZeroPrice" :label="msg.publishDialog.allowZeroPrice" />
-                    <p class="bvpd__label" style="margin-top: 6px">
+                    <p class="bvpd__label" style="margin-top: var(--sa-space-3)">
                         {{ msg.publishDialog.allowZeroPriceHint }}
                     </p>
                 </div>

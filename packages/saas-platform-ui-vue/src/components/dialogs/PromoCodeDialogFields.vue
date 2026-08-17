@@ -122,7 +122,7 @@
                     class="pc-input"
                     type="number"
                     min="1"
-                    style="margin-top: 8px; max-width: 120px"
+                    style="margin-top: var(--sa-space-3); max-width: 120px"
                     :placeholder="
                         form.durationType === 'MONTHS'
                             ? msg.form.durationMonthsPlaceholder

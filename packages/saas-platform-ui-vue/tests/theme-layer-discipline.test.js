@@ -4,6 +4,14 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { createRequire } from 'node:module';
+
+import {
+    QUASAR_PALETTE_NAMES,
+    inlineStyleFragments,
+    isQuasarComponent,
+} from '../../../scripts/token-audit.mjs';
+
 // Rule 22 — the layers only point one way.
 //
 //   L1  tokens.primitive.css / tokens.scale.css   reference nothing
@@ -50,19 +58,56 @@ function walk(dir, keep) {
     return found;
 }
 
-/** `<style>` blocks of an SFC, or the whole text of a `.css` file. */
+/**
+ * Every declaration an SFC writes — its `<style>` blocks AND its inline
+ * `style="…"` attributes — or the whole text of a `.css` file.
+ *
+ * The attributes were missing, and the rule below that reads this paid for it:
+ * `every font-size names a step of the type scale` was green while four
+ * `style="font-size: 22px"` sat in two templates, and the design guide
+ * published that as "no `font-size` in the package names a number". A guard
+ * satisfied exactly in the damaging case, plus a sentence about it.
+ *
+ * The fragments come from `token-audit.mjs` so the ratchet that COUNTS a
+ * literal and the rule that FORBIDS one read the same bytes with the same
+ * parser. Two answers to "where does this package write CSS" is how a number
+ * and a rule end up guarding different files.
+ *
+ * Joined with `;` because an attribute has no trailing terminator, and each
+ * fragment goes on its own line so a rule-by-rule reader below cannot glue two
+ * of them into one.
+ */
 function styleSource(file, content) {
     if (file.endsWith('.css')) return content;
-    return [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi)]
-        .map((m) => m[1])
-        .join('\n');
+    const blocks = [...content.matchAll(/<style[^>]*>([\s\S]*?)<\/style[^>]*>/gi)].map((m) => m[1]);
+    const inline = (inlineStyleFragments(file, content) ?? []).map(({ text }) => `${text};`);
+    return [...blocks, ...inline].join('\n');
 }
 
 const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
+/**
+ * A `font-size` declaration, and what makes one acceptable.
+ *
+ * A CSS property name is ASCII case-insensitive, so `FONT-SIZE: 22px` sets the
+ * same thing `font-size: 22px` does. Without the `i` flag it slipped past the
+ * rule below, while `docs/design-guide.md` published that rule as "no
+ * `font-size:` declaration in the package names a number" — a guard with a hole
+ * and a sentence about it, which is the combination this file keeps paying for.
+ *
+ * The second pattern stays case-SENSITIVE, and that asymmetry is the point: a
+ * custom property name is not case-insensitive, so `var(--SA-TEXT-MD)` reads a
+ * property nobody declared and is a finding rather than a token in use.
+ */
+const FONT_SIZE_DECLARATION = /font-size:\s*([^;}]+)/gi;
+const NAMES_A_TYPE_STEP = /:\s*var\(--sa-text-/;
+
+function findingsIn(label, css, pattern) {
+    return [...withoutComments(css).matchAll(pattern)].map((m) => `${label}: ${m[1] ?? m[0]}`);
+}
+
 function findings(file, pattern) {
-    const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
-    return [...css.matchAll(pattern)].map((m) => `${relative(SRC, file)}: ${m[1] ?? m[0]}`);
+    return findingsIn(relative(SRC, file), styleSource(file, readFileSync(file, 'utf8')), pattern);
 }
 
 describe('the token layers only point one way', () => {
@@ -91,6 +136,123 @@ describe('the token layers only point one way', () => {
         );
         assert.ok(componentFiles.length >= 8, `only ${componentFiles.length} component sheets`);
         assert.ok(consumers.length >= 80, `only ${consumers.length} consuming files`);
+    });
+
+    test('the sweep reached the inline styles too', () => {
+        // The half `styleSource` was missing. Same argument as above and one
+        // step sharper: an SFC the parser cannot read yields `null`, which the
+        // `?? []` above turns into "this file writes no inline CSS" — the exact
+        // shape of failure every rule in this file would report as clean.
+        const sfcs = consumers.filter((file) => file.endsWith('.vue'));
+        const unreadable = sfcs.filter(
+            (file) => inlineStyleFragments(file, readFileSync(file, 'utf8')) === null,
+        );
+        assert.deepEqual(
+            unreadable.map((file) => relative(SRC, file)),
+            [],
+            'an SFC the template parser could not read — its inline styles were skipped, ' +
+                'and a skipped attribute reads exactly like a clean one',
+        );
+
+        // The other direction, on a fixture rather than on the package. This
+        // used to count how many SFCs still contribute an attribute and require
+        // at least ten — a floor under the package's own debt, so the day
+        // enough of those attributes became classes the rules above would all
+        // improve and this one would fail. A guard that forbids the cleanup it
+        // exists to measure teaches the next contributor to lower it, which is
+        // the one move a guard may never invite.
+        //
+        // The fixture cannot go clean behind the guard's back, and it asserts
+        // the whole chain rather than the filter alone: the template parses,
+        // the `style` attribute is picked out, `styleSource` joins it in with
+        // the terminator an attribute does not carry, and the rule below reads
+        // it. Break any link and this reports `[]` — which is what a clean
+        // package reports too, and why the assertion has to be made where a
+        // literal is guaranteed.
+        const inlineOnly = '<template>\n    <p style="font-size: 22px">x</p>\n</template>\n';
+        assert.deepEqual(
+            findingsIn('F.vue', styleSource('F.vue', inlineOnly), FONT_SIZE_DECLARATION),
+            ['F.vue: 22px'],
+            'a literal inside a static `style` attribute is no longer reaching the rules in ' +
+                'this file — every one of them would report the package as clean',
+        );
+    });
+
+    test("the audit's Quasar palette is Quasar's", () => {
+        // `token-audit.mjs` counts `class="text-grey-7"` as a colour decision,
+        // and it needs a vocabulary of palette names to do it. That list is
+        // written out there — a counting script must not fail because a package
+        // moved in `node_modules` — but it is not allowed to be a memory, so
+        // the expectation is derived HERE, from the stylesheet Quasar ships.
+        //
+        // The criterion separates a colour from a typographic utility without
+        // naming either: Quasar emits a colour as BOTH `.text-x` and `.bg-x`,
+        // while `.text-bold`, `.text-center` and `.text-weight-medium` have no
+        // background twin. A hand-written exclusion list would have had to know
+        // about all nineteen of those.
+        const require = createRequire(import.meta.url);
+        const css = readFileSync(require.resolve('quasar/dist/quasar.css'), 'utf8');
+        const classesWithPrefix = (prefix) =>
+            new Set(
+                [
+                    ...css.matchAll(
+                        new RegExp(`\\.${prefix}-([a-z][a-z-]*?)(?:-\\d{1,2})?(?![\\w-])`, 'g'),
+                    ),
+                ].map((m) => m[1]),
+            );
+        const backgrounds = classesWithPrefix('bg');
+        const foregrounds = classesWithPrefix('text');
+        const palette = [...backgrounds].filter((name) => foregrounds.has(name)).sort();
+
+        assert.ok(
+            palette.length > 25,
+            `only ${palette.length} palette colours parsed out of quasar.css — the sweep, not the palette, changed`,
+        );
+        assert.deepEqual(
+            [...QUASAR_PALETTE_NAMES].sort(),
+            palette,
+            'the palette list in scripts/token-audit.mjs no longer matches the Quasar release ' +
+                'this package builds against. Every name it lost is a colour class the audit ' +
+                'stopped counting.',
+        );
+    });
+
+    test("the audit's idea of a Quasar component is Quasar's", () => {
+        // `color="grey-7"` is a palette decision on one of Quasar's components
+        // and an ordinary prop name on anybody else's, so `token-audit.mjs` has
+        // to answer "is this tag Quasar's" before it counts one. It answers by
+        // PREFIX rather than by a list of the component names — a list would go
+        // stale in the direction that costs most, silently dropping the next
+        // component to reach a template while the number stayed flat.
+        //
+        // The prefix is a convention of somebody else's library, which makes it
+        // a claim rather than a fact, so it is asserted against the release
+        // this package builds against — the same move the palette test above
+        // makes, one level up. The count is checked first: a web-types file
+        // that stopped parsing yields no components, and "every one of zero
+        // components satisfies the rule" is how a derivation passes vacuously.
+        const require = createRequire(import.meta.url);
+        const webTypes = JSON.parse(
+            readFileSync(require.resolve('quasar/dist/web-types/web-types.json'), 'utf8'),
+        );
+        const components = (webTypes.contributions?.html?.tags ?? []).map((tag) => tag.name);
+        assert.ok(
+            components.length > 100,
+            `only ${components.length} components parsed out of Quasar's web-types — the ` +
+                'sweep, not the library, changed',
+        );
+        assert.deepEqual(
+            components.filter((name) => !isQuasarComponent(name)),
+            [],
+            'a Quasar component whose tag does not carry the `q-` prefix the audit derives ' +
+                'from. Every palette prop on it is a decision the audit has stopped counting.',
+        );
+
+        // The other direction, which the list above cannot give: the prefix has
+        // to be `q-` and not `q`, or the check swallows every component whose
+        // name merely starts with the letter.
+        assert.equal(isQuasarComponent('my-chart'), false);
+        assert.equal(isQuasarComponent('QuasarLike'), false);
     });
 
     test('L1 primitives reference nothing', () => {
@@ -140,9 +302,21 @@ describe('the token layers only point one way', () => {
         // `\s*` is not the guard it looks like: the whitespace backtracks and
         // the lookahead passes on the space, so every tokenised size reported
         // itself as a violation.
+        //
+        // Counter-check first, on the two shapes the real sweep cannot be
+        // relied on to contain: the package writes no capitalised property
+        // today, so the `i` flag would be an untested claim without this, and a
+        // rule that reads nothing reports the same empty list as a clean tree.
+        const sizesIn = (css) =>
+            [...css.matchAll(FONT_SIZE_DECLARATION)]
+                .map((m) => `x: ${m[1]}`)
+                .filter((entry) => !NAMES_A_TYPE_STEP.test(entry));
+        assert.deepEqual(sizesIn('.a { FONT-SIZE: 22px; }'), ['x: 22px']);
+        assert.deepEqual(sizesIn('.a { font-size: var(--sa-text-2xl); }'), []);
+
         const offenders = [...componentFiles, ...consumers]
-            .flatMap((file) => findings(file, /font-size:\s*([^;}]+)/g))
-            .filter((entry) => !/:\s*var\(--sa-text-/.test(entry));
+            .flatMap((file) => findings(file, FONT_SIZE_DECLARATION))
+            .filter((entry) => !NAMES_A_TYPE_STEP.test(entry));
         assert.deepEqual(
             offenders,
             [],

@@ -64,12 +64,18 @@
 
                     <div class="sa-marketing-card-price">
                         <template v-if="row.m.priceTag">
-                            <span class="sa-marketing-card-price-big" style="font-size: 22px">
+                            <span
+                                class="sa-marketing-card-price-big"
+                                style="font-size: var(--sa-text-2xl)"
+                            >
                                 {{ row.m.priceTag }}
                             </span>
                         </template>
                         <template v-else-if="!row.liveVersion">
-                            <span class="sa-marketing-card-price-big" style="font-size: 22px">
+                            <span
+                                class="sa-marketing-card-price-big"
+                                style="font-size: var(--sa-text-2xl)"
+                            >
                                 {{ msg.preview.priceOnRequest }}
                             </span>
                         </template>

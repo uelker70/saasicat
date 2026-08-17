@@ -1,7 +1,13 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { templateColourSites } from '../scripts/token-audit.mjs';
+import {
+    inlineStyleFragments,
+    templateColourClasses,
+    templateColourSites,
+    templatePaletteProps,
+    fontShorthandLiteral,
+} from '../scripts/token-audit.mjs';
 
 // The template half of the colour audit, under test — because the metric it
 // feeds is allowed to read zero, and a broken scanner reads zero too.
@@ -29,6 +35,10 @@ const sfc = (body, extra = '') => `<template>\n${body}\n</template>\n${extra}`;
 
 const found = (body, extra) => templateColourSites('A.vue', sfc(body, extra));
 const values = (body, extra) => found(body, extra).map((s) => s.value);
+const fragments = (body, extra) => inlineStyleFragments('A.vue', sfc(body, extra));
+const classes = (body, extra) =>
+    templateColourClasses('A.vue', sfc(body, extra)).map((s) => s.value);
+const props = (body, extra) => templatePaletteProps('A.vue', sfc(body, extra)).map((s) => s.value);
 
 describe('a colour written as paint is found', () => {
     test('a static style attribute', () => {
@@ -380,5 +390,321 @@ describe('the line is the line the literal is on', () => {
             `<span\n    class="x"\n    :style="{\n        background: '#ef4444',\n    }"\n/>`,
         );
         assert.equal(only.line, 5);
+    });
+});
+
+// ── The rest of what an inline style says ────────────────────────────────────
+//
+// The group above reads a `style` attribute for COLOUR and stops there, and for
+// a long time so did the audit: it walked the AST, pulled `style` out of
+// `PAINT_ATTRIBUTES`, and applied nothing but the colour patterns to it. A
+// `style="font-size: 22px"` was therefore invisible to `distinctFontSizes`,
+// which read 0 — and `docs/design-guide.md` published that 0 as "no `font-size`
+// in the package names a number". A guard satisfied exactly in the damaging
+// case, with a sentence about it in the manual.
+//
+// `inlineStyleFragments` hands the attribute to the same declaration parser a
+// `<style>` block goes through, so every category the stylesheet pass has can
+// ask its question here too.
+
+describe('the font shorthand hides three scales behind one property', () => {
+    test('a size, a weight or a leading in it is a literal', () => {
+        assert.equal(fontShorthandLiteral('700 40px/1 sans-serif'), '700 40px/1 sans-serif');
+        assert.equal(fontShorthandLiteral('italic 13px/1.4 Inter'), 'italic 13px/1.4 Inter');
+    });
+
+    test('a tokenized shorthand is not', () => {
+        assert.equal(fontShorthandLiteral('var(--sa-text-md) Inter'), null);
+        assert.equal(fontShorthandLiteral('var(--sa-text-md, var(--sa-text-sm)) Inter'), null);
+        assert.equal(fontShorthandLiteral('menu'), null);
+    });
+
+    test('a number in the family name is a name, not a size', () => {
+        // The family is last in the shorthand, and CSS makes a numbered family
+        // quote itself — so the quotes are what separate a name from a scale
+        // decision. Counting it forbade adopting such a family while the type
+        // size was fully tokenized.
+        assert.equal(fontShorthandLiteral('var(--sa-text-md) "Source Sans 3"'), null);
+        assert.equal(fontShorthandLiteral("var(--sa-text-md) 'Roboto Mono 2'"), null);
+        // And a real size still counts, however the family is written.
+        assert.equal(fontShorthandLiteral('13px "Source Sans 3"'), '13px "Source Sans 3"');
+    });
+});
+
+describe('an inline style is a stylesheet fragment', () => {
+    test('a static style attribute is a fragment', () => {
+        assert.deepEqual(fragments('<span style="font-size: 22px" />'), [
+            { text: 'font-size: 22px', line: 2 },
+        ]);
+    });
+
+    test('several attributes, in template order', () => {
+        assert.deepEqual(
+            fragments('<i style="margin-top: 6px" />\n<b style="max-width: 120px" />').map(
+                (f) => f.text,
+            ),
+            ['margin-top: 6px', 'max-width: 120px'],
+        );
+    });
+
+    test('a bound :style is NOT a fragment', () => {
+        // Deliberate, and the reason is the property. A bound value is
+        // JavaScript: keys are camelCase and separators are commas, so a CSS
+        // declaration parser reading `{ minWidth: '200px', marginTop: '8px' }`
+        // hands both values to `min-width` and files a spacing literal as a
+        // dimension. `templateColourSites` can read a bound binding because a
+        // colour literal is the same string in either language and needs no
+        // property; a length needs one.
+        assert.deepEqual(fragments(`<i :style="{ marginTop: '8px' }" />`), []);
+    });
+
+    test('an attribute that is not `style` is not a fragment', () => {
+        assert.deepEqual(fragments('<q-icon size="18px" name="x" />'), []);
+    });
+
+    test('null and empty still mean different things', () => {
+        assert.equal(inlineStyleFragments('a.css', '.a { color: #fff; }'), null);
+        assert.equal(inlineStyleFragments('A.vue', '<template><div></template>'), null);
+        assert.deepEqual(fragments('<div>hello</div>'), []);
+    });
+
+    test('a bound style that is one string literal is inline CSS too', () => {
+        // `:style="'font-size: 22px'"` is applied verbatim by Vue. It is bound,
+        // so a filter on `isStatic` dropped it and every budget stayed green
+        // for a declaration that really renders.
+        assert.deepEqual(fragments(`<span :style="'font-size: 22px'">a</span>`), [
+            { text: 'font-size: 22px', line: 2 },
+        ]);
+        // The object form is JavaScript — `fontSize` is not a CSS property and
+        // its value may be an expression — so it stays with the colour reader,
+        // which knows how to pick literals out of it.
+        assert.deepEqual(fragments(`<span :style="{ fontSize: size }">a</span>`), []);
+        // A template literal that interpolates says nothing knowable here.
+        assert.deepEqual(fragments('<span :style="`width: ${w}px`">a</span>'), []);
+    });
+
+    test('the line is the line the attribute value starts on', () => {
+        assert.deepEqual(fragments('<i />\n<b />\n<span style="font-size: 22px" />'), [
+            { text: 'font-size: 22px', line: 4 },
+        ]);
+    });
+});
+
+// ── The colour decision that is a class name ─────────────────────────────────
+//
+// A colour written with no colour in it: `class="text-grey-7"` contains no hex,
+// no colour function and no CSS keyword, so none of the patterns above can see
+// one. It resolves to Quasar's palette, one layer BELOW the role tokens and
+// outside the theme — so the caption keeps its grey when the dark theme moves
+// the surface under it, and the template gives no sign.
+//
+// A template writes that decision in two syntaxes; the group after this one is
+// the other.
+
+describe('a Quasar palette class is a colour decision', () => {
+    test('a static class list', () => {
+        assert.deepEqual(classes('<span class="row text-grey-7" />'), ['text-grey-7']);
+    });
+
+    test('a bound class list holds its literals as strings', () => {
+        assert.deepEqual(classes(`<span :class="['chip', ok ? 'bg-warning' : '']" />`), [
+            'bg-warning',
+        ]);
+    });
+
+    test('a brand or status name, not only a palette hue', () => {
+        assert.deepEqual(classes('<div class="bg-negative text-white" />'), [
+            'bg-negative',
+            'text-white',
+        ]);
+    });
+
+    test('a two-word hue is read whole', () => {
+        // The alternation lists `blue` and `grey` before `blue-grey`, so this
+        // only works because each match must end on a boundary that is not `-`.
+        // Read as `text-blue` the finding would name a class that does not
+        // exist, and `deep-orange`, `light-green` and `dark-page` have the same
+        // shape.
+        assert.deepEqual(classes('<div class="text-blue-grey-7 bg-deep-orange" />'), [
+            'text-blue-grey-7',
+            'bg-deep-orange',
+        ]);
+    });
+
+    test('a class that merely ends in a palette word is not one', () => {
+        // `sa-text-red` is this package's own naming, and a utility class is
+        // not a colour: `text-center` and `text-bold` are layout and weight.
+        assert.deepEqual(
+            classes('<div class="sa-text-red text-center text-bold my-bg-grey" />'),
+            [],
+        );
+    });
+
+    test('a rule ABOUT the class is not a use of it', () => {
+        // Read from `class` attributes only. A `.text-grey-7 { … }` selector in
+        // a `<style>` block is the package defining or overriding the class,
+        // which is a different act from a page choosing it.
+        assert.deepEqual(classes('<i />', '<style>.text-grey-7 { color: red; }</style>'), []);
+    });
+
+    test('null and empty still mean different things', () => {
+        assert.equal(templateColourClasses('a.ts', "const c = 'text-grey-7';"), null);
+        assert.equal(templateColourClasses('A.vue', '<template><div></template>'), null);
+        assert.deepEqual(classes('<div class="row" />'), []);
+    });
+});
+
+// ── The same decision, written as a prop ─────────────────────────────────────
+//
+// The group above was introduced as "the one place no pattern could see", and
+// that was false one attribute over: `<q-icon color="grey-7">` renders
+// `class="text-grey-7"` — literally what `templateColourClasses` counts — so
+// the class form was debt and the thing that COMPILES to it was free. Two
+// syntaxes, one palette, and a metric that reads one of them ends the search
+// just as convincingly as a metric that reads neither.
+
+describe('a Quasar palette prop is the same colour decision', () => {
+    test('a static prop', () => {
+        assert.deepEqual(props('<q-icon color="grey-7" />'), ['grey-7']);
+    });
+
+    test('the two halves a component paints', () => {
+        assert.deepEqual(props('<q-badge color="grey-5" text-color="grey-9" />'), [
+            'grey-5',
+            'grey-9',
+        ]);
+    });
+
+    test('a brand or status name, not only a hue', () => {
+        // Counted like the class form counts `bg-negative`. Whether these may
+        // stay is a decision about the component layer; the number is what puts
+        // it in front of a person.
+        assert.deepEqual(props('<q-btn color="primary" /><q-icon color="negative" />'), [
+            'primary',
+            'negative',
+        ]);
+    });
+
+    test('a bound prop holds its literals as strings', () => {
+        // The package already writes plenty of them this way. Reading only the
+        // static half would put the hole exactly where a contributor routes
+        // around the ratchet: rewrite `color="negative"` as this, and the
+        // number falls with nothing changed.
+        assert.deepEqual(props(`<q-btn :color="isRegression ? 'negative' : 'positive'" />`), [
+            'negative',
+            'positive',
+        ]);
+        assert.deepEqual(props(`<q-btn :color="action.color ?? 'grey-7'" />`), ['grey-7']);
+    });
+
+    test('a binding that names nothing is not a finding', () => {
+        // The counter-check in the other direction, and the one the whole
+        // static/bound split has to survive: the colour lives in a script,
+        // where no template pass can reach it, and guessing would be worse than
+        // missing it.
+        assert.deepEqual(props('<q-btn :color="x" />'), []);
+        assert.deepEqual(props('<q-badge :color="statusColor(row.status)" />'), []);
+    });
+
+    test('a nested object is configuration, not props', () => {
+        // Vue binds the outer key. `v-bind="{ options: { color: 'primary' } }"`
+        // emits `options`, not `color`, and a pattern that resumed at every `{`
+        // read the inner one as a prop — a nested `class` or `style` fed the
+        // other two ratchets the same way.
+        assert.deepEqual(props(`<q-icon v-bind="{ options: { color: 'primary' } }" />`), []);
+        assert.deepEqual(classes(`<span v-bind="{ cfg: { class: 'text-grey-7' } }">a</span>`), []);
+        // A top-level entry beside a nested one is still read.
+        assert.deepEqual(
+            props(`<q-icon v-bind="{ color: 'grey-7', cfg: { color: 'primary' } }" />`),
+            ['grey-7'],
+        );
+    });
+
+    test('every prop that ends in -color on a Quasar component is one', () => {
+        // Quasar's convention, not a list of three: QStepper alone adds
+        // `active-color`, `done-color`, `error-color` and `inactive-color`, and
+        // `PlanChangeWizard.vue` writes the first of them — uncounted until now,
+        // so the ratchet held room it was never granted.
+        assert.deepEqual(props('<q-stepper active-color="primary" done-color="positive" />'), [
+            'primary',
+            'positive',
+        ]);
+        assert.deepEqual(props('<q-tabs indicator-color="accent" />'), ['accent']);
+        // The tag still decides — someone else's `-color` prop is not Quasar's
+        // palette, whatever it is called.
+        assert.deepEqual(props('<my-thing status-color="primary" />'), []);
+        // And a value outside the palette is not a palette decision either.
+        assert.deepEqual(props('<q-stepper active-color="ink" />'), []);
+    });
+
+    test('the object form of v-bind is read like the arg form', () => {
+        // `v-bind="{ color: 'grey-7' }"` has no arg, so a reader that requires
+        // one discarded the whole binding while Vue emitted the prop — the same
+        // decision written the other way, and it walked past every metric.
+        assert.deepEqual(props(`<q-icon v-bind="{ color: 'grey-7' }" />`), ['grey-7']);
+        // The tag still decides: an unrelated component's own prop is not a
+        // Quasar palette dependency, whichever syntax carries it.
+        assert.deepEqual(props(`<my-chart v-bind="{ color: 'primary' }" />`), []);
+        // And a key whose value is an expression names no colour here.
+        assert.deepEqual(props(`<q-icon v-bind="{ color: tone }" />`), []);
+    });
+
+    test('a value outside the palette is not a palette finding', () => {
+        // `color="#fff"` on a component paints nothing — Quasar turns it into a
+        // `text-#fff` class — so it is a bug for a different check, not a
+        // palette decision. `color="ink"` is somebody's own prop.
+        assert.deepEqual(props('<q-icon color="#fff" /><my-thing color="ink" />'), []);
+    });
+
+    test('a two-word hue is read whole, with its shade', () => {
+        // The alternation lists `blue` and `grey` before `blue-grey`, so this
+        // only works because the pattern is anchored — on the value's end for a
+        // static attribute, on the closing quote for a bound one.
+        assert.deepEqual(props('<q-icon color="blue-grey-7" bg-color="deep-orange" />'), [
+            'blue-grey-7',
+            'deep-orange',
+        ]);
+        assert.deepEqual(props(`<q-icon :color="'blue-grey-7'" />`), ['blue-grey-7']);
+    });
+
+    test('a value that merely begins with a palette word is not one', () => {
+        assert.deepEqual(props('<q-icon color="greyish" /><q-btn color="primary-cta" />'), []);
+    });
+
+    test('an attribute that is not a colour prop is not read', () => {
+        assert.deepEqual(props('<q-icon name="primary" size="18px" />'), []);
+    });
+
+    test('`color` inside SVG belongs to the paint category', () => {
+        // The same split `templateColourSites` makes, from the other side: in
+        // the SVG namespace `color` is real paint and that pass owns it, so
+        // reading it here too would count one decision under two metrics.
+        assert.deepEqual(props('<svg color="white"><path fill="currentColor" /></svg>'), []);
+        assert.deepEqual(values('<svg color="white"><path fill="currentColor" /></svg>'), [
+            'white',
+        ]);
+    });
+
+    test('the class form belongs to the class category', () => {
+        assert.deepEqual(props('<span class="text-grey-7" />'), []);
+    });
+
+    test('a comment in a binding is prose, not a palette', () => {
+        assert.deepEqual(props(`<q-btn :color="/* was 'negative' */ tone" />`), []);
+        assert.deepEqual(props(`<q-btn :color="\n  // was 'negative'\n  tone\n" />`), []);
+    });
+
+    test('null and empty still mean different things', () => {
+        assert.equal(templatePaletteProps('a.ts', "const c = 'grey-7';"), null);
+        assert.equal(templatePaletteProps('A.vue', '<template><div></template>'), null);
+        assert.deepEqual(props('<q-btn label="x" />'), []);
+    });
+
+    test('the line is the line the value sits on', () => {
+        const [only] = templatePaletteProps(
+            'A.vue',
+            sfc('<i />\n<b />\n<q-icon color="grey-7" />'),
+        );
+        assert.equal(only.line, 4);
     });
 });

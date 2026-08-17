@@ -480,8 +480,27 @@ Named: `--sa-gap-inline` (8) · `--sa-gap-stack` (16) · `--sa-pad-page` (20) ·
 | `--sa-text-4xl` | 32px | a price total, a marketing headline |
 
 Each step has a matching `--sa-leading-*`, plus `--sa-weight-{regular,medium,semibold,bold}`
-and `--sa-tracking-{tight,normal,wide,wider}`. No `font-size` in the package
-names a number, and the layer test keeps it that way.
+and `--sa-tracking-{tight,normal,wide,wider}`.
+
+No `font-size:` declaration in the package names a number — in a `<style>` block
+**or** in an inline `style="…"` attribute — and `theme-layer-discipline.test.js`
+fails on one that does.
+
+That sentence used to be printed here without the middle clause, while four
+literal sizes sat in two templates: the audit pulled a `style` attribute out of
+the AST and then read it for colour only, so the metric answered `0` to a
+question it had never asked, and this guide repeated the `0`.
+
+**It is a claim about `font-size:`, and about nothing else.** The other three
+families still hold literals, and so does the `font:` shorthand — which sets a
+weight, a size and a leading at once and is invisible to all three of the
+patterns that read them by name. `pnpm tokens` counts each of them:
+`font-weight literals`, `line-height literals`, `letter-spacing literals` and
+`font: shorthand literals`, the last of which still hides the package's final
+literal size. The budget test pins every one of those numbers at today's value,
+so they can fall and not rise — reach for the token rather than adding to them.
+A `600` in a rule says nothing about why that text is heavier than the line
+above it; `--sa-weight-semibold` does.
 
 ### Radius
 
@@ -550,6 +569,29 @@ headline read `hard-coded hex colours 0 in 0 files` while twelve of them sat in
 six templates, and a zero that is wrong ends the search. A colour that is
 **stored** rather than painted is the one exception, and it has its own answer
 in `IDENTITY_ACCENT_VALUES` above.
+
+**And a size in a template is a size.** The same attribute, the same argument,
+one category later: `style="font-size: 22px"` and `style="margin-top: 6px"` are
+the debt the rules they replace would have been. The audit read that attribute
+with one eye for a long time — it found the colours in it and nothing else — so
+`distinct font sizes` printed `0` with four of them in two templates. An
+attribute reads `var(--sa-text-…)` and `var(--sa-space-…)` exactly as a rule
+does, and both the audit and the layer test now read `<style>` blocks and
+`style` attributes through the same parser.
+
+**A palette name is a colour too.** `class="text-grey-7"` holds no hex, no
+colour function and no keyword, which is why no pattern here ever saw one — but
+it resolves to Quasar's scale, one layer **below** the roles. It therefore keeps
+its grey when the dark theme moves the surface under it. `pnpm tokens` counts
+these under `Quasar colour classes`; the answer is the role that says what the
+text is (`--sa-color-fg-muted`, `--sa-color-warning-surface`).
+
+`color="grey-7"` is the same decision written as a prop — Quasar renders it as
+exactly that class — and it is counted separately, under `Quasar palette props`,
+because the two come off differently: a class with a CSS rule, a prop with a
+component's API. A brand or status name there (`color="primary"`,
+`color="negative"`) resolves through `--q-*`, which the theme does read; an
+absolute hue does not, and is the half to give a role first.
 
 **Both halves of a pair in the same rule.** A `color` whose `background` is
 declared somewhere else is a pair no check can read — and **all five** contrast

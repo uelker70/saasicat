@@ -1,9 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { auditSummary } from '../../../scripts/token-audit.mjs';
+import { audit, auditSummary, summarise } from '../../../scripts/token-audit.mjs';
 
 // Design-token budgets — ratchets, not targets.
 //
@@ -80,6 +82,14 @@ const FLOORS = {
     // 280px wide is a decision taken once; collapsing 59 such measurements onto
     // twelve values would be ceremony, not clarity — the same reason 0/1/2px
     // are exempt above. What it must not do is grow.
+    //
+    // It DID grow once, from 285 to 298, and not because anything was written:
+    // the audit read a `<style>` block and only half of an inline `style="…"`,
+    // so thirteen `min-width`/`max-width` measurements in dialog cards had
+    // never been counted. A number rising because the sweep got wider is the
+    // opposite of a ratchet being raised to let a change through, and the
+    // difference is not a matter of trust — the inline-style fixture below is
+    // what makes it checkable.
     'dimensionPixels.total': {
         floor: 0,
         why: 'a one-off measurement is a decision, not a rung — this one only ratchets',
@@ -89,6 +99,70 @@ const FLOORS = {
     // scale itself is enforced where it can be — `theme-layer-discipline`
     // asserts that no `font-size` in the package names a number.
     distinctFontSizes: { floor: 0, why: 'every size reads a step of the type scale' },
+    // The three scales AP2 declares next to the type sizes, and the three that
+    // had a token family and no metric. Totals rather than distinct counts: a
+    // scale is finished when nobody writes a VALUE, and a DISTINCT count barely
+    // moves while that happens: `font-weight` reads the same handful of values
+    // with every site outstanding and with one site left.
+    //
+    // Ratchets at the measured status quo, not blockers. Reaching zero on the
+    // first of them needs a decision this script cannot take: `800` is the one
+    // weight the package writes that the scale has no rung for — it stops at
+    // `--sa-weight-bold` (700) — so somebody has to either add the rung or rule
+    // those sites out. Recording the number is what puts that decision in front
+    // of a person; `pnpm tokens` prints the weights by frequency.
+    'fontWeights.total': {
+        floor: 0,
+        why: 'every weight reads --sa-weight-* — needs a rung for 800, or 13 fewer of them',
+    },
+    'lineHeights.total': { floor: 0, why: 'nine --sa-leading-* steps, one per type step' },
+    'letterSpacings.total': { floor: 0, why: 'four --sa-tracking-* steps cover the tracking' },
+    // The blind spot one property over from the one this file was fixed for.
+    // `font: 700 40px/1 var(--sa-font-head)` sets a weight, a size and a line
+    // height in one declaration, and all three metrics above are anchored on
+    // the LONGHAND name — so all three read past it. The package's last literal
+    // font SIZE hides in one of these, which is why `distinctFontSizes` reads 0
+    // and is not the whole answer. The count is the baseline entry below; it is
+    // not repeated here, where it would only fall out of step.
+    'fontShorthands.total': {
+        floor: 0,
+        why: 'a `font:` shorthand names a size, a weight and a leading — all three have tokens',
+    },
+    // The colour decisions no colour pattern can see, because they are class
+    // names: `class="text-grey-7"` holds no hex, no function and no CSS keyword,
+    // and it resolves to Quasar's palette one layer BELOW the roles — so it
+    // keeps its grey when the dark theme moves the surface under it.
+    //
+    // Counted here rather than banned by an ESLint rule carrying the thirteen
+    // files that may keep theirs: an exception list is the same defect one
+    // level up. The rule is worth writing when this number is 0 and can stay
+    // there.
+    'quasarColorClasses.total': {
+        floor: 0,
+        why: 'a palette class is a role token written one layer too low',
+    },
+    // The same decision written as Quasar's prop instead of Quasar's class, and
+    // the metric above was blind to it while claiming to be the one nothing
+    // could see: `<q-icon color="grey-7">` RENDERS `class="text-grey-7"`, so
+    // the class form was debt and the thing that produces it was free.
+    //
+    // Its own budget rather than folded into the one above, because the two
+    // migrate differently — a class comes off with a CSS rule, a prop with a
+    // component's API — and folding them would have moved a recorded number in
+    // a commit that wrote no template.
+    //
+    // A ratchet, and the reason is that the two halves of it are not the same
+    // debt. A hue (`grey-7`, `amber-9`) is a colour the theme cannot move, and
+    // the role layer has a name for what that text is. A brand or status name
+    // (`primary`, `negative`) resolves through `--q-*`, which the theme does
+    // read — and Quasar's `color` prop takes a palette name and nothing else,
+    // so driving those to zero means not using the prop at all. That is a
+    // decision about the component layer, not one this script may take;
+    // recording the number is what puts it in front of a person.
+    'quasarColorProps.total': {
+        floor: 0,
+        why: 'a hue sits below the roles; whether a brand name may stay is a decision to take',
+    },
     // Informational, floor 0. The old floor of 5 asked "how many", and the
     // package legitimately needs only three of Quasar's bands — with 5 as a
     // floor, arriving at the goal made the baseline undershoot it and the
@@ -108,6 +182,34 @@ const FLOORS = {
 /** Reads `a.b` out of the summary object. */
 function pick(summary, path) {
     return path.split('.').reduce((node, key) => node?.[key], summary);
+}
+
+/**
+ * The audit's own numbers, over a tree written for the question being asked.
+ *
+ * Every budget in this file is allowed to reach zero, which is what makes the
+ * package unusable as evidence that a pass still works: "found nothing" and
+ * "looked at nothing" are the same report, and six of the recorded budgets
+ * already read 0. Any assertion phrased as "the package still contains at least
+ * N of these" therefore has an expiry date, and it expires by FAILING on the
+ * cleanup it was written to protect.
+ *
+ * A fixture has no such date. It holds exactly the shape under test, no later
+ * PR can tidy it away, and it can answer both directions of a question rather
+ * than only the one the current tree happens to contain.
+ *
+ * @param {Record<string, string>} files file name → contents
+ */
+function auditOf(files) {
+    const dir = mkdtempSync(join(tmpdir(), 'saasicat-token-audit-'));
+    try {
+        for (const [name, content] of Object.entries(files)) {
+            writeFileSync(join(dir, name), content);
+        }
+        return summarise(audit(dir));
+    } finally {
+        rmSync(dir, { recursive: true, force: true });
+    }
 }
 
 const summary = auditSummary();
@@ -153,6 +255,85 @@ describe('design-token budgets', () => {
         assert.ok(
             Object.keys(baseline).length === Object.keys(FLOORS).length,
             'baseline and FLOORS describe different metrics — one of them was edited alone',
+        );
+    });
+
+    test('the inline-style sweep reads a fixture it cannot miss', () => {
+        // The reach counter the test above cannot supply from the package
+        // itself. An inline `style="…"` was pulled out of the AST and then
+        // read for colours only, so thirteen dimensions and four font sizes sat
+        // outside every number this file guards; when the sweep widened,
+        // `dimensionPixels` moved 285 → 298 in a commit that wrote no CSS. What
+        // has to stay checkable is that the sweep is still alive.
+        //
+        // This used to be `reach.inlineStyles >= 15`, and that number was a
+        // floor under the package's own debt — so the day enough `style`
+        // attributes moved onto classes, every token metric would improve and
+        // this assertion would fail. A guard that forbids the cleanup it exists
+        // to measure is worse than no guard: it teaches the next contributor to
+        // lower the threshold, which is the one move a ratchet may never invite.
+        //
+        // The fixture proves more than the count did, too. `margin-top: 6px` is
+        // reachable only through the inline path — the SFC has no `<style>`
+        // block — so this fails if the filter stops matching `style`, if the
+        // counter stops being incremented, or if the fragments stop being fed
+        // to the declaration pass. That last one is the regression that
+        // actually happened.
+        const found = auditOf({
+            'InlineStyle.vue': '<template>\n    <p style="margin-top: 6px">x</p>\n</template>\n',
+        });
+        assert.equal(
+            found.reach.inlineStyles,
+            1,
+            'the sweep did not count a static `style` attribute — an attribute it stops ' +
+                'reading reports as an attribute with no literals',
+        );
+        assert.equal(
+            found.scalePixels.total,
+            1,
+            'the sweep counted the attribute but did not read it as CSS — the fragments are ' +
+                'no longer reaching the declaration pass, which is how thirteen dimensions ' +
+                'hid the first time',
+        );
+    });
+
+    test('a palette prop counts on a Quasar component and nowhere else', () => {
+        // `quasarColorProps` counts `color`, `text-color` and `bg-color`, and
+        // for a while it read them off every element the parser handed it —
+        // because the attribute walk discarded the tag. `color` is a palette
+        // entry on one of Quasar's components and an ordinary prop name
+        // anywhere else, so a chart component declaring its own `color` raised
+        // a metric it has nothing to do with and could fail the ratchet without
+        // introducing a single palette dependency.
+        //
+        // Both directions, because either alone passes for the wrong reason: a
+        // sweep that counts nothing satisfies the second, and the original bug
+        // satisfied the first. Two spellings on the Quasar side as well —
+        // `q-icon` and `QBadge` name the same component to Vue, and a check
+        // derived from the `q-` prefix has to agree with it.
+        const quasar = auditOf({
+            'Quasar.vue':
+                '<template>\n    <q-icon color="grey-7" />\n' +
+                '    <QBadge text-color="amber-9" />\n</template>\n',
+        });
+        assert.equal(
+            quasar.quasarColorProps.total,
+            2,
+            'a palette name on a Quasar component is the decision this metric exists for, ' +
+                'in either spelling of the tag',
+        );
+
+        const ours = auditOf({
+            'Ours.vue':
+                '<template>\n    <my-chart color="primary" />\n' +
+                '    <AdminKpi bg-color="grey-7" />\n</template>\n',
+        });
+        assert.equal(
+            ours.quasarColorProps.total,
+            0,
+            "a `color` prop on somebody else's component names that component's own API, " +
+                "not Quasar's palette — counting it makes the ratchet answer for props it " +
+                'has no claim to',
         );
     });
 
