@@ -43,8 +43,13 @@ export interface SuperAdminEndpoints {
      * App-wide and constant, which is why it belongs here. Today each page
      * takes it as a prop and each consumer passes it again per route — the
      * same value, written out once per page, with nothing keeping the copies
-     * in step. Default `''`, so an app that does not administer a catalogue
-     * need not name one.
+     * in step.
+     *
+     * Optional in the type, but required in practice for an app that also
+     * passes `http`: that app gets the resource registry, the registry holds
+     * the plan catalogue, and binding a project-scoped resource without a
+     * project is refused at boot rather than sent as `?projectKey=`. An app
+     * that names no client gets no registry and needs no project.
      */
     projectKey?: string;
 }
