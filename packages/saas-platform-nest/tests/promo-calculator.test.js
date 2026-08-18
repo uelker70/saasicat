@@ -263,19 +263,31 @@ test('but an unknown region on a known language is not unusable', () => {
     assert.equal(label({ locale: 'de-ED' }), '30,00 € once');
 });
 
-test('buildLabel rejects a currency the runtime would print as itself', () => {
-    // `Intl` refuses a code that is not three letters — `'EURO'` throws by
-    // itself — but renders a three-letter one it does not know next to the
-    // amount, so that typo reaches a checkout page as `30,00 XBT`.
-    // The space `Intl` puts there is U+00A0; `buildLabel` folds those, this
-    // raw call does not, so the comparison folds it here instead of pretending.
-    assert.equal(
-        new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'XBT' })
+test('buildLabel does not police the currency, and says why', () => {
+    // `Intl` renders a three-letter code it does not know as itself — wrong but
+    // visible, where a wrong locale is silent. And the only enumeration
+    // available cannot tell a made-up code from an assigned one it omits:
+    assert.equal(Intl.supportedValuesOf('currency').includes('XAU'), false);
+    assert.match(
+        new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'XAU' })
             .format(30)
             .replace(/[\u00A0\u202F]/g, ' '),
-        '30,00 XBT',
+        /^30,00 XAU$/,
     );
-    assert.throws(() => label({ currency: 'XBT' }), RangeError);
+    // XAU is gold. Checking against that list would reject it to catch a typo
+    // the operator can already see.
+    assert.equal(label({ currency: 'XAU' }), '30,00 XAU once');
     // A real code still works, including one with no minor units.
     assert.equal(label({ locale: 'ja-JP', currency: 'JPY' }), '￥30 once');
+});
+
+test('and a percentage ignores the currency, as its option says', () => {
+    assert.equal(
+        buildLabel(
+            { valueType: 'PERCENT', value: 25, durationType: 'ONCE', durationValue: null },
+            'MONTHLY',
+            { currency: 'XAU' },
+        ),
+        '25 % once',
+    );
 });

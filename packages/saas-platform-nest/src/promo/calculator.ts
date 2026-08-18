@@ -93,10 +93,12 @@ export interface PromoLabelOptions {
      * JPY — because the minor-unit count is a property of the currency, not a
      * formatting preference. Percentages ignore this.
      *
-     * Checked for the same reason. `Intl` rejects a code that is not three
-     * letters, but renders a three-letter code it does not know as itself:
-     * `'XBT'` puts `1.234,56 XBT` on a checkout page rather than failing.
-     * Money does not get a silent fallback here.
+     * Not checked against a list, unlike the locale. `Intl` rejects a code that
+     * is not three letters and renders a three-letter one it does not know as
+     * itself — `1.234,56 XBT` is wrong but visible, where a wrong locale is
+     * silent. And no enumeration available here separates a made-up code from a
+     * real one it omits: `Intl.supportedValuesOf('currency')` leaves out `XAU`,
+     * `XAG` and `XPT`, which are assigned. See `requireSupportedLocale`.
      */
     currency?: string;
 }
@@ -122,25 +124,33 @@ const LEGACY_LABEL_CURRENCY = 'EUR';
 const ICU_NON_BREAKING_SPACES = /[\u00A0\u202F]/g;
 
 /**
- * Rejects a tag or a code the runtime would quietly replace.
+ * Rejects a locale the runtime would quietly replace.
  *
- * `Intl` throws for malformed input and falls back for well-formed input it
- * does not know, which is the wrong way round for a configuration value: a
- * typo is usually well formed.
+ * `Intl` throws for a malformed tag and falls back for a well-formed one it does
+ * not know, which is the wrong way round for a configuration value: a typo is
+ * usually well formed. `'zz-ZZ'` resolves to the runtime default and formats an
+ * amount in a language nobody chose.
+ *
+ * The currency is deliberately NOT checked the same way, and the asymmetry is
+ * measured rather than assumed. `Intl` renders a three-letter code it does not
+ * know as itself — `30,00 XBT` — which is wrong but visible, where a wrong
+ * locale is silent. And the only enumeration available cannot tell a made-up
+ * code from a real one it happens not to list:
+ *
+ *     Intl.supportedValuesOf('currency').includes('XAU')  → false
+ *     new Intl.NumberFormat('de-DE', …'XAU').format(30)   → '30,00 XAU'
+ *
+ * `XAU`, `XAG` and `XPT` are assigned ISO-4217 codes for gold, silver and
+ * platinum. Checking against that list would reject them to catch a typo the
+ * operator can already see, and the alternative — a hand-written ISO-4217 table
+ * — is the same defect one level up.
  */
-function requireSupported(locale: string, currency: string): void {
+function requireSupportedLocale(locale: string): void {
     if (Intl.NumberFormat.supportedLocalesOf([locale]).length === 0) {
         throw new RangeError(
             `buildLabel: locale "${locale}" names a language this runtime cannot serve. It ` +
                 `would be formatted as "${new Intl.NumberFormat(locale).resolvedOptions().locale}" ` +
                 'instead — a language nobody chose. Pass a tag the runtime serves.',
-        );
-    }
-    if (!Intl.supportedValuesOf('currency').includes(currency)) {
-        throw new RangeError(
-            `buildLabel: "${currency}" is not an ISO-4217 currency this runtime knows. A ` +
-                'three-letter code it does not know is printed as itself next to the amount ' +
-                'rather than refused. Pass a code such as "EUR", "CHF" or "JPY".',
         );
     }
 }
@@ -150,7 +160,7 @@ function formatPromoValue(
     valueType: PromoCodeValueType | string,
     { locale = LEGACY_LABEL_LOCALE, currency = LEGACY_LABEL_CURRENCY }: PromoLabelOptions,
 ): string {
-    requireSupported(locale, currency);
+    requireSupportedLocale(locale);
     const numberFormat: Intl.NumberFormatOptions =
         valueType === 'PERCENT'
             ? { style: 'unit', unit: 'percent' }
