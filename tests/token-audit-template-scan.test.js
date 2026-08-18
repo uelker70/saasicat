@@ -7,6 +7,8 @@ import {
     templateColourSites,
     templatePaletteProps,
     fontShorthandLiteral,
+    countUses,
+    withComparedStringsBlanked,
 } from '../scripts/token-audit.mjs';
 
 // The template half of the colour audit, under test — because the metric it
@@ -407,6 +409,65 @@ describe('the line is the line the literal is on', () => {
 // `<style>` block goes through, so every category the stylesheet pass has can
 // ask its question here too.
 
+describe('blanking a string an expression only compares', () => {
+    test('the text keeps its length, so every offset still points where it did', () => {
+        // The scans report line numbers taken from the untouched text, so the
+        // blanking has to be length-preserving or every finding after one would
+        // name the wrong line.
+        const before = "tone === 'text-grey-7' ? 'muted' : ''";
+        const after = withComparedStringsBlanked(before);
+        assert.equal(after.length, before.length);
+        assert.equal(after.indexOf("'muted'"), before.indexOf("'muted'"));
+    });
+
+    test('a comparison between two literals is left alone', () => {
+        // Each alternative requires a name on one side, so `'a' === 'b'` — not
+        // something anyone writes, but the shape the pattern must not mangle —
+        // matches neither and keeps both operands.
+        assert.equal(withComparedStringsBlanked("'a' === 'b'"), "'a' === 'b'");
+    });
+});
+
+describe('what the comparison blanking deliberately does not do', () => {
+    test('a path it cannot cross is kept, because it cannot tell', () => {
+        // `NAME_PATH` does not span `[`, so the match starts mid-name and the
+        // counter finds no bounded occurrence of what the pattern gave it.
+        // Zero uses means "cannot reason about this", and the literal is kept —
+        // an overcount, which on a ratchet costs a re-record. Pinned because it
+        // is the branch a future edit to the boundary alphabet would silently
+        // delete, and nothing else exercises it.
+        assert.deepEqual(
+            classes(`<span :class="items[0].tone === 'text-grey-7' ? 'muted' : ''">a</span>`),
+            ['text-grey-7'],
+        );
+        assert.deepEqual(classes(`<span :class="!tone === 'text-grey-7' ? 'm' : ''">a</span>`), [
+            'text-grey-7',
+        ]);
+    });
+
+    test('but a name inside another string is not a use of it', () => {
+        // This package prefixes its own classes with `sa-`, so a class whose
+        // name contains the state variable's name is ordinary. Uses are counted
+        // with string literals blanked, or `'sa-tone'` would read as a second
+        // use of `tone` and keep a literal nothing renders.
+        assert.deepEqual(
+            classes(`<span :class="tone === 'text-grey-7' ? 'sa-tone' : ''">a</span>`),
+            [],
+        );
+    });
+});
+
+describe('counting a name in an expression', () => {
+    test('a name is bounded by the alphabet it is written in', () => {
+        assert.equal(countUses('tone === x ? tone : y', 'tone'), 2);
+        assert.equal(countUses('toneless === x', 'tone'), 0);
+        assert.equal(countUses("$attrs.tone === 'x' ? $attrs.tone : ''", '$attrs.tone'), 2);
+        // A path is counted whole, so its last segment is not a name of its own.
+        assert.equal(countUses('tone?.value === x', 'value'), 0);
+        assert.equal(countUses('tone?.value === x ? tone?.value : y', 'tone?.value'), 2);
+    });
+});
+
 describe('the font shorthand hides three scales behind one property', () => {
     test('a size, a weight or a leading in it is a literal', () => {
         assert.equal(fontShorthandLiteral('700 40px/1 sans-serif'), '700 40px/1 sans-serif');
@@ -531,6 +592,115 @@ describe('a Quasar palette class is a colour decision', () => {
         ]);
     });
 
+    test('a string the list COMPARES is not a class it renders', () => {
+        // `tone === 'text-grey-7' ? 'muted' : ''` renders `muted`. The
+        // class-shaped string is data being tested, and counting it made an
+        // unrelated state comparison a palette decision the ratchet can fail
+        // on. The operator is what says so, on either side of it.
+        assert.deepEqual(classes(`<span :class="tone === 'text-grey-7' ? 'muted' : ''" />`), []);
+        assert.deepEqual(classes(`<span :class="'text-grey-7' === tone ? 'muted' : ''" />`), []);
+        assert.deepEqual(classes(`<span :class="tone !== 'bg-warning' ? 'muted' : ''" />`), []);
+        assert.deepEqual(classes(`<span :class="{ muted: tone == 'text-red-5' }" />`), []);
+    });
+
+    test('a name compared twice is still only compared', () => {
+        // The question is not "does the name occur again" but "does it occur
+        // anywhere other than in a comparison". `tone === 'a' || tone === 'b'`
+        // compares one name twice and emits neither literal; counting
+        // occurrences alone left both counted.
+        assert.deepEqual(
+            classes(
+                `<span :class="tone === 'text-grey-7' || tone === 'bg-warning' ? 'm' : ''">a</span>`,
+            ),
+            [],
+        );
+        // And the same shape that DOES return the name keeps its literals.
+        assert.deepEqual(
+            classes(
+                `<span :class="tone === 'text-grey-7' || tone === 'bg-warning' ? tone : ''">a</span>`,
+            ),
+            ['text-grey-7', 'bg-warning'],
+        );
+    });
+
+    test('an optionally chained name is one name, not its last segment', () => {
+        // `tone?.value` was matched from `value`, whose occurrences are all
+        // preceded by `.` and therefore counted as none — so the literal was
+        // blanked although the true branch renders it. An undercount, which on
+        // a ratchet is the direction that lets a dependency through unseen.
+        assert.deepEqual(
+            classes(`<span :class="tone?.value === 'text-grey-7' ? tone?.value : ''">a</span>`),
+            ['text-grey-7'],
+        );
+        assert.deepEqual(
+            props(`<q-icon :color="row!.tone === 'accent' ? row!.tone : 'primary'" />`),
+            ['accent', 'primary'],
+        );
+    });
+
+    test('and a name carrying a dollar sign is still one name', () => {
+        // `$attrs.tone` put an unescaped `$` into a generated pattern, where it
+        // anchors instead of matching, so the count came back zero and the
+        // literal was blanked — the undercount, reintroduced by the way the
+        // question was asked. Counted by scanning now, which has no such
+        // surface.
+        assert.deepEqual(
+            classes(`<span :class="$attrs.tone === 'text-grey-7' ? $attrs.tone : ''">a</span>`),
+            ['text-grey-7'],
+        );
+        // And a name is still bounded: `toneless` is not `tone`.
+        assert.deepEqual(
+            classes(`<span :class="toneless === 'text-grey-7' ? 'm' : ''">a</span>`),
+            [],
+        );
+    });
+
+    test('but a literal the comparison can render is kept', () => {
+        // `tone === 'text-grey-7' ? tone : ''` renders exactly that class when
+        // the branch is taken, so the literal is the only static evidence of it.
+        // Blanking would UNDERCOUNT, which on a ratchet is the direction that
+        // lets a new dependency through unseen.
+        assert.deepEqual(classes(`<span :class="tone === 'text-grey-7' ? tone : ''">a</span>`), [
+            'text-grey-7',
+        ]);
+        assert.deepEqual(props(`<q-icon :color="tone === 'accent' ? tone : fallback" />`), [
+            'accent',
+        ]);
+    });
+
+    test('and grouping around the operand does not save it', () => {
+        // The same comparison with parentheses. A pattern that demanded the
+        // quote touch the operator counted the operand anyway — the false
+        // positive this helper removes, one character further out.
+        assert.deepEqual(
+            classes(`<span :class="tone === ('text-grey-7') ? 'muted' : ''">a</span>`),
+            [],
+        );
+        assert.deepEqual(props(`<q-icon :color="('dark') === mode ? 'accent' : 'accent'" />`), [
+            'accent',
+            'accent',
+        ]);
+    });
+
+    test('the branch a comparison SELECTS is still a class', () => {
+        // The direction that matters more, because it is the one a hole would
+        // open: only the operand is dropped, so a palette class chosen by the
+        // comparison is counted exactly as before. Both operand shapes, so a
+        // wider blanking pass cannot satisfy this by accident.
+        assert.deepEqual(classes(`<span :class="mode === 'dark' ? 'text-grey-7' : ''" />`), [
+            'text-grey-7',
+        ]);
+        assert.deepEqual(classes(`<span :class="{ 'bg-warning': tone === 'muted' }" />`), [
+            'bg-warning',
+        ]);
+        // And an equality operand is the ONLY string dropped: a class list is
+        // read for its literals everywhere else in the same expression.
+        assert.deepEqual(
+            classes(`<span :class="[tone === 'x' ? 'text-positive' : '', 'bg-negative']" />`),
+            ['text-positive', 'bg-negative'],
+        );
+    });
+
     test('a class that merely ends in a palette word is not one', () => {
         // `sa-text-red` is this package's own naming, and a utility class is
         // not a colour: `text-center` and `text-bold` are layout and weight.
@@ -545,6 +715,20 @@ describe('a Quasar palette class is a colour decision', () => {
         // a `<style>` block is the package defining or overriding the class,
         // which is a different act from a page choosing it.
         assert.deepEqual(classes('<i />', '<style>.text-grey-7 { color: red; }</style>'), []);
+    });
+
+    test('blanking a compared string does not move the line after it', () => {
+        // Every pre-pass in the scanner blanks rather than removes, because the
+        // line a finding reports is an offset into the blanked text. Prettier
+        // wraps a long binding, so the operand and the class it selects
+        // routinely sit on different lines.
+        const [only] = templateColourClasses(
+            'A.vue',
+            sfc(
+                `<span\n    :class="\n        tone === 'text-grey-7'\n            ? 'bg-warning'\n            : ''\n    "\n/>`,
+            ),
+        );
+        assert.deepEqual(only, { line: 5, value: 'bg-warning' });
     });
 
     test('null and empty still mean different things', () => {
@@ -595,6 +779,18 @@ describe('a Quasar palette prop is the same colour decision', () => {
             'positive',
         ]);
         assert.deepEqual(props(`<q-btn :color="action.color ?? 'grey-7'" />`), ['grey-7']);
+    });
+
+    test('a string the binding COMPARES is not a palette name it emits', () => {
+        // The same over-read one attribute over, and it was disclosed rather
+        // than fixed: `dark` is a palette name as well as a theme, so this
+        // counted three where two were written. Narrowed by the operator, not
+        // by a list of the strings that cannot reach a value.
+        assert.deepEqual(props(`<q-btn :color="mode === 'dark' ? 'negative' : 'primary'" />`), [
+            'negative',
+            'primary',
+        ]);
+        assert.deepEqual(props(`<q-btn :color="mode === 'dark' ? tone : fallback" />`), []);
     });
 
     test('a binding that names nothing is not a finding', () => {
