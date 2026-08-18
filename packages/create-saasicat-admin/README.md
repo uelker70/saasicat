@@ -41,15 +41,15 @@ pnpm dev   # http://localhost:9100/admin/login
 
 ## Options
 
-| Flag             | Default         | Purpose                                            |
-| ---------------- | --------------- | -------------------------------------------------- |
-| `--project-key`  | `app`           | used as prefix in storage keys + tokens            |
-| `--brand-name`   | `App`           | shown in the AdminLayout header                    |
-| `--logo-text`    | `AP`            | two-letter badge in the logo                       |
-| `--api-base`     | `/api/v1/admin` | backend endpoint prefix                            |
-| `--dev-port`     | `9100`          | Vite dev server port                               |
-| `--backend-port` | `3000`          | backend port for the Vite proxy                    |
-| `--no-install`   | false           | only generate files, skip the final `pnpm install` |
+| Flag             | Default         | Purpose                                                 |
+| ---------------- | --------------- | ------------------------------------------------------- |
+| `--project-key`  | `app`           | catalogue this admin administers; also a storage prefix |
+| `--brand-name`   | `App`           | shown in the AdminLayout header                         |
+| `--logo-text`    | `AP`            | two-letter badge in the logo                            |
+| `--api-base`     | `/api/v1/admin` | backend endpoint prefix                                 |
+| `--dev-port`     | `9100`          | Vite dev server port                                    |
+| `--backend-port` | `3000`          | backend port for the Vite proxy                         |
+| `--no-install`   | false           | only generate files, skip the final `pnpm install`      |
 
 ## What is left to do afterwards
 

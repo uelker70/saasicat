@@ -119,7 +119,8 @@ async function main() {
         console.log('Usage: pnpm create saasicat-admin <dir> [flags]');
         console.log('');
         console.log('Flags:');
-        console.log('  --project-key=app           storage key prefix');
+        console.log('  --project-key=app           the catalogue this admin administers');
+        console.log('                              (also the storage-key prefix)');
         console.log('  --brand-name=App            brand name in the header');
         console.log('  --logo-text=AP              two-letter badge');
         console.log('  --api-base=/api/v1/admin    backend prefix');
