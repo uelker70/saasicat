@@ -34,10 +34,22 @@
 // one is compared only against its own earlier value. A file the build
 // rewrote has a new mtime; a file left untouched still carries the old one and
 // is an orphan. Nothing is compared against a wall clock, so filesystem
-// timestamp granularity cannot make a freshly written file look stale.
+// timestamp granularity cannot make a freshly written file look stale — which
+// holds as long as two writes of the SAME file are further apart than the
+// filesystem's timestamp resolution, and a build takes longer than that.
 //
-// The prune runs only after the build succeeds. A failed build leaves `dist/`
-// exactly as it was.
+// The prune runs only after the build succeeds. That is the property the mtime
+// comparison needs, and it is narrower than "a failed build leaves `dist/`
+// exactly as it was" — which this comment used to claim and which is not true.
+// A build that dies partway has already written whatever it got through, so
+// `dist/` can hold new JavaScript beside declarations from the previous build.
+//
+// That state is not repaired here, deliberately. Restoring it means copying
+// `dist/` aside on every build, or building into a staging directory and
+// swapping — a large change to buy protection against something the next green
+// build resolves. In CI it never surfaces: the build step fails and nothing
+// runs after it. Locally it can confuse a type check, so the failure path says
+// what it left behind instead of leaving the reader to find out.
 import { spawnSync } from 'node:child_process';
 import { lstatSync, readdirSync, rmSync, existsSync, rmdirSync } from 'node:fs';
 import path from 'node:path';
@@ -76,11 +88,19 @@ function removeEmptyAncestors(dir, stopAt) {
     }
 }
 
-const command = process.argv.slice(2).join(' ').trim();
-if (!command) {
-    console.error('build-and-prune: no build command given');
+// Exactly one argument, so the shell's quoting survives the hand-off. Joining
+// several would re-split whatever the caller had quoted, and a command written
+// as `a && b` would then prune between the two: b's output carries no earlier
+// mtime, so it looks like an orphan on the next run. Refusing is cheaper than
+// the warning that used to stand here.
+if (process.argv.length !== 3 || process.argv[2].trim() === '') {
+    console.error(
+        'build-and-prune: expects exactly one argument, the whole build command as one ' +
+            'string. Quote it: build-and-prune.mjs "tsup && node scripts/x.mjs".',
+    );
     process.exit(1);
 }
+const command = process.argv[2].trim();
 
 const dist = path.resolve(process.cwd(), DIST_DIR);
 const before = snapshot(dist);
@@ -94,7 +114,14 @@ if (result.signal) {
     console.error(`build-and-prune: build terminated by ${result.signal}`);
     process.exit(1);
 }
-if (result.status !== 0) process.exit(result.status ?? 1);
+if (result.status !== 0) {
+    console.error(
+        'build-and-prune: the build failed, so nothing was pruned. dist/ holds whatever the ' +
+            'build wrote before it stopped, which can be new output beside output from the ' +
+            'previous build — do not trust it until the next successful build.',
+    );
+    process.exit(result.status ?? 1);
+}
 
 const orphans = [...snapshot(dist)]
     .filter(([file, mtimeMs]) => before.get(file) === mtimeMs)

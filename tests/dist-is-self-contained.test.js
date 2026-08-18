@@ -52,31 +52,62 @@ function filesUnder(dir) {
 /** Every `./dist/…` path the manifest points a consumer at, `*` expanded. */
 function entryPoints(root, pkg, distFiles) {
     const roots = new Set();
-    const add = (target) => {
+    const missing = [];
+    /** Per export key, what each of its `*` patterns expanded to. */
+    const expansions = new Map();
+
+    const add = (target, key) => {
         if (typeof target !== 'string' || !target.startsWith('./dist/')) return;
         const abs = join(root, target);
         if (!target.includes('*')) {
+            // A target that is gone contributed nothing to `roots`, nothing to
+            // `dangling` and nothing to the orphan set, so a prune that took a
+            // standalone declaration left every assertion green while a
+            // consumer importing it got no types.
             if (isFile(abs)) roots.add(abs);
+            else missing.push(target);
             return;
         }
-        const pattern = new RegExp(
-            '^' +
-                abs
-                    .split('*')
-                    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                    .join('.*') +
-                '$',
-        );
-        for (const file of distFiles) if (pattern.test(file)) roots.add(file);
+        const [head, tail] = abs.split('*');
+        const matched = new Set();
+        for (const file of distFiles) {
+            if (!file.startsWith(head) || !file.endsWith(tail)) continue;
+            roots.add(file);
+            matched.add(file.slice(head.length, file.length - tail.length));
+        }
+        // A glob may legitimately match nothing — but the conditions of ONE key
+        // describe one set of modules in different formats, so they must expand
+        // to the same names. `./testing-e2e/*` naming `*.js`, `*.cjs`, `*.d.ts`
+        // and `*.d.cts` is four patterns over one module; a prune that took the
+        // `.d.cts` leaves that pattern expanding to nothing while its siblings
+        // still name the module, which is the only evidence the manifest gives.
+        if (key) {
+            const seen = expansions.get(key) ?? [];
+            seen.push({ target, matched });
+            expansions.set(key, seen);
+        }
     };
-    const walk = (node) => {
-        if (typeof node === 'string') return add(node);
+
+    const walk = (node, key) => {
+        if (typeof node === 'string') return add(node, key);
         if (!node || typeof node !== 'object') return;
-        for (const value of Object.values(node)) walk(value);
+        for (const [name, value] of Object.entries(node)) {
+            walk(value, key ?? (name.startsWith('.') ? name : null));
+        }
     };
-    walk(pkg.exports);
-    for (const field of ['main', 'module', 'types']) add(pkg[field]);
-    return [...roots];
+    walk(pkg.exports, null);
+    for (const field of ['main', 'module', 'types']) add(pkg[field], null);
+
+    for (const patterns of expansions.values()) {
+        const union = new Set(patterns.flatMap(({ matched }) => [...matched]));
+        for (const { target, matched } of patterns) {
+            for (const name of union) {
+                if (!matched.has(name)) missing.push(target.replace('*', name));
+            }
+        }
+    }
+
+    return { roots: [...roots], missing };
 }
 
 /**
@@ -85,20 +116,36 @@ function entryPoints(root, pkg, distFiles) {
  */
 function resolveSpecifier(fromFile, specifier) {
     const base = resolve(dirname(fromFile), specifier);
-    const candidates = [];
+    // Exclusive, not cumulative. A declaration's relative reference is
+    // type-only: it must resolve to a declaration or it is broken. Appending
+    // the JavaScript fallbacks to the declaration list let `index.d.ts` saying
+    // `from './x.js'` resolve to `x.js` after `x.d.ts` had been pruned away —
+    // no dangling entry, and `x.d.ts` is not in `distFiles` to be reported as
+    // an orphan either, so a broken type graph passed clean.
     if (DECLARATION.test(fromFile)) {
-        candidates.push(
-            base.replace(/\.js$/, '.d.ts'),
-            base.replace(/\.cjs$/, '.d.cts'),
-            base.replace(/\.mjs$/, '.d.mts'),
-            `${base}.d.ts`,
-            `${base}.d.cts`,
-            join(base, 'index.d.ts'),
+        return (
+            [
+                base.replace(/\.js$/, '.d.ts'),
+                base.replace(/\.cjs$/, '.d.cts'),
+                base.replace(/\.mjs$/, '.d.mts'),
+                `${base}.d.ts`,
+                `${base}.d.cts`,
+                `${base}.d.mts`,
+                join(base, 'index.d.ts'),
+                join(base, 'index.d.cts'),
+            ].find(isFile) ?? null
         );
     }
-    candidates.push(base, `${base}.js`, `${base}.cjs`, `${base}.mjs`);
-    candidates.push(join(base, 'index.js'), join(base, 'index.cjs'));
-    return candidates.find(isFile) ?? null;
+    return (
+        [
+            base,
+            `${base}.js`,
+            `${base}.cjs`,
+            `${base}.mjs`,
+            join(base, 'index.js'),
+            join(base, 'index.cjs'),
+        ].find(isFile) ?? null
+    );
 }
 
 /** Follows every relative reference from the entry points outwards. */
@@ -126,30 +173,51 @@ function builtPackages() {
         .map((root) => {
             const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
             const distFiles = filesUnder(join(root, 'dist'));
-            const roots = entryPoints(root, pkg, distFiles);
-            return { root, pkg, distFiles, roots, ...traverse(roots) };
+            const { roots, missing } = entryPoints(root, pkg, distFiles);
+            return { root, pkg, distFiles, roots, missing, ...traverse(roots) };
         });
 }
 
 describe('dist/ contains exactly what the entry points reach', () => {
     const packages = builtPackages();
 
-    test('the sweep actually found built packages', () => {
-        // Without this, a missing build or a renamed directory turns every
-        // assertion below into a vacuous pass.
-        assert.ok(
-            packages.length >= 6,
-            `expected at least 6 packages with a dist/, found ${packages.length}. ` +
-                'Run `pnpm -r build` first.',
+    test('every package that builds was swept', () => {
+        // Derived from the workspace rather than counted by hand: a floor set
+        // one below the real number lets exactly the interesting case — one
+        // package's build script broken, so it emits no dist/ — sail through.
+        const expected = readdirSync(PACKAGES_DIR)
+            .map((dir) => join(PACKAGES_DIR, dir, 'package.json'))
+            .filter(existsSync)
+            .filter((manifest) => JSON.parse(readFileSync(manifest, 'utf8')).scripts?.build)
+            .map((manifest) => dirname(manifest));
+
+        assert.deepEqual(
+            expected
+                .filter((root) => !packages.some((p) => p.root === root))
+                .map((root) => relative(REPO_ROOT, root)),
+            [],
+            'a package declares a build script but has no dist/. Run `pnpm -r build` first; ' +
+                'if it is still missing, that package did not emit anything.',
         );
     });
 
-    for (const { pkg, roots, distFiles, reached, dangling } of packages) {
+    for (const { pkg, roots, missing, distFiles, reached, dangling } of packages) {
         test(`${pkg.name}: the export map names entry points that exist`, () => {
             assert.ok(
                 roots.length > 0,
                 `${pkg.name} has a dist/ but no export target resolves into it — ` +
-                    'the two checks below would pass without looking at anything.',
+                    'the checks below would pass without looking at anything.',
+            );
+        });
+
+        test(`${pkg.name}: every exact export target is on disk`, () => {
+            assert.deepEqual(
+                missing,
+                [],
+                `${pkg.name} points consumers at files that are not there. A target the ` +
+                    'manifest names exactly has to exist: it reaches no reachability check ' +
+                    'and no orphan list, so a prune that took one leaves every other ' +
+                    'assertion green while an import of it gets nothing.',
             );
         });
 
