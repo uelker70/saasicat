@@ -1124,10 +1124,26 @@ export function inlineStyleFragments(file, content) {
  * further out.
  */
 const COMPARED_STRING =
-    /(['"`])(?:(?!\1)[^\n])*\1(?=\s*\)*\s*[=!]==?)|(?<=[=!]==?\s*\(?\s*)(['"`])(?:(?!\2)[^\n])*\2/g;
+    /(?<left>[A-Za-z_$][\w$.]*)\s*\)*\s*(?:[=!]==?)\s*\(?\s*(?<lit>(['"`])(?:(?!\3)[^\n])*\3)|(?<lit2>(['"`])(?:(?!\5)[^\n])*\5)\s*\)*\s*(?:[=!]==?)\s*\(?\s*(?<right>[A-Za-z_$][\w$.]*)/g;
 
 export function withComparedStringsBlanked(text) {
-    return text.replace(COMPARED_STRING, (match) => ' '.repeat(match.length));
+    let out = text;
+    for (const match of [...text.matchAll(COMPARED_STRING)]) {
+        const { left, lit, lit2, right } = match.groups;
+        const name = left ?? right;
+        const literal = lit ?? lit2;
+        // The comparison guarantees the literal only when the compared name
+        // cannot reach the result. `tone === 'text-grey-7' ? tone : ''` renders
+        // that very class on the true branch, so the literal is the only static
+        // evidence of it and blanking would UNDERCOUNT — the direction a ratchet
+        // must never err in. One occurrence of the name means it is compared and
+        // nothing else; more than one means it may be returned.
+        const uses = [...text.matchAll(new RegExp(`\\b${name.replace(/\./g, '\\.')}\\b`, 'g'))];
+        if (uses.length > 1) continue;
+        const at = match.index + match[0].indexOf(literal);
+        out = out.slice(0, at) + ' '.repeat(literal.length) + out.slice(at + literal.length);
+    }
+    return out;
 }
 
 /**

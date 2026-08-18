@@ -542,6 +542,19 @@ describe('a Quasar palette class is a colour decision', () => {
         assert.deepEqual(classes(`<span :class="{ muted: tone == 'text-red-5' }" />`), []);
     });
 
+    test('but a literal the comparison can render is kept', () => {
+        // `tone === 'text-grey-7' ? tone : ''` renders exactly that class when
+        // the branch is taken, so the literal is the only static evidence of it.
+        // Blanking would UNDERCOUNT, which on a ratchet is the direction that
+        // lets a new dependency through unseen.
+        assert.deepEqual(classes(`<span :class="tone === 'text-grey-7' ? tone : ''">a</span>`), [
+            'text-grey-7',
+        ]);
+        assert.deepEqual(props(`<q-icon :color="tone === 'accent' ? tone : fallback" />`), [
+            'accent',
+        ]);
+    });
+
     test('and grouping around the operand does not save it', () => {
         // The same comparison with parentheses. A pattern that demanded the
         // quote touch the operator counted the operand anyway — the false
