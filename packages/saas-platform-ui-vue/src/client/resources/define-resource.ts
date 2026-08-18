@@ -133,15 +133,31 @@ export function bindResource<TOps extends ResourceOps>(
     ctx: ResourceContext | (() => ResourceContext),
 ): Bound<TOps> {
     const readContext = typeof ctx === 'function' ? ctx : () => ctx;
-    // Sampled once, here, rather than checked on every request. Binding is
-    // where an app's configuration is handed over, so this is the moment a
-    // missing option can still be reported as one — naming it at boot rather
-    // than at the click that reads an empty list. What a later call sends is
-    // still whatever `readContext()` says then.
-    requireProjectKey(def, readContext());
+    // Checked at binding AND before each call, and the two are not redundant.
+    //
+    // Binding is where an app's configuration is handed over, so it is the
+    // moment a missing option can still be reported as one — named at boot
+    // rather than at the click that reads an empty list. But the context is
+    // read per call by design (a locale the operator switches, a project the
+    // shell re-scopes), so a key that is present at boot can be gone later,
+    // and only checking then would send `?projectKey=` after all.
+    //
+    // The getter is consulted only when the resource is project-scoped: the
+    // public contract says the context is read when an operation runs, and a
+    // registry of unscoped resources whose context is built lazily must not be
+    // made to produce one at construction.
+    if (def.projectScoped) requireProjectKey(def, readContext());
     const bound: Record<string, unknown> = {};
     for (const [name, op] of Object.entries(def.ops)) {
-        bound[name] = (...args: never[]) => op(http, readContext(), ...args);
+        // `async`, so a missing key REJECTS rather than throwing synchronously.
+        // An operation returns a promise, and a caller written as
+        // `plans.list().catch(handle)` would otherwise take an exception where
+        // it expected a rejection — the promise it means to catch never exists.
+        bound[name] = async (...args: never[]) => {
+            const context = readContext();
+            requireProjectKey(def, context);
+            return op(http, context, ...args);
+        };
     }
     // The loop cannot express, per key, that it produced exactly the operation
     // `Bound<TOps>` names — the relationship holds across the whole record, not

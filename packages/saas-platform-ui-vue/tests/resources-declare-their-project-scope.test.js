@@ -164,3 +164,38 @@ describe('why the check is per descriptor and not per registry', () => {
         );
     });
 });
+
+describe('when the project key is asked for', () => {
+    test('an unscoped resource does not make the context exist at binding', async () => {
+        // The public contract says the context is read when an operation runs.
+        // A registry of unscoped resources whose context is built lazily — or
+        // whose getter has observable work — must not be made to produce one
+        // during construction just so a check that does not apply can run.
+        let reads = 0;
+        const readContext = () => {
+            reads += 1;
+            return { ...CTX, projectKey: '' };
+        };
+        const audit = pkg.bindResource(pkg.platformResources.audit, http, readContext);
+        assert.equal(reads, 0, 'binding an unscoped resource read the context');
+        await audit.list({});
+        assert.equal(reads, 1, 'the operation did not read the context');
+    });
+
+    test('a key that disappears after binding is caught before the request', async () => {
+        // The context is read per call by design — a shell that re-scopes or
+        // clears a project selection changes it under a binding that was valid.
+        // Checking only at boot would send `?projectKey=` after all, which is
+        // the request this whole check exists to prevent.
+        let projectKey = 'probe';
+        const plans = pkg.bindResource(pkg.platformResources.plans, http, () => ({
+            ...CTX,
+            projectKey,
+        }));
+        await plans.list();
+
+        projectKey = '';
+        await assert.rejects(() => plans.list(), /project-scoped/);
+        await assert.rejects(() => plans.create({ key: 'p', name: 'P' }), /project-scoped/);
+    });
+});
