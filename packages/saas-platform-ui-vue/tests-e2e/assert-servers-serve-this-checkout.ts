@@ -37,10 +37,17 @@ const PROBE_TIMEOUT_MS = 30_000;
 /** The document `serve.mjs` answers `/` with, and the fixture's whole page. */
 const FIXTURE_DOCUMENT = 'tests-e2e/fixtures/index.html';
 
-/** The attributes of every `<script>` opening tag, whatever their order. */
-const SCRIPT_ATTRIBUTES = /<script\b([^>]*)>/g;
-const MODULE_TYPE = /\btype=["']module["']/;
-const SRC_ATTRIBUTE = /\bsrc=["']([^"']+)["']/;
+/**
+ * The attributes of every `<script>` opening tag, whatever their order.
+ *
+ * Case-insensitive because HTML is: `<SCRIPT TYPE="module" SRC="…">` is the
+ * same tag, and a pattern that misses it drops a resource from the fingerprint
+ * silently — the check would then compare fewer files than it believes it does
+ * and still report agreement.
+ */
+const SCRIPT_ATTRIBUTES = /<script\b([^>]*)>/gi;
+const MODULE_TYPE = /\btype=["']module["']/i;
+const SRC_ATTRIBUTE = /\bsrc=["']([^"']+)["']/i;
 
 /** The dynamic imports of the fixture document — the code it pulls off the server. */
 const DYNAMIC_IMPORT = /\bimport\(\s*(?<quote>['"])(?<specifier>[^'"]+)\k<quote>\s*\)/g;
