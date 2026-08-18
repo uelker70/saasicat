@@ -50,6 +50,13 @@ jobs:
               with:
                   claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+                  # Without this the action exchanges an OIDC token for an app
+                  # token and needs the Claude GitHub App installed on the repo.
+                  # Installing it requires a Team/Enterprise plan; supplying the
+                  # workflow's own token skips the exchange. The permissions
+                  # above are enough for a run that only comments.
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+
                   # Der Maßstab steht im Repo, nicht hier: Die Review liest ihn
                   # bei jedem Lauf frisch. Eine Kopie an dieser Stelle wäre
                   # dieselbe Regel ein zweites Mal — und veraltete als Erstes.
