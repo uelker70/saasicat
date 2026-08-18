@@ -92,11 +92,15 @@ function removeEmptyAncestors(dir, stopAt) {
 // several would re-split whatever the caller had quoted, and a command written
 // as `a && b` would then prune between the two: b's output carries no earlier
 // mtime, so it looks like an orphan on the next run. Refusing is cheaper than
-// the warning that used to stand here.
+// the warning that used to stand here. Trailing arguments are refused for a
+// second reason: pnpm appends them, and the two flags anyone would append —
+// `--watch`, `--no-clean` — are both incoherent under a prune that reads the
+// mtimes of one finished build.
 if (process.argv.length !== 3 || process.argv[2].trim() === '') {
     console.error(
         'build-and-prune: expects exactly one argument, the whole build command as one ' +
-            'string. Quote it: build-and-prune.mjs "tsup && node scripts/x.mjs".',
+            'string, and passes nothing else on. Quote it: build-and-prune.mjs ' +
+            '"tsup && node scripts/x.mjs". A watch build cannot be pruned — run tsup directly.',
     );
     process.exit(1);
 }

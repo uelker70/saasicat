@@ -50,7 +50,30 @@ function filesUnder(dir) {
 }
 
 /** Every `./dist/…` path the manifest points a consumer at, `*` expanded. */
-function entryPoints(root, pkg, distFiles) {
+/**
+ * Every file some OTHER file in `dist/` imports.
+ *
+ * A bundler chunk lands wherever its entry does, so a subpath pattern's range
+ * is a subtree and not a list of entry points: `./testing-e2e/*` covers any
+ * `.js` below `dist/testing-e2e/`, chunks included. That matters for the
+ * sibling comparison below, which would otherwise demand a `.d.ts` beside a
+ * `chunk-XXXX.js` and report a file no consumer was ever pointed at as
+ * missing. What separates the two is not in the manifest but in the output: an
+ * entry is imported by a consumer, a chunk by a sibling.
+ */
+function referencedWithin(distFiles) {
+    const referenced = new Set();
+    for (const file of distFiles) {
+        if (!CODE.test(file) && !DECLARATION.test(file)) continue;
+        for (const [, specifier] of readFileSync(file, 'utf8').matchAll(RELATIVE_SPECIFIER)) {
+            const target = resolveSpecifier(file, specifier);
+            if (target !== null) referenced.add(target);
+        }
+    }
+    return referenced;
+}
+
+function entryPoints(root, pkg, distFiles, referenced) {
     const roots = new Set();
     const missing = [];
     /** Per export key, what each of its `*` patterns expanded to. */
@@ -80,8 +103,14 @@ function entryPoints(root, pkg, distFiles) {
         const matched = new Set();
         for (const file of distFiles) {
             if (!file.startsWith(head) || !file.endsWith(tail)) continue;
+            // Still a root: the manifest offers every match to a consumer, so a
+            // leftover in that range is importable rather than unreachable, and
+            // the orphan half is deliberately quiet about it.
             roots.add(file);
-            matched.add(file.slice(head.length, file.length - tail.length));
+            // Not a sibling, though. See `referencedWithin`.
+            if (!referenced.has(file)) {
+                matched.add(file.slice(head.length, file.length - tail.length));
+            }
         }
         // A glob may legitimately match nothing — but the conditions of ONE key
         // describe one set of modules in different formats, so they must expand
@@ -131,16 +160,23 @@ function resolveSpecifier(fromFile, specifier) {
     // no dangling entry, and `x.d.ts` is not in `distFiles` to be reported as
     // an orphan either, so a broken type graph passed clean.
     if (DECLARATION.test(fromFile)) {
+        // An extensionless reference is ambiguous when both flavours share a
+        // basename, which this output does (`catalog-*.d.ts` beside
+        // `catalog-*.d.cts`). The flavour of the file doing the referencing
+        // decides, so its own extension is tried first rather than relying on
+        // the emitter always writing `./x.cjs` inside a `.d.cts`.
+        const own = fromFile.endsWith('.d.cts')
+            ? ['.d.cts', '.d.ts', '.d.mts']
+            : fromFile.endsWith('.d.mts')
+              ? ['.d.mts', '.d.ts', '.d.cts']
+              : ['.d.ts', '.d.cts', '.d.mts'];
         return (
             [
                 base.replace(/\.js$/, '.d.ts'),
                 base.replace(/\.cjs$/, '.d.cts'),
                 base.replace(/\.mjs$/, '.d.mts'),
-                `${base}.d.ts`,
-                `${base}.d.cts`,
-                `${base}.d.mts`,
-                join(base, 'index.d.ts'),
-                join(base, 'index.d.cts'),
+                ...own.map((extension) => `${base}${extension}`),
+                ...own.map((extension) => join(base, `index${extension}`)),
             ].find(isFile) ?? null
         );
     }
@@ -181,7 +217,8 @@ function builtPackages() {
         .map((root) => {
             const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
             const distFiles = filesUnder(join(root, 'dist'));
-            const { roots, missing } = entryPoints(root, pkg, distFiles);
+            const referenced = referencedWithin(distFiles);
+            const { roots, missing } = entryPoints(root, pkg, distFiles, referenced);
             return { root, pkg, distFiles, roots, missing, ...traverse(roots) };
         });
 }
@@ -193,6 +230,9 @@ describe('dist/ contains exactly what the entry points reach', () => {
         // Derived from the workspace rather than counted by hand: a floor set
         // one below the real number lets exactly the interesting case — one
         // package's build script broken, so it emits no dist/ — sail through.
+        // `packages/` only, deliberately: `pnpm-workspace.yaml` also covers
+        // `examples/`, but nothing there is published, so it has no export map
+        // to hold to and no consumer to point at a pruned file.
         const expected = readdirSync(PACKAGES_DIR)
             .map((dir) => join(PACKAGES_DIR, dir, 'package.json'))
             .filter(existsSync)
@@ -218,12 +258,13 @@ describe('dist/ contains exactly what the entry points reach', () => {
             );
         });
 
-        test(`${pkg.name}: every exact export target is on disk`, () => {
+        test(`${pkg.name}: every export target the manifest commits to is on disk`, () => {
             assert.deepEqual(
                 missing,
                 [],
                 `${pkg.name} points consumers at files that are not there. A target the ` +
-                    'manifest names exactly has to exist: it reaches no reachability check ' +
+                    'manifest names — exactly, or through a pattern whose sibling conditions ' +
+                    'still name the module — has to exist: it reaches no reachability check ' +
                     'and no orphan list, so a prune that took one leaves every other ' +
                     'assertion green while an import of it gets nothing.',
             );
