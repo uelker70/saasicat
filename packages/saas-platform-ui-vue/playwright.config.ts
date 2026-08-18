@@ -17,6 +17,12 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
     testDir: './tests-e2e',
     testMatch: /.*\.spec\.ts$/,
+    // Outside CI every `webServer` below may attach to a server it did not start
+    // (see `reuseExistingServer`), and a server from a second checkout of this
+    // repository renders code nobody measured — as a PASS. This runs after the
+    // servers are up and before the first test, and refuses the run when one of
+    // them is serving somebody else's tree.
+    globalSetup: './tests-e2e/assert-servers-serve-this-checkout.ts',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
