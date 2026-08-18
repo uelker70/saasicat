@@ -1119,13 +1119,19 @@ export function inlineStyleFragments(file, content) {
  * reason about must not be assumed harmless. On a ratchet an overcount costs a
  * re-record; an undercount lets a new dependency through unseen.
  *
- * Two over-reads are left standing on purpose, both in the safe direction and
- * both pinned below. A path the pattern cannot cross — `items[0].tone`, or a
- * negated `!tone` — leaves the match starting mid-name, so the count is zero
- * and the literal is kept. And a comparison written without spaces,
- * `tone==='x'?tone:''`, counts one use because the returned name is preceded by
- * `?`; that is the one undercount left, and Prettier's template formatting
- * makes it unwritable here with `format:check` in the gate.
+ * The residue is one property rather than a list of cases: **wherever the
+ * counter cannot isolate the name, the literal is kept.** A path the pattern
+ * cannot cross (`items[0].tone`, `!tone`) leaves the match starting mid-name;
+ * an escaped quote (`'it\'s tone'`) breaks the string blanking so a name behind
+ * it still counts; an interpolation (`` `sa-${tone}` ``) is a real use of the
+ * name and counts as one. Each keeps a literal that renders nothing — an
+ * overcount, which on a ratchet costs a re-record. The first is pinned below;
+ * the others follow from the same branch.
+ *
+ * The one undercount left is a comparison written without spaces,
+ * `tone==='x'?tone:''`, where the returned name is preceded by `?` and reads as
+ * one use. Prettier's template formatting makes it unwritable here, and
+ * `format:check` is in the gate.
  */
 
 /** A member path, so a name is matched whole rather than from its last part. */
