@@ -45,6 +45,23 @@ jobs:
               with:
                   fetch-depth: 1
 
+            # The brief applies in the version on the default branch, not the
+            # one under review. Two reasons: the PR branch is what gets checked
+            # out, and the file only exists there once it is merged — the review
+            # otherwise ran without its own standard. And a PR should not be
+            # able to rewrite the criteria it is measured against.
+            - name: Take the brief from the default branch
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+              run: |
+                  set -euo pipefail
+                  mkdir -p .github
+                  gh api "repos/${{ github.repository }}/contents/.github/claude-review-context.md?ref=$DEFAULT_BRANCH" \
+                      --header "Accept: application/vnd.github.raw" \
+                      > .github/claude-review-context.md
+                  wc -l .github/claude-review-context.md
+
             - name: Run Claude
               uses: anthropics/claude-code-action@v1
               with:
