@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import type { FullConfig } from '@playwright/test';
@@ -77,7 +77,14 @@ function checkoutOf(startDir: string): string | null {
     // of `C:/` is part of the URL rather than of the path.
     let dir = /^\/[A-Za-z]:\//.test(startDir) ? startDir.slice(1) : startDir;
     for (;;) {
-        if (existsSync(join(dir, CHECKOUT_MARKER))) return dir;
+        // Resolved before it is returned, because the two answers this function
+        // produces arrive written differently. A path out of a `/@fs/` URL keeps
+        // the URL's forward slashes — `C:/repo` — while `THIS_CHECKOUT` comes
+        // from `fileURLToPath(import.meta.url)` and is `C:\repo`. They name one
+        // directory and compare unequal, so every Vite-backed run on Windows
+        // would report a foreign checkout and fail in global setup. `resolve`
+        // puts both in the platform's own form; on POSIX it changes nothing.
+        if (existsSync(join(dir, CHECKOUT_MARKER))) return resolve(dir);
         const parent = dirname(dir);
         if (parent === dir) return null;
         dir = parent;
