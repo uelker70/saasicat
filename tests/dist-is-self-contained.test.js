@@ -68,7 +68,15 @@ function entryPoints(root, pkg, distFiles) {
             else missing.push(target);
             return;
         }
-        const [head, tail] = abs.split('*');
+        // Node permits exactly one `*` in a subpath pattern. Split rather than
+        // assumed: two would silently drop everything after the second, and a
+        // pattern this reader cannot expand must be reported, not guessed at.
+        const parts = abs.split('*');
+        if (parts.length !== 2) {
+            missing.push(`${target} (a subpath pattern may contain exactly one \`*\`)`);
+            return;
+        }
+        const [head, tail] = parts;
         const matched = new Set();
         for (const file of distFiles) {
             if (!file.startsWith(head) || !file.endsWith(tail)) continue;
@@ -102,7 +110,7 @@ function entryPoints(root, pkg, distFiles) {
         const union = new Set(patterns.flatMap(({ matched }) => [...matched]));
         for (const { target, matched } of patterns) {
             for (const name of union) {
-                if (!matched.has(name)) missing.push(target.replace('*', name));
+                if (!matched.has(name)) missing.push(target.replaceAll('*', name));
             }
         }
     }
