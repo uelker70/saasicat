@@ -1126,6 +1126,31 @@ export function inlineStyleFragments(file, content) {
 const COMPARED_STRING =
     /(?<left>[A-Za-z_$][\w$.]*)\s*\)*\s*(?:[=!]==?)\s*\(?\s*(?<lit>(['"`])(?:(?!\3)[^\n])*\3)|(?<lit2>(['"`])(?:(?!\5)[^\n])*\5)\s*\)*\s*(?:[=!]==?)\s*\(?\s*(?<right>[A-Za-z_$][\w$.]*)/g;
 
+/**
+ * How often a name occurs in an expression as a name of its own.
+ *
+ * Scanned rather than matched. Building a pattern out of the name needs every
+ * metacharacter escaped, and a name may contain them: `$attrs.tone` put an
+ * unescaped `$` into the pattern, where it is an end-of-input anchor, so the
+ * count came back zero and the literal was blanked — the undercount this whole
+ * helper exists to avoid, reintroduced by the way the question was asked. A
+ * scan has no such surface.
+ *
+ * The boundary is the identifier alphabet plus `.`, so `tone` does not match
+ * inside `toneless` and `$attrs.tone` is one name rather than two.
+ */
+const IDENTIFIER_CHARACTER = /[A-Za-z0-9_$.]/;
+
+export function countUses(text, name) {
+    let count = 0;
+    for (let at = text.indexOf(name); at !== -1; at = text.indexOf(name, at + name.length)) {
+        const before = at === 0 ? '' : text[at - 1];
+        const after = text[at + name.length] ?? '';
+        if (!IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after)) count += 1;
+    }
+    return count;
+}
+
 export function withComparedStringsBlanked(text) {
     let out = text;
     for (const match of [...text.matchAll(COMPARED_STRING)]) {
@@ -1138,8 +1163,7 @@ export function withComparedStringsBlanked(text) {
         // evidence of it and blanking would UNDERCOUNT — the direction a ratchet
         // must never err in. One occurrence of the name means it is compared and
         // nothing else; more than one means it may be returned.
-        const uses = [...text.matchAll(new RegExp(`\\b${name.replace(/\./g, '\\.')}\\b`, 'g'))];
-        if (uses.length > 1) continue;
+        if (countUses(text, name) > 1) continue;
         const at = match.index + match[0].indexOf(literal);
         out = out.slice(0, at) + ' '.repeat(literal.length) + out.slice(at + literal.length);
     }

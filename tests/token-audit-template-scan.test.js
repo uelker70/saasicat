@@ -542,6 +542,23 @@ describe('a Quasar palette class is a colour decision', () => {
         assert.deepEqual(classes(`<span :class="{ muted: tone == 'text-red-5' }" />`), []);
     });
 
+    test('and a name carrying a dollar sign is still one name', () => {
+        // `$attrs.tone` put an unescaped `$` into a generated pattern, where it
+        // anchors instead of matching, so the count came back zero and the
+        // literal was blanked — the undercount, reintroduced by the way the
+        // question was asked. Counted by scanning now, which has no such
+        // surface.
+        assert.deepEqual(
+            classes(`<span :class="$attrs.tone === 'text-grey-7' ? $attrs.tone : ''">a</span>`),
+            ['text-grey-7'],
+        );
+        // And a name is still bounded: `toneless` is not `tone`.
+        assert.deepEqual(
+            classes(`<span :class="toneless === 'text-grey-7' ? 'm' : ''">a</span>`),
+            [],
+        );
+    });
+
     test('but a literal the comparison can render is kept', () => {
         // `tone === 'text-grey-7' ? tone : ''` renders exactly that class when
         // the branch is taken, so the literal is the only static evidence of it.
