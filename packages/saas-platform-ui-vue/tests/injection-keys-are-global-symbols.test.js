@@ -428,6 +428,14 @@ function statedTypes(declaration) {
 function namesInjectionKey(typeNode, seen = new Set()) {
     let node = typeNode;
     while (node && ts.isParenthesizedTypeNode(node)) node = node.type;
+    // A composite names an `InjectionKey` if any constituent does.
+    // `Symbol('bad') as InjectionKey<T> & Brand` is still asserted to be one,
+    // and a branch that accepted only a reference walked past it — with no
+    // local `provide`/`inject` to recover the declaration, the plain symbol
+    // then passed the guard entirely.
+    if (node && (ts.isIntersectionTypeNode(node) || ts.isUnionTypeNode(node))) {
+        return node.types.some((constituent) => namesInjectionKey(constituent, seen));
+    }
     const name = !node
         ? null
         : ts.isTypeReferenceNode(node)
@@ -748,6 +756,15 @@ export const CAST = Symbol('loose') as InjectionKey<number>;
 export const SATISFIES = Symbol('loose') satisfies InjectionKey<number>;
 export const SOUND_CAST = Symbol.for('saas-platform/A') as InjectionKey<number>;
 export const SOUND_SATISFIES = Symbol.for('saas-platform/B') satisfies InjectionKey<number>;
+`,
+});
+
+const composite = counterCheck('composite', {
+    'keys.ts': `${HEAD}
+type Brand = { readonly tag: 'brand' };
+export const BRANDED = Symbol('loose') as InjectionKey<number> & Brand;
+export const EITHER = Symbol('loose') as InjectionKey<number> | undefined;
+export const SOUND_BRANDED = Symbol.for('saas-platform/Branded') as InjectionKey<number> & Brand;
 `,
 });
 
@@ -1073,6 +1090,12 @@ describe('the guard fails on what it says it covers', () => {
 
     test('a cast and a satisfies', () => {
         assert.deepEqual(castAndSatisfies().loose, ['keys.ts:3 — CAST', 'keys.ts:4 — SATISFIES']);
+        // A composite still asserts the key is an `InjectionKey`. A branch that
+        // accepted only a reference walked past it, and with no local
+        // provide/inject to recover the declaration the plain symbol passed the
+        // guard entirely — the cross-bundle failure, through an annotation the
+        // compiler is perfectly happy with.
+        assert.deepEqual(composite().loose, ['keys.ts:4 — BRANDED', 'keys.ts:5 — EITHER']);
     });
 
     test('a second declarator, and one behind type arguments', () => {
