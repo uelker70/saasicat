@@ -22,7 +22,7 @@
         "dist"
     ],
     "scripts": {
-        "build": "tsup",
+        "build": "node ../../scripts/build-and-prune.mjs tsup",
         "pretest": "pnpm run build",
         "test": "node --test tests/**/*.test.js"
     },
