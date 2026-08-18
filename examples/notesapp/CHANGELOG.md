@@ -1,5 +1,15 @@
 # notesapp-example
 
+## 0.0.23
+
+### Patch Changes
+
+- Updated dependencies [bea2423]
+    - @saasicat/nest@0.26.0
+    - @saasicat/spec@0.26.0
+    - @saasicat/types@0.26.0
+    - @saasicat/adapter-prisma@0.26.0
+
 ## 0.0.22
 
 ### Patch Changes
