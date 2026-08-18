@@ -72,8 +72,19 @@ export interface PromoLabelOptions {
     /**
      * BCP-47 tag deciding grouping, decimal separator, and where the currency
      * symbol sits: `'de-DE'` produces `1.234,56 €`, `'en-US'` produces
-     * `€1,234.56`. An invalid tag makes `Intl` throw — a wrong tag is a
-     * configuration error, not something to silently fall back from.
+     * `€1,234.56`.
+     *
+     * A tag whose LANGUAGE the runtime cannot serve is a configuration error
+     * and throws. `Intl` alone does not give that: it rejects a malformed tag,
+     * but a well-formed one it does not know — `'zz-ZZ'` — silently resolves to
+     * the runtime default, which on this one is `en-US`. An amount then reaches
+     * the customer formatted in a language nobody chose.
+     *
+     * The check reaches exactly that far, and it is worth knowing where it
+     * stops: `supportedLocalesOf` accepts an unknown REGION on a known language,
+     * so `'de-ED'` passes and formats as `de`. Measured, not assumed. That
+     * fallback stays inside the language the caller asked for, which is the
+     * difference between a typo costing a separator and costing a language.
      */
     locale?: string;
     /**
@@ -81,6 +92,11 @@ export interface PromoLabelOptions {
      * The code also decides the number of decimals — two for EUR, none for
      * JPY — because the minor-unit count is a property of the currency, not a
      * formatting preference. Percentages ignore this.
+     *
+     * Checked for the same reason. `Intl` rejects a code that is not three
+     * letters, but renders a three-letter code it does not know as itself:
+     * `'XBT'` puts `1.234,56 XBT` on a checkout page rather than failing.
+     * Money does not get a silent fallback here.
      */
     currency?: string;
 }
@@ -105,11 +121,36 @@ const LEGACY_LABEL_CURRENCY = 'EUR';
  */
 const ICU_NON_BREAKING_SPACES = /[\u00A0\u202F]/g;
 
+/**
+ * Rejects a tag or a code the runtime would quietly replace.
+ *
+ * `Intl` throws for malformed input and falls back for well-formed input it
+ * does not know, which is the wrong way round for a configuration value: a
+ * typo is usually well formed.
+ */
+function requireSupported(locale: string, currency: string): void {
+    if (Intl.NumberFormat.supportedLocalesOf([locale]).length === 0) {
+        throw new RangeError(
+            `buildLabel: locale "${locale}" names a language this runtime cannot serve. It ` +
+                `would be formatted as "${new Intl.NumberFormat(locale).resolvedOptions().locale}" ` +
+                'instead — a language nobody chose. Pass a tag the runtime serves.',
+        );
+    }
+    if (!Intl.supportedValuesOf('currency').includes(currency)) {
+        throw new RangeError(
+            `buildLabel: "${currency}" is not an ISO-4217 currency this runtime knows. A ` +
+                'three-letter code it does not know is printed as itself next to the amount ' +
+                'rather than refused. Pass a code such as "EUR", "CHF" or "JPY".',
+        );
+    }
+}
+
 function formatPromoValue(
     value: number,
     valueType: PromoCodeValueType | string,
     { locale = LEGACY_LABEL_LOCALE, currency = LEGACY_LABEL_CURRENCY }: PromoLabelOptions,
 ): string {
+    requireSupported(locale, currency);
     const numberFormat: Intl.NumberFormatOptions =
         valueType === 'PERCENT'
             ? { style: 'unit', unit: 'percent' }

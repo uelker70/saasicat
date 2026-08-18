@@ -239,14 +239,43 @@ test('buildLabel keeps non-breaking spaces out of the label', () => {
     }
 });
 
+const ONCE = { valueType: 'ABSOLUTE', value: 30, durationType: 'ONCE', durationValue: null };
+const label = (options) => buildLabel(ONCE, 'MONTHLY', options);
+
 test('buildLabel rejects an unusable locale instead of guessing one', () => {
-    assert.throws(
-        () =>
-            buildLabel(
-                { valueType: 'ABSOLUTE', value: 30, durationType: 'ONCE', durationValue: null },
-                'MONTHLY',
-                { locale: 'de_DE' },
-            ),
-        RangeError,
+    // Malformed: `Intl` rejects this by itself.
+    assert.throws(() => label({ locale: 'de_DE' }), RangeError);
+
+    // Well formed and unknown: `Intl` does NOT reject it — it resolves to the
+    // runtime default and formats an amount in a language nobody chose. That is
+    // what a typed tag actually looks like when it is wrong, so it is the case
+    // worth a check.
+    assert.equal(new Intl.NumberFormat('zz-ZZ').resolvedOptions().locale, 'en-US');
+    assert.throws(() => label({ locale: 'zz-ZZ' }), RangeError);
+});
+
+test('but an unknown region on a known language is not unusable', () => {
+    // Where the check stops, stated so it is a decision and not an oversight:
+    // `supportedLocalesOf` accepts a known language with a region it does not
+    // know, and the fallback stays inside that language. A typo there costs a
+    // separator, not a language.
+    assert.deepEqual(Intl.NumberFormat.supportedLocalesOf(['de-ED']), ['de-ED']);
+    assert.equal(label({ locale: 'de-ED' }), '30,00 € once');
+});
+
+test('buildLabel rejects a currency the runtime would print as itself', () => {
+    // `Intl` refuses a code that is not three letters — `'EURO'` throws by
+    // itself — but renders a three-letter one it does not know next to the
+    // amount, so that typo reaches a checkout page as `30,00 XBT`.
+    // The space `Intl` puts there is U+00A0; `buildLabel` folds those, this
+    // raw call does not, so the comparison folds it here instead of pretending.
+    assert.equal(
+        new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'XBT' })
+            .format(30)
+            .replace(/[\u00A0\u202F]/g, ' '),
+        '30,00 XBT',
     );
+    assert.throws(() => label({ currency: 'XBT' }), RangeError);
+    // A real code still works, including one with no minor units.
+    assert.equal(label({ locale: 'ja-JP', currency: 'JPY' }), '￥30 once');
 });
