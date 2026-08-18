@@ -30,13 +30,21 @@ const INSIDE_AGENT_WORKTREE = '.claude/worktrees/agent-1/packages/saas-platform-
 const IN_THE_SOURCE_TREE = 'packages/saas-platform-nest/src/index.ts';
 
 /**
- * What `git status` will do with a path. `check-ignore` answers for paths that
- * do not exist, so the probe needs no worktree on disk — and its default
- * (index-aware) mode is exactly the question `git status` asks.
+ * Whether Git ignores a path. `check-ignore` answers for paths that do not
+ * exist, so the probe needs no worktree on disk.
+ *
+ * The index matters, and the two probes want opposite answers from it. Asking
+ * "will `git status` list this?" is the index-aware question, and that is the
+ * one the worktree probe asks. Asking "would a widened rule hide a source file
+ * somebody creates tomorrow?" is not: `check-ignore` suppresses a match for a
+ * path already tracked, so a rule broad enough to swallow `src/` would answer
+ * "not ignored" for every file in it and the negative probe would pass while
+ * the damage it exists to catch was done. `--no-index` asks the rules alone.
  */
-function gitIgnores(path) {
+function gitIgnores(path, { ignoreIndex = false } = {}) {
+    const flags = ignoreIndex ? ['--no-index'] : [];
     try {
-        execFileSync('git', ['check-ignore', '--quiet', path], { cwd: REPO_ROOT });
+        execFileSync('git', ['check-ignore', '--quiet', ...flags, path], { cwd: REPO_ROOT });
         return true;
     } catch (error) {
         if (error.status === 1) return false;
@@ -69,9 +77,12 @@ describe('agent worktrees under .claude/ stay out of the repo-wide gates', () =>
 
     test('and the ignore stops there — the source tree is still checked', async () => {
         assert.equal(
-            gitIgnores(IN_THE_SOURCE_TREE),
+            gitIgnores(IN_THE_SOURCE_TREE, { ignoreIndex: true }),
             false,
-            `${IN_THE_SOURCE_TREE} is ignored by .gitignore — the ignore widened past its target.`,
+            `${IN_THE_SOURCE_TREE} is ignored by .gitignore — the ignore widened past its ` +
+                'target. Asked without the index, because a rule that covers a tracked file ' +
+                'still lets `check-ignore` answer "not ignored" — the damage would be to the ' +
+                'files nobody has created yet.',
         );
         assert.equal(
             await eslint.isPathIgnored(IN_THE_SOURCE_TREE),
