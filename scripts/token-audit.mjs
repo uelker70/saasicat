@@ -1093,38 +1093,41 @@ export function inlineStyleFragments(file, content) {
 }
 
 /**
- * The string operands of an equality comparison, blanked.
+ * A string that is only ever COMPARED against, in a bound expression.
  *
- * A bound attribute is read for the literals it holds, because a class name and
- * a palette name cannot be built by an expression without one appearing. A
- * string the expression COMPARES is the shape that appears without being
- * emitted: `:class="tone === 'text-grey-7' ? 'muted' : ''"` renders `muted`, and
- * the class-shaped string is data being tested — so counting it turns an
- * unrelated state comparison into a palette decision, on two metrics that are
- * ratchets and can therefore fail on it.
+ * Vue emits what a ternary selects, not what its condition tests, so
+ * `tone === 'text-grey-7' ? 'muted' : ''` never puts that class on the page and
+ * counting it is a false positive. Blanked before the class and palette scans
+ * read the expression, character for character, so every offset survives.
  *
- * The OPERATOR decides, which is what keeps this from being a list: a string on
- * either side of `===`, `==`, `!==` or `!=` is an operand, and everything else a
- * binding holds is left exactly as it was. That is deliberately less than
- * knowing which strings can reach a value position — `tones[key]`,
- * `\`text-${hue}\``, a name assembled in a script — which needs the expression
- * parsed rather than scanned, and that boundary is #158's.
+ * The pattern finds `name === 'literal'` and `'literal' === name`, in both
+ * equality spellings, with grouping on either side. The operator is part of the
+ * match, so a bare `'a' === 'b'` matches neither alternative — each requires a
+ * name on one side — and nothing there is blanked. A name is a member path
+ * (`props.tone`, `$attrs.tone`, `tone?.value`, `row!.tone`), matched whole
+ * rather than from its last segment.
  *
- * Blanked to equal-length spaces rather than removed, like every other pre-pass
- * in this file: the line a finding reports is an offset into this text. A string
- * never spans a newline here, so the offsets survive exactly.
+ * The literal is blanked only when the name occurs NOWHERE ELSE than in a
+ * comparison, which is not the same as "occurs once":
+ * `tone === 'a' || tone === 'b'` compares one name twice and emits neither
+ * literal, while `tone === 'a' ? tone : ''` renders exactly what it compares.
+ * Counting occurrences alone got the first wrong in one direction and the
+ * second in the other.
  *
- * Neither operator is consumed, which is what lets `'a' === 'b'` lose both of
- * its operands rather than only the one the scan reached first.
- *
- * One layer of grouping is allowed on either side. `tone === ('text-grey-7')`
- * and `('dark') === mode` are the same comparison written with parentheses, and
- * a pattern that demanded the quote touch the operator left the operand
- * counted — the false positive this helper exists to remove, one character
- * further out.
+ * A name the scan cannot locate is kept, not blanked: zero occurrences means the
+ * counter could not find what the pattern just matched, and a flow it cannot
+ * reason about must not be assumed harmless. On a ratchet an overcount costs a
+ * re-record; an undercount lets a new dependency through unseen.
  */
-const COMPARED_STRING =
-    /(?<left>[A-Za-z_$][\w$.]*)\s*\)*\s*(?:[=!]==?)\s*\(?\s*(?<lit>(['"`])(?:(?!\3)[^\n])*\3)|(?<lit2>(['"`])(?:(?!\5)[^\n])*\5)\s*\)*\s*(?:[=!]==?)\s*\(?\s*(?<right>[A-Za-z_$][\w$.]*)/g;
+const NAME_PATH = '[A-Za-z_$][\\w$]*(?:(?:\\?\\.|!\\.|\\.)[A-Za-z_$][\\w$]*)*';
+const COMPARED_STRING = new RegExp(
+    `(?<left>${NAME_PATH})\\s*\\)*\\s*[=!]==?\\s*\\(*\\s*(?<lit>(['"\`])(?:(?!\\3)[^\\n])*\\3)` +
+        `|(?<lit2>(['"\`])(?:(?!\\5)[^\\n])*\\5)\\s*\\)*\\s*[=!]==?\\s*\\(*\\s*(?<right>${NAME_PATH})`,
+    'g',
+);
+
+/** The alphabet a member path is written in, so a name is matched whole. */
+const IDENTIFIER_CHARACTER = /[A-Za-z0-9_$.?!]/;
 
 /**
  * How often a name occurs in an expression as a name of its own.
@@ -1132,15 +1135,12 @@ const COMPARED_STRING =
  * Scanned rather than matched. Building a pattern out of the name needs every
  * metacharacter escaped, and a name may contain them: `$attrs.tone` put an
  * unescaped `$` into the pattern, where it is an end-of-input anchor, so the
- * count came back zero and the literal was blanked — the undercount this whole
- * helper exists to avoid, reintroduced by the way the question was asked. A
- * scan has no such surface.
+ * count came back zero. A scan has no such surface.
  *
- * The boundary is the identifier alphabet plus `.`, so `tone` does not match
- * inside `toneless` and `$attrs.tone` is one name rather than two.
+ * @param {string} text the whole expression
+ * @param {string} name the member path to count
+ * @returns {number} occurrences bounded by non-identifier characters
  */
-const IDENTIFIER_CHARACTER = /[A-Za-z0-9_$.]/;
-
 export function countUses(text, name) {
     let count = 0;
     for (let at = text.indexOf(name); at !== -1; at = text.indexOf(name, at + name.length)) {
@@ -1151,20 +1151,29 @@ export function countUses(text, name) {
     return count;
 }
 
+/**
+ * Blanks every string an expression only ever compares against.
+ *
+ * @param {string} text the bound expression
+ * @returns {string} the same text, same length, with those literals spaced out
+ */
 export function withComparedStringsBlanked(text) {
+    const matches = [...text.matchAll(COMPARED_STRING)].map((match) => {
+        const literal = match.groups.lit ?? match.groups.lit2;
+        return {
+            name: match.groups.left ?? match.groups.right,
+            literal,
+            at: match.index + match[0].indexOf(literal),
+        };
+    });
+
+    const comparisons = new Map();
+    for (const { name } of matches) comparisons.set(name, (comparisons.get(name) ?? 0) + 1);
+
     let out = text;
-    for (const match of [...text.matchAll(COMPARED_STRING)]) {
-        const { left, lit, lit2, right } = match.groups;
-        const name = left ?? right;
-        const literal = lit ?? lit2;
-        // The comparison guarantees the literal only when the compared name
-        // cannot reach the result. `tone === 'text-grey-7' ? tone : ''` renders
-        // that very class on the true branch, so the literal is the only static
-        // evidence of it and blanking would UNDERCOUNT — the direction a ratchet
-        // must never err in. One occurrence of the name means it is compared and
-        // nothing else; more than one means it may be returned.
-        if (countUses(text, name) > 1) continue;
-        const at = match.index + match[0].indexOf(literal);
+    for (const { name, literal, at } of matches) {
+        const uses = countUses(text, name);
+        if (uses === 0 || uses !== comparisons.get(name)) continue;
         out = out.slice(0, at) + ' '.repeat(literal.length) + out.slice(at + literal.length);
     }
     return out;

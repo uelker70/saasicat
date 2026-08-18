@@ -7,6 +7,8 @@ import {
     templateColourSites,
     templatePaletteProps,
     fontShorthandLiteral,
+    countUses,
+    withComparedStringsBlanked,
 } from '../scripts/token-audit.mjs';
 
 // The template half of the colour audit, under test — because the metric it
@@ -407,6 +409,36 @@ describe('the line is the line the literal is on', () => {
 // `<style>` block goes through, so every category the stylesheet pass has can
 // ask its question here too.
 
+describe('blanking a string an expression only compares', () => {
+    test('the text keeps its length, so every offset still points where it did', () => {
+        // The scans report line numbers taken from the untouched text, so the
+        // blanking has to be length-preserving or every finding after one would
+        // name the wrong line.
+        const before = "tone === 'text-grey-7' ? 'muted' : ''";
+        const after = withComparedStringsBlanked(before);
+        assert.equal(after.length, before.length);
+        assert.equal(after.indexOf("'muted'"), before.indexOf("'muted'"));
+    });
+
+    test('a comparison between two literals is left alone', () => {
+        // Each alternative requires a name on one side, so `'a' === 'b'` — not
+        // something anyone writes, but the shape the pattern must not mangle —
+        // matches neither and keeps both operands.
+        assert.equal(withComparedStringsBlanked("'a' === 'b'"), "'a' === 'b'");
+    });
+});
+
+describe('counting a name in an expression', () => {
+    test('a name is bounded by the alphabet it is written in', () => {
+        assert.equal(countUses('tone === x ? tone : y', 'tone'), 2);
+        assert.equal(countUses('toneless === x', 'tone'), 0);
+        assert.equal(countUses("$attrs.tone === 'x' ? $attrs.tone : ''", '$attrs.tone'), 2);
+        // A path is counted whole, so its last segment is not a name of its own.
+        assert.equal(countUses('tone?.value === x', 'value'), 0);
+        assert.equal(countUses('tone?.value === x ? tone?.value : y', 'tone?.value'), 2);
+    });
+});
+
 describe('the font shorthand hides three scales behind one property', () => {
     test('a size, a weight or a leading in it is a literal', () => {
         assert.equal(fontShorthandLiteral('700 40px/1 sans-serif'), '700 40px/1 sans-serif');
@@ -540,6 +572,41 @@ describe('a Quasar palette class is a colour decision', () => {
         assert.deepEqual(classes(`<span :class="'text-grey-7' === tone ? 'muted' : ''" />`), []);
         assert.deepEqual(classes(`<span :class="tone !== 'bg-warning' ? 'muted' : ''" />`), []);
         assert.deepEqual(classes(`<span :class="{ muted: tone == 'text-red-5' }" />`), []);
+    });
+
+    test('a name compared twice is still only compared', () => {
+        // The question is not "does the name occur again" but "does it occur
+        // anywhere other than in a comparison". `tone === 'a' || tone === 'b'`
+        // compares one name twice and emits neither literal; counting
+        // occurrences alone left both counted.
+        assert.deepEqual(
+            classes(
+                `<span :class="tone === 'text-grey-7' || tone === 'bg-warning' ? 'm' : ''">a</span>`,
+            ),
+            [],
+        );
+        // And the same shape that DOES return the name keeps its literals.
+        assert.deepEqual(
+            classes(
+                `<span :class="tone === 'text-grey-7' || tone === 'bg-warning' ? tone : ''">a</span>`,
+            ),
+            ['text-grey-7', 'bg-warning'],
+        );
+    });
+
+    test('an optionally chained name is one name, not its last segment', () => {
+        // `tone?.value` was matched from `value`, whose occurrences are all
+        // preceded by `.` and therefore counted as none — so the literal was
+        // blanked although the true branch renders it. An undercount, which on
+        // a ratchet is the direction that lets a dependency through unseen.
+        assert.deepEqual(
+            classes(`<span :class="tone?.value === 'text-grey-7' ? tone?.value : ''">a</span>`),
+            ['text-grey-7'],
+        );
+        assert.deepEqual(
+            props(`<q-icon :color="row!.tone === 'accent' ? row!.tone : 'primary'" />`),
+            ['accent', 'primary'],
+        );
     });
 
     test('and a name carrying a dollar sign is still one name', () => {
