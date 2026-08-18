@@ -145,6 +145,14 @@ export function createResourceRegistry<TMap extends ResourceMap>(
 
     // Bound once per resource: the context is read per call, so nothing here
     // goes stale, and a page that asks twice gets the same operations.
+    //
+    // This loop is also where the third boot-time refusal comes from, though it
+    // is not written here: `bindResource` rejects a descriptor that declares
+    // itself project-scoped when the context names no project. It is checked
+    // per resource rather than once for the registry because being project-
+    // scoped is a property of the descriptor — one of the four platform
+    // resources reads `projectKey` and three do not, so a registry-wide demand
+    // would refuse a tenant list over a project it never asks about.
     const bound = new Map<string, unknown>();
     for (const [key, def] of Object.entries(options.resources)) {
         bound.set(key, boundWithOverride(def, options.http, readContext, options.overrides?.[key]));
