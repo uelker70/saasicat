@@ -428,6 +428,35 @@ describe('blanking a string an expression only compares', () => {
     });
 });
 
+describe('what the comparison blanking deliberately does not do', () => {
+    test('a path it cannot cross is kept, because it cannot tell', () => {
+        // `NAME_PATH` does not span `[`, so the match starts mid-name and the
+        // counter finds no bounded occurrence of what the pattern gave it.
+        // Zero uses means "cannot reason about this", and the literal is kept —
+        // an overcount, which on a ratchet costs a re-record. Pinned because it
+        // is the branch a future edit to the boundary alphabet would silently
+        // delete, and nothing else exercises it.
+        assert.deepEqual(
+            classes(`<span :class="items[0].tone === 'text-grey-7' ? 'muted' : ''">a</span>`),
+            ['text-grey-7'],
+        );
+        assert.deepEqual(classes(`<span :class="!tone === 'text-grey-7' ? 'm' : ''">a</span>`), [
+            'text-grey-7',
+        ]);
+    });
+
+    test('but a name inside another string is not a use of it', () => {
+        // This package prefixes its own classes with `sa-`, so a class whose
+        // name contains the state variable's name is ordinary. Uses are counted
+        // with string literals blanked, or `'sa-tone'` would read as a second
+        // use of `tone` and keep a literal nothing renders.
+        assert.deepEqual(
+            classes(`<span :class="tone === 'text-grey-7' ? 'sa-tone' : ''">a</span>`),
+            [],
+        );
+    });
+});
+
 describe('counting a name in an expression', () => {
     test('a name is bounded by the alphabet it is written in', () => {
         assert.equal(countUses('tone === x ? tone : y', 'tone'), 2);

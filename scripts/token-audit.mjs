@@ -1118,7 +1118,17 @@ export function inlineStyleFragments(file, content) {
  * counter could not find what the pattern just matched, and a flow it cannot
  * reason about must not be assumed harmless. On a ratchet an overcount costs a
  * re-record; an undercount lets a new dependency through unseen.
+ *
+ * Two over-reads are left standing on purpose, both in the safe direction and
+ * both pinned below. A path the pattern cannot cross — `items[0].tone`, or a
+ * negated `!tone` — leaves the match starting mid-name, so the count is zero
+ * and the literal is kept. And a comparison written without spaces,
+ * `tone==='x'?tone:''`, counts one use because the returned name is preceded by
+ * `?`; that is the one undercount left, and Prettier's template formatting
+ * makes it unwritable here with `format:check` in the gate.
  */
+
+/** A member path, so a name is matched whole rather than from its last part. */
 const NAME_PATH = '[A-Za-z_$][\\w$]*(?:(?:\\?\\.|!\\.|\\.)[A-Za-z_$][\\w$]*)*';
 const COMPARED_STRING = new RegExp(
     `(?<left>${NAME_PATH})\\s*\\)*\\s*[=!]==?\\s*\\(*\\s*(?<lit>(['"\`])(?:(?!\\3)[^\\n])*\\3)` +
@@ -1126,8 +1136,17 @@ const COMPARED_STRING = new RegExp(
     'g',
 );
 
-/** The alphabet a member path is written in, so a name is matched whole. */
-const IDENTIFIER_CHARACTER = /[A-Za-z0-9_$.?!]/;
+/**
+ * The alphabet a member path is written in.
+ *
+ * `?` and `!` are not identifier characters in JavaScript, and including them
+ * is what makes `tone` and `tone?.value` different names to the counter — which
+ * is right: `tone === 'x' ? tone?.value : ''` does not render what it compares.
+ */
+const MEMBER_PATH_CHARACTER = /[A-Za-z0-9_$.?!]/;
+
+/** Every string literal, so a name inside one is not read as a use of it. */
+const STRING_LITERAL = /'[^'\n]*'|"[^"\n]*"|`[^`$\n]*`/g;
 
 /**
  * How often a name occurs in an expression as a name of its own.
@@ -1137,22 +1156,33 @@ const IDENTIFIER_CHARACTER = /[A-Za-z0-9_$.?!]/;
  * unescaped `$` into the pattern, where it is an end-of-input anchor, so the
  * count came back zero. A scan has no such surface.
  *
+ * Exported for its own test: the caller below only ever asks it about names the
+ * pattern found, and the boundary rule is easier to break than to notice.
+ *
  * @param {string} text the whole expression
  * @param {string} name the member path to count
- * @returns {number} occurrences bounded by non-identifier characters
+ * @returns {number} occurrences bounded by characters a member path cannot contain
  */
 export function countUses(text, name) {
     let count = 0;
     for (let at = text.indexOf(name); at !== -1; at = text.indexOf(name, at + name.length)) {
         const before = at === 0 ? '' : text[at - 1];
         const after = text[at + name.length] ?? '';
-        if (!IDENTIFIER_CHARACTER.test(before) && !IDENTIFIER_CHARACTER.test(after)) count += 1;
+        if (!MEMBER_PATH_CHARACTER.test(before) && !MEMBER_PATH_CHARACTER.test(after)) count += 1;
     }
     return count;
 }
 
 /**
  * Blanks every string an expression only ever compares against.
+ *
+ * Uses are counted in a copy whose string literals are blanked: a name that
+ * appears inside another string is not a use of it, and this package's own
+ * `sa-` prefix makes `tone === 'x' ? 'sa-tone' : ''` an ordinary shape rather
+ * than a contrived one.
+ *
+ * Exported for its own test, which pins the length and offset preservation the
+ * scans depend on.
  *
  * @param {string} text the bound expression
  * @returns {string} the same text, same length, with those literals spaced out
@@ -1170,9 +1200,15 @@ export function withComparedStringsBlanked(text) {
     const comparisons = new Map();
     for (const { name } of matches) comparisons.set(name, (comparisons.get(name) ?? 0) + 1);
 
+    // Once per distinct name, the way `comparisons` is already keyed.
+    const outsideStrings = text.replace(STRING_LITERAL, (match) => ' '.repeat(match.length));
+    const usesByName = new Map(
+        [...comparisons.keys()].map((name) => [name, countUses(outsideStrings, name)]),
+    );
+
     let out = text;
     for (const { name, literal, at } of matches) {
-        const uses = countUses(text, name);
+        const uses = usesByName.get(name);
         if (uses === 0 || uses !== comparisons.get(name)) continue;
         out = out.slice(0, at) + ' '.repeat(literal.length) + out.slice(at + literal.length);
     }
