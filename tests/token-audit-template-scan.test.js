@@ -542,6 +542,20 @@ describe('a Quasar palette class is a colour decision', () => {
         assert.deepEqual(classes(`<span :class="{ muted: tone == 'text-red-5' }" />`), []);
     });
 
+    test('and grouping around the operand does not save it', () => {
+        // The same comparison with parentheses. A pattern that demanded the
+        // quote touch the operator counted the operand anyway — the false
+        // positive this helper removes, one character further out.
+        assert.deepEqual(
+            classes(`<span :class="tone === ('text-grey-7') ? 'muted' : ''">a</span>`),
+            [],
+        );
+        assert.deepEqual(props(`<q-icon :color="('dark') === mode ? 'accent' : 'accent'" />`), [
+            'accent',
+            'accent',
+        ]);
+    });
+
     test('the branch a comparison SELECTS is still a class', () => {
         // The direction that matters more, because it is the one a hole would
         // open: only the operand is dropped, so a palette class chosen by the

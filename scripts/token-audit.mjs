@@ -1116,9 +1116,15 @@ export function inlineStyleFragments(file, content) {
  *
  * Neither operator is consumed, which is what lets `'a' === 'b'` lose both of
  * its operands rather than only the one the scan reached first.
+ *
+ * One layer of grouping is allowed on either side. `tone === ('text-grey-7')`
+ * and `('dark') === mode` are the same comparison written with parentheses, and
+ * a pattern that demanded the quote touch the operator left the operand
+ * counted — the false positive this helper exists to remove, one character
+ * further out.
  */
 const COMPARED_STRING =
-    /(['"`])(?:(?!\1)[^\n])*\1(?=\s*[=!]==?)|(?<=[=!]==?\s*)(['"`])(?:(?!\2)[^\n])*\2/g;
+    /(['"`])(?:(?!\1)[^\n])*\1(?=\s*\)*\s*[=!]==?)|(?<=[=!]==?\s*\(?\s*)(['"`])(?:(?!\2)[^\n])*\2/g;
 
 export function withComparedStringsBlanked(text) {
     return text.replace(COMPARED_STRING, (match) => ' '.repeat(match.length));
