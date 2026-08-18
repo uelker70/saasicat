@@ -106,6 +106,14 @@ export default tseslint.config(
             '**/.prisma/**',
             '**/generated/**',
             '**/.integration-tmp/**',
+            // A coding-agent session puts its git worktrees under `.claude/`,
+            // so a second checkout of the whole repository sits inside this
+            // one and `eslint .` reports another branch's files as ours. The
+            // entry is repeated here because flat config does not read
+            // `.gitignore` — Prettier does, so `.prettierignore` needs nothing.
+            // `tests/agent-worktrees-are-not-linted.test.js` holds the two
+            // files together.
+            '**/.claude/**',
         ],
     },
     {
