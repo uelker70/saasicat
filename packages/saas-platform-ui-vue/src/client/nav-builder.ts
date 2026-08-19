@@ -36,7 +36,9 @@ export const DEFAULT_STANDARD_PAGE_ROUTES: Record<StandardPageKey, string> = {
 };
 
 function isSupportedStandardPageKey(key: string): key is StandardPageKey {
-    return Object.hasOwn(DEFAULT_STANDARD_PAGE_ROUTES, key);
+    // `Object.hasOwn` is ES2022 and this file is compiled by consumers.
+    // See `attach-cause.ts` for why the floor is ES2021.
+    return Object.prototype.hasOwnProperty.call(DEFAULT_STANDARD_PAGE_ROUTES, key);
 }
 
 export interface BuildRouteEntry {

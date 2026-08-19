@@ -68,7 +68,8 @@
         "test:component": "vitest run --config vitest.config.ts",
         "test:e2e": "playwright test",
         "test:visual": "playwright test --project=visual",
-        "test:visual:update": "playwright test --project=visual --update-snapshots"
+        "test:visual:update": "playwright test --project=visual --update-snapshots",
+        "test:shipped-source": "node scripts/check-shipped-source.mjs"
     },
     "dependencies": {
         "@saasicat/types": "workspace:^"

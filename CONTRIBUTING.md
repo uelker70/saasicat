@@ -106,6 +106,25 @@ New logic goes into a composable (`src/vue/`) or, when framework-free, into
 `src/client/`; `.ts` files may import `quasar` only under `src/quasar/`.
 Details: [`packages/saas-platform-ui-vue/README.md`](packages/saas-platform-ui-vue/README.md).
 
+### The shipped source has a language floor: ES2021
+
+Eight of that package's export subpaths — `pages-standard/*`, `pages-tenant/*`,
+`components/*`, `theme/*` — hand out `.vue` and `.ts` straight from `src/` instead of
+from a build, because consumers need the source for Quasar and Sass theming. So the
+**consumer's** `tsconfig` compiles those files and everything they reach, including
+`src/client/` and `src/vue/`. Ours says `lib: ES2023`; theirs may not.
+
+Shipped code therefore stays within **ES2021**. In practice that rules out
+`new Error(msg, { cause })` — use `attachCause()` from `src/client/attach-cause.ts` —
+and `Object.hasOwn`, for which `Object.prototype.hasOwnProperty.call()` is the
+equivalent. Code reached only through `dist/` is unaffected.
+
+`pnpm --filter @saasicat/ui-vue test:shipped-source` compiles that closure at the
+floor and runs in CI; it takes its directory list from the export map, so a new
+source-shipping subpath is covered as soon as it exists. Raising the floor breaks
+consumers below it — it is a deliberate, announced change, not a way to make a
+build pass.
+
 ## Codegen: never edit generated types
 
 The DTO types in `@saasicat/types` are **generated** from the JSON Schemas in

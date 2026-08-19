@@ -22,6 +22,25 @@ root config) enforces the boundaries in CI.
 | `@saasicat/ui-vue/quasar`                                               | `src/quasar/`                    | everything above + Quasar                | `createSuperAdminApp()` bootstrap and the Quasar notify-port implementation.                                                                                                                                                                                     |
 | `@saasicat/ui-vue/pages-standard/*`, `/pages-tenant/*`, `/components/*` | SFC directories                  | everything                               | The Quasar reference UI, shipped as raw `.vue` from `src/` (compiled by the consumer's Vite).                                                                                                                                                                    |
 
+### The shipped source has a language floor
+
+The last row is not a build output: those subpaths hand out `.vue` and `.ts`
+straight from `src/`, so **your** `tsconfig` compiles them, not ours. Anything
+they reach — which includes `src/client/` and `src/vue/` — therefore has to
+compile under the oldest language level a consumer uses.
+
+That floor is **ES2021** (`lib: ES2021, DOM, DOM.Iterable`). It is checked, not
+promised: `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles the
+closure reachable from every source-shipping subpath at that level, and CI runs
+it. The directories come from the export map, so a new source subpath is covered
+the day it is added.
+
+Practically this rules out a handful of ES2022 conveniences in shipped code —
+`new Error(msg, { cause })` and `Object.hasOwn` are the two that have come up.
+Use `attachCause()` from `src/client/attach-cause.ts` and
+`Object.prototype.hasOwnProperty.call()` instead. Code that only ever runs from
+`dist/` is unaffected.
+
 Rules of thumb when contributing:
 
 - New page/business logic starts as a composable in `src/vue/` (or, if

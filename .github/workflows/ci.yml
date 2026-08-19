@@ -67,6 +67,11 @@ jobs:
             # built dist/. This covers the decisions components make while rendering.
             - name: Run component tests
               run: pnpm --filter @saasicat/ui-vue test:component
+            # Eight ui-vue subpaths ship .vue/.ts as source, so the consumer's
+            # tsconfig compiles them — not ours. This holds them to the oldest
+            # lib a consumer uses.
+            - name: Typecheck the shipped source at the support floor
+              run: pnpm --filter @saasicat/ui-vue test:shipped-source
             - name: Lint
               run: pnpm exec eslint .
             # Prettier is configured; without this nothing makes a diff obey it.
