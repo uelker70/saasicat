@@ -29,11 +29,15 @@ straight from `src/`, so **your** `tsconfig` compiles them, not ours. Anything
 they reach — which includes `src/client/` and `src/vue/` — therefore has to
 compile under the oldest language level a consumer uses.
 
-That floor is **ES2021** (`lib: ES2021, DOM, DOM.Iterable`). It is checked, not
-promised: `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles the
-closure reachable from every source-shipping subpath at that level, and CI runs
-it. The directories come from the export map, so a new source subpath is covered
-the day it is added.
+That floor is **ES2021** (`lib: ES2021, DOM`), with **TypeScript 5.0** as the
+minimum compiler. The language level is checked rather than promised:
+`pnpm --filter @saasicat/ui-vue test:shipped-source` compiles the closure
+reachable from every source-shipping subpath at that level, with
+`isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`
+set the way a Vite app sets them, and CI runs it. The directories come from the export map, so a new source subpath
+is covered the day it is added. The compiler version is not checked — `satisfies`
+in the shipped source needs 4.9 or newer whatever `lib` says, and testing that
+would mean installing old compilers.
 
 Practically this rules out a handful of ES2022 conveniences in shipped code —
 `new Error(msg, { cause })` and `Object.hasOwn` are the two that have come up.

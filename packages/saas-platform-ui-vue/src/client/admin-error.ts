@@ -235,6 +235,21 @@ export class AdminError extends Error {
     readonly emptyResponse: boolean;
     /** The request never reached the server. See `AdminErrorInit`. */
     readonly transportFailure: boolean;
+    /**
+     * The error this one was raised from, when `AdminErrorInit` carried one.
+     *
+     * `declare` because the property is real but not emitted here: `attachCause`
+     * defines it, exactly as the ES2022 `Error` constructor would. The
+     * declaration is what makes it *readable* — `Error.cause` lives in
+     * `lib.es2022.error.d.ts`, and this package supports consumers on ES2021,
+     * where taking a cause in and never being able to read it out would be a
+     * one-way public API.
+     *
+     * Not `readonly`, unlike its siblings: the inherited `Error.cause` is
+     * writable, and narrowing that in a patch release would reject assignments
+     * a consumer can make today on ES2022.
+     */
+    declare cause?: unknown;
 
     constructor(init: AdminErrorInit = {}) {
         super(init.message ?? describe(init));

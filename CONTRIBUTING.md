@@ -108,9 +108,11 @@ Details: [`packages/saas-platform-ui-vue/README.md`](packages/saas-platform-ui-v
 
 ### The shipped source has a language floor: ES2021
 
-Eight of that package's export subpaths — `pages-standard/*`, `pages-tenant/*`,
-`components/*`, `theme/*` — hand out `.vue` and `.ts` straight from `src/` instead of
-from a build, because consumers need the source for Quasar and Sass theming. So the
+Four of that package's export subpaths — `pages/*`, `pages-standard/*`,
+`pages-tenant/*` and `components/*` — hand out `.vue` and `.ts` straight from `src/`
+instead of from a build, because consumers need the source for Quasar and Sass theming.
+(Four more serve stylesheets: three from `src/ui/theme/`, which carries no TypeScript,
+and `sa-theme.css` from `src/pages-standard/`.) So the
 **consumer's** `tsconfig` compiles those files and everything they reach, including
 `src/client/` and `src/vue/`. Ours says `lib: ES2023`; theirs may not.
 
@@ -119,11 +121,21 @@ Shipped code therefore stays within **ES2021**. In practice that rules out
 and `Object.hasOwn`, for which `Object.prototype.hasOwnProperty.call()` is the
 equivalent. Code reached only through `dist/` is unaffected.
 
-`pnpm --filter @saasicat/ui-vue test:shipped-source` compiles that closure at the
-floor and runs in CI; it takes its directory list from the export map, so a new
-source-shipping subpath is covered as soon as it exists. Raising the floor breaks
-consumers below it — it is a deliberate, announced change, not a way to make a
-build pass.
+`pnpm --filter @saasicat/ui-vue test:shipped-source` compiles that closure at the floor
+and runs in CI. It is set the way a Vite consumer sets it rather than to a bare language level:
+`isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`, the last
+two of which this package's own base config would otherwise leave milder than its
+subject. It
+takes its directory list from the export map, so a new source-shipping subpath is covered
+as soon as it exists, and a subpath whose shape the derivation cannot express fails the
+check rather than being skipped.
+
+**Minimum TypeScript: 5.0.** The check pins the library, not the compiler — `satisfies`
+in the shipped source needs 4.9 or newer whatever `lib` says. This one is prose and named
+as prose: verifying it would mean installing old compilers in CI.
+
+Raising the floor breaks consumers below it — it is a deliberate, announced change, not a
+way to make a build pass.
 
 ## Codegen: never edit generated types
 
