@@ -151,6 +151,7 @@
 </template>
 
 <script setup lang="ts">
+import { attachCause } from '../client/attach-cause.js';
 import { computed, reactive, ref } from 'vue';
 import { SETUP_ERROR_CODES, type SetupConfirmMfaResponse, type SetupResult } from '@saasicat/types';
 
@@ -237,10 +238,12 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
         if (err instanceof HttpJsonError) {
             // The message is translated for the user; `cause` keeps the status
             // and the machine-readable code reachable for anything upstream.
-            throw new Error(
-                (err.code && errorByCode.value[err.code]) ||
-                    formatMessage(msg.value.setup.errorHttp, { status: err.status }),
-                { cause: err },
+            throw attachCause(
+                new Error(
+                    (err.code && errorByCode.value[err.code]) ||
+                        formatMessage(msg.value.setup.errorHttp, { status: err.status }),
+                ),
+                err,
             );
         }
         throw err;

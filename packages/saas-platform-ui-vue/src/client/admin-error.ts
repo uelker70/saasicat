@@ -19,6 +19,7 @@
 // `adminErrorMessage()` is what turns an error into user-facing text; it is
 // the only place that decides between `detail` and a translated fallback.
 
+import { attachCause } from './attach-cause.js';
 import { formatMessage } from './i18n/format.js';
 import type { SaMessages } from './i18n/messages.js';
 
@@ -236,7 +237,8 @@ export class AdminError extends Error {
     readonly transportFailure: boolean;
 
     constructor(init: AdminErrorInit = {}) {
-        super(init.message ?? describe(init), { cause: init.cause });
+        super(init.message ?? describe(init));
+        if (init.cause !== undefined) attachCause(this, init.cause);
         this.name = 'AdminError';
         this.status = init.status ?? 0;
         this.code = init.code;
