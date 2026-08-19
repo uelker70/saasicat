@@ -244,8 +244,12 @@ export class AdminError extends Error {
      * `lib.es2022.error.d.ts`, and this package supports consumers on ES2021,
      * where taking a cause in and never being able to read it out would be a
      * one-way public API.
+     *
+     * Not `readonly`, unlike its siblings: the inherited `Error.cause` is
+     * writable, and narrowing that in a patch release would reject assignments
+     * a consumer can make today on ES2022.
      */
-    declare readonly cause?: unknown;
+    declare cause?: unknown;
 
     constructor(init: AdminErrorInit = {}) {
         super(init.message ?? describe(init));

@@ -111,7 +111,8 @@ Details: [`packages/saas-platform-ui-vue/README.md`](packages/saas-platform-ui-v
 Four of that package's export subpaths — `pages/*`, `pages-standard/*`,
 `pages-tenant/*` and `components/*` — hand out `.vue` and `.ts` straight from `src/`
 instead of from a build, because consumers need the source for Quasar and Sass theming.
-(Four more serve CSS and SCSS from `src/ui/theme/`, which carries no TypeScript.) So the
+(Four more serve stylesheets: three from `src/ui/theme/`, which carries no TypeScript,
+and `sa-theme.css` from `src/pages-standard/`.) So the
 **consumer's** `tsconfig` compiles those files and everything they reach, including
 `src/client/` and `src/vue/`. Ours says `lib: ES2023`; theirs may not.
 
@@ -121,9 +122,10 @@ and `Object.hasOwn`, for which `Object.prototype.hasOwnProperty.call()` is the
 equivalent. Code reached only through `dist/` is unaffected.
 
 `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles that closure at the floor
-and runs in CI. It models a consumer rather than only a language level: `isolatedModules`
-and `useDefineForClassFields` are set the way a Vite app sets them, and `target: ES2021`
-would otherwise flip the second one — the axis on which `Error` subclasses break. It
+and runs in CI. It is set the way a Vite consumer sets it rather than to a bare language level:
+`isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`, the last
+two of which this package's own base config would otherwise leave milder than its
+subject. It
 takes its directory list from the export map, so a new source-shipping subpath is covered
 as soon as it exists, and a subpath whose shape the derivation cannot express fails the
 check rather than being skipped.

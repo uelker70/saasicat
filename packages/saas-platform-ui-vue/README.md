@@ -33,8 +33,8 @@ That floor is **ES2021** (`lib: ES2021, DOM`), with **TypeScript 5.0** as the
 minimum compiler. The language level is checked rather than promised:
 `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles the closure
 reachable from every source-shipping subpath at that level, with
-`isolatedModules` and `useDefineForClassFields` set the way a Vite app sets them,
-and CI runs it. The directories come from the export map, so a new source subpath
+`isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`
+set the way a Vite app sets them, and CI runs it. The directories come from the export map, so a new source subpath
 is covered the day it is added. The compiler version is not checked — `satisfies`
 in the shipped source needs 4.9 or newer whatever `lib` says, and testing that
 would mean installing old compilers.

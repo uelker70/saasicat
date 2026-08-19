@@ -6,8 +6,9 @@ Keep the shipped source compiling under ES2021
 
 Four of this package's export subpaths hand out `.vue` and `.ts` straight from
 `src/` rather than from a build — `pages/*`, `pages-standard/*`, `pages-tenant/*`
-and `components/*`. (Four more serve CSS and SCSS from `src/ui/theme/`, which
-carries no TypeScript.) That is deliberate: a consumer needs the source for
+and `components/*`. (Four more serve stylesheets: three from `src/ui/theme/`,
+which carries no TypeScript, and `sa-theme.css` from `src/pages-standard/`.)
+That is deliberate: a consumer needs the source for
 Quasar and Sass theming. The consequence is easy to miss, and 0.26.0 missed it:
 **your** `tsconfig` compiles those files, not ours. Ours says `lib: ES2023`.
 
@@ -29,9 +30,10 @@ could hand a cause in through `AdminErrorInit` and never read it back out.
 
 **The floor is now stated and checked.** It is **ES2021** (`lib: ES2021, DOM`),
 and `test:shipped-source` compiles the whole closure reachable from the
-source-shipping subpaths at that level in CI. It models a consumer rather than
-just a language level — `isolatedModules` and `useDefineForClassFields` are set
-the way a Vite app sets them, which `target: ES2021` would otherwise flip.
+source-shipping subpaths at that level in CI. It is set the way a Vite consumer
+sets it rather than to a bare language level — `isolatedModules`,
+`useDefineForClassFields` and `strictPropertyInitialization`, the last two of
+which this package's own config would otherwise leave milder than its subject.
 
 The directory list comes from the export map rather than from a hand-written
 list, so a new source subpath is covered the day it is added; a subpath whose

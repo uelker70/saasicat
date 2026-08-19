@@ -3,16 +3,23 @@
 // Four export subpaths hand out `.vue` and `.ts` from `src/` rather than a
 // build — `./pages/*`, `./pages-standard/*`, `./pages-tenant/*` and
 // `./components/*` (decision E3 — consumers need the source for Quasar and Sass
-// theming). Four more serve CSS and SCSS from `src/ui/theme/`, which carries no
-// TypeScript at all. So the files below are compiled by the consumer's
-// `tsconfig`, not by ours. Ours says `lib: ES2023`; a consumer said `ES2021`,
-// and `new Error(msg, { cause })` in a file they never wrote failed their build.
+// theming). Four more serve CSS and SCSS: three from `src/ui/theme/`, which
+// carries no TypeScript at all, and `./sa-theme.css` from `src/pages-standard/`.
+// So the files below are compiled by the consumer's `tsconfig`, not by ours.
+// Ours says `lib: ES2023`; a consumer said `ES2021`, and `new Error(msg,
+// { cause })` in a file they never wrote failed their build.
 //
-// `FLOOR` is the contract that replaces that surprise, and it models a consumer
-// rather than just a language level: `isolatedModules` and
-// `useDefineForClassFields` are what a Vite app sets, and `target: ES2021`
-// flips the latter's default the wrong way, which is the one axis on which the
-// package's sixteen `Error` subclasses would break.
+// `FLOOR` is the contract that replaces that surprise, and it is set to what a
+// Vite consumer sets rather than to a bare language level. Two of those options
+// are insurance rather than a live check today, and it is worth being exact
+// about which: this probe runs `noEmit`, so `useDefineForClassFields` cannot
+// produce its define-vs-assign difference at all — at the typechecker it only
+// enables TS2610/TS2612 for a subclass shadowing a base member, and on ES2021
+// `Error` offers only `name`, `message` and `stack`, which none of the
+// package's fourteen `Error` subclasses declares as a field.
+// `strictPropertyInitialization` is likewise quiet today; the package's own
+// base config turns it off, and a consumer on plain `strict: true` has it on.
+// Both are here so the probe does not drift milder than its subject.
 //
 // What it does NOT pin is the compiler version. `satisfies` in
 // `src/client/http/fetch-http-client.ts` needs TypeScript 4.9 or newer whatever
@@ -25,8 +32,9 @@
 
 import { readFileSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,22 +43,25 @@ const FLOOR = {
     // Deliberately not wider than the package's own `lib` on any axis: a floor
     // that allows more than the roof would pass code the main typecheck rejects.
     lib: ['ES2021', 'DOM'],
-    // What a Vite consumer sets. Without them the check models a language
-    // level, not a consumer.
     isolatedModules: true,
     useDefineForClassFields: true,
+    strictPropertyInitialization: true,
 };
+
+/** Extensions that cannot reach the typechecker, so cannot hide a defect here. */
+const ASSET_EXTENSIONS = new Set(['.css', '.scss', '.sass', '.less', '.json', '.svg']);
 
 /**
  * The directories the export map hands out as source — derived from the map, so
  * a new source-shipping subpath is covered the day it is added. A hand-written
  * list would be the same defect one level up.
  *
- * A target that reduces to `./src` itself is refused rather than skipped. That
- * is the shape this derivation cannot express — `./src/index.ts`, or a `*` in
- * the middle of the path — and dropping it silently would leave the whole
- * closure behind it unchecked while the run stayed green. "Delivers less" has
- * to fail as loudly as "delivers nothing".
+ * A code target that reduces to `./src` is refused rather than skipped. That is
+ * the shape this derivation cannot express — `./src/index.ts`, or a `*` in the
+ * middle of the path — and dropping it silently would leave the whole closure
+ * behind it unchecked while the run stayed green. "Delivers less" has to fail as
+ * loudly as "delivers nothing". A stylesheet in the same position is skipped,
+ * because no `include` of it would ever produce a diagnostic.
  */
 function shippedSourceDirectories(manifest) {
     const directories = new Set();
@@ -60,8 +71,8 @@ function shippedSourceDirectories(manifest) {
             if (!node.startsWith('./src/')) return;
             const head = node.includes('*') ? node.slice(0, node.indexOf('*')) : dirname(node);
             const directory = head.replace(/\/+$/, '');
-            if (directory === './src') unrepresentable.push(node);
-            else directories.add(directory);
+            if (directory !== './src') directories.add(directory);
+            else if (!ASSET_EXTENSIONS.has(extname(node))) unrepresentable.push(node);
             return;
         }
         if (node && typeof node === 'object') Object.values(node).forEach(walk);
@@ -102,7 +113,7 @@ writeFileSync(
             extends: join(PACKAGE_ROOT, 'tsconfig.json'),
             compilerOptions: { ...FLOOR, noEmit: true, types: [] },
             include: directories.map((directory) =>
-                join(PACKAGE_ROOT, directory.replace('./', ''), '**', '*'),
+                join(PACKAGE_ROOT, directory.slice('./'.length), '**', '*'),
             ),
         },
         null,
@@ -114,12 +125,14 @@ console.log(
     `check-shipped-source: ${directories.length} shipped directories against ${FLOOR.target} ` +
         `(lib ${FLOOR.lib.join(', ')})`,
 );
-const result = spawnSync('pnpm', ['exec', 'vue-tsc', '-p', probe, '--noEmit'], {
+// Node with the resolved entry, not `pnpm exec` through a shell. The probe path
+// lives under `os.tmpdir()`, and a shell on Windows passes arguments verbatim —
+// a user directory with a space in it would truncate `-p` and the guard would
+// report that the sources do not compile.
+const vueTsc = createRequire(join(PACKAGE_ROOT, 'package.json')).resolve('vue-tsc/bin/vue-tsc.js');
+const result = spawnSync(process.execPath, [vueTsc, '-p', probe, '--noEmit'], {
     cwd: PACKAGE_ROOT,
     stdio: 'inherit',
-    // `pnpm` is a `.cmd` on Windows, and spawning one without a shell throws
-    // EINVAL on Node 22 and newer.
-    shell: process.platform === 'win32',
 });
 rmSync(probeDirectory, { recursive: true, force: true });
 
