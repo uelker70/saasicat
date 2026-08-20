@@ -20,7 +20,8 @@
     },
     "files": [
         "dist",
-        "bin"
+        "bin",
+        "templates"
     ],
     "bin": {
         "saasicat": "./bin/saasicat.js"
