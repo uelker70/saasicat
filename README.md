@@ -148,4 +148,9 @@ Issues and pull requests are welcome at [github.com/uelker70/saasicat](https://g
 
 ## License
 
-[Apache-2.0](LICENSE)
+[PolyForm Shield 1.0.0](LICENSE) — source-available, not OSI open source.
+
+Use it for anything you like, including building and selling your own SaaS on
+top of it: the one thing it does not permit is offering a product that competes
+with SaaSiCat itself. Versions up to and including 0.26.1 were published under
+Apache-2.0 and stay under it.

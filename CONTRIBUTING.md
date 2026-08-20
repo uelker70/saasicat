@@ -186,6 +186,19 @@ _closes_ the child PR outright, because its base is gone. Rebuilding a stacked
 branch on top of `main` afterwards is usually conflict-free, which is the tell
 that the conflicts came from the shape rather than from the work.
 
+## Licensing of contributions
+
+SaaSiCat is distributed under [PolyForm Shield 1.0.0](LICENSE):
+source-available, not OSI open source. Use it for anything, including building and selling your own
+SaaS on it; the one thing it does not permit is a product that competes with
+SaaSiCat itself. The reasoning is in
+[ADR 0001](docs/adr/0001-source-available-licensing.md).
+
+That has one consequence for pull requests: by opening one you agree that your
+contribution is licensed under the same terms, and that the project may relicense
+it in future. Without that, the copyright would fragment across contributors and
+no later licensing decision could be made at all.
+
 ## Security issues
 
 Do not open public issues or PRs for vulnerabilities — see [SECURITY.md](SECURITY.md)

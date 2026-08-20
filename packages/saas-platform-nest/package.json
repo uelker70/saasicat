@@ -170,7 +170,7 @@
         "typescript": "^6.0.0",
         "unplugin-swc": "^1.5.9"
     },
-    "license": "Apache-2.0",
+    "license": "PolyForm-Shield-1.0.0",
     "author": "Taci Uelker",
     "homepage": "https://github.com/uelker70/saasicat",
     "repository": {
