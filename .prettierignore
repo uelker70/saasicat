@@ -7,3 +7,8 @@ pnpm-lock.yaml
 
 # Runtime artefacts of the example app (its own .gitignore covers `var/`).
 examples/notesapp/var/
+
+# Owned by Changesets, which rewrites it on `pre enter`, `pre exit` and every
+# `version` run — with two-space indentation. Reformatting it here would make
+# the next release run fail `format:check` on a file nobody edited.
+.changeset/pre.json

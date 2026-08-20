@@ -164,10 +164,22 @@ Every user-facing change needs a changeset:
 pnpm changeset
 ```
 
-Pick a bump level (`patch` for fixes, `minor` for features; during 0.x, breaking
-changes are also released as `minor`) and write a short, user-facing summary.
-Internal-only changes (CI, tests, docs) don't need one. Publishing happens through
-the release workflow in CI, not from local machines.
+Pick a bump level — `patch` for fixes, `minor` for features, `major` for a
+breaking change — and write a short, user-facing summary. Internal-only changes
+(CI, tests, docs) don't need one. Publishing happens through the release workflow
+in CI, not from local machines.
+
+### The repository is in a 1.0 release candidate
+
+`0.27.0` was the last release of the 0.x line. Changesets is in **pre mode** with
+the tag `rc` (`.changeset/pre.json`), which means two things:
+
+- Every level produces a candidate. A `patch` written today releases as
+  `1.0.0-rc.N`, not as `0.27.1`. There is no route from `main` to a fix on the
+  0.x line while pre mode is on.
+- `1.0.0` is released by leaving pre mode, once, when the work behind the
+  candidate is complete. Do not run `changeset pre exit` as part of an ordinary
+  change.
 
 ## Commits and pull requests
 
