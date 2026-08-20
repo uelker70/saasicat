@@ -1,60 +1,77 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Does the documentation know which release line the repository is on?
+// Can the configured release line reach the version it is meant to reach?
 //
-// `.changeset/pre.json` decides what `pnpm changeset` produces. In pre mode
-// every level yields a `1.0.0-rc.N`, and a `patch` cannot reach the 0.x line at
-// all — which is a surprise worth documenting, and a surprise that outlives the
-// state if nobody updates the text.
+// Pre mode does not select a version. Changesets applies the ordinary semver
+// bump and then appends the prerelease tag — so `pre enter rc` on a `0.27.0`
+// base, with a `patch` as the next merged changeset, publishes `0.27.1-rc.0`.
+// The release workflow runs on every push to `main`, which makes that the next
+// release rather than a hypothetical, and the candidate line for 1.0 would be
+// opened at the wrong number by the first fix somebody merges.
 //
-// The dangerous moment is not entering pre mode; it is LEAVING it. `changeset
-// pre exit` is one command, the file disappears, and CONTRIBUTING.md keeps
-// telling contributors they are writing release candidates. So this checks both
-// directions: the file and the prose have to agree about which line is open.
+// `pre enter rc` plus a `major` DOES give `1.0.0-rc.0` — measured — and it was
+// tempting to read that as "pre mode selects the major". It does not. The two
+// have to arrive together.
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PRE = join(ROOT, '.changeset', 'pre.json');
-const CONTRIBUTING = readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8');
+const CHANGESETS = join(ROOT, '.changeset');
 
-/** Whether the contributor-facing docs claim a candidate line is open. */
-const documentsPreMode = /pre mode/i.test(CONTRIBUTING);
+/** The version the fixed group is on right now. */
+function currentVersion() {
+    const manifest = join(ROOT, 'packages', 'saas-platform-nest', 'package.json');
+    return JSON.parse(readFileSync(manifest, 'utf8')).version;
+}
 
-describe('the release line the docs describe is the one that is configured', () => {
-    test('pre mode and its documentation appear together', () => {
-        assert.equal(
-            existsSync(PRE),
-            documentsPreMode,
-            existsSync(PRE)
-                ? 'the repository is in pre mode and CONTRIBUTING.md does not say so'
-                : 'CONTRIBUTING.md describes a pre mode the repository is not in — ' +
-                      'most likely `changeset pre exit` ran without the prose following',
+/** Bump levels waiting in unprocessed changesets. */
+function pendingLevels() {
+    return readdirSync(CHANGESETS)
+        .filter((name) => name.endsWith('.md') && name !== 'README.md')
+        .flatMap((name) =>
+            [...readFileSync(join(CHANGESETS, name), 'utf8').matchAll(/^'[^']+':\s*(\w+)$/gm)].map(
+                (m) => m[1],
+            ),
+        );
+}
+
+describe('the configured release line can reach the version it is for', () => {
+    test('pre mode has a base that reaches 1.0', () => {
+        if (!existsSync(PRE)) return;
+
+        const [major] = currentVersion().split('.');
+        if (Number(major) >= 1) return; // the base is already there
+
+        assert.ok(
+            pendingLevels().includes('major'),
+            `pre mode is on with the base at ${currentVersion()} and no major changeset ` +
+                'pending, so the next release publishes a candidate on the OLD line — ' +
+                'a patch would become 0.27.1-rc.0. Open the line with `pnpm changeset` ' +
+                '(major) and `changeset pre enter rc` in one pull request.',
         );
     });
 
-    test('and the documented tag is the configured tag', () => {
+    test('and the tag it uses is the tag the docs name', () => {
         if (!existsSync(PRE)) return;
         const { tag, mode } = JSON.parse(readFileSync(PRE, 'utf8'));
         assert.equal(mode, 'pre', `pre.json exists with mode "${mode}"`);
         assert.ok(
-            new RegExp(`\`${tag}\``).test(CONTRIBUTING),
+            new RegExp(`\`${tag}\``).test(readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8')),
             `pre mode uses the tag "${tag}", which CONTRIBUTING.md never names`,
         );
     });
 
-    test('the example version in the docs matches the tag', () => {
-        // `1.0.0-rc.N` in the prose is a promise about what a contributor's
-        // changeset will produce. A tag change without a prose change makes it
-        // a wrong promise rather than a stale one.
-        if (!existsSync(PRE)) return;
-        const { tag } = JSON.parse(readFileSync(PRE, 'utf8'));
-        assert.match(
-            CONTRIBUTING,
-            new RegExp(`\\d+\\.\\d+\\.\\d+-${tag}\\.`),
-            `CONTRIBUTING.md shows no example version carrying the tag "${tag}"`,
+    test('the check has a subject either way', () => {
+        // Both tests above return early when there is no pre mode, which is the
+        // shape of a guard that passes by having nothing to do. This one fails
+        // instead if the things they read stopped existing.
+        assert.match(currentVersion(), /^\d+\.\d+\.\d+/, 'no version to reason about');
+        assert.ok(
+            readFileSync(join(ROOT, 'CONTRIBUTING.md'), 'utf8').includes('pre enter rc'),
+            'CONTRIBUTING.md no longer documents how the candidate line is opened',
         );
     });
 });

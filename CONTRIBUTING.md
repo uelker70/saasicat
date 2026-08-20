@@ -169,17 +169,27 @@ breaking change — and write a short, user-facing summary. Internal-only change
 (CI, tests, docs) don't need one. Publishing happens through the release workflow
 in CI, not from local machines.
 
-### The repository is in a 1.0 release candidate
+### Opening the 1.0 release candidate
 
-`0.27.0` was the last release of the 0.x line. Changesets is in **pre mode** with
-the tag `rc` (`.changeset/pre.json`), which means two things:
+`0.27.0` is the current line. Phases 4 and 5 of the consolidation release together
+as `1.0.0`, and the candidates leading up to it are tagged `rc`.
 
-- Every level produces a candidate. A `patch` written today releases as
-  `1.0.0-rc.N`, not as `0.27.1`. There is no route from `main` to a fix on the
-  0.x line while pre mode is on.
-- `1.0.0` is released by leaving pre mode, once, when the work behind the
-  candidate is complete. Do not run `changeset pre exit` as part of an ordinary
-  change.
+Two things open that line, and they have to arrive **in the same pull request**:
+
+```bash
+pnpm changeset          # pick `major`, describe the breaking change
+pnpm changeset pre enter rc
+```
+
+Pre mode on its own does not select `1.0.0`. Changesets applies the ordinary
+semver bump and then appends the prerelease tag, so a `patch` merged while pre
+mode is on and the base is still `0.27.0` versions the group as `0.27.1-rc.0` —
+the wrong line, published by the next push to `main`. The `major` changeset is
+what establishes the `1.0.0` base; after that, every level accumulates as
+`1.0.0-rc.N`.
+
+Leaving pre mode is how `1.0.0` itself is released. It happens once, deliberately,
+when the work behind the candidate is complete — not as part of an ordinary change.
 
 ## Commits and pull requests
 
