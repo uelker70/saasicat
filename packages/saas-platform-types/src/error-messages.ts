@@ -5,8 +5,14 @@
 //
 // The templates are derived from the messages the backend actually sends, with
 // `${expr}` rewritten to the `{name}` placeholders `formatErrorMessage`
-// understands. Keep them in step when a message changes — `error-messages.test`
-// fails if a code has no text.
+// understands.
+//
+// `Record<PlatformErrorCode, string>` over a closed union is what keeps this
+// file and its German counterpart in step: a code with no text here is a
+// compile error, and so is a text for a code that no longer exists. What the
+// type cannot check is that both locales interpolate the SAME placeholders —
+// `error-messages.test` does that, and it is the failure worth having, because
+// a drifted placeholder renders as `{waitSeconds}` at the reader.
 //
 // A consumer overlays its own catalogue on top; see `resolveErrorMessage`.
 

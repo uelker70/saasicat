@@ -19,7 +19,7 @@ sync.
 | `promo-code.types.ts`     | `PromoCode`, `CreatePromoCodeRequest`, `PromoCodeRedemption`, validation result enum, `BillingCycle` |
 | `audit-event.types.ts`    | `AuditEntry`, `AuditQuery`, `ActorTag`                                                               |
 | `subscription.types.ts`   | `Subscription`, `PlanVersion`, `SubscriptionBundleRecord`, `VersionChange`                           |
-| `ports.types.ts`          | `TenantPort`, `UserPort`, `QuotaProvider`, `MfaPort` (adapter interfaces)                            |
+| `ports/*.types.ts`        | `TenantPort`, `UserPort`, `QuotaProvider`, `MfaPort` (adapter interfaces)                            |
 
 ## Usage
 

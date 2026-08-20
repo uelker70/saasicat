@@ -12,7 +12,7 @@ import { AUTH_ERROR_CODES } from '@saasicat/types';
 //
 // Expects `request.user.platformRole` or, as a fallback, `request.user.role`
 // — both conventions are documented as equivalent in the platform codebase
-// (`saas-platform-types/src/ports.types.ts` PlatformRole).
+// (`saas-platform-types/src/ports/core-ports.types.ts` PlatformRole).
 
 interface RequestWithUser {
     user?: {
