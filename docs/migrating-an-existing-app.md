@@ -119,10 +119,32 @@ Delete the app controller **and** flip the flag in the same commit, never in two
 
 `PrismaAdminResourcesAdapter` reads `tenant.isActive`, `tenant.deletedAt`,
 `user.firstName/lastName`, `user.isActive` and a direct `tenant.users` relation,
-and it resolves the `tenant`/`user`/`subscription` delegates by **hardcoded
-name**. A consumer with status enums, an m:n tenant-user relation or different
-user profile fields should keep this option `false` and retain its own
-controllers.
+and it looks for `tenant`/`user`/`subscription` delegates.
+
+Those are **defaults, not requirements**. If your models are called something
+else, map them:
+
+```ts
+persistence: prismaPersistence({
+    client: PrismaService,
+    adminResources: {
+        delegates: { tenant: 'organization', user: 'account' },
+        fields: {
+            tenant: { isActive: 'enabled', slug: 'handle', users: 'members' },
+            user: { email: 'mail', firstName: 'givenName' },
+        },
+    },
+}),
+```
+
+A mapped delegate that does not exist on your client fails at construction and
+the error lists the delegates your client does have — so a typo shows up at
+boot, not on the first request to the tenants page.
+
+What the mapping does not change is the **shape**. A consumer with an m:n
+tenant-user relation, or tenants that have no activity flag at all, should keep
+this option `false` and retain its own controllers — or implement
+`AdminResourcesPort` directly, which needs no new controllers or DTOs.
 
 Turning it on also costs pagination (`AdminTenantListFilter` has no page size,
 hard cap 200), MFA on the write routes, and `setTenantActive` will additionally
