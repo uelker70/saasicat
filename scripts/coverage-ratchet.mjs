@@ -323,14 +323,41 @@ if (update) {
     // one thing a ratchet may never do.
     const previous = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : {};
     const merged = { ...previous };
+    // Values this run would lower. Not refused — a drop is legitimate when code
+    // was deleted or a package moved — but never silent: a re-record is the one
+    // moment a ratchet can be loosened by accident, and 0.02 percentage points
+    // of run-to-run noise looks exactly like nothing.
+    const lowered = [];
     for (const [pkg, value] of Object.entries(current)) {
         merged[pkg] = { ...value };
         if (!value.withDatabase && previous[pkg]?.withDatabase) {
             merged[pkg].withDatabase = previous[pkg].withDatabase;
         }
+        for (const [label, before, now] of [
+            ['', previous[pkg], value],
+            [' (with the contract)', previous[pkg]?.withDatabase, value.withDatabase],
+        ]) {
+            if (!before || !now) continue;
+            for (const metric of ['line', 'branch', 'funcs']) {
+                if (now[metric] < before[metric]) {
+                    lowered.push(
+                        `${pkg}${label}: ${metric} ${before[metric].toFixed(2)}% → ` +
+                            `${now[metric].toFixed(2)}%`,
+                    );
+                }
+            }
+        }
     }
     writeFileSync(BASELINE, `${JSON.stringify(merged, null, 4)}\n`);
     console.log(`Baseline written: ${BASELINE}`);
+    if (lowered.length > 0) {
+        console.log(`\nThis LOWERED ${lowered.length} recorded value(s):`);
+        for (const line of lowered) console.log(`  ↓ ${line}`);
+        console.log(
+            '\nIf that is not what you meant, restore them before committing. Sub-tenth\n' +
+                'differences are usually run-to-run noise rather than a real change.',
+        );
+    }
     if (!DATABASE_URL) {
         console.log(
             'Note: no SAASICAT_TEST_DATABASE_URL, so the contract numbers were carried\n' +
