@@ -21,6 +21,36 @@ export {
     type SaasPlatformTenantBillingOptions,
 } from './saas-platform.module.js';
 export { defineSaaSiCat } from './define-saasicat.js';
+// The composition seam, exported so its two properties can be asked as
+// behaviour rather than read off the source: every module a composer mounts is
+// also exported, and a feature is added as a composer rather than as an edit to
+// the assembler. `tests/platform-composition.test.js` is what asks.
+export {
+    FEATURE_COMPOSERS,
+    composeFeatures,
+    type Composer,
+    type CompositionContext,
+} from './compose/index.js';
+export { MOUNTED_BUT_NOT_EXPORTED, composeModuleExports } from './compose/module-exports.js';
+// The configuration rules, and the error a misconfigured app boots into.
+//
+// Exported because the error is what an integrator reads at 3am: `violations`
+// gives their own boot diagnostics the list as data instead of a string to
+// scrape, and `PLATFORM_RULES` is what `docs/reference/options.md` is
+// generated from.
+export {
+    PLATFORM_RULES,
+    docsUrlFor,
+    headingSlug,
+    type PlatformConfiguration,
+    type PlatformRule,
+} from './validation/rules.js';
+export {
+    SaaSiCatConfigurationError,
+    assertConfiguration,
+    findViolations,
+    type PlatformViolation,
+} from './validation/validate.js';
 export {
     SAASICAT_PUBLIC_ROUTE_KEY,
     SaaSiCatPublicRoute,
@@ -43,7 +73,11 @@ export {
     type StaticFeatureGuardConfig,
 } from './static-feature.guard.js';
 export { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from './enforce-quota.interceptor.js';
-export { FeatureGuardCoverageCheck } from './feature-guard-coverage.check.js';
+export {
+    ENFORCEMENT_CHAIN_STATE_TOKEN,
+    EnforcementChainCheck,
+    type EnforcementChainState,
+} from './enforcement-chain.check.js';
 // ─────────────────────────────────────────────────────────────────────────
 // Re-exported from THIS entry on purpose.
 //

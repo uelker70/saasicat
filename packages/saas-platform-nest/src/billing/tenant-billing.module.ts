@@ -13,10 +13,8 @@ import type {
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
 } from '@saasicat/types';
-import {
-    SubscriptionContractService,
-    SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN,
-} from '../subscription-contract/index.js';
+import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { TenantBillingController } from './tenant-billing.controller.js';

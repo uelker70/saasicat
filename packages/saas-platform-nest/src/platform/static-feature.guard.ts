@@ -52,7 +52,7 @@ interface RequestWithUser {
 
 @Injectable()
 export class StaticFeatureGuard implements CanActivate {
-    /** Lets `FeatureGuardCoverageCheck` recognise this guard across CJS entries. */
+    /** Lets `EnforcementChainCheck` recognise this guard across CJS entries. */
     static readonly [FEATURE_GUARD_MARKER] = true;
 
     constructor(

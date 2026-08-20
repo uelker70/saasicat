@@ -1,467 +1,56 @@
-// SaasPlatformModule — high-level composition module. The base path bundles
-// PlanCatalog, Discovery, Admin and AdminManifest; the standard options add
-// Entitlement, Catalog, PublicCatalog, TenantBilling, SubscriptionBundles,
-// Setup, AdminStats, CheckoutOffer and SubscriptionContract without consumer
-// forwarding modules.
+// SaasPlatformModule — the assembler.
+//
+// The base path bundles PlanCatalog, Discovery, Admin and AdminManifest; the
+// standard options add Entitlement, Catalog, PublicCatalog, TenantBilling,
+// SubscriptionBundles, Setup, AdminStats, CheckoutOffer and
+// SubscriptionContract, without the consumer writing a forwarding module for
+// each.
 //
 // Goal: consumer code describes product-specific choices while a persistence
 // bundle supplies standard repositories. Individual modules remain available
-// as the escape hatch.
+// as the escape hatch — whoever needs more control (multiple manifest
+// controllers, differing guards per endpoint, custom catalog adapters) keeps
+// using them directly. This is a convenience, not a requirement.
 //
-// Whoever needs more control (multiple manifest controllers, differing guards
-// per endpoint, custom catalog adapters etc.) keeps using the individual modules
-// directly — this mega-module is a convenience, not a requirement.
+// What this file does NOT contain, and where it went:
+//
+//   compose/          one file per feature — what it mounts, and from which
+//                     options and persistence slice. Ordered in
+//                     `compose/index.ts`, because tenant billing resolves what
+//                     the bundles read.
+//   validation/       the fifteen configuration rules, as data, reported all
+//                     at once instead of one throw per boot.
+//   module-options.ts the option types, so the rules can be stated over them
+//                     without importing this file.
+//
+// The `forRoot` below is what is left once those are elsewhere: normalise the
+// adapters, check the configuration, assemble.
 
-import {
-    type CanActivate,
-    type DynamicModule,
-    type FactoryProvider,
-    type ForwardReference,
-    Logger,
-    Module,
-    type Provider,
-    type Type,
-} from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import type {
-    AuditPort,
-    AdminResourcesPort,
-    FeatureUiRegistry,
-    FirstTimeCustomerCheck,
-    ManifestContribution,
-    MfaPort,
-    PlanCatalog,
-    PlanCatalogReadSink,
-    PlanVersionRepository,
-    QuotaProvider,
-    RlsBypassPort,
-    SaasicatPersistenceAdapter,
-    SubscriptionBundleRepository,
-    SubscriptionRepository,
-    SubscriptionUsagePort,
-    TenantSubscriptionWritePort,
-    TransactionRunner,
-    UsageSnapshotPort,
-} from '@saasicat/types';
-import { assertPersistenceCapabilities } from '@saasicat/types';
+import { type DynamicModule, Logger, Module, type Provider } from '@nestjs/common';
+import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/types';
 
-import { asProvider, type ProviderSpec } from '../core/di.js';
-import { AdminModule } from '../admin/module.js';
-import {
-    AdminResourcesModule,
-    type AdminResourcesModuleOptions,
-} from '../admin/admin-resources.module.js';
-import { AdminStatsModule, type AdminStatsModuleOptions } from '../admin/admin-stats.module.js';
-import { AdminManifestModule } from '../admin/admin-manifest.module.js';
-import { type AdminManifestConfig } from '../admin/admin-manifest.config.js';
+import { type ProviderSpec } from '../core/di.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';
-import { SuperAdminGuard } from '../admin/super-admin.guard.js';
-import {
-    PublicCatalogModule,
-    type SubscriptionBundleControllerOptions,
-    SubscriptionBundleModule,
-    type SubscriptionBundleModuleOptions,
-    TenantBillingModule,
-    type TenantBillingModuleOptions,
-} from '../billing/index.js';
-import { PlanCatalogModule, PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
-import { CatalogModule, type CatalogModuleOptions } from '../catalog/catalog.module.js';
-import { DiscoveryModule } from '../discovery/discovery.module.js';
-import type { DiscoveryAppInfo } from '../discovery/discovery.scanner.js';
-import { EntitlementModule } from '../entitlement/module.js';
-import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution.js';
-import { PromoCodesModule, type PromoCodesModuleOptions } from '../promo/module.js';
-import { SetupModule, type SetupModuleOptions } from '../setup/setup.module.js';
-import {
-    CheckoutOfferModule,
-    type CheckoutOfferModuleOptions,
-} from '../checkout-offer/checkout-offer.module.js';
-import {
-    SubscriptionContractModule,
-    type SubscriptionContractModuleOptions,
-} from '../subscription-contract/subscription-contract.module.js';
-import {
-    PLAN_RESOLVER_PORT_TOKEN,
-    type PlanResolverPort,
-    StaticPlanResolver,
-} from './plan-resolver.port.js';
-import { StaticEntitlementService } from './static-entitlement.service.js';
 import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 
-import { FeatureGuardCoverageCheck } from './feature-guard-coverage.check.js';
-import { StaticFeatureGuard } from './static-feature.guard.js';
-import { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from './enforce-quota.interceptor.js';
-import { QuotaProvidersUsageSnapshot } from './quota-providers-usage-snapshot.js';
-import { SubscriptionPlanResolver } from './subscription-plan-resolver.js';
-import { TenantManifestService } from './tenant-manifest.service.js';
 import {
-    buildTenantManifestController,
-    type TenantManifestControllerOptions,
-} from './tenant-manifest.controller.js';
+    ENFORCEMENT_CHAIN_STATE_TOKEN,
+    EnforcementChainCheck,
+    type EnforcementChainState,
+} from './enforcement-chain.check.js';
 
-/**
- * Adapter bindings for the platform ports. Accepted as class tokens, values
- * or factory specs.
- *
- * `mfa`/`audit`/`rlsBypass` are optional because the `persistence` bundle
- * supplies them by default; pass them here only to override the bundle, or
- * when wiring adapters without a bundle. The module validates that each port
- * ends up provided by exactly one of the two paths.
- */
-export interface SaasPlatformAdapters {
-    mfa?: ProviderSpec<MfaPort>;
-    audit?: ProviderSpec<AuditPort>;
-    rlsBypass?: ProviderSpec<RlsBypassPort>;
-    /**
-     * Optional. If provided, `PlanCatalogModule` is hydrated from this sink
-     * (DB read at boot). If omitted, `planCatalog` MUST be passed as a ready
-     * object (quickstart path — YAML-direct).
-     */
-    planCatalogReadSink?: ProviderSpec<PlanCatalogReadSink>;
-    /**
-     * Optional — resolver `tenantId → planId`. The quickstart path uses this
-     * together with the `StaticEntitlementService` to automatically check
-     * `@RequireFeature` and `@EnforceQuota` against the plan catalog limit.
-     * If not set, `tenantBilling` derives the resolver from the subscription
-     * repository. Lightweight setups can instead set `defaultPlanId`.
-     */
-    planResolver?: ProviderSpec<PlanResolverPort>;
-    /**
-     * Optional — required only when `entitlement: true`. Repositories for the
-     * V3 contract/entitlement loop.
-     */
-    subscriptionRepository?: ProviderSpec<SubscriptionRepository>;
-    planVersionRepository?: ProviderSpec<PlanVersionRepository>;
-    transactionRunner?: ProviderSpec<TransactionRunner>;
-}
-
-type PlatformImports = Array<
-    Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference
->;
-
-export interface SaasPlatformCatalogOptions extends Pick<
-    CatalogModuleOptions,
-    | 'strictModeCheckMode'
-    | 'autoSyncDiscoveryAtBoot'
-    | 'marketedOnlyFeatures'
-    | 'publicMarketingCatalog'
-    | 'extraProviders'
-> {
-    /** Labels/icons used by discovery review and the public catalog. */
-    featureUiRegistry: FeatureUiRegistry;
-    /** Mount the SuperAdmin catalog controllers. Default `true`. */
-    adminControllers?: boolean;
-    /** Mount `/billing/plans|bundles|feature-registry`. Default `true`. */
-    publicCatalog?: boolean;
-    /** Override the top-level module imports for catalog adapter factories. */
-    imports?: PlatformImports;
-}
-
-export type SaasPlatformTenantAuthGuards =
-    Array<Type<CanActivate>> | ProviderSpec<ReadonlyArray<CanActivate>>;
-
-export interface SaasPlatformTenantBillingOptions extends Omit<
-    TenantBillingModuleOptions,
-    | 'authGuards'
-    | 'subscriptionUsagePort'
-    | 'usageSnapshotPort'
-    | 'subscriptionWritePort'
-    | 'global'
-> {
-    /**
-     * Tenant guards as classes (the common path) or as a custom provider
-     * factory. Guard classes are resolved from `imports`.
-     */
-    authGuards: SaasPlatformTenantAuthGuards;
-    /** Optional overrides; otherwise the persistence bundle supplies them. */
-    subscriptionUsagePort?: ProviderSpec<SubscriptionUsagePort>;
-    usageSnapshotPort?: ProviderSpec<UsageSnapshotPort>;
-    subscriptionWritePort?: ProviderSpec<TenantSubscriptionWritePort>;
-}
-
-export interface SaasPlatformSubscriptionBundlesOptions extends Omit<
-    SubscriptionBundleModuleOptions,
-    | 'subscriptionBundleRepository'
-    | 'bundleRepository'
-    | 'controller'
-    | 'imports'
-    | 'extraProviders'
-    | 'global'
-> {
-    /** Default mounts the tenant controller and reuses tenant-billing auth. */
-    controller?:
-        false | Omit<SubscriptionBundleControllerOptions, 'authGuards' | 'subscriptionUsagePort'>;
-    imports?: PlatformImports;
-    extraProviders?: Provider[];
-}
-
-export interface SaasPlatformAdminResourcesOptions extends Omit<
-    AdminResourcesModuleOptions,
-    'resources' | 'guards' | 'global'
-> {
-    /** Override the default controller guards + `SuperAdminGuard` chain. */
-    guards?: Array<Type<CanActivate>>;
-    /** Custom schema override; the persistence bundle supplies the default. */
-    resources?: ProviderSpec<AdminResourcesPort>;
-}
-
-export interface SaasPlatformPromoCodesOptions extends Omit<
-    PromoCodesModuleOptions,
-    | 'promoCodeRepository'
-    | 'redemptionRepository'
-    | 'validationLogRepository'
-    | 'subscriptionLookup'
-    | 'revenueAggregator'
-    | 'transactionRunner'
-    | 'firstTimeCustomerCheck'
-    | 'adminController'
-    | 'global'
-> {
-    /**
-     * Required when the public preview/redeem flow is enabled. Admin-only
-     * setups do not need an app-specific customer-history check.
-     */
-    firstTimeCustomerCheck?: ProviderSpec<FirstTimeCustomerCheck>;
-    /** Override the default controller guards + `SuperAdminGuard` chain. */
-    adminGuards?: Array<Type<CanActivate>>;
-    /**
-     * Mount the SuperAdmin promo-code CRUD controller. Default `true`.
-     *
-     * Set `false` when the app serves `/admin/promo-codes` itself — two
-     * controllers on one path abort the boot with a duplicate-route error.
-     * The promo domain service stays available either way, so an app-owned
-     * controller can still delegate its validation to the platform.
-     */
-    adminController?: false;
-}
-
-/** First-run setup, deriving the provisioning adapter from persistence by default. */
-export interface SaasPlatformSetupOptions extends Omit<
-    SetupModuleOptions,
-    'provisioningPort' | 'global'
-> {
-    provisioningPort?: SetupModuleOptions['provisioningPort'];
-}
-
-/** Admin dashboard statistics; the audit port can come from persistence. */
-export interface SaasPlatformAdminStatsOptions extends Omit<
-    AdminStatsModuleOptions,
-    'auditStatsPort' | 'global'
-> {
-    auditStatsPort?: AdminStatsModuleOptions['auditStatsPort'];
-}
-
-/**
- * Public checkout-offer flow. Catalog repositories default to the persistence
- * bundle, while the app still supplies its checkout-offer repository.
- */
-export interface SaasPlatformCheckoutOfferOptions extends Omit<
-    CheckoutOfferModuleOptions,
-    'bundleRepository' | 'planRepository' | 'catalogEntryRepository' | 'global'
-> {
-    bundleRepository?: CheckoutOfferModuleOptions['bundleRepository'];
-    planRepository?: CheckoutOfferModuleOptions['planRepository'];
-    catalogEntryRepository?: CheckoutOfferModuleOptions['catalogEntryRepository'];
-}
-
-/** Subscription-contract service, deriving its repository from persistence by default. */
-export interface SaasPlatformSubscriptionContractOptions extends Omit<
-    SubscriptionContractModuleOptions,
-    'subscriptionContractRepository' | 'global'
-> {
-    subscriptionContractRepository?: SubscriptionContractModuleOptions['subscriptionContractRepository'];
-}
-
-export interface SaasPlatformModuleOptions {
-    /**
-     * Plan catalog. Either as an already-loaded object (quickstart, comes
-     * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or via DB
-     * hydration: a sink reference in `adapters.planCatalogReadSink` /
-     * `persistence.planCatalogReadSink` **plus** the `dbCatalog` identity.
-     */
-    planCatalog?: PlanCatalog;
-    /**
-     * App identity for the DB-hydration path — required when `planCatalog`
-     * is omitted. The read sink only loads plans/features (filtered by
-     * `projectKey`); branding, currency and VAT cannot come from the
-     * database and must be supplied here.
-     */
-    dbCatalog?: {
-        projectKey: string;
-        currency: string;
-        vatRate: number;
-        app?: PlanCatalog['app'];
-        marketing?: PlanCatalog['marketing'];
-    };
-    /**
-     * Aggregate persistence bundle from an adapter package (e.g.
-     * `prismaPersistence({ client: PrismaService })` from
-     * `@saasicat/adapter-prisma`). Fills every port the bundle ships;
-     * individual `adapters` entries override bundle slices. The declared
-     * `capabilities` are validated fail-fast against the enabled feature set
-     * (e.g. `entitlement: true` requires transactions + pessimistic locking).
-     */
-    persistence?: SaasicatPersistenceAdapter;
-    /**
-     * Individual adapter bindings. Optional when `persistence` provides the
-     * respective port; explicit entries take precedence over the bundle.
-     */
-    adapters?: SaasPlatformAdapters;
-    /**
-     * Class-level guards for the platform controllers (`GET /admin/discovery`
-     * and `GET /admin/manifest`). REQUIRED — otherwise the platform throws at
-     * boot, because a manifest controller must never be silently registered
-     * without auth (platform security).
-     *
-     * Pass `[]` explicitly if the endpoint is intentionally auth-free
-     * (CI/smoke test).
-     */
-    controller: { guards: Array<Type<CanActivate>> };
-    /**
-     * Additional guards only for `POST /admin/manifest/reload` (typically:
-     * `MfaGuard`). Optional.
-     */
-    reloadGuards?: Array<Type<CanActivate>>;
-    /**
-     * Mount the platform's `GET /admin/manifest` + `POST /admin/manifest/reload`
-     * controller. Default `true`.
-     *
-     * Set `false` when the app serves those routes from its own controller —
-     * two controllers on one path abort the boot with a duplicate-route error
-     * (`FST_ERR_DUPLICATED_ROUTE` under Fastify), so this is not something the
-     * app can simply override.
-     */
-    includeManifestController?: boolean;
-    /**
-     * Modules whose providers must be visible in the DI scope (typically:
-     * `AuthModule` with the `JwtAuthGuard`).
-     */
-    imports?: PlatformImports;
-    /**
-     * App identity for the DiscoveryScanner. If omitted, `planCatalog.app` is
-     * used (recommendation: simply declare it in the YAML).
-     */
-    app?: DiscoveryAppInfo;
-    /**
-     * Optional — snapshot path for the DiscoveryScanner. Default:
-     * `var/discovery-snapshot.json`. `null` to disable.
-     */
-    discoverySnapshotPath?: string | null;
-    /**
-     * `AdminManifestConfig`. If omitted, the module assembles a minimal variant
-     * from `planCatalog` — good for quickstart, but for full manifest features
-     * (build hash, locales, KPI cards) the consumer should provide its own
-     * factory.
-     */
-    adminManifestConfig?:
-        AdminManifestConfig | Pick<FactoryProvider<AdminManifestConfig>, 'useFactory' | 'inject'>;
-    /** Providers required by `adminManifestConfig` when it uses a factory. */
-    adminManifestExtraProviders?: Provider[];
-    /**
-     * Infer manifest capabilities for platform endpoints mounted by this
-     * module. Default `true`; set `false` only when the app owns the complete
-     * manifest capability policy.
-     */
-    autoManifest?: boolean;
-    /**
-     * Default `false`. When set, `EntitlementModule.forRoot({...})` is called
-     * with the repositories from `adapters` — only meaningful if the app
-     * implements the V3 contract path (`subscriptionRepository` & co. must then
-     * be set). `tenantBilling` and `subscriptionBundles` enable it
-     * automatically.
-     */
-    entitlement?:
-        | false
-        | {
-              resolutionConfig?: EntitlementResolutionConfig;
-          };
-    /**
-     * Fallback plan ID for the `StaticPlanResolver`. If neither
-     * `adapters.planResolver` nor `defaultPlanId` is set, the
-     * `StaticEntitlementService` is not activated — `@RequireFeature`/
-     * `@EnforceQuota` are then **ineffective** (discovery markup with no
-     * runtime effect). Platform warning at boot.
-     */
-    defaultPlanId?: string;
-    /**
-     * QuotaProvider classes declared with `@DefinesQuota({...})` that the
-     * `EnforceQuotaInterceptor` must use for count calculation. The platform
-     * registers them as app providers and collects them in
-     * `QUOTA_PROVIDERS_TOKEN`.
-     */
-    quotaProviders?: Array<Type<QuotaProvider>>;
-    /**
-     * Standard DB-backed catalog stack. Repositories are taken from
-     * `persistence.catalog`; no consumer forwarding module is needed.
-     */
-    catalog?: false | SaasPlatformCatalogOptions;
-    /**
-     * Standard tenant self-service stack. Subscription read/write adapters
-     * come from `persistence.tenantBilling`; usage is derived from
-     * `quotaProviders` unless explicitly overridden.
-     */
-    tenantBilling?: false | SaasPlatformTenantBillingOptions;
-    /**
-     * Add-on bundle service and tenant controller. `true` uses defaults and
-     * reuses tenant-billing auth/usage; an object customizes policy.
-     */
-    subscriptionBundles?: false | true | SaasPlatformSubscriptionBundlesOptions;
-    /**
-     * Standard SuperAdmin Tenant/User/Audit/Subscription endpoints. `true`
-     * uses `persistence.adminResources` and the standard guard chain.
-     */
-    adminResources?: false | true | SaasPlatformAdminResourcesOptions;
-    /**
-     * Promo-code domain and SuperAdmin CRUD. `true` enables the admin API
-     * without the public preview endpoint; pass an object to enable preview.
-     */
-    promoCodes?: false | true | SaasPlatformPromoCodesOptions;
-    /**
-     * First-run SuperAdmin setup. `true` uses
-     * `persistence.core.superAdminProvisioning`; an object customizes it or
-     * supplies an app-specific provisioning adapter.
-     */
-    setup?: false | true | SaasPlatformSetupOptions;
-    /** SuperAdmin dashboard statistics with app-specific subscription/promo ports. */
-    adminStats?: false | SaasPlatformAdminStatsOptions;
-    /** Public checkout-offer flow; catalog repositories reuse `persistence.catalog`. */
-    checkoutOffer?: false | SaasPlatformCheckoutOfferOptions;
-    /**
-     * Subscription-contract service. `true` reuses
-     * `persistence.entitlement.subscriptionContractRepository`.
-     */
-    subscriptionContract?: false | true | SaasPlatformSubscriptionContractOptions;
-    /**
-     * Enable the tenant manifest — the app UI gets a filtered manifest per
-     * tenant with features, quotas and visible navigation. Requires that
-     * `defaultPlanId`, `adapters.planResolver` or `tenantBilling` is set.
-     * `true` reuses tenant-billing guard classes when available, otherwise
-     * `controller.guards`.
-     */
-    tenantManifest?: true | TenantManifestControllerOptions;
-    /**
-     * Bind `StaticFeatureGuard` as a global `APP_GUARD`. Default `true`.
-     *
-     * Set `false` when the app authenticates in a controller-local guard.
-     * Nest runs every global guard before every controller-local one, so a
-     * global feature guard sees no `request.user` and rejects with 403 before
-     * authentication has run.
-     *
-     * REQUIRED when you set this: bind a feature guard yourself, behind your
-     * auth guard, or `@RequireFeature` becomes inert markup and every
-     * annotated route serves unlicensed traffic. Either
-     * `@UseGuards(JwtAuthGuard, StaticFeatureGuard)` — the guard this option
-     * unbinds, exported from this entry — or `@UseGuards(JwtAuthGuard,
-     * FeatureGuard)` from `@saasicat/nest/billing` if you run the V3
-     * entitlement stack. They are different classes; pick the one matching
-     * your entitlement path.
-     *
-     * Only the guard is affected. `EnforceQuotaInterceptor` stays global
-     * either way — interceptors run after all guards, so it does see the
-     * authenticated request.
-     */
-    globalFeatureGuard?: boolean;
-}
+export * from './module-options.js';
+import { assertConfiguration } from './validation/validate.js';
+import { composeFeatures, type CompositionContext } from './compose/index.js';
+import { composeBaseModules, composePlanCatalog, resolveAppInfo } from './compose/base.js';
+import { composeModuleExports } from './compose/module-exports.js';
+import { composeTenantManifest } from './compose/tenant-manifest.js';
+import { composeEnforcementRuntime, resolvePlanResolution } from './compose/enforcement-runtime.js';
+import {
+    STANDARD_MANIFEST_REGISTRATION_TOKEN,
+    buildStandardManifestContribution,
+} from './compose/manifest.js';
+import type { SaasPlatformAdapters, SaasPlatformModuleOptions } from './module-options.js';
 
 /**
  * Boot-time diagnostics for configurations that leave enforcement inert.
@@ -473,121 +62,8 @@ export interface SaasPlatformModuleOptions {
  */
 const PLATFORM_LOGGER = new Logger('SaaSiCat');
 
-const PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN = Symbol.for(
-    'saas-platform-nest/PlatformSubscriptionRepository',
-);
-const STANDARD_MANIFEST_REGISTRATION_TOKEN = Symbol.for(
-    'saas-platform-nest/StandardManifestRegistration',
-);
-
-function buildStandardManifestContribution(
-    catalog: SaasPlatformCatalogOptions | null,
-    adminResources: SaasPlatformAdminResourcesOptions | true | null,
-    promoCodes: SaasPlatformPromoCodesOptions | true | null,
-): ManifestContribution {
-    const capabilities: NonNullable<ManifestContribution['capabilities']> = {
-        'discovery.read': true,
-    };
-
-    if (catalog && catalog.adminControllers !== false) {
-        Object.assign(capabilities, {
-            'plans.read': true,
-            'plans.publish': true,
-            'bundles.read': true,
-            'bundles.write': true,
-            'bundles.publish': true,
-            'marketingProjections.read': true,
-            'marketingProjections.write': true,
-        });
-    }
-
-    const navigation: ManifestContribution['navigation'] = {};
-    if (adminResources) {
-        Object.assign(capabilities, {
-            'tenants.read': true,
-            'tenants.suspend': true,
-            'tenants.reactivate': true,
-            'users.read': true,
-            'audit.read': true,
-            'subscriptions.read': true,
-        });
-        navigation.standardPages = {
-            subscriptions: {
-                enabled: true,
-                requiredCapability: 'subscriptions.read',
-            },
-        };
-    }
-    if (promoCodes) {
-        Object.assign(capabilities, {
-            'promoCodes.read': true,
-            'promoCodes.write': true,
-            'promoCodes.delete': true,
-        });
-        navigation.standardPages = {
-            ...(navigation.standardPages ?? {}),
-            promoCodes: {
-                enabled: true,
-                requiredCapability: 'promoCodes.read',
-            },
-        };
-    }
-
-    return {
-        capabilities,
-        navigation: navigation.standardPages ? navigation : undefined,
-    };
-}
-
-function normalizeTenantAuthGuards(
-    guards: SaasPlatformTenantAuthGuards,
-): ProviderSpec<ReadonlyArray<CanActivate>> {
-    if (!Array.isArray(guards)) return guards;
-    return {
-        useFactory: (...instances: CanActivate[]) => instances,
-        inject: guards,
-    };
-}
-
-function quotaUsageSnapshotProvider(
-    quotaProviders: Array<Type<QuotaProvider>>,
-): ProviderSpec<UsageSnapshotPort> {
-    return {
-        useFactory: (...providers: QuotaProvider[]) => new QuotaProvidersUsageSnapshot(providers),
-        inject: quotaProviders,
-    };
-}
-
-function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory' | 'inject'> {
-    return {
-        useFactory: (catalog: PlanCatalog): AdminManifestConfig => ({
-            project: {
-                key: catalog.projectKey,
-                displayName: catalog.app?.name ?? catalog.projectKey,
-                label: catalog.app?.label,
-                icon: catalog.app?.icon,
-                logoUrl: catalog.app?.logoUrl,
-                environment: (process.env.NODE_ENV === 'production'
-                    ? 'production'
-                    : 'development') as 'production' | 'development',
-                availableLocales: catalog.marketing?.availableLocales,
-                defaultLocale: catalog.marketing?.availableLocales?.[0],
-            },
-            build: {
-                platformPackageVersion: '0.0.0',
-                appVersion: '0.0.0',
-            },
-            planCatalogSnapshot: {
-                source: 'saas-platform-module',
-                hash: 'sha256-quickstart',
-                currency: catalog.currency,
-                vatRate: catalog.vatRate,
-                plans: catalog.plans ?? [],
-                features: catalog.features ?? [],
-            },
-        }),
-        inject: [PLAN_CATALOG_TOKEN],
-    };
+function enforcementChainState(state: EnforcementChainState): Provider {
+    return { provide: ENFORCEMENT_CHAIN_STATE_TOKEN, useValue: state };
 }
 
 /**
@@ -619,10 +95,6 @@ export class SaasPlatformModule {
         const subscriptionBundlesConfig = options.subscriptionBundles || null;
         const adminResourcesConfig = options.adminResources || null;
         const promoCodesConfig = options.promoCodes || null;
-        const setupConfig = options.setup || null;
-        const adminStatsConfig = options.adminStats || null;
-        const checkoutOfferConfig = options.checkoutOffer || null;
-        const subscriptionContractConfig = options.subscriptionContract || null;
         const requiresFullEntitlement = Boolean(
             options.entitlement || tenantBillingConfig || subscriptionBundlesConfig,
         );
@@ -640,442 +112,43 @@ export class SaasPlatformModule {
             transactionRunner: explicit.transactionRunner ?? persistence?.core.transactionRunner,
         } as SaasPlatformAdapters;
 
-        const missingCore = (['mfa', 'audit', 'rlsBypass'] as const).filter(
-            (key) => adapters[key] === undefined,
-        );
-        if (missingCore.length) {
-            throw new Error(
-                `SaasPlatformModule.forRoot: adapters missing (provide them via \`adapters\` or a \`persistence\` bundle): ${missingCore.join(', ')}`,
-            );
-        }
-        // Non-null after the guard above — AdminModule requires them.
+        // Every rule at once, rather than one throw per boot.
+        //
+        // The rules themselves are in `validation/rules.ts` — as data, so an
+        // integrator gets the complete list of what is missing instead of
+        // discovering it one restart at a time, and so each one can carry the
+        // link to its own documentation.
+        assertConfiguration({ options, adapters });
+
+        // Non-null after the check above — AdminModule requires them.
         const mfaPort = adapters.mfa as ProviderSpec<MfaPort>;
         const auditPort = adapters.audit as ProviderSpec<AuditPort>;
         const rlsBypassPort = adapters.rlsBypass as ProviderSpec<RlsBypassPort>;
-        if (!options.planCatalog && (!adapters.planCatalogReadSink || !options.dbCatalog)) {
-            // Without the identity the sink would load with projectKey '' and
-            // the app would boot with a silently empty catalog.
-            throw new Error(
-                'SaasPlatformModule.forRoot: either set `planCatalog` (quickstart YAML path) or, ' +
-                    'for DB hydration, BOTH a planCatalogReadSink (`adapters`/`persistence`) AND ' +
-                    '`dbCatalog` ({ projectKey, currency, vatRate }).',
-            );
-        }
-        if (catalogConfig && !persistence?.catalog) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: catalog is enabled, but `persistence.catalog` is missing. ' +
-                    'Use a complete persistence bundle or wire CatalogModule directly.',
-            );
-        }
-        if (
-            adminResourcesConfig &&
-            adminResourcesConfig !== true &&
-            !adminResourcesConfig.resources &&
-            !persistence?.adminResources
-        ) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: adminResources is enabled, but `persistence.adminResources` is missing.',
-            );
-        }
-        if (promoCodesConfig && (!persistence?.promo || !adapters.transactionRunner)) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: promoCodes requires `persistence.promo` and a transactionRunner.',
-            );
-        }
-        if (
-            setupConfig &&
-            !(
-                (setupConfig === true ? undefined : setupConfig.provisioningPort) ??
-                persistence?.core.superAdminProvisioning
-            )
-        ) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: setup is enabled, but no provisioningPort is available ' +
-                    '(set `setup.provisioningPort` or `persistence.core.superAdminProvisioning`).',
-            );
-        }
-        if (adminStatsConfig && !adminStatsConfig.auditStatsPort && !persistence?.core.auditStats) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: adminStats is enabled, but no auditStatsPort is available ' +
-                    '(set `adminStats.auditStatsPort` or `persistence.core.auditStats`).',
-            );
-        }
-        if (subscriptionContractConfig) {
-            const explicitRepository =
-                subscriptionContractConfig === true
-                    ? undefined
-                    : subscriptionContractConfig.subscriptionContractRepository;
-            if (!explicitRepository && !persistence?.entitlement?.subscriptionContractRepository) {
-                throw new Error(
-                    'SaasPlatformModule.forRoot: subscriptionContract is enabled, but no repository is available ' +
-                        '(set `subscriptionContract.subscriptionContractRepository` or use a compatible persistence bundle).',
-                );
-            }
-        }
-        if (
-            promoCodesConfig &&
-            promoCodesConfig !== true &&
-            promoCodesConfig.includePublicController !== false &&
-            !promoCodesConfig.firstTimeCustomerCheck
-        ) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: public promo preview requires `firstTimeCustomerCheck`.',
-            );
-        }
-        if (adminResourcesConfig === true && !persistence?.adminResources) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: adminResources is enabled, but `persistence.adminResources` is missing.',
-            );
-        }
-        if (tenantBillingConfig && !persistence?.tenantBilling) {
-            const missing = [
-                !tenantBillingConfig.subscriptionUsagePort && 'subscriptionUsagePort',
-                !tenantBillingConfig.subscriptionWritePort && 'subscriptionWritePort',
-            ].filter(Boolean);
-            if (missing.length) {
-                throw new Error(
-                    `SaasPlatformModule.forRoot: tenantBilling is enabled, but adapters are missing: ${missing.join(', ')}`,
-                );
-            }
-        }
-        if (subscriptionBundlesConfig && !tenantBillingConfig) {
-            throw new Error(
-                'SaasPlatformModule.forRoot: subscriptionBundles requires tenantBilling so auth and subscription usage can be shared.',
-            );
-        }
-        if (subscriptionBundlesConfig) {
-            const missing: string[] = [];
-            if (!persistence?.entitlement?.subscriptionBundleRepository) {
-                missing.push('subscriptionBundleRepository');
-            }
-            if (!persistence?.catalog?.bundleRepository) {
-                missing.push('bundleRepository');
-            }
-            if (missing.length) {
-                throw new Error(
-                    `SaasPlatformModule.forRoot: subscriptionBundles is enabled, but persistence adapters are missing: ${missing.join(', ')}`,
-                );
-            }
-        }
 
-        if (requiresFullEntitlement) {
-            const missing: string[] = [];
-            if (!adapters.subscriptionRepository) missing.push('subscriptionRepository');
-            if (!adapters.planVersionRepository) missing.push('planVersionRepository');
-            if (!adapters.transactionRunner) missing.push('transactionRunner');
-            if (missing.length) {
-                throw new Error(
-                    `SaasPlatformModule.forRoot: entitlement active or required by the standard stack, but adapters are missing: ${missing.join(', ')}`,
-                );
-            }
-            if (persistence) {
-                // The transactional enforceLimit() path is only correct with
-                // real transactions + row locks — refuse to boot degraded.
-                assertPersistenceCapabilities(
-                    persistence.capabilities,
-                    { transactions: true, pessimisticLocking: true },
-                    'SaasPlatformModule entitlement (transactional enforceLimit)',
-                );
-            }
-        }
-
-        // Validation above guarantees dbCatalog on the DB-hydration branch.
-        const dbCatalog = options.dbCatalog as NonNullable<typeof options.dbCatalog>;
-        const planCatalogModule: DynamicModule = options.planCatalog
-            ? PlanCatalogModule.forRootWithCatalog(options.planCatalog, { global: true })
-            : PlanCatalogModule.forRoot({
-                  projectKey: dbCatalog.projectKey,
-                  app: dbCatalog.app,
-                  currency: dbCatalog.currency,
-                  vatRate: dbCatalog.vatRate,
-                  marketing: dbCatalog.marketing,
-                  sink: adapters.planCatalogReadSink as ProviderSpec<PlanCatalogReadSink>,
-                  imports: options.imports,
-              });
-
-        const appInfo: DiscoveryAppInfo = options.app ?? {
-            key: options.planCatalog?.projectKey ?? options.dbCatalog?.projectKey ?? 'app',
-            version:
-                options.planCatalog?.app?.version ?? options.dbCatalog?.app?.version ?? '0.0.0',
-        };
-
+        const appInfo = resolveAppInfo(options);
         const imports: NonNullable<DynamicModule['imports']> = [
             // Make injected client/auth providers visible to the high-level
             // module's own quota providers and automatic plan resolver too.
             ...(options.imports ?? []),
-            planCatalogModule,
-            DiscoveryModule.forRoot({
-                app: appInfo,
-                controller: { guards: options.controller.guards },
-                imports: options.imports,
-                snapshotPath:
-                    options.discoverySnapshotPath === undefined
-                        ? 'var/discovery-snapshot.json'
-                        : options.discoverySnapshotPath,
-            }),
-            AdminModule.forRoot({
-                mfaPort,
-                auditPort,
-                rlsBypassPort,
-                imports: options.imports,
-                global: true,
-            }),
-            AdminManifestModule.forRoot({
-                config: options.adminManifestConfig ?? buildMinimalManifestConfig(),
-                extraProviders: options.adminManifestExtraProviders,
-                includeManifestController: options.includeManifestController,
-                guards: options.controller.guards,
-                reloadGuards: options.reloadGuards,
-                imports: options.imports,
-                // Global like AdminModule above: apps register their manifest
-                // contribution by injecting AdminManifestService into one of
-                // their own modules (handbook §6.6). Re-exporting the module
-                // from here does not make that injection resolvable.
-                global: true,
-            }),
+            composePlanCatalog(options, adapters.planCatalogReadSink),
+            ...composeBaseModules(options, appInfo, { mfaPort, auditPort, rlsBypassPort }),
         ];
 
-        if (requiresFullEntitlement) {
-            imports.push(
-                EntitlementModule.forRoot({
-                    subscriptionRepository:
-                        adapters.subscriptionRepository as ProviderSpec<SubscriptionRepository>,
-                    planVersionRepository:
-                        adapters.planVersionRepository as ProviderSpec<PlanVersionRepository>,
-                    transactionRunner:
-                        adapters.transactionRunner as ProviderSpec<TransactionRunner>,
-                    resolutionConfig: options.entitlement
-                        ? options.entitlement.resolutionConfig
-                        : undefined,
-                    subscriptionContractRepository:
-                        persistence?.entitlement?.subscriptionContractRepository,
-                    subscriptionBundleRepository:
-                        persistence?.entitlement?.subscriptionBundleRepository,
-                    bundleRepository: persistence?.entitlement?.bundleRepository,
-                    imports: options.imports,
-                    global: Boolean(tenantBillingConfig || subscriptionBundlesConfig),
-                }),
-            );
-        }
-
-        if (catalogConfig) {
-            const catalog = persistence?.catalog as NonNullable<
-                SaasicatPersistenceAdapter['catalog']
-            >;
-            imports.push(
-                CatalogModule.forRoot({
-                    planRepository: catalog.planRepository,
-                    bundleRepository: catalog.bundleRepository,
-                    catalogEntryRepository: catalog.catalogEntryRepository,
-                    marketingProjectionRepository: catalog.marketingProjectionRepository,
-                    promotionRepository: catalog.promotionRepository,
-                    marketingSettingsRepository: catalog.marketingSettingsRepository,
-                    controller:
-                        catalogConfig.adminControllers === false
-                            ? undefined
-                            : { guards: options.controller.guards },
-                    imports: catalogConfig.imports ?? options.imports,
-                    extraProviders: catalogConfig.extraProviders,
-                    strictModeCheckMode: catalogConfig.strictModeCheckMode,
-                    autoSyncDiscoveryAtBoot: catalogConfig.autoSyncDiscoveryAtBoot,
-                    marketedOnlyFeatures: catalogConfig.marketedOnlyFeatures,
-                    featureUiRegistry: catalogConfig.featureUiRegistry,
-                    publicMarketingCatalog: catalogConfig.publicMarketingCatalog,
-                }),
-            );
-
-            if (catalogConfig.publicCatalog !== false) {
-                imports.push(
-                    PublicCatalogModule.forRoot({
-                        featureUiRegistry: catalogConfig.featureUiRegistry,
-                        projectKey: appInfo.key,
-                        bundleRepository: catalog.bundleRepository,
-                        marketingRepository: catalog.marketingProjectionRepository,
-                        catalogEntryRepository: catalog.catalogEntryRepository,
-                        imports: catalogConfig.imports ?? options.imports,
-                    }),
-                );
-            }
-        }
-
-        if (adminResourcesConfig) {
-            const config = adminResourcesConfig === true ? {} : adminResourcesConfig;
-            imports.push(
-                AdminResourcesModule.forRoot({
-                    resources:
-                        config.resources ??
-                        (persistence?.adminResources
-                            ?.resources as ProviderSpec<AdminResourcesPort>),
-                    guards: config.guards ?? [...options.controller.guards, SuperAdminGuard],
-                    imports: config.imports ?? options.imports,
-                }),
-            );
-        }
-
-        if (promoCodesConfig) {
-            const config = promoCodesConfig === true ? {} : promoCodesConfig;
-            const promo = persistence?.promo as NonNullable<SaasicatPersistenceAdapter['promo']>;
-            const {
-                firstTimeCustomerCheck,
-                adminGuards,
-                imports: promoImports,
-                includePublicController,
-                adminController,
-                ...promoOptions
-            } = config;
-            imports.push(
-                PromoCodesModule.forRoot({
-                    ...promoOptions,
-                    promoCodeRepository: promo.promoCodeRepository,
-                    redemptionRepository: promo.redemptionRepository,
-                    validationLogRepository: promo.validationLogRepository,
-                    subscriptionLookup: promo.subscriptionLookup,
-                    revenueAggregator: promo.revenueAggregator,
-                    transactionRunner:
-                        adapters.transactionRunner as ProviderSpec<TransactionRunner>,
-                    firstTimeCustomerCheck: firstTimeCustomerCheck ?? {
-                        hasExistingCustomerForEmail: async () => false,
-                    },
-                    includePublicController: includePublicController ?? false,
-                    adminController:
-                        adminController === false
-                            ? false
-                            : {
-                                  guards: adminGuards ?? [
-                                      ...options.controller.guards,
-                                      SuperAdminGuard,
-                                  ],
-                              },
-                    imports: promoImports ?? options.imports,
-                }),
-            );
-        }
-
-        let sharedTenantAuthGuards: ProviderSpec<ReadonlyArray<CanActivate>> | undefined;
-        let sharedSubscriptionUsagePort: ProviderSpec<SubscriptionUsagePort> | undefined;
-        let quotaProvidersHostedByTenantBilling = false;
-        if (tenantBillingConfig) {
-            const tenantSlice = persistence?.tenantBilling;
-            const {
-                authGuards,
-                subscriptionUsagePort,
-                usageSnapshotPort,
-                subscriptionWritePort,
-                imports: tenantImports,
-                extraProviders,
-                extraExports,
-                ...tenantOptions
-            } = tenantBillingConfig;
-            const quotaProviders = options.quotaProviders ?? [];
-            quotaProvidersHostedByTenantBilling = quotaProviders.length > 0;
-            sharedTenantAuthGuards = normalizeTenantAuthGuards(authGuards);
-            sharedSubscriptionUsagePort =
-                subscriptionUsagePort ?? tenantSlice?.subscriptionUsagePort;
-            const resolvedUsageSnapshotPort =
-                usageSnapshotPort ??
-                tenantSlice?.usageSnapshotPort ??
-                quotaUsageSnapshotProvider(options.quotaProviders ?? []);
-
-            imports.push(
-                TenantBillingModule.forRoot({
-                    ...tenantOptions,
-                    authGuards: sharedTenantAuthGuards,
-                    subscriptionUsagePort:
-                        sharedSubscriptionUsagePort as ProviderSpec<SubscriptionUsagePort>,
-                    usageSnapshotPort: resolvedUsageSnapshotPort,
-                    subscriptionWritePort:
-                        subscriptionWritePort ??
-                        (tenantSlice?.subscriptionWritePort as ProviderSpec<TenantSubscriptionWritePort>),
-                    imports: tenantImports ?? options.imports,
-                    extraProviders: [...quotaProviders, ...(extraProviders ?? [])],
-                    extraExports: [...quotaProviders, ...(extraExports ?? [])],
-                }),
-            );
-        }
-
-        if (subscriptionBundlesConfig) {
-            const config = subscriptionBundlesConfig === true ? {} : subscriptionBundlesConfig;
-            const { controller, imports: bundleImports, extraProviders, ...bundleOptions } = config;
-            imports.push(
-                SubscriptionBundleModule.forRoot({
-                    ...bundleOptions,
-                    subscriptionBundleRepository: persistence?.entitlement
-                        ?.subscriptionBundleRepository as ProviderSpec<SubscriptionBundleRepository>,
-                    bundleRepository: persistence?.catalog?.bundleRepository,
-                    controller:
-                        controller === false
-                            ? undefined
-                            : {
-                                  ...(controller ?? {}),
-                                  authGuards: sharedTenantAuthGuards,
-                                  subscriptionUsagePort: sharedSubscriptionUsagePort,
-                              },
-                    imports: bundleImports ?? tenantBillingConfig?.imports ?? options.imports,
-                    extraProviders,
-                }),
-            );
-        }
-
-        if (setupConfig) {
-            const config = setupConfig === true ? {} : setupConfig;
-            imports.push(
-                SetupModule.forRoot({
-                    ...config,
-                    provisioningPort:
-                        config.provisioningPort ??
-                        (persistence?.core
-                            .superAdminProvisioning as SetupModuleOptions['provisioningPort']),
-                    imports: config.imports ?? options.imports,
-                }),
-            );
-        }
-
-        if (adminStatsConfig) {
-            imports.push(
-                AdminStatsModule.forRoot({
-                    ...adminStatsConfig,
-                    guards: adminStatsConfig.guards ?? [
-                        ...options.controller.guards,
-                        SuperAdminGuard,
-                    ],
-                    auditStatsPort:
-                        adminStatsConfig.auditStatsPort ??
-                        (persistence?.core.auditStats as AdminStatsModuleOptions['auditStatsPort']),
-                    imports: adminStatsConfig.imports ?? options.imports,
-                }),
-            );
-        }
-
-        if (checkoutOfferConfig) {
-            imports.push(
-                CheckoutOfferModule.forRoot({
-                    ...checkoutOfferConfig,
-                    bundleRepository:
-                        checkoutOfferConfig.bundleRepository ??
-                        persistence?.catalog?.bundleRepository,
-                    planRepository:
-                        checkoutOfferConfig.planRepository ?? persistence?.catalog?.planRepository,
-                    catalogEntryRepository:
-                        checkoutOfferConfig.catalogEntryRepository ??
-                        persistence?.catalog?.catalogEntryRepository,
-                    imports: checkoutOfferConfig.imports ?? options.imports,
-                }),
-            );
-        }
-
-        if (subscriptionContractConfig) {
-            const config = subscriptionContractConfig === true ? {} : subscriptionContractConfig;
-            imports.push(
-                SubscriptionContractModule.forRoot({
-                    ...config,
-                    subscriptionContractRepository:
-                        config.subscriptionContractRepository ??
-                        (persistence?.entitlement
-                            ?.subscriptionContractRepository as SubscriptionContractModuleOptions['subscriptionContractRepository']),
-                    imports: config.imports ?? options.imports,
-                }),
-            );
-        }
+        // Every enabled feature, in composer order.
+        //
+        // What used to be twelve `if (config) imports.push(XModule.forRoot(…))`
+        // blocks is one file per feature under `compose/`. The order is not
+        // incidental: tenant billing resolves the auth guards and the usage
+        // port that the bundles read, and `compose/index.ts` says so.
+        const composition: CompositionContext = {
+            options,
+            adapters,
+            persistence,
+            appInfo,
+            requiresFullEntitlement,
+            shared: { quotaProvidersHostedByTenantBilling: false },
+        };
+        imports.push(...composeFeatures(composition));
 
         // ------------------------------------------------------------------
         // Lightweight static-entitlement stack: auto-wire FeatureGuard +
@@ -1100,80 +173,26 @@ export class SaasPlatformModule {
                 inject: [AdminManifestService],
             });
         }
-        const hasExplicitResolver = !!adapters.planResolver;
-        const hasSubscriptionResolver = Boolean(
-            tenantBillingConfig && adapters.subscriptionRepository,
-        );
-        const hasResolver = hasExplicitResolver || hasSubscriptionResolver;
-        const hasFallback = !!options.defaultPlanId;
-        if (hasResolver || hasFallback) {
-            if (hasSubscriptionResolver && !hasExplicitResolver) {
-                lightweightProviders.push(
-                    asProvider(
-                        PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN,
-                        adapters.subscriptionRepository as ProviderSpec<SubscriptionRepository>,
-                    ),
-                );
-            }
-            lightweightProviders.push(
-                hasExplicitResolver
-                    ? asProvider(
-                          PLAN_RESOLVER_PORT_TOKEN,
-                          adapters.planResolver as ProviderSpec<PlanResolverPort>,
-                      )
-                    : hasSubscriptionResolver
-                      ? {
-                            provide: PLAN_RESOLVER_PORT_TOKEN,
-                            useFactory: (subscriptions: SubscriptionRepository) =>
-                                new SubscriptionPlanResolver(subscriptions),
-                            inject: [PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN],
-                        }
-                      : {
-                            provide: PLAN_RESOLVER_PORT_TOKEN,
-                            useValue: new StaticPlanResolver(options.defaultPlanId as string),
-                        },
-                StaticEntitlementService,
-                StaticFeatureGuard,
-                EnforceQuotaInterceptor,
-                ...(quotaProvidersHostedByTenantBilling ? [] : (options.quotaProviders ?? [])),
-                {
-                    provide: QUOTA_PROVIDERS_TOKEN,
-                    useFactory: (...providers: QuotaProvider[]) => providers,
-                    inject: options.quotaProviders ?? [],
-                },
-                ...(options.globalFeatureGuard === false
-                    ? []
-                    : [{ provide: APP_GUARD, useExisting: StaticFeatureGuard }]),
-                { provide: APP_INTERCEPTOR, useExisting: EnforceQuotaInterceptor },
-            );
-            lightweightExports.push(
-                PLAN_RESOLVER_PORT_TOKEN,
-                StaticEntitlementService,
-                StaticFeatureGuard,
-                EnforceQuotaInterceptor,
-                QUOTA_PROVIDERS_TOKEN,
-            );
+        // The static enforcement stack — what makes `@RequireFeature` and
+        // `@EnforceQuota` act. Empty when nothing can resolve a plan.
+        const resolution = resolvePlanResolution(composition);
+        const runtime = composeEnforcementRuntime(composition, resolution);
+        lightweightProviders.push(...runtime.providers);
+        lightweightExports.push(...runtime.exports);
 
-            if (options.globalFeatureGuard === false) {
-                // Binding the app's guards is the app's job here, so the
-                // platform can only say something useful once the routes
-                // exist. `FeatureGuardCoverageCheck` looks after bootstrap and
-                // names the routes that are actually open — a warning at this
-                // point could only repeat the option back, and did, to
-                // applications that had nothing open at all.
-                lightweightProviders.push(FeatureGuardCoverageCheck);
-                // It walks the controllers, so it needs Nest's own discovery
-                // primitives. Importing them here rather than relying on the
-                // app: this branch is reachable with the platform's
-                // DiscoveryModule switched off, and a check that cannot be
-                // constructed takes the whole boot down with it.
-                imports.push(NestDiscoveryModule);
-            }
-        } else {
-            // Reaching here means `@RequireFeature`/`@EnforceQuota` are inert:
-            // no plan resolver, no fallback plan, so the static entitlement
-            // stack is never registered. Silence used to be the failure mode —
-            // annotated routes served everyone and nothing said so.
+        // The static entitlement stack is inert here, but that alone is not the
+        // finding — an application on the V3 path resolves entitlements through
+        // `EntitlementService` and binds `FeatureGuard` itself, and telling it
+        // that its decorators do nothing would be a warning at a correct
+        // configuration. So the condition is the whole chain, not the static
+        // half of it.
+        //
+        // Whether even that is a mistake depends on something `forRoot` cannot
+        // see: whether any route is annotated at all. So this says what is true
+        // here, and `EnforcementChainCheck` decides after bootstrap — an
+        // annotation that cannot act takes the boot down, and an application
+        // with none of them carries on with this line as its only signal.
+        if (!resolution.available && !requiresFullEntitlement) {
             PLATFORM_LOGGER.warn(
                 'No plan resolver configured — @RequireFeature and @EnforceQuota are INERT. ' +
                     'The platform registered neither StaticFeatureGuard nor EnforceQuotaInterceptor, ' +
@@ -1182,58 +201,43 @@ export class SaasPlatformModule {
             );
         }
 
-        // ------------------------------------------------------------------
-        // Tenant manifest (opt-in) — app-UI endpoint with feature filter.
-        // Requires that the static-entitlement stack is active (above).
-        // ------------------------------------------------------------------
-        const tenantControllers: Type<unknown>[] = [];
-        if (options.tenantManifest) {
-            if (!hasResolver && !hasFallback) {
-                throw new Error(
-                    'SaasPlatformModule.forRoot: tenantManifest requires defaultPlanId, ' +
-                        'adapters.planResolver or tenantBilling so it can resolve features.',
-                );
-            }
-            lightweightProviders.push(TenantManifestService);
-            lightweightExports.push(TenantManifestService);
-            tenantControllers.push(
-                buildTenantManifestController(
-                    options.tenantManifest === true
-                        ? {
-                              guards: Array.isArray(tenantBillingConfig?.authGuards)
-                                  ? tenantBillingConfig.authGuards
-                                  : options.controller.guards,
-                          }
-                        : options.tenantManifest,
-                ),
-            );
-        }
+        // The enforcement-chain check, registered for every configuration.
+        //
+        // Not per branch, and that is the correction: registering it only where
+        // it seemed needed meant deciding in advance which shapes can be wrong,
+        // in the file that produces those shapes. It is cheap — one bootstrap
+        // hook that walks the controllers once — and it is told what it cannot
+        // see rather than inferring it.
+        //
+        // `entitlementActive` is deliberately broader than the static stack:
+        // an app on the V3 path (`entitlement`, `tenantBilling`) resolves
+        // entitlements through `EntitlementService` and binds `FeatureGuard`
+        // from `@saasicat/nest/billing` itself. Treating that as inert would
+        // refuse to boot a correctly wired application, which is the one
+        // failure this check may not have.
+        lightweightProviders.push(
+            EnforcementChainCheck,
+            enforcementChainState({
+                entitlementActive: resolution.available || requiresFullEntitlement,
+                globalGuardBound: resolution.available && options.globalFeatureGuard !== false,
+            }),
+        );
+        // It walks the controllers, so it needs Nest's own discovery
+        // primitives. Imported here rather than relied upon: the platform's own
+        // DiscoveryModule can be switched off, and a check that cannot be
+        // constructed takes the whole boot down with it.
+        imports.push(NestDiscoveryModule);
+
+        const tenantManifest = composeTenantManifest(composition);
+        lightweightProviders.push(...tenantManifest.providers);
+        lightweightExports.push(...tenantManifest.exports);
 
         return {
             module: SaasPlatformModule,
             imports,
             providers: lightweightProviders,
-            controllers: tenantControllers,
-            exports: [
-                PlanCatalogModule,
-                DiscoveryModule,
-                AdminModule,
-                // ADMIN_MANIFEST_CONFIG travels transitively: re-exporting an
-                // imported module's token directly is an UnknownExportException
-                // at boot — the module export below already carries it.
-                AdminManifestModule,
-                ...(requiresFullEntitlement ? [EntitlementModule] : []),
-                ...(catalogConfig ? [CatalogModule] : []),
-                ...(tenantBillingConfig ? [TenantBillingModule] : []),
-                ...(subscriptionBundlesConfig ? [SubscriptionBundleModule] : []),
-                ...(adminResourcesConfig ? [AdminResourcesModule] : []),
-                ...(promoCodesConfig ? [PromoCodesModule] : []),
-                ...(setupConfig ? [SetupModule] : []),
-                ...(adminStatsConfig ? [AdminStatsModule] : []),
-                ...(checkoutOfferConfig ? [CheckoutOfferModule] : []),
-                ...(subscriptionContractConfig ? [SubscriptionContractModule] : []),
-                ...lightweightExports,
-            ],
+            controllers: tenantManifest.controllers,
+            exports: composeModuleExports(composition, lightweightExports),
             global: true,
         };
     }

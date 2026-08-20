@@ -251,6 +251,88 @@ export default tseslint.config(
         },
     },
     {
+        // `@saasicat/nest` has domains too, and until now nothing held them
+        // apart. Two boundaries, and they are in ONE rule config on purpose:
+        // flat config REPLACES a rule's options when a later object sets the
+        // same rule, it does not merge them. Split across two objects, the
+        // second silently deleted the first — the barrel pattern stopped
+        // matching anywhere it applied, and `eslint .` stayed green while
+        // guarding half of what it claimed. Both patterns therefore live
+        // together, and the two blocks differ only in which files get the
+        // second one.
+        //
+        // Boundary 1 — no barrel-to-barrel. Not a style question: the package
+        // is bundled into twelve entry points, and a module pulled in through
+        // `../billing/index.js` drags that whole barrel into whichever chunk
+        // needed one symbol from it. That is how a class ends up with two
+        // identities across two entries — the failure `_entries.cjs` and
+        // `build-cjs-stubs.mjs` exist to undo — and how an ESM cycle starts.
+        // Importing the module that declares the symbol costs one longer path
+        // and removes both. Seven such imports existed when this rule was
+        // written; it landed with none left, so there is no exemption list to
+        // shrink.
+        //
+        // Boundary 2 — the direction of the arrow: `core <- {billing, catalog,
+        // promo, discovery, entitlement, admin, setup, registration,
+        // checkout-offer, subscription-contract} <- platform <- testing`.
+        // A domain reaching back into `platform/` is the dependency pointing
+        // the wrong way — what `forwardRef` is usually called in to paper over,
+        // and this repository is at zero of those.
+        files: ['packages/saas-platform-nest/src/**/*.ts'],
+        ignores: [
+            'packages/saas-platform-nest/src/platform/**',
+            'packages/saas-platform-nest/src/testing/**',
+        ],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['../*/index.js', '../*/index.ts', '../../*/index.js'],
+                            message:
+                                'No barrel-to-barrel imports across nest domains — import the module that declares the symbol. ' +
+                                'A barrel pulls its whole domain into the importing chunk, which duplicates class identities ' +
+                                'across bundle entries and is the classic ESM cycle trigger.',
+                        },
+                        {
+                            group: ['../platform/*', '../platform/**', '../../platform/**'],
+                            message:
+                                'Domain modules must not import from platform/ — platform composes them, not the other way round. ' +
+                                'Move the shared piece down into core/, or let platform pass it in.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        // `platform/` composes the domains and `testing/` sits downstream of
+        // `platform/`, so neither is subject to boundary 2 — but both are
+        // subject to boundary 1, and it has to be restated here rather than
+        // inherited, for the replace-not-merge reason above.
+        files: [
+            'packages/saas-platform-nest/src/platform/**/*.ts',
+            'packages/saas-platform-nest/src/testing/**/*.ts',
+        ],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['../*/index.js', '../*/index.ts', '../../*/index.js'],
+                            message:
+                                'No barrel-to-barrel imports across nest domains — import the module that declares the symbol. ' +
+                                'A barrel pulls its whole domain into the importing chunk, which duplicates class identities ' +
+                                'across bundle entries and is the classic ESM cycle trigger.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
         // The whitelisted co-located modules above are part of the main
         // entry and therefore must stay framework-free themselves.
         files: [

@@ -22,7 +22,8 @@ import type {
     UsageSnapshotPort,
 } from '@saasicat/types';
 import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/types';
-import { EntitlementService, toEffectiveLimitsSnapshot } from '../entitlement/index.js';
+import { toEffectiveLimitsSnapshot } from '../entitlement/aggregation.js';
+import { EntitlementService } from '../entitlement/service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
