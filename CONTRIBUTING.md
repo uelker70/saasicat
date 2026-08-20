@@ -181,12 +181,18 @@ pnpm changeset          # pick `major`, describe the breaking change
 pnpm changeset pre enter rc
 ```
 
-Pre mode on its own does not select `1.0.0`. Changesets applies the ordinary
-semver bump and then appends the prerelease tag, so a `patch` merged while pre
-mode is on and the base is still `0.27.0` versions the group as `0.27.1-rc.0` —
-the wrong line, published by the next push to `main`. The `major` changeset is
-what establishes the `1.0.0` base; after that, every level accumulates as
-`1.0.0-rc.N`.
+Neither half works alone, and the release workflow runs on every push to `main`,
+so the next merge publishes whatever the pair produces:
+
+- **Pre mode without a `major`** appends the tag to the ordinary bump, so a
+  `patch` versions the group as `0.27.1-rc.0` — a candidate line opened on the
+  version being left behind.
+- **A `major` without pre mode** applies the bump with no tag, so the release
+  publishes a stable `1.0.0`. That version is reserved for the coordinated cut,
+  and a published npm version cannot be taken back.
+
+Together they give `1.0.0-rc.0`, after which every level accumulates as
+`1.0.0-rc.N`. `pnpm run test:repo` refuses either half on its own.
 
 Leaving pre mode is how `1.0.0` itself is released. It happens once, deliberately,
 when the work behind the candidate is complete — not as part of an ordinary change.

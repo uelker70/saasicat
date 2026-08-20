@@ -39,18 +39,37 @@ function pendingLevels() {
 }
 
 describe('the configured release line can reach the version it is for', () => {
-    test('pre mode has a base that reaches 1.0', () => {
-        if (!existsSync(PRE)) return;
-
+    test('on a 0.x base, a major changeset and pre mode appear together', () => {
         const [major] = currentVersion().split('.');
-        if (Number(major) >= 1) return; // the base is already there
+        if (Number(major) >= 1) return; // past the cut; the pairing no longer applies
 
-        assert.ok(
-            pendingLevels().includes('major'),
-            `pre mode is on with the base at ${currentVersion()} and no major changeset ` +
-                'pending, so the next release publishes a candidate on the OLD line — ' +
-                'a patch would become 0.27.1-rc.0. Open the line with `pnpm changeset` ' +
-                '(major) and `changeset pre enter rc` in one pull request.',
+        const majorPending = pendingLevels().includes('major');
+        const inPreMode = existsSync(PRE);
+
+        // One statement rather than two halves, because both halves publish
+        // something unintended and each is invisible from the other side.
+        //
+        //   pre mode without a major — the ordinary semver bump wins and the tag
+        //   is appended to it, so a patch publishes `0.27.1-rc.0`: a candidate
+        //   line opened on the version being left behind.
+        //
+        //   a major without pre mode — the bump applies with no tag at all, so
+        //   the release publishes a stable `1.0.0`. Decision E1 reserves that
+        //   version for the coordinated cut, with a codemod and a migration
+        //   guide, and npm versions cannot be taken back.
+        //
+        // Both measured in a throwaway clone rather than reasoned about.
+        assert.equal(
+            majorPending,
+            inPreMode,
+            majorPending
+                ? `a major changeset is pending on ${currentVersion()} without pre mode, so ` +
+                      'the next release publishes a stable 1.0.0 rather than a candidate. Add ' +
+                      '`changeset pre enter rc` in this pull request.'
+                : `pre mode is on with the base at ${currentVersion()} and no major changeset ` +
+                      'pending, so the next release publishes a candidate on the OLD line — ' +
+                      'a patch would become 0.27.1-rc.0. Add a `major` changeset describing ' +
+                      'the breaking change.',
         );
     });
 
