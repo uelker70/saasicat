@@ -1,5 +1,14 @@
 # notesapp-admin
 
+## 0.0.23
+
+### Patch Changes
+
+- Updated dependencies [0a46f7f]
+- Updated dependencies [40e270c]
+    - @saasicat/ui-vue@0.27.0
+    - @saasicat/types@0.27.0
+
 ## 0.0.22
 
 ### Patch Changes
