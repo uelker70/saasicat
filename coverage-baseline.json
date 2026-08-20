@@ -10,19 +10,29 @@
         "funcs": 57.45
     },
     "saas-platform-nest": {
-        "line": 65.27,
-        "branch": 69.77,
-        "funcs": 68.73
+        "line": 87.72,
+        "branch": 71.81,
+        "funcs": 81.54
     },
     "saas-platform-adapter-prisma": {
-        "line": 64.59,
-        "branch": 66.25,
-        "funcs": 74.84
+        "line": 65.23,
+        "branch": 67.23,
+        "funcs": 75.32,
+        "withDatabase": {
+            "line": 67.11,
+            "branch": 68.9,
+            "funcs": 77.25
+        }
     },
     "saas-platform-adapter-drizzle": {
         "line": 60.33,
         "branch": 63.76,
-        "funcs": 69.95
+        "funcs": 69.95,
+        "withDatabase": {
+            "line": 75.42,
+            "branch": 65.38,
+            "funcs": 83.42
+        }
     },
     "saas-platform-persistence-testing": {
         "line": 74.3,
@@ -30,17 +40,17 @@
         "funcs": 89.29
     },
     "saas-platform-cli": {
-        "line": 82.81,
-        "branch": 73.96,
-        "funcs": 72.13
+        "line": 83.76,
+        "branch": 76.76,
+        "funcs": 77.01
     },
     "saas-platform-ui-vue": {
         "line": 94.23,
-        "branch": 90.99,
+        "branch": 90.94,
         "funcs": 91.72
     },
     "create-saasicat-admin": {
-        "line": 84.54,
+        "line": 84.1,
         "branch": 75,
         "funcs": 81.82
     }

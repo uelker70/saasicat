@@ -186,6 +186,15 @@ _closes_ the child PR outright, because its base is gone. Rebuilding a stacked
 branch on top of `main` afterwards is usually conflict-free, which is the tell
 that the conflicts came from the shape rather than from the work.
 
+## What is tested, and what is not
+
+`pnpm run coverage` is a ratchet: it fails when coverage drops, and has no
+threshold to reach. [`docs/test-coverage.md`](docs/test-coverage.md) says which
+parts each suite exercises, names the adapters the persistence contract does not
+reach, and ranks the remaining gaps by what a failure would cost rather than by
+percentage. Read it before assuming a number means what it looks like — two
+packages there carry two numbers each, for good reasons.
+
 ## Licensing of contributions
 
 SaaSiCat is distributed under [PolyForm Shield 1.0.0](LICENSE): source-available, not OSI
