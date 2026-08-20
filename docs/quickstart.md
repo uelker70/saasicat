@@ -61,12 +61,17 @@ That writes `config/saas.yaml`, the persistence bundle, the feature-UI
 registry, the manifest contribution, the admin module and one quota provider
 per `--quota` — and adds `SaaSiCatModule.forRoot(...)` to your
 `src/app.module.ts`. Add `--dry-run` first to see the list, `--skip-hasher` if
-your app already hashes passwords.
+your app already hashes passwords. It refuses to overwrite a file that already
+exists.
 
-Two things stay yours, because nothing can guess them: what each quota
-actually counts (one line in the generated provider) and the auth guard that
-goes into `controller: { guards: [...] }`. The command prints both as next
-steps, and it refuses to overwrite a file that already exists.
+Two things stay yours, because nothing can guess them: what each quota actually
+counts (one line in the generated provider) and your auth guard.
+
+**The generated code does not compile until you name that guard**, and that is
+deliberate. An empty `guards: []` is how this platform is told an endpoint
+should be auth-free — so a placeholder would publish `GET /admin/discovery`,
+your entire capability inventory, along with the manifest routes. A name that
+does not resolve is the one failure nobody ships past.
 
 The rest of this page is what those files contain and why — worth reading once,
 whether or not you generated them.

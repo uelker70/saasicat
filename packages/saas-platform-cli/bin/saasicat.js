@@ -42,9 +42,9 @@ import {
     extractModelBlocks,
     findFkPointers,
     hasConstraints,
-    kebabCase,
-    newestMigration,
+    migrationCreatedBy,
     patchAppModule,
+    patchOptionsFor,
     planInit,
 } from '../dist/index.js';
 
@@ -350,12 +350,24 @@ async function cmdSchemaMigrate(args) {
     }
 
     console.log(
-        `→ Step 1/2: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`,
+        `→ Step 1/4: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`,
     );
     await cmdSchemaApply({
         ...args,
         all: args['fragments'] ? undefined : true,
     });
+
+    const pmRunner = args['package-manager'] ?? 'pnpm';
+
+    // A dry run touches nothing, and that has to include Prisma. Step 1 did not
+    // write the schema, so `migrate dev --create-only` would diff against the
+    // unchanged file, reach the shadow database, and leave a migration
+    // directory behind — a "dry" run with three side effects.
+    if (args['dry-run']) {
+        console.log('→ Steps 2-4 skipped (--dry-run): nothing was written and Prisma was');
+        console.log('   not called. Re-run without --dry-run to migrate.');
+        return;
+    }
 
     // `--create-only`, and the reason is the whole point of step 3.
     //
@@ -365,18 +377,12 @@ async function cmdSchemaMigrate(args) {
     // was just migrated, and the next `migrate dev` would see a migration whose
     // checksum no longer matches and offer a reset. Writing the file first and
     // applying it after is what makes the constraints arrive with the tables.
-    const pmRunner = args['package-manager'] ?? 'pnpm';
+    const migrationsBefore = await listMigrations(args);
     console.log(`→ Step 2/4: ${pmRunner} prisma migrate dev --create-only --name ${args.name}`);
     await runChild(pmRunner, ['prisma', 'migrate', 'dev', '--create-only', '--name', args.name]);
 
     console.log('→ Step 3/4: appending the constraints Prisma cannot express');
-    const appended = await writeConstraintsIntoMigration(args);
-
-    if (args['dry-run']) {
-        console.log('→ Step 4/4 skipped (--dry-run): the migration is written, not applied.');
-        console.log(`   Apply it with: ${pmRunner} prisma migrate dev`);
-        return;
-    }
+    const appended = await writeConstraintsIntoMigration(args, migrationsBefore);
 
     console.log(`→ Step 4/4: ${pmRunner} prisma migrate dev  (applies it)`);
     await runChild(pmRunner, ['prisma', 'migrate', 'dev']);
@@ -402,6 +408,12 @@ function tableNamesOf(schema) {
     return names;
 }
 
+/** The migration directories that exist right now, or none. */
+async function listMigrations(args) {
+    const { schemaPath } = await readSchemaOrExit(args);
+    return readdir(join(dirname(schemaPath), 'migrations')).catch(() => []);
+}
+
 /** `@saasicat/spec/sql/constraints.postgres.sql`, read from the installed package. */
 function resolveConstraintsSql() {
     const specEntry = require_.resolve('@saasicat/spec');
@@ -420,17 +432,20 @@ function resolveConstraintsSql() {
  * what to add by hand before applying it is more useful than a non-zero exit
  * on a schema that is otherwise correct.
  */
-async function writeConstraintsIntoMigration(args) {
+async function writeConstraintsIntoMigration(args, migrationsBefore) {
     const { schemaPath } = await readSchemaOrExit(args);
     const migrationsDir = join(dirname(schemaPath), 'migrations');
     const sqlPath = resolveConstraintsSql();
 
     try {
         const directories = await readdir(migrationsDir);
-        const newest = newestMigration(directories);
+        // The one THIS run created, not the lexicographically last: if step 2
+        // produced nothing, the last one belongs to somebody else and has
+        // already been applied.
+        const newest = migrationCreatedBy(migrationsBefore, directories);
         if (!newest) {
-            console.log(`  ! No migration found in ${migrationsDir} — nothing to append to.`);
-            console.log(`    Add ${sqlPath} to your migration by hand.`);
+            console.log('  = Prisma created no migration — nothing to append to.');
+            console.log(`    If you expected one, add ${sqlPath} by hand before applying.`);
             return false;
         }
 
@@ -454,10 +469,6 @@ async function writeConstraintsIntoMigration(args) {
             return true;
         }
         const constraintsSql = applicable;
-        if (args['dry-run']) {
-            console.log(`  → would append ${sqlPath} to ${newest}/migration.sql`);
-            return true;
-        }
         await writeFile(migrationFile, appendConstraints(migrationSql, constraintsSql));
         console.log(`  + appended to ${newest}/migration.sql`);
         return true;
@@ -540,7 +551,10 @@ async function cmdInit(args, argv) {
 
     console.log('');
     console.log('Next steps:');
-    console.log('  1. Put your auth guard into `controller: { guards: [...] }`');
+    console.log('  1. Name your auth guard in `controller: { guards: [YourAuthGuard] }`');
+    console.log('     — the generated app does NOT compile until you do. An empty');
+    console.log('       array means "deliberately auth-free" to the platform, and');
+    console.log('       would publish GET /admin/discovery to anyone who asks.');
     if (plan.quotaClasses.length > 0) {
         console.log('  2. Check each quota provider counts the right thing');
         console.log('  3. saasicat schema migrate --name=add_saasicat');
@@ -552,22 +566,8 @@ async function cmdInit(args, argv) {
 /** Adds the platform to `src/app.module.ts`, or says exactly what to paste. */
 async function patchAppModuleFile(root, plan, args) {
     const appModulePath = join(root, 'src', 'app.module.ts');
-    const adminModuleFile = `${kebabCase(plan.tokens.APP_NAME)}-admin.module`;
-    const options = {
-        persistenceImport: plan.hasherClass ? './saas/persistence' : null,
-        adminModule: {
-            className: plan.tokens.ADMIN_MODULE_CLASS,
-            importPath: `./saas/${adminModuleFile}`,
-        },
-        quotaProviders: plan.quotaClasses.map((className) => ({
-            className,
-            importPath: `./saas/${kebabCase(className.replace(/QuotaProvider$/, ''))}-quota.provider`,
-        })),
-        registry: {
-            constName: plan.tokens.REGISTRY_CONST,
-            importPath: './saas/feature-ui-registry',
-        },
-    };
+    // Derived in `init/plan.ts`, where it can be tested: this file is not.
+    const options = patchOptionsFor(plan);
 
     if (!existsSync(appModulePath)) {
         console.log('');

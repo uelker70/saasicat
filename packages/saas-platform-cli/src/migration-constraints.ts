@@ -14,15 +14,23 @@
 export const CONSTRAINTS_MARKER = '-- saasicat:constraints';
 
 /**
- * A migration directory as `prisma migrate dev` leaves it: `<timestamp>_<name>`.
+ * The migration THIS run created — the one that is in `after` and not `before`.
  *
- * Prisma sorts by that prefix and applies in order, so "the migration this run
- * created" is the lexicographically greatest one — the same rule Prisma itself
- * uses to decide what to apply next.
+ * The first version asked which directory sorts last, which is the same answer
+ * whenever the run created one and a silently wrong one when it did not: the
+ * step would then edit a stranger's migration, one already applied, and break
+ * its checksum. Taking the difference cannot confuse the two.
+ *
+ * `<timestamp>_<name>` is required, so `migration_lock.toml` and a stray
+ * scratch directory are not candidates however they sort.
  */
-export function newestMigration(directories: readonly string[]): string | null {
-    const migrations = directories.filter((name) => /^\d{14}_/.test(name)).sort();
-    return migrations.length > 0 ? migrations[migrations.length - 1]! : null;
+export function migrationCreatedBy(
+    before: readonly string[],
+    after: readonly string[],
+): string | null {
+    const existing = new Set(before);
+    const created = after.filter((name) => /^\d{14}_/.test(name) && !existing.has(name)).sort();
+    return created.length > 0 ? created[created.length - 1]! : null;
 }
 
 /** Whether this SQL already carries a constraints block from a previous run. */

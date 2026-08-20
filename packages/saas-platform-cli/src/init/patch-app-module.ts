@@ -173,8 +173,13 @@ function renderForRootBlock(options: PatchAppModuleOptions): string {
         '        // Plans straight from the YAML. Apps that manage plans in the',
         '        // SuperAdmin UI pass `dbCatalog` instead.',
         "        planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),",
-        '        // Your authentication. The platform mounts its controllers behind it.',
-        '        controller: { guards: [/* YourAuthGuard */] },',
+        '        // Your authentication guard. This does NOT compile until you',
+        '        // name one, and that is deliberate: an empty array is how the',
+        '        // platform is told an endpoint should be auth-free, so a',
+        '        // placeholder `[]` here would publish GET /admin/discovery —',
+        '        // your whole capability inventory — and the manifest routes to',
+        '        // anyone who asks. Import your guard and put it in.',
+        '        controller: { guards: [YourAuthGuard] },',
         options.persistenceImport
             ? '        persistence,'
             : '        // persistence: prismaPersistence({ client: PrismaService }),',

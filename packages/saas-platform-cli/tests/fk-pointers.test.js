@@ -8,7 +8,9 @@ import {
     assertModelsExist,
     enableFkPointers,
     findFkPointers,
+    foreignKeyOf,
     hasBackRelation,
+    isOneToOne,
     relationNameOf,
 } from '../dist/index.js';
 
@@ -84,9 +86,10 @@ describe('finding them', () => {
 
 describe('enabling them', () => {
     test('both targets, renamed to the app models', () => {
-        const withRenamed = WITH_BACK_RELATIONS.replace('model Tenant', 'model Organization')
-            .replace('model User', 'model Account')
-            .replace(/AuditLog\[\]/g, 'AuditLog[]');
+        const withRenamed = WITH_BACK_RELATIONS.replace(
+            'model Tenant',
+            'model Organization',
+        ).replace('model User', 'model Account');
         const result = enableFkPointers(withRenamed, {
             tenant: 'Organization',
             user: 'Account',
@@ -247,5 +250,99 @@ describe('against the fragments as shipped', () => {
             );
         }
         assert.ok(recognised >= 5, `only ${recognised} pointers found across the fragments`);
+    });
+});
+
+describe('a one-to-one relation has a singular opposite side', () => {
+    // `Subscription.tenantId` carries `@unique` in the fragment, so a tenant
+    // has at most one subscription and the opposite field is
+    // `subscription Subscription?` — which is exactly how the example app
+    // writes it. A check that only knew lists called that correct schema
+    // incomplete and suggested `subscriptions Subscription[]`.
+    //
+    // What that costs, measured rather than assumed: `prisma validate` 6.19.3
+    // accepts the list against a `@unique` foreign key, so it is not the build
+    // break it looks like. It is a client typed for many rows over a database
+    // that holds one. Only the missing field is P1012.
+    //
+    // Two things hid it: the fixture modelled Subscription without `@unique`,
+    // and in the example app that one pointer was already enabled.
+
+    const ONE_TO_ONE = `model Tenant {
+    id           String        @id
+    subscription Subscription?
+}
+
+model Subscription {
+    id       String @id
+    tenantId String @unique
+
+    // tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+`;
+
+    test('a unique foreign key is recognised as one-to-one', () => {
+        assert.equal(isOneToOne(ONE_TO_ONE, 'Subscription', 'tenantId'), true);
+        assert.equal(isOneToOne(SCHEMA, 'AuditLog', 'tenantId'), false);
+    });
+
+    test('the foreign key is read off the relation attribute', () => {
+        assert.equal(foreignKeyOf('@relation(fields: [tenantId], references: [id])'), 'tenantId');
+        assert.equal(foreignKeyOf('@relation("Named", fields: [userId])'), 'userId');
+        assert.equal(foreignKeyOf('@relation("NoFields")'), null);
+    });
+
+    test('a singular opposite field counts as the back relation', () => {
+        assert.equal(hasBackRelation(ONE_TO_ONE, 'Subscription', 'Tenant', null, true), true);
+        // …and a list does not answer a singular question, nor the reverse.
+        assert.equal(hasBackRelation(ONE_TO_ONE, 'Subscription', 'Tenant', null, false), false);
+    });
+
+    test('so the pointer is enabled rather than reported as missing', () => {
+        const result = enableFkPointers(ONE_TO_ONE, { tenant: 'Tenant' });
+        assert.equal(result.enabled.length, 1);
+        assert.deepEqual(result.needsBackRelation, []);
+    });
+
+    test('and when it IS missing, the suggestion is singular too', () => {
+        const without = ONE_TO_ONE.replace('    subscription Subscription?\n', '');
+        const result = enableFkPointers(without, { tenant: 'Tenant' });
+        assert.equal(result.enabled.length, 0);
+        assert.deepEqual(
+            result.needsBackRelation.map((n) => n.suggestion),
+            ['subscription Subscription?'],
+        );
+    });
+});
+
+describe('a model name is data, not part of the pattern', () => {
+    // These functions are exported, so the CLI's own `assertModelsExist` is
+    // not what holds this — a consumer calling them directly gets whatever it
+    // passes interpolated into a pattern. The three below are the shapes that
+    // go wrong: a name that matches every model, one that matches a model it
+    // does not name, and a field name whose `|` splits the whole pattern.
+
+    test('a name full of metacharacters matches nothing rather than everything', () => {
+        const result = enableFkPointers(WITH_BACK_RELATIONS, { tenant: '.*' });
+        assert.equal(result.enabled.length, 0, "'.*' matched a model block");
+        assert.equal(result.needsBackRelation.length, 2);
+    });
+
+    test('and the same through hasBackRelation directly', () => {
+        assert.equal(hasBackRelation(WITH_BACK_RELATIONS, '.*', 'Tenant', null), false);
+        assert.equal(hasBackRelation(WITH_BACK_RELATIONS, 'AuditLog', '.*', null), false);
+    });
+
+    test('a field name with an alternation does not match a different field', () => {
+        // The same class one argument along. Interpolated raw, the `|` splits
+        // the whole pattern, so `^\\s*tenantId` alone matches and the relation
+        // is reported 1:1 on the strength of a field the caller never named.
+        const unique = 'model Subscription {\n    tenantId String @unique\n}\n';
+        assert.equal(isOneToOne(unique, 'Subscription', 'tenantId|zzz'), false);
+        assert.equal(isOneToOne(unique, 'Subscription', 'tenantId'), true);
+    });
+
+    test('an ordinary name still works, so the escaping did not break matching', () => {
+        assert.equal(hasBackRelation(WITH_BACK_RELATIONS, 'AuditLog', 'Tenant', null), true);
     });
 });

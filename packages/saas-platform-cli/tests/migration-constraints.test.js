@@ -6,7 +6,7 @@ import {
     appendConstraints,
     constraintsFor,
     hasConstraints,
-    newestMigration,
+    migrationCreatedBy,
     tablesAddressedBy,
 } from '../dist/index.js';
 
@@ -31,29 +31,43 @@ const CONSTRAINTS =
     '    ON plan_versions ("planId") WHERE "publishedAt" IS NULL;\n';
 
 describe('which migration the constraints belong to', () => {
-    test('the newest one — the same order Prisma applies in', () => {
+    // The one THIS run created. Asking which sorts last gives the same answer
+    // whenever a run created one — and a silently wrong one when it did not,
+    // because the step would then edit somebody else's already-applied
+    // migration and break its checksum.
+
+    test('the one that appeared between the two listings', () => {
         assert.equal(
-            newestMigration([
-                '20260101120000_init',
-                '20260820090000_add_saasicat',
-                '20260501000000_middle',
-            ]),
+            migrationCreatedBy(
+                ['20260101120000_init', '20260501000000_middle'],
+                ['20260101120000_init', '20260501000000_middle', '20260820090000_add_saasicat'],
+            ),
             '20260820090000_add_saasicat',
         );
+    });
+
+    test('nothing new means nothing to append to, even with migrations present', () => {
+        // The case the sort-based version got wrong: Prisma created no
+        // migration because the schema had not changed, and the last one
+        // belongs to a previous run.
+        assert.equal(migrationCreatedBy(['20260101120000_init'], ['20260101120000_init']), null);
     });
 
     test('directories that are not migrations are not candidates', () => {
         // `migration_lock.toml` sits in the same directory, and a stray folder
         // sorting after every timestamp would otherwise win.
+        assert.equal(migrationCreatedBy([], ['migration_lock.toml', 'zzz-scratch']), null);
+    });
+
+    test('the newest of several, when a run somehow produced two', () => {
         assert.equal(
-            newestMigration(['migration_lock.toml', 'zzz-scratch', '20260101120000_init']),
-            '20260101120000_init',
+            migrationCreatedBy([], ['20260101120000_a', '20260820090000_b']),
+            '20260820090000_b',
         );
     });
 
     test('no migrations at all is not an error, it is nothing to do', () => {
-        assert.equal(newestMigration([]), null);
-        assert.equal(newestMigration(['migration_lock.toml']), null);
+        assert.equal(migrationCreatedBy([], []), null);
     });
 });
 

@@ -39,6 +39,14 @@ export interface AdminResourcesFields {
         deletedAt?: string;
         /** The tenant→users relation. Default `users`. */
         users?: string;
+        /**
+         * The tenant→subscription relation. Default `subscription`.
+         *
+         * On YOUR model, so your name for it: Prisma names a relation field
+         * after what it points at, and an app whose tenant is `Organization`
+         * has usually not renamed this one — but it may have.
+         */
+        subscription?: string;
     };
     user?: {
         /** Default `email`. */
@@ -49,6 +57,14 @@ export interface AdminResourcesFields {
         lastName?: string;
         /** Default `isActive`. */
         isActive?: string;
+        /**
+         * The user→tenant relation. Default `tenant`.
+         *
+         * The one the documented example gets wrong by omission: an app whose
+         * tenant model is `Organization` calls this field `organization`, by
+         * the same Prisma convention that named the delegate.
+         */
+        tenant?: string;
     };
 }
 
@@ -67,8 +83,15 @@ const DEFAULTS: ResolvedAdminResourcesSchema = {
         isActive: 'isActive',
         deletedAt: 'deletedAt',
         users: 'users',
+        subscription: 'subscription',
     },
-    user: { email: 'email', firstName: 'firstName', lastName: 'lastName', isActive: 'isActive' },
+    user: {
+        email: 'email',
+        firstName: 'firstName',
+        lastName: 'lastName',
+        isActive: 'isActive',
+        tenant: 'tenant',
+    },
 };
 
 export function resolveAdminResourcesSchema(

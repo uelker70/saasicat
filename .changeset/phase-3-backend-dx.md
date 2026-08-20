@@ -18,6 +18,12 @@ quota counts, the hasher if scrypt is not enough, and your auth guard. The
 command prints all three as next steps and refuses to overwrite an existing
 file.
 
+The generated module does not compile until you name that guard — it writes
+`controller: { guards: [YourAuthGuard] }`, a symbol that does not exist, and
+`tsc` says so once. An empty array would have compiled, and `[]` is this
+platform's word for _deliberately_ unauthenticated: the discovery and manifest
+endpoints would have answered to anyone.
+
 **A broken enforcement chain no longer boots.** `@RequireFeature` and
 `@EnforceQuota` with nothing able to resolve a tenant to a plan used to be
 silent — the routes answered, the quotas read as unlimited, and the first signal

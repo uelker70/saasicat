@@ -57,30 +57,85 @@ export function relationNameOf(relationAttribute: string): string | null {
 }
 
 /**
+ * Escapes a value that is about to be interpolated into a `RegExp`.
+ *
+ * The model names come from `--tenant-model` / `--user-model`, so a
+ * command-line argument reaches a regular expression — `js/regex-injection`.
+ * On the CLI path it is not reachable: `resolveFkPointers` calls
+ * `assertModelsExist` first and exits non-zero, so by the time a pattern is
+ * built the value is a model name the schema declares.
+ *
+ * That argument is true and does not hold the property. These functions are
+ * part of the package surface — `src/index.ts` re-exports the module, and a
+ * consumer CLI can call `enableFkPointers` or `hasBackRelation` with a name
+ * nothing validated. `.*` then matches any model block and reports a
+ * back-relation that is not there; a value with nested quantifiers backtracks
+ * against the whole schema. Escaping puts the guarantee in the function that
+ * needs it instead of two calls away in another file.
+ */
+function escapeForRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** The body of `model X { … }`, or null. */
+function modelBody(schema: string, model: string): string | null {
+    const name = escapeForRegExp(model);
+    const block = new RegExp(`(^|\\n)model\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm').exec(schema);
+    return block ? block[2]! : null;
+}
+
+/**
+ * Whether the foreign key is unique — which makes the relation 1:1, not 1:n.
+ *
+ * `Subscription.tenantId` carries `@unique`, so a tenant has at most one
+ * subscription and the opposite field is `subscription Subscription?`, not a
+ * list. The example app writes it exactly that way. A check that only knew
+ * lists called that correct schema incomplete and told the consumer to add a
+ * second, contradictory field.
+ *
+ * Measured, because the obvious guess is wrong: `prisma validate` 6.19.3
+ * ACCEPTS `subscriptions Subscription[]` against a `@unique` foreign key. So
+ * the list is not a build break — it is worse placed than that. The generated
+ * client types the relation as a list the database can never hold more than
+ * one of, and nothing says so until someone writes code for the second row.
+ * Only the missing field is P1012.
+ */
+export function isOneToOne(schema: string, model: string, foreignKey: string): boolean {
+    const body = modelBody(schema, model);
+    if (!body) return false;
+    return new RegExp(`^\\s*${escapeForRegExp(foreignKey)}\\s+\\S+.*@unique`, 'm').test(body);
+}
+
+/**
  * Whether `owner` already declares the opposite side of this relation.
  *
  * Prisma relations have two sides. Enabling `tenant Tenant @relation(...)` on
- * `AuditLog` without `auditLogs AuditLog[]` on `Tenant` produces a schema
- * Prisma refuses with P1012 — and the first version of this did exactly that
- * to the project's own example app, which carries back-relations for
- * subscriptions and promo redemptions but none for the audit log.
+ * `AuditLog` without a matching field on `Tenant` produces a schema Prisma
+ * refuses with P1012 — and the first version of this did exactly that to the
+ * project's own example app.
  *
- * The relation NAME is part of the question, not a detail. `AuditLog.user`
- * carries `@relation("AuditLogUser", …)` because a model can point at `User`
- * more than once; an unnamed `auditLogs AuditLog[]` does not pair with it, and
- * a check that accepted any list of the right type would have reported that
- * schema as fine. It was written that way first, and Prisma said otherwise.
+ * Two things are part of the question rather than details, and Prisma taught
+ * each by refusing the result:
+ *
+ *   - The relation NAME. `AuditLog.user` carries `@relation("AuditLogUser", …)`
+ *     because a model may point at `User` more than once, and an unnamed field
+ *     does not pair with it.
+ *   - The CARDINALITY. A unique foreign key makes the opposite side singular,
+ *     and a check that only knew lists reported a correct schema as broken.
  */
 export function hasBackRelation(
     schema: string,
     model: string,
     owner: string,
     relationName: string | null,
+    singular = false,
 ): boolean {
-    const block = new RegExp(`(^|\\n)model\\s+${owner}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm').exec(schema);
-    if (!block) return false;
+    const body = modelBody(schema, owner);
+    if (body === null) return false;
 
-    const candidates = [...block[2]!.matchAll(new RegExp(`^\\s*\\w+\\s+${model}\\[\\].*$`, 'gm'))];
+    const name = escapeForRegExp(model);
+    const shape = singular ? `${name}\\??` : `${name}\\[\\]`;
+    const candidates = [...body.matchAll(new RegExp(`^\\s*\\w+\\s+${shape}(\\s.*)?$`, 'gm'))];
     return candidates.some((line) => relationNameOf(line[0]) === relationName);
 }
 
@@ -141,13 +196,16 @@ export function enableFkPointers(schema: string, models: FkModelNames): EnableFk
         // costs a file the tool already changed.
         const match = POINTER.exec(pointer.text)!;
         const relationName = relationNameOf(match[7]!);
-        if (!hasBackRelation(schema, pointer.model, model, relationName)) {
+        // The foreign key this relation is built on decides the shape of the
+        // other side: unique means one, so the opposite field is singular.
+        const foreignKey = foreignKeyOf(match[7]!);
+        const singular = foreignKey !== null && isOneToOne(schema, pointer.model, foreignKey);
+
+        if (!hasBackRelation(schema, pointer.model, model, relationName, singular)) {
             needsBackRelation.push({
                 line: pointer.line,
                 owner: model,
-                suggestion:
-                    `${lowerFirst(pointer.model)}s ${pointer.model}[]` +
-                    (relationName ? ` @relation("${relationName}")` : ''),
+                suggestion: backRelationSuggestion(pointer.model, relationName, singular),
             });
             continue;
         }
@@ -163,6 +221,23 @@ export function enableFkPointers(schema: string, models: FkModelNames): EnableFk
 }
 
 const lowerFirst = (value: string): string => value.charAt(0).toLowerCase() + value.slice(1);
+
+/** The scalar this relation is built on — `fields: [tenantId]`. */
+export function foreignKeyOf(relationAttribute: string): string | null {
+    const match = /fields:\s*\[\s*(\w+)/.exec(relationAttribute);
+    return match ? match[1]! : null;
+}
+
+/** The line to add to the owning model, in the shape Prisma will accept. */
+function backRelationSuggestion(
+    model: string,
+    relationName: string | null,
+    singular: boolean,
+): string {
+    const field = singular ? lowerFirst(model) : `${lowerFirst(model)}s`;
+    const type = singular ? `${model}?` : `${model}[]`;
+    return `${field} ${type}` + (relationName ? ` @relation("${relationName}")` : '');
+}
 
 /**
  * Refuses a model name the schema does not define.

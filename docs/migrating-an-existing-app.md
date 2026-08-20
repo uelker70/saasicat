@@ -131,7 +131,15 @@ persistence: prismaPersistence({
         delegates: { tenant: 'organization', user: 'account' },
         fields: {
             tenant: { isActive: 'enabled', slug: 'handle', users: 'members' },
-            user: { email: 'mail', firstName: 'givenName' },
+            // Prisma names a relation field after what it points at, so an app
+            // whose tenant model is `Organization` usually calls this one
+            // `organization` — on its own User model, which is why the delegate
+            // mapping above does not cover it.
+            user: {
+                email: 'mail',
+                firstName: 'givenName',
+                tenant: 'organization',
+            },
         },
     },
 }),

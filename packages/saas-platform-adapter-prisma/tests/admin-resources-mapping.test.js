@@ -326,3 +326,100 @@ describe('the mapping reaches the two places it used to stop short of', () => {
         assert.deepEqual(calls[0].args.include.tenant.select, { slug: true, name: true });
     });
 });
+
+describe('the two relations that live on the app models', () => {
+    // Found by the second review round: `_count` and `listSubscriptions` were
+    // fixed, and two relation FIELDS were still read by their default names.
+    // Both sit on models the app owns, and Prisma names a relation field after
+    // what it points at — so an app whose tenant is `Organization` calls the
+    // one on its user model `organization`, by the same convention that named
+    // the delegate. `assertDelegatesExist` cannot see it: the delegates are
+    // right.
+
+    const OPTIONS = {
+        delegates: { tenant: 'organization', user: 'account' },
+        fields: {
+            tenant: { slug: 'handle', subscription: 'plan' },
+            user: { tenant: 'organization' },
+        },
+    };
+
+    test('the tenant list reads the mapped subscription relation', async () => {
+        const { client, calls } = clientWith(RENAMED, {
+            organization: [
+                {
+                    id: 't1',
+                    handle: 'acme',
+                    name: 'Acme',
+                    isActive: true,
+                    createdAt: new Date('2026-01-01'),
+                    plan: { plan: 'PRO', status: 'active' },
+                },
+            ],
+        });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+        const rows = await adapter.listTenants({ plan: 'PRO' });
+
+        assert.ok('plan' in calls[0].args.include, 'included by the mapped name');
+        assert.deepEqual(calls[0].args.where.plan, { plan: 'PRO' }, 'filtered by it too');
+        assert.equal(rows[0].plan, 'PRO');
+        assert.equal(rows[0].status, 'active');
+    });
+
+    test('the detail route reads it as well', async () => {
+        const { client, calls } = clientWith(RENAMED, {
+            organization: [
+                {
+                    id: 't1',
+                    handle: 'acme',
+                    name: 'Acme',
+                    isActive: true,
+                    createdAt: new Date('2026-01-01'),
+                    plan: {
+                        plan: 'PRO',
+                        status: 'active',
+                        billingCycle: 'MONTHLY',
+                        isPilot: false,
+                        trialEndsAt: null,
+                        pilotEndsAt: null,
+                    },
+                    users: [],
+                },
+            ],
+        });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+        const detail = await adapter.getTenantDetail('acme');
+
+        assert.ok('plan' in calls[0].args.include);
+        assert.equal(detail.subscription.plan, 'PRO');
+    });
+
+    test('the user list filters and reads the mapped tenant relation', async () => {
+        const { client, calls } = clientWith(RENAMED, {
+            account: [
+                {
+                    id: 'u1',
+                    email: 'a@b.c',
+                    createdAt: new Date('2026-01-02'),
+                    organization: { handle: 'acme' },
+                },
+            ],
+        });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+        const rows = await adapter.listUsers({ tenant: 'acme' });
+
+        assert.deepEqual(calls[0].args.where.organization, { handle: 'acme' });
+        assert.ok('organization' in calls[0].args.include);
+        assert.equal(rows[0].tenantSlug, 'acme');
+    });
+
+    test('an unmapped app is unaffected in all three', async () => {
+        const { client, calls } = clientWith(CONVENTIONAL, { tenant: [], user: [] });
+        const adapter = new PrismaAdminResourcesAdapter(client);
+        await adapter.listTenants({ plan: 'PRO' });
+        await adapter.listUsers({ tenant: 'acme' });
+
+        assert.ok('subscription' in calls[0].args.include);
+        assert.deepEqual(calls[1].args.where.tenant, { slug: 'acme' });
+    });
+});

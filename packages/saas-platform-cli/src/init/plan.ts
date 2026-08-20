@@ -208,3 +208,43 @@ export function applyTokens(content: string, tokens: Record<string, string>): st
         tokens[key] === undefined ? full : tokens[key],
     );
 }
+
+/**
+ * The patch options a plan implies.
+ *
+ * Here rather than in `bin/saasicat.js`, and that is the point of the move:
+ * both leftovers of the first review round were in this derivation, where
+ * `plan.ts` and `patchAppModule` were each tested and the step between them was
+ * not. `persistenceImport` hung on `hasherClass` while the plan had started
+ * writing the bundle in both cases, so `--skip-hasher` produced an app whose
+ * persistence file existed and was never imported.
+ *
+ * Read off the plan's own file list, so a file that is generated is a file that
+ * is wired, and the two cannot drift again.
+ */
+export function patchOptionsFor(plan: InitPlan): PatchOptionsFromPlan {
+    const generates = (path: string) => plan.files.some((file) => file.path === path);
+    return {
+        persistenceImport: generates('src/saas/persistence.ts') ? './saas/persistence' : null,
+        adminModule: {
+            className: plan.tokens.ADMIN_MODULE_CLASS!,
+            importPath: `./saas/${kebabCase(plan.tokens.APP_NAME!)}-admin.module`,
+        },
+        quotaProviders: plan.quotaClasses.map((className) => ({
+            className,
+            importPath: `./saas/${kebabCase(className.replace(/QuotaProvider$/, ''))}-quota.provider`,
+        })),
+        registry: {
+            constName: plan.tokens.REGISTRY_CONST!,
+            importPath: './saas/feature-ui-registry',
+        },
+    };
+}
+
+/** What `patchAppModule` takes, derived from a plan. */
+export interface PatchOptionsFromPlan {
+    persistenceImport: string | null;
+    adminModule: { className: string; importPath: string };
+    quotaProviders: Array<{ className: string; importPath: string }>;
+    registry: { constName: string; importPath: string };
+}

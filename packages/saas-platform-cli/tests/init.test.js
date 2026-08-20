@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
     LIMIT_FILTER_PROVIDER,
+    patchOptionsFor,
     applyTokens,
     kebabCase,
     parseQuota,
@@ -300,3 +301,68 @@ async function listTemplates(dir, prefix = '') {
     }
     return found;
 }
+
+describe('what the plan implies for the patch', () => {
+    // This derivation had no test, and both leftovers of the first review round
+    // were in it: `plan.ts` and `patchAppModule` were each covered and the step
+    // between them, in `bin/saasicat.js`, was not. It lives in `plan.ts` now
+    // precisely so this can exist.
+
+    test('a generated persistence bundle is an imported one', () => {
+        // It hung on `hasherClass` while the plan had started writing the
+        // bundle in both cases, so `--skip-hasher` produced a file that existed
+        // and was never wired — and an app that failed `core.adapters-bound` on
+        // its first boot.
+        for (const skipHasher of [false, true]) {
+            const plan = planInit({ projectKey: 'freshapp', skipHasher });
+            const generated = plan.files.some((f) => f.path === 'src/saas/persistence.ts');
+            const imported = patchOptionsFor(plan).persistenceImport !== null;
+            assert.equal(
+                imported,
+                generated,
+                `skipHasher=${skipHasher}: generated=${generated} but imported=${imported}`,
+            );
+        }
+    });
+
+    test('the admin module import path matches the file the plan writes', () => {
+        const plan = planInit({ projectKey: 'team-hub' });
+        const written = plan.files.find((f) => f.path.includes('-admin.module'));
+        const { adminModule } = patchOptionsFor(plan);
+        assert.equal(`src/saas/${adminModule.importPath.replace('./saas/', '')}.ts`, written.path);
+    });
+
+    test('each quota provider import path matches its file', () => {
+        const plan = planInit({
+            projectKey: 'freshapp',
+            quotas: ['notes:Note', 'active-seats:Seat'],
+        });
+        const written = plan.files
+            .filter((f) => f.path.includes('quota.provider'))
+            .map((f) => f.path)
+            .sort();
+        const imported = patchOptionsFor(plan)
+            .quotaProviders.map((q) => `src/saas/${q.importPath.replace('./saas/', '')}.ts`)
+            .sort();
+        assert.deepEqual(imported, written);
+    });
+});
+
+describe('the auth guard the generator cannot know', () => {
+    test('the block names one, so the file does not compile without it', () => {
+        // `guards: []` is how the platform is told an endpoint is deliberately
+        // auth-free — `discovery.module.ts` documents exactly that. A
+        // placeholder empty array would have published GET /admin/discovery,
+        // the whole capability inventory, plus the manifest routes. Not
+        // compiling is the one failure mode nobody ships past.
+        const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
+        assert.match(source, /guards: \[YourAuthGuard\]/);
+        assert.doesNotMatch(source, /guards: \[\s*(\/\*[^*]*\*\/)?\s*\]/);
+    });
+
+    test('and says why, where the reader is', () => {
+        const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
+        assert.match(source, /does NOT compile until you/);
+        assert.match(source, /auth-free/);
+    });
+});
