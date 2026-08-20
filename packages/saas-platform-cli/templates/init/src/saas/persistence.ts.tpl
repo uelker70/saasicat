@@ -13,8 +13,10 @@ import { __HASHER_CLASS__ } from '../auth/__HASHER_FILE__';
 export const persistence = prismaPersistence({
     client: PrismaService,
     passwordHasher: __HASHER_CLASS__,
-    // Relation counters on the tenant rows. The names must be relations on
-    // your Tenant model. If your models are called something else, map them:
-    // `delegates: { tenant: 'organization' }` — see docs/migrating-an-existing-app.md.
-    adminResources: { tenantMetrics: ['users'] },
+    // If your models are called something else, map them here:
+    // `adminResources: { delegates: { tenant: 'organization' },
+    //                    fields: { tenant: { users: 'members' } } }`
+    // — see docs/migrating-an-existing-app.md. Left out on purpose otherwise:
+    // the tenant row counter defaults to whatever the mapping says the users
+    // relation is called, and naming it here would hardcode `users` past that.
 });

@@ -15,7 +15,7 @@
 //       apply --all, then `prisma migrate dev`, then append the constraints
 //       Prisma's DSL cannot express to the migration it just wrote.
 //
-//   init --project-key=X [--quota=key:Model]... [--app-name=X] [--api-base=X]
+//   init --project-key=X --quota=key:Model [--quota=…]... [--app-name=X] [--api-base=X]
 //        [--skip-hasher] [--dry-run] [--dir=.]
 //       Writes the platform wiring — config, persistence, manifest
 //       contribution, admin module, one provider per quota — and adds
@@ -52,13 +52,38 @@ import {
 
 const require_ = createRequire(import.meta.url);
 
+// Flags are `--key=value`; a bare `--key` is a switch. Deliberately not
+// `--key value`: this CLI has taken `--key=value` since the beginning, and
+// accepting both would make `--dry-run --all` ambiguous.
+//
+// What is NOT acceptable is the way a value flag written with a space used to
+// fail. `--app-name "My App"` set `appName` to `true`, which reached
+// `pascalCase` and came back as `value.replace is not a function` with exit 99
+// — an internal error for what is an ordinary typo.
+const VALUE_FLAGS = new Set([
+    'project-key',
+    'app-name',
+    'api-base',
+    'quota',
+    'name',
+    'fragments',
+    'prisma-schema',
+    'package-manager',
+    'tenant-model',
+    'user-model',
+    'dir',
+]);
+
 function parseArgs(argv) {
     const flags = {};
     for (const arg of argv) {
-        if (arg.startsWith('--')) {
-            const [key, value] = arg.slice(2).split('=');
-            flags[key] = value === undefined ? true : value;
+        if (!arg.startsWith('--')) continue;
+        const [key, value] = arg.slice(2).split('=');
+        if (value === undefined && VALUE_FLAGS.has(key)) {
+            console.error(`✗ --${key} needs a value, written as --${key}=<value>.`);
+            process.exit(1);
         }
+        flags[key] = value === undefined ? true : value;
     }
     return flags;
 }
@@ -584,7 +609,7 @@ async function cmdInit(args, argv) {
     console.log('     — the generated app does NOT compile until you do. An empty');
     console.log('       array means "deliberately auth-free" to the platform, and');
     console.log('       would publish GET /admin/discovery to anyone who asks.');
-    if (plan.quotaClasses.length > 0) {
+    if (plan.quotaProviders.length > 0) {
         console.log('  2. Check each quota provider counts the right thing');
         console.log('  3. saasicat schema migrate --name=add_saasicat');
     } else {
@@ -664,8 +689,10 @@ async function main() {
             '  schema migrate --name=<name>             apply --all + migrate dev + constraints',
         );
         console.log('');
-        console.log('  init --project-key=<key>                 scaffold the platform wiring');
-        console.log('  init --project-key=myapp --quota=notes:Note …plus a quota provider');
+        console.log('  init --project-key=<key> --quota=<key>:<Model>');
+        console.log('          scaffold the platform wiring. At least one --quota:');
+        console.log('          every plan must declare one, or the catalogue does not load.');
+        console.log('  init --project-key=myapp --quota=notes:Note --quota=seats:Seat');
         console.log('');
         console.log('Optional --prisma-schema=PATH (default prisma/schema.prisma).');
         console.log('Optional --tenant-model=X --user-model=Y for apply/migrate — enables');

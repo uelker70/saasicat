@@ -10,7 +10,11 @@
 // the same code path as the real run rather than a second implementation of it.
 // Still pure with the key check: the schema is a JSON module, not a file read.
 
-import { assertValidProjectKey } from './project-key.js';
+import {
+    assertValidProjectKey,
+    assertValidQuotaKey,
+    minimumQuotasPerPlan,
+} from './catalog-keys.js';
 
 /** What the caller asked for. */
 export interface InitOptions {
@@ -42,13 +46,30 @@ export interface PlannedFile {
 export interface InitPlan {
     readonly files: readonly PlannedFile[];
     readonly tokens: Readonly<Record<string, string>>;
-    /** The quota provider classes `app.module.ts` has to register. */
-    readonly quotaClasses: readonly string[];
+    /**
+     * The quota providers `app.module.ts` has to register, with the file each
+     * one was written to.
+     *
+     * The path is carried rather than re-derived. It was re-derived, from the
+     * class name, while the file was named from the quota key — two spellings
+     * of one name that agree for `notes` and part company for `apiCalls`:
+     * `apicalls-quota.provider.ts` written, `./saas/api-calls-quota.provider`
+     * imported, TS2307. The same shape as the persistence import a round
+     * earlier: a fix in the plan that its caller did not follow.
+     */
+    readonly quotaProviders: readonly QuotaProviderFile[];
     /** The hasher class, or null when the caller brings their own. */
     readonly hasherClass: string | null;
 }
 
 /** A parsed `--quota=key:Model` entry. */
+export interface QuotaProviderFile {
+    /** The class the module registers. */
+    readonly className: string;
+    /** Where the plan writes it, relative to the project root. */
+    readonly path: string;
+}
+
 export interface QuotaSpec {
     readonly key: string;
     /** The Prisma delegate to count, e.g. `note`. */
@@ -66,10 +87,35 @@ export interface QuotaSpec {
 export function parseQuota(spec: string): QuotaSpec {
     const [key, model] = spec.split(':');
     if (!key) throw new Error(`--quota needs a key: got '${spec}'`);
+    // Before it reaches the YAML: the plan's `quotas` object forbids additional
+    // properties, so a key with a separator is refused at boot — after every
+    // file has been written.
+    assertValidQuotaKey(key);
     return { key, model: delegateName(model ?? key) };
 }
 
 const delegateName = (model: string): string => model.charAt(0).toLowerCase() + model.slice(1);
+
+/**
+ * Every plan needs at least one quota, and that is the schema's rule, not ours.
+ *
+ * `quotas` is required on `PlanDef` and carries `minProperties: 1`, so a
+ * catalogue with `quotas: {}` is not loadable — `init` used to write exactly
+ * that whenever `--quota` was omitted, which is the form the help text showed
+ * as the primary one. The generator cannot satisfy the rule by inventing a
+ * quota: what is countable is the one thing only the integrator knows.
+ */
+function assertEnoughQuotas(quotas: readonly QuotaSpec[]): void {
+    const minimum = minimumQuotasPerPlan();
+    if (quotas.length >= minimum) return;
+    throw new Error(
+        `init needs at least ${minimum} --quota=<key>:<Model>. Every plan in ` +
+            'config/saas.yaml must declare one, and the platform refuses a catalogue ' +
+            'without it — so a project generated without one cannot boot. Name what ' +
+            'your app counts, for example --quota=notes:Note; the generated provider ' +
+            'is where you say how to count it.',
+    );
+}
 
 /** `notes` → `Notes`, `team-members` → `TeamMembers`. */
 export function pascalCase(value: string): string {
@@ -99,15 +145,24 @@ export function planInit(options: InitOptions): InitPlan {
     // the generated `config/saas.yaml` against this same pattern at boot.
     assertValidProjectKey(projectKey);
 
-    const appName = options.appName ?? pascalCase(projectKey);
+    // Two names out of one option, because it feeds two things with different
+    // alphabets. `--app-name="My App"` is an ordinary answer to "what is your
+    // app called" — and it produced `export class My AppAdminModule`, which is
+    // not TypeScript, after the generator had written every file. The raw value
+    // stays for the YAML and the labels a human reads; identifiers get the
+    // PascalCase of it.
+    const appLabel = options.appName ?? pascalCase(projectKey);
+    const appName = pascalCase(appLabel);
     const apiBase = options.apiBase ?? '/api/v1/admin';
     const quotas = (options.quotas ?? []).map(parseQuota);
+    assertEnoughQuotas(quotas);
     const hasherClass = options.skipHasher ? null : `${appName}PasswordHasher`;
     const featureKey = `${projectKey.replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}_CORE`;
 
     const shared: Record<string, string> = {
         PROJECT_KEY: projectKey,
         APP_NAME: appName,
+        APP_LABEL: appLabel,
         API_BASE: apiBase,
         FEATURE_KEY: featureKey,
         REGISTRY_CONST: `${constantCase(projectKey)}_FEATURE_UI_REGISTRY`,
@@ -164,6 +219,11 @@ export function planInit(options: InitOptions): InitPlan {
         });
     }
 
+    const quotaProviders: QuotaProviderFile[] = quotas.map((quota) => ({
+        className: `${pascalCase(quota.key)}QuotaProvider`,
+        path: `src/saas/${quotaFileName(quota.key)}`,
+    }));
+
     for (const quota of quotas) {
         files.push({
             path: `src/saas/${quotaFileName(quota.key)}`,
@@ -180,7 +240,7 @@ export function planInit(options: InitOptions): InitPlan {
     return {
         files,
         tokens: shared,
-        quotaClasses: quotas.map((q) => `${pascalCase(q.key)}QuotaProvider`),
+        quotaProviders,
         hasherClass,
     };
 }
@@ -236,9 +296,11 @@ export function patchOptionsFor(plan: InitPlan): PatchOptionsFromPlan {
             className: plan.tokens.ADMIN_MODULE_CLASS!,
             importPath: `./saas/${kebabCase(plan.tokens.APP_NAME!)}-admin.module`,
         },
-        quotaProviders: plan.quotaClasses.map((className) => ({
+        // Read off the plan, not re-derived: the file it wrote is the file the
+        // import has to name.
+        quotaProviders: plan.quotaProviders.map(({ className, path }) => ({
             className,
-            importPath: `./saas/${kebabCase(className.replace(/QuotaProvider$/, ''))}-quota.provider`,
+            importPath: `./${path.replace(/^src\//, '').replace(/\.ts$/, '')}`,
         })),
         registry: {
             constName: plan.tokens.REGISTRY_CONST!,

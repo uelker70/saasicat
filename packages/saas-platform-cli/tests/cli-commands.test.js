@@ -76,19 +76,43 @@ async function project(name) {
 }
 
 describe('the help text', () => {
-    test('names every command, and its own examples are valid', async () => {
+    test('names every command', async () => {
         const { stdout, code } = await cli([]);
         assert.equal(code, 0);
         for (const command of ['schema apply', 'schema check', 'schema migrate', 'init']) {
             assert.match(stdout, new RegExp(command.replace(' ', '\\s')));
         }
-        // The example was `--project-key=x`, which is one character and fails
-        // the catalogue schema's own pattern — so the documented command
-        // scaffolded an application that could not boot.
-        const keys = [...stdout.matchAll(/--project-key=([\w-]+)/g)].map((m) => m[1]);
-        for (const key of keys.filter((k) => k !== 'key')) {
-            const { code: exit } = await cli(['init', `--project-key=${key}`, '--dir', dir]);
-            assert.notEqual(exit, 1, `the help offers --project-key=${key}, which is refused`);
+    });
+
+    test('and every `init` example it prints actually runs', async () => {
+        // The example was `--project-key=x`, one character, which the catalogue
+        // schema refuses. Then it was `--project-key=myapp` with no `--quota`,
+        // which writes `quotas: {}` — also refused, and only at first boot.
+        // Extracting the key and testing that alone missed the second one, so
+        // this runs the whole line the help shows.
+        const { stdout } = await cli([]);
+        const examples = [...stdout.matchAll(/^ {2}(init .+)$/gm)]
+            .map((m) => m[1].trim())
+            .filter((line) => !line.includes('<'));
+        assert.ok(examples.length > 0, `no runnable init example in:\n${stdout}`);
+
+        for (const [index, example] of examples.entries()) {
+            const root = await project(`help-example-${index}`);
+            const {
+                stdout: out,
+                stderr,
+                code,
+            } = await cli(example.split(/\s+/), {
+                cwd: root,
+            });
+            assert.equal(code, 0, `\`${example}\` exits ${code}: ${stderr || out}`);
+
+            const yaml = await readFile(join(root, 'config', 'saas.yaml'), 'utf8');
+            assert.doesNotMatch(
+                yaml,
+                /quotas: \{\}/,
+                `\`${example}\` writes a catalogue the platform refuses`,
+            );
         }
     });
 
@@ -263,10 +287,11 @@ describe('init', () => {
 
     test('refuses to overwrite what is already there', async () => {
         const root = await project('init-twice');
-        await cli(['init', '--project-key=notesapp'], { cwd: root });
-        const { stdout, stderr, code } = await cli(['init', '--project-key=notesapp'], {
-            cwd: root,
-        });
+        await cli(['init', '--project-key=notesapp', '--quota=notes:Note'], { cwd: root });
+        const { stdout, stderr, code } = await cli(
+            ['init', '--project-key=notesapp', '--quota=notes:Note'],
+            { cwd: root },
+        );
         assert.notEqual(code, 0, 'the second run overwrote the first');
         assert.match(stdout + stderr, /already exist/i);
         assert.match(stdout + stderr, /config\/saas\.yaml/, 'it has to name what it refused');
@@ -289,9 +314,12 @@ describe('init', () => {
 
     test('--dry-run lists the files and writes none of them', async () => {
         const root = await project('init-dry');
-        const { stdout, code } = await cli(['init', '--project-key=notesapp', '--dry-run'], {
-            cwd: root,
-        });
+        const { stdout, code } = await cli(
+            ['init', '--project-key=notesapp', '--quota=notes:Note', '--dry-run'],
+            {
+                cwd: root,
+            },
+        );
         assert.equal(code, 0, stdout);
         assert.match(stdout, /saas\.yaml/);
         await assert.rejects(readFile(join(root, 'config', 'saas.yaml'), 'utf8'));

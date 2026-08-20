@@ -16,7 +16,7 @@
 //   - migration-constraints: where the non-DSL constraints go in a migration
 //   - fk-pointers:         enabling the FK relations to the app's own models
 //   - init/plan:           what `saasicat init` writes, as data
-//   - init/project-key:    the key rule, read off the catalogue schema
+//   - init/catalog-keys:   the key rules, read off the catalogue schema
 //   - init/patch-app-module: adding the platform to an existing AppModule
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
@@ -35,7 +35,7 @@ export * from './schema-check.js';
 export * from './migration-constraints.js';
 export * from './fk-pointers.js';
 export * from './init/plan.js';
-export * from './init/project-key.js';
+export * from './init/catalog-keys.js';
 export * from './init/patch-app-module.js';
 export * from './module.js';
 export * from './manifest.command.js';

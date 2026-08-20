@@ -40,8 +40,10 @@ async function render(options) {
 }
 
 describe('what gets written', () => {
-    test('the minimum is six files', async () => {
-        const { files } = await render({ projectKey: 'freshapp' });
+    test('the minimum is seven files, one of them a quota provider', async () => {
+        // Seven and not six: every plan must declare a quota, so the smallest
+        // loadable catalogue has one, and something has to count it.
+        const { files } = await render({ projectKey: 'freshapp', quotas: ['notes:Note'] });
         assert.deepEqual(
             files.map((f) => f.path),
             [
@@ -51,6 +53,7 @@ describe('what gets written', () => {
                 'src/saas/freshapp-admin.module.ts',
                 'src/saas/persistence.ts',
                 'src/auth/freshapp-password.hasher.ts',
+                'src/saas/notes-quota.provider.ts',
             ],
         );
     });
@@ -65,14 +68,21 @@ describe('what gets written', () => {
             providers.map((f) => f.path),
             ['src/saas/notes-quota.provider.ts', 'src/saas/seats-quota.provider.ts'],
         );
-        assert.deepEqual(plan.quotaClasses, ['NotesQuotaProvider', 'SeatsQuotaProvider']);
+        assert.deepEqual(
+            plan.quotaProviders.map((q) => q.className),
+            ['NotesQuotaProvider', 'SeatsQuotaProvider'],
+        );
     });
 
     test('--skip-hasher drops the hasher and keeps the persistence bundle', async () => {
         // It took the bundle with it at first, and the generated app then failed
         // its first boot on `core.adapters-bound` — the opposite of what this
         // command is for. The flag is about the hasher, not about persistence.
-        const { files, plan } = await render({ projectKey: 'freshapp', skipHasher: true });
+        const { files, plan } = await render({
+            projectKey: 'freshapp',
+            quotas: ['notes:Note'],
+            skipHasher: true,
+        });
         assert.equal(plan.hasherClass, null);
         assert.ok(!files.some((f) => f.path.includes('password.hasher')));
 
@@ -84,7 +94,7 @@ describe('what gets written', () => {
     });
 
     test('with a hasher the bundle wires it', async () => {
-        const { files } = await render({ projectKey: 'freshapp' });
+        const { files } = await render({ projectKey: 'freshapp', quotas: ['notes:Note'] });
         const persistence = files.find((f) => f.path === 'src/saas/persistence.ts');
         assert.match(persistence.content, /passwordHasher: FreshappPasswordHasher,/);
         assert.match(persistence.content, /import \{ FreshappPasswordHasher \}/);
@@ -95,8 +105,8 @@ describe('what gets written', () => {
         // file compiles as a property name and fails at runtime, in a file
         // nobody wrote and everybody trusts.
         for (const options of [
-            { projectKey: 'freshapp' },
-            { projectKey: 'freshapp', skipHasher: true },
+            { projectKey: 'freshapp', quotas: ['notes:Note'] },
+            { projectKey: 'freshapp', quotas: ['notes:Note'], skipHasher: true },
             { projectKey: 'multi-word-key', quotas: ['notes:Note'] },
         ]) {
             const { files } = await render(options);
@@ -113,7 +123,7 @@ describe('what gets written', () => {
         const rendered = new Set();
         for (const options of [
             { projectKey: 'ab', quotas: ['q:Q'] },
-            { projectKey: 'ab', skipHasher: true },
+            { projectKey: 'ab', quotas: ['notes:Note'], skipHasher: true },
         ]) {
             for (const file of planInit(options).files) rendered.add(`${file.template}.tpl`);
         }
@@ -124,10 +134,13 @@ describe('what gets written', () => {
 
 describe('the names it derives', () => {
     test('a multi-word key still produces valid identifiers', async () => {
-        const { plan } = await render({ projectKey: 'team-hub', quotas: ['active-seats:Seat'] });
+        const { plan } = await render({ projectKey: 'team-hub', quotas: ['activeSeats:Seat'] });
         assert.equal(plan.tokens.REGISTRY_CONST, 'TEAM_HUB_FEATURE_UI_REGISTRY');
         assert.equal(plan.tokens.ADMIN_MODULE_CLASS, 'TeamHubAdminModule');
-        assert.deepEqual(plan.quotaClasses, ['ActiveSeatsQuotaProvider']);
+        assert.deepEqual(
+            plan.quotaProviders.map((q) => q.className),
+            ['ActiveSeatsQuotaProvider'],
+        );
     });
 
     test('the quota model becomes the Prisma delegate, not the model name', () => {
@@ -155,10 +168,19 @@ describe('the YAML it writes', () => {
         assert.match(yaml, /quotas:\n {10}notes: 1000/);
     });
 
-    test('no quotas means an empty mapping, not a dangling key', async () => {
-        const { files } = await render({ projectKey: 'freshapp' });
-        const yaml = files.find((f) => f.path === 'config/saas.yaml').content;
-        assert.match(yaml, /quotas: \{\}/);
+    test('there is no such thing as a plan without quotas', async () => {
+        // This test used to assert the opposite — that `quotas: {}` was the
+        // right rendering for the no-quota case. It IS correct YAML. It is
+        // also a document the platform refuses: `quotas` is required on every
+        // plan and carries `minProperties: 1`, so `init --project-key=x`
+        // without `--quota` wrote every file, patched `app.module.ts`, printed
+        // "Next steps" and produced an application whose first boot failed on
+        // `/plans/0/quotas: must NOT have fewer than 1 properties`.
+        //
+        // Asserting on rendered text is what let it stand for a whole PR. The
+        // suite loads the generated catalogue now — see
+        // `generated-catalog-loads.test.js`.
+        assert.throws(() => planInit({ projectKey: 'freshapp' }), /at least 1 --quota/);
     });
 
     test('nothing has a trailing space', async () => {
@@ -317,7 +339,7 @@ describe('what the plan implies for the patch', () => {
         // and was never wired — and an app that failed `core.adapters-bound` on
         // its first boot.
         for (const skipHasher of [false, true]) {
-            const plan = planInit({ projectKey: 'freshapp', skipHasher });
+            const plan = planInit({ projectKey: 'freshapp', quotas: ['notes:Note'], skipHasher });
             const generated = plan.files.some((f) => f.path === 'src/saas/persistence.ts');
             const imported = patchOptionsFor(plan).persistenceImport !== null;
             assert.equal(
@@ -329,7 +351,7 @@ describe('what the plan implies for the patch', () => {
     });
 
     test('the admin module import path matches the file the plan writes', () => {
-        const plan = planInit({ projectKey: 'team-hub' });
+        const plan = planInit({ projectKey: 'team-hub', quotas: ['notes:Note'] });
         const written = plan.files.find((f) => f.path.includes('-admin.module'));
         const { adminModule } = patchOptionsFor(plan);
         assert.equal(`src/saas/${adminModule.importPath.replace('./saas/', '')}.ts`, written.path);
@@ -338,7 +360,7 @@ describe('what the plan implies for the patch', () => {
     test('each quota provider import path matches its file', () => {
         const plan = planInit({
             projectKey: 'freshapp',
-            quotas: ['notes:Note', 'active-seats:Seat'],
+            quotas: ['notes:Note', 'activeSeats:Seat'],
         });
         const written = plan.files
             .filter((f) => f.path.includes('quota.provider'))
@@ -388,8 +410,8 @@ describe('a project key the platform would refuse', () => {
     });
 
     test('and a valid one still plans', () => {
-        assert.ok(planInit({ projectKey: 'notesapp' }).files.length > 0);
-        assert.ok(planInit({ projectKey: 'team-hub-2' }).files.length > 0);
+        assert.ok(planInit({ projectKey: 'notesapp', quotas: ['notes:Note'] }).files.length > 0);
+        assert.ok(planInit({ projectKey: 'team-hub-2', quotas: ['notes:Note'] }).files.length > 0);
     });
 
     test('the rule comes from the schema, not from a copy of it', () => {
@@ -417,3 +439,128 @@ function thrownBy(fn) {
 function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+describe('an app name a human would type', () => {
+    // `--app-name` feeds two things with different alphabets: the label a
+    // person reads in the YAML and the sidebar, and the identifiers of two
+    // generated classes. One value did both, so `--app-name="My App"` wrote
+    // `export class My AppAdminModule` — not TypeScript — after six files had
+    // been written and `app.module.ts` patched.
+
+    test('the classes get identifiers, the catalogue keeps the words', () => {
+        const plan = planInit({
+            projectKey: 'notesapp',
+            appName: 'My App',
+            quotas: ['notes:Note'],
+        });
+        assert.equal(plan.tokens.ADMIN_MODULE_CLASS, 'MyAppAdminModule');
+        assert.equal(plan.hasherClass, 'MyAppPasswordHasher');
+        assert.equal(plan.tokens.APP_LABEL, 'My App');
+    });
+
+    test('and the file names follow the identifier, not the label', () => {
+        const plan = planInit({
+            projectKey: 'notesapp',
+            appName: 'My App',
+            quotas: ['notes:Note'],
+        });
+        const paths = plan.files.map((f) => f.path);
+        assert.ok(paths.includes('src/saas/my-app-admin.module.ts'), paths.join(' '));
+        assert.ok(paths.includes('src/auth/my-app-password.hasher.ts'), paths.join(' '));
+    });
+
+    test('every generated class name is a valid identifier', () => {
+        // The property, rather than the two cases above: whatever the option
+        // is, nothing that ends up after `class` may contain a space.
+        for (const appName of ['My App', 'my app', 'My-App', 'my.app', 'App 2']) {
+            const plan = planInit({ projectKey: 'notesapp', appName, quotas: ['notes:Note'] });
+            for (const value of [plan.hasherClass, plan.tokens.ADMIN_MODULE_CLASS]) {
+                assert.match(value, /^[A-Za-z_$][\w$]*$/, `${appName} → ${value}`);
+            }
+        }
+    });
+});
+
+describe('the file a quota provider is written to is the file that gets imported', () => {
+    // Two spellings of one name: the file came from the quota key lowercased,
+    // the import from the class name kebab-cased. They agree for `notes` and
+    // part company for `apiCalls` — `apicalls-quota.provider.ts` written,
+    // `./saas/api-calls-quota.provider` imported, TS2307. The plan carries the
+    // path now, so there is one derivation instead of two.
+
+    test('for a camel-cased key, where the two used to disagree', () => {
+        const plan = planInit({ projectKey: 'notesapp', quotas: ['apiCalls:ApiCall'] });
+        const written = plan.files
+            .filter((f) => f.path.includes('quota.provider'))
+            .map((f) => f.path);
+        const imported = patchOptionsFor(plan).quotaProviders.map(
+            (q) => `src/${q.importPath.replace(/^\.\//, '')}.ts`,
+        );
+        assert.deepEqual(imported, written);
+    });
+
+    test('and for every spelling the schema allows', () => {
+        const plan = planInit({
+            projectKey: 'notesapp',
+            quotas: ['notes:Note', 'apiCalls:ApiCall', 'seats2:Seat'],
+        });
+        const written = plan.files
+            .filter((f) => f.path.includes('quota.provider'))
+            .map((f) => f.path)
+            .sort();
+        const imported = patchOptionsFor(plan)
+            .quotaProviders.map((q) => `src/${q.importPath.replace(/^\.\//, '')}.ts`)
+            .sort();
+        assert.deepEqual(imported, written);
+    });
+});
+
+describe('a root module whose last import spans several lines', () => {
+    // Ordinary Prettier output past three named imports, and it was cut open at
+    // its opening brace: the generated imports landed between `import {` and
+    // `Module,`, and the file stopped being TypeScript.
+
+    const MULTILINE = [
+        "import 'reflect-metadata';",
+        'import {',
+        '    Module,',
+        '    Injectable,',
+        "} from '@nestjs/common';",
+        '',
+        '@Module({',
+        '    imports: [],',
+        '})',
+        'export class AppModule {}',
+        '',
+    ].join('\n');
+
+    test('stays intact, and the new imports go after it', () => {
+        const { source } = patchAppModule(MULTILINE, PATCH_OPTIONS);
+        assert.match(source, /import \{\n {4}Module,\n {4}Injectable,\n\} from '@nestjs\/common';/);
+
+        const lines = source.split('\n');
+        const closing = lines.findIndex((l) => l.includes("} from '@nestjs/common';"));
+        const generated = lines.findIndex((l) => l.includes('@saasicat/nest/platform'));
+        assert.ok(closing < generated, 'a generated import landed inside the existing statement');
+    });
+
+    test('and a side-effect import is an import too, so nothing lands above it', () => {
+        // `import 'reflect-metadata'` has no `from`, and an import inserted
+        // above it would change evaluation order — silently, until it is not.
+        const source = [
+            "import 'reflect-metadata';",
+            '',
+            '@Module({',
+            '    imports: [],',
+            '})',
+            'export class AppModule {}',
+            '',
+        ].join('\n');
+        const patched = patchAppModule(source, PATCH_OPTIONS).source.split('\n');
+        assert.equal(patched[0], "import 'reflect-metadata';");
+        assert.ok(
+            patched.slice(1, 8).some((l) => l.includes('@saasicat/nest/platform')),
+            patched.slice(0, 8).join(' | '),
+        );
+    });
+});

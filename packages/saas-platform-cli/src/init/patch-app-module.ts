@@ -155,13 +155,37 @@ function renderImports(options: PatchAppModuleOptions): string {
  */
 function addImportStatements(source: string, options: PatchAppModuleOptions): string {
     const lines = source.split('\n');
-    let lastImport = -1;
-    for (let index = 0; index < lines.length; index += 1) {
-        if (/^\s*import\s/.test(lines[index]!)) lastImport = index;
-    }
     const block = renderImports(options).split('\n');
-    lines.splice(lastImport + 1, 0, ...block);
+    lines.splice(endOfLastImport(lines) + 1, 0, ...block);
     return lines.join('\n');
+}
+
+/**
+ * The line on which the last import STATEMENT ends, or -1 when there is none.
+ *
+ * Not the line it starts on. An import may span several lines, and a root
+ * module whose last one does — `import {\n    Module,\n} from '@nestjs/common'`
+ * is ordinary Prettier output past three named imports — was cut open at its
+ * opening brace, so the generated imports landed inside it and the file stopped
+ * being TypeScript. The generator had already written six files by then.
+ *
+ * A statement ends at the first line carrying its terminating quote: either
+ * `from '…'` or a bare side-effect import such as `import 'reflect-metadata'`.
+ */
+function endOfLastImport(lines: readonly string[]): number {
+    let end = -1;
+    let open = false;
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index]!;
+        if (!open && !/^\s*import\s/.test(line)) continue;
+        open = true;
+        // `from '…'` closes a braced import; a bare `import '…';` closes itself.
+        if (/\bfrom\s+['"][^'"]+['"]/.test(line) || /^\s*import\s+['"][^'"]+['"]/.test(line)) {
+            end = index;
+            open = false;
+        }
+    }
+    return end;
 }
 
 /** The `SaaSiCatModule.forRoot(...)` call, indented from column zero. */
