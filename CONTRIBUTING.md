@@ -164,10 +164,38 @@ Every user-facing change needs a changeset:
 pnpm changeset
 ```
 
-Pick a bump level (`patch` for fixes, `minor` for features; during 0.x, breaking
-changes are also released as `minor`) and write a short, user-facing summary.
-Internal-only changes (CI, tests, docs) don't need one. Publishing happens through
-the release workflow in CI, not from local machines.
+Pick a bump level — `patch` for fixes, `minor` for features, `major` for a
+breaking change — and write a short, user-facing summary. Internal-only changes
+(CI, tests, docs) don't need one. Publishing happens through the release workflow
+in CI, not from local machines.
+
+### Opening the 1.0 release candidate
+
+`0.27.0` is the current line. Phases 4 and 5 of the consolidation release together
+as `1.0.0`, and the candidates leading up to it are tagged `rc`.
+
+Two things open that line, and they have to arrive **in the same pull request**:
+
+```bash
+pnpm changeset          # pick `major`, describe the breaking change
+pnpm changeset pre enter rc
+```
+
+Neither half works alone, and the release workflow runs on every push to `main`,
+so the next merge publishes whatever the pair produces:
+
+- **Pre mode without a `major`** appends the tag to the ordinary bump, so a
+  `patch` versions the group as `0.27.1-rc.0` — a candidate line opened on the
+  version being left behind.
+- **A `major` without pre mode** applies the bump with no tag, so the release
+  publishes a stable `1.0.0`. That version is reserved for the coordinated cut,
+  and a published npm version cannot be taken back.
+
+Together they give `1.0.0-rc.0`, after which every level accumulates as
+`1.0.0-rc.N`. `pnpm run test:repo` refuses either half on its own.
+
+Leaving pre mode is how `1.0.0` itself is released. It happens once, deliberately,
+when the work behind the candidate is complete — not as part of an ordinary change.
 
 ## Commits and pull requests
 
