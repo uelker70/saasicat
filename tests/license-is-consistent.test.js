@@ -83,19 +83,26 @@ describe('every published package ships the same licence as the repository', () 
         // files moved to a new version of the same licence while the manifests
         // kept the old identifier. Every copy identical, every field agreeing,
         // and the metadata naming a version the file does not.
+        //
+        // Compared as text rather than as patterns. The first version built a
+        // `RegExp` out of the identifier and escaped only the dots in the
+        // version — partial escaping, which CodeQL flagged as
+        // `js/incomplete-sanitization` and was right to: a value that reaches a
+        // pattern needs every metacharacter handled or none of them. `includes`
+        // needs none, and says what is meant.
         const segments = identifier.split('-');
         const version = segments.filter((s) => /^\d+$/.test(s)).join('.');
+        const haystack = title.toLowerCase();
+
         for (const word of segments.filter((s) => !/^\d+$/.test(s))) {
-            assert.match(
-                title,
-                new RegExp(word, 'i'),
+            assert.ok(
+                haystack.includes(word.toLowerCase()),
                 `"${identifier}" names ${word}, which does not appear in "${title.trim()}"`,
             );
         }
         if (version) {
-            assert.match(
-                title,
-                new RegExp(version.replace(/\./g, '\\.')),
+            assert.ok(
+                title.includes(version),
                 `"${identifier}" is version ${version}, which does not appear in "${title.trim()}"`,
             );
         }
