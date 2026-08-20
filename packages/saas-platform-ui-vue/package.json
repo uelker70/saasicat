@@ -110,7 +110,7 @@
         "vue-router": "^5.0.0",
         "vue-tsc": "^3.3.3"
     },
-    "license": "Apache-2.0",
+    "license": "PolyForm-Shield-1.0.0",
     "author": "Taci Uelker",
     "homepage": "https://github.com/uelker70/saasicat",
     "repository": {

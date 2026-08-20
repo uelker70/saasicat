@@ -10,7 +10,7 @@
         "billing",
         "multi-tenancy"
     ],
-    "license": "Apache-2.0",
+    "license": "PolyForm-Shield-1.0.0",
     "author": "Taci Uelker",
     "homepage": "https://github.com/uelker70/saasicat",
     "repository": {
