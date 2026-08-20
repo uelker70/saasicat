@@ -241,7 +241,11 @@ export function getPrismaDelegate<Row>(
 ): PrismaModelDelegateLike<Row> {
     const delegate = (client as Record<string, unknown> | null)?.[delegateName];
     if (!delegate || typeof delegate !== 'object') {
-        throw new Error(`Prisma client has no '${delegateName}' delegate.`);
+        throw new Error(
+            `Prisma client has no '${delegateName}' delegate. If your model is called something ` +
+                'else, map it — `adminResources: { delegates: { tenant: "organization" } }` for ' +
+                'the SuperAdmin resources, `schema` for the plan binding.',
+        );
     }
     return delegate as PrismaModelDelegateLike<Row>;
 }
