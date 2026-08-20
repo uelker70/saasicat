@@ -145,6 +145,23 @@ jobs:
                   SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
               run: pnpm --filter "@saasicat/adapter-drizzle" test:integration
 
+            # The ratchet's other half. The coverage step in `build-and-test`
+            # has no database, so for these two packages it measures the suites
+            # that exercise everything EXCEPT the repository layer they exist to
+            # provide — `adapter-drizzle` reads 60.33% there and 75.42% here.
+            # Both numbers are in coverage-baseline.json and both are checked;
+            # this is the job that can check the second one.
+            #
+            # `--only` because this job builds the adapters and nothing else,
+            # and measuring a package whose `dist/` was never built describes a
+            # program nobody is running.
+            - name: Coverage of the contract run
+              env:
+                  SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
+              run: >
+                  node scripts/coverage-ratchet.mjs
+                  --only=saas-platform-adapter-prisma,saas-platform-adapter-drizzle
+
     e2e:
         runs-on: ubuntu-latest
         steps:

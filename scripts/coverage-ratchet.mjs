@@ -80,6 +80,33 @@ const COVERAGE_INCLUDE = [
 ];
 
 /**
+ * The CommonJS output, which is the same source a second time.
+ *
+ * `@saasicat/nest` ships twelve ESM entry points and one CommonJS bundle built
+ * from the same sources (`dist/_entries.cjs`, see CONTRIBUTING, "One bundle,
+ * many entries"). At 19,189 of the package's 39,996 built lines, that copy is
+ * nearly half of what a naive measurement counts — and the suites load it only
+ * where they check it deliberately, so it sat at 40.82% and pulled the package
+ * to 65.22% while every ESM bundle measured between 92.81% and 100%.
+ *
+ * The number was not describing untested logic. It was describing the same
+ * logic twice, once tested and once not, and it had a perverse property: adding
+ * a test that touches the CommonJS bundle LOWERED coverage, because the file
+ * only enters the report when something loads it. That happened twice in one
+ * afternoon.
+ *
+ * What the CommonJS output can break that ESM cannot — an export resolving to
+ * two identities across entry points, a bundle missing something it needs — is
+ * not a question about line counts, and it has its own tests:
+ * `cjs-entry-identity.test.js` and `dist-is-self-contained.test.js`. Those are
+ * the guards for it; this is not.
+ *
+ * `index.cjs` at a package root stays included. That one is hand-written (see
+ * `@saasicat/spec`), not a second rendering of something already measured.
+ */
+const COVERAGE_EXCLUDE = ['dist/**/*.cjs'];
+
+/**
  * Tolerance in percentage points.
  *
  * Small on purpose. With `COVERAGE_INCLUDE` above the measurement is
@@ -104,7 +131,7 @@ const SUMMARY = /^ℹ all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/
  * line — Node flags it as an injection vector (DEP0190), and it is one. Walking
  * the directory ourselves needs no shell and no glob expansion.
  */
-function testFiles(cwd) {
+function testFiles(cwd, directory = 'tests') {
     const found = [];
     const walk = (dir) => {
         for (const entry of readdirSync(dir)) {
@@ -116,16 +143,18 @@ function testFiles(cwd) {
         }
     };
     try {
-        walk(join(cwd, 'tests'));
+        walk(join(cwd, directory));
     } catch {
         return [];
     }
     return found.sort();
 }
 
-function measure(pkg) {
+function measure(pkg, { withDatabase = false } = {}) {
     const cwd = join(REPO_ROOT, 'packages', pkg);
-    const files = testFiles(cwd);
+    const files = withDatabase
+        ? [...testFiles(cwd), ...testFiles(cwd, 'tests-integration')]
+        : testFiles(cwd);
     if (files.length === 0) return null;
 
     const result = spawnSync(
@@ -134,6 +163,7 @@ function measure(pkg) {
             '--test',
             '--experimental-test-coverage',
             ...COVERAGE_INCLUDE.map((glob) => `--test-coverage-include=${glob}`),
+            ...COVERAGE_EXCLUDE.map((glob) => `--test-coverage-exclude=${glob}`),
             ...files,
         ],
         { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
@@ -166,6 +196,34 @@ function measure(pkg) {
 }
 
 const update = process.argv.includes('--update');
+
+/**
+ * Whether the persistence contract can run — and therefore be measured.
+ *
+ * `adapter-prisma` and `adapter-drizzle` keep their contract suite under
+ * `tests-integration/`, which needs a real PostgreSQL. Without it the ratchet
+ * measures the service-free suites alone, and for those two packages that
+ * number is not a statement about how well the code is tested: the repository
+ * layer they exist to provide is exercised entirely by the contract. Measured
+ * on 2026-08-20, `adapter-drizzle` reads 60.33% without it and 75.42% with it.
+ *
+ * Both numbers are real, they answer different questions, and the baseline
+ * carries both. `withDatabase` is checked only in a run that could measure it —
+ * CI does that in the `persistence-contract` job, which already has the
+ * service.
+ */
+const DATABASE_URL = process.env.SAASICAT_TEST_DATABASE_URL;
+
+/**
+ * `--only=a,b` narrows the run to those packages.
+ *
+ * For the CI job that has a database but builds only the adapters: measuring a
+ * package whose `dist/` was never built would report a program nobody is
+ * running, which is the failure the PRECONDITION note above is about.
+ */
+const only = process.argv.find((arg) => arg.startsWith('--only='))?.slice('--only='.length);
+const SELECTED = only ? only.split(',').map((name) => name.trim()) : PACKAGES;
+
 const current = {};
 
 // What went wrong, if anything did. Named and described, because a report that
@@ -183,7 +241,7 @@ const skipped = [];
 // diagnose a failed coverage step — and a throw here used to abort before the
 // write, so the one run that needed the artefact was the one without it.
 try {
-    for (const pkg of PACKAGES) {
+    for (const pkg of SELECTED) {
         process.stderr.write(`measuring ${pkg} … `);
         let value;
         try {
@@ -216,7 +274,30 @@ try {
             continue;
         }
         current[pkg] = value;
-        process.stderr.write(`${value.line.toFixed(2)}% lines\n`);
+        process.stderr.write(`${value.line.toFixed(2)}% lines`);
+
+        // The same package again, with its contract suite, when there is a
+        // database to run it against.
+        if (
+            DATABASE_URL &&
+            testFiles(join(REPO_ROOT, 'packages', pkg), 'tests-integration').length
+        ) {
+            let withDatabase;
+            try {
+                withDatabase = measure(pkg, { withDatabase: true });
+            } catch (err) {
+                failure = {
+                    package: pkg,
+                    message: `Contract run failed: ${err instanceof Error ? err.message : String(err)}`,
+                };
+                throw err;
+            }
+            if (withDatabase) {
+                current[pkg].withDatabase = withDatabase;
+                process.stderr.write(` · ${withDatabase.line.toFixed(2)}% with the contract`);
+            }
+        }
+        process.stderr.write('\n');
     }
 } finally {
     writeFileSync(
@@ -224,7 +305,7 @@ try {
         `${JSON.stringify(
             {
                 measured: current,
-                complete: Object.keys(current).length === PACKAGES.length,
+                complete: Object.keys(current).length === SELECTED.length,
                 failure,
                 skipped,
             },
@@ -235,8 +316,27 @@ try {
 }
 
 if (update) {
-    writeFileSync(BASELINE, `${JSON.stringify(current, null, 4)}\n`);
+    // Merged, not overwritten. Two things would otherwise be lost silently:
+    // a `--only` run would drop every package it did not measure, and a run
+    // without a database would drop the `withDatabase` numbers of the two
+    // adapters — in both cases lowering a bar by forgetting it, which is the
+    // one thing a ratchet may never do.
+    const previous = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : {};
+    const merged = { ...previous };
+    for (const [pkg, value] of Object.entries(current)) {
+        merged[pkg] = { ...value };
+        if (!value.withDatabase && previous[pkg]?.withDatabase) {
+            merged[pkg].withDatabase = previous[pkg].withDatabase;
+        }
+    }
+    writeFileSync(BASELINE, `${JSON.stringify(merged, null, 4)}\n`);
     console.log(`Baseline written: ${BASELINE}`);
+    if (!DATABASE_URL) {
+        console.log(
+            'Note: no SAASICAT_TEST_DATABASE_URL, so the contract numbers were carried\n' +
+                'over unchanged rather than measured.',
+        );
+    }
     process.exit(0);
 }
 
@@ -248,19 +348,45 @@ if (!existsSync(BASELINE)) {
 const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'));
 const regressions = [];
 
+/** Compares one set of three numbers, and says which run they came from. */
+function compare(pkg, before, now, label) {
+    for (const metric of ['line', 'branch', 'funcs']) {
+        if (now[metric] < before[metric] - SLACK) {
+            regressions.push(
+                `${pkg}${label}: ${metric} coverage ${now[metric].toFixed(2)}% < ` +
+                    `${before[metric].toFixed(2)}% baseline`,
+            );
+        }
+    }
+}
+
+/** Packages whose contract numbers exist but could not be checked this run. */
+const unmeasured = [];
+
 for (const [pkg, before] of Object.entries(baseline)) {
+    if (!SELECTED.includes(pkg)) continue;
     const now = current[pkg];
     if (!now) {
         regressions.push(`${pkg}: produced no coverage report at all (was ${before.line}% lines)`);
         continue;
     }
-    for (const metric of ['line', 'branch', 'funcs']) {
-        if (now[metric] < before[metric] - SLACK) {
-            regressions.push(
-                `${pkg}: ${metric} coverage ${now[metric].toFixed(2)}% < ${before[metric].toFixed(2)}% baseline`,
-            );
-        }
+    compare(pkg, before, now, '');
+
+    if (!before.withDatabase) continue;
+    if (now.withDatabase) {
+        compare(pkg, before.withDatabase, now.withDatabase, ' (with the contract)');
+    } else {
+        // Said out loud rather than passed over. Silence here would read as
+        // "checked, nothing wrong" for a number nothing looked at.
+        unmeasured.push(pkg);
     }
+}
+
+if (unmeasured.length > 0) {
+    console.error(
+        `\nNot checked: the contract numbers for ${unmeasured.join(', ')} — no ` +
+            'SAASICAT_TEST_DATABASE_URL.\nCI checks those in the persistence-contract job.',
+    );
 }
 
 if (regressions.length > 0) {
