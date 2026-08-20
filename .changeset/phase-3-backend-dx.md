@@ -16,7 +16,10 @@ per `--quota=key:Model`, a password hasher — and adds
 thirteen files to create by hand is now none: what stays yours is what each
 quota counts, the hasher if scrypt is not enough, and your auth guard. The
 command prints all three as next steps and refuses to overwrite an existing
-file.
+file. A value flag written without `=` is a usage error rather than an internal
+one, `--app-name="My App"` produces `MyAppAdminModule` while the catalogue keeps
+the words, and a root module whose last import spans several lines is no longer
+cut open at its opening brace.
 
 The generated module does not compile until you name that guard — it writes
 `controller: { guards: [YourAuthGuard] }`, a symbol that does not exist, and
@@ -24,11 +27,17 @@ The generated module does not compile until you name that guard — it writes
 platform's word for _deliberately_ unauthenticated: the discovery and manifest
 endpoints would have answered to anyone.
 
-**`saasicat init` refuses a project key the platform would refuse.** The key
-goes into `config/saas.yaml`, which is validated against the catalogue schema at
-boot — so `--project-key=NotesApp` used to scaffold an application that could not
-start, after every file had been written. The rule is read off that schema, not
-restated.
+**`saasicat init` refuses what the platform would refuse, before it writes
+anything.** Everything in `config/saas.yaml` is validated against the catalogue
+schema at boot, so every rule the generator skipped was one the integrator met
+after every file had been written and `app.module.ts` patched. Three of them
+each produced an application that could not start: a project key outside
+`^[a-z][a-z0-9-]{1,30}$`, a quota key with a separator (`active-seats` — the
+plan's `quotas` object forbids additional properties), and no `--quota` at all,
+which wrote `quotas: {}` where the schema requires at least one. `--quota` is
+therefore required now. All three rules are read off the schema rather than
+restated, and the suite loads the generated catalogue with the platform's own
+loader.
 
 **A broken enforcement chain no longer boots.** `@RequireFeature` and
 `@EnforceQuota` with nothing able to resolve a tenant to a plan used to be

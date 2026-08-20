@@ -2,8 +2,8 @@ schemaVersion: 1
 projectKey: __PROJECT_KEY__
 
 app:
-    name: __APP_NAME__
-    label: __APP_NAME__ Cockpit
+    name: __APP_LABEL__
+    label: __APP_LABEL__ Cockpit
 
 currency: EUR
 vatRate: 19.0

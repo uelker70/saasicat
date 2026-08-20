@@ -9,7 +9,7 @@ import type { FeatureUiRegistry } from '@saasicat/types';
  */
 export const __REGISTRY_CONST__: FeatureUiRegistry = {
     __FEATURE_KEY__: {
-        label: '__APP_NAME__',
+        label: '__APP_LABEL__',
         description: 'What this feature lets a tenant do.',
         icon: 'check_circle',
     },
