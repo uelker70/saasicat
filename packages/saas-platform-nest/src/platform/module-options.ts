@@ -435,4 +435,22 @@ export interface SaasPlatformModuleOptions {
      * authenticated request.
      */
     globalFeatureGuard?: boolean;
+    /**
+     * Run the enforcement-chain check at bootstrap. Default `true`.
+     *
+     * It refuses to start an application whose `@RequireFeature` routes have
+     * nothing enforcing them — the failure that otherwise shows up as a
+     * customer using a feature they never bought.
+     *
+     * Two shapes it cannot recognise, and they are the reason this switch
+     * exists rather than being an argument about the check: a feature guard of
+     * your own that WRAPS ours without carrying `FEATURE_GUARD_MARKER`, and one
+     * you bind globally as an `APP_GUARD` instead of per controller. Both are
+     * correctly enforced and both look uncovered from here.
+     *
+     * Turning it off buys silence, not safety: those routes are then unchecked
+     * by anything, and whether they are covered is back to being something you
+     * know rather than something the boot verifies.
+     */
+    enforcementChainCheck?: boolean;
 }

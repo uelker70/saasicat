@@ -335,11 +335,12 @@ splices them into your `schema.prisma` (see [Quickstart §3](quickstart.md)).
 The JSON Schemas in `@saasicat/spec/schemas/` govern **wire formats**, not
 tables.
 
-`saasicat schema migrate` runs `apply`, then `prisma migrate dev`, then appends
-`constraints.postgres.sql` to the migration that run produced — so the
-invariants Prisma cannot express arrive with the tables rather than as a step
-to remember. It is idempotent: a migration that already carries them is left
-alone.
+`saasicat schema migrate` runs `apply`, then `prisma migrate dev --create-only`,
+appends `constraints.postgres.sql` to the migration that produced, and applies
+it — so the invariants Prisma cannot express arrive with the tables rather than
+as a step to remember. `--create-only` is what makes that work: an applied
+migration cannot take an edit, and Prisma would see its checksum change. It is
+idempotent: a migration that already carries them is left alone.
 
 `schema apply` only ever adds whole models — it does not carry enums and it
 never touches a model you already have. So after a package upgrade your schema

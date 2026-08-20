@@ -105,13 +105,36 @@ function bootWith(controllers, state) {
 }
 
 /** The chain state of an app that unbound the platform's global guard. */
-const OWN_GUARDS = { entitlementActive: true, globalGuardBound: false };
+const OWN_GUARDS = {
+    entitlementActive: true,
+    globalGuardBound: false,
+    globalGuardOptedOut: true,
+};
+
+/**
+ * The V3 path: entitlements resolve, but the platform binds no global guard
+ * because it never registers the static stack — and the app did not ask for
+ * that.
+ */
+const V3_PATH = {
+    entitlementActive: true,
+    globalGuardBound: false,
+    globalGuardOptedOut: false,
+};
 
 /** The chain state of an app that can resolve no plan at all. */
-const INERT = { entitlementActive: false, globalGuardBound: false };
+const INERT = {
+    entitlementActive: false,
+    globalGuardBound: false,
+    globalGuardOptedOut: false,
+};
 
 /** The state the platform is in by default: guard bound, nothing to check. */
-const PLATFORM_GUARD_BOUND = { entitlementActive: true, globalGuardBound: true };
+const PLATFORM_GUARD_BOUND = {
+    entitlementActive: true,
+    globalGuardBound: true,
+    globalGuardOptedOut: false,
+};
 
 const COVERED = makeController('CoveredController', {
     classGuards: [FakeAuthGuard, PlatformGuard],
@@ -209,7 +232,8 @@ describe('globalFeatureGuard: false — the app binds its own', () => {
 
         assert.ok(error);
         assert.match(error.message, /WrappedGuardController\.list/);
-        assert.match(error.message, /wraps either one is not recognised/);
+        assert.match(error.message, /wraps ours/);
+        assert.match(error.message, /FEATURE_GUARD_MARKER/);
     });
 
     test('a quota-only route is not a guard question', () => {
@@ -262,5 +286,30 @@ describe('the platform bound its own guard', () => {
         // Every annotated route is covered by the global APP_GUARD, so an
         // uncovered-looking controller is not uncovered.
         assert.equal(bootWith([UNCOVERED, QUOTA_ONLY], PLATFORM_GUARD_BOUND), null);
+    });
+});
+
+describe('the message names the true cause', () => {
+    test('the option, when the option is what unbound the guard', () => {
+        const error = bootWith([UNCOVERED], OWN_GUARDS);
+        assert.match(error.message, /globalFeatureGuard is off/);
+    });
+
+    test('and the entitlement path, when the app never set it', () => {
+        // Sending someone to look for a line that is not in their file is the
+        // cheapest way to make an accurate error useless.
+        const error = bootWith([UNCOVERED], V3_PATH);
+        assert.ok(error);
+        assert.doesNotMatch(error.message, /globalFeatureGuard is off/);
+        assert.match(error.message, /binds no global feature guard on this entitlement path/);
+    });
+
+    test('both name the way out of what the check cannot see', () => {
+        for (const state of [OWN_GUARDS, V3_PATH]) {
+            const error = bootWith([UNCOVERED], state);
+            assert.match(error.message, /FEATURE_GUARD_MARKER/);
+            assert.match(error.message, /APP_GUARD/);
+            assert.match(error.message, /enforcementChainCheck: false/);
+        }
     });
 });

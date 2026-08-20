@@ -215,18 +215,25 @@ export class SaasPlatformModule {
         // from `@saasicat/nest/billing` itself. Treating that as inert would
         // refuse to boot a correctly wired application, which is the one
         // failure this check may not have.
-        lightweightProviders.push(
-            EnforcementChainCheck,
-            enforcementChainState({
-                entitlementActive: resolution.available || requiresFullEntitlement,
-                globalGuardBound: resolution.available && options.globalFeatureGuard !== false,
-            }),
-        );
+        if (options.enforcementChainCheck !== false) {
+            lightweightProviders.push(
+                EnforcementChainCheck,
+                enforcementChainState({
+                    entitlementActive: resolution.available || requiresFullEntitlement,
+                    globalGuardBound: resolution.available && options.globalFeatureGuard !== false,
+                    // Whether the OPTION unbound it, as opposed to this simply
+                    // being a path where the platform binds none. The message
+                    // names the true cause, and an application that never set
+                    // the option is not told to look for it.
+                    globalGuardOptedOut: options.globalFeatureGuard === false,
+                }),
+            );
+        }
         // It walks the controllers, so it needs Nest's own discovery
         // primitives. Imported here rather than relied upon: the platform's own
         // DiscoveryModule can be switched off, and a check that cannot be
         // constructed takes the whole boot down with it.
-        imports.push(NestDiscoveryModule);
+        if (options.enforcementChainCheck !== false) imports.push(NestDiscoveryModule);
 
         const tenantManifest = composeTenantManifest(composition);
         lightweightProviders.push(...tenantManifest.providers);

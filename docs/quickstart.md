@@ -115,15 +115,16 @@ pnpm exec saasicat schema migrate --name=add_saasicat --all
 pnpm prisma generate
 ```
 
-`schema migrate` does three things: it idempotently inserts the platform models
+`schema migrate` does four things: it idempotently inserts the platform models
 from the selected Prisma fragments into your `schema.prisma`, it calls
-`prisma migrate dev` for the DB migration, and it appends the constraints
-Prisma's DSL cannot express — the partial unique indexes and the subscription
-CHECK — to the migration that run just produced. Those are part of the canonical
-schema, not optional hardening: the adapter contract tests run against a
-database that has them (details: [data model](data-model.md)). Running the
-command again does not append them twice, and re-running
-`prisma migrate dev` applies them.
+`prisma migrate dev --create-only` to write the migration, it appends the
+constraints Prisma's DSL cannot express — the partial unique indexes and the
+subscription CHECK — and only then applies it. The order matters: a migration
+that has already been applied cannot take an edit, and Prisma would see its
+recorded checksum change and offer a reset. Those constraints are part of the
+canonical schema, not optional hardening: the adapter contract tests run against
+a database that has them (details: [data model](data-model.md)). Running the
+command again does not append them twice.
 
 `--all` gives the standard module its catalog, subscription, contract, bundle,
 audit and SuperAdmin tables.
@@ -142,6 +143,11 @@ declare. Without the flags the pointers stay commented and the command says how
 many and how to enable them — nothing fails in that state, which is the reason
 it is easy to leave: the columns exist, the queries work, and referential
 integrity is simply absent until somebody deletes a tenant.
+
+A Prisma relation has two sides, and only your model can carry the other one. If
+your `Tenant` has no `auditLogs AuditLog[]`, that pointer stays commented and the
+command prints the exact line to add — writing it anyway would produce a schema
+Prisma refuses with P1012, in a file the tool had already changed.
 
 ## Step 4 — Declare a countable product capability
 

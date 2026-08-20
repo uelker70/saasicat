@@ -264,3 +264,65 @@ describe('an app that matches the convention is unaffected', () => {
         assert.equal(rows[0].slug, 'acme');
     });
 });
+
+describe('the mapping reaches the two places it used to stop short of', () => {
+    // Both were found by review, both on the very example the migration guide
+    // now prints. The adapter constructed fine, the app booted, and the two
+    // endpoints the feature exists to serve answered with
+    // PrismaClientValidationError.
+
+    const OPTIONS = {
+        delegates: { tenant: 'organization', user: 'account' },
+        fields: {
+            tenant: { isActive: 'enabled', slug: 'handle', name: 'title', users: 'members' },
+            user: { email: 'mail' },
+        },
+    };
+
+    test('the relation counter defaults to the mapped users relation', async () => {
+        const { client, calls } = clientWith(RENAMED, { organization: [] });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+        await adapter.listTenants({});
+
+        assert.deepEqual(
+            calls[0].args.include._count.select,
+            { members: true },
+            '`users: true` on a model whose relation is `members` is a validation error',
+        );
+    });
+
+    test('an explicit tenantMetrics still wins', () => {
+        // The option is how an app counts something else entirely; the mapping
+        // is only what it falls back to.
+        const { client } = clientWith(RENAMED);
+        assert.doesNotThrow(
+            () => new PrismaAdminResourcesAdapter(client, { ...OPTIONS, tenantMetrics: ['notes'] }),
+        );
+    });
+
+    test('the subscription list selects and reads the mapped tenant columns', async () => {
+        const { client, calls } = clientWith(RENAMED, {
+            subscription: [
+                {
+                    id: 's1',
+                    plan: 'PRO',
+                    status: 'active',
+                    billingCycle: 'MONTHLY',
+                    tenant: { handle: 'acme', title: 'Acme' },
+                },
+            ],
+        });
+        const adapter = new PrismaAdminResourcesAdapter(client, OPTIONS);
+        const rows = await adapter.listSubscriptions();
+
+        assert.deepEqual(calls[0].args.include.tenant.select, { handle: true, title: true });
+        assert.deepEqual(rows[0].tenant, { slug: 'acme', name: 'Acme' });
+    });
+
+    test('and an unmapped app still selects slug and name', async () => {
+        const { client, calls } = clientWith(CONVENTIONAL, { subscription: [] });
+        const adapter = new PrismaAdminResourcesAdapter(client);
+        await adapter.listSubscriptions();
+        assert.deepEqual(calls[0].args.include.tenant.select, { slug: true, name: true });
+    });
+});

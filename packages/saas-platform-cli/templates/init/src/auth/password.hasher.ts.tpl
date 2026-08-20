@@ -23,6 +23,11 @@ export class __HASHER_CLASS__ implements PasswordHasher {
         const [scheme, salt, derived] = hash.split(':');
         if (scheme !== 'scrypt' || !salt || !derived) return false;
         const candidate = scryptSync(plain, salt, KEY_LENGTH);
-        return timingSafeEqual(candidate, Buffer.from(derived, 'hex'));
+        const stored = Buffer.from(derived, 'hex');
+        // `timingSafeEqual` THROWS on unequal lengths, so a truncated or
+        // corrupted stored hash would be a 500 rather than a failed login.
+        // The length is not a secret; comparing it first leaks nothing.
+        if (stored.length !== candidate.length) return false;
+        return timingSafeEqual(candidate, stored);
     }
 }

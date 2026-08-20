@@ -32,17 +32,30 @@ Neither known consumer is affected — every `@RequireFeature` in both sits in a
 file that also binds a feature guard. `FeatureGuardCoverageCheck` is renamed to
 `EnforcementChainCheck`.
 
+Two shapes the check cannot recognise and correctly enforces anyway: a feature
+guard of your own that wraps ours without carrying `FEATURE_GUARD_MARKER`, and
+one bound globally as an `APP_GUARD` rather than per controller. Set
+`enforcementChainCheck: false` if that is you — it turns off this check and
+nothing else.
+
 **Configuration problems arrive together.** The fifteen checks in `forRoot` are
 a rule table now: a misconfigured application gets the complete numbered list on
 the first boot, each entry with its rule id and a link to
 `docs/reference/options.md` — which is generated from that table. Five missing
 bindings used to cost five restarts.
 
-**`saasicat schema migrate`** appends the constraints Prisma's DSL cannot
-express to the migration it just produced, instead of asking you to paste them
-in. And `schema apply`/`schema migrate` take `--tenant-model` / `--user-model`
-to enable the foreign keys from the platform tables to your own models; a name
-your schema does not declare is refused, with the list of names it does.
+**`saasicat schema migrate`** writes the migration with `--create-only`,
+appends the constraints Prisma's DSL cannot express, and then applies it —
+instead of asking you to paste them in. Only the constraints whose tables that
+migration creates, so a run scoped with `--fragments` is not failed by an index
+on a table it never made.
+
+And `schema apply`/`schema migrate` take `--tenant-model` / `--user-model` to
+enable the foreign keys from the platform tables to your own models. A name your
+schema does not declare is refused, with the list of names it does; a relation
+whose opposite field your model does not carry stays commented and the command
+prints the exact line to add, because writing it would produce a schema Prisma
+refuses.
 
 **`PrismaAdminResourcesAdapter` takes a mapping.** `adminResources: { delegates:
 { tenant: 'organization' }, fields: { tenant: { isActive: 'enabled' } } }` — an

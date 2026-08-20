@@ -73,9 +73,20 @@ export function patchAppModule(source: string, options: PatchAppModuleOptions): 
     // statements shifted everything below them.
     const target = findImportsArray(withImports)!;
     const indent = ' '.repeat(target.indent + 4);
+    // The admin module goes in beside the platform, not merely imported: it is
+    // what registers the manifest contribution in `onModuleInit`, and a module
+    // Nest never instantiates leaves the SuperAdmin sidebar empty — the exact
+    // failure the generated file warns about in its own header.
+    //
     // Trailing newline and indent, so whatever already stood after the `[`
     // starts on its own line instead of being glued to the closing paren.
-    const inserted = `\n${indent}${block.split('\n').join(`\n${indent}`)},\n${indent}`;
+    const entries = `${block},\n${options.adminModule.className},`;
+    // What follows the `[` decides the last indent. An array that was empty
+    // closes at the array's own level; one that had entries continues at the
+    // entries' level, so what was already there lines up with what was added.
+    const wasEmpty = /^\s*\]/.test(withImports.slice(target.openBracket + 1));
+    const trailing = wasEmpty ? ' '.repeat(target.indent) : indent;
+    const inserted = `\n${indent}${entries.split('\n').join(`\n${indent}`)}\n${trailing}`;
 
     return {
         source:
@@ -110,11 +121,18 @@ function findImportsArray(source: string): ImportsArray | null {
     return { openBracket, indent: match[2]!.length };
 }
 
-/** The `import` lines the block needs, as text. */
+/**
+ * The `import` lines the block needs, as text.
+ *
+ * Only what the inserted code actually uses. `APP_FILTER` and
+ * `LimitExceededFilter` are not among them: the filter is printed for the
+ * integrator to paste rather than inserted (see `LIMIT_FILTER_PROVIDER`), and
+ * importing a symbol the file does not use is a lint error in the first project
+ * this lands in.
+ */
 function renderImports(options: PatchAppModuleOptions): string {
     const lines = [
-        "import { APP_FILTER } from '@nestjs/core';",
-        "import { LimitExceededFilter, loadPlanCatalogFromFile } from '@saasicat/nest/billing';",
+        "import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';",
         "import { SaaSiCatModule, defineSaaSiCat } from '@saasicat/nest/platform';",
         `import { ${options.registry.constName} } from '${options.registry.importPath}';`,
         `import { ${options.adminModule.className} } from '${options.adminModule.importPath}';`,
@@ -177,3 +195,14 @@ function renderForRootBlock(options: PatchAppModuleOptions): string {
  * land somewhere surprising. Printed instead, with the reason.
  */
 export const LIMIT_FILTER_PROVIDER = '{ provide: APP_FILTER, useClass: LimitExceededFilter }';
+
+/**
+ * The imports that provider needs, printed with it rather than inserted.
+ *
+ * They are not in `renderImports` on purpose: the file would import two symbols
+ * it does not use, which is a lint error in the first project this lands in.
+ */
+export const LIMIT_FILTER_IMPORTS = [
+    "import { APP_FILTER } from '@nestjs/core';",
+    "import { LimitExceededFilter } from '@saasicat/nest/billing';",
+].join('\n');

@@ -4,13 +4,21 @@ import assert from 'node:assert/strict';
 import {
     CONSTRAINTS_MARKER,
     appendConstraints,
+    constraintsFor,
     hasConstraints,
     newestMigration,
+    tablesAddressedBy,
 } from '../dist/index.js';
 
 // `schema migrate` used to stop one step short: it wrote the models and ran
 // `prisma migrate dev`, and then the quickstart asked the reader to paste
 // `constraints.postgres.sql` into the migration Prisma had just generated.
+//
+// The first attempt at automating it appended AFTER a plain `migrate dev`,
+// which does two wrong things at once: the constraints never reach the database
+// that was just migrated, and the next `migrate dev` finds a migration whose
+// recorded checksum no longer matches and offers a reset. The command uses
+// `--create-only` now — write the file, append, then apply.
 //
 // Those statements are not hardening. The adapter contract tests run against a
 // database that has them, so an app without them passes its own tests and
@@ -80,5 +88,54 @@ describe('appending them', () => {
     test('a migration without a trailing newline still gets a separating one', () => {
         const result = appendConstraints('CREATE TABLE "x" ();', CONSTRAINTS);
         assert.match(result, /\(\);\n\n-- saasicat:constraints/);
+    });
+});
+
+describe('only the constraints this schema has tables for', () => {
+    // Found by running the command, not by reasoning about it:
+    // `schema migrate --fragments=03` produces a migration with the
+    // plan-version tables and nothing else, and appending the whole file added
+    // an index on `bundle_versions`. Prisma then failed the entire migration
+    // against its shadow database with P1014, naming a table the consumer never
+    // asked for.
+
+    const BOTH =
+        'CREATE UNIQUE INDEX IF NOT EXISTS plan_versions_draft_per_plan\n' +
+        '    ON plan_versions ("planId") WHERE "publishedAt" IS NULL;\n\n' +
+        'CREATE UNIQUE INDEX IF NOT EXISTS bundle_versions_draft_per_bundle\n' +
+        '    ON bundle_versions ("bundleId") WHERE "publishedAt" IS NULL;\n';
+
+    test('reads the table off each statement', () => {
+        assert.deepEqual(tablesAddressedBy('CREATE INDEX x ON plan_versions ("a");'), [
+            'plan_versions',
+        ]);
+        assert.deepEqual(tablesAddressedBy('ALTER TABLE "subscriptions" ADD CONSTRAINT c CHECK;'), [
+            'subscriptions',
+        ]);
+    });
+
+    test('keeps the ones whose table is present', () => {
+        const kept = constraintsFor(BOTH, ['plan_versions']);
+        assert.match(kept, /plan_versions_draft_per_plan/);
+        assert.doesNotMatch(kept, /bundle_versions/);
+    });
+
+    test('keeps everything when every table is present', () => {
+        const kept = constraintsFor(BOTH, ['plan_versions', 'bundle_versions']);
+        assert.match(kept, /plan_versions_draft_per_plan/);
+        assert.match(kept, /bundle_versions_draft_per_bundle/);
+    });
+
+    test('a statement it cannot read is kept, not dropped', () => {
+        // An unrecognised shape is a reason to be conservative: dropping a
+        // constraint silently is the one outcome worse than a failed migration.
+        const odd = 'DO $$ BEGIN /* something clever */ END $$;';
+        assert.equal(constraintsFor(odd, []), odd);
+    });
+
+    test('nothing applicable appends nothing at all', () => {
+        const nothing = constraintsFor(BOTH, ['unrelated']);
+        assert.equal(nothing, '');
+        assert.equal(appendConstraints(MIGRATION, nothing), MIGRATION);
     });
 });

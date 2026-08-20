@@ -249,4 +249,42 @@ describe('an application whose chain is intact starts', () => {
         assert.ok(error, 'an annotated route with no guard on the V3 path is open');
         assert.match(error.message, /UnguardedReportsController\.list/);
     });
+
+    test('enforcementChainCheck: false is a way out that works', async () => {
+        // The message names it, so it has to exist and it has to do exactly
+        // what it says. Two shapes the check cannot recognise — a wrapper guard
+        // without the marker, and a feature guard bound as a global APP_GUARD —
+        // are correctly enforced and look uncovered from here; without a switch
+        // an application built that way has no upgrade path at all.
+        const error = await boot(
+            appWith(
+                UnguardedReportsController,
+                platformOptions({
+                    defaultPlanId: 'STARTER',
+                    globalFeatureGuard: false,
+                    enforcementChainCheck: false,
+                }),
+            ),
+        );
+        assert.equal(error, null, error?.message);
+    });
+
+    test('…and it turns off only that check', async () => {
+        // Not a general "stop validating me": the configuration rules still
+        // refuse a configuration that cannot work.
+        // Caught around `forRoot` rather than around `init()`: the rules run
+        // while the module is being described, which is earlier than this
+        // switch reaches and is the point.
+        let error = null;
+        try {
+            appWith(
+                PlainController,
+                platformOptions({ catalog: {}, enforcementChainCheck: false }),
+            );
+        } catch (err) {
+            error = err;
+        }
+        assert.ok(error, 'the configuration rules stopped applying');
+        assert.match(error.message, /catalog\.requires-persistence/);
+    });
 });

@@ -31,6 +31,43 @@ export function hasConstraints(migrationSql: string): boolean {
 }
 
 /**
+ * The tables a constraints statement addresses.
+ *
+ * `CREATE ... INDEX ... ON <table>` and `ALTER TABLE <table>` are the two
+ * shapes the canonical file uses; anything else is returned as addressing
+ * nothing, which keeps it.
+ */
+export function tablesAddressedBy(statement: string): string[] {
+    return [...statement.matchAll(/\bON\s+"?(\w+)"?|\bALTER\s+TABLE\s+"?(\w+)"?/gi)].map(
+        (m) => (m[1] ?? m[2])!,
+    );
+}
+
+/**
+ * The constraints that apply to tables this schema actually has.
+ *
+ * `schema migrate --fragments=03` produces a migration with the plan-version
+ * tables and nothing else, and appending the whole file would add an index on
+ * `bundle_versions` — which Prisma then fails to apply, against the shadow
+ * database, with P1014 naming a table the consumer never asked for. Found by
+ * running the command rather than by reasoning about it.
+ *
+ * Statements addressing no table at all are kept: an unrecognised shape is a
+ * reason to be conservative, not to drop a constraint.
+ */
+export function constraintsFor(constraintsSql: string, tables: readonly string[]): string {
+    const known = new Set(tables);
+    return constraintsSql
+        .split(/\n\s*\n/)
+        .filter((block) => {
+            const addressed = tablesAddressedBy(block);
+            return addressed.length === 0 || addressed.every((table) => known.has(table));
+        })
+        .join('\n\n')
+        .trimEnd();
+}
+
+/**
  * The migration with the constraints appended, or the input unchanged when it
  * already has them.
  *
@@ -40,6 +77,7 @@ export function hasConstraints(migrationSql: string): boolean {
  */
 export function appendConstraints(migrationSql: string, constraintsSql: string): string {
     if (hasConstraints(migrationSql)) return migrationSql;
+    if (constraintsSql.trim() === '') return migrationSql;
     const body = migrationSql.endsWith('\n') ? migrationSql : `${migrationSql}\n`;
     return (
         `${body}\n` +

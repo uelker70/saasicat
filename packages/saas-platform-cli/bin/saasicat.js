@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
 import {
+    LIMIT_FILTER_IMPORTS,
     LIMIT_FILTER_PROVIDER,
     appendConstraints,
     assertModelsExist,
@@ -36,6 +37,7 @@ import {
     extractModelNames,
     applyFragmentBlocks,
     applyTokens,
+    constraintsFor,
     checkSchema,
     extractModelBlocks,
     findFkPointers,
@@ -289,7 +291,7 @@ async function cmdSchemaCheck(args) {
 function resolveFkPointers(schema, args) {
     const models = { tenant: args['tenant-model'], user: args['user-model'] };
     if (!models.tenant && !models.user) {
-        return { schema, enabled: [], skipped: findFkPointers(schema) };
+        return { schema, enabled: [], skipped: findFkPointers(schema), needsBackRelation: [] };
     }
     try {
         assertModelsExist(extractModelNames(schema), models);
@@ -300,11 +302,23 @@ function resolveFkPointers(schema, args) {
     return enableFkPointers(schema, models);
 }
 
-/** Says what was enabled and what was left commented, and why. */
+/** Says what was enabled, what was left commented, and what each needs. */
 function reportFkPointers(fk, args) {
     if (fk.enabled.length > 0) {
         console.log(`✓ Enabled ${fk.enabled.length} foreign-key relation(s) to your models.`);
     }
+
+    // Two different answers, so two different reports: one needs a flag, the
+    // other needs one line in a model this tool must not edit on its own.
+    for (const { owner, suggestion } of fk.needsBackRelation) {
+        console.log(`→ Left commented: your \`${owner}\` has no opposite relation field.`);
+        console.log(`  Add \`${suggestion}\` to model ${owner}, then re-run.`);
+    }
+    if (fk.needsBackRelation.length > 0) {
+        console.log('  A one-sided relation is a schema Prisma refuses (P1012), so it is');
+        console.log('  better left commented than written.');
+    }
+
     if (fk.skipped.length === 0) return;
 
     const targets = [...new Set(fk.skipped.map((p) => p.target))];
@@ -343,15 +357,49 @@ async function cmdSchemaMigrate(args) {
         all: args['fragments'] ? undefined : true,
     });
 
-    console.log(
-        `→ Step 2/3: ${args['package-manager'] ?? 'pnpm'} prisma migrate dev --name ${args.name}`,
-    );
+    // `--create-only`, and the reason is the whole point of step 3.
+    //
+    // A plain `migrate dev` APPLIES the migration and records its checksum in
+    // `_prisma_migrations`. Appending to the file afterwards would then do two
+    // wrong things at once: the constraints would never reach the database that
+    // was just migrated, and the next `migrate dev` would see a migration whose
+    // checksum no longer matches and offer a reset. Writing the file first and
+    // applying it after is what makes the constraints arrive with the tables.
     const pmRunner = args['package-manager'] ?? 'pnpm';
-    await runChild(pmRunner, ['prisma', 'migrate', 'dev', '--name', args.name]);
+    console.log(`→ Step 2/4: ${pmRunner} prisma migrate dev --create-only --name ${args.name}`);
+    await runChild(pmRunner, ['prisma', 'migrate', 'dev', '--create-only', '--name', args.name]);
 
-    console.log('→ Step 3/3: appending the constraints Prisma cannot express');
-    await writeConstraintsIntoMigration(args);
-    console.log('✓ schema migrate succeeded.');
+    console.log('→ Step 3/4: appending the constraints Prisma cannot express');
+    const appended = await writeConstraintsIntoMigration(args);
+
+    if (args['dry-run']) {
+        console.log('→ Step 4/4 skipped (--dry-run): the migration is written, not applied.');
+        console.log(`   Apply it with: ${pmRunner} prisma migrate dev`);
+        return;
+    }
+
+    console.log(`→ Step 4/4: ${pmRunner} prisma migrate dev  (applies it)`);
+    await runChild(pmRunner, ['prisma', 'migrate', 'dev']);
+    console.log(
+        appended
+            ? '✓ schema migrate succeeded — tables and constraints are in the database.'
+            : '✓ schema migrate succeeded.',
+    );
+}
+
+/**
+ * The table names a schema declares — `@@map("x")` where present, the model
+ * name otherwise, which is what Prisma falls back to.
+ */
+function tableNamesOf(schema) {
+    const names = [];
+    for (const line of schema.split('\n')) {
+        const opening = /^model\s+(\w+)\s*\{/.exec(line);
+        if (opening) names.push(opening[1]);
+        const mapped = /^\s*@@map\("(\w+)"\)/.exec(line);
+        if (mapped) names.push(mapped[1]);
+    }
+    return names;
 }
 
 /** `@saasicat/spec/sql/constraints.postgres.sql`, read from the installed package. */
@@ -367,10 +415,10 @@ function resolveConstraintsSql() {
  * Deliberately after the Prisma run rather than into a hand-made file: the
  * statements need the tables, and Prisma decides what the migration is called.
  *
- * A failure here does not fail the command. The schema is migrated and the
- * constraints are additive — telling the operator what to run by hand is more
- * useful than a non-zero exit on a database that is already correct in every
- * other respect.
+ * A failure here does not fail the command, and returns `false` so the caller
+ * can say so: the migration is written either way, and telling the operator
+ * what to add by hand before applying it is more useful than a non-zero exit
+ * on a schema that is otherwise correct.
  */
 async function writeConstraintsIntoMigration(args) {
     const { schemaPath } = await readSchemaOrExit(args);
@@ -383,27 +431,40 @@ async function writeConstraintsIntoMigration(args) {
         if (!newest) {
             console.log(`  ! No migration found in ${migrationsDir} — nothing to append to.`);
             console.log(`    Add ${sqlPath} to your migration by hand.`);
-            return;
+            return false;
         }
 
         const migrationFile = join(migrationsDir, newest, 'migration.sql');
         const migrationSql = await readFile(migrationFile, 'utf8');
         if (hasConstraints(migrationSql)) {
             console.log(`  = ${newest} already carries them.`);
-            return;
+            return true;
         }
 
-        const constraintsSql = await readFile(sqlPath, 'utf8');
+        // Only the constraints whose tables this schema has: a run scoped with
+        // `--fragments` produces a migration without the others, and Prisma
+        // fails the whole thing against its shadow database with P1014.
+        const { schema: currentSchema } = await readSchemaOrExit(args);
+        const applicable = constraintsFor(
+            await readFile(sqlPath, 'utf8'),
+            tableNamesOf(currentSchema),
+        );
+        if (applicable.trim() === '') {
+            console.log('  = none of them apply to the tables in this schema.');
+            return true;
+        }
+        const constraintsSql = applicable;
         if (args['dry-run']) {
             console.log(`  → would append ${sqlPath} to ${newest}/migration.sql`);
-            return;
+            return true;
         }
         await writeFile(migrationFile, appendConstraints(migrationSql, constraintsSql));
         console.log(`  + appended to ${newest}/migration.sql`);
-        console.log('    Re-run `prisma migrate dev` (or `migrate deploy`) to apply them.');
+        return true;
     } catch (err) {
         console.log(`  ! Could not append them: ${err?.message ?? String(err)}`);
-        console.log(`    Add ${sqlPath} to your migration by hand.`);
+        console.log(`    Add ${sqlPath} to your migration by hand, before applying it.`);
+        return false;
     }
 }
 
@@ -539,7 +600,9 @@ async function patchAppModuleFile(root, plan, args) {
         console.log('');
         console.log('+ src/app.module.ts now imports SaaSiCatModule.');
     }
-    console.log(`  Still yours to add to \`providers\`: ${LIMIT_FILTER_PROVIDER}`);
+    console.log('  Still yours — add to `providers`, with its two imports:');
+    for (const line of LIMIT_FILTER_IMPORTS.split('\n')) console.log(`    ${line}`);
+    console.log(`    ${LIMIT_FILTER_PROVIDER}`);
     console.log('  (maps @EnforceQuota overruns to HTTP 402 — see docs/quickstart.md)');
 }
 

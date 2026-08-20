@@ -109,10 +109,14 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
         private readonly prisma: PrismaLike,
         options: PrismaAdminResourcesOptions = {},
     ) {
-        this.metrics = options.tenantMetrics ?? ['users'];
         this.listLimit = options.listLimit ?? DEFAULT_LIST_LIMIT;
         this.audit = new PrismaAuditQueryAdapter(prisma);
         this.schema = resolveAdminResourcesSchema(options.delegates, options.fields);
+        // Defaults to the MAPPED users relation, not the literal `users`: an
+        // app that renamed it to `members` would otherwise get
+        // `_count: { select: { users: true } }` and a PrismaClientValidationError
+        // on the very page this adapter exists to serve.
+        this.metrics = options.tenantMetrics ?? [this.schema.tenant.users];
         // See `assertDelegatesExist` for why only a mapped one is checked here.
         if (options.delegates) assertDelegatesExist(prisma, this.schema);
     }
@@ -259,9 +263,10 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
     }
 
     async listSubscriptions(): Promise<AdminSubscriptionListRow[]> {
+        const t = this.schema.tenant;
         const rows = await this.subscriptions().findMany({
             include: {
-                tenant: { select: { slug: true, name: true } },
+                tenant: { select: { [t.slug]: true, [t.name]: true } },
                 planVersion: { select: { monthlyNet: true } },
             },
             orderBy: { createdAt: 'desc' },
@@ -270,7 +275,10 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
         return rows.map((row) => ({
             id: row.id,
-            tenant: row.tenant,
+            tenant: {
+                slug: this.read<string>(row.tenant, t.slug) ?? '',
+                name: this.read<string>(row.tenant, t.name) ?? '',
+            },
             plan: row.plan,
             status: row.status,
             billingCycle: row.billingCycle,

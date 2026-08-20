@@ -132,15 +132,25 @@ export function planInit(options: InitOptions): InitPlan {
         },
     ];
 
-    // The persistence file and the hasher are one decision: the bundle names
-    // the hasher class, so generating it without the file it imports would
-    // hand the integrator a broken import as their first impression.
+    // The persistence bundle is always generated — an app without one fails
+    // `core.adapters-bound` on its first boot, which is the opposite of what
+    // this command is for. `--skip-hasher` only drops the `passwordHasher:`
+    // line and the file behind it; the template branches on
+    // `HASHER_IMPORT`/`HASHER_LINE` rather than on the file existing.
+    // Two templates rather than one with a conditional line. A generator that
+    // builds an `import … from '…'` in a string is read as a real import by
+    // `tests/dist-is-self-contained.test.js`, which scans the emitted bundle —
+    // and the way around that is either obfuscating the string or teaching a
+    // repo-wide guard about this file. Two templates that differ by two lines
+    // is the cheaper honesty.
+    files.push({
+        path: 'src/saas/persistence.ts',
+        template: hasherClass
+            ? 'src/saas/persistence.ts'
+            : 'src/saas/persistence-without-hasher.ts',
+        tokens: {},
+    });
     if (hasherClass) {
-        files.push({
-            path: 'src/saas/persistence.ts',
-            template: 'src/saas/persistence.ts',
-            tokens: {},
-        });
         files.push({
             path: `src/auth/${kebabCase(appName)}-password.hasher.ts`,
             template: 'src/auth/password.hasher.ts',

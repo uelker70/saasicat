@@ -56,6 +56,16 @@ export interface EnforcementChainState {
     readonly entitlementActive: boolean;
     /** Whether the platform bound its own global feature guard. */
     readonly globalGuardBound: boolean;
+    /**
+     * Whether `globalFeatureGuard: false` is what unbound it.
+     *
+     * Distinct from `globalGuardBound` because the two have different causes
+     * and the message has to say the true one. On the V3 entitlement path the
+     * platform binds no global guard either — it never registers the static
+     * stack — and naming an option the application did not set sends the reader
+     * to look for a line that is not in their file.
+     */
+    readonly globalGuardOptedOut: boolean;
 }
 
 export const ENFORCEMENT_CHAIN_STATE_TOKEN = Symbol.for('saas-platform/EnforcementChainState');
@@ -83,6 +93,7 @@ export class EnforcementChainCheck implements OnApplicationBootstrap {
         private readonly state: EnforcementChainState = {
             entitlementActive: true,
             globalGuardBound: true,
+            globalGuardOptedOut: false,
         },
     ) {}
 
@@ -108,15 +119,22 @@ export class EnforcementChainCheck implements OnApplicationBootstrap {
 
         const uncovered = annotated.filter((r) => r.features.length > 0 && !r.guarded);
         if (uncovered.length === 0) return;
+
+        const why = this.state.globalGuardOptedOut
+            ? 'globalFeatureGuard is off'
+            : 'the platform binds no global feature guard on this entitlement path';
         throw new Error(
-            `globalFeatureGuard is off and ${uncovered.length} annotated route(s) have no ` +
-                'feature guard in front of them, so they serve unlicensed traffic:\n' +
+            `${why} and ${uncovered.length} annotated route(s) have no feature guard in front ` +
+                'of them, so they serve unlicensed traffic:\n' +
                 `${describe(uncovered)}\n` +
                 'Bind one behind your auth guard — @UseGuards(JwtAuthGuard, StaticFeatureGuard), ' +
-                'or FeatureGuard from @saasicat/nest/billing on the V3 entitlement path. ' +
-                'A guard of your own that wraps either one is not recognised here; if that is ' +
-                'what these routes use, put FEATURE_GUARD_MARKER on the wrapper class — the ' +
-                'symbol StaticFeatureGuard and FeatureGuard both carry.',
+                'or FeatureGuard from @saasicat/nest/billing on the V3 entitlement path.\n' +
+                'Two things this cannot see, and the way out of each: a guard of your own that ' +
+                'wraps ours (put FEATURE_GUARD_MARKER on the wrapper class — the symbol ' +
+                'StaticFeatureGuard and FeatureGuard both carry), and a feature guard you bind ' +
+                'globally as an APP_GUARD rather than per controller. If either is what these ' +
+                'routes use, set `enforcementChainCheck: false` — it turns this check off and ' +
+                'nothing else.',
         );
     }
 

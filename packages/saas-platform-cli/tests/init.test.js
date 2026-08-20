@@ -36,7 +36,7 @@ async function render(options) {
 }
 
 describe('what gets written', () => {
-    test('the minimum is five files', async () => {
+    test('the minimum is six files', async () => {
         const { files } = await render({ projectKey: 'freshapp' });
         assert.deepEqual(
             files.map((f) => f.path),
@@ -64,14 +64,26 @@ describe('what gets written', () => {
         assert.deepEqual(plan.quotaClasses, ['NotesQuotaProvider', 'SeatsQuotaProvider']);
     });
 
-    test('--skip-hasher drops the hasher and the bundle that imports it', async () => {
-        // Together, because the bundle names the hasher class: generating one
-        // without the other hands the integrator a broken import as their first
-        // impression of the framework.
+    test('--skip-hasher drops the hasher and keeps the persistence bundle', async () => {
+        // It took the bundle with it at first, and the generated app then failed
+        // its first boot on `core.adapters-bound` — the opposite of what this
+        // command is for. The flag is about the hasher, not about persistence.
         const { files, plan } = await render({ projectKey: 'freshapp', skipHasher: true });
         assert.equal(plan.hasherClass, null);
         assert.ok(!files.some((f) => f.path.includes('password.hasher')));
-        assert.ok(!files.some((f) => f.path.includes('persistence')));
+
+        const persistence = files.find((f) => f.path === 'src/saas/persistence.ts');
+        assert.ok(persistence, 'an app with no persistence bundle cannot boot');
+        assert.doesNotMatch(persistence.content, /password\.hasher/);
+        assert.match(persistence.content, /\/\/ passwordHasher: YourHasher/);
+        assert.match(persistence.content, /setup wizard or self-registration/);
+    });
+
+    test('with a hasher the bundle wires it', async () => {
+        const { files } = await render({ projectKey: 'freshapp' });
+        const persistence = files.find((f) => f.path === 'src/saas/persistence.ts');
+        assert.match(persistence.content, /passwordHasher: FreshappPasswordHasher,/);
+        assert.match(persistence.content, /import \{ FreshappPasswordHasher \}/);
     });
 
     test('no file goes out with an unsubstituted token', async () => {
@@ -179,6 +191,34 @@ const PATCH_OPTIONS = {
 };
 
 describe('patching an existing app.module.ts', () => {
+    test('the admin module is registered, not merely imported', () => {
+        // It carries `onModuleInit`, which is what registers the manifest
+        // contribution. A module Nest never instantiates leaves the SuperAdmin
+        // sidebar empty — the exact failure the generated file warns about in
+        // its own header, and it was importing without registering.
+        const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
+        assert.match(source, /^\s*FreshappAdminModule,$/m);
+    });
+
+    test('nothing is imported that the inserted code does not use', () => {
+        // The other direction of the check below, and the one that was missing.
+        // Two unused imports are a lint error in the first project this lands
+        // in — which is somebody's first impression of the framework.
+        const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
+        const imported = [...source.matchAll(/^import \{([^}]*)\} from/gm)]
+            .flatMap((m) => m[1].split(','))
+            .map((name) => name.trim())
+            .filter(Boolean);
+
+        for (const name of imported) {
+            // Counted over the whole file, not over the part after the imports:
+            // the fixture's own imports sit above the inserted ones, so a slice
+            // would miss their declaration and call every one of them unused.
+            const uses = [...source.matchAll(new RegExp(`\\b${name}\\b`, 'g'))].length;
+            assert.ok(uses > 1, `${name} is imported and never used`);
+        }
+    });
+
     test('every symbol the block uses is imported', () => {
         // The one defect that makes the whole command worthless: a generated
         // file that does not compile. `loadPlanCatalogFromFile` was used and
