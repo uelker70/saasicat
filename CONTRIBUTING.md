@@ -188,11 +188,15 @@ that the conflicts came from the shape rather than from the work.
 
 ## Licensing of contributions
 
-SaaSiCat is distributed under [PolyForm Shield 1.0.0](LICENSE):
-source-available, not OSI open source. Use it for anything, including building and selling your own
-SaaS on it; the one thing it does not permit is a product that competes with
-SaaSiCat itself. The reasoning is in
-[ADR 0001](docs/adr/0001-source-available-licensing.md).
+SaaSiCat is distributed under [PolyForm Shield 1.0.0](LICENSE): source-available, not OSI
+open source. Reading, running, changing and redistributing it are permitted, as is building
+and selling your own SaaS on it. The restriction is one sentence, quoted rather than
+summarised:
+
+> Any purpose is a permitted purpose, except for providing any product that competes with the software or any product the licensor or any of its affiliates provides using the software.
+
+That covers the applications the author builds with SaaSiCat, not only SaaSiCat itself. The
+reasoning is in [ADR 0001](docs/adr/0001-source-available-licensing.md).
 
 That has one consequence for pull requests: by opening one you agree that your
 contribution is licensed under the same terms, and that the project may relicense

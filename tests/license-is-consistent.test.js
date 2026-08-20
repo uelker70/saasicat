@@ -76,13 +76,72 @@ describe('every published package ships the same licence as the repository', () 
 
         const title = CANONICAL.split('\n').find((line) => line.startsWith('# '));
         assert.ok(title, 'the LICENSE has no title to check the identifier against');
-        for (const word of identifier.split('-')) {
-            if (/^\d/.test(word)) continue; // version segments are punctuated differently
-            assert.match(
-                title,
-                new RegExp(word, 'i'),
+
+        // The name and the version, both. An earlier version skipped numeric
+        // segments — "version segments are punctuated differently" — which left
+        // the guard blind to the one drift it is most likely to see: the licence
+        // files moved to a new version of the same licence while the manifests
+        // kept the old identifier. Every copy identical, every field agreeing,
+        // and the metadata naming a version the file does not.
+        //
+        // Compared as text rather than as patterns. The first version built a
+        // `RegExp` out of the identifier and escaped only the dots in the
+        // version — partial escaping, which CodeQL flagged as
+        // `js/incomplete-sanitization` and was right to: a value that reaches a
+        // pattern needs every metacharacter handled or none of them. `includes`
+        // needs none, and says what is meant.
+        const segments = identifier.split('-');
+        const version = segments.filter((s) => /^\d+$/.test(s)).join('.');
+        const haystack = title.toLowerCase();
+
+        for (const word of segments.filter((s) => !/^\d+$/.test(s))) {
+            assert.ok(
+                haystack.includes(word.toLowerCase()),
                 `"${identifier}" names ${word}, which does not appear in "${title.trim()}"`,
             );
         }
+        if (version) {
+            assert.ok(
+                title.includes(version),
+                `"${identifier}" is version ${version}, which does not appear in "${title.trim()}"`,
+            );
+        }
+    });
+});
+
+describe('what the docs say about the licence is what the licence says', () => {
+    // A review found README.md and CONTRIBUTING.md summarising the restriction
+    // as "a product that competes with SaaSiCat itself". The clause has a
+    // second half — "or any product the licensor or any of its affiliates
+    // provides using the software" — and that half is the one covering the
+    // applications built with it, which is what the relicensing was for. A
+    // reader following the summary would have concluded that competing with
+    // those was permitted.
+    //
+    // The fix was not a better paraphrase. Both documents quote the clause now,
+    // and this checks the quote against its source, so the two cannot drift
+    // and a shortened restatement fails here rather than in someone's plans.
+
+    /** The Noncompete clause, read out of the licence itself. */
+    function noncompeteClause() {
+        const match = /^## Noncompete\n\n(.+?)\n/ms.exec(CANONICAL);
+        assert.ok(match, 'the LICENSE has no Noncompete section to quote');
+        return match[1].trim();
+    }
+
+    for (const file of ['README.md', 'CONTRIBUTING.md']) {
+        test(`${file} quotes it verbatim`, () => {
+            const clause = noncompeteClause();
+            const text = readFileSync(join(ROOT, file), 'utf8');
+            assert.ok(
+                text.includes(clause),
+                `${file} does not carry the clause word for word — a summary of a licence ` +
+                    'restriction that leaves part of it out reads as permission',
+            );
+        });
+    }
+
+    test('the clause is not trivially short, so the check is not trivially true', () => {
+        assert.ok(noncompeteClause().length > 60, 'the extracted clause is too short to mean much');
     });
 });
