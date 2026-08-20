@@ -700,6 +700,147 @@ export function persistenceAdapterContract(options: PersistenceAdapterContractOp
         });
 
         // -------------------------------------------------------------
+        // Promo subscription lookup
+        // -------------------------------------------------------------
+        //
+        // The read a promo code is validated against. It answers by
+        // subscription id rather than by tenant, which is what makes returning
+        // the wrong row possible — and a wrong row here decides that a discount
+        // applies to a subscription it was not meant for.
+        //
+        // The scenarios below are written against that: several subscriptions
+        // exist in every one of them, because an adapter that ignores its
+        // predicate is correct for a table with a single row.
+
+        test('finds the subscription the id names, not merely a subscription', async (t) => {
+            const { adapter, seed } = harness;
+            if (!adapter.promoSubscriptionLookup) {
+                t.skip('adapter provides no PromoSubscriptionLookup');
+                return;
+            }
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: { users: 5 },
+                features: ['CORE'],
+                published: true,
+            });
+            const first = await seed.createSubscription({
+                tenantId: 'tenant-a',
+                plan: 'STARTER',
+                planVersionId,
+            });
+            const second = await seed.createSubscription({
+                tenantId: 'tenant-b',
+                plan: 'STARTER',
+                planVersionId,
+            });
+
+            const found = await adapter.promoSubscriptionLookup.findById(second.subscriptionId);
+            assert.ok(found, 'the lookup found nothing for an id that exists');
+            assert.equal(found.id, second.subscriptionId);
+            assert.equal(found.tenantId, 'tenant-b', 'it returned another tenant’s subscription');
+            assert.notEqual(found.id, first.subscriptionId);
+        });
+
+        test('returns null for an id that does not exist', async (t) => {
+            const { adapter, seed } = harness;
+            if (!adapter.promoSubscriptionLookup) {
+                t.skip('adapter provides no PromoSubscriptionLookup');
+                return;
+            }
+            // With a row present, so that "returns null" cannot be satisfied by
+            // an empty table.
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            await seed.createSubscription({ tenantId: 'tenant-a', plan: 'STARTER', planVersionId });
+
+            assert.equal(
+                await adapter.promoSubscriptionLookup.findById(
+                    '00000000-0000-4000-8000-000000000000',
+                ),
+                null,
+            );
+        });
+
+        test('carries the fields a promo rule reads: cycle and start date', async (t) => {
+            const { adapter, seed } = harness;
+            if (!adapter.promoSubscriptionLookup) {
+                t.skip('adapter provides no PromoSubscriptionLookup');
+                return;
+            }
+            // A promo code may be restricted to a billing cycle, or to
+            // subscriptions started before a date. Both come from here, so both
+            // have to survive the round trip — a null `startedAt` is a real
+            // state and must not arrive as a date.
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'PRO',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            const startedAt = new Date('2026-03-04T05:06:07.000Z');
+            const dated = await seed.createSubscription({
+                tenantId: 'tenant-a',
+                plan: 'PRO',
+                planVersionId,
+                billingCycle: 'MONTHLY',
+                startedAt,
+            });
+            const undated = await seed.createSubscription({
+                tenantId: 'tenant-b',
+                plan: 'PRO',
+                planVersionId,
+            });
+
+            const withDate = await adapter.promoSubscriptionLookup.findById(dated.subscriptionId);
+            assert.equal(withDate?.plan, 'PRO');
+            assert.equal(withDate?.billingCycle, 'MONTHLY');
+            assert.equal(withDate?.startedAt?.toISOString(), startedAt.toISOString());
+
+            const withoutDate = await adapter.promoSubscriptionLookup.findById(
+                undated.subscriptionId,
+            );
+            assert.equal(withoutDate?.startedAt, null, 'an unset start date came back as a date');
+        });
+
+        test('reads inside a transaction, so validation and redemption agree', async (t) => {
+            const { adapter, seed } = harness;
+            if (!adapter.promoSubscriptionLookup) {
+                t.skip('adapter provides no PromoSubscriptionLookup');
+                return;
+            }
+            // Redeeming a code validates and writes in one transaction. A
+            // lookup that ignored the handed-in context would read outside it
+            // and could answer from a state the transaction has already moved
+            // past.
+            const { planVersionId } = await seed.createPlanVersion({
+                planKey: 'STARTER',
+                version: 1,
+                quotas: {},
+                features: [],
+                published: true,
+            });
+            const { subscriptionId } = await seed.createSubscription({
+                tenantId: 'tenant-a',
+                plan: 'STARTER',
+                planVersionId,
+            });
+
+            const seen = await adapter.transactionRunner.run(async (tx) =>
+                adapter.promoSubscriptionLookup!.findById(subscriptionId, tx),
+            );
+            assert.equal(seen?.id, subscriptionId);
+            assert.equal(seen?.tenantId, 'tenant-a');
+        });
+
+        // -------------------------------------------------------------
         // Roadmap scenarios — always visible, skipped until the slice ships
         // -------------------------------------------------------------
 

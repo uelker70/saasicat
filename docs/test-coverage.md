@@ -41,11 +41,11 @@ line counts.
 
 ## What is not covered, by name
 
-### `@saasicat/adapter-drizzle` — six of fourteen adapters
+### `@saasicat/adapter-drizzle` — five of fourteen adapters
 
-The contract exercises eight: audit write and query, MFA, plan versions, promo
-codes, promo-code redemptions, subscriptions, and the transaction runner. These
-six are not:
+The contract exercises nine: audit write and query, MFA, plan versions, promo
+codes, promo-code redemptions, the promo subscription lookup, subscriptions, and
+the transaction runner. These five are not:
 
 | Adapter                                   | What it does                                 | Risk if it is broken                                                                                                                  |
 | ----------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |

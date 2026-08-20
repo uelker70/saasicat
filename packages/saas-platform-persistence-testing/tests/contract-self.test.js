@@ -240,6 +240,8 @@ function createMemoryHarness() {
                 status: input.status ?? 'ACTIVE',
                 planVersionId: input.planVersionId,
                 pendingPlanVersionId: input.pendingPlanVersionId ?? null,
+                billingCycle: input.billingCycle ?? 'YEARLY',
+                startedAt: input.startedAt ?? null,
             };
             state.subscriptions.push(row);
             return { subscriptionId: row.id };
@@ -254,6 +256,28 @@ function createMemoryHarness() {
             };
             state.promoCodes.push(row);
             return { promoCodeId: row.id };
+        },
+    };
+
+    /**
+     * The reference implementation of the promo subscription lookup.
+     *
+     * Deliberately written the correct way — by id, from the whole set — so
+     * that the contract's scenarios pass here. They exist because the same
+     * read done wrong decides that a discount applies to a subscription it was
+     * not meant for, and a table with one row cannot tell the two apart.
+     */
+    const promoSubscriptionLookup = {
+        async findById(subscriptionId) {
+            const row = state.subscriptions.find((s) => s.id === subscriptionId);
+            if (!row) return null;
+            return {
+                id: row.id,
+                tenantId: row.tenantId,
+                plan: row.plan,
+                billingCycle: row.billingCycle,
+                startedAt: row.startedAt,
+            };
         },
     };
 
@@ -274,6 +298,7 @@ function createMemoryHarness() {
             auditQuery,
             mfa,
             tenantSubscriptionWrite,
+            promoSubscriptionLookup,
         },
         seed,
         async reset() {

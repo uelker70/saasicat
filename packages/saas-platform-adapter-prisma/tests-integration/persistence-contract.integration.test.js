@@ -29,6 +29,7 @@ import {
     PrismaPlanVersionRepository,
     PrismaPromoCodeRedemptionRepository,
     PrismaPromoCodeRepository,
+    PrismaPromoSubscriptionLookup,
     PrismaSubscriptionRepository,
     PrismaTenantSubscriptionWriteAdapter,
     PrismaTransactionRunner,
@@ -133,6 +134,7 @@ function createHarness() {
             subscriptionRepository: new PrismaSubscriptionRepository(prisma),
             planVersionRepository: new PrismaPlanVersionRepository(prisma),
             promoCodeRepository: new PrismaPromoCodeRepository(prisma),
+            promoSubscriptionLookup: new PrismaPromoSubscriptionLookup(prisma),
             promoCodeRedemptionRepository: new PrismaPromoCodeRedemptionRepository(prisma),
             mfa: new PrismaMfaAdapter(prisma),
             audit: new PrismaAuditAdapter(prisma),
@@ -178,6 +180,8 @@ function createHarness() {
                         status: input.status ?? 'ACTIVE',
                         planVersionId: input.planVersionId,
                         pendingPlanVersionId: input.pendingPlanVersionId ?? null,
+                        ...(input.billingCycle ? { billingCycle: input.billingCycle } : {}),
+                        ...(input.startedAt ? { startedAt: input.startedAt } : {}),
                     },
                 });
                 return { subscriptionId: row.id };

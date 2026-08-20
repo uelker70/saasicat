@@ -29,6 +29,7 @@ import {
     DrizzlePlanVersionRepository,
     DrizzlePromoCodeRedemptionRepository,
     DrizzlePromoCodeRepository,
+    DrizzlePromoSubscriptionLookup,
     DrizzleSubscriptionRepository,
     DrizzleTransactionRunner,
     saasicatSchema,
@@ -94,6 +95,7 @@ function createHarness() {
             subscriptionRepository: new DrizzleSubscriptionRepository(db),
             planVersionRepository: new DrizzlePlanVersionRepository(db),
             promoCodeRepository: new DrizzlePromoCodeRepository(db),
+            promoSubscriptionLookup: new DrizzlePromoSubscriptionLookup(db),
             promoCodeRedemptionRepository: new DrizzlePromoCodeRedemptionRepository(db),
             mfa: new DrizzleMfaAdapter(db),
             audit: new DrizzleAuditAdapter(db),
@@ -126,6 +128,8 @@ function createHarness() {
                     status: input.status ?? 'ACTIVE',
                     planVersionId: input.planVersionId,
                     pendingPlanVersionId: input.pendingPlanVersionId ?? null,
+                    ...(input.billingCycle ? { billingCycle: input.billingCycle } : {}),
+                    ...(input.startedAt ? { startedAt: input.startedAt } : {}),
                     updatedAt: new Date(),
                 });
                 return { subscriptionId: id };

@@ -14,6 +14,7 @@ import type {
     PlanVersionRepository,
     PromoCodeRedemptionRepository,
     PromoCodeRepository,
+    PromoSubscriptionLookup,
     SubscriptionContractRepository,
     SubscriptionRepository,
     TenantSubscriptionWritePort,
@@ -47,6 +48,16 @@ export interface ContractAdapterInstances {
     bundleRepository?: BundleRepository;
     /** Enables PlanVersion lifecycle, identity and validity-window scenarios. */
     planRepository?: PlanRepository;
+    /**
+     * Enables the promo subscription lookup scenarios.
+     *
+     * Worth its own entry rather than being folded into
+     * `subscriptionRepository`: this is the read a promo code is validated
+     * against, so a wrong row here decides that a discount applies to a
+     * subscription it was not meant for. It answers by subscription id, not by
+     * tenant, which is what makes selecting the wrong row possible at all.
+     */
+    promoSubscriptionLookup?: PromoSubscriptionLookup;
 }
 
 /** Fixture writers — implemented per adapter against its own schema. */
@@ -65,6 +76,10 @@ export interface ContractSeed {
         planVersionId: string;
         pendingPlanVersionId?: string;
         status?: string;
+        /** Defaults to the column default; set it where a scenario reads it. */
+        billingCycle?: string;
+        /** Defaults to null; set it where a scenario reads it. */
+        startedAt?: Date;
     }): Promise<{ subscriptionId: string }>;
     createPromoCode(input: {
         code: string;
