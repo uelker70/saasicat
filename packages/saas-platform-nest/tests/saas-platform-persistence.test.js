@@ -245,7 +245,9 @@ describe('SaasPlatformModule persistence bundle', () => {
 
         // Base 4 + Entitlement + Catalog + PublicCatalog + TenantBilling +
         // Bundles + AdminResources + PromoCodes.
-        assert.equal(mod.imports.length, 11);
+        // Ten platform modules plus Nest's DiscoveryModule, which every
+        // configuration imports for `EnforcementChainCheck`.
+        assert.equal(mod.imports.length, 12);
         assert.ok(mod.exports.some((entry) => entry.name === 'CatalogModule'));
         assert.ok(mod.exports.some((entry) => entry.name === 'TenantBillingModule'));
         assert.ok(

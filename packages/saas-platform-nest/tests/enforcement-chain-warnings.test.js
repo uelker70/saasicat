@@ -101,8 +101,9 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
         // `forRoot()` runs before any controller exists, so the only thing it
         // could say here is the option read back — which it did, at
         // applications that had every annotated route guarded correctly. The
-        // question is asked after bootstrap now, by FeatureGuardCoverageCheck,
-        // against the routes that are actually there.
+        // question is asked after bootstrap now, by EnforcementChainCheck,
+        // against the routes that are actually there — and answered by
+        // refusing the boot, not by another line in a log.
         const moduleDef = SaasPlatformModule.forRoot(
             baseOptions({ defaultPlanId: 'STARTER', globalFeatureGuard: false }),
         );
@@ -114,7 +115,7 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
         );
         assert.ok(
             (moduleDef.providers ?? []).some(
-                (p) => typeof p === 'function' && p.name === 'FeatureGuardCoverageCheck',
+                (p) => typeof p === 'function' && p.name === 'EnforcementChainCheck',
             ),
             'the check has to be registered, or nothing asks the question at all',
         );
@@ -142,6 +143,37 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
         assert.deepEqual(
             warnings.filter((w) => w.includes('globalFeatureGuard')),
             [],
+        );
+    });
+
+    test('the inert branch registers the check too, with the state that says so', () => {
+        // Without this the boot error for case 1 could never fire: `forRoot`
+        // used to register the check ONLY in the `globalFeatureGuard: false`
+        // branch, which the inert configuration never reaches. A guard nobody
+        // constructs is the failure mode this whole file exists for, one level
+        // up.
+        const moduleDef = SaasPlatformModule.forRoot(baseOptions());
+
+        assert.ok(
+            (moduleDef.providers ?? []).some(
+                (p) => typeof p === 'function' && p.name === 'EnforcementChainCheck',
+            ),
+            'nothing asks the question when no plan resolver exists',
+        );
+
+        const state = (moduleDef.providers ?? []).find(
+            (p) =>
+                typeof p === 'object' &&
+                p !== null &&
+                'useValue' in p &&
+                p.useValue?.featureEnforcementActive === false,
+        );
+        assert.ok(state, 'the check has no way to tell it is in the inert case');
+        assert.equal(state.useValue.globalGuardBound, false);
+
+        assert.ok(
+            (moduleDef.imports ?? []).includes(NestDiscoveryModule),
+            "and it has to be constructible — Nest's DiscoveryModule must be imported",
         );
     });
 });

@@ -51,6 +51,31 @@ pnpm add \
 > All SaaSiCat packages are versioned in lockstep — always keep them on the
 > same version.
 
+### Or: let the CLI write steps 2, 4, 5 and 6 for you
+
+```bash
+pnpm exec saasicat init --project-key=notesapp --quota=notes:Note
+```
+
+That writes `config/saas.yaml`, the persistence bundle, the feature-UI
+registry, the manifest contribution, the admin module and one quota provider
+per `--quota` — and adds `SaaSiCatModule.forRoot(...)` to your
+`src/app.module.ts`. Add `--dry-run` first to see the list, `--skip-hasher` if
+your app already hashes passwords. It refuses to overwrite a file that already
+exists.
+
+Two things stay yours, because nothing can guess them: what each quota actually
+counts (one line in the generated provider) and your auth guard.
+
+**The generated code does not compile until you name that guard**, and that is
+deliberate. An empty `guards: []` is how this platform is told an endpoint
+should be auth-free — so a placeholder would publish `GET /admin/discovery`,
+your entire capability inventory, along with the manifest routes. A name that
+does not resolve is the one failure nobody ships past.
+
+The rest of this page is what those files contain and why — worth reading once,
+whether or not you generated them.
+
 ## Step 2 — Create the app identity config
 
 `backend/config/saas.yaml`:
@@ -95,18 +120,39 @@ pnpm exec saasicat schema migrate --name=add_saasicat --all
 pnpm prisma generate
 ```
 
-`schema migrate` does two things: it idempotently inserts the platform models
-from the selected Prisma fragments into your `schema.prisma`, and it directly
-calls `prisma migrate dev` for the DB migration. `--all` gives the standard
-module its catalog, subscription, contract, bundle, audit and SuperAdmin
-tables.
+`schema migrate` does four things: it idempotently inserts the platform models
+from the selected Prisma fragments into your `schema.prisma`, it calls
+`prisma migrate dev --create-only` to write the migration, it appends the
+constraints Prisma's DSL cannot express — the partial unique indexes and the
+subscription CHECK — and only then applies it. The order matters: a migration
+that has already been applied cannot take an edit, and Prisma would see its
+recorded checksum change and offer a reset. Those constraints are part of the
+canonical schema, not optional hardening: the adapter contract tests run against
+a database that has them (details: [data model](data-model.md)). Running the
+command again does not append them twice.
 
-Before migrating, briefly review `schema.prisma` to check whether FK pointers
-to your `User`/`Tenant` tables need to be enabled manually (commented-out
-`@relation` lines in the fragments). If you take `--all`, also add
-`@saasicat/spec/sql/constraints.postgres.sql` to the migration — the partial
-unique indexes and the subscription CHECK are part of the canonical schema
-(details: [data model](data-model.md)).
+`--all` gives the standard module its catalog, subscription, contract, bundle,
+audit and SuperAdmin tables.
+
+The `@relation` lines from the platform tables to your own `Tenant` and `User`
+ship commented out — a fragment cannot know what those models are called, or
+whether they exist. Name them and the command enables them:
+
+```bash
+pnpm exec saasicat schema migrate --name=add_saasicat \
+    --tenant-model=Tenant --user-model=User
+```
+
+A name the schema does not declare is refused, with the list of models it does
+declare. Without the flags the pointers stay commented and the command says how
+many and how to enable them — nothing fails in that state, which is the reason
+it is easy to leave: the columns exist, the queries work, and referential
+integrity is simply absent until somebody deletes a tenant.
+
+A Prisma relation has two sides, and only your model can carry the other one. If
+your `Tenant` has no `auditLogs AuditLog[]`, that pointer stays commented and the
+command prints the exact line to add — writing it anyway would produce a schema
+Prisma refuses with P1012, in a file the tool had already changed.
 
 ## Step 4 — Declare a countable product capability
 

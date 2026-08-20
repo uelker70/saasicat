@@ -1129,9 +1129,11 @@ export function inlineStyleFragments(file, content) {
  * the others follow from the same branch.
  *
  * The one undercount left is a comparison written without spaces,
- * `tone==='x'?tone:''`, where the returned name is preceded by `?` and reads as
+ * `tone==='x'?tone:''`, where the returned name is PRECEDED by `?` and reads as
  * one use. Prettier's template formatting makes it unwritable here, and
- * `format:check` is in the gate.
+ * `format:check` is in the gate. Its mirror image on the right —
+ * `tone === 'x' ? tone! : ''`, where a trailing `!` was read as path syntax —
+ * was real and is fixed; see `pathContinuesAt`.
  */
 
 /** A member path, so a name is matched whole rather than from its last part. */
@@ -1150,6 +1152,24 @@ const COMPARED_STRING = new RegExp(
  * is right: `tone === 'x' ? tone?.value : ''` does not render what it compares.
  */
 const MEMBER_PATH_CHARACTER = /[A-Za-z0-9_$.?!]/;
+
+/**
+ * Whether the character at `index` carries a member path onwards.
+ *
+ * `?` and `!` do so only as `?.` and `!.`. On their own they end the name:
+ * `tone!` is a non-null assertion on the whole of `tone`, and
+ * `tone === 'x' ? tone! : ''` renders exactly what it compared. Reading the
+ * trailing `!` as path syntax made that occurrence invisible, so the counter
+ * saw the comparison alone and blanked the literal — an UNDERCOUNT, the
+ * direction this file may not fail in, because it lets a new hardcoded
+ * dependency through a ratchet unseen.
+ */
+function pathContinuesAt(text, index) {
+    const character = text[index];
+    if (character === undefined) return false;
+    if (character === '?' || character === '!') return text[index + 1] === '.';
+    return MEMBER_PATH_CHARACTER.test(character);
+}
 
 /** Every string literal, so a name inside one is not read as a use of it. */
 const STRING_LITERAL = /'[^'\n]*'|"[^"\n]*"|`[^`$\n]*`/g;
@@ -1173,8 +1193,9 @@ export function countUses(text, name) {
     let count = 0;
     for (let at = text.indexOf(name); at !== -1; at = text.indexOf(name, at + name.length)) {
         const before = at === 0 ? '' : text[at - 1];
-        const after = text[at + name.length] ?? '';
-        if (!MEMBER_PATH_CHARACTER.test(before) && !MEMBER_PATH_CHARACTER.test(after)) count += 1;
+        if (!MEMBER_PATH_CHARACTER.test(before) && !pathContinuesAt(text, at + name.length)) {
+            count += 1;
+        }
     }
     return count;
 }

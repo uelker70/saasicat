@@ -6,7 +6,7 @@ import type {
     UsageSnapshotPort,
 } from '@saasicat/types';
 import { BILLING_ERROR_CODES } from '@saasicat/types';
-import { EntitlementService } from '../entitlement/index.js';
+import { EntitlementService } from '../entitlement/service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { findPlan, getPlanPriceNet } from './plan-helpers.js';

@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 import {
     AdminStatsService,
     CheckoutOfferService,
@@ -106,7 +107,15 @@ describe('SaasPlatformModule.forRoot', () => {
         assert.equal(dyn.module.name, 'SaasPlatformModule');
         assert.ok(Array.isArray(dyn.imports), 'imports must be an array');
         // PlanCatalog + Discovery + Admin + AdminManifest = 4 sub-modules
-        assert.equal(dyn.imports.length, 4, 'exactly 4 sub-modules without Entitlement');
+        // Four platform sub-modules, plus Nest's own DiscoveryModule.
+        //
+        // The last one is in every configuration: `EnforcementChainCheck` runs
+        // for all of them and walks the controllers, so it needs Nest's
+        // discovery primitives. Registering it per branch — only where a
+        // misconfiguration seemed possible — meant deciding in advance which
+        // shapes can be wrong, in the file that produces the shapes.
+        assert.equal(dyn.imports.length, 5, 'four sub-modules plus Nest DiscoveryModule');
+        assert.ok(dyn.imports.includes(NestDiscoveryModule));
         assert.equal(dyn.global, true, 'mega-module is registered globally');
     });
 
@@ -141,7 +150,7 @@ describe('SaasPlatformModule.forRoot', () => {
             },
             entitlement: {},
         });
-        assert.equal(dyn.imports.length, 5, 'with Entitlement: 5 sub-modules');
+        assert.equal(dyn.imports.length, 6, 'with Entitlement: 5 sub-modules + discovery');
     });
 
     test('accepts empty guards: [] as an explicit choice', () => {
@@ -191,7 +200,7 @@ describe('SaasPlatformModule.forRoot', () => {
         assert.ok(moduleNames.includes('AdminStatsModule'));
         assert.ok(moduleNames.includes('CheckoutOfferModule'));
         assert.ok(moduleNames.includes('SubscriptionContractModule'));
-        assert.equal(dyn.imports.length, 8, 'four base + four optional platform modules');
+        assert.equal(dyn.imports.length, 9, 'four base + four optional + Nest discovery');
 
         const statsModule = dyn.imports.find(
             (imported) => imported?.module?.name === 'AdminStatsModule',
@@ -291,7 +300,13 @@ describe('SaasPlatformModule.forRoot', () => {
             false,
             'no entitlement providers without a resolver',
         );
-        assert.equal(providers.length, 1, 'only automatic standard-manifest registration remains');
+        // Standard-manifest registration, plus the two the inert case adds:
+        // the chain check and the state that tells it which case it is in.
+        assert.equal(providers.length, 3, 'manifest registration + the enforcement-chain check');
+        assert.ok(
+            providers.some((p) => typeof p === 'function' && p.name === 'EnforcementChainCheck'),
+            'nothing would ask whether the inert annotations exist',
+        );
     });
 
     test('with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered', () => {

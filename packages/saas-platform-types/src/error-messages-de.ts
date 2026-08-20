@@ -1,6 +1,8 @@
 // German counterpart of `ERROR_MESSAGES_EN`, shipped so a German-speaking
 // consumer needs no translation pass of its own. Same keys, same order, same
-// placeholders — `error-messages.test` fails if a code is missing here.
+// placeholders — the keys because the shared `Record<PlatformErrorCode, string>`
+// makes a missing or unknown one a compile error, the placeholders because
+// `error-messages.test` compares them across locales.
 //
 // Tone follows the audience: end-user errors (registration, OTP, promo codes,
 // plan selection, limits, bookings) are plain and polite and address the reader

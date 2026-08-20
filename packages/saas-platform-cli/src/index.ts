@@ -13,6 +13,11 @@
 //   - doctor-flow:         DoctorFlow + DoctorCheck interface
 //   - manifest-cli-flow:   ManifestCliFlow + ManifestCheck interface
 //   - manifest-checks:     DEFAULT_MANIFEST_CHECKS (10 platform defaults)
+//   - migration-constraints: where the non-DSL constraints go in a migration
+//   - fk-pointers:         enabling the FK relations to the app's own models
+//   - init/plan:           what `saasicat init` writes, as data
+//   - init/project-key:    the key rule, read off the catalogue schema
+//   - init/patch-app-module: adding the platform to an existing AppModule
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
 export * from './tokens.js';
@@ -27,6 +32,11 @@ export * from './default-doctor-checks.js';
 export * from './prisma-blocks.js';
 export * from './schema-apply.js';
 export * from './schema-check.js';
+export * from './migration-constraints.js';
+export * from './fk-pointers.js';
+export * from './init/plan.js';
+export * from './init/project-key.js';
+export * from './init/patch-app-module.js';
 export * from './module.js';
 export * from './manifest.command.js';
 export * from './admin.command.js';

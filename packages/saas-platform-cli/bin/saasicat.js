@@ -10,14 +10,45 @@
 //   schema check [--prisma-schema=PATH] [--fragments=01,02,03]
 //       Reports what your schema is missing relative to the canonical
 //       fragments. Read-only; exits 1 on drift so CI can gate on it.
+//
+//   schema migrate --name=X [--package-manager=pnpm|npm|yarn]
+//       apply --all, then `prisma migrate dev`, then append the constraints
+//       Prisma's DSL cannot express to the migration it just wrote.
+//
+//   init --project-key=X [--quota=key:Model]... [--app-name=X] [--api-base=X]
+//        [--skip-hasher] [--dry-run] [--dir=.]
+//       Writes the platform wiring — config, persistence, manifest
+//       contribution, admin module, one provider per quota — and adds
+//       `SaaSiCatModule.forRoot(...)` to an existing `src/app.module.ts`.
 
-import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 
-import { applyFragmentBlocks, checkSchema, extractModelBlocks } from '../dist/index.js';
+import {
+    LIMIT_FILTER_IMPORTS,
+    LIMIT_FILTER_PROVIDER,
+    appendConstraints,
+    assertModelsExist,
+    enableFkPointers,
+    extractModelNames,
+    applyFragmentBlocks,
+    applyTokens,
+    constraintsFor,
+    checkSchema,
+    extractModelBlocks,
+    findFkPointers,
+    hasConstraints,
+    assertValidProjectKey,
+    migrationCreatedBy,
+    reportConstraints,
+    patchAppModule,
+    patchOptionsFor,
+    planInit,
+} from '../dist/index.js';
 
 const require_ = createRequire(import.meta.url);
 
@@ -117,29 +148,54 @@ async function cmdSchemaApply(args) {
         fragmentLabel: files.join(', '),
     });
 
-    if (result.added.length === 0) {
+    // The FK pointers, on whatever the schema ends up being — including a
+    // schema that already had every model, which is the upgrade case and the
+    // one where the manual step is most likely to have been forgotten.
+    const fk = resolveFkPointers(result.schema, args);
+
+    if (result.added.length === 0 && fk.enabled.length === 0) {
         console.log(`→ Nothing to do. Models already present: ${result.skipped.join(', ')}`);
+        reportFkPointers(fk, args);
         return;
     }
 
     if (args['dry-run']) {
-        console.log(`(--dry-run) Would append: ${result.added.join(', ')}`);
+        if (result.added.length) {
+            console.log(`(--dry-run) Would append: ${result.added.join(', ')}`);
+        }
         if (result.skipped.length) {
             console.log(`(--dry-run) Skipped (already present): ${result.skipped.join(', ')}`);
         }
+        reportFkPointers(fk, args);
         console.log('');
-        console.log(result.schema.slice(schema.length));
+        // Both halves of what a real run writes, and they need different
+        // renderings: appended models are new text at the end, while FK
+        // pointers are rewritten lines INSIDE the existing schema. Printing
+        // the tail alone showed nothing at all for an upgrade — every model
+        // already present, so the tail is empty while the run still rewrites
+        // relation lines.
+        for (const { line } of fk.enabled) {
+            console.log(`  ${line + 1}: ${fk.schema.split('\n')[line]?.trim() ?? ''}`);
+        }
+        if (fk.enabled.length > 0 && result.added.length > 0) console.log('');
+        if (result.added.length > 0) console.log(result.schema.slice(schema.length));
         return;
     }
 
-    await writeFile(schemaPath, result.schema, 'utf8');
+    await writeFile(schemaPath, fk.schema, 'utf8');
     console.log(`✓ Appended ${result.added.length} model(s): ${result.added.join(', ')}`);
     if (result.skipped.length) {
         console.log(`→ Skipped (already present): ${result.skipped.join(', ')}`);
     }
+    reportFkPointers(fk, args);
     console.log('');
     console.log('Next steps:');
-    console.log('  1. Review schema.prisma — especially the FK pointers to User/Tenant');
+    if (fk.enabled.length === 0) {
+        console.log('  1. Review schema.prisma — especially the FK pointers to User/Tenant');
+        console.log('     (or re-run with --tenant-model=X --user-model=Y to enable them)');
+    } else {
+        console.log('  1. Review schema.prisma');
+    }
     console.log('  2. pnpm prisma migrate dev --name add_saasicat');
 }
 
@@ -239,6 +295,60 @@ async function cmdSchemaCheck(args) {
     process.exit(1);
 }
 
+/**
+ * Enables the FK relations to the app's own models, when it named them.
+ *
+ * Refuses a name the schema does not declare rather than writing a relation to
+ * a model that does not exist — that failure would come from Prisma, about a
+ * line the consumer did not write.
+ */
+function resolveFkPointers(schema, args) {
+    const models = { tenant: args['tenant-model'], user: args['user-model'] };
+    if (!models.tenant && !models.user) {
+        return { schema, enabled: [], skipped: findFkPointers(schema), needsBackRelation: [] };
+    }
+    try {
+        assertModelsExist(extractModelNames(schema), models);
+    } catch (err) {
+        console.error(`✗ ${err.message}`);
+        process.exit(1);
+    }
+    return enableFkPointers(schema, models);
+}
+
+/** Says what was enabled, what was left commented, and what each needs. */
+function reportFkPointers(fk, args) {
+    if (fk.enabled.length > 0) {
+        // The tense matters on a dry run: nothing has been enabled yet, and a
+        // preview that reports past-tense edits is a preview nobody can check.
+        const verb = args['dry-run'] ? 'Would enable' : 'Enabled';
+        console.log(`✓ ${verb} ${fk.enabled.length} foreign-key relation(s) to your models.`);
+    }
+
+    // Two different answers, so two different reports: one needs a flag, the
+    // other needs one line in a model this tool must not edit on its own.
+    for (const { owner, suggestion } of fk.needsBackRelation) {
+        console.log(`→ Left commented: your \`${owner}\` has no opposite relation field.`);
+        console.log(`  Add \`${suggestion}\` to model ${owner}, then re-run.`);
+    }
+    if (fk.needsBackRelation.length > 0) {
+        console.log('  A one-sided relation is a schema Prisma refuses (P1012), so it is');
+        console.log('  better left commented than written.');
+    }
+
+    if (fk.skipped.length === 0) return;
+
+    const targets = [...new Set(fk.skipped.map((p) => p.target))];
+    const flags = targets.map((t) => `--${t.toLowerCase()}-model=Your${t}`).join(' ');
+    const verb = args['dry-run'] ? 'would stay' : 'stay';
+    console.log(
+        `→ ${fk.skipped.length} foreign-key relation(s) ${verb} commented out ` +
+            `(to ${targets.join(' and ')}).`,
+    );
+    console.log(`  Enable them with: ${flags}`);
+    console.log('  Without them the columns exist and nothing enforces them.');
+}
+
 function runChild(cmd, args, opts = {}) {
     return new Promise((resolve_, reject) => {
         const proc = spawn(cmd, args, { stdio: 'inherit', ...opts });
@@ -257,23 +367,279 @@ async function cmdSchemaMigrate(args) {
     }
 
     console.log(
-        `→ Step 1/2: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`,
+        `→ Step 1/4: saasicat schema apply ${args['fragments'] ? `--fragments=${args['fragments']}` : '--all'}`,
     );
     await cmdSchemaApply({
         ...args,
         all: args['fragments'] ? undefined : true,
     });
 
-    console.log(
-        `→ Step 2/2: ${args['package-manager'] ?? 'pnpm'} prisma migrate dev --name ${args.name}`,
-    );
     const pmRunner = args['package-manager'] ?? 'pnpm';
-    await runChild(pmRunner, ['prisma', 'migrate', 'dev', '--name', args.name]);
-    console.log('✓ schema migrate succeeded.');
+
+    // A dry run touches nothing, and that has to include Prisma. Step 1 did not
+    // write the schema, so `migrate dev --create-only` would diff against the
+    // unchanged file, reach the shadow database, and leave a migration
+    // directory behind — a "dry" run with three side effects.
+    if (args['dry-run']) {
+        console.log('→ Steps 2-4 skipped (--dry-run): nothing was written and Prisma was');
+        console.log('   not called. Re-run without --dry-run to migrate.');
+        return;
+    }
+
+    // `--create-only`, and the reason is the whole point of step 3.
+    //
+    // A plain `migrate dev` APPLIES the migration and records its checksum in
+    // `_prisma_migrations`. Appending to the file afterwards would then do two
+    // wrong things at once: the constraints would never reach the database that
+    // was just migrated, and the next `migrate dev` would see a migration whose
+    // checksum no longer matches and offer a reset. Writing the file first and
+    // applying it after is what makes the constraints arrive with the tables.
+    const migrationsBefore = await listMigrations(args);
+    console.log(`→ Step 2/4: ${pmRunner} prisma migrate dev --create-only --name ${args.name}`);
+    await runChild(pmRunner, ['prisma', 'migrate', 'dev', '--create-only', '--name', args.name]);
+
+    console.log('→ Step 3/4: appending the constraints Prisma cannot express');
+    const report = await writeConstraintsIntoMigration(args, migrationsBefore);
+    console.log(report.message);
+
+    // Applying a migration the tool could not finish is worse than stopping.
+    // The message tells the operator to add the SQL before applying it, and
+    // `migrate dev` is what applies it — so the command that printed that
+    // advice has to be the one that leaves the window open. Afterwards the
+    // file sits under a recorded checksum and editing it offers a reset.
+    if (!report.mayApply) {
+        console.error('✗ schema migrate stopped before applying. Nothing reached the database.');
+        process.exit(1);
+    }
+
+    console.log(`→ Step 4/4: ${pmRunner} prisma migrate dev  (applies it)`);
+    await runChild(pmRunner, ['prisma', 'migrate', 'dev']);
+    console.log(
+        report.outcome === 'appended' || report.outcome === 'already-present'
+            ? '✓ schema migrate succeeded — tables and constraints are in the database.'
+            : '✓ schema migrate succeeded.',
+    );
+}
+
+/**
+ * The table names a schema declares — `@@map("x")` where present, the model
+ * name otherwise, which is what Prisma falls back to.
+ */
+function tableNamesOf(schema) {
+    const names = [];
+    for (const line of schema.split('\n')) {
+        const opening = /^model\s+(\w+)\s*\{/.exec(line);
+        if (opening) names.push(opening[1]);
+        const mapped = /^\s*@@map\("(\w+)"\)/.exec(line);
+        if (mapped) names.push(mapped[1]);
+    }
+    return names;
+}
+
+/** The migration directories that exist right now, or none. */
+async function listMigrations(args) {
+    const { schemaPath } = await readSchemaOrExit(args);
+    return readdir(join(dirname(schemaPath), 'migrations')).catch(() => []);
+}
+
+/** `@saasicat/spec/sql/constraints.postgres.sql`, read from the installed package. */
+function resolveConstraintsSql() {
+    const specEntry = require_.resolve('@saasicat/spec');
+    return join(dirname(specEntry), 'sql', 'constraints.postgres.sql');
+}
+
+/**
+ * Appends the non-DSL constraints to the migration `prisma migrate dev` just
+ * wrote.
+ *
+ * Deliberately after the Prisma run rather than into a hand-made file: the
+ * statements need the tables, and Prisma decides what the migration is called.
+ *
+ * Returns what happened rather than whether it worked. The caller has to tell
+ * "nothing to append" from "appending failed": only the second one may not be
+ * followed by `migrate dev`, because the advice it prints — add the SQL before
+ * applying — is only followable while the migration is still unapplied.
+ */
+async function writeConstraintsIntoMigration(args, migrationsBefore) {
+    const { schemaPath } = await readSchemaOrExit(args);
+    const migrationsDir = join(dirname(schemaPath), 'migrations');
+    const sqlPath = resolveConstraintsSql();
+
+    try {
+        const directories = await readdir(migrationsDir);
+        // The one THIS run created, not the lexicographically last: if step 2
+        // produced nothing, the last one belongs to somebody else and has
+        // already been applied.
+        const newest = migrationCreatedBy(migrationsBefore, directories);
+        if (!newest) return reportConstraints('no-migration', { sqlPath });
+
+        const migrationFile = join(migrationsDir, newest, 'migration.sql');
+        const migrationSql = await readFile(migrationFile, 'utf8');
+        if (hasConstraints(migrationSql)) {
+            return reportConstraints('already-present', { sqlPath, migration: newest });
+        }
+
+        // Only the constraints whose tables this schema has: a run scoped with
+        // `--fragments` produces a migration without the others, and Prisma
+        // fails the whole thing against its shadow database with P1014.
+        const { schema: currentSchema } = await readSchemaOrExit(args);
+        const applicable = constraintsFor(
+            await readFile(sqlPath, 'utf8'),
+            tableNamesOf(currentSchema),
+        );
+        if (applicable.trim() === '') {
+            return reportConstraints('not-applicable', { sqlPath, migration: newest });
+        }
+        await writeFile(migrationFile, appendConstraints(migrationSql, applicable));
+        return reportConstraints('appended', { sqlPath, migration: newest });
+    } catch (err) {
+        console.error(`  ! ${err?.message ?? String(err)}`);
+        return reportConstraints('failed', { sqlPath });
+    }
+}
+
+/** Reads a repeated flag (`--quota=a --quota=b`) off argv. */
+function repeatedFlag(argv, name) {
+    return argv
+        .filter((arg) => arg.startsWith(`--${name}=`))
+        .map((arg) => arg.slice(name.length + 3));
+}
+
+async function cmdInit(args, argv) {
+    if (!args['project-key']) {
+        console.error('✗ --project-key=<key> is required.');
+        console.error('  It names the catalogue this app administers.');
+        process.exit(1);
+    }
+
+    // A usage error, so it exits 1 like every other one here rather than
+    // through the top-level handler's 99. The rule itself comes from the
+    // catalogue schema — see src/init/project-key.ts.
+    try {
+        assertValidProjectKey(args['project-key']);
+    } catch (err) {
+        console.error(`✗ ${err.message}`);
+        process.exit(1);
+    }
+
+    const root = resolve(args.dir ?? '.');
+    const plan = planInit({
+        projectKey: args['project-key'],
+        appName: args['app-name'],
+        apiBase: args['api-base'],
+        quotas: repeatedFlag(argv, 'quota'),
+        skipHasher: args['skip-hasher'] === true,
+    });
+
+    const templatesDir = resolve(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        'templates',
+        'init',
+    );
+    if (!existsSync(templatesDir)) {
+        console.error(`✗ Templates not found: ${templatesDir}`);
+        process.exit(99);
+    }
+
+    // Every file first, then every write: a run that stops halfway leaves an
+    // app that neither compiles nor can be re-generated over.
+    const writes = [];
+    for (const file of plan.files) {
+        const raw = await readFile(join(templatesDir, `${file.template}.tpl`), 'utf8');
+        writes.push({
+            path: file.path,
+            dest: join(root, file.path),
+            content: applyTokens(raw, { ...plan.tokens, ...file.tokens }),
+        });
+    }
+
+    const existing = writes.filter((w) => existsSync(w.dest));
+    if (existing.length > 0 && !args['dry-run']) {
+        console.error(`✗ ${existing.length} file(s) already exist — refusing to overwrite:`);
+        for (const w of existing) console.error(`    ${w.path}`);
+        console.error('  Move them aside, or run with --dry-run to see what would be written.');
+        process.exit(1);
+    }
+
+    if (args['dry-run']) {
+        console.log(`(--dry-run) Would write ${writes.length} file(s) under ${root}:`);
+        for (const w of writes) {
+            console.log(`    ${w.path}${existsSync(w.dest) ? '   (EXISTS — would refuse)' : ''}`);
+        }
+    } else {
+        for (const w of writes) {
+            await mkdir(dirname(w.dest), { recursive: true });
+            await writeFile(w.dest, w.content, 'utf8');
+        }
+        console.log(`✓ Wrote ${writes.length} file(s) under ${root}`);
+        for (const w of writes) console.log(`    ${w.path}`);
+    }
+
+    await patchAppModuleFile(root, plan, args);
+
+    console.log('');
+    console.log('Next steps:');
+    console.log('  1. Name your auth guard in `controller: { guards: [YourAuthGuard] }`');
+    console.log('     — the generated app does NOT compile until you do. An empty');
+    console.log('       array means "deliberately auth-free" to the platform, and');
+    console.log('       would publish GET /admin/discovery to anyone who asks.');
+    if (plan.quotaClasses.length > 0) {
+        console.log('  2. Check each quota provider counts the right thing');
+        console.log('  3. saasicat schema migrate --name=add_saasicat');
+    } else {
+        console.log('  2. saasicat schema migrate --name=add_saasicat');
+    }
+}
+
+/** Adds the platform to `src/app.module.ts`, or says exactly what to paste. */
+async function patchAppModuleFile(root, plan, args) {
+    const appModulePath = join(root, 'src', 'app.module.ts');
+    // Derived in `init/plan.ts`, where it can be tested: this file is not.
+    const options = patchOptionsFor(plan);
+
+    if (!existsSync(appModulePath)) {
+        console.log('');
+        console.log(`! No ${appModulePath} — add the platform to your root module:`);
+        console.log(patchAppModule('', options).manualBlock);
+        return;
+    }
+
+    const source = await readFile(appModulePath, 'utf8');
+    const result = patchAppModule(source, options);
+
+    if (result.status === 'already-wired') {
+        console.log('');
+        console.log('= src/app.module.ts already calls SaaSiCatModule.forRoot — left alone.');
+        return;
+    }
+    if (result.status === 'declined') {
+        console.log('');
+        console.log(`! src/app.module.ts not patched: ${result.reason}.`);
+        console.log('  Add this yourself:');
+        console.log(result.manualBlock);
+        return;
+    }
+
+    if (args['dry-run']) {
+        console.log('');
+        console.log('(--dry-run) Would add SaaSiCatModule.forRoot(...) to src/app.module.ts');
+    } else {
+        await writeFile(appModulePath, result.source, 'utf8');
+        console.log('');
+        console.log('+ src/app.module.ts now imports SaaSiCatModule.');
+    }
+    console.log('  Still yours — add to `providers`, with its two imports:');
+    for (const line of LIMIT_FILTER_IMPORTS.split('\n')) console.log(`    ${line}`);
+    console.log(`    ${LIMIT_FILTER_PROVIDER}`);
+    console.log('  (maps @EnforceQuota overruns to HTTP 402 — see docs/quickstart.md)');
 }
 
 async function main() {
     const [, , cmd, sub, ...rest] = process.argv;
+    if (cmd === 'init') {
+        return cmdInit(parseArgs([sub, ...rest].filter(Boolean)), process.argv.slice(3));
+    }
     if (cmd === 'schema' && sub === 'apply') {
         return cmdSchemaApply(parseArgs(rest));
     }
@@ -294,9 +660,16 @@ async function main() {
             '  schema check                             report drift against @saasicat/spec',
         );
         console.log('  schema check --fragments=01,02           check only these fragments');
-        console.log('  schema migrate --name=<name>             apply --all + prisma migrate dev');
+        console.log(
+            '  schema migrate --name=<name>             apply --all + migrate dev + constraints',
+        );
+        console.log('');
+        console.log('  init --project-key=<key>                 scaffold the platform wiring');
+        console.log('  init --project-key=myapp --quota=notes:Note …plus a quota provider');
         console.log('');
         console.log('Optional --prisma-schema=PATH (default prisma/schema.prisma).');
+        console.log('Optional --tenant-model=X --user-model=Y for apply/migrate — enables');
+        console.log('         the foreign keys from the platform tables to your models.');
         console.log('Optional --package-manager=pnpm|npm|yarn (default pnpm).');
         return;
     }

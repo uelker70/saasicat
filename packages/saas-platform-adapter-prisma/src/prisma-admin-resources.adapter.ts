@@ -13,6 +13,13 @@ import type {
 import type { PrismaLike, PrismaModelDelegateLike } from './prisma-client-token.js';
 import { getPrismaDelegate } from './prisma-plan-binding.js';
 import { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
+import {
+    type AdminResourcesDelegates,
+    type AdminResourcesFields,
+    type ResolvedAdminResourcesSchema,
+    assertDelegatesExist,
+    resolveAdminResourcesSchema,
+} from './admin-resources-schema.js';
 
 const DEFAULT_LIST_LIMIT = 200;
 const DEFAULT_AUDIT_LIMIT = 100;
@@ -24,8 +31,24 @@ export interface PrismaAdminResourcesOptions {
      */
     tenantMetrics?: readonly string[];
     listLimit?: number;
+    /**
+     * Delegate names, when the app's models are not called `tenant`, `user`
+     * and `subscription`. Checked against the client at construction.
+     */
+    delegates?: AdminResourcesDelegates;
+    /** Field names, when the app's columns differ. See `AdminResourcesFields`. */
+    fields?: AdminResourcesFields;
 }
 
+/**
+ * A tenant row as the DEFAULT mapping names it.
+ *
+ * The mapped fields are read through `read()` rather than off these
+ * properties, because a mapped client returns them under the app's names.
+ * They stay declared here for the unmapped fields around them — `id` and
+ * `createdAt` are not mappable, and the relations are the shape the adapter
+ * requires rather than the vocabulary it tolerates.
+ */
 interface AdminTenantRow {
     id: string;
     slug: string;
@@ -80,32 +103,41 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
     private readonly metrics: readonly string[];
     private readonly listLimit: number;
     private readonly audit: PrismaAuditQueryAdapter;
+    private readonly schema: ResolvedAdminResourcesSchema;
 
     constructor(
         private readonly prisma: PrismaLike,
         options: PrismaAdminResourcesOptions = {},
     ) {
-        this.metrics = options.tenantMetrics ?? ['users'];
         this.listLimit = options.listLimit ?? DEFAULT_LIST_LIMIT;
         this.audit = new PrismaAuditQueryAdapter(prisma);
+        this.schema = resolveAdminResourcesSchema(options.delegates, options.fields);
+        // Defaults to the MAPPED users relation, not the literal `users`: an
+        // app that renamed it to `members` would otherwise get
+        // `_count: { select: { users: true } }` and a PrismaClientValidationError
+        // on the very page this adapter exists to serve.
+        this.metrics = options.tenantMetrics ?? [this.schema.tenant.users];
+        // See `assertDelegatesExist` for why only a mapped one is checked here.
+        if (options.delegates) assertDelegatesExist(prisma, this.schema);
     }
 
     async listTenants(filter: AdminTenantListFilter): Promise<AdminTenantListRow[]> {
+        const t = this.schema.tenant;
         const where: Record<string, unknown> = {};
         const active = parseActiveFilter(filter.status);
-        if (active !== undefined) where.isActive = active;
+        if (active !== undefined) where[t.isActive] = active;
         if (filter.search) {
             where.OR = [
-                { slug: { contains: filter.search, mode: 'insensitive' } },
-                { name: { contains: filter.search, mode: 'insensitive' } },
+                { [t.slug]: { contains: filter.search, mode: 'insensitive' } },
+                { [t.name]: { contains: filter.search, mode: 'insensitive' } },
             ];
         }
-        if (filter.plan) where.subscription = { plan: filter.plan };
+        if (filter.plan) where[t.subscription] = { plan: filter.plan };
 
         const rows = await this.tenants().findMany({
             where,
             include: {
-                subscription: { select: { plan: true, status: true } },
+                [t.subscription]: { select: { plan: true, status: true } },
                 _count: { select: metricSelect(this.metrics) },
             },
             orderBy: { createdAt: 'desc' },
@@ -114,23 +146,24 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
         return rows.map((row) => ({
             id: row.id,
-            slug: row.slug,
-            name: row.name,
-            isActive: row.isActive,
-            deletedAt: row.deletedAt?.toISOString() ?? null,
-            plan: row.subscription?.plan ?? null,
-            status: row.subscription?.status ?? null,
+            slug: this.read<string>(row, t.slug) ?? '',
+            name: this.read<string>(row, t.name) ?? '',
+            isActive: this.read<boolean>(row, t.isActive) ?? true,
+            deletedAt: this.read<Date | null>(row, t.deletedAt)?.toISOString() ?? null,
+            plan: this.subscriptionOf(row)?.plan ?? null,
+            status: this.subscriptionOf(row)?.status ?? null,
             createdAt: row.createdAt.toISOString(),
             ...(row._count ?? {}),
         }));
     }
 
     async getTenantDetail(slug: string): Promise<AdminTenantDetail | null> {
+        const t = this.schema.tenant;
         const row = await this.tenants().findUnique({
-            where: { slug },
+            where: { [t.slug]: slug },
             include: {
-                subscription: true,
-                users: { orderBy: { createdAt: 'asc' } },
+                [t.subscription]: true,
+                [t.users]: { orderBy: { createdAt: 'asc' } },
                 _count: { select: metricSelect(this.metrics) },
             },
         });
@@ -138,24 +171,24 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
         return {
             id: row.id,
-            slug: row.slug,
-            name: row.name,
-            isActive: row.isActive,
-            subscription: row.subscription
+            slug: this.read<string>(row, t.slug) ?? slug,
+            name: this.read<string>(row, t.name) ?? '',
+            isActive: this.read<boolean>(row, t.isActive) ?? true,
+            subscription: this.subscriptionOf(row)
                 ? {
-                      plan: row.subscription.plan,
-                      status: row.subscription.status,
-                      billingCycle: row.subscription.billingCycle,
-                      isPilot: row.subscription.isPilot,
-                      trialEndsAt: row.subscription.trialEndsAt?.toISOString() ?? null,
-                      pilotEndsAt: row.subscription.pilotEndsAt?.toISOString() ?? null,
+                      plan: this.subscriptionOf(row)!.plan,
+                      status: this.subscriptionOf(row)!.status,
+                      billingCycle: this.subscriptionOf(row)!.billingCycle,
+                      isPilot: this.subscriptionOf(row)!.isPilot,
+                      trialEndsAt: this.subscriptionOf(row)!.trialEndsAt?.toISOString() ?? null,
+                      pilotEndsAt: this.subscriptionOf(row)!.pilotEndsAt?.toISOString() ?? null,
                   }
                 : null,
-            users: (row.users ?? []).map((user) => ({
+            users: (this.read<AdminUserRow[]>(row, t.users) ?? []).map((user) => ({
                 id: user.id,
-                email: user.email,
-                firstName: user.firstName ?? undefined,
-                lastName: user.lastName ?? undefined,
+                email: this.read<string>(user, this.schema.user.email) ?? '',
+                firstName: this.read<string>(user, this.schema.user.firstName) ?? undefined,
+                lastName: this.read<string>(user, this.schema.user.lastName) ?? undefined,
                 createdAt: user.createdAt.toISOString(),
             })),
             counts: row._count ?? {},
@@ -167,12 +200,13 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
         active: boolean,
         subscriptionStatus: string,
     ): Promise<AdminTenantStateResult | null> {
-        const tenant = await this.tenants().findUnique({ where: { slug } });
+        const t = this.schema.tenant;
+        const tenant = await this.tenants().findUnique({ where: { [t.slug]: slug } });
         if (!tenant) return null;
 
         await this.tenants().update({
             where: { id: tenant.id },
-            data: { isActive: active },
+            data: { [t.isActive]: active },
         });
         await this.subscriptions().updateMany({
             where: { tenantId: tenant.id },
@@ -189,25 +223,27 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
     }
 
     async listUsers(filter: AdminUserListFilter): Promise<AdminUserListRow[]> {
+        const u = this.schema.user;
+        const tenantSlug = this.schema.tenant.slug;
         const where: Record<string, unknown> = {};
-        if (filter.q) where.email = { contains: filter.q, mode: 'insensitive' };
-        if (filter.tenant) where.tenant = { slug: filter.tenant };
+        if (filter.q) where[u.email] = { contains: filter.q, mode: 'insensitive' };
+        if (filter.tenant) where[u.tenant] = { [tenantSlug]: filter.tenant };
 
         const rows = await this.users().findMany({
             where,
-            include: { tenant: { select: { slug: true } } },
+            include: { [u.tenant]: { select: { [tenantSlug]: true } } },
             orderBy: { createdAt: 'desc' },
             take: this.listLimit,
         });
 
         return rows.map((row) => ({
             id: row.id,
-            email: row.email,
-            firstName: row.firstName ?? '',
-            lastName: row.lastName ?? '',
+            email: this.read<string>(row, u.email) ?? '',
+            firstName: this.read<string>(row, u.firstName) ?? '',
+            lastName: this.read<string>(row, u.lastName) ?? '',
             role: row.platformRole ?? row.role ?? 'MEMBER',
-            isActive: row.isActive ?? true,
-            tenantSlug: row.tenant?.slug ?? null,
+            isActive: this.read<boolean>(row, u.isActive) ?? true,
+            tenantSlug: this.tenantSlugOf(row, u.tenant, tenantSlug),
             lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
             createdAt: row.createdAt.toISOString(),
         }));
@@ -227,9 +263,10 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
     }
 
     async listSubscriptions(): Promise<AdminSubscriptionListRow[]> {
+        const t = this.schema.tenant;
         const rows = await this.subscriptions().findMany({
             include: {
-                tenant: { select: { slug: true, name: true } },
+                tenant: { select: { [t.slug]: true, [t.name]: true } },
                 planVersion: { select: { monthlyNet: true } },
             },
             orderBy: { createdAt: 'desc' },
@@ -238,7 +275,10 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
 
         return rows.map((row) => ({
             id: row.id,
-            tenant: row.tenant,
+            tenant: {
+                slug: this.read<string>(row.tenant, t.slug) ?? '',
+                name: this.read<string>(row.tenant, t.name) ?? '',
+            },
             plan: row.plan,
             status: row.status,
             billingCycle: row.billingCycle,
@@ -251,15 +291,44 @@ export class PrismaAdminResourcesAdapter implements AdminResourcesPort {
     }
 
     private tenants(): PrismaModelDelegateLike<AdminTenantRow> {
-        return getPrismaDelegate(this.prisma, 'tenant');
+        return getPrismaDelegate(this.prisma, this.schema.delegates.tenant);
     }
 
     private users(): PrismaModelDelegateLike<AdminUserRow> {
-        return getPrismaDelegate(this.prisma, 'user');
+        return getPrismaDelegate(this.prisma, this.schema.delegates.user);
     }
 
     private subscriptions(): PrismaModelDelegateLike<AdminSubscriptionRow> {
-        return getPrismaDelegate(this.prisma, 'subscription');
+        return getPrismaDelegate(this.prisma, this.schema.delegates.subscription);
+    }
+
+    /** The subscription relation of a tenant row, under whatever it is called. */
+    private subscriptionOf(
+        row: AdminTenantRow,
+    ): NonNullable<AdminTenantRow['subscription']> | null {
+        return (
+            this.read<NonNullable<AdminTenantRow['subscription']>>(
+                row,
+                this.schema.tenant.subscription,
+            ) ?? null
+        );
+    }
+
+    /** The tenant slug on a user row, through both mapped names. */
+    private tenantSlugOf(row: AdminUserRow, relation: string, slugField: string): string | null {
+        const tenant = this.read<object>(row, relation);
+        return tenant ? (this.read<string>(tenant, slugField) ?? null) : null;
+    }
+
+    /**
+     * Reads a mapped field off a row.
+     *
+     * The rows come back keyed by the APP's field names, so every read of a
+     * mapped field goes through here — and the row type stays the shape the
+     * adapter promises rather than becoming `Record<string, unknown>`.
+     */
+    private read<T>(row: object, field: string): T | undefined {
+        return (row as Record<string, unknown>)[field] as T | undefined;
     }
 }
 

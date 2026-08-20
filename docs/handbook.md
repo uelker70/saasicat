@@ -250,6 +250,11 @@ import {
 import { RegistrationModule } from '@saasicat/nest/registration';
 ```
 
+`RegistrationModule` is the one entry `SaaSiCatModule` does not compose: it takes
+ten ports no persistence bundle supplies, and you wire it yourself. See
+[self-registration](self-registration.md) for the port list, the reason, and the
+two things that bite. Every other entry above is composed for you.
+
 ### 4.2 Standard Pages from `@saasicat/ui-vue`
 
 Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
@@ -329,6 +334,13 @@ derived Prisma-DSL rendering of that model; `saasicat schema apply`
 splices them into your `schema.prisma` (see [Quickstart §3](quickstart.md)).
 The JSON Schemas in `@saasicat/spec/schemas/` govern **wire formats**, not
 tables.
+
+`saasicat schema migrate` runs `apply`, then `prisma migrate dev --create-only`,
+appends `constraints.postgres.sql` to the migration that produced, and applies
+it — so the invariants Prisma cannot express arrive with the tables rather than
+as a step to remember. `--create-only` is what makes that work: an applied
+migration cannot take an edit, and Prisma would see its checksum change. It is
+idempotent: a migration that already carries them is left alone.
 
 `schema apply` only ever adds whole models — it does not carry enums and it
 never touches a model you already have. So after a package upgrade your schema

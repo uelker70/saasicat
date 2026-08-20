@@ -1,6 +1,13 @@
 // @saasicat/nest/registration — sub-entry for the
 // multi-step registration and onboarding flow.
 //
+// HAND-WIRED, and deliberately so: `SaaSiCatModule` does not compose this
+// module, and no persistence bundle supplies its ten required ports. The
+// reason is order rather than effort — those ports have no executable contract
+// yet, and a bundle that supplied them would be promising something nothing
+// verifies. `docs/self-registration.md` has the decision, the port list, and
+// the two things that bite when wiring it.
+//
 // Contents:
 //   - helpers:                   Pure functions (generateOtpCode, hashOtpCode,
 //                                verifyOtpCode, slugify) — usable for unit tests

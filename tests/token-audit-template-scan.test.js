@@ -466,6 +466,28 @@ describe('counting a name in an expression', () => {
         assert.equal(countUses('tone?.value === x', 'value'), 0);
         assert.equal(countUses('tone?.value === x ? tone?.value : y', 'tone?.value'), 2);
     });
+
+    test('a trailing ! ends the name, and only `!.` carries it onwards', () => {
+        // The undercount a review found after this file had been through four
+        // rounds on the same helper. `!` is in the member-path alphabet so that
+        // `row!.tone` is one name — and that read the assertion in `tone!` as
+        // the start of another segment, so the returned occurrence vanished,
+        // the counter saw the comparison alone, and the literal was blanked. An
+        // undercount is the direction a ratchet may not fail in: it lets a new
+        // hardcoded dependency through unseen.
+        assert.equal(countUses("tone === 'x' ? tone! : ''", 'tone'), 2);
+        assert.equal(countUses('row!.tone === x ? row!.tone : y', 'row!.tone'), 2);
+        assert.equal(countUses('row!.tone === x', 'row'), 0, '`!.` still carries the path');
+        assert.equal(countUses('tone?.value === x ? tone?.value : y', 'tone'), 0);
+    });
+
+    test('and the literal survives, because the class is rendered', () => {
+        // The consequence, at the level that matters: the audit must still
+        // count `text-grey-7`, because the true branch puts it on the page.
+        assert.deepEqual(classes(`<span :class="tone === 'text-grey-7' ? tone! : ''">a</span>`), [
+            'text-grey-7',
+        ]);
+    });
 });
 
 describe('the font shorthand hides three scales behind one property', () => {

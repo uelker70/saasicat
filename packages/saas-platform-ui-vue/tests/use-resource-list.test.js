@@ -337,7 +337,17 @@ describe('useResourceList — the failures it refuses to swallow', () => {
             (err) => {
                 assert.match(err.message, /useResourceList\("tenants", \{ op: "lst" \}\)/);
                 assert.match(err.message, /has no such operation/);
-                assert.match(err.message, /It offers: list\./);
+                // What it offers is read off the descriptor, not written down
+                // here: `tenantsResource` gained three operations when the
+                // roster was completed, and a hardcoded list turns that into a
+                // failing test about nothing while saying nothing about whether
+                // the message is still useful.
+                assert.match(
+                    err.message,
+                    new RegExp(
+                        `It offers: ${Object.keys(platformResources.tenants.ops).join(', ')}\\.`,
+                    ),
+                );
                 return true;
             },
         );

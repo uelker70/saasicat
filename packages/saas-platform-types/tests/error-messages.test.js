@@ -13,16 +13,45 @@ import {
 // The shipped texts are what a consumer shows before translating anything, and
 // for the 21 codes thrown as a bare `{ code }` they are the only readable text
 // that exists. A code added without a text would therefore surface as
-// `PLAN_VERSION_SUPERSEDED` in someone's UI — that is what these guard against.
+// `PLAN_VERSION_SUPERSEDED` in someone's UI.
+//
+// The key half of that is the compiler's, not this file's. Both catalogues are
+// `Record<PlatformErrorCode, string>` over a closed union, so a missing code is
+// a TS2741 and a text for a code that no longer exists is a TS2561 — in either
+// catalogue, before any test runs. The cases below re-state it at runtime,
+// which costs nothing and keeps the failure legible if the type is ever
+// widened.
+//
+// What the type cannot see is what the texts SAY, and that is the case worth
+// having: two catalogues can carry the same keys and interpolate different
+// values, and then the German sentence renders `{waitSeconds}` at the reader.
 
 const SHIPPED_LOCALES = { en: ERROR_MESSAGES_EN, de: ERROR_MESSAGES_DE };
 
-/** Every code that can reach a client, including the one defined elsewhere. */
-const ALL_CODES = [...Object.values(PLATFORM_ERROR_CODES), FEATURE_NOT_LICENSED];
+/**
+ * Every code that can reach a client.
+ *
+ * Read off `PLATFORM_ERROR_CODES` alone. `FEATURE_NOT_LICENSED` is declared in
+ * `upsell.types.ts` and re-exported into `BILLING_ERROR_CODES` for exactly this
+ * reason, so naming it a second time here would suggest the map is incomplete
+ * when it is not.
+ */
+const ALL_CODES = Object.values(PLATFORM_ERROR_CODES);
 
 const placeholders = (template) => new Set([...template.matchAll(/\{(\w+)\}/g)].map((m) => m[1]));
 
 describe('shipped error messages', () => {
+    test('the code map carries the one code declared in another file', () => {
+        // The premise `ALL_CODES` rests on. If `FEATURE_NOT_LICENSED` were ever
+        // dropped from `BILLING_ERROR_CODES`, every check below would quietly
+        // stop covering it — and the union would stop requiring a text for it
+        // in the same edit, so nothing else would notice.
+        assert.ok(
+            ALL_CODES.includes(FEATURE_NOT_LICENSED),
+            'FEATURE_NOT_LICENSED is no longer reachable through PLATFORM_ERROR_CODES',
+        );
+    });
+
     for (const [locale, catalogue] of Object.entries(SHIPPED_LOCALES)) {
         test(`${locale} has a text for every error code`, () => {
             const missing = ALL_CODES.filter((code) => !catalogue[code]);
