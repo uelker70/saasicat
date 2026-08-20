@@ -106,7 +106,8 @@ function bootWith(controllers, state) {
 
 /** The chain state of an app that unbound the platform's global guard. */
 const OWN_GUARDS = {
-    entitlementActive: true,
+    featureEnforcementActive: true,
+    quotaEnforcementActive: true,
     globalGuardBound: false,
     globalGuardOptedOut: true,
 };
@@ -117,21 +118,25 @@ const OWN_GUARDS = {
  * that.
  */
 const V3_PATH = {
-    entitlementActive: true,
+    featureEnforcementActive: true,
+    // The V3 path resolves features, not quotas — see the state interface.
+    quotaEnforcementActive: false,
     globalGuardBound: false,
     globalGuardOptedOut: false,
 };
 
 /** The chain state of an app that can resolve no plan at all. */
 const INERT = {
-    entitlementActive: false,
+    featureEnforcementActive: false,
+    quotaEnforcementActive: false,
     globalGuardBound: false,
     globalGuardOptedOut: false,
 };
 
 /** The state the platform is in by default: guard bound, nothing to check. */
 const PLATFORM_GUARD_BOUND = {
-    entitlementActive: true,
+    featureEnforcementActive: true,
+    quotaEnforcementActive: true,
     globalGuardBound: true,
     globalGuardOptedOut: false,
 };
@@ -311,5 +316,66 @@ describe('the message names the true cause', () => {
             assert.match(error.message, /APP_GUARD/);
             assert.match(error.message, /enforcementChainCheck: false/);
         }
+    });
+});
+
+describe('quotas are a second runtime, and the V3 path does not carry it', () => {
+    // Found by review, after this check had already shipped once and been
+    // reviewed twice. `entitlementActive` was one flag for two questions:
+    // "can anything enforce @RequireFeature?" (yes on the V3 path, via the
+    // application's own FeatureGuard) and "can anything enforce
+    // @EnforceQuota?" (no — EnforceQuotaInterceptor comes only with a plan
+    // resolver). Widening the flag to stop refusing correct V3 apps let a V3
+    // app boot with every quota reading as unlimited.
+
+    const QUOTA_ONLY = makeController('QuotaOnlyController', {
+        routes: { create: { quota: 'notes' } },
+    });
+
+    const QUOTA_AND_FEATURE = makeController('BothController', {
+        classGuards: [FakeAuthGuard, PlatformGuard],
+        routes: { create: { quota: 'notes', features: ['notes.write'] } },
+    });
+
+    test('a quota route on the V3 path refuses the boot', () => {
+        const error = bootWith([QUOTA_ONLY], V3_PATH);
+        assert.ok(error, 'a quota nothing enforces booted silently');
+        assert.match(error.message, /EnforceQuotaInterceptor/);
+        assert.match(error.message, /QuotaOnlyController\.create/);
+        assert.match(error.message, /reads as unlimited/);
+    });
+
+    test('the message names every way out, including the opt-out', () => {
+        const error = bootWith([QUOTA_ONLY], V3_PATH);
+        assert.match(error.message, /adapters\.planResolver/);
+        assert.match(error.message, /defaultPlanId/);
+        assert.match(error.message, /tenantBilling/);
+        assert.match(error.message, /enforcementChainCheck: false/);
+    });
+
+    test('a guarded quota route on the V3 path is refused too', () => {
+        // A feature guard answers @RequireFeature. It does not count quotas,
+        // so covering the route does not make the quota act.
+        const error = bootWith([QUOTA_AND_FEATURE], V3_PATH);
+        assert.ok(error, 'a guard was read as making the quota enforceable');
+        assert.match(error.message, /EnforceQuotaInterceptor/);
+    });
+
+    test('a feature-only route on the V3 path still boots when it is guarded', () => {
+        // The false positive this check may not have: on the V3 path features
+        // ARE enforced, and refusing a correctly wired application is the one
+        // failure that would get the whole check turned off.
+        assert.equal(bootWith([COVERED], V3_PATH), null);
+    });
+
+    test('and the static path with a plan resolver boots with quota routes', () => {
+        assert.equal(bootWith([QUOTA_ONLY], PLATFORM_GUARD_BOUND), null);
+        assert.equal(bootWith([QUOTA_ONLY], OWN_GUARDS), null);
+    });
+
+    test('the inert case still speaks first, so its message is the one read', () => {
+        // Both branches would fire; the inert one names the larger problem.
+        const error = bootWith([QUOTA_ONLY], INERT);
+        assert.match(error.message, /nothing can resolve a tenant to a plan/);
     });
 });

@@ -96,3 +96,88 @@ export function appendConstraints(migrationSql: string, constraintsSql: string):
         `${constraintsSql.trimEnd()}\n`
     );
 }
+
+/**
+ * What step 3 of `schema migrate` did — and whether step 4 may follow.
+ *
+ * It was a boolean, and the boolean conflated two states that need opposite
+ * answers: "there was nothing to append" and "appending failed". On the second
+ * one the command told the operator to add the SQL by hand *before applying
+ * it* — and then applied it three lines later, which both makes the advice
+ * unfollowable and puts the file under a recorded checksum, so editing it
+ * afterwards offers a reset. Prisma's `--create-only` exists to open exactly
+ * that window; closing it by hand was the point.
+ */
+export type ConstraintsOutcome =
+    /** Written into the migration this run created. */
+    | 'appended'
+    /** The migration already carried them — a re-run. */
+    | 'already-present'
+    /** No constraint addresses a table in this schema. */
+    | 'not-applicable'
+    /** Prisma created no migration, so there was nothing to append to. */
+    | 'no-migration'
+    /** The file could not be read or written. */
+    | 'failed';
+
+export interface ConstraintsReport {
+    readonly outcome: ConstraintsOutcome;
+    /**
+     * Whether the command may go on to apply the migration.
+     *
+     * False only for `failed`: every other outcome leaves a migration that is
+     * complete, or none at all.
+     */
+    readonly mayApply: boolean;
+    /** What to tell the operator, in one line. */
+    readonly message: string;
+}
+
+/**
+ * The decision and the message together, so they cannot contradict each other.
+ *
+ * They did: the message named a window the caller had already closed. Keeping
+ * them in one function lets a test assert the invariant that broke —
+ * "before applying" appears exactly when the command will not apply.
+ */
+export function reportConstraints(
+    outcome: ConstraintsOutcome,
+    context: { readonly sqlPath: string; readonly migration?: string | null },
+): ConstraintsReport {
+    switch (outcome) {
+        case 'appended':
+            return {
+                outcome,
+                mayApply: true,
+                message: `  + appended to ${context.migration}/migration.sql`,
+            };
+        case 'already-present':
+            return {
+                outcome,
+                mayApply: true,
+                message: `  = ${context.migration} already carries them.`,
+            };
+        case 'not-applicable':
+            return {
+                outcome,
+                mayApply: true,
+                message: '  = none of them apply to the tables in this schema.',
+            };
+        case 'no-migration':
+            return {
+                outcome,
+                mayApply: true,
+                message:
+                    '  = Prisma created no migration — nothing to append to, and nothing new ' +
+                    'to apply.',
+            };
+        case 'failed':
+            return {
+                outcome,
+                mayApply: false,
+                message:
+                    `  ! Could not append them, so the migration is incomplete. Add ` +
+                    `${context.sqlPath} to it by hand, before applying it — nothing was applied.`,
+            };
+    }
+}

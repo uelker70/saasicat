@@ -4,6 +4,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { planCatalogSchema } from '@saasicat/spec';
+
 import {
     LIMIT_FILTER_PROVIDER,
     patchOptionsFor,
@@ -13,6 +15,7 @@ import {
     pascalCase,
     patchAppModule,
     planInit,
+    projectKeyPattern,
 } from '../dist/index.js';
 
 // `saasicat init` exists because the halves were the wrong way round: the
@@ -109,8 +112,8 @@ describe('what gets written', () => {
         // and the first person to need it finds out.
         const rendered = new Set();
         for (const options of [
-            { projectKey: 'a', quotas: ['q:Q'] },
-            { projectKey: 'a', skipHasher: true },
+            { projectKey: 'ab', quotas: ['q:Q'] },
+            { projectKey: 'ab', skipHasher: true },
         ]) {
             for (const file of planInit(options).files) rendered.add(`${file.template}.tpl`);
         }
@@ -366,3 +369,51 @@ describe('the auth guard the generator cannot know', () => {
         assert.match(source, /auth-free/);
     });
 });
+
+describe('a project key the platform would refuse', () => {
+    // The generator wrote the key straight into `config/saas.yaml`, which the
+    // platform validates against `plan-catalog.schema.json` at boot. So an
+    // invalid key produced an application that could not start — after every
+    // file had been written and `app.module.ts` patched. The command's own
+    // help documented `--project-key=x`, which is one character and fails.
+
+    test('is refused before anything is planned', () => {
+        for (const key of ['x', 'NotesApp', '1notes', 'notes app', 'a'.repeat(32)]) {
+            assert.throws(
+                () => planInit({ projectKey: key }),
+                /not a valid project key/,
+                `planInit accepted ${JSON.stringify(key)}`,
+            );
+        }
+    });
+
+    test('and a valid one still plans', () => {
+        assert.ok(planInit({ projectKey: 'notesapp' }).files.length > 0);
+        assert.ok(planInit({ projectKey: 'team-hub-2' }).files.length > 0);
+    });
+
+    test('the rule comes from the schema, not from a copy of it', () => {
+        // A second regex would be the same defect one level up: it would drift
+        // from the loader and start accepting keys the platform refuses.
+        assert.equal(projectKeyPattern().source, planCatalogSchema.properties.projectKey.pattern);
+    });
+
+    test('the message carries the pattern rather than a paraphrase of it', () => {
+        const error = thrownBy(() => planInit({ projectKey: 'X' }));
+        assert.match(error.message, new RegExp(escapeRegExp(projectKeyPattern().source)));
+    });
+});
+
+/** The error a call threw, because `assert.throws` does not hand it back. */
+function thrownBy(fn) {
+    try {
+        fn();
+    } catch (err) {
+        return err;
+    }
+    throw new Error('expected a throw');
+}
+
+function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

@@ -42,7 +42,9 @@ import {
     extractModelBlocks,
     findFkPointers,
     hasConstraints,
+    assertValidProjectKey,
     migrationCreatedBy,
+    reportConstraints,
     patchAppModule,
     patchOptionsFor,
     planInit,
@@ -158,13 +160,25 @@ async function cmdSchemaApply(args) {
     }
 
     if (args['dry-run']) {
-        console.log(`(--dry-run) Would append: ${result.added.join(', ')}`);
+        if (result.added.length) {
+            console.log(`(--dry-run) Would append: ${result.added.join(', ')}`);
+        }
         if (result.skipped.length) {
             console.log(`(--dry-run) Skipped (already present): ${result.skipped.join(', ')}`);
         }
         reportFkPointers(fk, args);
         console.log('');
-        console.log(result.schema.slice(schema.length));
+        // Both halves of what a real run writes, and they need different
+        // renderings: appended models are new text at the end, while FK
+        // pointers are rewritten lines INSIDE the existing schema. Printing
+        // the tail alone showed nothing at all for an upgrade — every model
+        // already present, so the tail is empty while the run still rewrites
+        // relation lines.
+        for (const { line } of fk.enabled) {
+            console.log(`  ${line + 1}: ${fk.schema.split('\n')[line]?.trim() ?? ''}`);
+        }
+        if (fk.enabled.length > 0 && result.added.length > 0) console.log('');
+        if (result.added.length > 0) console.log(result.schema.slice(schema.length));
         return;
     }
 
@@ -305,7 +319,10 @@ function resolveFkPointers(schema, args) {
 /** Says what was enabled, what was left commented, and what each needs. */
 function reportFkPointers(fk, args) {
     if (fk.enabled.length > 0) {
-        console.log(`✓ Enabled ${fk.enabled.length} foreign-key relation(s) to your models.`);
+        // The tense matters on a dry run: nothing has been enabled yet, and a
+        // preview that reports past-tense edits is a preview nobody can check.
+        const verb = args['dry-run'] ? 'Would enable' : 'Enabled';
+        console.log(`✓ ${verb} ${fk.enabled.length} foreign-key relation(s) to your models.`);
     }
 
     // Two different answers, so two different reports: one needs a flag, the
@@ -382,12 +399,23 @@ async function cmdSchemaMigrate(args) {
     await runChild(pmRunner, ['prisma', 'migrate', 'dev', '--create-only', '--name', args.name]);
 
     console.log('→ Step 3/4: appending the constraints Prisma cannot express');
-    const appended = await writeConstraintsIntoMigration(args, migrationsBefore);
+    const report = await writeConstraintsIntoMigration(args, migrationsBefore);
+    console.log(report.message);
+
+    // Applying a migration the tool could not finish is worse than stopping.
+    // The message tells the operator to add the SQL before applying it, and
+    // `migrate dev` is what applies it — so the command that printed that
+    // advice has to be the one that leaves the window open. Afterwards the
+    // file sits under a recorded checksum and editing it offers a reset.
+    if (!report.mayApply) {
+        console.error('✗ schema migrate stopped before applying. Nothing reached the database.');
+        process.exit(1);
+    }
 
     console.log(`→ Step 4/4: ${pmRunner} prisma migrate dev  (applies it)`);
     await runChild(pmRunner, ['prisma', 'migrate', 'dev']);
     console.log(
-        appended
+        report.outcome === 'appended' || report.outcome === 'already-present'
             ? '✓ schema migrate succeeded — tables and constraints are in the database.'
             : '✓ schema migrate succeeded.',
     );
@@ -427,10 +455,10 @@ function resolveConstraintsSql() {
  * Deliberately after the Prisma run rather than into a hand-made file: the
  * statements need the tables, and Prisma decides what the migration is called.
  *
- * A failure here does not fail the command, and returns `false` so the caller
- * can say so: the migration is written either way, and telling the operator
- * what to add by hand before applying it is more useful than a non-zero exit
- * on a schema that is otherwise correct.
+ * Returns what happened rather than whether it worked. The caller has to tell
+ * "nothing to append" from "appending failed": only the second one may not be
+ * followed by `migrate dev`, because the advice it prints — add the SQL before
+ * applying — is only followable while the migration is still unapplied.
  */
 async function writeConstraintsIntoMigration(args, migrationsBefore) {
     const { schemaPath } = await readSchemaOrExit(args);
@@ -443,17 +471,12 @@ async function writeConstraintsIntoMigration(args, migrationsBefore) {
         // produced nothing, the last one belongs to somebody else and has
         // already been applied.
         const newest = migrationCreatedBy(migrationsBefore, directories);
-        if (!newest) {
-            console.log('  = Prisma created no migration — nothing to append to.');
-            console.log(`    If you expected one, add ${sqlPath} by hand before applying.`);
-            return false;
-        }
+        if (!newest) return reportConstraints('no-migration', { sqlPath });
 
         const migrationFile = join(migrationsDir, newest, 'migration.sql');
         const migrationSql = await readFile(migrationFile, 'utf8');
         if (hasConstraints(migrationSql)) {
-            console.log(`  = ${newest} already carries them.`);
-            return true;
+            return reportConstraints('already-present', { sqlPath, migration: newest });
         }
 
         // Only the constraints whose tables this schema has: a run scoped with
@@ -465,17 +488,13 @@ async function writeConstraintsIntoMigration(args, migrationsBefore) {
             tableNamesOf(currentSchema),
         );
         if (applicable.trim() === '') {
-            console.log('  = none of them apply to the tables in this schema.');
-            return true;
+            return reportConstraints('not-applicable', { sqlPath, migration: newest });
         }
-        const constraintsSql = applicable;
-        await writeFile(migrationFile, appendConstraints(migrationSql, constraintsSql));
-        console.log(`  + appended to ${newest}/migration.sql`);
-        return true;
+        await writeFile(migrationFile, appendConstraints(migrationSql, applicable));
+        return reportConstraints('appended', { sqlPath, migration: newest });
     } catch (err) {
-        console.log(`  ! Could not append them: ${err?.message ?? String(err)}`);
-        console.log(`    Add ${sqlPath} to your migration by hand, before applying it.`);
-        return false;
+        console.error(`  ! ${err?.message ?? String(err)}`);
+        return reportConstraints('failed', { sqlPath });
     }
 }
 
@@ -490,6 +509,16 @@ async function cmdInit(args, argv) {
     if (!args['project-key']) {
         console.error('✗ --project-key=<key> is required.');
         console.error('  It names the catalogue this app administers.');
+        process.exit(1);
+    }
+
+    // A usage error, so it exits 1 like every other one here rather than
+    // through the top-level handler's 99. The rule itself comes from the
+    // catalogue schema — see src/init/project-key.ts.
+    try {
+        assertValidProjectKey(args['project-key']);
+    } catch (err) {
+        console.error(`✗ ${err.message}`);
         process.exit(1);
     }
 
@@ -636,7 +665,7 @@ async function main() {
         );
         console.log('');
         console.log('  init --project-key=<key>                 scaffold the platform wiring');
-        console.log('  init --project-key=x --quota=notes:Note   …plus a quota provider');
+        console.log('  init --project-key=myapp --quota=notes:Note …plus a quota provider');
         console.log('');
         console.log('Optional --prisma-schema=PATH (default prisma/schema.prisma).');
         console.log('Optional --tenant-model=X --user-model=Y for apply/migrate — enables');

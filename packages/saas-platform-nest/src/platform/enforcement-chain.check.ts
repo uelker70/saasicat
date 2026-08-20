@@ -1,6 +1,6 @@
 // Is the licence-enforcement chain actually connected?
 //
-// Two ways it can be broken, and both used to be silent. An annotated route
+// Three ways it can be broken, and all three are silent. An annotated route
 // whose enforcement does nothing does not fail, log, or look different — it
 // serves a paid feature to everyone, and the first signal is a customer using
 // something they never bought. That is the failure this refuses to let boot.
@@ -9,7 +9,13 @@
 //      resolve a tenant to a plan — no `adapters.planResolver`, no
 //      `defaultPlanId`, no `tenantBilling`. Then `@RequireFeature` and
 //      `@EnforceQuota` are inert markup.
-//   2. `globalFeatureGuard: false` unbinds the platform's APP_GUARD, and the
+//   2. The static stack was not registered but the V3 entitlement stack was.
+//      `FeatureGuard` from `@saasicat/nest/billing` then answers
+//      `@RequireFeature` — but nothing answers `@EnforceQuota`, because
+//      `EnforceQuotaInterceptor` is registered only alongside a plan resolver.
+//      Quotas read as unlimited while features are enforced correctly, which
+//      is the shape a single "is entitlement on?" flag cannot express.
+//   3. `globalFeatureGuard: false` unbinds the platform's APP_GUARD, and the
 //      app is expected to bind a feature guard itself, per controller, behind
 //      its own auth guard. That is a legitimate and common setup — both
 //      consumers we know of use it, and both do it correctly on every
@@ -50,10 +56,23 @@ const METHOD_METADATA = 'method';
 /** What the module knows at composition time and this check cannot see. */
 export interface EnforcementChainState {
     /**
-     * Whether the static entitlement stack was registered at all — i.e. whether
-     * something can answer "which plan is this tenant on?".
+     * Whether anything can enforce `@RequireFeature`.
+     *
+     * True on the static path, and also on the V3 path, where the application
+     * binds `FeatureGuard` from `@saasicat/nest/billing` itself.
      */
-    readonly entitlementActive: boolean;
+    readonly featureEnforcementActive: boolean;
+    /**
+     * Whether anything can enforce `@EnforceQuota`.
+     *
+     * Narrower than the field above, and the two were one field until an app
+     * on the V3 path with no plan resolver booted with every quota unenforced:
+     * `EnforceQuotaInterceptor` comes from `composeEnforcementRuntime`, which
+     * registers nothing unless a plan resolver exists. A flag named for
+     * "entitlement" answered a question about features and was read as an
+     * answer about quotas.
+     */
+    readonly quotaEnforcementActive: boolean;
     /** Whether the platform bound its own global feature guard. */
     readonly globalGuardBound: boolean;
     /**
@@ -91,7 +110,8 @@ export class EnforcementChainCheck implements OnApplicationBootstrap {
         @Optional()
         @Inject(ENFORCEMENT_CHAIN_STATE_TOKEN)
         private readonly state: EnforcementChainState = {
-            entitlementActive: true,
+            featureEnforcementActive: true,
+            quotaEnforcementActive: true,
             globalGuardBound: true,
             globalGuardOptedOut: false,
         },
@@ -100,7 +120,7 @@ export class EnforcementChainCheck implements OnApplicationBootstrap {
     onApplicationBootstrap(): void {
         const annotated = this.findAnnotatedRoutes();
 
-        if (!this.state.entitlementActive) {
+        if (!this.state.featureEnforcementActive) {
             if (annotated.length === 0) return;
             throw new Error(
                 `${annotated.length} route(s) are annotated for licence enforcement, but ` +
@@ -113,6 +133,31 @@ export class EnforcementChainCheck implements OnApplicationBootstrap {
                     'it, remove the annotations — a decorator that cannot act is not ' +
                     'documentation, it is a claim the code does not keep.',
             );
+        }
+
+        // Features can be enforced but quotas cannot: the V3 path without a
+        // plan resolver. Asked separately from the branch above because the
+        // application is not misconfigured for features — a route that only
+        // requires a feature is enforced correctly here, and refusing to boot
+        // for that would be the false positive this check may not have.
+        if (!this.state.quotaEnforcementActive) {
+            const unenforced = annotated.filter((r) => r.quota !== null);
+            if (unenforced.length > 0) {
+                throw new Error(
+                    `${unenforced.length} route(s) enforce a quota, but nothing registers ` +
+                        'EnforceQuotaInterceptor, so every @EnforceQuota reads as unlimited ' +
+                        'and the limit a customer paid for is not applied:\n' +
+                        `${describe(unenforced)}\n` +
+                        'The V3 entitlement stack resolves features, not quotas: the ' +
+                        'interceptor is registered only where a plan can be resolved. Set one ' +
+                        'of adapters.planResolver, defaultPlanId, or tenantBilling with a ' +
+                        'subscription repository — or remove the annotations, because a ' +
+                        'decorator that cannot act is not documentation.\n' +
+                        'If this application enforces these quotas itself, set ' +
+                        '`enforcementChainCheck: false` — it turns this check off and nothing ' +
+                        'else.',
+                );
+            }
         }
 
         if (this.state.globalGuardBound) return;

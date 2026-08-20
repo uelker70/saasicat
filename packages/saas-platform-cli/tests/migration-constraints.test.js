@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
     CONSTRAINTS_MARKER,
+    reportConstraints,
     appendConstraints,
     constraintsFor,
     hasConstraints,
@@ -151,5 +152,56 @@ describe('only the constraints this schema has tables for', () => {
         const nothing = constraintsFor(BOTH, ['unrelated']);
         assert.equal(nothing, '');
         assert.equal(appendConstraints(MIGRATION, nothing), MIGRATION);
+    });
+});
+
+describe('what step 3 did, and whether step 4 may follow', () => {
+    // This was a boolean, and the boolean conflated "nothing to append" with
+    // "appending failed". On the second the command printed "add the SQL by
+    // hand, before applying it" — and then applied it three lines later. The
+    // advice named a window the caller had already closed, and the migration
+    // went under a recorded checksum, where editing it offers a reset.
+
+    const OUTCOMES = ['appended', 'already-present', 'not-applicable', 'no-migration', 'failed'];
+    const CONTEXT = { sqlPath: '/pkg/sql/constraints.postgres.sql', migration: '20260820_x' };
+
+    test('only a failure stops the command', () => {
+        const stops = OUTCOMES.filter((o) => !reportConstraints(o, CONTEXT).mayApply);
+        assert.deepEqual(stops, ['failed']);
+    });
+
+    test('"before applying" is said exactly when the command will not apply', () => {
+        // The invariant that broke, asserted as an equality rather than as a
+        // list of expected strings: a message may promise that window only
+        // while the caller still leaves it open.
+        for (const outcome of OUTCOMES) {
+            const report = reportConstraints(outcome, CONTEXT);
+            assert.equal(
+                /before applying/.test(report.message),
+                !report.mayApply,
+                `${outcome}: message and decision disagree — "${report.message}"`,
+            );
+        }
+    });
+
+    test('a failure says where the SQL is, because the operator now needs it', () => {
+        const report = reportConstraints('failed', CONTEXT);
+        assert.match(report.message, /constraints\.postgres\.sql/);
+        assert.match(report.message, /nothing was applied/);
+    });
+
+    test('nothing to append is not a failure', () => {
+        // Prisma creating no migration means the schema was already in sync.
+        // Treating that as an error would fail a correct re-run.
+        assert.equal(reportConstraints('no-migration', CONTEXT).mayApply, true);
+    });
+
+    test('every outcome carries a message and a decision', () => {
+        for (const outcome of OUTCOMES) {
+            const report = reportConstraints(outcome, CONTEXT);
+            assert.equal(report.outcome, outcome);
+            assert.equal(typeof report.mayApply, 'boolean');
+            assert.ok(report.message.trim().length > 0, `${outcome} says nothing`);
+        }
     });
 });

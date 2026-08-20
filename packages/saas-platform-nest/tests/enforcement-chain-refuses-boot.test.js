@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 
 import { SaasPlatformModule, StaticFeatureGuard } from '../dist/platform/index.js';
 import { FeatureGuard, RequireFeature } from '../dist/billing/index.js';
+import { EnforceQuota } from '../dist/discovery/index.js';
 
 // Does the application actually fail to start?
 //
@@ -56,6 +57,16 @@ const MINIMAL_CATALOG = {
     plans: [],
 };
 
+/** The adapters the V3 entitlement stack needs, and nothing that resolves a plan. */
+const V3 = {
+    mfa: new FakeMfaPort(),
+    audit: new FakeAuditPort(),
+    rlsBypass: new FakeRlsBypassPort(),
+    subscriptionRepository: { findActiveByTenantId: async () => null },
+    planVersionRepository: { findById: async () => null },
+    transactionRunner: { run: async (fn) => fn({}) },
+};
+
 function platformOptions(extra = {}) {
     return {
         planCatalog: MINIMAL_CATALOG,
@@ -82,7 +93,7 @@ function platformOptions(extra = {}) {
  * rather than hand-written metadata: what is being checked is that the check
  * reads what Nest's own decorators write.
  */
-function makeController(name, path, { method, features, guards }) {
+function makeController(name, path, { method, features, guards, quota }) {
     const ctor = { [name]: class {} }[name];
     ctor.prototype[method] = function handler() {
         return [];
@@ -91,6 +102,7 @@ function makeController(name, path, { method, features, guards }) {
 
     Get()(ctor.prototype, method, descriptor);
     if (features) RequireFeature(...features)(ctor.prototype, method, descriptor);
+    if (quota) EnforceQuota(quota)(ctor.prototype, method, descriptor);
     if (guards) UseGuards(...guards)(ctor.prototype, method, descriptor);
     Controller(path)(ctor);
     return ctor;
@@ -111,6 +123,12 @@ const GuardedReportsController = makeController('GuardedReportsController', 'gua
 
 /** A route that claims nothing. */
 const PlainController = makeController('PlainController', 'health', { method: 'ping' });
+
+/** A route whose only annotation is a quota. */
+const QuotaOnlyController = makeController('QuotaOnlyController', 'notes', {
+    method: 'create',
+    quota: 'notes',
+});
 
 /** The same requirement, behind the V3 entitlement guard. */
 const V3GuardedController = makeController('V3GuardedController', 'v3-reports', {
@@ -208,20 +226,7 @@ describe('an application whose chain is intact starts', () => {
         // from @saasicat/nest/billing enforces them. Refusing a correctly
         // wired application is the one failure this check may not have.
         const error = await boot(
-            appWith(
-                V3GuardedController,
-                platformOptions({
-                    entitlement: {},
-                    adapters: {
-                        mfa: new FakeMfaPort(),
-                        audit: new FakeAuditPort(),
-                        rlsBypass: new FakeRlsBypassPort(),
-                        subscriptionRepository: { findActiveByTenantId: async () => null },
-                        planVersionRepository: { findById: async () => null },
-                        transactionRunner: { run: async (fn) => fn({}) },
-                    },
-                }),
-            ),
+            appWith(V3GuardedController, platformOptions({ entitlement: {}, adapters: V3 })),
         );
         assert.equal(error, null, error?.message);
     });
@@ -231,23 +236,33 @@ describe('an application whose chain is intact starts', () => {
         // route with nothing in front of it is open, and saying so is the
         // whole point.
         const error = await boot(
-            appWith(
-                UnguardedReportsController,
-                platformOptions({
-                    entitlement: {},
-                    adapters: {
-                        mfa: new FakeMfaPort(),
-                        audit: new FakeAuditPort(),
-                        rlsBypass: new FakeRlsBypassPort(),
-                        subscriptionRepository: { findActiveByTenantId: async () => null },
-                        planVersionRepository: { findById: async () => null },
-                        transactionRunner: { run: async (fn) => fn({}) },
-                    },
-                }),
-            ),
+            appWith(UnguardedReportsController, platformOptions({ entitlement: {}, adapters: V3 })),
         );
         assert.ok(error, 'an annotated route with no guard on the V3 path is open');
         assert.match(error.message, /UnguardedReportsController\.list/);
+    });
+
+    test('…and neither does the V3 path with a quota nothing counts', async () => {
+        // The hole a single flag left, found by review after two rounds had
+        // read this line: the V3 stack answers @RequireFeature and nothing
+        // answers @EnforceQuota, because EnforceQuotaInterceptor is registered
+        // only where a plan can be resolved. Before the split this booted
+        // clean, and every quota read as unlimited.
+        const error = await boot(
+            appWith(QuotaOnlyController, platformOptions({ entitlement: {}, adapters: V3 })),
+        );
+        assert.ok(error, 'a quota nothing enforces booted silently');
+        assert.match(error.message, /EnforceQuotaInterceptor/);
+        assert.match(error.message, /QuotaOnlyController\.create/);
+    });
+
+    test('a quota route boots once something can resolve a plan', async () => {
+        // The other side of the same split — otherwise the new branch could
+        // simply refuse every quota route and still look green above.
+        const error = await boot(
+            appWith(QuotaOnlyController, platformOptions({ defaultPlanId: 'STARTER' })),
+        );
+        assert.equal(error, null, error?.message);
     });
 
     test('enforcementChainCheck: false is a way out that works', async () => {

@@ -8,6 +8,9 @@
 // Pure on purpose. Which files, under which names, with which substitutions is
 // a decision that can be checked without a filesystem — and `--dry-run` is then
 // the same code path as the real run rather than a second implementation of it.
+// Still pure with the key check: the schema is a JSON module, not a file read.
+
+import { assertValidProjectKey } from './project-key.js';
 
 /** What the caller asked for. */
 export interface InitOptions {
@@ -92,6 +95,9 @@ const quotaFileName = (key: string): string =>
 export function planInit(options: InitOptions): InitPlan {
     const projectKey = options.projectKey;
     if (!projectKey) throw new Error('init needs a --project-key.');
+    // Before anything is planned, let alone written: the platform validates
+    // the generated `config/saas.yaml` against this same pattern at boot.
+    assertValidProjectKey(projectKey);
 
     const appName = options.appName ?? pascalCase(projectKey);
     const apiBase = options.apiBase ?? '/api/v1/admin';

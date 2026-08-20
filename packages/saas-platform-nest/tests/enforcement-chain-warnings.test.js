@@ -166,7 +166,7 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
                 typeof p === 'object' &&
                 p !== null &&
                 'useValue' in p &&
-                p.useValue?.entitlementActive === false,
+                p.useValue?.featureEnforcementActive === false,
         );
         assert.ok(state, 'the check has no way to tell it is in the inert case');
         assert.equal(state.useValue.globalGuardBound, false);

@@ -24,6 +24,12 @@ The generated module does not compile until you name that guard — it writes
 platform's word for _deliberately_ unauthenticated: the discovery and manifest
 endpoints would have answered to anyone.
 
+**`saasicat init` refuses a project key the platform would refuse.** The key
+goes into `config/saas.yaml`, which is validated against the catalogue schema at
+boot — so `--project-key=NotesApp` used to scaffold an application that could not
+start, after every file had been written. The rule is read off that schema, not
+restated.
+
 **A broken enforcement chain no longer boots.** `@RequireFeature` and
 `@EnforceQuota` with nothing able to resolve a tenant to a plan used to be
 silent — the routes answered, the quotas read as unlimited, and the first signal
@@ -33,10 +39,17 @@ names them. Same for `globalFeatureGuard: false` with a route that has no
 feature guard in front of it. An application with no annotations at all still
 boots: a catalogue without enforcement is a real shape.
 
-**Breaking:** an application in either of those states will stop starting.
-Neither known consumer is affected — every `@RequireFeature` in both sits in a
-file that also binds a feature guard. `FeatureGuardCoverageCheck` is renamed to
+**Breaking:** an application in any of those states will stop starting. Neither
+known consumer is affected: every `@RequireFeature` in both sits in a file that
+also binds a feature guard, and neither has a single `@EnforceQuota` route, so
+the quota branch cannot fire for them. `FeatureGuardCoverageCheck` is renamed to
 `EnforcementChainCheck`.
+
+Quotas are asked about separately from features, because only the static stack
+registers `EnforceQuotaInterceptor`: an application on the V3 entitlement path
+with no plan resolver enforces `@RequireFeature` correctly and cannot enforce
+`@EnforceQuota` at all. That combination used to boot with every quota reading
+as unlimited.
 
 Two shapes the check cannot recognise and correctly enforces anyway: a feature
 guard of your own that wraps ours without carrying `FEATURE_GUARD_MARKER`, and
@@ -51,7 +64,10 @@ the first boot, each entry with its rule id and a link to
 bindings used to cost five restarts.
 
 **`saasicat schema migrate`** writes the migration with `--create-only`,
-appends the constraints Prisma's DSL cannot express, and then applies it —
+appends the constraints Prisma's DSL cannot express, and then applies it — or
+stops before applying, if appending failed, because the advice it prints then
+(add the SQL by hand first) is only followable while the migration is unapplied
+—
 instead of asking you to paste them in. Only the constraints whose tables that
 migration creates, so a run scoped with `--fragments` is not failed by an index
 on a table it never made.

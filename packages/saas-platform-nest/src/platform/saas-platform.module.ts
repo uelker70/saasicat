@@ -209,17 +209,22 @@ export class SaasPlatformModule {
         // hook that walks the controllers once — and it is told what it cannot
         // see rather than inferring it.
         //
-        // `entitlementActive` is deliberately broader than the static stack:
-        // an app on the V3 path (`entitlement`, `tenantBilling`) resolves
-        // entitlements through `EntitlementService` and binds `FeatureGuard`
-        // from `@saasicat/nest/billing` itself. Treating that as inert would
-        // refuse to boot a correctly wired application, which is the one
-        // failure this check may not have.
+        // Two flags, because there are two runtimes and only one of them
+        // follows the V3 path. `featureEnforcementActive` is deliberately
+        // broader than the static stack: an app on the V3 path (`entitlement`,
+        // `tenantBilling`) resolves entitlements through `EntitlementService`
+        // and binds `FeatureGuard` from `@saasicat/nest/billing` itself, so
+        // treating that as inert would refuse to boot a correctly wired
+        // application. Quotas do not come with it — `EnforceQuotaInterceptor`
+        // is registered by `composeEnforcementRuntime`, which returns nothing
+        // without a plan resolver. One flag for both let a V3 app boot with
+        // every `@EnforceQuota` reading as unlimited.
         if (options.enforcementChainCheck !== false) {
             lightweightProviders.push(
                 EnforcementChainCheck,
                 enforcementChainState({
-                    entitlementActive: resolution.available || requiresFullEntitlement,
+                    featureEnforcementActive: resolution.available || requiresFullEntitlement,
+                    quotaEnforcementActive: resolution.available,
                     globalGuardBound: resolution.available && options.globalFeatureGuard !== false,
                     // Whether the OPTION unbound it, as opposed to this simply
                     // being a path where the platform binds none. The message
