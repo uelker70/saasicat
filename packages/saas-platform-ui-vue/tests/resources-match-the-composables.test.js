@@ -18,13 +18,30 @@ import { nextTick, ref } from 'vue';
 import {
     auditResource,
     bindResource,
+    bundleVersionsResource,
+    bundlesResource,
+    catalogResource,
+    createAdminResourceClient,
+    discoveryResource,
+    marketingResource,
     planVersionsResource,
     plansResource,
+    platformResources,
+    promoCodesResource,
+    promotionsResource,
+    subscriptionsResource,
     tenantsResource,
     useAuditEntries,
+    useBundleVersions,
+    useBundles,
+    useCatalogEntries,
+    useDiscovery,
+    useMarketingProjections,
     usePlanVersions,
     usePlans,
+    usePromotions,
     useTenants,
+    usersResource,
 } from '../dist/index.js';
 
 const ADMIN_ENDPOINT = '/api/v1/admin';
@@ -248,12 +265,18 @@ describe('the list descriptors match the list composables', () => {
         }
     }
 
-    test('every operation those resources declare is one these cases drive', () => {
+    test('the list operation these cases drive is the one they name', () => {
+        // Narrower than it looks: it asserts the operation exists and is the
+        // one being driven, not that the descriptor has no others.
+        // `tenantsResource` grew `detail`, `suspend` and `reactivate` when the
+        // roster was completed — they have no composable and are compared
+        // against the admin client in the table below. What keeps *those*
+        // covered is the derived guard at the end of this file, which reads the
+        // operation list off the descriptor rather than out of a sentence here.
         for (const resource of LIST_RESOURCES) {
-            assert.deepEqual(
-                Object.keys(resource.def.ops),
-                [LIST_OP],
-                `${resource.name} grew an operation this comparison does not drive`,
+            assert.ok(
+                Object.keys(resource.def.ops).includes(LIST_OP),
+                `${resource.name} no longer declares the operation these cases drive`,
             );
         }
     });
@@ -330,4 +353,390 @@ describe('the comparison itself', () => {
         assert.deepEqual(fromComposable[0].headers, {});
         assert.deepEqual(fromResource[0].headers, { 'content-type': 'application/json' });
     });
+});
+
+// =============================================================================
+// The families added when the roster was completed.
+//
+// Same measurement, expressed as data: each family names the implementation it
+// mirrors and one case per operation. The guard at the bottom derives what has
+// to be covered from `platformResources` itself rather than from a list kept
+// here, so a descriptor that grows an operation fails until a case drives it.
+// =============================================================================
+
+const BUNDLE_ID = 'bundle-3';
+
+/** The admin client the pages receive `loadUsers`, `loadPromos`, … through. */
+function adminClient(http) {
+    return createAdminResourceClient({ http, adminBase: ADMIN_ENDPOINT });
+}
+
+const FAMILIES = [
+    {
+        name: 'bundlesResource / useBundles',
+        def: bundlesResource,
+        build: (http) =>
+            useBundles({
+                adminEndpoint: ADMIN_ENDPOINT,
+                projectKey: PROJECT_KEY,
+                http,
+                autoLoad: false,
+            }),
+        cases: [
+            { op: 'list', run: (c) => c.load(), args: [] },
+            {
+                // Same asymmetry as `plansResource.create`: the composable
+                // takes the project from the caller, the descriptor from the
+                // context. Identical bytes, which is what is being checked.
+                op: 'create',
+                run: (c) => c.create({ bundleKey: 'starter', projectKey: PROJECT_KEY }),
+                args: [{ bundleKey: 'starter' }],
+            },
+            {
+                op: 'update',
+                run: (c) => c.update(BUNDLE_ID, { name: 'Starter' }),
+                args: [BUNDLE_ID, { name: 'Starter' }],
+            },
+            { op: 'softDelete', run: (c) => c.softDelete(BUNDLE_ID), args: [BUNDLE_ID] },
+        ],
+    },
+    {
+        name: 'bundleVersionsResource / useBundleVersions',
+        def: bundleVersionsResource,
+        build: (http) =>
+            useBundleVersions({
+                adminEndpoint: ADMIN_ENDPOINT,
+                bundleId: BUNDLE_ID,
+                http,
+                autoLoad: false,
+            }),
+        cases: [
+            { op: 'listForBundle', run: (c) => c.load(), args: [BUNDLE_ID] },
+            {
+                op: 'createDraft',
+                run: (c) => c.createDraft({ version: 2 }),
+                args: [BUNDLE_ID, { version: 2 }],
+            },
+            {
+                op: 'updateDraft',
+                run: (c) => c.updateDraft(VERSION_ID, { price: 5 }),
+                args: [VERSION_ID, { price: 5 }],
+            },
+            {
+                // The composable reloads the list after publishing; the
+                // descriptor issues the publish alone. Only the publish itself
+                // is compared — see `firstCall`.
+                op: 'publish',
+                run: (c) => c.publish(VERSION_ID, { forceRegressive: true }),
+                args: [VERSION_ID, { forceRegressive: true }],
+            },
+            { op: 'discardDraft', run: (c) => c.discardDraft(VERSION_ID), args: [VERSION_ID] },
+        ],
+    },
+    {
+        name: 'catalogResource / useCatalogEntries',
+        def: catalogResource,
+        build: (http) =>
+            useCatalogEntries({
+                adminEndpoint: ADMIN_ENDPOINT,
+                projectKey: PROJECT_KEY,
+                http,
+                autoLoad: false,
+            }),
+        cases: [
+            // `load()` fires all three list requests at once, so each of the
+            // three operations is compared against its own request out of that
+            // one call rather than against a separate drive.
+            { op: 'capabilities', run: (c) => c.load(), args: [], pick: 0 },
+            { op: 'features', run: (c) => c.load(), args: [], pick: 1 },
+            { op: 'quotas', run: (c) => c.load(), args: [], pick: 2 },
+            {
+                op: 'reviewFeature',
+                run: (c) => c.reviewFeature('notes.export', { status: 'approved' }),
+                args: ['notes.export', { status: 'approved' }],
+            },
+            {
+                op: 'reviewQuota',
+                run: (c) => c.reviewQuota('notes.count', { status: 'approved' }),
+                args: ['notes.count', { status: 'approved' }],
+            },
+            {
+                op: 'setFeatureI18n',
+                run: (c) => c.setFeatureI18n('notes.export', { en: { label: 'Export' } }),
+                args: ['notes.export', { en: { label: 'Export' } }],
+            },
+            {
+                op: 'setQuotaI18n',
+                run: (c) => c.setQuotaI18n('notes.count', { en: { label: 'Notes' } }),
+                args: ['notes.count', { en: { label: 'Notes' } }],
+            },
+            {
+                op: 'setFeatureBase',
+                run: (c) => c.setFeatureBase('notes.export', { tier: 'PRO' }),
+                args: ['notes.export', { tier: 'PRO' }],
+            },
+            {
+                op: 'setQuotaBase',
+                run: (c) => c.setQuotaBase('notes.count', { tier: 'PRO' }),
+                args: ['notes.count', { tier: 'PRO' }],
+            },
+            {
+                // The composable reloads all three lists afterwards.
+                op: 'syncDiscovery',
+                run: (c) => c.syncDiscovery({ capabilities: [] }),
+                args: [{ capabilities: [] }],
+            },
+        ],
+    },
+    {
+        name: 'discoveryResource / useDiscovery',
+        def: discoveryResource,
+        build: (http) =>
+            useDiscovery({ endpoint: `${ADMIN_ENDPOINT}/discovery`, http, autoLoad: false }),
+        cases: [
+            { op: 'read', run: (c) => c.load(), args: [] },
+            { op: 'rescan', run: (c) => c.rescan(), args: [] },
+        ],
+    },
+    {
+        name: 'marketingResource / useMarketingProjections',
+        def: marketingResource,
+        build: (http) =>
+            useMarketingProjections({
+                adminEndpoint: ADMIN_ENDPOINT,
+                filter: { projectKey: PROJECT_KEY },
+                http,
+                autoLoad: false,
+            }),
+        cases: [
+            { op: 'listProjections', run: (c) => c.load(), args: [] },
+            {
+                // The composable reloads after creating.
+                op: 'createProjection',
+                run: (c) => c.create({ targetType: 'PLAN', locale: 'en' }),
+                args: [{ targetType: 'PLAN', locale: 'en' }],
+            },
+            {
+                op: 'updateProjection',
+                run: (c) => c.update('proj-1', { headline: 'Hi' }),
+                args: ['proj-1', { headline: 'Hi' }],
+            },
+            { op: 'deleteProjection', run: (c) => c.remove('proj-1'), args: ['proj-1'] },
+            // No composable owns these two. `MarketingCatalogPage` builds both
+            // requests inline through its own `httpClient` prop, so there is no
+            // second implementation to drive — the expectation is written down
+            // instead, and says so. It stops being the weaker kind of evidence
+            // when the page reaches them through the registry.
+            {
+                op: 'settings',
+                args: [],
+                expect: [
+                    {
+                        url: `${ADMIN_ENDPOINT}/catalog/marketing-settings?projectKey=demo%20app`,
+                        method: 'GET',
+                        body: undefined,
+                    },
+                ],
+            },
+            {
+                op: 'saveSettings',
+                args: [['en', 'de']],
+                expect: [
+                    {
+                        url: `${ADMIN_ENDPOINT}/catalog/marketing-settings`,
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            projectKey: PROJECT_KEY,
+                            activeLocales: ['en', 'de'],
+                        }),
+                    },
+                ],
+            },
+        ],
+    },
+    {
+        name: 'promotionsResource / usePromotions',
+        def: promotionsResource,
+        build: (http) =>
+            usePromotions({
+                adminEndpoint: ADMIN_ENDPOINT,
+                projectKey: PROJECT_KEY,
+                http,
+                autoLoad: false,
+            }),
+        cases: [
+            { op: 'list', run: (c) => c.load(), args: [] },
+            {
+                op: 'create',
+                run: (c) => c.create({ type: 'percent', value: 10 }),
+                args: [{ type: 'percent', value: 10 }],
+            },
+            {
+                op: 'update',
+                run: (c) => c.update('promo-1', { value: 20 }),
+                args: ['promo-1', { value: 20 }],
+            },
+            { op: 'remove', run: (c) => c.remove('promo-1'), args: ['promo-1'] },
+        ],
+    },
+    {
+        name: 'promoCodesResource / createAdminResourceClient',
+        def: promoCodesResource,
+        build: adminClient,
+        cases: [
+            {
+                op: 'list',
+                run: (c) => c.loadPromos({ search: 'a b', status: null }),
+                args: [{ search: 'a b', status: null }],
+            },
+            {
+                op: 'create',
+                run: (c) => c.createPromo({ code: 'WELCOME' }),
+                args: [{ code: 'WELCOME' }],
+            },
+            {
+                op: 'update',
+                run: (c) => c.updatePromo('p 1', { status: 'PAUSED' }),
+                args: ['p 1', { status: 'PAUSED' }],
+            },
+            { op: 'remove', run: (c) => c.deletePromo('p 1'), args: ['p 1'] },
+        ],
+    },
+    {
+        name: 'usersResource / createAdminResourceClient',
+        def: usersResource,
+        build: adminClient,
+        cases: [
+            {
+                op: 'list',
+                run: (c) => c.loadUsers({ q: 'a b', tenant: '' }),
+                args: [{ q: 'a b', tenant: '' }],
+            },
+        ],
+    },
+    {
+        name: 'subscriptionsResource / createAdminResourceClient',
+        def: subscriptionsResource,
+        build: adminClient,
+        cases: [{ op: 'list', run: (c) => c.loadSubscriptions(), args: [] }],
+    },
+    {
+        name: 'tenantsResource (the by-slug half) / createAdminResourceClient',
+        def: tenantsResource,
+        build: adminClient,
+        // `list` is driven by the paginated comparison above, against
+        // `useTenants`; these three have no composable and reach the pages
+        // through the admin client instead.
+        skipOps: ['list'],
+        cases: [
+            { op: 'detail', run: (c) => c.loadTenantDetail('a b'), args: ['a b'] },
+            {
+                op: 'suspend',
+                run: (c) => c.suspendTenant('a b', 'unpaid'),
+                args: ['a b', 'unpaid'],
+            },
+            { op: 'reactivate', run: (c) => c.reactivateTenant('a b'), args: ['a b'] },
+        ],
+    },
+];
+
+/**
+ * Which of the composable's requests this operation is compared against.
+ *
+ * The two sides do not send the same NUMBER of requests, and that is by
+ * design rather than a mismatch to smooth over: `useCatalogEntries.load()`
+ * fetches three lists at once where the descriptor has three operations, and
+ * `publish`, `syncDiscovery` and `create` reload afterwards to keep the
+ * composable's own refs true. A descriptor operation that issued that second
+ * request would make every override inherit a reload it cannot see.
+ *
+ * So the case says which request it means, the descriptor is held to sending
+ * exactly one, and a reload appearing on the descriptor side fails rather than
+ * being absorbed.
+ */
+function pickComposableCall(calls, testCase) {
+    const index = testCase.pick ?? 0;
+    assert.ok(
+        calls[index],
+        `the composable sent ${calls.length} request(s); this case asks for #${index}`,
+    );
+    return [calls[index]];
+}
+
+for (const family of FAMILIES) {
+    describe(family.name, () => {
+        for (const testCase of family.cases) {
+            test(`${testCase.op} sends the same request`, async () => {
+                const fromResource = await viaResource(family.def, testCase.op, testCase.args);
+                assert.equal(
+                    fromResource.length,
+                    1,
+                    `${testCase.op} put ${fromResource.length} requests on the wire; ` +
+                        'a descriptor operation is one request',
+                );
+
+                if (testCase.expect) {
+                    // The weaker form, used where the only other implementation
+                    // is written inline in a page rather than in a composable
+                    // or in the admin client. It is a written-down expectation,
+                    // not a differential one — named as such so nobody reads it
+                    // as the same kind of evidence as the cases around it.
+                    assert.deepEqual(wire(fromResource), testCase.expect);
+                    return;
+                }
+
+                const fromComposable = await viaComposable((http) =>
+                    testCase.run(family.build(http)),
+                );
+                assert.deepEqual(
+                    wire(fromResource),
+                    wire(pickComposableCall(fromComposable, testCase)),
+                );
+            });
+        }
+    });
+}
+
+/**
+ * Operations already compared by the hand-written blocks earlier in this file.
+ *
+ * Listed rather than derived, because those blocks predate the table and each
+ * asserts its own completeness against its descriptor — `plansResource` and
+ * `planVersionsResource` in "the comparison itself", the two list descriptors
+ * in "every operation those resources declare". This map only records which
+ * key that older guard speaks for, so the derived check above does not report
+ * them twice.
+ */
+const COVERED_BY_THE_OLDER_COMPARISONS = {
+    plans: Object.keys(plansResource.ops),
+    planVersions: Object.keys(planVersionsResource.ops),
+    audit: [LIST_OP],
+    tenants: [LIST_OP],
+};
+
+describe('the comparison covers the whole roster', () => {
+    // The expectation is derived from `platformResources`, not written down
+    // beside it. A descriptor added without a case, or an operation added to an
+    // existing descriptor, fails here rather than shipping unmeasured.
+    const drivenOps = new Map();
+    for (const family of FAMILIES) {
+        const driven = drivenOps.get(family.def) ?? new Set();
+        for (const op of family.cases) driven.add(op.op);
+        for (const op of family.skipOps ?? []) driven.add(op);
+        drivenOps.set(family.def, driven);
+    }
+    for (const [key, def] of Object.entries(platformResources)) {
+        test(`${key}: every operation is driven by a case`, () => {
+            const driven = drivenOps.get(def) ?? new Set();
+            const declared = Object.keys(def.ops);
+            // `plans`, `planVersions`, `tenants.list` and `audit` are driven by
+            // the hand-written comparisons above; they carry their own
+            // completeness assertions and are exempt only where one exists.
+            const coveredElsewhere = COVERED_BY_THE_OLDER_COMPARISONS[key] ?? [];
+            const missing = declared.filter(
+                (op) => !driven.has(op) && !coveredElsewhere.includes(op),
+            );
+            assert.deepEqual(missing, [], `${key} has operations no case drives`);
+        });
+    }
 });
