@@ -166,16 +166,27 @@ describe('the ui-vue source subpaths stay curated', () => {
     );
 
     /**
-     * The one duplicate that exists today, kept as a named exception rather
-     * than silently tolerated.
+     * The one duplicate that exists today — described rather than listed.
      *
-     * Removing either spelling breaks a consumer right now — the example app
-     * imports through `./pages/*`, vereinsfux through `./pages-standard/*` —
-     * so it goes together with the 1.0 codemod, not before it. Listing it here
-     * means a SECOND duplicate still fails immediately, and this one cannot
-     * quietly become permanent.
+     * `./pages/…` and `./pages-standard/…` are two spellings of one thing.
+     * Removing either breaks a consumer right now: measured on 2026-08-20, both
+     * vereinsfux and autohauspro use BOTH spellings (14/20 and 16/26 files);
+     * only notesapp is consistent. So it goes with the 1.0 codemod, not before.
+     *
+     * Derived, because the 4.1 move turned the pair from two globs into a glob
+     * plus a per-file entry for each page that left `pages/` — `AdminLayout`
+     * to `layouts/`, the two auth screens to `auth/`. Each of those is the same
+     * duplicate again, and listing them one by one would grow an exception list
+     * that stops being read. A pair qualifies when the two subpaths differ in
+     * exactly that one segment; anything else is a new duplicate and fails.
      */
-    const ACCEPTED_DUPLICATES = [['./pages-standard/*', './pages/*'].sort().join(' + ')];
+    const isTheKnownPagesAlias = (subpaths) =>
+        subpaths.length === 2 &&
+        subpaths
+            .map((s) =>
+                s.replace('/pages-standard/', '/pages/').replace('./pages-standard/', './pages/'),
+            )
+            .every((s, _, all) => s === all[0]);
 
     /** `[ "./a + ./b", … ]` — sorted, so the assertion does not depend on key order. */
     function duplicateGroups() {
@@ -191,7 +202,7 @@ describe('the ui-vue source subpaths stay curated', () => {
     }
 
     test('no NEW subpath duplicates a target', () => {
-        const unexpected = duplicateGroups().filter((g) => !ACCEPTED_DUPLICATES.includes(g));
+        const unexpected = duplicateGroups().filter((g) => !isTheKnownPagesAlias(g.split(' + ')));
 
         assert.deepEqual(
             unexpected,
@@ -203,17 +214,17 @@ describe('the ui-vue source subpaths stay curated', () => {
     });
 
     test('the accepted duplicates are still real', () => {
-        // An exception that no longer describes anything is worse than no
-        // exception: it reads like a rule while protecting nothing. When the
-        // 1.0 codemod collapses the alias, this fails and the entry goes.
-        const present = duplicateGroups();
-        const stale = ACCEPTED_DUPLICATES.filter((g) => !present.includes(g));
+        // A rule that no longer describes anything is worse than no rule: it
+        // reads like a constraint while protecting nothing. When the 1.0
+        // codemod collapses the alias, this fails and `isTheKnownPagesAlias`
+        // goes with it.
+        const known = duplicateGroups().filter((g) => isTheKnownPagesAlias(g.split(' + ')));
 
-        assert.deepEqual(
-            stale,
-            [],
-            'These duplicates are gone — drop them from ACCEPTED_DUPLICATES:\n  ' +
-                stale.join('\n  '),
+        assert.notEqual(
+            known.length,
+            0,
+            'No `pages` / `pages-standard` duplicate is left — the exemption in ' +
+                '`isTheKnownPagesAlias` protects nothing now and should be deleted.',
         );
     });
 });

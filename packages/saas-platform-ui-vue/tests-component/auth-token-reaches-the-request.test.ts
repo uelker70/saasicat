@@ -15,10 +15,10 @@ import { describe, expect, test } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import DashboardPage from '../src/pages-standard/DashboardPage.vue';
+import DashboardPage from '../src/pages/DashboardPage.vue';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
 
-const PAGES_DIR = resolve(process.cwd(), 'src', 'pages-standard');
+const PAGES_DIR = resolve(process.cwd(), 'src', 'pages');
 
 /** Records what each request was given, and answers every endpoint. */
 function recordingHttp() {

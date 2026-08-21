@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { h } from 'vue';
 
-import AdminAccordion from '../src/components/admin-page/AdminAccordion.vue';
+import AdminAccordion from '../src/ui/page/AdminAccordion.vue';
 import { mountWithQuasar } from './support/mount-with-quasar';
 
 // The component exists for two claims, and neither is visible in a screenshot.

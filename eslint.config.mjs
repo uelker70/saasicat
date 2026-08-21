@@ -211,9 +211,13 @@ export default tseslint.config(
                         {
                             group: [
                                 '../quasar/**',
-                                '../pages-standard/**',
+                                '../pages/**',
                                 '../pages-tenant/**',
-                                '../components/**',
+                                '../layouts/**',
+                                '../auth/**',
+                                '../internal/**',
+                                '../features/**',
+                                '../ui/*/**',
                             ],
                             message:
                                 'The vue layer must not import from the Quasar layer or the SFC directories.',
@@ -241,7 +245,7 @@ export default tseslint.config(
                             // type/i18n modules. Expressed as a regex because
                             // gitignore-style `!` negation cannot re-include a
                             // file whose intermediate directory is excluded.
-                            regex: '^\\./(?:pages-standard/(?!(?:platform-email\\.types|email-history\\.types)\\.js$)|pages-tenant/(?!default-i18n\\.js$)|components/(?!(?:dialogs/types|bundle-editor/catalog-i18n)\\.js$))',
+                            regex: '^\\./(?:pages/|layouts/|auth/|features/(?!bundle/internal/catalog-i18n\\.js$)|internal/(?!(?:dialogs/types|platform-email/platform-email\\.types|email-history/email-history\\.types)\\.js$)|pages-tenant/(?!default-i18n\\.js$)|ui/(?!theme/))',
                             message:
                                 'The main entry may only re-export the whitelisted framework-free type/i18n modules from the SFC directories.',
                         },
@@ -336,10 +340,10 @@ export default tseslint.config(
         // The whitelisted co-located modules above are part of the main
         // entry and therefore must stay framework-free themselves.
         files: [
-            'packages/saas-platform-ui-vue/src/components/dialogs/types.ts',
-            'packages/saas-platform-ui-vue/src/components/bundle-editor/catalog-i18n.ts',
-            'packages/saas-platform-ui-vue/src/pages-standard/platform-email.types.ts',
-            'packages/saas-platform-ui-vue/src/pages-standard/email-history.types.ts',
+            'packages/saas-platform-ui-vue/src/internal/dialogs/types.ts',
+            'packages/saas-platform-ui-vue/src/features/bundle/internal/catalog-i18n.ts',
+            'packages/saas-platform-ui-vue/src/internal/platform-email/platform-email.types.ts',
+            'packages/saas-platform-ui-vue/src/internal/email-history/email-history.types.ts',
             'packages/saas-platform-ui-vue/src/pages-tenant/default-i18n.ts',
         ],
         rules: {

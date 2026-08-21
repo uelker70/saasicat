@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import PromoCodesPage from '../src/pages-standard/PromoCodesPage.vue';
+import PromoCodesPage from '../src/pages/PromoCodesPage.vue';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
 
 const ROWS = [

@@ -4,17 +4,17 @@ import type { HttpClient } from '../../src/client/types.js';
 import type {
     PlatformEmailProvider,
     PlatformEmailTestResult,
-} from '../../src/pages-standard/platform-email.types.js';
+} from '../../src/internal/platform-email/platform-email.types.js';
 import type {
     EmailHistoryDetail,
     EmailHistoryListResult,
-} from '../../src/pages-standard/email-history.types.js';
+} from '../../src/internal/email-history/email-history.types.js';
 import type { BundleRow, BundleVersionMutationResult, BundleVersionRow } from '@saasicat/types';
-import type { AuditRow } from '../../src/pages-standard/AuditPage.vue';
-import type { PromoDetailData } from '../../src/pages-standard/PromoCodeDetailPage.vue';
-import type { TenantDetailData } from '../../src/pages-standard/tenant-detail/types.js';
-import type { PromoRow } from '../../src/pages-standard/PromoCodesPage.vue';
-import type { UserRow } from '../../src/pages-standard/UsersPage.vue';
+import type { AuditRow } from '../../src/pages/AuditPage.vue';
+import type { PromoDetailData } from '../../src/pages/PromoCodeDetailPage.vue';
+import type { TenantDetailData } from '../../src/internal/tenant-detail/types.js';
+import type { PromoRow } from '../../src/pages/PromoCodesPage.vue';
+import type { UserRow } from '../../src/pages/UsersPage.vue';
 import type { BillingCycleStr } from '../../src/vue/use-tenant-billing.js';
 import {
     FIXTURE_BUNDLES,
@@ -190,7 +190,7 @@ const discoveryProps = () => ({
 export const VISUAL_CASES: readonly VisualCase[] = [
     visualCase({
         id: 'tenants',
-        load: () => import('../../src/pages-standard/TenantsPage.vue'),
+        load: () => import('../../src/pages/TenantsPage.vue'),
         props: ({ http, adminBase }) => ({
             endpoint: `${adminBase}/tenants`,
             subtitle: 'All tenants on this installation',
@@ -200,7 +200,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'audit',
-        load: () => import('../../src/pages-standard/AuditPage.vue'),
+        load: () => import('../../src/pages/AuditPage.vue'),
         // `loadAudit` returns a plain array — the page owns paging itself.
         props: () => ({
             loadAudit: async (): Promise<AuditRow[]> => [
@@ -222,7 +222,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'subscriptions',
-        load: () => import('../../src/pages-standard/SubscriptionsPage.vue'),
+        load: () => import('../../src/pages/SubscriptionsPage.vue'),
         props: () => ({
             loadSubscriptions: async () => [
                 {
@@ -237,12 +237,12 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'dashboard',
-        load: () => import('../../src/pages-standard/DashboardPage.vue'),
+        load: () => import('../../src/pages/DashboardPage.vue'),
         props: ({ http }) => ({ http }),
     }),
     visualCase({
         id: 'discovery',
-        load: () => import('../../src/pages-standard/DiscoveryPage.vue'),
+        load: () => import('../../src/pages/DiscoveryPage.vue'),
         // Fully prop-driven: this page receives data, it does not fetch.
         props: discoveryProps,
         // Opens the first feature card. `DiscoveryFeatureCard` moved to
@@ -258,7 +258,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // `DiscoveryQuotaCard` is the second of the two accordion migrations
         // and had no baseline at all.
         id: 'discovery-quotas',
-        load: () => import('../../src/pages-standard/DiscoveryPage.vue'),
+        load: () => import('../../src/pages/DiscoveryPage.vue'),
         props: discoveryProps,
         // Ordered: the tab mounts the quota list, the trigger opens the first
         // card. The quota card has no subtabs, so its body IS the shared
@@ -268,7 +268,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'plans',
-        load: () => import('../../src/pages-standard/PlansPage.vue'),
+        load: () => import('../../src/pages/PlansPage.vue'),
         props: ({ http, adminBase }) => ({
             adminEndpoint: adminBase,
             projectKey: 'fixture',
@@ -277,20 +277,20 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'login',
-        load: () => import('../../src/pages-standard/SuperAdminLoginPage.vue'),
+        load: () => import('../../src/auth/SuperAdminLoginPage.vue'),
     }),
     visualCase({
         id: 'manifest-error',
-        load: () => import('../../src/pages-standard/AdminManifestErrorPage.vue'),
+        load: () => import('../../src/pages/AdminManifestErrorPage.vue'),
         props: () => ({ errorMessage: 'Manifest endpoint responded with HTTP 500' }),
     }),
     visualCase({
         id: 'setup-wizard',
-        load: () => import('../../src/pages-standard/SuperAdminSetupWizard.vue'),
+        load: () => import('../../src/auth/SuperAdminSetupWizard.vue'),
     }),
     visualCase({
         id: 'users',
-        load: () => import('../../src/pages-standard/UsersPage.vue'),
+        load: () => import('../../src/pages/UsersPage.vue'),
         props: () => ({
             loadUsers: async (): Promise<UserRow[]> => [
                 {
@@ -309,7 +309,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'promo-codes',
-        load: () => import('../../src/pages-standard/PromoCodesPage.vue'),
+        load: () => import('../../src/pages/PromoCodesPage.vue'),
         props: () => ({
             loadPromos: async (): Promise<PromoRow[]> => [
                 {
@@ -331,7 +331,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'pilots',
-        load: () => import('../../src/pages-standard/PilotsPage.vue'),
+        load: () => import('../../src/pages/PilotsPage.vue'),
         props: () => ({
             loadPilots: async () => [
                 {
@@ -348,7 +348,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'tenant-detail',
-        load: () => import('../../src/pages-standard/TenantDetailPage.vue'),
+        load: () => import('../../src/pages/TenantDetailPage.vue'),
         props: () => ({
             backRoute: '/admin/tenants',
             manifest: null,
@@ -374,7 +374,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'promo-code-detail',
-        load: () => import('../../src/pages-standard/PromoCodeDetailPage.vue'),
+        load: () => import('../../src/pages/PromoCodeDetailPage.vue'),
         props: () => ({
             backRoute: '/admin/promo-codes',
             loadDetail: async (): Promise<PromoDetailData> => ({
@@ -405,7 +405,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'email-history',
-        load: () => import('../../src/pages-standard/EmailHistoryPage.vue'),
+        load: () => import('../../src/pages/EmailHistoryPage.vue'),
         props: () => ({
             loadEmails: async (): Promise<EmailHistoryListResult> => ({
                 rows: [
@@ -441,7 +441,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'platform-email',
-        load: () => import('../../src/pages-standard/PlatformEmailPage.vue'),
+        load: () => import('../../src/pages/PlatformEmailPage.vue'),
         props: () => ({
             // Typed against the page's own contract on purpose. The first
             // version of this fixture set `isActive` (the tenant spelling)
@@ -477,7 +477,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'marketing-catalog',
-        load: () => import('../../src/pages-standard/MarketingCatalogPage.vue'),
+        load: () => import('../../src/pages/MarketingCatalogPage.vue'),
         props: ({ http, adminBase }) => ({
             adminEndpoint: adminBase,
             projectKey: 'fixture',
@@ -496,7 +496,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // mounted once the tab is selected, so a single case can cover one or
         // the other, never both.
         id: 'marketing-catalog-admin',
-        load: () => import('../../src/pages-standard/MarketingCatalogPage.vue'),
+        load: () => import('../../src/pages/MarketingCatalogPage.vue'),
         props: ({ http, adminBase }) => ({
             adminEndpoint: adminBase,
             projectKey: 'fixture',
@@ -516,7 +516,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
         // 14 required props, ten of them functions — the page AP3 replaces.
         // Kept under baseline precisely because it is about to change the most.
         id: 'bundles',
-        load: () => import('../../src/pages-standard/BundlesPage.vue'),
+        load: () => import('../../src/pages/BundlesPage.vue'),
         props: () => ({
             projectKey: 'fixture',
             // Not `[]`. An empty list snapshots `sa-bundles__empty` and nothing

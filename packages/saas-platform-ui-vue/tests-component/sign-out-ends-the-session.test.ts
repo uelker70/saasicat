@@ -14,8 +14,8 @@
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { createRouter, createMemoryHistory } from 'vue-router';
 
-import AdminLayout from '../src/pages-standard/AdminLayout.vue';
-import AdminManifestErrorPage from '../src/pages-standard/AdminManifestErrorPage.vue';
+import AdminLayout from '../src/layouts/AdminLayout.vue';
+import AdminManifestErrorPage from '../src/pages/AdminManifestErrorPage.vue';
 import {
     SUPER_ADMIN_LOGIN_ADAPTER_KEY,
     SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY,

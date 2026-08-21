@@ -27,7 +27,10 @@ import { parse } from 'vue/compiler-sfc';
 
 const SRC = fileURLToPath(new URL('../src', import.meta.url));
 const THEME_COMPONENTS = join(SRC, 'ui', 'theme', 'components');
-const PAGES = join(SRC, 'pages-standard');
+const PAGES = join(SRC, 'pages');
+// The shell and the two auth screens left `pages/` in the 4.1 move but are
+// still pages in every sense the theme cares about.
+const PAGE_DIRS = [PAGES, join(SRC, 'layouts'), join(SRC, 'auth')];
 
 /**
  * CSS comments only. There is no HTML comment handling here any more, and that
@@ -211,9 +214,11 @@ describe('the theme reaches every page it ships', () => {
     });
 
     test('every standard page renders a node inside that reach', () => {
-        const files = readdirSync(PAGES)
-            .filter((name) => name.endsWith('.vue'))
-            .map((name) => join(PAGES, name));
+        const files = PAGE_DIRS.flatMap((dir) =>
+            readdirSync(dir)
+                .filter((name) => name.endsWith('.vue'))
+                .map((name) => join(dir, name)),
+        );
 
         // The shell is not a page. It renders Quasar's own layout, and the
         // theme paints it through `.sa-admin-layout` in base.css instead — so

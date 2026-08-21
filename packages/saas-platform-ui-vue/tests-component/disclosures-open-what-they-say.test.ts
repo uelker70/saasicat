@@ -15,10 +15,10 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { reactive, ref } from 'vue';
 import type { PromotionRow } from '@saasicat/types';
 
-import MarketingPromotionsTab from '../src/components/MarketingPromotionsTab.vue';
+import MarketingPromotionsTab from '../src/features/marketing/MarketingPromotionsTab.vue';
 import PromoCodeDialogFields, {
     type PromoCodeSharedForm,
-} from '../src/components/dialogs/PromoCodeDialogFields.vue';
+} from '../src/internal/dialogs/PromoCodeDialogFields.vue';
 import { createSuperAdminI18n, SUPER_ADMIN_I18N_KEY } from '../src/vue/use-super-admin-i18n.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
 

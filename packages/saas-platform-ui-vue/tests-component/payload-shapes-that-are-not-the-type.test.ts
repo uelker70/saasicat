@@ -23,7 +23,7 @@ import { describe, expect, test } from 'vitest';
 
 import type { FeatureCatalogEntryRow } from '@saasicat/types';
 
-import DiscoveryPage from '../src/pages-standard/DiscoveryPage.vue';
+import DiscoveryPage from '../src/pages/DiscoveryPage.vue';
 import { mountWithQuasar } from './support/mount-with-quasar';
 
 /**

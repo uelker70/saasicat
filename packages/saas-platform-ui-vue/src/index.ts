@@ -90,13 +90,13 @@ export * from './vue/manifest-store-factory.js';
 // their SFCs (whitelisted in the ESLint layer rules).
 // ---------------------------------------------------------------------------
 // Platform dialog types for app wrappers that type submit handlers.
-export * from './components/dialogs/types.js';
+export * from './internal/dialogs/types.js';
 // Pure resolvers for translated feature/quota labels in the bundle editors.
-export * from './components/bundle-editor/catalog-i18n.js';
+export * from './features/bundle/internal/catalog-i18n.js';
 // Types of the shared PlatformEmailPage (platform email sender).
-export * from './pages-standard/platform-email.types.js';
+export * from './internal/platform-email/platform-email.types.js';
 // Types of the shared EmailHistoryPage (platform email history).
-export * from './pages-standard/email-history.types.js';
+export * from './internal/email-history/email-history.types.js';
 // Default German labels for the tenant-facing pages.
 export * from './pages-tenant/default-i18n.js';
 

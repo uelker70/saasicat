@@ -6,8 +6,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { computed, ref } from 'vue';
 
-import PilotCreateDialog from '../src/components/dialogs/PilotCreateDialog.vue';
-import PilotEditDialog from '../src/components/dialogs/PilotEditDialog.vue';
+import PilotCreateDialog from '../src/internal/dialogs/PilotCreateDialog.vue';
+import PilotEditDialog from '../src/internal/dialogs/PilotEditDialog.vue';
 import { SA_MESSAGES } from '../src/client/i18n/messages.js';
 import { SUPER_ADMIN_I18N_KEY } from '../src/vue/use-super-admin-i18n.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';

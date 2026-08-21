@@ -52,8 +52,11 @@ describe('a rule that changes flex-direction states its own main-axis alignment'
     test('the sweep found the stylesheets', () => {
         // Every assertion below is vacuously true on an empty list.
         assert.ok(files.length >= 40, `only ${files.length} files with styles found`);
+        // By file name rather than by directory: PlanList has moved once
+        // already (4.1 put it in `features/plan/`), and pinning the folder made
+        // this fail for a reason that has nothing to do with what it checks.
         assert.ok(
-            files.some((f) => f.endsWith(join('plan-list', 'PlanList.vue'))),
+            files.some((f) => f.endsWith('PlanList.vue')),
             'PlanList is not among the files checked — it is the case this guard exists for',
         );
     });

@@ -218,8 +218,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import LimitsRow from './LimitsRow.vue';
-import PlanCycleToggle from '../components/plan/PlanCycleToggle.vue';
-import PlanGrid from '../components/plan/PlanGrid.vue';
+import PlanCycleToggle from '../features/plan/PlanCycleToggle.vue';
+import PlanGrid from '../features/plan/PlanGrid.vue';
 import { useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import type { BillingCycleStr, PlanChangePreviewShape } from '../vue/use-tenant-billing.js';
 import type { CatalogPlan } from '../vue/use-tenant-billing-catalog.js';

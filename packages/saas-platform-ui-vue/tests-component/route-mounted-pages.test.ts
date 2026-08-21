@@ -17,11 +17,11 @@
 
 import { describe, expect, test, vi, afterEach } from 'vitest';
 import { createRouter, createMemoryHistory } from 'vue-router';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import AdminManifestErrorPage from '../src/pages-standard/AdminManifestErrorPage.vue';
-import SuperAdminLoginPage from '../src/pages-standard/SuperAdminLoginPage.vue';
+import AdminManifestErrorPage from '../src/pages/AdminManifestErrorPage.vue';
+import SuperAdminLoginPage from '../src/auth/SuperAdminLoginPage.vue';
 import {
     SUPER_ADMIN_BRAND_KEY,
     SUPER_ADMIN_ENDPOINTS_KEY,
@@ -91,8 +91,25 @@ const ROUTE_MOUNTED = [
  * `defineProps<{...}>()` is compiled away, and reading the source is what makes
  * the failure message name the offending prop instead of just "something threw".
  */
+/**
+ * Where a routed page's source lives.
+ *
+ * Three directories since the 4.1 move: ordinary pages in `pages/`, the shell
+ * in `layouts/`, the two login screens in `auth/`. Searched rather than mapped,
+ * so a page that moves between them does not need an edit here.
+ */
+function pageSource(file: string): string {
+    for (const dir of ['pages', 'layouts', 'auth']) {
+        const candidate = resolve(SRC_DIR, dir, file);
+        if (existsSync(candidate)) return candidate;
+    }
+    throw new Error(
+        `${file} is mounted by createAdminRoutes() but exists in none of pages/, layouts/, auth/`,
+    );
+}
+
 function requiredPropsOf(file: string): string[] {
-    const source = readFileSync(resolve(SRC_DIR, 'pages-standard', file), 'utf8');
+    const source = readFileSync(pageSource(file), 'utf8');
     const block = /defineProps<\{([\s\S]*?)\n}>\(\)/.exec(source);
     if (!block) return [];
 
@@ -252,10 +269,7 @@ describe('AdminManifestErrorPage without callbacks', () => {
         // The original defect was `@click="onRetry"` with `onRetry` a required
         // prop: the template called the prop directly, so an unset prop meant
         // clicking did nothing at all. Handlers keep the fallback reachable.
-        const source = readFileSync(
-            resolve(SRC_DIR, 'pages-standard', 'AdminManifestErrorPage.vue'),
-            'utf8',
-        );
+        const source = readFileSync(pageSource('AdminManifestErrorPage.vue'), 'utf8');
 
         expect(source).not.toMatch(/@click="on(Retry|Logout)"/);
         expect(source).toMatch(/@click="retry"/);

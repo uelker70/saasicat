@@ -12,7 +12,7 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { computed, ref, type Ref } from 'vue';
 
-import ThemeSwitcher from '../src/components/ThemeSwitcher.vue';
+import ThemeSwitcher from '../src/ui/page/ThemeSwitcher.vue';
 import { SA_THEME_KEY } from '../src/vue/use-sa-theme.js';
 import { SUPER_ADMIN_I18N_KEY } from '../src/vue/use-super-admin-i18n.js';
 import { mountWithQuasar } from './support/mount-with-quasar.js';

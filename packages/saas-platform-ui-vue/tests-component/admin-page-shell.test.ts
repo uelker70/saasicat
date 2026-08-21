@@ -17,16 +17,19 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { defineComponent, h } from 'vue';
 
-import AdminHero from '../src/components/admin-page/AdminHero.vue';
-import AdminPage from '../src/components/admin-page/AdminPage.vue';
-import AdminSection from '../src/components/admin-page/AdminSection.vue';
+import AdminHero from '../src/ui/page/AdminHero.vue';
+import AdminPage from '../src/ui/page/AdminPage.vue';
+import AdminSection from '../src/ui/page/AdminSection.vue';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
 
 // Vite rewrites `import.meta.url` to an http:// URL in the transformed module,
 // so the package root has to come from the runner's cwd, which vitest sets to
 // the `root` in vitest.config.ts.
 const SRC_DIR = resolve(process.cwd(), 'src');
-const PAGES_DIR = resolve(SRC_DIR, 'pages-standard');
+// Pages and the page-private parts they own. Before the 4.1 move both lived
+// under `pages-standard/`; they are the same set of views, split across two
+// directories now, and the shell contract applies to all of them.
+const PAGE_DIRS = [resolve(SRC_DIR, 'pages'), resolve(SRC_DIR, 'internal')];
 
 // These render outside AdminLayout — the login, the first-run setup, the
 // manifest error screen and the tenant onboarding configurator. Each owns its
@@ -55,7 +58,7 @@ function contentPageFiles(): string[] {
             }
         }
     };
-    walk(PAGES_DIR);
+    for (const dir of PAGE_DIRS) walk(dir);
     return found.sort();
 }
 
@@ -222,7 +225,7 @@ describe('page shell contract', () => {
             return /<main[\s>]/.test(template) || /<q-page[\s>]/.test(template);
         });
 
-        expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
     test('no content page hand-writes the hero markup instead of using AdminHero', () => {
@@ -230,7 +233,7 @@ describe('page shell contract', () => {
             /class="[^"]*\bsa-page-head\b/.test(templateOf(readFileSync(file, 'utf8'))),
         );
 
-        expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
     test('AdminHero renders the only <h1> in the package', () => {
@@ -239,7 +242,7 @@ describe('page shell contract', () => {
         // rendered page carried two competing <h1>s. Checking pages alone is
         // what let that survive — a header pushed one directory down is the
         // most likely place for the next one.
-        const HERO = resolve(SRC_DIR, 'components/admin-page/AdminHero.vue');
+        const HERO = resolve(SRC_DIR, 'ui/page/AdminHero.vue');
         const offenders = allVueFiles()
             .filter((file) => file !== HERO)
             .filter((file) => /<h1[\s>]/.test(templateOf(readFileSync(file, 'utf8'))));
@@ -267,7 +270,7 @@ describe('page shell contract', () => {
         // Seven pages wrote this button by hand: three showed no progress, one
         // disabled itself without a spinner, and one shipped an icon-only
         // button with no accessible name at all.
-        const BTN = resolve(SRC_DIR, 'components/admin-page/AdminRefreshBtn.vue');
+        const BTN = resolve(SRC_DIR, 'ui/feedback/AdminRefreshBtn.vue');
         const offenders = allVueFiles()
             .filter((file) => file !== BTN)
             .filter((file) => /name="refresh"/.test(templateOf(readFileSync(file, 'utf8'))));
@@ -280,13 +283,13 @@ describe('page shell contract', () => {
         // where actions sat, whether there was a pager. AdminTable also keeps
         // sorting and paging together — a page that sliced its own rows would
         // have its table sort the slice rather than the list.
-        const TABLE = resolve(SRC_DIR, 'components/admin-page/AdminTable.vue');
+        const TABLE = resolve(SRC_DIR, 'ui/data/AdminTable.vue');
         // Neither of these is a list. PlanMatrix compares plans across
         // components — plans are its columns, so rows and paging mean nothing.
         // PlanChangeWizard's limits table is a three-column before/after
         // comparison inside a tenant-facing wizard, outside the admin shell.
         const NOT_LISTS = new Set([
-            resolve(SRC_DIR, 'components/plan-matrix/PlanMatrix.vue'),
+            resolve(SRC_DIR, 'features/plan/PlanMatrix.vue'),
             resolve(SRC_DIR, 'pages-tenant/PlanChangeWizard.vue'),
         ]);
         const offenders = allVueFiles()
@@ -385,7 +388,7 @@ describe('page shell contract', () => {
             return false;
         });
 
-        expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
     test('an unscoped page style reaches only its own sub-components', () => {
@@ -440,7 +443,7 @@ describe('page shell contract', () => {
                 const shared = [...markupClasses(other)].filter((c) => declared.has(c));
                 if (shared.length > 0) {
                     leaks.push(
-                        `${relative(PAGES_DIR, source)} → ${relative(PAGES_DIR, other)}: ${shared.sort().join(', ')}`,
+                        `${relative(SRC_DIR, source)} → ${relative(SRC_DIR, other)}: ${shared.sort().join(', ')}`,
                     );
                 }
             }
@@ -461,7 +464,7 @@ describe('page shell contract', () => {
             HEADING_SHAPED.test(templateOf(readFileSync(file, 'utf8'))),
         );
 
-        expect(offenders.map((f) => relative(PAGES_DIR, f))).toEqual([]);
+        expect(offenders.map((f) => relative(SRC_DIR, f))).toEqual([]);
     });
 
     test('no view writes its own disclosure instead of using AdminAccordion', () => {
@@ -560,7 +563,7 @@ describe('page shell contract', () => {
         // screen sits outside `AdminLayout` and so writes its own `<h1>` and its
         // own frame; none of that makes a hand-rolled disclosure on it any more
         // operable by keyboard.
-        const ACCORDION = resolve(SRC_DIR, 'components/admin-page/AdminAccordion.vue');
+        const ACCORDION = resolve(SRC_DIR, 'ui/page/AdminAccordion.vue');
         const MARKER_WORD = 'sa-disclosure-exempt';
         // The findings sit in the parentheses, comma-separated; the reason
         // follows the colon. A marker that does not parse is reported rather
@@ -1004,13 +1007,13 @@ describe('page shell contract', () => {
         // a detector that stops detecting says so by name.
         //
         // Answered against the real `AdminAccordion` — the fixture claims a
-        // path under `src/components/`, and never has to exist for the import
+        // path under `src/ui/`, and never has to exist for the import
         // in it to resolve. If `open` stops being read out of that component,
         // the third case below goes silent and this fails.
-        const FIXTURE = resolve(SRC_DIR, 'components/DisclosureFixture.vue');
+        const FIXTURE = resolve(SRC_DIR, 'ui/DisclosureFixture.vue');
         const fixture = (markup: string, code: string): string =>
             `<template>${markup}</template>\n<script setup lang="ts">${code}</script>`;
-        const IMPORTS_ACCORDION = `import AdminAccordion from './admin-page/AdminAccordion.vue';`;
+        const IMPORTS_ACCORDION = `import AdminAccordion from './page/AdminAccordion.vue';`;
 
         // A body this view renders itself, flipped in the attribute.
         expect(
