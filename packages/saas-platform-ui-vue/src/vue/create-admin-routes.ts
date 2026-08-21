@@ -17,15 +17,11 @@ export interface CreateAdminRoutesOptions {
     /**
      * Loader for the shared login page. The app passes it through as a
      * package-path import (resolved by the app bundler):
-     * `() => import('@saasicat/ui-vue/pages/SuperAdminLoginPage.vue')`.
+     * `() => import('@saasicat/ui-vue/auth/SuperAdminLoginPage.vue')`.
      *
-     * That subpath has two spellings today: the export map maps both
-     * `./pages/*` and `./pages-standard/*` onto `src/pages-standard/`, so the
-     * two imports are the same file. The scaffolder template
-     * (`create-saasicat-admin`) and `examples/notesapp` spell it `/pages/*`,
-     * which is why the example above does; the package README lists the SFC
-     * entries under `/pages-standard/*`. Collapsing the pair is a breaking
-     * change to the export map and is deliberately not done here.
+     * The login screen lives under `./auth/` since the 1.0 surface cut; before
+     * that it was one of two spellings of `./pages/`. `saasicat codemod
+     * v1-imports` rewrites both.
      */
     loginPage: RouteComponent;
     /** Layout component for `/admin` (e.g. `() => import('@/layouts/AdminLayout.vue')`). */

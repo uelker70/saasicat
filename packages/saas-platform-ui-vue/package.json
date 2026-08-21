@@ -47,6 +47,7 @@
                 "default": "./dist/quasar/index.cjs"
             }
         },
+        "./pages": "./src/pages/index.ts",
         "./pages/*.vue": "./src/pages/*.vue",
         "./layouts/*.vue": "./src/layouts/*.vue",
         "./auth/*.vue": "./src/auth/*.vue",

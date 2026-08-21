@@ -497,7 +497,7 @@ Then control visibility declaratively in templates:
 </template>
 
 <script setup>
-import FeatureGate from '@saasicat/ui-vue/components/FeatureGate.vue';
+import FeatureGate from '@saasicat/ui-vue/ui/entitlement/FeatureGate.vue';
 </script>
 ```
 

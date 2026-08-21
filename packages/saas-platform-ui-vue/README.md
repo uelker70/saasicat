@@ -15,12 +15,12 @@ The package is layered so that each entry only loads what it names.
 Lower layers never import upward; ESLint (`no-restricted-imports`, repo
 root config) enforces the boundaries in CI.
 
-| Entry                                                                   | Source                           | May import                               | Contents                                                                                                                                                                                                                                                         |
-| ----------------------------------------------------------------------- | -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@saasicat/ui-vue/client`                                               | `src/client/`                    | `@saasicat/types` only                   | Framework-free core: `BootLoader`, `ManifestLoader` (ETag cache), nav builder, action registry, batch column fetcher, the `HttpClient`/`KvStore` contract with its `fetch` and axios adapters, `AdminError`. Usable from any framework or plain Node/TypeScript. |
-| `@saasicat/ui-vue` (main)                                               | `src/vue/` (+ client re-exports) | Vue, `vue-router`, Pinia — **no Quasar** | Composables (`useTenants`, `usePlanEditor`, …), router guards, injection keys + shell contract, notify-port type, optional Pinia store factory.                                                                                                                  |
-| `@saasicat/ui-vue/quasar`                                               | `src/quasar/`                    | everything above + Quasar                | `createSuperAdminApp()` bootstrap and the Quasar notify-port implementation.                                                                                                                                                                                     |
-| `@saasicat/ui-vue/pages-standard/*`, `/pages-tenant/*`, `/components/*` | SFC directories                  | everything                               | The Quasar reference UI, shipped as raw `.vue` from `src/` (compiled by the consumer's Vite).                                                                                                                                                                    |
+| Entry                                                                                           | Source                           | May import                               | Contents                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@saasicat/ui-vue/client`                                                                       | `src/client/`                    | `@saasicat/types` only                   | Framework-free core: `BootLoader`, `ManifestLoader` (ETag cache), nav builder, action registry, batch column fetcher, the `HttpClient`/`KvStore` contract with its `fetch` and axios adapters, `AdminError`. Usable from any framework or plain Node/TypeScript. |
+| `@saasicat/ui-vue` (main)                                                                       | `src/vue/` (+ client re-exports) | Vue, `vue-router`, Pinia — **no Quasar** | Composables (`useTenants`, `usePlanEditor`, …), router guards, injection keys + shell contract, notify-port type, optional Pinia store factory.                                                                                                                  |
+| `@saasicat/ui-vue/quasar`                                                                       | `src/quasar/`                    | everything above + Quasar                | `createSuperAdminApp()` bootstrap and the Quasar notify-port implementation.                                                                                                                                                                                     |
+| `@saasicat/ui-vue/pages/*.vue`, `/layouts/*.vue`, `/auth/*.vue`, `/ui/*.vue`, `/pages-tenant/*` | SFC directories                  | everything                               | The Quasar reference UI, shipped as raw `.vue` from `src/` (compiled by the consumer's Vite).                                                                                                                                                                    |
 
 ### The shipped source has a language floor
 
@@ -52,8 +52,8 @@ Rules of thumb when contributing:
 - Quasar imports in `.ts` files are only allowed under `src/quasar/`.
 - A few framework-free type/i18n modules stay co-located with their SFCs
   (`components/dialogs/types.ts`, `components/bundle-editor/catalog-i18n.ts`,
-  `pages-standard/platform-email.types.ts`,
-  `pages-standard/email-history.types.ts`, `pages-tenant/default-i18n.ts`)
+  `internal/platform-email/platform-email.types.ts`,
+  `internal/email-history/email-history.types.ts`, `pages-tenant/default-i18n.ts`)
   and are whitelisted in the ESLint rules — they must not grow framework
   imports.
 

@@ -115,7 +115,7 @@ still a failure, and so is a note left behind after its surface was migrated:
 - **`pages-tenant/PackageSnapshotPanel.vue`** — tenant-facing rather than admin,
   in a directory planned to ship as its own package, and a raw-JSON toggle at
   the foot of a `q-card` is not a row in a list.
-- **`pages-standard/SuperAdminSetupWizard.vue`** — a native `<details>`, already
+- **`auth/SuperAdminSetupWizard.vue`** — a native `<details>`, already
   keyboard-operable and already announced. The screen is a centred first-run
   card outside `AdminLayout`, and the body it opens is one line of text.
 

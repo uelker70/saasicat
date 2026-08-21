@@ -257,7 +257,7 @@ two things that bite. Every other entry above is composed for you.
 
 ### 4.2 Standard Pages from `@saasicat/ui-vue`
 
-Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
+Path: `node_modules/@saasicat/ui-vue/src/pages/` — with the shell in `src/layouts/`, the login screens in `src/auth/` and the primitives in `src/ui/`.
 
 | Page                                     | Purpose                                                    |
 | ---------------------------------------- | ---------------------------------------------------------- |
@@ -1051,8 +1051,8 @@ export const useManifestStore = createManifestStore({
 ```ts
 // router/index.ts
 import { createProjectPageHostRoute } from '@saasicat/ui-vue';
-import SuperAdminLoginPage from '@saasicat/ui-vue/pages/SuperAdminLoginPage.vue';
-import AdminLayout from '@saasicat/ui-vue/pages/AdminLayout.vue';
+import SuperAdminLoginPage from '@saasicat/ui-vue/auth/SuperAdminLoginPage.vue';
+import AdminLayout from '@saasicat/ui-vue/layouts/AdminLayout.vue';
 import AdminDiscoveryPage from '../pages/AdminDiscoveryPage.vue';
 import AdminTenantsPage from '../pages/AdminTenantsPage.vue';
 import AdminPlansPage from '../pages/AdminPlansPage.vue';
@@ -1165,7 +1165,7 @@ the switcher in your own chrome as well — it renders nothing when disabled, so
 it needs no guard around it:
 
 ```ts
-import ThemeSwitcher from '@saasicat/ui-vue/components/ThemeSwitcher.vue';
+import ThemeSwitcher from '@saasicat/ui-vue/ui/page/ThemeSwitcher.vue';
 ```
 
 **You may already be done.** The bridge is two-directional: your own
@@ -1368,7 +1368,7 @@ To place the switcher in your own chrome as well — it renders nothing when
 disabled, so it needs no guard around it:
 
 ```ts
-import LocaleSwitcher from '@saasicat/ui-vue/components/LocaleSwitcher.vue';
+import LocaleSwitcher from '@saasicat/ui-vue/ui/page/LocaleSwitcher.vue';
 ```
 
 **Reading messages in your own components:**
