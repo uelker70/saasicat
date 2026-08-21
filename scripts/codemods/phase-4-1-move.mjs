@@ -6,7 +6,9 @@
 // one that crosses a moved file in either direction: the importer may have
 // moved, the target may have moved, or both.
 //
-// The table lives beside this file as JSON rather than inline. A 119-file move
+// The table lives in `@saasicat/cli` (`codemods/v1-imports.map.json`), because
+// the consumer codemod reads the same file — one table, two users, so the
+// rewrite a consumer runs cannot disagree with the move that happened here. A 119-file move
 // written as `git mv` lines is a diff nobody can check; written as a table, the
 // reviewable question is whether each row is right.
 //
@@ -22,7 +24,9 @@ import { fileURLToPath } from 'node:url';
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PKG = join(REPO, 'packages', 'saas-platform-ui-vue');
 const SRC = join(PKG, 'src');
-const plan = JSON.parse(readFileSync(join(REPO, 'scripts/codemods/phase-4-1-move.json'), 'utf8'));
+const plan = JSON.parse(
+    readFileSync(join(REPO, 'packages/saas-platform-cli/codemods/v1-imports.map.json'), 'utf8'),
+);
 
 /** Every file under a directory, repo-relative to `src/`. */
 function filesUnder(dir) {

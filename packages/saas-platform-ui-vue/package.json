@@ -27,6 +27,16 @@
                 "default": "./dist/client/index.cjs"
             }
         },
+        "./vue": {
+            "import": {
+                "types": "./dist/vue/index.d.ts",
+                "default": "./dist/vue/index.js"
+            },
+            "require": {
+                "types": "./dist/vue/index.d.cts",
+                "default": "./dist/vue/index.cjs"
+            }
+        },
         "./quasar": {
             "import": {
                 "types": "./dist/quasar/index.d.ts",
@@ -37,13 +47,14 @@
                 "default": "./dist/quasar/index.cjs"
             }
         },
-        "./pages/*": "./src/pages/*",
-        "./pages-standard/*": "./src/pages/*",
+        "./pages/*.vue": "./src/pages/*.vue",
+        "./layouts/*.vue": "./src/layouts/*.vue",
+        "./auth/*.vue": "./src/auth/*.vue",
+        "./ui/*.vue": "./src/ui/*.vue",
         "./pages-tenant/*": "./src/pages-tenant/*",
         "./theme.css": "./src/ui/theme/index.css",
         "./theme/breakpoints": "./src/ui/theme/_breakpoints.scss",
         "./theme/*": "./src/ui/theme/*",
-        "./sa-theme.css": "./src/ui/theme/sa-theme.css",
         "./testing-e2e/*": {
             "import": {
                 "types": "./dist/testing-e2e/*.d.ts",
@@ -53,33 +64,7 @@
                 "types": "./dist/testing-e2e/*.d.cts",
                 "default": "./dist/testing-e2e/*.cjs"
             }
-        },
-        "./ui/*": "./src/ui/*",
-        "./layouts/*": "./src/layouts/*",
-        "./auth/*": "./src/auth/*",
-        "./components/FeatureGate.vue": "./src/ui/entitlement/FeatureGate.vue",
-        "./components/KvBlock.vue": "./src/ui/data/KvBlock.vue",
-        "./components/LocaleSwitcher.vue": "./src/ui/page/LocaleSwitcher.vue",
-        "./components/MfaPromptDialog.vue": "./src/ui/overlay/MfaPromptDialog.vue",
-        "./components/ThemeSwitcher.vue": "./src/ui/page/ThemeSwitcher.vue",
-        "./components/admin-page/AdminAccordion.vue": "./src/ui/page/AdminAccordion.vue",
-        "./components/admin-page/AdminBody.vue": "./src/ui/page/AdminBody.vue",
-        "./components/admin-page/AdminFilters.vue": "./src/ui/page/AdminFilters.vue",
-        "./components/admin-page/AdminHero.vue": "./src/ui/page/AdminHero.vue",
-        "./components/admin-page/AdminKpi.vue": "./src/ui/data/AdminKpi.vue",
-        "./components/admin-page/AdminPage.vue": "./src/ui/page/AdminPage.vue",
-        "./components/admin-page/AdminPaginator.vue": "./src/ui/data/AdminPaginator.vue",
-        "./components/admin-page/AdminRefreshBtn.vue": "./src/ui/feedback/AdminRefreshBtn.vue",
-        "./components/admin-page/AdminSection.vue": "./src/ui/page/AdminSection.vue",
-        "./components/admin-page/AdminStatistics.vue": "./src/ui/data/AdminStatistics.vue",
-        "./components/admin-page/AdminTable.vue": "./src/ui/data/AdminTable.vue",
-        "./components/wizard-stepper/WizardStepper.vue": "./src/ui/page/WizardStepper.vue",
-        "./pages-standard/AdminLayout.vue": "./src/layouts/AdminLayout.vue",
-        "./pages-standard/SuperAdminLoginPage.vue": "./src/auth/SuperAdminLoginPage.vue",
-        "./pages-standard/SuperAdminSetupWizard.vue": "./src/auth/SuperAdminSetupWizard.vue",
-        "./pages/AdminLayout.vue": "./src/layouts/AdminLayout.vue",
-        "./pages/SuperAdminLoginPage.vue": "./src/auth/SuperAdminLoginPage.vue",
-        "./pages/SuperAdminSetupWizard.vue": "./src/auth/SuperAdminSetupWizard.vue"
+        }
     },
     "files": [
         "dist",

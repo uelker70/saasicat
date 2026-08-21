@@ -16,6 +16,7 @@
 //       Prisma's DSL cannot express to the migration it just wrote.
 //
 //   init --project-key=X --quota=key:Model [--quota=…]... [--app-name=X] [--api-base=X]
+//   codemod v1-imports [--dir=X] [--dry-run]
 //        [--skip-hasher] [--dry-run] [--dir=.]
 //       Writes the platform wiring — config, persistence, manifest
 //       contribution, admin module, one provider per quota — and adds
@@ -43,7 +44,9 @@ import {
     findFkPointers,
     hasConstraints,
     assertValidProjectKey,
+    buildImportMap,
     migrationCreatedBy,
+    rewriteImports,
     reportConstraints,
     patchAppModule,
     patchOptionsFor,
@@ -523,6 +526,76 @@ async function writeConstraintsIntoMigration(args, migrationsBefore) {
     }
 }
 
+/**
+ * Rewrites `@saasicat/ui-vue` imports to the 1.0 export map.
+ *
+ * The rules come from the same table the platform's own move ran on, shipped
+ * with this package — so what a consumer's imports become cannot disagree with
+ * where the files actually went.
+ */
+async function cmdCodemodV1Imports(args) {
+    const root = resolve(args.dir ?? '.');
+    const dryRun = args['dry-run'] === true;
+
+    const table = JSON.parse(
+        await readFile(
+            join(
+                dirname(require_.resolve('@saasicat/cli')),
+                '..',
+                'codemods',
+                'v1-imports.map.json',
+            ),
+            'utf8',
+        ),
+    );
+    const map = buildImportMap(table);
+
+    const SKIP = new Set(['node_modules', 'dist', 'dist-app', '.git', '.output', 'coverage']);
+    const EXTENSIONS = /\.(ts|tsx|js|mjs|cjs|vue|md)$/;
+    const unmapped = new Map();
+    let rewritten = 0;
+    let touched = 0;
+
+    const walk = async (dir) => {
+        for (const entry of await readdir(dir, { withFileTypes: true })) {
+            if (SKIP.has(entry.name)) continue;
+            const full = join(dir, entry.name);
+            if (entry.isDirectory()) {
+                await walk(full);
+                continue;
+            }
+            if (!EXTENSIONS.test(entry.name)) continue;
+
+            const source = await readFile(full, 'utf8');
+            const result = rewriteImports(source, map);
+            for (const [subpath, n] of result.unmapped) {
+                unmapped.set(subpath, (unmapped.get(subpath) ?? 0) + n);
+            }
+            if (result.rewritten === 0) continue;
+            if (!dryRun) await writeFile(full, result.text);
+            rewritten += result.rewritten;
+            touched += 1;
+        }
+    };
+    await walk(root);
+
+    console.log(
+        `${dryRun ? 'Would rewrite' : 'Rewrote'} ${rewritten} import(s) in ${touched} file(s).`,
+    );
+    if (unmapped.size === 0) return;
+
+    console.log('');
+    console.log('These have no new home — they need a decision, not a rewrite:');
+    for (const [subpath, n] of [...unmapped].sort()) {
+        console.log(`  ${String(n).padStart(3)}×  @saasicat/ui-vue/${subpath}`);
+    }
+    console.log('');
+    console.log('  They moved into `features/` or `internal/`, which the 1.0 surface does');
+    console.log('  not publish: they were domain or page-private components, and importing');
+    console.log('  them tied your app to our internal structure. Copy what you need into');
+    console.log('  your own repository.');
+}
+
 /** Reads a repeated flag (`--quota=a --quota=b`) off argv. */
 function repeatedFlag(argv, name) {
     return argv
@@ -662,6 +735,9 @@ async function patchAppModuleFile(root, plan, args) {
 
 async function main() {
     const [, , cmd, sub, ...rest] = process.argv;
+    if (cmd === 'codemod' && sub === 'v1-imports') {
+        return cmdCodemodV1Imports(parseArgs(rest));
+    }
     if (cmd === 'init') {
         return cmdInit(parseArgs([sub, ...rest].filter(Boolean)), process.argv.slice(3));
     }
@@ -693,6 +769,9 @@ async function main() {
         console.log('          scaffold the platform wiring. At least one --quota:');
         console.log('          every plan must declare one, or the catalogue does not load.');
         console.log('  init --project-key=myapp --quota=notes:Note --quota=seats:Seat');
+        console.log('');
+        console.log('  codemod v1-imports [--dir=.] [--dry-run]');
+        console.log('          rewrite @saasicat/ui-vue imports to the 1.0 export map');
         console.log('');
         console.log('Optional --prisma-schema=PATH (default prisma/schema.prisma).');
         console.log('Optional --tenant-model=X --user-model=Y for apply/migrate — enables');

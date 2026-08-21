@@ -17,6 +17,7 @@
 //   - fk-pointers:         enabling the FK relations to the app's own models
 //   - init/plan:           what `saasicat init` writes, as data
 //   - init/catalog-keys:   the key rules, read off the catalogue schema
+//   - codemods/v1-imports: rewriting ui-vue imports to the 1.0 export map
 //   - init/patch-app-module: adding the platform to an existing AppModule
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
@@ -36,6 +37,7 @@ export * from './migration-constraints.js';
 export * from './fk-pointers.js';
 export * from './init/plan.js';
 export * from './init/catalog-keys.js';
+export * from './codemods/v1-imports.js';
 export * from './init/patch-app-module.js';
 export * from './module.js';
 export * from './manifest.command.js';

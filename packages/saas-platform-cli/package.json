@@ -21,7 +21,8 @@
     "files": [
         "dist",
         "bin",
-        "templates"
+        "templates",
+        "codemods"
     ],
     "bin": {
         "saasicat": "./bin/saasicat.js"

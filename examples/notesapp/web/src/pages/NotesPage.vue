@@ -134,7 +134,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useQuasar } from 'quasar';
-import FeatureGate from '@saasicat/ui-vue/components/FeatureGate.vue';
+import FeatureGate from '@saasicat/ui-vue/ui/entitlement/FeatureGate.vue';
 import { useInjectedEntitlement } from '@saasicat/ui-vue';
 import { FEATURE_NOTES_EXPORT, QUOTA_NOTES_MAX } from '../labels';
 import {

@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router';
-import SuperAdminLoginPage from '@saasicat/ui-vue/pages/SuperAdminLoginPage.vue';
-import AdminLayout from '@saasicat/ui-vue/pages/AdminLayout.vue';
+import SuperAdminLoginPage from '@saasicat/ui-vue/auth/SuperAdminLoginPage.vue';
+import AdminLayout from '@saasicat/ui-vue/layouts/AdminLayout.vue';
 import AdminManifestErrorPage from '@saasicat/ui-vue/pages/AdminManifestErrorPage.vue';
 import DashboardPage from '@saasicat/ui-vue/pages/DashboardPage.vue';
 import AdminDiscoveryPage from '../pages/AdminDiscoveryPage.vue';

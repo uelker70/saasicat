@@ -325,3 +325,84 @@ describe('init', () => {
         await assert.rejects(readFile(join(root, 'config', 'saas.yaml'), 'utf8'));
     });
 });
+
+describe('codemod v1-imports', () => {
+    /** A file carrying one of each shape a consumer meets. */
+    const CONSUMER_SOURCE = [
+        "import Gate from '@saasicat/ui-vue/components/FeatureGate.vue';",
+        "import Shell from '@saasicat/ui-vue/pages/AdminLayout.vue';",
+        "import Login from '@saasicat/ui-vue/pages-standard/SuperAdminLoginPage.vue';",
+        "import Users from '@saasicat/ui-vue/pages/UsersPage.vue';",
+        "import List from '@saasicat/ui-vue/components/plan-list/PlanList.vue';",
+        "import { useThing } from '@saasicat/ui-vue';",
+        '',
+    ].join('\n');
+
+    async function consumer(name) {
+        const root = join(dir, name);
+        await mkdir(join(root, 'src'), { recursive: true });
+        await writeFile(join(root, 'src', 'app.ts'), CONSUMER_SOURCE, 'utf8');
+        return root;
+    }
+
+    test('rewrites what moved and leaves the rest alone', async () => {
+        const root = await consumer('codemod-run');
+        const { stdout, code } = await cli(['codemod', 'v1-imports', `--dir=${root}`]);
+
+        assert.equal(code, 0, stdout);
+        const after = await readFile(join(root, 'src', 'app.ts'), 'utf8');
+        assert.match(after, /ui\/entitlement\/FeatureGate\.vue/);
+        assert.match(after, /layouts\/AdminLayout\.vue/);
+        assert.match(after, /auth\/SuperAdminLoginPage\.vue/);
+        assert.match(
+            after,
+            /@saasicat\/ui-vue\/pages\/UsersPage\.vue/,
+            'an already-correct path changed',
+        );
+        assert.match(
+            after,
+            /import \{ useThing \} from '@saasicat\/ui-vue';/,
+            'the bare entry changed',
+        );
+    });
+
+    test('names what no longer has a home rather than guessing one', async () => {
+        // Rewriting it to something plausible turns "this is not public any
+        // more" into a module-not-found on a path nobody wrote.
+        const root = await consumer('codemod-unmapped');
+        const { stdout } = await cli(['codemod', 'v1-imports', `--dir=${root}`]);
+
+        assert.match(stdout, /no new home/i);
+        assert.match(stdout, /components\/plan-list\/PlanList\.vue/);
+        const after = await readFile(join(root, 'src', 'app.ts'), 'utf8');
+        assert.match(after, /components\/plan-list\/PlanList\.vue/, 'it was rewritten anyway');
+    });
+
+    test('--dry-run reports without writing', async () => {
+        const root = await consumer('codemod-dry');
+        const { stdout, code } = await cli(['codemod', 'v1-imports', `--dir=${root}`, '--dry-run']);
+
+        assert.equal(code, 0, stdout);
+        assert.match(stdout, /Would rewrite/);
+        assert.equal(await readFile(join(root, 'src', 'app.ts'), 'utf8'), CONSUMER_SOURCE);
+    });
+
+    test('it does not walk into node_modules or dist', async () => {
+        // A consumer runs this at their repository root. Rewriting inside
+        // dependencies or build output would be damage, not migration.
+        const root = await consumer('codemod-skips');
+        for (const skipped of ['node_modules', 'dist']) {
+            await mkdir(join(root, skipped), { recursive: true });
+            await writeFile(join(root, skipped, 'vendor.ts'), CONSUMER_SOURCE, 'utf8');
+        }
+        await cli(['codemod', 'v1-imports', `--dir=${root}`]);
+
+        for (const skipped of ['node_modules', 'dist']) {
+            assert.equal(
+                await readFile(join(root, skipped, 'vendor.ts'), 'utf8'),
+                CONSUMER_SOURCE,
+                `the codemod wrote into ${skipped}/`,
+            );
+        }
+    });
+});

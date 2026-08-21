@@ -4,6 +4,7 @@ import { defineConfig } from 'tsup';
 // raw src/ via subpath exports, not bundled):
 //   dist/index.*        — main entry: client re-exports + Vue layer, Quasar-free
 //   dist/client/index.* — framework-free core only
+//   dist/vue/index.*    — the Vue layer alone, without the client re-exports
 //   dist/quasar/index.* — createSuperAdminApp + Quasar notify port
 //
 // NOTE: no `clean: true` on any entry. tsup runs the two configs below
@@ -24,6 +25,7 @@ export default defineConfig([
         entry: {
             index: 'src/index.ts',
             'client/index': 'src/client/index.ts',
+            'vue/index': 'src/vue/index.ts',
             'quasar/index': 'src/quasar/index.ts',
         },
         format: ['esm', 'cjs'],
