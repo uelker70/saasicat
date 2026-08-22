@@ -29,10 +29,10 @@ export const REGISTRATION_CONFIGURATOR_LOOKUP_TOKEN = Symbol.for(
 export const REGISTRATION_PROMO_PREVIEW_TOKEN = Symbol.for(
     'saasicat/nest/RegistrationPromoPreview',
 );
-/** Optionally injectable configuration — falls back to default TTLs from @saasicat/types. */
+/** Optionally injectable configuration — falls back to default TTLs from @saasicat/core. */
 export const REGISTRATION_CONFIG_TOKEN = Symbol.for('saasicat/nest/RegistrationConfig');
 
-// PasswordHasher moved to @saasicat/types (core port — the SuperAdmin
+// PasswordHasher moved to @saasicat/core (core port — the SuperAdmin
 // bootstrap adapter in @saasicat/adapter-prisma implements against it too).
 // Re-exported here so `@saasicat/nest/registration` keeps its public surface.
-export type { PasswordHasher } from '@saasicat/types';
+export type { PasswordHasher } from '@saasicat/core';

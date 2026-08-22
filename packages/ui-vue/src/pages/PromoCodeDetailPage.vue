@@ -83,7 +83,7 @@ import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { promoCodesResource } from '../client/resources/promo-codes.resource.js';
 import type { PromoDetail as PromoDetailData } from '../client/resources/promo-codes.resource.js';
 import { promoStatusTone, type PillTone } from '../vue/status.js';
-import type { PromoCodeStatus } from '@saasicat/types';
+import type { PromoCodeStatus } from '@saasicat/core';
 import { computed, onMounted, ref, watch } from 'vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';

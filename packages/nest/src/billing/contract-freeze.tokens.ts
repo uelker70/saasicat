@@ -7,7 +7,7 @@
 // is generic; only `projectKey` (config) and the bundle/plan-version data
 // access (`ContractFreezeSourcePort`) are consumer-specific.
 
-import type { BillingCycle, NewContractLineItemData } from '@saasicat/types';
+import type { BillingCycle, NewContractLineItemData } from '@saasicat/core';
 
 /**
  * Optional hook token: the platform `changePlan` path + the

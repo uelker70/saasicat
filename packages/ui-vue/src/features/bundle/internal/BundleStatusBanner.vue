@@ -95,7 +95,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { BundleVersionRow } from '@saasicat/types';
+import type { BundleVersionRow } from '@saasicat/core';
 
 import { bundleVersionStatus, formatDate } from './bundle-version-status';
 import { formatMessage } from '../../../client/i18n/format.js';

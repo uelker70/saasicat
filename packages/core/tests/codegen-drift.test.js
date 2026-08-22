@@ -40,7 +40,7 @@ describe('Q.4 Codegen drift gate', () => {
             if (fresh !== committed) {
                 throw new Error(
                     `${genFile} is out of date — the schema and the committed snapshot have drifted.\n` +
-                        `Fix: run \`pnpm --filter @saasicat/types gen:types\` and commit the ` +
+                        `Fix: run \`pnpm --filter @saasicat/core gen:types\` and commit the ` +
                         `diff in src/generated/${genFile}.\n` +
                         `Never hand-edit the generated file: the next regeneration discards it.`,
                 );

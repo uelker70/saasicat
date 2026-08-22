@@ -6,7 +6,7 @@
 // regenerates + compares — drift fails.
 //
 // Usage:
-//   pnpm --filter @saasicat/types gen:types
+//   pnpm --filter @saasicat/core gen:types
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';

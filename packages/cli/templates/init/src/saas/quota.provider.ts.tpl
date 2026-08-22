@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DefinesQuota } from '@saasicat/nest/discovery';
-import type { QuotaProvider } from '@saasicat/types';
+import type { QuotaProvider } from '@saasicat/core';
 
 import { PrismaService } from '../prisma/prisma.service';
 

@@ -12,7 +12,7 @@ import type {
     ManifestAccessPort,
     UserManagementPort,
     UserPort,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { AuditTailFlow } from './audit-tail-flow.js';
 import { CliContextService, type CliContextConfig } from './cli-context.service.js';
 import { PLATFORM_DOCTOR_CHECK_PROVIDERS } from './default-doctor-checks.js';

@@ -10,7 +10,7 @@
 //
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { PlanCatalog, PlanDef } from '@saasicat/types';
+import type { PlanCatalog, PlanDef } from '@saasicat/core';
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { PLAN_RESOLVER_PORT_TOKEN, type PlanResolverPort } from './plan-resolver.port.js';
 

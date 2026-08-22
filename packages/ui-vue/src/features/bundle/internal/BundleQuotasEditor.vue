@@ -77,7 +77,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { DiscoveredQuota } from '@saasicat/types';
+import type { DiscoveredQuota } from '@saasicat/core';
 import type { QuotaMeta } from './catalog-i18n.js';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
 

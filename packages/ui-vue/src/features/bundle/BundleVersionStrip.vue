@@ -56,7 +56,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { BundleVersionRow } from '@saasicat/types';
+import type { BundleVersionRow } from '@saasicat/core';
 
 import {
     bundleStatusMeta,

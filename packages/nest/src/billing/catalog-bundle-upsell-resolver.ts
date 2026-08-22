@@ -23,7 +23,7 @@ import {
     type CatalogEntryRepository,
     type UpsellOffer,
     type UpsellOfferResolver,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,

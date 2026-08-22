@@ -135,7 +135,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
-import { classifyBundleVersionDiff } from '@saasicat/types';
+import { classifyBundleVersionDiff } from '@saasicat/core';
 import { useResource } from '../vue/resource-registry.js';
 import { useSuperAdminEndpoints } from '../vue/use-super-admin-context.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
@@ -161,7 +161,7 @@ import type {
     QuotaCatalogEntryRow,
     StrictModeWarning,
     UpdateBundleVersionDraftData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import BundleVersionPublishDialog from '../features/bundle/BundleVersionPublishDialog.vue';
 import BundleCreatePanel from '../features/bundle/internal/BundleCreatePanel.vue';
@@ -735,7 +735,7 @@ async function onPublishSubmitted(result: BundleVersionMutationResult): Promise<
 }
 
 // A platform function, imported rather than injected: it is pure, it lives in
-// `@saasicat/types`, and passing it in was the only way a page could reach it
+// `@saasicat/core`, and passing it in was the only way a page could reach it
 // before the page was allowed to import anything itself.
 const classifyDiff = computed(() => classifyBundleVersionDiff);
 </script>

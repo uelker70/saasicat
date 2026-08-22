@@ -377,7 +377,7 @@ import { computed } from 'vue';
  * literal U+00A0 is invisible in a diff.
  */
 const NBSP = '\u00A0';
-import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';

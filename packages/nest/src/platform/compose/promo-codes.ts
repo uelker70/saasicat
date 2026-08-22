@@ -1,5 +1,5 @@
 import type { DynamicModule } from '@nestjs/common';
-import type { SaaSiCatPersistenceAdapter, TransactionRunner } from '@saasicat/types';
+import type { SaaSiCatPersistenceAdapter, TransactionRunner } from '@saasicat/core';
 
 import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
 import type { ProviderSpec } from '../../core/di.js';

@@ -70,15 +70,15 @@ importers:
       '@saasicat/adapter-prisma':
         specifier: workspace:^
         version: link:../../packages/adapter-prisma
+      '@saasicat/core':
+        specifier: workspace:^
+        version: link:../../packages/core
       '@saasicat/nest':
         specifier: workspace:^
         version: link:../../packages/nest
       '@saasicat/spec':
         specifier: workspace:^
         version: link:../../packages/spec
-      '@saasicat/types':
-        specifier: workspace:^
-        version: link:../../packages/types
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -110,9 +110,9 @@ importers:
       '@quasar/extras':
         specifier: ^1.16.0
         version: 1.18.0
-      '@saasicat/types':
+      '@saasicat/core':
         specifier: workspace:^
-        version: link:../../../packages/types
+        version: link:../../../packages/core
       '@saasicat/ui-vue':
         specifier: workspace:^
         version: link:../../../packages/ui-vue
@@ -156,9 +156,9 @@ importers:
       '@quasar/extras':
         specifier: ^1.16.0
         version: 1.18.0
-      '@saasicat/types':
+      '@saasicat/core':
         specifier: workspace:^
-        version: link:../../../packages/types
+        version: link:../../../packages/core
       '@saasicat/ui-vue':
         specifier: workspace:^
         version: link:../../../packages/ui-vue
@@ -202,9 +202,9 @@ importers:
 
   packages/adapter-drizzle:
     dependencies:
-      '@saasicat/types':
+      '@saasicat/core':
         specifier: workspace:^
-        version: link:../types
+        version: link:../core
     devDependencies:
       '@nestjs/common':
         specifier: ^11.0.0
@@ -236,9 +236,9 @@ importers:
 
   packages/adapter-prisma:
     dependencies:
-      '@saasicat/types':
+      '@saasicat/core':
         specifier: workspace:^
-        version: link:../types
+        version: link:../core
     devDependencies:
       '@nestjs/common':
         specifier: ^11.0.0
@@ -267,15 +267,15 @@ importers:
 
   packages/cli:
     dependencies:
+      '@saasicat/core':
+        specifier: workspace:^
+        version: link:../core
       '@saasicat/nest':
         specifier: workspace:^
         version: link:../nest
       '@saasicat/spec':
         specifier: workspace:^
         version: link:../spec
-      '@saasicat/types':
-        specifier: workspace:^
-        version: link:../types
       qrcode-terminal:
         specifier: ^0.12.0
         version: 0.12.0
@@ -296,6 +296,18 @@ importers:
         specifier: ^6.0.0
         version: 6.0.3
 
+  packages/core:
+    devDependencies:
+      json-schema-to-typescript:
+        specifier: ^15.0.4
+        version: 15.0.4
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.15.43)(jiti@2.7.0)(postcss@8.5.26)(typescript@6.0.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^6.0.0
+        version: 6.0.3
+
   packages/create-saasicat-admin:
     devDependencies:
       '@types/node':
@@ -304,12 +316,12 @@ importers:
 
   packages/nest:
     dependencies:
+      '@saasicat/core':
+        specifier: workspace:^
+        version: link:../core
       '@saasicat/spec':
         specifier: workspace:^
         version: link:../spec
-      '@saasicat/types':
-        specifier: workspace:^
-        version: link:../types
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
@@ -374,9 +386,9 @@ importers:
 
   packages/persistence-testing:
     dependencies:
-      '@saasicat/types':
+      '@saasicat/core':
         specifier: workspace:^
-        version: link:../types
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^25.6.0
@@ -402,23 +414,11 @@ importers:
         specifier: ^6.19.0
         version: 6.19.3(typescript@6.0.3)
 
-  packages/types:
-    devDependencies:
-      json-schema-to-typescript:
-        specifier: ^15.0.4
-        version: 15.0.4
-      tsup:
-        specifier: ^8.0.0
-        version: 8.5.1(@swc/core@1.15.43)(jiti@2.7.0)(postcss@8.5.26)(typescript@6.0.3)(yaml@2.9.0)
-      typescript:
-        specifier: ^6.0.0
-        version: 6.0.3
-
   packages/ui-vue:
     dependencies:
-      '@saasicat/types':
+      '@saasicat/core':
         specifier: workspace:^
-        version: link:../types
+        version: link:../core
     devDependencies:
       '@playwright/test':
         specifier: ^1.59.1
@@ -477,9 +477,9 @@ importers:
 
   packages/ui-vue-tenant:
     devDependencies:
-      '@saasicat/types':
+      '@saasicat/core':
         specifier: workspace:*
-        version: link:../types
+        version: link:../core
       '@saasicat/ui-vue':
         specifier: workspace:*
         version: link:../ui-vue

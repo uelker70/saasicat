@@ -39,7 +39,7 @@ export {
 - **Pure functions without NestJS decorators** may live under `src/<area>/`.
   NestJS modules + services require `@nestjs/common` as a peerDependency.
 - **No Prisma imports.** Anything needing wire-format types imports from
-  `@saasicat/types`.
+  `@saasicat/core`.
 - **Schema fragments** for the `prisma/schema.prisma` merge live in
   `prisma-fragments/` — versioned separately.
 

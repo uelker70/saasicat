@@ -27,10 +27,10 @@ import type {
     SubscriptionBundleRecord,
     SubscriptionBundleRepository,
     SubscriptionBundleView,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
-import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/types';
+import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/core';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,
     type SelfServiceBlockedBundles,

@@ -30,7 +30,7 @@ export default defineConfig([
         },
         format: ['esm', 'cjs'],
         dts: true,
-        external: ['@saasicat/types', 'vue', 'vue-router', 'pinia', 'quasar'],
+        external: ['@saasicat/core', 'vue', 'vue-router', 'pinia', 'quasar'],
     },
     {
         entry: { 'admin-pages-suite': 'src/testing/admin-pages-suite.ts' },

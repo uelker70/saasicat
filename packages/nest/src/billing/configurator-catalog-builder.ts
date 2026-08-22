@@ -4,7 +4,7 @@ import type {
     ConfiguratorMarketingProvider,
     ConfiguratorPlanVersionRow,
     ConfiguratorSourcesLookup,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 /**
  * Builds the `ConfiguratorCatalog` (for onboarding step 3) from the

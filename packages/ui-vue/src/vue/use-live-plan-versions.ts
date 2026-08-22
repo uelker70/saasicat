@@ -9,7 +9,7 @@
 // can be added later, additively.
 
 import { ref, watch, type Ref } from 'vue';
-import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UseLivePlanVersionsOptions {

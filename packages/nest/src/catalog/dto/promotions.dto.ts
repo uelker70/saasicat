@@ -18,7 +18,7 @@ import type {
     PromotionTargetType,
     PromotionType,
     PromotionValue,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}/;

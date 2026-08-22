@@ -1,4 +1,4 @@
-import type { PlanVersionRow } from '@saasicat/types';
+import type { PlanVersionRow } from '@saasicat/core';
 
 export interface AuditRow {
     id: string;

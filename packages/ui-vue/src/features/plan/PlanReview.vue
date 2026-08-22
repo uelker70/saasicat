@@ -239,7 +239,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';

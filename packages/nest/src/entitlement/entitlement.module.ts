@@ -18,7 +18,7 @@ import type {
     SubscriptionContractRepository,
     SubscriptionRepository,
     TransactionRunner,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { EntitlementService } from './entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from './entitlement.tokens.js';

@@ -19,7 +19,7 @@ import type {
     PlanCatalogReadSnapshot,
     PlanDef,
     QuotaKey,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 export interface PlanCatalogBuildSettings {
     projectKey: string;

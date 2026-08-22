@@ -3,14 +3,14 @@ import type {
     BillingCycle,
     CreateSubscriptionContractData,
     NewContractLineItemData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { findPlan, getPlanPriceNet } from './plan-helpers.js';
-import type { PlanCatalog } from '@saasicat/types';
+import type { PlanCatalog } from '@saasicat/core';
 import {
     CONTRACT_FREEZE_PROJECT_KEY_TOKEN,
     CONTRACT_FREEZE_SOURCE_PORT_TOKEN,

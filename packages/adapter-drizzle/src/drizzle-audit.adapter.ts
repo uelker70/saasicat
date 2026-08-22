@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import type { AdminActor, AuditPort } from '@saasicat/types';
+import type { AdminActor, AuditPort } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { auditLogs } from './schema.js';
 

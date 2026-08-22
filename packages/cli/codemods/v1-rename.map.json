@@ -40,6 +40,7 @@
         }
     },
     "subpaths": {
-        "@saasicat/ui-vue/testing-e2e/": "@saasicat/ui-vue/testing/"
+        "@saasicat/ui-vue/testing-e2e/": "@saasicat/ui-vue/testing/",
+        "@saasicat/types": "@saasicat/core"
     }
 }

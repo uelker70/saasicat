@@ -82,7 +82,7 @@
         "test:shipped-source": "node scripts/check-shipped-source.mjs"
     },
     "dependencies": {
-        "@saasicat/types": "workspace:^"
+        "@saasicat/core": "workspace:^"
     },
     "peerDependencies": {
         "pinia": "^2.0.0 || ^3.0.0",

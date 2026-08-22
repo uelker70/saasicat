@@ -12,7 +12,7 @@
 // is reported in a structured way via `BatchColumnDriftError` — the consumer
 // shell then renders a warning.
 
-import type { AdminManifest, TenantColumnDef } from '@saasicat/types';
+import type { AdminManifest, TenantColumnDef } from '@saasicat/core';
 import { defaultHttpClient, type HttpClient } from './types.js';
 
 export type BatchColumnValue = unknown;

@@ -67,7 +67,7 @@ describe('scaffold', () => {
             // The range is `^<own version>`, and the own version carries a
             // prerelease tag on the 1.0 candidate line (`^1.0.0-rc.0`) — a stable
             // semver alone rejected the first rc, in CI, after the version PR merged.
-            assert.match(pkg, /"@saasicat\/types": "\^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?"/);
+            assert.match(pkg, /"@saasicat\/core": "\^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?"/);
             assert.match(pkg, /"@saasicat\/ui-vue": "\^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?"/);
             assert.doesNotMatch(pkg, /file:/);
 

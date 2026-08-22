@@ -187,7 +187,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import type { SubscriptionBundleRecord } from '@saasicat/types';
+import type { SubscriptionBundleRecord } from '@saasicat/core';
 import type { HttpClient } from '@saasicat/ui-vue';
 
 import { useSuperAdminI18n } from '@saasicat/ui-vue';

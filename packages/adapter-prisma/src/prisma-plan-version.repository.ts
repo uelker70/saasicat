@@ -4,7 +4,7 @@ import {
     type PlanVersionRecord,
     type PlanVersionRepository,
     type TransactionContext,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PlanVersionRowLike,

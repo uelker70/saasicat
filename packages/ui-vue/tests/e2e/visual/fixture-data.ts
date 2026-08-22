@@ -18,7 +18,7 @@ import type {
     PlanRow,
     PlanVersionRow,
     QuotaCatalogEntryRow,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import type {
     SubscriptionBundleShape,

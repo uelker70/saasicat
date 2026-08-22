@@ -23,7 +23,7 @@ import {
     PLAN_CATALOG_TOKEN,
     type DiscoverySnapshot,
 } from '@saasicat/nest';
-import type { PlanCatalog, UserPort } from '@saasicat/types';
+import type { PlanCatalog, UserPort } from '@saasicat/core';
 import type { DoctorCheck, DoctorCheckResult } from './doctor-flow.js';
 import { USER_PORT_TOKEN } from './cli.tokens.js';
 

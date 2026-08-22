@@ -236,7 +236,7 @@ import type {
     DiscoveredQuota,
     PlanRow,
     PlanVersionRow,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import BundleFeaturesEditor, { type FeatureMeta } from './BundleFeaturesEditor.vue';
 import BundlePlanCompatPicker from './BundlePlanCompatPicker.vue';

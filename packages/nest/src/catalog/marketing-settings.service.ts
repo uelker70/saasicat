@@ -7,7 +7,7 @@ import type {
     MarketingSettingsRepository,
     MarketingSettingsRow,
     UpdateMarketingSettingsData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { MARKETING_SETTINGS_REPOSITORY_TOKEN } from './catalog.tokens.js';
 

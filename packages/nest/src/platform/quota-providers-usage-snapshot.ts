@@ -1,4 +1,4 @@
-import type { QuotaProvider, UsageSnapshotPort } from '@saasicat/types';
+import type { QuotaProvider, UsageSnapshotPort } from '@saasicat/core';
 
 /**
  * Reuses the registered quota counters for the tenant usage response. A quota

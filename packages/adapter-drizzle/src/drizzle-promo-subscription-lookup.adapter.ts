@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import type { BillingCycle, PromoSubscriptionLookup, TransactionContext } from '@saasicat/types';
+import type { BillingCycle, PromoSubscriptionLookup, TransactionContext } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { subscriptions } from './schema.js';
 

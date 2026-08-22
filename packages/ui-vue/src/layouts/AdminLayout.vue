@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, getCurrentInstance } from 'vue';
 import { useRoute } from 'vue-router';
-import type { AdminManifest, StandardPageKey } from '@saasicat/types';
+import type { AdminManifest, StandardPageKey } from '@saasicat/core';
 import { buildRoutes, buildSidebar, defaultSectionOrder } from '../client/nav-builder.js';
 import LocaleSwitcher from '../ui/page/LocaleSwitcher.vue';
 import ThemeSwitcher from '../ui/page/ThemeSwitcher.vue';

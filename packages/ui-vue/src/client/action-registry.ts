@@ -12,7 +12,7 @@
 // `{def, handler}` so the shell UI layer can trigger the appropriate
 // pre-flow.
 
-import type { AdminManifest, TenantActionDef } from '@saasicat/types';
+import type { AdminManifest, TenantActionDef } from '@saasicat/core';
 
 /** Consumer implementation; receives the action inputs as a generic object. */
 export type ActionHandler<TInput = unknown, TResult = unknown> = (

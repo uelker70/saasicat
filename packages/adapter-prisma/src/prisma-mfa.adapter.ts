@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { MfaPort } from '@saasicat/types';
+import type { MfaPort } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 
 /**

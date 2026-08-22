@@ -3,7 +3,7 @@
 // `<script setup>` allows no named exports and the cards share the same
 // labels/colors/coverage calculations.
 
-import type { CatalogEntryI18n, DiscoveryStatus } from '@saasicat/types';
+import type { CatalogEntryI18n, DiscoveryStatus } from '@saasicat/core';
 import type { SaMessages } from '../../client/i18n/messages.js';
 
 // The resolved slices these helpers render from. Taking the catalog rather

@@ -11,7 +11,7 @@
 //
 // Spec: admin-api.openapi.yaml.
 
-import type { PublicBootResponse } from '@saasicat/types';
+import type { PublicBootResponse } from '@saasicat/core';
 import { markPlatformError } from './admin-error.js';
 import { requireServerAnswer } from './http-json.js';
 import { defaultHttpClient, type HttpClient } from './types.js';

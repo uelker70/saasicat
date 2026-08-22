@@ -155,7 +155,7 @@ import type {
     FeatureCatalogEntryRow,
     QuotaCatalogEntryRow,
     UpdateCatalogEntryBaseData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import AdminRefreshBtn from '../ui/feedback/AdminRefreshBtn.vue';
 import DiscoveryCapList from '../internal/discovery-page/DiscoveryCapList.vue';
 import DiscoveryFeatureCard from '../internal/discovery-page/DiscoveryFeatureCard.vue';

@@ -4,7 +4,7 @@
 // `useManifest()`) and returns reactive `routes` + `sidebar` ComputedRefs.
 
 import { computed, type ComputedRef, type Ref } from 'vue';
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 import {
     type BuildRouteEntry,
     type NavBuilderOptions,

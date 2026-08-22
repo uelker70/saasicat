@@ -3,7 +3,7 @@
 // so that type safety and default behavior stay centralized.
 
 import { inject } from 'vue';
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 import {
     SUPER_ADMIN_ACTIONS_KEY,
     SUPER_ADMIN_BRAND_KEY,

@@ -1,4 +1,4 @@
-import type { FeatureUiRegistry } from '@saasicat/types';
+import type { FeatureUiRegistry } from '@saasicat/core';
 
 /**
  * UI metadata (label/description/icon) for this app's discovered feature and

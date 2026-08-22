@@ -3,7 +3,7 @@ import type {
     MarketingTopFeature,
     PlanRow,
     PlanVersionRow,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 export type MarketingCatalogTab = 'preview' | 'admin' | 'promos';
 

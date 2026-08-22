@@ -5,7 +5,7 @@
 // operation over `filterQueryString` rather than a `defineListOp` — see the
 // note on `promo-codes.resource`.
 
-import type { AdminUserListFilter, AdminUserListRow } from '@saasicat/types';
+import type { AdminUserListFilter, AdminUserListRow } from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { filterQueryString } from './list-resource.js';

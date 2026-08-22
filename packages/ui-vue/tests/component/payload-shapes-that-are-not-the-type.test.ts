@@ -21,7 +21,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import type { FeatureCatalogEntryRow } from '@saasicat/types';
+import type { FeatureCatalogEntryRow } from '@saasicat/core';
 
 import DiscoveryPage from '../../src/pages/DiscoveryPage.vue';
 import { mountWithQuasar } from './support/mount-with-quasar';

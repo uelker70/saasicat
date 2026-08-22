@@ -10,7 +10,7 @@ import type {
     PromoCodeValueType,
     TransactionContext,
     UpdatePromoCodeData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PrismaLike,

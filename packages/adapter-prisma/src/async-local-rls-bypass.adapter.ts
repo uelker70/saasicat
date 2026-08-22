@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { RlsBypassPort } from '@saasicat/types';
+import type { RlsBypassPort } from '@saasicat/core';
 
 /**
  * Default implementation of `RlsBypassPort` via `node:async_hooks`.

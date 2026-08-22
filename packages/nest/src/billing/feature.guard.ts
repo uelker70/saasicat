@@ -21,7 +21,7 @@ import {
     type FeatureNotLicensedBody,
     type UpsellOffer,
     type UpsellOfferResolver,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { FEATURE_GUARD_CONFIG_TOKEN, type FeatureGuardConfig } from './feature-guard.tokens.js';
@@ -111,7 +111,7 @@ export class FeatureGuard implements CanActivate {
      * empty, the same degradation a failing resolver produces.
      *
      * Deliberately 403 + `code` field instead of 402 — rationale in
-     * `@saasicat/types` upsell.types.ts (402 is reserved / inconsistently
+     * `@saasicat/core` upsell.types.ts (402 is reserved / inconsistently
      * supported; SPA interceptors must not treat the 403 as an auth error, the
      * distinction runs through `code`).
      *

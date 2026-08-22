@@ -1,5 +1,5 @@
 // @saasicat/ui-vue/client — the framework-free core of the SuperAdmin UI
-// package. No Vue, no Pinia, no Quasar: only `@saasicat/types` and the
+// package. No Vue, no Pinia, no Quasar: only `@saasicat/core` and the
 // platform HTTP contract. Usable from any framework binding or plain
 // TypeScript (Node scripts, other UI stacks).
 //

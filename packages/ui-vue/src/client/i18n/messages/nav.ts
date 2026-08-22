@@ -3,7 +3,7 @@
 // in `navSection` / `sectionOrder`, so builder options and catalog must come
 // from the same locale.
 
-import type { StandardPageKey } from '@saasicat/types';
+import type { StandardPageKey } from '@saasicat/core';
 
 import { defineMessages } from '../define.js';
 import type { SaBuiltinLocale } from '../locale.js';

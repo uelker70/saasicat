@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/types';
+import { isVersionEditable, type PlanRow, type PlanVersionRow } from '@saasicat/core';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 import PlanAuditLog from './internal/PlanAuditLog.vue';

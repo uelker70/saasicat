@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { DiscoveredFeature } from '@saasicat/types';
+import type { DiscoveredFeature } from '@saasicat/core';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
 
 // BundleFeaturesEditor — grouped pills for the feature selection of a

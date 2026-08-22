@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/types';
+import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type AuditLogRowLike,

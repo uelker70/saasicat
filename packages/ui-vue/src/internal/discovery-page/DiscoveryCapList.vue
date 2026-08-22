@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CapabilityCatalogEntryRow } from '@saasicat/types';
+import type { CapabilityCatalogEntryRow } from '@saasicat/core';
 import { kindStyle } from './discovery-ui.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 

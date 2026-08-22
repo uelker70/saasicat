@@ -31,7 +31,7 @@ import type {
     BundleRepository,
     SubscriptionBundleRepository,
     SubscriptionUsagePort,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';

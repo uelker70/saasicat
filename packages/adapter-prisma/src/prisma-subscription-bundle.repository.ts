@@ -5,7 +5,7 @@ import type {
     SubscriptionBundleRecord,
     SubscriptionBundleRepository,
     TransactionContext,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** DB columns this repository reads from `subscription_bundles`. */

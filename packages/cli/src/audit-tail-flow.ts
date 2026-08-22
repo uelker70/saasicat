@@ -6,7 +6,7 @@
 // production confirm.
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/types';
+import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/core';
 import { AUDIT_QUERY_PORT_TOKEN } from './cli.tokens.js';
 
 export interface AuditTailOptions {

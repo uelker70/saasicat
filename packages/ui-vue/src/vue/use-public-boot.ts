@@ -7,7 +7,7 @@
 //     // boot.value now contains project.{key,displayName,logoUrl}.
 
 import { ref, type Ref } from 'vue';
-import type { PublicBootResponse } from '@saasicat/types';
+import type { PublicBootResponse } from '@saasicat/core';
 import { BootLoader, type BootLoaderOptions } from '../client/boot-loader.js';
 
 export interface UsePublicBootResult {

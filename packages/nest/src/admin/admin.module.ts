@@ -13,7 +13,7 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/types';
+import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { AdminBypassRlsInterceptor } from './admin-bypass-rls.interceptor.js';

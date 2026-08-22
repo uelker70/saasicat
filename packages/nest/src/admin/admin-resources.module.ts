@@ -29,8 +29,8 @@ import type {
     AdminUserListFilter,
     AdminUserListRow,
     AuditEntry,
-} from '@saasicat/types';
-import { BILLING_ERROR_CODES } from '@saasicat/types';
+} from '@saasicat/core';
+import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 

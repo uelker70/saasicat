@@ -12,7 +12,7 @@ import type {
     SubscriptionContractStatus,
     TerminateSubscriptionContractData,
     TransactionContext,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type DecimalLike,

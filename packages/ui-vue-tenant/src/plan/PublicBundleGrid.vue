@@ -75,7 +75,7 @@ import {
     coverageExcludingSelf,
     type BundleAvailabilityState,
     type PublicMarketingBundle,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import type { BillingCycleStr } from '@saasicat/ui-vue';
 
 interface I18n {

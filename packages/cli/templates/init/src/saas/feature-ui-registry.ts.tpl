@@ -1,4 +1,4 @@
-import type { FeatureUiRegistry } from '@saasicat/types';
+import type { FeatureUiRegistry } from '@saasicat/core';
 
 /**
  * Labels and icons for the feature and quota keys discovery finds in your code.

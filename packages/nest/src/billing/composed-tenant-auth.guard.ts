@@ -6,7 +6,7 @@ import {
     Injectable,
     Optional,
 } from '@nestjs/common';
-import { AUTH_ERROR_CODES } from '@saasicat/types';
+import { AUTH_ERROR_CODES } from '@saasicat/core';
 import { TENANT_AUTH_GUARDS_TOKEN, type AuthGuardList } from './tenant-billing.tokens.js';
 
 // ComposedTenantAuthGuard — bundles a list of consumer-specific guards

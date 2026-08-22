@@ -21,7 +21,7 @@ import {
     UnprocessableEntityException,
     type OnApplicationBootstrap,
 } from '@nestjs/common';
-import { CATALOG_ERROR_CODES } from '@saasicat/types';
+import { CATALOG_ERROR_CODES } from '@saasicat/core';
 import type {
     CapabilityCatalogEntryRow,
     CapabilityCodeStatus,
@@ -38,7 +38,7 @@ import type {
     SetCatalogEntryReviewData,
     SyncDiscoveryResult,
     UpdateCatalogEntryBaseData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { DiscoveryScanner } from '../discovery/discovery.scanner.js';

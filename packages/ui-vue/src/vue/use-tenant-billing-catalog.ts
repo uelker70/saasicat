@@ -7,7 +7,7 @@
 // that the frontend bundle does not pull in the Nest server code.
 
 import { ref, type Ref } from 'vue';
-import type { FeatureUiRegistry } from '@saasicat/types';
+import type { FeatureUiRegistry } from '@saasicat/core';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import { trimTrailingSlashes } from '../client/http-json.js';
 

@@ -7,7 +7,7 @@
 // The composable types the response as `AuditEntry[]`.
 
 import { ref, type Ref } from 'vue';
-import type { AuditEntry, AuditQuery } from '@saasicat/types';
+import type { AuditEntry, AuditQuery } from '@saasicat/core';
 import { useApiList, type UseApiListOptions, type UseApiListResult } from './use-api-list.js';
 
 export interface UseAuditEntriesOptions {

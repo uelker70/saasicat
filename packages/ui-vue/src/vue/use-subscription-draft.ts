@@ -19,7 +19,7 @@ import {
     type PromoPreviewResponse,
     type PromoPreviewValidResponse,
     type PublicMarketingBundle,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 // For yearly payment, the mockup applies 10x the monthly price (= 2 months free).
 // If the catalog already provides a `yearlyNet`, that one is used;

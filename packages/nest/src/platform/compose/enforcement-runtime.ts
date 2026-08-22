@@ -10,7 +10,7 @@
 
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import type { DynamicModule, Provider } from '@nestjs/common';
-import type { QuotaProvider, SubscriptionRepository } from '@saasicat/types';
+import type { QuotaProvider, SubscriptionRepository } from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../../core/di.js';
 import { EnforceQuotaInterceptor, QUOTA_PROVIDERS_TOKEN } from '../enforce-quota.interceptor.js';

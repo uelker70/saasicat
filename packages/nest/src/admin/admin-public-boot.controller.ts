@@ -1,5 +1,5 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import type { PublicBootResponse } from '@saasicat/types';
+import type { PublicBootResponse } from '@saasicat/core';
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
 import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifest.config.js';
 

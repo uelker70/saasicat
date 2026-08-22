@@ -22,7 +22,7 @@ import {
     UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AUTH_ERROR_CODES } from '@saasicat/types';
+import { AUTH_ERROR_CODES } from '@saasicat/core';
 import { codedError } from '../errors/coded-error.js';
 import { MfaService } from './mfa.service.js';
 

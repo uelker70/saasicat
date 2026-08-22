@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { VersionChange } from '@saasicat/types';
+import type { VersionChange } from '@saasicat/core';
 import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

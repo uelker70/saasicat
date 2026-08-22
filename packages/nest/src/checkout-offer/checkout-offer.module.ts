@@ -22,7 +22,7 @@ import type {
     CatalogEntryRepository,
     CheckoutOfferRepository,
     PlanRepository,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import {

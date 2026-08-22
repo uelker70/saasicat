@@ -1461,7 +1461,7 @@ components:
                 snapshot:
                     type: object
                     additionalProperties: true
-                    description: 'DiscoverySnapshot (app/features/quotas/capabilities) from @saasicat/types'
+                    description: 'DiscoverySnapshot (app/features/quotas/capabilities) from @saasicat/core'
 
         CatalogMarketingSettingsUpdate:
             type: object

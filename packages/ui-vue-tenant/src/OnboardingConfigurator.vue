@@ -109,7 +109,7 @@ import type {
     PromoPreviewRequest,
     PromoPreviewResponse,
     PublicMarketingBundle,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 // OnboardingConfigurator — page component for tenant self-service onboarding.
 // Composes the sub-components, holds the draft state, calls the consumer's

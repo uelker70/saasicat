@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
-import type { PromoCodeValidationLogRepository } from '@saasicat/types';
+import type { PromoCodeValidationLogRepository } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { promoCodeValidationLogs } from './schema.js';
 

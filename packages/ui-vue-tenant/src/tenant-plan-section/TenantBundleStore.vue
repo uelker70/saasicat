@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
-import { missingRequiresFor } from '@saasicat/types';
+import { missingRequiresFor } from '@saasicat/core';
 import type { CatalogBundle } from '@saasicat/ui-vue';
 import type { SubscriptionBundleShape } from '@saasicat/ui-vue';
 

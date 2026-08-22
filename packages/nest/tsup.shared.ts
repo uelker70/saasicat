@@ -3,7 +3,7 @@
 // packages as external — a dependency bundled into one pass but not the other
 // would give the two outputs different copies of it.
 export const CJS_EXTERNAL = [
-    '@saasicat/types',
+    '@saasicat/core',
     '@saasicat/spec',
     '@nestjs/common',
     '@nestjs/core',

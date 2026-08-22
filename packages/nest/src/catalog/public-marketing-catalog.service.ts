@@ -26,7 +26,7 @@ import {
     type PublicMarketingCatalogResponse,
     type PublicMarketingPlan,
     type PublicMarketingPromo,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import {
     BUNDLE_REPOSITORY_TOKEN,

@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { DiscoveredQuota, PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { DiscoveredQuota, PlanRow, PlanVersionRow } from '@saasicat/core';
 
 import { findBundlePlanOverlap, type BundlePlanOverlap } from './bundle-version-status';
 
