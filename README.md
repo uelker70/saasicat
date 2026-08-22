@@ -129,7 +129,8 @@ existing CRUD backend to a discovered, packaged and enforced feature in about
 [handbook](docs/handbook.md) is the in-depth reference behind it, and the
 [design guide](docs/design-guide.md) is what you read before writing an admin
 page of your own: the page recipe, the colour roles, the scales and the dark
-theme that comes with them.
+theme that comes with them. Coming from a 0.x release? [Migrating to 1.0](docs/migrating-to-1.0.md) is one
+command and a table of what changed.
 
 > The Admin UI ships German and English messages; users switch in the header.
 > Apps choose which of them to offer and can add languages of their own — the

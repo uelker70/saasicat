@@ -64,6 +64,14 @@ const SOURCES = [
 /** A placeholder in prose, not a path anyone imports. */
 const isPlaceholder = (subpath) => subpath.includes('...') || subpath.endsWith('/');
 
+/**
+ * A document whose subject is the retired paths — the migration guide — says
+ * so in its head with `naming-history`, the same declaration
+ * `one-spelling.test.js` reads. Its "before" column must name what no longer
+ * resolves; holding it to the export map would make it unwritable.
+ */
+const declaresHistory = (text) => text.split('\n', 20).join('\n').includes('naming-history');
+
 const SPECIFIER = /@saasicat\/ui-vue\/([A-Za-z0-9/_.-]+)/g;
 
 describe('every ui-vue subpath a template or document names can be imported', () => {
@@ -76,7 +84,9 @@ describe('every ui-vue subpath a template or document names can be imported', ()
                   ? [source]
                   : [];
         for (const file of files) {
-            for (const [, subpath] of readFileSync(file, 'utf8').matchAll(SPECIFIER)) {
+            const text = readFileSync(file, 'utf8');
+            if (declaresHistory(text)) continue;
+            for (const [, subpath] of text.matchAll(SPECIFIER)) {
                 if (isPlaceholder(subpath)) continue;
                 used.push({ file: relative(ROOT, file), subpath });
             }

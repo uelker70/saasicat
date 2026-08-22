@@ -1,0 +1,45 @@
+{
+    "_namingHistory": "The 1.0 rename as data. Every old spelling below is named on purpose: this table is what `saasicat codemod v1-rename` runs on, and `tests/one-spelling.test.js` reads this key as the declaration.",
+    "_comment": [
+        "Phase 5 (AP1) renamed four things a consumer's code can carry:",
+        "identifier stems, registry keys, one token that had two meanings, and",
+        "one export subpath. Each section is one of those, and the codemod",
+        "applies them in that order.",
+        "",
+        "`identifierStems` is matched anywhere in an identifier — the stem alone",
+        "covers `SaasPlatformModule`, `createSaasPlatformTestModule` and",
+        "`CreateSaasPlatformTestModuleOptions` without listing them. The lowercase",
+        "`saasicat` (scope, files) is not a stem and is never touched.",
+        "",
+        "`registryKeys` rewrites the string a `Symbol.for` is called with. A",
+        "consumer that spelled a key themselves gets the same symbol the platform",
+        "now registers; without this their injection would resolve to nothing.",
+        "",
+        "`entryTokens` is keyed by the import specifier, because the old name",
+        "meant different registries in different entries. An import of it from",
+        "anywhere else is reported, not guessed."
+    ],
+    "identifierStems": {
+        "SaasPlatform": "SaaSiCat",
+        "Saasicat": "SaaSiCat",
+        "SaaSicat": "SaaSiCat"
+    },
+    "registryKeys": {
+        "saas-platform/": "saasicat/nest/",
+        "saas-platform-nest/": "saasicat/nest/",
+        "saas-platform-cli/": "saasicat/cli/",
+        "@saasicat/ui-vue/": "saasicat/ui-vue/",
+        "FakeTransactionRunner.tx": "saasicat/nest/FakeTransactionRunner.tx"
+    },
+    "entryTokens": {
+        "@saasicat/nest/billing": {
+            "FEATURE_UI_REGISTRY_TOKEN": "BILLING_FEATURE_UI_REGISTRY_TOKEN"
+        },
+        "@saasicat/nest/catalog": {
+            "FEATURE_UI_REGISTRY_TOKEN": "CATALOG_FEATURE_UI_REGISTRY_TOKEN"
+        }
+    },
+    "subpaths": {
+        "@saasicat/ui-vue/testing-e2e/": "@saasicat/ui-vue/testing/"
+    }
+}

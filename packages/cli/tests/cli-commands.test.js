@@ -1,3 +1,5 @@
+// naming-history: the codemod cases below carry the pre-1.0 spellings on
+// purpose — they are what the command rewrites.
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
@@ -391,18 +393,108 @@ describe('codemod v1-imports', () => {
         // A consumer runs this at their repository root. Rewriting inside
         // dependencies or build output would be damage, not migration.
         const root = await consumer('codemod-skips');
-        for (const skipped of ['node_modules', 'dist']) {
+        for (const skipped of ['node_modules', 'dist', 'dist-dev']) {
             await mkdir(join(root, skipped), { recursive: true });
             await writeFile(join(root, skipped, 'vendor.ts'), CONSUMER_SOURCE, 'utf8');
         }
         await cli(['codemod', 'v1-imports', `--dir=${root}`]);
 
-        for (const skipped of ['node_modules', 'dist']) {
+        for (const skipped of ['node_modules', 'dist', 'dist-dev']) {
             assert.equal(
                 await readFile(join(root, skipped, 'vendor.ts'), 'utf8'),
                 CONSUMER_SOURCE,
                 `the codemod wrote into ${skipped}/`,
             );
         }
+    });
+});
+
+describe('codemod v1-rename', () => {
+    const RENAME_SOURCE = [
+        "import { SaasPlatformModule, type SaasPlatformModuleOptions } from '@saasicat/nest';",
+        "import { FEATURE_UI_REGISTRY_TOKEN } from '@saasicat/nest/billing';",
+        "import { runAdminPagesSuite } from '@saasicat/ui-vue/testing-e2e/admin-pages-suite';",
+        "const MFA = Symbol.for('saas-platform/MfaPort');",
+        "import Page from '@saasicat/ui-vue/pages/UsersPage.vue';",
+        '',
+    ].join('\n');
+
+    async function consumer(name) {
+        const root = join(dir, name);
+        await mkdir(join(root, 'src'), { recursive: true });
+        await writeFile(join(root, 'src', 'app.ts'), RENAME_SOURCE, 'utf8');
+        return root;
+    }
+
+    test('rewrites the four kinds of name and leaves the rest alone', async () => {
+        const root = await consumer('rename-run');
+        const { stdout, code } = await cli(['codemod', 'v1-rename', `--dir=${root}`]);
+
+        assert.equal(code, 0, stdout);
+        const after = await readFile(join(root, 'src', 'app.ts'), 'utf8');
+        assert.match(after, /import \{ SaaSiCatModule, type SaaSiCatModuleOptions \}/);
+        assert.match(after, /BILLING_FEATURE_UI_REGISTRY_TOKEN/);
+        assert.match(after, /@saasicat\/ui-vue\/testing\/admin-pages-suite/);
+        assert.match(after, /Symbol\.for\('saasicat\/nest\/MfaPort'\)/);
+        assert.match(after, /@saasicat\/ui-vue\/pages\/UsersPage\.vue/);
+        assert.doesNotMatch(after, /SaasPlatform|saas-platform\/|testing-e2e/);
+        assert.match(stdout, /Rewrote \d+ name\(s\) in 1 file\(s\)/);
+    });
+
+    test('reports the token it cannot decide, and leaves it', async () => {
+        const root = await consumer('rename-ambiguous');
+        await writeFile(
+            join(root, 'src', 'root.ts'),
+            "import { FEATURE_UI_REGISTRY_TOKEN } from '@saasicat/nest';\n",
+            'utf8',
+        );
+        const { stdout } = await cli(['codemod', 'v1-rename', `--dir=${root}`]);
+
+        assert.match(stdout, /need a decision/i);
+        assert.match(stdout, /FEATURE_UI_REGISTRY_TOKEN from '@saasicat\/nest'/);
+        const untouched = await readFile(join(root, 'src', 'root.ts'), 'utf8');
+        assert.match(untouched, /\bFEATURE_UI_REGISTRY_TOKEN\b/);
+    });
+
+    test('--dry-run reports and writes nothing', async () => {
+        const root = await consumer('rename-dry');
+        const { stdout, code } = await cli(['codemod', 'v1-rename', `--dir=${root}`, '--dry-run']);
+
+        assert.equal(code, 0, stdout);
+        assert.match(stdout, /Would rewrite/);
+        assert.equal(await readFile(join(root, 'src', 'app.ts'), 'utf8'), RENAME_SOURCE);
+    });
+
+    test('a second run has nothing left to do', async () => {
+        const root = await consumer('rename-twice');
+        await cli(['codemod', 'v1-rename', `--dir=${root}`]);
+        const once = await readFile(join(root, 'src', 'app.ts'), 'utf8');
+        const { stdout } = await cli(['codemod', 'v1-rename', `--dir=${root}`]);
+        assert.match(stdout, /Rewrote 0 name\(s\) in 0 file\(s\)/);
+        assert.equal(await readFile(join(root, 'src', 'app.ts'), 'utf8'), once);
+    });
+});
+
+describe('codemod v1', () => {
+    test('runs the import rewrite and the rename, in that order', async () => {
+        const root = join(dir, 'v1-both');
+        await mkdir(join(root, 'src'), { recursive: true });
+        await writeFile(
+            join(root, 'src', 'app.ts'),
+            [
+                "import Gate from '@saasicat/ui-vue/components/FeatureGate.vue';",
+                "import { SaasPlatformModule } from '@saasicat/nest';",
+                '',
+            ].join('\n'),
+            'utf8',
+        );
+        const { stdout, code } = await cli(['codemod', 'v1', `--dir=${root}`]);
+
+        assert.equal(code, 0, stdout);
+        const after = await readFile(join(root, 'src', 'app.ts'), 'utf8');
+        assert.match(after, /ui\/entitlement\/FeatureGate\.vue/);
+        assert.match(after, /SaaSiCatModule/);
+        assert.match(stdout, /import\(s\)/);
+        assert.match(stdout, /name\(s\)/);
     });
 });

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // `saasicat` — bootstrap CLI for the SaaSiCat framework.
+// naming-history: the codemod help below names the pre-1.0 spellings it rewrites.
 //
 // Sub-commands:
 //   schema apply [--prisma-schema=PATH] [--fragments=01,02,03]
@@ -17,6 +18,8 @@
 //
 //   init --project-key=X --quota=key:Model [--quota=…]... [--app-name=X] [--api-base=X]
 //   codemod v1-imports [--dir=X] [--dry-run]
+//   codemod v1-rename  [--dir=X] [--dry-run]
+//   codemod v1         [--dir=X] [--dry-run]   — both, in that order
 //        [--skip-hasher] [--dry-run] [--dir=.]
 //       Writes the platform wiring — config, persistence, manifest
 //       contribution, admin module, one provider per quota — and adds
@@ -47,6 +50,7 @@ import {
     buildImportMap,
     migrationCreatedBy,
     rewriteImports,
+    rewriteNames,
     reportConstraints,
     patchAppModule,
     patchOptionsFor,
@@ -537,47 +541,22 @@ async function cmdCodemodV1Imports(args) {
     const root = resolve(args.dir ?? '.');
     const dryRun = args['dry-run'] === true;
 
-    const table = JSON.parse(
-        await readFile(
-            join(
-                dirname(require_.resolve('@saasicat/cli')),
-                '..',
-                'codemods',
-                'v1-imports.map.json',
-            ),
-            'utf8',
-        ),
-    );
+    const table = JSON.parse(await readFile(codemodTable('v1-imports.map.json'), 'utf8'));
     const map = buildImportMap(table);
 
-    const SKIP = new Set(['node_modules', 'dist', 'dist-app', '.git', '.output', 'coverage']);
-    const EXTENSIONS = /\.(ts|tsx|js|mjs|cjs|vue|md)$/;
     const unmapped = new Map();
     let rewritten = 0;
     let touched = 0;
-
-    const walk = async (dir) => {
-        for (const entry of await readdir(dir, { withFileTypes: true })) {
-            if (SKIP.has(entry.name)) continue;
-            const full = join(dir, entry.name);
-            if (entry.isDirectory()) {
-                await walk(full);
-                continue;
-            }
-            if (!EXTENSIONS.test(entry.name)) continue;
-
-            const source = await readFile(full, 'utf8');
-            const result = rewriteImports(source, map);
-            for (const [subpath, n] of result.unmapped) {
-                unmapped.set(subpath, (unmapped.get(subpath) ?? 0) + n);
-            }
-            if (result.rewritten === 0) continue;
-            if (!dryRun) await writeFile(full, result.text);
-            rewritten += result.rewritten;
-            touched += 1;
+    await walkSources(root, async (full, source) => {
+        const result = rewriteImports(source, map);
+        for (const [subpath, n] of result.unmapped) {
+            unmapped.set(subpath, (unmapped.get(subpath) ?? 0) + n);
         }
-    };
-    await walk(root);
+        if (result.rewritten === 0) return;
+        if (!dryRun) await writeFile(full, result.text);
+        rewritten += result.rewritten;
+        touched += 1;
+    });
 
     console.log(
         `${dryRun ? 'Would rewrite' : 'Rewrote'} ${rewritten} import(s) in ${touched} file(s).`,
@@ -594,6 +573,79 @@ async function cmdCodemodV1Imports(args) {
     console.log('  not publish: they were domain or page-private components, and importing');
     console.log('  them tied your app to our internal structure. Copy what you need into');
     console.log('  your own repository.');
+}
+
+/**
+ * Rewrites the names 1.0 changed: identifier stems, registry keys, the one
+ * token that had two meanings, and the e2e helper's subpath.
+ *
+ * Same shape as `v1-imports`, same table discipline: the rules are read from
+ * `codemods/v1-rename.map.json`, shipped with this package, so what a
+ * consumer's code becomes is what the platform's own rename was checked
+ * against.
+ */
+async function cmdCodemodV1Rename(args) {
+    const root = resolve(args.dir ?? '.');
+    const dryRun = args['dry-run'] === true;
+    const table = JSON.parse(await readFile(codemodTable('v1-rename.map.json'), 'utf8'));
+
+    const ambiguous = new Map();
+    let rewritten = 0;
+    let touched = 0;
+    await walkSources(root, async (full, source) => {
+        const result = rewriteNames(source, table);
+        for (const name of result.ambiguous) {
+            ambiguous.set(name, (ambiguous.get(name) ?? 0) + 1);
+        }
+        if (result.rewritten === 0) return;
+        if (!dryRun) await writeFile(full, result.text);
+        rewritten += result.rewritten;
+        touched += 1;
+    });
+
+    console.log(
+        `${dryRun ? 'Would rewrite' : 'Rewrote'} ${rewritten} name(s) in ${touched} file(s).`,
+    );
+    if (ambiguous.size === 0) return;
+
+    console.log('');
+    console.log('These need a decision, not a rewrite:');
+    for (const [name, n] of [...ambiguous].sort()) {
+        console.log(`  ${String(n).padStart(3)}×  ${name}`);
+    }
+    console.log('');
+    console.log('  FEATURE_UI_REGISTRY_TOKEN meant one registry in `@saasicat/nest/billing`');
+    console.log('  and another in `@saasicat/nest/catalog`. Import it from the entry you');
+    console.log('  mean — BILLING_FEATURE_UI_REGISTRY_TOKEN or CATALOG_FEATURE_UI_REGISTRY_TOKEN.');
+}
+
+/** Where a shipped codemod table lives, resolved through the package itself. */
+function codemodTable(name) {
+    return join(dirname(require_.resolve('@saasicat/cli')), '..', 'codemods', name);
+}
+
+// Anything a build wrote is skipped, whatever it is called: `dist`, `dist-app`,
+// `dist-dev` — a consumer's declaration output carries the old names too, and
+// rewriting it would only make the next build disagree with it.
+const CODEMOD_SKIP = new Set(['node_modules', '.git', '.output', 'coverage']);
+const isBuildOutput = (name) => name === 'dist' || name.startsWith('dist-');
+const CODEMOD_EXTENSIONS = /\.(ts|tsx|js|mjs|cjs|vue|md)$/;
+
+/** Every source file under `root` a codemod may touch, with its text. */
+async function walkSources(root, visit) {
+    const walk = async (dir) => {
+        for (const entry of await readdir(dir, { withFileTypes: true })) {
+            if (CODEMOD_SKIP.has(entry.name) || isBuildOutput(entry.name)) continue;
+            const full = join(dir, entry.name);
+            if (entry.isDirectory()) {
+                await walk(full);
+                continue;
+            }
+            if (!CODEMOD_EXTENSIONS.test(entry.name)) continue;
+            await visit(full, await readFile(full, 'utf8'));
+        }
+    };
+    await walk(root);
 }
 
 /** Reads a repeated flag (`--quota=a --quota=b`) off argv. */
@@ -738,6 +790,15 @@ async function main() {
     if (cmd === 'codemod' && sub === 'v1-imports') {
         return cmdCodemodV1Imports(parseArgs(rest));
     }
+    if (cmd === 'codemod' && sub === 'v1-rename') {
+        return cmdCodemodV1Rename(parseArgs(rest));
+    }
+    if (cmd === 'codemod' && sub === 'v1') {
+        // Imports first: the rename table keys its per-entry tokens by the
+        // specifier they are imported from, which the import rewrite settles.
+        await cmdCodemodV1Imports(parseArgs(rest));
+        return cmdCodemodV1Rename(parseArgs(rest));
+    }
     if (cmd === 'init') {
         return cmdInit(parseArgs([sub, ...rest].filter(Boolean)), process.argv.slice(3));
     }
@@ -770,8 +831,13 @@ async function main() {
         console.log('          every plan must declare one, or the catalogue does not load.');
         console.log('  init --project-key=myapp --quota=notes:Note --quota=seats:Seat');
         console.log('');
+        console.log('  codemod v1 [--dir=.] [--dry-run]');
+        console.log('          the whole 1.0 migration: v1-imports, then v1-rename');
         console.log('  codemod v1-imports [--dir=.] [--dry-run]');
         console.log('          rewrite @saasicat/ui-vue imports to the 1.0 export map');
+        console.log('  codemod v1-rename [--dir=.] [--dry-run]');
+        console.log('          rewrite the names 1.0 changed: SaasPlatform*, Symbol.for keys,');
+        console.log('          FEATURE_UI_REGISTRY_TOKEN, @saasicat/ui-vue/testing-e2e/*');
         console.log('');
         console.log('Optional --prisma-schema=PATH (default prisma/schema.prisma).');
         console.log('Optional --tenant-model=X --user-model=Y for apply/migrate — enables');

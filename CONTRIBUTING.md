@@ -205,6 +205,8 @@ Together they give `1.0.0-rc.0`, after which every level accumulates as
 
 Leaving pre mode is how `1.0.0` itself is released. It happens once, deliberately,
 when the work behind the candidate is complete — not as part of an ordinary change.
+The consumer-facing account of the break is [`docs/migrating-to-1.0.md`](docs/migrating-to-1.0.md);
+the codemod it names is `saasicat codemod v1`.
 
 ## Commits and pull requests
 
