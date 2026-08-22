@@ -35,8 +35,14 @@ describe('the map is derived from the move, not written beside it', () => {
         // target naming another package must name one that exists. A codemod
         // that rewrites an import to something unresolvable moves the failure
         // into a consumer's build, where nobody can see this file.
+        // An `internal/` target is a declared removal: `rewriteSubpath` never
+        // emits it, it is what makes a nested `pages-standard/` path report
+        // instead of rewrite. Everything else must resolve.
         const offenders = [...MAP.values()].filter(
-            (to) => !/^(ui|layouts|auth|pages)\//.test(to) && !to.startsWith('@saasicat/'),
+            (to) =>
+                !/^(ui|layouts|auth|pages)\//.test(to) &&
+                !to.startsWith('@saasicat/') &&
+                !to.startsWith('internal/'),
         );
         assert.deepEqual(offenders, [], 'the codemod points at something not exported');
     });
@@ -100,6 +106,18 @@ describe('what has no new home is reported, not guessed at', () => {
 
     test('a primitive is not reported — it has somewhere to go', () => {
         assert.equal(isNoLongerPublic(MAP, 'components/FeatureGate.vue'), false);
+    });
+
+    test('a page-private part under the old alias is a removal, not a page', () => {
+        // `pages-standard/bundles-page/BundleAccordionList.vue` went to
+        // `internal/`. The alias fallback used to turn it into
+        // `pages/bundles-page/…` — a path that resolves to nothing.
+        const nested = 'pages-standard/bundles-page/BundleAccordionList.vue';
+        assert.equal(rewriteSubpath(MAP, nested), null);
+        assert.equal(isNoLongerPublic(MAP, nested), true);
+        const result = rewriteImports(`import X from '@saasicat/ui-vue/${nested}';`, MAP);
+        assert.equal(result.rewritten, 0);
+        assert.equal(result.unmapped.get(nested), 1);
     });
 });
 

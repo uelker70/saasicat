@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { rewriteNames } from '../dist/index.js';
+import { namedImports, rewriteNames } from '../dist/index.js';
 
 // naming-history: this file names the retired spellings because they are what
 // the codemod rewrites. The rules come from `codemods/v1-rename.map.json`, the
@@ -128,5 +128,34 @@ describe('the shapes a consumer meets', () => {
         const twice = rewriteNames(once.text, TABLE);
         assert.equal(twice.text, once.text);
         assert.equal(twice.rewritten, 0);
+    });
+});
+
+describe('reading named imports', () => {
+    test('single-line, multi-line, type-only and aliased forms', () => {
+        const found = namedImports(
+            [
+                "import { A, type B } from '@saasicat/nest';",
+                'import type {',
+                '    C as D,',
+                '    E,',
+                '} from "@saasicat/nest/billing";',
+                "import F from '@saasicat/types';",
+            ].join('\n'),
+        );
+        assert.deepEqual(found, [
+            { names: ['A', 'B'], specifier: '@saasicat/nest' },
+            { names: ['C', 'E'], specifier: '@saasicat/nest/billing' },
+        ]);
+    });
+
+    test('finishes on the input a backtracking expression would choke on', () => {
+        // CodeQL's case: many `import {{` in a row, then no closing statement.
+        const hostile = `${'import {{'.repeat(20_000)} from 'x'`;
+        const started = Date.now();
+        namedImports(hostile);
+        assert.ok(Date.now() - started < 1_000, 'the scan is not linear');
+        const spaces = `import { A${' '.repeat(50_000)}as B } from 'y'`;
+        assert.deepEqual(namedImports(spaces)[0]?.names, ['A']);
     });
 });

@@ -8,6 +8,9 @@
 // `v1-rename.map.json`, the table the rename was done from, so a rewrite
 // cannot disagree with what the platform actually exports. Pure functions, as
 // `v1-imports.ts`: the caller reads and writes files.
+//
+// naming-history: the comments below name the retired spellings — they are
+// what this file rewrites.
 
 /** One entry of the rename table. */
 export interface RenameTable {
@@ -34,8 +37,54 @@ export interface RenameResult {
 
 const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
-/** The specifier and the bound names of every `import { … } from '…'`. */
-const NAMED_IMPORT = /import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+(['"])([^'"]+)\2/g;
+/** Every `from '…'` / `from "…"` in a text — the anchor a named import is read back from. */
+const FROM_SPECIFIER = /from\s*(['"])([^'"]+)\1/g;
+
+/** Whitespace, in one pass and without backtracking. */
+const isSpace = (ch: string): boolean => ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
+
+/**
+ * The specifier and the bound names of every `import { … } from '…'`.
+ *
+ * Read backwards from each `from`, one character at a time, instead of with
+ * one regular expression over the statement: `\{([^}]*)\}\s+from` and its
+ * siblings backtrack quadratically on a file full of `import {{`, and the
+ * file is a consumer's — whatever they wrote, this must finish.
+ */
+export function namedImports(text: string): Array<{ names: string[]; specifier: string }> {
+    const found: Array<{ names: string[]; specifier: string }> = [];
+    for (const match of text.matchAll(FROM_SPECIFIER)) {
+        let i = (match.index ?? 0) - 1;
+        while (i >= 0 && isSpace(text[i])) i -= 1;
+        if (text[i] !== '}') continue;
+        const close = i;
+        const open = text.lastIndexOf('{', close);
+        if (open < 0) continue;
+        i = open - 1;
+        while (i >= 0 && isSpace(text[i])) i -= 1;
+        let head = text.slice(Math.max(0, i - 3), i + 1);
+        if (head === 'type') {
+            i -= 4;
+            while (i >= 0 && isSpace(text[i])) i -= 1;
+            head = text.slice(Math.max(0, i - 5), i + 1);
+        } else {
+            head = text.slice(Math.max(0, i - 5), i + 1);
+        }
+        if (head !== 'import') continue;
+        const names = text
+            .slice(open + 1, close)
+            .split(',')
+            .map((raw) => {
+                // `type X as Y` → `X`: the bound name is the one the entry exports.
+                const words = raw.trim().split(/\s+/);
+                if (words[0] === 'type') words.shift();
+                return words[0] ?? '';
+            })
+            .filter((name) => name.length > 0);
+        found.push({ names, specifier: match[2] });
+    }
+    return found;
+}
 
 /** Applies the table to one file's text. Idempotent: a second run changes nothing. */
 export function rewriteNames(text: string, table: RenameTable): RenameResult {
@@ -46,16 +95,9 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
     // 1. Tokens whose new name depends on the entry they come from. Decided
     //    per import statement; the name is then renamed across the file.
     const perEntry = new Map<string, string>();
-    for (const match of text.matchAll(NAMED_IMPORT)) {
-        const [, names, , specifier] = match;
+    for (const { names, specifier } of namedImports(text)) {
         const mapping = table.entryTokens[specifier];
-        for (const raw of names.split(',')) {
-            const name = raw
-                .trim()
-                .replace(/^type\s+/, '')
-                .split(/\s+as\s+/)[0]
-                ?.trim();
-            if (!name) continue;
+        for (const name of names) {
             const knownSomewhere = Object.values(table.entryTokens).some((m) => name in m);
             if (!knownSomewhere) continue;
             if (mapping && name in mapping) perEntry.set(name, mapping[name]);

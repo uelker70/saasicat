@@ -84,7 +84,7 @@ import type { promoCodesResource } from '../client/resources/promo-codes.resourc
 import type { PromoDetail as PromoDetailData } from '../client/resources/promo-codes.resource.js';
 import { promoStatusTone, type PillTone } from '../vue/status.js';
 import type { PromoCodeStatus } from '@saasicat/types';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
@@ -180,6 +180,12 @@ async function reload() {
 }
 
 onMounted(() => {
+    void reload();
+});
+// Vue Router reuses this component between `promo-codes/:code` URLs, so a
+// mount-only load would leave the first code's data under the second URL —
+// and an edit from there would write to the wrong promo.
+watch(promoId, () => {
     void reload();
 });
 

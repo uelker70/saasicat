@@ -17,6 +17,11 @@ export interface MoveTable {
      * — `@saasicat/ui-vue-tenant/` — and is emitted verbatim.
      */
     readonly packages?: Readonly<Record<string, string>>;
+    /**
+     * Directories whose files left the surface as a whole — the page-private
+     * parts under `pages-standard/<page>/` that became `internal/<page>/`.
+     */
+    readonly moveDirectories?: Readonly<Record<string, string>>;
 }
 
 /** Subpaths that stay on the public surface after the move. */
@@ -54,7 +59,23 @@ export function buildImportMap(table: MoveTable): Map<string, string> {
         if (from === '_') continue;
         map.set(from, to);
     }
+    // A directory that went private. Stored with a trailing slash and an
+    // `internal/` target, which `rewriteSubpath` recognises as "no destination
+    // on the surface" — the alias fallback below must not reach these.
+    for (const [from, to] of Object.entries(table.moveDirectories ?? {})) {
+        map.set(`${from}/`, `${to}/`);
+    }
     return map;
+}
+
+/** Whether a subpath sits inside a directory that left the public surface. */
+function wentPrivate(map: ReadonlyMap<string, string>, subpath: string): boolean {
+    for (const [prefix, target] of map) {
+        if (prefix.endsWith('/') && target.startsWith('internal/') && subpath.startsWith(prefix)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -74,8 +95,13 @@ export function rewriteSubpath(map: ReadonlyMap<string, string>, subpath: string
         }
     }
 
-    if (subpath.startsWith('pages-standard/')) {
-        return `pages/${subpath.slice('pages-standard/'.length)}`;
+    // The alias fallback is for a PAGE — one file directly under the old
+    // alias. A nested path was a page-private part, and those went to
+    // `internal/`, which the surface does not publish; rewriting it to
+    // `pages/<dir>/…` would hand the consumer a path nobody ever wrote.
+    if (subpath.startsWith('pages-standard/') && !wentPrivate(map, subpath)) {
+        const file = subpath.slice('pages-standard/'.length);
+        if (!file.includes('/')) return `pages/${file}`;
     }
     return null;
 }
@@ -89,7 +115,8 @@ export function rewriteSubpath(map: ReadonlyMap<string, string>, subpath: string
  * explanation of what happened.
  */
 export function isNoLongerPublic(map: ReadonlyMap<string, string>, subpath: string): boolean {
-    return subpath.startsWith('components/') && !map.has(subpath);
+    if (subpath.startsWith('components/')) return !map.has(subpath);
+    return subpath.startsWith('pages-standard/') && wentPrivate(map, subpath);
 }
 
 /** Every `@saasicat/ui-vue/<subpath>` occurrence in a source text. */

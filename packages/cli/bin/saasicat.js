@@ -629,7 +629,7 @@ function codemodTable(name) {
 // rewriting it would only make the next build disagree with it.
 const CODEMOD_SKIP = new Set(['node_modules', '.git', '.output', 'coverage']);
 const isBuildOutput = (name) => name === 'dist' || name.startsWith('dist-');
-const CODEMOD_EXTENSIONS = /\.(ts|tsx|js|mjs|cjs|vue|md)$/;
+const CODEMOD_EXTENSIONS = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|md)$/;
 
 /** Every source file under `root` a codemod may touch, with its text. */
 async function walkSources(root, visit) {

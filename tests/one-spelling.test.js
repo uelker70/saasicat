@@ -93,7 +93,9 @@ describe('the product has one spelling', () => {
         // The declaration must be in use, or a typo in the marker would turn
         // every declared file into an offender at once — or, if the marker
         // were matched too loosely, silently excuse them all.
-        assert.ok(declared >= 1 && declared <= 6, `${declared} files declare history`);
+        // Seven today: this test, the migration guide, the codemod (table, rules,
+        // unit and command tests) and the CLI bin whose help names the old forms.
+        assert.ok(declared >= 1 && declared <= 8, `${declared} files declare history`);
     });
 });
 
