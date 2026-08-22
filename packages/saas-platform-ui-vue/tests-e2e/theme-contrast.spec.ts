@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { VISUAL_CASES } from './visual/pages.js';
+import { reveal } from './visual/collect.js';
 
 declare global {
     interface Window {
@@ -333,14 +334,15 @@ test.describe('both themes are readable', () => {
             // under baseline, which is the shape of a guard that looks thorough
             // and is not: the fixture knows about the screen, and the checker
             // does not.
-            for (const selector of visualCase.revealBy ?? []) {
-                await page.locator(selector).first().click();
-            }
-            // Off the last thing clicked, so the readings below are of the page
-            // at rest. `hoverBy` further down asks about a pointer deliberately;
-            // leaving one here would answer that question by accident, on
-            // whichever element the reveal happened to end on.
-            if (visualCase.revealBy?.length) await page.mouse.move(0, 0);
+            // Shared with the baselines, and that is the fix: this used to
+            // click and read in the same breath, so a surface that took a
+            // moment to render was judged before it existed. `bundles` names a
+            // hover target behind its reveal and the check reported the target
+            // missing — a finding about the checker, not about the page. The
+            // helper also takes the pointer off the last target, so the
+            // readings below are of the page at rest; `hoverBy` asks about a
+            // pointer deliberately, further down.
+            await reveal(page, visualCase.revealBy ?? [], visualCase.id);
 
             const light = await read(page);
             expect(

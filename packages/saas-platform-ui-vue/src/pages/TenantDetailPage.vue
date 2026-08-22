@@ -66,7 +66,7 @@
 
                 <!-- Users -->
                 <AdminSection
-                    v-if="options?.showUsers && data.users"
+                    v-if="(options?.showUsers ?? true) && data.users"
                     :title="labels.users"
                     class="q-mb-md"
                 >

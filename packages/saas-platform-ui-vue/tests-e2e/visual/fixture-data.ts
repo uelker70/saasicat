@@ -105,16 +105,6 @@ const TENANTS = {
     pageSize: 25,
 };
 
-const EMPTY_LIST = { items: [], total: 0, page: 1, pageSize: 25 };
-
-const DISCOVERY = {
-    app: { name: 'Fixture App', version: '0.0.0-fixture' },
-    scannedAt: '2026-01-15T12:00:00.000Z',
-    capabilities: [],
-    features: [],
-    quotas: [],
-};
-
 const BOOT = {
     project: { key: 'fixture', displayName: 'Fixture App' },
     needsSetup: false,
@@ -813,15 +803,158 @@ export const FIXTURE_PLAN_CHANGE_PREVIEW: PlanChangePreviewShape = {
     warnings: [{ code: 'LIMIT_EXCEEDED', message: 'Projects over the target limit' }],
 };
 
+// ─── Rows the PAGES fetch ────────────────────────────────────────────────────
+//
+// These used to be handed to a page as a prop by the case that rendered it.
+// Since the pages read the resource registry, the fixture has to answer the
+// request instead — which is closer to what a consumer's app does, and is why
+// the shapes below are the server's rather than a component's.
+
+const AUDIT_ROWS = [
+    {
+        id: 'a-1',
+        action: 'TENANT_SUSPENDED',
+        // `entity` and `user`, not `entityType` and `actorEmail`. The table has
+        // an Entity column and derives its Actor column from
+        // `user.email ?? userEmail`, so the other spellings render a blank cell
+        // and an em dash.
+        entity: 'Tenant',
+        entityId: 't-0001',
+        user: { email: 'admin@fixture.test' },
+        changes: { isActive: { from: true, to: false } },
+        createdAt: '2026-01-10T08:30:00.000Z',
+    },
+];
+
+const SUBSCRIPTION_ROWS = [
+    {
+        id: 's-1',
+        tenantName: 'Northwind Ltd',
+        planKey: 'PRO',
+        status: 'ACTIVE',
+        startsAt: '2025-03-04T00:00:00.000Z',
+    },
+];
+
+const USER_ROWS = [
+    {
+        id: 'u-1',
+        email: 'admin@fixture.test',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        // `role`, not `platformRole` — the page reads it for both the Role
+        // column and its `isSuperAdmin()` check.
+        role: 'SUPER_ADMIN',
+        isActive: true,
+        lastLoginAt: '2026-07-30T08:15:00.000Z',
+    },
+];
+
+const PROMO_ROWS = [
+    {
+        id: 'p-1',
+        code: 'WELCOME20',
+        valueType: 'PERCENT',
+        value: 20,
+        status: 'ACTIVE',
+        maxRedemptions: 100,
+        // `redemptionsCount` — the table formats this field directly, so
+        // the singular spelling renders "undefined / 100".
+        redemptionsCount: 12,
+        campaignTag: 'launch-2026',
+        validFrom: '2026-01-01',
+        validUntil: '2026-12-31',
+    },
+];
+
+const PROMO_DETAIL = {
+    promo: PROMO_ROWS[0],
+    // Required. The page serialises this block, so leaving it out baselines an
+    // empty one — an invalid response recorded as if it were the design.
+    stats: {
+        redemptions: 12,
+        remaining: 88,
+        discountedNetTotal: '240.00',
+        firstRedeemedAt: '2026-01-08T10:00:00.000Z',
+        lastRedeemedAt: '2026-02-19T16:30:00.000Z',
+    },
+    redemptions: [],
+};
+
+const PILOT_ROWS = [
+    {
+        id: 'pil-1',
+        tenant: { id: 't-0001', slug: 'northwind', name: 'Northwind Ltd' },
+        plan: 'PRO',
+        pilotEndsAt: '2026-03-01T00:00:00.000Z',
+        pilotNote: 'Evaluation until Q1',
+        grantedBy: 'admin@fixture.test',
+        grantedAt: '2026-01-01T00:00:00.000Z',
+    },
+];
+
+const TENANT_DETAIL = {
+    id: 't-0001',
+    name: 'Northwind Ltd',
+    slug: 'northwind',
+    isActive: true,
+    vatId: 'DE123456789',
+    // Nested, not top-level: TenantMasterData reads `data.subscription?.plan`
+    // and friends, so a flat `plan` renders an em dash in every one of them.
+    subscription: {
+        plan: 'PRO',
+        status: 'ACTIVE',
+        isPilot: false,
+        trialEndsAt: null,
+        pilotEndsAt: null,
+    },
+    users: [],
+};
+
+const EMAIL_ROW = {
+    id: 'e-1',
+    fromEmail: 'noreply@fixture.test',
+    toEmail: 'admin@fixture.test',
+    subject: 'Welcome',
+    status: 'SENT',
+    sentAt: '2026-01-14T10:00:00.000Z',
+    createdAt: '2026-01-14T09:59:00.000Z',
+};
+
+const EMAIL_HISTORY = { rows: [EMAIL_ROW], total: 1 };
+const EMAIL_DETAIL = { ...EMAIL_ROW, bodyHtml: '<p>Hello</p>' };
+
+const EMAIL_PROVIDERS = [
+    {
+        id: 'prov-1',
+        name: 'Fixture SMTP',
+        smtpHost: 'smtp.fixture.test',
+        smtpPort: 587,
+        smtpUser: 'noreply@fixture.test',
+        encryption: 'STARTTLS',
+        fromEmail: 'noreply@fixture.test',
+        fromName: 'Fixture',
+        isDefault: true,
+        // `active`, not `isActive` — the tenant spelling leaves the pill
+        // reading "inactive" and every SMTP column empty.
+        active: true,
+    },
+];
+
 /** Routing table. Matched EXACTLY — see `respondTo` for why. */
 const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
     ['/api/admin/boot', BOOT],
     ['/api/admin/manifest', FIXTURE_MANIFEST],
     ['/api/admin/tenants', TENANTS],
-    ['/api/admin/users', EMPTY_LIST],
-    ['/api/admin/audit', EMPTY_LIST],
-    ['/api/admin/subscriptions', EMPTY_LIST],
-    ['/api/admin/discovery', DISCOVERY],
+    ['/api/admin/users', USER_ROWS],
+    ['/api/admin/audit', AUDIT_ROWS],
+    ['/api/admin/subscriptions', SUBSCRIPTION_ROWS],
+    // The full snapshot, not an empty stand-in. It used to be one, because the
+    // pages that render a scan were handed `FIXTURE_DISCOVERY` as a prop and
+    // nothing read this route for its contents. They fetch it now: an empty
+    // snapshot leaves `BundlesPage` with no feature pills at all, and the
+    // baseline recorded exactly that.
+    ['/api/admin/discovery', FIXTURE_DISCOVERY],
     ['/api/admin/catalog/plans/tenant-counts', {}],
     ['/api/admin/catalog/plans/pl-1/versions', FIXTURE_PLAN_VERSIONS],
     ['/api/admin/catalog/bundles/b-1/versions', FIXTURE_BUNDLE_VERSIONS],
@@ -831,18 +964,28 @@ const ROUTES: ReadonlyArray<readonly [string, unknown]> = [
         '/api/admin/catalog/bundles/b-1',
         { bundle: FIXTURE_BUNDLES[0], versions: FIXTURE_BUNDLE_VERSIONS },
     ],
-    ['/api/admin/catalog/features', []],
-    ['/api/admin/catalog/quotas', []],
+    ['/api/admin/catalog/features', FIXTURE_CATALOG_FEATURES],
+    ['/api/admin/catalog/quotas', FIXTURE_CATALOG_QUOTAS],
     ['/api/admin/catalog/plans', FIXTURE_PLANS],
     ['/api/admin/catalog/bundles', FIXTURE_BUNDLES],
     ['/api/admin/catalog/entries', []],
     ['/api/admin/catalog/marketing-projections', FIXTURE_MARKETING_PROJECTIONS],
     ['/api/admin/catalog/marketing-settings', { activeLocales: ['en', 'de'] }],
     // Deliberately empty, and registered so that stays a decision rather than
-    // an accident: neither contributes a surface the token migration touches.
+    // an accident: it contributes no surface the token migration touches.
     ['/api/admin/catalog/promotions', []],
-    ['/api/admin/catalog/capabilities', []],
-    ['/api/admin/promo-codes', EMPTY_LIST],
+    ['/api/admin/catalog/capabilities', FIXTURE_CATALOG_CAPABILITIES],
+    ['/api/admin/promo-codes', PROMO_ROWS],
+    ['/api/admin/promo-codes/WELCOME20', PROMO_DETAIL],
+    ['/api/admin/tenants/northwind', TENANT_DETAIL],
+    ['/api/admin/pilots', PILOT_ROWS],
+    // The page loads both lists. Deliberately empty and registered as such: an
+    // unregistered path is a named gap, and the review strip carries no surface
+    // the token migration touches.
+    ['/api/admin/pilots/review', []],
+    ['/api/admin/platform-email/providers', EMAIL_PROVIDERS],
+    ['/api/admin/platform-email/history', EMAIL_HISTORY],
+    ['/api/admin/platform-email/history/e-1', EMAIL_DETAIL],
     ['/api/admin/setup/status', { needsSetup: false }],
     ['/api/admin/dashboard/tenants', { value: 42 }],
     ['/api/admin/dashboard/subscriptions', { value: 17, delta: 3 }],

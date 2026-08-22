@@ -299,6 +299,10 @@ export interface TenantRowAction {
 // A hardcoded default would ALWAYS serve some app incorrectly.
 /** Which row field carries the plan name, unless the app says otherwise. */
 const DEFAULT_PLAN_FIELD = 'plan';
+// On unless the app turns it off. `withDefaults` carried this before the props
+// were grouped, and `options?.showPlanColumn` alone reads `undefined` as "off"
+// — which silently removed a column from every app that never named it.
+const DEFAULT_SHOW_PLAN_COLUMN = true;
 
 const props = defineProps<{
     /**
@@ -370,7 +374,7 @@ const tenantColumns = computed<QTableColumn[]>(() => {
     const cols: QTableColumn[] = [
         { name: 'tenant', label: msg.value.tenant, field: 'name', align: 'left' },
     ];
-    if (props.options?.showPlanColumn) {
+    if (props.options?.showPlanColumn ?? DEFAULT_SHOW_PLAN_COLUMN) {
         cols.push({
             name: 'plan',
             label: resolvedPlanColumnLabel.value,

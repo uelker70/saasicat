@@ -25,6 +25,8 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
+import { PLAN_STEP_META } from '../features/plan/plan-area-context.js';
+
 /** A lazily loaded SFC, the shape Vue Router takes as `component`. */
 export type PageLoader = () => Promise<unknown>;
 
@@ -123,9 +125,16 @@ export function standardAdminChildren(own: RouteRecordRaw[] = []): RouteRecordRa
                 component: adminPages[page],
                 ...(children
                     ? {
+                          // A nested standard route is a STEP of its parent: it
+                          // renders in the parent's `<router-view>` and takes
+                          // the page chrome over while it does. The parent reads
+                          // this to know it should stand aside, which beats
+                          // comparing paths — the consumer picks the base path,
+                          // not us.
                           children: children.map((child) => ({
                               path: child.path,
                               component: adminPages[child.page],
+                              meta: { [PLAN_STEP_META]: true },
                           })),
                       }
                     : {}),

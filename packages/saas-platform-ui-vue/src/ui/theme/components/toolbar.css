@@ -62,6 +62,31 @@
  * surface that turned up at 1.48:1 in phase 1. Twenty-one measurable pairings
  * beat seven unmeasurable ones. */
 
+/* The shape. It lived in `StatusPill.vue`'s scoped block and was left behind
+ * when the component was promoted onto the roster and its tones moved here —
+ * so every pill in the admin rendered as plain 13px text: no radius, no
+ * padding, no weight. The tones below were all correct and all invisible.
+ *
+ * `--sa-radius-badge` is the pill's own step on the radius ladder: 999px is a
+ * lozenge and 7px is a control, and a status marker in a table row is neither. */
+.sa-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sa-space-2);
+    padding: var(--sa-space-1) var(--sa-space-3);
+    border-radius: var(--sa-radius-badge);
+    font-size: var(--sa-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+/* The icon takes the pill's colour rather than Quasar's default. The rule this
+ * replaces read `.sa-sa-pill`, a typo, so it never matched anything. */
+.sa-pill .q-icon {
+    color: inherit;
+}
+
 .sa-pill--soft.sa-pill--positive {
     background: var(--sa-color-positive-surface);
     color: var(--sa-color-positive-fg);

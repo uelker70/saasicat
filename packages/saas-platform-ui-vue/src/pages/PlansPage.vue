@@ -203,9 +203,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { providePlanWizard } from '../vue/plan-wizard.js';
-import { providePlanArea } from '../features/plan/plan-area-context.js';
+import { PLAN_STEP_META, providePlanArea } from '../features/plan/plan-area-context.js';
+import type { EditorFormPayload } from '../features/plan/plan-area-context.js';
 import { useResource } from '../vue/resource-registry.js';
 import { useSuperAdminEndpoints, useSuperAdminHttp } from '../vue/use-super-admin-context.js';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
@@ -301,6 +302,7 @@ const props = defineProps<{
 }>();
 
 const router = useRouter();
+const route = useRoute();
 const msg = useSaMessages('plans');
 // The plan detail's own strings: its header moved into this page's hero.
 const planDetailMsg = useSaMessages('planDetail');
@@ -322,7 +324,15 @@ const planCounts = computed(() =>
 // The editor and the review render the hero themselves: their actions hang on
 // state that lives in those views — the publish checklist, the force flags, the
 // draft's validity — so the page steps aside rather than lifting all of it up.
-const viewOwnsHero = computed(() => mode.value === 'editor' || mode.value === 'review');
+//
+// Read off the route, because that is what decides it. The two steps became
+// child routes in 4.11 and this condition kept asking a `mode` ref that nothing
+// assigns any more, so it was false on both of them: the page rendered its hero
+// and its body while `<router-view>` rendered the step underneath, putting two
+// complete plan views on one screen.
+const viewOwnsHero = computed(() =>
+    route.matched.some((record) => record.meta?.[PLAN_STEP_META] === true),
+);
 
 // One page, one heading. Every view here — the list, the matrix, a single plan
 // — is a mode of the same page, so each swaps the hero's title and actions
@@ -394,7 +404,9 @@ const {
 // bearbeiten") → "Weiter · Review" → review ("Review & Publish").
 // The editor does NOT persist — saving happens only in the review screen
 // (via "Als Draft speichern" or "Publish").
-type Mode = 'list' | 'matrix' | 'cockpit' | 'editor' | 'review';
+// `editor` and `review` are gone: they are routes now, and a mode nothing
+// assigns is a branch nothing reaches.
+type Mode = 'list' | 'matrix' | 'cockpit';
 const mode = ref<Mode>('list');
 const selectedPlan = ref<PlanRow | null>(null);
 
@@ -899,13 +911,13 @@ async function persistDraft(): Promise<PlanVersionRow | null> {
 
 // "Als Draft speichern" — persists the draft and leaves the wizard
 // (back to the plan detail) without publishing.
-async function onReviewSaveExit(): Promise<void> {
-    if (draftSaving.value || publishing.value) return;
+async function onReviewSaveExit(): Promise<boolean> {
+    if (draftSaving.value || publishing.value) return false;
     draftSaving.value = true;
     reviewError.value = null;
     try {
         const saved = await persistDraft();
-        if (!saved) return;
+        if (!saved) return false;
         const planKey = selectedPlan.value?.planKey ?? '';
         flashHighlight(planKey);
         flashToast(
@@ -917,9 +929,11 @@ async function onReviewSaveExit(): Promise<void> {
         reviewDraft.value = null;
         draftEditing.value = null;
         mode.value = selectedPlan.value ? 'cockpit' : 'list';
+        return true;
     } catch (err: unknown) {
         console.error('[PlansPage] Saving the draft failed', err);
         reviewError.value = describeDraftSaveError(err);
+        return false;
     } finally {
         draftSaving.value = false;
     }
@@ -928,15 +942,15 @@ async function onReviewSaveExit(): Promise<void> {
 async function onReviewPublish(payload: {
     forceRegressive: boolean;
     allowZeroPrice: boolean;
-}): Promise<void> {
-    if (!planVersions.value || !reviewDraft.value || !selectedPlan.value) return;
-    if (publishing.value || draftSaving.value) return;
+}): Promise<boolean> {
+    if (!planVersions.value || !reviewDraft.value || !selectedPlan.value) return false;
+    if (publishing.value || draftSaving.value) return false;
     publishing.value = true;
     reviewError.value = null;
     try {
         // Persist first (the draft doesn't exist server-side yet), then publish.
         const saved = await persistDraft();
-        if (!saved) return;
+        if (!saved) return false;
         const result = await planVersions.value.publish(saved.id, {
             forceRegressive: payload.forceRegressive,
             allowZeroPrice: payload.allowZeroPrice,
@@ -953,9 +967,11 @@ async function onReviewPublish(payload: {
         reviewDraft.value = null;
         draftEditing.value = null;
         mode.value = 'cockpit';
+        return true;
     } catch (err: unknown) {
         console.error('[PlansPage] Publishing failed', err);
         reviewError.value = describePublishError(err);
+        return false;
     } finally {
         publishing.value = false;
     }
@@ -1129,37 +1145,51 @@ providePlanArea({
     // still write through the handlers this page already had, which is why the
     // review's synthetic version is assembled here rather than in the step.
     saveDraft: async (payload, editingId) => {
-        const nowIso = new Date().toISOString();
-        draftEditing.value = { editingId, initialForm: { ...payload } };
-        reviewDraft.value = {
-            id: editingId ?? '',
-            planId: selectedPlan.value?.planKey ?? '',
-            version: payload.version,
-            baseVersionId: null,
-            features: [...payload.features],
-            bundles: [...payload.bundles],
-            quotas: { ...payload.quotas },
-            monthlyNet: payload.monthlyNet,
-            yearlyNet: payload.yearlyNet,
-            marketed: payload.marketed,
-            publishedAt: null,
-            supersededAt: null,
-            publishedChanges: null,
-            changeNote: payload.changeNote,
-            nonRegressive: true,
-            validFrom: payload.validFrom,
-            validUntil: payload.validUntil,
-            createdByUserId: null,
-            publishedByUserId: null,
-            createdAt: nowIso,
-            updatedAt: nowIso,
-        };
-        await onReviewSaveExit();
+        stageDraft(payload, editingId);
+        return await onReviewSaveExit();
     },
-    publishDraft: async () => {
-        await onReviewPublish({ forceRegressive: false, allowZeroPrice: false });
+    publishDraft: async (payload, editingId, options) => {
+        stageDraft(payload, editingId);
+        return await onReviewPublish(options);
     },
 });
+
+/**
+ * Adopts the step's form as the page's draft, before saving or publishing it.
+ *
+ * The wizard's form lives in the step and the page's write path reads
+ * `reviewDraft`, so the two have to meet somewhere. They meet here, in one
+ * place used by both operations: staging it inside `saveDraft` alone is what
+ * made a publish before a save return at its first guard while the step
+ * navigated away as though the version had gone out.
+ */
+function stageDraft(payload: EditorFormPayload, editingId: string | null): void {
+    const nowIso = new Date().toISOString();
+    draftEditing.value = { editingId, initialForm: { ...payload } };
+    reviewDraft.value = {
+        id: editingId ?? '',
+        planId: selectedPlan.value?.planKey ?? '',
+        version: payload.version,
+        baseVersionId: null,
+        features: [...payload.features],
+        bundles: [...payload.bundles],
+        quotas: { ...payload.quotas },
+        monthlyNet: payload.monthlyNet,
+        yearlyNet: payload.yearlyNet,
+        marketed: payload.marketed,
+        publishedAt: null,
+        supersededAt: null,
+        publishedChanges: null,
+        changeNote: payload.changeNote,
+        nonRegressive: true,
+        validFrom: payload.validFrom,
+        validUntil: payload.validUntil,
+        createdByUserId: null,
+        publishedByUserId: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+    };
+}
 const forceRegressive = ref(false);
 const allowZeroPrice = ref(false);
 const publishError = ref<string | null>(null);

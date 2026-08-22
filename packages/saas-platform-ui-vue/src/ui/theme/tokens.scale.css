@@ -89,6 +89,9 @@
     --sa-radius-tile: 10px;
     --sa-radius-field: 8px;
     --sa-radius-control: 7px;
+    /* The status pill. Between a control and nothing: a table row carries
+     * several, and a control-sized radius on a 22px marker reads as a button. */
+    --sa-radius-badge: 5px;
     --sa-radius-pill: 999px;
 
     /* ── Stacking. Aligned with Quasar's own layers rather than invented above

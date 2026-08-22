@@ -56,11 +56,42 @@ export interface PlanAreaContext {
     publishing: Ref<boolean>;
     /** The last write failure, or `null`. */
     saveError: Ref<string | null>;
-    /** Persists the draft the review holds. Resolves to the saved version. */
-    saveDraft: (payload: EditorFormPayload, editingId: string | null) => Promise<void>;
-    /** Publishes the draft the review holds. */
-    publishDraft: () => Promise<void>;
+    /**
+     * Persists the draft, and says whether it was written.
+     *
+     * `false` means the write was refused or failed, with the reason in
+     * `saveError`. The step keeps the operator's form on screen for it — a
+     * step that navigated away on a rejected save discarded the version and
+     * took the error message with it, which is how a failed save reads as a
+     * successful one.
+     */
+    saveDraft: (payload: EditorFormPayload, editingId: string | null) => Promise<boolean>;
+    /**
+     * Persists the draft and publishes it, and says whether that happened.
+     *
+     * Takes the draft rather than reading the page's copy of it. The wizard's
+     * form lives in the step; the page's copy is written by `saveDraft`, so a
+     * publish that read it published whatever had last been saved — and before
+     * a save, nothing at all: the operation returned at its first guard and the
+     * step navigated away as if it had worked.
+     */
+    publishDraft: (
+        payload: EditorFormPayload,
+        editingId: string | null,
+        options: { forceRegressive: boolean; allowZeroPrice: boolean },
+    ) => Promise<boolean>;
 }
+
+/**
+ * Route meta marking a record as a step rendered INSIDE the plan page.
+ *
+ * The page reads it to decide whether it still owns the hero. Meta rather than
+ * a path comparison because the consumer chooses the admin base path, and
+ * rather than a `mode` ref because the router already knows the answer — the
+ * ref that used to hold it stopped being assigned when the steps became routes,
+ * and a condition asking it was simply false forever.
+ */
+export const PLAN_STEP_META = 'saasicatPlanStep';
 
 /** Vue inject key for the plan area (see the `Symbol.for` note in super-admin-context.ts). */
 export const PLAN_AREA_KEY: InjectionKey<PlanAreaContext> = Symbol.for(

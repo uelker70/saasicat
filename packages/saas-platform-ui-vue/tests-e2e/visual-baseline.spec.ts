@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { VISUAL_CASES } from './visual/pages.js';
+import { COLLECT, reveal } from './visual/collect.js';
 
 declare global {
     interface Window {
@@ -113,64 +114,6 @@ const TRACKED_PROPERTIES = [
  * The path is structural (`div>section:2>h2`) rather than a generated id, so a
  * snapshot survives everything except an actual change in structure or style.
  */
-const COLLECT = ({ properties }: { properties: readonly string[] }) => {
-    const lines: string[] = [];
-
-    // Paths are relative to the collected root, not to <body>. Anything above
-    // it belongs to the harness, and describing it made every baseline churn
-    // the day the fixture wrapped the page in the layout class a real app has.
-    // A baseline should move when the PAGE moves.
-    const pathOf = (el: Element): string => {
-        const parts: string[] = [];
-        let node: Element | null = el;
-        while (node && node !== document.body && node.id !== 'visual-root') {
-            const parent: Element | null = node.parentElement;
-            const tag = node.tagName.toLowerCase();
-            if (parent) {
-                const sameTag = [...parent.children].filter(
-                    (c) => c.tagName === (node as Element).tagName,
-                );
-                const index = sameTag.indexOf(node);
-                parts.unshift(sameTag.length > 1 ? `${tag}:${index}` : tag);
-            } else {
-                parts.unshift(tag);
-            }
-            node = parent;
-        }
-        return parts.join('>');
-    };
-
-    const root = document.getElementById('visual-root') ?? document.body;
-
-    // The page, plus any dialog Quasar teleported out of it. QDialog renders
-    // into a portal appended to <body>, so a detail dialog opened by
-    // `revealBy` sits outside `#visual-root` entirely — collecting only the
-    // root would record the click and none of its result.
-    const roots: Element[] = [
-        root,
-        ...[...document.querySelectorAll('.q-dialog')].filter((d) => !root.contains(d)),
-    ];
-    const collected = roots.flatMap((r) => [r, ...r.querySelectorAll('*')]);
-
-    for (const el of collected) {
-        // Skip what the browser cannot lay out — invisible nodes have no
-        // meaningful computed geometry and would only add churn.
-        const style = window.getComputedStyle(el);
-        if (style.display === 'none') continue;
-
-        const values = properties
-            .map((prop) => `${prop}=${style.getPropertyValue(prop).trim()}`)
-            .join(' ');
-        const classes =
-            el.className && typeof el.className === 'string'
-                ? `.${el.className.trim().split(/\s+/).join('.')}`
-                : '';
-        lines.push(`${pathOf(el)}${classes}  ${values}`);
-    }
-
-    return lines.join('\n');
-};
-
 /**
  * Collects once the page has stopped moving.
  *
@@ -192,18 +135,6 @@ async function settledStyles(page: Page): Promise<string> {
         await page.waitForTimeout(50);
     }
     throw new Error('the page never stopped changing — nothing settled within two seconds');
-}
-
-/**
- * The set of structural paths the collector can see, classes and styles dropped.
- *
- * `COLLECT` writes each element as `path.class.class  prop=value …`, and a path
- * is `tag:index` segments joined by `>` — it contains no dot, so everything from
- * the first dot on is class names and style values. What is left is the shape of
- * the DOM: what exists and where, independent of how it is painted.
- */
-function structuralPaths(collected: string): Set<string> {
-    return new Set(collected.split('\n').map((line) => line.split('.')[0].trimEnd()));
 }
 
 test.describe('design-token visual baselines', () => {
@@ -230,59 +161,7 @@ test.describe('design-token visual baselines', () => {
             // Surfaces that only exist once something is opened. `click()`
             // already waits for the element, so a selector that stops matching
             // fails the case instead of quietly baselining the closed state.
-            const before = structuralPaths(
-                await page.evaluate(COLLECT, { properties: [] as readonly string[] }),
-            );
-            for (const selector of visualCase.revealBy ?? []) {
-                await page.locator(selector).first().click();
-            }
-            if (visualCase.revealBy?.length) {
-                // A click that opens nothing is the quiet failure this whole
-                // field exists to prevent: the case looks like it covers the
-                // opened state and covers the closed one. It happened — the
-                // email detail is a QDialog, and clicking its row changed
-                // nothing the collector could see.
-                //
-                // The question is "is something on the page that was not there
-                // before", and the first version of this asked it as "did the
-                // element count grow". That is the same question only while a
-                // reveal ADDS: a tab switch replaces one panel with another, so
-                // opening the discovery quota cards — the smaller of the two
-                // panels — shrank the page and read as a click that did nothing.
-                //
-                // Counting NEW PATHS answers the original question directly, and
-                // it is not the weaker check: a click that toggles a class
-                // without rendering anything adds no path either, because the
-                // paths carry no classes.
-                await expect
-                    .poll(
-                        async () => {
-                            const now = structuralPaths(
-                                await page.evaluate(COLLECT, {
-                                    properties: [] as readonly string[],
-                                }),
-                            );
-                            return [...now].filter((path) => !before.has(path)).length;
-                        },
-                        {
-                            message: `${visualCase.id}: revealBy clicked, but nothing new rendered`,
-                        },
-                    )
-                    .toBeGreaterThan(0);
-
-                // And take the pointer off what was just clicked.
-                //
-                // `click()` leaves the mouse on the target, so whatever `:hover`
-                // that element carries was recorded as its RESTING appearance.
-                // It had been happening since `revealBy` was added:
-                // `.sa-marketing-expand-btn` sat in its baseline painted
-                // `--sa-color-accent` on `--sa-color-border-soft`, which are
-                // its hover values. A baseline is the answer to "what does this
-                // look like", and one pointer position is not part of the
-                // question — that is what the contrast check's `hoverBy` is for,
-                // where the state is asked about deliberately.
-                await page.mouse.move(0, 0);
-            }
+            await reveal(page, visualCase.revealBy ?? [], visualCase.id);
 
             // A request the fixture cannot answer gets an empty array, which
             // renders as an empty card — indistinguishable from a deliberate

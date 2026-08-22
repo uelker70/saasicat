@@ -1,6 +1,6 @@
 <template>
     <AdminPage class="sa-promo-detail">
-        <AdminHero :title="data?.promo.code ?? labels.promoCode">
+        <AdminHero :title="data?.promo?.code ?? labels.promoCode">
             <template #before-title>
                 <q-btn
                     flat
@@ -159,12 +159,21 @@ const editOpen = ref(false);
 // `loadDetail`, so every consumer wrote a closure over the route param.
 const promos = useResource('promoCodes', props.resources);
 const route = useRoute();
-const promoId = computed(() => props.id ?? String(route.params.id ?? ''));
+// `promo-codes/:code` is what `pages/index.ts` declares, so `code` is what the
+// router puts in `params`. Reading `id` here — the name the page carried before
+// it became a standard route — left every navigation asking the server for
+// `/promo-codes/`, which is the list, not the code the operator clicked.
+const promoId = computed(() => props.id ?? String(route.params.code ?? ''));
 
 async function reload() {
     loading.value = true;
     try {
-        data.value = await promos.detail(promoId.value);
+        // A body without a promo is a promo that is not there — a code the
+        // operator mistyped, or one deleted between the list and the click.
+        // Kept as `null` so the empty state below renders it: the page used to
+        // take a `{}` as data, and every read under it threw while mounting.
+        const detail = await promos.detail(promoId.value);
+        data.value = detail?.promo ? detail : null;
     } finally {
         loading.value = false;
     }

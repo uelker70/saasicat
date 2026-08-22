@@ -59,27 +59,6 @@
                                 class="q-ml-xs"
                             />
                         </q-td>
-
-                        <AdminDialog
-                            :model-value="otpMessage !== null"
-                            :title="msg.resetPassword.otpTitle"
-                            size="sm"
-                            persistent
-                            @update:model-value="otpMessage = null"
-                        >
-                            <p class="sa-dialog__message">{{ otpMessage }}</p>
-                            <template #footer>
-                                <div class="sa-dialog__actions">
-                                    <q-btn
-                                        unelevated
-                                        color="primary"
-                                        no-caps
-                                        :label="msg.resetPassword.otpAcknowledge"
-                                        @click="otpMessage = null"
-                                    />
-                                </div>
-                            </template>
-                        </AdminDialog>
                     </template>
                     <template #row-actions="{ row }">
                         <slot name="row-actions" :row="row">
@@ -98,6 +77,31 @@
                 </AdminTable>
             </AdminSection>
         </AdminBody>
+
+        <!-- One dialog, owned by the page. It used to sit in the status cell's
+             slot, which is instantiated once per rendered row: a password reset
+             opened as many stacked overlays as there were users, each with its
+             own focus trap. -->
+        <AdminDialog
+            :model-value="otpMessage !== null"
+            :title="msg.resetPassword.otpTitle"
+            size="sm"
+            persistent
+            @update:model-value="otpMessage = null"
+        >
+            <p class="sa-dialog__message">{{ otpMessage }}</p>
+            <template #footer>
+                <div class="sa-dialog__actions">
+                    <q-btn
+                        unelevated
+                        color="primary"
+                        no-caps
+                        :label="msg.resetPassword.otpAcknowledge"
+                        @click="otpMessage = null"
+                    />
+                </div>
+            </template>
+        </AdminDialog>
 
         <MfaPromptDialog
             v-if="needsMfaDialog"

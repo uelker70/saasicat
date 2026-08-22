@@ -246,9 +246,12 @@ test.describe('Platform UI Bundle — Browser Smoke', () => {
         });
         expect(result.routeIds).toContain('tenants');
         expect(result.routeIds).toContain('cf.reports');
-        // Standard pages carry their default section (tenants → 'Kunden');
-        // unknown sections follow alphabetically after the sectionOrder.
-        expect(result.sidebarSections[0].section).toBe('Kunden');
+        // Standard pages carry their default section, in the default locale —
+        // which is English since 0.28. A page that named the German string here
+        // would pass again the moment someone set `i18n.locale`, and fail for
+        // the app that names none, which is the case this drives.
+        // Unknown sections follow alphabetically after the sectionOrder.
+        expect(result.sidebarSections[0].section).toBe('Customers');
         expect(result.sidebarSections[1].section).toBe('MyApp');
     });
 

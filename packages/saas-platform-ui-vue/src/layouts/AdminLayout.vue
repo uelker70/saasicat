@@ -335,10 +335,28 @@ const currentPageTitle = computed(() => {
     );
     color: var(--sa-admin-header-fg, var(--sa-color-inverse-fg));
 }
+/* Quasar's toolbar title truncates its own text, but not a block nested inside
+ * it — the subtitle kept its full width and pushed the `nowrap` row past its
+ * box. Measured at 390px with the platform's own strings: 11px over, which is
+ * a fixed header, so nothing scrolls it back into view. Both lines shrink now,
+ * which is what a title is for and a control is not. */
+.sa-admin-header :deep(.q-toolbar__title) {
+    min-width: 0;
+    /* Quasar pads the title 12px on each side, and padding does not shrink: at
+     * the narrow end the title itself was already down to nothing while those
+     * 24px still pushed the row 11px past its box — the same 11px at 320, 390
+     * and 600, which is what gave it away as a fixed contribution rather than
+     * an accumulation. The gap to its left is the menu button's own padding. */
+    padding-left: 0;
+    padding-right: var(--sa-space-3);
+}
 .sa-admin-header__sub {
     font-size: var(--sa-text-xs);
     color: var(--sa-admin-header-sub, var(--sa-color-inverse-accent));
     font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sa-admin-badge {
@@ -398,15 +416,34 @@ const currentPageTitle = computed(() => {
  * `599.98px` is Quasar's `xs` upper bound from `theme/_breakpoints.scss`; a
  * `<style>` block cannot read the SCSS, and a custom property is not
  * substituted inside a media condition. */
-@media (max-width: 599.98px) {
-    /* `!important` because the thing being hidden is Quasar's own `.block`
-     * utility, which declares `display: block !important` — specificity alone
-     * loses to it however long the selector gets. Same reason the active drawer
-     * item above carries one. */
+/* The switcher labels go one band earlier than everything else.
+ *
+ * At the `sm` LOWER EDGE the badge, both labels and the identity block all
+ * returned at once, and the row was 11px wider than its box — a `position:
+ * fixed` header, so nothing scrolls it back. Measured at exactly 600px with a
+ * name and an address filled in.
+ *
+ * The labels are the cheapest of the three at that width for the reason the
+ * `xs` block below already gives: the icon names the control and the menu
+ * spells every option out.
+ *
+ * The bound is `lg`, not `sm`, because the row did not fit at `md` either: the
+ * same eleven pixels came back the moment the labels did. Two words of chrome
+ * are not worth a control pushed off a fixed header, and `1439.98px` is
+ * Quasar's `md` upper bound — the labels return on a desktop-wide window.
+ *
+ * `!important` because the thing being hidden is Quasar's own `.block`
+ * utility, which declares `display: block !important` — specificity alone loses
+ * to it however long the selector gets. Same reason the active drawer item
+ * above carries one. */
+@media (max-width: 1439.98px) {
     .sa-admin-header :deep(.sa-locale-switcher .q-btn__content > .block),
     .sa-admin-header :deep(.sa-theme-switcher .q-btn__content > .block) {
         display: none !important;
     }
+}
+
+@media (max-width: 599.98px) {
     .sa-admin-badge {
         display: none;
     }

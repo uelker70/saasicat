@@ -76,10 +76,10 @@ afterEach(() => {
  * so the fixture reproduces that rather than mounting a step in isolation —
  * a step on its own would start with an empty draft and prove nothing.
  */
-function mountArea() {
+function mountArea(outcome: { save?: boolean; publish?: boolean } = {}) {
     let wizard!: PlanWizardState;
     const saved: unknown[] = [];
-    const published: number[] = [];
+    const published: Array<{ payload: unknown; editingId: string | null; options: unknown }> = [];
 
     const Host = defineComponent({
         props: { step: { type: String, required: true } },
@@ -96,11 +96,15 @@ function mountArea() {
                 saving: { value: false } as never,
                 publishing: { value: false } as never,
                 saveError: { value: null } as never,
+                // The real ones report whether the write happened; the steps
+                // are only allowed to leave when it did.
                 saveDraft: async (payload) => {
                     saved.push(payload);
+                    return outcome.save ?? true;
                 },
-                publishDraft: async () => {
-                    published.push(1);
+                publishDraft: async (payload, editingId, options) => {
+                    published.push({ payload, editingId, options });
+                    return outcome.publish ?? true;
                 },
             });
             return () => h(props.step === 'edit' ? PlanVersionEditorPage : PlanReviewPage);
@@ -193,5 +197,86 @@ describe('the wizard carries its unsaved draft across the two routes', () => {
         (editor.vm as unknown as { onCancel: () => void }).onCancel();
 
         expect(area.wizard.editing.value).toBeNull();
+    });
+});
+
+describe('a step leaves the wizard only when the write happened', () => {
+    // Three defects with one shape: the step reset the wizard and navigated
+    // before knowing whether anything had been written. A rejected save, and a
+    // publish that never ran, both looked exactly like success — the form was
+    // gone, the route had changed, and the error the page had recorded was
+    // rendered by a page nobody was on any more.
+
+    test('a refused save keeps the draft and stays on the step', async () => {
+        const area = mountArea({ save: false });
+        const { page: review } = area.render('review');
+        area.wizard.editing.value = { editingId: null, initialForm: { ...EDITED } };
+        await review.vm.$nextTick();
+
+        await (review.vm as unknown as { onSaveAndExit: () => Promise<void> }).onSaveAndExit();
+
+        expect(area.saved).toHaveLength(1);
+        expect(area.wizard.editing.value?.initialForm.quotas).toEqual({ notes: 500 });
+        expect(area.router.currentRoute.value.fullPath).not.toBe('/admin/plans');
+    });
+
+    test('a save that succeeds clears the draft', async () => {
+        const area = mountArea({ save: true });
+        const { page: review } = area.render('review');
+        area.wizard.editing.value = { editingId: null, initialForm: { ...EDITED } };
+        await review.vm.$nextTick();
+
+        await (review.vm as unknown as { onSaveAndExit: () => Promise<void> }).onSaveAndExit();
+
+        expect(area.wizard.editing.value).toBeNull();
+    });
+
+    test('publish carries the form and the checklist flags', async () => {
+        const area = mountArea();
+        const { page: review } = area.render('review');
+        area.wizard.editing.value = { editingId: 'draft-7', initialForm: { ...EDITED } };
+        await review.vm.$nextTick();
+
+        await (
+            review.vm as unknown as {
+                onPublish: (p: {
+                    forceRegressive: boolean;
+                    allowZeroPrice: boolean;
+                }) => Promise<void>;
+            }
+        ).onPublish({ forceRegressive: true, allowZeroPrice: false });
+
+        expect(area.published).toHaveLength(1);
+        // The operator's unsaved numbers, not the page's copy of them: the
+        // page's copy is written by a SAVE, so publishing without one used to
+        // publish nothing while the step behaved as though it had.
+        expect(area.published[0]?.payload).toMatchObject({
+            quotas: { notes: 500 },
+            monthlyNet: '19.00',
+        });
+        expect(area.published[0]?.editingId).toBe('draft-7');
+        // Ticked in the checklist and dropped on the way out before this.
+        expect(area.published[0]?.options).toEqual({
+            forceRegressive: true,
+            allowZeroPrice: false,
+        });
+    });
+
+    test('a publish that does not go through keeps the draft', async () => {
+        const area = mountArea({ publish: false });
+        const { page: review } = area.render('review');
+        area.wizard.editing.value = { editingId: null, initialForm: { ...EDITED } };
+        await review.vm.$nextTick();
+
+        await (
+            review.vm as unknown as {
+                onPublish: (p: {
+                    forceRegressive: boolean;
+                    allowZeroPrice: boolean;
+                }) => Promise<void>;
+            }
+        ).onPublish({ forceRegressive: false, allowZeroPrice: false });
+
+        expect(area.wizard.editing.value?.initialForm.quotas).toEqual({ notes: 500 });
     });
 });

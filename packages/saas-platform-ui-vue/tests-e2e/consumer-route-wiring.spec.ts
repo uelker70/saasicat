@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+
+import { STANDARD_ADMIN_ROUTES } from '../src/pages/index.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +67,16 @@ function recordAt(source: string, from: number): string {
     return source.slice(from);
 }
 
+/**
+ * One sample value per parameter.
+ *
+ * The parameterised routes matter most here: reading a param is what needs the
+ * router instance, and it is the case that broke.
+ */
+function sample(path: string): string {
+    return path.replace(/:(\w+)/g, (_, name) => (name === 'slug' ? 'globex' : 'sample'));
+}
+
 function readRouteTable(): {
     visit: string[];
     shell: RouteRecord[];
@@ -96,26 +108,45 @@ function readRouteTable(): {
         shell: records.filter(isShell),
         visit: records
             .filter((r) => !isShell(r))
-            .map((r) =>
-                // One sample value per parameter. The parameterised routes matter
-                // most here: reading a param is what needs the router instance,
-                // and it is the case that broke.
-                r.path.replace(/:(\w+)/g, (_, name) => (name === 'slug' ? 'globex' : 'sample')),
-            )
+            .map((r) => sample(r.path))
             .map((path) => `/admin/${path}`),
     };
 }
 
 const TABLE = readRouteTable();
-const ROUTES = TABLE.visit;
+
+/**
+ * Every path the assembled app resolves — the consumer's own records AND the
+ * standard ones `standardAdminChildren()` fills in behind them.
+ *
+ * Reading only the consumer's file was right while a consumer wrote every
+ * route. Since the helper exists it writes six and the platform supplies the
+ * rest, so a sweep of the file alone stopped visiting most of the app: the
+ * pages an integrator never sees the wiring for are exactly the ones nothing
+ * was checking.
+ */
+const PLATFORM_ROUTES = STANDARD_ADMIN_ROUTES.flatMap((route) => [
+    route.path,
+    ...(route.children ?? []).map((child) => `${route.path}/${child.path}`),
+]);
+
+const ROUTES = [
+    ...new Set([...TABLE.visit, ...PLATFORM_ROUTES.map((path) => `/admin/${sample(path)}`)]),
+];
 
 test.describe('an assembled consumer app resolves every one of its routes', () => {
     test('every record in the route table was accounted for', () => {
-        // The parse reached the file.
+        // The parse reached the file, and the platform table reached this spec.
+        // Six is what the example writes since `standardAdminChildren` fills in
+        // the rest; the number that has to stay large is the platform's.
         expect(
             TABLE.records.length,
             'no route records found — did the table move?',
-        ).toBeGreaterThan(10);
+        ).toBeGreaterThan(0);
+        expect(
+            PLATFORM_ROUTES.length,
+            'the standard route table is empty — this sweep would visit only the example',
+        ).toBeGreaterThan(15);
 
         // Every record went somewhere. Tautological today, and deliberately
         // kept: it is what fails first if a future filter drops a record.

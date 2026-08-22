@@ -54,6 +54,56 @@ any of them: those belong to your backend. The descriptors record the paths
 every consumer already calls, so the pages need no callbacks and you override
 an operation instead of supplying one.
 
+**Fixed: five defects the route split left behind.** The plan editor and the
+review became child routes, and the page that hosts them kept state and
+operations written for the modes they used to be:
+
+- Publishing from the review wrote nothing. The operation read the page's copy
+  of the draft, which only a _save_ had ever written, so a publish before a save
+  returned at its first guard while the step cleared the form and navigated
+  away. `publishDraft` now takes the draft — and the checklist's force flags,
+  which were dropped on the way out.
+- A rejected save looked exactly like a successful one: the error was recorded,
+  but the step had already cleared the form and left. `saveDraft` and
+  `publishDraft` answer `boolean`; a step leaves only on `true`.
+- The plans page drew its own hero and body underneath the step, putting two
+  complete plan views on one screen. It reads the route now.
+- `PromoCodeDetailPage` read `route.params.id` while its route declares
+  `promo-codes/:code`, so every navigation asked for `/promo-codes/` — the list.
+- `UsersPage`'s one-time-password dialog sat in a row slot and opened once per
+  rendered user, stacking overlays and focus traps.
+
+**Fixed: three defaults that grouping the props into `options` dropped.**
+`withDefaults` carried them; `props.options?.x` reads `undefined` as "off", and
+an optional boolean makes that a legal value rather than a type error. Every app
+that had never named the option lost the surface:
+
+| Page               | Option           | What went missing                |
+| ------------------ | ---------------- | -------------------------------- |
+| `TenantsPage`      | `showPlanColumn` | the plan column                  |
+| `TenantDetailPage` | `showUsers`      | the users section                |
+| `PromoCodesPage`   | `statusOptions`  | the status filter's four choices |
+
+**Fixed: the status pill had lost its shape.** Promoting `StatusPill` onto the
+roster moved its tones into the theme and left the base rule behind, so
+`.sa-pill` had no radius, no padding and no weight — every status marker in the
+admin rendered as plain body text while its colours stayed correct. Its vertical
+padding now sits on the spacing scale (2px, from 3px) and its radius has a token
+of its own, so a pill is one pixel shorter than it was in 0.27.
+
+**Fixed: two standard pages crashed while mounting in an assembled app.**
+`PromoCodeDetailPage` threw on a code that does not exist — its title read
+`data?.promo.code`, and a response without a `promo` is still truthy — and
+`EmailHistoryPage` handed its table `rows=undefined` when the body was not the
+paginated envelope. Both render their empty state now.
+
+**Fixed: the shell header overflowed on a phone.** Eleven pixels, and the same
+eleven at 320px, 390px and 600px: Quasar pads the toolbar title 12px per side
+and padding does not shrink, so the title was already down to nothing while
+those 24px pushed a `position: fixed` row past its box. The locale and theme
+switchers also drop their labels one breakpoint earlier — at the `sm` lower edge
+the badge, both labels and the identity block all came back at once.
+
 **Fixed: `auditResource` sent parameters the endpoint ignores.** It spoke
 `AuditQuery` (`actorTag`, `from`, `to`, paginated) at `GET /admin/audit`, which
 accepts `actor`, `action`, `entity`, `since`, `limit` and answers with a bare

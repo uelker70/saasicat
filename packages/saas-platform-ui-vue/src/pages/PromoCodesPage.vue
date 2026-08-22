@@ -49,7 +49,7 @@
                         map-options
                         clearable
                         :label="common.status"
-                        :options="options?.statusOptions"
+                        :options="resolvedStatusOptions"
                     />
                 </AdminFilters>
 
@@ -249,6 +249,14 @@ const resolvedCreateLabel = computed(() => props.options?.createLabel ?? msg.val
 // props and every consumer app spelled the same four endpoints again; the
 // resource already knows the API base, the project and the locale.
 const promos = useResource('promoCodes', props.resources);
+
+// The four the endpoint can answer with. `withDefaults` carried this list
+// before the props were grouped into `options`; without it the status filter
+// is a dropdown that opens on nothing.
+const DEFAULT_STATUS_OPTIONS = ['ACTIVE', 'PAUSED', 'EXHAUSTED', 'EXPIRED'] as const;
+const resolvedStatusOptions = computed<readonly string[]>(
+    () => props.options?.statusOptions ?? DEFAULT_STATUS_OPTIONS,
+);
 
 const notify = useSuperAdminNotify();
 // `confirm` is taken — `window.confirm` shadows it.

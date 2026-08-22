@@ -351,8 +351,12 @@ async function reload(): Promise<void> {
             limit: pagination.value.rowsPerPage,
         });
         if (seq !== reloadSeq) return;
-        rows.value = result.rows;
-        pagination.value.rowsNumber = result.total;
+        // A body that is not the paginated envelope leaves both undefined, and
+        // `rows=undefined` is a table that throws while rendering rather than
+        // an empty one. The app's own endpoint decides this shape, so the page
+        // reads it defensively — it is a system boundary, not internal code.
+        rows.value = result?.rows ?? [];
+        pagination.value.rowsNumber = result?.total ?? 0;
     } catch (err) {
         if (seq !== reloadSeq) return;
         rows.value = [];

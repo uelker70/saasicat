@@ -82,16 +82,48 @@ function onBack(): void {
     void router.push('/admin/plans/version/edit');
 }
 
+/**
+ * Leaves the wizard, but only once the draft is on the server.
+ *
+ * A refused write keeps the operator here with their form and the reason for
+ * it. Resetting first is what turned a failed save into a silent one: the
+ * version was gone, the route had changed, and the error the page had just
+ * recorded was rendered by a page nobody was looking at any more.
+ */
 async function onSaveAndExit(): Promise<void> {
     const form = wizard.editing.value?.initialForm;
     if (!form) return;
-    await area.saveDraft({ ...form, bundles: [] }, wizard.editing.value?.editingId ?? null);
-    wizard.reset();
-    void router.push('/admin/plans');
+    const saved = await area.saveDraft(
+        { ...form, bundles: [] },
+        wizard.editing.value?.editingId ?? null,
+    );
+    if (!saved) return;
+    leaveWizard();
 }
 
-async function onPublish(): Promise<void> {
-    await area.publishDraft();
+/**
+ * Publishes what is on screen — the form, and the checklist's own flags.
+ *
+ * Both travel with the call. The page used to publish `area`'s copy of the
+ * draft, which only a save had ever written, and to drop the flags the
+ * operator had just ticked.
+ */
+async function onPublish(payload: {
+    forceRegressive: boolean;
+    allowZeroPrice: boolean;
+}): Promise<void> {
+    const form = wizard.editing.value?.initialForm;
+    if (!form) return;
+    const published = await area.publishDraft(
+        { ...form, bundles: [] },
+        wizard.editing.value?.editingId ?? null,
+        payload,
+    );
+    if (!published) return;
+    leaveWizard();
+}
+
+function leaveWizard(): void {
     wizard.reset();
     void router.push('/admin/plans');
 }
