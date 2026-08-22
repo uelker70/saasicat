@@ -64,8 +64,11 @@ describe('scaffold', () => {
 
             const pkg = await readFile(join(target, 'package.json'), 'utf8');
             assert.match(pkg, /"name": "notesapp-admin"/);
-            assert.match(pkg, /"@saasicat\/types": "\^\d+\.\d+\.\d+"/);
-            assert.match(pkg, /"@saasicat\/ui-vue": "\^\d+\.\d+\.\d+"/);
+            // The range is `^<own version>`, and the own version carries a
+            // prerelease tag on the 1.0 candidate line (`^1.0.0-rc.0`) — a stable
+            // semver alone rejected the first rc, in CI, after the version PR merged.
+            assert.match(pkg, /"@saasicat\/types": "\^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?"/);
+            assert.match(pkg, /"@saasicat\/ui-vue": "\^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?"/);
             assert.doesNotMatch(pkg, /file:/);
 
             const main = await readFile(join(target, 'src/main.ts'), 'utf8');
@@ -127,7 +130,10 @@ describe('bin entry point', () => {
             assert.match(res.stdout, /Created \d+ file\(s\)/, 'scaffolder produced no output');
 
             const pkg = JSON.parse(await readFile(join(target, 'package.json'), 'utf8'));
-            assert.match(pkg.dependencies['@saasicat/ui-vue'], /^\^\d+\.\d+\.\d+$/);
+            assert.match(
+                pkg.dependencies['@saasicat/ui-vue'],
+                /^\^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/,
+            );
         } finally {
             await rm(dir, { recursive: true, force: true });
         }
