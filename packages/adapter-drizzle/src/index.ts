@@ -4,8 +4,8 @@
 // `@saasicat/persistence-testing` contract as `@saasicat/adapter-prisma`.
 //
 // Contents:
-//   - drizzlePersistence() — the aggregate SaasicatPersistenceAdapter bundle
-//     for `SaasPlatformModule.forRoot({ persistence })`.
+//   - drizzlePersistence() — the aggregate SaaSiCatPersistenceAdapter bundle
+//     for `SaaSiCatModule.forRoot({ persistence })`.
 //   - DRIZZLE_DB_TOKEN + DrizzleClient — DI token + driver-independent db
 //     type for manual wiring.
 //   - Individual adapters and the query-side table map (`schema.js`).

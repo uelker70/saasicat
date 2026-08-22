@@ -1,5 +1,5 @@
 -- =============================================================================
--- SaaSicat — normative PostgreSQL constraints the Prisma DSL cannot express.
+-- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.
 -- =============================================================================
 --
 -- Consumers add these statements to their SQL migration after creating the

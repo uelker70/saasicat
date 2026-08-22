@@ -46,7 +46,7 @@ const base = prismaPersistence({
     adminResources: false, // see step 5
 });
 
-export const PERSISTENCE: SaasicatPersistenceAdapter = {
+export const PERSISTENCE: SaaSiCatPersistenceAdapter = {
     ...base,
     promo: {
         ...base.promo!,

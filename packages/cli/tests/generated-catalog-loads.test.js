@@ -31,7 +31,7 @@ import { applyTokens, planInit } from '../dist/index.js';
 // function the platform itself calls. It cannot drift from the rule it checks,
 // and it keeps catching the next field nobody thought about.
 
-const TEMPLATES = fileURLToPath(new URL('../templates/init/', import.meta.url));
+const TEMPLATES = fileURLToPath(new URL('../templates/init', import.meta.url));
 
 /** The `config/saas.yaml` a set of options produces, rendered. */
 async function generatedCatalog(options) {

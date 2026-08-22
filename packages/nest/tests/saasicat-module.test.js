@@ -6,7 +6,7 @@ import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 import {
     AdminStatsService,
     CheckoutOfferService,
-    SaasPlatformModule,
+    SaaSiCatModule,
     SetupService,
     StaticEntitlementService,
     StaticFeatureGuard,
@@ -78,11 +78,11 @@ Module({
     exports: [OPTIONAL_SERVICES_TOKEN],
 })(OptionalServicesConsumerModule);
 
-describe('SaasPlatformModule.forRoot', () => {
+describe('SaaSiCatModule.forRoot', () => {
     test('throws when neither planCatalog nor planCatalogReadSink is set', () => {
         assert.throws(
             () =>
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     controller: { guards: [FakeJwtGuard] },
                     adapters: {
                         mfa: new FakeMfaPort(),
@@ -95,7 +95,7 @@ describe('SaasPlatformModule.forRoot', () => {
     });
 
     test('quickstart path: planCatalog + 3 adapters are enough', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
@@ -104,7 +104,7 @@ describe('SaasPlatformModule.forRoot', () => {
                 rlsBypass: new FakeRlsBypassPort(),
             },
         });
-        assert.equal(dyn.module.name, 'SaasPlatformModule');
+        assert.equal(dyn.module.name, 'SaaSiCatModule');
         assert.ok(Array.isArray(dyn.imports), 'imports must be an array');
         // PlanCatalog + Discovery + Admin + AdminManifest = 4 sub-modules
         // Four platform sub-modules, plus Nest's own DiscoveryModule.
@@ -122,7 +122,7 @@ describe('SaasPlatformModule.forRoot', () => {
     test('Entitlement opt-in: enabled without repos -> error', () => {
         assert.throws(
             () =>
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     planCatalog: MINIMAL_CATALOG,
                     controller: { guards: [FakeJwtGuard] },
                     adapters: {
@@ -137,7 +137,7 @@ describe('SaasPlatformModule.forRoot', () => {
     });
 
     test('Entitlement active with all repos -> 5 sub-modules', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
@@ -154,7 +154,7 @@ describe('SaasPlatformModule.forRoot', () => {
     });
 
     test('accepts empty guards: [] as an explicit choice', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },
             adapters: {
@@ -167,7 +167,7 @@ describe('SaasPlatformModule.forRoot', () => {
     });
 
     test('composes setup, admin stats, checkout offer and subscription contract', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
@@ -212,7 +212,7 @@ describe('SaasPlatformModule.forRoot', () => {
     test('setup and subscription contract can derive their adapters from persistence', () => {
         const provisioning = {};
         const contractRepository = {};
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             persistence: {
@@ -247,7 +247,7 @@ describe('SaasPlatformModule.forRoot', () => {
     test('the centrally composed optional services resolve in a real Nest container', async () => {
         const moduleRef = await Test.createTestingModule({
             imports: [
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     planCatalog: MINIMAL_CATALOG,
                     controller: { guards: [FakeJwtGuard] },
                     discoverySnapshotPath: null,
@@ -278,7 +278,7 @@ describe('SaasPlatformModule.forRoot', () => {
     });
 
     test('without defaultPlanId & without planResolver: no entitlement stack', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
@@ -310,7 +310,7 @@ describe('SaasPlatformModule.forRoot', () => {
     });
 
     test('with defaultPlanId: StaticPlanResolver + Guard + Interceptor auto-registered', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {
@@ -350,7 +350,7 @@ describe('SaasPlatformModule.forRoot', () => {
                 return 0;
             }
         }
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [FakeJwtGuard] },
             adapters: {

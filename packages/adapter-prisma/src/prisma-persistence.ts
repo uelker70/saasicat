@@ -2,7 +2,7 @@ import type {
     PasswordHasher,
     PersistenceInjectionToken,
     PersistenceProvider,
-    SaasicatPersistenceAdapter,
+    SaaSiCatPersistenceAdapter,
 } from '@saasicat/types';
 import type { PrismaLike } from './prisma-client-token.js';
 import type { PrismaSchemaOptions } from './prisma-plan-binding.js';
@@ -98,11 +98,11 @@ export interface PrismaPersistenceOptions {
 }
 
 /**
- * Builds the `SaasicatPersistenceAdapter` bundle for Prisma + PostgreSQL on
+ * Builds the `SaaSiCatPersistenceAdapter` bundle for Prisma + PostgreSQL on
  * the canonical schema (`@saasicat/spec` prisma-fragments):
  *
  * ```ts
- * SaasPlatformModule.forRoot({
+ * SaaSiCatModule.forRoot({
  *     persistence: prismaPersistence({ client: PrismaService }),
  *     // ...
  * });
@@ -112,7 +112,7 @@ export interface PrismaPersistenceOptions {
  * tenant-billing, promo and plan-catalog persistence. App-specific behavior
  * such as quota counters and authentication remains in the consumer.
  */
-export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPersistenceAdapter {
+export function prismaPersistence(options: PrismaPersistenceOptions): SaaSiCatPersistenceAdapter {
     const { client } = options;
 
     const provide = <T>(build: (prisma: PrismaLike) => T): PersistenceProvider<T> =>
@@ -120,7 +120,7 @@ export function prismaPersistence(options: PrismaPersistenceOptions): SaasicatPe
             ? { useFactory: (prisma: PrismaLike) => build(prisma), inject: [client] }
             : build(client);
 
-    const bundle: SaasicatPersistenceAdapter = {
+    const bundle: SaaSiCatPersistenceAdapter = {
         capabilities: {
             transactions: true,
             pessimisticLocking: true,

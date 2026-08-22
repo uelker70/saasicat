@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import {
     PLATFORM_RULES,
     SaaSiCatConfigurationError,
-    SaasPlatformModule,
+    SaaSiCatModule,
     assertConfiguration,
     findViolations,
 } from '../dist/platform/index.js';
@@ -207,7 +207,7 @@ describe('forRoot runs the table', () => {
     test('the same configuration fails through the module', () => {
         // The rules are only worth anything where they are actually consulted.
         const error = thrownBy(() =>
-            SaasPlatformModule.forRoot({
+            SaaSiCatModule.forRoot({
                 planCatalog: MINIMAL_CATALOG,
                 controller: { guards: [] },
                 adapters: CORE_ADAPTERS,
@@ -223,7 +223,7 @@ describe('forRoot runs the table', () => {
         // modules had been constructed. Same verdict, less work, and it is now
         // reported together with whatever else is wrong.
         const error = thrownBy(() =>
-            SaasPlatformModule.forRoot({
+            SaaSiCatModule.forRoot({
                 planCatalog: MINIMAL_CATALOG,
                 controller: { guards: [] },
                 adapters: CORE_ADAPTERS,

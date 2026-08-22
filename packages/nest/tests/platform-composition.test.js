@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
     FEATURE_COMPOSERS,
     MOUNTED_BUT_NOT_EXPORTED,
-    SaasPlatformModule,
+    SaaSiCatModule,
     composeFeatures,
     composeModuleExports,
 } from '../dist/platform/index.js';
@@ -151,9 +151,7 @@ describe('every module a composer mounts is also exported', () => {
 });
 
 describe('features are added as composers, not as edits to the assembler', () => {
-    const ASSEMBLER = fileURLToPath(
-        new URL('../src/platform/saas-platform.module.ts', import.meta.url),
-    );
+    const ASSEMBLER = fileURLToPath(new URL('../src/platform/saasicat.module.ts', import.meta.url));
 
     test('the assembler imports no domain module of its own', () => {
         // The structural half. Mounting a feature from here again would work,
@@ -174,12 +172,12 @@ describe('features are added as composers, not as edits to the assembler', () =>
 
 describe('the assembled module is the same one as before', () => {
     test('a minimal configuration still produces a global DynamicModule', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT },
         });
-        assert.equal(dyn.module.name, 'SaasPlatformModule');
+        assert.equal(dyn.module.name, 'SaaSiCatModule');
         assert.equal(dyn.global, true);
         assert.ok(Array.isArray(dyn.imports));
         assert.ok(Array.isArray(dyn.exports));
@@ -192,7 +190,7 @@ describe('the base modules', () => {
         // The identity cannot come from the database — branding, currency and
         // VAT are `dbCatalog`, and `catalog.identity-or-sink` refuses a
         // configuration without it.
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             dbCatalog: { projectKey: 'from-db', currency: 'EUR', vatRate: 19 },
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT, planCatalogReadSink: REPO },
@@ -203,7 +201,7 @@ describe('the base modules', () => {
     test('the app identity falls back through both catalogue paths', () => {
         // `'app'` as a key would collide with every other application that also
         // did not say — so the fallbacks are worth pinning.
-        const fromYaml = SaasPlatformModule.forRoot({
+        const fromYaml = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             controller: { guards: [] },
             adapters: { mfa: PORT, audit: PORT, rlsBypass: PORT },
@@ -213,7 +211,7 @@ describe('the base modules', () => {
     });
 
     test('an explicit app identity wins over the catalogue', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: MINIMAL_CATALOG,
             app: { key: 'explicit', version: '9.9.9' },
             controller: { guards: [] },

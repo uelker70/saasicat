@@ -132,12 +132,12 @@ maxRedemptions)` — as a single guarded UPDATE, exactly-once under
 
 Adapters declare `PersistenceCapabilities`; the platform fail-fasts at boot:
 
-| Platform feature                                  | Requires                                                                     |
-| ------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `SaasPlatformModule` entitlement (`enforceLimit`) | `transactions`, `pessimisticLocking`                                         |
-| Promo redemption flow                             | `transactions` (atomic `claimSlot` is part of the port contract)             |
-| SuperAdmin over RLS-protected tables              | `rowLevelSecurity` integration (informational; policies stay consumer-owned) |
-| —                                                 | `advisoryLocks` required by no platform path today                           |
+| Platform feature                              | Requires                                                                     |
+| --------------------------------------------- | ---------------------------------------------------------------------------- |
+| `SaaSiCatModule` entitlement (`enforceLimit`) | `transactions`, `pessimisticLocking`                                         |
+| Promo redemption flow                         | `transactions` (atomic `claimSlot` is part of the port contract)             |
+| SuperAdmin over RLS-protected tables          | `rowLevelSecurity` integration (informational; policies stay consumer-owned) |
+| —                                             | `advisoryLocks` required by no platform path today                           |
 
 ## Compatibility notes
 

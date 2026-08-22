@@ -1,5 +1,5 @@
 import type { DynamicModule } from '@nestjs/common';
-import type { SaasicatPersistenceAdapter, TransactionRunner } from '@saasicat/types';
+import type { SaaSiCatPersistenceAdapter, TransactionRunner } from '@saasicat/types';
 
 import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
 import type { ProviderSpec } from '../../core/di.js';
@@ -21,7 +21,7 @@ export function composePromoCodes({
 }: CompositionContext): DynamicModule[] {
     if (!options.promoCodes) return [];
     const config = optionsOf(options.promoCodes);
-    const promo = persistence?.promo as NonNullable<SaasicatPersistenceAdapter['promo']>;
+    const promo = persistence?.promo as NonNullable<SaaSiCatPersistenceAdapter['promo']>;
     const {
         firstTimeCustomerCheck,
         adminGuards,

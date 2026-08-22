@@ -3,7 +3,7 @@
 // The platform does not provide a fixed route, but a controller factory:
 // the app can adjust the path (`/tenant/manifest` vs.
 // `/api/v1/tenant/manifest` etc.) and hook in its own guards. In
-// `SaasPlatformModule.forRoot({ tenantManifest: { controller: {...} } })`
+// `SaaSiCatModule.forRoot({ tenantManifest: { controller: {...} } })`
 // the default is `controller: { guards: [JwtAuthGuard] }`.
 //
 

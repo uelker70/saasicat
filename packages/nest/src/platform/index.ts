@@ -1,25 +1,24 @@
 // @saasicat/nest/platform — high-level SaaSiCat composition.
 //
-// `SaaSiCatModule` is the preferred branded alias. `SaasPlatformModule`
-// remains exported for compatibility.
+// `SaaSiCatModule` is the one module class. Until 1.0 it had a second name;
+// `saasicat codemod v1` rewrites that one to this.
 //
 
 export {
-    SaasPlatformModule,
-    SaasPlatformModule as SaaSiCatModule,
-    type SaasPlatformAdapters,
-    type SaasPlatformAdminStatsOptions,
-    type SaasPlatformAdminResourcesOptions,
-    type SaasPlatformCatalogOptions,
-    type SaasPlatformCheckoutOfferOptions,
-    type SaasPlatformModuleOptions,
-    type SaasPlatformPromoCodesOptions,
-    type SaasPlatformSetupOptions,
-    type SaasPlatformSubscriptionContractOptions,
-    type SaasPlatformSubscriptionBundlesOptions,
-    type SaasPlatformTenantAuthGuards,
-    type SaasPlatformTenantBillingOptions,
-} from './saas-platform.module.js';
+    SaaSiCatModule,
+    type SaaSiCatAdapters,
+    type SaaSiCatAdminStatsOptions,
+    type SaaSiCatAdminResourcesOptions,
+    type SaaSiCatCatalogOptions,
+    type SaaSiCatCheckoutOfferOptions,
+    type SaaSiCatModuleOptions,
+    type SaaSiCatPromoCodesOptions,
+    type SaaSiCatSetupOptions,
+    type SaaSiCatSubscriptionContractOptions,
+    type SaaSiCatSubscriptionBundlesOptions,
+    type SaaSiCatTenantAuthGuards,
+    type SaaSiCatTenantBillingOptions,
+} from './saasicat.module.js';
 export { defineSaaSiCat } from './define-saasicat.js';
 // The composition seam, exported so its two properties can be asked as
 // behaviour rather than read off the source: every module a composer mounts is
@@ -83,7 +82,7 @@ export {
 //
 // The CJS builds do not share code between entries (esbuild only splits ESM),
 // so a class imported from `@saasicat/nest/admin` is a *different* class
-// object than the one `SaasPlatformModule` registers here — and Nest matches
+// object than the one `SaaSiCatModule` registers here — and Nest matches
 // providers by class reference, not by name. An app that injects
 // `AdminAuditService` from `@saasicat/nest/admin` while `SaaSiCatModule`
 // provides the `/platform` copy fails at boot with
@@ -93,11 +92,11 @@ export {
 // is the fix. Classes have no such registry — the only way to hand out one
 // identity is to re-export from the entry that registers them.
 //
-// This costs no bundle size: `saas-platform.module.ts` already imports every
+// This costs no bundle size: `saasicat.module.ts` already imports every
 // module below to compose it, so these classes are in this chunk regardless.
 // The exports only surface what is already here.
 //
-// Rule for maintainers: whenever `SaasPlatformModule.forRoot()` gains a module
+// Rule for maintainers: whenever `SaaSiCatModule.forRoot()` gains a module
 // whose `exports` include a CLASS a consumer might inject, re-export that
 // class here in the same commit.
 // ─────────────────────────────────────────────────────────────────────────

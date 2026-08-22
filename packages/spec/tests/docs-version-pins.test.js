@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const REPO_ROOT = new URL('../../../', import.meta.url).pathname;
+const REPO_ROOT = new URL('../../..', import.meta.url).pathname;
 
 /**
  * Captures the spec after a package name: `@saasicat/x@<spec>`.

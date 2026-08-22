@@ -442,7 +442,7 @@ each quota needs one `QuotaProvider` because only the application knows how to
 count users, notes, storage or API calls. That same provider is reused for
 runtime enforcement and the tenant usage response.
 
-A custom schema or database can implement `SaasicatPersistenceAdapter` with
+A custom schema or database can implement `SaaSiCatPersistenceAdapter` with
 the same named slices. The fine-grained ports and individual modules remain
 public; the bundle does not remove the extension points.
 

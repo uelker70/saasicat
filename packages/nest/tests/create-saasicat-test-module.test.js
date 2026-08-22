@@ -1,15 +1,15 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    createSaasPlatformTestModule,
+    createSaaSiCatTestModule,
     StubAuditPort,
     StubMfaPort,
     StubRlsBypassPort,
 } from '../dist/testing/index.js';
 
-describe('createSaasPlatformTestModule', () => {
+describe('createSaaSiCatTestModule', () => {
     test('returns a DynamicModule with a test host', () => {
-        const dyn = createSaasPlatformTestModule({
+        const dyn = createSaaSiCatTestModule({
             planCatalog: {
                 schemaVersion: 1,
                 projectKey: 'test',
@@ -19,7 +19,7 @@ describe('createSaasPlatformTestModule', () => {
             },
         });
         assert.ok(dyn.module, 'DynamicModule.module must be set');
-        assert.equal(dyn.module.name, 'SaasPlatformTestHost');
+        assert.equal(dyn.module.name, 'SaaSiCatTestHost');
     });
 
     test('default stubs are no-op capable', async () => {
@@ -42,7 +42,7 @@ describe('createSaasPlatformTestModule', () => {
 
     test('overrides can replace individual adapters', () => {
         const customAudit = { write: async () => {} };
-        const dyn = createSaasPlatformTestModule({
+        const dyn = createSaaSiCatTestModule({
             planCatalog: {
                 schemaVersion: 1,
                 projectKey: 'test',

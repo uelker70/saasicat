@@ -54,7 +54,7 @@ export function generateReferenceSql() {
         const constraints = readFileSync(join(specRoot, 'sql', 'constraints.postgres.sql'), 'utf8');
         return [
             '-- =============================================================================',
-            '-- SaaSicat — PostgreSQL reference schema (DERIVED ARTIFACT).',
+            '-- SaaSiCat — PostgreSQL reference schema (DERIVED ARTIFACT).',
             '-- =============================================================================',
             '--',
             '-- Generated via `pnpm run gen:sql` from the prisma-fragments:',

@@ -1,4 +1,4 @@
-// SaasPlatformModule — the assembler.
+// SaaSiCatModule — the assembler.
 //
 // The base path bundles PlanCatalog, Discovery, Admin and AdminManifest; the
 // standard options add Entitlement, Catalog, PublicCatalog, TenantBilling,
@@ -50,7 +50,7 @@ import {
     STANDARD_MANIFEST_REGISTRATION_TOKEN,
     buildStandardManifestContribution,
 } from './compose/manifest.js';
-import type { SaasPlatformAdapters, SaasPlatformModuleOptions } from './module-options.js';
+import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from './module-options.js';
 
 /**
  * Boot-time diagnostics for configurations that leave enforcement inert.
@@ -74,7 +74,7 @@ function enforcementChainState(state: EnforcementChainState): Provider {
  * Quickstart path (Prisma + PostgreSQL on the canonical schema):
  *
  * ```ts
- * SaasPlatformModule.forRoot({
+ * SaaSiCatModule.forRoot({
  *     planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
  *     controller: { guards: [JwtAuthGuard] },
  *     imports: [AuthModule],
@@ -86,9 +86,9 @@ function enforcementChainState(state: EnforcementChainState): Provider {
  * and override bundle slices field by field.
  */
 @Module({})
-export class SaasPlatformModule {
-    static forRoot(options: SaasPlatformModuleOptions): DynamicModule {
-        const explicit = options.adapters ?? ({} as SaasPlatformAdapters);
+export class SaaSiCatModule {
+    static forRoot(options: SaaSiCatModuleOptions): DynamicModule {
+        const explicit = options.adapters ?? ({} as SaaSiCatAdapters);
         const persistence = options.persistence;
         const catalogConfig = options.catalog || null;
         const tenantBillingConfig = options.tenantBilling || null;
@@ -99,7 +99,7 @@ export class SaasPlatformModule {
             options.entitlement || tenantBillingConfig || subscriptionBundlesConfig,
         );
         // Explicit adapter entries override the bundle slices.
-        const adapters: SaasPlatformAdapters = {
+        const adapters: SaaSiCatAdapters = {
             mfa: explicit.mfa ?? persistence?.core.mfa,
             audit: explicit.audit ?? persistence?.core.audit,
             rlsBypass: explicit.rlsBypass ?? persistence?.core.rlsBypass,
@@ -110,7 +110,7 @@ export class SaasPlatformModule {
             planVersionRepository:
                 explicit.planVersionRepository ?? persistence?.entitlement?.planVersionRepository,
             transactionRunner: explicit.transactionRunner ?? persistence?.core.transactionRunner,
-        } as SaasPlatformAdapters;
+        } as SaaSiCatAdapters;
 
         // Every rule at once, rather than one throw per boot.
         //
@@ -245,7 +245,7 @@ export class SaasPlatformModule {
         lightweightExports.push(...tenantManifest.exports);
 
         return {
-            module: SaasPlatformModule,
+            module: SaaSiCatModule,
             imports,
             providers: lightweightProviders,
             controllers: tenantManifest.controllers,

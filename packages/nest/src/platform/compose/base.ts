@@ -13,7 +13,7 @@ import { PlanCatalogModule } from '../../billing/plan-catalog.module.js';
 import type { ProviderSpec } from '../../core/di.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
-import type { SaasPlatformModuleOptions } from '../module-options.js';
+import type { SaaSiCatModuleOptions } from '../module-options.js';
 
 import { buildMinimalManifestConfig } from './manifest.js';
 
@@ -27,7 +27,7 @@ const DEFAULT_SNAPSHOT_PATH = 'var/discovery-snapshot.json';
  * hydrates from the database is still identified by its project key rather
  * than by a placeholder that would collide with every other one.
  */
-export function resolveAppInfo(options: SaasPlatformModuleOptions): DiscoveryAppInfo {
+export function resolveAppInfo(options: SaaSiCatModuleOptions): DiscoveryAppInfo {
     return (
         options.app ?? {
             key: options.planCatalog?.projectKey ?? options.dbCatalog?.projectKey ?? 'app',
@@ -44,7 +44,7 @@ export function resolveAppInfo(options: SaasPlatformModuleOptions): DiscoveryApp
  * app should not have to import it into each of them.
  */
 export function composePlanCatalog(
-    options: SaasPlatformModuleOptions,
+    options: SaaSiCatModuleOptions,
     sink: ProviderSpec<PlanCatalogReadSink> | undefined,
 ): DynamicModule {
     if (options.planCatalog) {
@@ -52,7 +52,7 @@ export function composePlanCatalog(
     }
     // Non-null on this branch: `catalog.identity-or-sink` has already refused a
     // configuration that reaches here without it.
-    const dbCatalog = options.dbCatalog as NonNullable<SaasPlatformModuleOptions['dbCatalog']>;
+    const dbCatalog = options.dbCatalog as NonNullable<SaaSiCatModuleOptions['dbCatalog']>;
     return PlanCatalogModule.forRoot({
         projectKey: dbCatalog.projectKey,
         app: dbCatalog.app,
@@ -72,7 +72,7 @@ export interface CorePorts {
 
 /** Discovery, the admin core and the manifest — in that order. */
 export function composeBaseModules(
-    options: SaasPlatformModuleOptions,
+    options: SaaSiCatModuleOptions,
     appInfo: DiscoveryAppInfo,
     ports: CorePorts,
 ): DynamicModule[] {

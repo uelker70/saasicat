@@ -23,7 +23,7 @@ import {
 // copy from. Thirteen files by hand, seven of them new, and the count written
 // down nowhere — you find out while doing it.
 
-const TEMPLATES = fileURLToPath(new URL('../templates/init/', import.meta.url));
+const TEMPLATES = fileURLToPath(new URL('../templates/init', import.meta.url));
 
 /** Renders the whole plan, the way the command does. */
 async function render(options) {

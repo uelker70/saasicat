@@ -15,7 +15,7 @@ import { drizzlePersistence } from '@saasicat/adapter-drizzle';
 
 const db = drizzle(new Pool({ connectionString: process.env.DATABASE_URL }));
 
-SaasPlatformModule.forRoot({
+SaaSiCatModule.forRoot({
     planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
     controller: { guards: [JwtAuthGuard] },
     imports: [AuthModule],
@@ -26,7 +26,7 @@ SaasPlatformModule.forRoot({
 
 `drizzlePersistence({ db })` accepts a ready Drizzle database (any pg
 driver — node-postgres, postgres.js) or an injection token, and returns the
-same `SaasicatPersistenceAdapter` bundle shape as `prismaPersistence()`.
+same `SaaSiCatPersistenceAdapter` bundle shape as `prismaPersistence()`.
 Options: `passwordHasher` (enables `core.superAdminProvisioning`) and
 `rlsIntegration` (declares the `rowLevelSecurity` capability once your db
 layer applies the bypass).

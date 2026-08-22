@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import * as platformEntry from '../dist/platform/index.js';
-import { SaasPlatformModule, StaticFeatureGuard } from '../dist/platform/index.js';
+import { SaaSiCatModule, StaticFeatureGuard } from '../dist/platform/index.js';
 import * as rootEntry from '../dist/index.js';
 
 // The mega-module composes a lot for the app. These tests cover the seams an
@@ -59,14 +59,14 @@ const tokensOf = (dyn) => (dyn.providers ?? []).map((p) => p.provide ?? p);
 
 describe('globalFeatureGuard', () => {
     test('defaults to binding StaticFeatureGuard as APP_GUARD', () => {
-        const dyn = SaasPlatformModule.forRoot(baseOptions());
+        const dyn = SaaSiCatModule.forRoot(baseOptions());
         const appGuards = (dyn.providers ?? []).filter((p) => p.provide === APP_GUARD);
         assert.equal(appGuards.length, 1, 'exactly one APP_GUARD by default');
         assert.equal(appGuards[0].useExisting, StaticFeatureGuard);
     });
 
     test('false removes the global APP_GUARD binding', () => {
-        const dyn = SaasPlatformModule.forRoot({ ...baseOptions(), globalFeatureGuard: false });
+        const dyn = SaaSiCatModule.forRoot({ ...baseOptions(), globalFeatureGuard: false });
         assert.equal(
             tokensOf(dyn).filter((t) => t === APP_GUARD).length,
             0,
@@ -77,7 +77,7 @@ describe('globalFeatureGuard', () => {
     test('false keeps the guard class available as a provider to bind manually', () => {
         // Apps that opt out still need the class — they bind it behind their
         // own auth guard: @UseGuards(JwtAuthGuard, StaticFeatureGuard).
-        const dyn = SaasPlatformModule.forRoot({ ...baseOptions(), globalFeatureGuard: false });
+        const dyn = SaaSiCatModule.forRoot({ ...baseOptions(), globalFeatureGuard: false });
         assert.ok(tokensOf(dyn).includes(StaticFeatureGuard));
         assert.ok((dyn.exports ?? []).includes(StaticFeatureGuard));
     });
@@ -85,7 +85,7 @@ describe('globalFeatureGuard', () => {
     test('false does not disable the quota interceptor', () => {
         // Interceptors run after ALL guards, so the global interceptor does see
         // an authenticated request. Only the guard has the ordering problem.
-        const dyn = SaasPlatformModule.forRoot({ ...baseOptions(), globalFeatureGuard: false });
+        const dyn = SaaSiCatModule.forRoot({ ...baseOptions(), globalFeatureGuard: false });
         const interceptors = (dyn.providers ?? []).filter((p) => p.provide === APP_INTERCEPTOR);
         assert.equal(interceptors.length, 1, 'EnforceQuotaInterceptor stays global');
     });
@@ -103,7 +103,7 @@ describe('includeManifestController', () => {
         );
 
     test('is passed through to AdminManifestModule', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             ...baseOptions(),
             includeManifestController: false,
         });
@@ -117,7 +117,7 @@ describe('includeManifestController', () => {
     });
 
     test('defaults to mounting the manifest controller', () => {
-        assert.equal(manifestControllers(SaasPlatformModule.forRoot(baseOptions())).length, 1);
+        assert.equal(manifestControllers(SaaSiCatModule.forRoot(baseOptions())).length, 1);
     });
 });
 

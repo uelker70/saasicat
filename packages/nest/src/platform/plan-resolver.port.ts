@@ -24,7 +24,7 @@ export interface PlanResolverPort {
  * for local development and for apps that do not yet have a contract concept.
  *
  * The quickstart path uses this implicitly when `adapters.planResolver` is
- * not set and `defaultPlanId` was provided in SaasPlatformModule.forRoot().
+ * not set and `defaultPlanId` was provided in SaaSiCatModule.forRoot().
  */
 export class StaticPlanResolver implements PlanResolverPort {
     constructor(private readonly planId: string) {}

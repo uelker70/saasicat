@@ -19,15 +19,15 @@
 // anything to say about this configuration at all, so "not enabled" and
 // "enabled and satisfied" never look alike.
 
-import { assertPersistenceCapabilities, type SaasicatPersistenceAdapter } from '@saasicat/types';
+import { assertPersistenceCapabilities, type SaaSiCatPersistenceAdapter } from '@saasicat/types';
 
-import type { SaasPlatformAdapters, SaasPlatformModuleOptions } from '../module-options.js';
+import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
 
 /** Everything a rule may look at: the options as given, the adapters as resolved. */
 export interface PlatformConfiguration {
-    readonly options: SaasPlatformModuleOptions;
+    readonly options: SaaSiCatModuleOptions;
     /** After the bundle slices and the explicit entries have been merged. */
-    readonly adapters: SaasPlatformAdapters;
+    readonly adapters: SaaSiCatAdapters;
 }
 
 export interface PlatformRule {
@@ -98,7 +98,7 @@ export const docsUrlFor = (id: string): string => `${DOCS_BASE}#${headingSlug(id
 /**
  * The option object of a `false | true | Options` slot, or `undefined`.
  *
- * Every feature slot on `SaasPlatformModuleOptions` spells "on" three ways —
+ * Every feature slot on `SaaSiCatModuleOptions` spells "on" three ways —
  * absent, a boolean, or an object — and only the object carries settings. Four
  * rules had to unpack that, so it is unpacked once.
  */
@@ -107,7 +107,7 @@ function optionsOf<T extends object>(slot: false | true | T | undefined): T | un
 }
 
 /** The persistence bundle, or `undefined` when the app binds ports one by one. */
-const bundle = (c: PlatformConfiguration): SaasicatPersistenceAdapter | undefined =>
+const bundle = (c: PlatformConfiguration): SaaSiCatPersistenceAdapter | undefined =>
     c.options.persistence;
 
 /**
@@ -293,7 +293,7 @@ const RULE_SPECS: readonly RuleSpec[] = [
             assertPersistenceCapabilities(
                 bundle(c)!.capabilities,
                 { transactions: true, pessimisticLocking: true },
-                'SaasPlatformModule entitlement (transactional enforceLimit)',
+                'SaaSiCatModule entitlement (transactional enforceLimit)',
             );
             // Unreachable: `assert` returned false, so the call above throws.
             throw new Error('persistence capabilities check did not fail as expected');

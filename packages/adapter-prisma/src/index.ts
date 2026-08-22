@@ -3,8 +3,8 @@
 // `@saasicat/spec` prisma-fragments.
 //
 // Contents:
-//   - prismaPersistence() — the aggregate SaasicatPersistenceAdapter bundle
-//     for `SaasPlatformModule.forRoot({ persistence })`.
+//   - prismaPersistence() — the aggregate SaaSiCatPersistenceAdapter bundle
+//     for `SaaSiCatModule.forRoot({ persistence })`.
 //   - PRISMA_CLIENT_TOKEN + PrismaLike/PrismaTxLike — DI token + structural
 //     sub-interfaces for consumer PrismaService bindings.
 //   - Individual adapters for manual wiring: MFA, audit (write/query/stats),

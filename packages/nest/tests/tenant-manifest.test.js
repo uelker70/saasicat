@@ -4,7 +4,7 @@ import {
     StaticEntitlementService,
     StaticPlanResolver,
     TenantManifestService,
-    SaasPlatformModule,
+    SaaSiCatModule,
     buildTenantManifestController,
 } from '../dist/platform/index.js';
 
@@ -93,7 +93,7 @@ describe('TenantManifestService', () => {
     });
 });
 
-describe('SaasPlatformModule + tenantManifest', () => {
+describe('SaaSiCatModule + tenantManifest', () => {
     class FakeMfa {
         async getSecret() {
             return null;
@@ -115,7 +115,7 @@ describe('SaasPlatformModule + tenantManifest', () => {
     test('tenantManifest without defaultPlanId/resolver throws', () => {
         assert.throws(
             () =>
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     planCatalog: CATALOG,
                     controller: { guards: [] },
                     adapters: {
@@ -130,7 +130,7 @@ describe('SaasPlatformModule + tenantManifest', () => {
     });
 
     test('tenantManifest + defaultPlanId registers controller + service', () => {
-        const dyn = SaasPlatformModule.forRoot({
+        const dyn = SaaSiCatModule.forRoot({
             planCatalog: CATALOG,
             controller: { guards: [] },
             adapters: {

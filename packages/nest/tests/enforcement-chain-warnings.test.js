@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Logger } from '@nestjs/common';
 import { DiscoveryModule as NestDiscoveryModule } from '@nestjs/core';
 
-import { SaasPlatformModule } from '../dist/platform/index.js';
+import { SaaSiCatModule } from '../dist/platform/index.js';
 
 // A configuration that leaves `@RequireFeature`/`@EnforceQuota` inert breaks
 // nothing visibly: annotated routes keep answering, quotas read as unlimited,
@@ -61,7 +61,7 @@ function baseOptions(extra = {}) {
     };
 }
 
-describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
+describe('SaaSiCatModule.forRoot — enforcement-chain warnings', () => {
     let warnings;
     let originalWarn;
 
@@ -78,7 +78,7 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
     });
 
     test('warns when no plan resolver and no fallback plan are configured', () => {
-        SaasPlatformModule.forRoot(baseOptions());
+        SaaSiCatModule.forRoot(baseOptions());
 
         const hit = warnings.find((w) => w.includes('INERT'));
         assert.ok(hit, `expected an inert-enforcement warning, got: ${JSON.stringify(warnings)}`);
@@ -89,7 +89,7 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
     });
 
     test('stays silent once defaultPlanId activates the static entitlement stack', () => {
-        SaasPlatformModule.forRoot(baseOptions({ defaultPlanId: 'STARTER' }));
+        SaaSiCatModule.forRoot(baseOptions({ defaultPlanId: 'STARTER' }));
 
         assert.deepEqual(
             warnings.filter((w) => w.includes('INERT')),
@@ -104,7 +104,7 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
         // question is asked after bootstrap now, by EnforcementChainCheck,
         // against the routes that are actually there — and answered by
         // refusing the boot, not by another line in a log.
-        const moduleDef = SaasPlatformModule.forRoot(
+        const moduleDef = SaaSiCatModule.forRoot(
             baseOptions({ defaultPlanId: 'STARTER', globalFeatureGuard: false }),
         );
 
@@ -138,7 +138,7 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
     });
 
     test('stays silent on the default path with the guard bound', () => {
-        SaasPlatformModule.forRoot(baseOptions({ defaultPlanId: 'STARTER' }));
+        SaaSiCatModule.forRoot(baseOptions({ defaultPlanId: 'STARTER' }));
 
         assert.deepEqual(
             warnings.filter((w) => w.includes('globalFeatureGuard')),
@@ -152,7 +152,7 @@ describe('SaasPlatformModule.forRoot — enforcement-chain warnings', () => {
         // branch, which the inert configuration never reaches. A guard nobody
         // constructs is the failure mode this whole file exists for, one level
         // up.
-        const moduleDef = SaasPlatformModule.forRoot(baseOptions());
+        const moduleDef = SaaSiCatModule.forRoot(baseOptions());
 
         assert.ok(
             (moduleDef.providers ?? []).some(

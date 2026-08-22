@@ -1,4 +1,4 @@
-// Query-side Drizzle table map of the canonical SaaSicat tables. The DDL
+// Query-side Drizzle table map of the canonical SaaSiCat tables. The DDL
 // authority is `@saasicat/spec/sql/reference-schema.postgres.sql` — these
 // definitions only DESCRIBE the existing tables for the query builder, they
 // are not meant for `drizzle-kit` migrations.

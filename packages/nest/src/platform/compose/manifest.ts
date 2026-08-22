@@ -13,9 +13,9 @@ import type { ManifestContribution, PlanCatalog } from '@saasicat/types';
 import type { AdminManifestConfig } from '../../admin/admin-manifest.config.js';
 import { PLAN_CATALOG_TOKEN } from '../../billing/plan-catalog.module.js';
 import type {
-    SaasPlatformAdminResourcesOptions,
-    SaasPlatformCatalogOptions,
-    SaasPlatformPromoCodesOptions,
+    SaaSiCatAdminResourcesOptions,
+    SaaSiCatCatalogOptions,
+    SaaSiCatPromoCodesOptions,
 } from '../module-options.js';
 
 /**
@@ -34,9 +34,9 @@ export const STANDARD_MANIFEST_REGISTRATION_TOKEN = Symbol.for(
 );
 
 export function buildStandardManifestContribution(
-    catalog: SaasPlatformCatalogOptions | null,
-    adminResources: SaasPlatformAdminResourcesOptions | true | null,
-    promoCodes: SaasPlatformPromoCodesOptions | true | null,
+    catalog: SaaSiCatCatalogOptions | null,
+    adminResources: SaaSiCatAdminResourcesOptions | true | null,
+    promoCodes: SaaSiCatPromoCodesOptions | true | null,
 ): ManifestContribution {
     const capabilities: NonNullable<ManifestContribution['capabilities']> = {
         'discovery.read': true,
@@ -114,7 +114,7 @@ export function buildMinimalManifestConfig(): Pick<FactoryProvider, 'useFactory'
                 appVersion: '0.0.0',
             },
             planCatalogSnapshot: {
-                source: 'saas-platform-module',
+                source: 'saasicat-module',
                 hash: 'sha256-quickstart',
                 currency: catalog.currency,
                 vatRate: catalog.vatRate,

@@ -9,7 +9,7 @@ import type { QuotaProvider, UsageSnapshotPort } from '@saasicat/types';
 
 import type { ProviderSpec } from '../../core/di.js';
 import { QuotaProvidersUsageSnapshot } from '../quota-providers-usage-snapshot.js';
-import type { SaasPlatformTenantAuthGuards } from '../module-options.js';
+import type { SaaSiCatTenantAuthGuards } from '../module-options.js';
 
 /**
  * Guard classes as a provider that resolves them.
@@ -20,7 +20,7 @@ import type { SaasPlatformTenantAuthGuards } from '../module-options.js';
  * being a second code path inside it.
  */
 export function normalizeTenantAuthGuards(
-    guards: SaasPlatformTenantAuthGuards,
+    guards: SaaSiCatTenantAuthGuards,
 ): ProviderSpec<ReadonlyArray<CanActivate>> {
     if (!Array.isArray(guards)) return guards;
     return {

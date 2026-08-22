@@ -38,20 +38,19 @@ export * from './subscription-contract/index.js';
 // without crossing CJS bundle identities. New applications may use the
 // narrower `@saasicat/nest/platform` entry instead.
 export {
-    SaasPlatformModule,
-    SaasPlatformModule as SaaSiCatModule,
+    SaaSiCatModule,
     defineSaaSiCat,
-    type SaasPlatformAdapters,
-    type SaasPlatformAdminResourcesOptions,
-    type SaasPlatformAdminStatsOptions,
-    type SaasPlatformCatalogOptions,
-    type SaasPlatformCheckoutOfferOptions,
-    type SaasPlatformModuleOptions,
-    type SaasPlatformPromoCodesOptions,
-    type SaasPlatformSetupOptions,
-    type SaasPlatformSubscriptionBundlesOptions,
-    type SaasPlatformSubscriptionContractOptions,
-    type SaasPlatformTenantAuthGuards,
-    type SaasPlatformTenantBillingOptions,
+    type SaaSiCatAdapters,
+    type SaaSiCatAdminResourcesOptions,
+    type SaaSiCatAdminStatsOptions,
+    type SaaSiCatCatalogOptions,
+    type SaaSiCatCheckoutOfferOptions,
+    type SaaSiCatModuleOptions,
+    type SaaSiCatPromoCodesOptions,
+    type SaaSiCatSetupOptions,
+    type SaaSiCatSubscriptionBundlesOptions,
+    type SaaSiCatSubscriptionContractOptions,
+    type SaaSiCatTenantAuthGuards,
+    type SaaSiCatTenantBillingOptions,
 } from './platform/index.js';
 export * from './errors/coded-error.js';

@@ -28,7 +28,7 @@ import type {
     PlanVersionRepository,
     QuotaProvider,
     RlsBypassPort,
-    SaasicatPersistenceAdapter,
+    SaaSiCatPersistenceAdapter,
     SubscriptionRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
@@ -65,7 +65,7 @@ import { type TenantManifestControllerOptions } from './tenant-manifest.controll
  * when wiring adapters without a bundle. The module validates that each port
  * ends up provided by exactly one of the two paths.
  */
-export interface SaasPlatformAdapters {
+export interface SaaSiCatAdapters {
     mfa?: ProviderSpec<MfaPort>;
     audit?: ProviderSpec<AuditPort>;
     rlsBypass?: ProviderSpec<RlsBypassPort>;
@@ -96,7 +96,7 @@ type PlatformImports = Array<
     Type<unknown> | DynamicModule | Promise<DynamicModule> | ForwardReference
 >;
 
-export interface SaasPlatformCatalogOptions extends Pick<
+export interface SaaSiCatCatalogOptions extends Pick<
     CatalogModuleOptions,
     | 'strictModeCheckMode'
     | 'autoSyncDiscoveryAtBoot'
@@ -114,10 +114,10 @@ export interface SaasPlatformCatalogOptions extends Pick<
     imports?: PlatformImports;
 }
 
-export type SaasPlatformTenantAuthGuards =
+export type SaaSiCatTenantAuthGuards =
     Array<Type<CanActivate>> | ProviderSpec<ReadonlyArray<CanActivate>>;
 
-export interface SaasPlatformTenantBillingOptions extends Omit<
+export interface SaaSiCatTenantBillingOptions extends Omit<
     TenantBillingModuleOptions,
     | 'authGuards'
     | 'subscriptionUsagePort'
@@ -129,14 +129,14 @@ export interface SaasPlatformTenantBillingOptions extends Omit<
      * Tenant guards as classes (the common path) or as a custom provider
      * factory. Guard classes are resolved from `imports`.
      */
-    authGuards: SaasPlatformTenantAuthGuards;
+    authGuards: SaaSiCatTenantAuthGuards;
     /** Optional overrides; otherwise the persistence bundle supplies them. */
     subscriptionUsagePort?: ProviderSpec<SubscriptionUsagePort>;
     usageSnapshotPort?: ProviderSpec<UsageSnapshotPort>;
     subscriptionWritePort?: ProviderSpec<TenantSubscriptionWritePort>;
 }
 
-export interface SaasPlatformSubscriptionBundlesOptions extends Omit<
+export interface SaaSiCatSubscriptionBundlesOptions extends Omit<
     SubscriptionBundleModuleOptions,
     | 'subscriptionBundleRepository'
     | 'bundleRepository'
@@ -152,7 +152,7 @@ export interface SaasPlatformSubscriptionBundlesOptions extends Omit<
     extraProviders?: Provider[];
 }
 
-export interface SaasPlatformAdminResourcesOptions extends Omit<
+export interface SaaSiCatAdminResourcesOptions extends Omit<
     AdminResourcesModuleOptions,
     'resources' | 'guards' | 'global'
 > {
@@ -162,7 +162,7 @@ export interface SaasPlatformAdminResourcesOptions extends Omit<
     resources?: ProviderSpec<AdminResourcesPort>;
 }
 
-export interface SaasPlatformPromoCodesOptions extends Omit<
+export interface SaaSiCatPromoCodesOptions extends Omit<
     PromoCodesModuleOptions,
     | 'promoCodeRepository'
     | 'redemptionRepository'
@@ -193,7 +193,7 @@ export interface SaasPlatformPromoCodesOptions extends Omit<
 }
 
 /** First-run setup, deriving the provisioning adapter from persistence by default. */
-export interface SaasPlatformSetupOptions extends Omit<
+export interface SaaSiCatSetupOptions extends Omit<
     SetupModuleOptions,
     'provisioningPort' | 'global'
 > {
@@ -201,7 +201,7 @@ export interface SaasPlatformSetupOptions extends Omit<
 }
 
 /** Admin dashboard statistics; the audit port can come from persistence. */
-export interface SaasPlatformAdminStatsOptions extends Omit<
+export interface SaaSiCatAdminStatsOptions extends Omit<
     AdminStatsModuleOptions,
     'auditStatsPort' | 'global'
 > {
@@ -212,7 +212,7 @@ export interface SaasPlatformAdminStatsOptions extends Omit<
  * Public checkout-offer flow. Catalog repositories default to the persistence
  * bundle, while the app still supplies its checkout-offer repository.
  */
-export interface SaasPlatformCheckoutOfferOptions extends Omit<
+export interface SaaSiCatCheckoutOfferOptions extends Omit<
     CheckoutOfferModuleOptions,
     'bundleRepository' | 'planRepository' | 'catalogEntryRepository' | 'global'
 > {
@@ -222,7 +222,7 @@ export interface SaasPlatformCheckoutOfferOptions extends Omit<
 }
 
 /** Subscription-contract service, deriving its repository from persistence by default. */
-export interface SaasPlatformSubscriptionContractOptions extends Omit<
+export interface SaaSiCatSubscriptionContractOptions extends Omit<
     SubscriptionContractModuleOptions,
     'subscriptionContractRepository' | 'global'
 > {
@@ -246,7 +246,7 @@ export interface SaasPlatformSubscriptionContractOptions extends Omit<
  * Everything else — an operator creating tenants through the SuperAdmin UI, a
  * CLI, or your own onboarding form — is composed here.
  */
-export interface SaasPlatformModuleOptions {
+export interface SaaSiCatModuleOptions {
     /**
      * Plan catalog. Either as an already-loaded object (quickstart, comes
      * directly from `loadPlanCatalogFromFile('config/saas.yaml')`) or via DB
@@ -275,12 +275,12 @@ export interface SaasPlatformModuleOptions {
      * `capabilities` are validated fail-fast against the enabled feature set
      * (e.g. `entitlement: true` requires transactions + pessimistic locking).
      */
-    persistence?: SaasicatPersistenceAdapter;
+    persistence?: SaaSiCatPersistenceAdapter;
     /**
      * Individual adapter bindings. Optional when `persistence` provides the
      * respective port; explicit entries take precedence over the bundle.
      */
-    adapters?: SaasPlatformAdapters;
+    adapters?: SaaSiCatAdapters;
     /**
      * Class-level guards for the platform controllers (`GET /admin/discovery`
      * and `GET /admin/manifest`). REQUIRED — otherwise the platform throws at
@@ -368,43 +368,43 @@ export interface SaasPlatformModuleOptions {
      * Standard DB-backed catalog stack. Repositories are taken from
      * `persistence.catalog`; no consumer forwarding module is needed.
      */
-    catalog?: false | SaasPlatformCatalogOptions;
+    catalog?: false | SaaSiCatCatalogOptions;
     /**
      * Standard tenant self-service stack. Subscription read/write adapters
      * come from `persistence.tenantBilling`; usage is derived from
      * `quotaProviders` unless explicitly overridden.
      */
-    tenantBilling?: false | SaasPlatformTenantBillingOptions;
+    tenantBilling?: false | SaaSiCatTenantBillingOptions;
     /**
      * Add-on bundle service and tenant controller. `true` uses defaults and
      * reuses tenant-billing auth/usage; an object customizes policy.
      */
-    subscriptionBundles?: false | true | SaasPlatformSubscriptionBundlesOptions;
+    subscriptionBundles?: false | true | SaaSiCatSubscriptionBundlesOptions;
     /**
      * Standard SuperAdmin Tenant/User/Audit/Subscription endpoints. `true`
      * uses `persistence.adminResources` and the standard guard chain.
      */
-    adminResources?: false | true | SaasPlatformAdminResourcesOptions;
+    adminResources?: false | true | SaaSiCatAdminResourcesOptions;
     /**
      * Promo-code domain and SuperAdmin CRUD. `true` enables the admin API
      * without the public preview endpoint; pass an object to enable preview.
      */
-    promoCodes?: false | true | SaasPlatformPromoCodesOptions;
+    promoCodes?: false | true | SaaSiCatPromoCodesOptions;
     /**
      * First-run SuperAdmin setup. `true` uses
      * `persistence.core.superAdminProvisioning`; an object customizes it or
      * supplies an app-specific provisioning adapter.
      */
-    setup?: false | true | SaasPlatformSetupOptions;
+    setup?: false | true | SaaSiCatSetupOptions;
     /** SuperAdmin dashboard statistics with app-specific subscription/promo ports. */
-    adminStats?: false | SaasPlatformAdminStatsOptions;
+    adminStats?: false | SaaSiCatAdminStatsOptions;
     /** Public checkout-offer flow; catalog repositories reuse `persistence.catalog`. */
-    checkoutOffer?: false | SaasPlatformCheckoutOfferOptions;
+    checkoutOffer?: false | SaaSiCatCheckoutOfferOptions;
     /**
      * Subscription-contract service. `true` reuses
      * `persistence.entitlement.subscriptionContractRepository`.
      */
-    subscriptionContract?: false | true | SaasPlatformSubscriptionContractOptions;
+    subscriptionContract?: false | true | SaaSiCatSubscriptionContractOptions;
     /**
      * Enable the tenant manifest — the app UI gets a filtered manifest per
      * tenant with features, quotas and visible navigation. Requires that

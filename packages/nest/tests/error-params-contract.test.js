@@ -15,7 +15,7 @@ import { ERROR_MESSAGES_EN } from '@saasicat/types';
 // sibling: the review of #99 found five codes whose params keys differed by
 // call site, which no unit test noticed.
 
-const SRC = new URL('../src/', import.meta.url).pathname;
+const SRC = new URL('../src', import.meta.url).pathname;
 
 function sourceFiles(dir) {
     return readdirSync(dir).flatMap((entry) => {

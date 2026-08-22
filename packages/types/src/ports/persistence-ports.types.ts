@@ -1,6 +1,6 @@
 // Persistence adapter bundle — the aggregate contract a persistence adapter
 // package (e.g. `@saasicat/adapter-prisma`) exposes so consumers wire ONE
-// object into `SaasPlatformModule.forRoot({ persistence })` instead of
+// object into `SaaSiCatModule.forRoot({ persistence })` instead of
 // binding every repository token manually.
 //
 // The bundle does not replace the fine-grained ports (they stay the single
@@ -98,7 +98,7 @@ export interface PersistenceCapabilities {
 }
 
 /** Always-required slice: admin surface + transactions. */
-export interface SaasicatPersistenceCore {
+export interface SaaSiCatPersistenceCore {
     mfa: PersistenceProvider<MfaPort>;
     audit: PersistenceProvider<AuditPort>;
     rlsBypass: PersistenceProvider<RlsBypassPort>;
@@ -112,7 +112,7 @@ export interface SaasicatPersistenceCore {
 }
 
 /** Repositories for the entitlement/contract loop (`EntitlementModule`). */
-export interface SaasicatPersistenceEntitlement {
+export interface SaaSiCatPersistenceEntitlement {
     subscriptionRepository: PersistenceProvider<SubscriptionRepository>;
     planVersionRepository: PersistenceProvider<PlanVersionRepository>;
     subscriptionContractRepository?: PersistenceProvider<SubscriptionContractRepository>;
@@ -125,7 +125,7 @@ export interface SaasicatPersistenceEntitlement {
  * this slice once and let the high-level Nest module wire `CatalogModule` and
  * `PublicCatalogModule` without consumer-owned forwarding modules.
  */
-export interface SaasicatPersistenceCatalog {
+export interface SaaSiCatPersistenceCatalog {
     planRepository: PersistenceProvider<PlanRepository>;
     bundleRepository: PersistenceProvider<BundleRepository>;
     catalogEntryRepository?: PersistenceProvider<CatalogEntryRepository>;
@@ -139,14 +139,14 @@ export interface SaasicatPersistenceCatalog {
  * the Nest high-level module derives it from registered `QuotaProvider`s when
  * the adapter does not provide a more specialized implementation.
  */
-export interface SaasicatPersistenceTenantBilling {
+export interface SaaSiCatPersistenceTenantBilling {
     subscriptionUsagePort: PersistenceProvider<SubscriptionUsagePort>;
     subscriptionWritePort: PersistenceProvider<TenantSubscriptionWritePort>;
     usageSnapshotPort?: PersistenceProvider<UsageSnapshotPort>;
 }
 
 /** Read/write backing for the standard SuperAdmin resource pages. */
-export interface SaasicatPersistenceAdminResources {
+export interface SaaSiCatPersistenceAdminResources {
     resources: PersistenceProvider<AdminResourcesPort>;
 }
 
@@ -156,7 +156,7 @@ export interface SaasicatPersistenceAdminResources {
  * app-semantic `firstTimeCustomerCheck` is deliberately NOT part of the
  * bundle — what counts as an existing customer is a consumer decision.
  */
-export interface SaasicatPersistencePromo {
+export interface SaaSiCatPersistencePromo {
     promoCodeRepository: PersistenceProvider<PromoCodeRepository>;
     redemptionRepository: PersistenceProvider<PromoCodeRedemptionRepository>;
     validationLogRepository: PersistenceProvider<PromoCodeValidationLogRepository>;
@@ -170,17 +170,17 @@ export interface SaasicatPersistencePromo {
  * `SaaSiCatModule.forRoot({ persistence })`. Fine-grained fields can still be
  * passed to per-domain `forRoot` options for custom compositions.
  */
-export interface SaasicatPersistenceAdapter {
+export interface SaaSiCatPersistenceAdapter {
     capabilities: PersistenceCapabilities;
-    core: SaasicatPersistenceCore;
-    entitlement?: SaasicatPersistenceEntitlement;
+    core: SaaSiCatPersistenceCore;
+    entitlement?: SaaSiCatPersistenceEntitlement;
     /** Editable plans, bundles, discovery review and marketing data. */
-    catalog?: SaasicatPersistenceCatalog;
+    catalog?: SaaSiCatPersistenceCatalog;
     /** Tenant subscription read/write adapters for the self-service API. */
-    tenantBilling?: SaasicatPersistenceTenantBilling;
+    tenantBilling?: SaaSiCatPersistenceTenantBilling;
     /** Tenant, user, audit and subscription resources for the SuperAdmin UI. */
-    adminResources?: SaasicatPersistenceAdminResources;
-    promo?: SaasicatPersistencePromo;
+    adminResources?: SaaSiCatPersistenceAdminResources;
+    promo?: SaaSiCatPersistencePromo;
     /** DB hydration of the plan catalog at boot (`PlanCatalogModule`). */
     planCatalogReadSink?: PersistenceProvider<PlanCatalogReadSink>;
     /** One-shot `saas.yaml → DB` import. */

@@ -15,7 +15,7 @@ transaction rollback and atomic promo claims are verified, not asserted.
 import { prismaPersistence } from '@saasicat/adapter-prisma';
 import { PrismaService } from './prisma/prisma.service';
 
-SaasPlatformModule.forRoot({
+SaaSiCatModule.forRoot({
     planCatalog: loadPlanCatalogFromFile({ path: 'config/saas.yaml' }),
     controller: { guards: [JwtAuthGuard] },
     imports: [AuthModule],
@@ -26,8 +26,8 @@ SaasPlatformModule.forRoot({
 
 `prismaPersistence({ client })` accepts your `PrismaService` class token (or
 a ready `PrismaLike` instance in tests) and returns a
-`SaasicatPersistenceAdapter` bundle: declared capabilities + provider specs
-for every shipped port. `SaasPlatformModule.forRoot` validates the
+`SaaSiCatPersistenceAdapter` bundle: declared capabilities + provider specs
+for every shipped port. `SaaSiCatModule.forRoot` validates the
 capabilities fail-fast (entitlement requires transactions + row locks) and
 wires the slices; individual `adapters` entries still override field by field.
 
@@ -42,7 +42,7 @@ Options:
 
 The bundle also ships `planCatalogReadSink` for DB hydration. To use it,
 omit `planCatalog` and pass the identity the database cannot provide:
-`SaasPlatformModule.forRoot({ persistence, dbCatalog: { projectKey,
+`SaaSiCatModule.forRoot({ persistence, dbCatalog: { projectKey,
 currency, vatRate } })` — without `dbCatalog` the module refuses to boot
 (the sink would otherwise load an empty catalog for project key `''`).
 

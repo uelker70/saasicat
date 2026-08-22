@@ -1,14 +1,14 @@
-// createSaasPlatformTestModule — convenience for integration tests that want to
-// spin up the `SaasPlatformModule` with fake adapters and a static in-memory
+// createSaaSiCatTestModule — convenience for integration tests that want to
+// spin up the `SaaSiCatModule` with fake adapters and a static in-memory
 // PlanCatalog. Saves ~50 lines of setup per test file.
 //
 // Usage:
 //
 // ```ts
 // import { Test } from '@nestjs/testing';
-// import { createSaasPlatformTestModule } from '@saasicat/nest/testing';
+// import { createSaaSiCatTestModule } from '@saasicat/nest/testing';
 //
-// const moduleRef = await createSaasPlatformTestModule({
+// const moduleRef = await createSaaSiCatTestModule({
 //     planCatalog: {
 //         schemaVersion: 1,
 //         projectKey: 'notesapp',
@@ -26,8 +26,8 @@
 
 import { Module, type DynamicModule, type Type } from '@nestjs/common';
 import type { PlanCatalog, QuotaProvider } from '@saasicat/types';
-import { SaasPlatformModule } from '../platform/saas-platform.module.js';
-import type { SaasPlatformAdapters } from '../platform/saas-platform.module.js';
+import { SaaSiCatModule } from '../platform/saasicat.module.js';
+import type { SaaSiCatAdapters } from '../platform/saasicat.module.js';
 
 /** No-op stub for `MfaPort`. */
 export class StubMfaPort {
@@ -71,29 +71,27 @@ export class StubRlsBypassPort {
     }
 }
 
-export interface CreateSaasPlatformTestModuleOptions {
+export interface CreateSaaSiCatTestModuleOptions {
     planCatalog: PlanCatalog;
     /** Default `'starter'` if the catalog has at least one plan. */
     defaultPlanId?: string;
     /** QuotaProvider classes for the `EnforceQuotaInterceptor`. */
     quotaProviders?: Array<Type<QuotaProvider>>;
     /** Overrides — if the test needs a different adapter. */
-    overrides?: Partial<Pick<SaasPlatformAdapters, 'mfa' | 'audit' | 'rlsBypass'>>;
+    overrides?: Partial<Pick<SaaSiCatAdapters, 'mfa' | 'audit' | 'rlsBypass'>>;
 }
 
 /**
- * Returns a `DynamicModule` that sets up the SaasPlatformModule with stub
+ * Returns a `DynamicModule` that sets up the SaaSiCatModule with stub
  * adapters + the given PlanCatalog in static entitlement mode.
  * Tests can drop this into `Test.createTestingModule({ imports: [...] })`.
  */
-export function createSaasPlatformTestModule(
-    options: CreateSaasPlatformTestModuleOptions,
-): DynamicModule {
+export function createSaaSiCatTestModule(options: CreateSaaSiCatTestModuleOptions): DynamicModule {
     const defaultPlanId = options.defaultPlanId ?? options.planCatalog.plans?.[0]?.id;
 
     @Module({
         imports: [
-            SaasPlatformModule.forRoot({
+            SaaSiCatModule.forRoot({
                 planCatalog: options.planCatalog,
                 controller: { guards: [] }, // Tests run without an auth guard
                 adapters: {
@@ -106,9 +104,9 @@ export function createSaasPlatformTestModule(
             }),
         ],
     })
-    class SaasPlatformTestHost {}
+    class SaaSiCatTestHost {}
 
     return {
-        module: SaasPlatformTestHost,
+        module: SaaSiCatTestHost,
     };
 }

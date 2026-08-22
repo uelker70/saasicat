@@ -18,11 +18,11 @@
 // order it implies is stated in `compose/index.ts`.
 
 import type { CanActivate } from '@nestjs/common';
-import type { SaasicatPersistenceAdapter, SubscriptionUsagePort } from '@saasicat/types';
+import type { SaaSiCatPersistenceAdapter, SubscriptionUsagePort } from '@saasicat/types';
 
 import type { ProviderSpec } from '../../core/di.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';
-import type { SaasPlatformAdapters, SaasPlatformModuleOptions } from '../module-options.js';
+import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
 
 /**
  * What `tenantBilling` resolved and its two dependants need.
@@ -49,10 +49,10 @@ export interface SharedTenantBinding {
 }
 
 export interface CompositionContext {
-    readonly options: SaasPlatformModuleOptions;
+    readonly options: SaaSiCatModuleOptions;
     /** After the bundle slices and the explicit entries have been merged. */
-    readonly adapters: SaasPlatformAdapters;
-    readonly persistence: SaasicatPersistenceAdapter | undefined;
+    readonly adapters: SaaSiCatAdapters;
+    readonly persistence: SaaSiCatPersistenceAdapter | undefined;
     /** App key and version, for discovery and the public catalogue. */
     readonly appInfo: DiscoveryAppInfo;
     /** Entitlement is needed directly, or by tenant billing / bundles. */

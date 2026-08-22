@@ -2,7 +2,7 @@ import type {
     PasswordHasher,
     PersistenceInjectionToken,
     PersistenceProvider,
-    SaasicatPersistenceAdapter,
+    SaaSiCatPersistenceAdapter,
 } from '@saasicat/types';
 import type { DrizzleClient } from './client.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
@@ -45,13 +45,13 @@ export interface DrizzlePersistenceOptions {
 }
 
 /**
- * Builds the `SaasicatPersistenceAdapter` bundle for Drizzle + PostgreSQL on
+ * Builds the `SaaSiCatPersistenceAdapter` bundle for Drizzle + PostgreSQL on
  * the canonical schema (`@saasicat/spec` reference SQL):
  *
  * ```ts
  * const db = drizzle(new Pool({ connectionString: process.env.DATABASE_URL }));
  *
- * SaasPlatformModule.forRoot({
+ * SaaSiCatModule.forRoot({
  *     persistence: drizzlePersistence({ db }),
  *     // ...
  * });
@@ -62,7 +62,7 @@ export interface DrizzlePersistenceOptions {
  * modules for those areas until the Drizzle bundle gains matching adapters.
  * Both adapters still pass the shared core persistence contract.
  */
-export function drizzlePersistence(options: DrizzlePersistenceOptions): SaasicatPersistenceAdapter {
+export function drizzlePersistence(options: DrizzlePersistenceOptions): SaaSiCatPersistenceAdapter {
     const { db } = options;
 
     const provide = <T>(build: (client: DrizzleClient) => T): PersistenceProvider<T> =>

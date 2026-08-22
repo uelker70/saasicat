@@ -1,5 +1,5 @@
 import type { DynamicModule } from '@nestjs/common';
-import type { SaasicatPersistenceAdapter } from '@saasicat/types';
+import type { SaaSiCatPersistenceAdapter } from '@saasicat/types';
 
 import { PublicCatalogModule } from '../../billing/public-catalog.module.js';
 import { CatalogModule } from '../../catalog/catalog.module.js';
@@ -21,7 +21,7 @@ export function composeCatalog({
     const config = options.catalog;
     if (!config) return [];
 
-    const catalog = persistence?.catalog as NonNullable<SaasicatPersistenceAdapter['catalog']>;
+    const catalog = persistence?.catalog as NonNullable<SaaSiCatPersistenceAdapter['catalog']>;
     const modules: DynamicModule[] = [
         CatalogModule.forRoot({
             planRepository: catalog.planRepository,

@@ -23,7 +23,7 @@ import type {
 
 /**
  * Port instances under test. Required members define the minimum an adapter
- * must ship to call itself a SaaSicat persistence adapter; optional members
+ * must ship to call itself a SaaSiCat persistence adapter; optional members
  * activate additional scenario groups (absent → the group reports as
  * skipped, never silently).
  */

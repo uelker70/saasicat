@@ -596,7 +596,7 @@ Add these in this order:
    platform health checks.
    → [handbook](handbook.md), §9
 
-4. **Tests:** `createSaasPlatformTestModule({ planCatalog, defaultPlanId, quotaProviders })`
+4. **Tests:** `createSaaSiCatTestModule({ planCatalog, defaultPlanId, quotaProviders })`
    from `@saasicat/nest/testing` for integration tests without your own
    adapter setup.
 

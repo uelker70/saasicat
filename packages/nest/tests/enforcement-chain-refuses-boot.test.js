@@ -4,7 +4,7 @@ import 'reflect-metadata';
 import { Controller, Get, Logger, Module, UseGuards } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
-import { SaasPlatformModule, StaticFeatureGuard } from '../dist/platform/index.js';
+import { SaaSiCatModule, StaticFeatureGuard } from '../dist/platform/index.js';
 import { FeatureGuard, RequireFeature } from '../dist/billing/index.js';
 import { EnforceQuota } from '../dist/discovery/index.js';
 
@@ -139,7 +139,7 @@ const V3GuardedController = makeController('V3GuardedController', 'v3-reports', 
 
 function appWith(controller, platform) {
     const TestApp = class {};
-    Module({ imports: [SaasPlatformModule.forRoot(platform)], controllers: [controller] })(TestApp);
+    Module({ imports: [SaaSiCatModule.forRoot(platform)], controllers: [controller] })(TestApp);
     return TestApp;
 }
 

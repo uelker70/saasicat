@@ -8,7 +8,6 @@ import {
     QUOTA_PROVIDERS_TOKEN,
     QuotaProvidersUsageSnapshot,
     SaaSiCatModule,
-    SaasPlatformModule,
     StaticEntitlementService,
     SubscriptionPlanResolver,
     defineSaaSiCat,
@@ -49,9 +48,9 @@ function fakeBundle(capabilityOverrides = {}) {
     };
 }
 
-describe('SaasPlatformModule persistence bundle', () => {
+describe('SaaSiCatModule persistence bundle', () => {
     test('forRoot wires from a bundle without individual adapters', () => {
-        const mod = SaasPlatformModule.forRoot({
+        const mod = SaaSiCatModule.forRoot({
             planCatalog,
             controller: { guards: [] },
             persistence: fakeBundle(),
@@ -62,13 +61,13 @@ describe('SaasPlatformModule persistence bundle', () => {
 
     test('missing core adapters are reported by name', () => {
         assert.throws(
-            () => SaasPlatformModule.forRoot({ planCatalog, controller: { guards: [] } }),
+            () => SaaSiCatModule.forRoot({ planCatalog, controller: { guards: [] } }),
             /mfa, audit, rlsBypass/,
         );
     });
 
     test('entitlement pulls repositories + transaction runner from the bundle', () => {
-        const mod = SaasPlatformModule.forRoot({
+        const mod = SaaSiCatModule.forRoot({
             planCatalog,
             controller: { guards: [] },
             persistence: fakeBundle(),
@@ -80,7 +79,7 @@ describe('SaasPlatformModule persistence bundle', () => {
     test('entitlement without required capabilities fails fast at boot', () => {
         assert.throws(
             () =>
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     planCatalog,
                     controller: { guards: [] },
                     persistence: fakeBundle({ pessimisticLocking: false }),
@@ -97,7 +96,7 @@ describe('SaasPlatformModule persistence bundle', () => {
 
     test('explicit adapters combine with a bundle', () => {
         const explicitMfa = { getSecret: async () => null };
-        const mod = SaasPlatformModule.forRoot({
+        const mod = SaaSiCatModule.forRoot({
             planCatalog,
             controller: { guards: [] },
             persistence: fakeBundle(),
@@ -114,7 +113,7 @@ describe('SaasPlatformModule persistence bundle', () => {
                 return { plans: [], livePlanVersions: [], featureEntries: [] };
             },
         };
-        const mod = SaasPlatformModule.forRoot({
+        const mod = SaaSiCatModule.forRoot({
             controller: { guards: [] },
             persistence: fakeBundle(),
             adapters: { planCatalogReadSink: sink },
@@ -136,7 +135,7 @@ describe('SaasPlatformModule persistence bundle', () => {
     test('DB hydration without dbCatalog fails fast instead of loading an empty catalog', () => {
         assert.throws(
             () =>
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     controller: { guards: [] },
                     persistence: fakeBundle(), // provides a read sink, but no identity
                 }),
@@ -167,7 +166,7 @@ describe('SaasPlatformModule persistence bundle', () => {
         };
         const moduleRef = await Test.createTestingModule({
             imports: [
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     planCatalog: {
                         ...planCatalog,
                         plans: [{ id: 'STARTER', features: ['NOTES'], quotas: { notesMax: 25 } }],
@@ -191,7 +190,7 @@ describe('SaasPlatformModule persistence bundle', () => {
         delete bundle.entitlement;
         assert.throws(
             () =>
-                SaasPlatformModule.forRoot({
+                SaaSiCatModule.forRoot({
                     planCatalog,
                     controller: { guards: [] },
                     persistence: bundle,

@@ -1,5 +1,5 @@
 -- =============================================================================
--- SaaSicat — PostgreSQL reference schema (DERIVED ARTIFACT).
+-- SaaSiCat — PostgreSQL reference schema (DERIVED ARTIFACT).
 -- =============================================================================
 --
 -- Generated via `pnpm run gen:sql` from the prisma-fragments:
@@ -790,7 +790,7 @@ ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_subscrip
 ALTER TABLE "subscription_bundles" ADD CONSTRAINT "subscription_bundles_bundleVersionId_fkey" FOREIGN KEY ("bundleVersionId") REFERENCES "bundle_versions"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- =============================================================================
--- SaaSicat — normative PostgreSQL constraints the Prisma DSL cannot express.
+-- SaaSiCat — normative PostgreSQL constraints the Prisma DSL cannot express.
 -- =============================================================================
 --
 -- Consumers add these statements to their SQL migration after creating the
