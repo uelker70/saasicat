@@ -20,16 +20,24 @@
 //   node scripts/build-stamp.mjs write     (from a package directory)
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const STAMP_FILE = join('dist', '.build-stamp');
 
-/** Files every package build reads, outside the package itself. */
+/**
+ * Files every package build reads, outside the package itself.
+ *
+ * The lockfile and the workspace file are in here because they decide which
+ * tsup, esbuild and SWC get installed: a dependency bump changes every bundle
+ * without touching a single file inside a package.
+ */
 const SHARED_INPUTS = [
     'tsconfig.base.json',
+    'pnpm-lock.yaml',
+    'pnpm-workspace.yaml',
     'scripts/build-and-prune.mjs',
     'scripts/build-stamp.mjs',
 ];
@@ -133,6 +141,16 @@ export function writesStamp(packageDir) {
 export function readStamp(packageDir) {
     const file = join(packageDir, STAMP_FILE);
     return existsSync(file) ? readFileSync(file, 'utf8').trim() : null;
+}
+
+/**
+ * Removes the stamp. Called before a build starts: a build that fails or is
+ * interrupted leaves whatever it got through in `dist/` (see
+ * `build-and-prune.mjs`), and a stamp from the previous build beside that
+ * would pass the partial output off as current.
+ */
+export function clearStamp(packageDir) {
+    rmSync(join(packageDir, STAMP_FILE), { force: true });
 }
 
 export function writeStamp(packageDir, workspace = readWorkspace()) {

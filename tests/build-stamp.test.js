@@ -1,8 +1,10 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
     inputsHash,
@@ -108,6 +110,43 @@ describe('which builds are judged at all', () => {
         );
         assert.equal(writesStamp(wrapped), true);
         assert.equal(writesStamp(pkg('bare')), false, 'a `tsc` build has no stamp to read');
+        rmSync(root, { recursive: true });
+    });
+});
+
+describe('a build that does not finish leaves no stamp', () => {
+    test('the previous stamp is gone before the build starts', () => {
+        const { root, pkg } = scratch();
+        const dir = pkg('a');
+        mkdirSync(join(dir, 'dist'), { recursive: true });
+        writeFileSync(join(dir, 'dist', '.build-stamp'), 'from-an-earlier-build\n');
+        const wrapper = resolve(
+            dirname(fileURLToPath(import.meta.url)),
+            '../scripts/build-and-prune.mjs',
+        );
+        const result = spawnSync(process.execPath, [wrapper, 'exit 1'], {
+            cwd: dir,
+            encoding: 'utf8',
+        });
+        assert.notEqual(result.status, 0, 'the failing build was reported as a success');
+        assert.equal(
+            existsSync(join(dir, 'dist', '.build-stamp')),
+            false,
+            'a failed build left the old stamp, so the partial dist/ would pass as current',
+        );
+        rmSync(root, { recursive: true });
+    });
+
+    test('the lockfile is an input', () => {
+        const { root, pkg, workspace } = scratch();
+        const dir = pkg('a');
+        const before = inputsHash(dir, workspace(), root);
+        writeFileSync(join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n');
+        assert.notEqual(
+            inputsHash(dir, workspace(), root),
+            before,
+            'a lockfile change went unseen',
+        );
         rmSync(root, { recursive: true });
     });
 });

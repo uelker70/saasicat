@@ -55,7 +55,7 @@ import { lstatSync, readdirSync, rmSync, existsSync, rmdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-import { writeStamp } from './build-stamp.mjs';
+import { clearStamp, writeStamp } from './build-stamp.mjs';
 
 const DIST_DIR = 'dist';
 
@@ -109,6 +109,9 @@ if (process.argv.length !== 3 || process.argv[2].trim() === '') {
 const command = process.argv[2].trim();
 
 const dist = path.resolve(process.cwd(), DIST_DIR);
+// Gone before the first output is written: if this build does not finish,
+// nothing may say dist/ is current.
+clearStamp(process.cwd());
 const before = snapshot(dist);
 
 const result = spawnSync(command, { shell: true, stdio: 'inherit' });
