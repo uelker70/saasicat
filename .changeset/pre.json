@@ -17,5 +17,10 @@
     "saasicat": "0.27.0",
     "@saasicat/ui-vue-tenant": "0.27.0"
   },
-  "changesets": []
+  "changesets": [
+    "one-name-per-thing",
+    "one-surface-for-the-admin-ui",
+    "pages-read-their-own-data",
+    "the-primitive-roster-and-its-consumers"
+  ]
 }

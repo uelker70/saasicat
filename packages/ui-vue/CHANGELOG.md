@@ -1,5 +1,331 @@
 # @saasicat/ui-vue
 
+## 1.0.0-rc.0
+
+### Major Changes
+
+- 9449492: **One name for everything — and a codemod that applies it.** Phase 5 of the 1.0 cut.
+
+    `npx @saasicat/cli@latest codemod v1 --dir=.` does the surface cut from the previous
+    candidates and everything below in one run. `docs/migrating-to-1.0.md` is the written
+    form, with before/after for each change.
+
+    **`SaasPlatformModule` is gone; `SaaSiCatModule` is the class**, not an alias of it.
+    The thirteen `SaasPlatform*` option types are `SaaSiCat*` — `SaaSiCatModuleOptions`,
+    `SaaSiCatAdapters`, `SaaSiCatCatalogOptions` and so on. `createSaasPlatformTestModule`
+    is `createSaaSiCatTestModule`; `SaasicatPersistenceAdapter` and its six slice types are
+    `SaaSiCatPersistenceAdapter` and `SaaSiCatPersistence*`. There is one spelling of the
+    product name left: `SaaSiCat` in types and prose, `saasicat` in packages and files,
+    `SAASICAT_` in constants.
+
+    **Every registry key is `saasicat/<package>/<Name>`.** Four prefixes —
+    `saas-platform/`, `saas-platform-nest/`, `saas-platform-cli/`, and `@saasicat/ui-vue/` for
+    the Vue injection keys — became one. This matters only if your code calls `Symbol.for`
+    with one of those strings itself; the exported token constants are unchanged in name and
+    resolve as before. The keys will not be renamed again: the rule in `CONTRIBUTING.md` says
+    why, and a repository test refuses any other prefix.
+
+    **`FEATURE_UI_REGISTRY_TOKEN` has two names now**, because it meant two registries:
+    `BILLING_FEATURE_UI_REGISTRY_TOKEN` from `@saasicat/nest/billing` and
+    `CATALOG_FEATURE_UI_REGISTRY_TOKEN` from `@saasicat/nest/catalog`. The codemod picks by
+    the entry you imported from and reports an import it cannot decide.
+
+    **`@saasicat/ui-vue/testing-e2e/*` is `@saasicat/ui-vue/testing/*`** — the Playwright
+    helper consumers run their admin pages through. Nothing else about it changed.
+
+    Inside the repository, for anyone who reads it: the package directories are the package
+    names (`packages/nest`, not `packages/saas-platform-nest`), Nest files follow
+    `<area>/<name>.module.ts`, adapter files end in `.repository.ts` or `.adapter.ts`, and test
+    directories are `tests/{integration,component,e2e}`. None of that reaches a consumer's
+    imports.
+
+- 9449492: **The UI package has one name for each thing again.** Its export map went from
+  37 entries to 13, and the surface it hands out is now the one the architecture
+  describes rather than the one that accumulated.
+
+    **`./pages-standard/*` is gone.** It was a second spelling of `./pages/*` —
+    same files, two names, and both consumer apps used both. Import from `./pages/`.
+
+    **`./components/*` is gone.** What it published was everything that happened to
+    sit in one directory: page skeleton primitives beside domain components beside
+    page-private parts. The primitives are `./ui/*.vue` now — `AdminPage`,
+    `AdminTable`, `AdminHero` and the rest, plus `FeatureGate` and
+    `MfaPromptDialog`. The domain and page-private components are not published at
+    all; they were never meant to be a public surface, and importing them tied your
+    app to our internal structure.
+
+    **Three files moved out of `./pages/`:** `AdminLayout.vue` is `./layouts/`,
+    `SuperAdminLoginPage.vue` and `SuperAdminSetupWizard.vue` are `./auth/`.
+
+    **Source subpaths end in `.vue` now** — `./pages/*.vue` rather than `./pages/*`.
+    A subpath that hands out a directory hands out everything in it.
+
+    **New: `./vue`.** The package is three layers — `client` (framework-free),
+    `vue` (composables), `quasar` (bootstrap) — and until now only two of them had
+    an entry. The main entry still works and is wider: it re-exports the `client`
+    layer as well. `./vue` is the narrow door.
+
+    ### Migrating
+
+    ```bash
+    npx @saasicat/cli@latest codemod v1-imports --dir=./src
+    ```
+
+    It rewrites every subpath that has a new home and reports the ones that no
+    longer have one — for those, copy what you need into your own repository. Add
+    `--dry-run` to see what it would do first.
+
+    The rules come from the same table the platform's own move ran on, shipped with
+    the CLI, so what your imports become cannot disagree with where the files went.
+    Measured against the two apps we know: 2 imports in one, 42 in the other, and
+    neither imports anything that became unreachable.
+
+- 9449492: **Every standard page reads its own data.** Twelve pages took sixty-one callback
+  props between them — `loadTenants`, `submitCreate`, `reviewFeature`,
+  `classifyDiff` — and every consumer app wrote them all again. They now ask the
+  platform's resource registry by name. Function props in pages: **64 → 2**, and
+  `tests/pages-take-no-callbacks.test.js` now holds that number: it resolves each
+  prop's type through the compiler, so a callback reached through a type alias
+  fails the build the same way an inline one does.
+
+    An app that mounted a standard page with the standard wiring can delete that
+    wiring. An app that needs one call diverted passes `:resources` to that page,
+    or `resourceOverrides` to `createSuperAdminApp()`, and keeps the rest — the
+    property
+    a prop-based page cannot offer, because its props are all or nothing.
+
+    The example's glue shows the size of it: `AdminBundlesPage` went from 145 lines
+    to 16, `AdminDiscoveryPage` from 72 to 16.
+
+    The two remaining function props are on `AdminManifestErrorPage`, deliberately:
+    that page renders when the manifest failed to load, so pointing it at the
+    registry would point it at the thing whose absence put it on screen. Each says
+    so in its own JSDoc, which is what the guard reads — an exception is declared
+    where the prop is, not collected in a list somewhere else.
+
+    **`DashboardPage` joins them.** It kept `loadManifest`, `http` and `formatKpi`
+    after the other twelve moved. The manifest comes from the shell's guard, the
+    client from the registry, and the third is now a resource:
+
+    ```diff
+    -<DashboardPage :manifest="m" :load-manifest="load" :http="client"
+    -                :format-kpi="myFormat" :distributions="rows" />
+    +<DashboardPage :options="{ distributions: rows }" />
+    ```
+
+    An app whose KPI endpoints answer in a shape the default reader does not
+    recognise overrides `dashboard.kpi` once, instead of threading a formatter to
+    the one page that took it. `subtitle`, `distributions`, `shortcuts` and
+    `shortcutDescriptions` moved into `options`.
+
+    **Pages no longer take `adminEndpoint`, `projectKey`, `http` or
+    `getAuthToken`.** They come from the shell, which already knew them.
+    `BundlesPage` in particular
+    took a `projectKey` prop while its resources read a different one from the
+    context — two answers to one question.
+
+    **Four resources are new**, and none of them invents an endpoint. The platform
+    ships pages for pilots, SMTP providers and the send log but serves no route for
+    any of them: those belong to your backend. The descriptors record the paths
+    every consumer already calls, so the pages need no callbacks and you override
+    an operation instead of supplying one.
+
+    **Fixed: five defects the route split left behind.** The plan editor and the
+    review became child routes, and the page that hosts them kept state and
+    operations written for the modes they used to be:
+
+    - Publishing from the review wrote nothing. The operation read the page's copy
+      of the draft, which only a _save_ had ever written, so a publish before a save
+      returned at its first guard while the step cleared the form and navigated
+      away. `publishDraft` now takes the draft — and the checklist's force flags,
+      which were dropped on the way out.
+    - A rejected save looked exactly like a successful one: the error was recorded,
+      but the step had already cleared the form and left. `saveDraft` and
+      `publishDraft` answer `boolean`; a step leaves only on `true`.
+    - The plans page drew its own hero and body underneath the step, putting two
+      complete plan views on one screen. It reads the route now.
+    - `PromoCodeDetailPage` read `route.params.id` while its route declares
+      `promo-codes/:code`, so every navigation asked for `/promo-codes/` — the list.
+    - `UsersPage`'s one-time-password dialog sat in a row slot and opened once per
+      rendered user, stacking overlays and focus traps.
+
+    **Fixed: three defaults that grouping the props into `options` dropped.**
+    `withDefaults` carried them; `props.options?.x` reads `undefined` as "off", and
+    an optional boolean makes that a legal value rather than a type error. Every app
+    that had never named the option lost the surface:
+
+    | Page               | Option           | What went missing                |
+    | ------------------ | ---------------- | -------------------------------- |
+    | `TenantsPage`      | `showPlanColumn` | the plan column                  |
+    | `TenantDetailPage` | `showUsers`      | the users section                |
+    | `PromoCodesPage`   | `statusOptions`  | the status filter's four choices |
+
+    **Fixed: the status pill had lost its shape.** Promoting `StatusPill` onto the
+    roster moved its tones into the theme and left the base rule behind, so
+    `.sa-pill` had no radius, no padding and no weight — every status marker in the
+    admin rendered as plain body text while its colours stayed correct. Its vertical
+    padding now sits on the spacing scale (2px, from 3px) and its radius has a token
+    of its own, so a pill is one pixel shorter than it was in 0.27.
+
+    **Fixed: two standard pages crashed while mounting in an assembled app.**
+    `PromoCodeDetailPage` threw on a code that does not exist — its title read
+    `data?.promo.code`, and a response without a `promo` is still truthy — and
+    `EmailHistoryPage` handed its table `rows=undefined` when the body was not the
+    paginated envelope. Both render their empty state now.
+
+    **Fixed: the shell header overflowed on a phone.** Eleven pixels, and the same
+    eleven at 320px, 390px and 600px: Quasar pads the toolbar title 12px per side
+    and padding does not shrink, so the title was already down to nothing while
+    those 24px pushed a `position: fixed` row past its box. The locale and theme
+    switchers also drop their labels one breakpoint earlier — at the `sm` lower edge
+    the badge, both labels and the identity block all came back at once.
+
+    **Fixed: `auditResource` sent parameters the endpoint ignores.** It spoke
+    `AuditQuery` (`actorTag`, `from`, `to`, paginated) at `GET /admin/audit`, which
+    accepts `actor`, `action`, `entity`, `since`, `limit` and answers with a bare
+    array. Filtering the audit list by actor would have returned an unfiltered list
+    that looked filtered. `AuditListFilter` is now `AdminAuditListFilter`, and
+    `useResourceList('audit')` no longer compiles — call
+    `useResource('audit').list(filter)`.
+
+    **A fully redeemed promo code no longer renders red.** Both copies of the page's
+    status-to-colour function fell through to `negative` for `EXHAUSTED`, so the
+    campaign that worked best looked like a fault.
+
+    ***
+
+    **The plan editor and review are their own routes.**
+    `/admin/plans/version/edit` and `/admin/plans/version/review` — deep-linkable,
+    and children of the plans route so the unsaved draft survives moving between
+    them. Nothing is written to the server until you publish or save, which is the
+    point of the review step.
+
+    ***
+
+    **`pages-tenant/*` moved to `@saasicat/ui-vue-tenant`.**
+
+    ```diff
+    -import TenantPlanSection from '@saasicat/ui-vue/pages-tenant/TenantPlanSection.vue';
+    +import TenantPlanSection from '@saasicat/ui-vue-tenant/TenantPlanSection.vue';
+    ```
+
+    `saasicat codemod v1-imports` rewrites these for you along with the rest of the
+    1.0 import moves.
+
+    **Fixed while splitting it: the package's export map answered no `.ts` file.**
+    It read `"./*": "./src/*"`, and the package ships source, so
+    `import { … } from '@saasicat/ui-vue-tenant/tenant-i18n.js'` resolved to a
+    `.js` that is not there. `./*.js` now maps to `./src/*.ts`, `./*.vue` to
+    `./src/*.vue`.
+
+    Why: different audience, different release schedule. Those components render
+    inside your customers' product under their branding and in their language, and
+    folding them into the admin package meant every breaking change in the admin
+    forced a migration in the middle of a customer-facing product. It also shipped
+    4,300 lines to every admin consumer who never renders a tenant page.
+
+    Add the package alongside the platform one:
+
+    ```bash
+    pnpm add @saasicat/ui-vue-tenant
+    ```
+
+    It takes `@saasicat/ui-vue` as a peer and reads the same design tokens, so
+    `import '@saasicat/ui-vue/theme.css'` still covers both.
+
+    ***
+
+    **Breaking: the default UI locale is English.** `DEFAULT_SA_LOCALE` was `'de'`.
+    It is also the fallback for `Intl`, so an app that names no locale now formats
+    dates and currency the English way. German remains a complete catalog — pass
+    `createSuperAdminApp({ i18n: { locale: 'de' } })`.
+
+### Minor Changes
+
+- 9449492: **Twelve admin primitives, and every hand-built copy of them is gone.**
+
+    New in `@saasicat/ui-vue/ui/*.vue`:
+
+    - `AdminBanner` — an inline notice, in one of four tones
+    - `AdminErrorBanner` — the failure case of that. One prop, and it renders
+      nothing when there is no error, so a page binds it unconditionally
+    - `AdminEmptyState` — what a list shows when it has nothing to show
+    - `AdminDialog` — the chrome under every dialog
+    - `AdminFormDialog` — a dialog whose point is a write. Owns the submit
+      lifecycle: disabled while pending, failure shown without closing
+    - `AdminConfirmDialog` — a dialog that asks before something irreversible
+    - `AdminToolbar` — the action row above a table that is not the hero
+    - `AdminRowActions` — the per-row controls in a table's `row-actions` slot
+    - `AdminField` / `AdminFieldGrid` — a labelled control, and the grid it sits in
+    - `AdminStatusPill` — a status, as a word plus a tone
+
+    `AdminStatusPill` is promoted out of a private directory where one page used
+    it while nine other places rendered their own status display. Its `PillTone`
+    type is exported from `@saasicat/ui-vue/vue`, along with `PROMO_STATUS_TONE` —
+    the one status vocabulary shared across pages.
+
+    **What this replaces.** Nineteen hand-written banners in six different colour
+    recipes, nineteen raw `<q-dialog>` sites in seventeen files, five word-for-word
+    copies of the same `errMsg()` helper, and the four pages that reached for
+    `useQuasar()` because the confirm port had no consumer. All four numbers are now
+    zero. Two dialogs keep their own submit handler on purpose: they route a failure
+    to the MFA prompt or to themselves depending on the response reason, and a
+    component that owns the error cannot make that split.
+
+    **One behaviour fix rides along.** A fully redeemed promo code rendered red —
+    both copies of the page's status-to-colour function fell through to `negative`
+    for `EXHAUSTED`. The campaign that worked best looked like a defect. It is now
+    muted.
+
+    **Breaking: the default UI locale is English.** `DEFAULT_SA_LOCALE` was `'de'`
+    and is now `'en'`. It is also the fallback for `Intl`, so an app that names no
+    locale now formats dates and currency the English way as well. German remains a
+    complete, first-class catalog — an app that wants it passes
+    `createSuperAdminApp({ i18n: { locale: 'de' } })`, and a missing English
+    translation is still a compile error.
+
+    **Also fixed:** dialogs teleport out of the page, so the package's page-wide
+    `box-sizing: border-box` never reached them. Hand-built modals each carried
+    their own reset; the shared dialog chrome now carries it once.
+
+    ***
+
+    **Two standard pages read their data themselves.** `PromoCodesPage` and
+    `AuditPage` no longer take loader or submit props — they ask the platform's
+    resource registry by name. `PromoCodesPage` drops `loadPromos`, `submitCreate`,
+    `submitEdit` and `submitDelete`; `AuditPage` drops `loadAudit`. An app that
+    rendered either with the standard wiring can delete that wiring; an app that
+    needs one call diverted passes `:resources` instead of re-supplying all of them.
+
+    **`useResource(key, override?)`** takes a per-page override now, layered over the
+    app-wide one rather than replacing it — platform, then app, then instance. An app
+    that wraps an operation app-wide keeps that wrapper when a single page is pointed
+    somewhere else.
+
+    **Fixed: the audit resource sent parameters the endpoint ignores.**
+    `auditResource.list` spoke `AuditQuery` (`actorTag`, `from`, `to`, paginated) at
+    `GET /admin/audit`, which accepts `actor`, `action`, `entity`, `since`, `limit`
+    and answers with a bare array. `AuditQuery` belongs to `AuditQueryPort`, one
+    layer below HTTP — the adapter translates. Filtering the audit list by actor
+    would have returned an unfiltered list that looked filtered. Nothing consumed the
+    descriptor yet, so no released version shipped the wrong request; it is corrected
+    before the page reaches it.
+
+    Two consequences for anyone who did use it: `AuditListFilter` is now
+    `AdminAuditListFilter`, and `useResourceList('audit')` no longer compiles —
+    the operation returns an array, not a page, so `audit` is not a list resource.
+    Call `useResource('audit').list(filter)`.
+
+    **`PromoRow` lost its `[extra: string]: unknown`.** It was there so rows arriving
+    through a `loadPromos` prop could carry anything an app returned. The resource
+    decides the shape now, and the index signature was what kept a typo from being
+    distinguishable from a field the server had started sending.
+
+### Patch Changes
+
+- Updated dependencies [9449492]
+    - @saasicat/types@1.0.0-rc.0
+
 ## 0.27.0
 
 ### Minor Changes
