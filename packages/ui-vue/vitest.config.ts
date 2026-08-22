@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 
 // Component tests for the SFCs. The framework-free units keep running on
 // `node --test` against the built `dist/` — this runner exists only because a
-// `.vue` file needs compiling, and it is scoped to `tests-component/` so the
+// `.vue` file needs compiling, and it is scoped to `tests/component/` so the
 // two never overlap.
 //
 // The SFCs are consumed from `src/` by design (see the package exports), so the
@@ -25,7 +25,7 @@ export default defineConfig({
         },
     },
     test: {
-        include: ['tests-component/**/*.test.ts'],
+        include: ['tests/component/**/*.test.ts'],
         environment: 'jsdom',
         root: fileURLToPath(new URL('.', import.meta.url)),
         server: { deps: { inline: ['quasar'] } },

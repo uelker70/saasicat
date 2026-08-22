@@ -59,7 +59,7 @@ persistenceAdapterContract({
 Run the file with `node --test` and a disposable database. The kit tests
 **resolved port instances** (DI-free); seeding is adapter-owned because
 fixture writes are schema-specific. See
-`@saasicat/adapter-prisma/tests-integration/` for the reference harness.
+`@saasicat/adapter-prisma/tests/integration/` for the reference harness.
 
 In-memory fakes must not be used to "verify" an adapter — they cannot
 emulate lock semantics (declare `pessimisticLocking: false` and the lock

@@ -4,7 +4,7 @@
 // `createSuperAdminApp()` provides it under `SUPER_ADMIN_CONFIRM_KEY` and
 // `useSuperAdminConfirm()` below resolves it — but nothing under `src/` calls
 // that hook. Its only call site in the repository is
-// `tests-component/ui-confirm-port.test.ts`.
+// `tests/component/ui-confirm-port.test.ts`.
 //
 // The pages that do ask a yes/no question ask it in one of three other ways:
 // Quasar's `q.dialog()`, `window.confirm()`, or a dialog the page mounts

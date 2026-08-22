@@ -10,7 +10,7 @@ import {
     saasicatSchema,
 } from '../dist/index.js';
 
-// Wiring/shape tests — behavioral verification runs in tests-integration/
+// Wiring/shape tests — behavioral verification runs in tests/integration/
 // via @saasicat/persistence-testing against a real PostgreSQL (drizzle
 // query builders need a live session; faking them would test nothing).
 

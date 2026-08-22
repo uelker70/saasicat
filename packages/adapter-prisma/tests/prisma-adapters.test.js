@@ -19,7 +19,7 @@ import {
 
 // Fake PrismaLike — structural sub-interface that the adapters expect.
 // Mapping/wiring is verified here; real database semantics (locks, atomic
-// updates, rollback) are covered by tests-integration/ via
+// updates, rollback) are covered by tests/integration/ via
 // @saasicat/persistence-testing.
 
 function recordingRaw(calls) {

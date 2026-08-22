@@ -22,7 +22,7 @@ import {
 // a near-white value. Fourteen readings across seven rules were under 3:1 when
 // this test was first run, in four separate components.
 //
-// It is the source-level twin of `tests-e2e/theme-contrast.spec.ts`, and the
+// It is the source-level twin of `tests/e2e/theme-contrast.spec.ts`, and the
 // two catch different things. The browser one sees what is actually on screen,
 // including inheritance and Quasar's own paint, but only for elements a page
 // renders at rest — it never saw any of these, because they sit behind a tab,

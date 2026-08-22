@@ -129,7 +129,7 @@
         "vue/": "composables, unchanged",
         "quasar/": "the one non-SFC place that may import quasar, unchanged",
         "ui/theme/": "already in its destination (AP2)",
-        "testing-e2e/": "unchanged",
+        "testing-e2e/ \u2192 testing/": "renamed in phase 5 (5.8); `codemod v1-rename` rewrites the specifier",
         "pages-standard/sa-theme.css \u2192 ui/theme/": "moved so that pages-standard/ can go; renamed to theme.css in 4.2"
     }
 }

@@ -55,14 +55,14 @@
         "./theme.css": "./src/ui/theme/index.css",
         "./theme/breakpoints": "./src/ui/theme/_breakpoints.scss",
         "./theme/*": "./src/ui/theme/*",
-        "./testing-e2e/*": {
+        "./testing/*": {
             "import": {
-                "types": "./dist/testing-e2e/*.d.ts",
-                "default": "./dist/testing-e2e/*.js"
+                "types": "./dist/testing/*.d.ts",
+                "default": "./dist/testing/*.js"
             },
             "require": {
-                "types": "./dist/testing-e2e/*.d.cts",
-                "default": "./dist/testing-e2e/*.cjs"
+                "types": "./dist/testing/*.d.cts",
+                "default": "./dist/testing/*.cjs"
             }
         }
     },
@@ -74,7 +74,7 @@
         "build": "node ../../scripts/build-and-prune.mjs tsup",
         "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.tests.json",
         "pretest": "pnpm run build",
-        "test": "node --test tests/**/*.test.js",
+        "test": "node --test 'tests/*.test.js'",
         "test:component": "vitest run --config vitest.config.ts",
         "test:e2e": "playwright test",
         "test:visual": "playwright test --project=visual",

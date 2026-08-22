@@ -53,7 +53,7 @@ deviates is saying something — make sure it is something.
 
 `AdminPage` carries the frame, `AdminHero` the identity, `AdminSection` the
 surface. Nothing else in the package renders an `<h1>`, and no page writes its
-own `<q-table>` — both are enforced by `tests-component/admin-page-shell.test.ts`,
+own `<q-table>` — both are enforced by `tests/component/admin-page-shell.test.ts`,
 which reads the source of every page and fails on a violation.
 
 ### Rows that open
@@ -96,7 +96,7 @@ somewhere before it was a rule:
   the one row whose state the badge itself should report; it moves the colour
   and nothing else, which is what keeps it the same badge.
 
-`tests-component/admin-page-shell.test.ts` keeps the package at one disclosure:
+`tests/component/admin-page-shell.test.ts` keeps the package at one disclosure:
 it reads every `.vue` under `src` for a click that flips a value the same
 template renders a body on, and for a view that declares itself a disclosure
 control with a hand-written `aria-expanded` or a native `<details>`.
@@ -678,7 +678,7 @@ diff panel for the component's whole life.
 - **Focus is visible.** `--sa-shadow-focus` — never remove an outline without
   replacing it.
 - **Text contrast ≥ 3:1**, in **both** themes, checked on all nineteen standard
-  pages by `tests-e2e/theme-contrast.spec.ts`. That is a floor, not a target:
+  pages by `tests/e2e/theme-contrast.spec.ts`. That is a floor, not a target:
   it is the line below which text is not hard to read but gone. Where a page
   cannot meet it, the exception is named in that file with its reason, and a
   test fails if the exception stops describing anything.

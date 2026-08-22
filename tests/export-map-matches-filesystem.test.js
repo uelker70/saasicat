@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 // `package.json#exports` is a promise the build has to keep.
 //
 // It did not. `@saasicat/ui-vue` declared a `types` condition for
-// `./testing-e2e/*` pointing at `.d.ts` files that were never emitted — tsup
+// `./testing/*` pointing at `.d.ts` files that were never emitted — tsup
 // runs its two configs concurrently, and the `clean: true` on one deleted the
 // declarations the other had just written. Nothing failed: `pnpm build` was
 // green, the runtime files existed, and only a consumer importing the entry

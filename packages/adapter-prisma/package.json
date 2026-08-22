@@ -24,8 +24,8 @@
     "scripts": {
         "build": "node ../../scripts/build-and-prune.mjs \"tsup src/index.ts --format esm,cjs --dts --external @saasicat/types --external @nestjs/common\"",
         "pretest": "pnpm run build",
-        "test": "node --test tests/**/*.test.js",
-        "test:integration": "node --test tests-integration/**/*.test.js"
+        "test": "node --test 'tests/*.test.js'",
+        "test:integration": "node --test 'tests/integration/*.test.js'"
     },
     "dependencies": {
         "@saasicat/types": "workspace:^"

@@ -37,7 +37,7 @@
  * for an embedded surface calls those two functions; that is the one line that
  * makes it actually work.
  *
- * `tests-e2e/theme-contrast.spec.ts` holds the counter-proof: with the OS set
+ * `tests/e2e/theme-contrast.spec.ts` holds the counter-proof: with the OS set
  * to dark and no bridge, the platform stays in step with Quasar.
  */
 

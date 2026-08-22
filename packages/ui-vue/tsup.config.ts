@@ -10,7 +10,7 @@ import { defineConfig } from 'tsup';
 // NOTE: no `clean: true` on any entry. tsup runs the two configs below
 // concurrently, so a `clean` belonging to one of them deletes whatever the
 // other has already written. That is not hypothetical: it silently removed
-// `dist/testing-e2e/*.d.ts` after the declaration build had emitted them,
+// `dist/testing/*.d.ts` after the declaration build had emitted them,
 // which left `package.json#exports` pointing its `types` condition at files
 // that did not exist.
 //
@@ -33,8 +33,8 @@ export default defineConfig([
         external: ['@saasicat/types', 'vue', 'vue-router', 'pinia', 'quasar'],
     },
     {
-        entry: { 'admin-pages-suite': 'src/testing-e2e/admin-pages-suite.ts' },
-        outDir: 'dist/testing-e2e',
+        entry: { 'admin-pages-suite': 'src/testing/admin-pages-suite.ts' },
+        outDir: 'dist/testing',
         format: ['esm', 'cjs'],
         dts: true,
         external: ['@playwright/test'],

@@ -134,7 +134,7 @@
     "scripts": {
         "build": "node ../../scripts/build-and-prune.mjs \"tsup && tsup --config tsup.cjs.config.ts && node scripts/build-cjs-stubs.mjs\"",
         "pretest": "pnpm run build",
-        "test": "node --test tests/**/*.test.js"
+        "test": "node --test 'tests/*.test.js'"
     },
     "dependencies": {
         "@saasicat/spec": "workspace:^",

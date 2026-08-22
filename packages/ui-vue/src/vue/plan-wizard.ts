@@ -12,7 +12,7 @@
 // the three steps share, and lives exactly as long as the operator is inside
 // the plans area.
 //
-// `tests-component/plan-wizard-keeps-its-draft.test.ts` holds it to that.
+// `tests/component/plan-wizard-keeps-its-draft.test.ts` holds it to that.
 
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue';
 

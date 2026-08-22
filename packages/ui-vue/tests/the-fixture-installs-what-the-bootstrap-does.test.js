@@ -33,7 +33,7 @@ import { join } from 'node:path';
 import { PACKAGE } from './support/vue-typescript-program.mjs';
 
 const BOOTSTRAP = join(PACKAGE, 'src', 'quasar', 'create-super-admin-app.ts');
-const FIXTURE = join(PACKAGE, 'tests-e2e', 'visual', 'main.ts');
+const FIXTURE = join(PACKAGE, 'tests/e2e', 'visual', 'main.ts');
 
 /**
  * The injection keys a file installs, by the name it calls them.

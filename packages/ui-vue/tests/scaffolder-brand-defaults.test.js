@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const TEMPLATE = fileURLToPath(
     new URL('../../create-saasicat-admin/templates/src/styles/theme.scss.tpl', import.meta.url),
 );
-const FIXTURE = fileURLToPath(new URL('../tests-e2e/visual/theme.scss', import.meta.url));
+const FIXTURE = fileURLToPath(new URL('./e2e/visual/theme.scss', import.meta.url));
 
 /** `$name: #value;` pairs, ignoring comments and blank lines. */
 function brandVariables(path) {
