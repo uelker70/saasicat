@@ -72,5 +72,5 @@ export type UiConfirm = (request: UiConfirmRequest) => Promise<UiConfirmResult>;
 
 /** Vue inject key for the confirm port (see `Symbol.for` note in super-admin-context.ts). */
 export const SUPER_ADMIN_CONFIRM_KEY: InjectionKey<UiConfirm> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_CONFIRM',
+    'saasicat/ui-vue/SUPER_ADMIN_CONFIRM',
 );

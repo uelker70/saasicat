@@ -114,7 +114,7 @@ describe('useSuperAdminConfirm', () => {
         // A consumer holding a second copy of the module — dist alongside src —
         // recreates the key rather than importing this one. `Symbol.for` makes
         // the two the same symbol; a bare `Symbol()` would miss.
-        const olderCopyKey = Symbol.for('@saasicat/ui-vue/SUPER_ADMIN_CONFIRM');
+        const olderCopyKey = Symbol.for('saasicat/ui-vue/SUPER_ADMIN_CONFIRM');
         expect(olderCopyKey).toBe(SUPER_ADMIN_CONFIRM_KEY);
     });
 });

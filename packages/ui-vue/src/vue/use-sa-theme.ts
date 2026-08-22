@@ -163,7 +163,7 @@ export function createSaTheme(options: SaThemeOptions = {}): SaTheme {
 
 // `Symbol.for` — see super-admin-context.ts: dist- and src-imported module
 // instances must resolve to the same injection key.
-export const SA_THEME_KEY: InjectionKey<SaTheme> = Symbol.for('@saasicat/ui-vue/SA_THEME');
+export const SA_THEME_KEY: InjectionKey<SaTheme> = Symbol.for('saasicat/ui-vue/SA_THEME');
 
 let fallbackTheme: SaTheme | null = null;
 

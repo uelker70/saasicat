@@ -34,7 +34,7 @@ import { BILLING_ERROR_CODES } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 
-export const ADMIN_RESOURCES_PORT_TOKEN = Symbol.for('saas-platform/AdminResourcesPort');
+export const ADMIN_RESOURCES_PORT_TOKEN = Symbol.for('saasicat/nest/AdminResourcesPort');
 
 export class SuspendTenantDto {
     @IsOptional()

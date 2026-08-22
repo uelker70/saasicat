@@ -8,7 +8,7 @@
 // resolution — the `PlanResolverPort` is then obsolete.
 //
 
-export const PLAN_RESOLVER_PORT_TOKEN = Symbol.for('saas-platform-nest/PlanResolverPort');
+export const PLAN_RESOLVER_PORT_TOKEN = Symbol.for('saasicat/nest/PlanResolverPort');
 
 export interface PlanResolverPort {
     /**

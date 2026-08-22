@@ -26,5 +26,5 @@ export type UiNotify = (kind: UiNotifyKind, message: string, options?: UiNotifyO
 
 /** Vue inject key for the notify port (see `Symbol.for` note in super-admin-context.ts). */
 export const SUPER_ADMIN_NOTIFY_KEY: InjectionKey<UiNotify> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_NOTIFY',
+    'saasicat/ui-vue/SUPER_ADMIN_NOTIFY',
 );

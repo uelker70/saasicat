@@ -27,7 +27,7 @@ import { ENFORCE_QUOTA_KEY } from '../discovery/tokens.js';
 import { LimitExceededError } from '../entitlement/limit-exceeded-error.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';
 
-export const QUOTA_PROVIDERS_TOKEN = Symbol.for('saas-platform-nest/QuotaProviders');
+export const QUOTA_PROVIDERS_TOKEN = Symbol.for('saasicat/nest/QuotaProviders');
 
 interface RequestWithUser {
     user?: { role?: string; platformRole?: string; tenantId?: string };

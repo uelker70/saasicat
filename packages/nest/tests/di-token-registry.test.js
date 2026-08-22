@@ -41,16 +41,19 @@ describe('exported DI tokens live in the global symbol registry', () => {
                 offenders,
                 [],
                 'these exported tokens are plain Symbol() and break across CJS entry ' +
-                    "chunks — declare them as Symbol.for('saas-platform/…') instead",
+                    "chunks — declare them as Symbol.for('saasicat/nest/…') instead",
             );
         });
     }
 });
 
 // Registry keys are a runtime contract with consumer apps, so existing ones
-// must never be renamed (CONTRIBUTING.md). Two prefixes are in use for
-// historical reasons; this pins the set so a third does not creep in.
-const KNOWN_PREFIXES = ['saas-platform/', 'saas-platform-nest/', 'saasicat/nest/'];
+// must never be renamed (CONTRIBUTING.md). 1.0 unified the four historical
+// prefixes into one, exactly once; this pins it so a second does not creep
+// back in. `tests/di-tokens-share-one-namespace.test.js` at the repo root
+// asks the same of every package's sources — this one asks it of what the
+// built entries actually export.
+const KNOWN_PREFIXES = ['saasicat/nest/'];
 
 describe('token keys stay inside the shared namespace', () => {
     test('every exported token key uses a known prefix', async () => {

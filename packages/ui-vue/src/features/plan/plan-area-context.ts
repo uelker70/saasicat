@@ -94,9 +94,7 @@ export interface PlanAreaContext {
 export const PLAN_STEP_META = 'saasicatPlanStep';
 
 /** Vue inject key for the plan area (see the `Symbol.for` note in super-admin-context.ts). */
-export const PLAN_AREA_KEY: InjectionKey<PlanAreaContext> = Symbol.for(
-    '@saasicat/ui-vue/PLAN_AREA',
-);
+export const PLAN_AREA_KEY: InjectionKey<PlanAreaContext> = Symbol.for('saasicat/ui-vue/PLAN_AREA');
 
 export function providePlanArea(context: PlanAreaContext): void {
     provide(PLAN_AREA_KEY, context);

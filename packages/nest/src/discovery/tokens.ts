@@ -32,4 +32,4 @@ export const ENFORCE_QUOTA_KEY = 'discovery:enforce-quota';
  * 2026-06-09). `Symbol.for` uses the process-wide registry → identical across
  * all bundle copies. (#25)
  */
-export const DISCOVERY_SNAPSHOT_TOKEN = Symbol.for('saas-platform/DiscoverySnapshot');
+export const DISCOVERY_SNAPSHOT_TOKEN = Symbol.for('saasicat/nest/DiscoverySnapshot');

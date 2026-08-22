@@ -10,7 +10,7 @@ export interface SelfServiceBlockedPlans {
     asSource?: string[];
 }
 
-export const SELF_SERVICE_BLOCKED_PLANS_TOKEN = Symbol.for('saas-platform/SelfServiceBlockedPlans');
+export const SELF_SERVICE_BLOCKED_PLANS_TOKEN = Symbol.for('saasicat/nest/SelfServiceBlockedPlans');
 
 /**
  * Bundle counterpart (#37): `bundleKeys` lists bundles that are not
@@ -25,5 +25,5 @@ export interface SelfServiceBlockedBundles {
 // Symbol.for — the CJS bundle duplicates shared modules across entry points;
 // only globally registered symbols stay identical cross-entry.
 export const SELF_SERVICE_BLOCKED_BUNDLES_TOKEN = Symbol.for(
-    'saas-platform/SelfServiceBlockedBundles',
+    'saasicat/nest/SelfServiceBlockedBundles',
 );

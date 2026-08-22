@@ -26,11 +26,11 @@ import type {
  * would be a different symbol per copy.
  */
 export const PLATFORM_SUBSCRIPTION_REPOSITORY_TOKEN = Symbol.for(
-    'saas-platform-nest/PlatformSubscriptionRepository',
+    'saasicat/nest/PlatformSubscriptionRepository',
 );
 /** Marks the provider that registers the platform's own contribution. */
 export const STANDARD_MANIFEST_REGISTRATION_TOKEN = Symbol.for(
-    'saas-platform-nest/StandardManifestRegistration',
+    'saasicat/nest/StandardManifestRegistration',
 );
 
 export function buildStandardManifestContribution(

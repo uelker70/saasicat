@@ -34,4 +34,4 @@ export interface FeatureGuardConfig {
     tenantIdResolver?: (request: unknown) => string | undefined;
 }
 
-export const FEATURE_GUARD_CONFIG_TOKEN = Symbol.for('saas-platform/FeatureGuardConfig');
+export const FEATURE_GUARD_CONFIG_TOKEN = Symbol.for('saasicat/nest/FeatureGuardConfig');

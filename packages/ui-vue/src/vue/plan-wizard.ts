@@ -57,7 +57,7 @@ export interface PlanWizardState {
 
 /** Vue inject key for the wizard (see the `Symbol.for` note in super-admin-context.ts). */
 export const PLAN_WIZARD_KEY: InjectionKey<PlanWizardState> = Symbol.for(
-    '@saasicat/ui-vue/PLAN_WIZARD',
+    'saasicat/ui-vue/PLAN_WIZARD',
 );
 
 /** Creates the state and provides it to the subtree. Called by the plans route. */

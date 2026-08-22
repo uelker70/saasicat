@@ -12,19 +12,19 @@ import type { CanActivate } from '@nestjs/common';
  * Provided via `forRoot.authGuards` — can be an array of existing instances
  * or a factory provider.
  */
-export const TENANT_AUTH_GUARDS_TOKEN = Symbol.for('saas-platform/TenantAuthGuards');
+export const TENANT_AUTH_GUARDS_TOKEN = Symbol.for('saasicat/nest/TenantAuthGuards');
 
 /**
  * Resolver function `(req) => string` that extracts the `tenantId` from the
  * request. Default: `req.user.tenantId`.
  */
-export const TENANT_ID_RESOLVER_TOKEN = Symbol.for('saas-platform/TenantIdResolver');
+export const TENANT_ID_RESOLVER_TOKEN = Symbol.for('saasicat/nest/TenantIdResolver');
 
 /**
  * Resolver function `(req) => string` that extracts the `userId` from the
  * request. Default: `req.user.sub ?? req.user.id`.
  */
-export const USER_ID_RESOLVER_TOKEN = Symbol.for('saas-platform/UserIdResolver');
+export const USER_ID_RESOLVER_TOKEN = Symbol.for('saasicat/nest/UserIdResolver');
 
 /**
  * Resolver function `(req) => string` that extracts the user email from the
@@ -33,24 +33,24 @@ export const USER_ID_RESOLVER_TOKEN = Symbol.for('saas-platform/UserIdResolver')
  * If the consumer's JWT does not carry an email, the resolver can return
  * `null` — the audit-log path then falls back to `'unknown'`.
  */
-export const USER_EMAIL_RESOLVER_TOKEN = Symbol.for('saas-platform/UserEmailResolver');
+export const USER_EMAIL_RESOLVER_TOKEN = Symbol.for('saasicat/nest/UserEmailResolver');
 
 /**
  * Resolver function `(req) => string` that extracts an audit context from the
  * request (e.g. session ID, trace ID). Default: `req.headers['x-session-id']`
  * or `'tenant-self-service'`.
  */
-export const AUDIT_CONTEXT_RESOLVER_TOKEN = Symbol.for('saas-platform/AuditContextResolver');
+export const AUDIT_CONTEXT_RESOLVER_TOKEN = Symbol.for('saasicat/nest/AuditContextResolver');
 
 /** Adapter token: consumer's `SubscriptionUsagePort` implementation. */
-export const SUBSCRIPTION_USAGE_PORT_TOKEN = Symbol.for('saas-platform/SubscriptionUsagePort');
+export const SUBSCRIPTION_USAGE_PORT_TOKEN = Symbol.for('saasicat/nest/SubscriptionUsagePort');
 
 /** Adapter token: consumer's `UsageSnapshotPort` implementation. */
-export const USAGE_SNAPSHOT_PORT_TOKEN = Symbol.for('saas-platform/UsageSnapshotPort');
+export const USAGE_SNAPSHOT_PORT_TOKEN = Symbol.for('saasicat/nest/UsageSnapshotPort');
 
 /** Adapter token: consumer's `TenantSubscriptionWritePort` implementation. */
 export const SUBSCRIPTION_WRITE_PORT_TOKEN = Symbol.for(
-    'saas-platform/TenantSubscriptionWritePort',
+    'saasicat/nest/TenantSubscriptionWritePort',
 );
 
 export type TenantIdResolver = (req: unknown) => string | null | undefined;
@@ -65,7 +65,7 @@ export type AuthGuardList = ReadonlyArray<CanActivate>;
  * port, `PlanChangePreviewDto.projectedTrialEndsAt` stays `null` and the wizard
  * falls back to the current trial end.
  */
-export const TRIAL_PROJECTION_PORT_TOKEN = Symbol.for('saas-platform/TrialProjectionPort');
+export const TRIAL_PROJECTION_PORT_TOKEN = Symbol.for('saasicat/nest/TrialProjectionPort');
 
 export interface TrialProjectionInput {
     /** Current plan key of the subscription. */
@@ -92,7 +92,7 @@ export interface TrialProjectionPort {
  * `PendingPlanMaterializationService`. Without a port, the service is not
  * registered (materialization is opt-in).
  */
-export const PENDING_PLAN_QUERY_PORT_TOKEN = Symbol.for('saas-platform/PendingPlanQueryPort');
+export const PENDING_PLAN_QUERY_PORT_TOKEN = Symbol.for('saasicat/nest/PendingPlanQueryPort');
 
 /** A due scheduled plan change — minimal for materialization. */
 export interface DuePendingPlanChange {

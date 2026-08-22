@@ -11,7 +11,7 @@ import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifes
  * calls from `onModuleInit`.
  */
 export const PLATFORM_CORE_CONTRIBUTION_TOKEN = Symbol.for(
-    'saas-platform/PlatformCoreContribution',
+    'saasicat/nest/PlatformCoreContribution',
 );
 
 // AdminManifestService — collects ManifestContribution entries from the app

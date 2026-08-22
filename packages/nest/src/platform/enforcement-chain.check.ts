@@ -87,7 +87,7 @@ export interface EnforcementChainState {
     readonly globalGuardOptedOut: boolean;
 }
 
-export const ENFORCEMENT_CHAIN_STATE_TOKEN = Symbol.for('saas-platform/EnforcementChainState');
+export const ENFORCEMENT_CHAIN_STATE_TOKEN = Symbol.for('saasicat/nest/EnforcementChainState');
 
 interface AnnotatedRoute {
     controller: string;

@@ -15,16 +15,16 @@ import type { BillingCycle, NewContractLineItemData } from '@saasicat/types';
  * (analogous to `TrialProjectionPort`). Without a port nothing is frozen — the
  * entitlements then stay catalog-/version-pinned as before.
  */
-export const CONTRACT_FREEZE_PORT_TOKEN = Symbol.for('saas-platform/ContractFreezePort');
+export const CONTRACT_FREEZE_PORT_TOKEN = Symbol.for('saasicat/nest/ContractFreezePort');
 
 /** Adapter token: consumer-specific bundle/version data access. */
 export const CONTRACT_FREEZE_SOURCE_PORT_TOKEN = Symbol.for(
-    'saas-platform/ContractFreezeSourcePort',
+    'saasicat/nest/ContractFreezeSourcePort',
 );
 
 /** Config token: the consumer's `projectKey` for the contract. */
 export const CONTRACT_FREEZE_PROJECT_KEY_TOKEN = Symbol.for(
-    'saas-platform/ContractFreezeProjectKey',
+    'saasicat/nest/ContractFreezeProjectKey',
 );
 
 export interface ContractFreezePort {

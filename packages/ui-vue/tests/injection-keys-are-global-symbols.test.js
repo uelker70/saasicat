@@ -540,7 +540,7 @@ const HEAD = "import { provide, inject } from 'vue';\nimport type { InjectionKey
 
 const annotated = counterCheck('annotated', {
     'keys.ts': `${HEAD}
-export const SOUND: InjectionKey<number> = Symbol.for('saas-platform/Sound');
+export const SOUND: InjectionKey<number> = Symbol.for('saasicat/nest/Sound');
 export const LOOSE: InjectionKey<number> = Symbol('loose');
 provide(SOUND, 1);
 provide(LOOSE, 1);
@@ -553,7 +553,7 @@ const typeAlias = counterCheck('type-alias', {
 type AppKey<T> = InjectionKey<T>;
 type DeepKey<T> = AppKey<T>;
 type Cyclic<T> = Cyclic<T>;
-export const SOUND: AppKey<number> = Symbol.for('saas-platform/Sound');
+export const SOUND: AppKey<number> = Symbol.for('saasicat/nest/Sound');
 export const ALIASED: AppKey<number> = Symbol('loose');
 export const NESTED: DeepKey<number> = Symbol('loose');
 export const UNRELATED: Cyclic<number> = 1 as never;
@@ -571,7 +571,7 @@ export function real() {
     provide(KEY, 1);
 }
 export function sound() {
-    const KEY: InjectionKey<number> = Symbol.for('saas-platform/Sound');
+    const KEY: InjectionKey<number> = Symbol.for('saasicat/nest/Sound');
     provide(KEY, 1);
 }
 `,
@@ -581,8 +581,8 @@ const castAndSatisfies = counterCheck('cast-and-satisfies', {
     'keys.ts': `${HEAD}
 export const CAST = Symbol('loose') as InjectionKey<number>;
 export const SATISFIES = Symbol('loose') satisfies InjectionKey<number>;
-export const SOUND_CAST = Symbol.for('saas-platform/A') as InjectionKey<number>;
-export const SOUND_SATISFIES = Symbol.for('saas-platform/B') satisfies InjectionKey<number>;
+export const SOUND_CAST = Symbol.for('saasicat/nest/A') as InjectionKey<number>;
+export const SOUND_SATISFIES = Symbol.for('saasicat/nest/B') satisfies InjectionKey<number>;
 `,
 });
 
@@ -591,13 +591,13 @@ const composite = counterCheck('composite', {
 type Brand = { readonly tag: 'brand' };
 export const BRANDED = Symbol('loose') as InjectionKey<number> & Brand;
 export const EITHER = Symbol('loose') as InjectionKey<number> | undefined;
-export const SOUND_BRANDED = Symbol.for('saas-platform/Branded') as InjectionKey<number> & Brand;
+export const SOUND_BRANDED = Symbol.for('saasicat/nest/Branded') as InjectionKey<number> & Brand;
 `,
 });
 
 const declarators = counterCheck('declarators', {
     'keys.ts': `${HEAD}
-export const FIRST: InjectionKey<number> = Symbol.for('saas-platform/First'),
+export const FIRST: InjectionKey<number> = Symbol.for('saasicat/nest/First'),
     CHAINED: InjectionKey<number> = Symbol('loose');
 const sizes = new Map<string, { a: 1 }>(),
     AFTER_TYPE_ARGUMENTS: InjectionKey<number> = Symbol('loose');
@@ -674,7 +674,7 @@ provide(PUBLIC, 1);
 
 const stringKey = counterCheck('string-key', {
     'keys.ts': `${HEAD}
-const TEXT = 'saas-platform/text';
+const TEXT = 'saasicat/nest/text';
 const SYMBOLIC = Symbol('loose');
 provide(TEXT, 1);
 provide(SYMBOLIC, 1);
@@ -685,11 +685,11 @@ provide('inline', 1);
 const grouping = counterCheck('grouping', {
     'keys.ts': `${HEAD}
 export const GROUPED: InjectionKey<number> = (Symbol('loose'));
-export const DECOY: InjectionKey<number> = Symbol.for('saas-platform/Decoy') && Symbol('loose');
-export const COALESCED: InjectionKey<number> = Symbol.for('saas-platform/A') ?? Symbol('loose');
-export const TERNARY: InjectionKey<number> = 1 > 0 ? Symbol.for('saas-platform/B') : Symbol('x');
-export const SOUND: InjectionKey<number> = (Symbol.for('saas-platform/Sound'));
-export const SOUND_ASSERTED = ((Symbol.for('saas-platform/C'))) as InjectionKey<number>;
+export const DECOY: InjectionKey<number> = Symbol.for('saasicat/nest/Decoy') && Symbol('loose');
+export const COALESCED: InjectionKey<number> = Symbol.for('saasicat/nest/A') ?? Symbol('loose');
+export const TERNARY: InjectionKey<number> = 1 > 0 ? Symbol.for('saasicat/nest/B') : Symbol('x');
+export const SOUND: InjectionKey<number> = (Symbol.for('saasicat/nest/Sound'));
+export const SOUND_ASSERTED = ((Symbol.for('saasicat/nest/C'))) as InjectionKey<number>;
 `,
 });
 
@@ -701,17 +701,17 @@ interface Left {
 interface Right {
     b?: string;
 }
-export const FUNCTION_TYPE = Symbol.for('saas-platform/A') as InjectionKey<() => void>;
-export const OBJECT_TYPE = Symbol.for('saas-platform/B') as InjectionKey<{ a: string }>;
-export const INTERSECTION = Symbol.for('saas-platform/C') as InjectionKey<Left & Right>;
-export const NON_NULL = Symbol.for('saas-platform/D')! as InjectionKey<number>;
+export const FUNCTION_TYPE = Symbol.for('saasicat/nest/A') as InjectionKey<() => void>;
+export const OBJECT_TYPE = Symbol.for('saasicat/nest/B') as InjectionKey<{ a: string }>;
+export const INTERSECTION = Symbol.for('saasicat/nest/C') as InjectionKey<Left & Right>;
+export const NON_NULL = Symbol.for('saasicat/nest/D')! as InjectionKey<number>;
 export const BROKEN = Symbol('loose') as InjectionKey<() => void>;
 `,
 });
 
 const computedKey = counterCheck('computed-key', {
     'keys.ts': `${HEAD}
-const keys = { THEME: Symbol.for('saas-platform/Theme') };
+const keys = { THEME: Symbol.for('saasicat/nest/Theme') };
 provide(keys.THEME, 1);
 inject(keys['THEME']);
 `,
@@ -736,7 +736,7 @@ export const ELSEWHERE: InjectionKey<number> = Symbol('loose');
 
 const unannounced = counterCheck('unannounced', {
     'keys.ts': `${HEAD}
-const UNTYPED = Symbol.for('saas-platform/Untyped');
+const UNTYPED = Symbol.for('saasicat/nest/Untyped');
 provide(UNTYPED, 1);
 `,
 });
@@ -744,7 +744,7 @@ provide(UNTYPED, 1);
 const shadowedSymbol = counterCheck('shadowed-symbol', {
     'keys.ts': `${HEAD}
 const Symbol = { for: (key: string) => key as unknown as symbol };
-export const SHADOWED: InjectionKey<number> = Symbol.for('saas-platform/Shadowed');
+export const SHADOWED: InjectionKey<number> = Symbol.for('saasicat/nest/Shadowed');
 `,
 });
 
@@ -752,14 +752,14 @@ const notCode = counterCheck('not-code', {
     'keys.ts': `${HEAD}
 // Documented elsewhere as app.provide(GHOST, value) — a sentence, not a call.
 const sentence = "provide(GHOST, 1)";
-export const REAL_KEY: InjectionKey<number> = Symbol.for('saas-platform/Real');
+export const REAL_KEY: InjectionKey<number> = Symbol.for('saasicat/nest/Real');
 provide(REAL_KEY, sentence.length);
 `,
 });
 
 const notVueProvide = counterCheck('not-vue-provide', {
     'keys.ts': `import type { InjectionKey } from 'vue';
-export const KEY: InjectionKey<number> = Symbol.for('saas-platform/Key');
+export const KEY: InjectionKey<number> = Symbol.for('saasicat/nest/Key');
 function provide(name: string, value: number) {
     return \`\${name}:\${value}\`;
 }

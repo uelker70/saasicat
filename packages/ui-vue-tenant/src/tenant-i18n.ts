@@ -17,7 +17,7 @@ import { defaultTenantPlanSectionI18n, type TenantPlanSectionI18n } from './defa
 
 /** Injection key for the tenant catalog (see the `Symbol.for` note in super-admin-context.ts). */
 export const TENANT_I18N_KEY: InjectionKey<ComputedRef<TenantPlanSectionI18n>> = Symbol.for(
-    '@saasicat/ui-vue/TENANT_I18N',
+    'saasicat/ui-vue-tenant/TENANT_I18N',
 );
 
 /**

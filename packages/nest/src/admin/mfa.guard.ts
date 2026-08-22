@@ -26,7 +26,7 @@ import { AUTH_ERROR_CODES } from '@saasicat/types';
 import { codedError } from '../errors/coded-error.js';
 import { MfaService } from './mfa.js';
 
-export const REQUIRE_MFA_KEY = 'saas-platform/require-mfa';
+export const REQUIRE_MFA_KEY = 'saasicat/nest/require-mfa';
 
 /**
  * Marks an endpoint as MFA-required. The frontend sends the TOTP code

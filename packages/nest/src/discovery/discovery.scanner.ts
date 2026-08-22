@@ -48,14 +48,14 @@ const DEFAULT_APP_INFO: DiscoveryAppInfo = {
  * DI token for the app identity. The consumer binds this via
  * `DiscoveryModule.forRoot({ app: { key, version } })`.
  */
-export const DISCOVERY_APP_INFO_TOKEN = Symbol.for('saas-platform/DiscoveryAppInfo');
+export const DISCOVERY_APP_INFO_TOKEN = Symbol.for('saasicat/nest/DiscoveryAppInfo');
 
 /**
  * DI token for an optional snapshot persistence path. Written by the
  * DiscoveryScanner at boot — consumers (e.g. CI gates, Preflight CLIs) can
  * read the JSON file without running a full module boot themselves.
  */
-export const DISCOVERY_SNAPSHOT_PATH_TOKEN = Symbol.for('saas-platform/DiscoverySnapshotPath');
+export const DISCOVERY_SNAPSHOT_PATH_TOKEN = Symbol.for('saasicat/nest/DiscoverySnapshotPath');
 
 /** EnforceQuota call on a concrete capability — cross-reference. */
 interface EnforceQuotaRef {

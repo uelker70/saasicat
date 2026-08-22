@@ -29,7 +29,7 @@ import { REQUIRE_FEATURE_KEY } from '../billing/require-feature.decorator.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';
 
 export const STATIC_FEATURE_GUARD_CONFIG_TOKEN = Symbol.for(
-    'saas-platform-nest/StaticFeatureGuardConfig',
+    'saasicat/nest/StaticFeatureGuardConfig',
 );
 
 export interface StaticFeatureGuardConfig {

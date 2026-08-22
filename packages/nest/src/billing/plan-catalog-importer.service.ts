@@ -18,7 +18,7 @@ import type { PlanCatalog, PlanCatalogImportReport, PlanCatalogImportSink } from
 
 import { loadPlanCatalogFromString } from './plan-catalog-loader.js';
 
-export const PLAN_CATALOG_IMPORT_SINK_TOKEN = Symbol.for('saas-platform/PlanCatalogImportSink');
+export const PLAN_CATALOG_IMPORT_SINK_TOKEN = Symbol.for('saasicat/nest/PlanCatalogImportSink');
 
 const IMPORT_CHANGE_NOTE = 'Initial import from saas.yaml';
 

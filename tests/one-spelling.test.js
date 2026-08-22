@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// One spelling of the product name (AP1 §1.2, AP6 rule 26).
+// One spelling of the product name (AP1 §1.2, AP6 rule 26). naming-history:
+// this file names the retired spellings because they are its subject.
 //
 // `SaaSiCat` in prose and type names, `saasicat` in packages, files and the npm
 // scope, `SAASICAT_` in constants. The three spellings that used to sit beside
@@ -92,7 +93,7 @@ describe('the product has one spelling', () => {
         // The declaration must be in use, or a typo in the marker would turn
         // every declared file into an offender at once — or, if the marker
         // were matched too loosely, silently excuse them all.
-        assert.ok(declared <= 6, `${declared} files declare history`);
+        assert.ok(declared >= 1 && declared <= 6, `${declared} files declare history`);
     });
 });
 

@@ -3,10 +3,10 @@
 // token in `SubscriptionBundleModule.forRoot({...})`.
 
 export const SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN = Symbol.for(
-    'saas-platform/SubscriptionBundleRepository',
+    'saasicat/nest/SubscriptionBundleRepository',
 );
 
 /** Optional config token; default = 12 months minimum term. */
 export const SUBSCRIPTION_BUNDLE_CONFIG_TOKEN = Symbol.for(
-    'saas-platform/SubscriptionBundleConfig',
+    'saasicat/nest/SubscriptionBundleConfig',
 );

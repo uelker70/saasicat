@@ -9,10 +9,10 @@
 // Without a provider under this token the FeatureGuard stays on today's
 // plain 403 — no breaking change for existing consumers.
 
-export const UPSELL_OFFER_RESOLVER_TOKEN = Symbol.for('saas-platform/UpsellOfferResolver');
+export const UPSELL_OFFER_RESOLVER_TOKEN = Symbol.for('saasicat/nest/UpsellOfferResolver');
 
 /**
  * Optional currency for the offers of the `CatalogBundleUpsellResolver`
  * (ISO-4217 string, e.g. `'EUR'`). Without a provider: `'EUR'`.
  */
-export const UPSELL_OFFER_CURRENCY_TOKEN = Symbol.for('saas-platform/UpsellOfferCurrency');
+export const UPSELL_OFFER_CURRENCY_TOKEN = Symbol.for('saasicat/nest/UpsellOfferCurrency');

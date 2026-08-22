@@ -271,7 +271,7 @@ describe('FEATURE_GUARD_CONFIG_TOKEN', () => {
         assert.equal(typeof FEATURE_GUARD_CONFIG_TOKEN, 'symbol');
         assert.equal(
             FEATURE_GUARD_CONFIG_TOKEN,
-            Symbol.for('saas-platform/FeatureGuardConfig'),
+            Symbol.for('saasicat/nest/FeatureGuardConfig'),
             'must resolve through the global symbol registry with the shared namespace',
         );
     });
@@ -443,6 +443,6 @@ describe('StaticFeatureGuard — FEATURE_NOT_LICENSED body', () => {
 // a plain Symbol would be a different object per entry, cf. outage 2026-06-09).
 describe('UPSELL_OFFER_RESOLVER_TOKEN', () => {
     test('is a Symbol.for token (process-wide registry)', () => {
-        assert.equal(UPSELL_OFFER_RESOLVER_TOKEN, Symbol.for('saas-platform/UpsellOfferResolver'));
+        assert.equal(UPSELL_OFFER_RESOLVER_TOKEN, Symbol.for('saasicat/nest/UpsellOfferResolver'));
     });
 });

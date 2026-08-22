@@ -14,7 +14,7 @@ import { inject, type App, type InjectionKey } from 'vue';
 import type { UseEntitlementResult } from './use-entitlement.js';
 
 export const ENTITLEMENT_INJECTION_KEY: InjectionKey<UseEntitlementResult> = Symbol.for(
-    '@saasicat/ui-vue/ENTITLEMENT',
+    'saasicat/ui-vue/ENTITLEMENT',
 );
 
 /**

@@ -411,7 +411,7 @@ export class FakePlanVersionRepository implements PlanVersionRepository {
  */
 export class FakeTransactionRunner implements TransactionRunner {
     /** Sentinel value passed through as the TransactionContext. */
-    static readonly TX_SENTINEL = Symbol.for('FakeTransactionRunner.tx');
+    static readonly TX_SENTINEL = Symbol.for('saasicat/nest/FakeTransactionRunner.tx');
 
     runCount = 0;
 

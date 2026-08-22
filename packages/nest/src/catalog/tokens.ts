@@ -5,35 +5,35 @@
 // into `CatalogModule.forRoot({...})`.
 
 /** Repository for `plans` (Plan master CRUD). */
-export const PLAN_REPOSITORY_TOKEN = Symbol.for('saas-platform/PlanRepository');
+export const PLAN_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/PlanRepository');
 
 /** Repository for `bundles` + `bundle_versions`. */
-export const BUNDLE_REPOSITORY_TOKEN = Symbol.for('saas-platform/BundleRepository');
+export const BUNDLE_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/BundleRepository');
 
 /** Repository for `marketing_projections`. */
 export const MARKETING_PROJECTION_REPOSITORY_TOKEN = Symbol.for(
-    'saas-platform/MarketingProjectionRepository',
+    'saasicat/nest/MarketingProjectionRepository',
 );
 
 /**
  * Repository for `capability_catalog_entries`, `feature_catalog_entries`
  * and `quota_catalog_entries` (Discovery review).
  */
-export const CATALOG_ENTRY_REPOSITORY_TOKEN = Symbol.for('saas-platform/CatalogEntryRepository');
+export const CATALOG_ENTRY_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/CatalogEntryRepository');
 
 /** Repository for `promotions` (time-scheduled price campaigns). */
-export const PROMOTION_REPOSITORY_TOKEN = Symbol.for('saas-platform/PromotionRepository');
+export const PROMOTION_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/PromotionRepository');
 
 /** Repository for `marketing_settings` (activeLocales). */
 export const MARKETING_SETTINGS_REPOSITORY_TOKEN = Symbol.for(
-    'saas-platform/MarketingSettingsRepository',
+    'saasicat/nest/MarketingSettingsRepository',
 );
 
 /**
  * Service configuration: current app identity, strict mode.
  * Provided by CatalogModule.forRoot().
  */
-export const CATALOG_SERVICE_CONFIG_TOKEN = Symbol.for('saas-platform/CatalogServiceConfig');
+export const CATALOG_SERVICE_CONFIG_TOKEN = Symbol.for('saasicat/nest/CatalogServiceConfig');
 
 /**
  * Optional consumer-curated FeatureUiRegistry (label/description/icon per
@@ -46,4 +46,4 @@ export const CATALOG_SERVICE_CONFIG_TOKEN = Symbol.for('saas-platform/CatalogSer
  * token on purpose — an app may curate the two surfaces differently. The key
  * is namespaced accordingly so the two never collide.
  */
-export const FEATURE_UI_REGISTRY_TOKEN = Symbol.for('saas-platform/CatalogFeatureUiRegistry');
+export const FEATURE_UI_REGISTRY_TOKEN = Symbol.for('saasicat/nest/CatalogFeatureUiRegistry');

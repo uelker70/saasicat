@@ -258,7 +258,7 @@ export function createResourceRegistry<TMap extends ResourceMap>(
 
 /** Vue inject key for the registry (see `Symbol.for` note in super-admin-context.ts). */
 export const SUPER_ADMIN_RESOURCES_KEY: InjectionKey<ResourceRegistry> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_RESOURCES',
+    'saasicat/ui-vue/SUPER_ADMIN_RESOURCES',
 );
 
 /**

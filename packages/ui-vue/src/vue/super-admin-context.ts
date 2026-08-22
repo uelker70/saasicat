@@ -188,19 +188,19 @@ export interface SuperAdminGuardOptions {
 
 /** Vue inject key for `useSuperAdminBrand()`. */
 export const SUPER_ADMIN_BRAND_KEY: InjectionKey<SuperAdminBrand> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_BRAND',
+    'saasicat/ui-vue/SUPER_ADMIN_BRAND',
 );
 /** Vue inject key for `useSuperAdminEndpoints()`. */
 export const SUPER_ADMIN_ENDPOINTS_KEY: InjectionKey<Required<SuperAdminEndpoints>> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_ENDPOINTS',
+    'saasicat/ui-vue/SUPER_ADMIN_ENDPOINTS',
 );
 /** Vue inject key for `useSuperAdminExtensions()`. */
 export const SUPER_ADMIN_EXTENSIONS_KEY: InjectionKey<ExtensionsMap> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_EXTENSIONS',
+    'saasicat/ui-vue/SUPER_ADMIN_EXTENSIONS',
 );
 /** Vue inject key for `useSuperAdminActions()`. */
 export const SUPER_ADMIN_ACTIONS_KEY: InjectionKey<ActionsMap> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_ACTIONS',
+    'saasicat/ui-vue/SUPER_ADMIN_ACTIONS',
 );
 /**
  * Vue inject key for the manifest accessor. Only provided when
@@ -208,7 +208,7 @@ export const SUPER_ADMIN_ACTIONS_KEY: InjectionKey<ActionsMap> = Symbol.for(
  * `<ProjectPageHost>` needs it to resolve project pages.
  */
 export const SUPER_ADMIN_MANIFEST_KEY: InjectionKey<() => AdminManifest | null> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_MANIFEST',
+    'saasicat/ui-vue/SUPER_ADMIN_MANIFEST',
 );
 /**
  * Vue inject key for `manifestGuard.clearCache`.
@@ -217,14 +217,14 @@ export const SUPER_ADMIN_MANIFEST_KEY: InjectionKey<() => AdminManifest | null> 
  * way it can reach the app's cache is through the shell.
  */
 export const SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY: InjectionKey<() => void | Promise<void>> =
-    Symbol.for('@saasicat/ui-vue/SUPER_ADMIN_MANIFEST_CLEAR_CACHE');
+    Symbol.for('saasicat/ui-vue/SUPER_ADMIN_MANIFEST_CLEAR_CACHE');
 /** Vue inject key for `useSuperAdminLoginAdapter()`. */
 export const SUPER_ADMIN_LOGIN_ADAPTER_KEY: InjectionKey<SuperAdminLoginAdapter> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_LOGIN_ADAPTER',
+    'saasicat/ui-vue/SUPER_ADMIN_LOGIN_ADAPTER',
 );
 /** Vue inject key for `useSuperAdminHttp()` (pre-login HttpClient). */
 export const SUPER_ADMIN_HTTP_KEY: InjectionKey<HttpClient> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_HTTP',
+    'saasicat/ui-vue/SUPER_ADMIN_HTTP',
 );
 
 /**

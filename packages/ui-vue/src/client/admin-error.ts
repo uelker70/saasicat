@@ -33,7 +33,7 @@ import type { SaMessages } from './i18n/messages.js';
  * `body`. A `Symbol.for` key resolves through the process-wide registry, so
  * every copy agrees on it.
  */
-const ADMIN_ERROR = Symbol.for('@saasicat/ui-vue/AdminError');
+const ADMIN_ERROR = Symbol.for('saasicat/ui-vue/AdminError');
 
 /**
  * Brand for the error classes this package throws itself.
@@ -51,7 +51,7 @@ const ADMIN_ERROR = Symbol.for('@saasicat/ui-vue/AdminError');
  * A name suffix is a convention anyone may share; identity is not. `Symbol.for`
  * because the package ships more than one bundle copy.
  */
-const PLATFORM_ERROR = Symbol.for('@saasicat/ui-vue/PlatformError');
+const PLATFORM_ERROR = Symbol.for('saasicat/ui-vue/PlatformError');
 
 /**
  * Marks an error as one this package raised. Called by the package's own error
@@ -90,7 +90,7 @@ export function isPlatformError(value: unknown): boolean {
  * `Symbol.for` for the same reason as above: the package ships more than one
  * bundle copy.
  */
-const EMPTY_RESPONSE = Symbol.for('@saasicat/ui-vue/EmptyResponse');
+const EMPTY_RESPONSE = Symbol.for('saasicat/ui-vue/EmptyResponse');
 
 /**
  * Marks an error as the empty-body sentinel: the call reached the server, the
@@ -130,7 +130,7 @@ export function isEmptyResponse(value: unknown): boolean {
  * `Symbol.for` for the same reason as above: the package ships more than one
  * bundle copy.
  */
-const TRANSPORT_FAILURE = Symbol.for('@saasicat/ui-vue/TransportFailure');
+const TRANSPORT_FAILURE = Symbol.for('saasicat/ui-vue/TransportFailure');
 
 /**
  * Marks an error as one the request did not survive: no connection, DNS

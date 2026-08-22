@@ -101,7 +101,7 @@ export const SA_LOCALE_STORAGE_KEY = 'sa:locale';
 // `Symbol.for` — see super-admin-context.ts: dist- and src-imported module
 // instances must resolve to the same injection key.
 export const SUPER_ADMIN_I18N_KEY: InjectionKey<SuperAdminI18n> = Symbol.for(
-    '@saasicat/ui-vue/SUPER_ADMIN_I18N',
+    'saasicat/ui-vue/SUPER_ADMIN_I18N',
 );
 
 export function createSuperAdminI18n(options: SuperAdminI18nOptions = {}): SuperAdminI18n {

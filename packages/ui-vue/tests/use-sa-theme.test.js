@@ -283,6 +283,6 @@ describe('useSaTheme', () => {
         // Same reason as every other key in the package: the dist- and
         // src-imported copies of this module must resolve to one key, or a
         // consumer that imports both provides into one and injects from another.
-        assert.equal(SA_THEME_KEY, Symbol.for('@saasicat/ui-vue/SA_THEME'));
+        assert.equal(SA_THEME_KEY, Symbol.for('saasicat/ui-vue/SA_THEME'));
     });
 });

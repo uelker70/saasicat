@@ -51,7 +51,7 @@ below is what makes tokens survive all of those cases.
   global symbol registry with the shared namespace:
 
     ```ts
-    export const MFA_PORT_TOKEN = Symbol.for('saas-platform/MfaPort');
+    export const MFA_PORT_TOKEN = Symbol.for('saasicat/nest/MfaPort');
     ```
 
     `Symbol.for` resolves through the process-wide registry, so all bundle copies
@@ -60,7 +60,7 @@ below is what makes tokens survive all of those cases.
 - Plain `Symbol('X')` is acceptable **only** for tokens created and consumed
   strictly within a single entry point, with no consumer-facing surface.
 
-Note on the namespace: the registry keys use the historical `'saas-platform/…'`
+Note on the namespace: the registry keys use the historical `'saasicat/nest/…'`
 prefix. These keys are part of the runtime contract between platform and consumer
 apps — **do not rename existing keys**, and use the same prefix for new cross-entry
 tokens unless a coordinated, breaking namespace migration is explicitly planned.

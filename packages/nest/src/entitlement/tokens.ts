@@ -7,11 +7,11 @@
 // TenantBillingModule etc.) inject EntitlementService, and the CJS builds do
 // not share the class instance across bundles — a bare class token would be two
 // different objects. `Symbol.for` resolves both to the same token.
-export const ENTITLEMENT_SERVICE_TOKEN = Symbol.for('saas-platform/EntitlementService');
+export const ENTITLEMENT_SERVICE_TOKEN = Symbol.for('saasicat/nest/EntitlementService');
 
-export const SUBSCRIPTION_REPOSITORY_TOKEN = Symbol.for('saas-platform/SubscriptionRepository');
-export const PLAN_VERSION_REPOSITORY_TOKEN = Symbol.for('saas-platform/PlanVersionRepository');
-export const TRANSACTION_RUNNER_TOKEN = Symbol.for('saas-platform/TransactionRunner');
+export const SUBSCRIPTION_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/SubscriptionRepository');
+export const PLAN_VERSION_REPOSITORY_TOKEN = Symbol.for('saasicat/nest/PlanVersionRepository');
+export const TRANSACTION_RUNNER_TOKEN = Symbol.for('saasicat/nest/TransactionRunner');
 export const ENTITLEMENT_RESOLUTION_CONFIG_TOKEN = Symbol.for(
-    'saas-platform/EntitlementResolutionConfig',
+    'saasicat/nest/EntitlementResolutionConfig',
 );
