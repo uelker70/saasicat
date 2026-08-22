@@ -31,7 +31,7 @@ export {
     REQUIRES_CAPABILITY_KEY,
     DEFINES_QUOTA_KEY,
     ENFORCE_QUOTA_KEY,
-} from './tokens.js';
+} from './discovery.tokens.js';
 export type {
     DiscoveredCapability,
     DiscoveredFeature,
@@ -41,4 +41,4 @@ export type {
     EnforceQuotaOptions,
     ImplementsCapabilityOptions,
     RequiresCapabilityKeys,
-} from './types.js';
+} from './discovery.types.js';

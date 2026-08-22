@@ -28,7 +28,7 @@ import {
     MANIFEST_CHECKS_TOKEN,
     USER_MANAGEMENT_PORT_TOKEN,
     USER_PORT_TOKEN,
-} from './tokens.js';
+} from './cli.tokens.js';
 import { WhoAmIFlow } from './whoami-flow.js';
 
 export interface CliContextModuleOptions {

@@ -33,7 +33,7 @@ import type {
     SubscriptionUsagePort,
 } from '@saasicat/types';
 
-import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/tokens.js';
+import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import {

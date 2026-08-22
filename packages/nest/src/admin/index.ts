@@ -14,13 +14,13 @@
 // This prevents consumers from accidentally registering an auth-free variant
 // in their own modules.
 
-export * from './tokens.js';
+export * from './admin.tokens.js';
 export * from './super-admin.guard.js';
 export * from './mfa.guard.js';
-export * from './mfa.js';
+export * from './mfa.service.js';
 export * from './admin-audit.service.js';
 export * from './admin-bypass-rls.interceptor.js';
-export * from './module.js';
+export * from './admin.module.js';
 export * from './admin-manifest.config.js';
 export * from './admin-manifest.service.js';
 export * from './admin-public-boot.controller.js';

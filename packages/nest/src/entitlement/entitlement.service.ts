@@ -26,11 +26,11 @@ import type {
     TransactionRunner,
 } from '@saasicat/types';
 import { BILLING_ERROR_CODES } from '@saasicat/types';
-import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/tokens.js';
+import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
-import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/tokens.js';
-import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/tokens.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
+import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { codedError } from '../errors/coded-error.js';
 import {
     aggregateLimits,
@@ -50,8 +50,8 @@ import {
     PLAN_VERSION_REPOSITORY_TOKEN,
     SUBSCRIPTION_REPOSITORY_TOKEN,
     TRANSACTION_RUNNER_TOKEN,
-} from './tokens.js';
-import type { EffectiveLimits, SubscriptionBundleSnapshot } from './types.js';
+} from './entitlement.tokens.js';
+import type { EffectiveLimits, SubscriptionBundleSnapshot } from './entitlement.types.js';
 
 const CACHE_TTL_MS = 60_000;
 const CACHE_MAX_ENTRIES = 1_000;

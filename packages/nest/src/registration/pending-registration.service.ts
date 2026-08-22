@@ -73,7 +73,7 @@ import {
     SLUG_AVAILABILITY_CHECK_TOKEN,
     USER_ACCOUNT_LOOKUP_TOKEN,
     type PasswordHasher,
-} from './tokens.js';
+} from './registration.tokens.js';
 
 /**
  * Orchestrates step 1 (capture registration data) and step 2 (OTP verification)

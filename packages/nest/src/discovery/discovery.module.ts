@@ -40,8 +40,8 @@ import {
     DiscoveryScanner,
     type DiscoveryAppInfo,
 } from './discovery.scanner.js';
-import { DISCOVERY_SNAPSHOT_TOKEN } from './tokens.js';
-import type { DiscoverySnapshot } from './types.js';
+import { DISCOVERY_SNAPSHOT_TOKEN } from './discovery.tokens.js';
+import type { DiscoverySnapshot } from './discovery.types.js';
 
 export interface DiscoveryControllerConfig {
     /**

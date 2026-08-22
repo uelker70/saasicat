@@ -7,7 +7,7 @@
 // default checks.
 
 import { Inject, Injectable } from '@nestjs/common';
-import { DOCTOR_CHECKS_TOKEN } from './tokens.js';
+import { DOCTOR_CHECKS_TOKEN } from './cli.tokens.js';
 
 export type CheckSeverity = 'ok' | 'warning' | 'error';
 

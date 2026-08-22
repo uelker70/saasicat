@@ -12,15 +12,15 @@ import type { DynamicModule } from '@nestjs/common';
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
 import { AdminResourcesModule } from '../../admin/admin-resources.module.js';
 import { AdminStatsModule } from '../../admin/admin-stats.module.js';
-import { AdminModule } from '../../admin/module.js';
+import { AdminModule } from '../../admin/admin.module.js';
 import { PlanCatalogModule } from '../../billing/plan-catalog.module.js';
 import { SubscriptionBundleModule } from '../../billing/subscription-bundles.module.js';
 import { TenantBillingModule } from '../../billing/tenant-billing.module.js';
 import { CatalogModule } from '../../catalog/catalog.module.js';
 import { CheckoutOfferModule } from '../../checkout-offer/checkout-offer.module.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';
-import { EntitlementModule } from '../../entitlement/module.js';
-import { PromoCodesModule } from '../../promo/module.js';
+import { EntitlementModule } from '../../entitlement/entitlement.module.js';
+import { PromoCodesModule } from '../../promo/promo.module.js';
 import { SetupModule } from '../../setup/setup.module.js';
 import { SubscriptionContractModule } from '../../subscription-contract/subscription-contract.module.js';
 

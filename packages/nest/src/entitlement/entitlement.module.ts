@@ -20,18 +20,18 @@ import type {
     TransactionRunner,
 } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
-import { EntitlementService } from './service.js';
-import { ENTITLEMENT_SERVICE_TOKEN } from './tokens.js';
+import { EntitlementService } from './entitlement.service.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from './entitlement.tokens.js';
 import type { EntitlementResolutionConfig } from './plan-resolution.js';
-import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/tokens.js';
+import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';
-import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/tokens.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import {
     ENTITLEMENT_RESOLUTION_CONFIG_TOKEN,
     PLAN_VERSION_REPOSITORY_TOKEN,
     SUBSCRIPTION_REPOSITORY_TOKEN,
     TRANSACTION_RUNNER_TOKEN,
-} from './tokens.js';
+} from './entitlement.tokens.js';
 
 export interface EntitlementModuleOptions {
     /** Consumer implementation of the `SubscriptionRepository` interface. */

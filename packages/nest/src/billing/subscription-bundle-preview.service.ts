@@ -48,7 +48,7 @@ import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     BUNDLE_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
-} from '../catalog/tokens.js';
+} from '../catalog/catalog.tokens.js';
 import { periodEndAfter } from './billing-period.js';
 import { computeProration, type ProrationDto } from './proration.js';
 import {

@@ -57,7 +57,7 @@ import {
     MARKETING_SETTINGS_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
     PROMOTION_REPOSITORY_TOKEN,
-} from './tokens.js';
+} from './catalog.tokens.js';
 
 export interface CatalogControllerConfig {
     /**

@@ -18,11 +18,11 @@
 //   - dto:                       class-validator DTOs for the controller layer.
 
 export * from './helpers.js';
-export * from './tokens.js';
+export * from './registration.tokens.js';
 export * from './pending-registration.service.js';
 export * from './cleanup.cron.js';
 export * from './ip-rate-limit.guard.js';
-export * from './module.js';
+export * from './registration.module.js';
 export * from './dto/register-start.dto.js';
 export * from './dto/verify-registration-otp.dto.js';
 export * from './dto/resend-registration-otp.dto.js';

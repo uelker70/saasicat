@@ -6,7 +6,7 @@ import type {
 } from '@saasicat/types';
 
 import type { ProviderSpec } from '../../core/di.js';
-import { EntitlementModule } from '../../entitlement/module.js';
+import { EntitlementModule } from '../../entitlement/entitlement.module.js';
 
 import type { CompositionContext } from './context.js';
 

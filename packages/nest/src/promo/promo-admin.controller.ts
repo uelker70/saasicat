@@ -22,7 +22,7 @@ import type {
 } from '@saasicat/types';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { CreatePromoCodeDto, UpdatePromoCodeDto } from './dto/promo-admin.dto.js';
-import { PromoCodesService } from './service.js';
+import { PromoCodesService } from './promo.service.js';
 
 interface AdminRequest {
     user?: {

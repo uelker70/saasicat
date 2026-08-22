@@ -20,8 +20,8 @@ import type {
     UpdatePlanData,
 } from '@saasicat/types';
 
-import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/tokens.js';
-import { PLAN_REPOSITORY_TOKEN } from './tokens.js';
+import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
+import { PLAN_REPOSITORY_TOKEN } from './catalog.tokens.js';
 import { CATALOG_ERROR_CODES } from '@saasicat/types';
 
 @Injectable()

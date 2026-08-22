@@ -18,14 +18,18 @@ import { dirname } from 'node:path';
 import { Inject, Injectable, Logger, OnApplicationBootstrap, Optional } from '@nestjs/common';
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core';
 
-import { DEFINES_QUOTA_KEY, ENFORCE_QUOTA_KEY, IMPLEMENTS_CAPABILITY_KEY } from './tokens.js';
+import {
+    DEFINES_QUOTA_KEY,
+    ENFORCE_QUOTA_KEY,
+    IMPLEMENTS_CAPABILITY_KEY,
+} from './discovery.tokens.js';
 import type {
     DiscoveredCapability,
     DiscoveredFeature,
     DiscoveredQuota,
     DiscoverySnapshot,
     DefinesQuotaOptions,
-} from './types.js';
+} from './discovery.types.js';
 import type { EnforceQuotaMetadata, ImplementsCapabilityMetadata } from './decorators.js';
 
 /**

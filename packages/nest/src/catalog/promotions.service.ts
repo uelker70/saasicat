@@ -12,7 +12,7 @@ import type {
     UpdatePromotionData,
 } from '@saasicat/types';
 
-import { PROMOTION_REPOSITORY_TOKEN } from './tokens.js';
+import { PROMOTION_REPOSITORY_TOKEN } from './catalog.tokens.js';
 
 @Injectable()
 export class PromotionsService {

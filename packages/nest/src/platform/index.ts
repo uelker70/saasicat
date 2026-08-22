@@ -105,10 +105,10 @@ export { AdminAuditService } from '../admin/admin-audit.service.js';
 export { AdminBypassRlsInterceptor } from '../admin/admin-bypass-rls.interceptor.js';
 export { AdminResourcesService } from '../admin/admin-resources.module.js';
 export { MfaGuard } from '../admin/mfa.guard.js';
-export { MfaService } from '../admin/mfa.js';
+export { MfaService } from '../admin/mfa.service.js';
 export { SuperAdminGuard } from '../admin/super-admin.guard.js';
 
-export { EntitlementService } from '../entitlement/service.js';
+export { EntitlementService } from '../entitlement/entitlement.service.js';
 
 export { ComposedTenantAuthGuard } from '../billing/composed-tenant-auth.guard.js';
 // Controllers are not injected in app code, but consumers assert on them in
@@ -133,7 +133,7 @@ export { PublicMarketingCatalogService } from '../catalog/public-marketing-catal
 export { DiscoveryScanner } from '../discovery/discovery.scanner.js';
 
 export { PromoCodeRateLimitGuard } from '../promo/rate-limit.guard.js';
-export { PromoCodesService } from '../promo/service.js';
+export { PromoCodesService } from '../promo/promo.service.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Optional modules composed internally by `SaaSiCatModule` and retained as
@@ -149,7 +149,7 @@ export { PromoCodesService } from '../promo/service.js';
 // Rule for consumers using the `/platform` entry: import every platform class
 // and any explicit escape-hatch module from that entry too.
 // ─────────────────────────────────────────────────────────────────────────
-export { AdminModule, type AdminModuleOptions } from '../admin/module.js';
+export { AdminModule, type AdminModuleOptions } from '../admin/admin.module.js';
 export {
     AdminManifestModule,
     type AdminManifestModuleOptions,

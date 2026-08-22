@@ -13,7 +13,7 @@
 export { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 export { drizzlePersistence, type DrizzlePersistenceOptions } from './drizzle-persistence.js';
 export * as saasicatSchema from './schema.js';
-export { DrizzleTransactionRunner } from './drizzle-transaction-runner.js';
+export { DrizzleTransactionRunner } from './drizzle-transaction-runner.adapter.js';
 export { DrizzleMfaAdapter } from './drizzle-mfa.adapter.js';
 export { DrizzleAuditAdapter, buildActorTag } from './drizzle-audit.adapter.js';
 export { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
@@ -24,11 +24,11 @@ export { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.
 export { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 export { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';
 export { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-validation-log.repository.js';
-export { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.js';
-export { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.js';
+export { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';
+export { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.adapter.js';
 export {
     PASSWORD_HASHER_TOKEN,
     DrizzleSuperAdminBootstrapAdapter,
 } from './drizzle-super-admin-bootstrap.adapter.js';
-export { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.js';
-export { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.js';
+export { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
+export { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';

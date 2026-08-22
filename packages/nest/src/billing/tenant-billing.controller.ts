@@ -23,8 +23,8 @@ import type {
 } from '@saasicat/types';
 import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/types';
 import { toEffectiveLimitsSnapshot } from '../entitlement/aggregation.js';
-import { EntitlementService } from '../entitlement/service.js';
-import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
+import { EntitlementService } from '../entitlement/entitlement.service.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';
 import { TenantAdminGuard } from './tenant-admin.guard.js';
 import { initialPeriodWindow } from './billing-period.js';
@@ -51,7 +51,7 @@ import {
     PreviewPlanChangeDto,
 } from './dto/tenant-billing.dto.js';
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
-import { PromoCodesService } from '../promo/service.js';
+import { PromoCodesService } from '../promo/promo.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
 import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/types';
 import { AdminAuditService } from '../admin/admin-audit.service.js';

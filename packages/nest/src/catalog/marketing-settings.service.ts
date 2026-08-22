@@ -9,7 +9,7 @@ import type {
     UpdateMarketingSettingsData,
 } from '@saasicat/types';
 
-import { MARKETING_SETTINGS_REPOSITORY_TOKEN } from './tokens.js';
+import { MARKETING_SETTINGS_REPOSITORY_TOKEN } from './catalog.tokens.js';
 
 @Injectable()
 export class MarketingSettingsService {

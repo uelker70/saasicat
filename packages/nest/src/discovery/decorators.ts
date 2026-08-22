@@ -17,12 +17,12 @@ import {
     ENFORCE_QUOTA_KEY,
     IMPLEMENTS_CAPABILITY_KEY,
     REQUIRES_CAPABILITY_KEY,
-} from './tokens.js';
+} from './discovery.tokens.js';
 import type {
     DefinesQuotaOptions,
     EnforceQuotaOptions,
     ImplementsCapabilityOptions,
-} from './types.js';
+} from './discovery.types.js';
 
 /**
  * Internal metadata shape under which `@ImplementsCapability` stores its data.

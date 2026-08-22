@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 
-import type { DiscoverySnapshot } from './types.js';
+import type { DiscoverySnapshot } from './discovery.types.js';
 
 export class DiscoverySnapshotNotFoundError extends Error {
     constructor(public readonly path: string) {

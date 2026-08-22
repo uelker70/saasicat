@@ -18,7 +18,7 @@ import type { SuperAdminProvisioningPort } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { SetupController } from './setup.controller.js';
 import { SetupService } from './setup.service.js';
-import { SETUP_CONFIG_TOKEN, SETUP_PROVISIONING_PORT_TOKEN } from './tokens.js';
+import { SETUP_CONFIG_TOKEN, SETUP_PROVISIONING_PORT_TOKEN } from './setup.tokens.js';
 
 const DEFAULT_SETUP_TOKEN_ENV_VAR = 'SETUP_TOKEN';
 const DEFAULT_MFA_ISSUER = 'SuperAdmin';

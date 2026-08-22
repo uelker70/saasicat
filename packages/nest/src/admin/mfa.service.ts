@@ -8,7 +8,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { generateSecret, generateURI, verify as verifyTotpCode } from 'otplib';
 import type { MfaPort } from '@saasicat/types';
-import { MFA_PORT_TOKEN } from './tokens.js';
+import { MFA_PORT_TOKEN } from './admin.tokens.js';
 
 /**
  * Allows a 30-second tolerance before and after the current time window

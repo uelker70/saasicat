@@ -8,7 +8,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { MfaService } from '@saasicat/nest';
 import { CliContextService, type CliContextConfig } from './cli-context.service.js';
-import { CLI_CONTEXT_CONFIG_TOKEN } from './tokens.js';
+import { CLI_CONTEXT_CONFIG_TOKEN } from './cli.tokens.js';
 
 export interface WhoAmIResult {
     email: string;

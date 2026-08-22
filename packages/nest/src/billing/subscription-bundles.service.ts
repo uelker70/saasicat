@@ -29,7 +29,7 @@ import type {
     SubscriptionBundleView,
 } from '@saasicat/types';
 
-import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/tokens.js';
+import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { BILLING_ERROR_CODES, CATALOG_ERROR_CODES } from '@saasicat/types';
 import {
     SELF_SERVICE_BLOCKED_BUNDLES_TOKEN,

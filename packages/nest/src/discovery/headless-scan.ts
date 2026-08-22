@@ -20,8 +20,8 @@ import type { INestApplicationContext, LogLevel, Type } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { DiscoveryScanner } from './discovery.scanner.js';
-import { DISCOVERY_SNAPSHOT_TOKEN } from './tokens.js';
-import type { DiscoverySnapshot } from './types.js';
+import { DISCOVERY_SNAPSHOT_TOKEN } from './discovery.tokens.js';
+import type { DiscoverySnapshot } from './discovery.types.js';
 
 export interface HeadlessScanOptions {
     /** Log level of the boot context. Default `['error', 'warn', 'log']`. */

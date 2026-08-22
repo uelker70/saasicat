@@ -10,17 +10,17 @@ import { DrizzleAuditAdapter } from './drizzle-audit.adapter.js';
 import { DrizzleAuditQueryAdapter } from './drizzle-audit-query.adapter.js';
 import { DrizzleAuditStatsAdapter } from './drizzle-audit-stats.adapter.js';
 import { DrizzleMfaAdapter } from './drizzle-mfa.adapter.js';
-import { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.js';
-import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.js';
+import { DrizzlePlanCatalogImportSink } from './drizzle-plan-catalog-import-sink.adapter.js';
+import { DrizzlePlanCatalogReadSink } from './drizzle-plan-catalog-read-sink.adapter.js';
 import { DrizzlePlanVersionRepository } from './drizzle-plan-version.repository.js';
 import { DrizzlePromoCodeRedemptionRepository } from './drizzle-promo-code-redemption.repository.js';
 import { DrizzlePromoCodeRepository } from './drizzle-promo-code.repository.js';
 import { DrizzlePromoCodeValidationLogRepository } from './drizzle-promo-code-validation-log.repository.js';
-import { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.js';
+import { DrizzlePromoSubscriptionLookup } from './drizzle-promo-subscription-lookup.adapter.js';
 import { DrizzleSubscriptionRepository } from './drizzle-subscription.repository.js';
 import { DrizzleSuperAdminBootstrapAdapter } from './drizzle-super-admin-bootstrap.adapter.js';
-import { DrizzleTransactionRunner } from './drizzle-transaction-runner.js';
-import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.js';
+import { DrizzleTransactionRunner } from './drizzle-transaction-runner.adapter.js';
+import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.adapter.js';
 
 export interface DrizzlePersistenceOptions {
     /**

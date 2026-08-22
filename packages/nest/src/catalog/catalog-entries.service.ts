@@ -40,7 +40,7 @@ import type {
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
 
-import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/tokens.js';
+import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { DiscoveryScanner } from '../discovery/discovery.scanner.js';
 import { resolveDiscoverySnapshot } from '../core/discovery-snapshot-source.js';
 import { featureApprovalSignature, quotaApprovalSignature } from './approval-signature.js';
@@ -49,7 +49,7 @@ import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
     CATALOG_FEATURE_UI_REGISTRY_TOKEN,
-} from './tokens.js';
+} from './catalog.tokens.js';
 
 /**
  * Allowed transitions of the approval state machine (#20, design sim):

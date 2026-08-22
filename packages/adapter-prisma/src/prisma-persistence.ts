@@ -22,23 +22,23 @@ import { PrismaCatalogEntryRepository } from './prisma-catalog-entry.repository.
 import { PrismaMarketingProjectionRepository } from './prisma-marketing-projection.repository.js';
 import { PrismaMarketingSettingsRepository } from './prisma-marketing-settings.repository.js';
 import { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
-import { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.js';
-import { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.js';
+import { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.adapter.js';
+import { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.adapter.js';
 import { PrismaPlanRepository } from './prisma-plan.repository.js';
 import { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js';
 import { PrismaPromotionRepository } from './prisma-promotion.repository.js';
 import { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';
 import { PrismaPromoCodeRepository } from './prisma-promo-code.repository.js';
 import { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-validation-log.repository.js';
-import { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.js';
+import { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.adapter.js';
 import { PrismaSubscriptionBundleRepository } from './prisma-subscription-bundle.repository.js';
 import { PrismaSubscriptionContractRepository } from './prisma-subscription-contract.repository.js';
 import { PrismaSubscriptionRepository } from './prisma-subscription.repository.js';
 import { PrismaSubscriptionUsageAdapter } from './prisma-subscription-usage.adapter.js';
 import { PrismaSuperAdminBootstrapAdapter } from './prisma-super-admin-bootstrap.adapter.js';
 import { PrismaTenantSubscriptionWriteAdapter } from './prisma-tenant-subscription-write.adapter.js';
-import { PrismaTransactionRunner } from './prisma-transaction-runner.js';
-import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.js';
+import { PrismaTransactionRunner } from './prisma-transaction-runner.adapter.js';
+import { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.adapter.js';
 
 /** Additional delegates present when the canonical catalog fragments are installed. */
 interface CanonicalPersistencePrisma extends PrismaLike {

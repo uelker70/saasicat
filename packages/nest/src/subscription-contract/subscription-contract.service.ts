@@ -20,7 +20,7 @@ import type {
 } from '@saasicat/types';
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
-import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './tokens.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
 import { CONTRACT_ERROR_CODES } from '@saasicat/types';
 
 export interface CreateContractFromOfferOptions {

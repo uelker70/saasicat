@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import type { BillingCycle } from '@saasicat/types';
 import { SaaSiCatPublicRoute } from '../core/public-route.js';
-import { PromoCodesService, type PreviewResult } from './service.js';
+import { PromoCodesService, type PreviewResult } from './promo.service.js';
 import { PromoCodeRateLimitGuard, hashIp } from './rate-limit.guard.js';
 import { PreviewPromoCodeDto } from './dto/promo-public.dto.js';
 

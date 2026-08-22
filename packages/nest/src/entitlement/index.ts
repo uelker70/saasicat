@@ -20,11 +20,11 @@
 //                      TRANSACTION_RUNNER_TOKEN,
 //                      ENTITLEMENT_RESOLUTION_CONFIG_TOKEN
 
-export * from './types.js';
+export * from './entitlement.types.js';
 export * from './aggregation.js';
 export * from './feature-aliases.js';
 export * from './plan-resolution.js';
 export * from './limit-exceeded-error.js';
-export * from './service.js';
-export * from './module.js';
-export * from './tokens.js';
+export * from './entitlement.service.js';
+export * from './entitlement.module.js';
+export * from './entitlement.tokens.js';

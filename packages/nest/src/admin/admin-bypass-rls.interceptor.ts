@@ -17,7 +17,7 @@ import {
 import { Observable, defer, from } from 'rxjs';
 import { switchAll } from 'rxjs/operators';
 import type { RlsBypassPort } from '@saasicat/types';
-import { RLS_BYPASS_PORT_TOKEN } from './tokens.js';
+import { RLS_BYPASS_PORT_TOKEN } from './admin.tokens.js';
 
 @Injectable()
 export class AdminBypassRlsInterceptor implements NestInterceptor {

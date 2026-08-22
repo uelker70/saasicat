@@ -9,4 +9,4 @@ export {
     SubscriptionContractModule,
     type SubscriptionContractModuleOptions,
 } from './subscription-contract.module.js';
-export { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './tokens.js';
+export { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';

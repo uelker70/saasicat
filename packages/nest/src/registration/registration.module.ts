@@ -45,7 +45,7 @@ import {
     SLUG_AVAILABILITY_CHECK_TOKEN,
     USER_ACCOUNT_LOOKUP_TOKEN,
     type PasswordHasher,
-} from './tokens.js';
+} from './registration.tokens.js';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 
 export interface RegistrationModuleOptions {

@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { BillingCycle, TenantSubscriptionWritePort } from '@saasicat/types';
 
-import { EntitlementService } from '../entitlement/service.js';
+import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { initialPeriodWindow } from './billing-period.js';
 import {
     PENDING_PLAN_QUERY_PORT_TOKEN,

@@ -38,7 +38,7 @@ import { DiscoveryService, MetadataScanner } from '@nestjs/core';
 
 import { isPlatformFeatureGuard } from '../billing/feature-guard-marker.js';
 import { REQUIRE_FEATURE_KEY } from '../billing/require-feature.decorator.js';
-import { ENFORCE_QUOTA_KEY } from '../discovery/tokens.js';
+import { ENFORCE_QUOTA_KEY } from '../discovery/discovery.tokens.js';
 
 /** Nest stores `@UseGuards(...)` under this key, on the class and the handler. */
 const GUARDS_METADATA = '__guards__';

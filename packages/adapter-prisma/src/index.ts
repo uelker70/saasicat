@@ -35,7 +35,7 @@ export {
     type PrismaTenantSubscriptionOptions,
     type ResolvedPrismaSchemaOptions,
 } from './prisma-plan-binding.js';
-export { PrismaTransactionRunner } from './prisma-transaction-runner.js';
+export { PrismaTransactionRunner } from './prisma-transaction-runner.adapter.js';
 export { PrismaMfaAdapter } from './prisma-mfa.adapter.js';
 export { PrismaAuditAdapter, buildActorTag } from './prisma-audit.adapter.js';
 export { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';
@@ -53,14 +53,14 @@ export { PrismaPlanVersionRepository } from './prisma-plan-version.repository.js
 export { PrismaPromoCodeRepository } from './prisma-promo-code.repository.js';
 export { PrismaPromoCodeRedemptionRepository } from './prisma-promo-code-redemption.repository.js';
 export { PrismaPromoCodeValidationLogRepository } from './prisma-promo-code-validation-log.repository.js';
-export { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.js';
-export { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.js';
+export { PrismaPromoSubscriptionLookup } from './prisma-promo-subscription-lookup.adapter.js';
+export { ZeroPromoRevenueDeductionAggregator } from './zero-promo-revenue-aggregator.adapter.js';
 export {
     PASSWORD_HASHER_TOKEN,
     PrismaSuperAdminBootstrapAdapter,
 } from './prisma-super-admin-bootstrap.adapter.js';
-export { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.js';
-export { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.js';
+export { PrismaPlanCatalogReadSink } from './prisma-plan-catalog-read-sink.adapter.js';
+export { PrismaPlanCatalogImportSink } from './prisma-plan-catalog-import-sink.adapter.js';
 // Catalog plane (CatalogModule) + V3 contract log.
 export { PrismaPlanRepository } from './prisma-plan.repository.js';
 export {

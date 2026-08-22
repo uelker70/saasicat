@@ -25,7 +25,7 @@ import {
 } from '@saasicat/nest';
 import type { PlanCatalog, UserPort } from '@saasicat/types';
 import type { DoctorCheck, DoctorCheckResult } from './doctor-flow.js';
-import { USER_PORT_TOKEN } from './tokens.js';
+import { USER_PORT_TOKEN } from './cli.tokens.js';
 
 @Injectable()
 export class PlanCatalogDoctorCheck implements DoctorCheck {

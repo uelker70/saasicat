@@ -17,10 +17,10 @@ import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminAuditService } from './admin-audit.service.js';
 import { AdminBypassRlsInterceptor } from './admin-bypass-rls.interceptor.js';
-import { MfaService } from './mfa.js';
+import { MfaService } from './mfa.service.js';
 import { MfaGuard } from './mfa.guard.js';
 import { SuperAdminGuard } from './super-admin.guard.js';
-import { AUDIT_PORT_TOKEN, MFA_PORT_TOKEN, RLS_BYPASS_PORT_TOKEN } from './tokens.js';
+import { AUDIT_PORT_TOKEN, MFA_PORT_TOKEN, RLS_BYPASS_PORT_TOKEN } from './admin.tokens.js';
 
 export interface AdminModuleOptions {
     mfaPort: ProviderSpec<MfaPort>;

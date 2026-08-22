@@ -30,7 +30,7 @@ import {
     PROMO_SERVICE_CONFIG_TOKEN,
     PROMO_SUBSCRIPTION_LOOKUP_TOKEN,
     PROMO_TRANSACTION_RUNNER_TOKEN,
-} from './tokens.js';
+} from './promo.tokens.js';
 import {
     buildLabel,
     computeDiscountGross,

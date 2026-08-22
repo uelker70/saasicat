@@ -21,7 +21,7 @@
 //   - init/patch-app-module: adding the platform to an existing AppModule
 //   - module:              CliContextModule.forRoot({config, userPort, …})
 
-export * from './tokens.js';
+export * from './cli.tokens.js';
 export * from './cli-context.service.js';
 export * from './mfa-setup-flow.js';
 export * from './whoami-flow.js';
@@ -39,7 +39,7 @@ export * from './init/plan.js';
 export * from './init/catalog-keys.js';
 export * from './codemods/v1-imports.js';
 export * from './init/patch-app-module.js';
-export * from './module.js';
+export * from './cli-context.module.js';
 export * from './manifest.command.js';
 export * from './admin.command.js';
 export * from './audit.command.js';

@@ -18,7 +18,7 @@ import type {
     EffectiveLimitsSnapshot,
     SubscriptionBundleSnapshot,
     SubscriptionLimitsInput,
-} from './types.js';
+} from './entitlement.types.js';
 
 /**
  * Filters SubscriptionBundle bookings down to those active at the given

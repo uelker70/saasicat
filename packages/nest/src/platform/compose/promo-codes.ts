@@ -3,7 +3,7 @@ import type { SaaSiCatPersistenceAdapter, TransactionRunner } from '@saasicat/ty
 
 import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
 import type { ProviderSpec } from '../../core/di.js';
-import { PromoCodesModule } from '../../promo/module.js';
+import { PromoCodesModule } from '../../promo/promo.module.js';
 
 import { optionsOf, type CompositionContext } from './context.js';
 

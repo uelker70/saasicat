@@ -42,19 +42,19 @@ import {
 } from '@saasicat/types';
 
 import { classifyBundleVersionDiff } from '../billing/version-diff.js';
-import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/tokens.js';
+import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';
 import { DiscoveryScanner } from '../discovery/discovery.scanner.js';
 import {
     hasDiscoverySnapshotSource,
     resolveDiscoverySnapshot,
 } from '../core/discovery-snapshot-source.js';
-import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/tokens.js';
+import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
 import {
     BUNDLE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
     PLAN_REPOSITORY_TOKEN,
-} from './tokens.js';
+} from './catalog.tokens.js';
 import { loadApprovedCatalogKeys } from './approved-keys.js';
 import { blockingStrictModeWarnings, validateBundleDraft } from './strict-mode-check.js';
 

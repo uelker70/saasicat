@@ -48,7 +48,7 @@ import { type TenantBillingModuleOptions } from '../billing/tenant-billing.modul
 import { type CatalogModuleOptions } from '../catalog/catalog.module.js';
 import type { DiscoveryAppInfo } from '../discovery/discovery.scanner.js';
 import type { EntitlementResolutionConfig } from '../entitlement/plan-resolution.js';
-import { type PromoCodesModuleOptions } from '../promo/module.js';
+import { type PromoCodesModuleOptions } from '../promo/promo.module.js';
 import { type SetupModuleOptions } from '../setup/setup.module.js';
 import { type CheckoutOfferModuleOptions } from '../checkout-offer/checkout-offer.module.js';
 import { type SubscriptionContractModuleOptions } from '../subscription-contract/subscription-contract.module.js';

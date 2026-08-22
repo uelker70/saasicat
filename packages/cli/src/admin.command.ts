@@ -4,7 +4,7 @@ import qrcodeTerminal from 'qrcode-terminal';
 
 import { type CliContextConfig } from './cli-context.service.js';
 import { MfaSetupFlow } from './mfa-setup-flow.js';
-import { CLI_CONTEXT_CONFIG_TOKEN } from './tokens.js';
+import { CLI_CONTEXT_CONFIG_TOKEN } from './cli.tokens.js';
 import { WhoAmIFlow } from './whoami-flow.js';
 
 // Shared `<app> admin …` commands for all platform consumers. Binds the

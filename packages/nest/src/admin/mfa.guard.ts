@@ -24,7 +24,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AUTH_ERROR_CODES } from '@saasicat/types';
 import { codedError } from '../errors/coded-error.js';
-import { MfaService } from './mfa.js';
+import { MfaService } from './mfa.service.js';
 
 export const REQUIRE_MFA_KEY = 'saasicat/nest/require-mfa';
 

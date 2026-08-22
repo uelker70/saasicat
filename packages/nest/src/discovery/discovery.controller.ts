@@ -20,7 +20,7 @@ import {
 } from '@nestjs/common';
 
 import { DiscoveryScanner } from './discovery.scanner.js';
-import type { DiscoverySnapshot } from './types.js';
+import type { DiscoverySnapshot } from './discovery.types.js';
 
 interface HttpResponseLike {
     header(name: string, value: string): unknown;

@@ -16,7 +16,7 @@ import { randomBytes } from 'node:crypto';
 import { Command, CommandRunner, Option } from 'nest-commander';
 
 import { CliContextService, CliError, type CliIdentity } from './cli-context.service.js';
-import { USER_MANAGEMENT_PORT_TOKEN } from './tokens.js';
+import { USER_MANAGEMENT_PORT_TOKEN } from './cli.tokens.js';
 
 interface UserFlags {
     as?: string;

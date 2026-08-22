@@ -15,7 +15,7 @@ import type {
     UpdateMarketingProjectionData,
 } from '@saasicat/types';
 
-import { MARKETING_PROJECTION_REPOSITORY_TOKEN } from './tokens.js';
+import { MARKETING_PROJECTION_REPOSITORY_TOKEN } from './catalog.tokens.js';
 
 @Injectable()
 export class MarketingProjectionsService {

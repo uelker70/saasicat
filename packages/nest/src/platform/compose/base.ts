@@ -8,7 +8,7 @@ import type { DynamicModule } from '@nestjs/common';
 import type { AuditPort, MfaPort, PlanCatalogReadSink, RlsBypassPort } from '@saasicat/types';
 
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
-import { AdminModule } from '../../admin/module.js';
+import { AdminModule } from '../../admin/admin.module.js';
 import { PlanCatalogModule } from '../../billing/plan-catalog.module.js';
 import type { ProviderSpec } from '../../core/di.js';
 import { DiscoveryModule } from '../../discovery/discovery.module.js';

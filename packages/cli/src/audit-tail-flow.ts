@@ -7,7 +7,7 @@
 
 import { Inject, Injectable } from '@nestjs/common';
 import type { AuditEntry, AuditQuery, AuditQueryPort } from '@saasicat/types';
-import { AUDIT_QUERY_PORT_TOKEN } from './tokens.js';
+import { AUDIT_QUERY_PORT_TOKEN } from './cli.tokens.js';
 
 export interface AuditTailOptions {
     actor?: string;

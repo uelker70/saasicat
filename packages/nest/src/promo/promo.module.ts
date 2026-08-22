@@ -26,11 +26,11 @@ import type {
     TransactionRunner,
 } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
-import { PromoCodeExpirer } from './expirer.js';
-import { PromoCodePublicController } from './controller.js';
-import { PromoCodesService, type PromoServiceConfig } from './service.js';
+import { PromoCodeExpirer } from './promo-code-expirer.service.js';
+import { PromoCodePublicController } from './promo.controller.js';
+import { PromoCodesService, type PromoServiceConfig } from './promo.service.js';
 import { PromoCodeRateLimitGuard } from './rate-limit.guard.js';
-import { buildPromoCodeAdminController } from './admin-controller.js';
+import { buildPromoCodeAdminController } from './promo-admin.controller.js';
 import {
     PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN,
     PROMO_CODE_REPOSITORY_TOKEN,
@@ -40,7 +40,7 @@ import {
     PROMO_SERVICE_CONFIG_TOKEN,
     PROMO_SUBSCRIPTION_LOOKUP_TOKEN,
     PROMO_TRANSACTION_RUNNER_TOKEN,
-} from './tokens.js';
+} from './promo.tokens.js';
 
 export interface PromoCodesModuleOptions {
     promoCodeRepository: ProviderSpec<PromoCodeRepository>;

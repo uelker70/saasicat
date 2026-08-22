@@ -7,7 +7,7 @@
 import * as os from 'node:os';
 import { Inject, Injectable } from '@nestjs/common';
 import type { AdminActor, AuditPort } from '@saasicat/types';
-import { AUDIT_PORT_TOKEN } from './tokens.js';
+import { AUDIT_PORT_TOKEN } from './admin.tokens.js';
 
 @Injectable()
 export class AdminAuditService {

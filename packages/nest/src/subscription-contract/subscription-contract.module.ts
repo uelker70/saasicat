@@ -9,7 +9,7 @@ import type { SubscriptionContractRepository } from '@saasicat/types';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { SubscriptionContractService } from './subscription-contract.service.js';
-import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './tokens.js';
+import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
 
 export interface SubscriptionContractModuleOptions {
     subscriptionContractRepository: ProviderSpec<SubscriptionContractRepository>;

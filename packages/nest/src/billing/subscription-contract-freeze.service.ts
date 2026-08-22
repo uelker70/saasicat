@@ -5,8 +5,8 @@ import type {
     NewContractLineItemData,
 } from '@saasicat/types';
 
-import { EntitlementService } from '../entitlement/service.js';
-import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/tokens.js';
+import { EntitlementService } from '../entitlement/entitlement.service.js';
+import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { findPlan, getPlanPriceNet } from './plan-helpers.js';

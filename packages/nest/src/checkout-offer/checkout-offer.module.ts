@@ -29,10 +29,10 @@ import {
     BUNDLE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
-} from '../catalog/tokens.js';
+} from '../catalog/catalog.tokens.js';
 import { CheckoutOfferService } from './checkout-offer.service.js';
 import { buildCheckoutOfferController } from './checkout-offer.controller.js';
-import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './tokens.js';
+import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './checkout-offer.tokens.js';
 
 export interface CheckoutOfferControllerConfig {
     /** Class-level guards; `[]` for auth-free public endpoints. */

@@ -31,9 +31,13 @@ import {
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import QRCode from 'qrcode';
 
-import { MfaService } from '../admin/mfa.js';
+import { MfaService } from '../admin/mfa.service.js';
 import { codedError } from '../errors/coded-error.js';
-import { type SetupConfig, SETUP_CONFIG_TOKEN, SETUP_PROVISIONING_PORT_TOKEN } from './tokens.js';
+import {
+    type SetupConfig,
+    SETUP_CONFIG_TOKEN,
+    SETUP_PROVISIONING_PORT_TOKEN,
+} from './setup.tokens.js';
 
 const GENERATED_PASSWORD_BYTES = 12;
 

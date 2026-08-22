@@ -34,9 +34,9 @@ import {
     BUNDLE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
-} from '../catalog/tokens.js';
+} from '../catalog/catalog.tokens.js';
 import { appendImplicitDiscountLineItem } from './discount-line-items.js';
-import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './tokens.js';
+import { CHECKOUT_OFFER_REPOSITORY_TOKEN } from './checkout-offer.tokens.js';
 
 @Injectable()
 export class CheckoutOfferService {
