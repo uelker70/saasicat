@@ -217,7 +217,9 @@ that the conflicts came from the shape rather than from the work.
 ## What is tested, and what is not
 
 `pnpm run coverage` is a ratchet: it fails when coverage drops, and has no
-threshold to reach. [`docs/test-coverage.md`](docs/test-coverage.md) says which
+threshold to reach. It rebuilds only the packages whose inputs changed since
+their last build (a stamp in `dist/`, see `scripts/build-stamp.mjs`), so it
+is cheap enough to run after every change. [`docs/test-coverage.md`](docs/test-coverage.md) says which
 parts each suite exercises, names the adapters the persistence contract does not
 reach, and ranks the remaining gaps by what a failure would cost rather than by
 percentage. Read it before assuming a number means what it looks like — two

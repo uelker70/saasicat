@@ -55,8 +55,27 @@ jobs:
               run: pnpm install --frozen-lockfile
             - name: Build packages
               run: pnpm -r build
-            - name: Run unit tests
-              run: pnpm -r --workspace-concurrency=1 test
+            # The unit suites run ONCE, under coverage: the ratchet spawns each
+            # package's suite itself and fails on a red test before it compares
+            # a number, so a second plain run would measure nothing new and cost
+            # ~80 s. It does not rebuild either — `build-if-stale` reads the
+            # stamps the build step above just wrote. A ratchet, not a target:
+            # it fails only when coverage DROPS below coverage-baseline.json.
+            - name: Run unit tests under the coverage ratchet
+              run: pnpm run coverage
+            # Uploaded even when the step above fails — that is precisely when
+            # someone needs the numbers to see WHICH package dropped and by how
+            # much, without re-running the suite locally.
+            - name: Upload coverage report
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: coverage-report
+                  path: coverage-report.json
+                  if-no-files-found: warn
+            # The one suite the ratchet does not measure: the example's own.
+            - name: Run the example's tests
+              run: pnpm --filter notesapp-example test
             # Checks that span the whole workspace rather than one package —
             # they need every dist/ present, so they cannot live in a package
             # suite without breaking `pnpm --filter <pkg> test` on a clean
@@ -79,27 +98,6 @@ jobs:
               run: pnpm run format:check
             - name: Typecheck
               run: pnpm -r typecheck
-            # A ratchet, not a target: it fails only when coverage DROPS below
-            # what is recorded in coverage-baseline.json. An invented threshold
-            # would be either ignored or routed around; this one moves down as
-            # the suites improve, and never up by accident.
-            #
-            # The script rebuilds first. That repeats the build step above, and
-            # the alternative — deciding whether dist/ is current — cost three
-            # review rounds and was still wrong; the suites measure dist/, so
-            # the build has to be a precondition rather than a guess.
-            - name: Coverage ratchet
-              run: pnpm run coverage
-            # Uploaded even when the step above fails — that is precisely when
-            # someone needs the numbers to see WHICH package dropped and by how
-            # much, without re-running the suite locally.
-            - name: Upload coverage report
-              if: always()
-              uses: actions/upload-artifact@v7
-              with:
-                  name: coverage-report
-                  path: coverage-report.json
-                  if-no-files-found: warn
             # The example is the schema consumers copy from, so it must not fall
             # behind the fragments it demonstrates. Exits 1 on drift.
             - name: Schema drift (NotesApp example)
