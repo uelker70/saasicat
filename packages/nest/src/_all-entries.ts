@@ -14,10 +14,11 @@
 // objects, and the hazard disappears for consumers instead of being a rule
 // they have to remember.
 //
-// Namespaces (not `export *`) keep the entries independent: two entries may
-// legitimately export the same NAME for different things — e.g.
-// `FEATURE_UI_REGISTRY_TOKEN` exists in both `billing` and `catalog` and means
-// a different registry in each.
+// Namespaces (not `export *`) keep the entries independent: a name is looked
+// up per entry, so two entries could export the same NAME for different
+// things without one shadowing the other. Since 1.0 none do — the one case
+// there was, the billing and catalog feature-UI registries, carries two names
+// now — and `tests/cjs-entry-identity.test.js` keeps it that way.
 
 export * as adminNs from './admin/index.js';
 export * as billingNs from './billing/index.js';

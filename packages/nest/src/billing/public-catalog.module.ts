@@ -13,7 +13,7 @@ import type {
 } from '@saasicat/types';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { PublicCatalogController } from './public-catalog.controller.js';
-import { FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
+import { BILLING_FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
@@ -64,7 +64,7 @@ export class PublicCatalogModule {
         const providers: Provider[] = [
             ...(options.extraProviders ?? []),
             {
-                provide: FEATURE_UI_REGISTRY_TOKEN,
+                provide: BILLING_FEATURE_UI_REGISTRY_TOKEN,
                 useValue: options.featureUiRegistry,
             },
         ];
@@ -97,7 +97,7 @@ export class PublicCatalogModule {
             imports: options.imports ?? [],
             controllers: [PublicCatalogController],
             providers,
-            exports: [FEATURE_UI_REGISTRY_TOKEN],
+            exports: [BILLING_FEATURE_UI_REGISTRY_TOKEN],
         };
     }
 }

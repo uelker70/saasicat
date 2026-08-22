@@ -52,7 +52,7 @@ import {
     BUNDLE_REPOSITORY_TOKEN,
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
-    FEATURE_UI_REGISTRY_TOKEN,
+    CATALOG_FEATURE_UI_REGISTRY_TOKEN,
     MARKETING_PROJECTION_REPOSITORY_TOKEN,
     MARKETING_SETTINGS_REPOSITORY_TOKEN,
     PLAN_REPOSITORY_TOKEN,
@@ -210,7 +210,7 @@ export class CatalogModule {
                 } satisfies CatalogServiceConfig,
             },
             {
-                provide: FEATURE_UI_REGISTRY_TOKEN,
+                provide: CATALOG_FEATURE_UI_REGISTRY_TOKEN,
                 useValue: options.featureUiRegistry ?? null,
             },
             BundlesService,

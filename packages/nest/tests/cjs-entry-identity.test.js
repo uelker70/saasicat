@@ -27,11 +27,10 @@ const ENTRIES = publicEntries().map((e) => e.exportPath);
 const load = (entry) =>
     require(entry === '.' ? '../dist/index.cjs' : `../dist/${entry.slice(2)}/index.cjs`);
 
-// Deliberate exceptions: the same exported NAME meaning different things in
-// different entries. Both are the consumer's FeatureUiRegistry, but one feeds
-// the public catalog endpoints and the other the SuperAdmin catalog pages, and
-// an app may curate them differently.
-const ALLOWED_DIVERGENCE = new Set(['FEATURE_UI_REGISTRY_TOKEN']);
+// No exceptions. Two entries once exported the same NAME for different
+// registries (`FEATURE_UI_REGISTRY_TOKEN` in `billing` and `catalog`); 1.0
+// gave each its own name, so a name that differs across entries is a split
+// bundle and nothing else.
 
 describe('CJS entries share one set of objects', () => {
     test('no exported name resolves to different values across entries', () => {
@@ -47,7 +46,6 @@ describe('CJS entries share one set of objects', () => {
         const split = [];
         for (const [name, occurrences] of byName) {
             if (occurrences.length < 2) continue;
-            if (ALLOWED_DIVERGENCE.has(name)) continue;
             if (new Set(occurrences.map((o) => o.value)).size > 1) {
                 split.push(`${name} differs across ${occurrences.map((o) => o.entry).join(', ')}`);
             }

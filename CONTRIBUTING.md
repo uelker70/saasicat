@@ -60,10 +60,15 @@ below is what makes tokens survive all of those cases.
 - Plain `Symbol('X')` is acceptable **only** for tokens created and consumed
   strictly within a single entry point, with no consumer-facing surface.
 
-Note on the namespace: the registry keys use the historical `'saasicat/nest/…'`
-prefix. These keys are part of the runtime contract between platform and consumer
-apps — **do not rename existing keys**, and use the same prefix for new cross-entry
-tokens unless a coordinated, breaking namespace migration is explicitly planned.
+Note on the namespace: every registry key is `saasicat/<package>/<Name>` — the
+package directory under `packages/` is the package name, so the prefix is the
+directory the token is declared in. These keys are part of the runtime contract
+between platform and consumer apps: a consumer may `Symbol.for` the same string
+in their own code, so **do not rename an existing key**. They were renamed
+exactly once, at 1.0, when four historical prefixes (`saas-platform/`,
+`saas-platform-nest/`, `saas-platform-cli/`, `@saasicat/ui-vue/`) became this
+one — that is what the `major` in that release paid for, and
+`tests/di-tokens-share-one-namespace.test.js` refuses any other prefix since.
 
 ## One bundle, many entries (the CJS build)
 
@@ -92,9 +97,11 @@ do not have to know which entry a class "really" lives in.
 drift apart, and `tests/cjs-entry-identity.test.js` fails if any export ends up
 with two identities.
 
-Two entries may still export the same NAME for different things on purpose —
-`FEATURE_UI_REGISTRY_TOKEN` means a different registry in `billing` than in
-`catalog`. Those are listed explicitly in that test.
+No two entries export the same name for different things. Until 1.0 one pair did
+— `FEATURE_UI_REGISTRY_TOKEN` meant one registry in `billing` and another in
+`catalog` — and the identity test carried it as an exception. They are
+`BILLING_FEATURE_UI_REGISTRY_TOKEN` and `CATALOG_FEATURE_UI_REGISTRY_TOKEN`
+now, and the test has no exception list.
 
 ## Layer boundaries in `@saasicat/ui-vue`
 

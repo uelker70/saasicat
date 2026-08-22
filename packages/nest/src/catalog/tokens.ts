@@ -46,4 +46,6 @@ export const CATALOG_SERVICE_CONFIG_TOKEN = Symbol.for('saasicat/nest/CatalogSer
  * token on purpose — an app may curate the two surfaces differently. The key
  * is namespaced accordingly so the two never collide.
  */
-export const FEATURE_UI_REGISTRY_TOKEN = Symbol.for('saasicat/nest/CatalogFeatureUiRegistry');
+export const CATALOG_FEATURE_UI_REGISTRY_TOKEN = Symbol.for(
+    'saasicat/nest/CatalogFeatureUiRegistry',
+);

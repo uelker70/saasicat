@@ -13,7 +13,7 @@ import {
     type PlanCatalog,
 } from '@saasicat/types';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
-import { FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
+import { BILLING_FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
 import {
     PUBLIC_CATALOG_BUNDLE_REPOSITORY_TOKEN,
     PUBLIC_CATALOG_CATALOG_ENTRY_REPOSITORY_TOKEN,
@@ -82,7 +82,8 @@ interface PublicBundleEntry {
 export class PublicCatalogController {
     constructor(
         @Inject(PLAN_CATALOG_TOKEN) private readonly planCatalog: PlanCatalog,
-        @Inject(FEATURE_UI_REGISTRY_TOKEN) private readonly featureRegistry: FeatureUiRegistry,
+        @Inject(BILLING_FEATURE_UI_REGISTRY_TOKEN)
+        private readonly featureRegistry: FeatureUiRegistry,
         @Optional()
         @Inject(PUBLIC_CATALOG_PROJECT_KEY_TOKEN)
         private readonly projectKey: string | null = null,

@@ -48,7 +48,7 @@ import type { CatalogServiceConfig } from './bundles.service.js';
 import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,
     CATALOG_SERVICE_CONFIG_TOKEN,
-    FEATURE_UI_REGISTRY_TOKEN,
+    CATALOG_FEATURE_UI_REGISTRY_TOKEN,
 } from './tokens.js';
 
 /**
@@ -127,7 +127,7 @@ export class CatalogEntriesService implements OnApplicationBootstrap {
         @Inject(DiscoveryScanner)
         private readonly scanner: DiscoveryScanner | null = null,
         @Optional()
-        @Inject(FEATURE_UI_REGISTRY_TOKEN)
+        @Inject(CATALOG_FEATURE_UI_REGISTRY_TOKEN)
         private readonly featureUiRegistry: FeatureUiRegistry | null = null,
     ) {
         this.autoSyncAtBoot = config.autoSyncDiscoveryAtBoot ?? true;
