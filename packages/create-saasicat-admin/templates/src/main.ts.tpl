@@ -38,7 +38,7 @@ const handle = createSuperAdminApp({
     // Starting UI language — the shell's header switcher lets the user change
     // it from there and remembers the pick. `overrides` replaces individual
     // strings (handbook §8.7).
-    i18n: { locale: 'de' },
+    i18n: { locale: 'en' },
 });
 
 handle.mount('#app');

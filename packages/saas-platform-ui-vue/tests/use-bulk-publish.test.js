@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { useBulkPublish } from '../dist/index.js';
+import { useBulkPublish, SA_MESSAGES, DEFAULT_SA_LOCALE } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 const ENDPOINTS = {
     plan: (id) => `/api/v1/admin/plan-versions/${id}/publish`,
@@ -79,7 +80,12 @@ describe('useBulkPublish.run — parallel publishes', () => {
         await bp.run({ changeNote: '   ' });
         assert.equal(calls.length, 0); // no HTTP call
         assert.equal(bp.failureCount.value, 1);
-        assert.match(bp.items.value[0].error, /Pflicht/);
+        // Read from the catalog rather than restated here: the wording follows
+        // DEFAULT_SA_LOCALE, and this case is about the refusal, not the words.
+        assert.equal(
+            bp.items.value[0].error,
+            SA_MESSAGES[DEFAULT_SA_LOCALE].planVersions.bulkPublish.changeNoteRequired,
+        );
     });
 
     test('mfaCode sets X-Mfa-Code header', async () => {
@@ -92,7 +98,7 @@ describe('useBulkPublish.run — parallel publishes', () => {
 
     test('auth token is sent along', async () => {
         const { http, calls } = buildHttp(() => ({ status: 200, body: {} }));
-        const bp = useBulkPublish({ http, endpoints: ENDPOINTS, getAuthToken: () => 'jwt-x' });
+        const bp = useBulkPublish({ http: authenticating(http, 'jwt-x'), endpoints: ENDPOINTS });
         bp.setItems([{ key: 'p:1', kind: 'plan', draftId: '1', label: 'A' }]);
         await bp.run({ changeNote: 'X' });
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-x');

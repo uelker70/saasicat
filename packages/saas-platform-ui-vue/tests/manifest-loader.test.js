@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ManifestLoadError, ManifestLoader } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 function buildStorage() {
     const map = new Map();
@@ -66,16 +67,15 @@ describe('ManifestLoader.load — first call', () => {
         assert.equal(storage.get('manifest:etag'), '"sha256-abc"');
     });
 
-    test('auth token is sent as a Bearer header', async () => {
+    test("the client's auth header reaches the request untouched", async () => {
         const storage = buildStorage();
         const { http, calls } = buildHttp([
             { status: 200, body: SAMPLE_MANIFEST, headers: { etag: '"x"' } },
         ]);
         const loader = new ManifestLoader({
-            http,
+            http: authenticating(http, 'jwt-abc'),
             storage,
             endpoint: ENDPOINT,
-            getAuthToken: () => 'jwt-abc',
         });
         await loader.load();
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-abc');
@@ -247,33 +247,39 @@ describe('ManifestLoader.readCachedBody', () => {
     });
 });
 
-describe('ManifestLoader — token acquired after construction', () => {
+describe('ManifestLoader — the client authenticates, per request', () => {
     // `platform-loaders.ts` builds the loader at MODULE SCOPE, i.e. long before
     // anyone has logged in. Every consumer does it that way, and the scaffolder
     // template generates it that way.
     //
-    // So the loader must read `getAuthToken()` per request. Reading it once in
-    // the constructor would produce the nastiest possible failure shape: the
-    // admin works after a page refresh (token already in storage at module
-    // load) and 401s right after logging in (token acquired later) — which
-    // looks like a backend problem and is not.
+    // The token used to be read by the loader. Since it is read by the client
+    // the trap moved one layer down without getting smaller, and it produces
+    // the nastiest possible failure shape either way: the admin works after a
+    // page refresh (token already in storage at module load) and 401s right
+    // after logging in (token acquired later) — which looks like a backend
+    // problem and is not.
+    //
+    // What the loader still owes is the other half of it. It must reach the
+    // client afresh for every request; a loader that built its headers once and
+    // reused them would freeze whatever the client returned first, and no
+    // amount of care on the client's side could then fix it.
 
-    test('reads the token per request, not once at construction', async () => {
+    test('a token acquired after construction reaches the next request', async () => {
         let token = null; // not logged in yet
         const calls = [];
+        const record = (url, init) => {
+            calls.push(init);
+            return Promise.resolve({
+                status: 200,
+                headers: { get: () => null },
+                json: async () => SAMPLE_MANIFEST,
+                text: async () => '',
+            });
+        };
         const loader = new ManifestLoader({
             endpoint: '/api/v1/admin/manifest',
-            getAuthToken: () => token,
             storage: buildStorage(),
-            http: (url, init) => {
-                calls.push(init);
-                return Promise.resolve({
-                    status: 200,
-                    headers: { get: () => null },
-                    json: async () => SAMPLE_MANIFEST,
-                    text: async () => '',
-                });
-            },
+            http: authenticating(record, () => token),
         });
 
         await loader.load();
@@ -292,19 +298,19 @@ describe('ManifestLoader — token acquired after construction', () => {
     test('a token that changes between requests is not cached', async () => {
         const tokens = ['first', 'refreshed'];
         const calls = [];
+        const record = (url, init) => {
+            calls.push(init);
+            return Promise.resolve({
+                status: 200,
+                headers: { get: () => null },
+                json: async () => SAMPLE_MANIFEST,
+                text: async () => '',
+            });
+        };
         const loader = new ManifestLoader({
             endpoint: '/api/v1/admin/manifest',
-            getAuthToken: () => tokens.shift() ?? null,
             storage: buildStorage(),
-            http: (url, init) => {
-                calls.push(init);
-                return Promise.resolve({
-                    status: 200,
-                    headers: { get: () => null },
-                    json: async () => SAMPLE_MANIFEST,
-                    text: async () => '',
-                });
-            },
+            http: authenticating(record, () => tokens.shift() ?? null),
         });
 
         await loader.load();

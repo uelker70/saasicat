@@ -30,7 +30,6 @@ export interface UseTenantManifestOptions {
     /** e.g. `/api/tenant/manifest` (mandatory). */
     endpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** Defaults to `true`. */
     autoLoad?: boolean;
 }
@@ -59,8 +58,6 @@ export function useTenantManifest(options: UseTenantManifestOptions): UseTenantM
         error.value = null;
         try {
             const headers: Record<string, string> = {};
-            const token = options.getAuthToken?.();
-            if (token) headers.Authorization = `Bearer ${token}`;
             const res = await http(options.endpoint, { method: 'GET', headers });
             if (res.status !== 200) {
                 throw new Error(`Tenant-Manifest-Endpoint → HTTP ${res.status}`);

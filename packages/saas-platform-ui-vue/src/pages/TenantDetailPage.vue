@@ -34,7 +34,11 @@
         <AdminBody :loading="loading" :empty="!data">
             <template v-if="data">
                 <!-- Master data -->
-                <AdminSection :title="labels.masterData" :subtitle="stammdatenSub" class="q-mb-md">
+                <AdminSection
+                    :title="labels.masterData"
+                    :subtitle="options?.stammdatenSub"
+                    class="q-mb-md"
+                >
                     <template #actions>
                         <slot name="card-actions" :data="data" :reload="load" />
                     </template>
@@ -53,16 +57,23 @@
 
                 <!-- Usage -->
                 <AdminSection
-                    v-if="verbrauchFields.length > 0"
+                    v-if="(options?.verbrauchFields?.length ?? 0) > 0"
                     :title="labels.usage"
                     class="q-mb-md"
                 >
-                    <TenantUsage :data="data" :fields="verbrauchFields" />
+                    <TenantUsage :data="data" :fields="options?.verbrauchFields ?? []" />
                 </AdminSection>
 
                 <!-- Users -->
-                <AdminSection v-if="showUsers && data.users" :title="labels.users" class="q-mb-md">
-                    <TenantUsers :users="data.users" :columns="userColumns ?? defaultUserColumns" />
+                <AdminSection
+                    v-if="options?.showUsers && data.users"
+                    :title="labels.users"
+                    class="q-mb-md"
+                >
+                    <TenantUsers
+                        :users="data.users"
+                        :columns="options?.userColumns ?? defaultUserColumns"
+                    />
                 </AdminSection>
 
                 <slot name="extra-cards" :data="data" :reload="load" />
@@ -89,13 +100,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, toRef } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
-import { useRouter, type RouteLocationRaw } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { tenantsResource } from '../client/resources/tenants.resource.js';
 import type { TenantDetailData, VerbrauchField } from '../internal/tenant-detail/types.js';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -111,35 +125,56 @@ import { useTenantActionFlow } from '../vue/use-tenant-action-flow.js';
 
 export type { TenantDetailData, VerbrauchField } from '../internal/tenant-detail/types.js';
 
-const props = withDefaults(
-    defineProps<{
-        loadDetail: () => Promise<TenantDetailData>;
-        backRoute: RouteLocationRaw;
-        manifest: AdminManifest | null;
-        verbrauchFields?: VerbrauchField[];
-        userColumns?: QTableColumn[];
-        showUsers?: boolean;
-        formatDate?: (value: string | null | undefined) => string;
-        // i18n labels
-        backLabel?: string;
-        titleLabel?: string;
-        slugLabel?: string;
-        stammdatenLabel?: string;
-        stammdatenSub?: string;
-        planLabel?: string;
-        statusLabel?: string;
-        pilotLabel?: string;
-        trialEndLabel?: string;
-        pilotEndLabel?: string;
-        vatIdLabel?: string;
-        verbrauchLabel?: string;
-        usersLabel?: string;
-    }>(),
-    {
-        verbrauchFields: () => [],
-        showUsers: true,
-    },
-);
+/**
+ * What an app may change about this page.
+ *
+ * One object rather than eighteen props, per AP3 §3.2: a page's contract is
+ * `resources`, `params` and `options`, whatever the number of knobs behind the
+ * last one.
+ *
+ * The thirteen `*Label` entries are overrides on top of the i18n catalog, not
+ * the only source of those words — a page with no options still renders in the
+ * operator's language.
+ */
+export interface TenantDetailPageOptions {
+    /** Where the back link goes. */
+    backRoute?: RouteLocationRaw;
+    /** Manifest source for the suspend/reactivate card actions. */
+    manifest?: AdminManifest | null;
+    verbrauchFields?: VerbrauchField[];
+    userColumns?: QTableColumn[];
+    showUsers?: boolean;
+    backLabel?: string;
+    titleLabel?: string;
+    slugLabel?: string;
+    stammdatenLabel?: string;
+    stammdatenSub?: string;
+    planLabel?: string;
+    statusLabel?: string;
+    pilotLabel?: string;
+    trialEndLabel?: string;
+    pilotEndLabel?: string;
+    vatIdLabel?: string;
+    verbrauchLabel?: string;
+    usersLabel?: string;
+}
+
+const props = defineProps<{
+    /**
+     * Override the tenants resource for this page only — a different host,
+     * or one operation wrapped. Layered over the app's own override; see
+     * AP3 §3.2.
+     */
+    resources?: ResourceOverride<(typeof tenantsResource)['ops']>;
+    /**
+     * Which tenant. Defaults to the route's `slug` param, which is where a
+     * detail route puts it — an app only passes this when it mounts the
+     * page outside such a route.
+     */
+    slug?: string;
+    /** Presentation and capability. Never data, never a callback. */
+    options?: TenantDetailPageOptions;
+}>();
 
 const msg = useSaMessages('tenants');
 const common = useSaMessages('common');
@@ -147,28 +182,39 @@ const common = useSaMessages('common');
 // Every label stays overridable via props — only the German literals moved
 // into the catalog.
 const labels = computed(() => ({
-    back: props.backLabel ?? msg.value.detail.backToList,
-    title: props.titleLabel ?? msg.value.tenant,
-    slug: props.slugLabel ?? msg.value.detail.slug,
-    masterData: props.stammdatenLabel ?? msg.value.detail.masterData,
-    plan: props.planLabel ?? msg.value.plan,
-    status: props.statusLabel ?? common.value.status,
-    pilot: props.pilotLabel ?? msg.value.detail.pilot,
-    trialEnd: props.trialEndLabel ?? msg.value.detail.trialEnd,
-    pilotEnd: props.pilotEndLabel ?? msg.value.detail.pilotEnd,
-    vatId: props.vatIdLabel ?? msg.value.detail.vatId,
-    usage: props.verbrauchLabel ?? msg.value.detail.usage,
-    users: props.usersLabel ?? msg.value.detail.users,
+    back: props.options?.backLabel ?? msg.value.detail.backToList,
+    title: props.options?.titleLabel ?? msg.value.tenant,
+    slug: props.options?.slugLabel ?? msg.value.detail.slug,
+    masterData: props.options?.stammdatenLabel ?? msg.value.detail.masterData,
+    plan: props.options?.planLabel ?? msg.value.plan,
+    status: props.options?.statusLabel ?? common.value.status,
+    pilot: props.options?.pilotLabel ?? msg.value.detail.pilot,
+    trialEnd: props.options?.trialEndLabel ?? msg.value.detail.trialEnd,
+    pilotEnd: props.options?.pilotEndLabel ?? msg.value.detail.pilotEnd,
+    vatId: props.options?.vatIdLabel ?? msg.value.detail.vatId,
+    usage: props.options?.verbrauchLabel ?? msg.value.detail.usage,
+    users: props.options?.usersLabel ?? msg.value.detail.users,
 }));
 
 const notify = useSuperAdminNotify();
 const data = ref<TenantDetailData | null>(null);
 const loading = ref(false);
 
+// The data layer, reached by name. The page used to take a pre-bound
+// `loadDetail` prop, which meant every consumer wrote a closure over the route
+// param just to hand the slug back to a call that could read it here.
+const tenants = useResource('tenants', props.resources);
+const route = useRoute();
+const tenantSlug = computed(() => props.slug ?? String(route.params.slug ?? ''));
+
 async function load(): Promise<void> {
+    if (!tenantSlug.value) {
+        data.value = null;
+        return;
+    }
     loading.value = true;
     try {
-        data.value = await props.loadDetail();
+        data.value = (await tenants.detail(tenantSlug.value)) as TenantDetailData | null;
     } finally {
         loading.value = false;
     }
@@ -184,11 +230,11 @@ function defaultFormatDate(value: string | null | undefined): string {
 }
 
 function formatDateResolved(value: string | null | undefined): string {
-    return props.formatDate ? props.formatDate(value) : defaultFormatDate(value);
+    return defaultFormatDate(value);
 }
 
 // ── Manifest-driven Action Flow (Suspend/Reactivate, Default) ──────────
-const manifestRef = toRef(() => props.manifest);
+const manifestRef = computed(() => props.options?.manifest ?? null);
 
 const mfa = useMfaPrompt();
 
@@ -276,7 +322,7 @@ const router = useRouter();
  * the package uses a button for the same step.
  */
 function goBack(): void {
-    void router.push(props.backRoute);
+    void router.push(props.options?.backRoute ?? '/admin/tenants');
 }
 
 function iconForActionKey(actionKey: string): string {

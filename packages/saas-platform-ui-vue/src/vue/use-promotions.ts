@@ -13,7 +13,6 @@ import { defaultHttpClient, type HttpClient } from '../client/types.js';
 export interface UsePromotionsOptions {
     adminEndpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     projectKey: string;
     autoLoad?: boolean;
 }
@@ -65,8 +64,7 @@ export function usePromotions(options: UsePromotionsOptions): UsePromotionsResul
     const pk = encodeURIComponent(options.projectKey);
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {

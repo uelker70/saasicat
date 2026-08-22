@@ -27,7 +27,6 @@ export interface UseEntitlementOptions {
      */
     endpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** Default `true`. */
     autoLoad?: boolean;
 }
@@ -60,8 +59,6 @@ export function useEntitlement(options: UseEntitlementOptions): UseEntitlementRe
         error.value = null;
         try {
             const headers: Record<string, string> = {};
-            const token = options.getAuthToken?.();
-            if (token) headers.Authorization = `Bearer ${token}`;
             const res = await http(endpoint, { method: 'GET', headers });
             if (res.status !== 200) {
                 throw new Error(`Entitlement-Endpoint → HTTP ${res.status}`);

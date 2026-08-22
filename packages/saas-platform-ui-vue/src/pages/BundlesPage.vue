@@ -7,17 +7,14 @@
                     :display-locale="displayLocale"
                     :locales="locales"
                     @create="openCreatePanel"
-                    @refresh="load"
+                    @refresh="reload"
                     @update:display-locale="(value) => (displayLocale = value)"
                 />
             </template>
         </AdminHero>
 
         <AdminBody>
-            <q-banner v-if="error" class="sa-bundles__error" rounded>
-                <template #avatar><q-icon name="warning" color="negative" /></template>
-                {{ loadErrorText }}
-            </q-banner>
+            <AdminErrorBanner :error="error" />
 
             <AdminSection>
                 <BundlesKpis
@@ -52,21 +49,16 @@
                     :feature-registry="featureRegistryResolved"
                     :quota-registry="quotaRegistryResolved"
                     :existing-bundle-keys="existingBundleKeys"
-                    :create="create"
-                    :create-draft="createDraft"
+                    :create="bundlesOps.create"
+                    :create-draft="versionsOps.createDraft"
                     @cancel="createOpen = false"
                     @created="onWizardCreated"
                 />
 
-                <q-banner
-                    v-if="bundles.length === 0 && !loading && !error"
-                    class="sa-bundles__empty"
-                    rounded
-                >
-                    <template #avatar><q-icon name="info" color="info" /></template>
+                <AdminBanner v-if="bundles.length === 0 && !loading && !error" tone="info">
                     {{ msg.page.emptyBefore }} <strong>{{ msg.header.newBundle }}</strong>
                     {{ msg.page.emptyAfter }}
-                </q-banner>
+                </AdminBanner>
 
                 <BundleAccordionList
                     :filtered-bundles="filteredBundles"
@@ -108,13 +100,7 @@
             </AdminSection>
 
             <!-- Strict mode warnings after the last mutation -->
-            <q-banner
-                v-if="lastWarnings.length > 0"
-                class="sa-bundles__warnings-banner"
-                inline-actions
-                rounded
-            >
-                <template #avatar><q-icon name="warning" color="warning" /></template>
+            <AdminBanner v-if="lastWarnings.length > 0" tone="warning">
                 <strong>{{ strictWarningsText }}</strong>
                 <ul class="sa-bundles__warnings-list">
                     <li v-for="(w, i) in lastWarnings" :key="i">
@@ -128,7 +114,7 @@
                 <template #action>
                     <q-btn flat dense :label="common.close" @click="lastWarnings = []" />
                 </template>
-            </q-banner>
+            </AdminBanner>
         </AdminBody>
 
         <!-- Publish confirmation modal -->
@@ -147,23 +133,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
+import { classifyBundleVersionDiff } from '@saasicat/types';
+import { useResource } from '../vue/resource-registry.js';
+import { useSuperAdminEndpoints } from '../vue/use-super-admin-context.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type {
+    bundlesResource,
+    bundleVersionsResource,
+} from '../client/resources/bundles.resource.js';
+import type { catalogResource } from '../client/resources/catalog.resource.js';
+import type { plansResource } from '../client/resources/plans.resource.js';
+import type { discoveryResource } from '../client/resources/discovery.resource.js';
+import AdminBanner from '../ui/feedback/AdminBanner.vue';
+import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import type {
     BundleRow,
     BundleVersionMutationResult,
     BundleVersionRow,
     CatalogEntryI18n,
-    CreateBundleData,
-    CreateBundleVersionDraftData,
     DiscoverySnapshot,
     FeatureCatalogEntryRow,
     PlanRow,
     PlanVersionRow,
     QuotaCatalogEntryRow,
     StrictModeWarning,
-    UpdateBundleData,
     UpdateBundleVersionDraftData,
-    VersionChange,
 } from '@saasicat/types';
 
 import BundleVersionPublishDialog from '../features/bundle/BundleVersionPublishDialog.vue';
@@ -203,88 +199,124 @@ import type {
 // the consumer wrapper supplies the composable results + plan-root
 // list + live PlanVersion index as props.
 
+/**
+ * What an app may change about this page.
+ *
+ * One object rather than 6 props, per AP3 §3.2: a page's contract is
+ * `resources`, `params` and `options`, whatever the number of knobs behind
+ * the last one.
+ */
+export interface BundlesPageOptions {
+    /**
+     * Locales a catalog entry may be written in.
+     *
+     * Defaults to the manifest's `project.availableLocales`, which is where
+     * the shell already has it — an app only passes this when it wants a
+     * narrower pool than its own configuration declares.
+     */
+    activeLocales?: string[];
+    /**
+     * Optional manual feature label/group mapping. Overrides the labels
+     * derived from the catalog (rarely needed).
+     */
+    featureRegistry?: Record<string, FeatureMeta>;
+}
+
 const DEFAULT_LOCALE = 'de';
 
-const props = withDefaults(
-    defineProps<{
-        projectKey: string;
-        bundles: BundleRow[];
-        loading: boolean;
-        error: Error | null;
-        /** Active locales from the project (incl. default). Default: only `de`. */
-        activeLocales?: string[];
-        /** Plan roots for the compat picker in the inline editor. */
-        plans?: PlanRow[];
-        /**
-         * Live (or latest) PlanVersion per `planKey` — source for the
-         * Plan↔Bundle overlap calculation. The wrapper can assemble it via
-         * `usePlanVersions`.
-         */
-        livePlanVersions?: Record<string, PlanVersionRow | null>;
-        /**
-         * Optional manual feature label/group mapping. Overrides the
-         * labels derived from `featureCatalog` (rarely needed).
-         */
-        featureRegistry?: Record<string, FeatureMeta>;
-        /**
-         * Feature catalog entries (incl. `i18n`) for label resolution in the
-         * chosen display language. The wrapper supplies them via `useCatalogEntries`.
-         */
-        featureCatalog?: FeatureCatalogEntryRow[];
-        /** Quota catalog entries (incl. `i18n`) for label/unit resolution. */
-        quotaCatalog?: QuotaCatalogEntryRow[];
-        load: () => Promise<void>;
-        create: (data: CreateBundleData) => Promise<BundleRow>;
-        update: (bundleId: string, data: UpdateBundleData) => Promise<BundleRow>;
-        softDelete: (bundleId: string) => Promise<void>;
-        loadVersions: (bundleId: string) => Promise<BundleVersionRow[]>;
-        createDraft: (
-            bundleId: string,
-            data: Omit<CreateBundleVersionDraftData, 'bundleId'>,
-        ) => Promise<BundleVersionMutationResult>;
-        updateDraft: (
-            versionId: string,
-            data: UpdateBundleVersionDraftData,
-        ) => Promise<BundleVersionMutationResult>;
-        publish: (
-            versionId: string,
-            opts: {
-                forceRegressive?: boolean;
-                validFrom?: string | null;
-                validUntil?: string | null;
-            },
-        ) => Promise<BundleVersionMutationResult>;
-        /** Optional: discard a draft (DELETE /catalog/bundle-versions/:id). */
-        discardDraft?: (versionId: string) => Promise<void>;
-        /**
-         * Optional: mapping `bundleId → BundleVersionRow[]` for correct
-         * KPI/status-filter display across all bundles. Without this prop
-         * the KPIs fall back to "0", because the lazily loaded
-         * `detailVersions` only cover the open bundle. The wrapper usually
-         * supplies it via `useBundleVersionsMap`.
-         */
-        versionsByBundle?: Record<string, BundleVersionRow[]>;
-        snapshot: DiscoverySnapshot | null;
-        classifyDiff: (
-            previous: BundleVersionRow,
-            draft: BundleVersionRow,
-        ) => { changes: VersionChange[]; nonRegressive: boolean };
-    }>(),
-    {
-        plans: () => [],
-        livePlanVersions: () => ({}),
-        featureRegistry: () => ({}),
-        featureCatalog: () => [],
-        quotaCatalog: () => [],
-        activeLocales: () => [DEFAULT_LOCALE],
-        versionsByBundle: () => ({}),
-    },
-);
+const props = defineProps<{
+    /**
+     * Override the bundle resources for this page only — a different host,
+     * or one operation wrapped. Layered over the app's own override; see
+     * AP3 §3.2.
+     */
+    resources?: {
+        bundles?: ResourceOverride<(typeof bundlesResource)['ops']>;
+        bundleVersions?: ResourceOverride<(typeof bundleVersionsResource)['ops']>;
+        catalog?: ResourceOverride<(typeof catalogResource)['ops']>;
+        plans?: ResourceOverride<(typeof plansResource)['ops']>;
+        discovery?: ResourceOverride<(typeof discoveryResource)['ops']>;
+    };
+    /** Presentation and capability. Never data, never a callback. */
+    options?: BundlesPageOptions;
+}>();
+
+// ── The data layer, reached by name ──────────────────────────────────────────
+//
+// This page took THIRTY-THREE props, ten of them callbacks, and every consumer
+// wired four composables by hand to produce them — `useBundles`,
+// `useBundleVersionsMap`, `useCatalogEntries`, `usePlanVersions` — plus a
+// snapshot loader. All five read endpoints these resources already declare.
+// The project the shell was configured for. It used to be a prop, which meant
+// an app could hand this page a different project than the one its resources
+// read from — two answers to one question.
+const { projectKey } = useSuperAdminEndpoints();
+
+const bundlesOps = useResource('bundles', props.resources?.bundles);
+const versionsOps = useResource('bundleVersions', props.resources?.bundleVersions);
+const catalogOps = useResource('catalog', props.resources?.catalog);
+const plansOps = useResource('plans', props.resources?.plans);
+const discoveryOps = useResource('discovery', props.resources?.discovery);
+
+const bundles = ref<BundleRow[]>([]);
+const plans = ref<PlanRow[]>([]);
+const livePlanVersions = ref<Record<string, PlanVersionRow | null>>({});
+const featureCatalog = ref<FeatureCatalogEntryRow[]>([]);
+const quotaCatalog = ref<QuotaCatalogEntryRow[]>([]);
+const versionsByBundle = ref<Record<string, BundleVersionRow[]>>({});
+const snapshot = ref<DiscoverySnapshot | null>(null);
+const loading = ref(false);
+const error = ref<unknown>(null);
+
+/**
+ * Every version of every bundle, for the KPIs and the status filter.
+ *
+ * The detail pane loads one bundle's versions on demand; without this map the
+ * tiles counted only the open bundle and read zero for everything else.
+ */
+async function loadVersionsMap(rows: readonly BundleRow[]): Promise<void> {
+    const pairs = await Promise.all(
+        rows.map(async (row) => [row.id, await versionsOps.listForBundle(row.id)] as const),
+    );
+    versionsByBundle.value = Object.fromEntries(pairs);
+}
+
+async function reload(): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+        const [rows, planRows, features, quotas, read] = await Promise.all([
+            bundlesOps.list(),
+            plansOps.list(),
+            catalogOps.features(),
+            catalogOps.quotas(),
+            discoveryOps.read(null),
+        ]);
+        bundles.value = rows;
+        plans.value = planRows;
+        featureCatalog.value = features;
+        quotaCatalog.value = quotas;
+        if (read.status === 'loaded') snapshot.value = read.snapshot;
+        await loadVersionsMap(rows);
+    } catch (err) {
+        error.value = err;
+    } finally {
+        loading.value = false;
+    }
+}
+
+onMounted(() => void reload());
 
 const msg = useSaMessages('bundles');
 const common = useSaMessages('common');
 
-const locales = computed(() => props.activeLocales ?? [DEFAULT_LOCALE]);
+// The pool this project declares, unless the app narrows it. Read here rather
+// than taken as a required prop: the shell already holds the manifest, and a
+// consumer passing it back was the last reason its wrapper existed.
+const manifest = useSuperAdminManifest();
+const locales = computed(
+    () => props.options?.activeLocales ?? manifest?.project?.availableLocales ?? [DEFAULT_LOCALE],
+);
 const translatableLocales = computed(() => locales.value.filter((l) => l !== DEFAULT_LOCALE));
 
 // ─── Display language for feature/quota labels (creation + detail) ───
@@ -293,11 +325,11 @@ const displayLocale = ref(DEFAULT_LOCALE);
 // Catalog-derived registries in the chosen display language; a
 // manually passed `featureRegistry` takes precedence (override).
 const featureRegistryResolved = computed<Record<string, FeatureMeta>>(() => ({
-    ...buildFeatureRegistry(props.featureCatalog, displayLocale.value),
-    ...props.featureRegistry,
+    ...buildFeatureRegistry(featureCatalog.value, displayLocale.value),
+    ...props.options?.featureRegistry,
 }));
 const quotaRegistryResolved = computed<Record<string, QuotaMeta>>(() =>
-    buildQuotaRegistry(props.quotaCatalog, displayLocale.value),
+    buildQuotaRegistry(quotaCatalog.value, displayLocale.value),
 );
 
 const query = ref('');
@@ -309,7 +341,7 @@ function versionsOf(bundleId: string): BundleVersionRow[] {
     // Prefers the versionsByBundle supplied by the wrapper; falls back to
     // detailVersions when the open bundle was just loaded
     // (between wrapper refresh and map update).
-    const fromMap = props.versionsByBundle[bundleId];
+    const fromMap = versionsByBundle.value[bundleId];
     if (fromMap && fromMap.length > 0) return fromMap;
     if (openKey.value === bundleId) return detailVersions.value;
     return fromMap ?? [];
@@ -321,7 +353,7 @@ function aggregateStatusOf(b: BundleRow): BundleAggregateStatus {
 
 const filteredBundles = computed(() => {
     const q = query.value?.trim().toLowerCase() ?? '';
-    return props.bundles.filter((b) => {
+    return bundles.value.filter((b) => {
         if (q && !b.bundleKey.toLowerCase().includes(q) && !b.label.toLowerCase().includes(q)) {
             return false;
         }
@@ -335,20 +367,20 @@ const filteredBundles = computed(() => {
 function i18nLocaleCount(b: BundleRow): number {
     return Object.keys(b.i18n ?? {}).length;
 }
-const translatedCount = computed(() => props.bundles.filter((b) => i18nLocaleCount(b) > 0).length);
+const translatedCount = computed(() => bundles.value.filter((b) => i18nLocaleCount(b) > 0).length);
 
 const liveCount = computed(
-    () => props.bundles.filter((b) => aggregateStatusOf(b) === 'live').length,
+    () => bundles.value.filter((b) => aggregateStatusOf(b) === 'live').length,
 );
 const scheduledBundlesCount = computed(
-    () => props.bundles.filter((b) => aggregateStatusOf(b) === 'scheduled').length,
+    () => bundles.value.filter((b) => aggregateStatusOf(b) === 'scheduled').length,
 );
 const draftBundlesCount = computed(
-    () => props.bundles.filter((b) => aggregateStatusOf(b) === 'draft').length,
+    () => bundles.value.filter((b) => aggregateStatusOf(b) === 'draft').length,
 );
 const totalDraftVersions = computed(() => {
     let n = 0;
-    for (const b of props.bundles) {
+    for (const b of bundles.value) {
         for (const v of versionsOf(b.id)) {
             if (v.publishedAt === null) n += 1;
         }
@@ -357,7 +389,7 @@ const totalDraftVersions = computed(() => {
 });
 const totalScheduledVersions = computed(() => {
     let n = 0;
-    for (const b of props.bundles) {
+    for (const b of bundles.value) {
         for (const v of versionsOf(b.id)) {
             if (bundleVersionStatus(v) === 'scheduled') n += 1;
         }
@@ -369,7 +401,7 @@ const totalScheduledVersions = computed(() => {
 const createOpen = ref(false);
 
 /** For the bundle-key conflict check in the wizard. */
-const existingBundleKeys = computed(() => props.bundles.map((b) => b.bundleKey));
+const existingBundleKeys = computed(() => bundles.value.map((b) => b.bundleKey));
 
 const statusFilterOptions = computed<BundlesStatusFilterOption[]>(() => [
     { label: msg.value.filter.all, value: 'all' },
@@ -389,10 +421,10 @@ async function onWizardCreated(bundle: BundleRow): Promise<void> {
     // panel, reload the list, then expand the freshly created bundle
     // so the user can keep working directly in the inline editor.
     createOpen.value = false;
-    await props.load();
+    await reload();
     if (openKey.value !== bundle.id) {
         openKey.value = null;
-        const next = props.bundles.find((b) => b.id === bundle.id);
+        const next = bundles.value.find((b) => b.id === bundle.id);
         if (next) await toggle(next);
     }
 }
@@ -410,7 +442,7 @@ const i18nDraft = ref<CatalogEntryI18n>({});
 const editSubmitting = ref(false);
 
 const detailBundle = computed<BundleRow | null>(
-    () => props.bundles.find((b) => b.id === openKey.value) ?? null,
+    () => bundles.value.find((b) => b.id === openKey.value) ?? null,
 );
 
 async function toggle(bundle: BundleRow): Promise<void> {
@@ -428,7 +460,7 @@ async function toggle(bundle: BundleRow): Promise<void> {
     i18nDraft.value = JSON.parse(JSON.stringify(bundle.i18n ?? {})) as CatalogEntryI18n;
     detailVersions.value = [];
     inlineEditorError.value = null;
-    detailVersions.value = await props.loadVersions(bundle.id);
+    detailVersions.value = await versionsOps.listForBundle(bundle.id);
     if (!selectedVersionIdByBundle.value[bundle.id]) {
         const defaultVersion = defaultSelectedVersion(detailVersions.value);
         if (defaultVersion) {
@@ -453,7 +485,7 @@ async function submitEdit(): Promise<void> {
     if (!detailBundle.value) return;
     editSubmitting.value = true;
     try {
-        await props.update(detailBundle.value.id, {
+        await bundlesOps.update(detailBundle.value.id, {
             label: editForm.value.label,
             description: editForm.value.description || null,
             icon: editForm.value.icon || null,
@@ -470,12 +502,12 @@ async function confirmDelete(bundle: BundleRow): Promise<void> {
         formatMessage(msg.value.page.confirmSoftDelete, { bundleKey: bundle.bundleKey }),
     );
     if (!ok) return;
-    await props.softDelete(bundle.id);
+    await bundlesOps.softDelete(bundle.id);
     if (openKey.value === bundle.id) openKey.value = null;
 }
 
 watch(
-    () => props.bundles,
+    () => bundles.value,
     (next) => {
         if (openKey.value && !next.some((b) => b.id === openKey.value)) {
             openKey.value = null;
@@ -486,9 +518,6 @@ watch(
 // ─── Strict mode warnings ───
 const lastWarnings = ref<StrictModeWarning[]>([]);
 
-const loadErrorText = computed(() =>
-    formatMessage(msg.value.page.loadError, { message: props.error?.message ?? '' }),
-);
 const strictWarningsText = computed(() =>
     formatMessage(msg.value.page.strictWarnings, { count: lastWarnings.value.length }),
 );
@@ -545,7 +574,7 @@ async function onAddVersion(bundleId: string): Promise<void> {
     inlineEditorError.value = null;
     inlineEditorSaving.value = true;
     try {
-        const result = await props.createDraft(bundleId, {
+        const result = await versionsOps.createDraft(bundleId, {
             features: previous ? [...previous.features] : [],
             quotas: previous ? { ...previous.quotas } : {},
             compatibility: previous?.compatibility ?? {},
@@ -556,7 +585,7 @@ async function onAddVersion(bundleId: string): Promise<void> {
             changeNote: '',
         });
         lastWarnings.value = result.warnings;
-        detailVersions.value = await props.loadVersions(bundleId);
+        detailVersions.value = await versionsOps.listForBundle(bundleId);
         onSelectVersion(bundleId, result.bundleVersion.id);
     } catch (err) {
         inlineEditorError.value = err instanceof Error ? err.message : String(err);
@@ -573,9 +602,9 @@ async function onInlineSave(
     inlineEditorSaving.value = true;
     inlineEditorError.value = null;
     try {
-        const result = await props.updateDraft(versionId, data);
+        const result = await versionsOps.updateDraft(versionId, data);
         lastWarnings.value = result.warnings;
-        detailVersions.value = await props.loadVersions(bundleId);
+        detailVersions.value = await versionsOps.listForBundle(bundleId);
         // If the backend does not change the ID, the selection stays put.
     } catch (err) {
         inlineEditorError.value = err instanceof Error ? err.message : String(err);
@@ -590,7 +619,7 @@ async function onInlineSave(
  * clear error message instead of a silent no-op.
  */
 async function onDiscardVersion(bundleId: string, versionId: string): Promise<void> {
-    if (!props.discardDraft) {
+    if (!versionsOps.discardDraft) {
         inlineEditorError.value =
             'Discard is not wired up in the wrapper — add the `discardDraft` prop.';
         return;
@@ -600,9 +629,9 @@ async function onDiscardVersion(bundleId: string, versionId: string): Promise<vo
     inlineEditorSaving.value = true;
     inlineEditorError.value = null;
     try {
-        await props.discardDraft(versionId);
+        await versionsOps.discardDraft(versionId);
         // Remove from local list + re-select sensibly.
-        detailVersions.value = await props.loadVersions(bundleId);
+        detailVersions.value = await versionsOps.listForBundle(bundleId);
         const next = defaultSelectedVersion(detailVersions.value);
         selectedVersionIdByBundle.value = {
             ...selectedVersionIdByBundle.value,
@@ -643,18 +672,21 @@ async function onPublishSubmit(opts: {
     if (!publishDraft.value) {
         throw new Error('BundlesPage: publish submit without draft context');
     }
-    return props.publish(publishDraft.value.id, opts);
+    return versionsOps.publish(publishDraft.value.id, opts);
 }
 
 async function onPublishSubmitted(result: BundleVersionMutationResult): Promise<void> {
     lastWarnings.value = result.warnings;
     publishDraft.value = null;
     if (detailBundle.value) {
-        detailVersions.value = await props.loadVersions(detailBundle.value.id);
+        detailVersions.value = await versionsOps.listForBundle(detailBundle.value.id);
     }
 }
 
-const classifyDiff = computed(() => props.classifyDiff);
+// A platform function, imported rather than injected: it is pure, it lives in
+// `@saasicat/types`, and passing it in was the only way a page could reach it
+// before the page was allowed to import anything itself.
+const classifyDiff = computed(() => classifyBundleVersionDiff);
 </script>
 
 <style>
@@ -662,12 +694,6 @@ const classifyDiff = computed(() => props.classifyDiff);
     display: flex;
     flex-direction: column;
     gap: 14px;
-}
-.sa-bundles__error {
-    border-left: 4px solid var(--sa-color-negative);
-}
-.sa-bundles__empty {
-    border-left: 4px solid var(--sa-color-info-strong);
 }
 .sa-bundles__filter-row {
     display: flex;
@@ -846,9 +872,6 @@ const classifyDiff = computed(() => props.classifyDiff);
     font-size: var(--sa-text-sm);
     border: 1px dashed var(--sa-color-border-strong);
     border-radius: 8px;
-}
-.sa-bundles__warnings-banner {
-    border-left: 4px solid var(--sa-color-warning-strong);
 }
 .sa-bundles__warnings-list {
     margin: 8px 0 0;

@@ -34,11 +34,6 @@ export interface BatchColumnFetcherOptions {
      * comma-separated strings by default, or via `@Query() ids: string[]`).
      */
     paramStyle?: ParamStyle;
-    /**
-     * Auth-token provider for `Authorization: Bearer <token>`. The consumer
-     * supplies a function that pulls the current token from the auth store.
-     */
-    getAuthToken?: () => string | null;
 }
 
 export class BatchColumnDriftError extends Error {
@@ -54,12 +49,9 @@ export class BatchColumnDriftError extends Error {
 export class BatchColumnFetcher {
     private readonly http: HttpClient;
     private readonly paramStyle: ParamStyle;
-    private readonly getAuthToken?: () => string | null;
-
     constructor(options: BatchColumnFetcherOptions = {}) {
         this.http = options.http ?? defaultHttpClient();
         this.paramStyle = options.paramStyle ?? 'comma';
-        this.getAuthToken = options.getAuthToken;
     }
 
     /**
@@ -86,8 +78,6 @@ export class BatchColumnFetcher {
         if (tenantIds.length === 0) return {};
         const url = this.buildUrl(column.endpoint, tenantIds);
         const headers: Record<string, string> = {};
-        const token = this.getAuthToken?.();
-        if (token) headers.Authorization = `Bearer ${token}`;
         const res = await this.http(url, { method: 'GET', headers });
         if (res.status !== 200) {
             throw new Error(

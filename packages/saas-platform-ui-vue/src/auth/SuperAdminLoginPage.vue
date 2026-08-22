@@ -58,9 +58,9 @@
                     </template>
                 </q-input>
 
-                <q-banner v-if="errorMessage" class="sa-login-error" rounded>
+                <AdminBanner v-if="errorMessage" tone="negative">
                     {{ errorMessage }}
-                </q-banner>
+                </AdminBanner>
 
                 <q-btn
                     unelevated
@@ -88,6 +88,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
+import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { useRouter } from 'vue-router';
 import type { SetupStatusResponse } from '@saasicat/types';
 
@@ -317,15 +318,6 @@ async function handleSubmit(): Promise<void> {
 }
 .full-width {
     width: 100%;
-}
-.sa-login-error {
-    background: var(--sa-color-negative-surface);
-    border: 1px solid var(--sa-color-negative-border);
-    color: var(--sa-color-negative-fg);
-    font-size: var(--sa-text-md);
-    margin-top: 4px;
-    padding: 8px 12px;
-    border-radius: 8px;
 }
 .sa-login-hint {
     margin-top: 18px;

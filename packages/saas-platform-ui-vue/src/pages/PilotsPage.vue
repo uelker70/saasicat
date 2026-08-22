@@ -5,9 +5,9 @@
             :subtitle="formatMessage(msg.subtitleCount, { count: rows.length })"
         >
             <template #actions>
-                <slot name="head-actions">
+                <slot name="head-options?.actions">
                     <button
-                        v-if="enableCreate"
+                        v-if="options?.enableCreate"
                         class="sa-btn sa-btn--primary"
                         type="button"
                         @click="showCreate = true"
@@ -33,10 +33,9 @@
                 />
             </AdminStatistics>
 
-            <q-banner v-if="reviewSoon.length" class="bg-amber-2 text-grey-9 q-mb-md" rounded>
-                <template #avatar><q-icon name="event" color="amber-9" /></template>
+            <AdminBanner v-if="reviewSoon.length" tone="warning" icon="event">
                 {{ formatMessage(msg.list.reviewSoonBanner, { count: reviewSoon.length }) }}
-            </q-banner>
+            </AdminBanner>
 
             <AdminSection class="sa-pilots__card">
                 <AdminTable
@@ -65,26 +64,26 @@
         </AdminBody>
 
         <PilotCreateDialog
-            v-if="enableCreate && submitCreate"
+            v-if="options?.enableCreate"
             v-model="showCreate"
             :plan-options="effectiveCreatePlanOptions"
             :default-plan="defaultPlan"
-            :copy="copy"
-            :require-mfa="requireMfa"
-            :mfa-setup-hint="mfaSetupHint"
-            :submit="submitCreate"
+            :copy="options?.copy"
+            :require-mfa="options?.requireMfa"
+            :mfa-setup-hint="options?.mfaSetupHint"
+            :submit="pilots.create"
             @created="onCreated"
         />
 
         <PilotEditDialog
-            v-if="enableEdit && submitEdit"
+            v-if="options?.enableEdit"
             v-model="showEdit"
             :row="editRow"
             :plan-options="bakedPlanOptions"
-            :copy="copy"
-            :require-mfa="requireMfa"
-            :mfa-setup-hint="mfaSetupHint"
-            :submit="submitEdit"
+            :copy="options?.copy"
+            :require-mfa="options?.requireMfa"
+            :mfa-setup-hint="options?.mfaSetupHint"
+            :submit="pilots.update"
             @updated="onUpdated"
         />
 
@@ -93,7 +92,7 @@
             :model-value="mfa.show.value"
             :description="mfa.description.value"
             :error="mfa.error.value"
-            :setup-hint="mfaSetupHint"
+            :setup-hint="options?.mfaSetupHint"
             @update:model-value="mfa.onVisibility"
             @confirm="mfa.onConfirm"
         />
@@ -102,9 +101,15 @@
 
 <script setup lang="ts">
 import AdminTable from '../ui/data/AdminTable.vue';
+import type { PilotRow } from '../internal/dialogs/types.js';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { pilotsResource } from '../client/resources/pilots.resource.js';
+import type { plansResource } from '../client/resources/plans.resource.js';
+import { adminErrorMessage } from '../client/admin-error.js';
+import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
-import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -117,13 +122,8 @@ import AdminStatistics from '../ui/data/AdminStatistics.vue';
 import PilotCreateDialog from '../internal/dialogs/PilotCreateDialog.vue';
 import PilotEditDialog from '../internal/dialogs/PilotEditDialog.vue';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
-import type {
-    PilotCopy,
-    PilotCreatePayload,
-    PilotCreateResult,
-    PilotEditPayload,
-    PilotEditResult,
-} from '../internal/dialogs/types.js';
+import { useSuperAdminConfirm } from '../quasar/confirm.js';
+import type { PilotCopy, PilotCreateResult, PilotEditResult } from '../internal/dialogs/types.js';
 
 // Platform standard page: pilot tenants. Data-agnostic.
 //
@@ -133,15 +133,35 @@ import type {
 // Anyone needing more control (e.g. MFA flows) omits enable* and provides
 // the actions/dialogs themselves as before — no behavior change.
 
-export interface PilotRow {
-    id: string;
-    tenant: { id: string; slug: string; name: string };
-    plan: string;
-    pilotEndsAt: string | null;
-    pilotNote: string | null;
-    grantedBy: string | null;
-    grantedAt?: string | null;
-    [extra: string]: unknown;
+export type { PilotRow } from '../internal/dialogs/types.js';
+
+/**
+ * What an app may change about this page.
+ *
+ * One object rather than 21 props, per AP3 §3.2: a page's contract is
+ * `resources`, `params` and `options`, whatever the number of knobs behind
+ * the last one.
+ */
+export interface PilotsPageOptions {
+    actions?: readonly PilotRowAction[];
+    enableCreate?: boolean;
+    enableEdit?: boolean;
+    enableExtend?: boolean;
+    enableRevoke?: boolean;
+    /** Tenant vocabulary for the create/edit dialog (neutral defaults otherwise). */
+    copy?: PilotCopy;
+    /** Static plan options (alternative to loadPlanOptions). */
+    createPlanOptions?: readonly (string | PilotPlanOption)[];
+    defaultCreatePlan?: string;
+    /** MFA requirement for the create/edit dialog (passed through to sub-dialogs). */
+    requireMfa?: boolean;
+    /** Per-flow MFA for Extend — shows MfaPromptDialog after the date prompt. */
+    requireMfaForExtend?: boolean;
+    /** Per-flow MFA for Revoke — shows MfaPromptDialog after the confirm prompt. */
+    requireMfaForRevoke?: boolean;
+    mfaSetupHint?: string;
+    createLabel?: string;
+    defaultActions?: readonly PilotDefaultActionId[];
 }
 
 export interface PilotRowAction {
@@ -162,54 +182,37 @@ export interface PilotPlanOption {
 
 export type PilotDefaultActionId = 'edit' | 'extend' | 'revoke';
 
-const props = withDefaults(
-    defineProps<{
-        loadPilots: () => Promise<PilotRow[]>;
-        loadReviewSoon?: () => Promise<PilotRow[]>;
-        actions?: readonly PilotRowAction[];
-        enableCreate?: boolean;
-        enableEdit?: boolean;
-        enableExtend?: boolean;
-        enableRevoke?: boolean;
-        submitCreate?: (payload: PilotCreatePayload, mfaCode: string) => Promise<PilotCreateResult>;
-        submitEdit?: (
-            slug: string,
-            payload: PilotEditPayload,
-            mfaCode: string,
-        ) => Promise<PilotEditResult>;
-        submitExtend?: (slug: string, until: string, mfaCode?: string) => Promise<void>;
-        submitRevoke?: (slug: string, mfaCode?: string) => Promise<void>;
-        loadPlanOptions?: () => Promise<PilotPlanOption[]>;
-        /** Tenant vocabulary for the create/edit dialog (neutral defaults otherwise). */
-        copy?: PilotCopy;
-        /** Static plan options (alternative to loadPlanOptions). */
-        createPlanOptions?: readonly (string | PilotPlanOption)[];
-        defaultCreatePlan?: string;
-        /** MFA requirement for the create/edit dialog (passed through to sub-dialogs). */
-        requireMfa?: boolean;
-        /** Per-flow MFA for Extend — shows MfaPromptDialog after the date prompt. */
-        requireMfaForExtend?: boolean;
-        /** Per-flow MFA for Revoke — shows MfaPromptDialog after the confirm prompt. */
-        requireMfaForRevoke?: boolean;
-        mfaSetupHint?: string;
-        createLabel?: string;
-        defaultActions?: readonly PilotDefaultActionId[];
-    }>(),
-    {
-        requireMfa: false,
-        requireMfaForExtend: false,
-        requireMfaForRevoke: false,
-        defaultActions: () => ['edit', 'extend', 'revoke'],
-    },
-);
+/** The row actions a page offers when the app names none. */
+const DEFAULT_PILOT_ACTIONS: readonly PilotDefaultActionId[] = ['edit', 'extend', 'revoke'];
+
+const props = defineProps<{
+    /**
+     * Override the pilots or plans resource for this page only. Layered
+     * over the app's own override; see AP3 §3.2.
+     */
+    resources?: {
+        pilots?: ResourceOverride<(typeof pilotsResource)['ops']>;
+        plans?: ResourceOverride<(typeof plansResource)['ops']>;
+    };
+    /** Presentation and capability. Never data, never a callback. */
+    options?: PilotsPageOptions;
+}>();
 
 const msg = useSaMessages('pilots');
+const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
-const resolvedCreateLabel = computed(() => props.createLabel ?? msg.value.createAction);
+const resolvedCreateLabel = computed(() => props.options?.createLabel ?? msg.value.createAction);
 
-const q = useQuasar();
 const notify = useSuperAdminNotify();
+// `confirm` is taken — `window.confirm` shadows it and the typechecker says so.
+const askConfirm = useSuperAdminConfirm();
+
+// The data layer, reached by name. Pilots are served by the consuming app, not
+// by the platform — the descriptor records the paths every consumer already
+// calls, so the page needs none of the seven callbacks it used to take.
+const pilots = useResource('pilots', props.resources?.pilots);
+const plansOps = useResource('plans', props.resources?.plans);
 const rows = ref<PilotRow[]>([]);
 const reviewSoon = ref<PilotRow[]>([]);
 const loading = ref(false);
@@ -222,18 +225,20 @@ const bakedPlanOptions = ref<PilotPlanOption[]>([]);
 // Per-flow MFA for extend/revoke: `runWithMfa` awaits `mfa.prompt`, which
 // resolves with the code or with null when the user closes the dialog.
 const mfa = useMfaPrompt();
-const needsMfaDialog = computed(() => props.requireMfaForExtend || props.requireMfaForRevoke);
+const needsMfaDialog = computed(
+    () => props.options?.requireMfaForExtend || props.options?.requireMfaForRevoke,
+);
 
 // Consumers can set `createPlanOptions` instead of `loadPlanOptions`
 // (e.g. apps with a hard-coded plan list).
 const effectiveCreatePlanOptions = computed<readonly (string | PilotPlanOption)[]>(() => {
-    if (props.createPlanOptions && props.createPlanOptions.length > 0) {
-        return props.createPlanOptions;
+    if (props.options?.createPlanOptions && props.options?.createPlanOptions.length > 0) {
+        return props.options?.createPlanOptions;
     }
     return bakedPlanOptions.value;
 });
 const defaultPlan = computed<string | undefined>(() => {
-    if (props.defaultCreatePlan) return props.defaultCreatePlan;
+    if (props.options?.defaultCreatePlan) return props.options?.defaultCreatePlan;
     const first = effectiveCreatePlanOptions.value[0];
     if (!first) return undefined;
     return typeof first === 'string' ? first : first.value;
@@ -324,8 +329,8 @@ const baseColumns = computed(() => [
 // consumer `actions`, not replaced. Order follows the `defaultActions` prop.
 const bakedActions = computed<PilotRowAction[]>(() => {
     const out: PilotRowAction[] = [];
-    for (const id of props.defaultActions) {
-        if (id === 'edit' && props.enableEdit && props.submitEdit) {
+    for (const id of props.options?.defaultActions ?? DEFAULT_PILOT_ACTIONS) {
+        if (id === 'edit' && props.options?.enableEdit) {
             out.push({
                 id: 'edit',
                 label: common.value.edit,
@@ -333,7 +338,7 @@ const bakedActions = computed<PilotRowAction[]>(() => {
                 color: 'primary',
                 handler: (row) => onEditClick(row),
             });
-        } else if (id === 'extend' && props.enableExtend && props.submitExtend) {
+        } else if (id === 'extend' && props.options?.enableExtend) {
             out.push({
                 id: 'extend',
                 label: msg.value.list.actionExtend,
@@ -341,7 +346,7 @@ const bakedActions = computed<PilotRowAction[]>(() => {
                 color: 'primary',
                 handler: (row) => onExtendClick(row),
             });
-        } else if (id === 'revoke' && props.enableRevoke && props.submitRevoke) {
+        } else if (id === 'revoke' && props.options?.enableRevoke) {
             out.push({
                 id: 'revoke',
                 label: msg.value.list.actionRevoke,
@@ -355,7 +360,7 @@ const bakedActions = computed<PilotRowAction[]>(() => {
 });
 
 const mergedActions = computed<readonly PilotRowAction[]>(() => [
-    ...(props.actions ?? []),
+    ...(props.options?.actions ?? []),
     ...bakedActions.value,
 ]);
 
@@ -371,10 +376,10 @@ function visibleActions(row: PilotRow): PilotRowAction[] {
 async function reload() {
     loading.value = true;
     try {
-        rows.value = await props.loadPilots();
-        if (props.loadReviewSoon) {
+        rows.value = await pilots.list();
+        {
             try {
-                reviewSoon.value = await props.loadReviewSoon();
+                reviewSoon.value = await pilots.reviewSoon();
             } catch {
                 reviewSoon.value = [];
             }
@@ -389,13 +394,20 @@ async function reload() {
 
 defineExpose({ reload });
 
+/**
+ * The plans a pilot can be put on, from the platform's plan list.
+ *
+ * A failure leaves the list empty rather than propagating: the create dialog
+ * degrades to a free-text plan key, which is worse than a picker and much
+ * better than a page that will not open.
+ */
 async function reloadPlanOptions(): Promise<void> {
-    if (!props.loadPlanOptions) {
-        bakedPlanOptions.value = [];
-        return;
-    }
     try {
-        bakedPlanOptions.value = (await props.loadPlanOptions()) ?? [];
+        const plans = await plansOps.list();
+        bakedPlanOptions.value = plans.map((plan) => ({
+            label: plan.label ?? plan.planKey,
+            value: plan.planKey,
+        }));
     } catch {
         bakedPlanOptions.value = [];
     }
@@ -405,14 +417,6 @@ onMounted(() => {
     void reload();
     void reloadPlanOptions();
 });
-
-function errMsg(err: unknown): string {
-    return (
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        (err as Error)?.message ??
-        msg.value.list.actionFailed
-    );
-}
 
 function onEditClick(row: PilotRow): void {
     editRow.value = row;
@@ -456,7 +460,7 @@ async function runAction(
             notify('positive', successMessage);
             await reload();
         } catch (err) {
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
         }
         return;
     }
@@ -478,51 +482,46 @@ async function runAction(
                 continue;
             }
             mfa.show.value = false;
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
             return;
         }
     }
 }
 
-function onExtendClick(row: PilotRow): void {
-    if (!props.submitExtend) return;
-    const submit = props.submitExtend;
-    q.dialog({
+async function onExtendClick(row: PilotRow): Promise<void> {
+    const { ok, value: until } = await askConfirm({
         title: formatMessage(msg.value.list.extendTitle, { slug: row.tenant.slug }),
         message: msg.value.list.extendMessage,
-        prompt: {
-            model: row.pilotEndsAt?.slice(0, 10) ?? '',
-            type: 'date',
-        },
-        cancel: common.value.cancel,
-        ok: { label: msg.value.list.actionExtend, color: 'primary' },
-    }).onOk(async (until: string) => {
-        if (!until) return;
-        await runAction(
-            formatMessage(msg.value.list.extendMfaDescription, { slug: row.tenant.slug, until }),
-            formatMessage(msg.value.list.extendSuccess, { until }),
-            !!props.requireMfaForExtend,
-            (code) => submit(row.tenant.slug, until, code),
-        );
+        confirmLabel: msg.value.list.actionExtend,
+        cancelLabel: common.value.cancel,
+        prompt: { initial: row.pilotEndsAt?.slice(0, 10) ?? '', type: 'date' },
     });
+    if (!ok || !until) return;
+
+    await runAction(
+        formatMessage(msg.value.list.extendMfaDescription, { slug: row.tenant.slug, until }),
+        formatMessage(msg.value.list.extendSuccess, { until }),
+        !!props.options?.requireMfaForExtend,
+        (code) => pilots.extend(row.tenant.slug, until, code),
+    );
 }
 
-function onRevokeClick(row: PilotRow): void {
-    if (!props.submitRevoke) return;
-    const submit = props.submitRevoke;
-    q.dialog({
+async function onRevokeClick(row: PilotRow): Promise<void> {
+    const { ok } = await askConfirm({
         title: formatMessage(msg.value.list.revokeTitle, { slug: row.tenant.slug }),
         message: msg.value.list.revokeMessage,
-        cancel: common.value.cancel,
-        ok: { label: msg.value.list.actionRevoke, color: 'negative' },
-    }).onOk(async () => {
-        await runAction(
-            formatMessage(msg.value.list.revokeMfaDescription, { slug: row.tenant.slug }),
-            msg.value.list.revokeSuccess,
-            !!props.requireMfaForRevoke,
-            (code) => submit(row.tenant.slug, code),
-        );
+        confirmLabel: msg.value.list.actionRevoke,
+        cancelLabel: common.value.cancel,
+        tone: 'negative',
     });
+    if (!ok) return;
+
+    await runAction(
+        formatMessage(msg.value.list.revokeMfaDescription, { slug: row.tenant.slug }),
+        msg.value.list.revokeSuccess,
+        !!props.options?.requireMfaForRevoke,
+        (code) => pilots.revoke(row.tenant.slug, code),
+    );
 }
 
 function formatDate(iso: string | null | undefined): string | null {

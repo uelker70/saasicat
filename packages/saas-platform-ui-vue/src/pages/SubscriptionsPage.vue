@@ -21,6 +21,9 @@
 
 <script setup lang="ts">
 import AdminTable from '../ui/data/AdminTable.vue';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { subscriptionsResource } from '../client/resources/subscriptions.resource.js';
 import { computed, onMounted, ref } from 'vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
@@ -28,9 +31,9 @@ import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
-// Platform standard page: subscriptions (minimal). Apps pass
-// `loadSubscriptions` + optional `columns` through — default columns show
-// tenant/plan/status/period.
+// Platform standard page: subscriptions (minimal). It reads the platform's
+// subscriptions resource itself; an app passes only `columns` when the default
+// tenant/plan/status/period set is not what it wants.
 
 export interface SubscriptionRow {
     id: string;
@@ -54,12 +57,20 @@ interface Column {
 
 const props = withDefaults(
     defineProps<{
-        loadSubscriptions: () => Promise<SubscriptionRow[]>;
+        /**
+         * Override the subscriptions resource for this page only — a different
+         * host, or one operation wrapped. Layered over the app's own override;
+         * see AP3 §3.2.
+         */
+        resources?: ResourceOverride<(typeof subscriptionsResource)['ops']>;
         subtitle?: string;
         columns?: readonly Column[];
     }>(),
     {},
 );
+
+// The data layer, reached by name — no endpoint to pass in.
+const subscriptions = useResource('subscriptions', props.resources);
 
 const msg = useSaMessages('tenants');
 const common = useSaMessages('common');
@@ -103,7 +114,7 @@ const effectiveColumns = computed<Column[]>(() =>
 async function reload() {
     loading.value = true;
     try {
-        rows.value = await props.loadSubscriptions();
+        rows.value = await subscriptions.list();
     } catch (err) {
         rows.value = [];
         console.warn('[SubscriptionsPage] loadSubscriptions failed:', err);

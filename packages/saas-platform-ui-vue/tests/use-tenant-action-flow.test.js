@@ -12,7 +12,12 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp, ref } from 'vue';
-import { useTenantActionFlow, SUPER_ADMIN_ACTIONS_KEY } from '../dist/index.js';
+import {
+    useTenantActionFlow,
+    SUPER_ADMIN_ACTIONS_KEY,
+    SA_MESSAGES,
+    DEFAULT_SA_LOCALE,
+} from '../dist/index.js';
 
 function makeManifest(actions) {
     return {
@@ -91,7 +96,14 @@ describe('useTenantActionFlow — flow order', () => {
             ['confirm', 'p.t.suspend', 'acme'],
             ['mfa', 'p.t.suspend', 'acme'],
             ['handler', 'acme', '123456', 'just because'],
-            ['notify', 'positive', 'Suspendieren: erfolgreich.'],
+            [
+                'notify',
+                'positive',
+                SA_MESSAGES[DEFAULT_SA_LOCALE].tenants.actions.successNotify.replace(
+                    '{action}',
+                    'Suspendieren',
+                ),
+            ],
         ]);
     });
 

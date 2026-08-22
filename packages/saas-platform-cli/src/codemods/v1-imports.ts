@@ -12,6 +12,11 @@
 /** One entry of the move table: where a file was, and where it went. */
 export interface MoveTable {
     readonly moves: Readonly<Record<string, string>>;
+    /**
+     * Prefixes that left the package entirely. The value is a full specifier
+     * — `@saasicat/ui-vue-tenant/` — and is emitted verbatim.
+     */
+    readonly packages?: Readonly<Record<string, string>>;
 }
 
 /** Subpaths that stay on the public surface after the move. */
@@ -40,6 +45,15 @@ export function buildImportMap(table: MoveTable): Map<string, string> {
         map.set(from, to);
         map.set(`pages/${file}`, to);
     }
+
+    // Prefix moves to another package. Stored with a trailing slash on both
+    // sides so `rewriteSubpath` can match the prefix and keep the rest of the
+    // path: `pages-tenant/TenantPlanSection.vue` has to survive as a file name,
+    // not collapse into the package root.
+    for (const [from, to] of Object.entries(table.packages ?? {})) {
+        if (from === '_') continue;
+        map.set(from, to);
+    }
     return map;
 }
 
@@ -52,6 +66,14 @@ export function buildImportMap(table: MoveTable): Map<string, string> {
 export function rewriteSubpath(map: ReadonlyMap<string, string>, subpath: string): string | null {
     const direct = map.get(subpath);
     if (direct !== undefined && direct !== subpath) return direct;
+
+    // A prefix that moved to another package takes everything below it with it.
+    for (const [prefix, target] of map) {
+        if (prefix.endsWith('/') && target.startsWith('@') && subpath.startsWith(prefix)) {
+            return `${target}${subpath.slice(prefix.length)}`;
+        }
+    }
+
     if (subpath.startsWith('pages-standard/')) {
         return `pages/${subpath.slice('pages-standard/'.length)}`;
     }
@@ -94,7 +116,11 @@ export function rewriteImports(text: string, map: ReadonlyMap<string, string>): 
             return whole;
         }
         rewritten += 1;
-        return `@saasicat/ui-vue/${to}`;
+        // A target that names a package goes out verbatim: `pages-tenant/*`
+        // did not move inside `@saasicat/ui-vue`, it left it. Prefixing here
+        // would produce `@saasicat/ui-vue/@saasicat/ui-vue-tenant/…`, which
+        // resolves to nothing and fails at build time in someone else's repo.
+        return to.startsWith('@') ? to : `@saasicat/ui-vue/${to}`;
     });
 
     return { text: next, rewritten, unmapped };

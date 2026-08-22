@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { useEntitlement } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 function buildHttp({ status = 200, body = {}, headers = {} } = {}) {
     const calls = [];
@@ -48,13 +49,12 @@ describe('useEntitlement', () => {
         assert.equal(ent.hasFeature('CASHBOOK'), false);
     });
 
-    test('Auth token is sent along', async () => {
+    test("the client's auth header reaches the request untouched", async () => {
         const { http, calls } = buildHttp({ body: SAMPLE });
         const ent = useEntitlement({
-            http,
+            http: authenticating(http, 'jwt-x'),
             endpoint: ENDPOINT,
             autoLoad: false,
-            getAuthToken: () => 'jwt-x',
         });
         await ent.load();
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-x');

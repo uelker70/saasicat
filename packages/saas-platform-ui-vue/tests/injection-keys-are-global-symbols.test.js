@@ -63,13 +63,16 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import ts from 'typescript';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const PACKAGE = join(__dirname, '..');
-const SRC = join(PACKAGE, 'src');
+import {
+    PACKAGE,
+    SRC,
+    compilerOptions,
+    filesUnder,
+    inMemoryHost,
+    tree,
+} from './support/vue-typescript-program.mjs';
 
 /**
  * Where the counter-check trees at the bottom of this file pretend to live.
@@ -79,149 +82,6 @@ const SRC = join(PACKAGE, 'src');
  * built or shipped by accident.
  */
 const IN_MEMORY = join(PACKAGE, 'tests', '__counter-checks__');
-
-function* walk(dir) {
-    for (const entry of readdirSync(dir)) {
-        const full = join(dir, entry);
-        if (statSync(full).isDirectory()) yield* walk(full);
-        else if (entry.endsWith('.ts') || entry.endsWith('.vue')) yield full;
-    }
-}
-
-/** 1-based line the offset falls on. */
-function lineAt(text, offset) {
-    return text.slice(0, offset).split('\n').length;
-}
-
-/* -------------------------------------------------------------------------
- * Handing a `.vue` file to a TypeScript parser
- * ---------------------------------------------------------------------- */
-
-// A tag name ends where HTML says it ends: at whitespace, at `/`, or at `>`.
-// So `<scriptish>` is not a script tag, and — the half that matters — an end
-// tag written `</script >` is one. HTML allows whitespace between the tag name
-// and the `>` of an end tag, Vue's SFC parser follows HTML there, and a pattern
-// that insists on `</script>` reads the rest of such a file as template: every
-// key declared in it becomes invisible to this guard while the file compiles
-// and runs normally.
-const SCRIPT_OPEN = /<script(?=[\s/>])/gi;
-const SCRIPT_CLOSE = /<\/script\s*>/gi;
-
-/**
- * The offset just past the `>` that ends an opening tag, or -1 if it has none.
- *
- * Quoted attribute values are stepped over, because a `>` inside one does not
- * end the tag: `<script generic="T extends { a: 1 }">` is a single tag.
- */
-function endOfOpenTag(source, from) {
-    let quote = '';
-    for (let index = from; index < source.length; index += 1) {
-        const char = source[index];
-        if (quote) {
-            if (char === quote) quote = '';
-        } else if (char === '"' || char === "'") {
-            quote = char;
-        } else if (char === '>') {
-            return index + 1;
-        }
-    }
-    return -1;
-}
-
-/**
- * A `.vue` file with everything outside its `<script>` blocks replaced by
- * spaces.
- *
- * Blanking rather than slicing is the point: every offset — and therefore every
- * line number this file reports — keeps pointing at the original file, so a
- * failure can be opened at the line it names. What is left is TypeScript, which
- * is what lets the parser below read a single-file component at all.
- *
- * The scan resumes behind each closing tag, which is what makes the `<script`
- * an SFC mentions inside its own script body harmless: it is part of a block
- * already read, not the start of a new one. A block that never closes is
- * reported instead of dropped — everything from there on would otherwise be
- * blanked, and blanked code is code this guard silently stops looking at.
- */
-function scriptBlocksOnly(source) {
-    const out = source.split('').map((char) => (char === '\n' ? '\n' : ' '));
-    const anomalies = [];
-    SCRIPT_OPEN.lastIndex = 0;
-    let open = SCRIPT_OPEN.exec(source);
-    while (open) {
-        const bodyStart = endOfOpenTag(source, open.index + open[0].length);
-        if (bodyStart < 0) {
-            anomalies.push(`<script tag opened at line ${lineAt(source, open.index)} never ends`);
-            break;
-        }
-        SCRIPT_CLOSE.lastIndex = bodyStart;
-        const close = SCRIPT_CLOSE.exec(source);
-        if (!close) {
-            anomalies.push(`<script> opened at line ${lineAt(source, open.index)} is never closed`);
-            break;
-        }
-        for (let offset = bodyStart; offset < close.index; offset += 1)
-            out[offset] = source[offset];
-        SCRIPT_OPEN.lastIndex = close.index + close[0].length;
-        open = SCRIPT_OPEN.exec(source);
-    }
-    return { code: out.join(''), anomalies };
-}
-
-/**
- * One set of files to judge together, prepared for the compiler.
- *
- * TypeScript decides a file's language from its extension, so a `.vue` enters
- * the program under a name it accepts (`Page.vue.ts`) carrying only its script
- * blocks — and a `./Page.vue` specifier resolves to exactly that file, so a key
- * crossing the boundary is still reachable. `path` stays the name the file has
- * on disk, because that is what a failure message has to print.
- */
-function tree(root, files) {
-    return files.map(({ path, text }) => {
-        const isVue = path.endsWith('.vue');
-        const { code, anomalies } = isVue ? scriptBlocksOnly(text) : { code: text, anomalies: [] };
-        return { path, fileName: join(root, isVue ? `${path}.ts` : path), code, anomalies };
-    });
-}
-
-function filesUnder(dir) {
-    return [...walk(dir)].map((file) => ({
-        path: relative(dir, file).split(sep).join('/'),
-        text: readFileSync(file, 'utf8'),
-    }));
-}
-
-/**
- * The package's own compiler settings, which is where module resolution, the
- * target and the lib set are decided. Reading them beats restating them: a
- * guard that resolved modules differently from the build would be answering a
- * question nobody asked.
- *
- * Emit is switched off because nothing is emitted, `rootDir` is dropped so the
- * in-memory counter-check trees may sit beside `src`, and ambient type packages
- * are dropped because they answer none of this file's questions while costing
- * most of its run time.
- */
-function compilerOptions() {
-    const configPath = join(PACKAGE, 'tsconfig.json');
-    const { config, error } = ts.readConfigFile(configPath, ts.sys.readFile);
-    if (error) throw new Error(`cannot read ${configPath}: ${error.messageText}`);
-    const parsed = ts.parseJsonConfigFileContent(config, ts.sys, PACKAGE, undefined, configPath);
-    const options = {
-        ...parsed.options,
-        types: [],
-        noEmit: true,
-        declaration: false,
-        declarationMap: false,
-        sourceMap: false,
-        composite: false,
-        incremental: false,
-    };
-    delete options.outDir;
-    delete options.rootDir;
-    return options;
-}
 
 const REAL = tree(SRC, filesUnder(SRC));
 
@@ -251,25 +111,6 @@ function counterCheck(name, files, neighbours = {}) {
 
 const options = compilerOptions();
 
-/** Everything the program may read that is not on disk, by file name. */
-const inMemory = new Map();
-/** Directories those files pretend to be in, so module resolution walks them. */
-const inMemoryDirectories = new Set();
-
-function publish(units) {
-    for (const unit of units) {
-        inMemory.set(unit.fileName, unit.code);
-        let directory = dirname(unit.fileName);
-        for (;;) {
-            if (inMemoryDirectories.has(directory)) break;
-            inMemoryDirectories.add(directory);
-            const parent = dirname(directory);
-            if (parent === directory) break;
-            directory = parent;
-        }
-    }
-}
-
 let program;
 let checker;
 
@@ -295,23 +136,9 @@ const declarationsOf = (symbol) => symbol?.getDeclarations() ?? [];
 const declaredIn = (symbol, nodes) => declarationsOf(symbol).some((node) => nodes.has(node));
 
 function start() {
-    publish(REAL);
-    publish(COUNTER_CHECKS);
+    const { host, fileNames } = inMemoryHost([...REAL, ...COUNTER_CHECKS], options);
 
-    const base = ts.createCompilerHost(options, true);
-    const host = {
-        ...base,
-        fileExists: (name) => inMemory.has(name) || base.fileExists(name),
-        readFile: (name) => (inMemory.has(name) ? inMemory.get(name) : base.readFile(name)),
-        directoryExists: (name) =>
-            inMemoryDirectories.has(name) || Boolean(base.directoryExists?.(name)),
-        getSourceFile: (name, languageVersion, onError, shouldCreate) =>
-            inMemory.has(name)
-                ? ts.createSourceFile(name, inMemory.get(name), languageVersion, true)
-                : base.getSourceFile(name, languageVersion, onError, shouldCreate),
-    };
-
-    program = ts.createProgram([...inMemory.keys()], options, host);
+    program = ts.createProgram(fileNames, options, host);
     checker = program.getTypeChecker();
 
     const resolved = ts.resolveModuleName('vue', join(SRC, 'index.ts'), options, host);

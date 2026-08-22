@@ -419,17 +419,19 @@ describe('useResourceList — the failures it refuses to swallow', () => {
     });
 });
 
-describe('useResourceList — the audit list', () => {
-    test('reaches its own endpoint with its own filter', async () => {
-        const { http, calls } = recorder({ items: [{ id: 'a' }], total: 1 });
-        const list = inShell(http, () =>
-            useResourceList('audit', { filter: ref({ actorTag: 'cli:*', entity: 'Tenant' }) }),
-        );
-        await settle();
-        assert.equal(
-            calls[0].url,
-            '/api/v1/admin/audit?page=1&pageSize=50&actorTag=cli%3A*&entity=Tenant',
-        );
-        assert.equal(list.total.value, 1);
-    });
-});
+// There was a second block here, driving `useResourceList('audit')`. Its
+// subject is gone, and not by choice: the platform's `/admin/audit` answers
+// with a bare array and accepts `actor`/`since`/`limit`, so `auditResource.list`
+// is no longer a paginated list operation. `ListResourceKey` derives its keys
+// from the operations' return types, which makes `useResourceList('audit')` a
+// compile error — measured, not assumed: `Argument of type '"audit"' is not
+// assignable to parameter of type '"tenants"'`.
+//
+// What the old block asserted was that the call sent `actorTag=cli%3A*`. It did,
+// and the controller ignored it: the filter was dropped and the list came back
+// unfiltered while the page showed a filter chip. The descriptor now speaks the
+// route's vocabulary, and `tests/resources-match-the-composables.test.js` holds
+// it to `createAdminResourceClient.loadAudit`, which reads the same endpoint.
+//
+// Do not re-add it against `useResourceList`. If audit ever becomes paginated,
+// the type will allow the call again and a case belongs here then.

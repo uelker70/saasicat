@@ -17,7 +17,6 @@ export interface UseLivePlanVersionsOptions {
     /** Reactive list of plan stems — the watcher reloads when the list changes. */
     plans: Ref<PlanRow[]>;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
 }
 
 export interface UseLivePlanVersionsResult {
@@ -45,8 +44,7 @@ export function useLivePlanVersions(
     const error = ref<Error | null>(null);
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function loadForPlan(planId: string): Promise<PlanVersionRow | null> {

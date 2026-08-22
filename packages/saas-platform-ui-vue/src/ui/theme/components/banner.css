@@ -1,0 +1,116 @@
+/* Banner and empty state — the two things a page shows instead of, or above,
+ * its data (see AdminBanner, AdminErrorBanner, AdminEmptyState).
+ *
+ * The tone blocks are the reason this file exists: nineteen hand-written
+ * banners had six different colour recipes between them, several of which put
+ * a Quasar palette value straight into a `class`. Here a tone is three role
+ * tokens — surface, border, foreground — and the theme is the only thing that
+ * knows what those are in light and in dark.
+ */
+
+.sa-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid transparent;
+    border-radius: var(--sa-radius-section);
+    font-size: var(--sa-text-md);
+    line-height: 1.45;
+}
+.sa-banner[data-dense] {
+    padding: 8px 10px;
+    gap: 8px;
+}
+
+.sa-banner__icon {
+    flex: none;
+    font-size: var(--sa-text-2xl);
+    line-height: 1.2;
+}
+.sa-banner__text {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.sa-banner__title {
+    margin: 0;
+    font-weight: 600;
+    font-size: var(--sa-text-md);
+}
+/* Only when a title precedes it — a body that IS the message needs no offset. */
+.sa-banner__title + .sa-banner__body {
+    margin-top: 2px;
+}
+.sa-banner__actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.sa-banner__close {
+    flex: none;
+    margin: -4px -4px 0 0;
+}
+
+.sa-banner--info {
+    background: var(--sa-color-info-surface);
+    border-color: var(--sa-color-info-border);
+    color: var(--sa-color-info-fg);
+}
+.sa-banner--positive {
+    background: var(--sa-color-positive-surface);
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
+}
+.sa-banner--warning {
+    background: var(--sa-color-warning-surface);
+    border-color: var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
+}
+.sa-banner--negative {
+    background: var(--sa-color-negative-surface);
+    border-color: var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
+}
+
+/* Empty state. `block` owns the section it sits in; `inline` is the row inside
+ * a table body, where a centred column of 120px height would push the footer
+ * off the fold. */
+.sa-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: var(--sa-color-fg-muted);
+}
+.sa-empty[data-size='block'] {
+    gap: 8px;
+    padding: 40px 24px;
+}
+.sa-empty[data-size='inline'] {
+    gap: 4px;
+    padding: 16px 12px;
+}
+.sa-empty__icon {
+    font-size: var(--sa-text-4xl);
+    color: var(--sa-color-fg-subtle);
+}
+.sa-empty__title {
+    margin: 0;
+    font-weight: 600;
+    font-size: var(--sa-text-lg);
+    color: var(--sa-color-fg-secondary);
+}
+.sa-empty[data-size='inline'] .sa-empty__title {
+    font-size: var(--sa-text-md);
+}
+.sa-empty__body {
+    margin: 0;
+    max-width: 46ch;
+    font-size: var(--sa-text-md);
+}
+.sa-empty__actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}

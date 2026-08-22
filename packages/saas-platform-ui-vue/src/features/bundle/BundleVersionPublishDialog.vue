@@ -1,124 +1,103 @@
 <template>
-    <q-dialog v-model="open" persistent>
-        <q-card style="min-width: 560px; max-width: 96vw">
-            <q-card-section>
-                <div class="text-h6">{{ msg.publishDialog.title }}</div>
-                <p class="text-caption text-grey-7">
-                    {{ msg.publishDialog.bundleLabel }} <code>{{ bundleKey }}</code> · v{{
-                        draft.version
-                    }}
+    <AdminDialog
+        v-model="open"
+        :title="msg.publishDialog.title"
+        :subtitle="`${msg.publishDialog.bundleLabel} ${bundleKey} · v${draft.version}`"
+        size="md"
+        persistent
+    >
+        <div v-if="!previewLoaded" class="bvpd__loading">
+            <q-spinner color="primary" size="32px" />
+            <span class="q-ml-sm">{{ msg.publishDialog.loadingDiff }}</span>
+        </div>
+
+        <div v-else class="bvpd__body">
+            <!-- Pre-emptive strict-mode warnings from the last mutate -->
+            <AdminBanner v-if="warnings.length > 0" tone="warning">
+                <strong>{{ strictWarningsText }}</strong>
+                <ul class="bvpd__list">
+                    <li v-for="(w, i) in warnings" :key="i">
+                        <code>{{ w.code }}</code>
+                        <template v-if="w.value">
+                            · <code>{{ w.value }}</code></template
+                        >
+                        — {{ w.message }}
+                    </li>
+                </ul>
+            </AdminBanner>
+
+            <div class="bvpd__validity">
+                <div class="bvpd__label">{{ common.validity }}</div>
+                <div class="bvpd__validity-grid">
+                    <label class="bvpd__field">
+                        <span>{{ msg.fields.validFrom }}</span>
+                        <input v-model="validFromInput" class="bvpd__input" type="date" />
+                    </label>
+                    <label class="bvpd__field">
+                        <span>{{ msg.fields.validUntil }}</span>
+                        <input v-model="validUntilInput" class="bvpd__input" type="date" />
+                    </label>
+                </div>
+                <p v-if="validityError" class="bvpd__error">{{ validityError }}</p>
+            </div>
+
+            <div>
+                <q-toggle v-model="allowZeroPrice" :label="msg.publishDialog.allowZeroPrice" />
+                <p class="bvpd__label" style="margin-top: var(--sa-space-3)">
+                    {{ msg.publishDialog.allowZeroPriceHint }}
                 </p>
-            </q-card-section>
+            </div>
 
-            <q-card-section v-if="!previewLoaded" class="bvpd__loading">
-                <q-spinner color="primary" size="32px" />
-                <span class="q-ml-sm">{{ msg.publishDialog.loadingDiff }}</span>
-            </q-card-section>
-
-            <q-card-section v-else class="bvpd__body">
-                <!-- Pre-emptive strict-mode warnings from the last mutate -->
-                <q-banner v-if="warnings.length > 0" class="bvpd__warnings" inline-actions rounded>
-                    <template #avatar>
-                        <q-icon name="warning" color="warning" />
-                    </template>
-                    <strong>{{ strictWarningsText }}</strong>
-                    <ul class="bvpd__list">
-                        <li v-for="(w, i) in warnings" :key="i">
-                            <code>{{ w.code }}</code>
-                            <template v-if="w.value">
-                                · <code>{{ w.value }}</code></template
-                            >
-                            — {{ w.message }}
-                        </li>
-                    </ul>
-                </q-banner>
-
-                <div class="bvpd__validity">
-                    <div class="bvpd__label">{{ common.validity }}</div>
-                    <div class="bvpd__validity-grid">
-                        <label class="bvpd__field">
-                            <span>{{ msg.fields.validFrom }}</span>
-                            <input v-model="validFromInput" class="bvpd__input" type="date" />
-                        </label>
-                        <label class="bvpd__field">
-                            <span>{{ msg.fields.validUntil }}</span>
-                            <input v-model="validUntilInput" class="bvpd__input" type="date" />
-                        </label>
-                    </div>
-                    <p v-if="validityError" class="bvpd__error">{{ validityError }}</p>
+            <!-- Diff against the previous version -->
+            <div>
+                <div class="bvpd__label">
+                    {{ msg.publishDialog.changesVs }}
+                    <span v-if="previousVersion"> v{{ previousVersion }} </span>
+                    <span v-else class="text-grey-7">
+                        {{ msg.publishDialog.noPrevious }}
+                    </span>
                 </div>
+                <AdminBanner v-if="changes.length === 0 && previousVersion" tone="info">
+                    {{ msg.publishDialog.noChanges }}
+                </AdminBanner>
+                <q-list v-else-if="changes.length > 0" bordered separator>
+                    <q-item v-for="(c, i) in changes" :key="i">
+                        <q-item-section side>
+                            <q-chip dense :color="directionColor(c.direction)" text-color="white">
+                                {{ directionLabel(c.direction) }}
+                            </q-chip>
+                        </q-item-section>
+                        <q-item-section>
+                            <q-item-label>
+                                <code>{{ c.field }}</code>
+                            </q-item-label>
+                            <q-item-label caption>
+                                <span class="bvpd__old">{{ formatValue(c.oldValue) }}</span>
+                                <q-icon name="arrow_forward" size="14px" class="q-mx-xs" />
+                                <span class="bvpd__new">{{ formatValue(c.newValue) }}</span>
+                            </q-item-label>
+                        </q-item-section>
+                    </q-item>
+                </q-list>
+            </div>
 
-                <div>
-                    <q-toggle v-model="allowZeroPrice" :label="msg.publishDialog.allowZeroPrice" />
-                    <p class="bvpd__label" style="margin-top: var(--sa-space-3)">
-                        {{ msg.publishDialog.allowZeroPriceHint }}
-                    </p>
-                </div>
+            <!-- Regression warning -->
+            <AdminBanner v-if="isRegression" tone="negative">
+                <strong>{{ msg.publishDialog.regressionTitle }}</strong>
+                {{ msg.publishDialog.regressionBody }}
+                <code>force</code>{{ msg.publishDialog.regressionBodySuffix }}
+                <template #action>
+                    <q-toggle
+                        v-model="forceRegressive"
+                        :label="msg.publishDialog.forceRegressive"
+                        color="negative"
+                    />
+                </template>
+            </AdminBanner>
+        </div>
 
-                <!-- Diff against the previous version -->
-                <div>
-                    <div class="bvpd__label">
-                        {{ msg.publishDialog.changesVs }}
-                        <span v-if="previousVersion"> v{{ previousVersion }} </span>
-                        <span v-else class="text-grey-7">
-                            {{ msg.publishDialog.noPrevious }}
-                        </span>
-                    </div>
-                    <q-banner
-                        v-if="changes.length === 0 && previousVersion"
-                        class="bvpd__neutral"
-                        inline-actions
-                        rounded
-                    >
-                        <template #avatar>
-                            <q-icon name="info" color="grey-7" />
-                        </template>
-                        {{ msg.publishDialog.noChanges }}
-                    </q-banner>
-                    <q-list v-else-if="changes.length > 0" bordered separator>
-                        <q-item v-for="(c, i) in changes" :key="i">
-                            <q-item-section side>
-                                <q-chip
-                                    dense
-                                    :color="directionColor(c.direction)"
-                                    text-color="white"
-                                >
-                                    {{ directionLabel(c.direction) }}
-                                </q-chip>
-                            </q-item-section>
-                            <q-item-section>
-                                <q-item-label>
-                                    <code>{{ c.field }}</code>
-                                </q-item-label>
-                                <q-item-label caption>
-                                    <span class="bvpd__old">{{ formatValue(c.oldValue) }}</span>
-                                    <q-icon name="arrow_forward" size="14px" class="q-mx-xs" />
-                                    <span class="bvpd__new">{{ formatValue(c.newValue) }}</span>
-                                </q-item-label>
-                            </q-item-section>
-                        </q-item>
-                    </q-list>
-                </div>
-
-                <!-- Regression warning -->
-                <q-banner v-if="isRegression" class="bvpd__regression" inline-actions rounded>
-                    <template #avatar>
-                        <q-icon name="error" color="negative" />
-                    </template>
-                    <strong>{{ msg.publishDialog.regressionTitle }}</strong>
-                    {{ msg.publishDialog.regressionBody }}
-                    <code>force</code>{{ msg.publishDialog.regressionBodySuffix }}
-                    <template #action>
-                        <q-toggle
-                            v-model="forceRegressive"
-                            :label="msg.publishDialog.forceRegressive"
-                            color="negative"
-                        />
-                    </template>
-                </q-banner>
-            </q-card-section>
-
-            <q-card-actions align="right">
+        <template #footer>
+            <div class="sa-dialog__actions">
                 <q-btn flat :label="common.cancel" @click="close" />
                 <q-btn
                     unelevated
@@ -132,13 +111,15 @@
                     :disable="!canSubmit"
                     @click="onSubmit"
                 />
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+            </div>
+        </template>
+    </AdminDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import AdminDialog from '../../ui/overlay/AdminDialog.vue';
+import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import type {
     BundleVersionMutationResult,
     BundleVersionRow,
@@ -311,15 +292,6 @@ function formatValue(v: unknown): string {
     align-items: center;
     justify-content: center;
     padding: 32px;
-}
-.bvpd__warnings {
-    border-left: 4px solid var(--sa-color-warning-strong);
-}
-.bvpd__neutral {
-    border-left: 4px solid var(--sa-color-border-strong);
-}
-.bvpd__regression {
-    border-left: 4px solid var(--sa-color-negative);
 }
 .bvpd__validity {
     padding: 12px;

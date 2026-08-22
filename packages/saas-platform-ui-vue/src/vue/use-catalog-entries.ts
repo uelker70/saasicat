@@ -27,7 +27,6 @@ export interface UseCatalogEntriesOptions {
     /** Admin endpoint prefix incl. globalPrefix (`/api/admin`, `/api/v1/admin`). */
     adminEndpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** projectKey the catalog entries are filtered against. */
     projectKey: string;
     autoLoad?: boolean;
@@ -103,8 +102,7 @@ export function useCatalogEntries(options: UseCatalogEntriesOptions): UseCatalog
     const pk = encodeURIComponent(options.projectKey);
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {

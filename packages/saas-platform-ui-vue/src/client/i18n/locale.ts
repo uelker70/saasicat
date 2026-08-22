@@ -18,7 +18,19 @@ export type SaLocale = SaBuiltinLocale | (string & {});
 /** The locales the platform ships. Apps narrow or extend this, see `i18n`. */
 export const SA_LOCALES: readonly SaBuiltinLocale[] = ['de', 'en'];
 
-export const DEFAULT_SA_LOCALE: SaBuiltinLocale = 'de';
+/**
+ * The locale the shell falls back to when an app names none.
+ *
+ * English, because the project is open source and a developer who does not
+ * configure a locale is far more likely to read English than German. German
+ * remains a first-class catalog — it is the reference that fixes the key
+ * structure — and an app that wants it says so through
+ * `createSuperAdminApp({ i18n: { locale: 'de' } })`.
+ *
+ * This is also the fallback for `Intl` formatting, so an unconfigured app
+ * formats dates and currency the English way; see `SA_INTL_LOCALES`.
+ */
+export const DEFAULT_SA_LOCALE: SaBuiltinLocale = 'en';
 
 /** BCP-47 tags used for `Intl`/`toLocaleString` formatting per built-in locale. */
 export const SA_INTL_LOCALES: Record<SaBuiltinLocale, string> = {

@@ -1,25 +1,57 @@
 // The audit trail.
 //
-// This descriptor speaks the contract `useAuditEntries` speaks: `AuditQuery`
-// (`actorTag`, `from`, `to`, `entity`, …) over a paginated endpoint. The
-// package holds a second, incompatible one — `createAdminResourceClient`
-// sends `actor`/`since`/`limit` at `AdminAuditListFilter`, unpaginated, and
-// that is what `AuditPage.vue` receives through its `loadAudit` prop.
+// ── Which vocabulary this endpoint speaks ─────────────────────────────────
 //
-// Two audit contracts in one package is a defect, but it is not this change's
-// to settle: choosing either spelling here would send a different request than
-// one of the two callers sends today. The descriptor mirrors the composable it
-// is measured against, and the reconciliation belongs to the page rebuild that
-// can move both sides at once.
+// The package held two audit contracts, and this descriptor used to be on the
+// wrong side of them. Measured against the platform's own controller
+// (`@Get('audit')` in `@saasicat/nest`'s generated admin resources):
+//
+//   the route accepts  actor, action, entity, since, limit   → a bare array
+//   `AuditQuery` says  actorTag, from, to, page, pageSize    → a page
+//
+// `AuditQuery` is the vocabulary of `AuditQueryPort`, one layer BELOW the HTTP
+// boundary — the Prisma adapter translates `actor` into `actorTag: *actor*` and
+// `since` into `from` before it ever reaches the port. So a descriptor sending
+// `actorTag` at this URL sends a parameter the controller does not read: the
+// filter is dropped and the operator gets an unfiltered list that looks
+// filtered.
+//
+// It was latent, because nothing consumed the descriptor. `AuditPage` moving
+// onto it is what would have made it live, and that is the "page rebuild that
+// can move both sides at once" the previous version of this comment deferred
+// to.
+//
+// `useAuditEntries` is NOT the counterpart. It takes an endpoint from the app
+// and speaks `AuditQuery`, for a consumer that exposes `AuditQueryPort` over
+// its own route. The counterpart is `createAdminResourceClient.loadAudit`,
+// which reads the same platform route — and `tests/resources-match-the-
+// composables.test.js` pairs them.
 
-import type { AuditEntry, AuditQuery } from '@saasicat/types';
+import type { AdminAuditListFilter, AuditEntry } from '@saasicat/types';
 
 import { defineResource } from './define-resource.js';
-import { defineListOp, type ListFilterOf } from './list-resource.js';
+import { filterQueryString } from './list-resource.js';
+import { requestJson } from './resource-request.js';
 
-/** What the audit list can be narrowed by. The page number is not a filter. */
-export type AuditListFilter = ListFilterOf<AuditQuery>;
+/**
+ * What the audit list can be narrowed by — the controller's query parameters.
+ *
+ * Not paginated: the route answers with a bare array and caps the size through
+ * `limit`. `useResourceList` is therefore not the way to read it; a page calls
+ * `list` and renders what comes back.
+ */
+export type AuditListFilter = AdminAuditListFilter;
 
 export const auditResource = defineResource('audit', {
-    list: defineListOp<AuditEntry, AuditListFilter>((ctx) => `${ctx.apiBase}/audit`),
+    list: async (http, ctx, filter: AuditListFilter = {}): Promise<AuditEntry[]> =>
+        (await requestJson<AuditEntry[]>(
+            http,
+            `${ctx.apiBase}/audit${filterQueryString({
+                actor: filter.actor,
+                action: filter.action,
+                entity: filter.entity,
+                since: filter.since,
+                limit: filter.limit,
+            })}`,
+        )) ?? [],
 });

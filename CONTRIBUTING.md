@@ -108,13 +108,15 @@ Details: [`packages/saas-platform-ui-vue/README.md`](packages/saas-platform-ui-v
 
 ### The shipped source has a language floor: ES2021
 
-Four of that package's export subpaths — `pages/*`, `pages-standard/*`,
-`pages-tenant/*` and `components/*` — hand out `.vue` and `.ts` straight from `src/`
-instead of from a build, because consumers need the source for Quasar and Sass theming.
-(Four more serve stylesheets: three from `src/ui/theme/`, which carries no TypeScript,
-and `sa-theme.css` from `src/pages-standard/`.) So the
-**consumer's** `tsconfig` compiles those files and everything they reach, including
-`src/client/` and `src/vue/`. Ours says `lib: ES2023`; theirs may not.
+Several of that package's export subpaths — `pages/*`, `layouts/*`, `auth/*`, `ui/*`
+— hand out `.vue` and `.ts` straight from `src/` instead of from a build, because
+consumers need the source for Quasar and Sass theming. The list is not written here,
+because it moves: `pages-standard/*` and `components/*` were two of them until phase 4
+removed both, and `pages-tenant/*` left for `@saasicat/ui-vue-tenant` — which ships its
+source under the same floor for the same reason. `check-shipped-source.mjs` derives the
+list from the export map and prints the count on every run. So the **consumer's**
+`tsconfig` compiles those files and everything they reach, including `src/client/` and
+`src/vue/`. Ours says `lib: ES2023`; theirs may not.
 
 Shipped code therefore stays within **ES2021**. In practice that rules out
 `new Error(msg, { cause })` — use `attachCause()` from `src/client/attach-cause.ts` —

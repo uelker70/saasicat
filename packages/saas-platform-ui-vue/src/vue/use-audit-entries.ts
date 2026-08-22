@@ -18,7 +18,6 @@ export interface UseAuditEntriesOptions {
     endpoint: string;
     filter?: Ref<AuditQuery>;
     http?: UseApiListOptions<Record<string, unknown>>['http'];
-    getAuthToken?: () => string | null;
     autoLoad?: boolean;
 }
 
@@ -41,7 +40,6 @@ export function useAuditEntries(options: UseAuditEntriesOptions): UseAuditEntrie
         endpoint: options.endpoint,
         filter: filter as unknown as Ref<Record<string, unknown>>,
         http: options.http,
-        getAuthToken: options.getAuthToken,
         autoLoad: options.autoLoad,
     });
     return { ...list, filter };

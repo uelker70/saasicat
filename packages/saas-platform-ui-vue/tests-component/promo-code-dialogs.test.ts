@@ -4,6 +4,7 @@
 // stays inside the dialog instead of reaching the caller.
 
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 import { computed, ref } from 'vue';
 
 import PromoCodeCreateDialog from '../src/internal/dialogs/PromoCodeCreateDialog.vue';
@@ -36,19 +37,38 @@ function mountDialog(component: typeof PromoCodeCreateDialog, props: Record<stri
     return wrapper;
 }
 
+/**
+ * The dialog's confirming button, and whether it is usable.
+ *
+ * Since both dialogs moved onto `AdminFormDialog` the validity guard is the
+ * button's `disabled` state, not an early return inside a handler — so a test
+ * that called the handler directly would submit an invalid form and report that
+ * it was accepted. Clicking is now the only way to ask the real question.
+ */
+function submitButton(): HTMLButtonElement {
+    const buttons = document.querySelectorAll('.sa-dialog__actions button');
+    expect(buttons).toHaveLength(2);
+    return buttons[1] as HTMLButtonElement;
+}
+
+async function clickSubmit(): Promise<void> {
+    // The dialog reaches its portal a tick after mounting, and the form state a
+    // caller just set has to reach the button's `disabled` before the click.
+    await flushPromises();
+    submitButton().click();
+    await flushPromises();
+}
+
 describe('PromoCodeCreateDialog', () => {
     test('passes the entered values through to submit', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
         const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
         await wrapper.vm.$nextTick();
 
-        const vm = wrapper.vm as unknown as {
-            form: Record<string, unknown>;
-            onSubmit: () => Promise<void>;
-        };
+        const vm = wrapper.vm as unknown as { form: Record<string, unknown> };
         vm.form.code = 'SOMMER25';
         vm.form.value = 25;
-        await vm.onSubmit();
+        await clickSubmit();
 
         expect(submit).toHaveBeenCalledTimes(1);
         expect(submit.mock.calls[0][0]).toMatchObject({
@@ -62,29 +82,27 @@ describe('PromoCodeCreateDialog', () => {
     test('does not submit while the code is malformed', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
         const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
-        const vm = wrapper.vm as unknown as {
-            form: Record<string, unknown>;
-            onSubmit: () => Promise<void>;
-        };
+        const vm = wrapper.vm as unknown as { form: Record<string, unknown> };
 
         vm.form.code = 'ab';
-        await vm.onSubmit();
+        await wrapper.vm.$nextTick();
+        expect(submitButton().disabled).toBe(true);
+        await clickSubmit();
         expect(submit).not.toHaveBeenCalled();
     });
 
     test('keeps a handler error inside the dialog', async () => {
         const submit = vi.fn().mockRejectedValue(new Error('Code already taken'));
         const wrapper = mountDialog(PromoCodeCreateDialog, { modelValue: true, submit });
-        const vm = wrapper.vm as unknown as {
-            form: Record<string, unknown>;
-            error: string;
-            onSubmit: () => Promise<void>;
-        };
+        const vm = wrapper.vm as unknown as { form: Record<string, unknown> };
 
         vm.form.code = 'SOMMER25';
         vm.form.value = 25;
-        await expect(vm.onSubmit()).resolves.toBeUndefined();
-        expect(vm.error).toBe('Code already taken');
+        await clickSubmit();
+
+        expect(document.querySelector('.sa-dialog')?.textContent).toContain('Code already taken');
+        // Still open: a failure the operator can act on must not take the form away.
+        expect(wrapper.emitted('update:modelValue')).toBeUndefined();
     });
 });
 
@@ -109,15 +127,11 @@ describe('PromoCodeEditDialog', () => {
             row,
             submit,
         });
-        return wrapper.vm as unknown as {
-            form: Record<string, unknown>;
-            error: string;
-            onSubmit: () => Promise<void>;
-        };
+        return wrapper;
     }
 
     test('adopts the row values into the form', () => {
-        const vm = mountEdit(vi.fn());
+        const vm = mountEdit(vi.fn()).vm as unknown as { form: Record<string, unknown> };
         // The code is not editable and therefore not a form field.
         expect(vm.form.code).toBeUndefined();
         expect(vm.form.value).toBe(10);
@@ -127,18 +141,21 @@ describe('PromoCodeEditDialog', () => {
 
     test('sends nothing while nothing has changed', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
-        const vm = mountEdit(submit);
+        const wrapper = mountEdit(submit);
+        await wrapper.vm.$nextTick();
 
-        await vm.onSubmit();
+        expect(submitButton().disabled).toBe(true);
+        await clickSubmit();
         expect(submit).not.toHaveBeenCalled();
     });
 
     test('sends only the changed fields, with the row id', async () => {
         const submit = vi.fn().mockResolvedValue(undefined);
-        const vm = mountEdit(submit);
+        const wrapper = mountEdit(submit);
+        const vm = wrapper.vm as unknown as { form: Record<string, unknown> };
 
         vm.form.value = 15;
-        await vm.onSubmit();
+        await clickSubmit();
 
         expect(submit).toHaveBeenCalledTimes(1);
         expect(submit.mock.calls[0][0]).toBe('promo-1');
@@ -148,11 +165,14 @@ describe('PromoCodeEditDialog', () => {
 
     test('keeps a handler error inside the dialog', async () => {
         const submit = vi.fn().mockRejectedValue(new Error('No longer editable'));
-        const vm = mountEdit(submit);
+        const wrapper = mountEdit(submit);
+        const vm = wrapper.vm as unknown as { form: Record<string, unknown> };
 
         vm.form.value = 15;
-        await expect(vm.onSubmit()).resolves.toBeUndefined();
-        expect(vm.error).toBe('No longer editable');
+        await clickSubmit();
+
+        expect(document.querySelector('.sa-dialog')?.textContent).toContain('No longer editable');
+        expect(wrapper.emitted('update:modelValue')).toBeUndefined();
     });
 });
 

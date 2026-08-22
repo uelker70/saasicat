@@ -20,6 +20,7 @@ import {
     adminErrorMessage,
     useDiscovery,
 } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 /** What the composable resolves without an i18n provider. */
 const ERRORS = SA_MESSAGES[DEFAULT_SA_LOCALE].errors;
@@ -67,7 +68,7 @@ describe('useDiscovery', () => {
         const { http, calls } = httpQueue([
             { status: 200, body: SNAPSHOT, headers: { ETag: 'W/"1"' } },
         ]);
-        const view = discovery({ http, getAuthToken: () => 'tok' });
+        const view = discovery({ http: authenticating(http, 'tok') });
         await view.load();
         assert.equal(calls[0].url, ENDPOINT);
         assert.equal(calls[0].init.method, 'GET');

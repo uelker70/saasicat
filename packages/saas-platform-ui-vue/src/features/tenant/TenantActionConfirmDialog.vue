@@ -1,80 +1,81 @@
 <template>
-    <q-dialog
+    <AdminDialog
         :model-value="modelValue"
+        :title="def?.label ?? msg.actions.confirmTitle"
+        size="sm"
         persistent
         @update:model-value="emit('update:modelValue', $event)"
     >
-        <q-card class="tenant-action-confirm">
-            <q-card-section class="header">
-                <q-icon
-                    :name="iconForAction"
-                    size="22px"
-                    :color="isDangerous ? 'negative' : 'primary'"
-                />
-                <div class="text-h6">{{ def?.label ?? msg.actions.confirmTitle }}</div>
-            </q-card-section>
+        <template #header-extra>
+            <q-icon
+                :name="iconForAction"
+                size="22px"
+                :color="isDangerous ? 'negative' : 'primary'"
+                aria-hidden="true"
+            />
+        </template>
+        <div v-if="def">
+            <p class="tenant-action-confirm__lead">
+                {{ msg.actions.leadAction }} <strong>„{{ def.label }}"</strong>
+                {{ msg.actions.leadForTenant }}
+                <strong>„{{ row?.name ?? row?.slug ?? '–' }}"</strong>.
+            </p>
 
-            <q-card-section v-if="def">
-                <p class="tenant-action-confirm__lead">
-                    {{ msg.actions.leadAction }} <strong>„{{ def.label }}"</strong>
-                    {{ msg.actions.leadForTenant }}
-                    <strong>„{{ row?.name ?? row?.slug ?? '–' }}"</strong>.
-                </p>
-
-                <!-- typed-slug / typed-production: slug confirmation as a safety
+            <!-- typed-slug / typed-production: slug confirmation as a safety
                      gate against accidentally clicking destructive actions. -->
-                <template v-if="needsTypedSlug">
-                    <p class="tenant-action-confirm__hint">
-                        {{ msg.actions.typedSlugHint }}
-                        <code>{{ row?.slug }}</code
-                        >:
-                    </p>
-                    <q-input
-                        v-model="slugInput"
-                        outlined
-                        dense
-                        autofocus
-                        :error="slugError"
-                        :error-message="slugErrorMessage"
-                        :placeholder="row?.slug"
-                    />
-                </template>
-
-                <!-- confirmType='date': ISO date, passed through to the handler
-                     via `extras.until` (e.g. pilots.extend). -->
-                <template v-if="needsDate">
-                    <q-input
-                        v-model="dateInput"
-                        outlined
-                        dense
-                        type="date"
-                        class="q-mt-md"
-                        :min="dateMin"
-                        :label="dateLabel"
-                        :error="dateError"
-                        :error-message="dateError ? msg.actions.dateFutureError : undefined"
-                    />
-                </template>
-
-                <!-- Reason is always required — the platform backends demand it
-                     as MinLength(5) for AuditLog. Apps can switch it off via
-                     `reasonRequired: false`, but the default is required. -->
+            <template v-if="needsTypedSlug">
+                <p class="tenant-action-confirm__hint">
+                    {{ msg.actions.typedSlugHint }}
+                    <code>{{ row?.slug }}</code
+                    >:
+                </p>
                 <q-input
-                    v-if="reasonRequired"
-                    v-model="reasonInput"
+                    v-model="slugInput"
                     outlined
                     dense
-                    type="textarea"
-                    autogrow
-                    class="q-mt-md"
-                    :autofocus="!needsTypedSlug && !needsDate"
-                    :label="msg.actions.reasonLabel"
-                    :error="reasonError"
-                    :error-message="reasonError ? msg.actions.reasonError : undefined"
+                    autofocus
+                    :error="slugError"
+                    :error-message="slugErrorMessage"
+                    :placeholder="row?.slug"
                 />
-            </q-card-section>
+            </template>
 
-            <q-card-actions align="right">
+            <!-- confirmType='date': ISO date, passed through to the handler
+                     via `extras.until` (e.g. pilots.extend). -->
+            <template v-if="needsDate">
+                <q-input
+                    v-model="dateInput"
+                    outlined
+                    dense
+                    type="date"
+                    class="q-mt-md"
+                    :min="dateMin"
+                    :label="dateLabel"
+                    :error="dateError"
+                    :error-message="dateError ? msg.actions.dateFutureError : undefined"
+                />
+            </template>
+
+            <!-- Reason is always required — the platform backends demand it
+                     as MinLength(5) for AuditLog. Apps can switch it off via
+                     `reasonRequired: false`, but the default is required. -->
+            <q-input
+                v-if="reasonRequired"
+                v-model="reasonInput"
+                outlined
+                dense
+                type="textarea"
+                autogrow
+                class="q-mt-md"
+                :autofocus="!needsTypedSlug && !needsDate"
+                :label="msg.actions.reasonLabel"
+                :error="reasonError"
+                :error-message="reasonError ? msg.actions.reasonError : undefined"
+            />
+        </div>
+
+        <template #footer>
+            <div class="sa-dialog__actions">
                 <q-btn flat :label="common.cancel" @click="onCancel" />
                 <q-btn
                     unelevated
@@ -83,13 +84,14 @@
                     :disable="!canSubmit"
                     @click="onConfirm"
                 />
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+            </div>
+        </template>
+    </AdminDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import type { TenantActionDef, TenantDto } from '@saasicat/types';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
@@ -225,15 +227,6 @@ function onCancel(): void {
 </script>
 
 <style scoped>
-.tenant-action-confirm {
-    min-width: 400px;
-    max-width: 520px;
-}
-.header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
 .tenant-action-confirm__lead {
     margin: 0 0 12px;
     color: var(--sa-color-fg-secondary);

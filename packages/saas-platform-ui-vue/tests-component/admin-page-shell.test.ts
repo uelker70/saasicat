@@ -90,6 +90,32 @@ function kebab(name: string): string {
 }
 
 /**
+ * The prop that has to be set before `event` can be emitted at all, or null
+ * when nothing gates it.
+ *
+ * Derived from the template rather than declared: a single-emit component whose
+ * emitter sits inside `v-if="someProp"` emits nothing until a caller passes
+ * that prop, so a caller that does not pass it is not ignoring anything. The
+ * alternative is an exception list, and a list is the same defect one level up
+ * — it goes stale the moment the component changes, and silently.
+ */
+function emitGate(source: string, event: string): string | null {
+    const template = templateOf(source);
+    const call = template.indexOf(`emit('${event}')`);
+    if (call === -1) return null;
+    // Back up to the opening `<` of the tag carrying the handler, then read the
+    // tag. A handler is always inside the tag it is written on, so the nearest
+    // unclosed `<` before it is that tag.
+    const open = template.lastIndexOf('<', call);
+    if (open === -1) return null;
+    const close = template.indexOf('>', call);
+    if (close === -1) return null;
+    const tag = template.slice(open, close);
+    const gate = /\bv-if="([A-Za-z_$][\w$]*)"/.exec(tag);
+    return gate ? gate[1]! : null;
+}
+
+/**
  * Name of the directory a file sits in.
  *
  * `basename(dirname(…))`, never a split on '/': these paths come from `join()`,
@@ -288,10 +314,7 @@ describe('page shell contract', () => {
         // components — plans are its columns, so rows and paging mean nothing.
         // PlanChangeWizard's limits table is a three-column before/after
         // comparison inside a tenant-facing wizard, outside the admin shell.
-        const NOT_LISTS = new Set([
-            resolve(SRC_DIR, 'features/plan/PlanMatrix.vue'),
-            resolve(SRC_DIR, 'pages-tenant/PlanChangeWizard.vue'),
-        ]);
+        const NOT_LISTS = new Set([resolve(SRC_DIR, 'features/plan/PlanMatrix.vue')]);
         const offenders = allVueFiles()
             .filter((file) => file !== TABLE && !NOT_LISTS.has(file))
             .filter((file) => {
@@ -320,11 +343,13 @@ describe('page shell contract', () => {
         const offenders: string[] = [];
 
         for (const file of allVueFiles()) {
-            const emits = declaredEmits(readFileSync(file, 'utf8'));
+            const source = readFileSync(file, 'utf8');
+            const emits = declaredEmits(source);
             if (emits.length !== 1) continue;
 
             const component = basename(file, '.vue');
             const listener = `@${kebab(emits[0]!)}=`;
+            const gate = emitGate(source, emits[0]!);
 
             for (const other of allVueFiles()) {
                 const template = templateOf(readFileSync(other, 'utf8'));
@@ -339,8 +364,13 @@ describe('page shell contract', () => {
                         (arg !== '' && tag.includes(`v-model:${kebab(arg)}`)) ||
                         (arg === 'modelValue' && /\bv-model[=\s]/.test(tag)) ||
                         (arg === '' && tag.includes('v-model'));
+                    // A gated emitter that the caller never switches on cannot
+                    // fire, so there is nothing to listen for.
+                    const reachable =
+                        gate === null ||
+                        new RegExp(`[:\\s]${kebab(gate)}[=\\s>]|[:\\s]${gate}[=\\s>]`).test(tag);
                     const pair = `${basename(other)}: ${component}`;
-                    if (!heard && !DELIBERATELY_IGNORED.has(pair)) {
+                    if (!heard && reachable && !DELIBERATELY_IGNORED.has(pair)) {
                         offenders.push(
                             `${relative(SRC_DIR, other)}: <${component}> ignores ${emits[0]}`,
                         );

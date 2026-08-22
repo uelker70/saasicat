@@ -20,7 +20,6 @@ import { defaultHttpClient, type HttpClient } from '../client/types.js';
 export interface UseMarketingProjectionsOptions {
     adminEndpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** Filter that is active on `load()`. Can be changed via `setFilter()`. */
     filter: MarketingProjectionFilter;
     autoLoad?: boolean;
@@ -79,8 +78,7 @@ export function useMarketingProjections(
     const baseUrl = `${options.adminEndpoint}/catalog/marketing-projections`;
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     function buildListUrl(): string {

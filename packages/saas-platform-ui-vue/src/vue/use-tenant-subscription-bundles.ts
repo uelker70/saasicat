@@ -13,7 +13,6 @@ export interface UseTenantSubscriptionBundlesOptions {
     /** App-global API prefix incl. `/billing` (e.g. `/api/v1`). */
     billingEndpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** With `true`, loads on mount. Default `false`. */
     autoLoad?: boolean;
 }
@@ -64,8 +63,7 @@ export function useTenantSubscriptionBundles(
     const error = ref<Error | null>(null);
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {

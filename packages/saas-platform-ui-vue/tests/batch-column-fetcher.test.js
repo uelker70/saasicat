@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BatchColumnDriftError, BatchColumnFetcher } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 function buildHttp(responses = []) {
     const calls = [];
@@ -116,13 +117,10 @@ describe('BatchColumnFetcher.fetchAll', () => {
         assert.deepEqual(data, {});
     });
 
-    test('auth token is sent as a Bearer header', async () => {
+    test("the client's auth header reaches the request untouched", async () => {
         const m = buildManifest([{ key: 'k', label: 'K', endpoint: '/api/v1/admin/extras/k' }]);
         const { http, calls } = buildHttp([{ status: 200, body: {} }]);
-        const fetcher = new BatchColumnFetcher({
-            http,
-            getAuthToken: () => 'jwt-abc',
-        });
+        const fetcher = new BatchColumnFetcher({ http: authenticating(http, 'jwt-abc') });
         await fetcher.fetchAll(m, ['t1']);
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-abc');
     });

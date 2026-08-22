@@ -67,9 +67,9 @@
                 >
                     <template #body-cell-status="{ row }">
                         <q-td>
-                            <q-badge
-                                :color="statusColor(row.status)"
+                            <AdminStatusPill
                                 :label="statusLabel(row.status)"
+                                :tone="statusTone(row.status)"
                             />
                         </q-td>
                     </template>
@@ -98,99 +98,98 @@
             </AdminSection>
         </AdminBody>
 
-        <q-dialog v-model="detailOpen">
-            <q-card class="sa-emh__detail">
-                <q-inner-loading :showing="detailLoading" />
-                <template v-if="detail">
-                    <q-card-section>
-                        <div class="row items-center no-wrap q-gutter-sm">
-                            <q-badge
-                                :color="statusColor(detail.status)"
-                                :label="statusLabel(detail.status)"
-                            />
-                            <div class="text-h6 ellipsis">{{ detail.subject }}</div>
-                        </div>
-                        <div class="text-caption text-grey-7 q-mt-xs">
-                            {{
-                                formatMessage(msg.history.detailFromTo, {
-                                    from: detail.fromEmail,
-                                    to: detail.toEmail,
-                                })
-                            }}
-                            <span v-if="detail.ccEmail"> · Cc {{ detail.ccEmail }}</span>
-                            <span v-if="detail.bccEmail"> · Bcc {{ detail.bccEmail }}</span>
-                        </div>
-                        <div class="text-caption text-grey-7">
-                            {{
-                                formatMessage(msg.history.detailTimestamps, {
-                                    created: formatTs(detail.createdAt),
-                                    sent: formatTs(detail.sentAt),
-                                })
-                            }}
-                        </div>
-                    </q-card-section>
+        <AdminDialog
+            v-model="detailOpen"
+            :title="detail?.subject ?? msg.history.title"
+            size="lg"
+            :loading="detailLoading"
+        >
+            <template #header-extra>
+                <AdminStatusPill
+                    v-if="detail"
+                    :label="statusLabel(detail.status)"
+                    :tone="statusTone(detail.status)"
+                />
+            </template>
+            <template v-if="detail">
+                <div>
+                    <div class="text-caption text-grey-7 q-mt-xs">
+                        {{
+                            formatMessage(msg.history.detailFromTo, {
+                                from: detail.fromEmail,
+                                to: detail.toEmail,
+                            })
+                        }}
+                        <span v-if="detail.ccEmail"> · Cc {{ detail.ccEmail }}</span>
+                        <span v-if="detail.bccEmail"> · Bcc {{ detail.bccEmail }}</span>
+                    </div>
+                    <div class="text-caption text-grey-7">
+                        {{
+                            formatMessage(msg.history.detailTimestamps, {
+                                created: formatTs(detail.createdAt),
+                                sent: formatTs(detail.sentAt),
+                            })
+                        }}
+                    </div>
+                </div>
 
-                    <q-card-section
-                        v-if="detail.status === 'FAILED' && detail.errorMessage"
-                        class="q-pt-none"
-                    >
-                        <q-banner dense class="bg-red-1 text-red-9 sa-emh__error">
-                            <template #avatar><q-icon name="error" color="negative" /></template>
-                            {{ detail.errorMessage }}
-                        </q-banner>
-                    </q-card-section>
+                <div v-if="detail.status === 'FAILED' && detail.errorMessage">
+                    <AdminBanner tone="negative" dense>
+                        {{ detail.errorMessage }}
+                    </AdminBanner>
+                </div>
 
-                    <q-card-section class="q-pt-none">
-                        <!-- Sandbox without flags: no script, no same-origin — safe
+                <div>
+                    <!-- Sandbox without flags: no script, no same-origin — safe
                              preview rendering of arbitrary email HTML. -->
-                        <iframe
-                            v-if="detail.bodyHtml"
-                            :srcdoc="detail.bodyHtml"
-                            sandbox=""
-                            referrerpolicy="no-referrer"
-                            class="sa-emh__frame"
-                        />
-                        <pre v-else-if="detail.bodyText" class="sa-emh__text">{{
-                            detail.bodyText
-                        }}</pre>
-                        <div v-else class="text-grey-6">{{ msg.history.noContent }}</div>
-                    </q-card-section>
+                    <iframe
+                        v-if="detail.bodyHtml"
+                        :srcdoc="detail.bodyHtml"
+                        sandbox=""
+                        referrerpolicy="no-referrer"
+                        class="sa-emh__frame"
+                    />
+                    <pre v-else-if="detail.bodyText" class="sa-emh__text">{{
+                        detail.bodyText
+                    }}</pre>
+                    <div v-else class="text-grey-6">{{ msg.history.noContent }}</div>
+                </div>
 
-                    <q-card-section v-if="detail.smtpResponse" class="q-pt-none">
-                        <div class="text-caption text-grey-7">{{ msg.history.smtpResponse }}</div>
-                        <pre class="sa-emh__smtp">{{ detail.smtpResponse }}</pre>
-                    </q-card-section>
+                <div v-if="detail.smtpResponse">
+                    <div class="text-caption text-grey-7">{{ msg.history.smtpResponse }}</div>
+                    <pre class="sa-emh__smtp">{{ detail.smtpResponse }}</pre>
+                </div>
+            </template>
+            <template v-if="detail" #footer>
+                <div class="sa-dialog__actions">
+                    <q-btn
+                        flat
+                        color="negative"
+                        icon="delete"
+                        :label="common.remove"
+                        @click="askDelete(detail.id)"
+                    />
+                    <q-btn
+                        unelevated
+                        color="primary"
+                        icon="send"
+                        :label="msg.history.resend"
+                        @click="onResend(detail.id)"
+                    />
+                    <q-btn v-close-popup flat :label="common.close" />
+                </div>
+            </template>
+        </AdminDialog>
 
-                    <q-card-actions align="right">
-                        <q-btn
-                            flat
-                            color="negative"
-                            icon="delete"
-                            :label="common.remove"
-                            @click="askDelete(detail.id)"
-                        />
-                        <q-btn
-                            unelevated
-                            color="primary"
-                            icon="send"
-                            :label="msg.history.resend"
-                            @click="onResend(detail.id)"
-                        />
-                        <q-btn v-close-popup flat :label="common.close" />
-                    </q-card-actions>
-                </template>
-            </q-card>
-        </q-dialog>
-
-        <q-dialog v-model="confirmDeleteOpen">
-            <q-card class="sa-emh__confirm">
-                <q-card-section>
-                    <div class="text-h6">{{ msg.history.confirmRemoveTitle }}</div>
-                </q-card-section>
-                <q-card-section class="q-pt-none">
-                    {{ msg.history.confirmRemoveMessage }}
-                </q-card-section>
-                <q-card-actions align="right">
+        <AdminDialog
+            v-model="confirmDeleteOpen"
+            :title="msg.history.confirmRemoveTitle"
+            size="sm"
+            persistent
+        >
+            <p class="sa-dialog__message">{{ msg.history.confirmRemoveMessage }}</p>
+            <template #footer>
+                <div class="sa-dialog__actions">
                     <q-btn v-close-popup flat :label="common.cancel" />
                     <q-btn
                         unelevated
@@ -198,9 +197,9 @@
                         :label="common.remove"
                         @click="confirmDelete"
                     />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
+                </div>
+            </template>
+        </AdminDialog>
 
         <MfaPromptDialog
             v-if="requireMfaForWrite"
@@ -216,6 +215,14 @@
 
 <script setup lang="ts">
 import AdminTable from '../ui/data/AdminTable.vue';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { emailHistoryResource } from '../client/resources/platform-email.resource.js';
+import { adminErrorMessage } from '../client/admin-error.js';
+import AdminBanner from '../ui/feedback/AdminBanner.vue';
+import AdminDialog from '../ui/overlay/AdminDialog.vue';
+import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
+import type { PillTone } from '../vue/status.js';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminRefreshBtn from '../ui/feedback/AdminRefreshBtn.vue';
@@ -231,9 +238,6 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 import type {
     EmailHistoryRow,
     EmailHistoryDetail,
-    EmailHistoryFilter,
-    EmailHistoryListResult,
-    EmailHistoryResendResult,
     EmailHistoryStatus,
 } from '../internal/email-history/email-history.types';
 
@@ -244,10 +248,11 @@ import type {
 
 const props = withDefaults(
     defineProps<{
-        loadEmails: (filter: EmailHistoryFilter) => Promise<EmailHistoryListResult>;
-        loadEmailDetail: (id: string) => Promise<EmailHistoryDetail>;
-        deleteEmail: (id: string, mfaCode?: string) => Promise<unknown>;
-        resendEmail: (id: string, mfaCode?: string) => Promise<EmailHistoryResendResult>;
+        /**
+         * Override the email-history resource for this page only. Layered over
+         * the app's own override; see AP3 §3.2.
+         */
+        resources?: ResourceOverride<(typeof emailHistoryResource)['ops']>;
         title?: string;
         pageSize?: number;
         requireMfaForWrite?: boolean;
@@ -260,7 +265,12 @@ const props = withDefaults(
 );
 
 const notify = useSuperAdminNotify();
+
+// The data layer, reached by name. The send log is served by the consuming app,
+// at the path every consumer already calls.
+const history = useResource('emailHistory', props.resources);
 const msg = useSaMessages('email');
+const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const shell = useSaMessages('shell');
 const { intlLocale } = useSuperAdminI18n();
@@ -332,7 +342,7 @@ async function reload(): Promise<void> {
     const seq = ++reloadSeq;
     loading.value = true;
     try {
-        const result = await props.loadEmails({
+        const result = await history.list({
             search: filter.search || undefined,
             status: filter.status || undefined,
             from: filter.from || undefined,
@@ -347,7 +357,7 @@ async function reload(): Promise<void> {
         if (seq !== reloadSeq) return;
         rows.value = [];
         pagination.value.rowsNumber = 0;
-        notify('negative', errMsg(err));
+        notify('negative', adminErrorMessage(err, errors.value));
     } finally {
         if (seq === reloadSeq) loading.value = false;
     }
@@ -379,10 +389,10 @@ async function openDetail(row: EmailHistoryRow): Promise<void> {
     detailLoading.value = true;
     detail.value = null;
     try {
-        detail.value = await props.loadEmailDetail(row.id);
+        detail.value = await history.detail(row.id);
     } catch (err) {
         detailOpen.value = false;
-        notify('negative', errMsg(err));
+        notify('negative', adminErrorMessage(err, errors.value));
     } finally {
         detailLoading.value = false;
     }
@@ -390,7 +400,7 @@ async function openDetail(row: EmailHistoryRow): Promise<void> {
 
 async function onResend(id: string): Promise<void> {
     const { ok, result } = await runWrite(msg.value.history.mfaResend, (code) =>
-        props.resendEmail(id, code || undefined),
+        history.resend(id, code || undefined),
     );
     if (!ok) return;
     if (result && result.success === false) {
@@ -411,7 +421,7 @@ async function confirmDelete(): Promise<void> {
     confirmDeleteOpen.value = false;
     if (!id) return;
     const { ok } = await runWrite(msg.value.history.mfaRemove, (code) =>
-        props.deleteEmail(id, code || undefined),
+        history.remove(id, code || undefined),
     );
     if (!ok) return;
     notify('positive', msg.value.history.removeSuccess);
@@ -430,7 +440,7 @@ async function runWrite<T>(
             const result = await invoke('');
             return { ok: true, result };
         } catch (err) {
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
             return { ok: false };
         }
     }
@@ -448,23 +458,23 @@ async function runWrite<T>(
                 continue;
             }
             mfa.show.value = false;
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
             return { ok: false };
         }
     }
 }
 
-function statusColor(status: EmailHistoryStatus): string {
-    switch (status) {
-        case 'SENT':
-            return 'positive';
-        case 'FAILED':
-            return 'negative';
-        case 'BOUNCED':
-            return 'orange';
-        default:
-            return 'grey';
-    }
+// Tone per delivery status. Exhaustive by construction: a new status fails this
+// to compile until it is given one, rather than silently rendering as grey.
+const STATUS_TONE: Readonly<Record<EmailHistoryStatus, PillTone>> = {
+    SENT: 'positive',
+    FAILED: 'negative',
+    BOUNCED: 'warning',
+    PENDING: 'muted',
+};
+
+function statusTone(status: EmailHistoryStatus): PillTone {
+    return STATUS_TONE[status];
 }
 
 function statusLabel(status: EmailHistoryStatus): string {
@@ -478,14 +488,6 @@ function statusLabel(status: EmailHistoryStatus): string {
         default:
             return msg.value.history.statusPending;
     }
-}
-
-function errMsg(err: unknown): string {
-    return (
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        (err as Error)?.message ??
-        msg.value.errorAction
-    );
 }
 
 function formatTs(iso: string | null | undefined): string {
@@ -510,17 +512,6 @@ function formatTs(iso: string | null | undefined): string {
     text-align: center;
     color: var(--sa-color-fg-secondary, var(--sa-color-fg-muted));
     padding: 24px 0;
-}
-.sa-emh__detail {
-    min-width: 560px;
-    max-width: 96vw;
-}
-.sa-emh__confirm {
-    min-width: 380px;
-    max-width: 96vw;
-}
-.sa-emh__error {
-    border-radius: 8px;
 }
 .sa-emh__frame {
     width: 100%;

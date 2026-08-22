@@ -44,9 +44,24 @@ const router = useRouter();
 
 const props = defineProps<{
     errorMessage?: string | null;
-    /** Default: fresh boot into `retryPath`, which re-runs the manifest guard. */
+    /**
+     * Default: fresh boot into `retryPath`, which re-runs the manifest guard.
+     *
+     * @pageContractException this page renders when the MANIFEST failed to
+     * load, so the shell the resource registry lives in did not come up.
+     * Telling it to ask the registry would be telling it to use the thing whose
+     * absence put it on screen. The default works on its own, and both
+     * consumers override it with their own store's `clearCache()`.
+     */
     onRetry?: () => Promise<void> | void;
-    /** Default: navigate to the login route `createAdminRoutes` registers. */
+    /**
+     * Default: navigate to the login route `createAdminRoutes` registers.
+     *
+     * @pageContractException same reason as `onRetry` above — there is no
+     * registry to reach on this page. Both consumers override it with their own
+     * store's `logout()`, which the platform cannot express; removing the prop
+     * would not move that logic into the platform, it would delete it.
+     */
     onLogout?: () => void | Promise<void>;
     /** Login path for the default `onLogout`. */
     loginPath?: string;

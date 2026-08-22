@@ -1,28 +1,24 @@
 <template>
-    <PlatformPromoCodesPage
-        :load-promos="loadPromos"
-        :subtitle="subtitle"
-        :plan-options="planOptions"
-        :enable-create="true"
-        :enable-edit="true"
-        :enable-status-toggle="true"
-        :enable-delete="true"
-        :submit-create="createPromo"
-        :submit-edit="updatePromo"
-        :submit-delete="deletePromo"
-    />
+    <PlatformPromoCodesPage :options="options" />
 </template>
 
 <script setup lang="ts">
 import PlatformPromoCodesPage from '@saasicat/ui-vue/pages/PromoCodesPage.vue';
-import { createPromo, deletePromo, loadPromos, updatePromo } from '../services/app-loaders';
+import type { PromoCodesPageOptions } from '@saasicat/ui-vue/pages/PromoCodesPage.vue';
 
-// Promo codes (GET/POST/PATCH/DELETE /admin/promo-codes). The create/edit/
-// status-toggle/delete flows are the page's built-in dialogs, wired to
-// SaaSiCat's standard Admin API. Plan options mirror config/saas.yaml.
-const subtitle = 'Rabattcodes für das Onboarding-Checkout.';
-const planOptions = [
-    { key: 'STARTER', label: 'Starter' },
-    { key: 'PRO', label: 'Pro' },
-];
+// Promo codes. The page reaches the platform's promo-code resource itself —
+// there is no loader to write and no endpoint to spell. What stays here is what
+// this app decides: the wording, which plans a code may apply to, and which of
+// the four flows its operators are offered.
+const options: PromoCodesPageOptions = {
+    subtitle: 'Rabattcodes für das Onboarding-Checkout.',
+    planOptions: [
+        { key: 'STARTER', label: 'Starter' },
+        { key: 'PRO', label: 'Pro' },
+    ],
+    enableCreate: true,
+    enableEdit: true,
+    enableStatusToggle: true,
+    enableDelete: true,
+};
 </script>

@@ -198,19 +198,21 @@ describe('buildSidebar — section grouping', () => {
             componentKey: 'a',
             navSection: 'ASection',
         });
-        // StandardPages inherit default sections (tenants→Kunden, audit→System);
+        // StandardPages inherit default sections (tenants→Customers, audit→System);
         // ProjectPages bring their own navSection. DEFAULT_SECTION_ORDER
-        // prioritizes Kunden over System; after that, unknown ones come alphabetically.
+        // prioritizes Customers over System; after that, unknown ones come
+        // alphabetically. The names are the shipped catalog's, so they follow
+        // DEFAULT_SA_LOCALE — this case is about the order, not the wording.
         const sidebar = buildSidebar(buildRoutes(m));
         const sectionNames = sidebar.map((s) => s.section);
-        assert.deepEqual(sectionNames, ['Kunden', 'System', 'ASection', 'DemoApp', 'ZSection']);
+        assert.deepEqual(sectionNames, ['Customers', 'System', 'ASection', 'DemoApp', 'ZSection']);
     });
 
     test('sectionOrder override via second parameter', () => {
-        const sidebar = buildSidebar(buildRoutes(buildManifest()), ['System', 'Kunden']);
+        const sidebar = buildSidebar(buildRoutes(buildManifest()), ['System', 'Customers']);
         assert.deepEqual(
             sidebar.map((s) => s.section),
-            ['System', 'Kunden', 'DemoApp'],
+            ['System', 'Customers', 'DemoApp'],
         );
     });
 

@@ -69,15 +69,7 @@
             </template>
         </AdminHero>
 
-        <q-banner v-if="error" class="bg-negative text-white q-ma-md" rounded>
-            <template #avatar>
-                <q-icon name="error" />
-            </template>
-            {{ error.message }}
-            <template #action>
-                <q-btn flat :label="common.reload" @click="load" />
-            </template>
-        </q-banner>
+        <AdminErrorBanner :error="error" :retry="load" />
 
         <AdminBody
             v-if="!viewOwnsHero"
@@ -159,41 +151,10 @@
             />
         </AdminBody>
 
-        <!-- V2 split-view editor as a full-screen view (plan simulation) -->
-        <PlanVersionEditor
-            v-if="mode === 'editor' && draftEditing && selectedPlan"
-            :plan-key="selectedPlan.planKey"
-            :editing-id="draftEditing.editingId"
-            :initial-form="draftEditing.initialForm"
-            :saving="draftSaving"
-            :available-features="availableFeatures"
-            :available-quotas="availableQuotas"
-            :available-bundles="availableBundles"
-            :feature-registry="featureRegistry"
-            :plan-display-name="selectedPlan.label"
-            :save-error="draftSaveError"
-            :predecessor-version="editorPredecessor"
-            @save="onEditorNext"
-            @cancel="onCancelEditor"
-        />
-
-        <!-- V3 Review & Publish — wizard step 3 (plan simulation) -->
-        <PlanReview
-            v-else-if="mode === 'review' && reviewDraft && selectedPlan"
-            :plan="selectedPlan"
-            :version="reviewDraft"
-            :predecessor="reviewPredecessor"
-            :available-quotas="availableQuotas"
-            :available-bundles="availableBundles"
-            :feature-registry="featureRegistry"
-            :tenant-impact-count="tenantCountsByPlanKey[selectedPlan.planKey] ?? 0"
-            :saving="draftSaving"
-            :publishing="publishing"
-            :publish-error="reviewError"
-            @back="onReviewBack"
-            @save-and-exit="onReviewSaveExit"
-            @publish="onReviewPublish"
-        />
+        <!-- Steps 2 and 3 of the wizard, as child routes. They render INSTEAD
+             of the body above, and this page stays mounted while they do — see
+             `plan-area-context.ts` for why that matters. -->
+        <router-view />
 
         <PlansPageToast :message="toastMessage" />
 
@@ -242,6 +203,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { providePlanWizard } from '../vue/plan-wizard.js';
+import { providePlanArea } from '../features/plan/plan-area-context.js';
+import { useResource } from '../vue/resource-registry.js';
+import { useSuperAdminEndpoints, useSuperAdminHttp } from '../vue/use-super-admin-context.js';
+import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import { countPlans, resolvePlans } from '../client/resolve-plans.js';
 import AdminHero from '../ui/page/AdminHero.vue';
@@ -265,12 +232,9 @@ import {
     type UsePlansResult,
     type UsePlanVersionsResult,
 } from '../vue/use-plans.js';
-import type { HttpClient } from '../client/types.js';
 import type { SaMessages } from '../client/i18n/index.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
-import { useSuperAdminHttp } from '../vue/use-super-admin-context.js';
-import PlanVersionEditor from '../features/plan/PlanVersionEditor.vue';
 import PlanMatrix from '../features/plan/PlanMatrix.vue';
 import PlanDetail from '../features/plan/PlanDetail.vue';
 import PlanTitleEdit from '../features/plan/internal/PlanTitleEdit.vue';
@@ -279,7 +243,6 @@ import PlanCreateDialog, {
     type PlanCreateSubmit,
     type TemplateOption,
 } from '../features/plan/PlanCreateDialog.vue';
-import PlanReview from '../features/plan/PlanReview.vue';
 import PlanArchiveDialog from '../internal/plans-page/PlanArchiveDialog.vue';
 import PlanDiscardDraftDialog from '../internal/plans-page/PlanDiscardDraftDialog.vue';
 import PlanPublishDialog from '../internal/plans-page/PlanPublishDialog.vue';
@@ -323,10 +286,6 @@ interface AuditRow {
 }
 
 const props = defineProps<{
-    adminEndpoint: string;
-    projectKey: string;
-    http?: HttpClient;
-    getAuthToken?: () => string | null;
     /**
      * Optional: feature label overrides. Since the catalog entry
      * integration, labels come by default from the FeatureCatalogEntries
@@ -339,20 +298,15 @@ const props = defineProps<{
     planAccents?: Record<string, string>;
     /** Tenant count per plan key for the matrix headers. */
     tenantCountsByPlanKey?: Record<string, number>;
-    /** Optional: loader for a Plan's audit log (cockpit). */
-    loadPlanAudit?: (planId: string) => Promise<AuditRow[]>;
 }>();
 
+const router = useRouter();
 const msg = useSaMessages('plans');
 // The plan detail's own strings: its header moved into this page's hero.
 const planDetailMsg = useSaMessages('planDetail');
 
 // Fallback for the requests this page issues directly. It resolves to the
 // client the app registered via `createSuperAdminApp({ http })`, or to
-// `defaultHttpClient()` — never to a bare `fetch()`, which would drop the
-// app's Authorization header on exactly these calls.
-const shellHttp = useSuperAdminHttp();
-
 // The same derivation PlanList uses for its rows, so the counts above the list
 // and the list itself cannot drift apart.
 const planCounts = computed(() =>
@@ -404,11 +358,24 @@ const publishDraftLabel = computed(() =>
 );
 const common = useSaMessages('common');
 
+// Transport and project from the shell, not from props. `SuperAdminEndpoints`
+// says why in its own doc: the project is app-wide and constant, and a page
+// that takes it as a prop lets a consumer hand this page a different one than
+// its siblings read from. The http client is the shell's, so every request
+// carries the app's auth without the page being told how.
+const { apiBase, projectKey } = useSuperAdminEndpoints();
+// `useSuperAdminHttp()` falls back to `defaultHttpClient()` — never to a bare
+// `fetch()`, which would drop the app's Authorization header.
+const shellHttpClient = useSuperAdminHttp();
+const auditOps = useResource('audit');
+
+/** How many Plan audit entries to ask for before narrowing to one plan. */
+const PLAN_AUDIT_LIMIT = 200;
+
 const composable: UsePlansResult = usePlans({
-    adminEndpoint: props.adminEndpoint,
-    projectKey: props.projectKey,
-    http: props.http,
-    getAuthToken: props.getAuthToken,
+    adminEndpoint: apiBase,
+    projectKey: projectKey,
+    http: shellHttpClient,
 });
 const {
     plans,
@@ -521,7 +488,7 @@ async function onCreateSubmit(payload: PlanCreateSubmit): Promise<void> {
     creatingPlan.value = true;
     try {
         const created: PlanRow = await create({
-            projectKey: props.projectKey,
+            projectKey: projectKey,
             planKey: payload.planKey,
             label: payload.label,
             description: payload.description === '' ? undefined : payload.description,
@@ -553,14 +520,10 @@ async function reloadAllVersions(): Promise<void> {
     if (plans.value.length === 0) return;
     bulkVersionsLoading.value = true;
     try {
-        const http = props.http ?? shellHttp;
-        const token = props.getAuthToken?.();
-        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const http = shellHttpClient;
         const results = await Promise.all(
             plans.value.map(async (p) => {
-                const r = await http(`${props.adminEndpoint}/catalog/plans/${p.id}/versions`, {
-                    headers,
-                });
+                const r = await http(`${apiBase}/catalog/plans/${p.id}/versions`, {});
                 if (r.status !== 200) return [p.id, [] as PlanVersionRow[]] as const;
                 const body = (await r.json().catch(() => [])) as PlanVersionRow[];
                 return [p.id, body] as const;
@@ -583,10 +546,9 @@ const planVersions = shallowRef<UsePlanVersionsResult | null>(null);
 
 async function loadCockpitVersions(plan: PlanRow): Promise<void> {
     const pv = usePlanVersions({
-        adminEndpoint: props.adminEndpoint,
+        adminEndpoint: apiBase,
         planId: plan.id,
-        http: props.http,
-        getAuthToken: props.getAuthToken,
+        http: shellHttpClient,
     });
     planVersions.value = pv;
     await pv.load();
@@ -608,14 +570,21 @@ async function reloadCockpitVersions(): Promise<void> {
 const auditRows = ref<AuditRow[]>([]);
 const loadingAudit = ref(false);
 
+/**
+ * The audit entries for one plan.
+ *
+ * Narrowed client-side by `entityId`, because the admin audit endpoint filters
+ * by entity TYPE and not by id — `AdminAuditListFilter` has `actor`, `action`,
+ * `entity`, `since` and `limit`, and nothing else. The `limit` is therefore a
+ * limit on Plan entries in general, not on this plan's: a cockpit opened on an
+ * old plan can come back empty while newer plans fill the window. Give the
+ * endpoint an `entityId` and this becomes one line.
+ */
 async function loadAuditFor(plan: PlanRow): Promise<void> {
-    if (!props.loadPlanAudit) {
-        auditRows.value = [];
-        return;
-    }
     loadingAudit.value = true;
     try {
-        auditRows.value = await props.loadPlanAudit(plan.id);
+        const entries = await auditOps.list({ entity: 'Plan', limit: PLAN_AUDIT_LIMIT });
+        auditRows.value = entries.filter((entry) => entry.entityId === plan.id) as AuditRow[];
     } catch {
         auditRows.value = [];
     } finally {
@@ -724,20 +693,12 @@ const featureRegistry = computed<Record<string, { label?: string; group?: string
 }));
 
 async function loadEditorSources(): Promise<void> {
-    const http = props.http ?? shellHttp;
-    const token = props.getAuthToken?.();
-    const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    const http = shellHttpClient;
     try {
         const [discRes, bundlesRes, featureEntriesRes] = await Promise.all([
-            http(`${props.adminEndpoint}/discovery`, { headers }),
-            http(
-                `${props.adminEndpoint}/catalog/bundles?projectKey=${encodeURIComponent(props.projectKey)}`,
-                { headers },
-            ),
-            http(
-                `${props.adminEndpoint}/catalog/features?projectKey=${encodeURIComponent(props.projectKey)}`,
-                { headers },
-            ),
+            http(`${apiBase}/discovery`, {}),
+            http(`${apiBase}/catalog/bundles?projectKey=${encodeURIComponent(projectKey)}`, {}),
+            http(`${apiBase}/catalog/features?projectKey=${encodeURIComponent(projectKey)}`, {}),
         ]);
         if (featureEntriesRes.status === 200) {
             featureCatalogEntries.value = (await featureEntriesRes
@@ -760,9 +721,7 @@ async function loadEditorSources(): Promise<void> {
             }>;
             const detailed = await Promise.all(
                 list.map(async (b) => {
-                    const r = await http(`${props.adminEndpoint}/catalog/bundles/${b.id}`, {
-                        headers,
-                    });
+                    const r = await http(`${apiBase}/catalog/bundles/${b.id}`, {});
                     if (r.status !== 200) return null;
                     const body = (await r.json().catch(() => null)) as {
                         bundle: { bundleKey: string; label?: string | null };
@@ -872,7 +831,7 @@ function openCreateDraftWithPrefill(prefill: {
     marketed?: boolean;
 }): void {
     const nextVersion = (versions.value.reduce((m, v) => Math.max(m, v.version), 0) || 0) + 1;
-    draftEditing.value = {
+    wizard.editing.value = {
         editingId: null,
         initialForm: {
             version: nextVersion,
@@ -887,11 +846,11 @@ function openCreateDraftWithPrefill(prefill: {
         },
     };
     draftSaveError.value = null;
-    mode.value = 'editor';
+    void router.push('/admin/plans/version/edit');
 }
 
 function openEditDraft(row: PlanVersionRow): void {
-    draftEditing.value = {
+    wizard.editing.value = {
         editingId: row.id,
         initialForm: {
             version: row.version,
@@ -906,120 +865,7 @@ function openEditDraft(row: PlanVersionRow): void {
         },
     };
     draftSaveError.value = null;
-    mode.value = 'editor';
-}
-
-// Cancel the editor → back to the cockpit (or to the list if no Plan).
-function onCancelEditor(): void {
-    draftEditing.value = null;
-    mode.value = selectedPlan.value ? 'cockpit' : 'list';
-}
-
-// Predecessor version for the "Diff vs. Vorgänger" view in the editor: the
-// published version with the highest version number (= the state the draft
-// would supersede on publish). Null for v1.
-const editorPredecessor = computed<{
-    version: number;
-    features: string[];
-    quotas: Record<string, number>;
-    monthlyNet: string;
-    yearlyNet: string;
-    validFrom: string | null;
-} | null>(() => {
-    const published = versions.value.filter((v) => v.publishedAt !== null);
-    if (published.length === 0) return null;
-    const editingId = draftEditing.value?.editingId ?? null;
-    const candidates = editingId ? published.filter((v) => v.id !== editingId) : published;
-    if (candidates.length === 0) return null;
-    const latest = candidates.reduce((a, b) => (a.version > b.version ? a : b));
-    return {
-        version: latest.version,
-        features: [...latest.features],
-        quotas: quotasOfVersion(latest),
-        monthlyNet: latest.monthlyNet,
-        yearlyNet: latest.yearlyNet,
-        validFrom: latest.validFrom,
-    };
-});
-
-interface EditorFormPayload {
-    version: number;
-    features: string[];
-    bundles: string[];
-    quotas: Record<string, number>;
-    monthlyNet: string;
-    yearlyNet: string;
-    changeNote: string;
-    marketed: boolean;
-    validFrom: string | null;
-    validUntil: string | null;
-}
-
-// Editor button "Weiter · Review" → switches to the review screen WITHOUT
-// persisting. The form is held as a synthetic (not yet saved) PlanVersion;
-// saving happens only in the review.
-function onEditorNext(payload: EditorFormPayload): void {
-    if (!selectedPlan.value || !draftEditing.value) return;
-    const nowIso = new Date().toISOString();
-    reviewDraft.value = {
-        id: draftEditing.value.editingId ?? '',
-        planId: selectedPlan.value.planKey,
-        version: payload.version,
-        baseVersionId: null,
-        features: [...payload.features],
-        bundles: [...payload.bundles],
-        quotas: { ...payload.quotas },
-        monthlyNet: payload.monthlyNet,
-        yearlyNet: payload.yearlyNet,
-        marketed: payload.marketed,
-        publishedAt: null,
-        supersededAt: null,
-        publishedChanges: null,
-        changeNote: payload.changeNote,
-        nonRegressive: true,
-        validFrom: payload.validFrom,
-        validUntil: payload.validUntil,
-        createdByUserId: null,
-        publishedByUserId: null,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-    };
-    reviewError.value = null;
-    mode.value = 'review';
-}
-
-// ─── Review & Publish ───
-// Predecessor (current live version) for the diff/impact display in the review.
-const reviewPredecessor = computed<PlanVersionRow | null>(() => {
-    const live = versions.value.filter((v) => v.publishedAt !== null && v.supersededAt === null);
-    if (live.length === 0) return null;
-    return live.reduce((a, b) => (a.version > b.version ? a : b));
-});
-
-// "Zurück" — back to the editor, with the form values shown in the review
-// (not yet saved), so no input is lost.
-function onReviewBack(): void {
-    if (!reviewDraft.value || !draftEditing.value) {
-        mode.value = selectedPlan.value ? 'cockpit' : 'list';
-        return;
-    }
-    const d = reviewDraft.value;
-    draftEditing.value = {
-        editingId: draftEditing.value.editingId,
-        initialForm: {
-            version: d.version,
-            features: [...d.features],
-            quotas: { ...(d.quotas ?? {}) },
-            monthlyNet: d.monthlyNet,
-            yearlyNet: d.yearlyNet,
-            changeNote: d.changeNote ?? '',
-            marketed: d.marketed,
-            validFrom: d.validFrom,
-            validUntil: d.validUntil,
-        },
-    };
-    reviewError.value = null;
-    mode.value = 'editor';
+    void router.push('/admin/plans/version/edit');
 }
 
 // Persists the review draft (createDraft for a new version, updateDraft for
@@ -1190,10 +1036,9 @@ async function executeDiscard(): Promise<void> {
         // the cockpit composable); afterwards we reload the bulk state so the
         // list loses the removed draft immediately.
         const pv = usePlanVersions({
-            adminEndpoint: props.adminEndpoint,
+            adminEndpoint: apiBase,
             planId: plan.id,
-            http: props.http,
-            getAuthToken: props.getAuthToken,
+            http: shellHttpClient,
         });
         await pv.discardDraft(draft.id);
         await reloadAllVersions();
@@ -1260,6 +1105,61 @@ async function onSubmitTerminate(versionId: string, endsAt: string): Promise<voi
 const publishOpen = ref(false);
 const publishTarget = ref<PlanVersionRow | null>(null);
 const publishing = ref(false);
+
+// ── What the two wizard steps read ──────────────────────────────────────────
+//
+// The editor and the review are child routes of this one. This page stays
+// mounted while they render, which is what keeps the unsaved draft alive and
+// stops the catalog being loaded a second time — see `plan-area-context.ts`
+// and `vue/plan-wizard.ts`.
+const wizard = providePlanWizard();
+
+providePlanArea({
+    plan: selectedPlan,
+    versions,
+    availableFeatures,
+    availableQuotas,
+    availableBundles,
+    featureRegistry,
+    tenantCounts: tenantCountsByPlanKey,
+    saving: draftSaving,
+    publishing,
+    saveError: draftSaveError,
+    // The wizard moved to its own routes; the persistence did not. Both steps
+    // still write through the handlers this page already had, which is why the
+    // review's synthetic version is assembled here rather than in the step.
+    saveDraft: async (payload, editingId) => {
+        const nowIso = new Date().toISOString();
+        draftEditing.value = { editingId, initialForm: { ...payload } };
+        reviewDraft.value = {
+            id: editingId ?? '',
+            planId: selectedPlan.value?.planKey ?? '',
+            version: payload.version,
+            baseVersionId: null,
+            features: [...payload.features],
+            bundles: [...payload.bundles],
+            quotas: { ...payload.quotas },
+            monthlyNet: payload.monthlyNet,
+            yearlyNet: payload.yearlyNet,
+            marketed: payload.marketed,
+            publishedAt: null,
+            supersededAt: null,
+            publishedChanges: null,
+            changeNote: payload.changeNote,
+            nonRegressive: true,
+            validFrom: payload.validFrom,
+            validUntil: payload.validUntil,
+            createdByUserId: null,
+            publishedByUserId: null,
+            createdAt: nowIso,
+            updatedAt: nowIso,
+        };
+        await onReviewSaveExit();
+    },
+    publishDraft: async () => {
+        await onReviewPublish({ forceRegressive: false, allowZeroPrice: false });
+    },
+});
 const forceRegressive = ref(false);
 const allowZeroPrice = ref(false);
 const publishError = ref<string | null>(null);

@@ -29,7 +29,7 @@ import {
 import {
     defaultTenantPlanSectionI18n,
     planChangeWizardI18n,
-} from '../../src/pages-tenant/default-i18n.js';
+} from '@saasicat/ui-vue-tenant/default-i18n.js';
 
 // The roster the baselines cover, and what each page needs to render its real
 // chrome instead of an empty frame or an error banner.
@@ -238,7 +238,8 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     visualCase({
         id: 'dashboard',
         load: () => import('../../src/pages/DashboardPage.vue'),
-        props: ({ http }) => ({ http }),
+        // Nothing: the manifest comes from `SUPER_ADMIN_MANIFEST_KEY` and the
+        // KPI reads from the registry, both installed by `main.ts`.
     }),
     visualCase({
         id: 'discovery',
@@ -579,7 +580,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     // teleported portal.
     visualCase({
         id: 'tenant-plan',
-        load: () => import('../../src/pages-tenant/TenantPlanSection.vue'),
+        load: () => import('@saasicat/ui-vue-tenant/TenantPlanSection.vue'),
         props: ({ http }) => ({
             http,
             apiPrefix: '/api/billing',
@@ -591,7 +592,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'tenant-bundles',
-        load: () => import('../../src/pages-tenant/MySubscriptionBundlesPage.vue'),
+        load: () => import('@saasicat/ui-vue-tenant/MySubscriptionBundlesPage.vue'),
         props: ({ http }) => ({
             http,
             billingEndpoint: '/api',
@@ -604,7 +605,7 @@ export const VISUAL_CASES: readonly VisualCase[] = [
     }),
     visualCase({
         id: 'tenant-plan-change',
-        load: () => import('../../src/pages-tenant/PlanChangeWizard.vue'),
+        load: () => import('@saasicat/ui-vue-tenant/PlanChangeWizard.vue'),
         props: () => ({
             // Open from the start: the wizard is a dialog, so a closed one
             // renders nothing and the case would be a snapshot of an empty div.

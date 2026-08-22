@@ -17,6 +17,7 @@ import {
     toAdminError,
     useTenantSubscriptionBundles,
 } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 const EN = SA_MESSAGES.en.errors;
 
@@ -101,7 +102,7 @@ describe('useTenantSubscriptionBundles', () => {
 
     test('add() prepends the new bundle and sends the token', async () => {
         const { http, calls } = httpReturning({ body: RECORD });
-        const view = bundles({ http, getAuthToken: () => 'tok' });
+        const view = bundles({ http: authenticating(http, 'tok') });
         const created = await view.add({ bundleVersionId: 'bv-1', minimumTermMonths: 12 });
         assert.equal(calls[0].init.method, 'POST');
         assert.equal(calls[0].init.headers.Authorization, 'Bearer tok');

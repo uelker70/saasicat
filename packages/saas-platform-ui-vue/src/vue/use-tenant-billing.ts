@@ -222,7 +222,6 @@ export interface UseTenantBillingOptions {
      */
     apiPrefix?: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** Default `true`. */
     autoLoad?: boolean;
 }
@@ -284,8 +283,6 @@ export function useTenantBilling(options: UseTenantBillingOptions = {}): UseTena
 
     function authHeaders(): Record<string, string> {
         const headers: Record<string, string> = {};
-        const token = options.getAuthToken?.();
-        if (token) headers.Authorization = `Bearer ${token}`;
         return headers;
     }
 

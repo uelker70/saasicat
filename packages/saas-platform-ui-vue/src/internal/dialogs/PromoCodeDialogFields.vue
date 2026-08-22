@@ -9,7 +9,6 @@
          Both are replaced by `AdminFormDialog` + `AdminFieldGrid`, which own the
          submit lifecycle instead of sharing a mutable object. Until then the
          rule stays sharp everywhere else rather than being weakened repo-wide. -->
-    <!-- eslint-disable vue/no-mutating-props -->
     <!-- Section: Code & Discount -->
     <div class="pc-section">
         <div class="pc-section__title">{{ msg.form.sectionCodeDiscount }}</div>
@@ -313,10 +312,23 @@ export interface PromoCodeSharedForm {
     status?: 'ACTIVE' | 'PAUSED';
 }
 
+/**
+ * The form this component edits.
+ *
+ * A model, not a prop: the fields write into it on every keystroke, and a prop
+ * that is written to is what `vue/no-mutating-props` exists to catch. The two
+ * `eslint-disable` blocks this replaces were the last ones in the package —
+ * they had been there since the file was a shared mutable object passed down
+ * from whichever dialog happened to own it.
+ *
+ * `defineModel` keeps the parent in charge of the value while letting the
+ * fields write to it directly, so nothing here has to emit twenty-one times.
+ */
+const form = defineModel<PromoCodeSharedForm>('form', { required: true });
+
 const props = withDefaults(
     defineProps<{
         mode: 'create' | 'edit';
-        form: PromoCodeSharedForm;
         /** Editable on create, display-only on edit. */
         code: string;
         showCampaignTag?: boolean;
@@ -372,18 +384,16 @@ function onRandomCode(): void {
 }
 
 function isPlanSelected(key: string): boolean {
-    return props.form.appliesToPlans.includes(key);
+    return form.value.appliesToPlans.includes(key);
 }
 
 function togglePlan(key: string): void {
     // Same shared-`form` contract as the template above (see the comment there).
-    /* eslint-disable vue/no-mutating-props */
-    if (props.form.appliesToPlans.includes(key)) {
-        props.form.appliesToPlans = props.form.appliesToPlans.filter((k) => k !== key);
+    if (form.value.appliesToPlans.includes(key)) {
+        form.value.appliesToPlans = form.value.appliesToPlans.filter((k) => k !== key);
     } else {
-        props.form.appliesToPlans = [...props.form.appliesToPlans, key];
+        form.value.appliesToPlans = [...form.value.appliesToPlans, key];
     }
-    /* eslint-enable vue/no-mutating-props */
 }
 
 function planChipStyle(p: PromoCodePlanOption): Record<string, string> {
@@ -392,26 +402,26 @@ function planChipStyle(p: PromoCodePlanOption): Record<string, string> {
 }
 
 const previewValue = computed(() => {
-    if (props.form.valueType === 'PERCENT') return `\u2212${props.form.value || 0}%`;
-    return `\u2212${props.form.value || 0} \u20ac`;
+    if (form.value.valueType === 'PERCENT') return `\u2212${form.value.value || 0}%`;
+    return `\u2212${form.value.value || 0} \u20ac`;
 });
 
 const previewMeta = computed(() => {
     const parts: string[] = [];
-    const count = props.form.durationValue || 0;
-    if (props.form.durationType === 'ONCE') parts.push(msg.value.form.previewOnce);
-    else if (props.form.durationType === 'MONTHS')
+    const count = form.value.durationValue || 0;
+    if (form.value.durationType === 'ONCE') parts.push(msg.value.form.previewOnce);
+    else if (form.value.durationType === 'MONTHS')
         parts.push(formatMessage(msg.value.form.previewMonths, { count }));
     else parts.push(formatMessage(msg.value.form.previewCycles, { count }));
     parts.push(
-        props.form.appliesToPlans.length > 0
-            ? props.form.appliesToPlans.join(', ')
+        form.value.appliesToPlans.length > 0
+            ? form.value.appliesToPlans.join(', ')
             : props.plans.length > 0
               ? msg.value.form.previewAllPlans
               : msg.value.form.previewNoPlanFilter,
     );
-    if (props.form.maxRedemptions)
-        parts.push(formatMessage(msg.value.form.previewMax, { count: props.form.maxRedemptions }));
+    if (form.value.maxRedemptions)
+        parts.push(formatMessage(msg.value.form.previewMax, { count: form.value.maxRedemptions }));
     return parts.join(' \u00b7 ');
 });
 

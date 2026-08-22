@@ -25,6 +25,7 @@ import type { FeatureCatalogEntryRow } from '@saasicat/types';
 
 import DiscoveryPage from '../src/pages/DiscoveryPage.vue';
 import { mountWithQuasar } from './support/mount-with-quasar';
+import { provideStubResources } from './support/stub-resources';
 
 /**
  * One real catalog entry, annotated against its own type.
@@ -68,21 +69,41 @@ const FEATURE: FeatureCatalogEntryRow = {
  * the malformed-`capabilities` cases would mount happily without the loop ever
  * running, and would prove nothing.
  */
-const REQUIRED = {
-    capabilities: [],
-    features: [FEATURE],
-    quotas: [],
-    loading: false,
-    error: null,
-    activeLocales: ['en'],
-    runDiscovery: async () => {},
-    reviewFeature: async () => ({}),
-    reviewQuota: async () => ({}),
-    setFeatureI18n: async () => ({}),
-    setQuotaI18n: async () => ({}),
-    setFeatureBase: async () => ({}),
-    setQuotaBase: async () => ({}),
-};
+const REQUIRED = { activeLocales: ['en'] };
+
+/**
+ * Mounts the page with a stubbed catalog and a snapshot of the test's choosing.
+ *
+ * The snapshot used to be a prop. It now arrives through the discovery
+ * resource, which is what this fixture has to imitate — the malformed shapes
+ * below are what a SERVER sends, and pushing them through the same seam is the
+ * only way this file still tests the thing it is named after.
+ */
+function mountWithSnapshot(snapshot: unknown) {
+    return mountWithQuasar(DiscoveryPage, {
+        props: REQUIRED,
+        global: {
+            provide: provideStubResources({
+                catalog: {
+                    capabilities: () => Promise.resolve([]),
+                    features: () => Promise.resolve([FEATURE]),
+                    quotas: () => Promise.resolve([]),
+                    syncDiscovery: () => Promise.resolve({}),
+                    reviewFeature: () => Promise.resolve({}),
+                    reviewQuota: () => Promise.resolve({}),
+                    setFeatureI18n: () => Promise.resolve({}),
+                    setQuotaI18n: () => Promise.resolve({}),
+                    setFeatureBase: () => Promise.resolve({}),
+                    setQuotaBase: () => Promise.resolve({}),
+                },
+                discovery: {
+                    read: () => Promise.resolve({ status: 'loaded', snapshot, etag: null }),
+                    rescan: () => Promise.resolve({ snapshot, etag: null }),
+                },
+            }),
+        },
+    });
+}
 
 describe('DiscoveryPage survives a snapshot that is not a snapshot', () => {
     // Each of these is a body a server can answer 200 with. None matches
@@ -115,9 +136,7 @@ describe('DiscoveryPage survives a snapshot that is not a snapshot', () => {
 
     for (const [label, snapshot] of MALFORMED) {
         test(`${label} renders instead of throwing`, () => {
-            const wrapper = mountWithQuasar(DiscoveryPage, {
-                props: { ...REQUIRED, snapshot },
-            });
+            const wrapper = mountWithSnapshot(snapshot);
 
             // Rendered at all — a component that threw during setup leaves
             // nothing behind, so this is the assertion that matters.
@@ -130,9 +149,7 @@ describe('DiscoveryPage survives a snapshot that is not a snapshot', () => {
         // The guard must not have been "fixed" by removing the fallbacks: the
         // dash and the version placeholder are what the page promises when it
         // has no snapshot yet.
-        const wrapper = mountWithQuasar(DiscoveryPage, {
-            props: { ...REQUIRED, snapshot: null },
-        });
+        const wrapper = mountWithSnapshot(null);
         expect(wrapper.text()).toContain('—');
         wrapper.unmount();
     });

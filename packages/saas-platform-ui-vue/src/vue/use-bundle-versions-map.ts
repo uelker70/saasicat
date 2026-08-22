@@ -18,7 +18,6 @@ export interface UseBundleVersionsMapOptions {
     /** Reactive list of bundle roots; the watcher reloads when the IDs change. */
     bundles: Ref<BundleRow[]>;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
 }
 
 export interface UseBundleVersionsMapResult {
@@ -48,8 +47,7 @@ export function useBundleVersionsMap(
     const error = ref<Error | null>(null);
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function loadForBundle(bundleId: string): Promise<BundleVersionRow[]> {

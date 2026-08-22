@@ -26,7 +26,6 @@ export interface UseTenantsOptions {
     /** Reactive filter; default is an empty object. */
     filter?: Ref<TenantListFilter>;
     http?: UseApiListOptions<Record<string, unknown>>['http'];
-    getAuthToken?: () => string | null;
     autoLoad?: boolean;
 }
 
@@ -54,7 +53,6 @@ export function useTenants<T extends TenantDto = TenantDto>(
         endpoint: options.endpoint,
         filter: filter as unknown as Ref<Record<string, unknown>>,
         http: options.http,
-        getAuthToken: options.getAuthToken,
         autoLoad: options.autoLoad,
     });
     return { ...list, filter };

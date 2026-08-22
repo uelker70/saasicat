@@ -454,18 +454,43 @@ This produces a runnable Vue 3 + Quasar + Vite project with:
 The only thing left to do is adapt **`src/services/http.ts#adminLogin`** to
 your backend auth.
 
-Standard resource pages can share one small client instead of repeating fetch
-code:
+Standard pages need no loaders. They read the platform's resource registry,
+which `createSuperAdminApp({ http })` installs — the same `http` you passed
+above, so every request carries your auth:
 
-```ts
-import { createAdminResourceClient } from '@saasicat/ui-vue';
-import { platformHttp } from './http';
-
-export const adminResources = createAdminResourceClient({ http: platformHttp });
+```vue
+<template>
+    <PlatformUsersPage subtitle="All users across tenants." />
+</template>
 ```
 
-Pass `adminResources.loadUsers`, `loadAudit`, `loadSubscriptions`,
-`loadPromos` and the tenant/promo actions directly to the supplied pages.
+What stays in your wrapper is what your app decides: the wording, which flows
+your operators get, which plans a promo code may apply to. Nothing to wire.
+
+When one call has to go somewhere else — a legacy host, an approval recorded
+around a publish — override that one operation and keep the rest:
+
+```ts
+createSuperAdminApp({
+    http: platformHttp,
+    resourceOverrides: {
+        bundleVersions: {
+            ops: {
+                publish: async (next, versionId, options) => {
+                    await recordApproval(versionId);
+                    return next(versionId, options);
+                },
+            },
+        },
+    },
+});
+```
+
+`next` is the platform's own implementation, so the wrapper decides what happens
+around it rather than replacing it. Every other operation is untouched.
+
+`createAdminResourceClient` is still exported for an app that wants to call the
+admin API from its own code rather than through a page.
 
 ### Frontend feature gate (tenant UI)
 

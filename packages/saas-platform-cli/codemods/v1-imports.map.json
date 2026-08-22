@@ -120,12 +120,15 @@
         "pages-standard/tenant-detail": "internal/tenant-detail",
         "pages-standard/tenants": "internal/tenants"
     },
+    "packages": {
+        "_": "Subpaths that left @saasicat/ui-vue for a package of their own. The value is a full specifier, and the codemod emits it verbatim.",
+        "pages-tenant/": "@saasicat/ui-vue-tenant/"
+    },
     "stays": {
         "client/": "framework-free layer, unchanged",
         "vue/": "composables, unchanged",
         "quasar/": "the one non-SFC place that may import quasar, unchanged",
         "ui/theme/": "already in its destination (AP2)",
-        "pages-tenant/": "becomes its own package in 4.12, not here",
         "testing-e2e/": "unchanged",
         "pages-standard/sa-theme.css \u2192 ui/theme/": "moved so that pages-standard/ can go; renamed to theme.css in 4.2"
     }

@@ -47,12 +47,6 @@ export interface ManifestLoaderOptions {
      * are separated.
      */
     storageKeyPrefix?: string;
-    /**
-     * Auth header for `Authorization: Bearer <token>`. Sent with every
-     * request. The consumer supplies a function that pulls the
-     * current token from the auth store.
-     */
-    getAuthToken?: () => string | null;
 }
 
 /**
@@ -84,8 +78,6 @@ export class ManifestLoader {
     private readonly storage: KvStore;
     private readonly bodyKey: string;
     private readonly etagKey: string;
-    private readonly getAuthToken?: () => string | null;
-
     constructor(options: ManifestLoaderOptions) {
         if (!options?.endpoint) {
             throw new Error(
@@ -100,7 +92,6 @@ export class ManifestLoader {
         const prefix = options.storageKeyPrefix ?? '';
         this.bodyKey = `${prefix}manifest:body`;
         this.etagKey = `${prefix}manifest:etag`;
-        this.getAuthToken = options.getAuthToken;
     }
 
     /**
@@ -139,8 +130,6 @@ export class ManifestLoader {
     /** Sends the manifest GET, conditional when an ETag is supplied. */
     private request(etag: string | null): Promise<HttpResponse> {
         const headers: Record<string, string> = {};
-        const token = this.getAuthToken?.();
-        if (token) headers.Authorization = `Bearer ${token}`;
         if (etag) headers['If-None-Match'] = etag;
         return this.http(this.endpoint, { method: 'GET', headers });
     }

@@ -32,7 +32,7 @@ import {
     type ResourceListPage,
 } from '../client/resources/list-resource.js';
 import { useAsyncData } from './use-async-data.js';
-import { useResource, type ResourceMap } from './resource-registry.js';
+import { useResource, type ResourceMap, type ResourceOverride } from './resource-registry.js';
 
 /** The default operation name, and the only one the platform resources offer. */
 const DEFAULT_LIST_OP = 'list';
@@ -106,6 +106,11 @@ export interface AsyncList<T> {
 }
 
 export interface UseResourceListOptions<TOps extends ResourceOps, N extends ListOpNames<TOps>> {
+    /**
+     * Override the resource for this list only, layered over the app's own.
+     * The page-level counterpart of `useResource(key, override)`.
+     */
+    resources?: ResourceOverride<TOps>;
     /** Which operation to page through. Defaults to `list`. */
     op?: N;
     /**
@@ -156,17 +161,22 @@ function paginationKeysIn(filter: Record<string, unknown>): string[] {
 /**
  * The named operation, or a failure that says what the resource does offer.
  *
- * `Object.hasOwn` rather than an indexed read: indexing walks the prototype
- * chain, so `op: 'toString'` would find `Object.prototype`'s and call it. The
- * registry documents the same trap for overrides, where a typo failed loudly
- * while a prototype name passed silently.
+ * An own-property check rather than an indexed read: indexing walks the
+ * prototype chain, so `op: 'toString'` would find `Object.prototype`'s and call
+ * it. The registry documents the same trap for overrides, where a typo failed
+ * loudly while a prototype name passed silently.
+ *
+ * `hasOwnProperty.call` rather than `Object.hasOwn`, which is ES2022 — this
+ * file is reachable from `pages/*`, which ships as source.
  */
 function readListOp<TRow>(
     key: string,
     ops: object,
     name: string,
 ): (query: ListQuery) => Promise<ResourceListPage<TRow>> {
-    const op = Object.hasOwn(ops, name) ? (ops as Record<string, unknown>)[name] : undefined;
+    const op = Object.prototype.hasOwnProperty.call(ops, name)
+        ? (ops as Record<string, unknown>)[name]
+        : undefined;
     if (typeof op !== 'function') {
         throw new Error(
             `useResourceList("${key}", { op: "${name}" }): that resource has no such ` +
@@ -183,7 +193,7 @@ export function useResourceList<
 >(key: K, opts?: UseResourceListOptions<TMap[K]['ops'], N>): AsyncList<RowOf<TMap[K]['ops'], N>> {
     type Row = RowOf<TMap[K]['ops'], N>;
 
-    const ops = useResource<K, TMap>(key);
+    const ops = useResource<K, TMap>(key, opts?.resources);
     const opName = (opts?.op ?? DEFAULT_LIST_OP) as string;
     const load = readListOp<Row>(key, ops as object, opName);
 

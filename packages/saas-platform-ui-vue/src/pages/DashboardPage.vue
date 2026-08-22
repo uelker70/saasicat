@@ -1,14 +1,12 @@
 <template>
     <AdminPage class="sa-dashboard">
-        <AdminHero :title="msg.title" :subtitle="subtitle">
+        <AdminHero :title="msg.title" :subtitle="opts.subtitle">
             <template #actions>
                 <AdminRefreshBtn :loading="loading" @refresh="reload" />
             </template>
         </AdminHero>
 
-        <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
-            <strong>{{ common.error }}:</strong> {{ error.message }}
-        </q-banner>
+        <AdminErrorBanner :error="error" />
 
         <div v-if="loading && !cards.length" class="sa-dashboard__loading">
             <q-spinner size="32px" /> {{ common.loadingData }}
@@ -38,8 +36,8 @@
             </AdminStatistics>
         </AdminSection>
 
-        <div v-if="distributions && distributions.length > 0" class="sa-dashboard__rows">
-            <AdminSection v-for="dist in distributions" :key="dist.id" :title="dist.label">
+        <div v-if="opts.distributions && opts.distributions.length > 0" class="sa-dashboard__rows">
+            <AdminSection v-for="dist in opts.distributions" :key="dist.id" :title="dist.label">
                 <template v-if="dist.total" #actions>
                     <span class="sa-dashboard__count">{{ dist.total }}</span>
                 </template>
@@ -92,13 +90,15 @@
 
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive, ref, watch } from 'vue';
+import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import type { AdminManifest, KpiCardDef } from '@saasicat/types';
-import type { HttpClient } from '../client/types.js';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { KpiReading, dashboardResource } from '../client/resources/dashboard.resource.js';
 import { buildRoutes } from '../client/nav-builder.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { SUPER_ADMIN_MANIFEST_KEY } from '../vue/super-admin-context.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
-import { useSuperAdminHttp } from '../vue/use-super-admin-context.js';
 import AdminRefreshBtn from '../ui/feedback/AdminRefreshBtn.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminKpi from '../ui/data/AdminKpi.vue';
@@ -108,11 +108,12 @@ import AdminStatistics from '../ui/data/AdminStatistics.vue';
 
 // Platform standard page: Dashboard.
 //
-// Reads the KPI cards from the admin manifest (`dashboard.kpiCards`) and
-// fetches the declared `endpoint` for each card. App-specific response shapes
-// are projected into `{ value, sub }` by the optional `formatKpi` prop.
+// Reads the KPI cards from the admin manifest (`dashboard.kpiCards`) and asks
+// the `dashboard` resource for each card's declared `endpoint`. An app whose
+// endpoints answer in a shape the default reader does not recognise overrides
+// `kpi` rather than passing a formatter — one override covers every card.
 //
-// Additionally:
+// In `options`:
 //   - `distributions` : list of bar charts (e.g. subscriptions per plan,
 //     promo status). Apps pass the data straight through — the platform
 //     renders the bar-chart layout.
@@ -122,11 +123,6 @@ import AdminStatistics from '../ui/data/AdminStatistics.vue';
 //
 // Slots:
 //   - `#after-kpis`   : additional free sections below the structures.
-
-export interface KpiFormatted {
-    value: string | number;
-    sub?: string;
-}
 
 export interface DistributionEntry {
     label: string;
@@ -155,22 +151,21 @@ export interface ShortcutDef {
     to: string;
 }
 
-interface Props {
-    /** Preloaded manifest. If null/undefined, loaded via `loadManifest`. */
-    manifest?: AdminManifest | null;
-    /** Custom loader for the manifest (fallback when `manifest` is not set). */
-    loadManifest?: () => Promise<AdminManifest>;
-    /** Custom HttpClient. Default: global `fetch`. */
-    http?: HttpClient;
-    /** Token provider (when the HttpClient default fetch is used). */
-    getAuthToken?: () => string | null;
+interface KpiCardState {
+    id: string;
+    label: string;
+    sub?: string;
+    displayHint: KpiCardDef['displayHint'];
+    endpoint: string;
+    loading: boolean;
+    error: Error | null;
+    value: string | number | null;
+}
+
+/** Presentation and capability. Never data, never a callback. */
+export interface DashboardPageOptions {
     /** Optional subtitle below the H1. */
     subtitle?: string;
-    /**
-     * App-specific formatter for KPI responses. Default extracts
-     * `value`/`count`/`total` and uses `displayHint.type` for `sub`.
-     */
-    formatKpi?: (card: KpiCardDef, body: unknown) => KpiFormatted;
     /** Bar-chart sections (subscriptions/promos/...). */
     distributions?: readonly DistributionDef[];
     /**
@@ -184,20 +179,24 @@ interface Props {
     shortcutDescriptions?: Partial<Record<string, string>>;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-    shortcuts: 'auto',
-});
-
-interface KpiCardState {
-    id: string;
-    label: string;
-    sub?: string;
-    displayHint: KpiCardDef['displayHint'];
-    endpoint: string;
-    loading: boolean;
-    error: Error | null;
-    value: string | number | null;
-}
+const props = defineProps<{
+    /**
+     * The manifest, for a mount that is not inside the shell.
+     *
+     * Inside `createSuperAdminApp` the guard has already loaded it and the page
+     * takes it from the injection below, which is why this is optional and why
+     * there is no loader prop beside it: a page that had to be told how to
+     * fetch the manifest would be a page whose shell had not finished booting.
+     */
+    manifest?: AdminManifest | null;
+    /**
+     * Override the dashboard resource for this page only — an app whose KPI
+     * endpoints answer in a shape the default reader does not recognise wraps
+     * `kpi` here. Layered over the app's own override; see AP3 §3.2.
+     */
+    resources?: ResourceOverride<(typeof dashboardResource)['ops']>;
+    options?: DashboardPageOptions;
+}>();
 
 const msg = useSaMessages('dashboard');
 const common = useSaMessages('common');
@@ -206,9 +205,11 @@ const { locale, intlLocale } = useSuperAdminI18n();
 // Provided by createSuperAdminApp({ manifestGuard: { getManifest } }) — lets
 // the page work as a plain route component without a wrapper.
 const injectedManifest = inject(SUPER_ADMIN_MANIFEST_KEY, null);
-// The KPI endpoints need the app's auth. Without this the page would fall back
-// to a bare fetch() and every card would render as an em dash.
-const shellHttp = useSuperAdminHttp();
+// Every KPI request goes through the resource, which goes through the client
+// the app registered. There is no path on which a card could reach the network
+// without the app's auth — a bare `fetch()` here used to silently drop it.
+const dashboard = useResource('dashboard', props.resources);
+const opts = computed<DashboardPageOptions>(() => props.options ?? {});
 
 const manifestRef = ref<AdminManifest | null>(props.manifest ?? injectedManifest?.() ?? null);
 const cards = reactive<KpiCardState[]>([]);
@@ -231,19 +232,18 @@ watch(
 );
 
 onMounted(() => {
-    if (manifestRef.value) {
-        void buildAndFetch();
-    } else if (props.loadManifest) {
-        void reload();
-    }
+    // No else: without a manifest there are no cards to fetch, and the shell's
+    // guard is what produces one. A page that fetched its own would be racing
+    // the boot it is already downstream of.
+    if (manifestRef.value) void buildAndFetch();
 });
 
 const resolvedShortcuts = computed<ShortcutDef[]>(() => {
-    if (props.shortcuts === 'none') return [];
+    if (opts.value.shortcuts === 'none') return [];
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
     let list: ShortcutDef[];
-    if (Array.isArray(props.shortcuts)) {
-        list = [...props.shortcuts];
+    if (Array.isArray(opts.value.shortcuts)) {
+        list = [...opts.value.shortcuts];
     } else if (!manifestRef.value) {
         list = [];
     } else {
@@ -253,7 +253,7 @@ const resolvedShortcuts = computed<ShortcutDef[]>(() => {
             label: r.label,
             icon: r.icon,
             to: r.path,
-            sub: props.shortcutDescriptions?.[r.id],
+            sub: opts.value.shortcutDescriptions?.[r.id],
         }));
     }
     // Do not show the current page as a shortcut — linking from the dashboard
@@ -263,16 +263,6 @@ const resolvedShortcuts = computed<ShortcutDef[]>(() => {
 
 async function reload(): Promise<void> {
     error.value = null;
-    if (!manifestRef.value && props.loadManifest) {
-        loading.value = true;
-        try {
-            manifestRef.value = await props.loadManifest();
-        } catch (err) {
-            error.value = err instanceof Error ? err : new Error(String(err));
-            loading.value = false;
-            return;
-        }
-    }
     await buildAndFetch();
 }
 
@@ -302,21 +292,14 @@ async function fetchOne(index: number): Promise<void> {
     card.loading = true;
     card.error = null;
     try {
-        const resp = await callHttp(card.endpoint);
-        if (resp.status >= 400) {
-            throw new Error(`HTTP ${resp.status}`);
-        }
-        const body = await resp.json();
-        const formatter = props.formatKpi ?? defaultFormat;
-        const def: KpiCardDef = {
+        const reading = await dashboard.kpi({
             id: card.id,
             label: card.label,
             endpoint: card.endpoint,
             displayHint: card.displayHint,
-        };
-        const out = formatter(def, body);
-        card.value = out.value;
-        card.sub = out.sub;
+        });
+        card.value = reading.value;
+        card.sub = subLineFor(reading, card.displayHint.type);
     } catch (err) {
         card.error = err instanceof Error ? err : new Error(String(err));
     } finally {
@@ -324,53 +307,27 @@ async function fetchOne(index: number): Promise<void> {
     }
 }
 
-function defaultFormat(card: KpiCardDef, body: unknown): KpiFormatted {
-    const obj = (body ?? {}) as Record<string, unknown>;
-    const value = extractValue(obj);
-    return {
-        value: value ?? '—',
-        sub: extractSub(obj, card.displayHint.type),
-    };
-}
-
-// Every KPI request goes through an `HttpClient`. `useSuperAdminHttp()` always
-// resolves — to the client the app registered, or to `defaultHttpClient()` —
-// so there is no path on which a card could reach the network without the
-// app's auth. A bare `fetch()` here used to silently drop it.
-//
-// The token rides along as a header regardless of which client transports it,
-// the same way `useApiList` and the other standard pages do it. The two are
-// orthogonal, and a page that mounted with the documented `getAuthToken` but
-// no `http` of its own would otherwise send every KPI request unauthenticated
-// and render an error in all of its cards.
-function callHttp(url: string): Promise<{ status: number; json: () => Promise<unknown> }> {
-    const http = props.http ?? shellHttp;
-    const headers: Record<string, string> = {};
-    const token = props.getAuthToken?.();
-    if (token) headers.Authorization = `Bearer ${token}`;
-    return http(url, { method: 'GET', headers });
-}
-
-function extractValue(body: Record<string, unknown>): string | number | null {
-    if (typeof body.value === 'number' || typeof body.value === 'string') return body.value;
-    if (typeof body.count === 'number') return body.count;
-    if (typeof body.total === 'number') return body.total;
-    return null;
-}
-
-function extractSub(
-    body: Record<string, unknown>,
+/**
+ * The sub-line under a KPI value, in the operator's locale.
+ *
+ * The descriptor answers with a reading — an ISO timestamp, a signed number —
+ * because which field of a body carries what is knowledge about a data shape.
+ * Turning either into text depends on the locale, so it happens here.
+ */
+function subLineFor(
+    reading: KpiReading,
     hintType: KpiCardDef['displayHint']['type'],
 ): string | undefined {
-    if (hintType === 'value+timestamp' && typeof body.timestamp === 'string') {
-        return formatTimestamp(body.timestamp);
+    if (hintType === 'value+timestamp' && reading.timestamp) {
+        return formatTimestamp(reading.timestamp);
     }
-    if (hintType === 'value+delta' && typeof body.delta === 'number') {
-        const sign = body.delta > 0 ? '+' : '';
-        return formatMessage(msg.value.deltaVsPreviousPeriod, { delta: `${sign}${body.delta}` });
+    if (hintType === 'value+delta' && reading.delta !== undefined) {
+        const sign = reading.delta > 0 ? '+' : '';
+        return formatMessage(msg.value.deltaVsPreviousPeriod, {
+            delta: `${sign}${reading.delta}`,
+        });
     }
-    if (typeof body.sub === 'string') return body.sub;
-    return undefined;
+    return reading.sub;
 }
 
 function formatValue(card: KpiCardState): string {

@@ -11,7 +11,7 @@
 //   - `@saasicat/ui-vue/quasar` (`src/quasar/`)   — Quasar bootstrap:
 //     `createSuperAdminApp()` and the Quasar notify port implementation.
 //   - Quasar standard pages/components             — raw SFCs via the
-//     `./pages-standard/*`, `./pages-tenant/*` and `./components/*` subpath
+//     the source-shipping subpath
 //     exports (tsup ignores `.vue`).
 //
 // Layer rule (enforced via ESLint `no-restricted-imports`): client imports
@@ -31,6 +31,7 @@ export * from './client/index.js';
 // ---------------------------------------------------------------------------
 export * from './vue/super-admin-context.js';
 export * from './vue/ui-notify.js';
+export * from './vue/status.js';
 export * from './vue/ui-confirm.js';
 export * from './vue/use-super-admin-context.js';
 export * from './vue/use-super-admin-i18n.js';
@@ -98,7 +99,6 @@ export * from './internal/platform-email/platform-email.types.js';
 // Types of the shared EmailHistoryPage (platform email history).
 export * from './internal/email-history/email-history.types.js';
 // Default German labels for the tenant-facing pages.
-export * from './pages-tenant/default-i18n.js';
 
 // The shared SuperAdmin LoginPage lives at
 // `@saasicat/ui-vue/pages-standard/SuperAdminLoginPage.vue` —

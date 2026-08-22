@@ -28,7 +28,6 @@ export interface UseBundlesOptions {
      */
     adminEndpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** Required: projectKey the list is filtered against. */
     projectKey: string;
     /** When `true`, loads on composable init. Default `false`. */
@@ -80,8 +79,7 @@ export function useBundles(options: UseBundlesOptions): UseBundlesResult {
     const baseUrl = `${options.adminEndpoint}/catalog/bundles`;
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
@@ -169,7 +167,6 @@ export interface UseBundleVersionsOptions {
     adminEndpoint: string;
     bundleId: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     autoLoad?: boolean;
 }
 
@@ -221,8 +218,7 @@ export function useBundleVersions(options: UseBundleVersionsOptions): UseBundleV
     const versionUrlBase = `${options.adminEndpoint}/catalog/bundle-versions`;
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {

@@ -554,7 +554,11 @@ function statusKey(status: number): keyof SaMessages['errors'] | undefined {
  * dereference in a page. Whoever knows better says so with
  * `markTransportFailure` or `markEmptyResponse`.
  *
- * Pages do not call this — `useAsyncAction` and the error banner do.
+ * `useAsyncAction` and `AdminErrorBanner` call this for you, and a page that
+ * reaches the platform through either should not need it. The five pages that
+ * do call it directly still notify from their own catch blocks; each had grown
+ * its own copy of this function, and one decision reached from five places
+ * beats five decisions.
  */
 export function adminErrorMessage(err: unknown, msgs: SaMessages['errors']): string {
     const error = toAdminError(err);

@@ -24,7 +24,6 @@ export interface UsePlansOptions {
      */
     adminEndpoint: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /** Required: projectKey the list is filtered against. */
     projectKey: string;
     /** With `true`, loads on composable init. Default `false`. */
@@ -94,8 +93,7 @@ export function usePlans(options: UsePlansOptions): UsePlansResult {
     const baseUrl = `${options.adminEndpoint}/catalog/plans`;
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {
@@ -216,7 +214,6 @@ export interface UsePlanVersionsOptions {
     /** UUID of the plan root (Plan.id), not the planKey. */
     planId: string;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     autoLoad?: boolean;
 }
 
@@ -276,8 +273,7 @@ export function usePlanVersions(options: UsePlanVersionsOptions): UsePlanVersion
     const versionUrlBase = `${options.adminEndpoint}/catalog/plan-versions`;
 
     function authHeaders(): Record<string, string> {
-        const token = options.getAuthToken?.();
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        return {};
     }
 
     async function fetchJson<T>(url: string, init?: Parameters<HttpClient>[1]): Promise<T | null> {

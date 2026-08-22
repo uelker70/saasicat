@@ -22,7 +22,7 @@
 </template>
 
 <script setup lang="ts">
-import TenantPlanSection from '@saasicat/ui-vue/pages-tenant/TenantPlanSection.vue';
+import TenantPlanSection from '@saasicat/ui-vue-tenant/TenantPlanSection.vue';
 import { platformHttp } from '../services/http';
 import { featureLabel, quotaLabel } from '../labels';
 

@@ -41,3 +41,6 @@
 @import './components/paginator.css';
 @import './components/table.css';
 @import './components/accordion.css';
+@import './components/banner.css';
+@import './components/dialog.css';
+@import './components/toolbar.css';

@@ -1,11 +1,9 @@
 <template>
     <AdminPage class="sa-tenants">
-        <AdminHero :title="msg.list.title" :subtitle="subtitle" />
+        <AdminHero :title="msg.list.title" :subtitle="options?.subtitle" />
 
         <AdminBody>
-            <q-banner v-if="error" class="bg-red-1 text-red-9 q-mb-md" rounded>
-                <strong>{{ common.error }}:</strong> {{ error.message }}
-            </q-banner>
+            <AdminErrorBanner :error="error" />
 
             <AdminSection class="sa-tenants__card">
                 <AdminFilters class="q-mb-lg">
@@ -32,12 +30,12 @@
                         @update:model-value="applyFilter"
                     />
                     <q-select
-                        v-if="planOptions && planOptions.length > 0"
+                        v-if="options?.planOptions && options?.planOptions.length > 0"
                         v-model="planFilter"
                         outlined
                         dense
                         clearable
-                        :options="planOptions"
+                        :options="options?.planOptions"
                         :label="resolvedPlanFilterLabel"
                         @update:model-value="applyFilter"
                     />
@@ -46,7 +44,7 @@
 
                 <AdminTable
                     server-side
-                    :rows="items"
+                    :rows="rows"
                     :columns="tenantColumns"
                     :loading="loading"
                     :page="page"
@@ -87,7 +85,7 @@
                         <q-td>
                             <div class="sa-tenants__pills">
                                 <slot name="status-pills" :row="row">
-                                    <StatusPill
+                                    <AdminStatusPill
                                         v-for="(p, i) in resolvedPills(row)"
                                         :key="i"
                                         :label="p.label"
@@ -101,7 +99,11 @@
 
                     <template #body-cell-usage="{ row }">
                         <q-td class="text-right">
-                            <div v-for="(uf, i) in usageFields" :key="i" class="sa-tenants__usage">
+                            <div
+                                v-for="(uf, i) in options?.usageFields"
+                                :key="i"
+                                class="sa-tenants__usage"
+                            >
                                 <q-icon :name="uf.icon" size="11px" />
                                 {{ usageValue(row, uf) }}
                             </div>
@@ -158,24 +160,26 @@
 
 <script setup lang="ts">
 import AdminTable from '../ui/data/AdminTable.vue';
-import { computed, ref, watch } from 'vue';
+import { LIST_PAGE_SIZE_DEFAULT } from '../client/resources/list-resource.js';
+import { useResourceList } from '../vue/use-resource-list.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { tenantsResource } from '../client/resources/tenants.resource.js';
+import { useSuperAdminNotify } from '../quasar/notify.js';
+import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import type { QTableColumn } from 'quasar';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminFilters from '../ui/page/AdminFilters.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
-import type { AdminManifest, TenantActionDef, TenantDto, TenantListFilter } from '@saasicat/types';
-import type { HttpClient } from '../client/types.js';
+import type { AdminManifest, TenantDto, TenantListFilter } from '@saasicat/types';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
-import { useTenants } from '../vue/use-tenants.js';
-import {
-    usePlatformTenantActions,
-    type PlatformTenantActionTone,
-} from '../vue/use-platform-tenant-actions.js';
+import { usePlatformTenantActions } from '../vue/use-platform-tenant-actions.js';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import TenantActionConfirmDialog from '../features/tenant/TenantActionConfirmDialog.vue';
-import StatusPill, { type PillTone } from '../internal/tenants/StatusPill.vue';
+import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
+import type { PillTone } from '../vue/status.js';
 import { identityChipStyle } from '../client/identity-accents.js';
 import { formatDate, planAccent, tenantInitials } from '../internal/tenants/format.js';
 
@@ -212,7 +216,7 @@ import { formatDate, planAccent, tenantInitials } from '../internal/tenants/form
 //     dialog mounts (`MfaPromptDialog` + `TenantActionConfirmDialog`).
 //     Apps then no longer need to write the state/resolver boilerplate
 //     themselves.
-//   - The resulting manifest actions are APPENDED to `props.actions`. If the
+//   - The resulting manifest actions are APPENDED to `props.options?.actions`. If the
 //     same `actionKey` is declared both as a custom action and in the
 //     manifest, the manifest action wins — the custom one is filtered out
 //     + a warning in the console.
@@ -225,6 +229,38 @@ import { formatDate, planAccent, tenantInitials } from '../internal/tenants/form
  * `TenantDto` forms the platform minimum, app fields are added via an index
  * signature (plan, usage, isPilot, etc.).
  */
+/**
+ * What an app may change about this page.
+ *
+ * One object rather than 17 props, per AP3 §3.2: a page's contract is
+ * `resources`, `params` and `options`, whatever the number of knobs behind
+ * the last one.
+ */
+export interface TenantsPageOptions {
+    pageSize?: number;
+    subtitle?: string;
+    statusOptions?: ReadonlyArray<{ value: string; label: string }>;
+    planOptions?: readonly string[];
+    planFilterLabel?: string;
+    planColumnLabel?: string;
+    showPlanColumn?: boolean;
+    planLabelField?: string;
+    planAccents?: Record<string, string>;
+    usageFields?: readonly UsageField[];
+    actions?: readonly TenantRowAction[];
+    /**
+     * Manifest source for the Manifest-Driven Action Flow. When set, the
+     * page internally mounts MfaPromptDialog + TenantActionConfirmDialog
+     * and appends manifest actions to `actions`.
+     */
+    manifest?: AdminManifest | null;
+    /**
+     * Toggles the manifest-driven orchestration on/off. Default `true`
+     * when `manifest` is set — apps can explicitly disable the flow.
+     */
+    manifestActionsEnabled?: boolean;
+}
+
 export type TenantRow = TenantDto & Record<string, unknown>;
 
 export interface StatusPillDef {
@@ -261,77 +297,23 @@ export interface TenantRowAction {
 // `endpoint` is mandatory — the platform does not know the app's globalPrefix
 // (e.g. `/api/admin/tenants` or `/api/v1/admin/tenants`).
 // A hardcoded default would ALWAYS serve some app incorrectly.
-const props = withDefaults(
-    defineProps<{
-        endpoint: string;
-        getAuthToken?: () => string | null;
-        http?: HttpClient;
-        pageSize?: number;
-        subtitle?: string;
-        statusOptions?: ReadonlyArray<{ value: string; label: string }>;
-        planOptions?: readonly string[];
-        planFilterLabel?: string;
-        planColumnLabel?: string;
-        showPlanColumn?: boolean;
-        planLabelField?: string;
-        planAccents?: Record<string, string>;
-        usageFields?: readonly UsageField[];
-        pillsForRow?: (row: TenantRow) => StatusPillDef[];
-        actions?: readonly TenantRowAction[];
-        /**
-         * Manifest source for the Manifest-Driven Action Flow. When set, the
-         * page internally mounts MfaPromptDialog + TenantActionConfirmDialog
-         * and appends manifest actions to `actions`.
-         */
-        manifest?: AdminManifest | null;
-        /**
-         * Toggles the manifest-driven orchestration on/off. Default `true`
-         * when `manifest` is set — apps can explicitly disable the flow.
-         */
-        manifestActionsEnabled?: boolean;
-        /**
-         * Row-specific filter for manifest actions. Default: `suspend` only
-         * for active tenants, `reactivate` only for inactive ones, otherwise
-         * visible.
-         */
-        visibleForRow?: (def: TenantActionDef, row: TenantRow) => boolean;
-        /**
-         * Manifest action → icon. For the default mapping see
-         * `defaultIconForActionKey` in `use-platform-tenant-actions.ts`.
-         */
-        iconForActionKey?: (actionKey: string) => string;
-        /**
-         * Manifest action → tone. Default: suspend/revoke→negative,
-         * reactivate/grant→positive, otherwise→primary.
-         */
-        toneForActionKey?: (actionKey: string) => PlatformTenantActionTone['tone'];
-        /** Optional: MFA dialog description. */
-        mfaDescription?: (def: TenantActionDef, row: TenantRow) => string;
-        /**
-         * Success hook after action dispatch. Default: page.reload(). Apps with
-         * additional refresh needs can override the hook.
-         */
-        onActionSuccess?: () => Promise<void> | void;
-        /**
-         * Notify provider (toast/snackbar) for success/failure of the manifest
-         * actions. Default is a no-op — apps with Quasar typically pass in
-         * `(k, m) => $q.notify({ type: k, message: m, position: 'top' })`.
-         * Without notify, errors are only visible as a promise rejection.
-         */
-        actionNotify?: (kind: 'positive' | 'negative', message: string) => void;
-    }>(),
-    {
-        pageSize: 25,
-        showPlanColumn: true,
-        planLabelField: 'plan',
-        planAccents: () => ({}),
-        usageFields: () => [],
-        manifest: null,
-    },
-);
+/** Which row field carries the plan name, unless the app says otherwise. */
+const DEFAULT_PLAN_FIELD = 'plan';
+
+const props = defineProps<{
+    /**
+     * Override the tenants resource for this page only — a different host,
+     * or one operation wrapped. Layered over the app's own override; see
+     * AP3 §3.2.
+     */
+    resources?: ResourceOverride<(typeof tenantsResource)['ops']>;
+    /** Presentation and capability. Never data, never a callback. */
+    options?: TenantsPageOptions;
+}>();
 
 const msg = useSaMessages('tenants');
 const common = useSaMessages('common');
+const notify = useSuperAdminNotify();
 const { intlLocale } = useSuperAdminI18n();
 
 const statusSelectOptions = computed(() =>
@@ -339,37 +321,56 @@ const statusSelectOptions = computed(() =>
 );
 const resolvedStatusOptions = computed<ReadonlyArray<{ value: string; label: string }>>(
     () =>
-        props.statusOptions ?? [
+        props.options?.statusOptions ?? [
             { value: 'ACTIVE', label: common.value.active },
             { value: 'INACTIVE', label: msg.value.list.suspended },
         ],
 );
-const resolvedPlanFilterLabel = computed(() => props.planFilterLabel ?? msg.value.list.allPlans);
-const resolvedPlanColumnLabel = computed(() => props.planColumnLabel ?? msg.value.plan);
+const resolvedPlanFilterLabel = computed(
+    () => props.options?.planFilterLabel ?? msg.value.list.allPlans,
+);
+const resolvedPlanColumnLabel = computed(() => props.options?.planColumnLabel ?? msg.value.plan);
 
 const filter = ref<TenantListFilter>({});
 const searchInput = ref('');
 const statusFilter = ref<string | null>(null);
 const planFilter = ref<string | null>(null);
 
-const list = useTenants<TenantRow>({
-    endpoint: props.endpoint,
-    filter,
-    http: props.http,
-    getAuthToken: props.getAuthToken,
+// The list, from the resource registry. It used to be `useTenants` over an
+// `endpoint` prop with the app's own `http` and token reader — three props for
+// what the registry already knows, and three chances for a page to read from
+// somewhere its siblings do not.
+const list = useResourceList('tenants', {
+    filter: filter as Ref<Record<string, unknown>>,
+    pageSize: props.options?.pageSize,
+    resources: props.resources,
 });
 // Aliased: the `pageSize` prop is the INITIAL size, `list.pageSize` is the
 // current one. Sharing one name makes the template ambiguous about which of
 // the two it reads.
-const { items, page, pageSize: rowsPerPage, total, loading, error, goToPage, setPageSize } = list;
+const {
+    items,
+    page,
+    pageSize: rowsPerPage,
+    total,
+    pending: loading,
+    error,
+    goToPage,
+    setPageSize,
+} = list;
 
-setPageSize(props.pageSize);
+setPageSize(props.options?.pageSize ?? LIST_PAGE_SIZE_DEFAULT);
+
+// `TenantRow` is `TenantDto` widened with an index signature, because the table
+// addresses cells by column name and an app may render a field the DTO does not
+// declare. The resource answers with the DTO; this is where the two meet.
+const rows = computed<TenantRow[]>(() => items.value as TenantRow[]);
 
 const tenantColumns = computed<QTableColumn[]>(() => {
     const cols: QTableColumn[] = [
         { name: 'tenant', label: msg.value.tenant, field: 'name', align: 'left' },
     ];
-    if (props.showPlanColumn) {
+    if (props.options?.showPlanColumn) {
         cols.push({
             name: 'plan',
             label: resolvedPlanColumnLabel.value,
@@ -378,7 +379,7 @@ const tenantColumns = computed<QTableColumn[]>(() => {
         });
     }
     cols.push({ name: 'status', label: common.value.status, field: 'status', align: 'left' });
-    if (props.usageFields.length > 0) {
+    if ((props.options?.usageFields?.length ?? 0) > 0) {
         cols.push({
             name: 'usage',
             label: msg.value.list.columnUsage,
@@ -410,37 +411,25 @@ function applyFilter(): void {
 
 defineExpose({ reload: applyFilter });
 
-watch(
-    () => props.endpoint,
-    () => void goToPage(1),
-);
-
 // ── Manifest-Driven Action Flow (optional) ────────────────────────
 // We derive all reactive defaults from the props so that apps can change the
 // props dynamically later (e.g. manifest reload) without the page needing to
 // be remounted.
 const manifestActionsEnabled = computed(
-    () => props.manifest != null && props.manifestActionsEnabled !== false,
+    () => props.options?.manifest != null && props.options?.manifestActionsEnabled !== false,
 );
-const manifestRef = computed<AdminManifest | null>(() => props.manifest ?? null);
+const manifestRef = computed<AdminManifest | null>(() => props.options?.manifest ?? null);
 
 const manifestFlow = manifestActionsEnabled.value
     ? usePlatformTenantActions<TenantRow>({
           manifest: manifestRef,
-          notify: (kind, message) => {
-              props.actionNotify?.(kind, message);
+          // The notify port, not a prop: every consumer passed the same
+          // three-line Quasar wrapper, and one that forgot saw failures only
+          // as an unhandled rejection.
+          notify: (kind, message) => notify(kind, message),
+          onSuccess: () => {
+              applyFilter();
           },
-          onSuccess: async () => {
-              if (props.onActionSuccess) {
-                  await props.onActionSuccess();
-              } else {
-                  applyFilter();
-              }
-          },
-          visibleForRow: props.visibleForRow,
-          mfaDescription: props.mfaDescription,
-          iconForActionKey: props.iconForActionKey,
-          toneForActionKey: props.toneForActionKey,
       })
     : null;
 
@@ -463,7 +452,7 @@ if (manifestFlow && typeof window !== 'undefined') {
 // actions. On a duplicate `actionKey` the manifest action wins — the custom
 // one is filtered out + a warning, so app devs see the conflict.
 const combinedActions = computed<TenantRowAction[]>(() => {
-    const custom = (props.actions ?? []).slice();
+    const custom = (props.options?.actions ?? []).slice();
     const manifestList = manifestFlow ? manifestFlow.manifestActions.value : [];
     if (manifestList.length === 0) return custom;
     const manifestKeys = new Set(manifestList.map((a) => a.actionKey));
@@ -490,12 +479,13 @@ function avatarStyle(row: TenantRow): Record<string, string> {
 }
 
 function planAccentFor(row: TenantRow): string {
-    const planId = row[props.planLabelField] as string | null | undefined;
-    return planAccent(planId, props.planAccents);
+    const planId = row[props.options?.planLabelField ?? DEFAULT_PLAN_FIELD] as
+        string | null | undefined;
+    return planAccent(planId, props.options?.planAccents);
 }
 
 function planLabel(row: TenantRow): string {
-    const v = row[props.planLabelField];
+    const v = row[props.options?.planLabelField ?? DEFAULT_PLAN_FIELD];
     return v != null ? String(v) : '—';
 }
 
@@ -514,9 +504,15 @@ function formatCreatedAt(row: TenantRow): string {
     return formatDate(usageStr(row, 'createdAt'), intlLocale.value);
 }
 
+/**
+ * The pills a row shows by default.
+ *
+ * An app that wants different ones fills the `status-pills` slot, which
+ * receives the row and already existed beside the `pillsForRow` prop this
+ * replaces — two ways to answer one question, and the slot is the one that
+ * can also render markup a pill list cannot express.
+ */
 function resolvedPills(row: TenantRow): StatusPillDef[] {
-    if (props.pillsForRow) return props.pillsForRow(row);
-    // Default: only active/suspended.
     const isActive = (row as TenantDto).isActive;
     return [
         isActive

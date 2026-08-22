@@ -129,6 +129,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import {
+    useSuperAdminEndpoints,
+    useSuperAdminHttp,
+    useSuperAdminManifest,
+} from '../vue/use-super-admin-context.js';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { marketingResource } from '../client/resources/marketing.resource.js';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
@@ -170,10 +178,11 @@ import { IDENTITY_NEUTRAL, identityAccentAt } from '../client/identity-accents.j
 const DEFAULT_ACCENT = IDENTITY_NEUTRAL;
 
 const props = defineProps<{
-    adminEndpoint: string;
-    projectKey: string;
-    http?: HttpClient;
-    getAuthToken?: () => string | null;
+    /**
+     * Override the marketing resource for this page only — a different host, or
+     * one operation wrapped. Layered over the app's own override; see AP3 §3.2.
+     */
+    resources?: ResourceOverride<(typeof marketingResource)['ops']>;
     /** Available locales — the first one is the default. Defaults to `['de']`. */
     availableLocales?: string[];
     /** Feature-label map for top-feature suggestions (key → label). */
@@ -198,9 +207,15 @@ function bannerText(err: unknown): string {
     return adminErrorMessage(err, errors.value);
 }
 
-const availableLocales = computed(() =>
-    props.availableLocales && props.availableLocales.length > 0 ? props.availableLocales : ['de'],
-);
+// The pool this project declares, unless the app narrows it. Read from the
+// manifest the shell already holds, so a consumer does not have to pass back
+// what the platform gave it.
+const manifest = useSuperAdminManifest();
+const availableLocales = computed<string[]>(() => {
+    if (props.availableLocales && props.availableLocales.length > 0) return props.availableLocales;
+    const pool = manifest?.project?.availableLocales;
+    return pool && pool.length > 0 ? pool : ['de'];
+});
 
 const tab = ref<MarketingCatalogTab>('preview');
 const expandedKey = ref<string | null>(null);
@@ -219,14 +234,7 @@ const addableLocales = computed(() =>
 /** Loads the persisted activeLocales subset (fallback: full pool). */
 async function loadMarketingSettings(): Promise<void> {
     try {
-        const res = await httpClient(
-            `${props.adminEndpoint}/catalog/marketing-settings?projectKey=${encodeURIComponent(props.projectKey)}`,
-            { headers: authHeaders() },
-        );
-        if (res.status !== 200) return;
-        const body = (await res.json().catch(() => null)) as {
-            activeLocales?: string[];
-        } | null;
+        const body = await marketing.settings();
         if (body && Array.isArray(body.activeLocales) && body.activeLocales.length > 0) {
             // Restrict to the valid pool; the default locale stays active.
             const pool = availableLocales.value;
@@ -242,14 +250,7 @@ async function loadMarketingSettings(): Promise<void> {
 /** Persists the current activeLocales selection (best-effort). */
 async function persistActiveLocales(): Promise<void> {
     try {
-        await httpClient(`${props.adminEndpoint}/catalog/marketing-settings`, {
-            method: 'PUT',
-            headers: { 'content-type': 'application/json', ...authHeaders() },
-            body: JSON.stringify({
-                projectKey: props.projectKey,
-                activeLocales: activeLocaleSet.value,
-            }),
-        });
+        await marketing.saveSettings(activeLocaleSet.value);
     } catch {
         // best-effort — the UI state is preserved.
     }
@@ -275,34 +276,43 @@ const versionsByPlanId = ref<Record<string, PlanVersionRow[]>>({});
 /** Local editing copy of the top features of the currently expanded row. */
 const editFeatures = ref<MarketingTopFeature[]>([]);
 
+// Transport and project from the shell, not from props. `SuperAdminEndpoints`
+// says why in its own doc: the project is app-wide and constant, and a page
+// that takes it as a prop lets a consumer hand this page a different one than
+// its siblings read from. The http client is the shell's, so every request
+// carries the app's auth without the page being told how.
+const { apiBase, projectKey } = useSuperAdminEndpoints();
+const shellHttpClient = useSuperAdminHttp();
+
+// The marketing resource, reached by name. Replaces two hand-built calls to
+// `/catalog/marketing-settings` that spelled the project key into the query
+// string themselves.
+const marketing = useResource('marketing', props.resources);
+
 const plansApi = usePlans({
-    adminEndpoint: props.adminEndpoint,
-    projectKey: props.projectKey,
-    http: props.http,
-    getAuthToken: props.getAuthToken,
+    adminEndpoint: apiBase,
+    projectKey: projectKey,
+    http: shellHttpClient,
 });
 
 const projectionsApi = useMarketingProjections({
-    adminEndpoint: props.adminEndpoint,
-    http: props.http,
-    getAuthToken: props.getAuthToken,
-    filter: { projectKey: props.projectKey, targetType: 'PLAN', locale: activeLocale.value },
+    adminEndpoint: apiBase,
+    http: shellHttpClient,
+    filter: { projectKey: projectKey, targetType: 'PLAN', locale: activeLocale.value },
 });
 
 const promotionsApi = usePromotions({
-    adminEndpoint: props.adminEndpoint,
-    projectKey: props.projectKey,
-    http: props.http,
-    getAuthToken: props.getAuthToken,
+    adminEndpoint: apiBase,
+    projectKey: projectKey,
+    http: shellHttpClient,
 });
 
 // Catalog entries (features + quotas with i18n) — provides the translated
 // labels for the top-features editor.
 const catalogEntriesApi = useCatalogEntries({
-    adminEndpoint: props.adminEndpoint,
-    projectKey: props.projectKey,
-    http: props.http,
-    getAuthToken: props.getAuthToken,
+    adminEndpoint: apiBase,
+    projectKey: projectKey,
+    http: shellHttpClient,
 });
 
 const loading = computed(() => plansApi.loading.value || projectionsApi.loading.value);
@@ -373,19 +383,12 @@ const activePromoCount = computed(
     () => promotions.value.filter((p) => promoStatus(p) === 'active').length,
 );
 
-const httpClient: HttpClient = props.http ?? defaultHttpClient();
-
-function authHeaders(): Record<string, string> {
-    const token = props.getAuthToken?.();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-}
+const httpClient: HttpClient = shellHttpClient ?? defaultHttpClient();
 
 async function reloadVersions(): Promise<void> {
     const results = await Promise.all(
         plansApi.plans.value.map(async (p) => {
-            const res = await httpClient(`${props.adminEndpoint}/catalog/plans/${p.id}/versions`, {
-                headers: authHeaders(),
-            });
+            const res = await httpClient(`${apiBase}/catalog/plans/${p.id}/versions`);
             if (res.status !== 200) return [p.id, [] as PlanVersionRow[]] as const;
             const body = (await res.json().catch(() => [])) as PlanVersionRow[];
             return [p.id, Array.isArray(body) ? body : []] as const;
@@ -619,7 +622,7 @@ const catalogVersion = computed<string>(() => {
     return stamps.sort().slice(-1)[0].slice(0, 10);
 });
 
-const previewUrl = computed(() => `${props.projectKey}.de/preise`);
+const previewUrl = computed(() => `${projectKey}.de/preise`);
 
 // ─── Pricing ───
 function monthlyOf(row: MarketingRow): number {
@@ -738,7 +741,7 @@ async function patch(row: MarketingRow, partial: Partial<ResolvedMarketing>): Pr
         } else {
             const merged: ResolvedMarketing = { ...row.m, ...partial };
             await projectionsApi.create({
-                projectKey: props.projectKey,
+                projectKey: projectKey,
                 targetType: 'PLAN',
                 targetVersionId: row.liveVersion.id,
                 locale: activeLocale.value,
@@ -837,7 +840,7 @@ async function onLocaleChange(loc: string): Promise<void> {
     busy.value = true;
     try {
         await projectionsApi.setFilter({
-            projectKey: props.projectKey,
+            projectKey: projectKey,
             targetType: 'PLAN',
             locale: loc,
         });

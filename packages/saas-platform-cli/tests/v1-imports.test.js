@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { buildImportMap, isNoLongerPublic, rewriteImports, rewriteSubpath } from '../dist/index.js';
@@ -11,6 +12,8 @@ import { buildImportMap, isNoLongerPublic, rewriteImports, rewriteSubpath } from
 // platform's own 4.1 move ran on. That is the point of shipping it rather than
 // writing the rules twice: a destination cannot be right in one place and wrong
 // in the other.
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 const TABLE = JSON.parse(
     readFileSync(
@@ -26,9 +29,29 @@ describe('the map is derived from the move, not written beside it', () => {
         assert.ok(MAP.size >= 20, `only ${MAP.size} mappings derived`);
     });
 
-    test('every destination is on the public surface', () => {
-        const offenders = [...MAP.values()].filter((to) => !/^(ui|layouts|auth|pages)\//.test(to));
+    test('every destination is on a public surface', () => {
+        // Two kinds of destination, and both have to be real: a subpath that
+        // stayed in `@saasicat/ui-vue` must be one it still exports, and a
+        // target naming another package must name one that exists. A codemod
+        // that rewrites an import to something unresolvable moves the failure
+        // into a consumer's build, where nobody can see this file.
+        const offenders = [...MAP.values()].filter(
+            (to) => !/^(ui|layouts|auth|pages)\//.test(to) && !to.startsWith('@saasicat/'),
+        );
         assert.deepEqual(offenders, [], 'the codemod points at something not exported');
+    });
+
+    test('a package target names a package this repository publishes', () => {
+        const packages = [...MAP.values()].filter((to) => to.startsWith('@saasicat/'));
+        assert.ok(packages.length > 0, 'no package target — the prefix case lost its subject');
+        for (const target of packages) {
+            const name = target.replace(/\/$/, '');
+            const dir = name.replace('@saasicat/ui-vue-tenant', 'saas-platform-ui-vue-tenant');
+            assert.ok(
+                existsSync(resolve(HERE, '..', '..', dir, 'package.json')),
+                `${name} has no package in this workspace`,
+            );
+        }
     });
 });
 
@@ -94,5 +117,43 @@ describe('rewriting a file', () => {
         assert.match(result.text, /ui\/entitlement\/FeatureGate\.vue/);
         assert.match(result.text, /@saasicat\/ui-vue\/pages\/UsersPage\.vue/);
         assert.match(result.text, /some-other-package\/pages\/UsersPage\.vue/);
+    });
+});
+
+// A subpath that left the package entirely, not one that moved inside it.
+//
+// `pages-tenant/*` became `@saasicat/ui-vue-tenant/*` in 4.12. The rewrite has
+// to emit that specifier verbatim — prefixing it the way every other target is
+// prefixed would produce `@saasicat/ui-vue/@saasicat/ui-vue-tenant/…`, which
+// resolves to nothing and fails in a consumer's build rather than here.
+describe('a prefix that moved to another package', () => {
+    test('the whole path below it comes along', () => {
+        const map = buildImportMap(TABLE);
+        assert.equal(
+            rewriteSubpath(map, 'pages-tenant/TenantPlanSection.vue'),
+            '@saasicat/ui-vue-tenant/TenantPlanSection.vue',
+        );
+        assert.equal(
+            rewriteSubpath(map, 'pages-tenant/tenant-plan-section/TenantUsageGrid.vue'),
+            '@saasicat/ui-vue-tenant/tenant-plan-section/TenantUsageGrid.vue',
+        );
+    });
+
+    test('the emitted specifier is not prefixed with the old package', () => {
+        const map = buildImportMap(TABLE);
+        const { text, rewritten } = rewriteImports(
+            "import X from '@saasicat/ui-vue/pages-tenant/TenantPlanSection.vue';",
+            map,
+        );
+        assert.equal(rewritten, 1);
+        assert.equal(text, "import X from '@saasicat/ui-vue-tenant/TenantPlanSection.vue';");
+        assert.ok(!text.includes('@saasicat/ui-vue/@'), 'the old package must not survive');
+    });
+
+    test('a subpath that merely starts with the same letters is untouched', () => {
+        const map = buildImportMap(TABLE);
+        // `pages-tenants/` is not `pages-tenant/`. A prefix match without the
+        // separator would move it too.
+        assert.equal(rewriteSubpath(map, 'pages-tenantsomething/X.vue'), null);
     });
 });

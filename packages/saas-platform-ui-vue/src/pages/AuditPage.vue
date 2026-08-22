@@ -62,30 +62,28 @@
             </AdminSection>
         </AdminBody>
 
-        <q-dialog v-model="detailOpen">
-            <q-card style="min-width: 480px; max-width: 96vw">
-                <q-card-section>
-                    <div class="text-h6">{{ detail?.action }} · {{ detail?.entity }}</div>
-                    <div class="text-caption text-grey-7">
-                        {{ detail ? formatTs(detail.createdAt) : '' }} · {{ msg.detailActorPrefix }}
-                        {{ detail ? actorEmail(detail) : '—' }}
-                    </div>
-                </q-card-section>
-                <q-card-section>
-                    <pre class="sa-audit__kv">{{
-                        JSON.stringify(detail?.changes ?? {}, null, 2)
-                    }}</pre>
-                </q-card-section>
-                <q-card-actions align="right">
+        <AdminDialog
+            v-model="detailOpen"
+            :title="`${detail?.action ?? ''} · ${detail?.entity ?? ''}`"
+            :subtitle="detailSubtitle"
+            size="md"
+        >
+            <pre class="sa-audit__kv">{{ JSON.stringify(detail?.changes ?? {}, null, 2) }}</pre>
+            <template #footer>
+                <div class="sa-dialog__actions">
                     <q-btn v-close-popup flat :label="common.close" />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
+                </div>
+            </template>
+        </AdminDialog>
     </AdminPage>
 </template>
 
 <script setup lang="ts">
 import AdminTable from '../ui/data/AdminTable.vue';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { auditResource } from '../client/resources/audit.resource.js';
+import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminRefreshBtn from '../ui/feedback/AdminRefreshBtn.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
@@ -96,8 +94,9 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 
-// Platform standard page: audit trail. Data-agnostic — the app passes
-// `loadAudit({ actor, action, entity, since, limit })` through.
+// Platform standard page: audit trail. It reads the platform's audit resource
+// itself, so an app that wants the standard page writes no loader — and an app
+// that needs the call diverted overrides that one operation.
 
 export interface AuditRow {
     id: string;
@@ -110,18 +109,19 @@ export interface AuditRow {
     userEmail?: string | null;
 }
 
-interface AuditFilter {
-    actor?: string;
-    action?: string;
-    entity?: string;
-    since?: string;
-    limit?: number;
-}
-
 const props = defineProps<{
-    loadAudit: (filter: AuditFilter) => Promise<AuditRow[]>;
+    /**
+     * Override the audit resource for this page only — a different host, or
+     * the call wrapped. Layered over the app's own override; see AP3 §3.2.
+     */
+    resources?: ResourceOverride<(typeof auditResource)['ops']>;
+    /** How many entries to ask for. The endpoint caps this server-side. */
     pageSize?: number;
 }>();
+
+// The data layer, reached by name. The page used to take a `loadAudit` prop and
+// every consumer spelled `/admin/audit` again.
+const audit = useResource('audit', props.resources);
 
 const msg = useSaMessages('audit');
 const common = useSaMessages('common');
@@ -132,6 +132,13 @@ const loading = ref(false);
 const filter = reactive({ actor: '', action: '', entity: '', since: '' });
 const detailOpen = ref(false);
 const detail = ref<AuditRow | null>(null);
+
+// When and by whom, as one line — AdminDialog takes a subtitle as text.
+const detailSubtitle = computed(() => {
+    const row = detail.value;
+    if (!row) return undefined;
+    return `${formatTs(row.createdAt)} · ${msg.value.detailActorPrefix} ${actorEmail(row)}`;
+});
 
 const columns = computed(() => [
     {
@@ -161,7 +168,7 @@ const columns = computed(() => [
 async function reload() {
     loading.value = true;
     try {
-        rows.value = await props.loadAudit({
+        rows.value = await audit.list({
             actor: filter.actor || undefined,
             action: filter.action || undefined,
             entity: filter.entity || undefined,
@@ -171,7 +178,7 @@ async function reload() {
     } catch (err) {
         // Backend endpoint missing → empty table, no page crash.
         rows.value = [];
-        console.warn('[AuditPage] loadAudit failed:', err);
+        console.warn('[AuditPage] loading the audit trail failed:', err);
     } finally {
         loading.value = false;
     }

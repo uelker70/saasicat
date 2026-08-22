@@ -46,7 +46,7 @@ function collectLeafPaths(tree, prefix = '') {
 
 describe('i18n locales', () => {
     test('German is the default locale', () => {
-        assert.equal(DEFAULT_SA_LOCALE, 'de');
+        assert.equal(DEFAULT_SA_LOCALE, 'en');
     });
 
     test('every locale has a catalog, an Intl tag and a switcher label', () => {
@@ -83,9 +83,12 @@ describe('createSuperAdminI18n', () => {
     test('the picked locale is written to storage', async () => {
         const storage = buildStorage();
         const { locale } = createSuperAdminI18n({ storage });
-        locale.value = 'en';
+        // Deliberately not DEFAULT_SA_LOCALE: assigning the value the shell
+        // already holds changes nothing, so the write never fires and the
+        // assertion would be about the starting state.
+        locale.value = 'de';
         await nextTick();
-        assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), 'en');
+        assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), 'de');
     });
 
     test('a stored pick outranks the app default', () => {
@@ -295,16 +298,16 @@ describe('locale-aware navigation defaults', () => {
         },
     };
 
-    test('German labels and sections are the default', () => {
+    test('English labels and sections are the default', () => {
         const routes = buildRoutes(manifest);
-        assert.equal(routes.find((r) => r.id === 'tenants').label, 'Mandanten');
-        assert.equal(routes.find((r) => r.id === 'tenants').navSection, 'Kunden');
-    });
-
-    test('English locale switches labels and sections', () => {
-        const routes = buildRoutes(manifest, { locale: 'en' });
         assert.equal(routes.find((r) => r.id === 'tenants').label, 'Tenants');
         assert.equal(routes.find((r) => r.id === 'tenants').navSection, 'Customers');
+    });
+
+    test('German locale switches labels and sections', () => {
+        const routes = buildRoutes(manifest, { locale: 'de' });
+        assert.equal(routes.find((r) => r.id === 'tenants').label, 'Mandanten');
+        assert.equal(routes.find((r) => r.id === 'tenants').navSection, 'Kunden');
     });
 
     test('explicit label overrides still win over the locale defaults', () => {
@@ -459,15 +462,15 @@ describe('createSuperAdminI18n — app-owned languages end to end', () => {
 
     test('an unknown active locale renders the default instead of blanking', () => {
         const i18n = createSuperAdminI18n({ locale: ref('kl'), storage: buildStorage() });
-        assert.equal(i18n.messages.value.common.save, SA_MESSAGES.de.common.save);
+        assert.equal(i18n.messages.value.common.save, SA_MESSAGES[DEFAULT_SA_LOCALE].common.save);
     });
 
     test('storageKeyPrefix separates apps sharing one origin', async () => {
         const storage = buildStorage();
         const i18n = createSuperAdminI18n({ storageKeyPrefix: 'app-a:', storage });
-        i18n.locale.value = 'en';
+        i18n.locale.value = 'de';
         await nextTick();
-        assert.equal(storage.get(`app-a:${SA_LOCALE_STORAGE_KEY}`), 'en');
+        assert.equal(storage.get(`app-a:${SA_LOCALE_STORAGE_KEY}`), 'de');
         assert.equal(storage.get(SA_LOCALE_STORAGE_KEY), null, 'unprefixed key stays untouched');
     });
 });

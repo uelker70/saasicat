@@ -5,6 +5,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BootLoader, ManifestLoader, createPlatformLoaders } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 function buildStorage() {
     const map = new Map();
@@ -79,17 +80,16 @@ describe('createPlatformLoaders', () => {
         assert.equal(calls[1].url, '/api/v1/admin/manifest');
     });
 
-    test('passes storageKeyPrefix + getAuthToken through to ManifestLoader', async () => {
+    test('passes storageKeyPrefix and the client through to ManifestLoader', async () => {
         const storage = buildStorage();
         const { http, calls } = buildHttp([
             { status: 200, body: { schemaVersion: 1 }, headers: { etag: '"v1"' } },
         ]);
         const loaders = createPlatformLoaders({
             endpoints: { apiBase: '/api/admin' },
-            http,
+            http: authenticating(http, 'jwt-fake'),
             storage,
             storageKeyPrefix: 'ma:',
-            getAuthToken: () => 'jwt-fake',
         });
         await loaders.manifestLoader.load();
         assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-fake');

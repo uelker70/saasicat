@@ -1,127 +1,114 @@
 <template>
-    <q-dialog
+    <!-- The chrome is AdminDialog's; the submit lifecycle is not AdminFormDialog's.
+     A failure here goes to one of two places depending on the response reason —
+     an invalid or missing second factor belongs in the MFA prompt, everything
+     else in this dialog — and a component that owns the error cannot make that
+     split. Rather than widen AdminFormDialog for one caller, the two dialogs
+     that re-prompt keep their own handler. -->
+    <AdminDialog
         :model-value="modelValue"
+        :title="msg.editDialog.title"
+        :subtitle="subtitleText"
+        size="lg"
         persistent
         @update:model-value="emit('update:modelValue', $event)"
     >
-        <q-card class="pl-dlg">
-            <q-card-section class="pl-dlg__head">
-                <div>
-                    <div class="pl-dlg__title">{{ msg.editDialog.title }}</div>
-                    <div v-if="row" class="pl-dlg__sub">
-                        <strong>{{ row.tenant.name }}</strong>
-                        <span class="pl-dlg__sep">·</span>
-                        <code>{{ row.tenant.slug }}</code>
+        <div>
+            <!-- Section 1: Plan -->
+            <section class="pl-section">
+                <header class="pl-section__head">
+                    <span class="pl-section__num">1</span>
+                    <div>
+                        <div class="pl-section__title">{{ msg.form.planLabel }}</div>
+                        <div class="pl-section__sub">{{ msg.editDialog.sectionPlanSub }}</div>
                     </div>
+                </header>
+                <div class="pl-plan-select">
+                    <button
+                        v-for="p in effectivePlanOptions"
+                        :key="p.value"
+                        type="button"
+                        class="pl-plan-opt"
+                        :class="{ 'pl-plan-opt--active': form.plan === p.value }"
+                        @click="form.plan = p.value"
+                    >
+                        <span
+                            class="pl-plan-opt__dot"
+                            :style="{ background: p.color ?? IDENTITY_NEUTRAL }"
+                        />
+                        <div class="pl-plan-opt__text">
+                            <span class="pl-plan-opt__key">{{ p.value }}</span>
+                            <span class="pl-plan-opt__label">{{ p.label }}</span>
+                        </div>
+                        <q-icon
+                            v-if="form.plan === p.value"
+                            name="check"
+                            size="16px"
+                            class="pl-plan-opt__check"
+                        />
+                    </button>
                 </div>
-                <q-btn
-                    v-close-popup
-                    class="pl-dlg__close"
-                    flat
-                    dense
-                    round
-                    icon="close"
-                    :disable="loading"
+            </section>
+
+            <!-- Section 2: End date -->
+            <section class="pl-section">
+                <header class="pl-section__head">
+                    <span class="pl-section__num">2</span>
+                    <div>
+                        <div class="pl-section__title">
+                            {{ msg.editDialog.sectionEndDate }}
+                        </div>
+                        <div class="pl-section__sub">
+                            {{ msg.editDialog.sectionEndDateSub }}
+                        </div>
+                    </div>
+                </header>
+                <div class="pl-end-row">
+                    <input v-model="form.endsAt" class="pl-input" type="date" />
+                    <button
+                        v-if="form.endsAt"
+                        type="button"
+                        class="pl-btn-mini"
+                        :title="msg.editDialog.clearDateTitle"
+                        @click="form.endsAt = ''"
+                    >
+                        <q-icon name="close" size="12px" />
+                        {{ common.unlimited }}
+                    </button>
+                </div>
+                <div class="pl-end-presets">
+                    <button
+                        v-for="p in presetEnds"
+                        :key="p.days"
+                        type="button"
+                        class="pl-preset-btn"
+                        @click="setEndsAtDays(p.days)"
+                    >
+                        +{{ p.label }}
+                    </button>
+                </div>
+            </section>
+
+            <!-- Section 3: Note -->
+            <section class="pl-section">
+                <header class="pl-section__head">
+                    <span class="pl-section__num">3</span>
+                    <div>
+                        <div class="pl-section__title">{{ msg.editDialog.sectionNote }}</div>
+                        <div class="pl-section__sub">{{ msg.editDialog.sectionNoteSub }}</div>
+                    </div>
+                </header>
+                <textarea
+                    v-model="form.note"
+                    class="pl-input pl-textarea"
+                    rows="3"
+                    :placeholder="notePlaceholder"
                 />
-            </q-card-section>
-
-            <q-card-section class="pl-dlg__body">
-                <!-- Section 1: Plan -->
-                <section class="pl-section">
-                    <header class="pl-section__head">
-                        <span class="pl-section__num">1</span>
-                        <div>
-                            <div class="pl-section__title">{{ msg.form.planLabel }}</div>
-                            <div class="pl-section__sub">{{ msg.editDialog.sectionPlanSub }}</div>
-                        </div>
-                    </header>
-                    <div class="pl-plan-select">
-                        <button
-                            v-for="p in effectivePlanOptions"
-                            :key="p.value"
-                            type="button"
-                            class="pl-plan-opt"
-                            :class="{ 'pl-plan-opt--active': form.plan === p.value }"
-                            @click="form.plan = p.value"
-                        >
-                            <span
-                                class="pl-plan-opt__dot"
-                                :style="{ background: p.color ?? IDENTITY_NEUTRAL }"
-                            />
-                            <div class="pl-plan-opt__text">
-                                <span class="pl-plan-opt__key">{{ p.value }}</span>
-                                <span class="pl-plan-opt__label">{{ p.label }}</span>
-                            </div>
-                            <q-icon
-                                v-if="form.plan === p.value"
-                                name="check"
-                                size="16px"
-                                class="pl-plan-opt__check"
-                            />
-                        </button>
-                    </div>
-                </section>
-
-                <!-- Section 2: End date -->
-                <section class="pl-section">
-                    <header class="pl-section__head">
-                        <span class="pl-section__num">2</span>
-                        <div>
-                            <div class="pl-section__title">
-                                {{ msg.editDialog.sectionEndDate }}
-                            </div>
-                            <div class="pl-section__sub">
-                                {{ msg.editDialog.sectionEndDateSub }}
-                            </div>
-                        </div>
-                    </header>
-                    <div class="pl-end-row">
-                        <input v-model="form.endsAt" class="pl-input" type="date" />
-                        <button
-                            v-if="form.endsAt"
-                            type="button"
-                            class="pl-btn-mini"
-                            :title="msg.editDialog.clearDateTitle"
-                            @click="form.endsAt = ''"
-                        >
-                            <q-icon name="close" size="12px" />
-                            {{ common.unlimited }}
-                        </button>
-                    </div>
-                    <div class="pl-end-presets">
-                        <button
-                            v-for="p in presetEnds"
-                            :key="p.days"
-                            type="button"
-                            class="pl-preset-btn"
-                            @click="setEndsAtDays(p.days)"
-                        >
-                            +{{ p.label }}
-                        </button>
-                    </div>
-                </section>
-
-                <!-- Section 3: Note -->
-                <section class="pl-section">
-                    <header class="pl-section__head">
-                        <span class="pl-section__num">3</span>
-                        <div>
-                            <div class="pl-section__title">{{ msg.editDialog.sectionNote }}</div>
-                            <div class="pl-section__sub">{{ msg.editDialog.sectionNoteSub }}</div>
-                        </div>
-                    </header>
-                    <textarea
-                        v-model="form.note"
-                        class="pl-input pl-textarea"
-                        rows="3"
-                        :placeholder="notePlaceholder"
-                    />
-                </section>
-
-                <p v-if="error" class="pl-error">{{ error }}</p>
-            </q-card-section>
-
-            <q-card-actions align="right" class="pl-dlg__foot">
+            </section>
+        </div>
+        <template #footer>
+            <AdminBanner v-if="error" tone="negative">{{ error }}</AdminBanner>
+            <div class="sa-dialog__actions">
                 <q-btn v-close-popup flat :label="common.cancel" :disable="loading" />
                 <q-btn
                     unelevated
@@ -131,9 +118,9 @@
                     :disable="!isDirty"
                     @click="onSubmit"
                 />
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+            </div>
+        </template>
+    </AdminDialog>
 
     <MfaPromptDialog
         v-if="requireMfa"
@@ -148,6 +135,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
+import AdminDialog from '../../ui/overlay/AdminDialog.vue';
+import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
@@ -277,6 +266,13 @@ const diff = computed<PilotEditPayload>(() => {
     return out;
 });
 
+// Which tenant is being edited. Text rather than markup, because AdminDialog
+// takes a subtitle as a string — a head that renders its own markup per dialog
+// is what the shared chrome exists to remove.
+const subtitleText = computed(() =>
+    props.row ? `${props.row.tenant.name} · ${props.row.tenant.slug}` : undefined,
+);
+
 const isDirty = computed(() => Object.keys(diff.value).length > 0);
 
 function onSubmit(): void {
@@ -333,35 +329,6 @@ async function doSubmit(code: string): Promise<void> {
 <style src="./pilot-dialog.css" scoped></style>
 
 <style scoped>
-.pl-dlg {
-    width: 640px;
-    max-width: 96vw;
-}
-
-.pl-dlg__sub {
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-muted);
-    margin-top: 3px;
-}
-
-.pl-dlg__sep {
-    color: var(--sa-color-fg-disabled);
-    margin: 0 6px;
-}
-
-.pl-dlg__sub code {
-    font-family: var(--sa-font-mono, ui-monospace, monospace);
-    background: var(--sa-color-border-soft);
-    color: var(--sa-color-fg-secondary);
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-size: var(--sa-text-sm);
-}
-
-.pl-dlg__body {
-    padding: 20px 22px;
-}
-
 .pl-section {
     margin-bottom: 18px;
 }

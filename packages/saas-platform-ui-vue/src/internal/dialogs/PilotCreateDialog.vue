@@ -1,238 +1,229 @@
 <template>
-    <q-dialog
+    <!-- The chrome is AdminDialog's; the submit lifecycle is not AdminFormDialog's.
+     A failure here goes to one of two places depending on the response reason —
+     an invalid or missing second factor belongs in the MFA prompt, everything
+     else in this dialog — and a component that owns the error cannot make that
+     split. Rather than widen AdminFormDialog for one caller, the two dialogs
+     that re-prompt keep their own handler. -->
+    <AdminDialog
         :model-value="modelValue"
+        :title="msg.createDialog.title"
+        :subtitle="subtitle ?? msg.createDialog.subtitle"
+        size="lg"
         persistent
         @update:model-value="emit('update:modelValue', $event)"
     >
-        <q-card class="pl-dlg">
-            <q-card-section class="pl-dlg__head">
-                <div>
-                    <div class="pl-dlg__title">{{ msg.createDialog.title }}</div>
-                    <div class="pl-dlg__sub">{{ subtitle ?? msg.createDialog.subtitle }}</div>
+        <div>
+            <!-- Section 1: Tenant -->
+            <section class="pl-section">
+                <header class="pl-section__head">
+                    <span class="pl-section__num">1</span>
+                    <div>
+                        <div class="pl-section__title">
+                            {{ msg.createDialog.sectionTenant }}
+                        </div>
+                        <div class="pl-section__sub">{{ copy.tenantSubtitle }}</div>
+                    </div>
+                </header>
+                <div class="pl-grid">
+                    <div class="pl-field pl-field--full">
+                        <label>{{ copy.tenantNameLabel }}</label>
+                        <input
+                            v-model="form.tenant.name"
+                            class="pl-input"
+                            :placeholder="copy.tenantNamePlaceholder"
+                            autofocus
+                        />
+                    </div>
+
+                    <div class="pl-field pl-field--full">
+                        <label>
+                            {{ msg.form.slugLabel }}
+                            <span class="pl-field__hint">{{ msg.form.slugHint }}</span>
+                        </label>
+                        <div class="pl-slug-input">
+                            <span v-if="slugPrefix" class="pl-slug-input__prefix">{{
+                                slugPrefix
+                            }}</span>
+                            <input
+                                v-model="form.tenant.slug"
+                                class="pl-input pl-input--flush"
+                                :placeholder="copy.slugPlaceholder"
+                                @input="onSlugInput"
+                            />
+                        </div>
+                        <div v-if="slugConflict" class="pl-field__error">
+                            {{ msg.form.slugConflict }}
+                        </div>
+                    </div>
+
+                    <div v-if="showLegalFields" class="pl-field">
+                        <label>{{ msg.createDialog.legalFormLabel }}</label>
+                        <input
+                            v-model="form.tenant.legalForm"
+                            class="pl-input"
+                            :placeholder="msg.createDialog.legalFormPlaceholder"
+                        />
+                    </div>
+                    <div v-if="showLegalFields" class="pl-field">
+                        <label>
+                            {{ msg.createDialog.vatIdLabel }}
+                            <span class="pl-field__hint">{{ msg.createDialog.vatIdHint }}</span>
+                        </label>
+                        <input
+                            v-model="form.tenant.vatId"
+                            class="pl-input"
+                            :placeholder="msg.createDialog.vatIdPlaceholder"
+                        />
+                    </div>
                 </div>
-                <q-btn
-                    v-close-popup
-                    class="pl-dlg__close"
-                    flat
-                    dense
-                    round
-                    icon="close"
-                    :disable="loading"
-                />
-            </q-card-section>
+                <slot name="tenant-extra" :form="form" />
+            </section>
 
-            <q-card-section class="pl-dlg__body">
-                <!-- Section 1: Tenant -->
-                <section class="pl-section">
-                    <header class="pl-section__head">
-                        <span class="pl-section__num">1</span>
-                        <div>
-                            <div class="pl-section__title">
-                                {{ msg.createDialog.sectionTenant }}
-                            </div>
-                            <div class="pl-section__sub">{{ copy.tenantSubtitle }}</div>
+            <!-- Section 2: Initial-Admin -->
+            <section class="pl-section">
+                <header class="pl-section__head">
+                    <span class="pl-section__num">2</span>
+                    <div>
+                        <div class="pl-section__title">{{ msg.createDialog.sectionAdmin }}</div>
+                        <div class="pl-section__sub">
+                            {{ msg.createDialog.sectionAdminSub }}
                         </div>
-                    </header>
-                    <div class="pl-grid">
-                        <div class="pl-field pl-field--full">
-                            <label>{{ copy.tenantNameLabel }}</label>
-                            <input
-                                v-model="form.tenant.name"
-                                class="pl-input"
-                                :placeholder="copy.tenantNamePlaceholder"
-                                autofocus
-                            />
+                    </div>
+                </header>
+                <div class="pl-grid">
+                    <div class="pl-field pl-field--full">
+                        <label>{{ msg.createDialog.emailLabel }}</label>
+                        <input
+                            v-model="form.admin.email"
+                            class="pl-input"
+                            :class="{ 'pl-input--invalid': form.admin.email && !emailValid }"
+                            type="email"
+                            :placeholder="copy.adminEmailPlaceholder"
+                        />
+                        <div v-if="form.admin.email && !emailValid" class="pl-field__error">
+                            {{ msg.createDialog.emailInvalid }}
                         </div>
+                    </div>
+                    <div class="pl-field">
+                        <label>{{ msg.createDialog.firstNameLabel }}</label>
+                        <input
+                            v-model="form.admin.firstName"
+                            class="pl-input"
+                            :placeholder="msg.createDialog.firstNamePlaceholder"
+                        />
+                    </div>
+                    <div class="pl-field">
+                        <label>{{ msg.createDialog.lastNameLabel }}</label>
+                        <input
+                            v-model="form.admin.lastName"
+                            class="pl-input"
+                            :placeholder="msg.createDialog.lastNamePlaceholder"
+                        />
+                    </div>
+                    <div class="pl-field pl-field--full">
+                        <label>
+                            {{ msg.createDialog.initialPasswordLabel }}
+                            <span class="pl-field__hint">{{
+                                msg.createDialog.initialPasswordHint
+                            }}</span>
+                        </label>
+                        <input
+                            v-model="form.admin.initialPassword"
+                            class="pl-input"
+                            :placeholder="msg.createDialog.initialPasswordPlaceholder"
+                        />
+                    </div>
+                </div>
+            </section>
 
-                        <div class="pl-field pl-field--full">
-                            <label>
-                                {{ msg.form.slugLabel }}
-                                <span class="pl-field__hint">{{ msg.form.slugHint }}</span>
-                            </label>
-                            <div class="pl-slug-input">
-                                <span v-if="slugPrefix" class="pl-slug-input__prefix">{{
-                                    slugPrefix
-                                }}</span>
-                                <input
-                                    v-model="form.tenant.slug"
-                                    class="pl-input pl-input--flush"
-                                    :placeholder="copy.slugPlaceholder"
-                                    @input="onSlugInput"
+            <!-- Section 3: Pilot configuration -->
+            <section class="pl-section">
+                <header class="pl-section__head">
+                    <span class="pl-section__num">3</span>
+                    <div>
+                        <div class="pl-section__title">{{ msg.createDialog.sectionPilot }}</div>
+                        <div class="pl-section__sub">
+                            {{ msg.createDialog.sectionPilotSub }}
+                        </div>
+                    </div>
+                </header>
+                <div class="pl-grid">
+                    <div class="pl-field">
+                        <label>{{ msg.form.planLabel }}</label>
+                        <div class="pl-plan-select">
+                            <button
+                                v-for="p in normalizedPlanOptions"
+                                :key="p.value"
+                                type="button"
+                                class="pl-plan-opt"
+                                :class="{ 'pl-plan-opt--active': form.pilot.plan === p.value }"
+                                @click="form.pilot.plan = p.value"
+                            >
+                                <span
+                                    class="pl-plan-opt__dot"
+                                    :style="{ background: p.color ?? IDENTITY_NEUTRAL }"
                                 />
-                            </div>
-                            <div v-if="slugConflict" class="pl-field__error">
-                                {{ msg.form.slugConflict }}
-                            </div>
-                        </div>
-
-                        <div v-if="showLegalFields" class="pl-field">
-                            <label>{{ msg.createDialog.legalFormLabel }}</label>
-                            <input
-                                v-model="form.tenant.legalForm"
-                                class="pl-input"
-                                :placeholder="msg.createDialog.legalFormPlaceholder"
-                            />
-                        </div>
-                        <div v-if="showLegalFields" class="pl-field">
-                            <label>
-                                {{ msg.createDialog.vatIdLabel }}
-                                <span class="pl-field__hint">{{ msg.createDialog.vatIdHint }}</span>
-                            </label>
-                            <input
-                                v-model="form.tenant.vatId"
-                                class="pl-input"
-                                :placeholder="msg.createDialog.vatIdPlaceholder"
-                            />
+                                <div class="pl-plan-opt__text">
+                                    <span class="pl-plan-opt__key">{{ p.value }}</span>
+                                    <span class="pl-plan-opt__label">{{ p.label }}</span>
+                                </div>
+                                <q-icon
+                                    v-if="form.pilot.plan === p.value"
+                                    name="check"
+                                    size="16px"
+                                    class="pl-plan-opt__check"
+                                />
+                            </button>
                         </div>
                     </div>
-                    <slot name="tenant-extra" :form="form" />
-                </section>
 
-                <!-- Section 2: Initial-Admin -->
-                <section class="pl-section">
-                    <header class="pl-section__head">
-                        <span class="pl-section__num">2</span>
-                        <div>
-                            <div class="pl-section__title">{{ msg.createDialog.sectionAdmin }}</div>
-                            <div class="pl-section__sub">
-                                {{ msg.createDialog.sectionAdminSub }}
-                            </div>
+                    <div class="pl-field">
+                        <label>{{ msg.form.endsAtLabel }}</label>
+                        <div class="pl-end-row">
+                            <input v-model="form.pilot.endsAt" class="pl-input" type="date" />
+                            <button
+                                v-if="form.pilot.endsAt"
+                                type="button"
+                                class="pl-btn-mini"
+                                :title="msg.form.endsAtClearTitle"
+                                @click="form.pilot.endsAt = ''"
+                            >
+                                <q-icon name="close" size="12px" />
+                                {{ common.unlimited }}
+                            </button>
                         </div>
-                    </header>
-                    <div class="pl-grid">
-                        <div class="pl-field pl-field--full">
-                            <label>{{ msg.createDialog.emailLabel }}</label>
-                            <input
-                                v-model="form.admin.email"
-                                class="pl-input"
-                                :class="{ 'pl-input--invalid': form.admin.email && !emailValid }"
-                                type="email"
-                                :placeholder="copy.adminEmailPlaceholder"
-                            />
-                            <div v-if="form.admin.email && !emailValid" class="pl-field__error">
-                                {{ msg.createDialog.emailInvalid }}
-                            </div>
-                        </div>
-                        <div class="pl-field">
-                            <label>{{ msg.createDialog.firstNameLabel }}</label>
-                            <input
-                                v-model="form.admin.firstName"
-                                class="pl-input"
-                                :placeholder="msg.createDialog.firstNamePlaceholder"
-                            />
-                        </div>
-                        <div class="pl-field">
-                            <label>{{ msg.createDialog.lastNameLabel }}</label>
-                            <input
-                                v-model="form.admin.lastName"
-                                class="pl-input"
-                                :placeholder="msg.createDialog.lastNamePlaceholder"
-                            />
-                        </div>
-                        <div class="pl-field pl-field--full">
-                            <label>
-                                {{ msg.createDialog.initialPasswordLabel }}
-                                <span class="pl-field__hint">{{
-                                    msg.createDialog.initialPasswordHint
-                                }}</span>
-                            </label>
-                            <input
-                                v-model="form.admin.initialPassword"
-                                class="pl-input"
-                                :placeholder="msg.createDialog.initialPasswordPlaceholder"
-                            />
+                        <div class="pl-end-presets">
+                            <button
+                                v-for="p in presetEnds"
+                                :key="p.days"
+                                type="button"
+                                class="pl-preset-btn"
+                                @click="setEndsAtDays(p.days)"
+                            >
+                                +{{ p.label }}
+                            </button>
                         </div>
                     </div>
-                </section>
 
-                <!-- Section 3: Pilot configuration -->
-                <section class="pl-section">
-                    <header class="pl-section__head">
-                        <span class="pl-section__num">3</span>
-                        <div>
-                            <div class="pl-section__title">{{ msg.createDialog.sectionPilot }}</div>
-                            <div class="pl-section__sub">
-                                {{ msg.createDialog.sectionPilotSub }}
-                            </div>
-                        </div>
-                    </header>
-                    <div class="pl-grid">
-                        <div class="pl-field">
-                            <label>{{ msg.form.planLabel }}</label>
-                            <div class="pl-plan-select">
-                                <button
-                                    v-for="p in normalizedPlanOptions"
-                                    :key="p.value"
-                                    type="button"
-                                    class="pl-plan-opt"
-                                    :class="{ 'pl-plan-opt--active': form.pilot.plan === p.value }"
-                                    @click="form.pilot.plan = p.value"
-                                >
-                                    <span
-                                        class="pl-plan-opt__dot"
-                                        :style="{ background: p.color ?? IDENTITY_NEUTRAL }"
-                                    />
-                                    <div class="pl-plan-opt__text">
-                                        <span class="pl-plan-opt__key">{{ p.value }}</span>
-                                        <span class="pl-plan-opt__label">{{ p.label }}</span>
-                                    </div>
-                                    <q-icon
-                                        v-if="form.pilot.plan === p.value"
-                                        name="check"
-                                        size="16px"
-                                        class="pl-plan-opt__check"
-                                    />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="pl-field">
-                            <label>{{ msg.form.endsAtLabel }}</label>
-                            <div class="pl-end-row">
-                                <input v-model="form.pilot.endsAt" class="pl-input" type="date" />
-                                <button
-                                    v-if="form.pilot.endsAt"
-                                    type="button"
-                                    class="pl-btn-mini"
-                                    :title="msg.form.endsAtClearTitle"
-                                    @click="form.pilot.endsAt = ''"
-                                >
-                                    <q-icon name="close" size="12px" />
-                                    {{ common.unlimited }}
-                                </button>
-                            </div>
-                            <div class="pl-end-presets">
-                                <button
-                                    v-for="p in presetEnds"
-                                    :key="p.days"
-                                    type="button"
-                                    class="pl-preset-btn"
-                                    @click="setEndsAtDays(p.days)"
-                                >
-                                    +{{ p.label }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="pl-field pl-field--full">
-                            <label>
-                                {{ msg.form.noteLabel }}
-                                <span class="pl-field__hint">{{ msg.form.noteHint }}</span>
-                            </label>
-                            <textarea
-                                v-model="form.pilot.note"
-                                class="pl-input pl-textarea"
-                                rows="3"
-                                :placeholder="copy.notePlaceholder"
-                            />
-                        </div>
+                    <div class="pl-field pl-field--full">
+                        <label>
+                            {{ msg.form.noteLabel }}
+                            <span class="pl-field__hint">{{ msg.form.noteHint }}</span>
+                        </label>
+                        <textarea
+                            v-model="form.pilot.note"
+                            class="pl-input pl-textarea"
+                            rows="3"
+                            :placeholder="copy.notePlaceholder"
+                        />
                     </div>
-                </section>
-
-                <p v-if="error" class="pl-error">{{ error }}</p>
-            </q-card-section>
-
-            <q-card-actions align="right" class="pl-dlg__foot">
+                </div>
+            </section>
+        </div>
+        <template #footer>
+            <AdminBanner v-if="error" tone="negative">{{ error }}</AdminBanner>
+            <div class="sa-dialog__actions">
                 <span v-if="form.admin.email && emailValid" class="pl-foot-hint">
                     <q-icon name="send" size="14px" />
                     {{ msg.createDialog.invitationHint }} <strong>{{ form.admin.email }}</strong>
@@ -246,9 +237,9 @@
                     :disable="!isValid"
                     @click="onSubmit"
                 />
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+            </div>
+        </template>
+    </AdminDialog>
 
     <MfaPromptDialog
         v-if="requireMfa"
@@ -263,6 +254,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import MfaPromptDialog from '../../ui/overlay/MfaPromptDialog.vue';
+import AdminDialog from '../../ui/overlay/AdminDialog.vue';
+import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
@@ -485,24 +478,6 @@ async function doSubmit(code: string): Promise<void> {
 <style src="./pilot-dialog.css" scoped></style>
 
 <style scoped>
-.pl-dlg {
-    width: 760px;
-    max-width: 96vw;
-}
-
-.pl-dlg__sub {
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-muted);
-    margin-top: 3px;
-    line-height: 1.4;
-}
-
-.pl-dlg__body {
-    padding: 20px 22px;
-    max-height: 72vh;
-    overflow-y: auto;
-}
-
 .pl-foot-hint {
     margin-right: auto;
     display: inline-flex;

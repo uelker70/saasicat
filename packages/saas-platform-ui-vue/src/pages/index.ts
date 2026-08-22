@@ -38,6 +38,8 @@ export const adminPages = {
     MarketingCatalogPage: () => import('./MarketingCatalogPage.vue'),
     PilotsPage: () => import('./PilotsPage.vue'),
     PlansPage: () => import('./PlansPage.vue'),
+    PlanVersionEditorPage: () => import('./PlanVersionEditorPage.vue'),
+    PlanReviewPage: () => import('./PlanReviewPage.vue'),
     PlatformEmailPage: () => import('./PlatformEmailPage.vue'),
     PromoCodeDetailPage: () => import('./PromoCodeDetailPage.vue'),
     PromoCodesPage: () => import('./PromoCodesPage.vue'),
@@ -60,10 +62,26 @@ export type AdminPageName = keyof typeof adminPages;
 export const STANDARD_ADMIN_ROUTES: ReadonlyArray<{
     readonly path: string;
     readonly page: AdminPageName;
+    /**
+     * Nested routes, mounted inside the parent's `<router-view>`.
+     *
+     * `plans` has two: the version editor and the review are steps of one
+     * wizard whose draft is never saved between them, so the page that holds
+     * that draft has to stay mounted while they render. Flat siblings would
+     * unmount it, and "back" from the review would show an empty form.
+     */
+    readonly children?: ReadonlyArray<{ readonly path: string; readonly page: AdminPageName }>;
 }> = [
     { path: 'dashboard', page: 'DashboardPage' },
     { path: 'discovery', page: 'DiscoveryPage' },
-    { path: 'plans', page: 'PlansPage' },
+    {
+        path: 'plans',
+        page: 'PlansPage',
+        children: [
+            { path: 'version/edit', page: 'PlanVersionEditorPage' },
+            { path: 'version/review', page: 'PlanReviewPage' },
+        ],
+    },
     { path: 'bundles', page: 'BundlesPage' },
     { path: 'marketing-catalog', page: 'MarketingCatalogPage' },
     { path: 'tenants', page: 'TenantsPage' },
@@ -99,7 +117,19 @@ export const STANDARD_ADMIN_ROUTES: ReadonlyArray<{
 export function standardAdminChildren(own: RouteRecordRaw[] = []): RouteRecordRaw[] {
     const claimed = new Set(own.map((route) => route.path));
     const standard = STANDARD_ADMIN_ROUTES.filter(({ path }) => !claimed.has(path)).map(
-        ({ path, page }) => ({ path, component: adminPages[page] }) as RouteRecordRaw,
+        ({ path, page, children }) =>
+            ({
+                path,
+                component: adminPages[page],
+                ...(children
+                    ? {
+                          children: children.map((child) => ({
+                              path: child.path,
+                              component: adminPages[child.page],
+                          })),
+                      }
+                    : {}),
+            }) as RouteRecordRaw,
     );
     return [...own, ...standard];
 }

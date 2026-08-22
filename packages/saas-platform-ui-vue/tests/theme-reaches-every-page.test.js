@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { parse } from 'vue/compiler-sfc';
@@ -230,7 +230,33 @@ describe('the theme reaches every page it ships', () => {
             `${layouts.length} files render a Quasar layout; the exemption assumes exactly one`,
         );
 
-        const pages = files.filter((file) => !layouts.includes(file));
+        // Child routes are not exempt — they are covered by their PARENT.
+        //
+        // The plan editor and review render inside `<router-view />` in
+        // `PlansPage`, which carries `sa-page`; asking them for a marker of
+        // their own would ask for a second page frame inside the first. The
+        // nesting is read off `STANDARD_ADMIN_ROUTES`, not listed here, so a
+        // page that stops being a child stops being exempt on the same day.
+        // Read out of the route table's source rather than imported: this file
+        // is plain JS under `node --test`, and `pages/index.ts` ships as source
+        // rather than through `dist`. Reading it still derives the answer from
+        // the one place that declares it.
+        const routeTable = readFileSync(join(SRC, 'pages', 'index.ts'), 'utf8');
+        const childBlocks = routeTable.match(/children:\s*\[[\s\S]*?\]/g) ?? [];
+        const nested = new Set(
+            childBlocks
+                .flatMap((block) => [...block.matchAll(/page:\s*'(\w+)'/g)])
+                .map((match) => `${match[1]}.vue`),
+        );
+        assert.ok(
+            nested.size > 0,
+            'no nested routes found — either the route table changed shape or this exemption ' +
+                'lost its subject, and a real offender would now pass as a child of nothing',
+        );
+
+        const pages = files.filter(
+            (file) => !layouts.includes(file) && !nested.has(basename(file)),
+        );
         assert.ok(pages.length >= 15, `only ${pages.length} pages found — the roster moved`);
 
         const resolved = new Set();

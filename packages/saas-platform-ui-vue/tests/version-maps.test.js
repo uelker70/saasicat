@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { nextTick, ref } from 'vue';
 
 import { useBundleVersionsMap, useLivePlanVersions } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 const ADMIN = '/api/v1/admin';
 
@@ -89,8 +90,7 @@ describe('useLivePlanVersions', () => {
         const view = useLivePlanVersions({
             adminEndpoint: ADMIN,
             plans: ref([{ id: 'p1', planKey: 'pro' }]),
-            http,
-            getAuthToken: () => 'tok',
+            http: authenticating(http, 'tok'),
         });
         await view.refresh();
         assert.equal(calls[0].headers.Authorization, 'Bearer tok');
@@ -212,8 +212,7 @@ describe('useBundleVersionsMap', () => {
                 { id: 'b1', bundleKey: 'starter' },
                 { id: 'b2', bundleKey: 'extra' },
             ]),
-            http,
-            getAuthToken: () => 'tok',
+            http: authenticating(http, 'tok'),
         });
         await view.refresh();
         assert.equal(calls[0].headers.Authorization, 'Bearer tok');

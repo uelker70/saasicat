@@ -1,10 +1,10 @@
 <template>
     <AdminPage class="sa-promo-codes">
-        <AdminHero :title="msg.title" :subtitle="subtitle">
+        <AdminHero :title="msg.title" :subtitle="options?.subtitle">
             <template #actions>
-                <slot name="head-actions">
+                <slot name="head-options?.actions">
                     <button
-                        v-if="enableCreate"
+                        v-if="options?.enableCreate"
                         class="sa-btn sa-btn--primary"
                         type="button"
                         @click="showCreate = true"
@@ -49,7 +49,7 @@
                         map-options
                         clearable
                         :label="common.status"
-                        :options="statusOptions"
+                        :options="options?.statusOptions"
                     />
                 </AdminFilters>
 
@@ -84,19 +84,19 @@
         </AdminBody>
 
         <PromoCodeCreateDialog
-            v-if="enableCreate && submitCreate"
+            v-if="options?.enableCreate"
             v-model="showCreate"
-            :submit="submitCreate"
-            :plans="planOptions"
+            :submit="promos.create"
+            :plans="options?.planOptions"
             @created="onCreated"
         />
 
         <PromoCodeEditDialog
-            v-if="enableEdit && submitEdit"
+            v-if="options?.enableEdit"
             v-model="showEdit"
             :row="editingRow"
-            :plans="planOptions"
-            :submit="submitEdit"
+            :plans="options?.planOptions"
+            :submit="promos.update"
             @updated="onUpdated"
         />
     </AdminPage>
@@ -108,6 +108,10 @@
 // Pure helpers + constants therefore live here in the regular `<script>` block.
 
 import AdminTable from '../ui/data/AdminTable.vue';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { promoCodesResource } from '../client/resources/promo-codes.resource.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import type { PromoCodePlanOption } from '../internal/dialogs/types.js';
 
 import { IDENTITY_ACCENTS } from '../client/identity-accents.js';
@@ -138,16 +142,15 @@ import AdminSection from '../ui/page/AdminSection.vue';
 import AdminKpi from '../ui/data/AdminKpi.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import AdminStatistics from '../ui/data/AdminStatistics.vue';
-import { useQuasar } from 'quasar';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import { useSuperAdminConfirm } from '../quasar/confirm.js';
 import PromoCodeCreateDialog from '../internal/dialogs/PromoCodeCreateDialog.vue';
 import PromoCodeEditDialog, {
     type PromoCodeEditRow,
 } from '../internal/dialogs/PromoCodeEditDialog.vue';
 import type {
-    PromoCodeCreatePayload,
     PromoCodeDurationType,
     PromoCodeUpdatePayload,
     PromoCodeValueType,
@@ -158,6 +161,18 @@ import type {
 // Optional baked-in flows: enableCreate/Edit/StatusToggle/Delete + submit*
 // callbacks. Default actions are APPENDED to the consumer actions.
 
+/**
+ * A row as the page renders it.
+ *
+ * Looser than the port's `PromoCodeRecord` on purpose, and in one direction:
+ * decimal and date fields arrive from JSON as strings, so the types that read
+ * `Date` or `number` server-side are widened here rather than parsed twice.
+ *
+ * It had an `[extra: string]: unknown` escape hatch as well, from when the rows
+ * came through a `loadPromos` prop and could be anything the app returned. The
+ * resource decides the shape now, so the hatch is gone — and with it the reason
+ * nothing could tell a typo from a field the server started sending.
+ */
 export interface PromoRow {
     id: string;
     code: string;
@@ -178,12 +193,30 @@ export interface PromoRow {
     campaignTag: string | null;
     revenueDeductionAccount?: string | null;
     description?: string | null;
-    [extra: string]: unknown;
 }
 
 export interface PromoListFilter {
     search?: string;
     status?: string | null;
+}
+
+/**
+ * What an app may change about this page.
+ *
+ * One object rather than 11 props, per AP3 §3.2: a page's contract is
+ * `resources`, `params` and `options`, whatever the number of knobs behind
+ * the last one.
+ */
+export interface PromoCodesPageOptions {
+    subtitle?: string;
+    statusOptions?: readonly string[];
+    actions?: readonly PromoRowAction[];
+    enableCreate?: boolean;
+    enableEdit?: boolean;
+    enableStatusToggle?: boolean;
+    enableDelete?: boolean;
+    planOptions?: readonly PromoCodePlanOption[];
+    createLabel?: string;
 }
 
 export interface PromoRowAction {
@@ -195,35 +228,31 @@ export interface PromoRowAction {
     handler: (row: PromoRow) => void;
 }
 
-const props = withDefaults(
-    defineProps<{
-        loadPromos: (filter: PromoListFilter) => Promise<PromoRow[]>;
-        subtitle?: string;
-        statusOptions?: readonly string[];
-        actions?: readonly PromoRowAction[];
-        enableCreate?: boolean;
-        enableEdit?: boolean;
-        enableStatusToggle?: boolean;
-        enableDelete?: boolean;
-        submitCreate?: (payload: PromoCodeCreatePayload) => Promise<void>;
-        submitEdit?: (id: string, payload: PromoCodeUpdatePayload) => Promise<void>;
-        submitDelete?: (id: string) => Promise<void>;
-        planOptions?: readonly PromoCodePlanOption[];
-        createLabel?: string;
-    }>(),
-    {
-        statusOptions: () => ['ACTIVE', 'PAUSED', 'EXHAUSTED', 'EXPIRED'],
-        planOptions: () => [],
-    },
-);
+const props = defineProps<{
+    /**
+     * Override the promo-code resource for this page only — a different
+     * host, or one operation wrapped. Layered over the app's own override
+     * rather than replacing it; see AP3 §3.2.
+     */
+    resources?: ResourceOverride<(typeof promoCodesResource)['ops']>;
+    /** Presentation and capability. Never data, never a callback. */
+    options?: PromoCodesPageOptions;
+}>();
 
 const msg = useSaMessages('promos');
+const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const { intlLocale } = useSuperAdminI18n();
-const resolvedCreateLabel = computed(() => props.createLabel ?? msg.value.createAction);
+const resolvedCreateLabel = computed(() => props.options?.createLabel ?? msg.value.createAction);
 
-const q = useQuasar();
+// The data layer, reached by name. Before this the page took four function
+// props and every consumer app spelled the same four endpoints again; the
+// resource already knows the API base, the project and the locale.
+const promos = useResource('promoCodes', props.resources);
+
 const notify = useSuperAdminNotify();
+// `confirm` is taken — `window.confirm` shadows it.
+const askConfirm = useSuperAdminConfirm();
 const rows = ref<PromoRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ search: '', status: null as string | null });
@@ -351,7 +380,7 @@ const baseColumns = computed(() => [
 // Built-in default actions — APPENDED to the consumer actions, not replacing them.
 const bakedActions = computed<PromoRowAction[]>(() => {
     const out: PromoRowAction[] = [];
-    if (props.enableEdit && props.submitEdit) {
+    if (props.options?.enableEdit) {
         out.push({
             id: 'edit',
             label: common.value.edit,
@@ -360,7 +389,7 @@ const bakedActions = computed<PromoRowAction[]>(() => {
             handler: (row) => openEdit(row),
         });
     }
-    if (props.enableStatusToggle && props.submitEdit) {
+    if (props.options?.enableStatusToggle) {
         out.push({
             id: 'pause',
             label: msg.value.list.actionPause,
@@ -378,7 +407,7 @@ const bakedActions = computed<PromoRowAction[]>(() => {
             handler: (row) => onPatch(row, { status: 'ACTIVE' }),
         });
     }
-    if (props.enableDelete && props.submitDelete) {
+    if (props.options?.enableDelete) {
         out.push({
             id: 'delete',
             label: common.value.delete,
@@ -391,7 +420,7 @@ const bakedActions = computed<PromoRowAction[]>(() => {
 });
 
 const mergedActions = computed<readonly PromoRowAction[]>(() => [
-    ...(props.actions ?? []),
+    ...(props.options?.actions ?? []),
     ...bakedActions.value,
 ]);
 
@@ -416,10 +445,10 @@ async function reload() {
     try {
         // Unfiltered on purpose: the tiles count the tenant's full set, and
         // the table narrows locally, so filtering costs no round trip.
-        rows.value = await props.loadPromos({});
+        rows.value = await promos.list({});
     } catch (err) {
         rows.value = [];
-        console.warn('[PromoCodesPage] loadPromos failed:', err);
+        console.warn('[PromoCodesPage] loading promo codes failed:', err);
     } finally {
         loading.value = false;
     }
@@ -492,33 +521,32 @@ function normalizeStringArray(value: unknown): string[] {
 }
 
 async function onPatch(row: PromoRow, data: PromoCodeUpdatePayload): Promise<void> {
-    if (!props.submitEdit) return;
     try {
-        await props.submitEdit(row.id, data);
+        await promos.update(row.id, data);
         notify('positive', `${row.code} → ${data.status}`);
         await reload();
     } catch (err) {
-        notify('negative', errMsg(err));
+        notify('negative', adminErrorMessage(err, errors.value));
     }
 }
 
-function onDeleteClick(row: PromoRow): void {
-    if (!props.submitDelete) return;
-    const submit = props.submitDelete;
-    q.dialog({
+async function onDeleteClick(row: PromoRow): Promise<void> {
+    const { ok: confirmed } = await askConfirm({
         title: formatMessage(msg.value.list.deleteTitle, { code: row.code }),
         message: msg.value.list.deleteMessage,
-        cancel: common.value.cancel,
-        ok: { label: common.value.delete, color: 'negative' },
-    }).onOk(async () => {
+        confirmLabel: common.value.delete,
+        cancelLabel: common.value.cancel,
+        tone: 'negative',
+    });
+    if (confirmed) {
         try {
-            await submit(row.id);
+            await promos.remove(row.id);
             notify('positive', formatMessage(msg.value.list.deletedNotice, { code: row.code }));
             await reload();
         } catch (err) {
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
         }
-    });
+    }
 }
 
 function onCreated(): void {
@@ -529,14 +557,6 @@ function onCreated(): void {
 function onUpdated(): void {
     notify('positive', msg.value.list.updatedNotice);
     void reload();
-}
-
-function errMsg(err: unknown): string {
-    return (
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        (err as Error)?.message ??
-        msg.value.list.actionFailed
-    );
 }
 
 function formatDate(iso: string | Date | null | undefined): string | null {

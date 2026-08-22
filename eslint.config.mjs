@@ -212,7 +212,6 @@ export default tseslint.config(
                             group: [
                                 '../quasar/**',
                                 '../pages/**',
-                                '../pages-tenant/**',
                                 '../layouts/**',
                                 '../auth/**',
                                 '../internal/**',
@@ -245,7 +244,7 @@ export default tseslint.config(
                             // type/i18n modules. Expressed as a regex because
                             // gitignore-style `!` negation cannot re-include a
                             // file whose intermediate directory is excluded.
-                            regex: '^\\./(?:pages/|layouts/|auth/|features/(?!bundle/internal/catalog-i18n\\.js$)|internal/(?!(?:dialogs/types|platform-email/platform-email\\.types|email-history/email-history\\.types)\\.js$)|pages-tenant/(?!default-i18n\\.js$)|ui/(?!theme/))',
+                            regex: '^\\./(?:pages/|layouts/|auth/|features/(?!bundle/internal/catalog-i18n\\.js$)|internal/(?!(?:dialogs/types|platform-email/platform-email\\.types|email-history/email-history\\.types)\\.js$)|ui/(?!theme/))',
                             message:
                                 'The main entry may only re-export the whitelisted framework-free type/i18n modules from the SFC directories.',
                         },
@@ -344,7 +343,6 @@ export default tseslint.config(
             'packages/saas-platform-ui-vue/src/features/bundle/internal/catalog-i18n.ts',
             'packages/saas-platform-ui-vue/src/internal/platform-email/platform-email.types.ts',
             'packages/saas-platform-ui-vue/src/internal/email-history/email-history.types.ts',
-            'packages/saas-platform-ui-vue/src/pages-tenant/default-i18n.ts',
         ],
         rules: {
             'no-restricted-imports': [

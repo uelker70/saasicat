@@ -27,6 +27,18 @@ function promoCodesUrl(ctx: ResourceContext): string {
     return `${ctx.apiBase}/promo-codes`;
 }
 
+/** What the detail view reads: the code, its counters and who redeemed it. */
+export interface PromoDetail {
+    promo: Record<string, unknown> & {
+        code?: string;
+        valueType?: string;
+        value?: number | string;
+        status?: string;
+    };
+    stats: Record<string, unknown>;
+    redemptions: Array<Record<string, unknown> & { id: string }>;
+}
+
 export const promoCodesResource = defineResource('promoCodes', {
     list: async (http, ctx, filter: PromoCodesFilter = {}): Promise<PromoCodeRecord[]> =>
         (await requestJson<PromoCodeRecord[]>(
@@ -44,6 +56,19 @@ export const promoCodesResource = defineResource('promoCodes', {
      * reloads the list rather than reading it, and promising a body a caller
      * would then have to trust is a wider contract than anything holds today.
      */
+
+    /**
+     * One code with its statistics and redemptions.
+     *
+     * The platform's own admin controller serves list, create, update and
+     * delete but NOT this — the detail view is answered by the consuming app,
+     * at the path its page already calls. Recorded here rather than left as a
+     * `loadDetail` prop, so the page needs no callback and an app that serves
+     * it elsewhere overrides one operation instead of supplying one.
+     */
+    detail: async (http, ctx, id: string): Promise<PromoDetail | null> =>
+        requestJson<PromoDetail>(http, `${promoCodesUrl(ctx)}/${encodeURIComponent(id)}`),
+
     create: async (http, ctx, payload: unknown): Promise<void> => {
         await requestJson(http, promoCodesUrl(ctx), { method: 'POST', body: payload });
     },

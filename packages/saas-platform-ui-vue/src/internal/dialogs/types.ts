@@ -1,37 +1,13 @@
+export type {
+    PilotRow,
+    PilotCreatePayload,
+    PilotCreateResult,
+    PilotEditPayload,
+    PilotEditResult,
+} from '../../client/resources/pilots.types.ts';
+
 // Shared types for platform dialogs. Extracted from the .vue files
 // because vue-tsc does not support `type X from "...vue"`.
-
-export interface PilotCreatePayload {
-    tenant: { name: string; slug?: string; legalForm?: string; vatId?: string };
-    admin: {
-        email: string;
-        firstName: string;
-        lastName: string;
-        initialPassword?: string;
-    };
-    pilot: { plan: string; note?: string; endsAt?: string };
-}
-
-export interface PilotCreateResult {
-    slug: string;
-    /** If the server generated an initial password, include it here. */
-    initialPassword?: string;
-}
-
-/** Edit an existing pilot subscription (plan, end date, note). */
-export interface PilotEditPayload {
-    /** Optional — only the fields that are set get changed. */
-    plan?: string;
-    /** `null` clears the end date (open-ended pilot phase). */
-    endsAt?: string | null;
-    /** `null` or empty clears the note. */
-    note?: string | null;
-}
-
-export interface PilotEditResult {
-    slug: string;
-    changed?: string[];
-}
 
 /**
  * Tenant-specific vocabulary for the pilot dialogs. The platform provides

@@ -1,64 +1,30 @@
 <template>
-    <q-dialog
+    <AdminFormDialog
         :model-value="modelValue"
-        persistent
+        :title="msg.editDialog.title"
+        :subtitle="subtitleText"
+        size="lg"
+        :submit-label="common.save"
+        :submit-disabled="!isValid || !hasChanges"
+        :submit="submitForm"
         @update:model-value="emit('update:modelValue', $event)"
+        @submitted="emit('updated')"
     >
-        <q-card class="pc-dlg">
-            <q-card-section class="pc-dlg__head">
-                <div>
-                    <div class="pc-dlg__title">{{ msg.editDialog.title }}</div>
-                    <div v-if="row" class="pc-dlg__sub">
-                        {{ msg.form.codeLabel }} <strong>{{ row.code }}</strong> ·
-                        {{
-                            formatMessage(msg.editDialog.redemptionsSoFar, {
-                                count: row.redemptionsCount,
-                            })
-                        }}
-                    </div>
-                </div>
-                <q-btn
-                    v-close-popup
-                    class="pc-dlg__close"
-                    flat
-                    dense
-                    round
-                    icon="close"
-                    :disable="loading"
-                />
-            </q-card-section>
-
-            <q-card-section class="pc-dlg__body">
-                <PromoCodeDialogFields
-                    v-model:advanced-open="advancedOpen"
-                    mode="edit"
-                    :form="form"
-                    :code="row?.code ?? ''"
-                    :show-campaign-tag="showCampaignTag"
-                    :plans="plans"
-                />
-
-                <p v-if="error" class="pc-error">{{ error }}</p>
-            </q-card-section>
-
-            <q-card-actions align="right" class="pc-dlg__foot">
-                <q-btn v-close-popup flat :label="common.cancel" :disable="loading" />
-                <q-btn
-                    unelevated
-                    color="primary"
-                    :label="common.save"
-                    :loading="loading"
-                    :disable="!isValid || !hasChanges"
-                    @click="onSubmit"
-                />
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+        <PromoCodeDialogFields
+            v-model:advanced-open="advancedOpen"
+            v-model:form="form"
+            mode="edit"
+            :code="row?.code ?? ''"
+            :show-campaign-tag="showCampaignTag"
+            :plans="plans"
+        />
+    </AdminFormDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import PromoCodeDialogFields from './PromoCodeDialogFields.vue';
+import AdminFormDialog from '../../ui/overlay/AdminFormDialog.vue';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type {
@@ -182,8 +148,6 @@ function fromRow(row: PromoCodeEditRow): EditForm {
 
 const form = reactive<EditForm>(emptyForm());
 const initial = ref<EditForm>(emptyForm());
-const loading = ref(false);
-const error = ref('');
 const advancedOpen = ref(false);
 
 const isValid = computed(() => {
@@ -200,6 +164,18 @@ function plansEqual(a: string[], b: string[]): boolean {
     const sortedB = [...b].sort();
     return sortedA.every((k, i) => k === sortedB[i]);
 }
+
+// The head's second line: which code is being edited, and how far it has been
+// used. Composed here rather than in the template because AdminDialog takes a
+// subtitle as text — a head that renders markup per dialog is the thing the
+// shared chrome exists to prevent.
+const subtitleText = computed(() => {
+    if (!props.row) return undefined;
+    const used = formatMessage(msg.value.editDialog.redemptionsSoFar, {
+        count: props.row.redemptionsCount,
+    });
+    return `${msg.value.form.codeLabel} ${props.row.code} · ${used}`;
+});
 
 const hasChanges = computed(() => {
     const i = initial.value;
@@ -230,114 +206,44 @@ watch(
         const next = row ? fromRow(row) : emptyForm();
         Object.assign(form, next);
         initial.value = { ...next, appliesToPlans: [...next.appliesToPlans] };
-        error.value = '';
         advancedOpen.value = false;
     },
     { immediate: true },
 );
 
-async function onSubmit() {
-    if (!props.row || !hasChanges.value || !isValid.value) return;
-    loading.value = true;
-    error.value = '';
-    try {
-        const i = initial.value;
-        const payload: PromoCodeUpdatePayload = {};
-        if (form.status !== i.status) payload.status = form.status;
-        if (form.valueType !== i.valueType) payload.valueType = form.valueType;
-        if (form.value !== i.value) payload.value = form.value;
-        if (form.durationType !== i.durationType) payload.durationType = form.durationType;
-        if (form.durationValue !== i.durationValue)
-            payload.durationValue = form.durationType === 'ONCE' ? null : form.durationValue;
-        if (form.maxRedemptions !== i.maxRedemptions)
-            payload.maxRedemptions = form.maxRedemptions ?? null;
-        if (form.validFrom !== i.validFrom) payload.validFrom = form.validFrom || null;
-        if (form.validUntil !== i.validUntil) payload.validUntil = form.validUntil || null;
-        if (!plansEqual(form.appliesToPlans, i.appliesToPlans))
-            payload.appliesToPlans = [...form.appliesToPlans];
-        if (form.appliesToBilling !== i.appliesToBilling)
-            payload.appliesToBilling = form.appliesToBilling;
-        if (form.firstTimeCustomersOnly !== i.firstTimeCustomersOnly)
-            payload.firstTimeCustomersOnly = form.firstTimeCustomersOnly;
-        if (form.minimumPlanAmountGross !== i.minimumPlanAmountGross)
-            payload.minimumPlanAmountGross = form.minimumPlanAmountGross ?? null;
-        if (form.allowZeroInvoice !== i.allowZeroInvoice)
-            payload.allowZeroInvoice = form.allowZeroInvoice;
-        if ((form.campaignTag ?? '') !== (i.campaignTag ?? ''))
-            payload.campaignTag = form.campaignTag || null;
-        if ((form.revenueDeductionAccount ?? '') !== (i.revenueDeductionAccount ?? ''))
-            payload.revenueDeductionAccount = form.revenueDeductionAccount || null;
-        if ((form.description ?? '') !== (i.description ?? ''))
-            payload.description = form.description || null;
-        await props.submit(props.row.id, payload);
-        emit('updated');
-        emit('update:modelValue', false);
-    } catch (err) {
-        error.value =
-            (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
-            (err as Error).message ??
-            common.value.errorSaveFailed;
-    } finally {
-        loading.value = false;
-    }
+// The dialog owns pending, failure and closing; what is left here is the one
+// thing it cannot know — which fields changed. Rejecting is how a failure
+// reaches the operator, so nothing is caught.
+async function submitForm(): Promise<void> {
+    if (!props.row) return;
+    const i = initial.value;
+    const payload: PromoCodeUpdatePayload = {};
+    if (form.status !== i.status) payload.status = form.status;
+    if (form.valueType !== i.valueType) payload.valueType = form.valueType;
+    if (form.value !== i.value) payload.value = form.value;
+    if (form.durationType !== i.durationType) payload.durationType = form.durationType;
+    if (form.durationValue !== i.durationValue)
+        payload.durationValue = form.durationType === 'ONCE' ? null : form.durationValue;
+    if (form.maxRedemptions !== i.maxRedemptions)
+        payload.maxRedemptions = form.maxRedemptions ?? null;
+    if (form.validFrom !== i.validFrom) payload.validFrom = form.validFrom || null;
+    if (form.validUntil !== i.validUntil) payload.validUntil = form.validUntil || null;
+    if (!plansEqual(form.appliesToPlans, i.appliesToPlans))
+        payload.appliesToPlans = [...form.appliesToPlans];
+    if (form.appliesToBilling !== i.appliesToBilling)
+        payload.appliesToBilling = form.appliesToBilling;
+    if (form.firstTimeCustomersOnly !== i.firstTimeCustomersOnly)
+        payload.firstTimeCustomersOnly = form.firstTimeCustomersOnly;
+    if (form.minimumPlanAmountGross !== i.minimumPlanAmountGross)
+        payload.minimumPlanAmountGross = form.minimumPlanAmountGross ?? null;
+    if (form.allowZeroInvoice !== i.allowZeroInvoice)
+        payload.allowZeroInvoice = form.allowZeroInvoice;
+    if ((form.campaignTag ?? '') !== (i.campaignTag ?? ''))
+        payload.campaignTag = form.campaignTag || null;
+    if ((form.revenueDeductionAccount ?? '') !== (i.revenueDeductionAccount ?? ''))
+        payload.revenueDeductionAccount = form.revenueDeductionAccount || null;
+    if ((form.description ?? '') !== (i.description ?? ''))
+        payload.description = form.description || null;
+    await props.submit(props.row.id, payload);
 }
 </script>
-
-<style scoped>
-.pc-dlg {
-    min-width: 720px;
-    max-width: 96vw;
-}
-
-.pc-dlg__head {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    padding-bottom: 8px;
-}
-
-.pc-dlg__close {
-    margin-left: auto;
-}
-
-.pc-dlg__title {
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: var(--sa-text-xl);
-    color: var(--sa-color-fg-heading);
-}
-
-.pc-dlg__sub {
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-muted);
-    margin-top: 2px;
-}
-
-.pc-dlg__body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding-top: 4px;
-}
-
-.pc-dlg__foot {
-    border-top: 1px solid var(--sa-color-border);
-}
-
-.pc-error {
-    background: var(--sa-color-negative-surface);
-    border: 1px solid var(--sa-color-negative-border);
-    color: var(--sa-color-negative-fg);
-    font-size: var(--sa-text-md);
-    margin: 8px 0 0;
-    padding: 8px 12px;
-    border-radius: 8px;
-}
-
-/* The code cannot be changed after creation. */
-.pc-input:disabled {
-    background: var(--sa-color-bg-sunken);
-    color: var(--sa-color-fg-muted);
-    cursor: not-allowed;
-}
-</style>

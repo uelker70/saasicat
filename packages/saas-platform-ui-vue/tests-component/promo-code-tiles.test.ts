@@ -9,6 +9,7 @@ import { describe, expect, test } from 'vitest';
 
 import PromoCodesPage from '../src/pages/PromoCodesPage.vue';
 import { mountWithQuasar } from './support/mount-with-quasar.js';
+import { provideStubResources } from './support/stub-resources.js';
 
 const ROWS = [
     { id: '1', code: 'SPRING', status: 'ACTIVE' },
@@ -32,7 +33,11 @@ function tileCounts(wrapper: ReturnType<typeof mountWithQuasar>): string[] {
 
 async function mountPage() {
     const wrapper = mountWithQuasar(PromoCodesPage, {
-        props: { loadPromos: () => Promise.resolve(ROWS) },
+        global: {
+            provide: provideStubResources({
+                promoCodes: { list: () => Promise.resolve(ROWS) },
+            }),
+        },
     });
     await new Promise((r) => setTimeout(r, 0));
     await wrapper.vm.$nextTick();

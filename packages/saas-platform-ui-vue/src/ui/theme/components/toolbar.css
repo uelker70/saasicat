@@ -1,0 +1,174 @@
+/* Toolbar, row actions, status pill and the field grid — the four small
+ * primitives that were each written by hand in several pages.
+ */
+
+.sa-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sa-gap-inline);
+    margin-bottom: var(--sa-space-5);
+}
+.sa-toolbar[data-align='between'] .sa-toolbar__end {
+    margin-left: auto;
+}
+.sa-toolbar[data-align='end'] .sa-toolbar__start {
+    margin-left: auto;
+}
+.sa-toolbar__start,
+.sa-toolbar__end {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sa-gap-inline);
+}
+/* Sticky sits under the page head, not at the viewport top: a toolbar that
+ * covers the table header while scrolling hides the column names it acts on. */
+.sa-toolbar[data-sticky] {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--sa-color-bg-app);
+    padding-block: var(--sa-space-3);
+}
+
+.sa-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--sa-space-1);
+}
+.sa-row-actions__danger {
+    color: var(--sa-color-negative);
+}
+
+/* Status pill. Two variants of one shape — the tinted default, and an outline
+ * for dense tables where a filled block per row reads as noise.
+ *
+ * AP2's roster sketched a third, `solid`: the tone's saturated colour with
+ * white on top. It is not here, and the reason is measured rather than a
+ * preference. White on `--sa-color-positive-strong` is 2.54:1 and on
+ * `--sa-color-warning-strong` 2.15:1 — a mid-tone green and a mid-tone amber
+ * cannot carry white text, and both are below the 3:1 floor. Making it
+ * readable would mean a per-tone foreground the role layer does not have, for
+ * a variant no page asks for. Add it when a page needs it, with the roles that
+ * make it pass.
+ *
+ * Written out per tone and variant rather than through a per-tone indirection
+ * variable, which would be a third of the lines. The contrast sweep in
+ * `tests/theme-role-contrast.test.js` reads these declarations and resolves the
+ * roles it finds; a `var(--sa-pill-fg)` set three blocks earlier is a value it
+ * cannot follow, and a component the sweep cannot judge is exactly the kind of
+ * surface that turned up at 1.48:1 in phase 1. Twenty-one measurable pairings
+ * beat seven unmeasurable ones. */
+
+.sa-pill--soft.sa-pill--positive {
+    background: var(--sa-color-positive-surface);
+    color: var(--sa-color-positive-fg);
+}
+.sa-pill--outline.sa-pill--positive {
+    border-color: var(--sa-color-positive-border);
+    color: var(--sa-color-positive-fg);
+}
+
+.sa-pill--soft.sa-pill--warning {
+    background: var(--sa-color-warning-surface);
+    color: var(--sa-color-warning-fg);
+}
+.sa-pill--outline.sa-pill--warning {
+    border-color: var(--sa-color-warning-border);
+    color: var(--sa-color-warning-fg);
+}
+
+.sa-pill--soft.sa-pill--negative {
+    background: var(--sa-color-negative-surface);
+    color: var(--sa-color-negative-fg);
+}
+.sa-pill--outline.sa-pill--negative {
+    border-color: var(--sa-color-negative-border);
+    color: var(--sa-color-negative-fg);
+}
+
+.sa-pill--soft.sa-pill--info {
+    background: var(--sa-color-info-surface);
+    color: var(--sa-color-info-fg);
+}
+.sa-pill--outline.sa-pill--info {
+    border-color: var(--sa-color-info-border);
+    color: var(--sa-color-info-fg);
+}
+
+.sa-pill--soft.sa-pill--muted {
+    background: var(--sa-color-border-soft);
+    color: var(--sa-color-fg-muted);
+}
+.sa-pill--outline.sa-pill--muted {
+    border-color: var(--sa-color-border-strong);
+    color: var(--sa-color-fg-muted);
+}
+
+.sa-pill--soft.sa-pill--primary,
+.sa-pill--soft.sa-pill--accent {
+    background: var(--sa-color-accent-surface);
+    color: var(--sa-color-accent-strong);
+}
+.sa-pill--outline.sa-pill--primary,
+.sa-pill--outline.sa-pill--accent {
+    border-color: var(--sa-color-accent-border);
+    color: var(--sa-color-accent-strong);
+}
+
+/* Field grid. One column below `sm` regardless of the requested count — a
+ * two-column form on a phone is two half-width inputs. */
+.sa-field-grid {
+    display: grid;
+    gap: var(--sa-space-5);
+}
+.sa-field-grid[data-columns='1'] {
+    grid-template-columns: 1fr;
+}
+.sa-field-grid[data-columns='2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.sa-field-grid[data-columns='3'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 599.98px) {
+    .sa-field-grid[data-columns='2'],
+    .sa-field-grid[data-columns='3'] {
+        grid-template-columns: 1fr;
+    }
+}
+
+.sa-field[data-span='2'] {
+    grid-column: span 2;
+}
+.sa-field[data-span='3'] {
+    grid-column: span 3;
+}
+.sa-field[data-span='full'] {
+    grid-column: 1 / -1;
+}
+
+.sa-field__label {
+    display: block;
+    margin-bottom: var(--sa-space-2);
+    font-size: var(--sa-text-sm);
+    font-weight: 600;
+    color: var(--sa-color-fg-secondary);
+}
+.sa-field__required {
+    color: var(--sa-color-negative);
+}
+.sa-field__hint,
+.sa-field__error {
+    margin: var(--sa-space-2) 0 0;
+    font-size: var(--sa-text-sm);
+    line-height: 1.35;
+}
+.sa-field__hint {
+    color: var(--sa-color-fg-muted);
+}
+.sa-field__error {
+    color: var(--sa-color-negative-fg);
+}

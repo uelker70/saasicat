@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ref } from 'vue';
 import { useApiList } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 function buildHttp(responses = []) {
     const calls = [];
@@ -105,12 +106,11 @@ describe('useApiList — Filter', () => {
 });
 
 describe('useApiList — Auth + Error', () => {
-    test('auth token is sent as a Bearer header', async () => {
+    test("the client's auth header reaches the request untouched", async () => {
         const { http, calls } = buildHttp([{ status: 200, body: { items: [] } }]);
         const list = useApiList({
             endpoint: '/api/x',
-            http,
-            getAuthToken: () => 'jwt-abc',
+            http: authenticating(http, 'jwt-abc'),
             autoLoad: false,
         });
         await list.reload();

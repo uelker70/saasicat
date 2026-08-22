@@ -1,13 +1,20 @@
 // Typecheck the source this package SHIPS, the way a consumer compiles it.
 //
-// Four export subpaths hand out `.vue` and `.ts` from `src/` rather than a
-// build — `./pages/*`, `./pages-standard/*`, `./pages-tenant/*` and
-// `./components/*` (decision E3 — consumers need the source for Quasar and Sass
-// theming). Four more serve CSS and SCSS: three from `src/ui/theme/`, which
-// carries no TypeScript at all, and `./sa-theme.css` from `src/pages-standard/`.
-// So the files below are compiled by the consumer's `tsconfig`, not by ours.
-// Ours says `lib: ES2023`; a consumer said `ES2021`, and `new Error(msg,
-// { cause })` in a file they never wrote failed their build.
+// Several export subpaths hand out `.vue` and `.ts` from `src/` rather than a
+// build (decision E3 — consumers need the source for Quasar and Sass theming).
+// The list is NOT written here, because it moves: `./pages-standard/*` and
+// `./components/*` were two of them until phase 4 removed both. It is derived
+// from the export map below, and the count is printed on every run.
+//
+// So the files those subpaths reach are compiled by the consumer's `tsconfig`,
+// not by ours. Ours says `lib: ES2023`; a consumer said `ES2021`, and
+// `new Error(msg, { cause })` in a file they never wrote failed their build.
+//
+// The closure GROWS as pages take on more of the package. Migrating one page
+// onto the resource registry pulled `src/vue/resource-registry.ts` in for the
+// first time, and it used `Object.hasOwn` — ES2022, and pre-existing. That is
+// this check working, not a gap in it: the file became a consumer's problem the
+// moment something shipped imported it, and it said so that same moment.
 //
 // `FLOOR` is the contract that replaces that surprise, and it is set to what a
 // Vite consumer sets rather than to a bare language level. Two of those options

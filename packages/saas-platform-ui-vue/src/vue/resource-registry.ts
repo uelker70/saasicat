@@ -51,8 +51,59 @@ export type ResourceOverrides<TMap extends ResourceMap> = {
 export interface ResourceRegistry<TMap extends ResourceMap = ResourceMap> {
     /** The bound operations of one resource. Throws for an unknown key. */
     get<K extends keyof TMap>(key: K): Bound<TMap[K]['ops']>;
+    /**
+     * The same resource with one more override layered on, for a single page
+     * instance rather than the whole app.
+     *
+     * Layered, not replaced: the app's own override still runs. An app that
+     * records approvals around `publish` keeps doing so when one page is
+     * pointed at a legacy host, and the page does not have to know the approval
+     * exists. The order is platform, then app, then instance — the instance is
+     * outermost, so it sees what the app already decided.
+     */
+    bind<K extends keyof TMap>(
+        key: K,
+        override: ResourceOverride<TMap[K]['ops']>,
+    ): Bound<TMap[K]['ops']>;
     /** Every key the registry can answer for. */
     keys(): string[];
+}
+
+/**
+ * Composes two overrides into one, `layer` outermost.
+ *
+ * The op case is the reason this is not `{ ...base, ...layer }`: both may wrap
+ * the same operation, and a spread would drop the app's wrapper on the floor.
+ * Each side receives the next one down as its `next`, so the chain reads
+ * platform ← app ← instance in the order a reader would expect.
+ */
+function mergeOverrides<TOps extends ResourceOps>(
+    base: ResourceOverride<TOps> | undefined,
+    layer: ResourceOverride<TOps>,
+): ResourceOverride<TOps> {
+    if (!base) return layer;
+    const ops: Record<string, unknown> = { ...(base.ops ?? {}) };
+    for (const [name, outer] of Object.entries(layer.ops ?? {})) {
+        if (typeof outer !== 'function') continue;
+        const inner = (base.ops as Record<string, unknown> | undefined)?.[name];
+        ops[name] =
+            typeof inner === 'function'
+                ? (next: (...a: never[]) => Promise<unknown>, ...args: never[]) =>
+                      (outer as (n: unknown, ...a: never[]) => Promise<unknown>)(
+                          (...inner_args: never[]) =>
+                              (inner as (n: unknown, ...a: never[]) => Promise<unknown>)(
+                                  next,
+                                  ...inner_args,
+                              ),
+                          ...args,
+                      )
+                : outer;
+    }
+    return {
+        context: { ...base.context, ...layer.context },
+        http: layer.http ?? base.http,
+        ops: ops as ResourceOverride<TOps>['ops'],
+    };
 }
 
 export interface CreateResourceRegistryOptions<TMap extends ResourceMap> {
@@ -89,12 +140,18 @@ function boundWithOverride<TOps extends ResourceOps>(
     const result = { ...platform } as Record<string, unknown>;
     for (const [name, wrap] of Object.entries(override.ops)) {
         if (typeof wrap !== 'function') continue;
-        // `Object.hasOwn`, not a truthy read: indexing walks the prototype
-        // chain, so an override named `toString` or `constructor` found
-        // `Object.prototype`'s and wrapped that instead of reporting a name the
-        // resource does not offer — the one case this check exists for. A typo
-        // like `lst` failed loudly while `constructor` passed silently.
-        if (!Object.hasOwn(platform as object, name)) {
+        // An own-property check, not a truthy read: indexing walks the
+        // prototype chain, so an override named `toString` or `constructor`
+        // found `Object.prototype`'s and wrapped that instead of reporting a
+        // name the resource does not offer — the one case this check exists
+        // for. A typo like `lst` failed loudly while `constructor` passed
+        // silently.
+        //
+        // `hasOwnProperty.call` rather than `Object.hasOwn`, which is ES2022:
+        // this file is reached from `pages/*`, which ships as source, so a
+        // consumer on the ES2021 floor compiles it. See CONTRIBUTING,
+        // "The shipped source has a language floor".
+        if (!Object.prototype.hasOwnProperty.call(platform as object, name)) {
             throw new Error(
                 `createResourceRegistry: resource "${def.key}" has no operation "${name}" to ` +
                     `override. It offers: ${Object.keys(platform).join(', ')}.`,
@@ -134,7 +191,7 @@ export function createResourceRegistry<TMap extends ResourceMap>(
     // loop below — silently ignored, which is the outcome this validation
     // exists to prevent.
     const unknown = Object.keys(options.overrides ?? {}).filter(
-        (key) => !Object.hasOwn(options.resources, key),
+        (key) => !Object.prototype.hasOwnProperty.call(options.resources, key),
     );
     if (unknown.length > 0) {
         throw new Error(
@@ -158,6 +215,17 @@ export function createResourceRegistry<TMap extends ResourceMap>(
         bound.set(key, boundWithOverride(def, options.http, readContext, options.overrides?.[key]));
     }
 
+    function defOf(key: string): ResourceDef<ResourceOps> {
+        const def = options.resources[key];
+        if (!def) {
+            throw new Error(
+                `useResource("${key}"): no such resource. The registry offers: ` +
+                    `${[...bound.keys()].join(', ')}.`,
+            );
+        }
+        return def as ResourceDef<ResourceOps>;
+    }
+
     return {
         get(key) {
             const ops = bound.get(key as string);
@@ -168,6 +236,21 @@ export function createResourceRegistry<TMap extends ResourceMap>(
                 );
             }
             return ops as Bound<TMap[typeof key]['ops']>;
+        },
+        bind(key, override) {
+            const name = String(key);
+            // Bound from the descriptor rather than from the cached result: an
+            // override may move the context or the client, and neither can be
+            // applied to operations that already closed over the old ones.
+            return boundWithOverride(
+                defOf(name),
+                options.http,
+                readContext,
+                mergeOverrides(
+                    options.overrides?.[name] as ResourceOverride<ResourceOps> | undefined,
+                    override as ResourceOverride<ResourceOps>,
+                ),
+            ) as Bound<TMap[typeof key]['ops']>;
         },
         keys: () => [...bound.keys()],
     };
@@ -197,7 +280,7 @@ export const SUPER_ADMIN_RESOURCES_KEY: InjectionKey<ResourceRegistry> = Symbol.
 export function useResource<
     K extends keyof TMap & string,
     TMap extends ResourceMap = PlatformResources,
->(key: K): Bound<TMap[K]['ops']> {
+>(key: K, override?: ResourceOverride<TMap[K]['ops']>): Bound<TMap[K]['ops']> {
     const registry = inject(SUPER_ADMIN_RESOURCES_KEY, null);
     if (!registry) {
         throw new Error(
@@ -207,5 +290,7 @@ export function useResource<
                 'send every request without your Authorization header and fail silently.',
         );
     }
-    return registry.get(key) as Bound<TMap[K]['ops']>;
+    return (
+        override ? registry.bind(key, override as ResourceOverride<ResourceOps>) : registry.get(key)
+    ) as Bound<TMap[K]['ops']>;
 }

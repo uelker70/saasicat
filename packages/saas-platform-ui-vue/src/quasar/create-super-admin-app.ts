@@ -312,10 +312,9 @@ export function createSuperAdminApp(options: CreateSuperAdminAppOptions): SuperA
     // Only when the app named its client. `createResourceRegistry` refuses to
     // be built without one, because a bare `fetch` sends every request without
     // the app's Authorization header and the failure is silent. Handing it the
-    // `defaultHttpClient()` fallback here would have defeated exactly that
-    // guarantee from inside the bootstrap: existing pages would keep working
-    // through their own `getAuthToken` options while anything reaching for
-    // `useResource()` collected 401s.
+    // `defaultHttpClient()` fallback here would defeat exactly that guarantee
+    // from inside the bootstrap: the pages would keep rendering while every
+    // request they issued collected a 401.
     //
     // Without a client the registry is simply absent, and `useResource` says
     // so — a named failure at the first call beats a page that renders empty.

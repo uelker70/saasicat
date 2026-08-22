@@ -1385,7 +1385,7 @@ For placeholders use `formatMessage(msg.value.deleteConfirm, { name })`. Outside
 a shell (isolated mounts, unit tests) the composables fall back to a default
 instance, so no setup is required.
 
-**Tenant-facing pages** (`@saasicat/ui-vue/pages-tenant/*`) are embedded in the
+**Tenant-facing pages** (`@saasicat/ui-vue-tenant`) are embedded in the
 consumer's own app rather than the SuperAdmin shell and therefore keep their
 prop-based map (`TenantPlanSectionI18n`). They ship a German **and** an English
 default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by

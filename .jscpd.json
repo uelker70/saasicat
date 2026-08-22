@@ -11,7 +11,7 @@
     "format": ["typescript", "javascript", "vue", "scss", "css", "markup"],
     "minTokens": 50,
     "maxLines": 50000,
-    "threshold": 3.0,
+    "threshold": 2.7,
     "reporters": ["console", "json"],
     "output": "./.jscpd-report",
     "absolute": false,

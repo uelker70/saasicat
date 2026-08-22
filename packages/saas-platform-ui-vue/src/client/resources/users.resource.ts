@@ -28,4 +28,39 @@ export const usersResource = defineResource('users', {
             http,
             `${usersUrl(ctx)}${filterQueryString({ q: filter.q, tenant: filter.tenant })}`,
         )) ?? [],
+
+    /**
+     * Issues a new password and reports the one-time value when the backend
+     * generates one. Void means "changed, tell the user by mail" — both shapes
+     * exist in the wild, and the page renders the password only when it gets one.
+     *
+     * The platform serves no such route: this is the path the consumers already
+     * call (`/users/:id/reset-password`), written down so a page does not need
+     * a callback for it. `reason` is required because the audit trail records it.
+     */
+    resetPassword: (
+        http,
+        ctx,
+        id: string,
+        reason: string,
+        mfaCode?: string,
+    ): Promise<{ oneTimePassword?: string } | null> =>
+        requestJson<{ oneTimePassword?: string }>(
+            http,
+            `${usersUrl(ctx)}/${encodeURIComponent(id)}/reset-password`,
+            {
+                method: 'POST',
+                body: { reason },
+                headers: mfaCode ? { 'X-Mfa-Code': mfaCode } : undefined,
+            },
+        ),
+
+    /** Same contract as `resetPassword`: app-served, audit-logged, MFA-gated. */
+    deactivate: async (http, ctx, id: string, reason: string, mfaCode?: string): Promise<void> => {
+        await requestJson(http, `${usersUrl(ctx)}/${encodeURIComponent(id)}/deactivate`, {
+            method: 'POST',
+            body: { reason },
+            headers: mfaCode ? { 'X-Mfa-Code': mfaCode } : undefined,
+        });
+    },
 });

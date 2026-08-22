@@ -24,12 +24,6 @@ export interface UseDiscoveryOptions {
     endpoint: string;
     http?: HttpClient;
     /**
-     * Auth header for `Authorization: Bearer <token>`. Sent along with every
-     * request. The consumer supplies a function that pulls the current token
-     * from the auth store.
-     */
-    getAuthToken?: () => string | null;
-    /**
      * When `true`, loads automatically on composable init. Default
      * `false` — the consumer triggers `load()` itself (e.g. after page mount).
      */
@@ -98,8 +92,6 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
         error.value = null;
         try {
             const headers: Record<string, string> = {};
-            const token = options.getAuthToken?.();
-            if (token) headers.Authorization = `Bearer ${token}`;
             if (includeEtag && etag.value) {
                 headers['If-None-Match'] = etag.value;
             }
@@ -147,8 +139,6 @@ export function useDiscovery(options: UseDiscoveryOptions): UseDiscoveryResult {
         error.value = null;
         try {
             const headers: Record<string, string> = { 'content-type': 'application/json' };
-            const token = options.getAuthToken?.();
-            if (token) headers.Authorization = `Bearer ${token}`;
 
             const rescanUrl = `${options.endpoint}/rescan`;
             const res = await http(rescanUrl, { method: 'POST', headers });

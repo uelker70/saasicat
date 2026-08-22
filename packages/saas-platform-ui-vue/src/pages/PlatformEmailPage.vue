@@ -65,69 +65,67 @@
             </AdminSection>
         </AdminBody>
 
-        <q-dialog v-model="showForm">
-            <q-card class="sa-pemail__dialog">
-                <q-card-section>
-                    <div class="text-h6">
-                        {{
-                            editing ? msg.provider.dialogEditTitle : msg.provider.dialogCreateTitle
-                        }}
-                    </div>
-                </q-card-section>
-                <q-card-section class="q-gutter-sm">
-                    <q-input v-model="form.name" outlined dense :label="common.name" />
-                    <q-input
-                        v-model="form.smtpHost"
-                        outlined
-                        dense
-                        :label="msg.provider.fieldSmtpHost"
-                    />
-                    <q-input
-                        v-model.number="form.smtpPort"
-                        outlined
-                        dense
-                        type="number"
-                        :label="msg.provider.fieldSmtpPort"
-                    />
-                    <q-input
-                        v-model="form.smtpUser"
-                        outlined
-                        dense
-                        :label="msg.provider.fieldSmtpUser"
-                    />
-                    <q-input
-                        v-model="form.smtpPassword"
-                        outlined
-                        dense
-                        type="password"
-                        :label="
-                            editing
-                                ? msg.provider.fieldSmtpPasswordEdit
-                                : msg.provider.fieldSmtpPassword
-                        "
-                    />
-                    <q-select
-                        v-model="form.encryption"
-                        outlined
-                        dense
-                        :label="msg.provider.fieldEncryption"
-                        :options="encryptionOptions"
-                    />
-                    <q-input
-                        v-model="form.fromEmail"
-                        outlined
-                        dense
-                        :label="msg.provider.fieldFromEmail"
-                    />
-                    <q-input
-                        v-model="form.fromName"
-                        outlined
-                        dense
-                        :label="msg.provider.fieldFromName"
-                    />
-                    <q-toggle v-if="editing" v-model="form.active" :label="common.active" />
-                </q-card-section>
-                <q-card-actions align="right">
+        <AdminDialog
+            v-model="showForm"
+            :title="editing ? msg.provider.dialogEditTitle : msg.provider.dialogCreateTitle"
+            size="md"
+            persistent
+        >
+            <div class="q-gutter-sm">
+                <q-input v-model="form.name" outlined dense :label="common.name" />
+                <q-input
+                    v-model="form.smtpHost"
+                    outlined
+                    dense
+                    :label="msg.provider.fieldSmtpHost"
+                />
+                <q-input
+                    v-model.number="form.smtpPort"
+                    outlined
+                    dense
+                    type="number"
+                    :label="msg.provider.fieldSmtpPort"
+                />
+                <q-input
+                    v-model="form.smtpUser"
+                    outlined
+                    dense
+                    :label="msg.provider.fieldSmtpUser"
+                />
+                <q-input
+                    v-model="form.smtpPassword"
+                    outlined
+                    dense
+                    type="password"
+                    :label="
+                        editing
+                            ? msg.provider.fieldSmtpPasswordEdit
+                            : msg.provider.fieldSmtpPassword
+                    "
+                />
+                <q-select
+                    v-model="form.encryption"
+                    outlined
+                    dense
+                    :label="msg.provider.fieldEncryption"
+                    :options="encryptionOptions"
+                />
+                <q-input
+                    v-model="form.fromEmail"
+                    outlined
+                    dense
+                    :label="msg.provider.fieldFromEmail"
+                />
+                <q-input
+                    v-model="form.fromName"
+                    outlined
+                    dense
+                    :label="msg.provider.fieldFromName"
+                />
+                <q-toggle v-if="editing" v-model="form.active" :label="common.active" />
+            </div>
+            <template #footer>
+                <div class="sa-dialog__actions">
                     <q-btn flat :label="common.cancel" @click="showForm = false" />
                     <q-btn
                         unelevated
@@ -135,38 +133,37 @@
                         :label="editing ? common.save : common.create"
                         @click="onSubmit"
                     />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
+                </div>
+            </template>
+        </AdminDialog>
 
-        <q-dialog v-model="showTest">
-            <q-card class="sa-pemail__dialog">
-                <q-card-section>
-                    <div class="text-h6">{{ msg.provider.sendTestMail }}</div>
-                    <div class="text-caption text-grey-7">{{ testTarget?.name }}</div>
-                </q-card-section>
-                <q-card-section class="q-gutter-sm">
-                    <q-input
-                        v-model="testForm.toEmail"
-                        outlined
-                        dense
-                        :label="msg.recipient"
-                        type="email"
-                    />
-                    <q-input
-                        v-model="testForm.subject"
-                        outlined
-                        dense
-                        :label="msg.provider.fieldSubject"
-                    />
-                    <q-banner
-                        v-if="testResult"
-                        :class="testResult.success ? 'bg-green-1' : 'bg-red-1'"
-                    >
-                        {{ testResult.message }}
-                    </q-banner>
-                </q-card-section>
-                <q-card-actions align="right">
+        <AdminDialog
+            v-model="showTest"
+            :title="msg.provider.sendTestMail"
+            :subtitle="testTarget?.name"
+            size="md"
+            persistent
+        >
+            <div class="q-gutter-sm">
+                <q-input
+                    v-model="testForm.toEmail"
+                    outlined
+                    dense
+                    :label="msg.recipient"
+                    type="email"
+                />
+                <q-input
+                    v-model="testForm.subject"
+                    outlined
+                    dense
+                    :label="msg.provider.fieldSubject"
+                />
+                <AdminBanner v-if="testResult" :tone="testResult.success ? 'positive' : 'negative'">
+                    {{ testResult.message }}
+                </AdminBanner>
+            </div>
+            <template #footer>
+                <div class="sa-dialog__actions">
                     <q-btn flat :label="common.close" @click="showTest = false" />
                     <q-btn
                         unelevated
@@ -175,9 +172,9 @@
                         :loading="testing"
                         @click="onTest"
                     />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
+                </div>
+            </template>
+        </AdminDialog>
 
         <MfaPromptDialog
             v-if="requireMfaForWrite"
@@ -193,15 +190,21 @@
 
 <script setup lang="ts">
 import AdminTable from '../ui/data/AdminTable.vue';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { platformEmailResource } from '../client/resources/platform-email.resource.js';
+import { adminErrorMessage } from '../client/admin-error.js';
+import AdminBanner from '../ui/feedback/AdminBanner.vue';
+import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import { computed, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
-import { useQuasar } from 'quasar';
 import AdminRefreshBtn from '../ui/feedback/AdminRefreshBtn.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import { useSuperAdminConfirm } from '../quasar/confirm.js';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
@@ -219,18 +222,11 @@ import type {
 
 const props = withDefaults(
     defineProps<{
-        loadProviders: () => Promise<PlatformEmailProvider[]>;
-        createProvider: (input: PlatformEmailWriteInput, mfaCode?: string) => Promise<unknown>;
-        updateProvider: (
-            id: string,
-            input: PlatformEmailWriteInput,
-            mfaCode?: string,
-        ) => Promise<unknown>;
-        deleteProvider: (id: string, mfaCode?: string) => Promise<unknown>;
-        testProvider: (
-            id: string,
-            input: PlatformEmailTestInput,
-        ) => Promise<PlatformEmailTestResult>;
+        /**
+         * Override the platform-email resource for this page only. Layered over
+         * the app's own override; see AP3 §3.2.
+         */
+        resources?: ResourceOverride<(typeof platformEmailResource)['ops']>;
         title?: string;
         requireMfaForWrite?: boolean;
         mfaSetupHint?: string;
@@ -240,9 +236,16 @@ const props = withDefaults(
     },
 );
 
-const q = useQuasar();
 const notify = useSuperAdminNotify();
+
+// The data layer, reached by name. SMTP providers are served by the consuming
+// app rather than the platform; the descriptor records the path every consumer
+// already calls.
+const providers = useResource('platformEmail', props.resources);
+// `confirm` is taken — `window.confirm` shadows it.
+const askConfirm = useSuperAdminConfirm();
 const msg = useSaMessages('email');
+const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const shell = useSaMessages('shell');
 const rows = ref<PlatformEmailProvider[]>([]);
@@ -297,21 +300,13 @@ function emptyForm(): PlatformEmailWriteInput {
     };
 }
 
-function errMsg(err: unknown): string {
-    return (
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        (err as Error)?.message ??
-        msg.value.errorAction
-    );
-}
-
 async function reload(): Promise<void> {
     loading.value = true;
     try {
-        rows.value = await props.loadProviders();
+        rows.value = await providers.list();
     } catch (err) {
         rows.value = [];
-        notify('negative', errMsg(err));
+        notify('negative', adminErrorMessage(err, errors.value));
     } finally {
         loading.value = false;
     }
@@ -352,7 +347,7 @@ async function runWrite(
             await invoke('');
             return true;
         } catch (err) {
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
             return false;
         }
     }
@@ -370,7 +365,7 @@ async function runWrite(
                 continue;
             }
             mfa.show.value = false;
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
             return false;
         }
     }
@@ -405,8 +400,8 @@ async function onSubmit(): Promise<void> {
         }),
         (code) =>
             current
-                ? props.updateProvider(current.id, input, code || undefined)
-                : props.createProvider(input, code || undefined),
+                ? providers.update(current.id, input, code || undefined)
+                : providers.create(input, code || undefined),
     );
     if (ok) {
         showForm.value = false;
@@ -415,22 +410,24 @@ async function onSubmit(): Promise<void> {
     }
 }
 
-function onDelete(row: PlatformEmailProvider): void {
-    q.dialog({
+async function onDelete(row: PlatformEmailProvider): Promise<void> {
+    const { ok: confirmed } = await askConfirm({
         title: msg.value.provider.deleteDialogTitle,
         message: formatMessage(msg.value.provider.deleteDialogMessage, { name: row.name }),
-        cancel: common.value.cancel,
-        ok: { label: common.value.delete, color: 'negative' },
-    }).onOk(async () => {
+        confirmLabel: common.value.delete,
+        cancelLabel: common.value.cancel,
+        tone: 'negative',
+    });
+    if (confirmed) {
         const ok = await runWrite(
             formatMessage(msg.value.provider.mfaDelete, { name: row.name }),
-            (code) => props.deleteProvider(row.id, code || undefined),
+            (code) => providers.remove(row.id, code || undefined),
         );
         if (ok) {
             notify('positive', msg.value.provider.deleted);
             void reload();
         }
-    });
+    }
 }
 
 function openTest(row: PlatformEmailProvider): void {
@@ -447,20 +444,16 @@ async function onTest(): Promise<void> {
     testing.value = true;
     testResult.value = null;
     try {
-        testResult.value = await props.testProvider(target.id, {
+        testResult.value = await providers.test(target.id, {
             toEmail: testForm.toEmail,
             subject: testForm.subject || undefined,
         });
     } catch (err) {
-        testResult.value = { success: false, message: errMsg(err) };
+        testResult.value = { success: false, message: adminErrorMessage(err, errors.value) };
     } finally {
         testing.value = false;
     }
 }
 </script>
 
-<style scoped>
-.sa-pemail__dialog {
-    min-width: 420px;
-}
-</style>
+<style scoped></style>

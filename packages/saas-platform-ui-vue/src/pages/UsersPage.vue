@@ -1,6 +1,6 @@
 <template>
     <AdminPage class="sa-users">
-        <AdminHero :title="resolvedTitle" :subtitle="subtitle" />
+        <AdminHero :title="resolvedTitle" :subtitle="options?.subtitle" />
 
         <AdminBody>
             <AdminSection>
@@ -59,6 +59,27 @@
                                 class="q-ml-xs"
                             />
                         </q-td>
+
+                        <AdminDialog
+                            :model-value="otpMessage !== null"
+                            :title="msg.resetPassword.otpTitle"
+                            size="sm"
+                            persistent
+                            @update:model-value="otpMessage = null"
+                        >
+                            <p class="sa-dialog__message">{{ otpMessage }}</p>
+                            <template #footer>
+                                <div class="sa-dialog__actions">
+                                    <q-btn
+                                        unelevated
+                                        color="primary"
+                                        no-caps
+                                        :label="msg.resetPassword.otpAcknowledge"
+                                        @click="otpMessage = null"
+                                    />
+                                </div>
+                            </template>
+                        </AdminDialog>
                     </template>
                     <template #row-actions="{ row }">
                         <slot name="row-actions" :row="row">
@@ -83,7 +104,7 @@
             :model-value="mfa.show.value"
             :description="mfa.description.value"
             :error="mfa.error.value"
-            :setup-hint="mfaSetupHint"
+            :setup-hint="options?.mfaSetupHint"
             @update:model-value="mfa.onVisibility"
             @confirm="mfa.onConfirm"
         />
@@ -92,10 +113,15 @@
 
 <script setup lang="ts">
 import AdminTable from '../ui/data/AdminTable.vue';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { usersResource } from '../client/resources/users.resource.js';
+import { adminErrorMessage } from '../client/admin-error.js';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
-import { useQuasar } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
+import { useSuperAdminConfirm } from '../quasar/confirm.js';
+import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import AdminFilters from '../ui/page/AdminFilters.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
@@ -131,6 +157,30 @@ export interface UserListFilter {
     [extra: string]: unknown;
 }
 
+/**
+ * What an app may change about this page.
+ *
+ * One object rather than nine props, per AP3 §3.2: a page's contract is
+ * `resources`, `params` and `options`, whatever the number of knobs behind the
+ * last one. A consumer then reads three slots instead of a list that grows
+ * every time a page learns something.
+ */
+export interface UsersPageOptions {
+    title?: string;
+    subtitle?: string;
+    actions?: readonly UserRowAction[];
+    /** Offer the reset-password flow. The endpoint is the app's to serve. */
+    enableResetPassword?: boolean;
+    /** Offer the deactivate flow. */
+    enableDeactivate?: boolean;
+    /** Per-flow MFA for reset password — the prompt follows the reason. */
+    requireMfaForResetPassword?: boolean;
+    /** Per-flow MFA for deactivate. */
+    requireMfaForDeactivate?: boolean;
+    /** Markup shown under the MFA input, e.g. a link to your setup docs. */
+    mfaSetupHint?: string;
+}
+
 export interface UserRowAction {
     id: string;
     label: string;
@@ -140,43 +190,38 @@ export interface UserRowAction {
     handler: (row: UserRow) => void;
 }
 
-const props = withDefaults(
-    defineProps<{
-        loadUsers: (filter: UserListFilter) => Promise<UserRow[]>;
-        title?: string;
-        subtitle?: string;
-        actions?: readonly UserRowAction[];
-        enableResetPassword?: boolean;
-        enableDeactivate?: boolean;
-        /** Per-flow MFA for reset password — shows MfaPromptDialog after the reason prompt. */
-        requireMfaForResetPassword?: boolean;
-        /** Per-flow MFA for deactivate — shows MfaPromptDialog after the reason prompt. */
-        requireMfaForDeactivate?: boolean;
-        mfaSetupHint?: string;
-        // Return value: either `{oneTimePassword}` (shows OTP dialog)
-        // or `void` (Notify only). The page decides based on the return
-        // whether the OTP dialog is shown.
-        submitResetPassword?: (
-            id: string,
-            reason: string,
-            mfaCode?: string,
-        ) => Promise<{ oneTimePassword: string } | void>;
-        submitDeactivate?: (id: string, reason: string, mfaCode?: string) => Promise<void>;
-    }>(),
-    {
-        requireMfaForResetPassword: false,
-        requireMfaForDeactivate: false,
-    },
-);
+const props = defineProps<{
+    /**
+     * Override the users resource for this page only — a different host, or
+     * one operation wrapped. Layered over the app's own override; see
+     * AP3 §3.2.
+     */
+    resources?: ResourceOverride<(typeof usersResource)['ops']>;
+    /** Presentation and capability. Never data, never a callback. */
+    options?: UsersPageOptions;
+}>();
 
-const q = useQuasar();
 const notify = useSuperAdminNotify();
+// `confirm` is taken — `window.confirm` shadows it.
+const askConfirm = useSuperAdminConfirm();
+
+// The data layer, reached by name. `resetPassword` and `deactivate` are served
+// by the consuming app rather than by the platform — the descriptor records the
+// paths every consumer already calls, so the page needs no callbacks for them.
+const users = useResource('users', props.resources);
+
+// The generated one-time password. Deliberately not the confirm port: that port
+// asks a question, and this dialog asks nothing — it shows a value the operator
+// gets exactly one chance to read. A cancel button, or a backdrop that closes
+// it, would throw that value away.
+const otpMessage = ref<string | null>(null);
 const msg = useSaMessages('users');
+const errors = useSaMessages('errors');
 const common = useSaMessages('common');
 const shell = useSaMessages('shell');
 const { intlLocale } = useSuperAdminI18n();
 
-const resolvedTitle = computed(() => props.title ?? msg.value.title);
+const resolvedTitle = computed(() => props.options?.title ?? msg.value.title);
 const rows = ref<UserRow[]>([]);
 const loading = ref(false);
 const filter = reactive({ q: '', tenant: '' });
@@ -185,7 +230,7 @@ const filter = reactive({ q: '', tenant: '' });
 // which resolves with the code or with null when the user closes the dialog.
 const mfa = useMfaPrompt();
 const needsMfaDialog = computed(
-    () => props.requireMfaForResetPassword || props.requireMfaForDeactivate,
+    () => props.options?.requireMfaForResetPassword || props.options?.requireMfaForDeactivate,
 );
 
 // Stat-pill filter (analogous to plan simulation users.jsx):
@@ -280,7 +325,7 @@ const baseColumns = computed(() => [
 // Built-in default actions — APPENDED to consumer actions, not replaced.
 const bakedActions = computed<UserRowAction[]>(() => {
     const out: UserRowAction[] = [];
-    if (props.enableResetPassword && props.submitResetPassword) {
+    if (props.options?.enableResetPassword) {
         out.push({
             id: 'reset-password',
             label: msg.value.resetPassword.action,
@@ -289,7 +334,7 @@ const bakedActions = computed<UserRowAction[]>(() => {
             handler: (row) => onResetPasswordClick(row),
         });
     }
-    if (props.enableDeactivate && props.submitDeactivate) {
+    if (props.options?.enableDeactivate) {
         out.push({
             id: 'deactivate',
             label: msg.value.deactivate.action,
@@ -303,7 +348,7 @@ const bakedActions = computed<UserRowAction[]>(() => {
 });
 
 const mergedActions = computed<readonly UserRowAction[]>(() => [
-    ...(props.actions ?? []),
+    ...(props.options?.actions ?? []),
     ...bakedActions.value,
 ]);
 
@@ -319,7 +364,7 @@ function visibleActions(row: UserRow): UserRowAction[] {
 async function reload() {
     loading.value = true;
     try {
-        rows.value = await props.loadUsers({
+        rows.value = await users.list({
             q: filter.q || undefined,
             tenant: filter.tenant || undefined,
         });
@@ -335,14 +380,6 @@ onMounted(reload);
 
 defineExpose({ reload });
 
-function errMsg(err: unknown): string {
-    return (
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        (err as Error)?.message ??
-        msg.value.errorAction
-    );
-}
-
 // MFA loop analogous to PilotsPage: on 401 the dialog stays open.
 // `invoke` must accept the code (empty when requireMfa=false) and deliver
 // the `oneTimePassword` result optionally returned by the server.
@@ -357,7 +394,7 @@ async function runAction<R>(
             const result = await invoke('');
             onSuccess(result);
         } catch (err) {
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
         }
         return;
     }
@@ -376,41 +413,36 @@ async function runAction<R>(
                 continue;
             }
             mfa.show.value = false;
-            notify('negative', errMsg(err));
+            notify('negative', adminErrorMessage(err, errors.value));
             return;
         }
     }
 }
 
-function onResetPasswordClick(row: UserRow): void {
-    if (!props.submitResetPassword) return;
-    const submit = props.submitResetPassword;
-    q.dialog({
+async function onResetPasswordClick(row: UserRow): Promise<void> {
+    const { ok: confirmed, value: reason } = await askConfirm({
         title: formatMessage(msg.value.resetPassword.dialogTitle, { email: row.email }),
         message: msg.value.reasonPrompt,
-        prompt: { model: '', type: 'text' },
-        cancel: common.value.cancel,
-        ok: { label: common.value.reset, color: 'primary' },
-    }).onOk(async (reason: string) => {
+        confirmLabel: common.value.reset,
+        cancelLabel: common.value.cancel,
+        prompt: { type: 'text' },
+    });
+    if (confirmed) {
         if (!reason || reason.trim().length === 0) return;
         await runAction(
             formatMessage(msg.value.resetPassword.mfaDescription, {
                 email: row.email,
                 reason: reason.trim(),
             }),
-            !!props.requireMfaForResetPassword,
-            (code) => submit(row.id, reason, code),
+            !!props.options?.requireMfaForResetPassword,
+            (code) => users.resetPassword(row.id, reason, code),
             (data) => {
                 // The server can optionally return `oneTimePassword` — then
                 // show the OTP dialog. Backends without OTP return
                 // void → Notify only.
                 if (data && typeof data === 'object' && 'oneTimePassword' in data) {
-                    q.dialog({
-                        title: msg.value.resetPassword.otpTitle,
-                        message: formatMessage(msg.value.resetPassword.otpMessage, {
-                            password: data.oneTimePassword,
-                        }),
-                        ok: { label: msg.value.resetPassword.otpAcknowledge },
+                    otpMessage.value = formatMessage(msg.value.resetPassword.otpMessage, {
+                        password: String(data.oneTimePassword),
                     });
                 } else {
                     notify('positive', msg.value.resetPassword.success);
@@ -418,27 +450,27 @@ function onResetPasswordClick(row: UserRow): void {
                 void reload();
             },
         );
-    });
+    }
 }
 
-function onDeactivateClick(row: UserRow): void {
-    if (!props.submitDeactivate) return;
-    const submit = props.submitDeactivate;
-    q.dialog({
+async function onDeactivateClick(row: UserRow): Promise<void> {
+    const { ok: confirmed, value: reason } = await askConfirm({
         title: formatMessage(msg.value.deactivate.dialogTitle, { email: row.email }),
         message: msg.value.reasonPrompt,
-        prompt: { model: '', type: 'text' },
-        cancel: common.value.cancel,
-        ok: { label: msg.value.deactivate.action, color: 'negative' },
-    }).onOk(async (reason: string) => {
+        confirmLabel: msg.value.deactivate.action,
+        cancelLabel: common.value.cancel,
+        tone: 'negative',
+        prompt: { type: 'text' },
+    });
+    if (confirmed) {
         if (!reason || reason.trim().length === 0) return;
         await runAction(
             formatMessage(msg.value.deactivate.mfaDescription, {
                 email: row.email,
                 reason: reason.trim(),
             }),
-            !!props.requireMfaForDeactivate,
-            (code) => submit(row.id, reason, code),
+            !!props.options?.requireMfaForDeactivate,
+            (code) => users.deactivate(row.id, reason, code),
             () => {
                 notify(
                     'positive',
@@ -447,7 +479,7 @@ function onDeactivateClick(row: UserRow): void {
                 void reload();
             },
         );
-    });
+    }
 }
 </script>
 

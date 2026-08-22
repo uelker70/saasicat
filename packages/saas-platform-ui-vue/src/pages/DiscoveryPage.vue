@@ -16,10 +16,7 @@
                 :app-version="appVersion"
                 :scan-label="scanLabel"
             />
-            <q-banner v-if="error" class="sa-discovery__error" rounded>
-                <template #avatar><q-icon name="warning" color="negative" /></template>
-                {{ common.error }}: {{ errorText }}
-            </q-banner>
+            <AdminErrorBanner :error="error" />
 
             <AdminSection class="q-mt-lg">
                 <DiscoveryKpis
@@ -81,7 +78,7 @@
                                     :capabilities="capsByFeature.get(f.featureKey) ?? []"
                                     :owners="ownersByFeature.get(f.featureKey) ?? []"
                                     :declared-at-by-key="declaredAtByKey"
-                                    :active-locales="activeLocales"
+                                    :active-locales="locales"
                                     :expanded="expandedFeature === f.featureKey"
                                     @toggle="toggleFeature(f.featureKey)"
                                     @review="onFeatureReview"
@@ -123,7 +120,7 @@
                                 v-for="q in quotas"
                                 :key="q.quotaKey"
                                 :quota="q"
-                                :active-locales="activeLocales"
+                                :active-locales="locales"
                                 :expanded="expandedQuota === q.quotaKey"
                                 @toggle="toggleQuota(q.quotaKey)"
                                 @review="onQuotaReview"
@@ -143,6 +140,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useSuperAdminManifest } from '../vue/use-super-admin-context.js';
+import { useResource } from '../vue/resource-registry.js';
+import type { ResourceOverride } from '../vue/resource-registry.js';
+import type { catalogResource } from '../client/resources/catalog.resource.js';
+import type { discoveryResource } from '../client/resources/discovery.resource.js';
+import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
 import type {
     CapabilityCatalogEntryRow,
     CatalogEntryI18n,
@@ -151,7 +154,6 @@ import type {
     DiscoveryStatus,
     FeatureCatalogEntryRow,
     QuotaCatalogEntryRow,
-    ReviewCatalogEntryData,
     UpdateCatalogEntryBaseData,
 } from '@saasicat/types';
 import AdminRefreshBtn from '../ui/feedback/AdminRefreshBtn.vue';
@@ -165,7 +167,6 @@ import AdminPage from '../ui/page/AdminPage.vue';
 import DiscoveryKpis from '../internal/discovery-page/DiscoveryKpis.vue';
 import DiscoveryMetaBanner from '../internal/discovery-page/DiscoveryMetaBanner.vue';
 import DiscoveryQuotaCard from '../internal/discovery-page/DiscoveryQuotaCard.vue';
-import { adminErrorMessage } from '../client/admin-error.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { statusLabel } from '../internal/discovery-page/discovery-ui.js';
@@ -180,34 +181,81 @@ import { statusLabel } from '../internal/discovery-page/discovery-ui.js';
 // results through as props.
 
 const props = defineProps<{
-    /** Discovery snapshot — enrichment only (declaredAt, scan meta). */
-    snapshot: DiscoverySnapshot | null;
-    capabilities: CapabilityCatalogEntryRow[];
-    features: FeatureCatalogEntryRow[];
-    quotas: QuotaCatalogEntryRow[];
-    loading: boolean;
-    error: Error | null;
-    /** Active locales from the project (incl. default locale). */
-    activeLocales: string[];
-    /** Reload snapshot → sync → reload catalog entries. */
-    runDiscovery: () => Promise<void>;
-    /** Approval transition of a feature (PATCH …/features/:key/review). */
-    reviewFeature: (featureKey: string, data: ReviewCatalogEntryData) => Promise<unknown>;
-    /** Approval transition of a quota (PATCH …/quotas/:key/review). */
-    reviewQuota: (quotaKey: string, data: ReviewCatalogEntryData) => Promise<unknown>;
-    setFeatureI18n: (featureKey: string, i18n: CatalogEntryI18n) => Promise<unknown>;
-    setQuotaI18n: (quotaKey: string, i18n: CatalogEntryI18n) => Promise<unknown>;
-    setFeatureBase: (featureKey: string, data: UpdateCatalogEntryBaseData) => Promise<unknown>;
-    setQuotaBase: (quotaKey: string, data: UpdateCatalogEntryBaseData) => Promise<unknown>;
+    /**
+     * Locales a catalog entry may be written in.
+     *
+     * Defaults to the manifest's `project.availableLocales`, which is where
+     * the shell already has it — an app only passes this when it wants a
+     * narrower pool than its own configuration declares.
+     */
+    activeLocales?: string[];
+    /**
+     * Override the catalog or discovery resource for this page only. Layered
+     * over the app's own override; see AP3 §3.2.
+     */
+    resources?: {
+        catalog?: ResourceOverride<(typeof catalogResource)['ops']>;
+        discovery?: ResourceOverride<(typeof discoveryResource)['ops']>;
+    };
 }>();
+
+// The data layer, reached by name. This page used to take fourteen props —
+// four lists, a loading flag, an error and seven callbacks — and every consumer
+// wired `useDiscovery` and `useCatalogEntries` by hand to produce them. Both
+// read the same endpoints these resources declare.
+// The pool this project declares, unless the app narrows it. See BundlesPage.
+const manifest = useSuperAdminManifest();
+const locales = computed(
+    () => props.activeLocales ?? manifest?.project?.availableLocales ?? ['de'],
+);
+
+const catalog = useResource('catalog', props.resources?.catalog);
+const discoveryOps = useResource('discovery', props.resources?.discovery);
+
+const snapshot = ref<DiscoverySnapshot | null>(null);
+const capabilities = ref<CapabilityCatalogEntryRow[]>([]);
+const features = ref<FeatureCatalogEntryRow[]>([]);
+const quotas = ref<QuotaCatalogEntryRow[]>([]);
+const loading = ref(false);
+const error = ref<unknown>(null);
+
+/** The three catalog lists, in one round trip each. */
+async function loadEntries(): Promise<void> {
+    const [caps, feats, qs] = await Promise.all([
+        catalog.capabilities(),
+        catalog.features(),
+        catalog.quotas(),
+    ]);
+    capabilities.value = caps;
+    features.value = feats;
+    quotas.value = qs;
+}
+
+/** The snapshot. A 304 means what we hold is still current. */
+async function loadSnapshot(): Promise<void> {
+    const read = await discoveryOps.read(null);
+    if (read.status === 'loaded') snapshot.value = read.snapshot;
+}
+
+async function reload(): Promise<void> {
+    loading.value = true;
+    error.value = null;
+    try {
+        await Promise.all([loadEntries(), loadSnapshot()]);
+    } catch (err) {
+        error.value = err;
+    } finally {
+        loading.value = false;
+    }
+}
 
 const activeTab = ref<'features' | 'quotas'>('features');
 
 const featuresTabLabel = computed(() =>
-    formatMessage(msg.value.tabFeatures, { count: props.features.length }),
+    formatMessage(msg.value.tabFeatures, { count: features.value.length }),
 );
 const quotasTabLabel = computed(() =>
-    formatMessage(msg.value.tabQuotas, { count: props.quotas.length }),
+    formatMessage(msg.value.tabQuotas, { count: quotas.value.length }),
 );
 // `clearable` emits null, not '' — see Quasar's use-field clearValue().
 const featureQuery = ref<string | null>('');
@@ -216,14 +264,7 @@ const expandedFeature = ref<string | null>(null);
 const expandedQuota = ref<string | null>(null);
 
 const msg = useSaMessages('discovery');
-const common = useSaMessages('common');
-const errors = useSaMessages('errors');
 const { intlLocale } = useSuperAdminI18n();
-
-// The banner shows what the failing side said, or the catalog's sentence for
-// what happened — never the error's own `message`, which is an English
-// diagnostic for the log and was reaching this screen verbatim.
-const errorText = computed(() => (props.error ? adminErrorMessage(props.error, errors.value) : ''));
 
 const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStatus | 'all' }>>(
     () => [
@@ -249,7 +290,7 @@ const statusFilterOptions = computed<Array<{ label: string; value: DiscoveryStat
 // `.charAt`, which is the same white-screen one step further in. Guarding
 // presence without guarding type only moves the crash.
 const appKeyText = computed(() => {
-    const key = props.snapshot?.app?.key;
+    const key = snapshot.value?.app?.key;
     return typeof key === 'string' ? key : '';
 });
 const appKey = computed(() => appKeyText.value || '—');
@@ -258,11 +299,11 @@ const appLabel = computed(() => {
     return k ? k.charAt(0).toUpperCase() + k.slice(1) : 'Discovery';
 });
 const appVersion = computed(() => {
-    const version = props.snapshot?.app?.version;
+    const version = snapshot.value?.app?.version;
     return typeof version === 'string' && version ? version : '0.0.0';
 });
 const scanLabel = computed(() => {
-    const scannedAt = props.snapshot?.scannedAt;
+    const scannedAt = snapshot.value?.scannedAt;
     // Same reasoning: the catch below covers a bad DATE, not a bad type — the
     // fallback `return scannedAt` would hand the template a non-string.
     if (typeof scannedAt !== 'string' || !scannedAt) return msg.value.notScannedYet;
@@ -284,7 +325,7 @@ const declaredAtByKey = computed<Record<string, string>>(() => {
     // walks its characters and silently builds nonsense. That is why the case
     // covering this in the test suite had to be an object rather than a string —
     // the first version used a string and passed without exercising anything.
-    const capabilities = props.snapshot?.capabilities;
+    const capabilities = snapshot.value?.capabilities;
     if (!Array.isArray(capabilities)) return map;
     for (const c of capabilities) {
         if (c && typeof c.capabilityKey === 'string') map[c.capabilityKey] = c.declaredAt;
@@ -296,7 +337,7 @@ const declaredAtByKey = computed<Record<string, string>>(() => {
 
 const capsByFeature = computed<Map<string, CapabilityCatalogEntryRow[]>>(() => {
     const map = new Map<string, CapabilityCatalogEntryRow[]>();
-    for (const c of props.capabilities) {
+    for (const c of capabilities.value) {
         if (!c.featureKey) continue;
         const list = map.get(c.featureKey);
         if (list) list.push(c);
@@ -324,25 +365,25 @@ const ownersByFeature = computed<Map<string, string[]>>(() => {
 });
 
 const orphanCaps = computed(() =>
-    props.capabilities.filter((c) => !c.featureKey && c.codeStatus !== 'retired'),
+    capabilities.value.filter((c) => !c.featureKey && c.codeStatus !== 'retired'),
 );
 
 const approvedCount = computed(
-    () => props.features.filter((f) => f.discoveryStatus === 'approved').length,
+    () => features.value.filter((f) => f.discoveryStatus === 'approved').length,
 );
 const pendingCount = computed(
-    () => props.features.filter((f) => f.discoveryStatus === 'pending').length,
+    () => features.value.filter((f) => f.discoveryStatus === 'pending').length,
 );
 const outdatedCount = computed(
-    () => props.features.filter((f) => f.discoveryStatus === 'outdated').length,
+    () => features.value.filter((f) => f.discoveryStatus === 'outdated').length,
 );
 const obsoleteCount = computed(
-    () => props.features.filter((f) => f.discoveryStatus === 'obsolete').length,
+    () => features.value.filter((f) => f.discoveryStatus === 'obsolete').length,
 );
 
 const filteredFeatures = computed(() => {
     const q = (featureQuery.value ?? '').trim().toLowerCase();
-    return props.features.filter((f) => {
+    return features.value.filter((f) => {
         if (statusFilter.value !== 'all' && f.discoveryStatus !== statusFilter.value) {
             return false;
         }
@@ -384,15 +425,33 @@ function toggleQuota(key: string): void {
     expandedQuota.value = expandedQuota.value === key ? null : key;
 }
 
+/**
+ * Rescan, hand the result to the catalog, then re-read what the catalog made
+ * of it. The sync is skipped when the scan produced nothing — posting a null
+ * snapshot would retire every entry the previous scan had found.
+ */
 async function onRunDiscovery(): Promise<void> {
-    await props.runDiscovery();
+    loading.value = true;
+    error.value = null;
+    try {
+        const scanned = await discoveryOps.rescan();
+        if (scanned.snapshot) {
+            snapshot.value = scanned.snapshot;
+            await catalog.syncDiscovery(scanned.snapshot);
+        }
+        await loadEntries();
+    } catch (err) {
+        error.value = err;
+    } finally {
+        loading.value = false;
+    }
 }
 
 function onFeatureReview(key: string, target: DiscoveryStatus): void {
-    persist(props.reviewFeature(key, { discoveryStatus: target }));
+    persist(catalog.reviewFeature(key, { discoveryStatus: target }));
 }
 function onQuotaReview(key: string, target: DiscoveryStatus): void {
-    persist(props.reviewQuota(key, { discoveryStatus: target }));
+    persist(catalog.reviewQuota(key, { discoveryStatus: target }));
 }
 
 // Persistence is debounced — the editor fires on every keystroke. Patches
@@ -444,7 +503,9 @@ function onBaseUpdate(
         pendingBase.delete(id);
         if (!data) return;
         persist(
-            kind === 'feature' ? props.setFeatureBase(key, data) : props.setQuotaBase(key, data),
+            kind === 'feature'
+                ? catalog.setFeatureBase(key, data)
+                : catalog.setQuotaBase(key, data),
         );
     });
 }
@@ -464,7 +525,7 @@ function onLocaleUpdate(
         pendingLocale.delete(id);
         if (!data) return;
         const rows: Array<{ i18n?: CatalogEntryI18n }> =
-            kind === 'feature' ? props.features : props.quotas;
+            kind === 'feature' ? features.value : quotas.value;
         const idKey = kind === 'feature' ? 'featureKey' : 'quotaKey';
         const row = (rows as Array<Record<string, unknown>>).find((r) => r[idKey] === key);
         const next: CatalogEntryI18n = { ...((row?.i18n as CatalogEntryI18n) ?? {}) };
@@ -474,7 +535,9 @@ function onLocaleUpdate(
         }
         next[locale] = localeFields;
         persist(
-            kind === 'feature' ? props.setFeatureI18n(key, next) : props.setQuotaI18n(key, next),
+            kind === 'feature'
+                ? catalog.setFeatureI18n(key, next)
+                : catalog.setQuotaI18n(key, next),
         );
     });
 }
@@ -492,9 +555,13 @@ function onQuotaLocale(key: string, locale: string, patch: CatalogEntryI18nField
     onLocaleUpdate('quota', key, locale, patch);
 }
 
-onMounted(() => {
-    if (props.capabilities.length === 0 && !props.loading) {
-        void props.runDiscovery();
+// A first visit to a project that was never scanned shows nothing at all, and
+// nothing on the page says why. One scan on that state is the difference
+// between an empty page and a page that explains itself.
+onMounted(async () => {
+    await reload();
+    if (capabilities.value.length === 0 && !loading.value && error.value === null) {
+        await onRunDiscovery();
     }
 });
 </script>
@@ -546,9 +613,6 @@ onMounted(() => {
 .sa-discovery__banner-time-val {
     font-size: var(--sa-text-md);
     font-weight: 600;
-}
-.sa-discovery__error {
-    border-left: 4px solid var(--sa-color-negative);
 }
 .sa-discovery__tabs {
     border-bottom: 1px solid var(--sa-color-border);

@@ -11,9 +11,9 @@
                 <ThemeSwitcher class="sa-setup-theme" />
             </div>
 
-            <q-banner v-if="errorMessage" class="sa-setup-error" rounded>
+            <AdminBanner v-if="errorMessage" tone="negative">
                 {{ errorMessage }}
-            </q-banner>
+            </AdminBanner>
 
             <!-- Step 1: create SuperAdmin -->
             <q-form v-if="step === 'form'" class="sa-setup-form" @submit.prevent="submitCreate">
@@ -152,6 +152,7 @@
 
 <script setup lang="ts">
 import { attachCause } from '../client/attach-cause.js';
+import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, reactive, ref } from 'vue';
 import { SETUP_ERROR_CODES, type SetupConfirmMfaResponse, type SetupResult } from '@saasicat/types';
 
@@ -387,15 +388,6 @@ async function submitConfirm(): Promise<void> {
 }
 .full-width {
     width: 100%;
-}
-.sa-setup-error {
-    background: var(--sa-color-negative-surface);
-    border: 1px solid var(--sa-color-negative-border);
-    color: var(--sa-color-negative-fg);
-    font-size: var(--sa-text-md);
-    margin-bottom: 16px;
-    padding: 8px 12px;
-    border-radius: 8px;
 }
 .sa-setup-qr {
     display: flex;

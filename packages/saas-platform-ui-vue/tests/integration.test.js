@@ -20,6 +20,7 @@ import {
     buildSidebar,
     useBulkPublish,
 } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 const SAMPLE_MANIFEST = {
     schemaVersion: 1,
@@ -132,10 +133,9 @@ describe('Full bootstrap flow: Boot → Manifest → Routes → Actions', () => 
 
         // Step 2: Login happens (externally), then manifest
         const manifestLoader = new ManifestLoader({
-            http,
+            http: authenticating(http, 'jwt-fake'),
             storage,
             endpoint: '/api/v1/admin/manifest',
-            getAuthToken: () => 'jwt-fake',
         });
         const manifest = await manifestLoader.load();
         assert.equal(manifest.build.manifestHash, 'sha256-abc123');
@@ -149,9 +149,10 @@ describe('Full bootstrap flow: Boot → Manifest → Routes → Actions', () => 
         assert.ok(routes.find((r) => r.id === 'cf.datev'));
 
         const sidebar = buildSidebar(routes);
-        // StandardPages inherit default sections (tenants→Kunden, audit→System);
+        // StandardPages inherit default sections (tenants→Customers, audit→System);
         // the ProjectPages section "DemoApp" is appended alphabetically at the end.
-        assert.equal(sidebar[0].section, 'Kunden');
+        // The names follow DEFAULT_SA_LOCALE; this case is about their order.
+        assert.equal(sidebar[0].section, 'Customers');
         assert.equal(sidebar[0].items[0].id, 'tenants');
         assert.equal(sidebar[1].section, 'System');
         assert.equal(sidebar[1].items[0].id, 'audit');
@@ -281,11 +282,10 @@ describe('Bulk publish: end-to-end with server path', () => {
             },
         ]);
         const bp = useBulkPublish({
-            http,
+            http: authenticating(http, 'jwt-fake'),
             endpoints: {
                 plan: (id) => `/api/v1/admin/plan-versions/${id}/publish`,
             },
-            getAuthToken: () => 'jwt-fake',
         });
         bp.setItems([
             { key: 'p:draft-1', kind: 'plan', draftId: 'draft-1', label: 'STANDARD v3' },

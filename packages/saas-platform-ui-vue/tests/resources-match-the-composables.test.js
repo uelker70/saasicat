@@ -23,7 +23,10 @@ import {
     catalogResource,
     createAdminResourceClient,
     discoveryResource,
+    emailHistoryResource,
     marketingResource,
+    pilotsResource,
+    platformEmailResource,
     planVersionsResource,
     plansResource,
     platformResources,
@@ -31,7 +34,6 @@ import {
     promotionsResource,
     subscriptionsResource,
     tenantsResource,
-    useAuditEntries,
     useBundleVersions,
     useBundles,
     useCatalogEntries,
@@ -170,18 +172,20 @@ const VERSION_CASES = [
 /** The only operation the two list descriptors declare. */
 const LIST_OP = 'list';
 
+// `auditResource` used to sit here, paired with `useAuditEntries`. It does not
+// belong: that composable takes an endpoint from the app and speaks
+// `AuditQuery`, the vocabulary of `AuditQueryPort` — one layer below the HTTP
+// boundary. The platform's own `/admin/audit` accepts `actor`/`since`/`limit`
+// and answers with a bare array, so the descriptor is not a paginated list at
+// all and its counterpart is `createAdminResourceClient.loadAudit`, in FAMILIES
+// below. Pairing them here was green while both sent parameters the controller
+// ignores.
 const LIST_RESOURCES = [
     {
         name: 'tenantsResource / useTenants',
         def: tenantsResource,
         build: (http, filter) =>
             useTenants({ endpoint: `${ADMIN_ENDPOINT}/tenants`, filter, http, autoLoad: false }),
-    },
-    {
-        name: 'auditResource / useAuditEntries',
-        def: auditResource,
-        build: (http, filter) =>
-            useAuditEntries({ endpoint: `${ADMIN_ENDPOINT}/audit`, filter, http, autoLoad: false }),
     },
 ];
 
@@ -580,6 +584,33 @@ const FAMILIES = [
         ],
     },
     {
+        name: 'auditResource / createAdminResourceClient',
+        def: auditResource,
+        build: adminClient,
+        cases: [
+            {
+                op: 'list',
+                run: (c) =>
+                    c.loadAudit({
+                        actor: 'a b',
+                        action: 'TENANT_SUSPENDED',
+                        entity: null,
+                        since: '2026-01-01',
+                        limit: 50,
+                    }),
+                args: [
+                    {
+                        actor: 'a b',
+                        action: 'TENANT_SUSPENDED',
+                        entity: null,
+                        since: '2026-01-01',
+                        limit: 50,
+                    },
+                ],
+            },
+        ],
+    },
+    {
         name: 'promoCodesResource / createAdminResourceClient',
         def: promoCodesResource,
         build: adminClient,
@@ -708,9 +739,28 @@ for (const family of FAMILIES) {
  * them twice.
  */
 const COVERED_BY_THE_OLDER_COMPARISONS = {
+    // Four descriptors the platform ships and does NOT serve — pilots, SMTP
+    // providers, the send log, and the two user-lifecycle writes. This file
+    // works by driving a descriptor and a second implementation of the same
+    // contract and comparing the requests; for these there is no second
+    // implementation, which is the reason they exist. They are measured in
+    // `tests/app-served-resources.test.js`, which pins the request each one
+    // issues — and that file carries its own completeness assertion per
+    // descriptor, so an operation added here still cannot ship unmeasured.
+    // The dashboard's endpoint comes off the manifest card rather than from
+    // `apiBase`, so there is no second implementation to compare against — the
+    // page that used to hold one now asks the descriptor.
+    dashboard: ['kpi'],
+    pilots: Object.keys(pilotsResource.ops),
+    platformEmail: Object.keys(platformEmailResource.ops),
+    emailHistory: Object.keys(emailHistoryResource.ops),
+    // Two more of the same kind, on descriptors the platform DOES otherwise
+    // serve: `promoCodes.detail` and the two user-lifecycle writes have no
+    // route in the platform's own admin controller. Same file, same reason.
+    promoCodes: ['detail'],
+    users: ['resetPassword', 'deactivate'],
     plans: Object.keys(plansResource.ops),
     planVersions: Object.keys(planVersionsResource.ops),
-    audit: [LIST_OP],
     tenants: [LIST_OP],
 };
 
@@ -729,9 +779,9 @@ describe('the comparison covers the whole roster', () => {
         test(`${key}: every operation is driven by a case`, () => {
             const driven = drivenOps.get(def) ?? new Set();
             const declared = Object.keys(def.ops);
-            // `plans`, `planVersions`, `tenants.list` and `audit` are driven by
-            // the hand-written comparisons above; they carry their own
-            // completeness assertions and are exempt only where one exists.
+            // `plans`, `planVersions` and `tenants.list` are driven by the
+            // hand-written comparisons above; they carry their own completeness
+            // assertions and are exempt only where one exists.
             const coveredElsewhere = COVERED_BY_THE_OLDER_COMPARISONS[key] ?? [];
             const missing = declared.filter(
                 (op) => !driven.has(op) && !coveredElsewhere.includes(op),

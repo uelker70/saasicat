@@ -23,22 +23,36 @@ import assert from 'node:assert/strict';
 import * as pkg from '../dist/index.js';
 
 /** Answers every request, richly enough that no operation bails early. */
-const http = () =>
-    Promise.resolve({
-        status: 200,
-        headers: { get: () => null },
-        json: async () => ({ id: 'x', items: [] }),
-        text: async () => '{}',
-    });
+function recordingHttp() {
+    const urls = [];
+    const http = (url) => {
+        urls.push(url);
+        return Promise.resolve({
+            status: 200,
+            headers: { get: () => null },
+            json: async () => ({ id: 'x', items: [] }),
+            text: async () => '{}',
+        });
+    };
+    return { http, urls };
+}
 
 /**
  * Arguments generic enough to get any operation to its URL.
  *
- * The descriptors take `(planId)`, `(planId, data)`, `(versionId, endsAt)` or
- * `(query?)`; what matters is only that the call reaches the context, not that
- * the request would be accepted by a server.
+ * The descriptors take `(planId)`, `(planId, data)`, `(versionId, endsAt)`,
+ * `(query?)` or — `dashboard.kpi` — a manifest card carrying its own endpoint;
+ * what matters is only that the call reaches its request, not that the request
+ * would be accepted by a server. The first argument is shaped to serve as both
+ * an id and a card, so no operation needs naming here.
  */
-const PROBE_ARGS = ['probe-id', {}];
+const PROBE_ARGS = [
+    Object.assign(new String('probe-id'), {
+        endpoint: '/probe-endpoint',
+        displayHint: { type: 'value' },
+    }),
+    {},
+];
 
 const CTX = { apiBase: '/api/v1/admin', projectKey: 'probe', locale: 'en' };
 
@@ -74,6 +88,7 @@ function exportedResources() {
  */
 async function readsOf(op) {
     const read = new Set();
+    const { http, urls } = recordingHttp();
     const ctx = new Proxy(CTX, {
         get(target, prop, receiver) {
             if (typeof prop === 'string') read.add(prop);
@@ -86,19 +101,25 @@ async function readsOf(op) {
         // A probe argument the operation does not like is not a finding: the
         // reads happened on the way to the failure, and those are the answer.
     }
-    return read;
+    return { read, requested: urls.length > 0 };
 }
 
 /** Which operations of a descriptor read the project, and which read anything. */
 async function observe(def) {
     const project = [];
-    const reachedContext = [];
+    const driven = [];
     for (const [name, op] of Object.entries(def.ops)) {
-        const read = await readsOf(op);
+        const { read, requested } = await readsOf(op);
         if (read.has('projectKey')) project.push(name);
-        if (read.has('apiBase')) reachedContext.push(name);
+        // Reaching the context OR reaching the client both prove the operation
+        // ran far enough for the reads above to mean something. The context
+        // alone used to be the proof, which held until `dashboard.kpi` built
+        // its URL from the manifest card it was handed and touched no context
+        // at all — an operation the old question had to call unmeasured while
+        // it was in fact the easiest of them to measure.
+        if (read.has('apiBase') || requested) driven.push(name);
     }
-    return { project, reachedContext };
+    return { project, driven };
 }
 
 const RESOURCES = exportedResources();
@@ -112,16 +133,17 @@ describe('every descriptor declares the project scope its operations have', () =
 
     for (const def of RESOURCES) {
         test(`${def.key}: projectScoped === ${def.projectScoped}`, async () => {
-            const { project, reachedContext } = await observe(def);
+            const { project, driven } = await observe(def);
             const ops = Object.keys(def.ops);
 
             // The probe has to prove it drove them, or "reads nothing" below
             // would be indistinguishable from "was never really called".
             assert.deepEqual(
-                reachedContext.sort(),
+                driven.sort(),
                 ops.sort(),
-                `${def.key}: these operations never read the context, so nothing was measured ` +
-                    `about them: ${ops.filter((o) => !reachedContext.includes(o)).join(', ')}`,
+                `${def.key}: these operations neither read the context nor issued a request, ` +
+                    `so nothing was measured about them: ` +
+                    `${ops.filter((o) => !driven.includes(o)).join(', ')}`,
             );
 
             if (def.projectScoped) {
@@ -176,7 +198,11 @@ describe('when the project key is asked for', () => {
             reads += 1;
             return { ...CTX, projectKey: '' };
         };
-        const audit = pkg.bindResource(pkg.platformResources.audit, http, readContext);
+        const audit = pkg.bindResource(
+            pkg.platformResources.audit,
+            recordingHttp().http,
+            readContext,
+        );
         assert.equal(reads, 0, 'binding an unscoped resource read the context');
         await audit.list({});
         assert.equal(reads, 1, 'the operation did not read the context');
@@ -188,7 +214,7 @@ describe('when the project key is asked for', () => {
         // Checking only at boot would send `?projectKey=` after all, which is
         // the request this whole check exists to prevent.
         let projectKey = 'probe';
-        const plans = pkg.bindResource(pkg.platformResources.plans, http, () => ({
+        const plans = pkg.bindResource(pkg.platformResources.plans, recordingHttp().http, () => ({
             ...CTX,
             projectKey,
         }));

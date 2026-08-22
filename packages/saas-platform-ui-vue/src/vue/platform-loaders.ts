@@ -27,8 +27,6 @@ export interface CreatePlatformLoadersOptions {
      * Only forwarded to the `ManifestLoader`.
      */
     storageKeyPrefix?: string;
-    /** Auth-token provider for `Authorization: Bearer …` (ManifestLoader only). */
-    getAuthToken?: () => string | null;
 }
 
 export interface PlatformLoaders {
@@ -71,7 +69,6 @@ export function createPlatformLoaders(options: CreatePlatformLoadersOptions): Pl
         http: options.http,
         storage: options.storage,
         storageKeyPrefix: options.storageKeyPrefix,
-        getAuthToken: options.getAuthToken,
     });
 
     return { bootLoader, manifestLoader };

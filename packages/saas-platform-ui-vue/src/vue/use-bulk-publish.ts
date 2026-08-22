@@ -39,7 +39,6 @@ export interface UseBulkPublishOptions {
      */
     endpoints: Record<BulkItemKind, (draftId: string) => string>;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
 }
 
 export interface UseBulkPublishResult {
@@ -103,8 +102,6 @@ export function useBulkPublish(options: UseBulkPublishOptions): UseBulkPublishRe
             const headers: Record<string, string> = {
                 'Content-Type': 'application/json',
             };
-            const token = options.getAuthToken?.();
-            if (token) headers.Authorization = `Bearer ${token}`;
             if (mfaCode) headers['X-Mfa-Code'] = mfaCode;
             const res = await http(url, {
                 method: 'POST',

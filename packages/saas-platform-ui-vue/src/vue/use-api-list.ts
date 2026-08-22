@@ -39,7 +39,6 @@ export interface UseApiListOptions<TFilter> {
      */
     filter?: Ref<TFilter>;
     http?: HttpClient;
-    getAuthToken?: () => string | null;
     /**
      * When `true`, loads automatically on mount. Defaults to `true`.
      * Set to `false` when the consumer wants to trigger the first load
@@ -87,8 +86,6 @@ export function useApiList<T, TFilter extends Record<string, unknown> = Record<s
         error.value = null;
         try {
             const headers: Record<string, string> = {};
-            const token = options.getAuthToken?.();
-            if (token) headers.Authorization = `Bearer ${token}`;
             const res = await http(buildUrl(), { method: 'GET', headers });
             if (res.status !== 200) {
                 throw new Error(`Endpoint ${options.endpoint} → HTTP ${res.status}`);

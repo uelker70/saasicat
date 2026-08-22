@@ -26,6 +26,14 @@ import {
     SUPER_ADMIN_MANIFEST_KEY,
 } from '../../src/vue/super-admin-context.js';
 import { SUPER_ADMIN_NOTIFY_KEY } from '../../src/vue/ui-notify.js';
+import { SUPER_ADMIN_CONFIRM_KEY } from '../../src/vue/ui-confirm.js';
+import { quasarConfirm } from '../../src/quasar/confirm.js';
+import { SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY } from '../../src/vue/super-admin-context.js';
+import {
+    SUPER_ADMIN_RESOURCES_KEY,
+    createResourceRegistry,
+} from '../../src/vue/resource-registry.js';
+import { platformResources } from '../../src/client/resources/index.js';
 import { SUPER_ADMIN_I18N_KEY, createSuperAdminI18n } from '../../src/vue/use-super-admin-i18n.js';
 import { SA_THEME_KEY, createSaTheme, type SaColorScheme } from '../../src/vue/use-sa-theme.js';
 import { bindSaThemeToDocument } from '../../src/quasar/dark-bridge.js';
@@ -195,9 +203,27 @@ app.provide(SUPER_ADMIN_ENDPOINTS_KEY, {
 app.provide(SUPER_ADMIN_EXTENSIONS_KEY, {});
 app.provide(SUPER_ADMIN_ACTIONS_KEY, {});
 app.provide(SUPER_ADMIN_NOTIFY_KEY, () => {});
+// The real one, not a stub that always confirms: a destructive action's dialog
+// is a surface the baselines are supposed to see, and a fixture that answered
+// `true` without rendering it would photograph the page behind the dialog.
+app.provide(SUPER_ADMIN_CONFIRM_KEY, quasarConfirm);
+app.provide(SUPER_ADMIN_MANIFEST_CLEAR_CACHE_KEY, () => {});
 app.provide(SUPER_ADMIN_HTTP_KEY, http);
 app.provide(SUPER_ADMIN_MANIFEST_KEY, () => FIXTURE_MANIFEST);
 app.provide(SUPER_ADMIN_LOGIN_ADAPTER_KEY, { login: async () => ({ ok: true as const }) });
+// The registry, on the same stubbed client as everything else. A page migrated
+// onto the resource idiom throws in `setup()` without one — the fixture is a
+// hand-built shell rather than `createSuperAdminApp()`, so every seam that
+// bootstrap installs has to be installed here as well or the page under test
+// never renders at all.
+app.provide(
+    SUPER_ADMIN_RESOURCES_KEY,
+    createResourceRegistry({
+        http,
+        context: { apiBase: ADMIN_BASE, projectKey: 'fixture', locale: 'en' },
+        resources: platformResources,
+    }),
+);
 
 // The theme, wired exactly as `createSuperAdminApp()` wires it — through the
 // shipped bridge rather than through an imitation of it. The first version of

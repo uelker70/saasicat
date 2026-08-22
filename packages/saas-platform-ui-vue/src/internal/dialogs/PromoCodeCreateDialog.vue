@@ -1,57 +1,30 @@
 <template>
-    <q-dialog
+    <AdminFormDialog
         :model-value="modelValue"
-        persistent
+        :title="msg.createDialog.title"
+        :subtitle="subtitle ?? msg.createDialog.subtitle"
+        size="lg"
+        :submit-label="common.create"
+        :submit-disabled="!isValid"
+        :submit="submitForm"
         @update:model-value="emit('update:modelValue', $event)"
+        @submitted="emit('created')"
     >
-        <q-card class="pc-dlg">
-            <q-card-section class="pc-dlg__head">
-                <div>
-                    <div class="pc-dlg__title">{{ msg.createDialog.title }}</div>
-                    <div class="pc-dlg__sub">{{ subtitle ?? msg.createDialog.subtitle }}</div>
-                </div>
-                <q-btn
-                    v-close-popup
-                    class="pc-dlg__close"
-                    flat
-                    dense
-                    round
-                    icon="close"
-                    :disable="loading"
-                />
-            </q-card-section>
-
-            <q-card-section class="pc-dlg__body">
-                <PromoCodeDialogFields
-                    v-model:code="form.code"
-                    v-model:advanced-open="advancedOpen"
-                    mode="create"
-                    :form="form"
-                    :show-campaign-tag="showCampaignTag"
-                    :plans="plans"
-                />
-
-                <p v-if="error" class="pc-error">{{ error }}</p>
-            </q-card-section>
-
-            <q-card-actions align="right" class="pc-dlg__foot">
-                <q-btn v-close-popup flat :label="common.cancel" :disable="loading" />
-                <q-btn
-                    unelevated
-                    color="primary"
-                    :label="common.create"
-                    :loading="loading"
-                    :disable="!isValid"
-                    @click="onSubmit"
-                />
-            </q-card-actions>
-        </q-card>
-    </q-dialog>
+        <PromoCodeDialogFields
+            v-model:code="form.code"
+            v-model:advanced-open="advancedOpen"
+            v-model:form="form"
+            mode="create"
+            :show-campaign-tag="showCampaignTag"
+            :plans="plans"
+        />
+    </AdminFormDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
+import AdminFormDialog from '../../ui/overlay/AdminFormDialog.vue';
 import PromoCodeDialogFields from './PromoCodeDialogFields.vue';
 import type {
     PromoCodeCreatePayload,
@@ -109,8 +82,6 @@ function emptyForm() {
 }
 
 const form = reactive(emptyForm());
-const loading = ref(false);
-const error = ref('');
 const advancedOpen = ref(false);
 
 const isValid = computed(() => {
@@ -127,96 +98,32 @@ watch(
     (open) => {
         if (open) {
             Object.assign(form, emptyForm());
-            error.value = '';
             advancedOpen.value = false;
         }
     },
 );
 
-async function onSubmit() {
-    if (!isValid.value) return;
-    loading.value = true;
-    error.value = '';
-    try {
-        await props.submit({
-            code: form.code,
-            valueType: form.valueType,
-            value: form.value,
-            durationType: form.durationType,
-            durationValue: form.durationType === 'ONCE' ? null : form.durationValue,
-            maxRedemptions: form.maxRedemptions ?? null,
-            validFrom: form.validFrom || null,
-            validUntil: form.validUntil || null,
-            appliesToPlans: form.appliesToPlans.length > 0 ? [...form.appliesToPlans] : undefined,
-            appliesToBilling: form.appliesToBilling,
-            firstTimeCustomersOnly: form.firstTimeCustomersOnly || undefined,
-            minimumPlanAmountGross: form.minimumPlanAmountGross ?? undefined,
-            allowZeroInvoice: form.allowZeroInvoice || undefined,
-            revenueDeductionAccount: form.revenueDeductionAccount || undefined,
-            campaignTag: form.campaignTag || undefined,
-            description: form.description || undefined,
-        });
-        emit('created');
-        emit('update:modelValue', false);
-    } catch (err) {
-        error.value =
-            (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
-            (err as Error).message ??
-            common.value.createFailed;
-    } finally {
-        loading.value = false;
-    }
+// The dialog owns pending, failure and closing; what is left here is the one
+// thing it cannot know — how this form becomes a payload. Rejecting is how a
+// failure reaches the operator, so nothing is caught.
+async function submitForm(): Promise<void> {
+    await props.submit({
+        code: form.code,
+        valueType: form.valueType,
+        value: form.value,
+        durationType: form.durationType,
+        durationValue: form.durationType === 'ONCE' ? null : form.durationValue,
+        maxRedemptions: form.maxRedemptions ?? null,
+        validFrom: form.validFrom || null,
+        validUntil: form.validUntil || null,
+        appliesToPlans: form.appliesToPlans.length > 0 ? [...form.appliesToPlans] : undefined,
+        appliesToBilling: form.appliesToBilling,
+        firstTimeCustomersOnly: form.firstTimeCustomersOnly || undefined,
+        minimumPlanAmountGross: form.minimumPlanAmountGross ?? undefined,
+        allowZeroInvoice: form.allowZeroInvoice || undefined,
+        revenueDeductionAccount: form.revenueDeductionAccount || undefined,
+        campaignTag: form.campaignTag || undefined,
+        description: form.description || undefined,
+    });
 }
 </script>
-
-<style scoped>
-.pc-dlg {
-    min-width: 720px;
-    max-width: 96vw;
-}
-
-.pc-dlg__head {
-    display: flex;
-    align-items: flex-start;
-    gap: 16px;
-    padding-bottom: 8px;
-}
-
-.pc-dlg__close {
-    margin-left: auto;
-}
-
-.pc-dlg__title {
-    font-family: var(--sa-font-head, system-ui, sans-serif);
-    font-weight: 700;
-    font-size: var(--sa-text-xl);
-    color: var(--sa-color-fg-heading);
-}
-
-.pc-dlg__sub {
-    font-size: var(--sa-text-md);
-    color: var(--sa-color-fg-muted);
-    margin-top: 2px;
-}
-
-.pc-dlg__body {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding-top: 4px;
-}
-
-.pc-dlg__foot {
-    border-top: 1px solid var(--sa-color-border);
-}
-
-.pc-error {
-    background: var(--sa-color-negative-surface);
-    border: 1px solid var(--sa-color-negative-border);
-    color: var(--sa-color-negative-fg);
-    font-size: var(--sa-text-md);
-    margin: 8px 0 0;
-    padding: 8px 12px;
-    border-radius: 8px;
-}
-</style>

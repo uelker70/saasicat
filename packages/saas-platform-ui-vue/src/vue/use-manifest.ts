@@ -3,7 +3,7 @@
 // Usage in the shell app after login:
 //
 //     const { manifest, loading, error, load, reload } = useManifest({
-//       getAuthToken: () => authStore.token,
+//       http: platformHttp,
 //     });
 //     await load();
 

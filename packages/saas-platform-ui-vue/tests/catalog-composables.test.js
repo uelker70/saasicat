@@ -31,6 +31,7 @@ import {
     usePlans,
     usePromotions,
 } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
 
 const ADMIN = '/api/v1/admin';
 
@@ -83,8 +84,7 @@ describe('usePlans', () => {
             usePlans({
                 adminEndpoint: ADMIN,
                 projectKey: 'notes app',
-                http,
-                getAuthToken: () => 'tok',
+                http: authenticating(http, 'tok'),
             }),
         );
         await view.load();

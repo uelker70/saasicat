@@ -330,3 +330,74 @@ describe('platformResources', () => {
         }
     });
 });
+
+// `bind` — one page instance overriding what the app already overrode.
+//
+// AP3 §3.2 gives every page a `resources` prop for the case where one instance
+// reads from somewhere else. That has to LAYER over the app's own override
+// rather than replace it: an app that records approvals around a publish keeps
+// doing so when one page is pointed at a legacy host, and the page has no way
+// to know the approval exists. So the chain is platform ← app ← instance, and
+// the order is observable — each wrapper here appends to the same array.
+describe('registry.bind — an override for one page instance', () => {
+    test('the instance wrapper runs outside the app wrapper, and both run', async () => {
+        const order = [];
+        const { http } = recordingHttp();
+        const registry = registryWith(http, {
+            plans: {
+                ops: {
+                    list: async (next) => {
+                        order.push('app');
+                        return next();
+                    },
+                },
+            },
+        });
+
+        const bound = registry.bind('plans', {
+            ops: {
+                list: async (next) => {
+                    order.push('instance');
+                    return next();
+                },
+            },
+        });
+        await bound.list();
+
+        assert.deepEqual(order, ['instance', 'app']);
+    });
+
+    test('an instance context wins over the app context for that page only', async () => {
+        const { http, calls } = recordingHttp();
+        const registry = registryWith(http, {
+            plans: { context: { apiBase: '/api/app/admin' } },
+        });
+
+        await registry.bind('plans', { context: { apiBase: '/api/legacy/admin' } }).list();
+        await registry.get('plans').list();
+
+        assert.match(calls[0].url, /^\/api\/legacy\/admin\//);
+        assert.match(calls[1].url, /^\/api\/app\/admin\//, 'the shared binding is untouched');
+    });
+
+    test('binding one operation leaves the others on the platform implementation', async () => {
+        const { http, calls } = recordingHttp();
+        const registry = registryWith(http, undefined);
+
+        const bound = registry.bind('plans', {
+            ops: { list: async () => [{ id: 'from-the-override' }] },
+        });
+
+        assert.deepEqual(await bound.list(), [{ id: 'from-the-override' }]);
+        assert.equal(calls.length, 0, 'the overridden op issued no request');
+
+        await bound.create({ planKey: 'PRO' });
+        assert.equal(calls.length, 1, 'the untouched op still reaches the platform');
+        assert.equal(calls[0].method, 'POST');
+    });
+
+    test('an unknown resource says so instead of returning something inert', () => {
+        const { http } = recordingHttp();
+        assert.throws(() => registryWith(http, undefined).bind('nope', {}), /no such resource/);
+    });
+});

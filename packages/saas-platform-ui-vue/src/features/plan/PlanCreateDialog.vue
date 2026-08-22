@@ -1,94 +1,68 @@
 <template>
-    <q-dialog
+    <AdminDialog
         :model-value="modelValue"
+        :title="msg.createDialog.title"
+        :subtitle="msg.createDialog.subtitle"
+        size="md"
         persistent
-        :no-shake="true"
         @update:model-value="$emit('update:modelValue', $event)"
     >
-        <div class="pcd-modal" role="dialog" aria-labelledby="pcd-title">
-            <div class="pcd-head">
-                <div class="pcd-head-text">
-                    <div id="pcd-title" class="pcd-title">{{ msg.createDialog.title }}</div>
-                    <div class="pcd-sub">{{ msg.createDialog.subtitle }}</div>
-                </div>
-                <button
-                    class="pcd-close"
-                    type="button"
-                    :aria-label="common.close"
-                    @click="onCancel"
-                >
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                    >
-                        <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <div class="pcd-body">
-                <div class="pcd-row pcd-row--2col">
-                    <div class="pcd-field">
-                        <div class="pcd-field-label">
-                            {{ msg.createDialog.labelPlanKey }}
-                            <span class="pcd-kbd">UNIQUE</span>
-                        </div>
-                        <input
-                            ref="keyInput"
-                            class="pcd-input"
-                            :class="{ 'pcd-input--error': keyError }"
-                            :placeholder="msg.createDialog.placeholderPlanKey"
-                            :value="form.planKey"
-                            @input="onPlanKeyInput"
-                        />
-                        <div v-if="keyError" class="pcd-hint pcd-hint--error">{{ keyError }}</div>
-                        <div v-else class="pcd-hint">{{ msg.createDialog.hintPlanKey }}</div>
-                    </div>
-                    <div class="pcd-field">
-                        <div class="pcd-field-label">{{ msg.createDialog.labelDisplayName }}</div>
-                        <input
-                            v-model="form.label"
-                            class="pcd-input"
-                            :placeholder="msg.createDialog.placeholderDisplayName"
-                        />
-                        <div class="pcd-hint">{{ msg.createDialog.hintDisplayName }}</div>
-                    </div>
-                </div>
-
+        <div>
+            <div class="pcd-row pcd-row--2col">
                 <div class="pcd-field">
-                    <div class="pcd-field-label">{{ common.description }}</div>
-                    <textarea
-                        v-model="form.description"
-                        class="pcd-input pcd-input--textarea"
-                        rows="2"
-                        :placeholder="msg.createDialog.placeholderDescription"
+                    <div class="pcd-field-label">
+                        {{ msg.createDialog.labelPlanKey }}
+                        <span class="pcd-kbd">UNIQUE</span>
+                    </div>
+                    <input
+                        ref="keyInput"
+                        class="pcd-input"
+                        :class="{ 'pcd-input--error': keyError }"
+                        :placeholder="msg.createDialog.placeholderPlanKey"
+                        :value="form.planKey"
+                        @input="onPlanKeyInput"
                     />
+                    <div v-if="keyError" class="pcd-hint pcd-hint--error">{{ keyError }}</div>
+                    <div v-else class="pcd-hint">{{ msg.createDialog.hintPlanKey }}</div>
                 </div>
-
                 <div class="pcd-field">
-                    <div class="pcd-field-label">{{ msg.createDialog.labelBasis }}</div>
-                    <div class="pcd-choice-grid">
-                        <button
-                            v-for="opt in choiceOptions"
-                            :key="opt.key"
-                            type="button"
-                            :class="[
-                                'pcd-choice',
-                                { 'pcd-choice--selected': form.basis === opt.key },
-                            ]"
-                            @click="form.basis = opt.key"
-                        >
-                            <div class="pcd-choice-title">{{ opt.title }}</div>
-                            <div class="pcd-choice-sub">{{ opt.subtitle }}</div>
-                        </button>
-                    </div>
+                    <div class="pcd-field-label">{{ msg.createDialog.labelDisplayName }}</div>
+                    <input
+                        v-model="form.label"
+                        class="pcd-input"
+                        :placeholder="msg.createDialog.placeholderDisplayName"
+                    />
+                    <div class="pcd-hint">{{ msg.createDialog.hintDisplayName }}</div>
                 </div>
             </div>
 
+            <div class="pcd-field">
+                <div class="pcd-field-label">{{ common.description }}</div>
+                <textarea
+                    v-model="form.description"
+                    class="pcd-input pcd-input--textarea"
+                    rows="2"
+                    :placeholder="msg.createDialog.placeholderDescription"
+                />
+            </div>
+
+            <div class="pcd-field">
+                <div class="pcd-field-label">{{ msg.createDialog.labelBasis }}</div>
+                <div class="pcd-choice-grid">
+                    <button
+                        v-for="opt in choiceOptions"
+                        :key="opt.key"
+                        type="button"
+                        :class="['pcd-choice', { 'pcd-choice--selected': form.basis === opt.key }]"
+                        @click="form.basis = opt.key"
+                    >
+                        <div class="pcd-choice-title">{{ opt.title }}</div>
+                        <div class="pcd-choice-sub">{{ opt.subtitle }}</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <template #footer>
             <div class="pcd-foot">
                 <button class="pcd-btn pcd-btn--ghost" type="button" @click="onCancel">
                     {{ common.cancel }}
@@ -116,12 +90,13 @@
                     </span>
                 </button>
             </div>
-        </div>
-    </q-dialog>
+        </template>
+    </AdminDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
+import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 
@@ -279,62 +254,6 @@ function onCancel(): void {
 </script>
 
 <style scoped>
-.pcd-modal {
-    background: var(--sa-color-bg-app);
-    width: 640px;
-    max-width: 92vw;
-    border-radius: 14px;
-    box-shadow: 0 24px 60px var(--sa-shadow-tint-4);
-    overflow: hidden;
-    font-family: var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-}
-.pcd-modal * {
-    box-sizing: border-box;
-}
-
-.pcd-head {
-    padding: 18px 22px;
-    border-bottom: 1px solid var(--sa-color-border);
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-}
-.pcd-head-text {
-    flex: 1;
-    min-width: 0;
-}
-.pcd-title {
-    font-size: var(--sa-text-lg);
-    font-weight: 700;
-    letter-spacing: -0.01em;
-}
-.pcd-sub {
-    font-size: var(--sa-text-sm);
-    color: var(--sa-color-fg-muted);
-    margin-top: 3px;
-}
-.pcd-close {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: transparent;
-    border: 0;
-    color: var(--sa-color-fg-subtle);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
-}
-.pcd-close:hover {
-    background: var(--sa-color-bg-sunken);
-    color: var(--sa-color-fg-heading);
-}
-
-.pcd-body {
-    padding: 20px 22px;
-    max-height: calc(90vh - 200px);
-    overflow-y: auto;
-}
 .pcd-row {
     margin-bottom: 16px;
 }
@@ -351,9 +270,6 @@ function onCancel(): void {
     margin-bottom: 0;
 }
 .pcd-row .pcd-field:last-child,
-.pcd-body > .pcd-field:last-child {
-    margin-bottom: 0;
-}
 .pcd-field-label {
     font-size: var(--sa-text-sm);
     font-weight: 600;
