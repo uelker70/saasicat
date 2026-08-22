@@ -39,6 +39,7 @@ import {
     usePlans,
     usePromotions,
     useTenantSubscriptionBundles,
+    httpStatusOf,
 } from '../dist/index.js';
 
 const EN = SA_MESSAGES.en.errors;
@@ -758,5 +759,21 @@ describe('getJson / postJson raise AdminError', () => {
     test('a 2xx still returns the parsed body', async () => {
         const { http } = httpReturning({ status: 200, body: { ok: true } });
         assert.deepEqual(await getJson(http, '/x'), { ok: true });
+    });
+});
+
+describe('httpStatusOf reads the status whichever shape carries it', () => {
+    test('an AdminError carries it at `status`', () => {
+        assert.equal(httpStatusOf(new AdminError({ message: 'no', status: 401 })), 401);
+    });
+
+    test('an axios rejection carries it at `response.status`', () => {
+        assert.equal(httpStatusOf({ response: { status: 403 } }), 403);
+    });
+
+    test('anything else has none', () => {
+        assert.equal(httpStatusOf(new Error('plain')), undefined);
+        assert.equal(httpStatusOf(null), undefined);
+        assert.equal(httpStatusOf({ response: { status: 'teapot' } }), undefined);
     });
 });

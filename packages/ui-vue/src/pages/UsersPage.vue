@@ -120,7 +120,7 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { usersResource } from '../client/resources/users.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
+import { adminErrorMessage, httpStatusOf } from '../client/admin-error.js';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import { useSuperAdminNotify } from '../quasar/notify.js';
@@ -411,7 +411,7 @@ async function runAction<R>(
             onSuccess(result);
             return;
         } catch (err) {
-            const status = (err as { response?: { status?: number } })?.response?.status;
+            const status = httpStatusOf(err);
             if (status === 401) {
                 mfa.error.value = shell.value.mfa.invalidCode;
                 continue;

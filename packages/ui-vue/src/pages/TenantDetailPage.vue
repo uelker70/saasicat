@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import AdminBody from '../ui/page/AdminBody.vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
 import AdminHero from '../ui/page/AdminHero.vue';
@@ -221,6 +221,12 @@ async function load(): Promise<void> {
 }
 
 onMounted(load);
+// Vue Router reuses this component between `tenants/:slug` URLs; loading on
+// mount alone leaves the previous tenant under the new URL, and the hero's
+// actions would suspend or reactivate that one.
+watch(tenantSlug, () => {
+    void load();
+});
 
 defineExpose({ reload: load });
 

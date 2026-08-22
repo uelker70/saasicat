@@ -159,3 +159,18 @@ describe('reading named imports', () => {
         assert.deepEqual(namedImports(spaces)[0]?.names, ['A']);
     });
 });
+
+describe('one name from two entries in one file', () => {
+    test('is reported, not rewritten to whichever import came last', () => {
+        const source = [
+            "import { FEATURE_UI_REGISTRY_TOKEN as BILLING } from '@saasicat/nest/billing';",
+            "import { FEATURE_UI_REGISTRY_TOKEN as CATALOG } from '@saasicat/nest/catalog';",
+            '',
+        ].join('\n');
+        const result = rewriteNames(source, TABLE);
+        assert.equal(result.text, source);
+        assert.deepEqual(result.ambiguous, [
+            "FEATURE_UI_REGISTRY_TOKEN from '@saasicat/nest/catalog'",
+        ]);
+    });
+});

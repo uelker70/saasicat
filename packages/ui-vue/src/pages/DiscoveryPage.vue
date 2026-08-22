@@ -448,10 +448,10 @@ async function onRunDiscovery(): Promise<void> {
 }
 
 function onFeatureReview(key: string, target: DiscoveryStatus): void {
-    persist(catalog.reviewFeature(key, { discoveryStatus: target }));
+    persist('feature', key, catalog.reviewFeature(key, { discoveryStatus: target }));
 }
 function onQuotaReview(key: string, target: DiscoveryStatus): void {
-    persist(catalog.reviewQuota(key, { discoveryStatus: target }));
+    persist('quota', key, catalog.reviewQuota(key, { discoveryStatus: target }));
 }
 
 // Persistence is debounced — the editor fires on every keystroke. Patches
@@ -475,12 +475,31 @@ const pendingBase = new Map<string, UpdateCatalogEntryBaseData>();
 const pendingLocale = new Map<string, CatalogEntryI18nFields>();
 
 /** Settle the persistence promise so no error stays unhandled. */
-function persist(p: Promise<unknown>): void {
-    p.catch((err) => {
-        // Auth renewal/redirect is handled by the HTTP client; here just log
-        // so a failed save stays visible.
-        console.error('Failed to save catalog entry', err);
-    });
+/**
+ * Saves, and writes the row the server answered with back into the page.
+ *
+ * The next payload is built from the page's row: a locale save sends the
+ * WHOLE `i18n` object, so a second edit assembled from a row the first save
+ * never updated would send the first edit's absence — and the server would
+ * take that as a deletion.
+ */
+function persist(kind: 'feature' | 'quota', key: string, p: Promise<unknown>): void {
+    p.then(
+        (saved) => {
+            if (!saved || typeof saved !== 'object') return;
+            const rows = kind === 'feature' ? features.value : quotas.value;
+            const idKey = kind === 'feature' ? 'featureKey' : 'quotaKey';
+            const index = (rows as Array<Record<string, unknown>>).findIndex(
+                (r) => r[idKey] === key,
+            );
+            if (index >= 0) (rows as unknown[])[index] = saved;
+        },
+        (err) => {
+            // Auth renewal/redirect is handled by the HTTP client; here just log
+            // so a failed save stays visible.
+            console.error('Failed to save catalog entry', err);
+        },
+    );
 }
 
 /** Treats an empty field as deleted so the fallback to DE takes effect. */
@@ -503,6 +522,8 @@ function onBaseUpdate(
         pendingBase.delete(id);
         if (!data) return;
         persist(
+            kind,
+            key,
             kind === 'feature'
                 ? catalog.setFeatureBase(key, data)
                 : catalog.setQuotaBase(key, data),
@@ -535,6 +556,8 @@ function onLocaleUpdate(
         }
         next[locale] = localeFields;
         persist(
+            kind,
+            key,
             kind === 'feature'
                 ? catalog.setFeatureI18n(key, next)
                 : catalog.setQuotaI18n(key, next),

@@ -275,6 +275,21 @@ export class AdminError extends Error {
 }
 
 /** Whether `err` is an `AdminError`, including one from another bundle copy. */
+/**
+ * The HTTP status an error carries, whichever shape carries it.
+ *
+ * An `AdminError` has it at `status`; an axios rejection has it at
+ * `response.status`. The pages used to read only the second, which was right
+ * while they called axios themselves — since they ask the resource registry,
+ * every failure is an `AdminError`, and a 401 read as `undefined` turned the
+ * MFA prompt's "try the code again" into "close and start over".
+ */
+export function httpStatusOf(err: unknown): number | undefined {
+    if (isAdminError(err)) return err.status;
+    const response = (err as { response?: { status?: unknown } } | null)?.response;
+    return typeof response?.status === 'number' ? response.status : undefined;
+}
+
 export function isAdminError(err: unknown): err is AdminError {
     return typeof err === 'object' && err !== null && ADMIN_ERROR in err;
 }

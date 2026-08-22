@@ -218,7 +218,7 @@ import AdminTable from '../ui/data/AdminTable.vue';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { emailHistoryResource } from '../client/resources/platform-email.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
+import { adminErrorMessage, httpStatusOf } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import AdminDialog from '../ui/overlay/AdminDialog.vue';
 import AdminStatusPill from '../ui/data/AdminStatusPill.vue';
@@ -456,7 +456,7 @@ async function runWrite<T>(
             mfa.show.value = false;
             return { ok: true, result };
         } catch (err) {
-            const status = (err as { response?: { status?: number } })?.response?.status;
+            const status = httpStatusOf(err);
             if (status === 401) {
                 mfa.error.value = shell.value.mfa.invalidCode;
                 continue;

@@ -100,8 +100,19 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
         for (const name of names) {
             const knownSomewhere = Object.values(table.entryTokens).some((m) => name in m);
             if (!knownSomewhere) continue;
-            if (mapping && name in mapping) perEntry.set(name, mapping[name]);
-            else ambiguous.add(`${name} from '${specifier}'`);
+            const already = perEntry.get(name);
+            if (
+                mapping &&
+                name in mapping &&
+                (already === undefined || already === mapping[name])
+            ) {
+                perEntry.set(name, mapping[name]);
+            } else {
+                // Unknown entry — or the same name taken from two entries in one
+                // file, where one replacement would rewrite both to one token.
+                if (already !== undefined) perEntry.delete(name);
+                ambiguous.add(`${name} from '${specifier}'`);
+            }
         }
     }
     for (const [from, to] of perEntry) {

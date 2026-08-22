@@ -106,7 +106,7 @@ import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { pilotsResource } from '../client/resources/pilots.resource.js';
 import type { plansResource } from '../client/resources/plans.resource.js';
-import { adminErrorMessage } from '../client/admin-error.js';
+import { adminErrorMessage, httpStatusOf } from '../client/admin-error.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useMfaPrompt } from '../vue/use-mfa-prompt.js';
@@ -476,7 +476,7 @@ async function runAction(
             await reload();
             return;
         } catch (err) {
-            const status = (err as { response?: { status?: number } })?.response?.status;
+            const status = httpStatusOf(err);
             if (status === 401) {
                 mfa.error.value = msg.value.mfa.invalidOrNotSetUp;
                 continue;
