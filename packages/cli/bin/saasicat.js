@@ -27,7 +27,7 @@
 
 import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -50,6 +50,7 @@ import {
     buildImportMap,
     migrationCreatedBy,
     rewriteImports,
+    rewriteManifest,
     rewriteNames,
     reportConstraints,
     patchAppModule,
@@ -548,6 +549,7 @@ async function cmdCodemodV1Imports(args) {
     let rewritten = 0;
     let touched = 0;
     await walkSources(root, async (full, source) => {
+        if (basename(full) === CODEMOD_MANIFEST) return;
         const result = rewriteImports(source, map);
         for (const [subpath, n] of result.unmapped) {
             unmapped.set(subpath, (unmapped.get(subpath) ?? 0) + n);
@@ -593,7 +595,13 @@ async function cmdCodemodV1Rename(args) {
     let rewritten = 0;
     let touched = 0;
     await walkSources(root, async (full, source) => {
-        const result = rewriteNames(source, table);
+        // A manifest takes the package renames in its dependency fields; a
+        // source file takes everything. Under pnpm an import a manifest does
+        // not declare fails to resolve, so the two travel together.
+        const result =
+            basename(full) === 'package.json'
+                ? rewriteManifest(source, table)
+                : rewriteNames(source, table);
         for (const name of result.ambiguous) {
             ambiguous.set(name, (ambiguous.get(name) ?? 0) + 1);
         }
@@ -630,6 +638,8 @@ function codemodTable(name) {
 const CODEMOD_SKIP = new Set(['node_modules', '.git', '.output', 'coverage']);
 const isBuildOutput = (name) => name === 'dist' || name.startsWith('dist-');
 const CODEMOD_EXTENSIONS = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|md)$/;
+/** Walked for the package renames alone; see `rewriteManifest`. */
+const CODEMOD_MANIFEST = 'package.json';
 
 /** Every source file under `root` a codemod may touch, with its text. */
 async function walkSources(root, visit) {
@@ -641,7 +651,7 @@ async function walkSources(root, visit) {
                 await walk(full);
                 continue;
             }
-            if (!CODEMOD_EXTENSIONS.test(entry.name)) continue;
+            if (!CODEMOD_EXTENSIONS.test(entry.name) && entry.name !== CODEMOD_MANIFEST) continue;
             await visit(full, await readFile(full, 'utf8'));
         }
     };

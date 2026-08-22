@@ -465,6 +465,20 @@ describe('codemod v1-rename', () => {
         assert.equal(await readFile(join(root, 'src', 'app.ts'), 'utf8'), RENAME_SOURCE);
     });
 
+    test('the package rename reaches package.json, under its own indentation', async () => {
+        const root = await consumer('rename-manifest');
+        const manifest =
+            '{\n  "name": "consumer",\n  "dependencies": {\n    "@saasicat/types": "^1.0.0-rc.0"\n  }\n}\n';
+        await writeFile(join(root, 'package.json'), manifest, 'utf8');
+        const { stdout, code } = await cli(['codemod', 'v1-rename', `--dir=${root}`]);
+
+        assert.equal(code, 0, stdout);
+        const after = await readFile(join(root, 'package.json'), 'utf8');
+        assert.match(after, /"@saasicat\/core": "\^1\.0\.0-rc\.0"/);
+        assert.doesNotMatch(after, /@saasicat\/types/);
+        assert.match(after, /^ {2}"name"/m);
+    });
+
     test('a second run has nothing left to do', async () => {
         const root = await consumer('rename-twice');
         await cli(['codemod', 'v1-rename', `--dir=${root}`]);

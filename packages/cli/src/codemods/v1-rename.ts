@@ -22,6 +22,13 @@ export interface RenameTable {
     readonly entryTokens: Readonly<Record<string, Readonly<Record<string, string>>>>;
     /** A module specifier prefix and its replacement. */
     readonly subpaths: Readonly<Record<string, string>>;
+    /**
+     * A package that was renamed. Rewritten in specifiers by `rewriteNames`
+     * and in `package.json` dependency fields by `rewriteManifest` — both,
+     * because an import a manifest does not declare fails to resolve under
+     * pnpm's isolated `node_modules`.
+     */
+    readonly packages?: Readonly<Record<string, string>>;
 }
 
 export interface RenameResult {
@@ -149,7 +156,16 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
         });
     }
 
-    // 4. Subpaths that were renamed inside a package.
+    // 4. Subpaths renamed inside a package, and packages renamed outright. A
+    //    package name is matched up to a quote or a `/`, so `@saasicat/types`
+    //    does not reach into `@saasicat/types-extra` should one ever exist.
+    for (const [from, to] of Object.entries(table.packages ?? {})) {
+        if (from === '_') continue;
+        next = next.replace(new RegExp(`${escape(from)}(?=['"\`/])`, 'g'), () => {
+            rewritten += 1;
+            return to;
+        });
+    }
     for (const [from, to] of Object.entries(table.subpaths)) {
         next = next.replace(new RegExp(escape(from), 'g'), () => {
             rewritten += 1;
@@ -158,4 +174,46 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
     }
 
     return { text: next, rewritten, ambiguous: [...ambiguous].sort() };
+}
+
+const DEPENDENCY_FIELDS = [
+    'dependencies',
+    'devDependencies',
+    'peerDependencies',
+    'optionalDependencies',
+] as const;
+
+/**
+ * Applies the package renames to a `package.json` text.
+ *
+ * Parsed and re-serialised rather than string-replaced, so a rename lands in a
+ * dependency field and nowhere else — not in `name`, not in a description.
+ * The file's indentation is kept; a consumer's formatter must not see a diff
+ * it did not cause. Returns the text unchanged when nothing applied.
+ */
+export function rewriteManifest(text: string, table: RenameTable): RenameResult {
+    const renames = Object.entries(table.packages ?? {}).filter(([from]) => from !== '_');
+    let manifest: Record<string, unknown>;
+    try {
+        manifest = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+        return { text, rewritten: 0, ambiguous: [] };
+    }
+    let rewritten = 0;
+    for (const field of DEPENDENCY_FIELDS) {
+        const deps = manifest[field];
+        if (!deps || typeof deps !== 'object') continue;
+        const entries = Object.entries(deps as Record<string, string>);
+        const renamed = entries.map(([name, range]) => {
+            const to = renames.find(([from]) => from === name)?.[1];
+            if (!to) return [name, range] as const;
+            rewritten += 1;
+            return [to, range] as const;
+        });
+        manifest[field] = Object.fromEntries(renamed);
+    }
+    if (rewritten === 0) return { text, rewritten: 0, ambiguous: [] };
+    const indent = /^[ \t]+/m.exec(text)?.[0] ?? '    ';
+    const trailing = text.endsWith('\n') ? '\n' : '';
+    return { text: JSON.stringify(manifest, null, indent) + trailing, rewritten, ambiguous: [] };
 }

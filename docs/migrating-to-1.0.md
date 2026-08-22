@@ -41,8 +41,9 @@ that; pricing and proration are planned to consolidate there. Every import moves
 | ------------------------------------- | ------------------------------------ |
 | `import { … } from '@saasicat/types'` | `import { … } from '@saasicat/core'` |
 
-The codemod rewrites the specifier; `@saasicat/types` stays on npm at `0.27.0` for the 0.x line
-and gets no 1.0.
+The codemod rewrites the specifier **and the dependency in every `package.json` it meets** —
+under pnpm an import a manifest does not declare fails to resolve. `@saasicat/types` stays on
+npm at `0.27.0` for the 0.x line and gets no 1.0.
 
 ### Registry keys
 

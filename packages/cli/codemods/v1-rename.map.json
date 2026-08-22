@@ -15,6 +15,8 @@
         "consumer that spelled a key themselves gets the same symbol the platform",
         "now registers; without this their injection would resolve to nothing.",
         "",
+        "`packages` renames a whole package — in specifiers and in package.json.",
+        "",
         "`entryTokens` is keyed by the import specifier, because the old name",
         "meant different registries in different entries. An import of it from",
         "anywhere else is reported, not guessed."
@@ -40,7 +42,10 @@
         }
     },
     "subpaths": {
-        "@saasicat/ui-vue/testing-e2e/": "@saasicat/ui-vue/testing/",
+        "@saasicat/ui-vue/testing-e2e/": "@saasicat/ui-vue/testing/"
+    },
+    "packages": {
+        "_": "A package that was renamed. Applied to import specifiers AND to the dependency fields of every package.json the walk meets: an import rewritten without its manifest does not resolve under pnpm.",
         "@saasicat/types": "@saasicat/core"
     }
 }

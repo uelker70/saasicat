@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { namedImports, rewriteNames } from '../dist/index.js';
+import { namedImports, rewriteManifest, rewriteNames } from '../dist/index.js';
 
 // naming-history: this file names the retired spellings because they are what
 // the codemod rewrites. The rules come from `codemods/v1-rename.map.json`, the
@@ -183,5 +183,46 @@ describe('one name from two entries in one file', () => {
         assert.deepEqual(result.ambiguous, [
             "FEATURE_UI_REGISTRY_TOKEN from '@saasicat/nest/catalog'",
         ]);
+    });
+});
+
+describe('a renamed package reaches the manifest', () => {
+    test('the dependency fields are rewritten, nothing else is', () => {
+        const before = JSON.stringify(
+            {
+                name: 'my-app',
+                description: 'uses @saasicat/types',
+                dependencies: { '@saasicat/types': '^1.0.0-rc.0', vue: '^3.5.0' },
+                devDependencies: { '@saasicat/ui-vue': 'workspace:^' },
+                peerDependencies: { '@saasicat/types': '^1.0.0-rc.0' },
+            },
+            null,
+            2,
+        );
+        const { text, rewritten } = rewriteManifest(before + '\n', TABLE);
+        const after = JSON.parse(text);
+        assert.equal(rewritten, 2);
+        assert.deepEqual(after.dependencies, { '@saasicat/core': '^1.0.0-rc.0', vue: '^3.5.0' });
+        assert.deepEqual(after.peerDependencies, { '@saasicat/core': '^1.0.0-rc.0' });
+        assert.equal(after.description, 'uses @saasicat/types', 'prose is not a dependency');
+        assert.match(text, /^ {2}"name"/m, 'the two-space indentation survived');
+        assert.ok(text.endsWith('\n'));
+    });
+
+    test('a manifest without the package is returned untouched', () => {
+        const before = '{\n    "name": "x",\n    "dependencies": { "vue": "^3.5.0" }\n}\n';
+        const result = rewriteManifest(before, TABLE);
+        assert.equal(result.text, before);
+        assert.equal(result.rewritten, 0);
+    });
+
+    test('the specifier rewrite stops at the package boundary', () => {
+        const { text } = rewriteNames(
+            "import a from '@saasicat/types';\nimport b from '@saasicat/types/dist/x.js';\nimport c from '@saasicat/types-extra';",
+            TABLE,
+        );
+        assert.match(text, /from '@saasicat\/core';/);
+        assert.match(text, /from '@saasicat\/core\/dist\/x\.js';/);
+        assert.match(text, /from '@saasicat\/types-extra';/);
     });
 });
