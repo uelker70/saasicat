@@ -58,16 +58,17 @@ does not say which registry you meant.
 
 ### The UI surface (phase 4)
 
-| before                                      | after                                         |
-| ------------------------------------------- | --------------------------------------------- |
-| `@saasicat/ui-vue/pages-standard/*`         | `@saasicat/ui-vue/pages/*.vue`                |
-| `@saasicat/ui-vue/components/<primitive>`   | `@saasicat/ui-vue/ui/<group>/<primitive>.vue` |
-| `@saasicat/ui-vue/components/<domain part>` | not published — copy what you need            |
-| `@saasicat/ui-vue/pages/AdminLayout.vue`    | `@saasicat/ui-vue/layouts/AdminLayout.vue`    |
-| `@saasicat/ui-vue/pages/SuperAdmin*.vue`    | `@saasicat/ui-vue/auth/SuperAdmin*.vue`       |
-| `@saasicat/ui-vue/pages-tenant/*`           | `@saasicat/ui-vue-tenant/*`                   |
-| `@saasicat/ui-vue/sa-theme.css`             | `@saasicat/ui-vue/theme.css`                  |
-| `@saasicat/ui-vue/testing-e2e/*`            | `@saasicat/ui-vue/testing/*`                  |
+| before                                            | after                                            |
+| ------------------------------------------------- | ------------------------------------------------ |
+| `@saasicat/ui-vue/pages-standard/*`               | `@saasicat/ui-vue/pages/*.vue`                   |
+| `@saasicat/ui-vue/components/<primitive>`         | `@saasicat/ui-vue/ui/<group>/<primitive>.vue`    |
+| `@saasicat/ui-vue/components/plan/<tenant part>`  | `@saasicat/ui-vue-tenant/plan/<tenant part>.vue` |
+| `@saasicat/ui-vue/components/<admin domain part>` | not published — copy what you need               |
+| `@saasicat/ui-vue/pages/AdminLayout.vue`          | `@saasicat/ui-vue/layouts/AdminLayout.vue`       |
+| `@saasicat/ui-vue/pages/SuperAdmin*.vue`          | `@saasicat/ui-vue/auth/SuperAdmin*.vue`          |
+| `@saasicat/ui-vue/pages-tenant/*`                 | `@saasicat/ui-vue-tenant/*`                      |
+| `@saasicat/ui-vue/sa-theme.css`                   | `@saasicat/ui-vue/theme.css`                     |
+| `@saasicat/ui-vue/testing-e2e/*`                  | `@saasicat/ui-vue/testing/*`                     |
 
 A domain or page-private component that `components/*` used to hand out has no new home on the
 surface; `v1-imports` lists each one it meets. Pages no longer take callback props — they read

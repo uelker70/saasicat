@@ -41,10 +41,12 @@ import { readFileSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, extname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, extname, join } from 'node:path';
 
-const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// The package under test is the working directory, not this file's package:
+// `@saasicat/ui-vue-tenant` ships its source under the same floor and runs
+// this script from its own `test:shipped-source`.
+const PACKAGE_ROOT = process.cwd();
 const FLOOR = {
     target: 'ES2021',
     // Deliberately not wider than the package's own `lib` on any axis: a floor
@@ -65,7 +67,9 @@ const ASSET_EXTENSIONS = new Set(['.css', '.scss', '.sass', '.less', '.json', '.
  *
  * A code target that reduces to `./src` is refused rather than skipped. That is
  * the shape this derivation cannot express — `./src/index.ts`, or a `*` in the
- * middle of the path — and dropping it silently would leave the whole closure
+ * middle of the path. `./src/*.vue` is the one exception: a star directly under
+ * `src/` with nothing but an extension behind it hands out the whole tree, so
+ * the directory is `src/` itself. Dropping a shape silently would leave the whole closure
  * behind it unchecked while the run stayed green. "Delivers less" has to fail as
  * loudly as "delivers nothing". A stylesheet in the same position is skipped,
  * because no `include` of it would ever produce a diagnostic.
@@ -76,6 +80,13 @@ function shippedSourceDirectories(manifest) {
     const walk = (node) => {
         if (typeof node === 'string') {
             if (!node.startsWith('./src/')) return;
+            // `./src/*.vue` hands out everything directly under `src/` and, for
+            // a package whose whole tree is source, everything below it: that
+            // IS a directory — `src/` itself — and is checked as one.
+            if (/^\.\/src\/\*\.[a-z]+$/.test(node)) {
+                if (!ASSET_EXTENSIONS.has(extname(node))) directories.add('./src');
+                return;
+            }
             const head = node.includes('*') ? node.slice(0, node.indexOf('*')) : dirname(node);
             const directory = head.replace(/\/+$/, '');
             if (directory !== './src') directories.add(directory);

@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { computed, defineComponent, h } from 'vue';
 
-import TenantUsageGrid from '../src/tenant-plan-section/TenantUsageGrid.vue';
-import { provideTenantI18n, useTenantI18n } from '../src/tenant-i18n';
-import { defaultTenantPlanSectionI18n } from '../src/default-i18n';
+import TenantUsageGrid from '../../src/tenant-plan-section/TenantUsageGrid.vue';
+import { provideTenantI18n, useTenantI18n } from '../../src/tenant-i18n';
+import { defaultTenantPlanSectionI18n } from '../../src/default-i18n';
 import { DEFAULT_SA_LOCALE } from '@saasicat/ui-vue';
 import type { UsageSnapshotShape } from '@saasicat/ui-vue';
 import { mountWithQuasar } from './support/mount-with-quasar';

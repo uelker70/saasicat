@@ -14,7 +14,8 @@
     "@saasicat/spec": "0.27.0",
     "@saasicat/types": "0.27.0",
     "@saasicat/ui-vue": "0.27.0",
-    "saasicat": "0.27.0"
+    "saasicat": "0.27.0",
+    "@saasicat/ui-vue-tenant": "0.27.0"
   },
   "changesets": []
 }

@@ -37,7 +37,11 @@ export function buildImportMap(table: MoveTable): Map<string, string> {
     const map = new Map<string, string>();
 
     for (const [from, to] of Object.entries(table.moves)) {
-        if (!PUBLIC_PREFIXES.some((prefix) => to.startsWith(prefix))) continue;
+        // A target that names a package left `@saasicat/ui-vue` for good — the
+        // five tenant-facing plan components went to `@saasicat/ui-vue-tenant`
+        // in 4.12 — and is emitted verbatim, like the prefix moves below.
+        const onSurface = PUBLIC_PREFIXES.some((prefix) => to.startsWith(prefix));
+        if (!onSurface && !to.startsWith('@')) continue;
 
         if (from.startsWith('components/')) {
             map.set(from, to);

@@ -131,7 +131,8 @@ and `Object.hasOwn`, for which `Object.prototype.hasOwnProperty.call()` is the
 equivalent. Code reached only through `dist/` is unaffected.
 
 `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles that closure at the floor
-and runs in CI. It is set the way a Vite consumer sets it rather than to a bare language level:
+and runs in CI; `pnpm --filter @saasicat/ui-vue-tenant test:shipped-source` does the same for
+the tenant package, which ships nothing but source. It is set the way a Vite consumer sets it rather than to a bare language level:
 `isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`, the last
 two of which this package's own base config would otherwise leave milder than its
 subject. It

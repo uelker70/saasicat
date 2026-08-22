@@ -78,3 +78,18 @@ describe('the release group covers everything that is published', () => {
         assert.deepEqual(stale, [], 'the fixed group names packages this workspace does not have');
     });
 });
+
+describe('the candidate line knows every package too', () => {
+    // `changeset pre enter` writes `initialVersions` once. A package created
+    // afterwards is not in it — `@saasicat/ui-vue-tenant` was not, and
+    // `changeset version` added it on its own (measured 2026-08-22: the group
+    // went to 1.0.0-rc.0 with it). Kept as a check anyway: the file is read as
+    // the record of what the line started from, and a package it does not
+    // name is a question at release time, not before.
+    const pre = JSON.parse(readFileSync(join(ROOT, '.changeset', 'pre.json'), 'utf8'));
+    test('while in pre mode, initialVersions names every publishable package', () => {
+        if (pre.mode !== 'pre') return;
+        const missing = publishablePackages().filter((name) => !(name in pre.initialVersions));
+        assert.deepEqual(missing, [], 'add the package to .changeset/pre.json initialVersions');
+    });
+});

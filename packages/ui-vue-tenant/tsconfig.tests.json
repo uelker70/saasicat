@@ -1,0 +1,13 @@
+{
+    // Type-checks the component tests, which `tsconfig.json` leaves out (it
+    // decides what ships, and tests do not).
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2023", "DOM"],
+        "types": ["node"]
+    },
+    "include": ["tests", "src"]
+}

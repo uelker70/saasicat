@@ -47,15 +47,58 @@ describe('the map is derived from the move, not written beside it', () => {
         assert.deepEqual(offenders, [], 'the codemod points at something not exported');
     });
 
+    test('every move lands on a file that exists — in this package or the one it names', () => {
+        // The header promises the table cannot disagree with what happened to
+        // the files. It did: five `components/plan/*` rows pointed at
+        // `features/plan/…` while the files live in `@saasicat/ui-vue-tenant`,
+        // and because that target is not on the surface the rows fell out of
+        // the map — so the codemod told consumers to COPY components that are
+        // still shipped. The check above only saw the map, which is after the
+        // filter; this one reads the table.
+        const packagesDir = resolve(HERE, '..', '..');
+        const missing = Object.entries(TABLE.moves)
+            .filter(([, to]) => !to.startsWith('internal/') && !to.startsWith('features/'))
+            .map(([from, to]) => {
+                const target = to.startsWith('@')
+                    ? resolve(packagesDir, to.replace(/^@saasicat\/([^/]+)\//, '$1/src/'))
+                    : resolve(packagesDir, 'ui-vue', 'src', to);
+                return existsSync(target) ? null : `${from} → ${to}`;
+            })
+            .filter(Boolean);
+        assert.deepEqual(missing, [], 'the table names a destination that is not there');
+        const privateMoves = Object.values(TABLE.moves).filter(
+            (to) => to.startsWith('internal/') || to.startsWith('features/'),
+        );
+        for (const to of privateMoves) {
+            assert.ok(
+                existsSync(resolve(packagesDir, 'ui-vue', 'src', to)),
+                `${to} is listed as a private destination but does not exist`,
+            );
+        }
+    });
+
+    test('a component that left for the tenant package is rewritten, not reported', () => {
+        assert.equal(
+            rewriteSubpath(MAP, 'components/plan/PlanGrid.vue'),
+            '@saasicat/ui-vue-tenant/plan/PlanGrid.vue',
+        );
+        assert.equal(isNoLongerPublic(MAP, 'components/plan/PlanGrid.vue'), false);
+        const { text } = rewriteImports(
+            "import G from '@saasicat/ui-vue/components/plan/PlanGrid.vue';",
+            MAP,
+        );
+        assert.equal(text, "import G from '@saasicat/ui-vue-tenant/plan/PlanGrid.vue';");
+    });
+
     test('a package target names a package this repository publishes', () => {
         const packages = [...MAP.values()].filter((to) => to.startsWith('@saasicat/'));
         assert.ok(packages.length > 0, 'no package target — the prefix case lost its subject');
         for (const target of packages) {
-            const name = target.replace(/\/$/, '');
-            const dir = name.replace('@saasicat/', '');
+            // `@saasicat/<pkg>` is the first two segments; a file path may follow.
+            const dir = target.split('/')[1];
             assert.ok(
                 existsSync(resolve(HERE, '..', '..', dir, 'package.json')),
-                `${name} has no package in this workspace`,
+                `${target} has no package in this workspace`,
             );
         }
     });
