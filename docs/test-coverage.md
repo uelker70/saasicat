@@ -6,7 +6,10 @@ someone deciding whether to depend on this can judge it, and someone changing it
 knows where the net has holes.
 
 Measured 2026-08-20. The numbers come from `pnpm run coverage`, which records
-them in `coverage-baseline.json` and fails when they drop.
+them in `coverage-baseline.json` and fails when they drop. It builds only what
+changed since the last build — each package's `dist/` carries a stamp of the
+inputs it was built from (`scripts/build-stamp.mjs`) — and in CI it is the one
+run of the unit suites, not a second one.
 
 ## What the numbers say
 

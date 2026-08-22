@@ -867,7 +867,14 @@ describe('createAxiosHttpClient — against a real axios instance', () => {
         await withServer(async (base) => {
             // Drops `request` from a real transport failure — unbranded, and the
             // operator reads axios's own line instead of the localized one.
-            const dropping = axios.create();
+            //
+            // `timeout`, because the failure must not depend on how the host
+            // treats a closed port: CI answers `127.0.0.1:1` with a reset at
+            // once, WSL2 drops the packet and the connect waits ~135 s for the
+            // kernel to give up — twice in this test, which made it the whole
+            // cost of the ui-vue suite. A timed-out request is the same
+            // transport failure, and it carries `request` like a refused one.
+            const dropping = axios.create({ timeout: 200 });
             dropping.interceptors.response.use(undefined, (err) => {
                 delete err.request;
                 return Promise.reject(err);
@@ -898,7 +905,7 @@ describe('createAxiosHttpClient — against a real axios instance', () => {
             assert.equal(isAxiosNoResponseError(answered), true);
 
             // And the way out of both: say it, and the reading stands aside.
-            const declaring = axios.create();
+            const declaring = axios.create({ timeout: 200 });
             declaring.interceptors.response.use(undefined, (err) => {
                 delete err.request;
                 return Promise.reject(markTransportFailure(err));

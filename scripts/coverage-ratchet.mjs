@@ -14,8 +14,8 @@
 //   pnpm run coverage:update    record the current values
 //
 // Always through the scripts, never `node scripts/coverage-ratchet.mjs`
-// directly: they build first, and that build is a precondition of the
-// measurement (see below).
+// directly: they run `build-if-stale.mjs` first, and a current build is a
+// precondition of the measurement (see below).
 //
 // Note on what is measured: the suites import from each package's `dist/`, not
 // from `src/` (see CONTRIBUTING.md, "Build before test"). Coverage therefore
@@ -28,11 +28,13 @@
 //
 // PRECONDITION: a current build. The suites import from `dist/`, so measuring a
 // stale one describes a program nobody is running — silently, and in either
-// direction. That used to be a staleness heuristic here, and three review
-// rounds found three more build inputs it did not know about: a deleted source
-// file, `tsup.config.ts`, and the helpers that config imports. Enumerating the
-// inputs of an arbitrary build script is not winnable, so the `coverage` and
-// `coverage:update` npm scripts build first and this file simply measures.
+// direction. A staleness heuristic used to live here, and three review rounds
+// found three build inputs it did not know about: a deleted source file,
+// `tsup.config.ts`, and the helpers that config imports. The answer was a
+// blind rebuild on every run — ~50 s in CI, minutes locally — until
+// `build-stamp.mjs` made the question decidable: a hash over everything a
+// build could have read, not a list of what someone thought it reads. The
+// `coverage` scripts run `build-if-stale.mjs` first, and this file measures.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -246,6 +248,7 @@ const skipped = [];
 try {
     for (const pkg of SELECTED) {
         process.stderr.write(`measuring ${pkg} … `);
+        const startedAt = Date.now();
         let value;
         try {
             value = measure(pkg);
@@ -277,7 +280,9 @@ try {
             continue;
         }
         current[pkg] = value;
-        process.stderr.write(`${value.line.toFixed(2)}% lines`);
+        process.stderr.write(
+            `${value.line.toFixed(2)}% lines (${((Date.now() - startedAt) / 1000).toFixed(0)} s)`,
+        );
 
         // The same package again, with its contract suite, when there is a
         // database to run it against.
