@@ -306,6 +306,11 @@ async function seedPlans(prisma: PrismaClient): Promise<void> {
                 label: spec.label,
                 description: spec.description,
                 sortOrder: spec.sortOrder,
+                // Undo a soft delete. Re-seeding is how a developer gets the
+                // demo state back after trying the archive action in the UI,
+                // and an `update` that leaves `deletedAt` set reports success
+                // while changing nothing they can see.
+                deletedAt: null,
             },
         });
         // `planId` is the plan KEY (soft binding), not the stem UUID.
@@ -354,6 +359,9 @@ async function seedBundles(prisma: PrismaClient): Promise<void> {
                 description: spec.description,
                 icon: spec.icon,
                 sortOrder: spec.sortOrder,
+                // See the plan upsert above: without this, a bundle deleted
+                // through the UI stays deleted and the seed says nothing.
+                deletedAt: null,
             },
         });
         await prisma.bundleVersion.upsert({

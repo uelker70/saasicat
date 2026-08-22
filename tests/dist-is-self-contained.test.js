@@ -54,8 +54,8 @@ function filesUnder(dir) {
  * Every file some OTHER file in `dist/` imports.
  *
  * A bundler chunk lands wherever its entry does, so a subpath pattern's range
- * is a subtree and not a list of entry points: `./testing-e2e/*` covers any
- * `.js` below `dist/testing-e2e/`, chunks included. That matters for the
+ * is a subtree and not a list of entry points: `./testing/*` covers any
+ * `.js` below `dist/testing/`, chunks included. That matters for the
  * sibling comparison below, which would otherwise demand a `.d.ts` beside a
  * `chunk-XXXX.js` and report a file no consumer was ever pointed at as
  * missing. What separates the two is not in the manifest but in the output: an
@@ -114,7 +114,7 @@ function entryPoints(root, pkg, distFiles, referenced) {
         }
         // A glob may legitimately match nothing — but the conditions of ONE key
         // describe one set of modules in different formats, so they must expand
-        // to the same names. `./testing-e2e/*` naming `*.js`, `*.cjs`, `*.d.ts`
+        // to the same names. `./testing/*` naming `*.js`, `*.cjs`, `*.d.ts`
         // and `*.d.cts` is four patterns over one module; a prune that took the
         // `.d.cts` leaves that pattern expanding to nothing while its siblings
         // still name the module, which is the only evidence the manifest gives.

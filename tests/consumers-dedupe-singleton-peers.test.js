@@ -54,7 +54,7 @@ const CONSUMER_CONFIGS = [
  */
 function singletonPeers() {
     const manifest = JSON.parse(
-        readFileSync(join(REPO_ROOT, 'packages/saas-platform-ui-vue/package.json'), 'utf8'),
+        readFileSync(join(REPO_ROOT, 'packages/ui-vue/package.json'), 'utf8'),
     );
     return Object.keys(manifest.peerDependencies ?? {}).sort();
 }

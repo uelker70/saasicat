@@ -1,5 +1,5 @@
 {
-    "name": "saasicat",
+    "name": "saasicat-workspace",
     "version": "0.1.0",
     "private": true,
     "description": "Connect code capabilities to SaaS packages, customer contracts and runtime enforcement in NestJS apps.",
@@ -18,7 +18,7 @@
         "coverage": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs",
         "coverage:update": "node scripts/build-if-stale.mjs && node scripts/coverage-ratchet.mjs --update",
         "tokens": "node scripts/token-audit.mjs",
-        "tokens:update": "node packages/saas-platform-ui-vue/tests/design-token-budget.test.js --update"
+        "tokens:update": "node packages/ui-vue/tests/design-token-budget.test.js --update"
     },
     "devDependencies": {
         "@changesets/cli": "^2.31.1",

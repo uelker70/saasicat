@@ -1,0 +1,448 @@
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { Reflector } from '@nestjs/core';
+import {
+    FEATURE_GUARD_CONFIG_TOKEN,
+    FeatureGuard,
+    REQUIRE_FEATURE_KEY,
+    UPSELL_OFFER_RESOLVER_TOKEN,
+} from '../dist/billing/index.js';
+import { StaticFeatureGuard } from '../dist/platform/index.js';
+
+// FeatureGuard: checks @RequireFeature(...) against the EntitlementSet provided
+// by a stub `EntitlementService.computeLimits(tenantId)`. The tests cover the
+// paths documented in feature.guard.ts — missing annotation, logical OR,
+// SUPER_ADMIN bypass, tenant resolver, tenant context runner.
+
+function buildContext({ user, tenantId, handlerFeatures, classFeatures }) {
+    // Reflector reads via Reflect.getMetadata(REQUIRE_FEATURE_KEY, target).
+    // We create a function target for handler + class each and store the
+    // metadata exactly the way @RequireFeature(...) does.
+    const handler = function handlerStub() {};
+    const klass = function ClassStub() {};
+    if (handlerFeatures) {
+        Reflect.defineMetadata(REQUIRE_FEATURE_KEY, handlerFeatures, handler);
+    }
+    if (classFeatures) {
+        Reflect.defineMetadata(REQUIRE_FEATURE_KEY, classFeatures, klass);
+    }
+    return {
+        switchToHttp: () => ({
+            getRequest: () => ({ user, tenantId }),
+        }),
+        getHandler: () => handler,
+        getClass: () => klass,
+    };
+}
+
+function buildEntitlementsStub(features = []) {
+    const set = new Set(features);
+    let calls = 0;
+    return {
+        async computeLimits() {
+            calls += 1;
+            return { plan: 'STANDARD', quotas: {}, features: set };
+        },
+        get callCount() {
+            return calls;
+        },
+    };
+}
+
+describe('FeatureGuard — annotation evaluation', () => {
+    test('lets routes without @RequireFeature pass unchecked', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub());
+        const ctx = buildContext({});
+        assert.equal(await guard.canActivate(ctx), true);
+    });
+
+    test('@RequireFeature with an empty array passes unchecked', async () => {
+        // Defensive design: empty list = no gate. Prevents an unfinished
+        // annotation from accidentally blocking all tenants.
+        const ents = buildEntitlementsStub();
+        const guard = new FeatureGuard(new Reflector(), ents);
+        const ctx = buildContext({ handlerFeatures: [] });
+        assert.equal(await guard.canActivate(ctx), true);
+        assert.equal(ents.callCount, 0, 'EntitlementService must not be called');
+    });
+});
+
+describe('FeatureGuard — feature set matching', () => {
+    test('lets the tenant through when the feature is active in the plan', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['WHATSAPP']));
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        assert.equal(await guard.canActivate(ctx), true);
+    });
+
+    test('blocks with ForbiddenException when the feature is missing', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['CORE_IDENTITY']));
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        await assert.rejects(
+            () => guard.canActivate(ctx),
+            /WHATSAPP is not included in the current plan/,
+        );
+    });
+
+    test('Logical OR: multiple features, one suffices (second matches)', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['ACCOUNTING']));
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['DATEV', 'ACCOUNTING'],
+        });
+        assert.equal(await guard.canActivate(ctx), true);
+    });
+
+    test('Logical OR: none match → Forbidden with all keys in the message', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['CORE_IDENTITY']));
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['DATEV', 'ACCOUNTING'],
+        });
+        await assert.rejects(() => guard.canActivate(ctx), /DATEV \/ ACCOUNTING/);
+    });
+
+    test('Class-level annotation applies when the handler has none', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['WHATSAPP']));
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            classFeatures: ['WHATSAPP'],
+        });
+        assert.equal(await guard.canActivate(ctx), true);
+    });
+
+    test('Handler annotation overrides class annotation', async () => {
+        // getAllAndOverride: handler metadata wins over class metadata.
+        // Here the handler requires ['DATEV'], the class ['WHATSAPP'] — the
+        // tenant only has WHATSAPP → must block.
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub(['WHATSAPP']));
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['DATEV'],
+            classFeatures: ['WHATSAPP'],
+        });
+        await assert.rejects(
+            () => guard.canActivate(ctx),
+            /DATEV is not included in the current plan/,
+        );
+    });
+});
+
+describe('FeatureGuard — auth paths', () => {
+    test('SUPER_ADMIN bypasses the feature check', async () => {
+        const ents = buildEntitlementsStub([]); // no features at all
+        const guard = new FeatureGuard(new Reflector(), ents);
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'SUPER_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        assert.equal(await guard.canActivate(ctx), true);
+        assert.equal(ents.callCount, 0, 'computeLimits must not be called');
+    });
+
+    test('SUPER_ADMIN via `platformRole` is detected', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub([]));
+        const ctx = buildContext({
+            user: { tenantId: 't1', platformRole: 'SUPER_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        assert.equal(await guard.canActivate(ctx), true);
+    });
+
+    test('missing user → Forbidden ("Not authenticated")', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub([]));
+        const ctx = buildContext({ handlerFeatures: ['WHATSAPP'] });
+        await assert.rejects(() => guard.canActivate(ctx), /Not authenticated/);
+    });
+
+    test('missing tenantId → Forbidden ("No tenant assigned")', async () => {
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub([]));
+        const ctx = buildContext({
+            user: { role: 'TENANT_ADMIN' }, // no tenantId
+            handlerFeatures: ['WHATSAPP'],
+        });
+        await assert.rejects(() => guard.canActivate(ctx), /No tenant assigned/);
+    });
+
+    test('tenantId from request.tenantId takes precedence over user.tenantId', async () => {
+        const ents = {
+            tenantSeen: null,
+            async computeLimits(tenantId) {
+                this.tenantSeen = tenantId;
+                return { plan: 'STANDARD', quotas: {}, features: new Set(['WHATSAPP']) };
+            },
+        };
+        const guard = new FeatureGuard(new Reflector(), ents);
+        const ctx = buildContext({
+            user: { tenantId: 'user-tenant', role: 'TENANT_ADMIN' },
+            tenantId: 'request-tenant',
+            handlerFeatures: ['WHATSAPP'],
+        });
+        await guard.canActivate(ctx);
+        assert.equal(ents.tenantSeen, 'request-tenant');
+    });
+});
+
+describe('FeatureGuard — config hooks', () => {
+    test('tenantContextRunner wraps the computeLimits call (RLS consumers)', async () => {
+        const calls = [];
+        const config = {
+            tenantContextRunner: async (tenantId, fn) => {
+                calls.push({ tenantId, before: true });
+                const result = await fn();
+                calls.push({ tenantId, after: true });
+                return result;
+            },
+        };
+        const guard = new FeatureGuard(
+            new Reflector(),
+            buildEntitlementsStub(['WHATSAPP']),
+            config,
+        );
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        assert.equal(await guard.canActivate(ctx), true);
+        assert.deepEqual(calls, [
+            { tenantId: 't1', before: true },
+            { tenantId: 't1', after: true },
+        ]);
+    });
+
+    test('userRoleResolver allows a project-specific role source', async () => {
+        const config = {
+            userRoleResolver: (u) => u?.profile?.kind, // custom field
+        };
+        const guard = new FeatureGuard(new Reflector(), buildEntitlementsStub([]), config);
+        const ctx = buildContext({
+            user: { tenantId: 't1', profile: { kind: 'SUPER_ADMIN' } },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        assert.equal(
+            await guard.canActivate(ctx),
+            true,
+            'SUPER_ADMIN via custom resolver must trigger bypass',
+        );
+    });
+
+    test('tenantIdResolver can fetch tenantId from an alternative field', async () => {
+        const ents = {
+            tenantSeen: null,
+            async computeLimits(tenantId) {
+                this.tenantSeen = tenantId;
+                return { plan: 'STANDARD', quotas: {}, features: new Set(['WHATSAPP']) };
+            },
+        };
+        const config = {
+            tenantIdResolver: (req) => req.params?.tenantId,
+        };
+        const guard = new FeatureGuard(new Reflector(), ents, config);
+        const ctx = {
+            switchToHttp: () => ({
+                getRequest: () => ({
+                    user: { role: 'TENANT_ADMIN' },
+                    params: { tenantId: 'param-tenant' },
+                }),
+            }),
+            getHandler: () => {
+                const fn = function () {};
+                Reflect.defineMetadata(REQUIRE_FEATURE_KEY, ['WHATSAPP'], fn);
+                return fn;
+            },
+            getClass: () => function () {},
+        };
+        await guard.canActivate(ctx);
+        assert.equal(ents.tenantSeen, 'param-tenant');
+    });
+});
+
+// A consumer binds its guard config through this token, so it crosses entry
+// points and must live in the global registry (CONTRIBUTING.md). A plain
+// Symbol() would yield a different token per CJS entry chunk and fail to
+// resolve at bootstrap.
+describe('FEATURE_GUARD_CONFIG_TOKEN', () => {
+    test('is a Symbol.for token (process-wide registry)', () => {
+        assert.equal(typeof FEATURE_GUARD_CONFIG_TOKEN, 'symbol');
+        assert.equal(
+            FEATURE_GUARD_CONFIG_TOKEN,
+            Symbol.for('saasicat/nest/FeatureGuardConfig'),
+            'must resolve through the global symbol registry with the shared namespace',
+        );
+    });
+});
+
+// Upsell response (#36): the 403 is always machine-readable — code,
+// featureKey(s), offers. Without a resolver the shape stays identical, only
+// `offers` is empty.
+describe('FeatureGuard — upsell response (#36)', () => {
+    function buildGuard({ features = [], resolver = null, config = null } = {}) {
+        return new FeatureGuard(new Reflector(), buildEntitlementsStub(features), config, resolver);
+    }
+
+    async function rejectionOf(promise) {
+        try {
+            await promise;
+        } catch (error) {
+            return error;
+        }
+        assert.fail('canActivate must throw');
+    }
+
+    test('structured 403 body: code, featureKey, featureKeys, offers, message', async () => {
+        const seen = [];
+        const resolver = {
+            async resolveOffers(featureKeys, tenantId) {
+                seen.push({ featureKeys, tenantId });
+                return [
+                    {
+                        bundleKey: 'TURNIERE',
+                        bundleVersionId: 'bv-1',
+                        priceMonthlyNet: 7.9,
+                        currency: 'EUR',
+                        label: 'Turniere',
+                    },
+                ];
+            },
+        };
+        const guard = buildGuard({ features: ['CORE_IDENTITY'], resolver });
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['TOURNAMENT_MANAGEMENT'],
+        });
+
+        const error = await rejectionOf(guard.canActivate(ctx));
+        assert.equal(error.getStatus(), 403, 'deliberately 403 + code field, NOT 402');
+        assert.deepEqual(error.getResponse(), {
+            code: 'FEATURE_NOT_LICENSED',
+            featureKey: 'TOURNAMENT_MANAGEMENT',
+            featureKeys: ['TOURNAMENT_MANAGEMENT'],
+            offers: [
+                {
+                    bundleKey: 'TURNIERE',
+                    bundleVersionId: 'bv-1',
+                    priceMonthlyNet: 7.9,
+                    currency: 'EUR',
+                    label: 'Turniere',
+                },
+            ],
+            message: 'Feature TOURNAMENT_MANAGEMENT is not included in the current plan.',
+        });
+        assert.deepEqual(seen, [{ featureKeys: ['TOURNAMENT_MANAGEMENT'], tenantId: 't1' }]);
+    });
+
+    test('Logical OR: featureKeys carries all required keys, featureKey the first', async () => {
+        const resolver = { resolveOffers: async () => [] };
+        const guard = buildGuard({ resolver });
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['DATEV', 'ACCOUNTING'],
+        });
+        const body = (await rejectionOf(guard.canActivate(ctx))).getResponse();
+        assert.equal(body.featureKey, 'DATEV');
+        assert.deepEqual(body.featureKeys, ['DATEV', 'ACCOUNTING']);
+    });
+
+    test('Resolver error degrades to offers: [] instead of 500', async () => {
+        const resolver = {
+            resolveOffers: async () => {
+                throw new Error('Katalog-DB down');
+            },
+        };
+        const guard = buildGuard({ resolver });
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        const error = await rejectionOf(guard.canActivate(ctx));
+        assert.equal(error.getStatus(), 403);
+        assert.deepEqual(error.getResponse().offers, []);
+        assert.equal(error.getResponse().code, 'FEATURE_NOT_LICENSED');
+    });
+
+    test('Resolver is not called for a licensed feature', async () => {
+        let calls = 0;
+        const resolver = {
+            resolveOffers: async () => {
+                calls += 1;
+                return [];
+            },
+        };
+        const guard = buildGuard({ features: ['WHATSAPP'], resolver });
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        assert.equal(await guard.canActivate(ctx), true);
+        assert.equal(calls, 0);
+    });
+
+    test('without a resolver: full body with empty offers', async () => {
+        // A consumer that matches on `code` must be able to read `offers` and
+        // `featureKey` without knowing whether a resolver is registered.
+        const guard = buildGuard();
+        const ctx = buildContext({
+            user: { tenantId: 't1', role: 'TENANT_ADMIN' },
+            handlerFeatures: ['WHATSAPP'],
+        });
+        const body = (await rejectionOf(guard.canActivate(ctx))).getResponse();
+        assert.deepEqual(body, {
+            code: 'FEATURE_NOT_LICENSED',
+            featureKey: 'WHATSAPP',
+            featureKeys: ['WHATSAPP'],
+            offers: [],
+            message: 'Feature WHATSAPP is not included in the current plan.',
+        });
+    });
+});
+
+// The static quickstart guard answers on the same contract — it has no
+// resolver at all, so its body is the one the FeatureGuard emits without one.
+describe('StaticFeatureGuard — FEATURE_NOT_LICENSED body', () => {
+    function buildStaticContext(features) {
+        const handler = function handlerStub() {};
+        Reflect.defineMetadata(REQUIRE_FEATURE_KEY, features, handler);
+        return {
+            switchToHttp: () => ({
+                getRequest: () => ({ user: { tenantId: 't1', role: 'TENANT_ADMIN' } }),
+            }),
+            getHandler: () => handler,
+            getClass: () => function ClassStub() {},
+        };
+    }
+
+    test('emits the full FeatureNotLicensedBody with empty offers', async () => {
+        const guard = new StaticFeatureGuard(new Reflector(), {
+            async snapshot() {
+                return { features: ['CORE_IDENTITY'], quotas: {} };
+            },
+        });
+        let body;
+        try {
+            await guard.canActivate(buildStaticContext(['DATEV', 'ACCOUNTING']));
+            assert.fail('canActivate must throw');
+        } catch (error) {
+            body = error.getResponse();
+        }
+        assert.deepEqual(body, {
+            code: 'FEATURE_NOT_LICENSED',
+            featureKey: 'DATEV',
+            featureKeys: ['DATEV', 'ACCOUNTING'],
+            offers: [],
+            message: 'Feature DATEV / ACCOUNTING is not included in the current plan.',
+        });
+    });
+});
+
+// Symbol.for is mandatory (the CJS bundle duplicates shared modules per entry —
+// a plain Symbol would be a different object per entry, cf. outage 2026-06-09).
+describe('UPSELL_OFFER_RESOLVER_TOKEN', () => {
+    test('is a Symbol.for token (process-wide registry)', () => {
+        assert.equal(UPSELL_OFFER_RESOLVER_TOKEN, Symbol.for('saasicat/nest/UpsellOfferResolver'));
+    });
+});

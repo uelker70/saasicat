@@ -1,0 +1,138 @@
+{
+    "name": "@saasicat/ui-vue",
+    "version": "0.27.0",
+    "description": "Vue 3 components, resource clients and composables for the SuperAdmin UI shell. Provides boot and manifest loaders, navigation, actions and standard pages.",
+    "type": "module",
+    "main": "./dist/index.cjs",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": {
+                "types": "./dist/index.d.ts",
+                "default": "./dist/index.js"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
+        },
+        "./client": {
+            "import": {
+                "types": "./dist/client/index.d.ts",
+                "default": "./dist/client/index.js"
+            },
+            "require": {
+                "types": "./dist/client/index.d.cts",
+                "default": "./dist/client/index.cjs"
+            }
+        },
+        "./vue": {
+            "import": {
+                "types": "./dist/vue/index.d.ts",
+                "default": "./dist/vue/index.js"
+            },
+            "require": {
+                "types": "./dist/vue/index.d.cts",
+                "default": "./dist/vue/index.cjs"
+            }
+        },
+        "./quasar": {
+            "import": {
+                "types": "./dist/quasar/index.d.ts",
+                "default": "./dist/quasar/index.js"
+            },
+            "require": {
+                "types": "./dist/quasar/index.d.cts",
+                "default": "./dist/quasar/index.cjs"
+            }
+        },
+        "./pages": "./src/pages/index.ts",
+        "./pages/*.vue": "./src/pages/*.vue",
+        "./layouts/*.vue": "./src/layouts/*.vue",
+        "./auth/*.vue": "./src/auth/*.vue",
+        "./ui/*.vue": "./src/ui/*.vue",
+        "./theme.css": "./src/ui/theme/index.css",
+        "./theme/breakpoints": "./src/ui/theme/_breakpoints.scss",
+        "./theme/*": "./src/ui/theme/*",
+        "./testing/*": {
+            "import": {
+                "types": "./dist/testing/*.d.ts",
+                "default": "./dist/testing/*.js"
+            },
+            "require": {
+                "types": "./dist/testing/*.d.cts",
+                "default": "./dist/testing/*.cjs"
+            }
+        }
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "node ../../scripts/build-and-prune.mjs tsup",
+        "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.tests.json",
+        "pretest": "pnpm run build",
+        "test": "node --test 'tests/*.test.js'",
+        "test:component": "vitest run --config vitest.config.ts",
+        "test:e2e": "playwright test",
+        "test:visual": "playwright test --project=visual",
+        "test:visual:update": "playwright test --project=visual --update-snapshots",
+        "test:shipped-source": "node scripts/check-shipped-source.mjs"
+    },
+    "dependencies": {
+        "@saasicat/types": "workspace:^"
+    },
+    "peerDependencies": {
+        "pinia": "^2.0.0 || ^3.0.0",
+        "quasar": "^2.22.0",
+        "vue": "^3.5.0",
+        "vue-router": "^4.5.0 || ^5.0.0"
+    },
+    "peerDependenciesMeta": {
+        "pinia": {
+            "optional": true
+        },
+        "quasar": {
+            "optional": true
+        },
+        "vue-router": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@saasicat/ui-vue-tenant": "workspace:*",
+        "@playwright/test": "^1.59.1",
+        "@quasar/vite-plugin": "^1.12.0",
+        "@types/node": "^25.6.0",
+        "@vitejs/plugin-vue": "^6.0.8",
+        "@vue/test-utils": "^2.4.11",
+        "axios": "^1.15.0",
+        "jsdom": "^30.0.1",
+        "pinia": "^3.0.0",
+        "quasar": "^2.24.0",
+        "sass": "^1.101.3",
+        "tsup": "^8.0.0",
+        "typescript": "^6.0.0",
+        "vite": "^7.3.6",
+        "vitest": "^4.1.10",
+        "vue": "^3.5.0",
+        "vue-router": "^5.0.0",
+        "vue-tsc": "^3.3.3"
+    },
+    "license": "PolyForm-Shield-1.0.0",
+    "author": "Taci Uelker",
+    "homepage": "https://github.com/uelker70/saasicat",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/uelker70/saasicat.git",
+        "directory": "packages/ui-vue"
+    },
+    "bugs": {
+        "url": "https://github.com/uelker70/saasicat/issues"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}

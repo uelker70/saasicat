@@ -21,4 +21,4 @@ serve `__API_BASE__/manifest`.
 - Add your own project pages in `src/router/routes.ts` (with
   `createProjectPageHostRoute()` as a catch-all).
 - Register KPI cards, tenant actions and project pages in your backend
-  manifest (see `docs/saas-platform.md §6.6` in the saasicat repo).
+  manifest (see `docs/handbook.md` §6.6 in the saasicat repo).

@@ -1,0 +1,10 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "lib": ["ES2021", "DOM"],
+        "target": "ES2021",
+        "types": []
+    },
+    "include": ["src/**/*.ts", "src/**/*.vue"]
+}

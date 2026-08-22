@@ -1,0 +1,20 @@
+{
+    // Type-checks the test sources, which `tsconfig.json` deliberately leaves
+    // out (it is also the build config, and `rootDir: src` decides what ships).
+    //
+    // Without this, the visual fixtures were the only place in the package
+    // where nobody was watching. That is precisely where field names drifted
+    // away from the contracts they stand in for — `isActive` where the page
+    // reads `active`, `redemptionCount` where the table formats
+    // `redemptionsCount`. Each one still rendered, just empty, so the recorded
+    // baseline looked plausible and protected nothing.
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "lib": ["ES2023", "DOM"],
+        "types": ["node"]
+    },
+    "include": ["tests", "src"]
+}

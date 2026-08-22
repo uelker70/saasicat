@@ -1,0 +1,21 @@
+{
+    "hexColors.total": 0,
+    "functionalColors.total": 0,
+    "namedColors.total": 0,
+    "scriptColors.total": 0,
+    "templateColors.total": 0,
+    "alphaConcats.total": 0,
+    "scalePixels.total": 1206,
+    "dimensionPixels.total": 235,
+    "distinctFontSizes": 0,
+    "fontWeights.total": 186,
+    "lineHeights.total": 27,
+    "letterSpacings.total": 88,
+    "fontShorthands.total": 74,
+    "quasarColorClasses.total": 8,
+    "quasarColorProps.total": 46,
+    "distinctBreakpoints": 3,
+    "offScaleBreakpoints.total": 0,
+    "selfReferencingVars.total": 0,
+    "worstStyleShare": 0.6282051282051282
+}

@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { styleBlocks, declarations } from './lib/stylesheets.mjs';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');
+const UI_SRC = join(REPO_ROOT, 'packages', 'ui-vue', 'src');
 /**
  * The files that DEFINE the scale. Everything else consumes it — including the
  * theme's own component sheets, which are as much a consumer of `--sa-text-*`

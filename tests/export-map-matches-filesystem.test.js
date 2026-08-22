@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 // `package.json#exports` is a promise the build has to keep.
 //
 // It did not. `@saasicat/ui-vue` declared a `types` condition for
-// `./testing-e2e/*` pointing at `.d.ts` files that were never emitted — tsup
+// `./testing/*` pointing at `.d.ts` files that were never emitted — tsup
 // runs its two configs concurrently, and the `clean: true` on one deleted the
 // declarations the other had just written. Nothing failed: `pnpm build` was
 // green, the runtime files existed, and only a consumer importing the entry
@@ -161,21 +161,13 @@ describe('the ui-vue source subpaths stay curated', () => {
     // separating public pages from internals. Two names for one path is how a
     // consumer ends up depending on the one that later disappears — notesapp
     // used `./pages/*`, vereinsfux `./pages-standard/*`, for the same files.
-    const pkg = JSON.parse(
-        readFileSync(join(PACKAGES_DIR, 'saas-platform-ui-vue', 'package.json'), 'utf8'),
-    );
+    const pkg = JSON.parse(readFileSync(join(PACKAGES_DIR, 'ui-vue', 'package.json'), 'utf8'));
 
-    /**
-     * The one duplicate that exists today, kept as a named exception rather
-     * than silently tolerated.
-     *
-     * Removing either spelling breaks a consumer right now — the example app
-     * imports through `./pages/*`, vereinsfux through `./pages-standard/*` —
-     * so it goes together with the 1.0 codemod, not before it. Listing it here
-     * means a SECOND duplicate still fails immediately, and this one cannot
-     * quietly become permanent.
-     */
-    const ACCEPTED_DUPLICATES = [['./pages-standard/*', './pages/*'].sort().join(' + ')];
+    // No accepted duplicate remains. `./pages/*` and `./pages-standard/*` were
+    // two spellings of one path until 4.3 collapsed them, and the exemption
+    // that described the pair went with it — a rule that no longer describes
+    // anything reads like a constraint while protecting nothing. Its own guard
+    // is what said so: it failed the moment the alias disappeared.
 
     /** `[ "./a + ./b", … ]` — sorted, so the assertion does not depend on key order. */
     function duplicateGroups() {
@@ -191,7 +183,7 @@ describe('the ui-vue source subpaths stay curated', () => {
     }
 
     test('no NEW subpath duplicates a target', () => {
-        const unexpected = duplicateGroups().filter((g) => !ACCEPTED_DUPLICATES.includes(g));
+        const unexpected = duplicateGroups();
 
         assert.deepEqual(
             unexpected,
@@ -199,21 +191,6 @@ describe('the ui-vue source subpaths stay curated', () => {
             'Two import paths for one target. Consumers then split across both, and ' +
                 'removing either one becomes a breaking change:\n  ' +
                 unexpected.join('\n  '),
-        );
-    });
-
-    test('the accepted duplicates are still real', () => {
-        // An exception that no longer describes anything is worse than no
-        // exception: it reads like a rule while protecting nothing. When the
-        // 1.0 codemod collapses the alias, this fails and the entry goes.
-        const present = duplicateGroups();
-        const stale = ACCEPTED_DUPLICATES.filter((g) => !present.includes(g));
-
-        assert.deepEqual(
-            stale,
-            [],
-            'These duplicates are gone — drop them from ACCEPTED_DUPLICATES:\n  ' +
-                stale.join('\n  '),
         );
     });
 });

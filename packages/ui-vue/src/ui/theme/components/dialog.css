@@ -1,0 +1,101 @@
+/* Dialog — the chrome shared by AdminDialog and the two built on it.
+ *
+ * Sizes are widths, not layouts. `full` is the one exception: it gives up the
+ * centred card at narrow viewports, because a 92 %-wide card with a 24px inset
+ * on a phone is a card with no content column left.
+ */
+
+/* Border-box inside the dialog too. `base.css` roots the page-wide rule at
+ * `.sa-page`, and a dialog teleports out of the page — so a hand-built modal
+ * used to carry its own reset, and a shared one has to carry it here or every
+ * padded element inside a dialog silently changes width. */
+.sa-dialog * {
+    box-sizing: border-box;
+}
+
+.sa-dialog {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    background: var(--sa-color-bg-surface);
+    color: var(--sa-color-fg-body);
+    border-radius: var(--sa-radius-card);
+    box-shadow: var(--sa-elevation-dialog);
+}
+.sa-dialog[data-size='sm'] {
+    max-width: 420px;
+}
+.sa-dialog[data-size='md'] {
+    max-width: 560px;
+}
+.sa-dialog[data-size='lg'] {
+    max-width: 760px;
+}
+.sa-dialog[data-size='xl'] {
+    max-width: 1040px;
+}
+.sa-dialog[data-size='full'] {
+    max-width: none;
+    width: 96vw;
+    height: 92vh;
+}
+
+.sa-dialog__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 18px 22px 0;
+}
+.sa-dialog__heading {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.sa-dialog__title {
+    margin: 0;
+    font-family: var(--sa-font-head);
+    font-size: var(--sa-text-xl);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: var(--sa-color-fg-heading);
+}
+.sa-dialog__sub {
+    margin: 2px 0 0;
+    font-size: var(--sa-text-md);
+    line-height: 1.35;
+    color: var(--sa-color-fg-muted);
+}
+.sa-dialog__head-extra {
+    flex: none;
+}
+
+.sa-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 22px;
+}
+
+/* The footer holds the error banner as well as the buttons, so it is a column
+ * — a failed submit pushes the actions down rather than sitting beside them. */
+.sa-dialog__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 22px 18px;
+}
+.sa-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.sa-dialog__message {
+    margin: 0;
+    font-size: var(--sa-text-md);
+    line-height: 1.5;
+}
+.sa-dialog__message + .sa-dialog__typed {
+    margin-top: 16px;
+}

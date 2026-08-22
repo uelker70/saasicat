@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { PLATFORM_RULES, headingSlug } from '../packages/saas-platform-nest/dist/platform/index.js';
+import { PLATFORM_RULES, headingSlug } from '../packages/nest/dist/platform/index.js';
 
 // `docs/reference/options.md` is generated from the rule table, and every rule's
 // boot error ends in a link to one of its headings.

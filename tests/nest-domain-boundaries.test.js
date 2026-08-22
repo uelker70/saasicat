@@ -20,7 +20,7 @@ import { ESLint } from 'eslint';
 // question whose answer is the thing being promised.
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const NEST_SRC = 'packages/saas-platform-nest/src';
+const NEST_SRC = 'packages/nest/src';
 
 const eslint = new ESLint({ cwd: REPO_ROOT });
 
@@ -48,7 +48,7 @@ const BARREL_IMPORT =
 const NESTED_BARREL_IMPORT =
     "import { Thing } from '../../entitlement/index.js';\nexport const x: number = 1;\n";
 const PLATFORM_IMPORT =
-    "import type { Thing } from '../platform/saas-platform.module.js';\nexport const x: number = 1;\n";
+    "import type { Thing } from '../platform/saasicat.module.js';\nexport const x: number = 1;\n";
 const DIRECT_IMPORT =
     "import { EntitlementService } from '../entitlement/service.js';\nexport const x: number = 1;\n";
 

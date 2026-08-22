@@ -12,6 +12,7 @@
             "@saasicat/persistence-testing",
             "@saasicat/cli",
             "@saasicat/ui-vue",
+            "@saasicat/ui-vue-tenant",
             "create-saasicat-admin",
             "saasicat"
         ]

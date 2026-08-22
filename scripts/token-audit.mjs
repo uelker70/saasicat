@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Token audit — the worklist for the design-system migration, and the data the
-// ratchets in `packages/saas-platform-ui-vue/tests/design-token-budget.test.js`
+// ratchets in `packages/ui-vue/tests/design-token-budget.test.js`
 // measure against.
 //
 // The admin UI ships a token layer AND hundreds of literal colours, dozens of
@@ -25,7 +25,7 @@ import { join, relative, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');
+const UI_SRC = join(REPO_ROOT, 'packages', 'ui-vue', 'src');
 
 /**
  * The directory that DEFINES the palette rather than consuming it. Literals are
@@ -1723,7 +1723,7 @@ function runCli(args) {
     const topFlag = args.find((a) => a.startsWith('--top='));
     const topN = topFlag ? Number(topFlag.split('=')[1]) : 10;
 
-    console.log('\nDesign-token audit — packages/saas-platform-ui-vue/src\n');
+    console.log('\nDesign-token audit — packages/ui-vue/src\n');
     // "in stylesheets", not "hard-coded", because the next three lines are also
     // hard-coded colours and this one used to read 0 while they did not.
     console.log(

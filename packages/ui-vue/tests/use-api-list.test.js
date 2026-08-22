@@ -1,0 +1,127 @@
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { ref } from 'vue';
+import { useApiList } from '../dist/index.js';
+import { authenticating } from './support/authenticating-client.mjs';
+
+function buildHttp(responses = []) {
+    const calls = [];
+    let i = 0;
+    const http = (url, init) => {
+        calls.push({ url, init });
+        const r = responses[i++] ??
+            responses[responses.length - 1] ?? { status: 200, body: { items: [] } };
+        return Promise.resolve({
+            status: r.status,
+            headers: { get: () => null },
+            json: async () => r.body,
+            text: async () => JSON.stringify(r.body),
+        });
+    };
+    return { http, calls };
+}
+
+describe('useApiList — autoLoad + reload', () => {
+    test('autoLoad triggers first request', async () => {
+        const { http, calls } = buildHttp([
+            {
+                status: 200,
+                body: { items: [{ id: 1 }, { id: 2 }], total: 2, page: 1, pageSize: 50 },
+            },
+        ]);
+        const list = useApiList({ endpoint: '/api/x', http });
+        // Wait for microtask
+        await new Promise((r) => setTimeout(r, 0));
+        await new Promise((r) => setTimeout(r, 0));
+        assert.equal(calls.length, 1);
+        assert.equal(list.items.value.length, 2);
+        assert.equal(list.total.value, 2);
+    });
+
+    test('autoLoad=false skips initial load', async () => {
+        const { http, calls } = buildHttp([{ status: 200, body: { items: [] } }]);
+        useApiList({ endpoint: '/api/x', http, autoLoad: false });
+        await new Promise((r) => setTimeout(r, 0));
+        assert.equal(calls.length, 0);
+    });
+
+    test('reload() makes an additional request', async () => {
+        const { http, calls } = buildHttp([
+            { status: 200, body: { items: [], total: 0 } },
+            { status: 200, body: { items: [{ id: 1 }], total: 1 } },
+        ]);
+        const list = useApiList({ endpoint: '/api/x', http, autoLoad: false });
+        await list.reload();
+        await list.reload();
+        assert.equal(calls.length, 2);
+        assert.equal(list.items.value.length, 1);
+    });
+});
+
+describe('useApiList — Pagination', () => {
+    test('goToPage(N) → page param changes', async () => {
+        const { http, calls } = buildHttp([{ status: 200, body: { items: [] } }]);
+        const list = useApiList({ endpoint: '/api/x', http, autoLoad: false });
+        await list.goToPage(3);
+        assert.match(calls[0].url, /page=3/);
+        assert.equal(list.page.value, 3);
+    });
+
+    test('setPageSize(N) → jumps to page 1', async () => {
+        const { http, calls } = buildHttp([{ status: 200, body: { items: [] } }]);
+        const list = useApiList({ endpoint: '/api/x', http, autoLoad: false });
+        list.page.value = 5;
+        await list.setPageSize(100);
+        assert.match(calls[0].url, /pageSize=100/);
+        assert.match(calls[0].url, /page=1/);
+        assert.equal(list.page.value, 1);
+        assert.equal(list.pageSize.value, 100);
+    });
+
+    test('goToPage(0) → clamps to page 1', async () => {
+        const { http } = buildHttp([{ status: 200, body: { items: [] } }]);
+        const list = useApiList({ endpoint: '/api/x', http, autoLoad: false });
+        await list.goToPage(0);
+        assert.equal(list.page.value, 1);
+    });
+});
+
+describe('useApiList — Filter', () => {
+    test('filter values as query params, empty values omitted', async () => {
+        const filter = ref({ status: 'active', search: '', empty: null });
+        const { http, calls } = buildHttp([{ status: 200, body: { items: [] } }]);
+        const list = useApiList({ endpoint: '/api/x', filter, http, autoLoad: false });
+        await list.reload();
+        assert.match(calls[0].url, /status=active/);
+        assert.doesNotMatch(calls[0].url, /search=/);
+        assert.doesNotMatch(calls[0].url, /empty=/);
+    });
+
+    test('endpoint with query string → correct separator', async () => {
+        const { http, calls } = buildHttp([{ status: 200, body: { items: [] } }]);
+        const list = useApiList({ endpoint: '/api/x?fixed=1', http, autoLoad: false });
+        await list.reload();
+        assert.match(calls[0].url, /^\/api\/x\?fixed=1&/);
+    });
+});
+
+describe('useApiList — Auth + Error', () => {
+    test("the client's auth header reaches the request untouched", async () => {
+        const { http, calls } = buildHttp([{ status: 200, body: { items: [] } }]);
+        const list = useApiList({
+            endpoint: '/api/x',
+            http: authenticating(http, 'jwt-abc'),
+            autoLoad: false,
+        });
+        await list.reload();
+        assert.equal(calls[0].init.headers.Authorization, 'Bearer jwt-abc');
+    });
+
+    test('non-200 → error.value set, items.value empty', async () => {
+        const { http } = buildHttp([{ status: 500, body: null }]);
+        const list = useApiList({ endpoint: '/api/x', http, autoLoad: false });
+        await list.reload();
+        assert.notEqual(list.error.value, null);
+        assert.equal(list.items.value.length, 0);
+    });
+});

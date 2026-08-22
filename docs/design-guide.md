@@ -53,7 +53,7 @@ deviates is saying something — make sure it is something.
 
 `AdminPage` carries the frame, `AdminHero` the identity, `AdminSection` the
 surface. Nothing else in the package renders an `<h1>`, and no page writes its
-own `<q-table>` — both are enforced by `tests-component/admin-page-shell.test.ts`,
+own `<q-table>` — both are enforced by `tests/component/admin-page-shell.test.ts`,
 which reads the source of every page and fails on a violation.
 
 ### Rows that open
@@ -96,7 +96,7 @@ somewhere before it was a rule:
   the one row whose state the badge itself should report; it moves the colour
   and nothing else, which is what keeps it the same badge.
 
-`tests-component/admin-page-shell.test.ts` keeps the package at one disclosure:
+`tests/component/admin-page-shell.test.ts` keeps the package at one disclosure:
 it reads every `.vue` under `src` for a click that flips a value the same
 template renders a body on, and for a view that declares itself a disclosure
 control with a hand-written `aria-expanded` or a native `<details>`.
@@ -112,10 +112,10 @@ still a failure, and so is a note left behind after its surface was migrated:
   `1 / -1`, so a self-contained wrapper would stop the columns lining up. The
   header is also six cells carrying checkboxes and text inputs, which cannot sit
   inside a `<button>`.
-- **`pages-tenant/PackageSnapshotPanel.vue`** — tenant-facing rather than admin,
-  in a directory planned to ship as its own package, and a raw-JSON toggle at
-  the foot of a `q-card` is not a row in a list.
-- **`pages-standard/SuperAdminSetupWizard.vue`** — a native `<details>`, already
+- **`PackageSnapshotPanel.vue`** — it lives in `@saasicat/ui-vue-tenant` now,
+  a different package for a different audience, and a raw-JSON toggle at the
+  foot of a `q-card` is not a row in a list.
+- **`auth/SuperAdminSetupWizard.vue`** — a native `<details>`, already
   keyboard-operable and already announced. The screen is a centred first-run
   card outside `AdminLayout`, and the body it opens is one line of text.
 
@@ -159,17 +159,80 @@ that governs two sections means those two sections are one._
 **How do I show a failure?**
 Where the user was looking. Three cases, no fourth:
 
-1. The page could not load → a banner under the hero; the body stays in its
-   loading or empty state.
-2. A mutation failed while a dialog is open → the dialog says so.
+1. The page could not load → `<AdminErrorBanner :error="list.error.value" :retry="list.reload" />`
+   under the hero; the body stays in its loading or empty state. The banner renders nothing while
+   `error` is null, so it is bound unconditionally and never needs a `v-if`.
+2. A mutation failed while a dialog is open → the dialog says so. `AdminFormDialog` and
+   `AdminConfirmDialog` do this by themselves; a hand-built dialog puts an `AdminErrorBanner`
+   above its actions.
 3. A mutation failed and there is nothing on screen to attach it to → a toast,
    raised through the `UiNotify` port.
 
-Never a toast for a failed load. Never a toast for something already visible.
+Never a toast for a failed load. Never a toast for something already visible. And never a
+hand-written error box: the five pages that had one worded the same axios rejection five
+different ways.
+
+**Which overlay?**
+Four answers, and the first one that fits wins:
+
+1. A yes/no question, possibly with one value back, raised from script →
+   the `UiConfirm` port (`useSuperAdminConfirm()`). No markup, no `v-model`, no component.
+2. That question, but it carries markup, a typed confirmation, or a body longer than a
+   sentence → `AdminConfirmDialog`.
+3. A form the operator fills in and submits → `AdminFormDialog`. It owns the whole
+   lifecycle: disabled while pending, the failure shown without closing, closed and
+   announced on success.
+4. Anything else that is a dialog → `AdminDialog`, and fill its `footer` slot.
+
+A bare `<q-dialog>` in a page is none of the above and is a gap in this list — say so
+rather than working around it.
 
 **A KPI, or a section?**
 A KPI is _one_ scalar with a trend or a link. Three or more related scalars with
 dimensions are a table in a section. Never more than five KPIs in a row.
+
+---
+
+## The primitives
+
+Everything on this list is in `@saasicat/ui-vue`, imported from `@saasicat/ui-vue/ui/…`.
+Everything not on it comes from Quasar directly and is styled by the theme — buttons,
+inputs, tabs, selects and badges are Quasar components, and wrapping one in an `Admin*`
+of your own puts a second answer next to the first.
+
+| Component                       | Use it for                                                               |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| `AdminPage`                     | The page frame. One per route.                                           |
+| `AdminHero`                     | The identity block: the one `<h1>`, and page-level actions.              |
+| `AdminBody`                     | The content region, and the owner of the loading and empty states.       |
+| `AdminSection`                  | One labelled block of a page. Carries the surface.                       |
+| `AdminFilters`                  | The input row that narrows the list in its section.                      |
+| `AdminToolbar`                  | The action row above a table that is not the hero.                       |
+| `AdminStatistics` / `AdminKpi`  | Up to five scalars across the top.                                       |
+| `AdminTable`                    | Every tabular list. No page writes its own `<q-table>`.                  |
+| `AdminPaginator`                | Paging under a table.                                                    |
+| `AdminRowActions`               | The per-row controls in a table's `row-actions` slot.                    |
+| `AdminRefreshBtn`               | Reload, with its pending state.                                          |
+| `AdminAccordion`                | A row that opens.                                                        |
+| `AdminBanner`                   | An inline notice, in one of four tones.                                  |
+| `AdminErrorBanner`              | The failure case of that — one prop, renders nothing when there is none. |
+| `AdminEmptyState`               | What a list shows when it has nothing to show.                           |
+| `AdminStatusPill`               | A status, as a word plus a tone. Never a colour on its own.              |
+| `AdminKvBlock`                  | A key-value block.                                                       |
+| `AdminDialog`                   | The chrome under every dialog.                                           |
+| `AdminFormDialog`               | A dialog whose point is a write. Owns the submit lifecycle.              |
+| `AdminConfirmDialog`            | A dialog that asks before something irreversible.                        |
+| `AdminField` / `AdminFieldGrid` | A labelled control, and the grid it sits in.                             |
+
+Two of them take a function prop, and they are the only two in the package: `AdminFormDialog`
+takes `submit` and `AdminConfirmDialog` takes `confirm`. Everything a page needs from the
+platform arrives through the resource ports instead — a page that finds itself passing
+`loadX` down is passing its data layer through its view.
+
+**Before adding a component of your own**, check in this order: does a primitive already do
+it, can one be extended without turning it into a universal component, is this a documented
+variant or prop, or is it genuinely a separate concept? The third answer is the most common
+and the least often taken.
 
 ---
 
@@ -364,7 +427,7 @@ was a white card carrying near-white text.
 Following the OS therefore lives one level up, where both halves move together:
 `scheme: 'system'` is the default and subscribes to `prefers-color-scheme` live.
 `createSuperAdminApp` wires it, so the admin shell follows the OS out of the
-box. An app that embeds `pages-tenant/*` and wants the same says so:
+box. An app that embeds `@saasicat/ui-vue-tenant` and wants the same says so:
 
 ```ts
 import { createSaTheme } from '@saasicat/ui-vue';
@@ -615,7 +678,7 @@ diff panel for the component's whole life.
 - **Focus is visible.** `--sa-shadow-focus` — never remove an outline without
   replacing it.
 - **Text contrast ≥ 3:1**, in **both** themes, checked on all nineteen standard
-  pages by `tests-e2e/theme-contrast.spec.ts`. That is a floor, not a target:
+  pages by `tests/e2e/theme-contrast.spec.ts`. That is a floor, not a target:
   it is the line below which text is not hard to read but gone. Where a page
   cannot meet it, the exception is named in that file with its reason, and a
   test fails if the exception stops describing anything.

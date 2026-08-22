@@ -1,0 +1,46 @@
+/* The SaaSiCat admin theme. One import: `@saasicat/ui-vue/theme.css`.
+ *
+ * ── The three layers, and why there are three ──────────────────────────────
+ *
+ *   L1  tokens.primitive.css   the palette      references nothing
+ *       tokens.scale.css       space/type/…     references nothing
+ *   L2  tokens.semantic.*.css  roles            references L1 and --q-*
+ *   L3  components/*.css       the shell chrome references L2
+ *
+ * A component asks for a ROLE (`--sa-color-fg-muted`), never for a value
+ * (`--sa-neutral-500`), and never for a literal. That one rule is what makes
+ * the dark theme a file instead of a project: only L2 knows the difference
+ * between light and dark, so only L2 has two versions.
+ *
+ * The direction is enforced by `tests/theme-layer-discipline.test.js`
+ * (rule 22) and the key parity of the two L2 files by
+ * `tests/theme-token-parity.test.js` (rule 21).
+ *
+ * ── Order is the cascade ───────────────────────────────────────────────────
+ *
+ * Tokens first, because everything below reads them; dark after light, because
+ * it overrides. Within `components/`, the order is the order the old single
+ * stylesheet had — several rules there share a specificity and settle it by
+ * position, so this list is not alphabetical and must not be sorted.
+ */
+
+@import './tokens.primitive.css';
+@import './tokens.scale.css';
+@import './tokens.semantic.light.css';
+@import './tokens.semantic.dark.css';
+@import './tokens.legacy.css';
+
+@import './base.css';
+@import './components/hero.css';
+@import './components/button.css';
+@import './components/field.css';
+@import './components/statistics.css';
+@import './components/body.css';
+@import './components/section.css';
+@import './components/card.css';
+@import './components/paginator.css';
+@import './components/table.css';
+@import './components/accordion.css';
+@import './components/banner.css';
+@import './components/dialog.css';
+@import './components/toolbar.css';

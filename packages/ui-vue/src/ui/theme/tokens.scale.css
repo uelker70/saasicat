@@ -1,0 +1,106 @@
+/* Layer 1 — scales. Sizes, not colours, and identical in every theme.
+ *
+ * The point of a scale is that the choice is already made. You do not decide
+ * between 11px and 11.5px; you decide whether a piece of text is a caption or a
+ * body line, and the scale answers with a number. That is why the admin surface
+ * had 23 font sizes and 80 pixel values: with no scale, every author decided
+ * again, and nobody could tell a decision from a leftover.
+ *
+ * Breakpoints are the one scale that CANNOT live here — custom properties are
+ * not valid in a `@media` condition. They are in `_breakpoints.scss` for SCSS
+ * blocks, and for plain CSS the five values are an allow-list the lint enforces.
+ */
+
+:root {
+    /* ── Spacing. A 4px base with two half-steps below it, because hairline
+     * gaps (2px) and icon insets (4px) are real and rounding them up moves
+     * every dense row in the product. ───────────────────────────────────── */
+    --sa-space-0: 0;
+    --sa-space-1: 2px;
+    --sa-space-2: 4px;
+    --sa-space-3: 8px;
+    --sa-space-4: 12px;
+    --sa-space-5: 16px;
+    --sa-space-6: 20px;
+    --sa-space-7: 24px;
+    --sa-space-8: 32px;
+    --sa-space-9: 40px;
+    --sa-space-10: 48px;
+    --sa-space-11: 64px;
+
+    /* Named spacings, so a rule can say what the gap is for rather than how
+     * big it is. These are the six the admin surface actually distinguishes. */
+    --sa-gap-inline: var(--sa-space-3);
+    --sa-gap-stack: var(--sa-space-5);
+    --sa-pad-page: var(--sa-space-6);
+    --sa-pad-section: var(--sa-space-6);
+    --sa-pad-control: var(--sa-space-3);
+    --sa-pad-cell: var(--sa-space-4);
+
+    /* ── Type. Eight steps, each with the line-height it was drawn for.
+     *
+     * The ladder is dense at the bottom because that is where the admin lives:
+     * table cells, chips and captions are three quarters of every page, and one
+     * pixel there is the difference between a dense list and a cramped one. It
+     * spreads out at the top, where the steps are titles and there are few. */
+    --sa-text-2xs: 10px;
+    --sa-text-xs: 11px;
+    --sa-text-sm: 12px;
+    --sa-text-md: 13px;
+    --sa-text-lg: 15px;
+    --sa-text-xl: 18px;
+    --sa-text-2xl: 22px;
+    --sa-text-3xl: 28px;
+    /* A ninth rung the plan did not foresee, added for a measured reason: the
+     * price totals and the marketing headline sit at 32–38px, and collapsing
+     * them into 28px would have shrunk the biggest number in the product to
+     * hit a target of eight. A step the product uses for a distinct job is a
+     * step. */
+    --sa-text-4xl: 32px;
+
+    --sa-leading-2xs: 1.4;
+    --sa-leading-xs: 1.45;
+    --sa-leading-sm: 1.5;
+    --sa-leading-md: 1.55;
+    --sa-leading-lg: 1.5;
+    --sa-leading-xl: 1.4;
+    --sa-leading-2xl: 1.3;
+    --sa-leading-3xl: 1.25;
+    --sa-leading-4xl: 1.15;
+
+    --sa-weight-regular: 400;
+    --sa-weight-medium: 500;
+    --sa-weight-semibold: 600;
+    --sa-weight-bold: 700;
+
+    --sa-tracking-tight: -0.02em;
+    --sa-tracking-normal: 0;
+    --sa-tracking-wide: 0.04em;
+    --sa-tracking-wider: 0.06em;
+
+    /* ── Corner radii, largest to smallest, so the nesting reads as hierarchy:
+     * a section is a bigger block than the cards inside it, a card bigger than
+     * a tile. `--sa-radius-tile` is the single declaration every statistic tile
+     * in the admin surface resolves to. ─────────────────────────────────── */
+    --sa-radius-hero: 16px;
+    --sa-radius-section: 14px;
+    --sa-radius-card: 12px;
+    --sa-radius-head: 10px;
+    --sa-radius-tile: 10px;
+    --sa-radius-field: 8px;
+    --sa-radius-control: 7px;
+    /* The status pill. Between a control and nothing: a table row carries
+     * several, and a control-sized radius on a 22px marker reads as a button. */
+    --sa-radius-badge: 5px;
+    --sa-radius-pill: 999px;
+
+    /* ── Stacking. Aligned with Quasar's own layers rather than invented above
+     * them: a platform overlay that outranks Quasar's dialog would cover the
+     * dialog a consumer opened from it. ─────────────────────────────────── */
+    --sa-z-base: 0;
+    --sa-z-sticky: 100;
+    --sa-z-drawer: 3000;
+    --sa-z-overlay: 5900;
+    --sa-z-dialog: 6000;
+    --sa-z-toast: 9500;
+}

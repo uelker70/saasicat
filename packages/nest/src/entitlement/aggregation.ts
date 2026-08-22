@@ -1,0 +1,298 @@
+// Entitlement aggregation — pure functions over PlanVersion + Bundles + Catalog.
+//
+// Consumers pull their subscription/PlanVersion/Bundle data from the DB,
+// map it to the snapshot shape (see `types.ts`) and call
+// `aggregateLimits()` for the effective limits.
+
+import type {
+    ContractLineItemRecord,
+    FeatureKey,
+    PlanCatalog,
+    QuotaKey,
+    SubscriptionContractRecord,
+} from '@saasicat/types';
+import { isFeaturePlannedOnly } from '../billing/plan-helpers.js';
+import type {
+    CustomLimitsShape,
+    EffectiveLimits,
+    EffectiveLimitsSnapshot,
+    SubscriptionBundleSnapshot,
+    SubscriptionLimitsInput,
+} from './entitlement.types.js';
+
+/**
+ * Filters SubscriptionBundle bookings down to those active at the given
+ * point in time. Active = `canceledEffectiveAt === null` or
+ * `canceledEffectiveAt > now`.
+ *
+ * Spec:
+ */
+export function filterActiveSubscriptionBundles(
+    bundles: readonly SubscriptionBundleSnapshot[],
+    now: Date,
+): SubscriptionBundleSnapshot[] {
+    return bundles.filter((b) => b.canceledEffectiveAt === null || b.canceledEffectiveAt > now);
+}
+
+/**
+ * Aggregates the quotas of all active SubscriptionBundle bookings:
+ * Σ per QuotaKey, `-1` (unlimited) dominates. Bundle features +
+ * bundle quotas are **additive** to the PlanVersion (not replacing).
+ */
+export function aggregateSubscriptionBundleQuotas(
+    bundles: readonly SubscriptionBundleSnapshot[],
+): Record<QuotaKey, number> {
+    const sums: Record<QuotaKey, number> = {};
+    for (const bundle of bundles) {
+        for (const [key, value] of Object.entries(bundle.quotas)) {
+            if (sums[key] === -1 || value === -1) {
+                sums[key] = -1;
+            } else {
+                sums[key] = (sums[key] ?? 0) + value;
+            }
+        }
+    }
+    return sums;
+}
+
+/**
+ * Collects all feature keys from active SubscriptionBundle bookings
+ * (set union; duplicate features are included once).
+ */
+export function collectSubscriptionBundleFeatures(
+    bundles: readonly SubscriptionBundleSnapshot[],
+): FeatureKey[] {
+    const set = new Set<FeatureKey>();
+    for (const bundle of bundles) {
+        for (const f of bundle.features) set.add(f);
+    }
+    return Array.from(set);
+}
+
+/**
+ * V3 aggregation directly from frozen ContractLineItems. This function
+ * uses no catalog lookups: `featuresSnapshot` and
+ * `quotaEffectsSnapshot` are the contractual truth.
+ */
+export function aggregateContractLineItemEntitlements(
+    lineItems: readonly Pick<
+        ContractLineItemRecord,
+        'kind' | 'sourceKey' | 'featuresSnapshot' | 'quotaEffectsSnapshot'
+    >[],
+    fallbackPlan = 'UNKNOWN',
+): EffectiveLimits {
+    const planItem = lineItems.find((item) => item.kind === 'plan');
+    const plan = planItem?.sourceKey ?? fallbackPlan;
+    const quotas: Record<QuotaKey, number> = {};
+    const features = new Set<FeatureKey>();
+
+    for (const item of lineItems) {
+        for (const feature of item.featuresSnapshot) {
+            features.add(feature);
+        }
+        for (const [key, value] of Object.entries(item.quotaEffectsSnapshot)) {
+            if (quotas[key] === -1 || value === -1) {
+                quotas[key] = -1;
+            } else {
+                quotas[key] = (quotas[key] ?? 0) + value;
+            }
+        }
+    }
+
+    return { plan, quotas, features };
+}
+
+/**
+ * Limits as frozen in the contract: the entitlement snapshot when present,
+ * otherwise aggregated from the line items.
+ */
+export function contractLimits(
+    contract: Pick<SubscriptionContractRecord, 'entitlementSnapshot' | 'lineItems'>,
+): EffectiveLimits {
+    if (contract.entitlementSnapshot) {
+        return {
+            plan: contract.entitlementSnapshot.plan,
+            quotas: { ...contract.entitlementSnapshot.quotas },
+            features: new Set(contract.entitlementSnapshot.features),
+        };
+    }
+    return aggregateContractLineItemEntitlements(contract.lineItems);
+}
+
+/**
+ * `BundleVersion`s the contract already accounts for — from the freeze
+ * (`originalBundleVersionIds`) and from its bundle line items.
+ */
+export function contractBundleVersionIds(
+    contract: Pick<SubscriptionContractRecord, 'originalBundleVersionIds' | 'lineItems'>,
+): Set<string> {
+    const ids = new Set<string>(contract.originalBundleVersionIds);
+    for (const item of contract.lineItems) {
+        if (item.kind === 'bundle' && item.sourceVersionId) {
+            ids.add(item.sourceVersionId);
+        }
+    }
+    return ids;
+}
+
+/**
+ * Adds bundle bookings on top of limits that came from a contract.
+ *
+ * A contract freezes what was agreed at signing time. Bundles booked *later*
+ * are separate purchases and must take effect immediately — otherwise the
+ * purchase stays without consequence until someone re-freezes the contract.
+ * Bundles that are already part of the contract (`coveredBundleVersionIds`,
+ * i.e. `originalBundleVersionIds` plus the bundle line items) are skipped, so
+ * their quotas are not counted twice.
+ *
+ * Features are a set union, quotas add up with `-1` (unlimited) dominance, and
+ * `plannedOnly` features stay out — same rules as `aggregateLimits`. The
+ * contract's own features are passed through untouched: what was agreed stays
+ * agreed.
+ */
+export function mergeSubscriptionBundlesIntoLimits(
+    limits: EffectiveLimits,
+    bundles: readonly SubscriptionBundleSnapshot[],
+    coveredBundleVersionIds: ReadonlySet<string>,
+    catalog: PlanCatalog,
+    now: Date,
+): EffectiveLimits {
+    const additional = filterActiveSubscriptionBundles(bundles, now).filter(
+        (b) => !coveredBundleVersionIds.has(b.bundleVersionId),
+    );
+    if (additional.length === 0) return limits;
+
+    const quotas: Record<QuotaKey, number> = { ...limits.quotas };
+    for (const [key, value] of Object.entries(aggregateSubscriptionBundleQuotas(additional))) {
+        if (quotas[key] === -1 || value === -1) {
+            quotas[key] = -1;
+        } else {
+            quotas[key] = (quotas[key] ?? 0) + value;
+        }
+    }
+
+    const bundleFeatures = filterPlannedOnlyFeatures(
+        new Set(collectSubscriptionBundleFeatures(additional)),
+        catalog,
+    );
+
+    return {
+        plan: limits.plan,
+        quotas,
+        features: new Set<FeatureKey>([...limits.features, ...bundleFeatures]),
+    };
+}
+
+/**
+ * Consistently filters out `plannedOnly` features — regardless of whether they
+ * come from the plan, a bundle or customLimits. `plannedOnly` means: the feature
+ * is declared in the catalog, but not yet rolled out to production.
+ */
+export function filterPlannedOnlyFeatures(
+    features: ReadonlySet<FeatureKey>,
+    catalog: PlanCatalog,
+): Set<FeatureKey> {
+    const out = new Set<FeatureKey>();
+    for (const f of features) {
+        if (!isFeaturePlannedOnly(catalog, f)) {
+            out.add(f);
+        }
+    }
+    return out;
+}
+
+/**
+ * Applies `customLimits` (ENTERPRISE special contract, pilot) field-by-field to
+ * the plan default limits. `quotas[k]` overrides; `features[]` adds.
+ * Fields not set in the override fall back to the default.
+ */
+export function applyCustomLimits(
+    base: EffectiveLimits,
+    custom: CustomLimitsShape | null | undefined,
+): EffectiveLimits {
+    if (!custom) return base;
+    const quotas = { ...base.quotas };
+    if (custom.quotas) {
+        for (const [k, v] of Object.entries(custom.quotas)) {
+            quotas[k] = v;
+        }
+    }
+    const features = new Set(base.features);
+    if (custom.features) {
+        for (const f of custom.features) features.add(f);
+    }
+    return { plan: base.plan, quotas, features };
+}
+
+/**
+ * Main aggregator — yields the effective limits from PlanVersion + active
+ * bundle bookings + catalog + optional CustomLimits override.
+ *
+ * Order:
+ *   1. Filter active bundle bookings (canceledEffectiveAt).
+ *   2. Sum plan quotas + bundle quotas per `quotaKey`. -1 (unlimited) dominates.
+ *   3. Collect plan features ∪ bundle features (set union, deduplicated).
+ *   4. Apply CustomLimits (quotas override, features add).
+ *   5. Consistently hide plannedOnly features.
+ */
+export function aggregateLimits(
+    input: SubscriptionLimitsInput,
+    catalog: PlanCatalog,
+    now: Date,
+): EffectiveLimits {
+    const activeBundles = filterActiveSubscriptionBundles(input.subscriptionBundles ?? [], now);
+    const subBundleQuotas = aggregateSubscriptionBundleQuotas(activeBundles);
+    const subBundleFeatures = collectSubscriptionBundleFeatures(activeBundles);
+
+    const quotas: Record<QuotaKey, number> = {};
+    // Plan defaults as base.
+    for (const [k, v] of Object.entries(input.planVersion.quotas)) {
+        quotas[k] = v;
+    }
+    // Add SubscriptionBundle quotas (with -1 dominance). Independently
+    // booked bundles add their quotas on top of the plan.
+    for (const [k, v] of Object.entries(subBundleQuotas)) {
+        if (quotas[k] === -1 || v === -1) {
+            quotas[k] = -1;
+        } else {
+            quotas[k] = (quotas[k] ?? 0) + v;
+        }
+    }
+
+    const features = new Set<FeatureKey>([...input.planVersion.features, ...subBundleFeatures]);
+
+    const withCustom = applyCustomLimits(
+        { plan: input.plan, quotas, features },
+        input.customLimits,
+    );
+    const filteredFeatures = filterPlannedOnlyFeatures(withCustom.features, catalog);
+
+    return { plan: withCustom.plan, quotas: withCustom.quotas, features: filteredFeatures };
+}
+
+/**
+ * Checks whether a feature is contained in the effective limits.
+ */
+export function hasFeature(limits: EffectiveLimits, feature: FeatureKey): boolean {
+    return limits.features.has(feature);
+}
+
+/**
+ * Checks whether at least one of the given features is contained in the
+ * effective limits. An empty list yields `false`.
+ */
+export function hasAnyFeature(limits: EffectiveLimits, features: readonly FeatureKey[]): boolean {
+    return features.some((f) => limits.features.has(f));
+}
+
+/**
+ * Converts EffectiveLimits into a JSON-serializable shape (Set → sorted
+ * array). Used e.g. in `Invoice.entitlementSnapshot`.
+ */
+export function toEffectiveLimitsSnapshot(limits: EffectiveLimits): EffectiveLimitsSnapshot {
+    return {
+        plan: limits.plan,
+        quotas: { ...limits.quotas },
+        features: Array.from(limits.features).sort(),
+    };
+}

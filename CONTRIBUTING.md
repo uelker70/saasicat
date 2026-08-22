@@ -51,7 +51,7 @@ below is what makes tokens survive all of those cases.
   global symbol registry with the shared namespace:
 
     ```ts
-    export const MFA_PORT_TOKEN = Symbol.for('saas-platform/MfaPort');
+    export const MFA_PORT_TOKEN = Symbol.for('saasicat/nest/MfaPort');
     ```
 
     `Symbol.for` resolves through the process-wide registry, so all bundle copies
@@ -60,10 +60,15 @@ below is what makes tokens survive all of those cases.
 - Plain `Symbol('X')` is acceptable **only** for tokens created and consumed
   strictly within a single entry point, with no consumer-facing surface.
 
-Note on the namespace: the registry keys use the historical `'saas-platform/…'`
-prefix. These keys are part of the runtime contract between platform and consumer
-apps — **do not rename existing keys**, and use the same prefix for new cross-entry
-tokens unless a coordinated, breaking namespace migration is explicitly planned.
+Note on the namespace: every registry key is `saasicat/<package>/<Name>` — the
+package directory under `packages/` is the package name, so the prefix is the
+directory the token is declared in. These keys are part of the runtime contract
+between platform and consumer apps: a consumer may `Symbol.for` the same string
+in their own code, so **do not rename an existing key**. They were renamed
+exactly once, at 1.0, when four historical prefixes (`saas-platform/`,
+`saas-platform-nest/`, `saas-platform-cli/`, `@saasicat/ui-vue/`) became this
+one — that is what the `major` in that release paid for, and
+`tests/di-tokens-share-one-namespace.test.js` refuses any other prefix since.
 
 ## One bundle, many entries (the CJS build)
 
@@ -92,29 +97,33 @@ do not have to know which entry a class "really" lives in.
 drift apart, and `tests/cjs-entry-identity.test.js` fails if any export ends up
 with two identities.
 
-Two entries may still export the same NAME for different things on purpose —
-`FEATURE_UI_REGISTRY_TOKEN` means a different registry in `billing` than in
-`catalog`. Those are listed explicitly in that test.
+No two entries export the same name for different things. Until 1.0 one pair did
+— `FEATURE_UI_REGISTRY_TOKEN` meant one registry in `billing` and another in
+`catalog` — and the identity test carried it as an exception. They are
+`BILLING_FEATURE_UI_REGISTRY_TOKEN` and `CATALOG_FEATURE_UI_REGISTRY_TOKEN`
+now, and the test has no exception list.
 
 ## Layer boundaries in `@saasicat/ui-vue`
 
-`packages/saas-platform-ui-vue/src` is layered: `client/` (framework-free) ←
+`packages/ui-vue/src` is layered: `client/` (framework-free) ←
 `vue/` (no Quasar) ← `quasar/` + the SFC directories. Each layer has its own
 package entry, and ESLint `no-restricted-imports` rules in the root config
 enforce the boundaries — `pnpm exec eslint .` fails on an upward import.
 New logic goes into a composable (`src/vue/`) or, when framework-free, into
 `src/client/`; `.ts` files may import `quasar` only under `src/quasar/`.
-Details: [`packages/saas-platform-ui-vue/README.md`](packages/saas-platform-ui-vue/README.md).
+Details: [`packages/ui-vue/README.md`](packages/ui-vue/README.md).
 
 ### The shipped source has a language floor: ES2021
 
-Four of that package's export subpaths — `pages/*`, `pages-standard/*`,
-`pages-tenant/*` and `components/*` — hand out `.vue` and `.ts` straight from `src/`
-instead of from a build, because consumers need the source for Quasar and Sass theming.
-(Four more serve stylesheets: three from `src/ui/theme/`, which carries no TypeScript,
-and `sa-theme.css` from `src/pages-standard/`.) So the
-**consumer's** `tsconfig` compiles those files and everything they reach, including
-`src/client/` and `src/vue/`. Ours says `lib: ES2023`; theirs may not.
+Several of that package's export subpaths — `pages/*`, `layouts/*`, `auth/*`, `ui/*`
+— hand out `.vue` and `.ts` straight from `src/` instead of from a build, because
+consumers need the source for Quasar and Sass theming. The list is not written here,
+because it moves: `pages-standard/*` and `components/*` were two of them until phase 4
+removed both, and `pages-tenant/*` left for `@saasicat/ui-vue-tenant` — which ships its
+source under the same floor for the same reason. `check-shipped-source.mjs` derives the
+list from the export map and prints the count on every run. So the **consumer's**
+`tsconfig` compiles those files and everything they reach, including `src/client/` and
+`src/vue/`. Ours says `lib: ES2023`; theirs may not.
 
 Shipped code therefore stays within **ES2021**. In practice that rules out
 `new Error(msg, { cause })` — use `attachCause()` from `src/client/attach-cause.ts` —
@@ -122,7 +131,8 @@ and `Object.hasOwn`, for which `Object.prototype.hasOwnProperty.call()` is the
 equivalent. Code reached only through `dist/` is unaffected.
 
 `pnpm --filter @saasicat/ui-vue test:shipped-source` compiles that closure at the floor
-and runs in CI. It is set the way a Vite consumer sets it rather than to a bare language level:
+and runs in CI; `pnpm --filter @saasicat/ui-vue-tenant test:shipped-source` does the same for
+the tenant package, which ships nothing but source. It is set the way a Vite consumer sets it rather than to a bare language level:
 `isolatedModules`, `useDefineForClassFields` and `strictPropertyInitialization`, the last
 two of which this package's own base config would otherwise leave milder than its
 subject. It
@@ -196,6 +206,8 @@ Together they give `1.0.0-rc.0`, after which every level accumulates as
 
 Leaving pre mode is how `1.0.0` itself is released. It happens once, deliberately,
 when the work behind the candidate is complete — not as part of an ordinary change.
+The consumer-facing account of the break is [`docs/migrating-to-1.0.md`](docs/migrating-to-1.0.md);
+the codemod it names is `saasicat codemod v1`.
 
 ## Commits and pull requests
 

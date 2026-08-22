@@ -86,11 +86,19 @@ jobs:
             # built dist/. This covers the decisions components make while rendering.
             - name: Run component tests
               run: pnpm --filter @saasicat/ui-vue test:component
+            # The tenant package ships source only, so this runner is its whole
+            # test surface; nothing else in the workspace reaches its tests.
+            - name: Run component tests (tenant package)
+              run: pnpm --filter @saasicat/ui-vue-tenant test:component
             # Eight ui-vue subpaths ship .vue/.ts as source, so the consumer's
             # tsconfig compiles them — not ours. This holds them to the oldest
             # lib a consumer uses.
             - name: Typecheck the shipped source at the support floor
               run: pnpm --filter @saasicat/ui-vue test:shipped-source
+            # Same floor, same promise — and this package ships NOTHING but
+            # source, so without this step 100 % of its surface went unmeasured.
+            - name: Typecheck the tenant package's shipped source at the floor
+              run: pnpm --filter @saasicat/ui-vue-tenant test:shipped-source
             - name: Lint
               run: pnpm exec eslint .
             # Prettier is configured; without this nothing makes a diff obey it.
@@ -102,7 +110,7 @@ jobs:
             # behind the fragments it demonstrates. Exits 1 on drift.
             - name: Schema drift (NotesApp example)
               run: >
-                  node packages/saas-platform-cli/bin/saasicat.js schema check
+                  node packages/cli/bin/saasicat.js schema check
                   --prisma-schema=examples/notesapp/prisma/schema.prisma
 
     persistence-contract:
@@ -158,7 +166,7 @@ jobs:
                   SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
               run: >
                   node scripts/coverage-ratchet.mjs
-                  --only=saas-platform-adapter-prisma,saas-platform-adapter-drizzle
+                  --only=adapter-prisma,adapter-drizzle
 
     e2e:
         runs-on: ubuntu-latest

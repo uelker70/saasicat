@@ -12,6 +12,7 @@
         "@quasar/extras": "^1.16.0",
         "@saasicat/types": "workspace:^",
         "@saasicat/ui-vue": "workspace:^",
+        "@saasicat/ui-vue-tenant": "workspace:^",
         "axios": "^1.15.0",
         "pinia": "^3.0.0",
         "quasar": "^2.24.0",

@@ -30,7 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { colourSites, siteKey } from './lib/stylesheets.mjs';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const UI_SRC = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue', 'src');
+const UI_SRC = join(REPO_ROOT, 'packages', 'ui-vue', 'src');
 const MAP_PATH = join(dirname(fileURLToPath(import.meta.url)), 'colour-map.json');
 
 /** The token files define the palette; their literals are the point of them. */

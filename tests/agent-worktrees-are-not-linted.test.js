@@ -24,10 +24,10 @@ import { ESLint } from 'eslint';
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /** A file that exists only because an agent session put a worktree here. */
-const INSIDE_AGENT_WORKTREE = '.claude/worktrees/agent-1/packages/saas-platform-nest/src/index.ts';
+const INSIDE_AGENT_WORKTREE = '.claude/worktrees/agent-1/packages/nest/src/index.ts';
 
 /** The same path in the tree the gates are actually about. */
-const IN_THE_SOURCE_TREE = 'packages/saas-platform-nest/src/index.ts';
+const IN_THE_SOURCE_TREE = 'packages/nest/src/index.ts';
 
 /**
  * Whether Git ignores a path. `check-ignore` answers for paths that do not

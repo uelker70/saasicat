@@ -48,14 +48,14 @@ const REPORT = join(REPO_ROOT, 'coverage-report.json');
 
 /** Packages whose `test` script is a plain `node --test` run. */
 const PACKAGES = [
-    'saas-platform-spec',
-    'saas-platform-types',
-    'saas-platform-nest',
-    'saas-platform-adapter-prisma',
-    'saas-platform-adapter-drizzle',
-    'saas-platform-persistence-testing',
-    'saas-platform-cli',
-    'saas-platform-ui-vue',
+    'spec',
+    'types',
+    'nest',
+    'adapter-prisma',
+    'adapter-drizzle',
+    'persistence-testing',
+    'cli',
+    'ui-vue',
     'create-saasicat-admin',
 ];
 
@@ -138,6 +138,9 @@ function testFiles(cwd, directory = 'tests') {
     const walk = (dir) => {
         for (const entry of readdirSync(dir)) {
             const full = join(dir, entry);
+            // `tests/integration/` is the contract suite: it throws without a
+            // database, and it is measured separately (see below).
+            if (dir === join(cwd, 'tests') && entry === 'integration') continue;
             if (statSync(full).isDirectory()) walk(full);
             else if (entry.endsWith('.test.js') || entry.endsWith('.test.mjs')) {
                 found.push(relative(cwd, full));
@@ -155,7 +158,7 @@ function testFiles(cwd, directory = 'tests') {
 function measure(pkg, { withDatabase = false } = {}) {
     const cwd = join(REPO_ROOT, 'packages', pkg);
     const files = withDatabase
-        ? [...testFiles(cwd), ...testFiles(cwd, 'tests-integration')]
+        ? [...testFiles(cwd), ...testFiles(cwd, 'tests/integration')]
         : testFiles(cwd);
     if (files.length === 0) return null;
 
@@ -203,7 +206,7 @@ const update = process.argv.includes('--update');
  * Whether the persistence contract can run — and therefore be measured.
  *
  * `adapter-prisma` and `adapter-drizzle` keep their contract suite under
- * `tests-integration/`, which needs a real PostgreSQL. Without it the ratchet
+ * `tests/integration/`, which needs a real PostgreSQL. Without it the ratchet
  * measures the service-free suites alone, and for those two packages that
  * number is not a statement about how well the code is tested: the repository
  * layer they exist to provide is exercised entirely by the contract. Measured
@@ -285,7 +288,7 @@ try {
         // database to run it against.
         if (
             DATABASE_URL &&
-            testFiles(join(REPO_ROOT, 'packages', pkg), 'tests-integration').length
+            testFiles(join(REPO_ROOT, 'packages', pkg), 'tests/integration').length
         ) {
             let withDatabase;
             try {

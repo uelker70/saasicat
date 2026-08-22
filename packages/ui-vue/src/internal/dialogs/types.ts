@@ -1,0 +1,92 @@
+export type {
+    PilotRow,
+    PilotCreatePayload,
+    PilotCreateResult,
+    PilotEditPayload,
+    PilotEditResult,
+} from '../../client/resources/pilots.types.ts';
+
+// Shared types for platform dialogs. Extracted from the .vue files
+// because vue-tsc does not support `type X from "...vue"`.
+
+/**
+ * Tenant-specific vocabulary for the pilot dialogs. The platform provides
+ * neutral defaults via the `pilots.copyDefaults` message namespace; consumers
+ * override with their domain language (e.g. "Verein" or "Händler").
+ */
+export interface PilotCopy {
+    /** Subtitle of the tenant section in the create dialog. */
+    tenantSubtitle?: string;
+    /** Label of the name field, e.g. "Vereinsname" / "Firmenname". */
+    tenantNameLabel?: string;
+    /** Placeholder for the tenant name. */
+    tenantNamePlaceholder?: string;
+    /** Placeholder for the slug. */
+    slugPlaceholder?: string;
+    /** Placeholder for the initial admin email. */
+    adminEmailPlaceholder?: string;
+    /** Placeholder for the internal note (create + edit). */
+    notePlaceholder?: string;
+}
+
+export type PromoCodeValueType = 'PERCENT' | 'ABSOLUTE';
+export type PromoCodeDurationType = 'ONCE' | 'MONTHS' | 'BILLING_CYCLES';
+
+export interface PromoCodeCreatePayload {
+    code: string;
+    valueType: PromoCodeValueType;
+    value: number;
+    durationType: PromoCodeDurationType;
+    durationValue: number | null;
+    maxRedemptions: number | null;
+    validFrom: string | null;
+    validUntil: string | null;
+    /** Plan keys the code applies to. Empty = all plans. */
+    appliesToPlans?: string[];
+    /** Optional: filter on MONTHLY/YEARLY subscriptions. */
+    appliesToBilling?: 'MONTHLY' | 'YEARLY';
+    /** Only redeemable by new customers. */
+    firstTimeCustomersOnly?: boolean;
+    /** Minimum gross plan amount from which the code takes effect. */
+    minimumPlanAmountGross?: number;
+    /** Allows €0 invoices (otherwise the discount is capped at 100% of the amount). */
+    allowZeroInvoice?: boolean;
+    /** Ledger account for discount revenue reduction (app-specific). */
+    revenueDeductionAccount?: string;
+    campaignTag?: string;
+    description?: string;
+}
+
+/** Plan option for the plan picker in PromoCodeCreateDialog. */
+export interface PromoCodePlanOption {
+    /** Plan key as sent to the backend (e.g. 'BASIC'). */
+    key: string;
+    /** Display label (e.g. 'Basic'). */
+    label: string;
+    /** Optional accent for the plan chip; fallback neutral gray. */
+    color?: string;
+}
+
+/**
+ * PATCH payload — all fields optional, only the explicitly set ones
+ * are sent to the backend (whitelist on the server side). `code` is
+ * not in the list because it stays stable after creation.
+ */
+export interface PromoCodeUpdatePayload {
+    status?: 'ACTIVE' | 'PAUSED';
+    valueType?: PromoCodeValueType;
+    value?: number;
+    durationType?: PromoCodeDurationType;
+    durationValue?: number | null;
+    maxRedemptions?: number | null;
+    validFrom?: string | null;
+    validUntil?: string | null;
+    appliesToPlans?: string[];
+    appliesToBilling?: 'MONTHLY' | 'YEARLY' | null;
+    firstTimeCustomersOnly?: boolean;
+    minimumPlanAmountGross?: number | null;
+    allowZeroInvoice?: boolean;
+    description?: string | null;
+    campaignTag?: string | null;
+    revenueDeductionAccount?: string | null;
+}

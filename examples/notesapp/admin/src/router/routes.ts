@@ -1,12 +1,10 @@
 import type { RouteRecordRaw } from 'vue-router';
-import SuperAdminLoginPage from '@saasicat/ui-vue/pages/SuperAdminLoginPage.vue';
-import AdminLayout from '@saasicat/ui-vue/pages/AdminLayout.vue';
+import { createAdminRoutes } from '@saasicat/ui-vue';
+import { standardAdminChildren } from '@saasicat/ui-vue/pages';
+import SuperAdminLoginPage from '@saasicat/ui-vue/auth/SuperAdminLoginPage.vue';
+import AdminLayout from '@saasicat/ui-vue/layouts/AdminLayout.vue';
 import AdminManifestErrorPage from '@saasicat/ui-vue/pages/AdminManifestErrorPage.vue';
-import DashboardPage from '@saasicat/ui-vue/pages/DashboardPage.vue';
-import AdminDiscoveryPage from '../pages/AdminDiscoveryPage.vue';
-import AdminPlansPage from '../pages/AdminPlansPage.vue';
-import AdminBundlesPage from '../pages/AdminBundlesPage.vue';
-import AdminMarketingCatalogPage from '../pages/AdminMarketingCatalogPage.vue';
+
 import AdminTenantsPage from '../pages/AdminTenantsPage.vue';
 import AdminTenantDetailPage from '../pages/AdminTenantDetailPage.vue';
 import AdminUsersPage from '../pages/AdminUsersPage.vue';
@@ -14,35 +12,28 @@ import AdminAuditPage from '../pages/AdminAuditPage.vue';
 import AdminSubscriptionsPage from '../pages/AdminSubscriptionsPage.vue';
 import AdminPromoCodesPage from '../pages/AdminPromoCodesPage.vue';
 
-// The backend enables SaaSiCat's complete standard Admin API: discovery,
-// catalog, tenants, users, audit, subscriptions and promo codes. NotesApp adds
-// only its dashboard KPIs. These routes keep every standard page visible; the
-// thin wrappers bind the reusable pages to one shared resource client.
+// The backend enables SaaSiCat's complete standard Admin API, and most pages
+// need no wrapper at all: they read the platform's resource registry and take
+// their project and locales from the shell. `standardAdminChildren` fills in
+// everything this list does not claim — discovery, plans, bundles and the
+// marketing catalogue among them — and `createAdminRoutes` supplies the shell
+// every SuperAdmin app has (public `/login`, fail-closed `/admin-error`, the
+// `/admin` layout with its redirect and the manifest catch-all).
+//
+// What is still listed here is listed for a reason: each of those wrappers
+// carries a decision this app makes — its wording, its plan options, the row
+// actions its operators get.
 
-export const appRoutes: RouteRecordRaw[] = [
-    { path: '/login', component: SuperAdminLoginPage, meta: { public: true } },
-    {
-        path: '/admin-error',
-        component: AdminManifestErrorPage,
-        meta: { public: true },
-    },
-    {
-        path: '/admin',
-        component: AdminLayout,
-        children: [
-            { path: '', redirect: '/admin/dashboard' },
-            { path: 'dashboard', component: DashboardPage },
-            { path: 'discovery', component: AdminDiscoveryPage },
-            { path: 'plans', component: AdminPlansPage },
-            { path: 'bundles', component: AdminBundlesPage },
-            { path: 'marketing-catalog', component: AdminMarketingCatalogPage },
-            { path: 'tenants', component: AdminTenantsPage },
-            { path: 'tenants/:slug', component: AdminTenantDetailPage },
-            { path: 'users', component: AdminUsersPage },
-            { path: 'audit', component: AdminAuditPage },
-            { path: 'subscriptions', component: AdminSubscriptionsPage },
-            { path: 'promo-codes', component: AdminPromoCodesPage },
-        ],
-    },
-    { path: '/:pathMatch(.*)*', redirect: '/admin' },
-];
+export const appRoutes: RouteRecordRaw[] = createAdminRoutes({
+    loginPage: SuperAdminLoginPage,
+    adminLayout: AdminLayout,
+    adminErrorPage: AdminManifestErrorPage,
+    children: standardAdminChildren([
+        { path: 'tenants', component: AdminTenantsPage },
+        { path: 'tenants/:slug', component: AdminTenantDetailPage },
+        { path: 'users', component: AdminUsersPage },
+        { path: 'audit', component: AdminAuditPage },
+        { path: 'subscriptions', component: AdminSubscriptionsPage },
+        { path: 'promo-codes', component: AdminPromoCodesPage },
+    ]),
+});

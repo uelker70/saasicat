@@ -1,6 +1,6 @@
 // DB-free smoke test — demonstrates the documented testing story
 // (quickstart "What next" #5): boot the platform with
-// createSaasPlatformTestModule and assert static entitlement resolves the
+// createSaaSiCatTestModule and assert static entitlement resolves the
 // example plan catalog. Runs in CI without a database.
 
 import 'reflect-metadata';
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { Test } from '@nestjs/testing';
 // StaticEntitlementService MUST come from the same entry as the test
 // module factory (bundle identity — see @saasicat/nest/testing docs).
-import { createSaasPlatformTestModule, StaticEntitlementService } from '@saasicat/nest/testing';
+import { createSaaSiCatTestModule, StaticEntitlementService } from '@saasicat/nest/testing';
 import { DefinesQuota } from '@saasicat/nest/discovery';
 
 // In-memory stand-in for NotesQuotaProvider — app tests stub the counting
@@ -45,7 +45,7 @@ describe('notesapp platform wiring (smoke)', () => {
     test('static entitlement resolves the STARTER plan for every tenant', async () => {
         const moduleRef = await Test.createTestingModule({
             imports: [
-                createSaasPlatformTestModule({
+                createSaaSiCatTestModule({
                     planCatalog: PLAN_CATALOG,
                     defaultPlanId: 'STARTER',
                     quotaProviders: [FakeNotesQuotaProvider],

@@ -69,6 +69,28 @@ const handle = createSuperAdminApp({
     // without this they would fall back to a bare fetch() and lose the app's auth.
     http: platformHttp,
     actions: ADMIN_ACTIONS,
+    // ── Overriding ONE operation, keeping the other eight ────────────────────
+    //
+    // This is the property a prop-based page cannot offer: its twenty-four
+    // props are all or nothing. Here the app wraps `bundleVersions.publish` to
+    // record who published what, and every other operation — list, create,
+    // update, softDelete, the four other version calls — still comes from the
+    // platform, unchanged and unmentioned.
+    //
+    // `next` IS the platform's implementation, so the wrapper decides what to
+    // do around it rather than replacing it. Returning `next(...)` without
+    // awaiting would lose the failure this log line exists to record.
+    resourceOverrides: {
+        bundleVersions: {
+            ops: {
+                publish: async (next, versionId, options) => {
+                    const result = await next(versionId, options);
+                    console.info('[notesapp] bundle version published:', versionId);
+                    return result;
+                },
+            },
+        },
+    },
     extensions: {},
     // Starting UI language — the shell's header switcher lets the user change
     // it from there and remembers the pick. `overrides` replaces individual

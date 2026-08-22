@@ -1,12 +1,15 @@
 <template>
-    <PlatformUsersPage :load-users="loadUsers" :subtitle="subtitle" />
+    <PlatformUsersPage :options="options" />
 </template>
 
 <script setup lang="ts">
 import PlatformUsersPage from '@saasicat/ui-vue/pages/UsersPage.vue';
-import { loadUsers } from '../services/app-loaders';
+import type { UsersPageOptions } from '@saasicat/ui-vue/pages/UsersPage.vue';
 
-// Cross-tenant user search (GET /admin/users). Reset-password/deactivate flows
-// are left off — this example's User model has no such lifecycle.
-const subtitle = 'Alle Nutzer über die Mandanten hinweg.';
+// Cross-tenant user search. The page reads the platform's users resource
+// itself; reset-password and deactivate are left off, because this example's
+// User model has no such lifecycle.
+const options: UsersPageOptions = {
+    subtitle: 'Alle Nutzer über die Mandanten hinweg.',
+};
 </script>

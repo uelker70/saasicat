@@ -44,7 +44,7 @@ export default tseslint.config(
         // channel through which the platform reports integration mistakes
         // (orphaned manifest actions, a failed manifest load); `log`/`info`/
         // `debug` are debugging leftovers and must not ship.
-        files: ['packages/saas-platform-ui-vue/src/**/*.{ts,vue}'],
+        files: ['packages/ui-vue/src/**/*.{ts,vue}'],
         rules: {
             'no-console': ['error', { allow: ['warn', 'error'] }],
         },
@@ -70,8 +70,8 @@ export default tseslint.config(
         //
         // Structurally this closes when the resource registry REQUIRES an
         // `http` — until then, this rule is what prevents a relapse.
-        files: ['packages/saas-platform-ui-vue/src/**/*.{ts,vue}'],
-        ignores: ['packages/saas-platform-ui-vue/src/client/http/fetch-http-client.ts'],
+        files: ['packages/ui-vue/src/**/*.{ts,vue}'],
+        ignores: ['packages/ui-vue/src/client/http/fetch-http-client.ts'],
         rules: {
             'no-restricted-globals': [
                 'error',
@@ -151,7 +151,7 @@ export default tseslint.config(
     // and linted like every other file (see the `**/*.vue` block above).
     // ------------------------------------------------------------------
     {
-        files: ['packages/saas-platform-ui-vue/src/client/*.ts'],
+        files: ['packages/ui-vue/src/client/*.ts'],
         rules: {
             'no-restricted-imports': [
                 'error',
@@ -175,7 +175,7 @@ export default tseslint.config(
     {
         // Subdirectories of the client layer (e.g. i18n/): one `../` step
         // stays inside the layer, so only deeper escapes are blocked.
-        files: ['packages/saas-platform-ui-vue/src/client/*/**/*.ts'],
+        files: ['packages/ui-vue/src/client/*/**/*.ts'],
         rules: {
             'no-restricted-imports': [
                 'error',
@@ -197,7 +197,7 @@ export default tseslint.config(
         },
     },
     {
-        files: ['packages/saas-platform-ui-vue/src/vue/**/*.ts'],
+        files: ['packages/ui-vue/src/vue/**/*.ts'],
         rules: {
             'no-restricted-imports': [
                 'error',
@@ -211,9 +211,12 @@ export default tseslint.config(
                         {
                             group: [
                                 '../quasar/**',
-                                '../pages-standard/**',
-                                '../pages-tenant/**',
-                                '../components/**',
+                                '../pages/**',
+                                '../layouts/**',
+                                '../auth/**',
+                                '../internal/**',
+                                '../features/**',
+                                '../ui/*/**',
                             ],
                             message:
                                 'The vue layer must not import from the Quasar layer or the SFC directories.',
@@ -224,7 +227,7 @@ export default tseslint.config(
         },
     },
     {
-        files: ['packages/saas-platform-ui-vue/src/index.ts'],
+        files: ['packages/ui-vue/src/index.ts'],
         rules: {
             'no-restricted-imports': [
                 'error',
@@ -241,7 +244,7 @@ export default tseslint.config(
                             // type/i18n modules. Expressed as a regex because
                             // gitignore-style `!` negation cannot re-include a
                             // file whose intermediate directory is excluded.
-                            regex: '^\\./(?:pages-standard/(?!(?:platform-email\\.types|email-history\\.types)\\.js$)|pages-tenant/(?!default-i18n\\.js$)|components/(?!(?:dialogs/types|bundle-editor/catalog-i18n)\\.js$))',
+                            regex: '^\\./(?:pages/|layouts/|auth/|features/(?!bundle/internal/catalog-i18n\\.js$)|internal/(?!(?:dialogs/types|platform-email/platform-email\\.types|email-history/email-history\\.types)\\.js$)|ui/(?!theme/))',
                             message:
                                 'The main entry may only re-export the whitelisted framework-free type/i18n modules from the SFC directories.',
                         },
@@ -278,11 +281,8 @@ export default tseslint.config(
         // A domain reaching back into `platform/` is the dependency pointing
         // the wrong way — what `forwardRef` is usually called in to paper over,
         // and this repository is at zero of those.
-        files: ['packages/saas-platform-nest/src/**/*.ts'],
-        ignores: [
-            'packages/saas-platform-nest/src/platform/**',
-            'packages/saas-platform-nest/src/testing/**',
-        ],
+        files: ['packages/nest/src/**/*.ts'],
+        ignores: ['packages/nest/src/platform/**', 'packages/nest/src/testing/**'],
         rules: {
             'no-restricted-imports': [
                 'error',
@@ -311,10 +311,7 @@ export default tseslint.config(
         // `platform/`, so neither is subject to boundary 2 — but both are
         // subject to boundary 1, and it has to be restated here rather than
         // inherited, for the replace-not-merge reason above.
-        files: [
-            'packages/saas-platform-nest/src/platform/**/*.ts',
-            'packages/saas-platform-nest/src/testing/**/*.ts',
-        ],
+        files: ['packages/nest/src/platform/**/*.ts', 'packages/nest/src/testing/**/*.ts'],
         rules: {
             'no-restricted-imports': [
                 'error',
@@ -336,11 +333,10 @@ export default tseslint.config(
         // The whitelisted co-located modules above are part of the main
         // entry and therefore must stay framework-free themselves.
         files: [
-            'packages/saas-platform-ui-vue/src/components/dialogs/types.ts',
-            'packages/saas-platform-ui-vue/src/components/bundle-editor/catalog-i18n.ts',
-            'packages/saas-platform-ui-vue/src/pages-standard/platform-email.types.ts',
-            'packages/saas-platform-ui-vue/src/pages-standard/email-history.types.ts',
-            'packages/saas-platform-ui-vue/src/pages-tenant/default-i18n.ts',
+            'packages/ui-vue/src/internal/dialogs/types.ts',
+            'packages/ui-vue/src/features/bundle/internal/catalog-i18n.ts',
+            'packages/ui-vue/src/internal/platform-email/platform-email.types.ts',
+            'packages/ui-vue/src/internal/email-history/email-history.types.ts',
         ],
         rules: {
             'no-restricted-imports': [

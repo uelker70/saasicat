@@ -257,7 +257,7 @@ two things that bite. Every other entry above is composed for you.
 
 ### 4.2 Standard Pages from `@saasicat/ui-vue`
 
-Path: `node_modules/@saasicat/ui-vue/src/pages-standard/`.
+Path: `node_modules/@saasicat/ui-vue/src/pages/` — with the shell in `src/layouts/`, the login screens in `src/auth/` and the primitives in `src/ui/`.
 
 | Page                                     | Purpose                                                    |
 | ---------------------------------------- | ---------------------------------------------------------- |
@@ -325,11 +325,11 @@ For local development against a checkout of this repo, use
 
 The data model has one normative source: the
 [logical data model](data-model.md) plus the SQL artifacts in
-[`@saasicat/spec/sql/`](../packages/saas-platform-spec/sql/)
+[`@saasicat/spec/sql/`](../packages/spec/sql/)
 (`reference-schema.postgres.sql` — full DDL, generated from the fragments;
 `constraints.postgres.sql` — the invariants Prisma cannot express: partial
 unique draft indexes, the subscription CHECK). The
-[Prisma fragments](../packages/saas-platform-spec/prisma-fragments/) are the
+[Prisma fragments](../packages/spec/prisma-fragments/) are the
 derived Prisma-DSL rendering of that model; `saasicat schema apply`
 splices them into your `schema.prisma` (see [Quickstart §3](quickstart.md)).
 The JSON Schemas in `@saasicat/spec/schemas/` govern **wire formats**, not
@@ -442,7 +442,7 @@ each quota needs one `QuotaProvider` because only the application knows how to
 count users, notes, storage or API calls. That same provider is reused for
 runtime enforcement and the tenant usage response.
 
-A custom schema or database can implement `SaasicatPersistenceAdapter` with
+A custom schema or database can implement `SaaSiCatPersistenceAdapter` with
 the same named slices. The fine-grained ports and individual modules remain
 public; the bundle does not remove the extension points.
 
@@ -1051,8 +1051,8 @@ export const useManifestStore = createManifestStore({
 ```ts
 // router/index.ts
 import { createProjectPageHostRoute } from '@saasicat/ui-vue';
-import SuperAdminLoginPage from '@saasicat/ui-vue/pages/SuperAdminLoginPage.vue';
-import AdminLayout from '@saasicat/ui-vue/pages/AdminLayout.vue';
+import SuperAdminLoginPage from '@saasicat/ui-vue/auth/SuperAdminLoginPage.vue';
+import AdminLayout from '@saasicat/ui-vue/layouts/AdminLayout.vue';
 import AdminDiscoveryPage from '../pages/AdminDiscoveryPage.vue';
 import AdminTenantsPage from '../pages/AdminTenantsPage.vue';
 import AdminPlansPage from '../pages/AdminPlansPage.vue';
@@ -1165,7 +1165,7 @@ the switcher in your own chrome as well — it renders nothing when disabled, so
 it needs no guard around it:
 
 ```ts
-import ThemeSwitcher from '@saasicat/ui-vue/components/ThemeSwitcher.vue';
+import ThemeSwitcher from '@saasicat/ui-vue/ui/page/ThemeSwitcher.vue';
 ```
 
 **You may already be done.** The bridge is two-directional: your own
@@ -1368,7 +1368,7 @@ To place the switcher in your own chrome as well — it renders nothing when
 disabled, so it needs no guard around it:
 
 ```ts
-import LocaleSwitcher from '@saasicat/ui-vue/components/LocaleSwitcher.vue';
+import LocaleSwitcher from '@saasicat/ui-vue/ui/page/LocaleSwitcher.vue';
 ```
 
 **Reading messages in your own components:**
@@ -1385,7 +1385,7 @@ For placeholders use `formatMessage(msg.value.deleteConfirm, { name })`. Outside
 a shell (isolated mounts, unit tests) the composables fall back to a default
 instance, so no setup is required.
 
-**Tenant-facing pages** (`@saasicat/ui-vue/pages-tenant/*`) are embedded in the
+**Tenant-facing pages** (`@saasicat/ui-vue-tenant`) are embedded in the
 consumer's own app rather than the SuperAdmin shell and therefore keep their
 prop-based map (`TenantPlanSectionI18n`). They ship a German **and** an English
 default (`DEFAULT_I18N_DE` / `DEFAULT_I18N_EN`, selected by
@@ -1413,7 +1413,7 @@ must not decide for them. To follow the OS in an embedded app, say so:
 
 **Adding a language to the platform itself** — as opposed to your app — means
 extending `SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` and adding a variant
-per namespace under `packages/saas-platform-ui-vue/src/client/i18n/messages/`.
+per namespace under `packages/ui-vue/src/client/i18n/messages/`.
 The German object is the reference structure; the compiler rejects a translation
 with missing or extra keys. For a single app, `additionalLocales` is the shorter
 road.
@@ -1565,14 +1565,14 @@ dependencies of the X (?, ...)` errors. NestJS 11+ is stricter here than 9/10.
 
 ## 12. Further Reading
 
-- **Spec**: `packages/saas-platform-spec/`
+- **Spec**: `packages/spec/`
     - `schemas/admin-manifest.schema.json`
     - `schemas/plan-catalog.schema.json`
     - `schemas/promo-code.schema.json`
     - `schemas/audit-event.schema.json`
     - `admin-api.openapi.yaml` (normative REST contract)
     - `cli-conventions.md`
-- **Acceptance tests** (planned): `packages/saas-platform-spec/acceptance/*.yaml`.
+- **Acceptance tests** (planned): `packages/spec/acceptance/*.yaml`.
 
 In case of discrepancies between code and spec: the spec is normative,
 the code is the implementation status.
