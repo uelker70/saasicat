@@ -55,6 +55,8 @@ import { lstatSync, readdirSync, rmSync, existsSync, rmdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { writeStamp } from './build-stamp.mjs';
+
 const DIST_DIR = 'dist';
 
 /** Absolute paths of every file below `dir`, mapped to their mtime in ms. */
@@ -135,6 +137,11 @@ for (const file of orphans) {
     rmSync(file);
     removeEmptyAncestors(path.dirname(file), dist);
 }
+
+// What this build was built from, so `build-if-stale.mjs` can tell a current
+// dist/ from a stale one without rebuilding to find out. Written last: the
+// prune above would have removed it as an orphan of the previous build.
+writeStamp(process.cwd());
 
 // Silence means the build wrote everything that is in dist/. Reporting a clean
 // prune on every build would train the reader to skip the line that matters.
