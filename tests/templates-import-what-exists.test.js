@@ -44,7 +44,7 @@ function resolveSubpath(subpath) {
         const [head, tail] = pattern.split('*');
         if (!key.startsWith(head) || !key.endsWith(tail)) continue;
         const middle = key.slice(head.length, key.length - tail.length || undefined);
-        return typeof target === 'string' ? target.replace('*', middle) : 'dist';
+        return typeof target === 'string' ? target.replaceAll('*', middle) : 'dist';
     }
     return null;
 }
