@@ -186,32 +186,51 @@ describe('one name from two entries in one file', () => {
     });
 });
 
+const RANGE = { targetRange: '^1.0.0-rc.1' };
+
 describe('a renamed package reaches the manifest', () => {
     test('the dependency fields are rewritten, nothing else is', () => {
         const before = JSON.stringify(
             {
                 name: 'my-app',
                 description: 'uses @saasicat/types',
-                dependencies: { '@saasicat/types': '^1.0.0-rc.0', vue: '^3.5.0' },
+                // A real 0.x consumer: the old range names a line the renamed
+                // package was never on. Carrying it over would produce
+                // `"@saasicat/core": "^0.27.0"`, which installs nothing.
+                dependencies: { '@saasicat/types': '^0.27.0', vue: '^3.5.0' },
                 devDependencies: { '@saasicat/ui-vue': 'workspace:^' },
-                peerDependencies: { '@saasicat/types': '^1.0.0-rc.0' },
+                peerDependencies: { '@saasicat/types': '^0.26.1' },
             },
             null,
             2,
         );
-        const { text, rewritten } = rewriteManifest(before + '\n', TABLE);
+        const { text, rewritten } = rewriteManifest(before + '\n', TABLE, RANGE);
         const after = JSON.parse(text);
         assert.equal(rewritten, 2);
-        assert.deepEqual(after.dependencies, { '@saasicat/core': '^1.0.0-rc.0', vue: '^3.5.0' });
-        assert.deepEqual(after.peerDependencies, { '@saasicat/core': '^1.0.0-rc.0' });
+        assert.deepEqual(after.dependencies, { '@saasicat/core': '^1.0.0-rc.1', vue: '^3.5.0' });
+        assert.deepEqual(after.peerDependencies, { '@saasicat/core': '^1.0.0-rc.1' });
         assert.equal(after.description, 'uses @saasicat/types', 'prose is not a dependency');
         assert.match(text, /^ {2}"name"/m, 'the two-space indentation survived');
         assert.ok(text.endsWith('\n'));
     });
 
+    test('a workspace or path range is reported, not guessed at', () => {
+        const before = JSON.stringify({
+            dependencies: { '@saasicat/types': 'workspace:^' },
+            devDependencies: { '@saasicat/types': 'file:../saasicat/packages/types' },
+        });
+        const result = rewriteManifest(before, TABLE, RANGE);
+        assert.equal(result.rewritten, 0);
+        assert.equal(result.text, before);
+        assert.deepEqual(result.ambiguous, [
+            '@saasicat/types in dependencies (workspace:^)',
+            '@saasicat/types in devDependencies (file:../saasicat/packages/types)',
+        ]);
+    });
+
     test('a manifest without the package is returned untouched', () => {
         const before = '{\n    "name": "x",\n    "dependencies": { "vue": "^3.5.0" }\n}\n';
-        const result = rewriteManifest(before, TABLE);
+        const result = rewriteManifest(before, TABLE, RANGE);
         assert.equal(result.text, before);
         assert.equal(result.rewritten, 0);
     });

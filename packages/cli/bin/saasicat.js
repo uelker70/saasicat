@@ -599,8 +599,8 @@ async function cmdCodemodV1Rename(args) {
         // source file takes everything. Under pnpm an import a manifest does
         // not declare fails to resolve, so the two travel together.
         const result =
-            basename(full) === 'package.json'
-                ? rewriteManifest(source, table)
+            basename(full) === CODEMOD_MANIFEST
+                ? rewriteManifest(source, table, { targetRange: `^${OWN_VERSION}` })
                 : rewriteNames(source, table);
         for (const name of result.ambiguous) {
             ambiguous.set(name, (ambiguous.get(name) ?? 0) + 1);
@@ -625,7 +625,19 @@ async function cmdCodemodV1Rename(args) {
     console.log('  FEATURE_UI_REGISTRY_TOKEN meant one registry in `@saasicat/nest/billing`');
     console.log('  and another in `@saasicat/nest/catalog`. Import it from the entry you');
     console.log('  mean — BILLING_FEATURE_UI_REGISTRY_TOKEN or CATALOG_FEATURE_UI_REGISTRY_TOKEN.');
+    console.log('  A dependency listed "in <field> (<range>)" points at a workspace or a path;');
+    console.log('  rename it by hand to @saasicat/core at the location you keep it.');
 }
+
+/**
+ * The version this CLI was released as — and therefore the line a consumer
+ * running its codemod is migrating to. The manifest rewrite sets the renamed
+ * dependency to `^<this>`, because the old range (`^0.27.0`) names a line
+ * the renamed package was never published on.
+ */
+const OWN_VERSION = JSON.parse(
+    await readFile(join(dirname(require_.resolve('@saasicat/cli')), '..', 'package.json'), 'utf8'),
+).version;
 
 /** Where a shipped codemod table lives, resolved through the package itself. */
 function codemodTable(name) {

@@ -42,8 +42,10 @@ that; pricing and proration are planned to consolidate there. Every import moves
 | `import { … } from '@saasicat/types'` | `import { … } from '@saasicat/core'` |
 
 The codemod rewrites the specifier **and the dependency in every `package.json` it meets** —
-under pnpm an import a manifest does not declare fails to resolve. `@saasicat/types` stays on
-npm at `0.27.0` for the 0.x line and gets no 1.0.
+under pnpm an import a manifest does not declare fails to resolve. The range becomes
+`^<the CLI's own version>`: a 0.x range like `^0.27.0` names a line `@saasicat/core` was never
+on. A `workspace:`, `file:` or `link:` range is reported instead, because it points at a location
+only you know. `@saasicat/types` stays on npm at `0.27.0` for the 0.x line and gets no 1.0.
 
 ### Registry keys
 
