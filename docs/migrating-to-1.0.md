@@ -79,6 +79,12 @@ on `createSuperAdminApp()` is the seam for the one call you want diverted. The
 
 - `DEFAULT_SA_LOCALE` is `'en'`. An app that wants German says so:
   `createSuperAdminApp({ i18n: { locale: 'de' } })`.
+- **`createSuperAdminApp({ http })` is required once you mount a standard page.** The pages read
+  their data through the resource registry, and the registry is installed only when the app names
+  its HTTP client — a bare `fetch` would send every request without your Authorization header and
+  fail silently, so the bootstrap refuses to guess. Without `http` the first standard page throws
+  `useResource("…"): no resource registry in scope` in its `setup()`; until 0.27 the same app
+  worked, because the pages took their loaders as props.
 
 ## What the codemod leaves to you
 
@@ -86,6 +92,9 @@ on `createSuperAdminApp()` is the seam for the one call you want diverted. The
 2. **A `components/*` import with no public successor** — copy the component.
 3. **Your own `tests-e2e/` directory** — yours to keep or rename; only the platform helper's
    import path changed.
+4. **A `file:` override that points into this repository** — the package directories are their
+   npm names now (`packages/nest`, not `packages/saas-platform-nest`). The codemod does not scan
+   `package.json`; update the path by hand.
 
 ## Order for a workspace with several apps
 

@@ -112,7 +112,7 @@ export function useLivePlanVersions(
  * Intentionally ignores validUntil — here the UI needs the "newest
  * contract content" for overlap calculations, not the asOf-now check.
  */
-function findLatestLive(versions: PlanVersionRow[]): PlanVersionRow | null {
+export function findLatestLive(versions: PlanVersionRow[]): PlanVersionRow | null {
     const candidates = versions.filter((v) => v.publishedAt !== null && v.supersededAt === null);
     if (candidates.length === 0) return null;
     return [...candidates].sort((a, b) => {

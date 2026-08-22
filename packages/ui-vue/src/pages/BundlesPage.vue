@@ -144,7 +144,8 @@ import type {
     bundleVersionsResource,
 } from '../client/resources/bundles.resource.js';
 import type { catalogResource } from '../client/resources/catalog.resource.js';
-import type { plansResource } from '../client/resources/plans.resource.js';
+import type { planVersionsResource, plansResource } from '../client/resources/plans.resource.js';
+import { findLatestLive } from '../vue/use-live-plan-versions.js';
 import type { discoveryResource } from '../client/resources/discovery.resource.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
@@ -235,6 +236,7 @@ const props = defineProps<{
         bundleVersions?: ResourceOverride<(typeof bundleVersionsResource)['ops']>;
         catalog?: ResourceOverride<(typeof catalogResource)['ops']>;
         plans?: ResourceOverride<(typeof plansResource)['ops']>;
+        planVersions?: ResourceOverride<(typeof planVersionsResource)['ops']>;
         discovery?: ResourceOverride<(typeof discoveryResource)['ops']>;
     };
     /** Presentation and capability. Never data, never a callback. */
@@ -256,6 +258,7 @@ const bundlesOps = useResource('bundles', props.resources?.bundles);
 const versionsOps = useResource('bundleVersions', props.resources?.bundleVersions);
 const catalogOps = useResource('catalog', props.resources?.catalog);
 const plansOps = useResource('plans', props.resources?.plans);
+const planVersionsOps = useResource('planVersions', props.resources?.planVersions);
 const discoveryOps = useResource('discovery', props.resources?.discovery);
 
 const bundles = ref<BundleRow[]>([]);
@@ -281,6 +284,33 @@ async function loadVersionsMap(rows: readonly BundleRow[]): Promise<void> {
     versionsByBundle.value = Object.fromEntries(pairs);
 }
 
+/**
+ * The live version of every plan, for the Plan↔Bundle overlap check in the
+ * compat picker. The wrapper used to supply this through `useLivePlanVersions`;
+ * after 4.10 the page owns it, and a map that is never filled turns the
+ * warning off without anything on screen looking wrong. One plan failing to
+ * load does not take the others with it, as the composable had it.
+ */
+async function loadLivePlanVersions(planRows: PlanRow[]): Promise<void> {
+    const entries = await Promise.all(
+        planRows.map(async (plan) => {
+            try {
+                return [
+                    plan.planKey,
+                    findLatestLive(await planVersionsOps.listForPlan(plan.id)),
+                ] as const;
+            } catch (err) {
+                console.warn(
+                    `BundlesPage: loading the versions of plan '${plan.planKey}' failed`,
+                    err,
+                );
+                return [plan.planKey, null] as const;
+            }
+        }),
+    );
+    livePlanVersions.value = Object.fromEntries(entries);
+}
+
 async function reload(): Promise<void> {
     loading.value = true;
     error.value = null;
@@ -297,7 +327,7 @@ async function reload(): Promise<void> {
         featureCatalog.value = features;
         quotaCatalog.value = quotas;
         if (read.status === 'loaded') snapshot.value = read.snapshot;
-        await loadVersionsMap(rows);
+        await Promise.all([loadVersionsMap(rows), loadLivePlanVersions(planRows)]);
     } catch (err) {
         error.value = err;
     } finally {
@@ -445,6 +475,20 @@ const detailBundle = computed<BundleRow | null>(
     () => bundles.value.find((b) => b.id === openKey.value) ?? null,
 );
 
+/**
+ * Reloads one bundle's versions into BOTH places the page reads them from.
+ *
+ * `versionsOf()` prefers the aggregate map — the KPIs and the status filter
+ * are computed over it — and the detail pane reads `detailVersions`. A
+ * mutation that refreshed only the pane left the totals on the pre-mutation
+ * list until the whole page was reloaded.
+ */
+async function refreshVersions(bundleId: string): Promise<void> {
+    const rows = await versionsOps.listForBundle(bundleId);
+    detailVersions.value = rows;
+    versionsByBundle.value = { ...versionsByBundle.value, [bundleId]: rows };
+}
+
 async function toggle(bundle: BundleRow): Promise<void> {
     if (openKey.value === bundle.id) {
         openKey.value = null;
@@ -460,7 +504,7 @@ async function toggle(bundle: BundleRow): Promise<void> {
     i18nDraft.value = JSON.parse(JSON.stringify(bundle.i18n ?? {})) as CatalogEntryI18n;
     detailVersions.value = [];
     inlineEditorError.value = null;
-    detailVersions.value = await versionsOps.listForBundle(bundle.id);
+    await refreshVersions(bundle.id);
     if (!selectedVersionIdByBundle.value[bundle.id]) {
         const defaultVersion = defaultSelectedVersion(detailVersions.value);
         if (defaultVersion) {
@@ -485,13 +529,17 @@ async function submitEdit(): Promise<void> {
     if (!detailBundle.value) return;
     editSubmitting.value = true;
     try {
-        await bundlesOps.update(detailBundle.value.id, {
+        const saved = await bundlesOps.update(detailBundle.value.id, {
             label: editForm.value.label,
             description: editForm.value.description || null,
             icon: editForm.value.icon || null,
             sortOrder: editForm.value.sortOrder,
             i18n: i18nDraft.value,
         });
+        // The page owns `bundles`; the resource is stateless. Without this the
+        // row kept its old label, and reopening the pane rebuilt the form from
+        // it — the saved edit looked undone until a manual refresh.
+        bundles.value = bundles.value.map((b) => (b.id === saved.id ? saved : b));
     } finally {
         editSubmitting.value = false;
     }
@@ -504,6 +552,9 @@ async function confirmDelete(bundle: BundleRow): Promise<void> {
     if (!ok) return;
     await bundlesOps.softDelete(bundle.id);
     if (openKey.value === bundle.id) openKey.value = null;
+    bundles.value = bundles.value.filter((b) => b.id !== bundle.id);
+    const { [bundle.id]: _gone, ...rest } = versionsByBundle.value;
+    versionsByBundle.value = rest;
 }
 
 watch(
@@ -585,7 +636,7 @@ async function onAddVersion(bundleId: string): Promise<void> {
             changeNote: '',
         });
         lastWarnings.value = result.warnings;
-        detailVersions.value = await versionsOps.listForBundle(bundleId);
+        await refreshVersions(bundleId);
         onSelectVersion(bundleId, result.bundleVersion.id);
     } catch (err) {
         inlineEditorError.value = err instanceof Error ? err.message : String(err);
@@ -604,7 +655,7 @@ async function onInlineSave(
     try {
         const result = await versionsOps.updateDraft(versionId, data);
         lastWarnings.value = result.warnings;
-        detailVersions.value = await versionsOps.listForBundle(bundleId);
+        await refreshVersions(bundleId);
         // If the backend does not change the ID, the selection stays put.
     } catch (err) {
         inlineEditorError.value = err instanceof Error ? err.message : String(err);
@@ -631,7 +682,7 @@ async function onDiscardVersion(bundleId: string, versionId: string): Promise<vo
     try {
         await versionsOps.discardDraft(versionId);
         // Remove from local list + re-select sensibly.
-        detailVersions.value = await versionsOps.listForBundle(bundleId);
+        await refreshVersions(bundleId);
         const next = defaultSelectedVersion(detailVersions.value);
         selectedVersionIdByBundle.value = {
             ...selectedVersionIdByBundle.value,
@@ -679,7 +730,7 @@ async function onPublishSubmitted(result: BundleVersionMutationResult): Promise<
     lastWarnings.value = result.warnings;
     publishDraft.value = null;
     if (detailBundle.value) {
-        detailVersions.value = await versionsOps.listForBundle(detailBundle.value.id);
+        await refreshVersions(detailBundle.value.id);
     }
 }
 
