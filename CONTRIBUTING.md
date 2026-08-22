@@ -206,6 +206,23 @@ Together they give `1.0.0-rc.0`, after which every level accumulates as
 
 Leaving pre mode is how `1.0.0` itself is released. It happens once, deliberately,
 when the work behind the candidate is complete — not as part of an ordinary change.
+
+### A new package needs one manual first publish
+
+The release workflow publishes through npm trusted publishing (GitHub OIDC, no
+token). That works for a package that exists on npm and lists this repository's
+release workflow as its trusted publisher — and it cannot _create_ a package:
+the registry answers a first `PUT` with `404`, the run fails, and every other
+package in the group is published regardless. `@saasicat/ui-vue-tenant` hit this
+at `1.0.0-rc.0`.
+
+So adding a package to the fixed group has a step outside the repository, done
+once by a maintainer with an npm login before the first release that contains it:
+`npm publish --access public` from the package directory at the version the
+release will carry, then on npmjs.com → the package → Settings → Trusted Publisher:
+this repository, workflow `release.yml`. From then on the workflow publishes it
+like the others. Changesets treats the already-published version as done, so a
+failed run is repaired by re-running the workflow after the manual publish.
 The consumer-facing account of the break is [`docs/migrating-to-1.0.md`](docs/migrating-to-1.0.md);
 the codemod it names is `saasicat codemod v1`.
 
