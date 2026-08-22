@@ -20,6 +20,12 @@ import { inject, provide, ref, type InjectionKey, type Ref } from 'vue';
 export interface PlanDraftForm {
     version: number;
     features: string[];
+    /**
+     * The bundles the editor derived from the features — every bundle whose
+     * features are all selected. Carried rather than recomputed so the review
+     * publishes exactly what the editor showed.
+     */
+    bundles: string[];
     quotas: Record<string, number>;
     monthlyNet: string;
     yearlyNet: string;

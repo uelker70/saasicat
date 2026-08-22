@@ -49,7 +49,7 @@ const reviewVersion = computed(() => {
         version: form?.version ?? 1,
         baseVersionId: null,
         features: [...(form?.features ?? [])],
-        bundles: [],
+        bundles: [...(form?.bundles ?? [])],
         quotas: { ...(form?.quotas ?? {}) },
         monthlyNet: form?.monthlyNet ?? '0.00',
         yearlyNet: form?.yearlyNet ?? '0.00',
@@ -93,10 +93,7 @@ function onBack(): void {
 async function onSaveAndExit(): Promise<void> {
     const form = wizard.editing.value?.initialForm;
     if (!form) return;
-    const saved = await area.saveDraft(
-        { ...form, bundles: [] },
-        wizard.editing.value?.editingId ?? null,
-    );
+    const saved = await area.saveDraft({ ...form }, wizard.editing.value?.editingId ?? null);
     if (!saved) return;
     leaveWizard();
 }
@@ -115,7 +112,7 @@ async function onPublish(payload: {
     const form = wizard.editing.value?.initialForm;
     if (!form) return;
     const published = await area.publishDraft(
-        { ...form, bundles: [] },
+        { ...form },
         wizard.editing.value?.editingId ?? null,
         payload,
     );

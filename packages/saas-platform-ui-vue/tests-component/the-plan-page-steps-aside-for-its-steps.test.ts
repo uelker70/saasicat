@@ -40,6 +40,34 @@ describe('the route table marks the plan steps as steps', () => {
         }
     });
 
+    test('a claimed plans route keeps the steps beneath it', () => {
+        // Wrapping `PlansPage` is the documented override. The wrapper still
+        // navigates to `version/edit`; with the steps dropped the router fell
+        // through to the catch-all and the editor never mounted.
+        const Wrapper = { template: '<router-view />' };
+        const own = standardAdminChildren([{ path: 'plans', component: Wrapper }]);
+        const claimed = own.find((route) => route.path === 'plans');
+        expect(claimed?.component).toBe(Wrapper);
+        expect(claimed?.children?.map((child) => child.path)).toEqual([
+            'version/edit',
+            'version/review',
+        ]);
+        expect(claimed?.children?.every((child) => child.meta?.[PLAN_STEP_META] === true)).toBe(
+            true,
+        );
+        expect(own.filter((route) => route.path === 'plans')).toHaveLength(1);
+    });
+
+    test('an own children list on a claimed route wins outright', () => {
+        const Own = { template: '<div />' };
+        const own = standardAdminChildren([
+            { path: 'plans', component: Own, children: [{ path: 'mine', component: Own }] },
+        ]);
+        expect(own.find((route) => route.path === 'plans')?.children?.map((c) => c.path)).toEqual([
+            'mine',
+        ]);
+    });
+
     test('a top-level standard route is not marked', () => {
         // The counter-check: if everything were marked, the page would never
         // draw its own hero and the test above would still pass.

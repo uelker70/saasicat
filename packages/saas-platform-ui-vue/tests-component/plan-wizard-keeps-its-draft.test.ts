@@ -52,7 +52,7 @@ const LIVE_VERSION = {
 const EDITED = {
     version: 2,
     features: ['export', 'sso'],
-    bundles: [],
+    bundles: ['starter-pack'],
     quotas: { notes: 500 },
     monthlyNet: '19.00',
     yearlyNet: '190.00',
@@ -171,6 +171,9 @@ describe('the wizard carries its unsaved draft across the two routes', () => {
         expect(version.monthlyNet).toBe('19.00');
         expect(version.changeNote).toBe('raise the note quota');
         expect(version.publishedAt).toBeNull();
+        // The editor derives these from the features; the review used to replace
+        // them with an empty list, so a publish dropped every selected bundle.
+        expect(version.bundles).toEqual(['starter-pack']);
     });
 
     test('the draft outlives the navigation between the two steps', async () => {
@@ -253,6 +256,7 @@ describe('a step leaves the wizard only when the write happened', () => {
         expect(area.published[0]?.payload).toMatchObject({
             quotas: { notes: 500 },
             monthlyNet: '19.00',
+            bundles: ['starter-pack'],
         });
         expect(area.published[0]?.editingId).toBe('draft-7');
         // Ticked in the checklist and dropped on the way out before this.

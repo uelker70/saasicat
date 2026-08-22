@@ -123,22 +123,33 @@ export function standardAdminChildren(own: RouteRecordRaw[] = []): RouteRecordRa
             ({
                 path,
                 component: adminPages[page],
-                ...(children
-                    ? {
-                          // A nested standard route is a STEP of its parent: it
-                          // renders in the parent's `<router-view>` and takes
-                          // the page chrome over while it does. The parent reads
-                          // this to know it should stand aside, which beats
-                          // comparing paths — the consumer picks the base path,
-                          // not us.
-                          children: children.map((child) => ({
-                              path: child.path,
-                              component: adminPages[child.page],
-                              meta: { [PLAN_STEP_META]: true },
-                          })),
-                      }
-                    : {}),
+                ...(children ? { children: stepsOf(children) } : {}),
             }) as RouteRecordRaw,
     );
-    return [...own, ...standard];
+    // A claimed route keeps the standard steps beneath it. Wrapping `PlansPage`
+    // is the documented way to bind it to an app's own client, and the wrapped
+    // page still navigates to `version/edit` — without the steps the router
+    // fell through to the admin catch-all. An own `children` list wins outright.
+    const adopted = own.map((route) => {
+        const steps = STANDARD_ADMIN_ROUTES.find((s) => s.path === route.path)?.children;
+        if (!steps || route.children) return route;
+        return { ...route, children: stepsOf(steps) } as RouteRecordRaw;
+    });
+    return [...adopted, ...standard];
+}
+
+/**
+ * A nested standard route is a STEP of its parent: it renders in the parent's
+ * `<router-view>` and takes the page chrome over while it does. The parent
+ * reads the marker to know it should stand aside, which beats comparing paths
+ * — the consumer picks the base path, not us.
+ */
+function stepsOf(
+    children: ReadonlyArray<{ readonly path: string; readonly page: AdminPageName }>,
+): RouteRecordRaw[] {
+    return children.map((child) => ({
+        path: child.path,
+        component: adminPages[child.page],
+        meta: { [PLAN_STEP_META]: true },
+    }));
 }

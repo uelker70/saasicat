@@ -204,7 +204,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { providePlanWizard } from '../vue/plan-wizard.js';
+import { providePlanWizard, type PlanDraftEditing } from '../vue/plan-wizard.js';
 import { PLAN_STEP_META, providePlanArea } from '../features/plan/plan-area-context.js';
 import type { EditorFormPayload } from '../features/plan/plan-area-context.js';
 import { useResource } from '../vue/resource-registry.js';
@@ -812,20 +812,7 @@ function describeDraftSaveError(err: unknown): string {
         ? formatMessage(msg.value.page.errorSaveFailedDetail, { message: err.message })
         : msg.value.page.errorSaveFailedConsole;
 }
-const draftEditing = ref<{
-    editingId: string | null;
-    initialForm: {
-        version: number;
-        features: string[];
-        quotas: Record<string, number>;
-        monthlyNet: string;
-        yearlyNet: string;
-        changeNote: string;
-        marketed: boolean;
-        validFrom: string | null;
-        validUntil: string | null;
-    };
-} | null>(null);
+const draftEditing = ref<PlanDraftEditing | null>(null);
 
 function todayIso(): string {
     return new Date().toISOString().slice(0, 10);
@@ -848,6 +835,7 @@ function openCreateDraftWithPrefill(prefill: {
         initialForm: {
             version: nextVersion,
             features: [...prefill.features].sort(),
+            bundles: bundlesFullyOn(prefill.features),
             quotas: { ...prefill.quotas },
             monthlyNet: prefill.monthlyNet ?? '0.00',
             yearlyNet: prefill.yearlyNet ?? '0.00',
@@ -867,6 +855,7 @@ function openEditDraft(row: PlanVersionRow): void {
         initialForm: {
             version: row.version,
             features: [...row.features],
+            bundles: [...(row.bundles ?? [])],
             quotas: { ...(row.quotas ?? {}) },
             monthlyNet: row.monthlyNet,
             yearlyNet: row.yearlyNet,
