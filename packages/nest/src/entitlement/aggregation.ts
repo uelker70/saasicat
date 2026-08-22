@@ -10,7 +10,7 @@ import type {
     PlanCatalog,
     QuotaKey,
     SubscriptionContractRecord,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { isFeaturePlannedOnly } from '../billing/plan-helpers.js';
 import type {
     CustomLimitsShape,

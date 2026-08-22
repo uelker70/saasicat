@@ -19,7 +19,7 @@ import type {
     DiscoverySnapshot,
     PlanVersionRow,
     StrictModeWarning,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import {
     ADVISORY_STRICT_MODE_CODES,

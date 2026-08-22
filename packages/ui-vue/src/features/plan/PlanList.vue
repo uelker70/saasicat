@@ -410,7 +410,7 @@
 <script setup lang="ts">
 import { resolvePlans, type ResolvedPlan } from '../../client/resolve-plans.js';
 import { computed, ref } from 'vue';
-import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityAccentFor, identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { formatCurrency } from '../../client/i18n/currency.js';

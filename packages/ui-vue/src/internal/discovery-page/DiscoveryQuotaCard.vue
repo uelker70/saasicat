@@ -98,7 +98,7 @@ import type {
     DiscoveryStatus,
     QuotaCatalogEntryRow,
     UpdateCatalogEntryBaseData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import CatalogEntryTransPanel from './CatalogEntryTransPanel.vue';
 import DiscoveryStatusControl from './DiscoveryStatusControl.vue';

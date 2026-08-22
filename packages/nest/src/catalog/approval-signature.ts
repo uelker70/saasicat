@@ -7,7 +7,7 @@
 // Pure functions, no NestJS DI — testable in isolation; the same
 // computation is used by the review path (approval) and the sync (drift diff).
 
-import type { DiscoveredQuota, DiscoverySnapshot } from '@saasicat/types';
+import type { DiscoveredQuota, DiscoverySnapshot } from '@saasicat/core';
 
 /**
  * Signature of a feature's capability set: `capabilityKey@codeStatus`,

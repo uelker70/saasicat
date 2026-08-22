@@ -11,7 +11,7 @@ import {
     type UpdatePlanData,
     type UpdatePlanVersionDraftData,
     type VersionChange,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type DecimalLike,

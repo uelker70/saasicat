@@ -1,5 +1,5 @@
 import type { DynamicModule } from '@nestjs/common';
-import type { SaaSiCatPersistenceAdapter } from '@saasicat/types';
+import type { SaaSiCatPersistenceAdapter } from '@saasicat/core';
 
 import { PublicCatalogModule } from '../../billing/public-catalog.module.js';
 import { CatalogModule } from '../../catalog/catalog.module.js';

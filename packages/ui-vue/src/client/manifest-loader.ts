@@ -19,7 +19,7 @@
 //
 // Spec: admin-api.openapi.yaml `GET /admin/manifest`.
 
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 import { markPlatformError } from './admin-error.js';
 import { requireServerAnswer } from './http-json.js';
 import {

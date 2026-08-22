@@ -3,7 +3,7 @@ import type {
     SubscriptionBundleRepository,
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { SubscriptionBundleModule } from '../../billing/subscription-bundles.module.js';
 import { TenantBillingModule } from '../../billing/tenant-billing.module.js';

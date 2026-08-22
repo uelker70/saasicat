@@ -222,7 +222,7 @@ import type {
     PlanRow,
     PlanVersionRow,
     PlanVersionMutationResult,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     buildFeatureRegistry,
     CATALOG_DEFAULT_LOCALE,

@@ -1,4 +1,4 @@
-import type { ManifestContribution } from '@saasicat/types';
+import type { ManifestContribution } from '@saasicat/core';
 
 /**
  * What this app adds to the SuperAdmin UI.

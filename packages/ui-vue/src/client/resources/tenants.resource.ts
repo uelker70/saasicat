@@ -13,7 +13,7 @@
 // which is what `TenantDetailPage` receives them through today. Slugs are
 // encoded on the way into the path there, so they are encoded here.
 
-import type { AdminTenantDetail, TenantDto, TenantListFilter } from '@saasicat/types';
+import type { AdminTenantDetail, TenantDto, TenantListFilter } from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { defineListOp, type ListFilterOf } from './list-resource.js';

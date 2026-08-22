@@ -27,7 +27,7 @@ import {
     type SetupResult,
     type SetupStatusResponse,
     type SuperAdminProvisioningPort,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import QRCode from 'qrcode';
 

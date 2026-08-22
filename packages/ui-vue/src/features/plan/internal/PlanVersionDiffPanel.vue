@@ -125,7 +125,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import AdminSection from '../../../ui/page/AdminSection.vue';
-import type { PlanVersionRow } from '@saasicat/types';
+import type { PlanVersionRow } from '@saasicat/core';
 import { formatMessage } from '../../../client/i18n/format.js';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
 import type { DiffRow, PlanVersionDiff, StatusOf } from './plan-detail.types.js';

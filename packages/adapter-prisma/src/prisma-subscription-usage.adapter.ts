@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import type { SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/types';
+import type { SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PlanVersionRowLike,

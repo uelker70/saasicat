@@ -19,7 +19,7 @@ import type {
     PromoCodeFilter,
     PromoCodeRecord,
     UpdatePromoCodeData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import { CreatePromoCodeDto, UpdatePromoCodeDto } from './dto/promo-admin.dto.js';
 import { PromoCodesService } from './promo.service.js';

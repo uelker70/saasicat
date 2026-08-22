@@ -6,14 +6,14 @@
 // exactly one active row; the triple is unique in the DB schema.
 
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { CATALOG_ERROR_CODES } from '@saasicat/types';
+import { CATALOG_ERROR_CODES } from '@saasicat/core';
 import type {
     CreateMarketingProjectionData,
     MarketingProjectionFilter,
     MarketingProjectionRepository,
     MarketingProjectionRow,
     UpdateMarketingProjectionData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { MARKETING_PROJECTION_REPOSITORY_TOKEN } from './catalog.tokens.js';
 

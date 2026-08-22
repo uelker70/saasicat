@@ -23,7 +23,7 @@ import {
     AUTH_ERROR_CODES,
     FEATURE_NOT_LICENSED,
     type FeatureNotLicensedBody,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { FEATURE_GUARD_MARKER } from '../billing/feature-guard-marker.js';
 import { REQUIRE_FEATURE_KEY } from '../billing/require-feature.decorator.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';

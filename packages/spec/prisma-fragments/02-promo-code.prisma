@@ -76,7 +76,7 @@ model PromoCode {
     revenueDeductionAccount String?
 
     // SUPER_ADMIN user ID (consumer FK, see header). Nullable to match
-    // `PromoCodeRecord.createdById: string | null` in @saasicat/types — rows
+    // `PromoCodeRecord.createdById: string | null` in @saasicat/core — rows
     // whose creator is gone, or that predate the column, stay readable.
     // Creation still requires it: `CreatePromoCodeData.createdById` is `string`.
     createdById String?

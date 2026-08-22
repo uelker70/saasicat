@@ -12,7 +12,7 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { PlanCatalogImportSink } from '@saasicat/types';
+import type { PlanCatalogImportSink } from '@saasicat/core';
 
 import {
     PLAN_CATALOG_IMPORT_SINK_TOKEN,

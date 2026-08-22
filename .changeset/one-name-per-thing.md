@@ -1,6 +1,6 @@
 ---
 '@saasicat/nest': major
-'@saasicat/types': major
+'@saasicat/core': major
 '@saasicat/cli': major
 '@saasicat/ui-vue': major
 '@saasicat/ui-vue-tenant': major

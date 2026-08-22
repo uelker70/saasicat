@@ -1,8 +1,13 @@
-# @saasicat/types
+# @saasicat/core
 
-TypeScript interfaces of the SaaS platform — wire-format types for
-AdminManifest, PlanCatalog, PromoCode, AuditEvent, Subscription, PlanVersion
-and the adapter ports.
+The shared core of the SaaS platform: the wire-format types — AdminManifest,
+PlanCatalog, PromoCode, AuditEvent, Subscription, PlanVersion, the adapter
+ports — **and the pure domain logic both sides run**: the error-code catalogues
+and their texts, `classifyPlanDiff`, the promo arithmetic, the
+feature-requires rules, version editability. Until 1.0 this package was called
+`@saasicat/types`, a name that promised less than it carried; server and
+browser import the same functions from here so the two cannot drift, and the
+pricing/proration logic is planned to consolidate here too.
 
 Derived from the JSON Schemas in
 [`@saasicat/spec`](https://www.npmjs.com/package/@saasicat/spec). The `src/generated/`
@@ -29,17 +34,17 @@ import type {
     ManifestContribution,
     PlanCatalog,
     QuotaProvider,
-} from '@saasicat/types';
+} from '@saasicat/core';
 ```
 
 ```bash
-pnpm add @saasicat/types
+pnpm add @saasicat/core
 ```
 
 ## Build
 
 ```bash
-pnpm --filter @saasicat/types build
+pnpm --filter @saasicat/core build
 ```
 
 Produces `dist/index.{js,cjs,d.ts,d.cts}` via `tsup`.

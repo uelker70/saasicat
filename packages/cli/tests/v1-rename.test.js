@@ -109,6 +109,17 @@ describe('the shapes a consumer meets', () => {
         assert.deepEqual(result.ambiguous, ["FEATURE_UI_REGISTRY_TOKEN from '@saasicat/nest'"]);
     });
 
+    test('the package that stopped being only types', () => {
+        const { text } = rewriteNames(
+            "import type { PlanVersionRow } from '@saasicat/types';\nimport { classifyPlanDiff } from '@saasicat/types';",
+            TABLE,
+        );
+        assert.equal(
+            text,
+            "import type { PlanVersionRow } from '@saasicat/core';\nimport { classifyPlanDiff } from '@saasicat/core';",
+        );
+    });
+
     test('the e2e helper subpath', () => {
         const { text } = rewriteNames(
             "import { runAdminPagesSuite } from '@saasicat/ui-vue/testing-e2e/admin-pages-suite';",
@@ -140,7 +151,7 @@ describe('reading named imports', () => {
                 '    C as D,',
                 '    E,',
                 '} from "@saasicat/nest/billing";',
-                "import F from '@saasicat/types';",
+                "import F from '@saasicat/core';",
             ].join('\n'),
         );
         assert.deepEqual(found, [

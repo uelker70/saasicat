@@ -1,6 +1,6 @@
-import { ERROR_MESSAGES_EN, formatErrorMessage } from '@saasicat/types';
+import { ERROR_MESSAGES_EN, formatErrorMessage } from '@saasicat/core';
 
-import type { PlatformErrorBody, PlatformErrorCode } from '@saasicat/types';
+import type { PlatformErrorBody, PlatformErrorCode } from '@saasicat/core';
 
 /**
  * Builds the body of a coded exception.

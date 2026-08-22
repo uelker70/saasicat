@@ -8,7 +8,7 @@
 //
 // Spec: packages/spec/schemas/admin-manifest.schema.json
 
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 
 export interface ManifestCheckResult {
     severity: 'ok' | 'warning' | 'error';

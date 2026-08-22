@@ -8,7 +8,7 @@
 //     await load();
 
 import { ref, type Ref } from 'vue';
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 import { ManifestLoader, type ManifestLoaderOptions } from '../client/manifest-loader.js';
 
 export interface UseManifestResult {

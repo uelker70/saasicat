@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { ERROR_MESSAGES_EN } from '@saasicat/types';
+import { ERROR_MESSAGES_EN } from '@saasicat/core';
 
 // A code is the i18n contract: a consumer resolves a template by code and fills
 // its `{placeholders}` from the error body. That only works if every throw site

@@ -3,7 +3,7 @@ import type {
     PersistenceInjectionToken,
     PersistenceProvider,
     SaaSiCatPersistenceAdapter,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import type { PrismaLike } from './prisma-client-token.js';
 import type { PrismaSchemaOptions } from './prisma-plan-binding.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';

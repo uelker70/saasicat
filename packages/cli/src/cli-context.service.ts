@@ -14,7 +14,7 @@ import * as os from 'node:os';
 import * as readline from 'node:readline';
 import { Inject, Injectable } from '@nestjs/common';
 import { AdminAuditService, MfaService } from '@saasicat/nest';
-import type { AdminActor, PlatformUserDto, UserPort } from '@saasicat/types';
+import type { AdminActor, PlatformUserDto, UserPort } from '@saasicat/core';
 import { CLI_CONTEXT_CONFIG_TOKEN, USER_PORT_TOKEN } from './cli.tokens.js';
 
 export interface CliContextConfig {

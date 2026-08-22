@@ -8,7 +8,7 @@ export default defineConfig({
     // wraps tsup in. Emptying dist/ up front leaves a window in which the JS
     // exists and the .d.ts does not; pruning afterwards removes orphans
     // without ever exposing that state.
-    external: ['@saasicat/types'],
+    external: ['@saasicat/core'],
     target: 'node20',
     // The kit imports node:test/node:assert at runtime — keep the protocol.
     removeNodeProtocol: false,

@@ -12,7 +12,7 @@
 // `seedGateExitCode` whether a violation breaks the seed/build (blocking) or
 // is only reported (report-only).
 
-import type { ApprovedCatalogKeys, DiscoverySnapshot, StrictModeWarning } from '@saasicat/types';
+import type { ApprovedCatalogKeys, DiscoverySnapshot, StrictModeWarning } from '@saasicat/core';
 
 import {
     ADVISORY_STRICT_MODE_CODES,

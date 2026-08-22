@@ -1,10 +1,10 @@
 // Promo code calculator — pure functions. No DB, no side effects.
 //
 // Instead of Prisma types, the calculator uses the generic wire-format
-// types from @saasicat/types. This makes it equally usable for all
+// types from @saasicat/core. This makes it equally usable for all
 // consuming apps (including those working purely via the wire format).
 
-import type { BillingCycle, PromoCodeDurationType, PromoCodeValueType } from '@saasicat/types';
+import type { BillingCycle, PromoCodeDurationType, PromoCodeValueType } from '@saasicat/core';
 import { round2 } from './math.js';
 
 /** Structural view of a PromoCode for the calculator functions.

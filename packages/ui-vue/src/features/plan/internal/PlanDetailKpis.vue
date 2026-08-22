@@ -33,7 +33,7 @@ import { computed } from 'vue';
 
 import AdminKpi from '../../../ui/data/AdminKpi.vue';
 import AdminStatistics from '../../../ui/data/AdminStatistics.vue';
-import type { PlanVersionRow } from '@saasicat/types';
+import type { PlanVersionRow } from '@saasicat/core';
 import { formatMessage } from '../../../client/i18n/format.js';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
 

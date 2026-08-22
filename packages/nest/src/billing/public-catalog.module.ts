@@ -10,7 +10,7 @@ import type {
     CatalogEntryRepository,
     FeatureUiRegistry,
     MarketingProjectionRepository,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { PublicCatalogController } from './public-catalog.controller.js';
 import { BILLING_FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';

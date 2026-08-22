@@ -5,7 +5,7 @@ import type {
     UpsertPlanInput,
     UpsertPlanVersionInput,
     UpsertResult,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type FeatureCatalogEntryRowLike,

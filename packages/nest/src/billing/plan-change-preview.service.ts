@@ -4,8 +4,8 @@ import type {
     PlanCatalog,
     SubscriptionUsagePort,
     UsageSnapshotPort,
-} from '@saasicat/types';
-import { BILLING_ERROR_CODES } from '@saasicat/types';
+} from '@saasicat/core';
+import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';

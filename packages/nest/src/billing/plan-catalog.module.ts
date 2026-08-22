@@ -18,7 +18,7 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { PlanCatalog, PlanCatalogReadSink } from '@saasicat/types';
+import type { PlanCatalog, PlanCatalogReadSink } from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { buildPlanCatalogFromSnapshot } from './plan-catalog-from-snapshot.js';

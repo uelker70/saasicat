@@ -26,7 +26,7 @@
 // project-specific.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
-import type { AdminManifest, FeatureDef, FeatureKey } from '@saasicat/types';
+import type { AdminManifest, FeatureDef, FeatureKey } from '@saasicat/core';
 
 export class PlannedOnlyFeatureError extends Error {
     constructor(public readonly violations: FeatureKey[]) {

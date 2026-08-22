@@ -29,7 +29,7 @@ import type {
     MarketingSettingsRepository,
     PlanRepository,
     PromotionRepository,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { WebAuditLogger } from '../core/web-audit.js';

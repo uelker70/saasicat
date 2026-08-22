@@ -119,7 +119,7 @@ model FeatureCatalogEntry {
     core Boolean @default(false)
 
     // Code-discovered feature dependencies (#35) and succession (#39) —
-    // see FeatureCatalogEntryRow in @saasicat/types.
+    // see FeatureCatalogEntryRow in @saasicat/core.
     requires     String[]
     replaces     String[]
     successorKey String?

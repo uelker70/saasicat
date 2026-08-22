@@ -11,7 +11,7 @@ import {
     type MarketingProjectionRow,
     type MarketingTopFeature,
     type PlanCatalog,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { PLAN_CATALOG_TOKEN } from './plan-catalog.module.js';
 import { BILLING_FEATURE_UI_REGISTRY_TOKEN } from './feature-ui-registry.tokens.js';
 import {

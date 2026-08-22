@@ -4,7 +4,7 @@
         "branch": 87.5,
         "funcs": 100
     },
-    "types": {
+    "core": {
         "line": 80.41,
         "branch": 88.79,
         "funcs": 57.45

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
-import type { BillingCycle, TenantSubscriptionWritePort } from '@saasicat/types';
+import type { BillingCycle, TenantSubscriptionWritePort } from '@saasicat/core';
 
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { initialPeriodWindow } from './billing-period.js';

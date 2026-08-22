@@ -3,7 +3,7 @@ import type {
     PersistenceInjectionToken,
     PersistenceProvider,
     SaaSiCatPersistenceAdapter,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import type { DrizzleClient } from './client.js';
 import { AsyncLocalRlsBypassAdapter } from './async-local-rls-bypass.adapter.js';
 import { DrizzleAuditAdapter } from './drizzle-audit.adapter.js';

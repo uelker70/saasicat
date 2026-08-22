@@ -6,7 +6,7 @@ import type {
     AdminUserListRow,
     AuditEntry,
     PromoCodeRecord,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { filterQueryString } from './resources/list-resource.js';
 import type { HttpClient } from './types.js';
 

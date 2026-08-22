@@ -5,7 +5,7 @@
 // and the manifest is not a configuration anyone asked for.
 
 import type { DynamicModule } from '@nestjs/common';
-import type { AuditPort, MfaPort, PlanCatalogReadSink, RlsBypassPort } from '@saasicat/types';
+import type { AuditPort, MfaPort, PlanCatalogReadSink, RlsBypassPort } from '@saasicat/core';
 
 import { AdminManifestModule } from '../../admin/admin-manifest.module.js';
 import { AdminModule } from '../../admin/admin.module.js';

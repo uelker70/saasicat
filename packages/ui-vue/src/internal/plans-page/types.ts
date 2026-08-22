@@ -1,4 +1,4 @@
-import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 
 export interface PlanArchiveTarget {
     plan: PlanRow;

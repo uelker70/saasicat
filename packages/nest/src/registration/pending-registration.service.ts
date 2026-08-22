@@ -41,8 +41,8 @@ import type {
     StartRegistrationResult,
     UserAccountLookup,
     VerifyRegistrationOtpResult,
-} from '@saasicat/types';
-import { REGISTRATION_ERROR_CODES, REGISTRATION_RESUME_TTL_MINUTES } from '@saasicat/types';
+} from '@saasicat/core';
+import { REGISTRATION_ERROR_CODES, REGISTRATION_RESUME_TTL_MINUTES } from '@saasicat/core';
 import {
     OTP_RATE_LIMIT_MAX_SENDS,
     OTP_RATE_LIMIT_WINDOW_MINUTES,
@@ -52,7 +52,7 @@ import {
     PENDING_EMAIL_TTL_HOURS,
     PENDING_ONBOARDING_TTL_DAYS,
     REGISTRATION_STEP_BY_STATUS,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { codedError } from '../errors/coded-error.js';
 import { generateOtpCode, hashOtpCode, slugify, verifyOtpCode } from './helpers.js';
 import { computeBreakdown } from './pricing.js';

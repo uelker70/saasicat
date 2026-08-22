@@ -4,7 +4,7 @@
 // API calls — so it can be consumed 1:1 by the inline editor + strip +
 // status banner + compat picker and called purely in tests.
 
-import type { BundleVersionRow, PlanVersionRow } from '@saasicat/types';
+import type { BundleVersionRow, PlanVersionRow } from '@saasicat/core';
 
 import {
     SA_INTL_LOCALES,

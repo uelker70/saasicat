@@ -10,7 +10,7 @@
 // breaking this composable API.
 
 import { ref, watch, type Ref } from 'vue';
-import type { BundleRow, BundleVersionRow } from '@saasicat/types';
+import type { BundleRow, BundleVersionRow } from '@saasicat/core';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 
 export interface UseBundleVersionsMapOptions {

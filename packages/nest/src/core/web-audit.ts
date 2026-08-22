@@ -11,7 +11,7 @@
 // tenant-billing.controller.ts; that one can migrate here later).
 
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import type { AdminActor } from '@saasicat/types';
+import type { AdminActor } from '@saasicat/core';
 
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import {

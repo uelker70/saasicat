@@ -215,7 +215,7 @@ retroactively break historical invoices or quotas.
 | Package            | Contents                                                                                                                                                 | Consumed by                   |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | `@saasicat/spec`   | JSON schemas (manifest, plan catalog, promo code, audit event), OpenAPI, acceptance test scenarios. **Language-neutral.**                                | Backend & any other languages |
-| `@saasicat/types`  | TypeScript interfaces derived from the schemas (`AdminManifest`, `PlanCatalog`, `Subscription`, `Ports`).                                                | Backend & frontend            |
+| `@saasicat/core`   | TypeScript interfaces derived from the schemas (`AdminManifest`, `PlanCatalog`, `Subscription`, `Ports`).                                                | Backend & frontend            |
 | `@saasicat/nest`   | NestJS modules/services/decorators/guards (`AdminModule`, `DiscoveryModule`, `CatalogModule`, `EntitlementModule`, …).                                   | Backend                       |
 | `@saasicat/ui-vue` | Vue/Quasar components, Pinia stores, composables (`useDiscovery`, `useCatalogEntries`), standard pages (`DiscoveryPage`, `TenantsPage`, `PlansPage`, …). | Frontend                      |
 | `@saasicat/cli`    | `nest-commander` flows (`ManifestCliFlow`, `MfaSetupFlow`, `AuditTailFlow`, `DoctorFlow`) for your app CLI.                                              | Backend (CLI submodule)       |
@@ -303,11 +303,11 @@ continues to be the separate marketing projection.
 
 ```bash
 # Backend
-pnpm add @saasicat/spec @saasicat/types @saasicat/nest \
+pnpm add @saasicat/spec @saasicat/core @saasicat/nest \
          @saasicat/adapter-prisma @saasicat/cli
 
 # Admin frontend
-pnpm add @saasicat/types @saasicat/ui-vue
+pnpm add @saasicat/core @saasicat/ui-vue
 ```
 
 For local development against a checkout of this repo, use
@@ -581,7 +581,7 @@ tenant actions, which project pages (your own pages under `/admin/...`).
 
 ```ts
 // admin/manifest-contributions/myapp-core.manifest.ts
-import type { ManifestContribution } from '@saasicat/types';
+import type { ManifestContribution } from '@saasicat/core';
 
 export const MYAPP_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
     capabilities: {
@@ -742,7 +742,7 @@ export class AdminManifestConfigFactory {
             },
             build: {
                 platformPackageVersion: readPackageVersion(
-                    require.resolve('@saasicat/types/package.json'),
+                    require.resolve('@saasicat/core/package.json'),
                 ),
                 appVersion: process.env.MYAPP_VERSION ?? '0.0.0',
             },
@@ -775,7 +775,7 @@ import {
     type CreateSuperAdminCliInput,
     type PlatformUserDto,
     type SuperAdminProvisioningPort,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 @Injectable()
 export class PrismaSuperAdminProvisioningAdapter implements SuperAdminProvisioningPort {
@@ -867,7 +867,7 @@ standard pages of the SuperAdmin UI run without modification.
 
 Only sensible if you don't want NestJS. You then use exclusively:
 
-- `@saasicat/types` (TypeScript interfaces)
+- `@saasicat/core` (TypeScript interfaces)
 - `@saasicat/spec` (JSON schemas + OpenAPI as contract)
 - `@saasicat/nest/promo` (pure functions)
 - `@saasicat/nest/billing` → `aggregateLimits`, `version-publish`, `version-renewal` (pure functions)

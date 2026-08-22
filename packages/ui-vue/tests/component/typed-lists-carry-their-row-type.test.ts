@@ -10,7 +10,7 @@
 // The `@ts-expect-error` lines are the guard, not decoration: each one fails
 // the typecheck the day the call it marks starts compiling.
 
-import type { TenantDto } from '@saasicat/types';
+import type { TenantDto } from '@saasicat/core';
 import { createApp } from 'vue';
 import { describe, expect, it } from 'vitest';
 

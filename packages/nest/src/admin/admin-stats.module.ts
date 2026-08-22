@@ -6,7 +6,7 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { AuditStatsPort, PromoCodeStatsPort, SubscriptionStatsPort } from '@saasicat/types';
+import type { AuditStatsPort, PromoCodeStatsPort, SubscriptionStatsPort } from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { AdminStatsController, buildAdminStatsController } from './admin-stats.controller.js';
 import { AdminStatsService } from './admin-stats.service.js';

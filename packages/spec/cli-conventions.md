@@ -47,7 +47,7 @@ Setup via `… admin mfa-setup` (generates a secret, shows a QR code, persists
 setup. Wrong code → exit code `3`.
 
 `isMfaSetupRequired` and `verifyMfaCode` are passed through via the platform
-`MfaPort` interface (see `@saasicat/types`, `src/ports/core-ports.types.ts`)
+`MfaPort` interface (see `@saasicat/core`, `src/ports/core-ports.types.ts`)
 — consumers implement the persistence.
 
 ## 3. Production Confirm

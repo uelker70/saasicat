@@ -2,11 +2,11 @@
 // `params.name`. Unknown placeholders stay verbatim so a missing param is
 // visible in the UI instead of silently disappearing.
 //
-// The implementation lives in `@saasicat/types` because the shipped error-text
+// The implementation lives in `@saasicat/core` because the shipped error-text
 // catalogue needs the same interpolation and must not depend on a UI package.
 // This stays as the name the UI code already imports.
 
-import { formatErrorMessage } from '@saasicat/types';
+import { formatErrorMessage } from '@saasicat/core';
 
 export type MessageParams = Record<string, string | number>;
 

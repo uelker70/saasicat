@@ -1,11 +1,11 @@
 // Discovery decorator options (NestJS-specific).
 //
 // The DiscoverySnapshot wire-format types live in
-// `@saasicat/types` (see discovery.types.ts there), so that
+// `@saasicat/core` (see discovery.types.ts there), so that
 // the Vue UI package can use them without a NestJS dependency too. Here only
 // the option interfaces that the user passes in the decorator call.
 
-import type { CapabilityKind, DiscoveredQuotaPolicy, DiscoveryCodeStatus } from '@saasicat/types';
+import type { CapabilityKind, DiscoveredQuotaPolicy, DiscoveryCodeStatus } from '@saasicat/core';
 
 // Re-exports for internal use in the scanner.
 export type {
@@ -16,7 +16,7 @@ export type {
     DiscoveredQuotaPolicy,
     DiscoveryCodeStatus,
     DiscoverySnapshot,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 // =============================================================================
 // Decorator options (what the user annotates in the code)

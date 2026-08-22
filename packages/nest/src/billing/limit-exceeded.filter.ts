@@ -18,7 +18,7 @@
 
 import { type ArgumentsHost, Catch, HttpStatus, Logger } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
-import { BILLING_ERROR_CODES } from '@saasicat/types';
+import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { isLimitExceededError } from '../entitlement/limit-exceeded-error.js';
 
 interface ResponseLike {

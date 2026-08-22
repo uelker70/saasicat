@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useTenantI18n } from '../tenant-i18n.js';
-import type { FeatureUiRegistry } from '@saasicat/types';
+import type { FeatureUiRegistry } from '@saasicat/core';
 import { useSuperAdminI18n } from '@saasicat/ui-vue';
 
 // TenantFeatureMatrix — complete feature-scope overview (#18):

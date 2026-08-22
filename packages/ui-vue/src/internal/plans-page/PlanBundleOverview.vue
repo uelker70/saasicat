@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import type { PlanRow } from '@saasicat/types';
+import type { PlanRow } from '@saasicat/core';
 import AdminSection from '../../ui/page/AdminSection.vue';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 

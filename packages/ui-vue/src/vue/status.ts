@@ -13,7 +13,7 @@
 // and what lives here is the vocabulary they all speak plus the one union that
 // genuinely is shared.
 
-import type { PromoCodeStatus } from '@saasicat/types';
+import type { PromoCodeStatus } from '@saasicat/core';
 
 /**
  * How a status pill is coloured. A role, not a colour — the theme decides what

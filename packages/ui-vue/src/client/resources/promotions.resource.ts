@@ -4,7 +4,7 @@
 // why the two are separate. This one lives under `catalog/`, is scoped to a
 // project, and never reaches a customer directly.
 
-import type { CreatePromotionData, PromotionRow, UpdatePromotionData } from '@saasicat/types';
+import type { CreatePromotionData, PromotionRow, UpdatePromotionData } from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { requestJson, requestJsonBody } from './resource-request.js';

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import type { PromoCodeRedemptionRepository, PromoCodeRepository } from '@saasicat/types';
+import type { PromoCodeRedemptionRepository, PromoCodeRepository } from '@saasicat/core';
 import {
     PROMO_CODE_REDEMPTION_REPOSITORY_TOKEN,
     PROMO_CODE_REPOSITORY_TOKEN,

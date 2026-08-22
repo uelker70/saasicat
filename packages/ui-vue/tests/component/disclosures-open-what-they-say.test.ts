@@ -13,7 +13,7 @@
 
 import { afterEach, describe, expect, test } from 'vitest';
 import { reactive, ref } from 'vue';
-import type { PromotionRow } from '@saasicat/types';
+import type { PromotionRow } from '@saasicat/core';
 
 import MarketingPromotionsTab from '../../src/features/marketing/MarketingPromotionsTab.vue';
 import PromoCodeDialogFields, {

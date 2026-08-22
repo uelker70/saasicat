@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
-import type { CatalogEntryI18nFields } from '@saasicat/types';
+import type { CatalogEntryI18nFields } from '@saasicat/core';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import {

@@ -25,7 +25,7 @@ import type {
     RegistrationResumeTokenSigner,
     SlugAvailabilityCheck,
     UserAccountLookup,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { PendingRegistrationService } from './pending-registration.service.js';
 import { RegistrationCleanupCron } from './cleanup.cron.js';
 import {

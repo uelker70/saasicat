@@ -9,7 +9,7 @@ import type {
     PromoCodeRedemptionStatus,
     PromoCodeValueType,
     TransactionContext,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, resolveDb, type DrizzleClient } from './client.js';
 import { promoCodeRedemptions } from './schema.js';
 

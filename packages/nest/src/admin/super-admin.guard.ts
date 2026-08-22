@@ -11,7 +11,7 @@ import {
     ForbiddenException,
     Injectable,
 } from '@nestjs/common';
-import { AUTH_ERROR_CODES } from '@saasicat/types';
+import { AUTH_ERROR_CODES } from '@saasicat/core';
 
 interface RequestWithUser {
     user?: { role?: string; platformRole?: string };

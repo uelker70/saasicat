@@ -47,8 +47,8 @@ import {
     type Type,
     UseGuards,
 } from '@nestjs/common';
-import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/types';
-import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/types';
+import type { BillingCycle, SubscriptionUsagePort, SubscriptionUsageRecord } from '@saasicat/core';
+import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
 
 import { codedError } from '../errors/coded-error.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';

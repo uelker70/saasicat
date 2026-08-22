@@ -4,7 +4,7 @@ import {
     ForbiddenException,
     Injectable,
 } from '@nestjs/common';
-import { AUTH_ERROR_CODES } from '@saasicat/types';
+import { AUTH_ERROR_CODES } from '@saasicat/core';
 
 // TenantAdminGuard — verifies that the logged-in user has the `TENANT_ADMIN`
 // role (or `SUPER_ADMIN`). Used in addition to `ComposedTenantAuthGuard` for
@@ -12,7 +12,7 @@ import { AUTH_ERROR_CODES } from '@saasicat/types';
 //
 // Expects `request.user.platformRole` or, as a fallback, `request.user.role`
 // — both conventions are documented as equivalent in the platform codebase
-// (`packages/types/src/ports/core-ports.types.ts` PlatformRole).
+// (`packages/core/src/ports/core-ports.types.ts` PlatformRole).
 
 interface RequestWithUser {
     user?: {

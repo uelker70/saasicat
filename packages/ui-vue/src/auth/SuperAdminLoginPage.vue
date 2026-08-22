@@ -90,7 +90,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { useRouter } from 'vue-router';
-import type { SetupStatusResponse } from '@saasicat/types';
+import type { SetupStatusResponse } from '@saasicat/core';
 
 import { usePublicBoot } from '../vue/use-public-boot.js';
 import {

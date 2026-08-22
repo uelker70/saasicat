@@ -17,8 +17,8 @@ import type {
     TransactionContext,
     TransactionRunner,
     UpdatePromoCodeData,
-} from '@saasicat/types';
-import { BILLING_ERROR_CODES, PROMO_ERROR_CODES } from '@saasicat/types';
+} from '@saasicat/core';
+import { BILLING_ERROR_CODES, PROMO_ERROR_CODES } from '@saasicat/core';
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { getPlanPriceGross } from '../billing/plan-helpers.js';
 import {

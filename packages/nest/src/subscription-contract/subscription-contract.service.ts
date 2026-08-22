@@ -17,11 +17,11 @@ import type {
     SubscriptionContractRecord,
     SubscriptionContractRepository,
     TerminateSubscriptionContractData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { appendImplicitDiscountLineItem } from '../checkout-offer/discount-line-items.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from './subscription-contract.tokens.js';
-import { CONTRACT_ERROR_CODES } from '@saasicat/types';
+import { CONTRACT_ERROR_CODES } from '@saasicat/core';
 
 export interface CreateContractFromOfferOptions {
     tenantId: string;

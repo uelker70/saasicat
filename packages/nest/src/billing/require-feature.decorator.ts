@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import type { FeatureKey } from '@saasicat/types';
+import type { FeatureKey } from '@saasicat/core';
 
 // RequireFeature decorator — marks a handler or controller as
 // feature-gated. Multiple keys are evaluated as a logical OR — the
@@ -7,7 +7,7 @@ import type { FeatureKey } from '@saasicat/types';
 // given features is contained in the active EntitlementSet.
 //
 // Instead of a Prisma enum, the platform variant takes `FeatureKey` from
-// @saasicat/types (string).
+// @saasicat/core (string).
 
 export const REQUIRE_FEATURE_KEY = 'require-feature';
 

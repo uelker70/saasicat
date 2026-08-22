@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { PromoRevenueDeductionAggregator } from '@saasicat/types';
+import type { PromoRevenueDeductionAggregator } from '@saasicat/core';
 
 /**
  * Default `PromoRevenueDeductionAggregator` for apps without an

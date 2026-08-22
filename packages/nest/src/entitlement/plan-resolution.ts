@@ -10,7 +10,7 @@
 // If one of the configured strategies is `undefined`, resolution falls back to
 // `subscription.plan` (no override).
 
-import type { PlanId } from '@saasicat/types';
+import type { PlanId } from '@saasicat/core';
 
 /** Input shape: only the fields relevant to resolution. */
 export interface EntitlementResolutionInput {

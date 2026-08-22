@@ -19,7 +19,7 @@
 // wires it automatically into the service constructor. If you don't want that, you can
 // set `registerPlatformCore: false`.
 
-import type { ManifestContribution } from '@saasicat/types';
+import type { ManifestContribution } from '@saasicat/core';
 
 export const PLATFORM_CORE_MANIFEST_CONTRIBUTION: ManifestContribution = {
     navigation: {

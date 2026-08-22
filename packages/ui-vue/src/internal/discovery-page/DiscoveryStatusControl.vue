@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { DiscoveryStatus } from '@saasicat/types';
+import type { DiscoveryStatus } from '@saasicat/core';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import { primaryReviewAction, reviewMenuActions, statusHint, statusLabel } from './discovery-ui.js';
 

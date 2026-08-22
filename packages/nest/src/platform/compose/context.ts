@@ -18,7 +18,7 @@
 // order it implies is stated in `compose/index.ts`.
 
 import type { CanActivate } from '@nestjs/common';
-import type { SaaSiCatPersistenceAdapter, SubscriptionUsagePort } from '@saasicat/types';
+import type { SaaSiCatPersistenceAdapter, SubscriptionUsagePort } from '@saasicat/core';
 
 import type { ProviderSpec } from '../../core/di.js';
 import type { DiscoveryAppInfo } from '../../discovery/discovery.scanner.js';

@@ -8,7 +8,7 @@
 // needs to know that there is one.
 
 import type { FactoryProvider } from '@nestjs/common';
-import type { ManifestContribution, PlanCatalog } from '@saasicat/types';
+import type { ManifestContribution, PlanCatalog } from '@saasicat/core';
 
 import type { AdminManifestConfig } from '../../admin/admin-manifest.config.js';
 import { PLAN_CATALOG_TOKEN } from '../../billing/plan-catalog.module.js';

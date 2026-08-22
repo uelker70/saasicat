@@ -5,7 +5,7 @@ import {
     HttpStatus,
     Injectable,
 } from '@nestjs/common';
-import { REGISTRATION_ERROR_CODES } from '@saasicat/types';
+import { REGISTRATION_ERROR_CODES } from '@saasicat/core';
 import { codedError } from '../errors/coded-error.js';
 
 /**

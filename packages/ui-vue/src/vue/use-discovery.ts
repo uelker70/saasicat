@@ -12,7 +12,7 @@
 
 import { ref, type Ref } from 'vue';
 import { markPlatformError } from '../client/admin-error.js';
-import type { DiscoverySnapshot } from '@saasicat/types';
+import type { DiscoverySnapshot } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 

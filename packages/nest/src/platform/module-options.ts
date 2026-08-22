@@ -34,7 +34,7 @@ import type {
     TenantSubscriptionWritePort,
     TransactionRunner,
     UsageSnapshotPort,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { type ProviderSpec } from '../core/di.js';
 import { type AdminResourcesModuleOptions } from '../admin/admin-resources.module.js';

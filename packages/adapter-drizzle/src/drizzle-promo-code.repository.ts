@@ -12,7 +12,7 @@ import type {
     PromoCodeValueType,
     TransactionContext,
     UpdatePromoCodeData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, escapeLikePattern, resolveDb, type DrizzleClient } from './client.js';
 import { promoCodes } from './schema.js';
 

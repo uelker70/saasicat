@@ -4,13 +4,13 @@
 // directly because they only control the public catalog display.
 
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { CATALOG_ERROR_CODES } from '@saasicat/types';
+import { CATALOG_ERROR_CODES } from '@saasicat/core';
 import type {
     CreatePromotionData,
     PromotionRepository,
     PromotionRow,
     UpdatePromotionData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { PROMOTION_REPOSITORY_TOKEN } from './catalog.tokens.js';
 

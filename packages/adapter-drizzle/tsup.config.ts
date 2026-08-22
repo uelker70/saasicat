@@ -8,7 +8,7 @@ export default defineConfig({
     // wraps tsup in. Emptying dist/ up front leaves a window in which the JS
     // exists and the .d.ts does not; pruning afterwards removes orphans
     // without ever exposing that state.
-    external: ['@saasicat/types', '@nestjs/common', 'drizzle-orm'],
+    external: ['@saasicat/core', '@nestjs/common', 'drizzle-orm'],
     target: 'node20',
     // The adapter imports node:crypto/node:async_hooks at runtime — keep the protocol.
     removeNodeProtocol: false,

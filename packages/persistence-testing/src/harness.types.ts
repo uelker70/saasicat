@@ -19,7 +19,7 @@ import type {
     SubscriptionRepository,
     TenantSubscriptionWritePort,
     TransactionRunner,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 /**
  * Port instances under test. Required members define the minimum an adapter

@@ -3,7 +3,7 @@ import type {
     SubscriptionRecord,
     SubscriptionRepository,
     TransactionContext,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PlanRowLike,

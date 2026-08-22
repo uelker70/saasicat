@@ -14,7 +14,7 @@ import {
     DiscoverySnapshotNotFoundError,
     loadDiscoverySnapshotFromFile,
 } from '../discovery/snapshot-loader.js';
-import type { ApprovedCatalogKeys } from '@saasicat/types';
+import type { ApprovedCatalogKeys } from '@saasicat/core';
 import {
     formatSeedGateReport,
     seedGateExitCode,

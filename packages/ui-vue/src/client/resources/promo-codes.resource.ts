@@ -11,7 +11,7 @@
 // `defineListOp` — a paginated descriptor would offer a paginator over a
 // server that ignores it.
 
-import type { PromoCodeRecord } from '@saasicat/types';
+import type { PromoCodeRecord } from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { filterQueryString } from './list-resource.js';

@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { VersionChange } from '@saasicat/types';
+import type { VersionChange } from '@saasicat/core';
 import { formatCurrency } from '../../client/i18n/currency.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';
 

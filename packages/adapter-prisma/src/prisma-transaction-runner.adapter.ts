@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { TransactionContext, TransactionRunner } from '@saasicat/types';
+import type { TransactionContext, TransactionRunner } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN } from './prisma-client-token.js';
 
 type TransactionMethod = <T>(fn: (tx: unknown) => Promise<T>) => Promise<T>;

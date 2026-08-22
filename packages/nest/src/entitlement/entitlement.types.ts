@@ -3,7 +3,7 @@
 // Consumers map their Prisma models onto these snapshots; the platform
 // aggregation works exclusively on this form (no Prisma imports).
 
-import type { FeatureKey, PlanId, QuotaKey } from '@saasicat/types';
+import type { FeatureKey, PlanId, QuotaKey } from '@saasicat/core';
 
 /**
  * Snapshot of the binding `PlanVersion` of a subscription. Quotas are

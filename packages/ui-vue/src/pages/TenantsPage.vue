@@ -173,7 +173,7 @@ import AdminFilters from '../ui/page/AdminFilters.vue';
 import AdminHero from '../ui/page/AdminHero.vue';
 import AdminSection from '../ui/page/AdminSection.vue';
 import AdminPage from '../ui/page/AdminPage.vue';
-import type { AdminManifest, TenantDto, TenantListFilter } from '@saasicat/types';
+import type { AdminManifest, TenantDto, TenantListFilter } from '@saasicat/core';
 import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js';
 import { usePlatformTenantActions } from '../vue/use-platform-tenant-actions.js';
 import MfaPromptDialog from '../ui/overlay/MfaPromptDialog.vue';

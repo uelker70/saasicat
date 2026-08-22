@@ -12,7 +12,7 @@
 // state boilerplate themselves.
 
 import { computed, ref, type ComputedRef, type Ref } from 'vue';
-import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
+import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { useTenantActionFlow } from './use-tenant-action-flow.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSaMessages } from './use-super-admin-i18n.js';

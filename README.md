@@ -53,7 +53,7 @@ model and custom UI contributions. Custom schemas can still replace any port.
 | Package                         | Purpose                                                                                                                                                    |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@saasicat/spec`                | The language-neutral contract: OpenAPI, JSON Schemas, Prisma fragments, CLI conventions.                                                                   |
-| `@saasicat/types`               | TypeScript types generated from the spec schemas.                                                                                                          |
+| `@saasicat/core`                | TypeScript types generated from the spec schemas.                                                                                                          |
 | `@saasicat/nest`                | The backend core: NestJS modules, services, guards and decorators.                                                                                         |
 | `@saasicat/adapter-prisma`      | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
 | `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter for the core slices, verified by the shared persistence contract.                                             |
@@ -113,7 +113,7 @@ CRUD. Start there if you prefer reading code over docs.
 Add the backend packages to an existing multi-tenant NestJS app (Prisma + PostgreSQL + JWT auth):
 
 ```bash
-pnpm add @saasicat/nest @saasicat/types @saasicat/spec \
+pnpm add @saasicat/nest @saasicat/core @saasicat/spec \
          @saasicat/adapter-prisma @saasicat/cli
 ```
 

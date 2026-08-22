@@ -9,7 +9,7 @@ import type {
     AdminUserListFilter,
     AdminUserListRow,
     AuditEntry,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import type { PrismaLike, PrismaModelDelegateLike } from './prisma-client-token.js';
 import { getPrismaDelegate } from './prisma-plan-binding.js';
 import { PrismaAuditQueryAdapter } from './prisma-audit-query.adapter.js';

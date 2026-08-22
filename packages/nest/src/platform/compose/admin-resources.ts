@@ -1,5 +1,5 @@
 import type { DynamicModule } from '@nestjs/common';
-import type { AdminResourcesPort } from '@saasicat/types';
+import type { AdminResourcesPort } from '@saasicat/core';
 
 import { AdminResourcesModule } from '../../admin/admin-resources.module.js';
 import { SuperAdminGuard } from '../../admin/super-admin.guard.js';
