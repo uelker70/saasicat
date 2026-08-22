@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 // reverse would publish something the wide entry does not.
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const SRC = join(ROOT, 'packages', 'saas-platform-ui-vue', 'src');
+const SRC = join(ROOT, 'packages', 'ui-vue', 'src');
 
 /** The `./vue/…` modules an entry re-exports, as bare names. */
 function vueReExports(file, prefix) {

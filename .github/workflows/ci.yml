@@ -104,7 +104,7 @@ jobs:
             # behind the fragments it demonstrates. Exits 1 on drift.
             - name: Schema drift (NotesApp example)
               run: >
-                  node packages/saas-platform-cli/bin/saasicat.js schema check
+                  node packages/cli/bin/saasicat.js schema check
                   --prisma-schema=examples/notesapp/prisma/schema.prisma
 
     persistence-contract:
@@ -160,7 +160,7 @@ jobs:
                   SAASICAT_TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/saasicat_test
               run: >
                   node scripts/coverage-ratchet.mjs
-                  --only=saas-platform-adapter-prisma,saas-platform-adapter-drizzle
+                  --only=adapter-prisma,adapter-drizzle
 
     e2e:
         runs-on: ubuntu-latest

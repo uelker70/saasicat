@@ -325,11 +325,11 @@ For local development against a checkout of this repo, use
 
 The data model has one normative source: the
 [logical data model](data-model.md) plus the SQL artifacts in
-[`@saasicat/spec/sql/`](../packages/saas-platform-spec/sql/)
+[`@saasicat/spec/sql/`](../packages/spec/sql/)
 (`reference-schema.postgres.sql` — full DDL, generated from the fragments;
 `constraints.postgres.sql` — the invariants Prisma cannot express: partial
 unique draft indexes, the subscription CHECK). The
-[Prisma fragments](../packages/saas-platform-spec/prisma-fragments/) are the
+[Prisma fragments](../packages/spec/prisma-fragments/) are the
 derived Prisma-DSL rendering of that model; `saasicat schema apply`
 splices them into your `schema.prisma` (see [Quickstart §3](quickstart.md)).
 The JSON Schemas in `@saasicat/spec/schemas/` govern **wire formats**, not
@@ -1413,7 +1413,7 @@ must not decide for them. To follow the OS in an embedded app, say so:
 
 **Adding a language to the platform itself** — as opposed to your app — means
 extending `SA_LOCALES`/`SA_INTL_LOCALES`/`SA_LOCALE_LABELS` and adding a variant
-per namespace under `packages/saas-platform-ui-vue/src/client/i18n/messages/`.
+per namespace under `packages/ui-vue/src/client/i18n/messages/`.
 The German object is the reference structure; the compiler rejects a translation
 with missing or extra keys. For a single app, `additionalLocales` is the shorter
 road.
@@ -1565,14 +1565,14 @@ dependencies of the X (?, ...)` errors. NestJS 11+ is stricter here than 9/10.
 
 ## 12. Further Reading
 
-- **Spec**: `packages/saas-platform-spec/`
+- **Spec**: `packages/spec/`
     - `schemas/admin-manifest.schema.json`
     - `schemas/plan-catalog.schema.json`
     - `schemas/promo-code.schema.json`
     - `schemas/audit-event.schema.json`
     - `admin-api.openapi.yaml` (normative REST contract)
     - `cli-conventions.md`
-- **Acceptance tests** (planned): `packages/saas-platform-spec/acceptance/*.yaml`.
+- **Acceptance tests** (planned): `packages/spec/acceptance/*.yaml`.
 
 In case of discrepancies between code and spec: the spec is normative,
 the code is the implementation status.

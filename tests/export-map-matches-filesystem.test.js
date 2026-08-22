@@ -161,9 +161,7 @@ describe('the ui-vue source subpaths stay curated', () => {
     // separating public pages from internals. Two names for one path is how a
     // consumer ends up depending on the one that later disappears — notesapp
     // used `./pages/*`, vereinsfux `./pages-standard/*`, for the same files.
-    const pkg = JSON.parse(
-        readFileSync(join(PACKAGES_DIR, 'saas-platform-ui-vue', 'package.json'), 'utf8'),
-    );
+    const pkg = JSON.parse(readFileSync(join(PACKAGES_DIR, 'ui-vue', 'package.json'), 'utf8'));
 
     // No accepted duplicate remains. `./pages/*` and `./pages-standard/*` were
     // two spellings of one path until 4.3 collapsed them, and the exemption

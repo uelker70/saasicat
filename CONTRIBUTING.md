@@ -98,13 +98,13 @@ Two entries may still export the same NAME for different things on purpose —
 
 ## Layer boundaries in `@saasicat/ui-vue`
 
-`packages/saas-platform-ui-vue/src` is layered: `client/` (framework-free) ←
+`packages/ui-vue/src` is layered: `client/` (framework-free) ←
 `vue/` (no Quasar) ← `quasar/` + the SFC directories. Each layer has its own
 package entry, and ESLint `no-restricted-imports` rules in the root config
 enforce the boundaries — `pnpm exec eslint .` fails on an upward import.
 New logic goes into a composable (`src/vue/`) or, when framework-free, into
 `src/client/`; `.ts` files may import `quasar` only under `src/quasar/`.
-Details: [`packages/saas-platform-ui-vue/README.md`](packages/saas-platform-ui-vue/README.md).
+Details: [`packages/ui-vue/README.md`](packages/ui-vue/README.md).
 
 ### The shipped source has a language floor: ES2021
 

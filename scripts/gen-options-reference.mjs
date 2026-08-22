@@ -22,7 +22,7 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const TARGET = join(REPO_ROOT, 'docs/reference/options.md');
 
 const { PLATFORM_RULES } = await import(
-    new URL('../packages/saas-platform-nest/dist/platform/index.js', import.meta.url).href
+    new URL('../packages/nest/dist/platform/index.js', import.meta.url).href
 );
 
 /**

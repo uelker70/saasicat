@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 // out, which is what every test in this directory looks at.
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const UI_VUE = join(REPO_ROOT, 'packages', 'saas-platform-ui-vue');
+const UI_VUE = join(REPO_ROOT, 'packages', 'ui-vue');
 
 /** Resolves an entry's `require` target through the package's export map. */
 function requireTarget(subpath) {

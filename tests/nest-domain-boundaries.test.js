@@ -20,7 +20,7 @@ import { ESLint } from 'eslint';
 // question whose answer is the thing being promised.
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
-const NEST_SRC = 'packages/saas-platform-nest/src';
+const NEST_SRC = 'packages/nest/src';
 
 const eslint = new ESLint({ cwd: REPO_ROOT });
 

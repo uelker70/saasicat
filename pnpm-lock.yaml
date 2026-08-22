@@ -69,16 +69,16 @@ importers:
         version: 6.19.3(prisma@6.19.3(typescript@6.0.3))(typescript@6.0.3)
       '@saasicat/adapter-prisma':
         specifier: workspace:^
-        version: link:../../packages/saas-platform-adapter-prisma
+        version: link:../../packages/adapter-prisma
       '@saasicat/nest':
         specifier: workspace:^
-        version: link:../../packages/saas-platform-nest
+        version: link:../../packages/nest
       '@saasicat/spec':
         specifier: workspace:^
-        version: link:../../packages/saas-platform-spec
+        version: link:../../packages/spec
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../../packages/saas-platform-types
+        version: link:../../packages/types
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1
@@ -112,10 +112,10 @@ importers:
         version: 1.18.0
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../../../packages/saas-platform-types
+        version: link:../../../packages/types
       '@saasicat/ui-vue':
         specifier: workspace:^
-        version: link:../../../packages/saas-platform-ui-vue
+        version: link:../../../packages/ui-vue
       axios:
         specifier: ^1.15.0
         version: 1.18.1
@@ -158,13 +158,13 @@ importers:
         version: 1.18.0
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../../../packages/saas-platform-types
+        version: link:../../../packages/types
       '@saasicat/ui-vue':
         specifier: workspace:^
-        version: link:../../../packages/saas-platform-ui-vue
+        version: link:../../../packages/ui-vue
       '@saasicat/ui-vue-tenant':
         specifier: workspace:^
-        version: link:../../../packages/saas-platform-ui-vue-tenant
+        version: link:../../../packages/ui-vue-tenant
       axios:
         specifier: ^1.15.0
         version: 1.18.1
@@ -200,27 +200,21 @@ importers:
         specifier: ^2.2.0
         version: 2.2.12(typescript@5.9.3)
 
-  packages/create-saasicat-admin:
-    devDependencies:
-      '@types/node':
-        specifier: ^25.6.0
-        version: 25.9.5
-
-  packages/saas-platform-adapter-drizzle:
+  packages/adapter-drizzle:
     dependencies:
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../saas-platform-types
+        version: link:../types
     devDependencies:
       '@nestjs/common':
         specifier: ^11.0.0
         version: 11.1.28(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@saasicat/persistence-testing':
         specifier: workspace:^
-        version: link:../saas-platform-persistence-testing
+        version: link:../persistence-testing
       '@saasicat/spec':
         specifier: workspace:^
-        version: link:../saas-platform-spec
+        version: link:../spec
       '@types/node':
         specifier: ^25.6.0
         version: 25.9.5
@@ -240,11 +234,11 @@ importers:
         specifier: ^6.0.0
         version: 6.0.3
 
-  packages/saas-platform-adapter-prisma:
+  packages/adapter-prisma:
     dependencies:
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../saas-platform-types
+        version: link:../types
     devDependencies:
       '@nestjs/common':
         specifier: ^11.0.0
@@ -254,10 +248,10 @@ importers:
         version: 6.19.3(prisma@6.19.3(typescript@6.0.3))(typescript@6.0.3)
       '@saasicat/persistence-testing':
         specifier: workspace:^
-        version: link:../saas-platform-persistence-testing
+        version: link:../persistence-testing
       '@saasicat/spec':
         specifier: workspace:^
-        version: link:../saas-platform-spec
+        version: link:../spec
       '@types/node':
         specifier: ^25.6.0
         version: 25.9.5
@@ -271,17 +265,17 @@ importers:
         specifier: ^6.0.0
         version: 6.0.3
 
-  packages/saas-platform-cli:
+  packages/cli:
     dependencies:
       '@saasicat/nest':
         specifier: workspace:^
-        version: link:../saas-platform-nest
+        version: link:../nest
       '@saasicat/spec':
         specifier: workspace:^
-        version: link:../saas-platform-spec
+        version: link:../spec
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../saas-platform-types
+        version: link:../types
       qrcode-terminal:
         specifier: ^0.12.0
         version: 0.12.0
@@ -302,14 +296,20 @@ importers:
         specifier: ^6.0.0
         version: 6.0.3
 
-  packages/saas-platform-nest:
+  packages/create-saasicat-admin:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.9.5
+
+  packages/nest:
     dependencies:
       '@saasicat/spec':
         specifier: workspace:^
-        version: link:../saas-platform-spec
+        version: link:../spec
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../saas-platform-types
+        version: link:../types
       ajv:
         specifier: ^8.17.1
         version: 8.20.0
@@ -372,11 +372,11 @@ importers:
         specifier: ^1.5.9
         version: 1.5.9(@swc/core@1.15.43)(rollup@4.62.2)
 
-  packages/saas-platform-persistence-testing:
+  packages/persistence-testing:
     dependencies:
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../saas-platform-types
+        version: link:../types
     devDependencies:
       '@types/node':
         specifier: ^25.6.0
@@ -388,7 +388,9 @@ importers:
         specifier: ^6.0.0
         version: 6.0.3
 
-  packages/saas-platform-spec:
+  packages/saasicat: {}
+
+  packages/spec:
     devDependencies:
       ajv:
         specifier: ^8.17.1
@@ -400,7 +402,7 @@ importers:
         specifier: ^6.19.0
         version: 6.19.3(typescript@6.0.3)
 
-  packages/saas-platform-types:
+  packages/types:
     devDependencies:
       json-schema-to-typescript:
         specifier: ^15.0.4
@@ -412,11 +414,11 @@ importers:
         specifier: ^6.0.0
         version: 6.0.3
 
-  packages/saas-platform-ui-vue:
+  packages/ui-vue:
     dependencies:
       '@saasicat/types':
         specifier: workspace:^
-        version: link:../saas-platform-types
+        version: link:../types
     devDependencies:
       '@playwright/test':
         specifier: ^1.59.1
@@ -426,7 +428,7 @@ importers:
         version: 1.12.0(@vitejs/plugin-vue@6.0.8(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3)))(quasar@2.24.0)(vite@7.3.6(@types/node@25.9.5)(jiti@2.7.0)(sass@1.101.3)(yaml@2.9.0))(vue@3.5.40(typescript@6.0.3))
       '@saasicat/ui-vue-tenant':
         specifier: workspace:*
-        version: link:../saas-platform-ui-vue-tenant
+        version: link:../ui-vue-tenant
       '@types/node':
         specifier: ^25.6.0
         version: 25.9.5
@@ -473,14 +475,14 @@ importers:
         specifier: ^3.3.3
         version: 3.3.7(typescript@6.0.3)
 
-  packages/saas-platform-ui-vue-tenant:
+  packages/ui-vue-tenant:
     devDependencies:
       '@saasicat/types':
         specifier: workspace:*
-        version: link:../saas-platform-types
+        version: link:../types
       '@saasicat/ui-vue':
         specifier: workspace:*
-        version: link:../saas-platform-ui-vue
+        version: link:../ui-vue
       quasar:
         specifier: ^2.22.0
         version: 2.24.0
@@ -490,8 +492,6 @@ importers:
       vue-tsc:
         specifier: ^3.2.0
         version: 3.3.7(typescript@6.0.3)
-
-  packages/saasicat: {}
 
 packages:
 

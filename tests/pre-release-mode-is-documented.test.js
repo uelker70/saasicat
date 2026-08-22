@@ -23,7 +23,7 @@ const CHANGESETS = join(ROOT, '.changeset');
 
 /** The version the fixed group is on right now. */
 function currentVersion() {
-    const manifest = join(ROOT, 'packages', 'saas-platform-nest', 'package.json');
+    const manifest = join(ROOT, 'packages', 'nest', 'package.json');
     return JSON.parse(readFileSync(manifest, 'utf8')).version;
 }
 

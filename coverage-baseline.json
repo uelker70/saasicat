@@ -1,20 +1,20 @@
 {
-    "saas-platform-spec": {
+    "spec": {
         "line": 94.9,
         "branch": 87.5,
         "funcs": 100
     },
-    "saas-platform-types": {
+    "types": {
         "line": 80.41,
         "branch": 88.79,
         "funcs": 57.45
     },
-    "saas-platform-nest": {
+    "nest": {
         "line": 87.72,
         "branch": 71.81,
         "funcs": 81.54
     },
-    "saas-platform-adapter-prisma": {
+    "adapter-prisma": {
         "line": 65.23,
         "branch": 67.23,
         "funcs": 75.32,
@@ -24,7 +24,7 @@
             "funcs": 77.47
         }
     },
-    "saas-platform-adapter-drizzle": {
+    "adapter-drizzle": {
         "line": 60.33,
         "branch": 63.76,
         "funcs": 69.95,
@@ -34,17 +34,17 @@
             "funcs": 83.94
         }
     },
-    "saas-platform-persistence-testing": {
+    "persistence-testing": {
         "line": 76.53,
         "branch": 53.45,
         "funcs": 90.91
     },
-    "saas-platform-cli": {
+    "cli": {
         "line": 83.76,
         "branch": 76.76,
         "funcs": 77.01
     },
-    "saas-platform-ui-vue": {
+    "ui-vue": {
         "line": 94.23,
         "branch": 90.99,
         "funcs": 91.72

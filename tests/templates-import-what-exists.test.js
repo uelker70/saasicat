@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 // Resolved against the real export map here, the way a bundler resolves it.
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const UI_VUE = join(ROOT, 'packages', 'saas-platform-ui-vue');
+const UI_VUE = join(ROOT, 'packages', 'ui-vue');
 const exports_ = JSON.parse(readFileSync(join(UI_VUE, 'package.json'), 'utf8')).exports;
 
 /** Every file under a directory, recursively. */
@@ -55,10 +55,10 @@ function resolveSubpath(subpath) {
 // either way — the difference is only how long it takes to find out.
 const SOURCES = [
     join(ROOT, 'packages', 'create-saasicat-admin', 'templates'),
-    join(ROOT, 'packages', 'saas-platform-cli', 'templates'),
+    join(ROOT, 'packages', 'cli', 'templates'),
     join(ROOT, 'docs'),
     join(ROOT, 'README.md'),
-    join(ROOT, 'packages', 'saas-platform-ui-vue', 'README.md'),
+    join(ROOT, 'packages', 'ui-vue', 'README.md'),
 ];
 
 /** A placeholder in prose, not a path anyone imports. */

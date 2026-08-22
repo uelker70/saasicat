@@ -46,14 +46,14 @@ const REPORT = join(REPO_ROOT, 'coverage-report.json');
 
 /** Packages whose `test` script is a plain `node --test` run. */
 const PACKAGES = [
-    'saas-platform-spec',
-    'saas-platform-types',
-    'saas-platform-nest',
-    'saas-platform-adapter-prisma',
-    'saas-platform-adapter-drizzle',
-    'saas-platform-persistence-testing',
-    'saas-platform-cli',
-    'saas-platform-ui-vue',
+    'spec',
+    'types',
+    'nest',
+    'adapter-prisma',
+    'adapter-drizzle',
+    'persistence-testing',
+    'cli',
+    'ui-vue',
     'create-saasicat-admin',
 ];
 

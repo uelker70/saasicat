@@ -22,10 +22,10 @@ import { dirname, join, relative, resolve, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PKG = join(REPO, 'packages', 'saas-platform-ui-vue');
+const PKG = join(REPO, 'packages', 'ui-vue');
 const SRC = join(PKG, 'src');
 const plan = JSON.parse(
-    readFileSync(join(REPO, 'packages/saas-platform-cli/codemods/v1-imports.map.json'), 'utf8'),
+    readFileSync(join(REPO, 'packages/cli/codemods/v1-imports.map.json'), 'utf8'),
 );
 
 /** Every file under a directory, repo-relative to `src/`. */
