@@ -11,17 +11,17 @@ description: |
 
 setup:
     - createTenant:
-          slug: 'test-bestand'
-          email: 'owner@test-bestand.example'
+          slug: 'test-existing-contracts'
+          email: 'owner@test-existing-contracts.example'
           planId: 'STANDARD'
           billingCycle: MONTHLY
     - assertSubscriptionVersion:
-          tenantSlug: 'test-bestand'
+          tenantSlug: 'test-existing-contracts'
           version: 1 # initial version
     - storeAs:
           key: 'originalPlanVersionId'
           from: 'tenant.subscription.planVersionId'
-          tenantSlug: 'test-bestand'
+          tenantSlug: 'test-existing-contracts'
 
 when:
     # SUPER_ADMIN publishes a new version — e.g. with a price increase.
@@ -37,16 +37,16 @@ when:
 then:
     # Existing subscription remains unchanged.
     - assertSubscription:
-          tenantSlug: 'test-bestand'
+          tenantSlug: 'test-existing-contracts'
           planVersionId: '{{originalPlanVersionId}}' # ← same value as before publish
     # The tenant keeps paying the old price.
     - assertSubscriptionPriceMonthlyNet:
-          tenantSlug: 'test-bestand'
+          tenantSlug: 'test-existing-contracts'
           value: 24.90
     # pendingPlanVersion fields are not yet set (the notification cron
     # has not run yet).
     - assertSubscription:
-          tenantSlug: 'test-bestand'
+          tenantSlug: 'test-existing-contracts'
           pendingPlanVersionId: null
           pendingPlanVersionEffectiveAt: null
 

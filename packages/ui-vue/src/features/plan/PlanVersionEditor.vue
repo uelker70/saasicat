@@ -13,7 +13,7 @@
         />
 
         <AdminBody>
-            <!-- Save error banner (e.g. "Plan hat bereits eine Draft-Version") -->
+            <!-- Save error banner, e.g. PLAN_DRAFT_ALREADY_EXISTS -->
             <div v-if="saveError" class="pve-error" role="alert">
                 <span class="pve-error-ico" aria-hidden="true">
                     <svg
@@ -171,7 +171,7 @@ const props = withDefaults(
         catalogUrl?: string;
         /** Estimated number of affected Tenants — shown in the publish checklist. */
         tenantImpactCount?: number;
-        /** Error message from the last save attempt (e.g. "Plan hat bereits eine Draft"). */
+        /** Error message from the last save attempt, e.g. the text for PLAN_DRAFT_ALREADY_EXISTS. */
         saveError?: string | null;
         /**
          * Predecessor version (currently live) that "Diff vs. Vorgänger"
