@@ -476,8 +476,9 @@ describe('codemod v1-rename', () => {
         assert.equal(code, 0, stdout);
         const after = await readFile(join(root, 'package.json'), 'utf8');
         // The range is the CLI's own version, not the 0.x one carried over.
+        // Compared as data, not by a pattern built from the version string.
         const own = JSON.parse(await readFile(OWN_MANIFEST, 'utf8')).version;
-        assert.match(after, new RegExp(`"@saasicat\\/core": "\\^${own.replace(/\./g, '\\.')}"`));
+        assert.deepEqual(JSON.parse(after).dependencies, { '@saasicat/core': `^${own}` });
         assert.doesNotMatch(after, /@saasicat\/types/);
         assert.match(after, /^ {2}"name"/m);
     });
