@@ -45,7 +45,7 @@ const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 function declarationsOf(name) {
     const css = withoutComments(readFileSync(join(THEME, name), 'utf8'));
-    return [...css.matchAll(/(--sa-[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [
+    return [...css.matchAll(/(--sa-[\w-]+)\s*:([^;]+);/g)].map((m) => [
         m[1],
         m[2].replace(/\s+/g, ' ').trim(),
     ]);
@@ -84,21 +84,19 @@ function resolveColour(expression, table, depth = 0) {
     if (value.startsWith('#')) return hexToRgba(value);
     if (value === 'transparent') return [0, 0, 0, 0];
 
-    const asVar = /^var\(\s*(--[\w-]+)\s*(?:,\s*([\s\S]+))?\)$/.exec(value);
+    const asVar = /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]+))?\)$/.exec(value);
     if (asVar) {
         const declared = table.get(asVar[1]);
         if (declared !== undefined) return resolveColour(declared, table, depth + 1);
         return asVar[2] ? resolveColour(asVar[2], table, depth + 1) : null;
     }
 
-    const asMix = /^color-mix\(\s*in srgb,\s*([\s\S]+?)\s+([\d.]+)%,\s*([\s\S]+?)\s*\)$/.exec(
-        value,
-    );
+    const asMix = colourMix(value);
     if (asMix) {
-        const first = resolveColour(asMix[1], table, depth + 1);
-        const second = resolveColour(asMix[3], table, depth + 1);
+        const first = resolveColour(asMix.first, table, depth + 1);
+        const second = resolveColour(asMix.second, table, depth + 1);
         if (!first || !second) return null;
-        const share = Number(asMix[2]) / 100;
+        const share = asMix.share;
         const alpha = first[3] * share + second[3] * (1 - share);
         if (alpha === 0) return [0, 0, 0, 0];
         return [
@@ -109,6 +107,39 @@ function resolveColour(expression, table, depth = 0) {
         ];
     }
     return null;
+}
+
+/**
+ * `color-mix(in srgb, <first> <share>%, <second>)` taken apart at its top-level
+ * commas, so a `var(--x, fallback)` inside an argument keeps its own comma.
+ * Null for anything else, including a fourth argument.
+ */
+function colourMix(value) {
+    if (!value.startsWith('color-mix(') || !value.endsWith(')')) return null;
+    const args = splitTopLevel(value.slice('color-mix('.length, -1)).map((a) => a.trim());
+    if (args.length !== 3 || args[0] !== 'in srgb') return null;
+    const stop = /^([\s\S]*\S)\s+([\d.]+)%$/.exec(args[1]);
+    if (!stop) return null;
+    return { first: stop[1], share: Number(stop[2]) / 100, second: args[2] };
+}
+
+/**
+ * A gradient stop without its positions: the trailing whitespace-separated
+ * tokens that contain no parenthesis, so `var(--x) 20% 40%` keeps `var(--x)`
+ * and `#fff` keeps itself. A trailing space ends the walk, as the anchored
+ * pattern this replaces never matched past one.
+ */
+function withoutStopPositions(argument) {
+    let end = argument.length;
+    for (;;) {
+        let at = end;
+        while (at > 0 && !/\s/.test(argument[at - 1])) at -= 1;
+        const token = argument.slice(at, end);
+        let before = at;
+        while (before > 0 && /\s/.test(argument[before - 1])) before -= 1;
+        if (token === '' || before === at || /[()]/.test(token)) return argument.slice(0, end);
+        end = before;
+    }
 }
 
 /** Splits at commas that sit outside any parentheses. */
@@ -206,7 +237,7 @@ function backgroundColours(expression, table, depth = 0) {
             if (isGradientParameter(argument)) return [];
             // What is left is a colour stop: a colour followed by optional
             // positions. It owes an outcome whether or not it can be read.
-            const stop = argument.replace(/(\s+[^\s()]+)+$/, '');
+            const stop = withoutStopPositions(argument);
             const read = backgroundColours(stop, table, depth + 1);
             return read.length > 0 ? read : [{ label: stop, rgba: null }];
         });
@@ -214,7 +245,7 @@ function backgroundColours(expression, table, depth = 0) {
 
     // A `var()` whose value may itself be a gradient, so this cannot delegate
     // to `resolveColour` — that one only ever yields a single colour.
-    const asVar = /^var\(\s*(--[\w-]+)\s*(?:,\s*([\s\S]+))?\)$/.exec(value);
+    const asVar = /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]+))?\)$/.exec(value);
     if (asVar) {
         const declared = table.get(asVar[1]);
         if (declared !== undefined) return backgroundColours(declared, table, depth + 1);
@@ -269,14 +300,14 @@ const styleSource = (file, content) =>
  * this sweep dropped in silence, and the priority says nothing about the
  * colour, so it comes off before anything tries to read it.
  */
-const withoutPriority = (value) => value.replace(/\s*!\s*important\s*$/i, '');
+const withoutPriority = (value) => value.replace(/!\s*important\s*$/i, '').trimEnd();
 
 /** Rules that set BOTH a background and a colour, each from a role. */
 function rolePairedRules() {
     const rules = [];
     for (const file of walk(SRC)) {
         const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
-        for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        for (const [, selector, body] of css.matchAll(/(?<=^|[{}])([^{}]+)\{([^{}]*)\}/g)) {
             // ANY `var(--sa-…)`, not only a bare role. Most of the admin
             // chrome wraps its roles in a consumer knob —
             // `var(--sa-admin-user-avatar-bg, var(--sa-color-inverse-accent))`
@@ -288,18 +319,18 @@ function rolePairedRules() {
             // The narrower pattern was what hid every gradient: a background
             // written as `var(--knob, linear-gradient(…))` matched it, resolved
             // to null one step later, and left no trace of having been skipped.
-            const background = /(?:^|;|\s)background(?:-color)?\s*:\s*([^;]+?)\s*(?:;|$)/.exec(
-                body,
-            );
-            const foreground = /(?:^|;|\s)color\s*:\s*(var\(--sa-[^;]+?)\s*(?:;|$)/.exec(body);
+            const background = /(?<=^|[;\s])background(?:-color)?\s*:([^;]*)(?=;|$)/.exec(body);
+            const foreground = [...body.matchAll(/(?<=^|[;\s])color\s*:([^;]*)(?=;|$)/g)]
+                .map((match) => match[1].trim())
+                .find((declared) => declared.startsWith('var(--sa-'));
             if (!background || !foreground) continue;
-            const backgroundValue = withoutPriority(background[1]);
+            const backgroundValue = withoutPriority(background[1].trim());
             rules.push({
                 file: relative(SRC, file),
                 selector: selector.trim().replace(/\s+/g, ' '),
                 background: backgroundValue,
                 isGradient: /-gradient\(/.test(backgroundValue),
-                foreground: withoutPriority(foreground[1]),
+                foreground: withoutPriority(foreground),
             });
         }
     }

@@ -192,16 +192,11 @@ describe('the token layers only point one way', () => {
         // about all nineteen of those.
         const require = createRequire(import.meta.url);
         const css = readFileSync(require.resolve('quasar/dist/quasar.css'), 'utf8');
-        const classesWithPrefix = (prefix) =>
-            new Set(
-                [
-                    ...css.matchAll(
-                        new RegExp(`\\.${prefix}-([a-z][a-z-]*?)(?:-\\d{1,2})?(?![\\w-])`, 'g'),
-                    ),
-                ].map((m) => m[1]),
-            );
-        const backgrounds = classesWithPrefix('bg');
-        const foregrounds = classesWithPrefix('text');
+        const backgrounds = new Set();
+        const foregrounds = new Set();
+        for (const m of css.matchAll(/\.(bg|text)-([a-z][a-z-]*?)(?:-\d{1,2})?(?![\w-])/g)) {
+            (m[1] === 'bg' ? backgrounds : foregrounds).add(m[2]);
+        }
         const palette = [...backgrounds].filter((name) => foregrounds.has(name)).sort();
 
         assert.ok(
@@ -402,7 +397,7 @@ describe('the token layers only point one way', () => {
             new Map(
                 [
                     ...withoutComments(readFileSync(join(THEME, name), 'utf8')).matchAll(
-                        /(--sa-color-[\w-]+)\s*:\s*([^;]+);/g,
+                        /(--sa-color-[\w-]+)\s*:([^;]+);/g,
                     ),
                 ].map((m) => [m[1], m[2].replace(/\s+/g, ' ').trim()]),
             );
@@ -451,7 +446,7 @@ describe('the token layers only point one way', () => {
         for (const file of consumers) {
             const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
             // Rule by rule, so a selector is judged with its own declarations.
-            for (const match of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            for (const match of css.matchAll(/(?<=^|[{}])([^{}]+)\{([^{}]*)\}/g)) {
                 const [, selector, body] = match;
                 if (!INVARIANT_SURFACE.test(selector)) continue;
                 for (const role of body.matchAll(/var\(\s*(--sa-color-[\w-]+)/g)) {
@@ -509,7 +504,7 @@ describe('the token layers only point one way', () => {
         const files = walk(SRC, (name) => name.endsWith('.vue') || name.endsWith('.css'));
         for (const file of files) {
             const css = withoutComments(styleSource(file, readFileSync(file, 'utf8')));
-            for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+            for (const [, selector, body] of css.matchAll(/(?<=^|[{}])([^{}]+)\{([^{}]*)\}/g)) {
                 const paintsAccentText =
                     /(?:^|;|\s)color\s*:\s*var\(--sa-color-accent\)\s*(?:;|$)/.test(body);
                 const onAccentTint =

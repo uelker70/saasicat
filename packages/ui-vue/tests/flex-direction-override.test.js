@@ -38,13 +38,18 @@ function filesWithStyles() {
 /** Rule blocks as `{ selector, body }`, comments stripped so they cannot match. */
 function rules(source) {
     const withoutComments = source.replace(/\/\*[\s\S]*?\*\//g, '');
-    return [...withoutComments.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+    return [...withoutComments.matchAll(/(?<=^|[{}])([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
         selector: m[1].trim(),
         body: m[2],
     }));
 }
 
-const declares = (body, prop) => new RegExp(`(^|[;{\\s])${prop}\\s*:`).test(body);
+/** Whether one of the body's declarations is for exactly `prop`. */
+const declares = (body, prop) =>
+    body.split(';').some((declaration) => {
+        const colon = declaration.indexOf(':');
+        return colon !== -1 && declaration.slice(0, colon).trim() === prop;
+    });
 
 describe('a rule that changes flex-direction states its own main-axis alignment', () => {
     const files = filesWithStyles();

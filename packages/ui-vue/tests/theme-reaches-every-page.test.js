@@ -46,8 +46,8 @@ const withoutCssComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** Every selector in a stylesheet, one per comma-separated part. */
 function selectorParts(css) {
-    return [...withoutCssComments(css).matchAll(/([^{}]+)\{[^{}]*\}/g)].flatMap(([, selector]) =>
-        selector.split(',').map((part) => part.trim().replace(/\s+/g, ' ')),
+    return [...withoutCssComments(css).matchAll(/(?<=^|[{}])([^{}]+)\{[^{}]*\}/g)].flatMap(
+        ([, selector]) => selector.split(',').map((part) => part.trim().replace(/\s+/g, ' ')),
     );
 }
 
