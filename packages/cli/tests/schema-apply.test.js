@@ -1,6 +1,11 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyFragmentBlocks, extractModelBlocks, extractModelNames } from '../dist/index.js';
+import {
+    applyFragmentBlocks,
+    extractFragmentBlocks,
+    extractModelBlocks,
+    extractModelNames,
+} from '../dist/index.js';
 
 describe('extractModelNames', () => {
     test('finds top-level models', () => {
@@ -96,5 +101,58 @@ describe('applyFragmentBlocks', () => {
             result.schema,
             /Inserted by `saasicat schema apply` from 01-subscription.prisma/,
         );
+    });
+});
+
+describe('enums travel with the models that use them', () => {
+    // `BillingCycle` on a `Subscription` field is a Prisma validation error
+    // in a schema that has the model and not the enum. The first install of
+    // the 1.0 candidate from npm produced twenty of those in quickstart
+    // step 3 — the example app had carried the enums by hand since before
+    // `schema apply` existed, so nothing in this tree ever saw the gap.
+    const FRAGMENT = `enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+model Subscription {
+  id           String       @id
+  billingCycle BillingCycle
+}
+`;
+
+    test('a fragment yields its enums and its models', () => {
+        const blocks = extractFragmentBlocks(FRAGMENT);
+        assert.deepEqual([...blocks.enums.keys()], ['BillingCycle']);
+        assert.deepEqual([...blocks.models.keys()], ['Subscription']);
+    });
+
+    test('apply appends the enum above the model, once', () => {
+        const schema = 'model Tenant {\n  id String @id\n}\n';
+        const first = applyFragmentBlocks(schema, extractFragmentBlocks(FRAGMENT));
+        assert.deepEqual(first.addedEnums, ['BillingCycle']);
+        assert.deepEqual(first.added, ['Subscription']);
+        assert.ok(
+            first.schema.indexOf('enum BillingCycle') < first.schema.indexOf('model Subscription'),
+            'the type should stand above the field that uses it',
+        );
+
+        const second = applyFragmentBlocks(first.schema, extractFragmentBlocks(FRAGMENT));
+        assert.deepEqual(second.addedEnums, []);
+        assert.deepEqual(second.skippedEnums, ['BillingCycle']);
+        assert.equal(second.schema, first.schema);
+    });
+
+    test('an enum the consumer already declares is left alone', () => {
+        const schema = 'enum BillingCycle {\n  MONTHLY\n  YEARLY\n  WEEKLY\n}\n';
+        const result = applyFragmentBlocks(schema, extractFragmentBlocks(FRAGMENT));
+        assert.deepEqual(result.skippedEnums, ['BillingCycle']);
+        assert.match(result.schema, /WEEKLY/, "the consumer's own variant survives");
+    });
+
+    test('a bare model map still works, with no enums', () => {
+        const result = applyFragmentBlocks('', extractModelBlocks(FRAGMENT));
+        assert.deepEqual(result.added, ['Subscription']);
+        assert.deepEqual(result.addedEnums, []);
     });
 });

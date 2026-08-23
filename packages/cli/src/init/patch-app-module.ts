@@ -62,8 +62,9 @@ export function patchAppModule(source: string, options: PatchAppModuleOptions): 
             source,
             status: 'declined',
             reason:
-                'no `@Module({ imports: [ ... ] })` was found in this file, so there is nowhere ' +
-                'to add the platform without guessing at the structure',
+                'this file has no `@Module({ ... })` with an `imports:` key on a line of its own ' +
+                '— the shape `nest new` writes — so there is nowhere to add the platform ' +
+                'without guessing at the structure',
             manualBlock,
         };
     }
@@ -110,7 +111,9 @@ interface ImportsArray {
  * The `imports: [` of an `@Module` decorator.
  *
  * Scoped to a decorator rather than the first `imports:` anywhere, because a
- * file can carry several and only one of them composes the application.
+ * file can carry several and only one of them composes the application. The
+ * key has to open a line: that is how its indent is read, and a decorator
+ * written on one line is declined rather than split open.
  */
 function findImportsArray(source: string): ImportsArray | null {
     const decorator = source.indexOf('@Module(');
@@ -204,6 +207,13 @@ function renderForRootBlock(options: PatchAppModuleOptions): string {
         '        // your whole capability inventory — and the manifest routes to',
         '        // anyone who asks. Import your guard and put it in.',
         '        controller: { guards: [YourAuthGuard] },',
+        '        // The modules whose providers the platform injects: the one',
+        '        // exporting PrismaService, and the one your guard depends on.',
+        '        // `prismaPersistence({ client: PrismaService })` is resolved',
+        '        // inside the platform module, which sees only what is listed',
+        '        // here or declared @Global. Same rule as the guard: this does',
+        '        // not compile until you name them.',
+        '        imports: [YourPrismaModule, YourAuthModule],',
         options.persistenceImport
             ? '        persistence,'
             : '        // persistence: prismaPersistence({ client: PrismaService }),',

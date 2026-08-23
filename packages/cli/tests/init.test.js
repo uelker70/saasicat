@@ -298,6 +298,19 @@ describe('patching an existing app.module.ts', () => {
         assert.match(result.manualBlock, /loadPlanCatalogFromFile/);
     });
 
+    test('a one-line decorator is declined, and the reason names the shape it wants', () => {
+        // There IS an `@Module({ imports: [] })` here; what is missing is the
+        // key on its own line. The reason must not claim otherwise.
+        const oneLine =
+            "import { Module } from '@nestjs/common';\n" +
+            '@Module({ imports: [], providers: [] })\n' +
+            'export class AppModule {}\n';
+        const result = patchAppModule(oneLine, PATCH_OPTIONS);
+        assert.equal(result.status, 'declined');
+        assert.match(result.reason, /on a line of its own/);
+        assert.match(result.reason, /nest new/);
+    });
+
     test('the limit filter is printed, not inserted', () => {
         // `providers` is where an app keeps its own wiring; an entry added into
         // the middle of it is the edit most likely to land somewhere surprising.
@@ -383,6 +396,17 @@ describe('the auth guard the generator cannot know', () => {
         const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
         assert.match(source, /guards: \[YourAuthGuard\]/);
         assert.doesNotMatch(source, /guards: \[\s*(\/\*[^*]*\*\/)?\s*\]/);
+    });
+
+    test('the block names the modules the platform resolves from, for the same reason', () => {
+        // `prismaPersistence({ client: PrismaService })` is resolved inside
+        // the platform module, which sees only what `imports` lists or what is
+        // @Global. Left out, the generated app compiled and died on its first
+        // boot with "Nest can't resolve dependencies of … (PrismaService)" —
+        // found by running the quickstart in a project that is not notesapp,
+        // whose PrismaModule happens to be @Global.
+        const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
+        assert.match(source, /imports: \[YourPrismaModule, YourAuthModule\]/);
     });
 
     test('and says why, where the reader is', () => {

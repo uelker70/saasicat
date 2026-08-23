@@ -37,6 +37,7 @@ export * from './schema-check.js';
 export * from './migration-constraints.js';
 export * from './fk-pointers.js';
 export * from './init/plan.js';
+export * from './init/module-resolution.js';
 export * from './init/catalog-keys.js';
 export * from './codemods/v1-imports.js';
 export * from './codemods/v1-rename.js';

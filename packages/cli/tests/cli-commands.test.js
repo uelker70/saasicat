@@ -204,6 +204,27 @@ describe('schema apply', () => {
         assert.match(await readFile(schemaPath, 'utf8'), /model AuditLog \{/);
     });
 
+    test('the enums a fragment declares arrive with its models', async () => {
+        // Fragment 01 declares BillingCycle and uses it on Subscription; a
+        // schema with the model and not the enum fails Prisma validation.
+        const root = await project('apply-enums');
+        const schemaPath = join(root, 'prisma', 'schema.prisma');
+        const { stdout, code } = await cli([
+            'schema',
+            'apply',
+            '--fragments=01',
+            `--prisma-schema=${schemaPath}`,
+        ]);
+        assert.equal(code, 0, stdout);
+        assert.match(stdout, /Appended \d+ enum\(s\): .*BillingCycle/);
+        const schema = await readFile(schemaPath, 'utf8');
+        assert.match(schema, /^enum BillingCycle \{/m);
+        assert.ok(
+            schema.indexOf('enum BillingCycle') < schema.indexOf('model Subscription'),
+            'the enum stands above the model that uses it',
+        );
+    });
+
     test('running it twice appends nothing the second time', async () => {
         const root = await project('apply-twice');
         const schemaPath = join(root, 'prisma', 'schema.prisma');
@@ -286,6 +307,8 @@ describe('init', () => {
         // auth-free.
         assert.match(appModule, /guards: \[YourAuthGuard\]/);
         assert.match(stdout, /Name your auth guard/);
+        assert.match(appModule, /imports: \[YourPrismaModule, YourAuthModule\]/);
+        assert.match(stdout, /Name the modules in/);
     });
 
     test('refuses to overwrite what is already there', async () => {
@@ -298,6 +321,53 @@ describe('init', () => {
         assert.notEqual(code, 0, 'the second run overwrote the first');
         assert.match(stdout + stderr, /already exist/i);
         assert.match(stdout + stderr, /config\/saas\.yaml/, 'it has to name what it refused');
+    });
+
+    test('a tsconfig on the old moduleResolution is refused before any write', async () => {
+        // The generated files import subpath exports; under "node" none of
+        // them resolves, in files the command just wrote.
+        const root = await project('init-old-resolution');
+        await writeFile(
+            join(root, 'tsconfig.json'),
+            '{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node" } }\n',
+            'utf8',
+        );
+        const { stderr, code } = await cli(
+            ['init', '--project-key=notesapp', '--quota=notes:Note'],
+            { cwd: root },
+        );
+        assert.equal(code, 1);
+        assert.match(stderr, /moduleResolution/);
+        assert.match(stderr, /nodenext/);
+        await assert.rejects(
+            readFile(join(root, 'config', 'saas.yaml'), 'utf8'),
+            'it wrote anyway',
+        );
+    });
+
+    test('a moduleResolution inherited through extends is refused too', async () => {
+        // Codex found the textual reader taking a base config for "unset".
+        const root = await project('init-inherited-resolution');
+        await writeFile(
+            join(root, 'tsconfig.base.json'),
+            '{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node" } }\n',
+            'utf8',
+        );
+        await writeFile(
+            join(root, 'tsconfig.json'),
+            '{ "extends": "./tsconfig.base.json", "compilerOptions": { "strict": true } }\n',
+            'utf8',
+        );
+        const { stderr, code } = await cli(
+            ['init', '--project-key=notesapp', '--quota=notes:Note'],
+            { cwd: root },
+        );
+        assert.equal(code, 1);
+        assert.match(stderr, /moduleResolution/);
+        await assert.rejects(
+            readFile(join(root, 'config', 'saas.yaml'), 'utf8'),
+            'it wrote anyway',
+        );
     });
 
     test('a key the platform would refuse is refused here, before any write', async () => {

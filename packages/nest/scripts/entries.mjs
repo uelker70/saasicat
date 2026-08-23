@@ -29,15 +29,20 @@ export function namespaceFor(exportPath) {
  */
 export function publicEntries() {
     const pkg = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
-    return Object.keys(pkg.exports ?? {})
-        .filter((exportPath) => exportPath === '.' || exportPath.startsWith('./'))
-        .map((exportPath) => {
-            const dir = exportPath === '.' ? '' : `${exportPath.replace(/^\.\//, '')}/`;
-            return {
-                exportPath,
-                srcFile: `src/${dir}index.ts`,
-                distBase: `${dir}index`,
-                namespace: namespaceFor(exportPath),
-            };
-        });
+    return (
+        Object.keys(pkg.exports ?? {})
+            .filter((exportPath) => exportPath === '.' || exportPath.startsWith('./'))
+            // `./package.json` is exported for tooling that reads the manifest; it
+            // is a file, not a module with an `index.ts` behind it.
+            .filter((exportPath) => !exportPath.endsWith('.json'))
+            .map((exportPath) => {
+                const dir = exportPath === '.' ? '' : `${exportPath.replace(/^\.\//, '')}/`;
+                return {
+                    exportPath,
+                    srcFile: `src/${dir}index.ts`,
+                    distBase: `${dir}index`,
+                    namespace: namespaceFor(exportPath),
+                };
+            })
+    );
 }

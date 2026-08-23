@@ -17,6 +17,11 @@ lines of app-owned platform code.
 > separation first — this guide _extends_ a multi-tenant app with SaaS
 > functionality.
 >
+> Its `tsconfig.json` needs `"moduleResolution": "nodenext"` (or `node16` /
+> `bundler`) — the setting `nest new` writes. The platform packages are
+> reached through subpath exports (`@saasicat/nest/platform`), and the old
+> `"node"` resolution does not see those. `saasicat init` checks and says so.
+>
 > A full explanation of every step lives in the [SaaSiCat handbook](handbook.md).
 > The quickstart shows the fastest path — if you need different schemas,
 > databases or more control, continue in the handbook.

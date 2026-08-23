@@ -82,6 +82,20 @@ describe('package.json#exports matches the filesystem', () => {
     });
 
     for (const { root, pkg } of packages) {
+        test(`${pkg.name}: exports its own package.json`, () => {
+            // An exports map closes the package: anything not listed is not
+            // reachable, and `./package.json` is what bundler plugins, vue-tsc
+            // and pnpm's own resolution read. Three packages exported it and
+            // seven did not — found by the first install of the 1.0 candidate
+            // from npm, not by anything in this tree, because a workspace link
+            // resolves past the map.
+            assert.equal(
+                pkg.exports['./package.json'],
+                './package.json',
+                `${pkg.name} has an exports map but does not export ./package.json`,
+            );
+        });
+
         test(`${pkg.name}: every non-wildcard target exists`, () => {
             const missing = [];
             for (const { subpath, conditions, target } of targetsOf(pkg.exports)) {
