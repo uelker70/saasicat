@@ -23,7 +23,7 @@ jobs:
             # download failed four runs in a row on 2026-08-23 with an undici
             # assertion before jscpd ever started. The action reads the same
             # `packageManager` field and caches the binary.
-            - uses: pnpm/action-setup@v4
+            - uses: pnpm/action-setup@v6
             - uses: actions/setup-node@v6
               with:
                   node-version: 24
@@ -50,7 +50,7 @@ jobs:
             # pnpm from its own action, not from `corepack enable` — see the
             # duplication job for why.
             - name: Setup pnpm
-              uses: pnpm/action-setup@v4
+              uses: pnpm/action-setup@v6
             - name: Setup Node
               uses: actions/setup-node@v6
               with:
@@ -139,7 +139,7 @@ jobs:
             # pnpm from its own action, not from `corepack enable` — see the
             # duplication job for why.
             - name: Setup pnpm
-              uses: pnpm/action-setup@v4
+              uses: pnpm/action-setup@v6
             - name: Setup Node
               uses: actions/setup-node@v6
               with:
@@ -183,7 +183,7 @@ jobs:
             # pnpm from its own action, not from `corepack enable` — see the
             # duplication job for why.
             - name: Setup pnpm
-              uses: pnpm/action-setup@v4
+              uses: pnpm/action-setup@v6
             - name: Setup Node
               uses: actions/setup-node@v6
               with:
