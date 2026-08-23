@@ -162,16 +162,16 @@ import { useSaMessages, useSuperAdminI18n } from '../vue/use-super-admin-i18n.js
 import { formatMessage } from '../client/i18n/format.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 import MarketingPromotionsTab from '../features/marketing/MarketingPromotionsTab.vue';
-import MarketingCatalogAdmin from '../internal/marketing-catalog/MarketingCatalogAdmin.vue';
-import MarketingCatalogHeader from '../internal/marketing-catalog/MarketingCatalogHeader.vue';
-import MarketingCatalogPreview from '../internal/marketing-catalog/MarketingCatalogPreview.vue';
-import MarketingCatalogToolbar from '../internal/marketing-catalog/MarketingCatalogToolbar.vue';
+import MarketingCatalogAdmin from '../internal/marketing-catalog-page/MarketingCatalogAdmin.vue';
+import MarketingCatalogHeader from '../internal/marketing-catalog-page/MarketingCatalogHeader.vue';
+import MarketingCatalogPreview from '../internal/marketing-catalog-page/MarketingCatalogPreview.vue';
+import MarketingCatalogToolbar from '../internal/marketing-catalog-page/MarketingCatalogToolbar.vue';
 import type {
     FeatureSuggestion,
     MarketingCatalogTab,
     MarketingRow,
     ResolvedMarketing,
-} from '../internal/marketing-catalog/types.js';
+} from '../internal/marketing-catalog-page/types.js';
 
 import { IDENTITY_NEUTRAL, identityAccentAt } from '../client/identity-accents.js';
 
