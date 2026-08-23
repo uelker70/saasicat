@@ -5,9 +5,6 @@ import pluginVue from 'eslint-plugin-vue';
 import vueParser from 'vue-eslint-parser';
 import globals from 'globals';
 import regexp from 'eslint-plugin-regexp';
-import { createRequire } from 'node:module';
-
-const regexRatchet = createRequire(import.meta.url)('./regex-ratchet.json');
 
 /**
  * A regular expression built from a value: a template literal with an
@@ -69,23 +66,6 @@ export default tseslint.config(
             'regexp/no-super-linear-backtracking': 'error',
             'regexp/no-super-linear-move': 'error',
             'no-restricted-syntax': ['error', ...REGEX_FROM_VALUE],
-        },
-    },
-    {
-        // The ratchet. The rules above arrived with ninety-one findings in the
-        // tests and scripts, and nobody fixes ninety-one regexes in the pull
-        // request that adds a lint. So the files that carried them the day the
-        // rules arrived are listed in `regex-ratchet.json` and get warnings
-        // instead of errors; `tests/regex-ratchet-only-shrinks.test.js` makes
-        // sure the list never grows and that every file on it still needs to
-        // be there. A new file is held to the rules outright.
-        files: regexRatchet.files,
-        rules: {
-            'regexp/no-super-linear-backtracking': 'warn',
-            'regexp/no-super-linear-move': 'warn',
-            // `warn`, not `off`: a new value-built pattern in a listed file
-            // still has to show up in `pnpm lint`, or the debt grows unseen.
-            'no-restricted-syntax': ['warn', ...REGEX_FROM_VALUE],
         },
     },
     {
