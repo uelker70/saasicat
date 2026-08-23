@@ -1,10 +1,23 @@
 # @saasicat/adapter-drizzle
 
+## What this is
+
 The Drizzle + PostgreSQL persistence adapter for SaaSiCat. Same ports, same
 canonical schema and the same executable contract as
 `@saasicat/adapter-prisma` — `@saasicat/persistence-testing` runs the
 identical suite against both adapters in CI, which is what makes "swap the
 ORM, keep the guarantees" a verified claim.
+
+## What this is not
+
+Not a drop-in equal of `@saasicat/adapter-prisma`. It implements the core
+persistence slices — plans, plan versions, subscriptions, audit, MFA, promo
+codes and their redemptions — and the contract suite marks what is missing as
+skipped rather than passing. Check the shipped-adapter table below before
+choosing it for a deployment that needs the whole surface.
+
+Not a schema owner either: the tables come from `@saasicat/spec`, and your
+Drizzle schema declares them. It does not create or migrate anything.
 
 ## Quickstart — the bundle
 
@@ -83,3 +96,9 @@ The integration run applies the normative reference SQL and executes the
 `@saasicat/persistence-testing` contract plus drizzle-specific interop
 tests. **The database is disposable: the harness drops and recreates its
 `public` schema.**
+
+## Next
+
+- [Ports and adapters](../../docs/explanation/adr/0007-ports-and-adapters.md) — why the seam is here
+- [Data model](../../docs/explanation/data-model.md) — the tables and their constraints
+- [`@saasicat/persistence-testing`](../persistence-testing/README.md) — the contract this passes

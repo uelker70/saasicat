@@ -1,5 +1,7 @@
 # @saasicat/ui-vue
 
+## What this is
+
 Vue 3 components + composables for the SuperAdmin UI shell. Provides the
 boot loader, manifest loader (ETag cache), nav builder, action registry,
 standard pages (Dashboard, Tenants, Plans, Discovery, …) and the tenant
@@ -9,18 +11,45 @@ self-service building blocks (`FeatureGate`, `useTenantManifest`,
 Peer dependencies: `vue` (required); `vue-router`, `pinia`, `quasar`
 (optional — see the layers below for what actually needs them).
 
-## Layers
+## What this is not
 
-The package is layered so that each entry only loads what it names.
-Lower layers never import upward; ESLint (`no-restricted-imports`, repo
-root config) enforces the boundaries in CI.
+Not a component library to pick from. It is the SuperAdmin application's
+inside: complete pages, the shell around them, the theme they read and the
+data layer beneath them. Taking one primitive out of context is possible and
+rarely what you want.
 
-| Entry                                                                                           | Source                           | May import                               | Contents                                                                                                                                                                                                                                                         |
-| ----------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@saasicat/ui-vue/client`                                                                       | `src/client/`                    | `@saasicat/core` only                    | Framework-free core: `BootLoader`, `ManifestLoader` (ETag cache), nav builder, action registry, batch column fetcher, the `HttpClient`/`KvStore` contract with its `fetch` and axios adapters, `AdminError`. Usable from any framework or plain Node/TypeScript. |
-| `@saasicat/ui-vue` (main)                                                                       | `src/vue/` (+ client re-exports) | Vue, `vue-router`, Pinia — **no Quasar** | Composables (`useTenants`, `usePlanEditor`, …), router guards, injection keys + shell contract, notify-port type, optional Pinia store factory.                                                                                                                  |
-| `@saasicat/ui-vue/quasar`                                                                       | `src/quasar/`                    | everything above + Quasar                | `createSuperAdminApp()` bootstrap and the Quasar notify-port implementation.                                                                                                                                                                                     |
-| `@saasicat/ui-vue/pages/*.vue`, `/layouts/*.vue`, `/auth/*.vue`, `/ui/*.vue`, `/pages-tenant/*` | SFC directories                  | everything                               | The Quasar reference UI, shipped as raw `.vue` from `src/` (compiled by the consumer's Vite).                                                                                                                                                                    |
+Not a design system for your product, either. The `Admin*` roster exists for
+admin surfaces; everything else is Quasar, styled through the theme.
+
+Not compiled for the subpaths that ship `.vue` and `.ts` from `src/` — your
+build compiles those, which is what makes Quasar and Sass theming work and why
+that source stays within ES2021.
+
+## Entry points
+
+The package is layered so that each entry only loads what it names. Lower
+layers never import upward, and ESLint enforces it — the reasoning is in
+[ADR 0004](../../docs/explanation/adr/0004-ui-vue-layer-boundaries.md).
+
+| Entry                 | Source          | May import                    | When you take it                                                                                                                                                                     |
+| --------------------- | --------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `./client`            | `src/client/`   | `@saasicat/core` only         | Framework-free: loaders, nav builder, action registry, the resource descriptors, `HttpClient`/`KvStore` with their `fetch` and axios adapters, `AdminError`. Usable from plain Node. |
+| `.`                   | `src/vue/`      | Vue, `vue-router`, Pinia      | Composables, router guards, injection keys, `createAdminRoutes`, the store factory. No Quasar.                                                                                       |
+| `./quasar`            | `src/quasar/`   | everything above, plus Quasar | `createSuperAdminApp()` and the Quasar implementations of the notify and confirm ports.                                                                                              |
+| `./pages`             | `src/pages/`    | everything                    | `standardAdminChildren()` — the platform's own screens as route children.                                                                                                            |
+| `./pages/*.vue`       | `src/pages/`    | everything                    | One standard page, when you mount it yourself.                                                                                                                                       |
+| `./layouts/*.vue`     | `src/layouts/`  | everything                    | `AdminLayout` — the shell around the pages.                                                                                                                                          |
+| `./auth/*.vue`        | `src/auth/`     | everything                    | The login screen and the first-run setup wizard.                                                                                                                                     |
+| `./ui/*.vue`          | `src/ui/`       | everything                    | The `Admin*` primitives, when you build a page of your own.                                                                                                                          |
+| `./theme.css`         | `src/ui/theme/` | —                             | The stylesheet. Import it once; without it the pages render unstyled.                                                                                                                |
+| `./theme/*`           | `src/ui/theme/` | —                             | The individual token layers, for a consumer that overrides roles.                                                                                                                    |
+| `./theme/breakpoints` | `src/ui/theme/` | —                             | The five breakpoint values, for a build that needs them in JavaScript.                                                                                                               |
+| `./vue`               | `src/vue/`      | Vue, `vue-router`, Pinia      | The Vue layer alone, without the client re-exports.                                                                                                                                  |
+| `./testing/*`         | `src/testing/`  | everything                    | Fixtures for component and end-to-end tests against the pages.                                                                                                                       |
+
+The four subpaths that hand out `.vue` and `.ts` from `src/` are compiled by
+**your** build, which is what makes Quasar and Sass theming work —
+[ADR 0005](../../docs/explanation/adr/0005-ship-sfc-source-not-dist.md).
 
 ### The shipped source has a language floor
 
@@ -156,3 +185,9 @@ pnpm --filter @saasicat/ui-vue build
 
 Produces `dist/{index,client/index,quasar/index}.{js,cjs,d.ts}` via tsup
 (`tsup.config.ts`); `vue`, `vue-router`, `pinia` and `quasar` stay external.
+
+## Next
+
+- [Build the admin frontend](../../docs/guides/build-the-admin-frontend.md) — wiring it into an app
+- [Design guide](../../docs/explanation/design-guide.md) — the page recipe and the colour roles
+- [Pages take resources, not callbacks](../../docs/explanation/adr/0008-resource-ports-over-props.md)

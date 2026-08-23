@@ -1,5 +1,7 @@
 # @saasicat/cli
 
+## What this is
+
 Cross-cutting helpers for consumer CLIs. Provides:
 
 - `CliContextService` — identity / MFA / production-confirm / audit-tag
@@ -11,6 +13,16 @@ Cross-cutting helpers for consumer CLIs. Provides:
   `<app> manifest dump|validate|hash|diff|check`
 
 Spec: [`cli-conventions.md`][conventions] in `@saasicat/spec`.
+
+## What this is not
+
+Not a CLI. There is no binary here: these are `nest-commander` flows and
+services you register in **your** application's CLI, so they run with your
+DI container, your database connection and your configuration.
+
+Not the schema tooling either — `saasicat schema apply|check|migrate` and
+`saasicat init` ship in the `saasicat` binary of this package's `bin`, and
+are documented in the quickstart rather than here.
 
 ## Plugin Architecture
 
@@ -151,3 +163,8 @@ Per [`cli-conventions.md`][conventions] §6:
 | 99   | internal                                |
 
 [conventions]: https://github.com/uelker70/saasicat/blob/main/packages/spec/cli-conventions.md
+
+## Next
+
+- [Extend your CLI](../../docs/guides/extend-your-cli.md) — registering these flows in your app
+- [Quickstart](../../docs/quickstart.md) — `saasicat init`, `schema apply`, `schema check`

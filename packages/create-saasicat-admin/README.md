@@ -1,8 +1,20 @@
 # create-saasicat-admin
 
+## What this is
+
 Scaffolding CLI for SuperAdmin frontend projects. Generates a runnable
 Vue 3 + Quasar + Vite project that builds on `@saasicat/ui-vue` and ships
 all standard pages.
+
+## What this is not
+
+Not a dependency. It runs once, writes a Vite + Vue 3 + Quasar project you
+own, and is never installed into it. Nothing it writes is generated again
+later — edit the files freely.
+
+Not the backend. The scaffolded admin talks to a NestJS application that
+already has `@saasicat/nest` wired; without one it starts and shows a login
+screen it cannot get past.
 
 ## Usage
 
@@ -16,7 +28,7 @@ pnpm create saasicat-admin <dir> \
 
 Generates this directory structure:
 
-```
+```text
 <dir>/
 ├── package.json
 ├── vite.config.ts
@@ -59,3 +71,8 @@ pnpm dev   # http://localhost:9100/admin/login
 3. Adapt the Vite proxy in `vite.config.ts` to your backend port.
 
 Everything else comes from `@saasicat/ui-vue`.
+
+## Next
+
+- [Build the admin frontend](../../docs/guides/build-the-admin-frontend.md) — what the scaffolder wrote, explained
+- [Design guide](../../docs/explanation/design-guide.md) — before you write a page of your own

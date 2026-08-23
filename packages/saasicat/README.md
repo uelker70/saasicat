@@ -1,5 +1,7 @@
 # saasicat
 
+## What this is
+
 **SaaSiCat** connects code-declared capabilities to discovery, commercial
 packages, customer contracts and runtime enforcement in NestJS applications.
 It also includes the SuperAdmin, audit, MFA and billing lifecycle building
@@ -18,3 +20,17 @@ code. The framework lives in the `@saasicat` scope. You probably want one of:
 | Types and JSON Schemas only          | `npm install @saasicat/core` / `@saasicat/spec`                       |
 
 Documentation and source: <https://github.com/uelker70/saasicat>
+
+## What this is not
+
+Not the framework. This package contains no code at all — it reserves the
+unscoped name so that `npm install saasicat` lands somewhere that can tell you
+what you actually want.
+
+Not deprecated either: the table below stays current, and the packages it
+points at are released in lockstep with it.
+
+## Next
+
+- [Quickstart](https://github.com/uelker70/saasicat/blob/main/docs/quickstart.md)
+- [Documentation](https://github.com/uelker70/saasicat/blob/main/docs/README.md)
