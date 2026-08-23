@@ -48,6 +48,16 @@ export interface AdminPagesSuiteConfig {
     dashboardPath?: string;
 }
 
+/**
+ * Where the dashboard renders a distribution's title: each distribution is an
+ * `AdminSection` under `.sa-dashboard__rows`, and the section's heading is the
+ * title. Exported so the component test that mounts the page can ask the same
+ * question this suite asks of a running app — the selector used to be a
+ * `.sa-dashboard__row-head h2` the page had stopped rendering, and nothing
+ * said so until a consumer ran the suite.
+ */
+export const DASHBOARD_DISTRIBUTION_TITLE = '.sa-dashboard__rows .sa-section__title';
+
 interface PageErrors {
     pageErrors: string[];
     consoleErrors: string[];
@@ -158,7 +168,7 @@ export function runAdminPagesSuite(
 
             if (config.expectedDistributionTitles?.length) {
                 const distTitles = await page
-                    .locator('.sa-dashboard__row-head h2')
+                    .locator(DASHBOARD_DISTRIBUTION_TITLE)
                     .allTextContents();
                 const normalizedDist = distTitles.map((s) => s.trim());
                 for (const expected of config.expectedDistributionTitles) {
