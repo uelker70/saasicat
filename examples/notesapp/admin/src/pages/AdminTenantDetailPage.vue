@@ -18,8 +18,8 @@ const options = computed<TenantDetailPageOptions>(() => ({
     backRoute: '/admin/tenants',
     manifest: manifestStore.manifest,
     verbrauchFields: [
-        { label: 'Notizen', key: 'notes' },
-        { label: 'Nutzer', key: 'users' },
+        { label: 'Notes', key: 'notes' },
+        { label: 'Users', key: 'users' },
     ],
     userColumns: [
         { name: 'email', label: 'E-Mail', field: 'email', align: 'left' },

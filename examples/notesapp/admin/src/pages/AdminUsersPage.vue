@@ -10,6 +10,6 @@ import type { UsersPageOptions } from '@saasicat/ui-vue/pages/UsersPage.vue';
 // itself; reset-password and deactivate are left off, because this example's
 // User model has no such lifecycle.
 const options: UsersPageOptions = {
-    subtitle: 'Alle Nutzer über die Mandanten hinweg.',
+    subtitle: 'Every user, across all tenants.',
 };
 </script>

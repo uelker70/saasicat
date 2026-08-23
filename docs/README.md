@@ -12,7 +12,20 @@ directly, not in order.
 | understand why it is built this way    | `explanation/` |
 
 In a hurry: the [quickstart](quickstart.md) is the shortest path from an
-existing NestJS backend to a discovered, packaged and enforced feature.
+existing NestJS backend to a discovered, packaged and enforced feature — six
+actions, no explanation.
+
+## Tutorial
+
+Four parts, each about twenty minutes, each ending in something you can check.
+Start here if you have not used SaaSiCat before.
+
+| Part                                                   | You end with                                                          |
+| ------------------------------------------------------ | --------------------------------------------------------------------- |
+| [1 — Your first plan](tutorial/01-first-plan.md)       | An endpoint that refuses the 26th note with a 402.                    |
+| [2 — The admin panel](tutorial/02-admin-ui.md)         | A SuperAdmin panel showing your plan, tenants and capability.         |
+| [3 — A page of your own](tutorial/03-your-own-page.md) | A page in the sidebar that a capability switch removes.               |
+| [4 — Going live](tutorial/04-going-live.md)            | A container that boots, reports health and cannot be re-bootstrapped. |
 
 ## Guides
 

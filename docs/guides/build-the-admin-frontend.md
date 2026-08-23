@@ -548,3 +548,85 @@ per namespace under `packages/ui-vue/src/client/i18n/messages/`.
 The German object is the reference structure; the compiler rejects a translation
 with missing or extra keys. For a single app, `additionalLocales` is the shorter
 road.
+
+## Overriding one operation
+
+When one call has to go somewhere else — a legacy host, an approval recorded
+around a publish — override that one operation and keep the rest:
+
+```ts
+createSuperAdminApp({
+    http: platformHttp,
+    resourceOverrides: {
+        bundleVersions: {
+            ops: {
+                publish: async (next, versionId, options) => {
+                    await recordApproval(versionId);
+                    return next(versionId, options);
+                },
+            },
+        },
+    },
+});
+```
+
+`next` is the platform's own implementation, so the wrapper decides what happens
+around it rather than replacing it. Every other operation is untouched.
+
+`createAdminResourceClient` is still exported for an app that wants to call the
+admin API from its own code rather than through a page.
+
+## The tenant-facing feature gate
+
+For your app's own tenant UI (not the SuperAdmin), the platform provides
+three building blocks that work together:
+
+```ts
+// main.ts of the tenant app
+import { provideEntitlement, useTenantManifest } from '@saasicat/ui-vue';
+
+const manifest = useTenantManifest({ endpoint: '/api/v1/tenant/manifest' });
+// manifest.value → { planId, features, quotas, navigation }
+// manifest.hasFeature('NOTES') → boolean
+
+// If you keep using the older useEntitlement:
+provideEntitlement(app, manifest); // FeatureGate + router guard use it
+```
+
+Then control visibility declaratively in templates:
+
+```vue
+<template>
+    <FeatureGate feature="NOTES">
+        <RouterLink to="/notes">Notes</RouterLink>
+        <template #fallback>
+            <span class="muted">Upgrade to Pro for notes</span>
+        </template>
+    </FeatureGate>
+</template>
+
+<script setup>
+import FeatureGate from '@saasicat/ui-vue/ui/entitlement/FeatureGate.vue';
+</script>
+```
+
+And block routes:
+
+```ts
+import { buildFeatureRouterGuard } from '@saasicat/ui-vue';
+
+router.beforeEach(
+    buildFeatureRouterGuard({
+        getEntitlement: () => manifest,
+        redirectTo: '/upgrade',
+    }),
+);
+
+// Route meta:
+{ path: '/notes', component: NotesPage, meta: { requiresFeature: 'NOTES' } }
+```
+
+> **Security note:** the frontend feature gate is **convenience, not
+> protection**. The actual protection lives in the backend
+> (`@RequireFeature` + `@EnforceQuota`). The frontend only hides
+> buttons the backend would reject anyway.

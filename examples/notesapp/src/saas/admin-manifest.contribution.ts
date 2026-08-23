@@ -16,7 +16,7 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
         kpiCards: [
             {
                 id: 'notesapp.tenants',
-                label: 'Mandanten',
+                label: 'Tenants',
                 endpoint: '/api/v1/admin/stats/tenants',
                 displayHint: { type: 'value', icon: 'business' },
                 slotPriority: 90,
@@ -24,7 +24,7 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'notesapp.notes',
-                label: 'Notizen',
+                label: 'Notes',
                 endpoint: '/api/v1/admin/stats/notes',
                 displayHint: { type: 'value', icon: 'sticky_note_2' },
                 slotPriority: 80,
@@ -32,7 +32,7 @@ export const NOTESAPP_MANIFEST_CONTRIBUTION: ManifestContribution = {
             },
             {
                 id: 'notesapp.users',
-                label: 'Nutzer',
+                label: 'Users',
                 endpoint: '/api/v1/admin/stats/users',
                 displayHint: { type: 'value', icon: 'people' },
                 slotPriority: 70,
