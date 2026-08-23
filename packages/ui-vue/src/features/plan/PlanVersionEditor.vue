@@ -1099,27 +1099,6 @@ function emitSave(): void {
     min-width: 0;
     margin-left: var(--sa-space-3);
 }
-.pve-bs-input {
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border);
-    border-radius: var(--sa-radius-badge);
-    padding: var(--sa-space-2) var(--sa-space-3);
-    font: var(--sa-text-md) var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-    outline: none;
-}
-.pve-bs-input:focus {
-    border-color: var(--sa-color-accent);
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-2);
-}
-.pve-bs-input--error {
-    border-color: var(--sa-color-negative-strong);
-    background: var(--sa-color-negative-surface);
-}
-.pve-bs-input--error:focus {
-    border-color: var(--sa-color-negative-strong);
-    box-shadow: 0 0 0 3px var(--sa-shadow-tint-3);
-}
 .pve-bs-error {
     display: flex;
     align-items: center;
@@ -1132,10 +1111,19 @@ function emitSave(): void {
 .pve-bs-error svg {
     flex: 0 0 auto;
 }
-.pve-bs-input--grow {
-    flex: 1;
-    margin-left: var(--sa-space-3);
+/* Widths, not looks. */
+.pve-bs-money {
+    max-width: 120px;
 }
+
+.pve-bs-grow {
+    flex: 1;
+}
+
+.pve-sel-val-input {
+    max-width: 96px;
+}
+
 .pve-bs-input-grp {
     display: flex;
     align-items: stretch;
@@ -1146,12 +1134,6 @@ function emitSave(): void {
 }
 .pve-bs-input-grp--gap {
     margin-left: var(--sa-space-2);
-}
-.pve-bs-input--flush {
-    border: 0 !important;
-    border-radius: 0 !important;
-    padding: var(--sa-space-2) var(--sa-space-3) !important;
-    width: 90px;
 }
 .pve-bs-prefix,
 .pve-bs-suffix {
@@ -1315,16 +1297,6 @@ function emitSave(): void {
     padding: var(--sa-space-1) var(--sa-space-3);
     border-radius: var(--sa-radius-badge);
     border: 1px solid var(--sa-color-border);
-}
-.pve-sel-val-input {
-    width: 64px;
-    border: 0;
-    outline: 0;
-    background: transparent;
-    font: 600 var(--sa-text-md) var(--sa-font-body);
-    color: var(--sa-color-fg-heading);
-    text-align: right;
-    -moz-appearance: textfield;
 }
 .pve-sel-val-input::-webkit-outer-spin-button,
 .pve-sel-val-input::-webkit-inner-spin-button {
