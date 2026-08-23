@@ -39,11 +39,12 @@ const DARK = fileURLToPath(new URL('../src/ui/theme/tokens.semantic.dark.css', i
  */
 function declarations(css) {
     const withoutComments = css.replace(/\/\*[\s\S]*?\*\//g, '');
-    return [...withoutComments.matchAll(/(--sa-[\w-]+)\s*:\s*([^;]+);/g)].map((match) => {
+    return [...withoutComments.matchAll(/(--sa-[\w-]+)\s*:([^;]+);/g)].map((match) => {
         const value = match[2]
             .replace(/\s+/g, ' ')
-            .replace(/\(\s+/g, '(')
-            .replace(/\s+\)/g, ')')
+            // Runs are single spaces by now, so a space is all a bracket can touch.
+            .replace(/\( /g, '(')
+            .replace(/ \)/g, ')')
             .trim();
         return `${match[1]}: ${value}`;
     });

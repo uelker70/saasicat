@@ -34,9 +34,7 @@ const PRIMITIVE = join(SRC, 'ui', 'theme', 'tokens.primitive.css');
 /** `--name: value;` pairs from a theme file, comments removed. */
 function declarationsOf(path) {
     const css = readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-    return new Map(
-        [...css.matchAll(/(--sa-[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]),
-    );
+    return new Map([...css.matchAll(/(--sa-[\w-]+)\s*:([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
 }
 
 /** Resolves a role through `var()` indirection to the hex it ends at. */

@@ -21,7 +21,7 @@ const FIXTURE = fileURLToPath(new URL('./e2e/visual/theme.scss', import.meta.url
 function brandVariables(path) {
     const found = new Map();
     for (const line of readFileSync(path, 'utf8').split('\n')) {
-        const match = /^\s*\$([a-z-]+)\s*:\s*([^;]+);/.exec(line);
+        const match = /^\s*\$([a-z-]+)\s*:([^;]+);/.exec(line);
         if (match) found.set(match[1], match[2].trim());
     }
     return found;
