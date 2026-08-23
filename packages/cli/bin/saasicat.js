@@ -594,6 +594,7 @@ async function cmdCodemodV1Rename(args) {
     const ambiguous = new Map();
     let rewritten = 0;
     let touched = 0;
+    let manifestsTouched = 0;
     await walkSources(root, async (full, source) => {
         // A manifest takes the package renames in its dependency fields; a
         // source file takes everything. Under pnpm an import a manifest does
@@ -609,11 +610,26 @@ async function cmdCodemodV1Rename(args) {
         if (!dryRun) await writeFile(full, result.text);
         rewritten += result.rewritten;
         touched += 1;
+        if (basename(full) === CODEMOD_MANIFEST) manifestsTouched += 1;
     });
 
     console.log(
         `${dryRun ? 'Would rewrite' : 'Rewrote'} ${rewritten} name(s) in ${touched} file(s).`,
     );
+    if (manifestsTouched > 0) {
+        // The lockfile is not rewritten: its shape is the package manager's,
+        // and a wrong guess at it is worse than an honest instruction. A CI
+        // that installs with a frozen lockfile refuses the migrated checkout
+        // until it is regenerated.
+        console.log('');
+        console.log(
+            `${manifestsTouched} package.json ${manifestsTouched === 1 ? 'file' : 'files'} changed — ` +
+                'regenerate the lockfile before committing:',
+        );
+        console.log(
+            '  pnpm install   (or npm install / yarn install, whichever owns your lockfile)',
+        );
+    }
     if (ambiguous.size === 0) return;
 
     console.log('');

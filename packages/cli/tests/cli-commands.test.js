@@ -481,6 +481,9 @@ describe('codemod v1-rename', () => {
         assert.deepEqual(JSON.parse(after).dependencies, { '@saasicat/core': `^${own}` });
         assert.doesNotMatch(after, /@saasicat\/types/);
         assert.match(after, /^ {2}"name"/m);
+        // The lockfile is the consumer's to regenerate, and the command says so.
+        assert.match(stdout, /regenerate the lockfile/);
+        assert.match(stdout, /pnpm install/);
     });
 
     test('a second run has nothing left to do', async () => {

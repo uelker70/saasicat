@@ -45,7 +45,10 @@ The codemod rewrites the specifier **and the dependency in every `package.json` 
 under pnpm an import a manifest does not declare fails to resolve. The range becomes
 `^<the CLI's own version>`: a 0.x range like `^0.27.0` names a line `@saasicat/core` was never
 on. A `workspace:`, `file:` or `link:` range is reported instead, because it points at a location
-only you know. `@saasicat/types` stays on npm at `0.27.0` for the 0.x line and gets no 1.0.
+only you know. **Then regenerate your lockfile** (`pnpm install`, `npm install` or `yarn install`,
+whichever owns it): the codemod changes `package.json` and leaves the lockfile alone, and a CI that
+installs with `--frozen-lockfile` refuses the checkout until the two agree. `@saasicat/types` stays
+on npm at `0.27.0` for the 0.x line and gets no 1.0.
 
 ### Registry keys
 

@@ -214,6 +214,16 @@ describe('a renamed package reaches the manifest', () => {
         assert.ok(text.endsWith('\n'));
     });
 
+    test('the optional flag follows the peer it belongs to', () => {
+        const before = JSON.stringify({
+            peerDependencies: { '@saasicat/types': '^0.27.0', vue: '^3.5.0' },
+            peerDependenciesMeta: { '@saasicat/types': { optional: true } },
+        });
+        const after = JSON.parse(rewriteManifest(before, TABLE, RANGE).text);
+        // Left under the old name, the renamed peer would read as required.
+        assert.deepEqual(after.peerDependenciesMeta, { '@saasicat/core': { optional: true } });
+    });
+
     test('a workspace or path range is reported, not guessed at', () => {
         const before = JSON.stringify({
             dependencies: { '@saasicat/types': 'workspace:^' },

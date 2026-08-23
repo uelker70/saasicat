@@ -238,6 +238,19 @@ export function rewriteManifest(
         });
         manifest[field] = Object.fromEntries(renamed);
     }
+    // `peerDependenciesMeta` is keyed by the peer's name; a flag left under
+    // the old name would make the renamed peer required downstream.
+    const meta = manifest.peerDependenciesMeta;
+    if (meta && typeof meta === 'object') {
+        manifest.peerDependenciesMeta = Object.fromEntries(
+            Object.entries(meta as Record<string, unknown>).map(([name, flags]) => {
+                const to = renames.find(([from]) => from === name)?.[1];
+                if (!to) return [name, flags] as const;
+                rewritten += 1;
+                return [to, flags] as const;
+            }),
+        );
+    }
     if (rewritten === 0) return { text, rewritten: 0, ambiguous };
     const indent = /^[ \t]+/m.exec(text)?.[0] ?? '    ';
     const trailing = text.endsWith('\n') ? '\n' : '';
