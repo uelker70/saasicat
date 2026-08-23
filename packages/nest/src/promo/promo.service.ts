@@ -39,9 +39,12 @@ import {
 } from './calculator.js';
 import { computeIncludedVat } from './math.js';
 
-const CODE_MIN_LENGTH = 4;
-const CODE_MAX_LENGTH = 32;
-const CODE_PATTERN = new RegExp(`^[A-Z0-9_-]{${CODE_MIN_LENGTH},${CODE_MAX_LENGTH}}$`);
+export const CODE_MIN_LENGTH = 4;
+export const CODE_MAX_LENGTH = 32;
+// One literal, with the two bounds repeated in it: a pattern assembled from
+// the constants is what the lint refuses, and `promo-code-pattern.test.js`
+// holds the literal to the constants so they cannot drift apart.
+export const CODE_PATTERN = /^[A-Z0-9_-]{4,32}$/;
 
 const PERCENT_MIN_EXCLUSIVE = 0;
 const PERCENT_MAX = 100;

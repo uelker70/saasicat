@@ -73,6 +73,7 @@ export function relationNameOf(relationAttribute: string): string | null {
  * against the whole schema. Escaping puts the guarantee in the function that
  * needs it instead of two calls away in another file.
  */
+/** Every metacharacter, the backslash included — the set the lint asks for. */
 function escapeForRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -80,6 +81,8 @@ function escapeForRegExp(value: string): string {
 /** The body of `model X { … }`, or null. */
 function modelBody(schema: string, model: string): string | null {
     const name = escapeForRegExp(model);
+    // `name` went through escapeForRegExp, which covers every metacharacter.
+    // eslint-disable-next-line no-restricted-syntax
     const block = new RegExp(`(^|\\n)model\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm').exec(schema);
     return block ? block[2]! : null;
 }
@@ -103,6 +106,8 @@ function modelBody(schema: string, model: string): string | null {
 export function isOneToOne(schema: string, model: string, foreignKey: string): boolean {
     const body = modelBody(schema, model);
     if (!body) return false;
+    // Escaped in full, see escapeForRegExp.
+    // eslint-disable-next-line no-restricted-syntax
     return new RegExp(`^\\s*${escapeForRegExp(foreignKey)}\\s+\\S+.*@unique`, 'm').test(body);
 }
 
@@ -135,6 +140,8 @@ export function hasBackRelation(
 
     const name = escapeForRegExp(model);
     const shape = singular ? `${name}\\??` : `${name}\\[\\]`;
+    // `shape` is the escaped model name plus a literal suffix.
+    // eslint-disable-next-line no-restricted-syntax
     const candidates = [...body.matchAll(new RegExp(`^\\s*\\w+\\s+${shape}(\\s.*)?$`, 'gm'))];
     return candidates.some((line) => relationNameOf(line[0]) === relationName);
 }

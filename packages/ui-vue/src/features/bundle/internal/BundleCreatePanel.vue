@@ -244,6 +244,7 @@ import BundleQuotasEditor from './BundleQuotasEditor.vue';
 import type { QuotaMeta } from './catalog-i18n.js';
 import { findBundlePlanOverlap, formatDate } from './bundle-version-status';
 import { formatMessage } from '../../../client/i18n/format.js';
+import { trimChar } from '../../../client/text-shape.js';
 import { useSaMessages, useSuperAdminI18n } from '../../../vue/use-super-admin-i18n.js';
 
 // BundleCreatePanel — expandable inline panel for creating a new
@@ -341,13 +342,12 @@ watch(
 );
 
 function bundleKeyify(s: string): string {
-    return s
+    const collapsed = s
         .toUpperCase()
         .normalize('NFD')
         .replace(/[̀-ͯ]/g, '')
-        .replace(/[^A-Z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 32);
+        .replace(/[^A-Z0-9]+/g, '_');
+    return trimChar(collapsed, '_').slice(0, 32);
 }
 
 function onBundleKeyInput(event: Event): void {

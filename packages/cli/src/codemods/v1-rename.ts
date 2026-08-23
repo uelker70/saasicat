@@ -35,6 +35,7 @@ export interface RenameResult {
     readonly ambiguous: readonly string[];
 }
 
+/** Every metacharacter, the backslash and the slash included — the set the lint asks for. */
 const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
 /** Every `from '…'` / `from "…"` in a text — the anchor a named import is read back from. */
@@ -116,6 +117,7 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
         }
     }
     for (const [from, to] of perEntry) {
+        // eslint-disable-next-line no-restricted-syntax -- `escape` covers every metacharacter
         next = next.replace(new RegExp(`\\b${escape(from)}\\b`, 'g'), () => {
             rewritten += 1;
             return to;
@@ -126,6 +128,7 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
     //    inside `createSaasPlatformTestModule` as well as at the front of
     //    `SaasPlatformModule`. Case-sensitive, so `saasicat` is never a stem.
     for (const [from, to] of Object.entries(table.identifierStems)) {
+        // eslint-disable-next-line no-restricted-syntax -- `escape` covers every metacharacter
         next = next.replace(new RegExp(escape(from), 'g'), () => {
             rewritten += 1;
             return to;
@@ -136,12 +139,14 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
     //    literal that starts with the prefix. The ui-vue prefix doubles as an
     //    import specifier, so that one is rewritten inside `Symbol.for` only.
     for (const [from, to] of Object.entries(table.registryKeys)) {
+        // eslint-disable-next-line no-restricted-syntax -- `escape` covers every metacharacter
         const symbolFor = new RegExp(`(Symbol\\.for\\(\\s*['"\`])${escape(from)}`, 'g');
         next = next.replace(symbolFor, (_, head: string) => {
             rewritten += 1;
             return `${head}${to}`;
         });
         if (from.startsWith('@')) continue; // an import-looking prefix: Symbol.for only
+        // eslint-disable-next-line no-restricted-syntax -- `escape` covers every metacharacter
         const literal = new RegExp(`(['"\`])${escape(from)}`, 'g');
         next = next.replace(literal, (_, quote: string) => {
             rewritten += 1;
@@ -151,6 +156,7 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
 
     // 4. Subpaths that were renamed inside a package.
     for (const [from, to] of Object.entries(table.subpaths)) {
+        // eslint-disable-next-line no-restricted-syntax -- `escape` covers every metacharacter
         next = next.replace(new RegExp(escape(from), 'g'), () => {
             rewritten += 1;
             return to;

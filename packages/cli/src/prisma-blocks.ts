@@ -20,6 +20,9 @@ export function stripLineComment(line: string): string {
 }
 
 function declarationPattern(keyword: string): RegExp {
+    // `keyword` is one of two literals this file passes (`model`, `enum`),
+    // never text from a schema.
+    // eslint-disable-next-line no-restricted-syntax
     return new RegExp(`^\\s*${keyword}\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\{`);
 }
 

@@ -41,7 +41,7 @@
                     dense
                     :disable="loading"
                     class="q-mb-sm"
-                    :rules="[(v: string) => /\S+@\S+\.\S+/.test(v) || msg.invalidEmail]"
+                    :rules="[(v: string) => looksLikeEmail(v) || msg.invalidEmail]"
                 />
                 <q-input
                     v-model="form.password"
@@ -152,6 +152,7 @@
 
 <script setup lang="ts">
 import { attachCause } from '../client/attach-cause.js';
+import { looksLikeEmail } from '../client/text-shape.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, reactive, ref } from 'vue';
 import { SETUP_ERROR_CODES, type SetupConfirmMfaResponse, type SetupResult } from '@saasicat/types';
@@ -217,7 +218,7 @@ const errorMessage = ref<string | null>(null);
 const canCreate = computed(
     () =>
         form.token.length > 0 &&
-        /\S+@\S+\.\S+/.test(form.email) &&
+        looksLikeEmail(form.email) &&
         (form.password.length === 0 || form.password.length >= 8) &&
         !loading.value,
 );

@@ -33,3 +33,4 @@ export * from './i18n/index.js';
 export * from './login-branding.js';
 export * from './resolve-plans.js';
 export * from './identity-accents.js';
+export { looksLikeEmail, trimChar } from './text-shape.js';

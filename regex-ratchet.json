@@ -1,0 +1,35 @@
+{
+    "_comment": [
+        "Files in which the regular-expression rules are still warnings, as measured the day the rules arrived.",
+        "A file leaves this list when its findings are fixed; none is added. tests/regex-ratchet-only-shrinks.test.js holds both ends.",
+        "Measured 2026-08-23: 26 files, all tests and scripts \u2014 the findings in shipped code were fixed or declared first."
+    ],
+    "files": [
+        "packages/cli/tests/cli-commands.test.js",
+        "packages/cli/tests/fk-pointers.test.js",
+        "packages/cli/tests/init.test.js",
+        "packages/cli/tests/schema-apply-dry-run.test.js",
+        "packages/nest/tests/error-params-contract.test.js",
+        "packages/nest/tests/platform-configuration-rules.test.js",
+        "packages/ui-vue/playwright.config.ts",
+        "packages/ui-vue/scripts/check-shipped-source.mjs",
+        "packages/ui-vue/tests/component/admin-page-shell.test.ts",
+        "packages/ui-vue/tests/diagnostics-are-not-translated.test.js",
+        "packages/ui-vue/tests/e2e/visual/fixture-data.ts",
+        "packages/ui-vue/tests/error-facts-are-declared.test.js",
+        "packages/ui-vue/tests/flex-direction-override.test.js",
+        "packages/ui-vue/tests/identity-accents-match-theme.test.js",
+        "packages/ui-vue/tests/resource-registry.test.js",
+        "packages/ui-vue/tests/scaffolder-brand-defaults.test.js",
+        "packages/ui-vue/tests/theme-layer-discipline.test.js",
+        "packages/ui-vue/tests/theme-reaches-every-page.test.js",
+        "packages/ui-vue/tests/theme-role-contrast.test.js",
+        "packages/ui-vue/tests/theme-token-parity.test.js",
+        "packages/ui-vue/tests/use-resource-list.test.js",
+        "scripts/token-audit.mjs",
+        "tests/dist-is-self-contained.test.js",
+        "tests/docs-links-resolve.test.js",
+        "tests/pre-release-mode-is-documented.test.js",
+        "tests/vue-entry-is-complete.test.js"
+    ]
+}
