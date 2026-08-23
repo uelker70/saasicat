@@ -156,6 +156,8 @@
                     <div class="pl-field">
                         <label>{{ msg.form.planLabel }}</label>
                         <div class="pl-plan-select">
+                            <!-- @optionSurface
+                                 A plan option with a colour dot, one of a group — a radio in chip form. -->
                             <button
                                 v-for="p in normalizedPlanOptions"
                                 :key="p.value"

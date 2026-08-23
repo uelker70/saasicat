@@ -1,6 +1,10 @@
 <template>
     <div class="sa-accordion" :class="{ 'sa-accordion--open': open }">
         <div class="sa-accordion__head">
+            <!-- @optionSurface
+                 The disclosure trigger, and the reason this component exists: it owns
+                 `aria-expanded` and `aria-controls`, which four of the eight hand-built
+                 accordions did not. -->
             <button
                 :id="triggerId"
                 type="button"

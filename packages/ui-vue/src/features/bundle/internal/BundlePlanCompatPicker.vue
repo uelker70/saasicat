@@ -2,6 +2,9 @@
     <div class="bv-compat">
         <div class="bv-compat-hint">{{ msg.compatPicker.hint }}</div>
         <div class="bv-compat-grid">
+            <!-- @optionSurface
+                 A compatibility card — a heading, a body and a state in one clickable
+                 surface. Quasar has no component for a card that is also a control. -->
             <button
                 v-for="entry in entries"
                 :key="entry.plan.planKey"

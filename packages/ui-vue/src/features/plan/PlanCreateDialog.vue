@@ -53,6 +53,9 @@
             <div class="pcd-field">
                 <div class="pcd-field-label">{{ msg.createDialog.labelBasis }}</div>
                 <div class="pcd-choice-grid">
+                    <!-- @optionSurface
+                         A choice card with a title and a description, one of a group. A radio in
+                         card form rather than an action. -->
                     <button
                         v-for="opt in choiceOptions"
                         :key="opt.key"

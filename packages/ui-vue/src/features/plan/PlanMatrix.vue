@@ -150,6 +150,9 @@
                             </div>
                         </th>
                         <th class="pm-add-col">
+                            <!-- @optionSurface
+                                 The empty cell that adds a component to the matrix: a drop target the
+                                 size of the cell, not a button placed in one. -->
                             <button class="pm-add" type="button" @click="$emit('createPlan')">
                                 <div class="pm-add-icon">
                                     <svg

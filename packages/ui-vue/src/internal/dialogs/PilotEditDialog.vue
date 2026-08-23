@@ -24,6 +24,8 @@
                     </div>
                 </header>
                 <div class="pl-plan-select">
+                    <!-- @optionSurface
+                         A plan option with a colour dot, one of a group — a radio in chip form. -->
                     <button
                         v-for="p in effectivePlanOptions"
                         :key="p.value"

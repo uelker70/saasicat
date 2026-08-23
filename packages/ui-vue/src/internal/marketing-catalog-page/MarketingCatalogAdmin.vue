@@ -129,6 +129,9 @@
                         <span v-else class="sa-marketing-chip sa-marketing-chip--live">{{
                             msg.admin.live
                         }}</span>
+                        <!-- @optionSurface
+                             A disclosure trigger: it owns `aria-expanded` and `aria-controls`, which
+                             is what makes the row a control rather than a click handler. -->
                         <button
                             v-if="row.liveVersion"
                             type="button"

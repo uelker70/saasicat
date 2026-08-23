@@ -218,6 +218,72 @@ describe('no-restricted-components', () => {
     });
 });
 
+describe('no-hand-built-controls', () => {
+    const options = [
+        {
+            components: { input: 'q-input', button: 'q-btn' },
+            allow: ['src/ui/theme/'],
+        },
+    ];
+
+    test('a control the system ships is not written by hand', () => {
+        sfc.run('no-hand-built-controls', rules['no-hand-built-controls'], {
+            valid: [
+                {
+                    code: '<template><q-input v-model="x" /></template>',
+                    filename: '/repo/src/pages/UsersPage.vue',
+                    options,
+                },
+                {
+                    // An option surface keeps its native element, and says why
+                    // where the next reader is already looking.
+                    code:
+                        '<template>\n' +
+                        '    <!-- @optionSurface a segmented option with two lines of text,\n' +
+                        '         one of a group, which q-btn renders as one -->\n' +
+                        '    <button @click="pick" />\n' +
+                        '</template>',
+                    filename: '/repo/src/pages/UsersPage.vue',
+                    options,
+                },
+            ],
+            invalid: [
+                {
+                    code: '<template><input v-model="x" /></template>',
+                    filename: '/repo/src/pages/UsersPage.vue',
+                    options,
+                    errors: [{ messageId: 'handBuilt' }],
+                },
+                {
+                    // A tag is not a reason. The exception has to say something.
+                    code:
+                        '<template>\n' +
+                        '    <!-- @optionSurface because -->\n' +
+                        '    <button @click="pick" />\n' +
+                        '</template>',
+                    filename: '/repo/src/pages/UsersPage.vue',
+                    options,
+                    errors: [{ messageId: 'handBuilt' }],
+                },
+                {
+                    // The declaration has to sit above THIS element, not three
+                    // elements up.
+                    code:
+                        '<template>\n' +
+                        '    <!-- @optionSurface a segmented option with two lines of text -->\n' +
+                        '    <div />\n' +
+                        '    <div />\n' +
+                        '    <button @click="pick" />\n' +
+                        '</template>',
+                    filename: '/repo/src/pages/UsersPage.vue',
+                    options,
+                    errors: [{ messageId: 'handBuilt' }],
+                },
+            ],
+        });
+    });
+});
+
 describe('the plugin is wired in', () => {
     test('every rule is used by the repository config', async () => {
         const { readFileSync } = await import('node:fs');

@@ -2,6 +2,9 @@
     <div class="bv-vstrip">
         <div class="bv-vstrip-label">{{ msg.versionStrip.label }}</div>
         <div class="bv-vstrip-tabs">
+            <!-- @optionSurface
+                 A version tab in a strip — a tablist entry, not an action. `q-btn` would
+                 bring a button chrome the strip spends CSS undoing. -->
             <button
                 v-for="v in sortedVersions"
                 :key="v.id"

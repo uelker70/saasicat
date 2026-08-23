@@ -19,6 +19,8 @@
                 :class="{ active: tab === 'admin' }"
                 @click="$emit('update:tab', 'admin')"
             />
+            <!-- @optionSurface
+                 A tab with a count badge; the tabbar draws the selected state. -->
             <button
                 type="button"
                 class="sa-marketing-tab"

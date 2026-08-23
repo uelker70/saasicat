@@ -40,6 +40,9 @@
 
             <AdminField :label="msg.form.valueTypeLabel">
                 <div class="pc-type-grid">
+                    <!-- @optionSurface
+                         A segmented option with a label and a sub-label. The two lines are what
+                         makes the choice legible, and `q-btn` renders one. -->
                     <button
                         v-for="o in typeOptions"
                         :key="o.k"
@@ -84,6 +87,8 @@
             :hint="formatMessage(msg.form.plansHint, { count: form.appliesToPlans.length })"
         >
             <div class="pc-plan-pick">
+                <!-- @optionSurface
+                     A plan chip with a colour mark, one of a multi-select group. -->
                 <button
                     v-for="p in plans"
                     :key="p.key"
@@ -164,6 +169,9 @@
         <AdminFieldGrid v-if="mode === 'edit'">
             <AdminField :label="common.status" :hint="msg.form.statusHint">
                 <div class="pc-seg pc-status">
+                    <!-- @optionSurface
+                         A segment in a segmented control — the group carries the frame, and each
+                         segment is a radio rather than a button. -->
                     <button
                         v-for="o in statusOptions"
                         :key="o.k"

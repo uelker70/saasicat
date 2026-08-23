@@ -42,6 +42,9 @@
                 <div class="mc-promo-today" :style="{ left: `${todayX}%` }">
                     <span>{{ msg.promotionsTab.today }}</span>
                 </div>
+                <!-- @optionSurface
+                     A bar in a timeline chart. It is clickable because the bar IS the target;
+                     its width and colour carry the data. -->
                 <button
                     v-for="bar in bars"
                     :key="bar.id"
@@ -255,6 +258,9 @@
                             {{ msg.promotionsTab.appliesToLabel }}
                         </label>
                         <div class="mc-promo-planlist">
+                            <!-- @optionSurface
+                                 A plan chip in a multi-select: label, key and selected state in one
+                                 surface, repeated per plan. -->
                             <button
                                 v-for="pl in plans"
                                 :key="pl.key"
@@ -281,6 +287,8 @@
                                 :class="{ active: !p.onlyLocales }"
                                 @click="patch(p, { onlyLocales: null })"
                             />
+                            <!-- @optionSurface
+                                 A locale chip in a multi-select, same shape as the plan chips above it. -->
                             <button
                                 v-for="l in activeLocales"
                                 :key="l"
@@ -318,6 +326,9 @@
 
                         <label class="mc-promo-label">{{ msg.promotionsTab.colorLabel }}</label>
                         <div class="mc-promo-colors">
+                            <!-- @optionSurface
+                                 A colour swatch that opens the picker — the button IS the colour, so a
+                                 button chrome around it would hide what it shows. -->
                             <button
                                 v-for="c in COLORS"
                                 :key="c"

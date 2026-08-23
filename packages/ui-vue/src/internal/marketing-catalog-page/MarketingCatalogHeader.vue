@@ -8,6 +8,8 @@
                 class="sa-marketing-locale-pill"
                 :class="{ active: loc === activeLocale }"
             >
+                <!-- @optionSurface
+                     A locale pill, one of a group, carrying the default marker. -->
                 <button
                     type="button"
                     class="sa-marketing-locale-pill-btn"

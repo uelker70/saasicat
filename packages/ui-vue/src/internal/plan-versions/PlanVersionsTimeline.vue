@@ -14,6 +14,9 @@
                     class="sa-pv-timeline__line"
                     aria-hidden="true"
                 />
+                <!-- @optionSurface
+                     A node on a timeline. The button IS the node: its position and its dot
+                     carry the version, and a button chrome would cover the line. -->
                 <button
                     type="button"
                     class="sa-pv-timeline__btn"

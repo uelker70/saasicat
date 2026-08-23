@@ -11,12 +11,14 @@
 
 import maxProps from './rules/max-props.js';
 import noFunctionProps from './rules/no-function-props.js';
+import noHandBuiltControls from './rules/no-hand-built-controls.js';
 import noRawHttp from './rules/no-raw-http.js';
 import noRestrictedComponents from './rules/no-restricted-components.js';
 
 export const rules = {
     'max-props': maxProps,
     'no-function-props': noFunctionProps,
+    'no-hand-built-controls': noHandBuiltControls,
     'no-raw-http': noRawHttp,
     'no-restricted-components': noRestrictedComponents,
 };

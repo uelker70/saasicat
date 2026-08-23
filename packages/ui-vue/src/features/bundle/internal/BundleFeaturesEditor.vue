@@ -4,6 +4,9 @@
             <div class="bd-features-group">
                 <div class="bd-features-group-label">{{ group.label }}</div>
                 <div class="bd-features-row">
+                    <!-- @optionSurface
+                         A selectable feature pill: it carries a tick and a state, and reads as a
+                         checkbox rather than as a button. -->
                     <button
                         v-for="f in group.rows"
                         :key="f.featureKey"

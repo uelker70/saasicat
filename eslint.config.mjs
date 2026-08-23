@@ -171,6 +171,24 @@ export default tseslint.config(
                 },
             ],
             'saasicat/no-function-props': ['error', { directories: ['packages/ui-vue/src/pages'] }],
+            // A control the design system ships is not written again by hand.
+            // Eight input families and six button families were, in 784 lines
+            // of CSS reproducing what the theme already corrects — and a
+            // consumer theming Quasar reached the filters and missed the
+            // editors. An option surface that Quasar has no component for
+            // stays native and says so at the element.
+            'saasicat/no-hand-built-controls': [
+                'error',
+                {
+                    components: {
+                        input: 'q-input, q-checkbox or q-toggle',
+                        textarea: 'q-input with type="textarea"',
+                        select: 'q-select',
+                        button: 'q-btn',
+                    },
+                    allow: ['packages/ui-vue/src/ui/theme/'],
+                },
+            ],
             // Four, not the five AP6 listed. `q-card` is off the list on
             // purpose: the roster has no card, and the two places that use one
             // are a tile in a grid and the frame of the fail-closed screen that

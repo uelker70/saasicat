@@ -32,6 +32,8 @@
             <span class="pve-kbd">⌘ K</span>
         </div>
         <div class="pve-tabs" role="tablist">
+            <!-- @optionSurface
+                 A tab in the pool, with its own count badge and active state. -->
             <button
                 v-for="tab in poolTabs"
                 :key="tab.id"

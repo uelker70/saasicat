@@ -9,6 +9,9 @@
                 overlap: overlapKeys.includes(q.quotaKey),
             }"
         >
+            <!-- @optionSurface
+                 A quota toggle with its own tick, sitting in a row with the value field.
+                 Its shape belongs to the row, not to a button. -->
             <button
                 type="button"
                 class="bd-quota-toggle"
