@@ -163,7 +163,6 @@
 
         <div v-if="!locked" class="bve-actions">
             <q-btn
-                class="bve-btn"
                 flat
                 dense
                 no-caps
@@ -172,7 +171,6 @@
                 @click="onReset"
             />
             <q-btn
-                class="bve-btn"
                 unelevated
                 no-caps
                 color="primary"
@@ -606,31 +604,6 @@ function recordsEqual(a: Record<string, number>, b: Record<string, number>): boo
     display: flex;
     justify-content: flex-end;
     gap: var(--sa-space-3);
-}
-.bve-btn {
-    padding: var(--sa-space-3) var(--sa-space-4);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: var(--sa-radius-badge);
-    cursor: pointer;
-    font-size: var(--sa-text-md);
-    font-family: inherit;
-    color: var(--sa-color-fg-heading);
-}
-.bve-btn:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-}
-.bve-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.bve-btn--primary {
-    background: var(--sa-color-accent);
-    border-color: var(--sa-color-accent);
-    color: var(--sa-color-fg-on-accent);
-}
-.bve-btn--primary:hover:not(:disabled) {
-    background: var(--sa-color-accent-strong);
 }
 .bve-error {
     padding: var(--sa-space-3) var(--sa-space-4);

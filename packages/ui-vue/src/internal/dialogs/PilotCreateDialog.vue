@@ -186,27 +186,27 @@
                         <label>{{ msg.form.endsAtLabel }}</label>
                         <div class="pl-end-row">
                             <q-input v-model="form.pilot.endsAt" outlined dense type="date" />
-                            <button
+                            <q-btn
                                 v-if="form.pilot.endsAt"
-                                type="button"
-                                class="pl-btn-mini"
+                                flat
+                                dense
+                                no-caps
+                                icon="close"
+                                :label="common.unlimited"
                                 :title="msg.form.endsAtClearTitle"
                                 @click="form.pilot.endsAt = ''"
-                            >
-                                <q-icon name="close" size="12px" />
-                                {{ common.unlimited }}
-                            </button>
+                            />
                         </div>
                         <div class="pl-end-presets">
-                            <button
+                            <q-btn
                                 v-for="p in presetEnds"
                                 :key="p.days"
-                                type="button"
-                                class="pl-preset-btn"
+                                flat
+                                dense
+                                no-caps
+                                :label="`+${p.label}`"
                                 @click="setEndsAtDays(p.days)"
-                            >
-                                +{{ p.label }}
-                            </button>
+                            />
                         </div>
                     </div>
 

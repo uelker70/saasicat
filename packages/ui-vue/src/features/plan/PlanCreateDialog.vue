@@ -68,36 +68,16 @@
         </div>
         <template #footer>
             <div class="pcd-foot">
+                <q-btn flat dense no-caps :label="common.cancel" @click="onCancel" />
                 <q-btn
-                    class="pcd-btn pcd-btn--ghost"
-                    flat
-                    dense
+                    unelevated
                     no-caps
-                    :label="common.cancel"
-                    @click="onCancel"
-                />
-                <button
-                    class="pcd-btn pcd-btn--primary"
-                    type="button"
-                    :disabled="!canSubmit || submitting"
+                    color="primary"
+                    icon-right="arrow_forward"
+                    :label="submitting ? msg.createDialog.submitting : msg.createDialog.submit"
+                    :disable="!canSubmit || submitting"
                     @click="onSubmit"
-                >
-                    <span>{{
-                        submitting ? msg.createDialog.submitting : msg.createDialog.submit
-                    }}</span>
-                    <span class="pcd-ico" aria-hidden="true">
-                        <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path d="M5 12h14M13 5l7 7-7 7" />
-                        </svg>
-                    </span>
-                </button>
+                />
             </div>
         </template>
     </AdminDialog>
@@ -349,47 +329,6 @@ function onCancel(): void {
     justify-content: flex-end;
     gap: var(--sa-space-3);
 }
-.pcd-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sa-space-3);
-    padding: var(--sa-space-3) var(--sa-space-5);
-    border-radius: var(--sa-radius-control);
-    font: 500 var(--sa-text-md) var(--sa-font-body);
-    cursor: pointer;
-    border: 1px solid var(--sa-color-border-strong);
-    background: var(--sa-color-bg-surface);
-    color: var(--sa-color-fg-heading);
-    transition:
-        background 0.12s,
-        border-color 0.12s;
-}
-.pcd-btn:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-}
-.pcd-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.pcd-btn--ghost {
-    border-color: transparent;
-    background: transparent;
-}
-.pcd-btn--ghost:hover {
-    background: var(--sa-color-bg-sunken);
-}
-.pcd-btn--primary {
-    background: var(--sa-color-accent);
-    border-color: var(--sa-color-accent);
-    color: var(--sa-color-fg-on-accent);
-}
-.pcd-btn--primary:hover:not(:disabled) {
-    background: var(--sa-color-accent-strong);
-}
-.pcd-ico {
-    display: inline-flex;
-}
-
 @media (max-width: 599.98px) {
     .pcd-row--2col,
     .pcd-choice-grid {

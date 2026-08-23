@@ -14,16 +14,16 @@
             -->
             <template #actions>
                 <q-btn flat no-caps icon="arrow_back" :label="labels.back" @click="goBack" />
-                <button
+                <q-btn
                     v-for="action in manifestActions"
                     :key="action.def.id"
-                    :class="['sa-btn', toneClass(action.def.actionKey)]"
-                    type="button"
+                    unelevated
+                    no-caps
+                    :color="toneOf(action.def.actionKey)"
+                    :icon="iconForActionKey(action.def.actionKey)"
+                    :label="action.def.label"
                     @click="action.onClick"
-                >
-                    <q-icon :name="iconForActionKey(action.def.actionKey)" size="16px" />
-                    <span>{{ action.def.label }}</span>
-                </button>
+                />
                 <slot name="header-actions" :data="data" :reload="load" />
             </template>
         </AdminHero>
@@ -334,10 +334,11 @@ function iconForActionKey(actionKey: string): string {
     return 'bolt';
 }
 
-function toneClass(actionKey: string): string {
-    if (actionKey.endsWith('.suspend')) return 'sa-btn--danger';
-    if (actionKey.endsWith('.reactivate')) return 'sa-btn--positive';
-    return 'sa-btn--primary';
+/** Suspending is destructive, reactivating restores, everything else is ordinary. */
+function toneOf(actionKey: string): 'negative' | 'positive' | 'primary' {
+    if (actionKey.endsWith('.suspend')) return 'negative';
+    if (actionKey.endsWith('.reactivate')) return 'positive';
+    return 'primary';
 }
 
 const defaultUserColumns = computed<QTableColumn[]>(() => [

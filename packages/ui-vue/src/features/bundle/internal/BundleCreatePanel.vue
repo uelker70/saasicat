@@ -221,9 +221,8 @@
                     </template>
                 </span>
             </span>
-            <q-btn class="bcp-btn" flat dense no-caps :label="common.cancel" @click="close" />
+            <q-btn flat dense no-caps :label="common.cancel" @click="close" />
             <q-btn
-                class="bcp-btn"
                 unelevated
                 no-caps
                 color="primary"
@@ -657,30 +656,5 @@ async function submit(): Promise<void> {
 .bcp-foot-hint--warn {
     color: var(--sa-color-negative-fg);
     font-weight: 600;
-}
-.bcp-btn {
-    padding: var(--sa-space-3) var(--sa-space-4);
-    background: var(--sa-color-bg-surface);
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: var(--sa-radius-badge);
-    cursor: pointer;
-    font-size: var(--sa-text-md);
-    font-family: inherit;
-    color: var(--sa-color-fg-heading);
-}
-.bcp-btn:hover:not(:disabled) {
-    background: var(--sa-color-bg-sunken);
-}
-.bcp-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-.bcp-btn--primary {
-    background: var(--sa-color-accent);
-    border-color: var(--sa-color-accent);
-    color: var(--sa-color-fg-on-accent);
-}
-.bcp-btn--primary:hover:not(:disabled) {
-    background: var(--sa-color-accent-strong);
 }
 </style>

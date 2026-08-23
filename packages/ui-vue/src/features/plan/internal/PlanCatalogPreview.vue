@@ -6,20 +6,24 @@
                 <div class="pve-col-sub">{{ msg.catalogPreview.subtitle }}</div>
             </div>
             <div class="pve-preview-toggle">
-                <button
-                    type="button"
-                    :class="['sa-btn sa-btn--sm', { 'sa-btn--ghost': previewMode !== 'desktop' }]"
+                <q-btn
+                    dense
+                    no-caps
+                    :flat="previewMode !== 'desktop'"
+                    :unelevated="previewMode === 'desktop'"
+                    :color="previewMode === 'desktop' ? 'primary' : undefined"
+                    :label="msg.catalogPreview.desktop"
                     @click="$emit('update:previewMode', 'desktop')"
-                >
-                    {{ msg.catalogPreview.desktop }}
-                </button>
-                <button
-                    type="button"
-                    :class="['sa-btn sa-btn--sm', { 'sa-btn--ghost': previewMode !== 'mobile' }]"
+                />
+                <q-btn
+                    dense
+                    no-caps
+                    :flat="previewMode !== 'mobile'"
+                    :unelevated="previewMode === 'mobile'"
+                    :color="previewMode === 'mobile' ? 'primary' : undefined"
+                    :label="msg.catalogPreview.mobile"
                     @click="$emit('update:previewMode', 'mobile')"
-                >
-                    {{ msg.catalogPreview.mobile }}
-                </button>
+                />
             </div>
         </div>
 
@@ -48,7 +52,7 @@
                     {{ yearlyAlternative }}
                 </div>
 
-                <button type="button" class="pve-prev-cta">{{ msg.catalogPreview.cta }}</button>
+                <q-btn class="pve-prev-cta" unelevated no-caps :label="msg.catalogPreview.cta" />
 
                 <div class="pve-prev-sep">{{ msg.catalogPreview.included }}</div>
                 <ul class="pve-prev-list">

@@ -131,7 +131,8 @@ describe('PilotEditDialog', () => {
     test('offers preset buttons for the end date', async () => {
         const wrapper = await openEdit();
 
-        const presets = [...document.querySelectorAll<HTMLButtonElement>('.pl-preset-btn')];
+        // The presets are `q-btn`s in their own row now; the row is what names them.
+        const presets = [...document.querySelectorAll<HTMLButtonElement>('.pl-end-presets button')];
         expect(presets.length).toBeGreaterThan(0);
 
         presets[0].click();
