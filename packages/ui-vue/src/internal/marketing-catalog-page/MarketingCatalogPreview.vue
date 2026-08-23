@@ -113,7 +113,7 @@
                         }}
                     </div>
 
-                    <button type="button" class="sa-marketing-card-cta">{{ ctaText(row) }}</button>
+                    <q-btn class="sa-marketing-card-cta" flat dense no-caps :label="ctaText(row)" />
                     <div
                         v-if="showTrialNote(row) && !promoOf(row)"
                         class="sa-marketing-card-trialnote"

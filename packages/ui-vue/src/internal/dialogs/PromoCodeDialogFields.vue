@@ -105,16 +105,17 @@
         <AdminFieldGrid>
             <AdminField :label="msg.form.durationLabel">
                 <div class="pc-seg pc-seg--fill">
-                    <button
+                    <q-btn
+                        class="pc-seg-opt"
+                        flat
+                        dense
+                        no-caps
+                        :label="o.label"
                         v-for="o in durationOptions"
                         :key="o.k"
-                        type="button"
-                        class="pc-seg-opt"
                         :class="{ 'pc-seg-opt--active': form.durationType === o.k }"
                         @click="form.durationType = o.k"
-                    >
-                        {{ o.label }}
-                    </button>
+                    />
                 </div>
                 <q-input
                     v-if="form.durationType !== 'ONCE'"

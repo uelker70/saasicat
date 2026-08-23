@@ -45,21 +45,22 @@
                                 formatMessage(msg.admin.versionTabsLabel, { plan: row.plan.label })
                             "
                         >
-                            <button
+                            <q-btn
+                                class="sa-marketing-version-tab"
+                                flat
+                                dense
+                                no-caps
+                                :label="formatVersionTab(v)"
                                 v-for="v in row.publishedVersions"
                                 :key="v.id"
-                                type="button"
                                 role="tab"
-                                class="sa-marketing-version-tab"
                                 :class="{
                                     'sa-marketing-version-tab--active':
                                         row.liveVersion?.id === v.id,
                                 }"
                                 :title="formatVersionTitle(v)"
                                 @click="$emit('select-version', row.plan, v.id)"
-                            >
-                                {{ formatVersionTab(v) }}
-                            </button>
+                            />
                         </div>
                     </div>
                     <div>
@@ -381,11 +382,13 @@
                                             >
                                                 ▼
                                             </button>
-                                            <button
-                                                type="button"
-                                                class="sa-marketing-iconbtn sa-marketing-iconbtn--danger"
+                                            <q-btn
+                                                class="sa-marketing-iconbtn"
+                                                flat
+                                                no-caps
+                                                color="negative"
                                                 :title="common.remove"
-                                                :disabled="busy"
+                                                :disable="busy"
                                                 @click="$emit('remove-feature', row, i)"
                                             >
                                                 <svg
@@ -398,7 +401,7 @@
                                                 >
                                                     <path d="M18 6 6 18M6 6l12 12" />
                                                 </svg>
-                                            </button>
+                                            </q-btn>
                                         </div>
                                     </div>
                                     <div
@@ -410,24 +413,14 @@
                                 </div>
 
                                 <div class="sa-marketing-tf-add">
-                                    <button
-                                        type="button"
-                                        class="sa-btn sa-btn--sm"
-                                        :disabled="busy"
+                                    <q-btn
+                                        flat
+                                        dense
+                                        no-caps
+                                        :label="msg.admin.addCustomFeature"
+                                        :disable="busy"
                                         @click="$emit('add-feature', row)"
-                                    >
-                                        <svg
-                                            width="13"
-                                            height="13"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2.5"
-                                        >
-                                            <path d="M12 5v14M5 12h14" />
-                                        </svg>
-                                        <span>{{ msg.admin.addCustomFeature }}</span>
-                                    </button>
+                                    />
                                     <div
                                         v-if="suggestionsFor(row).length > 0"
                                         class="sa-marketing-tf-suggestions"

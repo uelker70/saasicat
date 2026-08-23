@@ -58,14 +58,15 @@
                 <q-icon name="info" size="13px" />
                 <span>{{ msg.timeline.compareHint }}</span>
             </div>
-            <button
-                v-if="compareId"
-                type="button"
+            <q-btn
                 class="sa-pv-timeline__clear-btn"
+                flat
+                dense
+                no-caps
+                :label="msg.compareEnd"
+                v-if="compareId"
                 @click="emit('clearCompare')"
-            >
-                {{ msg.compareEnd }}
-            </button>
+            />
         </div>
     </aside>
 </template>

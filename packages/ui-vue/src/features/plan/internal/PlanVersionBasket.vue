@@ -126,9 +126,11 @@
                         />
                         <span class="pve-sel-val-unit">{{ row.unit }}</span>
                     </div>
-                    <button
+                    <q-btn
                         class="pve-sel-x"
-                        type="button"
+                        flat
+                        dense
+                        no-caps
                         :aria-label="msg.basket.removeQuota"
                         @click="$emit('toggle-quota', row.quotaKey, false)"
                     >
@@ -142,7 +144,7 @@
                         >
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </q-btn>
                 </div>
                 <div v-if="selectedQuotaList.length === 0" class="pve-dz-empty">
                     {{ msg.basket.emptyQuotas }}
@@ -163,9 +165,11 @@
                         <div class="pve-sel-label">{{ featureLabel(key) }}</div>
                         <div class="pve-sel-sub">{{ key }}</div>
                     </div>
-                    <button
+                    <q-btn
                         class="pve-sel-x"
-                        type="button"
+                        flat
+                        dense
+                        no-caps
                         :aria-label="msg.basket.removeFeature"
                         @click="$emit('toggle-feature', key, false)"
                     >
@@ -179,7 +183,7 @@
                         >
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </q-btn>
                 </div>
                 <div v-if="form.features.length === 0" class="pve-dz-empty">
                     {{ msg.basket.emptyFeatures }}
@@ -202,9 +206,11 @@
                             {{ b.bundleKey }} · {{ bundleFeatureCount(b.features.length) }}
                         </div>
                     </div>
-                    <button
+                    <q-btn
                         class="pve-sel-x"
-                        type="button"
+                        flat
+                        dense
+                        no-caps
                         :aria-label="msg.basket.removeBundle"
                         @click="$emit('toggle-bundle', b, false)"
                     >
@@ -218,7 +224,7 @@
                         >
                             <path d="M18 6L6 18M6 6l12 12" />
                         </svg>
-                    </button>
+                    </q-btn>
                 </div>
                 <div v-if="activeBundles.length === 0" class="pve-dz-empty pve-dz-empty--center">
                     {{ msg.basket.emptyBundles }}

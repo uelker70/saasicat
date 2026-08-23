@@ -119,28 +119,17 @@
                                 </div>
 
                                 <div class="pm-plan-actions">
-                                    <button
-                                        class="sa-btn sa-btn--sm sa-btn--flex"
-                                        type="button"
+                                    <q-btn
+                                        flat
+                                        dense
+                                        no-caps
+                                        :label="common.open"
                                         @click="$emit('openPlan', p.plan)"
-                                    >
-                                        <svg
-                                            width="12"
-                                            height="12"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="2"
-                                        >
-                                            <path
-                                                d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
-                                            />
-                                        </svg>
-                                        <span>{{ common.open }}</span>
-                                    </button>
-                                    <button
-                                        class="sa-btn sa-btn--sm sa-btn--ghost"
-                                        type="button"
+                                    />
+                                    <q-btn
+                                        flat
+                                        dense
+                                        no-caps
                                         :aria-label="msg.matrix.clonePlan"
                                         @click="$emit('clonePlan', p.plan)"
                                     >
@@ -155,7 +144,7 @@
                                             <rect x="9" y="9" width="11" height="11" rx="2" />
                                             <path d="M5 15V5a2 2 0 012-2h10" />
                                         </svg>
-                                    </button>
+                                    </q-btn>
                                 </div>
                             </div>
                         </th>

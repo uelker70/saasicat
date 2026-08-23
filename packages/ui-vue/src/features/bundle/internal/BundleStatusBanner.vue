@@ -69,27 +69,16 @@
                 <b>{{ msg.statusBanner.draft }}</b> {{ msg.statusBanner.draftTail }}
             </template>
         </div>
-        <button
-            v-if="status === 'scheduled' || status === 'draft'"
+        <q-btn
             class="bv-status-discard"
-            type="button"
+            flat
+            dense
+            no-caps
+            :label="common.discard"
+            v-if="status === 'scheduled' || status === 'draft'"
             :title="msg.statusBanner.discardTooltip"
             @click="$emit('discard')"
-        >
-            <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-            >
-                <path
-                    d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
-                />
-            </svg>
-            <span>{{ common.discard }}</span>
-        </button>
+        />
     </div>
 </template>
 

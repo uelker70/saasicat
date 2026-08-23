@@ -157,11 +157,12 @@
                         </div>
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
-                            <button
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 v-if="hasAnyPublished(p)"
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
-                                disabled
+                                disable
                                 :title="msg.list.actionDeleteBlocked"
                             >
                                 <svg
@@ -176,11 +177,12 @@
                                     <rect x="3" y="11" width="18" height="11" rx="2" />
                                     <path d="M7 11V7a5 5 0 0110 0v4" />
                                 </svg>
-                            </button>
-                            <button
+                            </q-btn>
+                            <q-btn
+                                flat
+                                no-caps
+                                color="negative"
                                 v-else
-                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
-                                type="button"
                                 :title="msg.list.actionDeletePlan"
                                 @click="$emit('archivePlan', p.plan, false)"
                             >
@@ -196,10 +198,11 @@
                                         d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
                                     />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionClonePlan"
                                 @click="$emit('clonePlan', p.plan)"
                             >
@@ -214,12 +217,13 @@
                                     <rect x="9" y="9" width="11" height="11" rx="2" />
                                     <path d="M5 15V5a2 2 0 012-2h10" />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionNewVersion"
-                                :disabled="!!p.draft"
+                                :disable="!!p.draft"
                                 @click="onNewVersion(p)"
                             >
                                 <svg
@@ -234,10 +238,11 @@
                                         d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
                                     />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionOpenPlan"
                                 @click="$emit('openPlan', p.plan)"
                             >
@@ -251,7 +256,7 @@
                                 >
                                     <path d="M9 18l6-6-6-6" />
                                 </svg>
-                            </button>
+                            </q-btn>
                         </div>
                     </div>
 
@@ -342,10 +347,11 @@
                         </div>
 
                         <div class="sa-plan-list-cell sa-plan-list-cell--actions" @click.stop>
-                            <button
+                            <q-btn
+                                flat
+                                no-caps
+                                color="negative"
                                 v-if="sub.publishedAt === null"
-                                class="sa-btn sa-btn--sm sa-btn--ghost sa-btn--danger"
-                                type="button"
                                 :title="discardDraftTitle(sub.version)"
                                 @click="$emit('discardDraft', p.plan, sub)"
                             >
@@ -361,11 +367,12 @@
                                         d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"
                                     />
                                 </svg>
-                            </button>
-                            <button
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 v-if="sub.publishedAt === null"
-                                class="sa-btn sa-btn--sm sa-btn--ghost"
-                                type="button"
                                 :title="msg.list.actionEditDraft"
                                 @click="$emit('editDraft', p.plan, sub)"
                             >
@@ -381,10 +388,11 @@
                                         d="M12 20h9M16.5 3.5a2.12 2.12 0 113 3L7 19l-4 1 1-4 12.5-12.5z"
                                     />
                                 </svg>
-                            </button>
-                            <button
-                                class="sa-btn sa-btn--sm"
-                                type="button"
+                            </q-btn>
+                            <q-btn
+                                flat
+                                dense
+                                no-caps
                                 :title="msg.list.actionOpenInCockpit"
                                 @click="$emit('openPlan', p.plan)"
                             >
@@ -398,7 +406,7 @@
                                 >
                                     <path d="M9 18l6-6-6-6" />
                                 </svg>
-                            </button>
+                            </q-btn>
                         </div>
                     </div>
                 </template>

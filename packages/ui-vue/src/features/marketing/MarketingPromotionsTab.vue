@@ -122,16 +122,17 @@
 
                         <label class="mc-promo-label">{{ common.type }}</label>
                         <div class="mc-promo-typegrid">
-                            <button
+                            <q-btn
+                                class="mc-promo-typeopt"
+                                flat
+                                dense
+                                no-caps
+                                :label="t.label"
                                 v-for="t in typeOptions"
                                 :key="t.id"
-                                type="button"
-                                class="mc-promo-typeopt"
                                 :class="{ active: p.type === t.id }"
                                 @click="changeType(p, t.id)"
-                            >
-                                {{ t.label }}
-                            </button>
+                            />
                         </div>
 
                         <label class="mc-promo-label">{{ msg.promotionsTab.valueLabel }}</label>
@@ -223,16 +224,17 @@
                             {{ msg.promotionsTab.billingCycleLabel }}
                         </label>
                         <div class="mc-promo-typegrid">
-                            <button
+                            <q-btn
+                                class="mc-promo-typeopt"
+                                flat
+                                dense
+                                no-caps
+                                :label="c.label"
                                 v-for="c in cycleOptions"
                                 :key="c.id"
-                                type="button"
-                                class="mc-promo-typeopt"
                                 :class="{ active: p.billingCycle === c.id }"
                                 @click="patch(p, { billingCycle: c.id })"
-                            >
-                                {{ c.label }}
-                            </button>
+                            />
                         </div>
 
                         <label class="mc-promo-label">
@@ -270,14 +272,15 @@
                             {{ msg.promotionsTab.localeRestrictionLabel }}
                         </label>
                         <div class="mc-promo-typegrid">
-                            <button
-                                type="button"
+                            <q-btn
                                 class="mc-promo-typeopt"
+                                flat
+                                dense
+                                no-caps
+                                :label="msg.promotionsTab.allLocales"
                                 :class="{ active: !p.onlyLocales }"
                                 @click="patch(p, { onlyLocales: null })"
-                            >
-                                {{ msg.promotionsTab.allLocales }}
-                            </button>
+                            />
                             <button
                                 v-for="l in activeLocales"
                                 :key="l"

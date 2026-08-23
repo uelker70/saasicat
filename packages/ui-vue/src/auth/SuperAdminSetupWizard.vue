@@ -128,9 +128,14 @@
                         type="submit"
                     />
                 </q-form>
-                <button class="sa-setup-skip" type="button" @click="step = 'done'">
-                    {{ msg.setup.skip }}
-                </button>
+                <q-btn
+                    class="sa-setup-skip"
+                    flat
+                    dense
+                    no-caps
+                    :label="msg.setup.skip"
+                    @click="step = 'done'"
+                />
             </div>
 
             <!-- Step 3: done -->

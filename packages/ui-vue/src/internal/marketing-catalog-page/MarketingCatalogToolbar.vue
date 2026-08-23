@@ -1,22 +1,24 @@
 <template>
     <div class="sa-marketing-toolbar">
         <div class="sa-marketing-tabbar">
-            <button
-                type="button"
+            <q-btn
                 class="sa-marketing-tab"
+                flat
+                dense
+                no-caps
+                :label="msg.tabs.preview"
                 :class="{ active: tab === 'preview' }"
                 @click="$emit('update:tab', 'preview')"
-            >
-                {{ msg.tabs.preview }}
-            </button>
-            <button
-                type="button"
+            />
+            <q-btn
                 class="sa-marketing-tab"
+                flat
+                dense
+                no-caps
+                :label="msg.tabs.admin"
                 :class="{ active: tab === 'admin' }"
                 @click="$emit('update:tab', 'admin')"
-            >
-                {{ msg.tabs.admin }}
-            </button>
+            />
             <button
                 type="button"
                 class="sa-marketing-tab"

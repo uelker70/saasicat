@@ -27,24 +27,26 @@
                 </button>
             </span>
             <div class="sa-marketing-locale-add-wrap">
-                <button
-                    type="button"
+                <q-btn
                     class="sa-marketing-locale-add"
-                    :disabled="addableLocales.length === 0"
+                    flat
+                    dense
+                    no-caps
+                    :label="msg.header.addLocale"
+                    :disable="addableLocales.length === 0"
                     @click="$emit('update:localePickerOpen', !localePickerOpen)"
-                >
-                    {{ msg.header.addLocale }}
-                </button>
+                />
                 <div v-if="localePickerOpen" class="sa-marketing-locale-picker">
-                    <button
+                    <q-btn
+                        class="sa-marketing-locale-picker-row"
+                        flat
+                        dense
+                        no-caps
+                        :label="l.toUpperCase()"
                         v-for="l in addableLocales"
                         :key="l"
-                        type="button"
-                        class="sa-marketing-locale-picker-row"
                         @click="$emit('addLocale', l)"
-                    >
-                        {{ l.toUpperCase() }}
-                    </button>
+                    />
                 </div>
             </div>
         </div>

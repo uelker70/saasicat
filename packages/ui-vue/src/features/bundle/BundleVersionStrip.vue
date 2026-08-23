@@ -27,29 +27,20 @@
                     {{ msg.versionStrip.perMonth }}
                 </span>
             </button>
-            <button
-                type="button"
+            <q-btn
                 class="bv-vtab bv-vtab-new"
-                :disabled="!canAddVersion"
+                flat
+                dense
+                no-caps
+                :label="msg.versionStrip.addVersion"
+                :disable="!canAddVersion"
                 :title="
                     canAddVersion
                         ? msg.versionStrip.addTooltip
                         : msg.versionStrip.addDisabledTooltip
                 "
                 @click="$emit('addVersion')"
-            >
-                <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                >
-                    <path d="M12 5v14M5 12h14" />
-                </svg>
-                <span>{{ msg.versionStrip.addVersion }}</span>
-            </button>
+            />
         </div>
     </div>
 </template>

@@ -5,7 +5,7 @@
                 <div class="bcp-title">{{ msg.create.title }}</div>
                 <div class="bcp-sub">{{ msg.create.subtitle }}</div>
             </div>
-            <button class="bcp-close" type="button" :aria-label="common.close" @click="close">
+            <q-btn class="bcp-close" flat dense no-caps :aria-label="common.close" @click="close">
                 <svg
                     width="14"
                     height="14"
@@ -16,7 +16,7 @@
                 >
                     <path d="M18 6L6 18M6 6l12 12" />
                 </svg>
-            </button>
+            </q-btn>
         </div>
 
         <div class="bcp-body">
@@ -221,15 +221,16 @@
                     </template>
                 </span>
             </span>
-            <button class="bcp-btn" type="button" @click="close">{{ common.cancel }}</button>
-            <button
-                class="bcp-btn bcp-btn--primary"
-                type="button"
-                :disabled="!canSubmit || submitting"
+            <q-btn class="bcp-btn" flat dense no-caps :label="common.cancel" @click="close" />
+            <q-btn
+                class="bcp-btn"
+                unelevated
+                no-caps
+                color="primary"
+                :label="submitting ? msg.create.submitting : msg.create.submit"
+                :disable="!canSubmit || submitting"
                 @click="submit"
-            >
-                {{ submitting ? msg.create.submitting : msg.create.submit }}
-            </button>
+            />
         </div>
     </section>
 </template>

@@ -68,9 +68,14 @@
         </div>
         <template #footer>
             <div class="pcd-foot">
-                <button class="pcd-btn pcd-btn--ghost" type="button" @click="onCancel">
-                    {{ common.cancel }}
-                </button>
+                <q-btn
+                    class="pcd-btn pcd-btn--ghost"
+                    flat
+                    dense
+                    no-caps
+                    :label="common.cancel"
+                    @click="onCancel"
+                />
                 <button
                     class="pcd-btn pcd-btn--primary"
                     type="button"

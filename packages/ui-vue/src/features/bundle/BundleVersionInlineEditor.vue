@@ -162,23 +162,25 @@
         </div>
 
         <div v-if="!locked" class="bve-actions">
-            <button
-                type="button"
+            <q-btn
                 class="bve-btn"
-                :disabled="saving || !hasChanges"
+                flat
+                dense
+                no-caps
+                :label="common.reset"
+                :disable="saving || !hasChanges"
                 @click="onReset"
-            >
-                {{ common.reset }}
-            </button>
-            <button
-                type="button"
-                class="bve-btn bve-btn--primary"
-                :disabled="!canSave || saving"
+            />
+            <q-btn
+                class="bve-btn"
+                unelevated
+                no-caps
+                color="primary"
+                :label="saving ? common.saving : common.save"
+                :disable="!canSave || saving"
                 :title="!canSave ? msg.editor.saveDisabledTooltip : msg.editor.saveTooltip"
                 @click="onSave"
-            >
-                {{ saving ? common.saving : common.save }}
-            </button>
+            />
         </div>
         <div v-if="saveError" class="bve-error">
             {{ saveError }}
