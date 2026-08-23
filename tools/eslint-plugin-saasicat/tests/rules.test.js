@@ -196,6 +196,18 @@ describe('no-restricted-components', () => {
                     ],
                 },
                 {
+                    // Vue resolves both spellings to one component, and this
+                    // repository writes its own components PascalCase — so the
+                    // house style leads straight to the form a kebab-only
+                    // lookup would let past.
+                    code: '<template><QDialog v-model="open" /></template>',
+                    filename: '/repo/src/pages/UsersPage.vue',
+                    options,
+                    errors: [
+                        { messageId: 'restricted', data: { name: 'QDialog', use: 'AdminDialog' } },
+                    ],
+                },
+                {
                     code: '<template><section><q-table :rows="rows" /></section></template>',
                     filename: '/repo/src/pages/UsersPage.vue',
                     options,

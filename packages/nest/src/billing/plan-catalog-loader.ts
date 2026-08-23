@@ -22,6 +22,15 @@ export interface AjvErrorLike {
     schemaPath?: string;
 }
 
+/**
+ * `Error.name` for a document that could not be read as a catalog at all.
+ *
+ * A name rather than a class because the other failure of this kind comes from
+ * the YAML parser and is not ours to subclass — one predicate has to cover
+ * both, and a name is what both can carry.
+ */
+export const PLAN_CATALOG_UNREADABLE_ERROR = 'PlanCatalogUnreadableError';
+
 export class PlanCatalogValidationError extends Error {
     constructor(
         public readonly source: string,
@@ -72,7 +81,12 @@ export function loadPlanCatalogFromString(
 ): PlanCatalog {
     const parsed = yaml.load(yamlContent);
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        throw new Error(`The YAML content of ${opts.source} is not an object`);
+        // Named, so a caller can tell "I could not read your document" from
+        // "something failed further in". A scalar or a list parses cleanly and
+        // is still not a catalog, and without the name that case answered 500.
+        const error = new Error(`The YAML content of ${opts.source} is not an object`);
+        error.name = PLAN_CATALOG_UNREADABLE_ERROR;
+        throw error;
     }
 
     const ajv = new Ajv2020({ strict: false, allErrors: true });

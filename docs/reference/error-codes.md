@@ -7,7 +7,7 @@ by code — `resolveErrorMessage` takes a consumer catalogue and falls back to
 the text below. Renaming or removing a code is a breaking change; rewording
 a message is not.
 
-Generated from `@saasicat/core` — 130 codes. Do not edit by hand:
+Generated from `@saasicat/core` — 132 codes. Do not edit by hand:
 `node scripts/gen-docs/index.mjs --write`.
 
 ## Setup
@@ -89,6 +89,8 @@ Plans, versions, bundles, marketing entries.
 | `MARKETING_PROJECTION_ALREADY_EXISTS`          | Marketing projection for {targetType}/{targetVersionId}/{locale} already exists — use PATCH to edit it                                                                                                                                                  |
 | `MARKETING_PROJECTION_NOT_FOUND`               | MarketingProjection '{projectionId}' not found                                                                                                                                                                                                          |
 | `PLAN_ALREADY_EXISTS`                          | Plan '{planKey}' already exists in project '{projectKey}'                                                                                                                                                                                               |
+| `PLAN_CATALOG_INVALID`                         | The plan catalog was read, and then rejected: {message}                                                                                                                                                                                                 |
+| `PLAN_CATALOG_UNREADABLE`                      | That file is not a plan catalog — it could not be read as one. Check that it is the YAML your app declares its plans in.                                                                                                                                |
 | `PLAN_DRAFT_ALREADY_EXISTS`                    | Plan '{planKey}' already has a draft version v{draftVersion}; publish or discard it first                                                                                                                                                               |
 | `PLAN_HARD_DELETE_NOT_IMPLEMENTED`             | Hard delete is not implemented in the current repository. Implement PlanRepository.hardDelete.                                                                                                                                                          |
 | `PLAN_HAS_DRAFTS`                              | Plan '{planKey}' still has {draftCount} open draft version(s). Discard them first (DELETE /admin/catalog/plan-versions/:id) or publish them.                                                                                                            |

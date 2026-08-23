@@ -26,32 +26,49 @@ const AREA = {
 };
 
 /**
+ * Every interface in the ports directory, by name, with the text it came from.
+ *
+ * One index over all the files rather than one per file: heritage crosses file
+ * boundaries, and resolving it per file means a base one directory over is
+ * silently missing from the member list. That is the same defect this
+ * generator was already caught with once, one boundary away.
+ */
+export function indexDeclarations(files) {
+    const index = new Map();
+    for (const { file, text } of files) {
+        const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+        for (const statement of source.statements) {
+            if (ts.isInterfaceDeclaration(statement)) {
+                index.set(statement.name.text, { declaration: statement, source, text });
+            }
+        }
+    }
+    return index;
+}
+
+/**
  * The interfaces whose name ends in `Port`, with their methods.
  *
  * Inherited members count. `UserManagementPort extends SuperAdminProvisioningPort`,
  * and an implementer has to write `countSuperAdmins()` and `createSuperAdmin()`
  * whether or not that interface declares them itself — a page that claims to
  * list every member and skips two is worse than one that never claimed it.
+ *
+ * A base the index does not hold is an error rather than an omission: it means
+ * the port extends something outside this directory, and the page would then
+ * be quietly incomplete in exactly the way it promises not to be.
  */
-export function portsIn(text, file) {
-    const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
-    const declarations = new Map();
-    for (const statement of source.statements) {
-        if (ts.isInterfaceDeclaration(statement)) declarations.set(statement.name.text, statement);
-    }
+export function portsIn(file, index) {
+    const membersOf = (name, seen = new Set()) => {
+        if (seen.has(name)) return [];
+        seen.add(name);
 
-    const membersOf = (declaration, seen = new Set()) => {
-        if (seen.has(declaration.name.text)) return [];
-        seen.add(declaration.name.text);
+        const entry = index.get(name);
+        if (!entry) throw new Error(`${name} extends something outside ${PORTS_DIR}`);
+        const { declaration, source, text } = entry;
 
         const inherited = (declaration.heritageClauses ?? []).flatMap((clause) =>
-            clause.types.flatMap((type) => {
-                const base = declarations.get(type.expression.getText());
-                // A base from another file is named rather than dropped: the
-                // reader needs to know the members exist even where this file
-                // cannot list them.
-                return base ? membersOf(base, seen) : [];
-            }),
+            clause.types.flatMap((type) => membersOf(type.expression.getText(), seen)),
         );
 
         const own = declaration.members
@@ -66,12 +83,13 @@ export function portsIn(text, file) {
     };
 
     const found = [];
-    for (const [name, declaration] of declarations) {
+    for (const [name, entry] of index) {
         if (!name.endsWith('Port')) continue;
+        if (entry.declaration.getSourceFile().fileName !== file) continue;
         found.push({
             name,
-            summary: leadingSummary(text, declaration.getFullStart()),
-            members: membersOf(declaration),
+            summary: leadingSummary(entry.text, entry.declaration.getFullStart()),
+            members: membersOf(name),
         });
     }
     return found;
@@ -94,12 +112,21 @@ function leadingSummary(text, fullStart) {
     return (stop === -1 ? body : body.slice(0, stop + 1)).trim();
 }
 
+/**
+ * A signature on one line, without the member terminator.
+ *
+ * The terminator is the LAST semicolon, not the first: `replace(';', '')` on
+ * `write(input: { actor: AdminActor; entity: string })` takes the one inside
+ * the object type and leaves the real one standing, which is what the shipped
+ * page carried until this was found — a signature an adapter author copies and
+ * cannot compile.
+ */
 function oneLine(text) {
     return text
         .split('\n')
         .map((line) => line.trim())
         .join(' ')
-        .replace(';', '')
+        .replace(/;$/, '')
         .replaceAll('|', '\\|');
 }
 
@@ -107,12 +134,17 @@ export async function render({ root }) {
     const sections = [];
     let total = 0;
 
-    for (const file of readdirSync(join(root, PORTS_DIR)).sort()) {
-        if (!file.endsWith('.ts')) continue;
+    const files = readdirSync(join(root, PORTS_DIR))
+        .filter((file) => file.endsWith('.ts'))
+        .sort()
+        .map((file) => ({ file, text: readFileSync(join(root, PORTS_DIR, file), 'utf8') }));
+    const index = indexDeclarations(files);
+
+    for (const { file } of files) {
         const area = AREA[file];
         if (!area) throw new Error(`${file} is new — give it a heading in ports.mjs`);
 
-        const ports = portsIn(readFileSync(join(root, PORTS_DIR, file), 'utf8'), file);
+        const ports = portsIn(file, index);
         if (!ports.length) continue;
         total += ports.length;
 

@@ -120,6 +120,10 @@ export const ERROR_MESSAGES_EN: Record<PlatformErrorCode, string> = {
     DISCOVERY_STATUS_TRANSITION_INVALID: "Transition '{from}' → '{to}' is not allowed",
     DISCOVERY_NOT_INITIALIZED:
         'Approval requires a discovery snapshot — discovery is not initialised (#25)',
+    // ── catalogue import ──
+    PLAN_CATALOG_UNREADABLE:
+        'That file is not a plan catalog — it could not be read as one. Check that it is the YAML your app declares its plans in.',
+    PLAN_CATALOG_INVALID: 'The plan catalog was read, and then rejected: {message}',
     // ── billing ──
     BUNDLE_ALREADY_SUBSCRIBED:
         "Subscription '{subscriptionId}' has already actively booked this bundle.",

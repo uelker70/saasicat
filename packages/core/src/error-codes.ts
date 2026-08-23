@@ -97,6 +97,12 @@ export const CATALOG_ERROR_CODES = {
     QUOTA_NOT_IN_DISCOVERY_SNAPSHOT: 'QUOTA_NOT_IN_DISCOVERY_SNAPSHOT',
     DISCOVERY_STATUS_TRANSITION_INVALID: 'DISCOVERY_STATUS_TRANSITION_INVALID',
     DISCOVERY_NOT_INITIALIZED: 'DISCOVERY_NOT_INITIALIZED',
+
+    // ── catalogue import ──
+    /** The uploaded document is not a plan catalog — unparseable, or not an object. */
+    PLAN_CATALOG_UNREADABLE: 'PLAN_CATALOG_UNREADABLE',
+    /** It parsed, and then failed the schema or a cross-field rule. */
+    PLAN_CATALOG_INVALID: 'PLAN_CATALOG_INVALID',
 } as const;
 
 export type CatalogErrorCode = (typeof CATALOG_ERROR_CODES)[keyof typeof CATALOG_ERROR_CODES];

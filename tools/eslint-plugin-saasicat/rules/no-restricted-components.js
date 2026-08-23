@@ -13,6 +13,23 @@
 //
 // Three source-scanning regexes did this before. This reads the template AST,
 // so a component in a comment or a string no longer trips it.
+//
+// It reads the tag in both spellings Vue accepts. `<q-dialog>` and `<QDialog>`
+// resolve to one component, and this repository writes its OWN components
+// PascalCase in templates (`<AdminPage>`, `<AdminTable>`) and only Quasar's
+// kebab — so a contributor following the visible house style reaches for
+// `<QDialog>`, which is exactly the spelling a kebab-only lookup lets past.
+
+/** `QDialog` → `q-dialog`; a name already kebab is returned unchanged. */
+function kebabCase(name) {
+    let out = '';
+    for (const [index, character] of [...name].entries()) {
+        const lower = character.toLowerCase();
+        if (character !== lower && index > 0) out += '-';
+        out += lower;
+    }
+    return out;
+}
 
 /** @type {import('eslint').Rule.RuleModule} */
 export default {
@@ -48,9 +65,15 @@ export default {
 
         return template({
             VElement(node) {
-                const name = node.rawName;
+                const name = kebabCase(node.rawName);
                 const use = components[name];
-                if (use) context.report({ node, messageId: 'restricted', data: { name, use } });
+                if (use) {
+                    context.report({
+                        node,
+                        messageId: 'restricted',
+                        data: { name: node.rawName, use },
+                    });
+                }
             },
         });
     },

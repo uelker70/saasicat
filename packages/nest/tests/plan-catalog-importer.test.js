@@ -190,6 +190,22 @@ plans:
             );
         });
 
+        test('a document that parses but is not a catalog answers 400', async () => {
+            // The case a message prefix missed: `hello` is valid YAML, parses
+            // to a string, and is not a catalog. It answered 500 until the
+            // loader gave that failure a name.
+            for (const body of ['hello', '- a\n- b']) {
+                await assert.rejects(
+                    () => endpoint().import({ yamlContent: body }),
+                    (error) => {
+                        assert.equal(error.getStatus(), 400);
+                        assert.equal(error.getResponse().code, 'PLAN_CATALOG_UNREADABLE');
+                        return true;
+                    },
+                );
+            }
+        });
+
         test('a failure from the store keeps its 500', async () => {
             // The distinction the endpoint has to make, from the other side:
             // a sink that throws is not the caller's mistake, and turning it

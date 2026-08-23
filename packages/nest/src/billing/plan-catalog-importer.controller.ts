@@ -15,7 +15,12 @@ import {
 } from '@nestjs/common';
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
-import { PlanCatalogValidationError } from './plan-catalog-loader.js';
+import {
+    PLAN_CATALOG_UNREADABLE_ERROR,
+    PlanCatalogValidationError,
+} from './plan-catalog-loader.js';
+import { CATALOG_ERROR_CODES } from '@saasicat/core';
+
 import { PlanCatalogImporterService } from './plan-catalog-importer.service.js';
 
 export class PlanCatalogImportDto {
@@ -31,18 +36,23 @@ export class PlanCatalogImportDto {
 /**
  * Whether a failure came from reading the document rather than from the platform.
  *
- * The YAML parser and the loader both throw plain `Error`s, so the class cannot
- * decide it. What can: those two say what they could not read, and a failure
- * from further in — a repository, a transaction — does not. Anything this
- * cannot place is rethrown and answers 500, which is the honest status for it.
+ * Decided by name, not by message. Two things can fail here without the
+ * platform being at fault — the YAML parser, and the loader's own check that
+ * the document is an object at all — and neither is a class this package owns.
+ * A message prefix looked like it covered both and did not: a `yamlContent` of
+ * `"hello"` parses cleanly, is not a catalog, and answered 500.
+ *
+ * Anything this cannot place is rethrown and answers 500, which is the honest
+ * status for a failure that is not the caller's.
  */
-function isParseFailure(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    return (
-        error.name === 'YAMLException' ||
-        error.name === 'YAMLParseError' ||
-        error.message.startsWith('Plan catalog')
-    );
+const UNREADABLE_ERROR_NAMES = new Set([
+    'YAMLException',
+    'YAMLParseError',
+    PLAN_CATALOG_UNREADABLE_ERROR,
+]);
+
+function isUnreadableDocument(error: unknown): boolean {
+    return error instanceof Error && UNREADABLE_ERROR_NAMES.has(error.name);
 }
 
 export function buildPlanCatalogImporterController(guards: Array<Type<CanActivate>>): Type {
@@ -73,14 +83,14 @@ export function buildPlanCatalogImporterController(guards: Array<Type<CanActivat
             } catch (error) {
                 if (error instanceof PlanCatalogValidationError) {
                     throw new BadRequestException({
-                        code: 'PLAN_CATALOG_INVALID',
+                        code: CATALOG_ERROR_CODES.PLAN_CATALOG_INVALID,
                         message: error.message,
-                        params: { errors: error.errors },
+                        params: { message: error.message, errors: error.errors },
                     });
                 }
-                if (isParseFailure(error)) {
+                if (isUnreadableDocument(error)) {
                     throw new BadRequestException({
-                        code: 'PLAN_CATALOG_UNREADABLE',
+                        code: CATALOG_ERROR_CODES.PLAN_CATALOG_UNREADABLE,
                         message: (error as Error).message,
                     });
                 }

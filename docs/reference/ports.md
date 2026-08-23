@@ -44,7 +44,7 @@ Audit adapter: platform services write to the audit log through this interface.
 
 | Member                                                                                                                                     | What it does |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
-| `write(input: { actor: AdminActor entity: string; entityId: string; action: string; changes?: Record<string, unknown>; }): Promise<void>;` | —            |
+| `write(input: { actor: AdminActor; entity: string; entityId: string; action: string; changes?: Record<string, unknown>; }): Promise<void>` | —            |
 
 ### `AuditQueryPort`
 
@@ -108,10 +108,10 @@ Write adapter for tenant self-service mutations (`POST /billing/plan`, `/billing
 
 | Member                                                                                                                                                                                     | What it does                                                                                                                                       |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `changePlanImmediate( tenantId: string, input: ImmediatePlanChangeInput, ): Promise<{ plan: string billingCycle: string }>;`                                                               | Immediate change: set plan + cycle, clear pending fields, optionally reset the period.                                                             |
+| `changePlanImmediate( tenantId: string, input: ImmediatePlanChangeInput, ): Promise<{ plan: string; billingCycle: string }>`                                                               | Immediate change: set plan + cycle, clear pending fields, optionally reset the period.                                                             |
 | `schedulePlanChange(tenantId: string, input: ScheduledPlanChangeInput): Promise<void>`                                                                                                     | Change at period end: set pending fields.                                                                                                          |
-| `acceptPendingPlanVersion( tenantId: string, userId: string, now: Date, ): Promise<{ accepted: boolean acceptedAt: Date \| null; effectiveAt: Date \| null; alreadyAccepted: boolean; }>;` | Marks the pending PlanVersion as accepted.                                                                                                         |
-| `cancelSubscription( tenantId: string, immediate: boolean, now: Date, ): Promise<{ canceledAt: Date \| null status: string }>;`                                                            | Cancel the subscription.                                                                                                                           |
+| `acceptPendingPlanVersion( tenantId: string, userId: string, now: Date, ): Promise<{ accepted: boolean; acceptedAt: Date \| null; effectiveAt: Date \| null; alreadyAccepted: boolean; }>` | Marks the pending PlanVersion as accepted.                                                                                                         |
+| `cancelSubscription( tenantId: string, immediate: boolean, now: Date, ): Promise<{ canceledAt: Date \| null; status: string }>`                                                            | Cancel the subscription.                                                                                                                           |
 | `applyOnboardingSelection?( tenantId: string, input: ApplyOnboardingSelectionInput, redeemPromo: RedeemPromoInTransactionCallback \| null, ): Promise<ApplyOnboardingSelectionResult>`     | Atomic onboarding creation: sets plan + cycle + period window AND optionally calls a promo-redeem callback — all in a single consumer transaction. |
 
 ## Core
