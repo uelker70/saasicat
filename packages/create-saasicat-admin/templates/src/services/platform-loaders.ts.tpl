@@ -3,7 +3,7 @@
 // one place (handbook §8.1).
 
 import { createPlatformLoaders, type SuperAdminEndpoints } from '@saasicat/ui-vue';
-import { getAuthToken, platformHttp } from './http';
+import { platformHttp } from './http';
 
 // `projectKey` names the catalogue this admin administers — the same key your
 // backend configuration uses. The shell hands it to every platform resource,
@@ -17,5 +17,4 @@ export const loaders = createPlatformLoaders({
     endpoints: ADMIN_ENDPOINTS,
     http: platformHttp,
     storageKeyPrefix: '__PROJECT_KEY__:',
-    getAuthToken,
 });
