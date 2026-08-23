@@ -28,10 +28,16 @@
     border: 1px solid var(--sa-color-border);
     border-radius: var(--sa-radius-control);
     background: var(--sa-color-bg-surface);
+    /* Explicit, because `q-btn --flat` inherits its colour and the pager sits
+     * in a footer whose text is muted — the step arrows came out grey and the
+     * page number, which is the one thing here a reader looks for, came out
+     * greyer than the rows above it. */
+    color: var(--sa-color-fg-body);
 }
 .sa-paginator__page {
     min-width: 96px;
     font-weight: 600;
+    color: var(--sa-color-fg-heading);
 }
 .sa-paginator__input {
     min-width: 96px;
