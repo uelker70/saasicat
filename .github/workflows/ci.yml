@@ -18,14 +18,17 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v5
+            # pnpm from its own action, not from `corepack enable`: Corepack
+            # downloads the version in `packageManager` on first use, and that
+            # download failed four runs in a row on 2026-08-23 with an undici
+            # assertion before jscpd ever started. The action reads the same
+            # `packageManager` field and caches the binary.
+            - uses: pnpm/action-setup@v4
             - uses: actions/setup-node@v6
               with:
                   node-version: 24
             - name: Duplication check
-              run: |
-                  set -euo pipefail
-                  corepack enable
-                  pnpm dlx jscpd@4
+              run: pnpm dlx jscpd@4
             - name: Upload duplication report
               if: always()
               uses: actions/upload-artifact@v7
