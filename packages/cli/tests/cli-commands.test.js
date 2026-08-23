@@ -149,7 +149,7 @@ describe('schema check', () => {
 
         // Take one field back out of the model the app now has.
         const applied = await readFile(schemaPath, 'utf8');
-        await writeFile(schemaPath, applied.replace(/^\s*tenantId\s+String\?.*$/m, ''), 'utf8');
+        await writeFile(schemaPath, applied.replace(/^[ \t]*tenantId\s+String\?.*$/m, ''), 'utf8');
 
         const { stdout, code } = await cli([
             'schema',

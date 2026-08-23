@@ -52,7 +52,9 @@ function throwSites() {
             const keys = new Set();
             const paramsAt = arg.search(/params:\s*\{/);
             if (paramsAt !== -1) {
-                for (const [, key] of block(arg, paramsAt, '{', '}').matchAll(/(\w+)\s*:/g)) {
+                for (const [, key] of block(arg, paramsAt, '{', '}').matchAll(
+                    /(?<!\w)(\w+)\s*:/g,
+                )) {
                     keys.add(key);
                 }
                 // shorthand `params: { received }` — the delimiter has to be a
@@ -68,7 +70,7 @@ function throwSites() {
             // Top-level fields count for interpolation too: the resolver merges
             // them under params. They are per-site diagnostics though, so they
             // do not take part in the shape comparison below.
-            for (const [, key] of arg.matchAll(/^\s{12,}(\w+)[:,]/gm)) keys.add(key);
+            for (const [, key] of arg.matchAll(/^[ \t]{12,}(\w+)[:,]/gm)) keys.add(key);
 
             const line = text.slice(0, match.index).split('\n').length;
             sites.push({ code, keys, paramKeys, where: `${file.slice(SRC.length)}:${line}` });

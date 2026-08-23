@@ -39,6 +39,27 @@ async function render(options) {
     return { plan, files };
 }
 
+/** The names every `import { … } from` line brings in. */
+function importedNames(source) {
+    return new Set(
+        [...source.matchAll(/^import \{([^}]*)\} from/gm)]
+            .flatMap((m) => m[1].split(','))
+            .map((name) => name.trim())
+            .filter(Boolean),
+    );
+}
+
+/** Occurrences of `word` bounded by non-identifier characters — `\bword\b`, without building a pattern from it. */
+function wholeWordCount(source, word) {
+    let count = 0;
+    for (let at = source.indexOf(word); at !== -1; at = source.indexOf(word, at + word.length)) {
+        const before = source[at - 1] ?? ' ';
+        const after = source[at + word.length] ?? ' ';
+        if (!/\w/.test(before) && !/\w/.test(after)) count += 1;
+    }
+    return count;
+}
+
 describe('what gets written', () => {
     test('the minimum is seven files, one of them a quota provider', async () => {
         // Seven and not six: every plan must declare a quota, so the smallest
@@ -189,7 +210,10 @@ describe('the YAML it writes', () => {
         // formatter of whichever project it lands in.
         const { files } = await render({ projectKey: 'freshapp', quotas: ['notes:Note'] });
         for (const file of files) {
-            assert.equal(/[ \t]+$/m.test(file.content), false, `${file.path} has a trailing space`);
+            const trailing = file.content
+                .split('\n')
+                .some((l) => l.endsWith(' ') || l.endsWith('\t'));
+            assert.equal(trailing, false, `${file.path} has a trailing space`);
         }
     });
 });
@@ -223,7 +247,7 @@ describe('patching an existing app.module.ts', () => {
         // sidebar empty — the exact failure the generated file warns about in
         // its own header, and it was importing without registering.
         const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
-        assert.match(source, /^\s*FreshappAdminModule,$/m);
+        assert.match(source, /^[ \t]*FreshappAdminModule,$/m);
     });
 
     test('nothing is imported that the inserted code does not use', () => {
@@ -231,17 +255,11 @@ describe('patching an existing app.module.ts', () => {
         // Two unused imports are a lint error in the first project this lands
         // in — which is somebody's first impression of the framework.
         const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
-        const imported = [...source.matchAll(/^import \{([^}]*)\} from/gm)]
-            .flatMap((m) => m[1].split(','))
-            .map((name) => name.trim())
-            .filter(Boolean);
-
-        for (const name of imported) {
+        for (const name of importedNames(source)) {
             // Counted over the whole file, not over the part after the imports:
             // the fixture's own imports sit above the inserted ones, so a slice
             // would miss their declaration and call every one of them unused.
-            const uses = [...source.matchAll(new RegExp(`\\b${name}\\b`, 'g'))].length;
-            assert.ok(uses > 1, `${name} is imported and never used`);
+            assert.ok(wholeWordCount(source, name) > 1, `${name} is imported and never used`);
         }
     });
 
@@ -259,14 +277,8 @@ describe('patching an existing app.module.ts', () => {
             'NotesQuotaProvider',
             'persistence',
         ]) {
-            const used = source.indexOf(symbol);
-            const imported = source.indexOf(`import {`);
-            assert.ok(used > -1, `${symbol} is not in the output at all`);
-            assert.ok(
-                new RegExp(`import \\{[^}]*\\b${symbol}\\b`).test(source),
-                `${symbol} is used but never imported`,
-            );
-            assert.ok(imported > -1);
+            assert.ok(source.includes(symbol), `${symbol} is not in the output at all`);
+            assert.ok(importedNames(source).has(symbol), `${symbol} is used but never imported`);
         }
     });
 
@@ -395,7 +407,7 @@ describe('the auth guard the generator cannot know', () => {
         // compiling is the one failure mode nobody ships past.
         const { source } = patchAppModule(APP_MODULE, PATCH_OPTIONS);
         assert.match(source, /guards: \[YourAuthGuard\]/);
-        assert.doesNotMatch(source, /guards: \[\s*(\/\*[^*]*\*\/)?\s*\]/);
+        assert.doesNotMatch(source, /guards: \[\s*(?:\/\*[^*]*\*\/\s*)?\]/);
     });
 
     test('the block names the modules the platform resolves from, for the same reason', () => {

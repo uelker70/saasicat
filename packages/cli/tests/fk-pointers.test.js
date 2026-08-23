@@ -54,8 +54,8 @@ model Subscription {
 `;
 
 /** The same pointers, in a schema whose models have no opposite fields. */
-const SCHEMA = WITH_BACK_RELATIONS.replace(/^\s*auditLogs .*$/gm, '').replace(
-    /^\s*subscriptions .*$/gm,
+const SCHEMA = WITH_BACK_RELATIONS.replace(/^[ \t]*auditLogs .*$/gm, '').replace(
+    /^[ \t]*subscriptions .*$/gm,
     '',
 );
 

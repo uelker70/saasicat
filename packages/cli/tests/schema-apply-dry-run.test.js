@@ -84,7 +84,7 @@ async function upgradeCase() {
     await writeFile(
         schemaPath,
         withModels.replace(
-            /^(\s*)(tenant Tenant\? @relation.*)$/m,
+            /^([ \t]*)(tenant Tenant\? @relation.*)$/m,
             (_m, indent, line) => `${indent}// ${line}`,
         ),
         'utf8',
@@ -117,7 +117,11 @@ describe('the dry run previews what the real run writes', () => {
                 `the preview promised "${line}", the run did not write it`,
             );
         }
-        assert.doesNotMatch(written, /^\s*\/\/ tenant Tenant\?/m, 'the pointer is still commented');
+        assert.doesNotMatch(
+            written,
+            /^[ \t]*\/\/ tenant Tenant\?/m,
+            'the pointer is still commented',
+        );
     });
 
     test('past tense belongs to the run that did it', async () => {
