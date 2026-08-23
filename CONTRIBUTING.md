@@ -23,8 +23,14 @@ for you.
 Tests run with `--workspace-concurrency=1` because parallel workers each bootstrap
 NestJS test apps; running them serially keeps memory use sane.
 
-Lint and formatting (`eslint`, `prettier`) configs at the repo root are binding —
-run `pnpm lint` and `pnpm typecheck` before opening a PR.
+Lint and formatting configs at the repo root are binding — run `pnpm lint`,
+`pnpm run lint:css` and `pnpm typecheck` before opening a PR.
+
+`lint:css` is Stylelint, and it answers the one question ESLint cannot: whether
+a CSS value comes from the design system. Colour, shadow and type are errors —
+those have been at zero literals since the token migration. Spacing, radii and
+tracking warn against the ceiling in the script, which only ever moves down
+(see [ADR 0009](docs/explanation/adr/0009-three-layer-design-tokens.md)).
 
 ## The `Symbol.for` rule for DI tokens
 
