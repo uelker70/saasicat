@@ -50,17 +50,19 @@ model and custom UI contributions. Custom schemas can still replace any port.
 
 ## Packages
 
-| Package                         | Purpose                                                                                                                                                    |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@saasicat/spec`                | The language-neutral contract: OpenAPI, JSON Schemas, Prisma fragments, CLI conventions.                                                                   |
-| `@saasicat/core`                | TypeScript types generated from the spec schemas.                                                                                                          |
-| `@saasicat/nest`                | The backend core: NestJS modules, services, guards and decorators.                                                                                         |
-| `@saasicat/adapter-prisma`      | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema. |
-| `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter for the core slices, verified by the shared persistence contract.                                             |
-| `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …).           |
-| `@saasicat/cli`                 | nest-commander command flows to embed in your application CLI.                                                                                             |
-| `@saasicat/ui-vue`              | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables.                                                                                             |
-| `create-saasicat-admin`         | Scaffolder — `pnpm create saasicat-admin` produces a ready-to-run admin frontend.                                                                          |
+| Package                         | Purpose                                                                                                                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@saasicat/spec`                | The language-neutral contract: OpenAPI, JSON Schemas, Prisma fragments, CLI conventions.                                                                                                                               |
+| `@saasicat/core`                | The contract both sides share: DTO types — generated from the spec schemas where the spec defines a payload — plus the runtime rules backend and admin UI must agree on (plan diffing, promo evaluation, error codes). |
+| `@saasicat/nest`                | The backend core: NestJS modules, services, guards and decorators.                                                                                                                                                     |
+| `@saasicat/adapter-prisma`      | The Prisma + PostgreSQL persistence adapter: `prismaPersistence()` bundle plus individual adapters for every shipped port, targeting the canonical schema.                                                             |
+| `@saasicat/adapter-drizzle`     | The Drizzle + PostgreSQL persistence adapter for the core slices, verified by the shared persistence contract.                                                                                                         |
+| `@saasicat/persistence-testing` | Executable persistence contract — the node:test suite every adapter must pass against a real database (locks, rollback, atomic promo claims, …).                                                                       |
+| `@saasicat/cli`                 | nest-commander command flows to embed in your application CLI.                                                                                                                                                         |
+| `@saasicat/ui-vue`              | Vue 3 + Quasar SuperAdmin pages, Pinia stores and composables.                                                                                                                                                         |
+| `@saasicat/ui-vue-tenant`       | Vue 3 components for the tenant-facing side: plan section, plan-change wizard, onboarding configurator and bundle store, rendered inside your own application.                                                         |
+| `create-saasicat-admin`         | Scaffolder — `pnpm create saasicat-admin` produces a ready-to-run admin frontend.                                                                                                                                      |
+| `saasicat`                      | Pointer package — it reserves the unscoped name, holds no code, and points at the one of these you actually want.                                                                                                      |
 
 All packages are released in lockstep and share one version number.
 

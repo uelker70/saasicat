@@ -27,7 +27,7 @@ you need to understand.
 1. [The Capability-to-Contract Loop](#1-the-capability-to-contract-loop)
 2. [Concepts](#2-concepts)
 3. [Architecture](#3-architecture)
-4. [The Five Packages](#4-the-five-packages)
+4. [The Packages](#4-the-packages)
 5. [Prerequisites](#5-prerequisites)
 6. [NestJS Integration — Step by Step](#6-nestjs-integration--step-by-step)
 7. [Express Integration](#7-express-integration)
@@ -210,15 +210,21 @@ retroactively break historical invoices or quotas.
 
 ---
 
-## 4. The Five Packages
+## 4. The Packages
 
-| Package            | Contents                                                                                                                                                 | Consumed by                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| `@saasicat/spec`   | JSON schemas (manifest, plan catalog, promo code, audit event), OpenAPI, acceptance test scenarios. **Language-neutral.**                                | Backend & any other languages |
-| `@saasicat/core`   | TypeScript interfaces derived from the schemas (`AdminManifest`, `PlanCatalog`, `Subscription`, `Ports`).                                                | Backend & frontend            |
-| `@saasicat/nest`   | NestJS modules/services/decorators/guards (`AdminModule`, `DiscoveryModule`, `CatalogModule`, `EntitlementModule`, …).                                   | Backend                       |
-| `@saasicat/ui-vue` | Vue/Quasar components, Pinia stores, composables (`useDiscovery`, `useCatalogEntries`), standard pages (`DiscoveryPage`, `TenantsPage`, `PlansPage`, …). | Frontend                      |
-| `@saasicat/cli`    | `nest-commander` flows (`ManifestCliFlow`, `MfaSetupFlow`, `AuditTailFlow`, `DoctorFlow`) for your app CLI.                                              | Backend (CLI submodule)       |
+| Package                         | Contents                                                                                                                                                                          | Consumed by                   |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `@saasicat/spec`                | JSON schemas (manifest, plan catalog, promo code, audit event), OpenAPI, acceptance test scenarios. **Language-neutral.**                                                         | Backend & any other languages |
+| `@saasicat/core`                | The shared contract: DTO types (`AdminManifest`, `PlanCatalog`, `Subscription`, `Ports`) plus the runtime rules both sides apply (`classifyPlanDiff`, `applyPromo`, error codes). | Backend & frontend            |
+| `@saasicat/nest`                | NestJS modules/services/decorators/guards (`AdminModule`, `DiscoveryModule`, `CatalogModule`, `EntitlementModule`, …).                                                            | Backend                       |
+| `@saasicat/adapter-prisma`      | The standard persistence bundle: `prismaPersistence()` plus one adapter per shipped port, against the canonical schema.                                                           | Backend                       |
+| `@saasicat/adapter-drizzle`     | The same ports on Drizzle, for the core slices.                                                                                                                                   | Backend                       |
+| `@saasicat/persistence-testing` | The executable persistence contract every adapter must pass against a real database.                                                                                              | Adapter authors               |
+| `@saasicat/ui-vue`              | Vue/Quasar components, Pinia stores, composables (`useDiscovery`, `useCatalogEntries`), standard pages (`DiscoveryPage`, `TenantsPage`, `PlansPage`, …).                          | Admin frontend                |
+| `@saasicat/ui-vue-tenant`       | The tenant-facing counterpart: plan section, plan-change wizard, onboarding configurator, bundle store — rendered in your application.                                            | Your own frontend             |
+| `@saasicat/cli`                 | `nest-commander` flows (`ManifestCliFlow`, `MfaSetupFlow`, `AuditTailFlow`, `DoctorFlow`) for your app CLI.                                                                       | Backend (CLI submodule)       |
+| `create-saasicat-admin`         | Scaffolder for a ready-to-run admin frontend.                                                                                                                                     | Once, at the start            |
+| `saasicat`                      | Pointer package, no code — it names the one you want.                                                                                                                             | —                             |
 
 ### 4.1 `@saasicat/nest` — Sub-Entries
 

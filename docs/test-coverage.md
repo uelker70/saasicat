@@ -24,8 +24,18 @@ run of the unit suites, not a second one.
 | `@saasicat/adapter-prisma`      | 65.23% → **67.11%** | persistence contract, real PostgreSQL |
 | `@saasicat/adapter-drizzle`     | 60.33% → **75.42%** | persistence contract, real PostgreSQL |
 | `@saasicat/persistence-testing` | 74.30%              | it _is_ the contract                  |
+| `@saasicat/ui-vue-tenant`       | no line figure      | component suite, shipped-source check |
+| `saasicat`                      | no code             | —                                     |
 
-Two of these need reading twice.
+Four of these need reading twice.
+
+**Two packages carry no percentage, and that is not the same as untested.**
+`@saasicat/ui-vue-tenant` ships nothing but source — a consumer's build
+compiles it, so there is no `dist/` for the ratchet to instrument. What holds
+it is the component suite (`test:component`) and the language-floor check
+(`test:shipped-source`), both of which run in CI on every change.
+`saasicat` is a pointer package with no code at all; `every-published-package-is-in-the-fixed-group.test.js`
+keeps it in the release, and there is nothing else to measure.
 
 **The adapters have two numbers.** Their repository layer — the reason they
 exist — is exercised by the persistence contract, which needs a real database
