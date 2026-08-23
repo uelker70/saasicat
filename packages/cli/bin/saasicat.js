@@ -48,6 +48,7 @@ import {
     hasConstraints,
     assertValidProjectKey,
     judgeModuleResolution,
+    readEffectiveModuleResolution,
     buildImportMap,
     migrationCreatedBy,
     rewriteImports,
@@ -726,12 +727,16 @@ async function cmdInit(args, argv) {
     // Before anything is written: the files below import subpath exports,
     // and under `moduleResolution: node` none of them resolves. Found by
     // running the quickstart against an app that predates `nodenext`.
-    const tsconfigPath = join(root, 'tsconfig.json');
-    if (existsSync(tsconfigPath)) {
-        const verdict = judgeModuleResolution(await readFile(tsconfigPath, 'utf8'));
-        if (!verdict.ok) {
-            console.error(`✗ ${verdict.reason}`);
-            process.exit(1);
+    if (existsSync(join(root, 'tsconfig.json'))) {
+        const ts = loadTypeScript(root);
+        if (ts === null) {
+            console.log('! tsconfig.json not checked: no TypeScript resolvable from this project.');
+        } else {
+            const verdict = judgeModuleResolution(readEffectiveModuleResolution(root, ts));
+            if (!verdict.ok) {
+                console.error(`✗ ${verdict.reason}`);
+                process.exit(1);
+            }
         }
     }
 
@@ -807,6 +812,22 @@ async function cmdInit(args, argv) {
     } else {
         console.log('  3. saasicat schema migrate --name=add_saasicat');
     }
+}
+
+/**
+ * The TypeScript that will compile the project: the consumer's own, resolved
+ * from the project root, so the tsconfig is read the way the build reads it.
+ * Falls back to the one this CLI was installed with, then to null.
+ */
+function loadTypeScript(root) {
+    for (const from of [join(root, 'package.json'), import.meta.url]) {
+        try {
+            return createRequire(from)('typescript');
+        } catch {
+            // Not resolvable from here — try the next origin.
+        }
+    }
+    return null;
 }
 
 /** Adds the platform to `src/app.module.ts`, or says exactly what to paste. */

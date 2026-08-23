@@ -345,6 +345,31 @@ describe('init', () => {
         );
     });
 
+    test('a moduleResolution inherited through extends is refused too', async () => {
+        // Codex found the textual reader taking a base config for "unset".
+        const root = await project('init-inherited-resolution');
+        await writeFile(
+            join(root, 'tsconfig.base.json'),
+            '{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node" } }\n',
+            'utf8',
+        );
+        await writeFile(
+            join(root, 'tsconfig.json'),
+            '{ "extends": "./tsconfig.base.json", "compilerOptions": { "strict": true } }\n',
+            'utf8',
+        );
+        const { stderr, code } = await cli(
+            ['init', '--project-key=notesapp', '--quota=notes:Note'],
+            { cwd: root },
+        );
+        assert.equal(code, 1);
+        assert.match(stderr, /moduleResolution/);
+        await assert.rejects(
+            readFile(join(root, 'config', 'saas.yaml'), 'utf8'),
+            'it wrote anyway',
+        );
+    });
+
     test('a key the platform would refuse is refused here, before any write', async () => {
         const root = await project('init-bad-key');
         const { stderr, code } = await cli(['init', '--project-key=NotesApp'], { cwd: root });

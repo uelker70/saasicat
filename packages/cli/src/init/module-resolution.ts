@@ -7,52 +7,68 @@
 // command just wrote. `nest new` has set `nodenext` for years; an app that
 // predates that is exactly the app `docs/migrating-an-existing-app.md` is
 // for, so this is checked before anything is written, and said plainly.
+//
+// The config is read the way the build will read it: through TypeScript's
+// own `readConfigFile` and `parseJsonConfigFileContent`, which see past
+// comments and follow `extends`. A hand-written reader did neither — it took
+// a commented-out `"moduleResolution": "node"` for the live value, and a
+// base config that set it for nothing at all.
+
+import { join } from 'node:path';
+
+import type * as TypeScript from 'typescript';
 
 /** The settings under which a subpath export resolves. */
 const RESOLVES_SUBPATHS = new Set(['node16', 'nodenext', 'bundler']);
 
 export interface ModuleResolutionVerdict {
     readonly ok: boolean;
-    /** What the tsconfig says, or `null` when it says nothing. */
+    /** The effective setting, lower-cased as TypeScript names it, or null when unset. */
     readonly value: string | null;
     readonly reason?: string;
 }
 
 /**
- * Reads `compilerOptions.moduleResolution` out of a tsconfig text.
+ * Judges an effective `moduleResolution`, as `readEffectiveModuleResolution`
+ * reports it.
  *
- * A tsconfig is JSON with comments and trailing commas, so it is not parsed
- * as JSON: the one value is read off the text. A missing value is `ok` —
- * TypeScript derives it from `module`, and a `module` that needs the old
- * resolution is a setup this command cannot see from here; the build says
- * so on the next run, with TypeScript's own message.
+ * Unset is `ok`: TypeScript then derives it from `module`, and a `module`
+ * that implies the old resolution is a setup this cannot see from here —
+ * the next build says so, with TypeScript's own message.
  */
-export function judgeModuleResolution(tsconfigText: string): ModuleResolutionVerdict {
-    const value = readModuleResolution(tsconfigText);
-    if (value === null || RESOLVES_SUBPATHS.has(value.toLowerCase())) {
+export function judgeModuleResolution(value: string | null): ModuleResolutionVerdict {
+    if (value === null || RESOLVES_SUBPATHS.has(value)) {
         return { ok: true, value };
     }
     return {
         ok: false,
         value,
         reason:
-            `tsconfig.json sets "moduleResolution": "${value}". The files init writes import ` +
-            'subpath exports (`@saasicat/nest/platform`, `/billing`, `/discovery`), which ' +
-            'TypeScript resolves only under "node16", "nodenext" or "bundler". Set one of ' +
-            'those first — `nest new` has used "nodenext" since NestJS 10.',
+            `tsconfig.json resolves modules with "moduleResolution": "${value}"` +
+            (value === 'node10' ? ' (what TypeScript calls the "node" setting)' : '') +
+            '. The files init writes import subpath exports (`@saasicat/nest/platform`, ' +
+            '`/billing`, `/discovery`), which TypeScript resolves only under "node16", ' +
+            '"nodenext" or "bundler". Set one of those first — `nest new` has used "nodenext" ' +
+            'since NestJS 10.',
     };
 }
 
-/** The string value of `"moduleResolution"` in a tsconfig text, or null. */
-export function readModuleResolution(tsconfigText: string): string | null {
-    const key = '"moduleResolution"';
-    const at = tsconfigText.indexOf(key);
-    if (at < 0) return null;
-    const colon = tsconfigText.indexOf(':', at + key.length);
-    if (colon < 0) return null;
-    const open = tsconfigText.indexOf('"', colon + 1);
-    if (open < 0) return null;
-    const close = tsconfigText.indexOf('"', open + 1);
-    if (close < 0) return null;
-    return tsconfigText.slice(open + 1, close);
+/**
+ * The `moduleResolution` a project's `tsconfig.json` resolves to, after
+ * `extends`, lower-cased as TypeScript names the kind (`node10`, `node16`,
+ * `nodenext`, `bundler`, `classic`) — or null when there is no config, the
+ * config cannot be parsed, or the option is not set anywhere in the chain.
+ *
+ * `ts` is whichever TypeScript will compile the project: the consumer's own
+ * when it can be resolved from the project root, so the reading matches the
+ * build that follows.
+ */
+export function readEffectiveModuleResolution(root: string, ts: typeof TypeScript): string | null {
+    const configPath = join(root, 'tsconfig.json');
+    const read = ts.readConfigFile(configPath, ts.sys.readFile);
+    if (read.error || read.config === undefined) return null;
+    const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, root);
+    const kind = parsed.options.moduleResolution;
+    if (kind === undefined) return null;
+    return ts.ModuleResolutionKind[kind]!.toLowerCase();
 }

@@ -1,53 +1,94 @@
-import { describe, test } from 'node:test';
+import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
 
-import { judgeModuleResolution, readModuleResolution } from '../dist/index.js';
+import { judgeModuleResolution, readEffectiveModuleResolution } from '../dist/index.js';
 
-// The subpath imports init writes resolve under node16/nodenext/bundler and
-// under nothing else. A tsconfig is read as text, not JSON — it has comments.
+// The config is read by TypeScript itself, so what is tested here is the
+// two things a textual reader got wrong: a commented-out value, and a value
+// that only a base config sets. Real files, real `extends`.
 
-describe('judgeModuleResolution', () => {
-    test('accepts the three settings that resolve subpath exports', () => {
-        for (const v of ['node16', 'NodeNext', 'bundler', 'Bundler']) {
-            assert.equal(
-                judgeModuleResolution(`{ "compilerOptions": { "moduleResolution": "${v}" } }`).ok,
-                true,
-                v,
-            );
-        }
+const ts = createRequire(import.meta.url)('typescript');
+
+let dir;
+before(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'saasicat-modres-'));
+});
+after(async () => {
+    await rm(dir, { recursive: true, force: true });
+});
+
+async function project(name, files) {
+    const root = join(dir, name);
+    await mkdir(root, { recursive: true });
+    for (const [file, text] of Object.entries(files)) {
+        await writeFile(join(root, file), text, 'utf8');
+    }
+    return root;
+}
+
+describe('readEffectiveModuleResolution', () => {
+    test('reads the live value, not the commented-out one above it', async () => {
+        const root = await project('commented', {
+            'tsconfig.json': `{
+  "compilerOptions": {
+    // "moduleResolution": "node",
+    "moduleResolution": "nodenext", /* since NestJS 10 */
+  },
+}`,
+        });
+        assert.equal(readEffectiveModuleResolution(root, ts), 'nodenext');
     });
 
-    test('refuses the old setting and says which to use', () => {
-        const verdict = judgeModuleResolution(
-            '{ "compilerOptions": { "moduleResolution": "node" } }',
-        );
-        assert.equal(verdict.ok, false);
-        assert.match(verdict.reason, /"node"/);
-        assert.match(verdict.reason, /node16.*nodenext.*bundler/);
+    test('follows extends to a base config that sets the old resolution', async () => {
+        const root = await project('inherited', {
+            'tsconfig.base.json':
+                '{ "compilerOptions": { "module": "commonjs", "moduleResolution": "node" } }',
+            'tsconfig.json':
+                '{ "extends": "./tsconfig.base.json", "compilerOptions": { "strict": true } }',
+        });
+        assert.equal(readEffectiveModuleResolution(root, ts), 'node10');
     });
 
-    test('a tsconfig that says nothing is not refused', () => {
-        assert.equal(
-            judgeModuleResolution('{ "compilerOptions": { "module": "commonjs" } }').ok,
-            true,
-        );
+    test('a local value overrides the inherited one', async () => {
+        const root = await project('overridden', {
+            'tsconfig.base.json': '{ "compilerOptions": { "moduleResolution": "node" } }',
+            'tsconfig.json':
+                '{ "extends": "./tsconfig.base.json", "compilerOptions": { "moduleResolution": "bundler" } }',
+        });
+        assert.equal(readEffectiveModuleResolution(root, ts), 'bundler');
+    });
+
+    test('returns null when nothing in the chain sets it', async () => {
+        const root = await project('unset', {
+            'tsconfig.json': '{ "compilerOptions": { "strict": true } }',
+        });
+        assert.equal(readEffectiveModuleResolution(root, ts), null);
+    });
+
+    test('returns null for a config TypeScript cannot parse, or none at all', async () => {
+        const broken = await project('broken', { 'tsconfig.json': '{ "compilerOptions": ' });
+        assert.equal(readEffectiveModuleResolution(broken, ts), null);
+        const none = await project('none', {});
+        assert.equal(readEffectiveModuleResolution(none, ts), null);
     });
 });
 
-describe('readModuleResolution', () => {
-    test('reads past comments and trailing commas', () => {
-        const text = `{
-  // the usual NestJS file
-  "compilerOptions": {
-    "module": "commonjs", /* old */
-    "moduleResolution": "node",
-  },
-}`;
-        assert.equal(readModuleResolution(text), 'node');
+describe('judgeModuleResolution', () => {
+    test('accepts the three kinds that resolve subpath exports, and unset', () => {
+        for (const v of ['node16', 'nodenext', 'bundler', null]) {
+            assert.equal(judgeModuleResolution(v).ok, true, String(v));
+        }
     });
 
-    test('returns null when the key is absent or unfinished', () => {
-        assert.equal(readModuleResolution('{}'), null);
-        assert.equal(readModuleResolution('{ "moduleResolution": '), null);
+    test('refuses node10 and classic, naming the setting the reader knows it by', () => {
+        const verdict = judgeModuleResolution('node10');
+        assert.equal(verdict.ok, false);
+        assert.match(verdict.reason, /"node10" \(what TypeScript calls the "node" setting\)/);
+        assert.match(verdict.reason, /node16.*nodenext.*bundler/);
+        assert.equal(judgeModuleResolution('classic').ok, false);
     });
 });
