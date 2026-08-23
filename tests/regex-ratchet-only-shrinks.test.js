@@ -20,23 +20,14 @@ describe('the regex ratchet', () => {
         assert.deepEqual(gone, [], 'remove these from regex-ratchet.json');
     });
 
-    test('never grows past the count it was frozen at', () => {
-        // Appending a newly offending file would pass the "still dirty" check
-        // below — that check only proves every listed file has a finding. The
-        // ceiling is what proves the list shrank or stayed: it is the length on
-        // the day the rules arrived, and it moves only downward, by hand, in
-        // the same change that removes a file.
-        assert.equal(typeof ratchet.ceiling, 'number', 'regex-ratchet.json needs a ceiling');
-        assert.ok(
-            ratchet.files.length <= ratchet.ceiling,
-            `${ratchet.files.length} files listed, ceiling is ${ratchet.ceiling} — fix the new ` +
-                'offender instead of listing it',
-        );
-        assert.equal(
-            ratchet.files.length,
-            ratchet.ceiling,
-            'the list shrank — lower `ceiling` to match, so it cannot grow back',
-        );
+    test('admits no file that was not on it the day it was frozen', () => {
+        // The invariant is membership, not size. A count lets a contributor
+        // clean one file and list a new offender in the same change; the frozen
+        // list does not. `frozen` is never edited; `files` only loses entries.
+        assert.ok(Array.isArray(ratchet.frozen), 'regex-ratchet.json needs the frozen list');
+        const frozen = new Set(ratchet.frozen);
+        const joined = ratchet.files.filter((file) => !frozen.has(file));
+        assert.deepEqual(joined, [], 'these files were added to the ratchet — fix them instead');
     });
 
     test('has a subject', () => {
