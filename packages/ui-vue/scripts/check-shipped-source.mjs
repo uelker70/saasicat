@@ -88,7 +88,7 @@ function shippedSourceDirectories(manifest) {
                 return;
             }
             const head = node.includes('*') ? node.slice(0, node.indexOf('*')) : dirname(node);
-            const directory = head.replace(/\/+$/, '');
+            const directory = head.replace(/(?<!\/)\/+$/, '');
             if (directory !== './src') directories.add(directory);
             else if (!ASSET_EXTENSIONS.has(extname(node))) unrepresentable.push(node);
             return;

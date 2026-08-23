@@ -120,7 +120,7 @@ describe('useResourceList — the first load', () => {
         const list = inShell(http, () => useResourceList('tenants', { pageSize: 5000 }));
         await settle();
         assert.equal(list.pageSize.value, LIST_PAGE_SIZE_MAX);
-        assert.match(calls[0].url, new RegExp(`pageSize=${LIST_PAGE_SIZE_MAX}$`));
+        assert.ok(calls[0].url.endsWith(`pageSize=${LIST_PAGE_SIZE_MAX}`), calls[0].url);
     });
 });
 
@@ -342,11 +342,11 @@ describe('useResourceList — the failures it refuses to swallow', () => {
                 // roster was completed, and a hardcoded list turns that into a
                 // failing test about nothing while saying nothing about whether
                 // the message is still useful.
-                assert.match(
-                    err.message,
-                    new RegExp(
-                        `It offers: ${Object.keys(platformResources.tenants.ops).join(', ')}\\.`,
+                assert.ok(
+                    err.message.includes(
+                        `It offers: ${Object.keys(platformResources.tenants.ops).join(', ')}.`,
                     ),
+                    err.message,
                 );
                 return true;
             },
@@ -361,7 +361,10 @@ describe('useResourceList — the failures it refuses to swallow', () => {
         for (const name of ['toString', 'constructor', 'hasOwnProperty', 'valueOf']) {
             assert.throws(
                 () => inShell(http, () => useResourceList('tenants', { op: name })),
-                new RegExp(`op: "${name}".*has no such`, 's'),
+                (error) => {
+                    const at = error.message.indexOf(`op: "${name}"`);
+                    return at !== -1 && error.message.includes('has no such', at);
+                },
                 name,
             );
         }

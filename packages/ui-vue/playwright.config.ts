@@ -16,7 +16,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
     testDir: './tests/e2e',
-    testMatch: /.*\.spec\.ts$/,
+    testMatch: /\.spec\.ts$/,
     // Outside CI every `webServer` below may attach to a server it did not start
     // (see `reuseExistingServer`), and a server from a second checkout of this
     // repository renders code nobody measured — as a PASS. This runs after the
