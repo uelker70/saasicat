@@ -71,7 +71,7 @@ function onNext(payload: EditorFormPayload): void {
         editingId: wizard.editing.value?.editingId ?? null,
         initialForm: { ...payload },
     };
-    void router.push(`${plansBase()}/review`);
+    void router.push(`${plansBase()}/version/review`);
 }
 
 function onCancel(): void {
