@@ -220,9 +220,12 @@ describe('the promotions tab is a reactive form, not a snapshot', () => {
         mounted.push(wrapper);
 
         await wrapper.find('.sa-accordion__trigger').trigger('click');
-        const label = wrapper.find('.sa-accordion__body input.mc-promo-input');
+        // The first field in the open editor is the internal label. It is a
+        // `q-input` now, so the native element sits inside it and the event
+        // that carries a value is `input` rather than `change`.
+        const label = wrapper.find('.sa-accordion__body .q-field input');
         (label.element as HTMLInputElement).value = 'Autumn sale';
-        await label.trigger('change');
+        await label.trigger('input');
 
         expect(calls).toEqual([['p-1', { internalLabel: 'Autumn sale' }]]);
     });

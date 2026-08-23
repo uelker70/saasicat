@@ -108,10 +108,11 @@
                         <label class="mc-promo-label">
                             {{ msg.promotionsTab.internalLabelLabel }}
                         </label>
-                        <input
-                            class="mc-promo-input"
-                            :value="p.internalLabel"
-                            @change="patch(p, { internalLabel: inputVal($event) })"
+                        <q-input
+                            outlined
+                            dense
+                            :model-value="p.internalLabel"
+                            @update:model-value="patch(p, { internalLabel: String($event ?? '') })"
                         />
 
                         <label class="mc-promo-label">{{ common.type }}</label>
@@ -131,11 +132,13 @@
                         <label class="mc-promo-label">{{ msg.promotionsTab.valueLabel }}</label>
                         <div class="mc-promo-valrow">
                             <template v-if="p.type === 'percent' || p.type === 'amount'">
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="numValue(p)"
-                                    @change="patch(p, { value: numInput($event) })"
+                                    class="mc-promo-input--sm"
+                                    :model-value="numValue(p)"
+                                    @update:model-value="patch(p, { value: toNumber($event) })"
                                 />
                                 <span class="mc-promo-muted">
                                     {{
@@ -149,20 +152,24 @@
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.introForPrefix }}
                                 </span>
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="introMonths(p)"
-                                    @change="patchIntro(p, 'months', numInput($event))"
+                                    class="mc-promo-input--sm"
+                                    :model-value="introMonths(p)"
+                                    @update:model-value="patchIntro(p, 'months', toNumber($event))"
                                 />
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.introMonthsUnit }}
                                 </span>
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="introPrice(p)"
-                                    @change="patchIntro(p, 'price', numInput($event))"
+                                    class="mc-promo-input--sm"
+                                    :model-value="introPrice(p)"
+                                    @update:model-value="patchIntro(p, 'price', toNumber($event))"
                                 />
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.introPriceUnit }}
@@ -172,11 +179,13 @@
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.freeMonthsPrefix }}
                                 </span>
-                                <input
-                                    class="mc-promo-input mc-promo-input--sm"
+                                <q-input
+                                    outlined
+                                    dense
                                     type="number"
-                                    :value="numValue(p)"
-                                    @change="patch(p, { value: numInput($event) })"
+                                    class="mc-promo-input--sm"
+                                    :model-value="numValue(p)"
+                                    @update:model-value="patch(p, { value: toNumber($event) })"
                                 />
                                 <span class="mc-promo-muted">
                                     {{ msg.promotionsTab.freeMonthsUnit }}
@@ -188,18 +197,20 @@
                             {{ common.validity }}
                         </label>
                         <div class="mc-promo-valrow">
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 type="date"
-                                :value="p.validFrom"
-                                @change="patch(p, { validFrom: inputVal($event) })"
+                                :model-value="p.validFrom"
+                                @update:model-value="patch(p, { validFrom: String($event ?? '') })"
                             />
                             <span class="mc-promo-muted">→</span>
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 type="date"
-                                :value="p.validTo"
-                                @change="patch(p, { validTo: inputVal($event) })"
+                                :model-value="p.validTo"
+                                @update:model-value="patch(p, { validTo: String($event ?? '') })"
                             />
                         </div>
 
@@ -222,11 +233,13 @@
                         <label class="mc-promo-label">
                             {{ msg.promotionsTab.priorityLabel }}
                         </label>
-                        <input
-                            class="mc-promo-input mc-promo-input--sm"
+                        <q-input
+                            outlined
+                            dense
                             type="number"
-                            :value="p.priority"
-                            @change="patch(p, { priority: numInput($event) })"
+                            class="mc-promo-input--sm"
+                            :model-value="p.priority"
+                            @update:model-value="patch(p, { priority: toNumber($event) })"
                         />
                     </div>
 
@@ -277,17 +290,21 @@
                         </label>
                         <div v-for="l in activeLocales" :key="l" class="mc-promo-i18n-block">
                             <span class="mc-promo-i18n-code">{{ l.toUpperCase() }}</span>
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 :placeholder="msg.promotionsTab.badgePlaceholder"
-                                :value="p.i18n?.[l]?.badge || ''"
-                                @change="patchI18n(p, l, 'badge', inputVal($event))"
+                                :model-value="p.i18n?.[l]?.badge || ''"
+                                @update:model-value="patchI18n(p, l, 'badge', String($event ?? ''))"
                             />
-                            <input
-                                class="mc-promo-input"
+                            <q-input
+                                outlined
+                                dense
                                 :placeholder="msg.promotionsTab.fineprintPlaceholder"
-                                :value="p.i18n?.[l]?.fineprint || ''"
-                                @change="patchI18n(p, l, 'fineprint', inputVal($event))"
+                                :model-value="p.i18n?.[l]?.fineprint || ''"
+                                @update:model-value="
+                                    patchI18n(p, l, 'fineprint', String($event ?? ''))
+                                "
                             />
                         </div>
 
@@ -517,11 +534,9 @@ const timelineHeight = computed(() => {
 });
 
 // ─── Mutations ───
-function inputVal(e: Event): string {
-    return (e.target as HTMLInputElement).value;
-}
-function numInput(e: Event): number {
-    return Number((e.target as HTMLInputElement).value) || 0;
+/** `q-input` hands over the value, and a number field hands over a string. */
+function toNumber(value: string | number | null): number {
+    return Number(value) || 0;
 }
 function numValue(p: PromotionRow): number {
     return typeof p.value === 'number' ? p.value : 0;
@@ -824,12 +839,7 @@ async function onRemove(p: PromotionRow): Promise<void> {
     color: var(--sa-color-fg-secondary);
     margin-top: var(--sa-space-2);
 }
-.mc-promo-input {
-    border: 1px solid var(--sa-color-border-strong);
-    border-radius: var(--sa-radius-badge);
-    padding: var(--sa-space-2) var(--sa-space-3);
-    font-size: var(--sa-text-md);
-}
+/* A width, not a look: the look comes from the theme's `field.css`. */
 .mc-promo-input--sm {
     max-width: 90px;
 }
