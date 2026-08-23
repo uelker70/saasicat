@@ -43,7 +43,7 @@ import {
     applyTokens,
     constraintsFor,
     checkSchema,
-    extractModelBlocks,
+    extractFragmentBlocks,
     findFkPointers,
     hasConstraints,
     assertValidProjectKey,
@@ -133,14 +133,15 @@ async function selectFragmentFiles(dir, filter) {
 
 async function loadFragments(dir, filter) {
     const selected = await selectFragmentFiles(dir, filter);
-    const blocks = new Map();
+    const blocks = { enums: new Map(), models: new Map() };
     for (const file of selected) {
         const content = await readFile(join(dir, file), 'utf8');
-        const fileBlocks = extractModelBlocks(content);
-        for (const [name, body] of fileBlocks) {
-            if (!blocks.has(name)) {
-                blocks.set(name, body);
-            }
+        const fileBlocks = extractFragmentBlocks(content);
+        for (const [name, body] of fileBlocks.enums) {
+            if (!blocks.enums.has(name)) blocks.enums.set(name, body);
+        }
+        for (const [name, body] of fileBlocks.models) {
+            if (!blocks.models.has(name)) blocks.models.set(name, body);
         }
     }
     return { files: selected, blocks };
@@ -172,7 +173,7 @@ async function cmdSchemaApply(args) {
     }
 
     const { files, blocks } = await loadFragments(fragmentsDir, filter);
-    if (blocks.size === 0) {
+    if (blocks.models.size === 0) {
         console.error('✗ No models found in the selected fragments.');
         process.exit(1);
     }
@@ -186,13 +187,16 @@ async function cmdSchemaApply(args) {
     // one where the manual step is most likely to have been forgotten.
     const fk = resolveFkPointers(result.schema, args);
 
-    if (result.added.length === 0 && fk.enabled.length === 0) {
+    if (result.added.length === 0 && result.addedEnums.length === 0 && fk.enabled.length === 0) {
         console.log(`→ Nothing to do. Models already present: ${result.skipped.join(', ')}`);
         reportFkPointers(fk, args);
         return;
     }
 
     if (args['dry-run']) {
+        if (result.addedEnums.length) {
+            console.log(`(--dry-run) Would append enums: ${result.addedEnums.join(', ')}`);
+        }
         if (result.added.length) {
             console.log(`(--dry-run) Would append: ${result.added.join(', ')}`);
         }
@@ -210,12 +214,18 @@ async function cmdSchemaApply(args) {
         for (const { line } of fk.enabled) {
             console.log(`  ${line + 1}: ${fk.schema.split('\n')[line]?.trim() ?? ''}`);
         }
-        if (fk.enabled.length > 0 && result.added.length > 0) console.log('');
-        if (result.added.length > 0) console.log(result.schema.slice(schema.length));
+        const appended = result.added.length > 0 || result.addedEnums.length > 0;
+        if (fk.enabled.length > 0 && appended) console.log('');
+        if (appended) console.log(result.schema.slice(schema.length));
         return;
     }
 
     await writeFile(schemaPath, fk.schema, 'utf8');
+    if (result.addedEnums.length) {
+        console.log(
+            `✓ Appended ${result.addedEnums.length} enum(s): ${result.addedEnums.join(', ')}`,
+        );
+    }
     console.log(`✓ Appended ${result.added.length} model(s): ${result.added.join(', ')}`);
     if (result.skipped.length) {
         console.log(`→ Skipped (already present): ${result.skipped.join(', ')}`);

@@ -126,7 +126,8 @@
                 "types": "./dist/platform/index.d.cts",
                 "default": "./dist/platform/index.cjs"
             }
-        }
+        },
+        "./package.json": "./package.json"
     },
     "files": [
         "dist"

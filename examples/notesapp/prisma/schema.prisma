@@ -12,8 +12,8 @@
 //   08 (SubscriptionContract + ContractLineItem)
 //   10 (SuperAdmin + MFA)
 // The platform blocks below are hand-maintained copies of the fragments, with
-// the consumer relations to Tenant/User enabled. `schema apply` can seed them
-// into a fresh schema, but it neither carries enums nor updates blocks that
+// the consumer relations to Tenant/User enabled. `schema apply` seeds them —
+// enums and models — into a fresh schema, but does not update blocks that
 // already exist — verify with `pnpm exec saasicat schema check` after a package
 // upgrade, which reports every field this schema is missing.
 // PostgreSQL constraints the Prisma DSL cannot express live in

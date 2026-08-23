@@ -204,6 +204,27 @@ describe('schema apply', () => {
         assert.match(await readFile(schemaPath, 'utf8'), /model AuditLog \{/);
     });
 
+    test('the enums a fragment declares arrive with its models', async () => {
+        // Fragment 01 declares BillingCycle and uses it on Subscription; a
+        // schema with the model and not the enum fails Prisma validation.
+        const root = await project('apply-enums');
+        const schemaPath = join(root, 'prisma', 'schema.prisma');
+        const { stdout, code } = await cli([
+            'schema',
+            'apply',
+            '--fragments=01',
+            `--prisma-schema=${schemaPath}`,
+        ]);
+        assert.equal(code, 0, stdout);
+        assert.match(stdout, /Appended \d+ enum\(s\): .*BillingCycle/);
+        const schema = await readFile(schemaPath, 'utf8');
+        assert.match(schema, /^enum BillingCycle \{/m);
+        assert.ok(
+            schema.indexOf('enum BillingCycle') < schema.indexOf('model Subscription'),
+            'the enum stands above the model that uses it',
+        );
+    });
+
     test('running it twice appends nothing the second time', async () => {
         const root = await project('apply-twice');
         const schemaPath = join(root, 'prisma', 'schema.prisma');
