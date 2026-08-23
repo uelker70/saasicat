@@ -42,15 +42,15 @@ implementation status.
 
 ## Explanation
 
-| Page                                                                 | Question it answers                                        |
-| -------------------------------------------------------------------- | ---------------------------------------------------------- |
-| [The vocabulary](explanation/concepts.md)                            | What is a capability, a feature, a quota?                  |
-| [From capability to contract](explanation/capability-to-contract.md) | How does a decorator become something a customer buys?     |
-| [Architecture](explanation/architecture.md)                          | Which package does what, and in which order?               |
-| [Data model](explanation/data-model.md)                              | Which tables and constraints, and who owns them?           |
-| [Design guide](explanation/design-guide.md)                          | Why do the admin pages look alike?                         |
-| [Test coverage](explanation/test-coverage.md)                        | What is tested, and what is not?                           |
-| [Decisions (ADRs)](explanation/adr/)                                 | Why was it built this way, and what breaks if you undo it? |
+| Page                                                                   | Question it answers                                        |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| [The vocabulary](explanation/concepts.md)                              | What is a capability, a feature, a quota?                  |
+| [From capability to contract](explanation/capability-to-contract.md)   | How does a decorator become something a customer buys?     |
+| [Architecture](explanation/architecture.md)                            | Which package does what, and in which order?               |
+| [Data model](explanation/data-model.md)                                | Which tables and constraints, and who owns them?           |
+| [Design guide](explanation/design-guide.md)                            | Why do the admin pages look alike?                         |
+| [Test coverage](explanation/test-coverage.md)                          | What is tested, and what is not?                           |
+| [Decisions (ADRs)](explanation/adr/0001-source-available-licensing.md) | Why was it built this way, and what breaks if you undo it? |
 
 ## What `status: normative` means
 

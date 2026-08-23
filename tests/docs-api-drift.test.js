@@ -114,16 +114,23 @@ const NUMBER_WORDS = {
  * while the repository had ten.
  */
 export function packageCountClaims(text) {
-    const words = text.toLowerCase().split(/[^a-z0-9]+/);
+    const words = text.toLowerCase().split(/\s+/);
     const claims = [];
     for (let i = 1; i < words.length; i += 1) {
-        if (words[i] !== 'packages') continue;
-        const word = words[i - 1];
-        const value = word in NUMBER_WORDS ? NUMBER_WORDS[word] : Number(word);
+        // `packages,` counts, `packages/` is a path and `64.` ended a sentence
+        // before the next one started with the word.
+        if (!PLURAL.test(words[i])) continue;
+        const previous = words[i - 1].replace(LEADING_MARKUP, '');
+        if (!BARE_WORD.test(previous)) continue;
+        const value = previous in NUMBER_WORDS ? NUMBER_WORDS[previous] : Number(previous);
         if (Number.isInteger(value) && value >= 3) claims.push(value);
     }
     return claims;
 }
+
+const PLURAL = /^packages[.,:;!?)*`'"]*$/;
+const LEADING_MARKUP = /^[(*`'"]+/;
+const BARE_WORD = /^[a-z0-9]+$/;
 
 describe('documentation matches the packages that exist', () => {
     const files = docFiles();

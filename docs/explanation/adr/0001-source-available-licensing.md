@@ -75,3 +75,16 @@ permitted. There is no time limit and no reversion.
 This is a licensing decision recorded by an engineer, not legal advice. The
 wording of PolyForm Shield — in particular what "competes" covers in a dispute —
 is worth a review by someone qualified to give it.
+
+## What breaks if you ignore this
+
+Calling the project open source — in a README, a changeset, a talk — is a
+factual error about a license that is not OSI-approved, and it is the kind of
+error people repeat. `tests/license-is-consistent.test.js` holds the license
+fields and headers; the wording is on the author.
+
+Adding a copyleft dependency is the expensive version. Its terms would conflict
+with distributing this under PolyForm Shield, and the conflict is only
+discoverable by reading the dependency's license — so a new dependency's license
+is part of the decision to add it. Where it is unclear, flag it rather than
+add it.
