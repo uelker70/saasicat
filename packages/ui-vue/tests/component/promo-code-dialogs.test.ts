@@ -192,7 +192,7 @@ describe('Shared form body', () => {
         });
         await wrapper.vm.$nextTick();
 
-        const input = document.querySelector<HTMLInputElement>('.pc-input--code');
+        const input = document.querySelector<HTMLInputElement>('.pc-code input');
         expect(input).not.toBeNull();
         input!.value = 'sommer-25!';
         input!.dispatchEvent(new Event('input'));
@@ -210,7 +210,9 @@ describe('Shared form body', () => {
         });
         await wrapper.vm.$nextTick();
 
-        const buttons = [...document.querySelectorAll<HTMLButtonElement>('.pc-btn-mini')];
+        // The generator sits in the field's `after` slot, so it is the only
+        // button inside the code field.
+        const buttons = [...document.querySelectorAll<HTMLButtonElement>('.pc-code button')];
         expect(buttons.length).toBe(1);
         buttons[0].click();
         await wrapper.vm.$nextTick();
@@ -239,11 +241,11 @@ describe('Shared form body', () => {
         });
         await wrapper.vm.$nextTick();
 
-        const input = document.querySelector<HTMLInputElement>('.pc-input--code');
+        const input = document.querySelector<HTMLInputElement>('.pc-code input');
         expect(input?.value).toBe('WINTER10');
         expect(input?.disabled).toBe(true);
         // No random button on edit.
-        expect(document.querySelectorAll('.pc-btn-mini').length).toBe(0);
+        expect(document.querySelectorAll('.pc-code button').length).toBe(0);
     });
 
     test('the status switch appears on edit only', async () => {
