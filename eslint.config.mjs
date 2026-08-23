@@ -4,6 +4,10 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import pluginVue from 'eslint-plugin-vue';
 import vueParser from 'vue-eslint-parser';
 import globals from 'globals';
+import regexp from 'eslint-plugin-regexp';
+import { createRequire } from 'node:module';
+
+const regexRatchet = createRequire(import.meta.url)('./regex-ratchet.json');
 
 export default tseslint.config(
     eslint.configs.recommended,
@@ -13,6 +17,69 @@ export default tseslint.config(
     // off the formatting rules the others enable, including `vue/html-indent` and
     // friends. Prettier owns formatting in this repo.
     eslintConfigPrettier,
+    {
+        // Two classes of regular-expression defect, both found by CodeQL on
+        // pull requests before anything here asked about them — three times in
+        // two days, each time in freshly written code.
+        //
+        // `no-super-linear-backtracking`: a pattern whose quantifiers can share
+        // one input more than one way backtracks quadratically, and the input
+        // is a consumer's file. `v1-rename.ts` had two.
+        //
+        // `no-restricted-syntax` below: a pattern assembled from a value —
+        // `new RegExp(\`…${version}…\`)`. Hand-escaping is always incomplete
+        // (the version-built pattern escaped dots and nothing else), and the
+        // right answer is almost never a regex at all: parse the text and
+        // compare data. A literal pattern, or one built from another literal,
+        // is fine; one built from a variable has to say why with a disable
+        // comment that names the guarantee.
+        files: ['**/*.{js,mjs,cjs,ts,mts,cts,vue}'],
+        plugins: { regexp },
+        rules: {
+            'regexp/no-super-linear-backtracking': 'error',
+            'regexp/no-super-linear-move': 'error',
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector:
+                        "NewExpression[callee.name='RegExp'] > TemplateLiteral.arguments:first-child[expressions.length>0]",
+                    message:
+                        'A regular expression built from a value. Parse the text and compare data, ' +
+                        'or escape EVERY metacharacter through one tested function and say so in a ' +
+                        'disable comment — hand escaping is what CodeQL reports as incomplete.',
+                },
+                {
+                    selector:
+                        "NewExpression[callee.name='RegExp'] > BinaryExpression.arguments:first-child[operator='+']",
+                    message:
+                        'A regular expression concatenated from a value. Parse the text and compare ' +
+                        'data, or escape every metacharacter through one tested function.',
+                },
+                {
+                    selector:
+                        "NewExpression[callee.name='RegExp'] > Identifier.arguments:first-child",
+                    message:
+                        'A regular expression from a variable. If it is a literal pattern, write it ' +
+                        'as one; if it is a value, parse and compare instead.',
+                },
+            ],
+        },
+    },
+    {
+        // The ratchet. The rules above arrived with ninety-one findings in the
+        // tests and scripts, and nobody fixes ninety-one regexes in the pull
+        // request that adds a lint. So the files that carried them the day the
+        // rules arrived are listed in `regex-ratchet.json` and get warnings
+        // instead of errors; `tests/regex-ratchet-only-shrinks.test.js` makes
+        // sure the list never grows and that every file on it still needs to
+        // be there. A new file is held to the rules outright.
+        files: regexRatchet.files,
+        rules: {
+            'regexp/no-super-linear-backtracking': 'warn',
+            'regexp/no-super-linear-move': 'warn',
+            'no-restricted-syntax': 'off',
+        },
+    },
     {
         // Single-file components carry TypeScript in `<script setup lang="ts">`.
         // `vue-eslint-parser` handles the SFC envelope and delegates the script

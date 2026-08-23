@@ -36,7 +36,7 @@
                     autofocus
                     :disable="loading"
                     class="q-mb-sm"
-                    :rules="[(v: string) => /\S+@\S+\.\S+/.test(v) || msg.invalidEmail]"
+                    :rules="[(v: string) => looksLikeEmail(v) || msg.invalidEmail]"
                 />
                 <q-input
                     v-model="form.password"
@@ -100,6 +100,7 @@ import {
     useSuperAdminLoginAdapter,
 } from '../vue/use-super-admin-context.js';
 import { getJson } from '../client/http-json.js';
+import { looksLikeEmail } from '../client/text-shape.js';
 import { isProductionBoot, resolveLoginBranding } from '../client/login-branding.js';
 import { useSaMessages } from '../vue/use-super-admin-i18n.js';
 import LocaleSwitcher from '../ui/page/LocaleSwitcher.vue';
@@ -146,7 +147,7 @@ const devHint = computed(() => {
 });
 
 const canSubmit = computed(
-    () => /\S+@\S+\.\S+/.test(form.email) && form.password.length >= 1 && !loading.value,
+    () => looksLikeEmail(form.email) && form.password.length >= 1 && !loading.value,
 );
 
 onMounted(() => {

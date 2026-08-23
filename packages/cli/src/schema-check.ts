@@ -137,6 +137,8 @@ export function parseEnumValues(block: string): string[] {
  * `)` belongs to the argument, not to the attribute.
  */
 function attributeFieldLists(block: string, attribute: string): Set<string> {
+    // `attribute` is a literal this file passes (`unique`, `index`), not schema text.
+    // eslint-disable-next-line no-restricted-syntax
     const pattern = new RegExp(`@@${attribute}\\(\\s*(\\[[^\\]]*\\])`, 'g');
     return new Set([...block.matchAll(pattern)].map((match) => match[1].replace(/\s+/g, '')));
 }

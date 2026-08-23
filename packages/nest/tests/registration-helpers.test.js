@@ -90,3 +90,10 @@ test('slugify: Latin diacritics are removed', () => {
     assert.equal(slugify('Niño'), 'nino');
     assert.equal(slugify('Café'), 'cafe');
 });
+
+test('slugify finishes on a name that is nothing but separators', () => {
+    // `/^-+|-+$/` backtracked on this; the scanner that replaced it does not.
+    const started = Date.now();
+    assert.equal(slugify('-'.repeat(100_000)), 'tenant');
+    assert.ok(Date.now() - started < 200, 'not linear');
+});

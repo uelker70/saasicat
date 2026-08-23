@@ -258,6 +258,7 @@ import AdminDialog from '../../ui/overlay/AdminDialog.vue';
 import AdminBanner from '../../ui/feedback/AdminBanner.vue';
 import { IDENTITY_NEUTRAL } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
+import { looksLikeEmail, trimChar } from '../../client/text-shape.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { PilotCopy, PilotCreatePayload, PilotCreateResult } from './types.js';
 
@@ -345,14 +346,16 @@ const mfaDescription = ref('');
 const slugTouched = ref(false);
 
 function slugify(s: string): string {
-    return s
-        .toLowerCase()
-        .replace(/ä/g, 'ae')
-        .replace(/ö/g, 'oe')
-        .replace(/ü/g, 'ue')
-        .replace(/ß/g, 'ss')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+    return trimChar(
+        s
+            .toLowerCase()
+            .replace(/ä/g, 'ae')
+            .replace(/ö/g, 'oe')
+            .replace(/ü/g, 'ue')
+            .replace(/ß/g, 'ss')
+            .replace(/[^a-z0-9]+/g, '-'),
+        '-',
+    );
 }
 
 function onSlugInput(): void {
@@ -367,7 +370,7 @@ watch(
     },
 );
 
-const emailValid = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.admin.email));
+const emailValid = computed(() => looksLikeEmail(form.admin.email));
 const slugConflict = computed(
     () => !!form.tenant.slug && props.existingSlugs.includes(form.tenant.slug),
 );

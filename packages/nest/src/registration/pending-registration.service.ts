@@ -606,7 +606,8 @@ export class PendingRegistrationService {
             pendingRegistrationId: pending.id,
             ttlMinutes: REGISTRATION_RESUME_TTL_MINUTES,
         });
-        const base = (this.resumeBaseUrl ?? 'http://localhost').replace(/\/+$/, '');
+        let base = this.resumeBaseUrl ?? 'http://localhost';
+        while (base.endsWith('/')) base = base.slice(0, -1);
         const url = `${base}/login?resume=${encodeURIComponent(token)}`;
         try {
             await this.resumeDelivery.sendResumeEmail({
