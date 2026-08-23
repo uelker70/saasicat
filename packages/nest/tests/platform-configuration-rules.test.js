@@ -60,7 +60,7 @@ describe('the rule table', () => {
         assert.deepEqual([...new Set(ids)], ids, 'duplicate rule id');
         for (const rule of PLATFORM_RULES) {
             assert.match(rule.id, /^[a-z-]+\.[a-z-]+$/, `${rule.id} is not <area>.<what>`);
-            assert.match(rule.docs, /^https:\/\/.+#.+$/, `${rule.id} has no anchored docs link`);
+            assert.match(rule.docs, /^https:\/\/[^#]+#.+$/, `${rule.id} has no anchored docs link`);
         }
     });
 

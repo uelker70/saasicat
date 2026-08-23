@@ -34,12 +34,6 @@
         "tests/vue-entry-is-complete.test.js"
     ],
     "files": [
-        "packages/cli/tests/cli-commands.test.js",
-        "packages/cli/tests/fk-pointers.test.js",
-        "packages/cli/tests/init.test.js",
-        "packages/cli/tests/schema-apply-dry-run.test.js",
-        "packages/nest/tests/error-params-contract.test.js",
-        "packages/nest/tests/platform-configuration-rules.test.js",
         "packages/ui-vue/playwright.config.ts",
         "packages/ui-vue/scripts/check-shipped-source.mjs",
         "packages/ui-vue/tests/component/admin-page-shell.test.ts",
