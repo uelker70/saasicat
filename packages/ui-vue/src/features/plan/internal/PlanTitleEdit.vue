@@ -1,7 +1,9 @@
 <template>
     <span class="pd-title-edit">
         <template v-if="editing">
-            <input
+            <q-input
+                outlined
+                dense
                 ref="nameInput"
                 v-model="nameDraft"
                 class="pd-title-edit__input"

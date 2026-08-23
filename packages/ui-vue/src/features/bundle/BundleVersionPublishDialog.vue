@@ -31,11 +31,23 @@
                 <div class="bvpd__validity-grid">
                     <label class="bvpd__field">
                         <span>{{ msg.fields.validFrom }}</span>
-                        <input v-model="validFromInput" class="bvpd__input" type="date" />
+                        <q-input
+                            outlined
+                            dense
+                            v-model="validFromInput"
+                            class="bvpd__input"
+                            type="date"
+                        />
                     </label>
                     <label class="bvpd__field">
                         <span>{{ msg.fields.validUntil }}</span>
-                        <input v-model="validUntilInput" class="bvpd__input" type="date" />
+                        <q-input
+                            outlined
+                            dense
+                            v-model="validUntilInput"
+                            class="bvpd__input"
+                            type="date"
+                        />
                     </label>
                 </div>
                 <p v-if="validityError" class="bvpd__error">{{ validityError }}</p>

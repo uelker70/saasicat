@@ -32,7 +32,9 @@
                 <div class="bcp-grid">
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">{{ msg.fields.label }}</span>
-                        <input
+                        <q-input
+                            outlined
+                            dense
                             ref="labelInput"
                             v-model="form.label"
                             class="bcp-input"
@@ -44,7 +46,9 @@
                             {{ msg.create.bundleKey }}
                             <span class="bcp-field-hint">{{ msg.create.bundleKeyHint }}</span>
                         </span>
-                        <input
+                        <q-input
+                            outlined
+                            dense
                             v-model="form.bundleKey"
                             class="bcp-input bcp-input--mono"
                             placeholder="COMMUNICATION_PRO"
@@ -79,7 +83,9 @@
                     <label class="bcp-field">
                         <span class="bcp-field-label">{{ msg.fields.monthlyPrice }}</span>
                         <div class="bcp-input-grp">
-                            <input
+                            <q-input
+                                outlined
+                                dense
                                 v-model="form.monthlyNet"
                                 type="text"
                                 inputmode="decimal"
@@ -92,7 +98,9 @@
                     <label class="bcp-field">
                         <span class="bcp-field-label">{{ msg.fields.yearlyPrice }}</span>
                         <div class="bcp-input-grp">
-                            <input
+                            <q-input
+                                outlined
+                                dense
                                 v-model="form.yearlyNet"
                                 type="text"
                                 inputmode="decimal"
@@ -104,7 +112,13 @@
                     </label>
                     <label class="bcp-field bcp-col-2">
                         <span class="bcp-field-label">{{ msg.fields.validFrom }}</span>
-                        <input v-model="form.validFrom" type="date" class="bcp-input" />
+                        <q-input
+                            outlined
+                            dense
+                            v-model="form.validFrom"
+                            type="date"
+                            class="bcp-input"
+                        />
                         <span class="bcp-field-hint">{{ validFromHint }}</span>
                     </label>
                 </div>
