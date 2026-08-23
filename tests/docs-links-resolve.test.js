@@ -88,7 +88,7 @@ describe('documentation links resolve', () => {
 
         for (const file of files) {
             const markdown = readFileSync(file, 'utf8');
-            for (const [, target] of markdown.matchAll(/\]\(([^)\s]+#[^)\s]+)\)/g)) {
+            for (const [, target] of markdown.matchAll(/\]\(([^)\s#]+#[^)\s]+)\)/g)) {
                 if (/^(https?:)/.test(target) && !target.includes('github.com/uelker70/saasicat')) {
                     continue;
                 }

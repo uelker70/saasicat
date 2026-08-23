@@ -21,10 +21,11 @@ const SRC = join(ROOT, 'packages', 'ui-vue', 'src');
 
 /** The `./vue/…` modules an entry re-exports, as bare names. */
 function vueReExports(file, prefix) {
-    return [
-        ...readFileSync(file, 'utf8').matchAll(new RegExp(`from '${prefix}([\\w.-]+)\\.js'`, 'g')),
-    ]
+    return [...readFileSync(file, 'utf8').matchAll(/from '([^']+)'/g)]
         .map((m) => m[1])
+        .filter((specifier) => specifier.startsWith(prefix) && specifier.endsWith('.js'))
+        .map((specifier) => specifier.slice(prefix.length, -'.js'.length))
+        .filter((name) => /^[\w.-]+$/.test(name))
         .sort();
 }
 

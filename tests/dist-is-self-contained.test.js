@@ -32,7 +32,8 @@ const CODE = /\.(js|cjs|mjs)$/;
 const DECLARATION = /\.d\.(ts|cts|mts)$/;
 
 /** `from './x'`, `import './x'`, `import('./x')`, `require('./x')`. */
-const RELATIVE_SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["'](\.[^"']*)["']/g;
+const RELATIVE_SPECIFIER =
+    /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["'](\.[^"']*)["']/g;
 
 const isFile = (p) => existsSync(p) && statSync(p).isFile();
 
