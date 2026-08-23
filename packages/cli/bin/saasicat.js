@@ -796,11 +796,16 @@ async function cmdInit(args, argv) {
     console.log('     — the generated app does NOT compile until you do. An empty');
     console.log('       array means "deliberately auth-free" to the platform, and');
     console.log('       would publish GET /admin/discovery to anyone who asks.');
+    console.log('  2. Name the modules in `imports: [YourPrismaModule, YourAuthModule]`');
+    console.log('     — the one exporting PrismaService and the one your guard needs.');
+    console.log('       The platform module resolves its providers from that list;');
+    console.log('       without it the first boot stops at "Nest can\'t resolve');
+    console.log('       dependencies of … (PrismaService)".');
     if (plan.quotaProviders.length > 0) {
-        console.log('  2. Check each quota provider counts the right thing');
-        console.log('  3. saasicat schema migrate --name=add_saasicat');
+        console.log('  3. Check each quota provider counts the right thing');
+        console.log('  4. saasicat schema migrate --name=add_saasicat');
     } else {
-        console.log('  2. saasicat schema migrate --name=add_saasicat');
+        console.log('  3. saasicat schema migrate --name=add_saasicat');
     }
 }
 

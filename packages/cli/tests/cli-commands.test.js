@@ -307,6 +307,8 @@ describe('init', () => {
         // auth-free.
         assert.match(appModule, /guards: \[YourAuthGuard\]/);
         assert.match(stdout, /Name your auth guard/);
+        assert.match(appModule, /imports: \[YourPrismaModule, YourAuthModule\]/);
+        assert.match(stdout, /Name the modules in/);
     });
 
     test('refuses to overwrite what is already there', async () => {
