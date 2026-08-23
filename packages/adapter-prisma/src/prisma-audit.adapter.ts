@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { AdminActor, AuditPort } from '@saasicat/types';
+import type { AdminActor, AuditPort } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 
 /** `'web:<email>:<sessionId>'` / `'cli:<email>:<host>'` — audit-event.schema.json ActorTagPattern. */

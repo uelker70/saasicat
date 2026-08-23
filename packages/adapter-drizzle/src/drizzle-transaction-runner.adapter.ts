@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { TransactionContext, TransactionRunner } from '@saasicat/types';
+import type { TransactionContext, TransactionRunner } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 
 /**

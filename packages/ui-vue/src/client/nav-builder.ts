@@ -9,7 +9,7 @@
 // not required at all). The manifest is Discovery, not security — the server
 // enforces the routes independently.
 
-import type { AdminManifest, StandardPageDef, StandardPageKey } from '@saasicat/types';
+import type { AdminManifest, StandardPageDef, StandardPageKey } from '@saasicat/core';
 
 import { DEFAULT_SA_LOCALE, isSaBuiltinLocale, type SaLocale } from './i18n/locale.js';
 import { navMessages, type SaNavMessages } from './i18n/messages/nav.js';

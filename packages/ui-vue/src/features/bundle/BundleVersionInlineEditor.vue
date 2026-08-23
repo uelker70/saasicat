@@ -196,7 +196,7 @@ import type {
     PlanRow,
     PlanVersionRow,
     UpdateBundleVersionDraftData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import BundleFeaturesEditor, { type FeatureMeta } from './internal/BundleFeaturesEditor.vue';
 import BundlePlanCompatPicker from './internal/BundlePlanCompatPicker.vue';

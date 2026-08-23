@@ -1,4 +1,4 @@
-import type { BillingCycle } from '@saasicat/types';
+import type { BillingCycle } from '@saasicat/core';
 
 // Period-boundary calculations for subscriptions.
 //

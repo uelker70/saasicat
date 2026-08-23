@@ -15,7 +15,7 @@
 // the reference implementation, whose tables already live under the Prisma
 // default names — a subsequent `@@map` would only force a table rename.
 //
-// Contract: @saasicat/types (src/registration.types.ts) (PendingRegistration,
+// Contract: @saasicat/core (src/registration.types.ts) (PendingRegistration,
 //           PendingRegistrationRepository, PaymentEventLog).
 // Service logic: @saasicat/nest/registration (PendingRegistrationService).
 

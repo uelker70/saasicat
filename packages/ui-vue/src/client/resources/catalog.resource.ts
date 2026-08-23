@@ -19,7 +19,7 @@ import type {
     ReviewCatalogEntryData,
     SyncDiscoveryResult,
     UpdateCatalogEntryBaseData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { requestJson, requestJsonBody } from './resource-request.js';

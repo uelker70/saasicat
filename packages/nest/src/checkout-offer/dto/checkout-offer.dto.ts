@@ -16,7 +16,7 @@ import type {
     CheckoutOfferPriceBreakdown,
     CheckoutOfferPromoCodeSnapshot,
     CheckoutOfferPromotionSnapshot,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 const PROJECT_KEY_PATTERN = /^[a-z][a-z0-9-]*$/;
 const CYCLES = ['monthly', 'yearly'] as const;

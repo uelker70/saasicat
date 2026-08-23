@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import type { MfaPort } from '@saasicat/types';
+import type { MfaPort } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { superAdminMfa } from './schema.js';
 

@@ -19,7 +19,7 @@
 // anything to say about this configuration at all, so "not enabled" and
 // "enabled and satisfied" never look alike.
 
-import { assertPersistenceCapabilities, type SaaSiCatPersistenceAdapter } from '@saasicat/types';
+import { assertPersistenceCapabilities, type SaaSiCatPersistenceAdapter } from '@saasicat/core';
 
 import type { SaaSiCatAdapters, SaaSiCatModuleOptions } from '../module-options.js';
 

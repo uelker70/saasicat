@@ -42,8 +42,8 @@ import type {
     UpdatePlanData,
     UpdatePlanVersionDraftData,
     VersionChange,
-} from '@saasicat/types';
-import { startOfUtcDay } from '@saasicat/types';
+} from '@saasicat/core';
+import { startOfUtcDay } from '@saasicat/core';
 
 /**
  * In-memory FakeSubscriptionRepository — stores subscriptions by

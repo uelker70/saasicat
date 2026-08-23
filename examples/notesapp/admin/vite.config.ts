@@ -62,7 +62,7 @@ export default defineConfig({
     // makes editing a platform page hot-reload here instead of requiring a
     // rebuild — a pre-bundled dependency is a frozen snapshot.
     optimizeDeps: {
-        exclude: ['@saasicat/ui-vue', '@saasicat/types'],
+        exclude: ['@saasicat/ui-vue', '@saasicat/core'],
     },
     server: {
         // Same port the compose stack publishes the admin on, so the URL does

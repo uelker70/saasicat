@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { namedImports, rewriteNames } from '../dist/index.js';
+import { namedImports, rewriteManifest, rewriteNames } from '../dist/index.js';
 
 // naming-history: this file names the retired spellings because they are what
 // the codemod rewrites. The rules come from `codemods/v1-rename.map.json`, the
@@ -109,6 +109,17 @@ describe('the shapes a consumer meets', () => {
         assert.deepEqual(result.ambiguous, ["FEATURE_UI_REGISTRY_TOKEN from '@saasicat/nest'"]);
     });
 
+    test('the package that stopped being only types', () => {
+        const { text } = rewriteNames(
+            "import type { PlanVersionRow } from '@saasicat/types';\nimport { classifyPlanDiff } from '@saasicat/types';",
+            TABLE,
+        );
+        assert.equal(
+            text,
+            "import type { PlanVersionRow } from '@saasicat/core';\nimport { classifyPlanDiff } from '@saasicat/core';",
+        );
+    });
+
     test('the e2e helper subpath', () => {
         const { text } = rewriteNames(
             "import { runAdminPagesSuite } from '@saasicat/ui-vue/testing-e2e/admin-pages-suite';",
@@ -140,7 +151,7 @@ describe('reading named imports', () => {
                 '    C as D,',
                 '    E,',
                 '} from "@saasicat/nest/billing";',
-                "import F from '@saasicat/types';",
+                "import F from '@saasicat/core';",
             ].join('\n'),
         );
         assert.deepEqual(found, [
@@ -172,5 +183,75 @@ describe('one name from two entries in one file', () => {
         assert.deepEqual(result.ambiguous, [
             "FEATURE_UI_REGISTRY_TOKEN from '@saasicat/nest/catalog'",
         ]);
+    });
+});
+
+const RANGE = { targetRange: '^1.0.0-rc.1' };
+
+describe('a renamed package reaches the manifest', () => {
+    test('the dependency fields are rewritten, nothing else is', () => {
+        const before = JSON.stringify(
+            {
+                name: 'my-app',
+                description: 'uses @saasicat/types',
+                // A real 0.x consumer: the old range names a line the renamed
+                // package was never on. Carrying it over would produce
+                // `"@saasicat/core": "^0.27.0"`, which installs nothing.
+                dependencies: { '@saasicat/types': '^0.27.0', vue: '^3.5.0' },
+                devDependencies: { '@saasicat/ui-vue': 'workspace:^' },
+                peerDependencies: { '@saasicat/types': '^0.26.1' },
+            },
+            null,
+            2,
+        );
+        const { text, rewritten } = rewriteManifest(before + '\n', TABLE, RANGE);
+        const after = JSON.parse(text);
+        assert.equal(rewritten, 2);
+        assert.deepEqual(after.dependencies, { '@saasicat/core': '^1.0.0-rc.1', vue: '^3.5.0' });
+        assert.deepEqual(after.peerDependencies, { '@saasicat/core': '^1.0.0-rc.1' });
+        assert.equal(after.description, 'uses @saasicat/types', 'prose is not a dependency');
+        assert.match(text, /^ {2}"name"/m, 'the two-space indentation survived');
+        assert.ok(text.endsWith('\n'));
+    });
+
+    test('the optional flag follows the peer it belongs to', () => {
+        const before = JSON.stringify({
+            peerDependencies: { '@saasicat/types': '^0.27.0', vue: '^3.5.0' },
+            peerDependenciesMeta: { '@saasicat/types': { optional: true } },
+        });
+        const after = JSON.parse(rewriteManifest(before, TABLE, RANGE).text);
+        // Left under the old name, the renamed peer would read as required.
+        assert.deepEqual(after.peerDependenciesMeta, { '@saasicat/core': { optional: true } });
+    });
+
+    test('a workspace or path range is reported, not guessed at', () => {
+        const before = JSON.stringify({
+            dependencies: { '@saasicat/types': 'workspace:^' },
+            devDependencies: { '@saasicat/types': 'file:../saasicat/packages/types' },
+        });
+        const result = rewriteManifest(before, TABLE, RANGE);
+        assert.equal(result.rewritten, 0);
+        assert.equal(result.text, before);
+        assert.deepEqual(result.ambiguous, [
+            '@saasicat/types in dependencies (workspace:^)',
+            '@saasicat/types in devDependencies (file:../saasicat/packages/types)',
+        ]);
+    });
+
+    test('a manifest without the package is returned untouched', () => {
+        const before = '{\n    "name": "x",\n    "dependencies": { "vue": "^3.5.0" }\n}\n';
+        const result = rewriteManifest(before, TABLE, RANGE);
+        assert.equal(result.text, before);
+        assert.equal(result.rewritten, 0);
+    });
+
+    test('the specifier rewrite stops at the package boundary', () => {
+        const { text } = rewriteNames(
+            "import a from '@saasicat/types';\nimport b from '@saasicat/types/dist/x.js';\nimport c from '@saasicat/types-extra';",
+            TABLE,
+        );
+        assert.match(text, /from '@saasicat\/core';/);
+        assert.match(text, /from '@saasicat\/core\/dist\/x\.js';/);
+        assert.match(text, /from '@saasicat\/types-extra';/);
     });
 });

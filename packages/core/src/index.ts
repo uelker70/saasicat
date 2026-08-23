@@ -1,4 +1,4 @@
-// @saasicat/types — barrel export of all TS interfaces.
+// @saasicat/core — barrel export of all TS interfaces.
 // Required companion to @saasicat/spec.
 
 export * from './active-plan-version-query.js';

@@ -1,6 +1,6 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import type { PasswordHasher } from '@saasicat/types';
+import type { PasswordHasher } from '@saasicat/core';
 
 const KEY_LENGTH = 64;
 

@@ -17,7 +17,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OTP_VERIFY_MAX_ATTEMPTS } from '@saasicat/types';
+import { OTP_VERIFY_MAX_ATTEMPTS } from '@saasicat/core';
 import { PendingRegistrationService, hashOtpCode } from '../dist/registration/index.js';
 
 // ─── Test doubles ───────────────────────────────────────────────────────────

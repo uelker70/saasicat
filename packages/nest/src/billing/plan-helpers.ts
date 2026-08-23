@@ -12,7 +12,7 @@ import type {
     PlanDef,
     PlanId,
     QuotaKey,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { round2 } from '../promo/math.js';
 
 /**

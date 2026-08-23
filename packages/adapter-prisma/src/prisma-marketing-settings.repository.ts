@@ -3,7 +3,7 @@ import type {
     MarketingSettingsRepository,
     MarketingSettingsRow,
     UpdateMarketingSettingsData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import { toStringArray } from './tx.js';
 

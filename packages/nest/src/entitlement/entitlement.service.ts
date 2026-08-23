@@ -24,8 +24,8 @@ import type {
     SubscriptionRepository,
     TransactionContext,
     TransactionRunner,
-} from '@saasicat/types';
-import { BILLING_ERROR_CODES } from '@saasicat/types';
+} from '@saasicat/core';
+import { BILLING_ERROR_CODES } from '@saasicat/core';
 import { BUNDLE_REPOSITORY_TOKEN } from '../catalog/catalog.tokens.js';
 import { PLAN_CATALOG_TOKEN } from '../billing/plan-catalog.module.js';
 import { SUBSCRIPTION_BUNDLE_REPOSITORY_TOKEN } from '../billing/subscription-bundles.tokens.js';

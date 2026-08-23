@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { Observable, defer, from } from 'rxjs';
 import { switchAll } from 'rxjs/operators';
-import type { RlsBypassPort } from '@saasicat/types';
+import type { RlsBypassPort } from '@saasicat/core';
 import { RLS_BYPASS_PORT_TOKEN } from './admin.tokens.js';
 
 @Injectable()

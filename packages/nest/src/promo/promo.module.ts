@@ -24,7 +24,7 @@ import type {
     PromoRevenueDeductionAggregator,
     PromoSubscriptionLookup,
     TransactionRunner,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { PromoCodeExpirer } from './promo-code-expirer.service.js';
 import { PromoCodePublicController } from './promo.controller.js';

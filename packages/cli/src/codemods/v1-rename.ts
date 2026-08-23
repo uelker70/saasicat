@@ -22,6 +22,13 @@ export interface RenameTable {
     readonly entryTokens: Readonly<Record<string, Readonly<Record<string, string>>>>;
     /** A module specifier prefix and its replacement. */
     readonly subpaths: Readonly<Record<string, string>>;
+    /**
+     * A package that was renamed. Rewritten in specifiers by `rewriteNames`
+     * and in `package.json` dependency fields by `rewriteManifest` — both,
+     * because an import a manifest does not declare fails to resolve under
+     * pnpm's isolated `node_modules`.
+     */
+    readonly packages?: Readonly<Record<string, string>>;
 }
 
 export interface RenameResult {
@@ -149,7 +156,16 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
         });
     }
 
-    // 4. Subpaths that were renamed inside a package.
+    // 4. Subpaths renamed inside a package, and packages renamed outright. A
+    //    package name is matched up to a quote or a `/`, so `@saasicat/types`
+    //    does not reach into `@saasicat/types-extra` should one ever exist.
+    for (const [from, to] of Object.entries(table.packages ?? {})) {
+        if (from === '_') continue;
+        next = next.replace(new RegExp(`${escape(from)}(?=['"\`/])`, 'g'), () => {
+            rewritten += 1;
+            return to;
+        });
+    }
     for (const [from, to] of Object.entries(table.subpaths)) {
         next = next.replace(new RegExp(escape(from), 'g'), () => {
             rewritten += 1;
@@ -158,4 +174,85 @@ export function rewriteNames(text: string, table: RenameTable): RenameResult {
     }
 
     return { text: next, rewritten, ambiguous: [...ambiguous].sort() };
+}
+
+const DEPENDENCY_FIELDS = [
+    'dependencies',
+    'devDependencies',
+    'peerDependencies',
+    'optionalDependencies',
+] as const;
+
+/**
+ * Applies the package renames to a `package.json` text.
+ *
+ * Parsed and re-serialised rather than string-replaced, so a rename lands in a
+ * dependency field and nowhere else — not in `name`, not in a description.
+ * The file's indentation is kept; a consumer's formatter must not see a diff
+ * it did not cause. Returns the text unchanged when nothing applied.
+ */
+export interface ManifestRewriteOptions {
+    /**
+     * The range the renamed dependency gets — `^<the version this CLI was
+     * released as>`. The old range cannot be carried over: a 0.x consumer
+     * declares `"@saasicat/types": "^0.27.0"`, and `@saasicat/core` has no
+     * 0.27 — the rename starts on the 1.0 line. The caller passes the CLI's
+     * own version because that IS the line the consumer is migrating to;
+     * the codemod ships with it.
+     */
+    readonly targetRange: string;
+}
+
+/** A range that names one fixed location the rename cannot follow. */
+const UNTRANSLATABLE_RANGE = /^(workspace:|file:|link:|npm:|git\+|https?:)/;
+
+export function rewriteManifest(
+    text: string,
+    table: RenameTable,
+    options: ManifestRewriteOptions,
+): RenameResult {
+    const renames = Object.entries(table.packages ?? {}).filter(([from]) => from !== '_');
+    const ambiguous: string[] = [];
+    let manifest: Record<string, unknown>;
+    try {
+        manifest = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+        return { text, rewritten: 0, ambiguous };
+    }
+    let rewritten = 0;
+    for (const field of DEPENDENCY_FIELDS) {
+        const deps = manifest[field];
+        if (!deps || typeof deps !== 'object') continue;
+        const entries = Object.entries(deps as Record<string, string>);
+        const renamed = entries.map(([name, range]) => {
+            const to = renames.find(([from]) => from === name)?.[1];
+            if (!to) return [name, range] as const;
+            if (UNTRANSLATABLE_RANGE.test(range)) {
+                // A workspace link or a path points at a location the rename
+                // did not move; the consumer knows where it went, we do not.
+                ambiguous.push(`${name} in ${field} (${range})`);
+                return [name, range] as const;
+            }
+            rewritten += 1;
+            return [to, options.targetRange] as const;
+        });
+        manifest[field] = Object.fromEntries(renamed);
+    }
+    // `peerDependenciesMeta` is keyed by the peer's name; a flag left under
+    // the old name would make the renamed peer required downstream.
+    const meta = manifest.peerDependenciesMeta;
+    if (meta && typeof meta === 'object') {
+        manifest.peerDependenciesMeta = Object.fromEntries(
+            Object.entries(meta as Record<string, unknown>).map(([name, flags]) => {
+                const to = renames.find(([from]) => from === name)?.[1];
+                if (!to) return [name, flags] as const;
+                rewritten += 1;
+                return [to, flags] as const;
+            }),
+        );
+    }
+    if (rewritten === 0) return { text, rewritten: 0, ambiguous };
+    const indent = /^[ \t]+/m.exec(text)?.[0] ?? '    ';
+    const trailing = text.endsWith('\n') ? '\n' : '';
+    return { text: JSON.stringify(manifest, null, indent) + trailing, rewritten, ambiguous };
 }

@@ -9,7 +9,7 @@
 
 import { computed, defineAsyncComponent, defineComponent, h, inject, type Component } from 'vue';
 import { useRoute, type RouteRecordRaw } from 'vue-router';
-import type { AdminManifest, ProjectPageDef } from '@saasicat/types';
+import type { AdminManifest, ProjectPageDef } from '@saasicat/core';
 import {
     SUPER_ADMIN_EXTENSIONS_KEY,
     SUPER_ADMIN_MANIFEST_KEY,

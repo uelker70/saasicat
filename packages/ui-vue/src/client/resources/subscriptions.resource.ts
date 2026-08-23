@@ -4,7 +4,7 @@
 // takes no query and answers every subscription it can see. `SubscriptionsPage`
 // filters and sorts the rows it was given, in the browser.
 
-import type { AdminSubscriptionListRow } from '@saasicat/types';
+import type { AdminSubscriptionListRow } from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 import { requestJson } from './resource-request.js';

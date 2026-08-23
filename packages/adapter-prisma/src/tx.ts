@@ -1,4 +1,4 @@
-import type { TransactionContext } from '@saasicat/types';
+import type { TransactionContext } from '@saasicat/core';
 import type { PrismaTxLike } from './prisma-client-token.js';
 
 /**

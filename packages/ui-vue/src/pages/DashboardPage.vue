@@ -91,7 +91,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, reactive, ref, watch } from 'vue';
 import AdminErrorBanner from '../ui/feedback/AdminErrorBanner.vue';
-import type { AdminManifest, KpiCardDef } from '@saasicat/types';
+import type { AdminManifest, KpiCardDef } from '@saasicat/core';
 import { useResource } from '../vue/resource-registry.js';
 import type { ResourceOverride } from '../vue/resource-registry.js';
 import type { KpiReading, dashboardResource } from '../client/resources/dashboard.resource.js';

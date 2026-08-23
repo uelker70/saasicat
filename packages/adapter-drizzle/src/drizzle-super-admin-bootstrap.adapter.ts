@@ -7,8 +7,8 @@ import type {
     PlatformRole,
     PlatformUserDto,
     SuperAdminProvisioningPort,
-} from '@saasicat/types';
-import { PlatformUserExistsError } from '@saasicat/types';
+} from '@saasicat/core';
+import { PlatformUserExistsError } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { superAdminUsers } from './schema.js';
 

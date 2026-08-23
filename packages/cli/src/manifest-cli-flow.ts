@@ -6,7 +6,7 @@
 // `DEFAULT_MANIFEST_CHECKS` plus consumer-specific extensions).
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { AdminManifest, ManifestAccessPort } from '@saasicat/types';
+import type { AdminManifest, ManifestAccessPort } from '@saasicat/core';
 import { type ManifestCheck, type ManifestCheckResult } from './manifest-checks.js';
 import { MANIFEST_ACCESS_PORT_TOKEN, MANIFEST_CHECKS_TOKEN } from './cli.tokens.js';
 

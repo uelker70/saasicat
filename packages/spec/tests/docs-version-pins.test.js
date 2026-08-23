@@ -96,7 +96,7 @@ test('pin detection covers every spec form npm accepts', () => {
         'create-saasicat-admin@latest',
         '@saasicat/nest@next',
         '@saasicat/nest',
-        'pnpm add @saasicat/nest @saasicat/types',
+        'pnpm add @saasicat/nest @saasicat/core',
     ];
     for (const sample of allowed) {
         const hits = [...sample.matchAll(SPEC)].filter(([, spec]) => isVersionPin(spec));

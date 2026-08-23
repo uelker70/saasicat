@@ -324,7 +324,7 @@ import {
     type PromotionStatus,
     type PromotionType,
     type UpdatePromotionData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages, useSuperAdminI18n } from '../../vue/use-super-admin-i18n.js';

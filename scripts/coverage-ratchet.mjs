@@ -49,7 +49,7 @@ const REPORT = join(REPO_ROOT, 'coverage-report.json');
 /** Packages whose `test` script is a plain `node --test` run. */
 const PACKAGES = [
     'spec',
-    'types',
+    'core',
     'nest',
     'adapter-prisma',
     'adapter-drizzle',

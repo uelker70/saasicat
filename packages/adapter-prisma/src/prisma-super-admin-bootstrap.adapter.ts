@@ -5,8 +5,8 @@ import type {
     PlatformRole,
     PlatformUserDto,
     SuperAdminProvisioningPort,
-} from '@saasicat/types';
-import { PlatformUserExistsError } from '@saasicat/types';
+} from '@saasicat/core';
+import { PlatformUserExistsError } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 
 /**

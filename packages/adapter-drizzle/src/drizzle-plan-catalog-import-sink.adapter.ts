@@ -7,7 +7,7 @@ import type {
     UpsertPlanInput,
     UpsertPlanVersionInput,
     UpsertResult,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { featureCatalogEntries, plans, planVersions } from './schema.js';
 

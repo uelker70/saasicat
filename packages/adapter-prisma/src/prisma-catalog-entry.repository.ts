@@ -15,7 +15,7 @@ import type {
     UpsertCapabilityEntryData,
     UpsertFeatureEntryData,
     UpsertQuotaEntryData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 
 /** DB columns this repository reads from `capability_catalog_entries`. */

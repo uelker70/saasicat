@@ -4,7 +4,7 @@ import type {
     SubscriptionRecord,
     SubscriptionRepository,
     TransactionContext,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     DRIZZLE_DB_TOKEN,
     resolveDb,

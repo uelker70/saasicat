@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { PromoCodeValidationLogRepository } from '@saasicat/types';
+import type { PromoCodeValidationLogRepository } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaLike } from './prisma-client-token.js';
 
 /** `PromoCodeValidationLogRepository` against `promo_code_validation_logs`. */

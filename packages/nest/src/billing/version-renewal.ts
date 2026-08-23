@@ -5,7 +5,7 @@
 // pure functions** defined here, which determine for each subscription
 // what to do.
 
-import type { BillingCycle } from '@saasicat/types';
+import type { BillingCycle } from '@saasicat/core';
 import { periodEndAfter } from './billing-period.js';
 
 /**

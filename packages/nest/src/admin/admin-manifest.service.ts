@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { AdminManifest, ManifestContribution } from '@saasicat/types';
+import type { AdminManifest, ManifestContribution } from '@saasicat/core';
 import { ADMIN_MANIFEST_CONFIG, type AdminManifestConfig } from './admin-manifest.config.js';
 
 /**

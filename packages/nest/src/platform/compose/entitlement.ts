@@ -3,7 +3,7 @@ import type {
     PlanVersionRepository,
     SubscriptionRepository,
     TransactionRunner,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import type { ProviderSpec } from '../../core/di.js';
 import { EntitlementModule } from '../../entitlement/entitlement.module.js';

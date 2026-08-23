@@ -9,7 +9,7 @@
 import type { App, Component, InjectionKey } from 'vue';
 import type { NavigationGuardWithThis, RouteLocationNormalized } from 'vue-router';
 
-import type { ActionKey, AdminManifest, ComponentKey } from '@saasicat/types';
+import type { ActionKey, AdminManifest, ComponentKey } from '@saasicat/core';
 import type { ActionHandler } from '../client/action-registry.js';
 import type { HttpClient } from '../client/types.js';
 

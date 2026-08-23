@@ -149,11 +149,11 @@ way to make a build pass.
 
 ## Codegen: never edit generated types
 
-The DTO types in `@saasicat/types` are **generated** from the JSON Schemas in
+The DTO types in `@saasicat/core` are **generated** from the JSON Schemas in
 `@saasicat/spec`:
 
 ```bash
-pnpm --filter @saasicat/types gen:types
+pnpm --filter @saasicat/core gen:types
 ```
 
 A drift test (`codegen-drift.test.js`) regenerates the types in CI and fails the PR

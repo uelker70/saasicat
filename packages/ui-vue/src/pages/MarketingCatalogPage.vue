@@ -151,7 +151,7 @@ import {
     type PlanVersionRow,
     type PromotionResult,
     type PromotionRow,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { usePlans } from '../vue/use-plans.js';
 import { useMarketingProjections } from '../vue/use-marketing-projections.js';
 import { usePromotions } from '../vue/use-promotions.js';

@@ -8,7 +8,7 @@ import type {
     DiscoverySnapshot,
     StrictModeWarning,
     StrictModeWarningCode,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 /**
  * Advisory warnings (#35): they inform but never block — not even in

@@ -39,7 +39,7 @@ import {
     type SubscriptionRepository,
     type UpdateBundleData,
     type UpdateBundleVersionDraftData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { classifyBundleVersionDiff } from '../billing/version-diff.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';

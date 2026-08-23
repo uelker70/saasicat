@@ -3,7 +3,7 @@ import type {
     CheckoutOfferPriceBreakdown,
     CheckoutOfferPromoCodeSnapshot,
     CheckoutOfferPromotionSnapshot,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 export interface AppendImplicitDiscountLineItemInput {
     billingCycle: 'monthly' | 'yearly';

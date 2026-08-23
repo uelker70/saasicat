@@ -22,7 +22,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { type Observable, from } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
-import type { QuotaProvider } from '@saasicat/types';
+import type { QuotaProvider } from '@saasicat/core';
 import { ENFORCE_QUOTA_KEY } from '../discovery/discovery.tokens.js';
 import { LimitExceededError } from '../entitlement/limit-exceeded-error.js';
 import { StaticEntitlementService } from './static-entitlement.service.js';

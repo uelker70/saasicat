@@ -11,6 +11,7 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 const CLI = fileURLToPath(new URL('../bin/saasicat.js', import.meta.url));
+const OWN_MANIFEST = fileURLToPath(new URL('../package.json', import.meta.url));
 
 // The commands an integrator actually types, run as processes.
 //
@@ -463,6 +464,26 @@ describe('codemod v1-rename', () => {
         assert.equal(code, 0, stdout);
         assert.match(stdout, /Would rewrite/);
         assert.equal(await readFile(join(root, 'src', 'app.ts'), 'utf8'), RENAME_SOURCE);
+    });
+
+    test('the package rename reaches package.json, under its own indentation', async () => {
+        const root = await consumer('rename-manifest');
+        const manifest =
+            '{\n  "name": "consumer",\n  "dependencies": {\n    "@saasicat/types": "^0.27.0"\n  }\n}\n';
+        await writeFile(join(root, 'package.json'), manifest, 'utf8');
+        const { stdout, code } = await cli(['codemod', 'v1-rename', `--dir=${root}`]);
+
+        assert.equal(code, 0, stdout);
+        const after = await readFile(join(root, 'package.json'), 'utf8');
+        // The range is the CLI's own version, not the 0.x one carried over.
+        // Compared as data, not by a pattern built from the version string.
+        const own = JSON.parse(await readFile(OWN_MANIFEST, 'utf8')).version;
+        assert.deepEqual(JSON.parse(after).dependencies, { '@saasicat/core': `^${own}` });
+        assert.doesNotMatch(after, /@saasicat\/types/);
+        assert.match(after, /^ {2}"name"/m);
+        // The lockfile is the consumer's to regenerate, and the command says so.
+        assert.match(stdout, /regenerate the lockfile/);
+        assert.match(stdout, /pnpm install/);
     });
 
     test('a second run has nothing left to do', async () => {

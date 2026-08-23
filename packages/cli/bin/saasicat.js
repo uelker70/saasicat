@@ -27,7 +27,7 @@
 
 import { readFile, writeFile, readdir, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -50,6 +50,7 @@ import {
     buildImportMap,
     migrationCreatedBy,
     rewriteImports,
+    rewriteManifest,
     rewriteNames,
     reportConstraints,
     patchAppModule,
@@ -548,6 +549,7 @@ async function cmdCodemodV1Imports(args) {
     let rewritten = 0;
     let touched = 0;
     await walkSources(root, async (full, source) => {
+        if (basename(full) === CODEMOD_MANIFEST) return;
         const result = rewriteImports(source, map);
         for (const [subpath, n] of result.unmapped) {
             unmapped.set(subpath, (unmapped.get(subpath) ?? 0) + n);
@@ -592,8 +594,15 @@ async function cmdCodemodV1Rename(args) {
     const ambiguous = new Map();
     let rewritten = 0;
     let touched = 0;
+    let manifestsTouched = 0;
     await walkSources(root, async (full, source) => {
-        const result = rewriteNames(source, table);
+        // A manifest takes the package renames in its dependency fields; a
+        // source file takes everything. Under pnpm an import a manifest does
+        // not declare fails to resolve, so the two travel together.
+        const result =
+            basename(full) === CODEMOD_MANIFEST
+                ? rewriteManifest(source, table, { targetRange: `^${OWN_VERSION}` })
+                : rewriteNames(source, table);
         for (const name of result.ambiguous) {
             ambiguous.set(name, (ambiguous.get(name) ?? 0) + 1);
         }
@@ -601,11 +610,26 @@ async function cmdCodemodV1Rename(args) {
         if (!dryRun) await writeFile(full, result.text);
         rewritten += result.rewritten;
         touched += 1;
+        if (basename(full) === CODEMOD_MANIFEST) manifestsTouched += 1;
     });
 
     console.log(
         `${dryRun ? 'Would rewrite' : 'Rewrote'} ${rewritten} name(s) in ${touched} file(s).`,
     );
+    if (manifestsTouched > 0) {
+        // The lockfile is not rewritten: its shape is the package manager's,
+        // and a wrong guess at it is worse than an honest instruction. A CI
+        // that installs with a frozen lockfile refuses the migrated checkout
+        // until it is regenerated.
+        console.log('');
+        console.log(
+            `${manifestsTouched} package.json ${manifestsTouched === 1 ? 'file' : 'files'} changed — ` +
+                'regenerate the lockfile before committing:',
+        );
+        console.log(
+            '  pnpm install   (or npm install / yarn install, whichever owns your lockfile)',
+        );
+    }
     if (ambiguous.size === 0) return;
 
     console.log('');
@@ -617,7 +641,19 @@ async function cmdCodemodV1Rename(args) {
     console.log('  FEATURE_UI_REGISTRY_TOKEN meant one registry in `@saasicat/nest/billing`');
     console.log('  and another in `@saasicat/nest/catalog`. Import it from the entry you');
     console.log('  mean — BILLING_FEATURE_UI_REGISTRY_TOKEN or CATALOG_FEATURE_UI_REGISTRY_TOKEN.');
+    console.log('  A dependency listed "in <field> (<range>)" points at a workspace or a path;');
+    console.log('  rename it by hand to @saasicat/core at the location you keep it.');
 }
+
+/**
+ * The version this CLI was released as — and therefore the line a consumer
+ * running its codemod is migrating to. The manifest rewrite sets the renamed
+ * dependency to `^<this>`, because the old range (`^0.27.0`) names a line
+ * the renamed package was never published on.
+ */
+const OWN_VERSION = JSON.parse(
+    await readFile(join(dirname(require_.resolve('@saasicat/cli')), '..', 'package.json'), 'utf8'),
+).version;
 
 /** Where a shipped codemod table lives, resolved through the package itself. */
 function codemodTable(name) {
@@ -630,6 +666,8 @@ function codemodTable(name) {
 const CODEMOD_SKIP = new Set(['node_modules', '.git', '.output', 'coverage']);
 const isBuildOutput = (name) => name === 'dist' || name.startsWith('dist-');
 const CODEMOD_EXTENSIONS = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|vue|md)$/;
+/** Walked for the package renames alone; see `rewriteManifest`. */
+const CODEMOD_MANIFEST = 'package.json';
 
 /** Every source file under `root` a codemod may touch, with its text. */
 async function walkSources(root, visit) {
@@ -641,7 +679,7 @@ async function walkSources(root, visit) {
                 await walk(full);
                 continue;
             }
-            if (!CODEMOD_EXTENSIONS.test(entry.name)) continue;
+            if (!CODEMOD_EXTENSIONS.test(entry.name) && entry.name !== CODEMOD_MANIFEST) continue;
             await visit(full, await readFile(full, 'utf8'));
         }
     };

@@ -20,7 +20,7 @@ run of the unit suites, not a second one.
 | `@saasicat/nest`                | 87.72%              | —                                     |
 | `create-saasicat-admin`         | 84.10%              | —                                     |
 | `@saasicat/cli`                 | 83.76%              | end-to-end command runs               |
-| `@saasicat/types`               | 80.41%              | codegen drift test                    |
+| `@saasicat/core`                | 80.41%              | codegen drift test                    |
 | `@saasicat/adapter-prisma`      | 65.23% → **67.11%** | persistence contract, real PostgreSQL |
 | `@saasicat/adapter-drizzle`     | 60.33% → **75.42%** | persistence contract, real PostgreSQL |
 | `@saasicat/persistence-testing` | 74.30%              | it _is_ the contract                  |
@@ -74,7 +74,7 @@ run when an adapter fails a case — the error paths of a test harness. Covering
 them would mean writing a deliberately broken adapter to fail against, which
 tests the harness rather than the platform.
 
-### `@saasicat/types` functions at 57.45%
+### `@saasicat/core` functions at 57.45%
 
 Generated type guards. Most are never called by this repository's own code
 because the types are used at compile time; a consumer validating untrusted

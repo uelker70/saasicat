@@ -8,7 +8,7 @@
 
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, test } from 'node:test';
-import type { TransactionContext } from '@saasicat/types';
+import type { TransactionContext } from '@saasicat/core';
 import type {
     PersistenceAdapterContractOptions,
     PersistenceContractHarness,

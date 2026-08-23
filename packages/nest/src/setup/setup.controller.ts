@@ -5,7 +5,7 @@
 // validation via class-validator (the consumer's global ValidationPipe).
 
 import { Body, Controller, Get, Post } from '@nestjs/common';
-import type { SetupConfirmMfaResponse, SetupResult, SetupStatusResponse } from '@saasicat/types';
+import type { SetupConfirmMfaResponse, SetupResult, SetupStatusResponse } from '@saasicat/core';
 import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 import { SaaSiCatPublicRoute } from '../core/public-route.js';

@@ -36,13 +36,13 @@ import type {
     CatalogEntryRepository,
     PlanRepository,
     SubscriptionBundleRepository,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     BILLING_ERROR_CODES,
     CATALOG_ERROR_CODES,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import {
     CATALOG_ENTRY_REPOSITORY_TOKEN,

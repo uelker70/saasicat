@@ -44,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import type { BundleRow } from '@saasicat/types';
+import type { BundleRow } from '@saasicat/core';
 import AdminAccordion from '../../ui/page/AdminAccordion.vue';
 import {
     bundleStatusMeta,

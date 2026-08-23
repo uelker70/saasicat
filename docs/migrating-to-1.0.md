@@ -31,6 +31,25 @@ both are listed at the end. Run it with `--dry-run` first if you want to see the
 `SaaSiCatModule` already existed as an alias; it is now the definition, and the old name is
 gone. The codemod rewrites the stem wherever it appears in an identifier.
 
+### The package that stopped being only types
+
+`@saasicat/types` is `@saasicat/core`. It always carried the pure domain logic both sides run —
+the error catalogues, `classifyPlanDiff`, the promo arithmetic — and the name promised less than
+that; pricing and proration are planned to consolidate there. Every import moves as-is:
+
+| before                                | after                                |
+| ------------------------------------- | ------------------------------------ |
+| `import { … } from '@saasicat/types'` | `import { … } from '@saasicat/core'` |
+
+The codemod rewrites the specifier **and the dependency in every `package.json` it meets** —
+under pnpm an import a manifest does not declare fails to resolve. The range becomes
+`^<the CLI's own version>`: a 0.x range like `^0.27.0` names a line `@saasicat/core` was never
+on. A `workspace:`, `file:` or `link:` range is reported instead, because it points at a location
+only you know. **Then regenerate your lockfile** (`pnpm install`, `npm install` or `yarn install`,
+whichever owns it): the codemod changes `package.json` and leaves the lockfile alone, and a CI that
+installs with `--frozen-lockfile` refuses the checkout until the two agree. `@saasicat/types` stays
+on npm at `0.27.0` for the 0.x line and gets no 1.0.
+
 ### Registry keys
 
 Every `Symbol.for` key is `saasicat/<package>/<Name>` now. Four prefixes became one:

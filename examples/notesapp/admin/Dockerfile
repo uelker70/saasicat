@@ -1,7 +1,7 @@
 # notesapp SuperAdmin UI.
 #
 # Build context is the REPO ROOT: the admin consumes `@saasicat/ui-vue` and
-# `@saasicat/types` from the workspace, which are built from source here.
+# `@saasicat/core` from the workspace, which are built from source here.
 #
 # nginx serves the built SPA and proxies /api to the backend, so browser and
 # API share an origin and no CORS configuration is needed.

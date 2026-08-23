@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { VersionChange } from '@saasicat/types';
+import type { VersionChange } from '@saasicat/core';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { CatalogSnapshot, ResolvedPlan } from './catalog-history.types.js';
 import PlanDiffCard from './PlanDiffCard.vue';

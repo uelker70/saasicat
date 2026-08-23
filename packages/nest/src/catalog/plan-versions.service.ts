@@ -29,7 +29,7 @@ import {
     type StrictModeWarning,
     type SubscriptionRepository,
     type UpdatePlanVersionDraftData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { classifyPlanDiff } from '../billing/version-diff.js';
 import { DISCOVERY_SNAPSHOT_TOKEN } from '../discovery/discovery.tokens.js';

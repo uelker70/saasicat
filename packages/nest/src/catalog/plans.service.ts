@@ -18,11 +18,11 @@ import type {
     PlanRow,
     SubscriptionRepository,
     UpdatePlanData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { SUBSCRIPTION_REPOSITORY_TOKEN } from '../entitlement/entitlement.tokens.js';
 import { PLAN_REPOSITORY_TOKEN } from './catalog.tokens.js';
-import { CATALOG_ERROR_CODES } from '@saasicat/types';
+import { CATALOG_ERROR_CODES } from '@saasicat/core';
 
 @Injectable()
 export class PlansService {

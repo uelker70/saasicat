@@ -22,13 +22,13 @@ import type {
     CreateCheckoutOfferData,
     PlanRepository,
     UpdateCheckoutOfferData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     CONTRACT_ERROR_CODES,
     buildFeatureRequiresIndex,
     collectUnsatisfiedRequires,
     startOfUtcDay,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import {
     BUNDLE_REPOSITORY_TOKEN,

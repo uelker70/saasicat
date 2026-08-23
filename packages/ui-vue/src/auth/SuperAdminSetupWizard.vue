@@ -154,7 +154,7 @@
 import { attachCause } from '../client/attach-cause.js';
 import AdminBanner from '../ui/feedback/AdminBanner.vue';
 import { computed, reactive, ref } from 'vue';
-import { SETUP_ERROR_CODES, type SetupConfirmMfaResponse, type SetupResult } from '@saasicat/types';
+import { SETUP_ERROR_CODES, type SetupConfirmMfaResponse, type SetupResult } from '@saasicat/core';
 
 import {
     useSuperAdminBrand,

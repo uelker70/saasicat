@@ -27,7 +27,7 @@
 // which reads the same platform route — and `tests/resources-match-the-
 // composables.test.js` pairs them.
 
-import type { AdminAuditListFilter, AuditEntry } from '@saasicat/types';
+import type { AdminAuditListFilter, AuditEntry } from '@saasicat/core';
 
 import { defineResource } from './define-resource.js';
 import { filterQueryString } from './list-resource.js';

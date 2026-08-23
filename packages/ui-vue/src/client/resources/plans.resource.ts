@@ -19,7 +19,7 @@ import type {
     PlanVersionRow,
     UpdatePlanData,
     UpdatePlanVersionDraftData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 

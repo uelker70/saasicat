@@ -25,7 +25,7 @@
 //
 
 import { Module, type DynamicModule, type Type } from '@nestjs/common';
-import type { PlanCatalog, QuotaProvider } from '@saasicat/types';
+import type { PlanCatalog, QuotaProvider } from '@saasicat/core';
 import { SaaSiCatModule } from '../platform/saasicat.module.js';
 import type { SaaSiCatAdapters } from '../platform/saasicat.module.js';
 

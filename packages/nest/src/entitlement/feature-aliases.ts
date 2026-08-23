@@ -10,7 +10,7 @@
 // Pure functions, no NestJS DI — testable in isolation; the
 // EntitlementService wires them against the DiscoverySnapshot.
 
-import type { DiscoveredFeature } from '@saasicat/types';
+import type { DiscoveredFeature } from '@saasicat/core';
 
 /** Old feature key → direct successor keys (from their `replaces`). */
 export type ReplacedByIndex = ReadonlyMap<string, readonly string[]>;

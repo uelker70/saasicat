@@ -155,7 +155,7 @@
 </template>
 
 <script setup lang="ts">
-import type { MarketingTopFeature, PromotionResult, PromotionRow } from '@saasicat/types';
+import type { MarketingTopFeature, PromotionResult, PromotionRow } from '@saasicat/core';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 import type { MarketingRow } from './types.js';

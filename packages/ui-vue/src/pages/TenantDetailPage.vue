@@ -113,7 +113,7 @@ import type { tenantsResource } from '../client/resources/tenants.resource.js';
 import type { TenantDetailData, VerbrauchField } from '../internal/tenant-detail/types.js';
 import type { QTableColumn } from 'quasar';
 import { useSuperAdminNotify } from '../quasar/notify.js';
-import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
+import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../client/i18n/format.js';
 import TenantMasterData from '../internal/tenant-detail/TenantMasterData.vue';
 import TenantUsage from '../internal/tenant-detail/TenantUsage.vue';

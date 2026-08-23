@@ -17,7 +17,7 @@
 
 import { inject, provide, type ComputedRef, type InjectionKey, type Ref } from 'vue';
 
-import type { PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { PlanRow, PlanVersionRow } from '@saasicat/core';
 import type {
     BundleEntry,
     DiscoveryFeature,

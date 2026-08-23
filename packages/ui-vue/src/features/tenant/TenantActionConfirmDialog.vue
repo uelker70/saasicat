@@ -92,7 +92,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import AdminDialog from '../../ui/overlay/AdminDialog.vue';
-import type { TenantActionDef, TenantDto } from '@saasicat/types';
+import type { TenantActionDef, TenantDto } from '@saasicat/core';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';
 

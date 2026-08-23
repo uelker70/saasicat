@@ -7,7 +7,7 @@ import type {
     PromoCodeRedemptionStatus,
     PromoCodeValueType,
     TransactionContext,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type PrismaLike,

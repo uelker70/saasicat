@@ -13,7 +13,7 @@
 // and belongs in the page. Splitting it that way is what let the page's
 // `formatKpi` callback prop go away without taking the capability with it.
 
-import type { KpiCardDef } from '@saasicat/types';
+import type { KpiCardDef } from '@saasicat/core';
 
 import { requestJson } from './resource-request.js';
 import { defineResource } from './define-resource.js';

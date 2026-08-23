@@ -27,7 +27,7 @@
 // adapters, check the configuration, assemble.
 
 import { type DynamicModule, Logger, Module, type Provider } from '@nestjs/common';
-import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/types';
+import type { AuditPort, MfaPort, RlsBypassPort } from '@saasicat/core';
 
 import { type ProviderSpec } from '../core/di.js';
 import { AdminManifestService } from '../admin/admin-manifest.service.js';

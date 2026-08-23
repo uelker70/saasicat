@@ -17,13 +17,13 @@
         "test:shipped-source": "node ../ui-vue/scripts/check-shipped-source.mjs"
     },
     "peerDependencies": {
-        "@saasicat/types": "workspace:^",
+        "@saasicat/core": "workspace:^",
         "@saasicat/ui-vue": "workspace:^",
         "quasar": "^2.22.0",
         "vue": "^3.5.0"
     },
     "devDependencies": {
-        "@saasicat/types": "workspace:*",
+        "@saasicat/core": "workspace:*",
         "@saasicat/ui-vue": "workspace:*",
         "@types/node": "^25.6.0",
         "@vitejs/plugin-vue": "^6.0.8",

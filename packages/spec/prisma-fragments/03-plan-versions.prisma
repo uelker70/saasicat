@@ -72,7 +72,7 @@ model PlanVersion {
 
     publishedAt      DateTime?
     supersededAt     DateTime?
-    publishedChanges Json? // VersionChange[] — see @saasicat/types
+    publishedChanges Json? // VersionChange[] — see @saasicat/core
     changeNote       String
     nonRegressive    Boolean @default(true)
 

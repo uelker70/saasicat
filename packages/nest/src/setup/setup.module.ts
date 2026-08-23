@@ -13,7 +13,7 @@ import {
     type Provider,
     type Type,
 } from '@nestjs/common';
-import type { SuperAdminProvisioningPort } from '@saasicat/types';
+import type { SuperAdminProvisioningPort } from '@saasicat/core';
 
 import { asProvider, type ProviderSpec } from '../core/di.js';
 import { SetupController } from './setup.controller.js';

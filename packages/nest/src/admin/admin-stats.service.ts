@@ -6,7 +6,7 @@ import type {
     PromoCodeStatsSnapshot,
     SubscriptionStatsPort,
     SubscriptionStatsSnapshot,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     ADMIN_STATS_AUDIT_WINDOW_DAYS_TOKEN,
     AUDIT_STATS_PORT_TOKEN,

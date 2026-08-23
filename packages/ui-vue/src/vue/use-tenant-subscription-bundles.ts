@@ -5,7 +5,7 @@
 
 import { ref, type Ref } from 'vue';
 import { markEmptyResponse, markPlatformError } from '../client/admin-error.js';
-import type { SubscriptionBundleRecord } from '@saasicat/types';
+import type { SubscriptionBundleRecord } from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 

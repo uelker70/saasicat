@@ -8,8 +8,8 @@ import type {
     ScheduledPlanChangeInput,
     TenantSubscriptionWritePort,
     TransactionContext,
-} from '@saasicat/types';
-import { buildActivePlanVersionWhere } from '@saasicat/types';
+} from '@saasicat/core';
+import { buildActivePlanVersionWhere } from '@saasicat/core';
 import { PRISMA_CLIENT_TOKEN, type PrismaModelDelegateLike } from './prisma-client-token.js';
 import {
     createPrismaPlanBindingResolver,

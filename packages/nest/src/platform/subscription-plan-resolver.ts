@@ -1,4 +1,4 @@
-import type { SubscriptionRepository } from '@saasicat/types';
+import type { SubscriptionRepository } from '@saasicat/core';
 import type { PlanResolverPort } from './plan-resolver.port.js';
 
 const DEFAULT_ACTIVE_STATUSES = new Set(['ACTIVE', 'TRIAL']);

@@ -7,7 +7,7 @@
 // by consumers via a direct `fetcher.fetchOne` call.
 
 import { ref, watch, type Ref } from 'vue';
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 import {
     BatchColumnFetcher,
     type BatchColumnData,

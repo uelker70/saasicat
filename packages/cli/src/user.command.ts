@@ -11,7 +11,7 @@
 // `UserManagementPort`. Spec: packages/spec/cli-conventions.md §3.5.
 
 import { Inject, Injectable } from '@nestjs/common';
-import type { UserManagementPort } from '@saasicat/types';
+import type { UserManagementPort } from '@saasicat/core';
 import { randomBytes } from 'node:crypto';
 import { Command, CommandRunner, Option } from 'nest-commander';
 

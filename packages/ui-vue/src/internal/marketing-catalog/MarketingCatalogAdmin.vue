@@ -460,7 +460,7 @@
 
 <script setup lang="ts">
 import { useId } from 'vue';
-import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/types';
+import type { MarketingTopFeature, PlanRow, PlanVersionRow } from '@saasicat/core';
 import { identityChipStyle } from '../../client/identity-accents.js';
 import { formatMessage } from '../../client/i18n/format.js';
 import { useSaMessages } from '../../vue/use-super-admin-i18n.js';

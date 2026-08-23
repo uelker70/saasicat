@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { count, gte } from 'drizzle-orm';
-import type { AuditStatsPort } from '@saasicat/types';
+import type { AuditStatsPort } from '@saasicat/core';
 import { DRIZZLE_DB_TOKEN, type DrizzleClient } from './client.js';
 import { auditLogs } from './schema.js';
 

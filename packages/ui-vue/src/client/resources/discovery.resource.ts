@@ -15,7 +15,7 @@
 
 import { AdminError } from '../admin-error.js';
 import { requireServerAnswer } from '../http-json.js';
-import type { DiscoverySnapshot } from '@saasicat/types';
+import type { DiscoverySnapshot } from '@saasicat/core';
 
 import { defineResource, type ResourceContext } from './define-resource.js';
 

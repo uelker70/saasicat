@@ -1,4 +1,4 @@
-import type { PlanVersionRow } from '@saasicat/types';
+import type { PlanVersionRow } from '@saasicat/core';
 
 /**
  * Presentation contract retained for the reusable catalog timeline and diff

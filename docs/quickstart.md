@@ -41,7 +41,7 @@ For the reasoning behind each stage, read
 ```bash
 cd notesapp/backend
 pnpm add \
-    @saasicat/types \
+    @saasicat/core \
     @saasicat/spec \
     @saasicat/nest \
     @saasicat/adapter-prisma \
@@ -173,7 +173,7 @@ the quota's key, label and unit.
 ```ts
 import { Injectable } from '@nestjs/common';
 import { DefinesQuota } from '@saasicat/nest/discovery';
-import type { QuotaProvider } from '@saasicat/types';
+import type { QuotaProvider } from '@saasicat/core';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -240,7 +240,7 @@ import { Module } from '@nestjs/common';
 import { loadPlanCatalogFromFile } from '@saasicat/nest/billing';
 import { defineSaaSiCat, SaaSiCatModule } from '@saasicat/nest/platform';
 import { prismaPersistence } from '@saasicat/adapter-prisma';
-import type { FeatureUiRegistry } from '@saasicat/types';
+import type { FeatureUiRegistry } from '@saasicat/core';
 
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';

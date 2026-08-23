@@ -10,7 +10,7 @@
     },
     "dependencies": {
         "@quasar/extras": "^1.16.0",
-        "@saasicat/types": "workspace:^",
+        "@saasicat/core": "workspace:^",
         "@saasicat/ui-vue": "workspace:^",
         "@saasicat/ui-vue-tenant": "workspace:^",
         "axios": "^1.15.0",

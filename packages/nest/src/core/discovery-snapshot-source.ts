@@ -7,7 +7,7 @@
 // when the consumer pulls DiscoveryModule + CatalogModule from the SAME bundle);
 // the snapshot is then read at use time via `getSnapshot()`.
 
-import type { DiscoverySnapshot } from '@saasicat/types';
+import type { DiscoverySnapshot } from '@saasicat/core';
 
 interface SnapshotProducer {
     getSnapshot(): DiscoverySnapshot;

@@ -13,7 +13,7 @@ import type {
     PlanVersionRow,
     UpdatePlanData,
     UpdatePlanVersionDraftData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { requireServerAnswer } from '../client/http-json.js';
 import { defaultHttpClient, type HttpClient } from '../client/types.js';
 

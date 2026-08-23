@@ -8,7 +8,7 @@ import type {
     PlanRow,
     PlanVersionRow,
     VersionChange,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import {
     PRISMA_CLIENT_TOKEN,
     type FeatureCatalogEntryRowLike,

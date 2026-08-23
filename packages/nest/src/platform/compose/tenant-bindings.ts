@@ -5,7 +5,7 @@
 // and ends up in the composition root by default.
 
 import type { CanActivate, Type } from '@nestjs/common';
-import type { QuotaProvider, UsageSnapshotPort } from '@saasicat/types';
+import type { QuotaProvider, UsageSnapshotPort } from '@saasicat/core';
 
 import type { ProviderSpec } from '../../core/di.js';
 import { QuotaProvidersUsageSnapshot } from '../quota-providers-usage-snapshot.js';

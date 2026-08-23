@@ -7,7 +7,7 @@
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { generateSecret, generateURI, verify as verifyTotpCode } from 'otplib';
-import type { MfaPort } from '@saasicat/types';
+import type { MfaPort } from '@saasicat/core';
 import { MFA_PORT_TOKEN } from './admin.tokens.js';
 
 /**

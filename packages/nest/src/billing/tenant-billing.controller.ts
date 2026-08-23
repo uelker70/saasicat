@@ -20,8 +20,8 @@ import type {
     SubscriptionUsageRecord,
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
-} from '@saasicat/types';
-import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/types';
+} from '@saasicat/core';
+import { AUTH_ERROR_CODES, BILLING_ERROR_CODES } from '@saasicat/core';
 import { toEffectiveLimitsSnapshot } from '../entitlement/aggregation.js';
 import { EntitlementService } from '../entitlement/entitlement.service.js';
 import { ENTITLEMENT_SERVICE_TOKEN } from '../entitlement/entitlement.tokens.js';
@@ -53,7 +53,7 @@ import {
 import { CompleteOnboardingSubscriptionDto } from './dto/onboarding-subscription.dto.js';
 import { PromoCodesService } from '../promo/promo.service.js';
 import { SubscriptionBundlesService } from './subscription-bundles.service.js';
-import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/types';
+import type { AdminActor, OnboardingSelectionResponse } from '@saasicat/core';
 import { AdminAuditService } from '../admin/admin-audit.service.js';
 import {
     AUDIT_CONTEXT_RESOLVER_TOKEN,
@@ -420,7 +420,7 @@ export class TenantBillingController {
         // writes.
         const canRedeem = !!dto.promoCode && !!this.promoCodes && !!sub.id;
         const redeemPromoCallback = canRedeem
-            ? async (tx: import('@saasicat/types').TransactionContext, subscriptionId: string) =>
+            ? async (tx: import('@saasicat/core').TransactionContext, subscriptionId: string) =>
                   this.promoCodes!.redeemInTransaction(
                       {
                           code: dto.promoCode!,
@@ -721,7 +721,7 @@ export class TenantBillingController {
     }
 
     private toResponseRedemption(
-        redemption: import('@saasicat/types').PromoCodeRedemptionRecord,
+        redemption: import('@saasicat/core').PromoCodeRedemptionRecord,
         code: string,
     ): NonNullable<OnboardingSelectionResponse['promoRedemption']> {
         return {

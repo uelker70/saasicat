@@ -6,7 +6,7 @@
 // manifest changes (e.g. after `manifest reload`).
 
 import { computed, type ComputedRef, type Ref } from 'vue';
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 import { ActionRegistry, type ActionHandler } from '../client/action-registry.js';
 
 export interface UseActionsResult {

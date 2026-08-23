@@ -9,7 +9,7 @@ import type {
     ConfiguratorCatalog,
     ConfiguratorPriceBreakdown,
     RegistrationConfigSelection,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 function round2(value: number): number {
     return Math.round(value * 100) / 100;

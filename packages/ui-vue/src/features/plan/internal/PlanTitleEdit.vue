@@ -30,7 +30,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
-import type { PlanRow } from '@saasicat/types';
+import type { PlanRow } from '@saasicat/core';
 import { useSaMessages } from '../../../vue/use-super-admin-i18n.js';
 
 // The plan name as the page heading, renameable in place.

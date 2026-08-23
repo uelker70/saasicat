@@ -4,7 +4,7 @@
 // `null` (the approval part is skipped, e.g. minimal deploy without
 // catalog entries).
 
-import type { ApprovedCatalogKeys, CatalogEntryRepository } from '@saasicat/types';
+import type { ApprovedCatalogKeys, CatalogEntryRepository } from '@saasicat/core';
 
 export async function loadApprovedCatalogKeys(
     repo: CatalogEntryRepository | null,

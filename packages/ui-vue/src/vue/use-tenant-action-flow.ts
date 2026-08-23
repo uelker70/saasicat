@@ -12,7 +12,7 @@
 // `createSuperAdminApp({ actions: { [actionKey]: handler } })`.
 
 import { computed, type ComputedRef, type Ref } from 'vue';
-import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/types';
+import type { AdminManifest, TenantActionDef, TenantDto } from '@saasicat/core';
 import { ActionRegistry } from '../client/action-registry.js';
 import { formatMessage } from '../client/i18n/format.js';
 import { useSuperAdminActions } from './use-super-admin-context.js';

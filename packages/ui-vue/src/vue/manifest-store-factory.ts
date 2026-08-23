@@ -12,7 +12,7 @@
 
 import { defineStore, type StoreDefinition } from 'pinia';
 import { ref, type Ref } from 'vue';
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 import type { ManifestLoader } from '../client/manifest-loader.js';
 
 export interface ManifestStoreState {

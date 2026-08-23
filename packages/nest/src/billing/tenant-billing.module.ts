@@ -12,7 +12,7 @@ import type {
     SubscriptionUsagePort,
     TenantSubscriptionWritePort,
     UsageSnapshotPort,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import { SubscriptionContractService } from '../subscription-contract/subscription-contract.service.js';
 import { SUBSCRIPTION_CONTRACT_REPOSITORY_TOKEN } from '../subscription-contract/subscription-contract.tokens.js';
 import { ComposedTenantAuthGuard } from './composed-tenant-auth.guard.js';

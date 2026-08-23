@@ -1,7 +1,7 @@
 // Static, app-specific manifest parts that do not come via DI contributions.
 // Injected into the AdminManifestService at boot.
 
-import type { AdminManifest } from '@saasicat/types';
+import type { AdminManifest } from '@saasicat/core';
 
 export const ADMIN_MANIFEST_CONFIG = Symbol.for('saasicat/nest/AdminManifestConfig');
 

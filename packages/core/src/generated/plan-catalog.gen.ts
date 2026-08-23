@@ -1,7 +1,7 @@
 // AUTO-GENERATED — do not edit manually.
 //
 // Source: @saasicat/spec/schemas/plan-catalog.schema.json
-// Regenerate: `pnpm --filter @saasicat/types gen:types`
+// Regenerate: `pnpm --filter @saasicat/core gen:types`
 // Drift gate: tests/codegen-drift.test.js fails the PR when the schema and
 // the generated output diverge.
 

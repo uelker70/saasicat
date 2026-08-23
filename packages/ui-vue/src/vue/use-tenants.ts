@@ -12,7 +12,7 @@
 // filter changes (status/plan/search) with a re-fetch + reset to page 1.
 
 import { ref, type Ref } from 'vue';
-import type { TenantDto, TenantListFilter } from '@saasicat/types';
+import type { TenantDto, TenantListFilter } from '@saasicat/core';
 import { useApiList, type UseApiListOptions, type UseApiListResult } from './use-api-list.js';
 
 export interface UseTenantsOptions {

@@ -147,7 +147,7 @@ import type {
     PlanRow,
     PlanVersionRow,
     UpdateBundleVersionDraftData,
-} from '@saasicat/types';
+} from '@saasicat/core';
 import BundleVersionInlineEditor from '../../features/bundle/BundleVersionInlineEditor.vue';
 import BundleVersionStrip from '../../features/bundle/BundleVersionStrip.vue';
 import type { FeatureMeta } from '../../features/bundle/internal/BundleFeaturesEditor.vue';

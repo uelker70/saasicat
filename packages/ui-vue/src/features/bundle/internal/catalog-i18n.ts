@@ -13,7 +13,7 @@ import type {
     CatalogEntryI18n,
     FeatureCatalogEntryRow,
     QuotaCatalogEntryRow,
-} from '@saasicat/types';
+} from '@saasicat/core';
 
 export const CATALOG_DEFAULT_LOCALE = 'de';
 

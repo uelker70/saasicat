@@ -1,4 +1,4 @@
-import type { TransactionContext } from '@saasicat/types';
+import type { TransactionContext } from '@saasicat/core';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 
 /**
