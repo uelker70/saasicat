@@ -30,9 +30,16 @@ existing NestJS backend to a discovered, packaged and enforced feature.
 
 ## Reference
 
-| Page                                   | Contents                                                                   |
-| -------------------------------------- | -------------------------------------------------------------------------- |
-| [Module options](reference/options.md) | Every `defineSaaSiCat` option, generated from the rules the code enforces. |
+Every page here is generated from the sources it describes — a reference page
+that is maintained by hand describes what somebody remembered.
+
+| Page                                        | Contents                                                           |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| [Module options](reference/options.md)      | Every `defineSaaSiCat` option, from the rules the code enforces.   |
+| [Ports](reference/ports.md)                 | Every seam you can implement, with each member's own description.  |
+| [Error codes](reference/error-codes.md)     | Every code a platform error carries, and its shipped English text. |
+| [Design tokens](reference/design-tokens.md) | Every `--sa-*`, by layer, with its value in both themes.           |
+| [UI primitives](reference/ui-primitives.md) | The `Admin*` roster and the props each component takes.            |
 
 The OpenAPI contract for the SuperAdmin API is
 `packages/spec/admin-api.openapi.yaml`; the JSON Schemas that govern wire

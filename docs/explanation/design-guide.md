@@ -15,6 +15,12 @@ if you know which block you are writing, you know which component renders it.
 - [Writing CSS in a page](#writing-css-in-a-page)
 - [Accessibility baseline](#accessibility-baseline)
 
+Two lookups sit beside this guide and are generated from the code rather than
+written: [design tokens](../reference/design-tokens.md) — every `--sa-*` by
+layer, with its value in both themes — and
+[UI primitives](../reference/ui-primitives.md), the `Admin*` roster with the
+props each component takes.
+
 ---
 
 ## The page recipe
@@ -135,11 +141,16 @@ announce it. The screen's own root class is more specific than `.sa-page`, so
 its frame still wins; only the reach is shared.
 `tests/theme-reaches-every-page.test.js` holds every page to it.
 
-> **Not yet in the roster.** The banner, empty-state, dialog and row-action
-> primitives named in the plan arrive with the Phase 4 directory move. Until
-> then a page writes those by hand; when they land, the recipe gains a
-> `<AdminErrorBanner>` under the hero and an `<AdminEmptyState>` in the body's
-> `#empty` slot. Everything else above is what ships today.
+The full roster, with the props each component takes, is
+[the UI primitives reference](../reference/ui-primitives.md) — generated from
+the components themselves, so it cannot fall behind them. The recipe above uses
+`<AdminErrorBanner>` under the hero and `<AdminEmptyState>` in the body's
+`#empty` slot; both ship, along with the dialog and row-action primitives.
+
+Anything not on that roster comes from Quasar directly, styled through the
+theme. Buttons, inputs, tabs and badges are Quasar components: a wrapper around
+one would add a layer that only forwards, and the roster is not extended on a
+whim.
 
 ---
 
