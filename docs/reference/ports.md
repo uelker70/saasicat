@@ -153,12 +153,14 @@ Narrow port for the first-run setup (interface segregation): ONLY an existence c
 
 ### `UserManagementPort`
 
-| Member                                                                                          | What it does                                                             |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `reassignTenantAdmin(tenantSlug: string, email: string): Promise<ReassignTenantAdminCliResult>` | Promotes an existing user to TENANT_ADMIN or creates an emergency admin. |
-| `listTenantUsers(tenantSlug: string): Promise<CliUserRow[]>`                                    | Lists a tenant's users (by slug) for `<app> user list`.                  |
-| `triggerPasswordReset(email: string): Promise<PasswordResetCliResult>`                          | Triggers the app's own password reset (one-time password or OTP email).  |
-| `deactivate(email: string, reason: string): Promise<PlatformUserDto>`                           | Deactivates a user (app-specific status).                                |
+| Member                                                                                          | What it does                                                                     |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `countSuperAdmins(): Promise<number>`                                                           | Number of active SUPER_ADMIN users — basis for the first-run setup guard.        |
+| `createSuperAdmin(input: CreateSuperAdminCliInput): Promise<PlatformUserDto>`                   | Creates a new SUPER_ADMIN; throws `PlatformUserExistsError` if the email exists. |
+| `reassignTenantAdmin(tenantSlug: string, email: string): Promise<ReassignTenantAdminCliResult>` | Promotes an existing user to TENANT_ADMIN or creates an emergency admin.         |
+| `listTenantUsers(tenantSlug: string): Promise<CliUserRow[]>`                                    | Lists a tenant's users (by slug) for `<app> user list`.                          |
+| `triggerPasswordReset(email: string): Promise<PasswordResetCliResult>`                          | Triggers the app's own password reset (one-time password or OTP email).          |
+| `deactivate(email: string, reason: string): Promise<PlatformUserDto>`                           | Deactivates a user (app-specific status).                                        |
 
 ### `MfaPort`
 

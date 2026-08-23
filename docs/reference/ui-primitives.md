@@ -21,6 +21,8 @@ Generated from `packages/ui-vue/src/ui` — 22 components. Do not edit by hand:
 | `disabled` | `boolean`                | optional     |
 | `markTone` | `'accent' \| 'negative'` | optional     |
 
+Emits: `update:open`.
+
 ### `<AdminBody>`
 
 | Prop          | Type      |          |

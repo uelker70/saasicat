@@ -1,7 +1,10 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { PlanCatalogImporterService } from '../dist/billing/index.js';
+import {
+    buildPlanCatalogImporterController,
+    PlanCatalogImporterService,
+} from '../dist/billing/index.js';
 
 // — plan importer tests.
 //
@@ -154,5 +157,57 @@ plans:
         const sink = new FakeSink();
         const service = new PlanCatalogImporterService(sink);
         await assert.rejects(() => service.importFromYaml(invalidYaml));
+    });
+
+    // The endpoint answers 400 for a body it could not read, and the reason is
+    // the caller's: without this the loader's plain `Error` reached Nest's
+    // default handler as a 500, and a client could not tell a bad upload from
+    // a broken server — the one they can fix looked like the one they cannot.
+    describe('the endpoint tells a bad body from a broken server', () => {
+        const endpoint = () => {
+            const Controller = buildPlanCatalogImporterController([]);
+            return new Controller(new PlanCatalogImporterService(new FakeSink()));
+        };
+
+        test('a schema violation answers 400 with a code', async () => {
+            await assert.rejects(
+                () => endpoint().import({ yamlContent: 'not: valid_catalog' }),
+                (error) => {
+                    assert.equal(error.getStatus(), 400);
+                    assert.equal(error.getResponse().code, 'PLAN_CATALOG_INVALID');
+                    return true;
+                },
+            );
+        });
+
+        test('unreadable YAML answers 400 as well', async () => {
+            await assert.rejects(
+                () => endpoint().import({ yamlContent: 'plans:\n  - id: [unclosed' }),
+                (error) => {
+                    assert.equal(error.getStatus(), 400);
+                    return true;
+                },
+            );
+        });
+
+        test('a failure from the store keeps its 500', async () => {
+            // The distinction the endpoint has to make, from the other side:
+            // a sink that throws is not the caller's mistake, and turning it
+            // into a 400 would send them looking at their own file.
+            const brokenSink = new FakeSink();
+            brokenSink.upsertPlan = async () => {
+                throw new Error('connection terminated unexpectedly');
+            };
+            const Controller = buildPlanCatalogImporterController([]);
+            const controller = new Controller(new PlanCatalogImporterService(brokenSink));
+
+            await assert.rejects(
+                () => controller.import({ yamlContent: SAMPLE_YAML }),
+                (error) => {
+                    assert.equal(typeof error.getStatus, 'undefined');
+                    return true;
+                },
+            );
+        });
     });
 });

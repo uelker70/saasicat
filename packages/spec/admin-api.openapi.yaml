@@ -654,8 +654,26 @@ paths:
                                     generatedPassword:
                                         type: string
                                         description: Present only when the server generated it
+                '400':
+                    description: The email is not an address the platform accepts
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '401':
+                    description: The token does not match SETUP_TOKEN
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
                 '403':
-                    description: Setup window closed or token wrong
+                    description: SETUP_TOKEN is not set — setup is disabled
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
+                '409':
+                    description: A SUPER_ADMIN already exists — the window closed itself
                     content:
                         application/json:
                             schema:
@@ -687,8 +705,14 @@ paths:
                                 required: [ok]
                                 properties:
                                     ok: { type: boolean }
+                '401':
+                    description: The token does not match SETUP_TOKEN
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ErrorResponse'
                 '403':
-                    description: Setup window closed or token wrong
+                    description: SETUP_TOKEN is not set — setup is disabled
                     content:
                         application/json:
                             schema:

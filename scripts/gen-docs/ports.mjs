@@ -25,16 +25,36 @@ const AREA = {
     'promo-ports.types.ts': 'Promo codes',
 };
 
-/** The interfaces whose name ends in `Port`, with their methods. */
+/**
+ * The interfaces whose name ends in `Port`, with their methods.
+ *
+ * Inherited members count. `UserManagementPort extends SuperAdminProvisioningPort`,
+ * and an implementer has to write `countSuperAdmins()` and `createSuperAdmin()`
+ * whether or not that interface declares them itself — a page that claims to
+ * list every member and skips two is worse than one that never claimed it.
+ */
 export function portsIn(text, file) {
     const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
-    const found = [];
-
+    const declarations = new Map();
     for (const statement of source.statements) {
-        if (!ts.isInterfaceDeclaration(statement)) continue;
-        if (!statement.name.text.endsWith('Port')) continue;
+        if (ts.isInterfaceDeclaration(statement)) declarations.set(statement.name.text, statement);
+    }
 
-        const members = statement.members
+    const membersOf = (declaration, seen = new Set()) => {
+        if (seen.has(declaration.name.text)) return [];
+        seen.add(declaration.name.text);
+
+        const inherited = (declaration.heritageClauses ?? []).flatMap((clause) =>
+            clause.types.flatMap((type) => {
+                const base = declarations.get(type.expression.getText());
+                // A base from another file is named rather than dropped: the
+                // reader needs to know the members exist even where this file
+                // cannot list them.
+                return base ? membersOf(base, seen) : [];
+            }),
+        );
+
+        const own = declaration.members
             .filter((member) => ts.isMethodSignature(member) || ts.isPropertySignature(member))
             .map((member) => ({
                 name: member.name.getText(),
@@ -42,10 +62,16 @@ export function portsIn(text, file) {
                 summary: leadingSummary(text, member.getFullStart()),
             }));
 
+        return [...inherited, ...own];
+    };
+
+    const found = [];
+    for (const [name, declaration] of declarations) {
+        if (!name.endsWith('Port')) continue;
         found.push({
-            name: statement.name.text,
-            summary: leadingSummary(text, statement.getFullStart()),
-            members,
+            name,
+            summary: leadingSummary(text, declaration.getFullStart()),
+            members: membersOf(declaration),
         });
     }
     return found;

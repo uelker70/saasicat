@@ -78,16 +78,28 @@ export function componentApi(script, file) {
     return { props, emits };
 }
 
-/** `{ (e: 'save', value: X): void }` → `save`. */
+/**
+ * The event names in a `defineEmits` type argument, in either form Vue accepts.
+ *
+ * `{ (e: 'save', value: X): void }` is the call-signature form, and
+ * `{ 'update:open': [value: boolean] }` is the named-tuple one — `AdminAccordion`
+ * uses the second, and reading only the first left its event out of the page.
+ */
 function emitNames(typeNode) {
     const names = [];
     if (!ts.isTypeLiteralNode(typeNode)) return names;
     for (const member of typeNode.members) {
-        if (!ts.isCallSignatureDeclaration(member)) continue;
-        const [event] = member.parameters;
-        const literal = event?.type;
-        if (literal && ts.isLiteralTypeNode(literal) && ts.isStringLiteral(literal.literal)) {
-            names.push(literal.literal.text);
+        if (ts.isCallSignatureDeclaration(member)) {
+            const [event] = member.parameters;
+            const literal = event?.type;
+            if (literal && ts.isLiteralTypeNode(literal) && ts.isStringLiteral(literal.literal)) {
+                names.push(literal.literal.text);
+            }
+            continue;
+        }
+        if (ts.isPropertySignature(member)) {
+            const name = member.name;
+            if (ts.isStringLiteral(name) || ts.isIdentifier(name)) names.push(name.text);
         }
     }
     return names;
